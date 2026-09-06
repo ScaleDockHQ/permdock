@@ -18,15 +18,16 @@ Permission logic in a typical TypeScript app is spread across `if (user.role ===
 - **Reference-based.** `permissions.post.update` is a typed, frozen object carrying `key`, `scope`, schema and metadata. Go-to-definition, rename-safe, no template-literal unions for TypeScript 7 to expand, and the runtime definition *is* the catalog.
 - **Standard-Schema-native.** Resources are built from any [Standard Schema](https://standardschema.dev) validator; instance types are inferred; untrusted inputs are validated at trust boundaries only.
 - **Policy as data.** Roles are arrays of `allow` / `deny` grants with a portable condition AST. One condition evaluates to a boolean in the browser, filters arrays, compiles to Drizzle / Prisma / Kysely `where`, and generates Postgres RLS.
-- **Immutable, request-scoped.** `createPermDock(policy, user)` returns a frozen `PermDock`. Safe in RSC, edge, serverless and concurrent requests.
+- **Multi-tenant roles without a second system.** A role is held globally, in a tenant, in a team or on one resource; `role('admin', grants, { on: 'tenant' })` replaces the `orgId` condition you used to repeat on every grant. Tenant admins compose their own roles from the ones you declared, never wider. Memberships come from your auth provider; PermDock stores nothing. Read [Tenants, teams and scoped roles](./apps/docs/content/docs/concepts/tenancy.mdx).
+- **Immutable, request-scoped.** `createPermDock(policy, user)` returns a frozen `PermDock`. Safe in RSC, edge, serverless and concurrent requests. `permdock.tenant(id)` derives another frozen instance for a tenant switch or a preview.
 - **Decisions, not booleans.** `decide()` returns `granted`, `denied` or `approval-required` with the matched grant, denial reasons and permitted alternatives. Adapters turn that into RFC 9457 Problem Details, model-readable MCP refusals and AI SDK approval states.
 - **Snapshots that carry conditions.** The client answers ownership checks offline; no duplicated client rules; `<Protected>` never blocks a Next.js 16.3 instant navigation.
 - **Agent-native.** Two-principal subject (principal + actor + delegation), MCP / AI SDK / Claude Agent SDK / Eve / OpenAI Agents SDK / WebMCP / A2A adapters, an AuthZEN 1.0 decision endpoint, shipped skills, `AGENTS.md` and `llms.txt`.
 - **Human approvals that resume safely.** `approval: 'human'` grants yield a third outcome with a replay-safe `token`; pending approvals live in a pluggable `ApprovalStore` (in-memory by default, your database, or PermDock Cloud), approvers are authenticated and never the agent, and plain HTTP resumes with a `PermDock-Approval` header.
 - **The Cloud is optional.** Every decision runs in-process. PermDock Cloud adds a hosted approval inbox, decision log and AuthZEN Authorization Decision Service behind interfaces the open-source package ships with in-process defaults; self-host or subscribe, the library is the same. Read [ADR 0021](./apps/docs/content/docs/decisions/0021-embedded-pdp-hosted-ads.mdx).
 - **RLS round-trip.** `permdock rls generate | import | verify` for Supabase, Neon and generic Postgres.
-- **Secure by default.** Fail-closed, deny overrides allow, unknown reference is a type error, prototype-safe, no eval, `service_role` never emitted, model-supplied subjects never trusted.
-- **Authentication stays upstream.** PermDock consumes verified material only: sessions, JWKS-verified JWTs (`permdock/jwt`, FAPI 2.0 profile, `jose` as an optional peer), Supabase / Clerk / Better Auth claims, MCP `authInfo`, workload identities. Read [Authentication](./apps/docs/content/docs/concepts/authentication.mdx).
+- **Secure by default.** Fail-closed, deny overrides allow, unknown reference is a type error, prototype-safe, no eval, `service_role` never emitted, model-supplied subjects never trusted, never a default tenant.
+- **Authentication stays upstream.** PermDock consumes verified material only: sessions, JWKS-verified JWTs (`permdock/jwt`, FAPI 2.0 profile, RFC 9068 `roles` / `groups` claims, `jose` as an optional peer), Supabase / Clerk / Better Auth claims and memberships, MCP `authInfo`, workload identities. Every `subjectFrom*` mapper takes a Standard Schema for your custom claims. Read [Authentication](./apps/docs/content/docs/concepts/authentication.mdx).
 
 ## Install
 
@@ -81,14 +82,17 @@ const member = role('member', [
   allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),     // → 'approval-required'
 ])
 
-const admin = role('admin', [...member.grants, allow(permissions.post.delete)])
+const admin = role('admin', [...member.grants, allow(permissions.post.delete)], { on: 'tenant' })  // held per tenant
 
 export const policy = definePolicy(permissions, {
   roles: [member, admin],
-  subject: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
+  scopes: { tenant: { key: 'orgId' } },   // the field a tenant-scoped grant compares against the membership
+  subject: (user: User | null) => user && { id: user.id, roles: user.roles, tenant: user.activeOrgId, memberships: user.memberships },
   validate: 'boundary', // validate data that crossed a trust boundary, skip trusted server rows
 })
 ```
+
+`memberships` is `[{ tenant: 'o_acme', roles: ['admin'] }, { tenant: 'o_acme', team: 't_design', roles: ['lead'] }]`: a list your auth provider already has. `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromSupabase` and `subjectFromJwt` produce it for you.
 
 ### 3. Create a `PermDock` and decide
 
@@ -103,12 +107,14 @@ permdock.assert(permissions.post.delete, post)           // narrows subject or t
 permdock.filter(permissions.post.read, posts)            // Post[]
 permdock.where(permissions.post.read)                    // portable condition → Drizzle / Prisma / Kysely / SQL
 permdock.snapshot({ include: [permissions.post] })       // JSON for the client
+permdock.tenant('o_globex').can(permissions.post.delete, post)  // derived instance with another active tenant
+permdock.tenants()                                       // ['o_acme', 'o_globex'] for a tenant switcher
 ```
 
 ### React
 
 ```tsx
-import { PermDockProvider, usePermission, Protected } from 'permdock/react'
+import { PermDockProvider, usePermission, useTenant, useFilter, Protected } from 'permdock/react'
 
 <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
   <Protected permission={permissions.post.update} data={post} pending={<Skeleton />} fallback={<Locked />}>
@@ -117,7 +123,11 @@ import { PermDockProvider, usePermission, Protected } from 'permdock/react'
 </PermDockProvider>
 
 const { allowed, status } = usePermission(permissions.post.update, post) // 'ready' | 'pending' | 'stale' | 'server-only'
+const { tenant, tenants, switchTo } = useTenant()                        // tenant switcher from the same snapshot
+const editable = useFilter(permissions.post.update, posts)               // the rows this user may edit
 ```
+
+Also `usePermissions`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject` and the pure `describe(decision)` for "why not" tooltips; the same names in React Native, Vue, Svelte and Solid. Read [Building UI](./apps/docs/content/docs/concepts/ui.mdx).
 
 ### Next.js 16.3
 
@@ -223,7 +233,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 | Agents | `permdock/mcp` `mcp-server` [2] · `permdock/ai-sdk` `ai-sdk-agent` [1] · `permdock/claude-agent` `claude-agent` [1] · `permdock/eve` `eve-agent` [1] · `permdock/openai` `openai-agent` [1] · `permdock/webmcp` `webmcp` [2] · `permdock/a2a` `a2a-agent` [2] |
 | Decision plane | `permdock/authzen` `authzen-pdp` [2] · `permdock/approvals` (`ApprovalStore`, `approvalsHandler`) [1] · `permdock/cloud` (optional PermDock Cloud client) [2] · `permdock/ssf` [3] · `permdock/openapi` (3.2 document or Overlay) [2] · `permdock/otel` [2] · `permdock/pdp` [4] |
 | Data | `permdock/drizzle` `drizzle` [3] · `permdock/prisma` `prisma` [3] · `permdock/kysely` [3] · `permdock rls` `supabase-rls` [3] |
-| Auth and providers | `permdock/jwt` [1] · `permdock/supabase` [3] · `permdock/better-auth` `better-auth` [4] · `permdock/clerk` `clerk` [4] · `permdock/convex` `convex` [4] |
+| Auth and providers | `permdock/jwt` (RFC 9068 roles and groups) [1] · `permdock/supabase` (tenant and memberships claims) [3] · `permdock/better-auth` `better-auth` (organizations, teams, dynamic roles) [4] · `permdock/clerk` `clerk` (organizations, custom roles) [4] · `permdock/convex` `convex` [4] |
 | Testing | `@permdock/testing` [1] |
 
 Full matrix with status, phases and related standards: [Adapters](./apps/docs/content/docs/adapters/index.mdx).
@@ -237,6 +247,7 @@ Around the OpenAPI output, PermDock composes with the tools you already run rath
 - **Kilpi v1**: server-first async policies, `Grant` / `Deny`, RSC `<Access>`; zod + superjson in core, no Standard Schema, RN, MCP or OpenAPI.
 - **`@zap-studio/permit`**: the only other Standard-Schema authz library; boolean results, sync-only rules, no adapters, hydration, OpenAPI or MCP.
 - **Better Auth access control**: RBAC statements bound to Better Auth; PermDock layers conditions, snapshots and adapters on top via a provider.
+- **Auth-provider RBAC (Clerk, Auth0, WorkOS, Kinde, Frontegg, Descope)**: organization roles and sometimes custom roles, checked as booleans inside the provider's SDK; PermDock reads their memberships as the subject and adds scoped roles, row conditions, approvals and the data compilers. Survey: [SaaS tenancy and roles](./apps/docs/content/docs/research/saas-tenancy-and-roles.mdx).
 - **Hosted PDPs (Cerbos, Permit.io, OpenFGA, SpiceDB, Oso Cloud)**: strings in, boolean out over the network; PermDock embeds as a typed library, can act as an AuthZEN PDP or PEP to them, and offers the operational layer they sell (approvals, decision log, hosted AuthZEN ADS) as an optional Cloud that is never on the decision path.
 - **ZenStack v3**: compiles policies to SQL but dropped the database-free `check()`; PermDock keeps in-process, UI and SQL evaluation on one AST.
 - **`@ai-sdk/policy-opa`**: Rego policies for AI SDK tool approvals that fail open on unrecognised decisions; `permdock/ai-sdk` uses the app's own typed policy and fails closed.

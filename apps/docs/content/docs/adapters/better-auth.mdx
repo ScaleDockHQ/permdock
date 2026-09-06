@@ -16,52 +16,66 @@ Better Auth's access control (`createAccessControl(statement)`, `ac.newRole(...)
 
 ```ts
 import { createPermDock, definePolicy, role, allow, subject } from 'permdock'
-import { subjectFromBetterAuth, rolesFromAccessControl } from 'permdock/better-auth'
+import { subjectFromBetterAuth, betterAuthRoleSource, rolesFromAccessControl } from 'permdock/better-auth'
 import { auth } from './auth'          // betterAuth({ plugins: [organization({ ac, roles })] })
 import { ac, owner, admin, member } from './permissions.better-auth'
 
-// 1. Subject: session + active organization + roles (static and dynamic)
+// 1. Subject: session + active organization + memberships (organization roles, team roles, dynamic roles)
 const session = await auth.api.getSession({ headers })
-const permdock = await createPermDock(policy, await subjectFromBetterAuth(auth, session))
-// subject = { id, orgId: activeOrganizationId, roles: ['member', 'billing-admin'], email }
+const permdock = await createPermDock(policy, await subjectFromBetterAuth(auth, session), {
+  customRoles: betterAuthRoleSource(auth),          // organizationRole rows -> RoleSource
+})
+// subject.principal = {
+//   id,
+//   tenant: activeOrganizationId,
+//   roles: ['support'],                              // user.role from the admin plugin: global
+//   memberships: [
+//     { tenant: 'o_acme', roles: ['member', 'billing-admin'] },                 // member.role; 'billing-admin' is dynamic
+//     { tenant: 'o_acme', team: 't_design', roles: ['lead'], via: 'team:t_design' },  // teamMember rows
+//   ],
+//   email,
+// }
 
 // 2. Optional: seed PermDock roles from Better Auth statements, then add what Better Auth cannot express
-const seeded = rolesFromAccessControl({ ac, roles: { owner, admin, member } }, permissions)
+const seeded = rolesFromAccessControl({ ac, roles: { owner, admin, member } }, permissions, { on: 'tenant' })
 export const policy = definePolicy(permissions, {
   roles: [
-    ...seeded,                                                                   // 'member' gets allow(post.read), allow(post.create), ...
-    role('member', [allow(permissions.post.update, { where: { authorId: subject.id } })]),  // fragment merges by name
+    ...seeded,                                                                   // 'member' gets allow(post.read), allow(post.create), ... scoped to the organization
+    role('member', [allow(permissions.post.update, { where: { authorId: subject.id } })], { on: 'tenant' }),  // fragment merges by name
+    role('support', [allow(permissions.post.read)]),                             // global: admin plugin role
   ],
-  subject: (s: BetterAuthSubject | null) => s && { id: s.id, orgId: s.orgId, roles: s.roles },
+  scopes: { tenant: { key: 'organizationId' }, team: { key: 'teamId' } },
 })
 ```
 
-- `subjectFromBetterAuth(auth, session, options?)` resolves the active organization member record and returns `id`, `orgId`, `roles` (static role names plus dynamic roles from the database when the `dynamicAccessControl` option is enabled in Better Auth) and selected user fields. It is async because dynamic roles require a query.
-- `rolesFromAccessControl(config, permissions)` maps each Better Auth statement entry `resource: [action]` to `allow(permissions.<resource>.<action>)` where a matching PermDock permission exists, producing role fragments that merge with hand-written fragments of the same name. Unmatched entries are reported, never silently dropped.
-- Server adapters accept the provider directly: `createPermDock(policy, { subject: (c) => subjectFromBetterAuth(auth, c.get('session')) })` in `permdock/hono`.
+- `subjectFromBetterAuth(auth, session, options?)` returns a principal with `id`, `tenant` (`activeOrganizationId`), `roles` (global roles from `user.role`, managed by the `admin` plugin) and `memberships`: one entry per `member` row the user holds (every organization by default, so the tenant switcher has the full list) with the row's `role` values, plus one entry per `teamMember` row with `via: 'team:<id>'`. Dynamic roles created through Better Auth's `dynamicAccessControl` (`organizationRole` rows) appear by name on the membership and resolve through the `RoleSource` below. The function is async because it reads member and team rows. `options.memberships: 'active'` limits the read to the active organization.
+- `betterAuthRoleSource(auth)` is a `RoleSource` over the `organizationRole` table: `rolesFor(tenant)` returns each dynamic role as a `CustomRole` whose `includes` are the declared assignable roles the Better Auth role's statement matches, and `assignable(tenant)` returns the declared assignable roles the organization may hand out. A dynamic role whose statement matches no declared assignable role resolves to nothing.
+- `rolesFromAccessControl(config, permissions, options?)` maps each Better Auth statement entry `resource: [action]` to `allow(permissions.<resource>.<action>)` where a matching PermDock permission exists, producing role fragments that merge with hand-written fragments of the same name. `options.on` sets the scope of the generated roles (`'tenant'` for `organization` plugin roles; omit for `admin` plugin roles). Unmatched entries are reported, never silently dropped.
+- Server adapters accept the provider directly: `createPermDock(policy, { subject: (c) => subjectFromBetterAuth(auth, c.get('session')), customRoles: betterAuthRoleSource(auth) })` in `permdock/hono`.
+- `options.schema` (any Standard Schema) validates and types `user.additionalFields` before they reach `principal`; an invalid record drops the extra fields, never the subject.
 
 ## Verified material
 
 `subjectFromBetterAuth(auth, session)` consumes the session Better Auth's server API returned; it never reads the cookie or the session token itself ([Authentication and PermDock](/docs/concepts/authentication)).
 
 - **Input.** The result of `auth.api.getSession({ headers })` on the server, which Better Auth has looked up (or decoded from the signed cookie cache) and validated for expiry. A session object assembled by the app, a client-side `useSession()` value or a raw cookie is not accepted; a `null` session yields the anonymous subject.
-- **Fields used.** `session.user.id` becomes `principal.id`; `session.session.activeOrganizationId` becomes `orgId`; `session.session.expiresAt` becomes `subject.expiresAt`; `session.session.id` is carried on audit events.
-- **Roles.** Global roles come from `user.role` as managed by the `admin` plugin; organization roles come from the member record the `organization` plugin holds for the active organization, including dynamic roles from the database. Both are server-managed; a user cannot edit them through the client API. Profile fields the user can change (`name`, `image`) are never used for grants.
+- **Fields used.** `session.user.id` becomes `principal.id`; `session.session.activeOrganizationId` becomes `principal.tenant`; `session.session.expiresAt` becomes `subject.expiresAt`; `session.session.id` is carried on audit events.
+- **Roles and memberships.** Global roles come from `user.role` as managed by the `admin` plugin. Organization roles come from the `member` rows the `organization` plugin holds (one membership per organization), team roles from `teamMember` rows, and dynamic roles from `organizationRole` rows through `betterAuthRoleSource`. All are server-managed through Better Auth's server API; a user cannot edit them through the client API. Ids (`organizationId`, `teamId`) are the membership keys, never slugs or names. Profile fields the user can change (`name`, `image`) are never used for grants.
 - **Cookie cache staleness.** When Better Auth's cookie cache is enabled, `getSession` may answer from the signed cookie without hitting the database until the cache `maxAge` elapses. During that window `user.role` and the member record reflect the state at cache time: a demoted admin keeps the admin role until the cookie refreshes. If role changes must apply on the next request, disable the cookie cache for routes that use PermDock, call `getSession` with `disableCookieCache: true`, or pair the provider's `onRoleChange` hook with `updateTag` and a session refresh.
 - **No token parsing.** Better Auth's bearer and JWT plugins produce tokens for other consumers; if an API receives one of those, verify it with Better Auth's own endpoint or with [`permdock/jwt`](/docs/adapters/jwt) against the plugin's JWKS, then pass the verified result on. The provider does not verify tokens.
 
 ## Request lifecycle
 
 1. Better Auth authenticates the request and yields a session with `activeOrganizationId`.
-2. The provider loads the member's roles for that organization (static from the session, dynamic from the database), producing the subject.
-3. `createPermDock(policy, subject)` builds the request-scoped instance; roles resolve to grants in PermDock's policy.
+2. The provider loads the user's `member` and `teamMember` rows, producing the subject with `tenant` and `memberships`.
+3. `createPermDock(policy, subject, { customRoles })` builds the request-scoped instance; declared roles resolve to grants, dynamic role names resolve through the `RoleSource` for the active organization.
 4. Checks run through whichever adapter the app uses; `snapshot()` carries roles and grants to the client so `usePermission` answers ownership checks offline.
 5. Role changes in Better Auth (`updateMemberRole`, dynamic role edits) should trigger `updateTag` for the affected users; the provider exposes an `onRoleChange` helper that wraps Better Auth's hooks for this.
 
 ## What it validates
 
 - Session validity is Better Auth's responsibility; the provider never reads cookies or tokens itself.
-- Role names from Better Auth must exist in `definePolicy`; unknown names are dropped with a warning (fail closed).
+- Role names from Better Auth must exist in `definePolicy` or resolve through `betterAuthRoleSource`; names that do neither are dropped with a warning (fail closed).
 - `rolesFromAccessControl` checks every `resource:action` pair against `listPermissions(permissions)` and reports pairs that have no PermDock permission, so the two catalogs stay aligned; `permdock usage` includes these findings.
 - No condition data comes from Better Auth; conditions are evaluated on app data as in any other setup.
 
@@ -69,7 +83,7 @@ export const policy = definePolicy(permissions, {
 
 - Through PermDock: `Decision` with denials and alternatives, RFC 9457 `403` from HTTP adapters, MCP refusals, AI SDK `denied`. Better Auth's own `hasPermission` is not called on the request path, so there is one denial format.
 - Apps that keep calling `auth.api.hasPermission` for Better Auth plugin routes (organization management) continue to get Better Auth's boolean; the provider does not intercept those.
-- A user with no active organization yields a subject with `orgId: null` and no organization roles; organization-scoped grants are denied, global roles still apply.
+- A user with no active organization yields a subject with `tenant` undefined; tenant-scoped grants are `denied` with `no-membership`, global roles still apply. A row from another organization is `denied` with `tenant-mismatch` ([tenancy](/docs/concepts/tenancy)).
 
 ## Example app
 
@@ -78,13 +92,16 @@ export const policy = definePolicy(permissions, {
 ## Related standards
 
 - [Subject](/docs/concepts/subject): principal fields and roles.
+- [Tenants, teams and scoped roles](/docs/concepts/tenancy): memberships, `RoleSource`, team roles.
 - [Policies](/docs/concepts/policies): role fragments merged by name.
 - [Snapshots](/docs/concepts/snapshots): what the client receives.
 - [Research: landscape](/docs/research/landscape): Better Auth access control capabilities and limits.
+- [Research: SaaS tenancy and roles](/docs/research/saas-tenancy-and-roles): Better Auth organizations, teams and dynamic access control.
 
 ## Open questions
 
-- The plan names the provider's role (layer over `createAccessControl` / `newRole` / `hasPermission` and dynamic DB roles); `subjectFromBetterAuth` and `rolesFromAccessControl` are proposed export names.
+- The plan names the provider's role (layer over `createAccessControl` / `newRole` / `hasPermission` and dynamic DB roles); `subjectFromBetterAuth`, `betterAuthRoleSource` and `rolesFromAccessControl` are proposed export names.
 - Whether seeding from Better Auth statements should be a runtime call or a `permdock collect` step that writes a role fragment file.
-- How to expose Better Auth `admin` plugin roles (global) next to organization roles in one `roles` array without name collisions.
+- Global `admin` plugin roles next to organization roles: resolved by [ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships). `user.role` fills `principal.roles` (global); organization roles fill `memberships`; a name used in both places is one declared role with two scopes, which `permdock doctor` reports.
 - Whether PermDock should offer the reverse mapping, emitting Better Auth statements from `permissions` for teams that must keep Better Auth checks on plugin routes.
+- Whether `betterAuthRoleSource` should match dynamic role statements to declared assignable roles by permission set (current) or require an explicit `includes` column on `organizationRole`.

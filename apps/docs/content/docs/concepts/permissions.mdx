@@ -39,6 +39,7 @@ export const permissions = definePermissions({
 | `id` | key of the schema output | Identity field used for client cache keys, `filter`, decision tokens and RLS row identity. Defaults to `'id'` when the schema has one. |
 | `actions` | array or record | Instance-level actions: `can(permissions.post.update, post)` requires a `Post`. |
 | `collection` | array or record | Type-level actions: `can(permissions.post.create)` takes no instance. |
+| `parent` | `{ field, resource }` | Optional. Declares that this resource belongs to another (`folder` to `project` through `projectId`), so a resource-scoped role held on the parent applies to this row. Finite by construction: a resource cannot name itself. See [tenancy](/docs/concepts/tenancy). |
 
 ### actions versus collection
 
@@ -164,3 +165,4 @@ This is the exact object you get from `JSON.stringify(permissions.post.update)`.
 - Whether a leaf should carry an `authorizationDetails` example object in `meta` for consent screens or derive it entirely from `scope` and the resource `id`.
 - Field-level permissions: whether they are expressed as a `fields` option on grants (schema-aware, wildcards expanded against real keys) or as separate leaves.
 - A maximum nesting depth for groups (a cap of 10 was discussed) and whether the CLI should enforce it.
+- Exact typing of `parent` (the resource named by string as sketched on [tenancy](/docs/concepts/tenancy), or by reference) and whether a resource may declare two parents.

@@ -28,8 +28,9 @@ An object literal is an implicit `and` over its fields. A field value is either 
 | `isNull` | `true` or `false` | `IS NULL`, `IS NOT NULL` |
 | `contains` | array column contains value, or string contains substring (typed by the field) | `@>` or `LIKE` |
 | `and`, `or`, `not` | compound | `AND`, `OR`, `NOT` |
+| `memberOf` | the row's scope field names a tenant, team or resource where the subject holds one of the listed roles; emitted by scoped role declarations, not written by hand | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)` |
 
-That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/research/postgres-rls)); anything richer belongs in `context` or a closure.
+That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/research/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition.
 
 ### Subject references
 
@@ -48,7 +49,9 @@ References are what make a condition portable. In memory they read from the froz
 | Tenancy | `{ where: { orgId: subject.orgId } }` | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid` |
 | Public rows | `{ where: { published: true } }` | `published = true` |
 | Owner or public | `{ where: { or: [{ published: true }, { authorId: subject.id }] } }` | `(published = true OR (select auth.uid()) = author_id)` |
-| Membership | `{ where: { teamId: { in: subject.context.teamIds } } }` | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))` |
+| Membership (array in `context`) | `{ where: { teamId: { in: subject.context.teamIds } } }` | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))` |
+| Tenancy (scoped role) | `role('viewer', [allow(permissions.post.read)], { on: 'tenant' })` | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` |
+| Team role (scoped role) | `role('lead', [allow(permissions.post.publish)], { on: 'team' })` | `exists (select 1 from team_member m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = 'lead')` |
 | Not archived | `{ where: { archivedAt: { isNull: true } } }` | `archived_at IS NULL` |
 | Cannot reassign owner | `{ where: { authorId: subject.id }, check: { authorId: subject.id } }` | `USING (...) WITH CHECK (...)` |
 
@@ -86,6 +89,7 @@ Conditions are plain JSON. No superjson, no class instances, no functions. The l
 
 - A literal value is a JSON literal.
 - A reference is `{ "ref": "subject.<path>" }`.
+- A scope test is `{ "op": "memberOf", "scope": "tenant" | "team" | "resource", "field": "<row field>", "roles": [...] }`, with `resource` and `parents` when the scope is a resource ([tenancy](/docs/concepts/tenancy)).
 - A date is a tagged ISO string `{ "date": "..." }`, so it survives JSON without superjson and compares correctly in memory and in SQL.
 - Nested `and` / `or` are flattened and single-child compounds collapsed at definition time, the same normalisation CASL's ucast applies.
 
@@ -148,7 +152,8 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 - Three-valued logic. In memory a comparison with `undefined` or `null` is `false`, never `true`, mirroring SQL where `NULL = x` is unknown and unknown filters out. `isNull` is the explicit way to test for absence.
 - Dates compare by instant. `{ date }` tags carry ISO strings with an offset; comparisons parse them once.
 - Case and collation are the database's business. `contains` on strings is case-sensitive in memory and compiles to `LIKE`, not `ILIKE`.
-- Nested paths are not in v1. Conditions address top-level fields of the resource schema; relation data goes through `context`.
+- Nested paths are not in v1. Conditions address top-level fields of the resource schema; relation data goes through `memberships` (roles held somewhere) or `context` (everything else).
+- `memberOf` is evaluated against the frozen subject's memberships, so an expired membership or an active tenant with no membership makes it `false`, the same way a missing field does.
 
 ## Open questions
 
@@ -156,3 +161,4 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 - Whether `contains` should be split into `arrayContains` and `stringContains` for clearer SQL mapping.
 - Nested field paths (`address.city`) and array-of-object fields: v1 excludes them; a later version may add a typed path helper.
 - How much of the Supabase `authorize('perm')` RBAC pattern should be recognised on import as a named-permission node rather than opaque SQL.
+- Whether `memberOf` should be writable by hand in a `where` (for a grant that checks membership in a *different* scope than the role's) or stay generated from role declarations only.

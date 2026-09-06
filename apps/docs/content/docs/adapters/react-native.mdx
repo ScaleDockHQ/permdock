@@ -36,6 +36,7 @@ import { permissions } from '@/permissions'
 | `endpoint` | Same batched decision endpoint as React, for closure grants. |
 | `revalidate` | `'launch'` (default), `'focus'` (also on app foreground) or a number of seconds. |
 | `usePermission`, `usePermDock`, `Protected` | Identical to `permdock/react`; `status` gains no new values, `stale` covers the persisted-but-revalidating case. |
+| `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject` | Identical to `permdock/react` ([UI](/docs/concepts/ui)). `useTenant().switchTo` persists the chosen tenant next to the snapshot so the app reopens in the same organisation; with `tenants: 'all'` in the persisted snapshot the switch works offline, otherwise it queues a `refresh({ tenant })` for the next connection and reports `status: 'pending'`. |
 
 ## Request lifecycle
 
@@ -71,12 +72,13 @@ Because the on-device answer is a UI hint, an API request made while offline and
 ## Related standards
 
 - [AuthZEN](/docs/standards/authzen): decision endpoint request and response shapes.
-- Concepts: [snapshots](/docs/concepts/snapshots), [decisions](/docs/concepts/decisions).
+- Concepts: [snapshots](/docs/concepts/snapshots), [decisions](/docs/concepts/decisions), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui).
 - Research: [Expo Router](/docs/research/expo-router).
 
 ## Open questions
 
-- Whether to encrypt the persisted snapshot by default (grants reveal role names and condition shapes, not data), or leave the choice to the `storage` implementation.
+- Whether to encrypt the persisted snapshot by default (grants reveal role names and condition shapes, not data; with `tenants: 'all'` it also lists every organisation the user belongs to), or leave the choice to the `storage` implementation.
+- Whether a persisted multi-tenant snapshot should drop memberships whose `expiresAt` has passed at read time (current: yes, the evaluator ignores them anyway) and whether a stale persisted snapshot should keep serving another tenant's grants offline after a server-side removal (current: until `revalidate` runs; the threat model accepts this for UI hints because every mutation is re-checked server-side).
 - The right default for `revalidate`: launch only, or launch plus foreground.
 - Whether to ship an `expo-secure-store` and an MMKV adapter in the entry or document the three-method interface only.
 - How `Tabs.Protected` should behave while `status` is `pending` on a cold start with empty storage: hide the tab or show it disabled.

@@ -83,13 +83,14 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 **Must (v0.1, Phase 1)**
 
 - `definePermissions` / `resource` / nested groups / `id` field / action metadata; `mergePermissions`, `listPermissions`, `findPermission`.
-- `definePolicy` / `role` / `allow` / `deny` / `subject` / `context` / `validate`; role fragments merged by name; `approval: 'human'`.
+- `definePolicy` / `role` / `allow` / `deny` / `subject` / `context` / `validate`; role fragments merged by name; `approval: 'human'`; `allow` / `deny` over arrays of references.
+- Multi-tenant roles ([ADR 0024](./apps/docs/content/docs/decisions/0024-scoped-roles-and-memberships.mdx), [tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)): `principal.memberships` and the active `principal.tenant`; scoped roles (`role(name, grants, { on: 'tenant' | 'team' | resource, assignable })`), `definePolicy({ scopes })`, `resource({ parent })` for resource-role derivation; tenant-defined custom roles as data through `RoleSource` and `MembershipSource` (in-process defaults shipped); the `memberOf` condition node; reasons `tenant-mismatch`, `no-membership`, `scope`, `expired-membership`; `tenant()` / `team()` derived instances and `memberships()`, `tenants()`, `roles()`, `assignable()` introspection.
 - Portable condition AST with in-memory evaluator; closures as branded non-portable grants.
-- Two-principal subject (`principal`, `actor`, `delegation`).
-- `createPermDock` with `can`, `decide` (three outcomes), `assert`, `filter`, `simulate`, `snapshot`, `on`.
+- Two-principal subject (`principal`, `actor`, `delegation`); every `subjectFrom*` typed as a `SubjectResolver` with a Standard Schema `schema` option for custom claims; RFC 9068 `roles` / `groups` / `entitlements` mapping in `permdock/jwt` ([extension interfaces](./apps/docs/content/docs/concepts/extension-interfaces.mdx), [JWT authorization claims](./apps/docs/content/docs/standards/jwt-authorization-claims.mdx)).
+- `createPermDock` with `can`, `decide` (three outcomes), `assert`, `filter`, `simulate` (with `{ roles, memberships, tenant }` previews), `snapshot` (v2: memberships, tenant, `tenants`, `simulated`), `on`; `describe(decision)`.
 - Standard Schema validation in `boundary` mode; `PermDockValidationError`.
 - AuthZEN-shaped decision endpoint and batched client.
-- `permdock/react`, `permdock/next` (Cache Components, explicit factory), Fetch kernel + `permdock/hono`, `permdock/jwt` (`subjectFromJwt`, `jose` optional peer, `profile: 'fapi2'`), `permdock/ai-sdk`, `permdock/claude-agent`, `permdock/eve`, `permdock/openai`, `@permdock/testing`.
+- `permdock/react` (`usePermission`, `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject`, `<Protected>`; [UI](./apps/docs/content/docs/concepts/ui.mdx)), `permdock/next` (Cache Components, explicit factory), Fetch kernel + `permdock/hono`, `permdock/jwt` (`subjectFromJwt`, `jose` optional peer, `profile: 'fapi2'`), `permdock/ai-sdk`, `permdock/claude-agent`, `permdock/eve`, `permdock/openai`, `@permdock/testing`.
 - `permdock/approvals` (`ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, `PermDock-Approval` resume header) and `DecisionSink` with `memorySink`.
 - Skills, `AGENTS.md`, `llms.txt`; `apps/docs` scaffolded over the Phase 0 content; examples `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`; `tests/types` TS matrix.
 
@@ -98,16 +99,18 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 - `permdock/mcp` (scopeChallenge, EMA, elicitation), `permdock/authzen` full endpoint set + certification run, `permdock/openapi` (3.2 document and Overlay, `x-permdock-` namespace registration), `permdock/react-native`, Express / Fastify / Elysia / Nest / Node, `permdock/terminal`, tRPC / oRPC, Vue / Svelte / Solid, `permdock/webmcp`, `permdock/a2a`, `permdock/otel`.
 - CLI `collect` (+ `createPermDockPlugin` Next build hook and an `unplugin`-based hook for Vite, Rollup, webpack, Rspack and esbuild so TanStack Start, React Router, SvelteKit, Nuxt, Astro and Solid projects get build-time `collect` before their Phase 4 adapters), `catalog`, `usage`, `doctor`, `openapi --format overlay --check` plus a Spectral / Redocly / vacuum ruleset file; example per adapter plus `monorepo` and `terminal`; `tests/e2e`.
 - `permdock/cloud` (optional client: `ApprovalStore`, `DecisionSink`, `SnapshotSource` over HTTP); PermDock Cloud alpha in the separate `PermDock-Cloud` repo (hosted AuthZEN ADS, approval inbox, decision log); Vercel Marketplace listing with `eve-agent` as the template.
-- `permdock.where` compilers for Drizzle, Prisma, Kysely; `permdock rls generate | import | verify`; `permdock/supabase`; async `context`; schema-aware field-level grants; `permdock/ssf`; `tests/integration` parity suite; examples `supabase-rls`, `drizzle`, `prisma`.
+- `permdock.where` compilers for Drizzle, Prisma, Kysely (including `memberOf`); `permdock rls generate | import | verify` with membership-table mappings; `permdock/supabase` (tenant and memberships claims); async `context`; schema-aware field-level grants; `permdock/ssf`; `tests/integration` parity suite; examples `supabase-rls`, `drizzle`, `prisma`.
 
 **Later (v1.0, Phase 4)**
 
-- `permdock/better-auth`, `permdock/clerk`, `permdock/convex`, `permdock/pdp` (AuthZEN client); quota grants with pluggable `LimitStore`; Web Bot Auth verification; delegation-chain verification in `permdock/jwt`; `simulate()` over Arazzo workflows and `permdock arazzo check`; Nuxt, Astro, React Router, TanStack Start; Effect; docs MCP server; devtools panel. Tracked, not built: OpenAPI 3.3 security profiles, GNAP `access` as a delegation input.
+- `permdock/better-auth` (organization and team memberships, `betterAuthRoleSource`), `permdock/clerk` (active organization as tenant, `memberships: 'all'`, custom roles and role sets), `permdock/convex`, `permdock/pdp` (AuthZEN client); quota grants with pluggable `LimitStore`; Web Bot Auth verification; delegation-chain verification in `permdock/jwt`; `simulate()` over Arazzo workflows and `permdock arazzo check`; Nuxt, Astro, React Router, TanStack Start; Effect; docs MCP server; devtools panel. Tracked, not built: OpenAPI 3.3 security profiles, GNAP `access` as a delegation input.
 
 **Non-goals**
 
 - Requiring a network call to decide: PermDock is a PDP you embed, PermDock Cloud is optional, and every hosted capability has an in-process default behind the same interface ([ADR 0021](./apps/docs/content/docs/decisions/0021-embedded-pdp-hosted-ads.mdx)).
-- A policy DSL, replacing authentication, issuing tokens, or Zanzibar-scale relation graphs (bridge to OpenFGA / SpiceDB via a provider).
+- A policy DSL, replacing authentication, issuing tokens, or Zanzibar-scale relation graphs (bridge to OpenFGA / SpiceDB via a provider; resource roles follow declared, finite `parent` chains only).
+- Tenant, team, invitation, membership or custom-role storage and management; PermDock reads them through `MembershipSource` and `RoleSource`, the auth provider or the app owns the tables ([ADR 0024](./apps/docs/content/docs/decisions/0024-scoped-roles-and-memberships.mdx)).
+- UI components beyond `<Protected>`; hooks return data, the design system renders it.
 
 ## 6. Adapter × example × phase matrix
 
@@ -138,8 +141,8 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 | Drizzle / Prisma / Kysely | `permdock/drizzle` `permdock/prisma` `permdock/kysely` | `drizzle` `prisma` | 3 |
 | RLS | `permdock rls` (CLI) | `supabase-rls` | 3 |
 | JWT / JWKS | `permdock/jwt` | (via `hono`, `mcp-server`) | 1 |
-| Supabase | `permdock/supabase` | `supabase-rls` | 3 |
-| Better Auth / Clerk / Convex | `permdock/better-auth` `permdock/clerk` `permdock/convex` | `better-auth` `clerk` `convex` | 4 |
+| Supabase | `permdock/supabase` (`subjectFromSupabase`, tenant and memberships claims, `authorize()` scaffold) | `supabase-rls` | 3 |
+| Better Auth / Clerk / Convex | `permdock/better-auth` (`betterAuthRoleSource`) `permdock/clerk` (`memberships: 'all'`, custom roles) `permdock/convex` | `better-auth` `clerk` `convex` | 4 |
 | PDP client | `permdock/pdp` | — | 4 |
 | Testing | `@permdock/testing` | — | 1 |
 | Monorepo pattern | `mergePermissions` + `permdock collect --check` | `monorepo` | 2 |
@@ -153,6 +156,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 | Standard Schema v1 + Standard JSON Schema | Resource definitions, inference, boundary validation, catalog | [standard-schema](./apps/docs/content/docs/standards/standard-schema.mdx) |
 | OpenAPI 3.2 | Security output and import, registered `x-oai-*` fallbacks, `x-permdock-*` extensions | [openapi-3-2](./apps/docs/content/docs/standards/openapi-3-2.mdx), [openapi-registry](./apps/docs/content/docs/standards/openapi-registry.mdx) |
 | OpenAPI Overlay 1.1, Arazzo 1.1, OpenAPI 3.3 (tracking) | Overlay as the preferred `permdock openapi` output; `simulate()` over Arazzo workflows; 3.3 security profiles when final | [openapi-overlay](./apps/docs/content/docs/standards/openapi-overlay.mdx), [arazzo](./apps/docs/content/docs/standards/arazzo.mdx), [openapi-3-3](./apps/docs/content/docs/standards/openapi-3-3.mdx) |
+| RFC 9068 `roles` / `groups` / `entitlements`, SCIM 2.0 group encoding, NIST RBAC (INCITS 359) vocabulary | `permdock/jwt` default claim mapping to global roles and team memberships; ids never display names; RBAC terms in the docs | [jwt-authorization-claims](./apps/docs/content/docs/standards/jwt-authorization-claims.mdx) |
 | FAPI 2.0 Security Profile, RFC 8725 / rfc8725bis, DPoP, mTLS | `permdock/jwt` `profile: 'fapi2'`, sender-constrained tokens as `binding` | [fapi-2](./apps/docs/content/docs/standards/fapi-2.mdx) |
 | GNAP (RFC 9635), transaction tokens, WIMSE, IPSIE, OpenID Federation (tracking) | `delegation.access`, workload principals, enterprise checklist; see the watch list | [gnap](./apps/docs/content/docs/standards/gnap.mdx), [watch-list](./apps/docs/content/docs/standards/watch-list.mdx) |
 | MCP authorization 2026-07-28 | scopeChallenge, CIMD, RFC 9207, EMA / ID-JAG, elicitation | [mcp-authorization](./apps/docs/content/docs/standards/mcp-authorization.mdx) |
@@ -194,10 +198,10 @@ Full ADR: [0016 repo layout and toolchain](./apps/docs/content/docs/decisions/00
 | Phase | Version | Theme | Contents |
 | --- | --- | --- | --- |
 | 0 | — | Plan and docs | README, PRODUCT, AGENTS, MIT LICENSE, full MDX docs tree (concepts, adapters, standards, security, research, decisions) |
-| 1 | v0.1 | Core + agents | Definitions, policies, portable conditions, two-principal subject, `createPermDock`, boundary validation, AuthZEN-shaped endpoint, `react`, `next`, kernel + `hono`, `jwt`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `approvals` (+ `DecisionSink`), `@permdock/testing`, skills, `apps/docs` scaffold, seven examples, TS matrix |
+| 1 | v0.1 | Core + agents | Definitions, policies, portable conditions, two-principal subject with memberships and scoped roles (`RoleSource`, `MembershipSource`, snapshot v2), `createPermDock`, boundary validation, AuthZEN-shaped endpoint, `react`, `next`, kernel + `hono`, `jwt`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `approvals` (+ `DecisionSink`), `@permdock/testing`, skills, `apps/docs` scaffold, seven examples, TS matrix |
 | 2 | v0.2–0.5 | Surfaces | `mcp`, `authzen` (+ certification), `openapi` (document + Overlay), `react-native`, remaining HTTP / RPC / UI adapters, `terminal`, `webmcp`, `a2a`, `otel`, `cloud` client, CLI `collect` / `catalog` / `usage` / `doctor`, example per adapter + `monorepo` + `terminal`, e2e; PermDock Cloud alpha (separate repo) and Vercel Marketplace listing |
-| 3 | v0.6–0.9 | Data | `where` compilers, `permdock rls`, `supabase`, async `context`, field-level grants, `ssf`, integration parity suite, data examples |
-| 4 | v1.0 | Ecosystem | `better-auth`, `clerk`, `convex`, `pdp`, quotas, Web Bot Auth, delegation-chain verification, Arazzo `simulate`, more frameworks, docs MCP server, devtools |
+| 3 | v0.6–0.9 | Data | `where` compilers (with `memberOf`), `permdock rls` with membership-table mappings, `supabase`, async `context`, field-level grants, `ssf`, integration parity suite, data examples |
+| 4 | v1.0 | Ecosystem | `better-auth` and `clerk` (memberships, `RoleSource` implementations), `convex`, `pdp`, quotas, Web Bot Auth, delegation-chain verification, Arazzo `simulate`, more frameworks, docs MCP server, devtools |
 
 Detail: [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
@@ -232,8 +236,12 @@ Tracked in [roadmap](./apps/docs/content/docs/roadmap.mdx); resolved items becom
 9. `LimitStore` interface and whether quotas belong in core or a subpath.
 10. Resolved, see below.
 11. Which OS keychain binding `permdock/terminal` uses as its optional peer, and whether the mode-0600 file fallback is acceptable in CI images.
+12. `parent` typing on `resource` (string name vs reference; one parent or several).
+13. Separation of duty (`exclusiveWith`) as a `permdock doctor` lint over memberships, or not at all.
+14. Whether `snapshot({ tenants: 'all' })` stays opt-in or becomes the default below a membership-count threshold.
+15. `useApproval` transport: poll `approvalsHandler` (default) or subscribe through a `SnapshotSource`.
 
-Resolved: delegation-chain and token verification never happen in core; `permdock/jwt` and the provider `subjectFrom*` helpers verify and hand core a subject ([ADR 0018](./apps/docs/content/docs/decisions/0018-authentication-is-upstream.mdx)). Decision-endpoint auth (8): the in-app endpoint uses the application's session or bearer via `subject`; the hosted ADS accepts Vercel OIDC or client-credentials tokens verified with `permdock/jwt`; no shared-secret mode ([ADR 0021](./apps/docs/content/docs/decisions/0021-embedded-pdp-hosted-ads.mdx)). `approval-required` over HTTP (10): retry with a `PermDock-Approval: <token>` header against an `approved` `ApprovalStore` record ([ADR 0022](./apps/docs/content/docs/decisions/0022-approvals-are-pluggable.mdx)).
+Resolved: multi-tenant roles, teams, resource roles and tenant-defined custom roles are memberships on the principal plus scoped role declarations, with `RoleSource` and `MembershipSource` as the only new inputs; provider principal types extend through generics and Standard Schema, never module augmentation ([ADR 0024](./apps/docs/content/docs/decisions/0024-scoped-roles-and-memberships.mdx)). Delegation-chain and token verification never happen in core; `permdock/jwt` and the provider `subjectFrom*` helpers verify and hand core a subject ([ADR 0018](./apps/docs/content/docs/decisions/0018-authentication-is-upstream.mdx)). Decision-endpoint auth (8): the in-app endpoint uses the application's session or bearer via `subject`; the hosted ADS accepts Vercel OIDC or client-credentials tokens verified with `permdock/jwt`; no shared-secret mode ([ADR 0021](./apps/docs/content/docs/decisions/0021-embedded-pdp-hosted-ads.mdx)). `approval-required` over HTTP (10): retry with a `PermDock-Approval: <token>` header against an `approved` `ApprovalStore` record ([ADR 0022](./apps/docs/content/docs/decisions/0022-approvals-are-pluggable.mdx)).
 
 ## 14. Commercial model
 

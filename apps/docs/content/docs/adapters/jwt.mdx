@@ -25,10 +25,15 @@ const subject = await subjectFromJwt(token, {
   clockTolerance: 5,                                                   // seconds
   claims: {
     id: 'sub',                                                         // dot paths, own-property lookups only
-    roles: 'app_metadata.roles',
-    tenant: 'app_metadata.tenant',
+    roles: 'roles',                                                    // default; RFC 9068, global roles
+    groups: 'groups',                                                  // default; RFC 9068, team memberships keyed on SCIM `value`
+    entitlements: 'entitlements',                                      // default; RFC 9068, roles under entitlements-are-roles
+    tenant: 'org_id',                                                  // no standard claim; vendor specific
+    memberships: 'tenants',                                            // optional; a per-tenant object such as Descope `tenants`
     assurance: 'acr',
   },
+  groupRoles: { '9f2c': ['lead'] },                                    // group id -> declared team roles; ids, never display names
+  schema: CustomClaims,                                                // optional Standard Schema for the remaining custom claims
   delegation: {
     scopes: 'scope',                                                   // space-separated string or array
     authorizationDetails: 'authorization_details',                     // RFC 9396
@@ -50,6 +55,10 @@ Option notes:
 
 - `claims.*` paths are resolved with own-property lookups; `__proto__`, `constructor` and `prototype` segments are rejected at configuration time (threat model invariant 4). A path that resolves to nothing leaves the field absent; a missing `id` path makes the subject anonymous.
 - `claims.kind` may name a claim or be a literal (`'workload'`) so client-credentials tokens produce `principal.kind: 'workload'` ([subject](/docs/concepts/subject), "Workload principals").
+- `claims.roles`, `claims.groups` and `claims.entitlements` default to the RFC 9068 claim names and accept plain string arrays or SCIM complex values (`{ value, display, type }`), matching on `value` only. `roles` and `entitlements` fill `principal.roles`; `groups` become `{ team: value, roles: groupRoles[value] ?? [], via: 'group:<value>' }` memberships inside the active tenant. A group id that has no `groupRoles` entry is a membership with no roles: visible to `permdock.memberships()`, contributing no grant ([JWT authorization claims](/docs/standards/jwt-authorization-claims)).
+- `claims.tenant` names the active tenant claim (`org_id`, `tid`, `hd`, `org_code`); there is no standard. A missing or unexpected value yields a principal without a tenant, never a default. `claims.memberships` points at a per-tenant object or array (Descope `tenants`, Zitadel project roles) and maps each entry to a `{ tenant, roles }` membership; the [claims standard](/docs/standards/jwt-authorization-claims) lists the vendor shapes.
+- `schema` (any Standard Schema) validates the claims that are not covered by `claims.*` before they become `principal.claims`; an invalid claim set drops `claims`, never the subject, and reports `invalid-claims` on `on('auth')`.
+- `memberships` (a `MembershipSource`) supplements the token with memberships from your tables for issuers that carry none; it runs after verification with the verified `sub`.
 - `actor.from: 'act'` takes the innermost `act.sub` as `actor.id` with `kind: 'oauth-actor'` and stores the full nesting as `delegation.chain`. A function receives the verified claims and returns an `Actor` or `undefined`.
 - `sender: 'dpop'` attaches `binding: { method: 'dpop', thumbprint: cnf.jkt }` and, when a `request` is available, runs `verifyDpopProof`. `sender: 'mtls'` attaches `binding: { method: 'mtls', thumbprint: cnf['x5t#S256'] }` and compares it to the certificate thumbprint the adapter passes in. The binding goes on `actor` when an `act` chain is present, otherwise on `principal`.
 - `expiresAt` on the returned subject is `exp`, or `min(exp, session_expiry)` when the IPSIE / Enterprise Extensions claim is present; `snapshot()` copies it.
@@ -155,7 +164,8 @@ The SDK's verification and the resolver's verification must agree on issuer and 
 - Signature, `alg`, `kid`, `iss`, `aud`, `exp`, `nbf`, `iat` as listed in the behaviour table.
 - DPoP proof (`sender: 'dpop'`) and mTLS thumbprint (`sender: 'mtls'`) when the adapter supplies the request or certificate.
 - Claim path safety at configuration time.
-- Role names against the policy: unknown names are dropped with a development warning.
+- Role names against the policy: unknown names are dropped with a development warning, unless a `customRoles` source resolves them for the token's tenant.
+- Group and tenant identifiers are compared as opaque strings; `display` sub-attributes and email domains are never used ([tenancy](/docs/concepts/tenancy)).
 - Nothing about the user beyond the token: no introspection, no userinfo call, no revocation list. Revocation before `exp` is the job of the [SSF receiver](/docs/adapters/ssf) or of an introspection step you add to your resolver.
 
 ## Not an authentication library
@@ -177,6 +187,7 @@ No example of its own. `permdock/jwt` is exercised inside `apps/examples/hono` (
 ## Related standards
 
 - [FAPI 2.0 Security Profile](/docs/standards/fapi-2): sections 5.3.4 and 5.4.1, enforced by `profile: 'fapi2'`.
+- [JWT authorization claims](/docs/standards/jwt-authorization-claims): RFC 9068 `roles`, `groups`, `entitlements`, SCIM encoding, vendor tenant claims.
 - [GNAP](/docs/standards/gnap): the `access` array mapped to `delegation.access`.
 - [OAuth agent delegation](/docs/standards/oauth-agent-delegation): RFC 9396 `authorization_details`, RFC 8693 `act` chains.
 - [Shared Signals (SSF / CAEP)](/docs/standards/shared-signals-caep): revocation before `exp`.
@@ -187,3 +198,4 @@ No example of its own. `permdock/jwt` is exercised inside `apps/examples/hono` (
 - Whether the `on('auth')` event should be a separate event name or a `decision` event with `outcome: 'denied'` and `reason: 'anonymous'` plus the verification reason.
 - Whether `verifyDpopProof` needs a replay cache for `jti` or whether the `iat` window is enough for PermDock's purposes.
 - The exact `actor.kind` for `act`-derived actors (`'oauth-actor'` is a placeholder) and how it lines up with the MCP adapter's `'mcp-client'`.
+- Whether `groupRoles` should also accept a function `(groupId, claims) => string[]` for issuers whose group ids are tenant-prefixed.

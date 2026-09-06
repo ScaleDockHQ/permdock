@@ -37,7 +37,10 @@ function PostActions(props: { post: Post }) {
 | `PermDockProvider` | Creates the client store once, validates the snapshot, provides it through Solid context. Options match the React provider. |
 | `usePermDock` | Returns the store: `can`, `decide`, `status` (accessor), `invalidate`, `refresh`. |
 | `usePermission` | Takes the reference and an accessor for the resource; returns an accessor of `allowed`, `status`, `decision`. Tracks the resource `id`, so a new post re-evaluates. |
-| `Protected` | Guard component with `permission`, `data`, `pending`, `fallback` props; children may be a function receiving the granted `Decision`. |
+| `Protected` | Guard component with `permission`, `data`, optional `tenant`, `pending`, `fallback` props; children may be a function receiving the granted `Decision`. |
+| `usePermissions`, `useFilter` | Accessor-returning counterparts of the React hooks: several references against one accessor, and `filter` over an accessor of rows. |
+| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles` | Accessors for the active tenant (`tenant()`, `tenants()`, `switchTo`), the membership list, roles held in a tenant and roles the subject may hand out ([UI](/docs/concepts/ui), [tenancy](/docs/concepts/tenancy)). |
+| `useApproval`, `useSubject` | The `approval-required` flow as an accessor of `{ state, token }` with `request()`, and the snapshot's subject summary (`simulated` included). |
 
 For SolidStart the snapshot is loaded in a server function from a request-scoped `PermDock` and the decision endpoint is an API route built on the [server kernel](/docs/adapters/server-kernel).
 
@@ -75,6 +78,6 @@ For SSR with `renderToStream`, the provider serialises nothing extra: the snapsh
 
 ## Open questions
 
-- Exact identifier names. The plan is silent for Solid; this page proposes reusing the React names (`PermDockProvider`, `usePermDock`, `usePermission`, `Protected`) with accessor-returning semantics, since Solid conventionally shares React naming. The alternative is `createPermission` to match Solid's `create*` primitive convention.
+- Exact identifier names. The plan is silent for Solid; this page proposes reusing the React names (`PermDockProvider`, `usePermDock`, `usePermission`, `Protected`, and the tenancy and UI hooks from the [UI parity table](/docs/adapters)) with accessor-returning semantics, since Solid conventionally shares React naming. The alternative is `createPermission` to match Solid's `create*` primitive convention.
 - Whether `usePermission` should return a single accessor or a tuple of accessors (`allowed()`, `status()`) for finer-grained tracking.
 - Whether SolidStart helpers belong here or in a separate `permdock/solid-start` entry.

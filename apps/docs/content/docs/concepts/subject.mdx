@@ -24,18 +24,22 @@ type Subject = {
 type Principal = {
   id: string                                  // `sub`, a user id, a client id or a SPIFFE ID
   kind?: 'user' | 'service' | 'workload'      // default 'user'
-  roles?: string[]
+  roles?: string[]                            // global roles
+  memberships?: Membership[]                  // roles held in a tenant, a team or on one resource
+  tenant?: string                             // the active tenant for this request; never defaulted
   assurance?: string                          // `aal` / `acr` from the token, for step-up conditions
   binding?: Binding                           // sender constraint, see "Binding"
   [k: string]: unknown                        // any other value conditions reference
 }
 
+type Membership = { tenant?: string; team?: string; on?: { resource: string; id: string }; roles: string[]; via?: string; expiresAt?: number }
 type Binding = { method: 'dpop' | 'mtls'; thumbprint: string }
 ```
 
 ```ts
 const permdock = await createPermDock(policy, user)                        // human or service: principal only
 const permdock = await createPermDock(policy, user, { actor, delegation }) // agent on behalf of user
+const permdock = await createPermDock(policy, user, { tenant, memberships, customRoles }) // active tenant and the two subject-input sources
 ```
 
 The decision endpoint, MCP, AI SDK, HTTP and A2A adapters build the third argument for you; see "How adapters fill actor and delegation" below.
@@ -52,7 +56,7 @@ definePolicy(permissions, {
 ```
 
 - Its fields are the values that `subject.<field>` references read in [conditions](/docs/concepts/conditions). Nothing else about the user is visible to the policy.
-- `roles` selects which `role()` grants apply.
+- `roles` selects which global `role()` grants apply. `memberships` selects scoped roles: each entry names a tenant, a team inside a tenant, or one resource, and the roles held there; `tenant` is the active tenant this request is about. A membership with a role name the policy never declared is resolved as a tenant-defined custom role through the `RoleSource`, or dropped. Full rules on [tenants, teams and scoped roles](/docs/concepts/tenancy).
 - It is computed once per `createPermDock`, frozen, and included in the snapshot so the client evaluates the same conditions against the same values.
 - It is never taken from a model, a tool argument or a request body. Adapters derive it from verified auth material (session cookie, bearer token `authInfo`, provider session) through a `subjectFrom<Source>` function; what counts as verified is defined in [Authentication and PermDock](/docs/concepts/authentication). See also the [threat model](/docs/security/threat-model).
 
@@ -79,6 +83,8 @@ allow(permissions.post.read, { where: { teamId: { in: subject.context.teamIds } 
 ```
 
 Context values must be JSON so they can travel in the snapshot and compile to SQL (`team_id IN (select team_id from team_user where user_id = (select auth.uid()))` on the RLS side; the compiler maps `subject.context.teamIds` to that subselect through a per-key mapping declared on the RLS adapter). This is PermDock's answer to the "no real ReBAC" complaint against permix ([permix #25](https://github.com/letstri/permix/issues/25)): relations are resolved up front and become ordinary data, so checks stay synchronous and portable.
+
+When the relation is a role held somewhere (a team the user leads, a document shared with them), prefer `memberships` over a `context` array: a membership carries roles, is understood by scoped role declarations and the `memberOf` condition node, and reaches RLS through the membership table mapping instead of a per-key subselect. `context` remains right for settings, flags and values that are not memberships.
 
 ## Actor
 
@@ -189,17 +195,29 @@ An actor with no `delegation` at all is treated as having none: every check is `
 ## Where the subject shows up
 
 - `Decision.subject` on `granted` is the narrowed subject (`principal` non-null).
-- `on('decision')` events carry `principal.id`, `principal.roles`, `actor` and `delegation` so audit can distinguish "Alice deleted a post" from "the reporting agent deleted a post for Alice under scope `post:delete`".
-- Snapshots include the principal and the delegation, not the actor's secrets, so the client can evaluate the same intersection offline.
-- AuthZEN messages map `principal` to `subject`, and put `actor` and `delegation` under `context` ([AuthZEN](/docs/standards/authzen)).
+- `on('decision')` events carry `principal.id`, `principal.roles`, `tenant`, the matching `membership` and its `via`, `actor` and `delegation` so audit can distinguish "Alice deleted a post" from "the reporting agent deleted a post for Alice under scope `post:delete`", and "as a design-team lead" from "as an Acme admin".
+- Snapshots include the principal (memberships and active tenant included) and the delegation, not the actor's secrets, so the client can evaluate the same intersection offline.
+- AuthZEN messages map `principal` to `subject`, put `memberships` under `subject.properties`, and put `actor`, `delegation` and the active `tenant` under `context` ([AuthZEN](/docs/standards/authzen)).
 
 ## Choosing what goes in the principal
 
-Put in the principal only what conditions reference and what you are willing to ship to the client in a snapshot. An email address that no condition uses is noise on the wire; a `tenantId` that RLS filters on belongs there. Keep it flat and JSON: strings, numbers, booleans, arrays of those.
+Put in the principal only what conditions reference and what you are willing to ship to the client in a snapshot. An email address that no condition uses is noise on the wire; a `tenantId` that RLS filters on belongs there. Keep it flat and JSON: strings, numbers, booleans, arrays of those, and the `memberships` array.
+
+| Value | Where it goes | Why |
+| --- | --- | --- |
+| The user id, kind, assurance | `principal` fields | Referenced by conditions and the token binding |
+| Global roles (`support`, `platform-admin`, `pro`) | `principal.roles` | Apply everywhere |
+| A role held in a tenant, a team or on a document | `principal.memberships` | Scoped roles, `memberOf`, tenant-scoped audit, the UI's role chips |
+| The tenant this request is about | `principal.tenant` | Selected by the server from the URL or the provider's active organisation, only when a membership matches |
+| Settings, flags, plan | `context` (or `roles` when they select a role) | Not roles, not memberships; still portable |
+| Display names, avatars, emails | Nowhere | The provider owns them; conditions do not need them |
+
+Provider mappers (`subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromJwt`) fill the first four rows from verified material and expose a `schema` option for custom claims, typed from its output ([extension interfaces](/docs/concepts/extension-interfaces)). `PrincipalOf<typeof policy>` is the resulting type.
 
 ## Open questions
 
 - Whether delegation-chain verification (monotonic attenuation across hops) belongs in core or stays in the token layer.
 - The exact `authorization_details` mapping when a permission is a collection action with no `identifier`.
 - Whether `actor` should be allowed to carry its own roles for service accounts that call on their own behalf, or whether such calls should simply use the service as `principal` (the current design).
+- Whether a principal has a home tenant distinct from its memberships (cross-tenant guests), see [tenancy](/docs/concepts/tenancy).
 - How anonymous principals receive grants, if at all (see [policies](/docs/concepts/policies)).

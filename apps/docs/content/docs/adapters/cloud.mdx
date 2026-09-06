@@ -55,8 +55,9 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 | Concern | In-process default (always available) | With `permdock/cloud` |
 | --- | --- | --- |
 | Deciding | `decide` on the bundled policy | Unchanged |
-| Pending approvals | `memoryApprovalStore()` | Persistent store, inbox UI, delivery, approver groups, expiry jobs |
-| Audit | `on('decision')` handler, `permdock/otel` | Decision log with retention, per-actor and per-principal queries, anomaly views |
+| Pending approvals | `memoryApprovalStore()` | Persistent store, inbox UI scoped per tenant, delivery, approver groups, expiry jobs |
+| Memberships and custom roles | `subjectFrom*`, `context`, your `MembershipSource` and `RoleSource` | Nothing. The Cloud never implements either interface, so it never joins the decision path (invariant 15); a hosted SCIM receiver is considered, not scheduled ([commercial landscape](/docs/research/commercial-landscape)) |
+| Audit | `on('decision')` handler, `permdock/otel` | Decision log with retention, per-actor, per-principal and per-tenant queries (the `tenant`, `membership` and `via` fields of every event), anomaly views |
 | Snapshots | Served by the application's endpoint | Edge distribution, signed, invalidated by CAEP |
 | Non-TypeScript callers | Your own `permdock/authzen` deployment | Hosted AuthZEN ADS serving the same policy to gateways and services |
 | Catalog and usage | `permdock collect` and `permdock usage` in CI | Dashboards over the same catalog files, drift alerts |
@@ -119,4 +120,5 @@ PermDock Cloud is listed as a native Marketplace integration so a Vercel project
 - Whether `snapshots` belongs in Phase 2 with the store and sink, or later, since it is the only capability that changes a client-visible path.
 - How a self-hosted PermDock Cloud (the repository is open) advertises itself so that `cloud({ url })` works against it with no Marketplace involvement; the target is "point `PERMDOCK_CLOUD_URL` at your deployment".
 - Whether the sink should also accept `permdock/otel` spans, or whether OTel export to the Cloud is a separate collector configuration.
+- Whether the hosted `snapshots` source should serve per-tenant snapshots (`refresh({ tenant })`) from the edge or only the active-tenant snapshot the application issued; either way it distributes what the application computed and never resolves memberships itself.
 - The `permdock cloud push` command shape and whether policy publication should be a build step (`createPermDockPlugin`) rather than a CLI command.

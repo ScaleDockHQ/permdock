@@ -24,31 +24,42 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
   subject: async () => subjectFromClerk(await auth()),
   tag: (subject) => `permdock:${subject.id}`,
 })
-// subject = { id: userId, orgId, roles: ['org:admin'], clerkPermissions: ['org:invoices:create'], sessionClaims }
+// subject.principal = {
+//   id: userId,
+//   tenant: orgId,                                              // the active organization
+//   roles: [],                                                  // global roles only through options.globalRoles
+//   memberships: [{ tenant: orgId, roles: ['org:admin'] }],     // the active organization's membership
+//   clerkPermissions: ['org:invoices:create'],
+//   claims: { ...sessionClaims },
+// }
 
-// policy: map Clerk roles and permissions onto PermDock roles
+// policy: Clerk organization roles are tenant-scoped roles
 export const policy = definePolicy(permissions, {
   roles: [
-    role('org:admin',  [allow(permissions.post.delete), allow(permissions.billing.plan.change)]),
-    role('org:member', [allow(permissions.post.read), allow(permissions.post.update, { where: { authorId: subject.id } })]),
+    role('org:admin',  [allow(permissions.post.delete), allow(permissions.billing.plan.change)], { on: 'tenant' }),
+    role('org:member', [allow(permissions.post.read), allow(permissions.post.update, { where: { authorId: subject.id } })], { on: 'tenant' }),
   ],
-  subject: (s: ClerkSubject | null) => s && { id: s.id, orgId: s.orgId, roles: s.roles },
+  scopes: { tenant: { key: 'orgId' } },
 })
 ```
 
-- `subjectFromClerk(authObject, options?)` accepts the result of `auth()` (Next.js), `getAuth(req)` (other frameworks) or a verified session token payload, and returns `id` (`userId`), `orgId`, `roles` (the organization role plus any roles configured via `options.rolesFromClaims`), `clerkPermissions` (custom permissions from the session claims) and selected `sessionClaims`.
-- `options.permissions` maps Clerk permission strings to PermDock grants when a team keeps Clerk permissions as the source: `{ 'org:invoices:create': permissions.billing.invoice.create }` produces an extra allow for subjects carrying that permission.
-- Client: no Clerk-specific hook is needed. The client uses the server-issued snapshot through `PermDockProvider`; the app calls `usePermDock().invalidate()` when Clerk's `useOrganization` reports a switch.
+- `subjectFromClerk(authObject, options?)` accepts the result of `auth()` (Next.js), `getAuth(req)` (other frameworks) or a verified session token payload, and returns a principal whose `id` is `userId`, whose `tenant` is the active `orgId`, and whose `memberships` hold one entry for the active organization with `orgRole` as its role. `clerkPermissions` (custom permissions from the session claims) and selected `sessionClaims` sit next to them. No `subject` mapper is needed in `definePolicy`; the provider's output already is the principal shape ([tenancy](/docs/concepts/tenancy)).
+- `options.memberships: 'all'` loads every organization the user belongs to through Clerk's Backend API (`users.getOrganizationMembershipList`) and adds one membership per organization, so `permdock.tenants()` and the tenant switcher have the full list and `permdock.tenant(id)` can preview another organization. The default (`'active'`) reads only the session, which needs no API call.
+- `options.customRoles` accepts a `RoleSource` for Clerk custom roles: a Clerk role the policy did not declare (`org:billing_manager`) resolves to the assignable declared roles the source returns for that organization, and to nothing when it is unknown. Clerk role sets (roles restricted per plan) map to `RoleSource.assignable(tenant)`.
+- `options.permissions` maps Clerk permission strings to PermDock grants when a team keeps Clerk permissions as the source: `{ 'org:invoices:create': permissions.billing.invoice.create }` produces an extra allow, scoped to the active organization, for subjects carrying that permission.
+- `options.schema` (any Standard Schema, for example a Zod object) validates and types custom session claims; an invalid claim set yields a principal without `claims`, never a throw ([extension interfaces](/docs/concepts/extension-interfaces)).
+- Client: no Clerk-specific hook is needed. The client uses the server-issued snapshot through `PermDockProvider`; `useTenant().switchTo(orgId)` calls Clerk's `setActive({ organization })` when the app wires it, then `invalidate()` fetches the snapshot for the new active organization ([UI](/docs/concepts/ui)).
 
 Field mapping:
 
 | Clerk auth object | PermDock subject |
 |---|---|
-| `userId` | `id` |
-| `orgId` | `orgId` |
-| `orgRole` | first entry of `roles` |
-| `orgPermissions` | `clerkPermissions`, turned into grants through `options.permissions` |
-| `sessionClaims.*` | `claims.*` (custom claims configured in the Clerk session token template) |
+| `userId` | `principal.id` |
+| `orgId` | `principal.tenant` (active tenant) and the `tenant` of the session membership |
+| `orgRole` | `memberships[0].roles`, a tenant-scoped role in the policy; global roles only through `options.globalRoles` (a claim path or a function over the verified claims) |
+| `orgPermissions` | `clerkPermissions`, turned into tenant-scoped grants through `options.permissions` |
+| Backend API organization memberships (`options.memberships: 'all'`) | One `{ tenant, roles }` membership per organization |
+| `sessionClaims.*` | `claims.*` (custom claims configured in the Clerk session token template; typed through `options.schema`) |
 | `sessionClaims.pla`, `sessionClaims.fea` (Clerk Billing plan and features) | `roles` entries through `options.features` (below); never grants on their own |
 
 Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`) and the enabled features (`fea`, for example `o:reporting,u:api_access`) in the session token, and Clerk's own `has({ feature })` and `has({ plan })` read them. Under the "entitlements are roles" rule ([policies](/docs/concepts/policies)) a billing feature is a role fragment, not a permission: `options.features: { reporting: 'reporting' }` adds the `reporting` role to subjects whose `fea` claim carries that feature, and the policy grants under `role('reporting', [...])`. A feature the plan does not include therefore has no grants, which is the same outcome Clerk's `has({ permission })` produces when a plan lacks the feature, expressed once in the policy instead of in every guard.
@@ -58,16 +69,17 @@ Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`
 `subjectFromClerk(auth)` consumes only what Clerk has verified; it does not read cookies, headers or tokens itself ([Authentication and PermDock](/docs/concepts/authentication)).
 
 - **Input.** The object returned by `auth()` in Next.js or `getAuth(req)` in other frameworks, after `clerkMiddleware` has verified the session token's signature against Clerk's JWKS, or a session token payload the app verified with Clerk's backend SDK. Anything else (a decoded-but-unverified JWT, a value read from `localStorage`, a `userId` sent by the client) is not accepted: the type is Clerk's `AuthObject`, and a plain object shaped like one produces the anonymous subject with a development warning.
-- **Fields used.** `userId` becomes `principal.id`; `orgId`, `orgRole` and `orgPermissions` describe the active organization; `sessionClaims` supplies the standard claims (`sub`, `exp`, `sid`) plus any custom claims. `sessionClaims.exp` becomes `subject.expiresAt`, and `sid` is carried on audit events so a session revocation can be traced.
+- **Fields used.** `userId` becomes `principal.id`; `orgId` becomes the active `tenant`; `orgRole` and `orgPermissions` become the membership for that organization; `sessionClaims` supplies the standard claims (`sub`, `exp`, `sid`) plus any custom claims. `sessionClaims.exp` becomes `subject.expiresAt`, and `sid` is carried on audit events so a session revocation can be traced.
 - **Custom claims.** Values a policy condition needs beyond the organization role (a `plan`, a `region`) must come from Clerk's session token template, where they are populated by Clerk from user or organization metadata at token issuance. Only metadata written through the backend API (public and private metadata set server-side) should be projected into claims; metadata the client can edit (unsafe metadata) must not be, because `subjectFromClerk` cannot tell them apart once they are in the token.
 - **Billing claims.** `pla` and `fea` are written by Clerk at token issuance from the subscription state and cannot be edited by the user, so they are eligible role sources. They describe the organisation's plan when the session has an active organisation (`o:` prefix) and the user's plan otherwise (`u:` prefix); `options.features` keys are matched against the unprefixed feature slug and the prefix is recorded on the subject so a policy can distinguish the two if it needs to.
+- **Memberships.** The session carries only the active organization, so the default subject holds one membership. With `memberships: 'all'` the provider calls the Backend API with the server secret; the list is server-fetched material and eligible for grants. Organization ids, never organization names or slugs, are the `tenant` values. A user with no active organization has `tenant` undefined and no memberships: tenant-scoped roles contribute nothing, global roles still apply.
 - **Signed-out and expired.** `userId` of `null`, a missing auth object or an expired session yields `principal: null`. Nothing throws; only anonymous grants apply.
 - **Not read.** Clerk's client-side hooks (`useAuth`, `useOrganization`) are never a source for the server subject; they only trigger `invalidate()` on the client.
 
 ## Request lifecycle
 
 1. Clerk middleware authenticates the request and populates `auth()` with `userId`, `orgId`, `orgRole`, `orgPermissions` and session claims.
-2. `subjectFromClerk` maps these to the PermDock subject; the active organization defines `orgId`.
+2. `subjectFromClerk` maps these to the PermDock subject; the active organization defines `principal.tenant` and its membership.
 3. `createPermDock` builds the request-scoped instance; `getPermDock()` / `getPermission()` and the snapshot resolver use it.
 4. On organization switch or role change, Clerk emits a new session token; the app calls `updateTag` for the user (Clerk webhooks `organizationMembership.updated` are the server trigger) and the client `invalidate()` runs on `useOrganization` change.
 
@@ -83,6 +95,7 @@ Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`
 - Through PermDock: `Decision` with denials and alternatives; `assert` runs the Next.js `redirect()` handler when configured; HTTP adapters emit RFC 9457 `403`.
 - Clerk's `Protect` and `has()` remain available for Clerk-native checks (billing features, plugin routes); apps are encouraged to use `Protected` from `permdock/react` for everything expressed as a PermDock permission so there is one denial path.
 - Signed-out users yield the anonymous subject; only anonymous grants apply.
+- A row belonging to another organization is `denied` with reason `tenant-mismatch`; a request for an organization the user is not a member of is `denied` with `no-membership` ([tenancy](/docs/concepts/tenancy)).
 
 ## Example app
 
@@ -91,13 +104,15 @@ Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`
 ## Related standards
 
 - [Subject](/docs/concepts/subject): principal fields and roles.
+- [Tenants, teams and scoped roles](/docs/concepts/tenancy): memberships, the active tenant, custom roles.
 - [Next.js adapter](/docs/adapters/next): the factory this provider plugs into.
 - [Snapshots](/docs/concepts/snapshots): client state and invalidation.
 - [Research: landscape](/docs/research/landscape): Clerk authorization checks.
+- [Research: SaaS tenancy and roles](/docs/research/saas-tenancy-and-roles): Clerk organizations, custom roles and role sets.
 
 ## Open questions
 
 - `subjectFromClerk` and the `options.permissions` mapping are proposed shapes; the plan only states "session claims and org roles to subject".
 - Whether Clerk permission strings should become PermDock roles (one role per permission) or direct grants attached to the subject; the current design uses direct grants via `options.permissions`.
 - Expo: Clerk's Expo SDK is supported by the React Native adapter through the same snapshot path; whether a Clerk-specific persisted-snapshot helper is needed is undecided.
-- Multi-organization users: whether the snapshot should include grants for all memberships or only the active organization (current: active only).
+- Multi-organization users: resolved by [ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships). The snapshot carries the active tenant's grants plus the `tenants` list; `memberships: 'all'` adds the other organizations' memberships so a switch can be previewed with `permdock.tenant(id)` before Clerk's `setActive` runs.

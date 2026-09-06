@@ -41,7 +41,25 @@ export const policy = definePolicy(permissions, {
 
 ## Roles
 
-`role(name, grants)` returns `{ name, grants }`. A role is looked up by name from `subject.roles`, so role names are the only strings in a policy, and they are data you already store (in your users table, JWT claims or Better Auth roles). Roles are not Postgres roles; when RLS is generated, app roles become claims and every policy targets `TO authenticated` (see [RLS](/docs/adapters/rls)).
+`role(name, grants, options?)` returns `{ name, grants, on?, assignable }`. A role is looked up by name from `subject.roles` or from a membership, so role names are the only strings in a policy, and they are data you already store (in your users table, JWT claims or Better Auth roles). Roles are not Postgres roles; when RLS is generated, app roles become claims and every policy targets `TO authenticated` (see [RLS](/docs/adapters/rls)).
+
+### Scoped roles
+
+The third argument says where a role applies. Without it the role is global and is selected by `principal.roles`, as in the example above. With `on`, the role is selected by a membership and its grants match only rows in that scope:
+
+```ts
+const viewer = role('viewer', [allow([permissions.post.read, permissions.post.list])], { on: 'tenant' })
+const lead   = role('lead',   [allow(permissions.post.publish)], { on: 'team' })
+const editor = role('editor', [allow(permissions.document.update)], { on: permissions.document })
+
+export const policy = definePolicy(permissions, {
+  roles: [viewer, lead, editor, admin],
+  scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+  subject: subjectFromClerk,
+})
+```
+
+`scopes.tenant.key` names the field every tenant-owned resource carries; it replaces `where: { orgId: subject.orgId }` on each grant and is checked against every scoped resource's schema at compile time. `assignable` (default `true` for scoped roles) marks roles a tenant admin may hand out and compose into tenant-defined custom roles. The full model, memberships, evaluation rules, custom roles and the `RoleSource` and `MembershipSource` interfaces, is on [tenants, teams and scoped roles](/docs/concepts/tenancy).
 
 ### Spreading grants
 
@@ -62,7 +80,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 
 ## Grants
 
-`allow(permission, condition?)` and `deny(permission, condition?)` are the only two grant constructors.
+`allow(permission, condition?)` and `deny(permission, condition?)` are the only two grant constructors. The first argument is a reference or an array of references (`allow([permissions.post.read, permissions.post.list])`, `allow(listPermissions(permissions.post))`); an array is declaration sugar that becomes one grant per leaf in the normalised policy, the catalog and the snapshot.
 
 | Second argument | Meaning |
 | --- | --- |
@@ -80,11 +98,12 @@ Conditions are covered on their own page: [conditions](/docs/concepts/conditions
 
 The rules are short and they are the whole story ([ADR 0010](/docs/decisions/0010-policy-as-data-portable-conditions)):
 
-1. Collect the grants of every role in `subject.roles` for the requested permission key.
-2. If any `deny` matches, the outcome is `denied`. Deny overrides allow, regardless of role or declaration order.
-3. Otherwise, if any `allow` matches, the outcome is `granted` (or `approval-required` if the matched allow carries `approval`). Allows OR together.
-4. Otherwise the outcome is `denied` with an empty match. Nothing granted means denied; there is no `not-applicable`.
-5. For an agent subject, the result is then intersected with the delegated authority (see [subject](/docs/concepts/subject)).
+1. Collect the grants of every global role in `subject.roles`, of every scoped role held by one of the subject's memberships, and of the declared roles that tenant-defined custom roles resolve to, for the requested permission key.
+2. Drop a scoped grant whose scope does not match the request: the row's tenant key must equal the membership's tenant and that tenant must be the active one; the row's team key must equal the membership's team; a resource role must be held on that row or an ancestor through a declared `parent`. Expired memberships contribute nothing. Global grants skip this step ([tenancy](/docs/concepts/tenancy)).
+3. If any `deny` matches, the outcome is `denied`. Deny overrides allow, regardless of role, scope or declaration order.
+4. Otherwise, if any `allow` matches, the outcome is `granted` (or `approval-required` if the matched allow carries `approval`). Allows OR together, across scopes.
+5. Otherwise the outcome is `denied` with an empty match. Nothing granted means denied; there is no `not-applicable`. Denial reasons include `tenant-mismatch`, `no-membership`, `scope` and `expired-membership` so the UI can say why.
+6. For an agent subject, the result is then intersected with the delegated authority (see [subject](/docs/concepts/subject)).
 
 A grant "matches" when its condition evaluates to `true` for the given data and subject. An unconditional grant always matches. A closure that throws counts as not matching and is reported in the decision's `denials` with a reason. Evaluation never throws; `can` and `decide` are safe to call from render paths.
 
@@ -98,7 +117,8 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 
 - `allow(permissions.post.archive)` fails to compile if `archive` was never defined.
 - `allow(permissions.post.update, { where: { autorId: subject.id } })` fails to compile: `autorId` is not a field of `Post`.
-- `roles: user.roles` where `roles` contains a name no `role()` declared is a runtime deny for that role plus a `permdock doctor` warning, not a throw.
+- `roles: user.roles` where `roles` contains a name no `role()` declared is a runtime deny for that role plus a `permdock doctor` warning, not a throw. On a membership, such a name is first resolved as a tenant-defined custom role through the `RoleSource` and dropped if that fails ([tenancy](/docs/concepts/tenancy)).
+- `role('viewer', [...], { on: 'tenant' })` with a grant on a resource whose schema lacks `scopes.tenant.key` fails to compile.
 
 ## Approval
 
@@ -125,6 +145,8 @@ export const policy = definePolicy(permissions, {
 })
 ```
 
+The same rule decides which roles a tenant may *assign*: a plan that lacks "Billing Manager" is expressed as `RoleSource.assignable(tenant)` returning a smaller set, never as a grant ([tenancy](/docs/concepts/tenancy), custom roles).
+
 Three reasons to keep the split. The policy stays the single statement of who may do what; a flag flipping in a dashboard can only select a role the policy already declares, never widen a grant. Roles reach the snapshot, the SQL `where` and generated RLS the same way as any subject field, so the UI and the database agree, and `permdock usage` can show which grants a flag unlocks. And a flag is never a security control: a `denied` decision cannot be turned into `granted` by a flag, only a matching `allow` can, and `deny` still overrides. A flag evaluated asynchronously belongs in `context` with the role selection done there; the result is the same frozen subject. Provider permission arrays (WorkOS `permissions`, Kinde `permissions`, Auth0 `permissions`) and billing claims (Clerk Billing `fea`, Frontegg entitlements) follow the same rule as `delegation.scopes`, `context` or roles ([authentication](/docs/concepts/authentication), provider recipes; [Clerk provider](/docs/adapters/clerk)). No flag SDK gets an adapter ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)); the vendor-neutral way to read a flag is [OpenFeature](https://openfeature.dev), the CNCF incubating standard whose JavaScript SDK evaluates `getBooleanValue(flag, default, evaluationContext)` against whichever provider is installed (LaunchDarkly, PostHog, Statsig, Unleash, Flagsmith, GrowthBook, Vercel Flags through community providers). A `subject` or `context` function that calls OpenFeature with the subject's id and organisation as the evaluation context works unchanged when the flag vendor changes, and the vendors named here are examples, not a list PermDock maintains.
 
 ## Limits
@@ -135,9 +157,10 @@ Three reasons to keep the split. The policy stays the single statement of who ma
 
 | Option | Type | Notes |
 | --- | --- | --- |
-| `roles` | `Role[]` | Required. Fragments with the same name merge. |
-| `subject` | `(user) => Principal \| null` | Required. Returns the values referenced as `subject.<field>` in conditions, plus `roles`. `null` means anonymous. |
-| `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (team memberships, org settings) once per `createPermDock`; referenced as `subject.context.<key>`. Declaring it makes `createPermDock` async. |
+| `roles` | `Role[]` | Required. Fragments with the same name merge. Scoped roles (`on`) and global roles mix freely. |
+| `scopes` | `{ tenant?: { key }, team?: { key } }` | Required when any role is scoped to `'tenant'` or `'team'`. Names the field on every scoped resource that holds the tenant or team id; checked against each resource schema ([tenancy](/docs/concepts/tenancy)). |
+| `subject` | `(user) => Principal \| null` | Required. Returns the values referenced as `subject.<field>` in conditions, plus `roles`, `memberships` and `tenant`. `null` means anonymous. Any `subjectFrom*` provider satisfies it. |
+| `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `subject.context.<key>`. Declaring it makes `createPermDock` async. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them. |
 | `validate` | `'boundary'`, `'always'` or `'never'` | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation). |
 | `onDenied` | `(decision) => never \| void` | Optional default unauthorized handler for `assert`; runs last in the layered chain. |
 
@@ -169,8 +192,9 @@ A change in the matrix is a change in who can do what, and shows up in review as
 
 ## Open questions
 
-- Ergonomics of `subject.*` references versus closures: whether to offer typed helpers such as `subject.context.teamIds.contains(row.teamId)` or keep the object form only.
+- Ergonomics of `subject.*` references versus closures: whether to offer typed helpers such as `subject.context.teamIds.contains(row.teamId)` or keep the object form only. Scoped roles remove the most common case (tenant and team membership) from this question.
 - The `LimitStore` interface, and whether quotas belong in core or in a separate entry.
 - Whether same-named role fragments should be allowed to both `allow` and `deny` the same permission or whether that should be a lint error.
 - Anonymous grants: whether `role('anonymous', ...)` is applied automatically when `subject` returns `null`, or whether anonymous is always fully denied.
 - The name of the policy-level default unauthorized handler (`onDenied` above is a placeholder; the plan only says "policy default").
+- Whether a fluent policy builder should exist outside core for teams that prefer it; core stays data ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships) alternatives).

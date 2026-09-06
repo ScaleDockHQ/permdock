@@ -36,12 +36,13 @@ interface ApprovalStore {
   create(request: ApprovalRequest): Promise<void> | void
   get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null
   resolve(token: string, verdict: { status: 'approved' | 'rejected'; by: Subject; note?: string }): Promise<ApprovalRequest> | ApprovalRequest
-  list(filter: { status?: ApprovalRequest['status']; principalId?: string; actorId?: string }): Promise<ApprovalRequest[]> | ApprovalRequest[]
+  list(filter: { status?: ApprovalRequest['status']; principalId?: string; actorId?: string; tenant?: string }): Promise<ApprovalRequest[]> | ApprovalRequest[]
   expire(now?: Date): Promise<number> | number
 }
 ```
 
-- `create` is called by an adapter when `decide` returns `approval-required`; the record carries the `token`, the permission key, the resource id, a subject summary, the model-readable `detail`, `createdAt` and `expiresAt` ([wire formats](/docs/concepts/wire-formats)).
+- `create` is called by an adapter when `decide` returns `approval-required`; the record carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant` and the `membership` that supplied the matched role), the model-readable `detail`, `createdAt` and `expiresAt` ([wire formats](/docs/concepts/wire-formats)). The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another.
+- `list({ tenant })` scopes the approver inbox to one tenant, which is how a tenant admin sees only their organisation's pending requests; `approvalsHandler` applies it from the approver's active tenant and the approver must hold a membership there ([tenancy](/docs/concepts/tenancy)).
 - `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`; `approvalsHandler` enforces this before calling the store, and a custom store should too.
 - `list` powers the approver UI and the `permdock/terminal` interactive prompt.
 - `expire` is called opportunistically by adapters and by `approvalsHandler`; a scheduled job may call it as well.
@@ -51,7 +52,8 @@ interface ApprovalStore {
 
 | Route | Purpose | Denial |
 | --- | --- | --- |
-| `GET /pending` | Requests the authenticated approver may resolve | `401` without a subject |
+| `GET /pending` | Requests the authenticated approver may resolve, in the approver's active tenant (`?tenant=` must be one of the approver's memberships) | `401` without a subject; `403` for a tenant the approver does not belong to |
+| `GET /mine` | The authenticated principal's own requests, for `useApproval` polling | `401` without a subject |
 | `POST /:token/approve` | Marks approved, records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, or the principal with `requireDistinctApprover` |
 | `POST /:token/reject` | Marks rejected with an optional `note` | Same |
 | `GET /:token` | One request, for a confirmation screen | `404` for unknown or foreign tokens |
@@ -60,7 +62,7 @@ interface ApprovalStore {
 
 1. An adapter calls `decide`; the outcome is `approval-required` with a deterministic `token`.
 2. The adapter builds an `ApprovalRequest` and calls `store.create`. An `approval` event with `phase: 'requested'` fires on `on('decision')`.
-3. The runtime surfaces the ask (AI SDK `user-approval`, Eve `input.requested`, OpenAI `interruptions`, a `403` with the token, a terminal prompt).
+3. The runtime surfaces the ask (AI SDK `user-approval`, Eve `input.requested`, OpenAI `interruptions`, a `403` with the token, a terminal prompt, or `useApproval(decision).request()` from a UI built with `permdock/react` ([UI](/docs/concepts/ui))).
 4. A person answers through the runtime's own UI, through `approvalsHandler`, or through the PermDock Cloud inbox. `store.resolve` records the verdict and approver; an `approval` event with `phase: 'resolved'` fires.
 5. The original call is retried. The adapter looks up the token, requires `status: 'approved'` and `expiresAt` in the future, re-runs `decide`, recomputes the token and compares. Only then does the tool or route execute; the resumed decision fires as a normal `decision` event carrying the same `token`.
 

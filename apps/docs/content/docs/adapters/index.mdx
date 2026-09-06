@@ -55,10 +55,10 @@ Phases come from the [roadmap](/docs/roadmap). Everything is `planned` in Phase 
 | [prisma](/docs/adapters/prisma) | `permdock/prisma` | `toWhere` condition compiler | `apps/examples/prisma` | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
 | [kysely](/docs/adapters/kysely) | `permdock/kysely` | `toWhere` condition compiler | — | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
 | [rls](/docs/adapters/rls) | `@permdock/cli` (`permdock rls`) | `generate`, `import`, `verify` | `apps/examples/supabase-rls` | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
-| [jwt](/docs/adapters/jwt) | `permdock/jwt` | `subjectFromJwt`, `createJwtSubjectResolver` (JWKS, RFC 8725 checks, `profile: 'fapi2'`); `jose` optional peer | — (used by `hono`, `mcp-server`) | 1 | [FAPI 2.0](/docs/standards/fapi-2), [OAuth agent delegation](/docs/standards/oauth-agent-delegation) |
-| [supabase](/docs/adapters/supabase) | `permdock/supabase` | Provider: `subjectFromSupabase`, custom access token hook, `authorize()` RBAC scaffold | `apps/examples/supabase-rls` | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
-| [better-auth](/docs/adapters/better-auth) | `permdock/better-auth` | Provider: session and access-control roles to subject | `apps/examples/better-auth` | 4 | — |
-| [clerk](/docs/adapters/clerk) | `permdock/clerk` | Provider: Clerk session and organisation roles to subject | `apps/examples/clerk` | 4 | — |
+| [jwt](/docs/adapters/jwt) | `permdock/jwt` | `subjectFromJwt`, `createJwtSubjectResolver` (JWKS, RFC 8725 checks, `profile: 'fapi2'`, RFC 9068 `roles` / `groups` / `entitlements` to roles and memberships); `jose` optional peer | — (used by `hono`, `mcp-server`) | 1 | [FAPI 2.0](/docs/standards/fapi-2), [OAuth agent delegation](/docs/standards/oauth-agent-delegation), [JWT authorization claims](/docs/standards/jwt-authorization-claims) |
+| [supabase](/docs/adapters/supabase) | `permdock/supabase` | Provider: `subjectFromSupabase` (roles, tenant and memberships from hook-injected claims), custom access token hook, `authorize()` RBAC scaffold, `memberOf` compilation to membership tables | `apps/examples/supabase-rls` | 3 | [Postgres RLS](/docs/standards/postgres-rls), [JWT authorization claims](/docs/standards/jwt-authorization-claims) |
+| [better-auth](/docs/adapters/better-auth) | `permdock/better-auth` | Provider: `subjectFromBetterAuth` (session, organization and team memberships), `betterAuthRoleSource` (dynamic roles as a `RoleSource`), `rolesFromAccessControl` | `apps/examples/better-auth` | 4 | — |
+| [clerk](/docs/adapters/clerk) | `permdock/clerk` | Provider: `subjectFromClerk` (session, active organization as tenant, memberships; `memberships: 'all'` through the Backend API), custom roles and role sets as a `RoleSource` | `apps/examples/clerk` | 4 | — |
 | [convex](/docs/adapters/convex) | `permdock/convex` | Provider: Convex identity to subject inside functions | `apps/examples/convex` | 4 | — |
 | [pdp](/docs/adapters/pdp) | `permdock/pdp` | AuthZEN PEP client that answers checks from a remote PDP | `apps/examples/authzen-pdp` | 4 | [AuthZEN](/docs/standards/authzen) |
 | [testing](/docs/adapters/testing) | `@permdock/testing` | Policy matrix tests, snapshot fixtures, RLS parity runner, `instant()` helpers | — | 1 | [Postgres RLS](/docs/standards/postgres-rls) |
@@ -69,11 +69,11 @@ Every adapter page documents the same eight sections (Purpose, API, Request life
 
 ### Request lifecycle
 
-1. Subject resolve. The adapter calls the `subject` option you passed to `createPermDock` with the framework's native handle (`c` in Hono, `req` in Express, `authInfo` in MCP, `cookies()` in Next.js). It may return `null` for anonymous callers. Agent adapters also fill `actor` and `delegation` from the runtime's auth info; the subject is never taken from a model-supplied argument. The resolver receives verified material only: a session the framework already validated, or claims verified by `permdock/jwt` or a provider `subjectFrom*` helper. PermDock never authenticates; see [authentication](/docs/concepts/authentication).
+1. Subject resolve. The adapter calls the `subject` option you passed to `createPermDock` with the framework's native handle (`c` in Hono, `req` in Express, `authInfo` in MCP, `cookies()` in Next.js). It may return `null` for anonymous callers. Agent adapters also fill `actor` and `delegation` from the runtime's auth info; the subject is never taken from a model-supplied argument. The resolver receives verified material only: a session the framework already validated, or claims verified by `permdock/jwt` or a provider `subjectFrom*` helper. PermDock never authenticates; see [authentication](/docs/concepts/authentication). The same rule covers `principal.tenant` and `principal.memberships`: the adapter's `tenant` option resolves the active tenant from the URL, a route parameter or the provider's active organisation and passes it to core, which accepts it only when a membership matches; a tenant from an unsigned header or a model argument is never used ([tenancy](/docs/concepts/tenancy)).
 2. `createPermDock`. Exactly one immutable `PermDock` is built per request (or per RSC render, per tool call, per RPC procedure) and stored where the framework expects request state. Nothing is shared across requests; there is no global `setup()`.
 3. Check. Handlers call `can`, `decide`, `assert`, `filter` or `where` on the request-scoped instance, or let `protect(permission, loadData)` do it before the handler runs.
 4. Denial surface. The adapter turns a `denied` or `approval-required` `Decision` into the framework's response type and forwards the `on('decision')` event to audit. See [decisions](/docs/concepts/decisions).
-5. Pluggable state. Every adapter that can surface `approval-required` accepts a `store` (an [`ApprovalStore`](/docs/adapters/approvals), in-memory by default) and every adapter accepts a `sink` (a [`DecisionSink`](/docs/concepts/audit-and-observability), in-memory by default). Neither is consulted on the `decide` path; [`permdock/cloud`](/docs/adapters/cloud) is one implementation of both, and an application database is another.
+5. Pluggable state. Every adapter that can surface `approval-required` accepts a `store` (an [`ApprovalStore`](/docs/adapters/approvals), in-memory by default) and every adapter accepts a `sink` (a [`DecisionSink`](/docs/concepts/audit-and-observability), in-memory by default). Neither is consulted on the `decide` path; [`permdock/cloud`](/docs/adapters/cloud) is one implementation of both, and an application database is another. Every adapter also accepts `memberships` (a [`MembershipSource`](/docs/concepts/extension-interfaces)) and `customRoles` (a `RoleSource`); these two are subject inputs, run once before the instance is built, and are the only options that may influence an outcome. The Cloud implements neither.
 
 ### What every adapter validates
 
@@ -88,12 +88,31 @@ Every adapter page documents the same eight sections (Purpose, API, Request life
 |---|---|---|
 | HTTP and RPC | `403` with `application/problem+json`: `type`, `title`, `status`, `permission`, `denials`, `alternatives` | `403` with `type` ending in `/approval-required`, plus `token` |
 | Next.js server | `assert` runs layered handlers; the default handler calls `redirect()` or `notFound()` as configured | Same handler chain; the app decides where to send the user |
-| React and other UI | `usePermission` returns `allowed: false` with `status`; `Protected` renders `fallback` | `allowed: false`, `decision.outcome === 'approval-required'` exposed for a "request access" UI |
+| React and other UI | `usePermission` returns `allowed: false` with `status`; `Protected` renders `fallback`; a disabled control uses `usePermission` plus `describe(decision)` for the reason | `allowed: false`, `decision.outcome === 'approval-required'` exposed for a "request access" UI; `useApproval` tracks the request |
 | MCP | Tool result with `isError: true` and Decision reasons in `structuredContent`; missing scope becomes a `403 insufficient_scope` challenge | Elicitation request to the client |
 | AI SDK and Claude Agent SDK | `denied` with reason and alternatives | `user-approval` or `needsApproval`; the Claude hook returns an ask verdict |
 | Eve and OpenAI Agents SDK | Eve `{ type: 'denied', reason }`; OpenAI `state.reject(i, { message })` | Eve `"user-approval"` parks the session; OpenAI `needsApproval` returns `true` and the run returns `interruptions`; both resolve through the `ApprovalStore` |
 
 Denial bodies are written for models as well as humans: `denials[].reason` is a sentence, `alternatives` lists permitted permissions on the same resource. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
+
+Tenancy adds four reason codes every surface carries unchanged: `tenant-mismatch` (the row belongs to another tenant), `no-membership` (the active tenant is not one the subject belongs to), `scope` (the role is held, but not for this row or team) and `expired-membership`. HTTP bodies add `tenant` next to `permission`; MCP `structuredContent` and agent denials carry the same fields so a model can tell "wrong workspace" from "not allowed" ([tenancy](/docs/concepts/tenancy)).
+
+### UI parity
+
+The UI entries expose the same surface under each framework's idiom. A hook that exists in `permdock/react` exists in every UI adapter before the adapter's `Status` becomes `shipped` ([UI concept](/docs/concepts/ui)).
+
+| Surface | react, react-native | next (client half) | vue | svelte | solid | webmcp |
+|---|---|---|---|---|---|---|
+| `PermDockProvider` / snapshot install | `PermDockProvider` | `PermDockProvider` from the factory | plugin install | context setter | `PermDockProvider` | `registerTools({ snapshot })` |
+| `usePermDock` | yes | yes | composable | context getter | yes | internal |
+| `usePermission`, `usePermissions` | yes | yes (`getPermission` on the server) | composables | `permission`, `permissions` stores | signal accessors | tool filter |
+| `useFilter` | yes | yes | composable | derived store | signal accessor | — |
+| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles` | yes | yes (`getPermDock().tenants()` on the server) | composables | stores | signal accessors | `registerTools({ tenant })` |
+| `useApproval` | yes | yes | composable | store | signal accessor | — |
+| `useSubject` | yes | yes | composable | store | signal accessor | — |
+| `Protected` (with `fallback`, `tenant`) | yes | yes | component | component | component | — |
+| `describe(decision)` | core export, framework-free | same | same | same | same | same |
+| `invalidate()` / `refresh()` | yes | yes (`updateTag` on the server) | yes | yes | yes | re-register |
 
 ### Naming rules
 

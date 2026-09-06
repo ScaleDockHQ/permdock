@@ -49,6 +49,9 @@ describePolicy(policy, {
 | `rlsParity(policy, options)` | Runs each matrix cell in-process and against a Postgres database under `set local role` plus `request.jwt.claims`, comparing outcomes as `allowed`, `filtered` or `rejected 42501`. Wraps testcontainers; emits pgTAP on request. |
 | `instant` | Re-exports and wraps `@next/playwright` helpers so the example and user apps can assert that a guarded route renders from the prefetched App Shell without a blocking request, and that `updateTag` refreshes the shell. |
 | `expectTypeOf` and type fixtures | Vitest `expectTypeOf`-based assertions for arity (`can(permissions.post.create, post)` is an error), reference identity across `mergePermissions`, subject narrowing after `assert`, and `never` exhaustiveness on `Decision.outcome` switches. |
+| `testSubjectResolver`, `testMembershipSource`, `testRoleSource`, `testApprovalStore`, `testDecisionSink`, `testSnapshotSource`, `testWhereCompiler` | Conformance runners, one per [extension interface](/docs/concepts/extension-interfaces): a provider mapper never throws and fails closed to anonymous, a membership source returns well-formed memberships, a role source never resolves beyond the declared assignable roles, a store round-trips and refuses double resolution, a sink never propagates errors, a snapshot source round-trips snapshot v2, a compiler fails closed on the empty allow set. Provider adapters in this repository and community implementations run the same suites. |
+
+`describePolicy` subjects may carry `memberships` and `tenant` ([tenancy](/docs/concepts/tenancy)), and the config accepts `tenants` so one matrix runs with each active tenant; the repository's own matrix carries the tenancy cases from [ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships) (tenant allow versus global deny, team role outside the active tenant, resource role through parent hops, expired membership, custom role with an unknown include, collection action in a foreign tenant). `snapshotFixture` accepts `{ tenant, tenants: 'all', simulated: true }` and emits snapshot v2.
 
 ## Request lifecycle
 
@@ -65,7 +68,8 @@ Tests do not run a request, but the helpers follow the same order as adapters so
 - Fixtures against resource schemas (always, regardless of the policy's `validate` mode).
 - Agent cells: an `actor` with `delegation` never receives `granted` where its principal is `denied`.
 - RLS parity: for each `read` cell, `filter` in-process equals the rows visible under the database role; for `create`/`update`/`delete`, `granted` equals a successful statement and `denied` equals `rejected 42501` or `filtered` (zero rows affected), per the semantics in [Postgres RLS](/docs/standards/postgres-rls).
-- Snapshot fixtures round-trip through the snapshot v1 schema so UI tests use exactly what the provider validates.
+- Snapshot fixtures round-trip through the snapshot v2 schema (v1 for policies without memberships) so UI tests use exactly what the provider validates.
+- RLS parity for `memberOf`: tenant, team and resource scopes compile to the mapped membership tables and agree with `can()` for each dialect, including expired memberships and parent hops.
 
 ## How denials surface
 

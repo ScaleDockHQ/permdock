@@ -14,47 +14,66 @@ const permdock = await createPermDock(policy, user)
 
 const full   = permdock.snapshot()
 const scoped = permdock.snapshot({ include: [permissions.post, permissions.billing.plan] })
+const all    = permdock.snapshot({ tenants: 'all' })          // every membership, for a local tenant switcher
+const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).snapshot()   // simulated: true
 ```
 
-`snapshot` is synchronous and pure. It includes only what the current subject's roles grant, so a member's snapshot never reveals admin grants.
+`snapshot` is synchronous and pure. It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip ([tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)).
+
+### Simulated snapshots
+
+`simulate({ roles, memberships, tenant }).snapshot()` produces a snapshot for a hypothetical subject ("view as a Globex viewer"). It carries `simulated: true`; the decision endpoint and `approvalsHandler` refuse requests whose snapshot is simulated, so a preview can render every guard but can never produce a real token or mutation. Producing one is itself a permission you declare (for example `permissions.admin.previewAs`).
 
 ### Scoped snapshots
 
 `include` limits the snapshot to the listed groups or leaves. Anything outside reports `status: 'server-only'` on the client and is resolved through the endpoint. This is how a large policy ships only the grants a route needs, the equivalent of passing one message namespace to the client in next-intl. See [larger apps](/docs/getting-started/larger-apps).
 
-## Wire format v1
+## Wire format v2
 
 ```json
 {
-  "v": 1,
+  "v": 2,
   "issuedAt": "2026-09-06T10:15:00Z",
   "subject": {
-    "principal": { "id": "u_1", "orgId": "o_1", "roles": ["member"] },
+    "principal": {
+      "id": "u_1", "roles": ["support"], "tenant": "o_1",
+      "memberships": [
+        { "tenant": "o_1", "roles": ["member"] },
+        { "tenant": "o_1", "team": "t_design", "roles": ["lead"], "via": "group:9f2c" },
+        { "on": { "resource": "document", "id": "d_9" }, "roles": ["editor"], "expiresAt": 1789000000 }
+      ]
+    },
     "delegation": { "scopes": ["post:read", "post:update"] },
-    "context": { "teamIds": ["t_1", "t_2"] }
+    "context": { "plan": "pro" }
   },
-  "roles": ["member"],
+  "roles": ["support", "member", "lead", "editor"],
   "grants": [
-    { "permission": "post.read",    "effect": "allow", "role": "member" },
-    { "permission": "post.update",  "effect": "allow", "role": "member",
+    { "permission": "post.read",    "effect": "allow", "role": "member", "scope": "tenant" },
+    { "permission": "post.update",  "effect": "allow", "role": "member", "scope": "tenant",
       "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
-    { "permission": "post.delete",  "effect": "allow", "role": "member", "approval": "human",
+    { "permission": "post.publish", "effect": "allow", "role": "lead", "scope": "team", "membership": { "tenant": "o_1", "team": "t_design" } },
+    { "permission": "document.update", "effect": "allow", "role": "editor", "scope": { "resource": "document" }, "membership": { "on": { "resource": "document", "id": "d_9" } } },
+    { "permission": "post.delete",  "effect": "allow", "role": "member", "scope": "tenant", "approval": "human",
       "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
-    { "permission": "post.publish", "effect": "allow", "role": "member", "portable": false }
+    { "permission": "post.archive", "effect": "allow", "role": "member", "scope": "tenant", "portable": false }
   ],
-  "include": ["post"]
+  "tenants": ["o_1"],
+  "include": ["post", "document"]
 }
 ```
 
 | Field | Meaning |
 | --- | --- |
-| `v` | Format version. Readers reject unknown majors; the format is public and documented here and in [wire formats](/docs/concepts/wire-formats). |
-| `subject` | The frozen principal, delegation and context the conditions reference. The actor's secrets are never included. |
-| `roles` | The role names that were applied. |
+| `v` | Format version. Readers reject unknown majors; the format is public and documented here and in [wire formats](/docs/concepts/wire-formats). v1 (no memberships, no `scope`) is still accepted by readers. |
+| `subject` | The frozen principal (including `memberships` and the active `tenant`), delegation and context the conditions reference. The actor's secrets are never included. |
+| `roles` | The role names that were applied, custom roles resolved to declared names. |
 | `grants` | One entry per grant, keyed by permission `key`; conditions in the [portable JSON form](/docs/concepts/conditions). |
+| `scope`, `membership` | On grants from scoped roles: the scope kind and the membership that supplied the role, so the client evaluates the scope match exactly as the server did ([tenancy](/docs/concepts/tenancy)). Absent on global grants. |
 | `portable: false` | The grant exists but uses a closure or an opaque condition; the client must ask the server. |
+| `tenants` | The tenants whose grants are present: the active tenant by default, every membership tenant with `tenants: 'all'`. |
+| `simulated` | `true` when produced by `simulate`; the decision endpoint refuses it. |
 | `include` | Present on scoped snapshots so the client knows which groups are authoritative. |
-| `issuedAt`, `expiresAt` | Unix seconds. `expiresAt` is optional and copied from the subject (`min(exp, session_expiry)` of the token it was built from, see [authentication](/docs/concepts/authentication)); past it the client reports `'stale'` regardless of `maxAge`. |
+| `issuedAt`, `expiresAt` | Unix seconds. `expiresAt` is optional and copied from the subject (`min(exp, session_expiry)` of the token it was built from, see [authentication](/docs/concepts/authentication)); the earliest membership `expiresAt` also bounds it. Past it the client reports `'stale'` regardless of `maxAge`. |
 
 Conditions are plain JSON (no superjson; dates as tagged ISO strings), so the snapshot, the catalog and RLS generation share one condition format.
 
@@ -72,9 +91,11 @@ permdock.can(permissions.post.update, post)      // boolean, from the snapshot
 permdock.decide(permissions.post.update, post)   // Decision, from the snapshot
 permdock.status(permissions.post.publish)        // 'server-only'
 permdock.invalidate(permissions.post)            // drop cached endpoint answers under post.*
+permdock.tenants()                               // ['o_1'] or every membership tenant with tenants: 'all'
+permdock.tenant('o_2').can(permissions.post.read) // derived instance; denied unless the snapshot carries o_2
 ```
 
-The client instance has the same `can` and `decide` as the server one, evaluated against the snapshot with the same in-memory evaluator. It adds `status` and `invalidate`, and it consults the endpoint for anything the snapshot marks as `portable: false` or does not include. `usePermDock` subscribes through `useSyncExternalStore`, so a snapshot refresh re-renders exactly the components that read it.
+The client instance has the same `can`, `decide`, `filter`, `tenant`, `team`, `memberships`, `tenants`, `roles` and `assignable` as the server one, evaluated against the snapshot with the same in-memory evaluator. It adds `status`, `invalidate`, `refresh` and `subscribe`, and it consults the endpoint for anything the snapshot marks as `portable: false` or does not include. `usePermDock` subscribes through `useSyncExternalStore`, so a snapshot refresh re-renders exactly the components that read it. `refresh({ tenant })` asks the server for a snapshot with another active tenant; the server resolves it against the subject's memberships ([UI](/docs/concepts/ui) tenant switcher).
 
 ### status
 
@@ -153,12 +174,14 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 ## What is not in a snapshot
 
 - Closures and opaque conditions: only their existence (`portable: false`).
-- Grants of roles the subject does not have.
+- Grants of roles the subject does not have, and grants of tenants outside `tenants` (the active one by default).
+- Tenant-defined custom role names: they are resolved to declared roles before serialisation, so a snapshot never carries a name RLS could not.
 - Quota state for `limit` grants (Later); those are always `server-only`.
 - Anything from the actor beyond what appears in `delegation`.
 
 ## Open questions
 
 - Whether large policies should ship full grants or per-permission booleans; grants keep offline ownership checks working, booleans are smaller.
-- Field names in the v1 format (`effect`, `portable`, `include`) are provisional until the core implementation lands.
+- Field names in the v2 format (`effect`, `portable`, `include`, `scope`, `membership`, `tenants`, `simulated`) are provisional until the core implementation lands.
+- Whether a `tenants: 'all'` snapshot for a subject with many memberships should be paged or capped, and whether `include` should accept a tenant filter.
 - Default `maxAge` for a snapshot, and whether `issuedAt` should be signed so a tampered persisted snapshot on a device is detected (it is UI-only either way).

@@ -1,6 +1,6 @@
 ---
 title: Wire formats
-description: The JSON shapes PermDock reads and writes, permission leaves, conditions, snapshot v1, AuthZEN messages, the catalog, Decisions and Problem Details, with an example of each.
+description: The JSON shapes PermDock reads and writes, permission leaves, conditions, snapshot v2, memberships and custom roles, AuthZEN messages, the catalog, Decisions and Problem Details, with an example of each.
 ---
 
 Everything PermDock puts on a wire, in a file or in a log is plain JSON with a documented shape. No superjson, no class instances, no private compact encodings. This page is the reference for those shapes; the concept pages explain the semantics. Field names marked provisional may still change before the core implementation lands and will be versioned when they do.
@@ -43,37 +43,65 @@ The normalised form of `{ where: { authorId: subject.id, teamId: { in: subject.c
 | Compound | `{ "op": "and" \| "or", "conditions": Condition[] }`, `{ "op": "not", "condition": Condition }` |
 | Reference | `{ "ref": "subject.<field>" }` or `{ "ref": "subject.context.<key>" }` |
 | Date | `{ "date": "2026-09-06T10:15:00Z" }` |
+| Scope (from scoped roles) | `{ "op": "memberOf", "scope": "tenant" \| "team" \| "resource", "field": string, "roles": string[], "resource"?: string, "parents"?: string[] }` ([tenancy](/docs/concepts/tenancy)) |
 | Opaque (imported) | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }` |
 
 Literals are JSON literals. Single-child compounds are collapsed and nested same-operator compounds are flattened when the grant is defined, so consumers see a canonical tree. Field names are provisional.
 
-## Snapshot v1
+## Snapshot v2
 
-Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots).
+Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). Version 2 adds `subject.principal.memberships`, `subject.principal.tenant`, per-grant `scope` and `membership`, and the top-level `tenants` and `simulated` fields ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships)); readers still accept v1.
 
 ```json
 {
-  "v": 1,
+  "v": 2,
   "issuedAt": "2026-09-06T10:15:00Z",
   "subject": {
-    "principal": { "id": "u_1", "orgId": "o_1", "roles": ["member"] },
+    "principal": {
+      "id": "u_1", "roles": [], "tenant": "o_1",
+      "memberships": [
+        { "tenant": "o_1", "roles": ["member"] },
+        { "tenant": "o_1", "team": "t_design", "roles": ["lead"], "via": "group:9f2c" }
+      ]
+    },
     "delegation": { "scopes": ["post:read", "post:update"] },
-    "context": { "teamIds": ["t_1"] }
+    "context": {}
   },
-  "roles": ["member"],
+  "roles": ["member", "lead"],
   "grants": [
-    { "permission": "post.read", "effect": "allow", "role": "member" },
-    { "permission": "post.update", "effect": "allow", "role": "member",
+    { "permission": "post.read", "effect": "allow", "role": "member", "scope": "tenant" },
+    { "permission": "post.update", "effect": "allow", "role": "member", "scope": "tenant",
       "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
-    { "permission": "post.delete", "effect": "allow", "role": "member", "approval": "human",
+    { "permission": "post.publish", "effect": "allow", "role": "lead", "scope": "team",
+      "membership": { "tenant": "o_1", "team": "t_design" } },
+    { "permission": "post.delete", "effect": "allow", "role": "member", "scope": "tenant", "approval": "human",
       "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
-    { "permission": "post.publish", "effect": "allow", "role": "member", "portable": false }
+    { "permission": "post.archive", "effect": "allow", "role": "member", "scope": "tenant", "portable": false }
   ],
+  "tenants": ["o_1"],
   "include": ["post"]
 }
 ```
 
-A grant entry has `permission`, `effect` (`allow` or `deny`), `role`, optional `where`, `check`, `approval`, and `portable: false` when the server-side grant is a closure or opaque. Readers must reject a `v` they do not know.
+A grant entry has `permission`, `effect` (`allow` or `deny`), `role`, optional `where`, `check`, `approval`, `scope` (`"tenant"`, `"team"` or `{ "resource": string }`) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. Readers must reject a `v` they do not know.
+
+## Membership and custom role
+
+Carried inside the principal and exchanged with `MembershipSource` and `RoleSource` implementations ([tenancy](/docs/concepts/tenancy)). PermDock publishes both as Standard JSON Schema for validating edits at a boundary.
+
+```json
+{ "tenant": "o_1", "team": "t_design", "roles": ["lead"], "via": "group:9f2c", "expiresAt": 1789000000 }
+```
+
+```json
+{ "on": { "resource": "document", "id": "d_9" }, "roles": ["editor"] }
+```
+
+```json
+{ "tenant": "o_1", "name": "billing-manager", "includes": ["billing-viewer", "invoice-payer"], "meta": { "title": "Billing Manager" } }
+```
+
+Exactly one of `tenant`-only, `tenant` plus `team`, or `on` applies to a membership; a `CustomRole.includes` entry names a declared role marked `assignable`.
 
 ## Decision
 
@@ -110,10 +138,13 @@ Emitted by `on('decision')`. See [audit and observability](/docs/concepts/audit-
   "scope": "post:delete",
   "resource": { "type": "post", "id": "42" },
   "subject": {
-    "principal": { "id": "u_1", "roles": ["member"] },
+    "principal": { "id": "u_1", "roles": [], "tenant": "o_1" },
     "actor": { "id": "mcp-client-7", "kind": "mcp-client" },
     "delegation": { "scopes": ["post:read", "post:update"] }
   },
+  "tenant": "o_1",
+  "membership": { "tenant": "o_1", "roles": ["member"] },
+  "via": null,
   "denials": [{ "role": null, "reason": "not-delegated" }],
   "alternatives": ["post.read", "post.update"],
   "trusted": false,
@@ -121,6 +152,8 @@ Emitted by `on('decision')`. See [audit and observability](/docs/concepts/audit-
   "adapter": "mcp"
 }
 ```
+
+`tenant` is the active tenant, `membership` the entry that supplied the matched role (absent for a global role) and `via` its inheritance path (`group:<id>`, `team:<id>`) when the provider recorded one; a tenant-scoped audit log is a filter on `tenant` ([audit and observability](/docs/concepts/audit-and-observability)).
 
 Two documented projections leave the event unchanged and exist so `DecisionSink` implementations agree with each other ([audit and observability](/docs/concepts/audit-and-observability)):
 
@@ -168,12 +201,14 @@ The decision endpoint, `permdock/authzen` and the `pdp` provider speak the OpenI
 
 ```json
 {
-  "subject": { "type": "user", "id": "u_1" },
+  "subject": { "type": "user", "id": "u_1", "properties": { "memberships": [{ "tenant": "o_1", "roles": ["member"] }] } },
   "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1", "orgId": "o_1", "published": false } },
   "action": { "name": "update" },
-  "context": { "actor": { "id": "mcp-client-7", "kind": "mcp-client" }, "delegation": { "scopes": ["post:update"] } }
+  "context": { "tenant": "o_1", "actor": { "id": "mcp-client-7", "kind": "mcp-client" }, "delegation": { "scopes": ["post:update"] } }
 }
 ```
+
+Memberships travel as a subject property and the active tenant as request context ([AuthZEN](/docs/standards/authzen) mapping table).
 
 ```json
 {
@@ -248,11 +283,17 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
       "grantedBy": ["member", "admin"] },
     { "key": "post.create", "scope": "post:create", "resource": "post", "action": "create", "kind": "collection",
       "usedIn": [], "grantedBy": ["member", "admin"] }
-  ]
+  ],
+  "roles": {
+    "member": { "on": "tenant", "assignable": true, "meta": { "title": "Member" }, "grants": ["post.read", "post.update", "post.create"] },
+    "admin":  { "on": "tenant", "assignable": true, "meta": { "title": "Admin" }, "grants": ["post.delete", "member.invite"] },
+    "support": { "assignable": false, "grants": ["post.read"] }
+  },
+  "scopes": { "tenant": { "key": "orgId" }, "team": { "key": "teamId" } }
 }
 ```
 
-`schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file byte-for-byte with a fresh run.
+`roles` and `scopes` are new in this shape ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships)): the role editor recipe on [UI](/docs/concepts/ui) renders the assignable entries, and `permdock usage` reports scoped roles no membership source can fill. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file byte-for-byte with a fresh run.
 
 ## Problem Details
 
@@ -317,7 +358,8 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 
 ## Open questions
 
-- Condition field names (`op`, `field`, `value`, `ref`, `date`) and snapshot grant field names (`effect`, `portable`).
+- Condition field names (`op`, `field`, `value`, `ref`, `date`, the `memberOf` node) and snapshot grant field names (`effect`, `portable`, `scope`, `membership`).
+- Whether decision events should carry the full matching `membership` or only its scope identifiers.
 - Whether the catalog should embed resource JSON Schemas or reference a separate `resources.schema.json`.
 - How much of the `Decision` to expose in AuthZEN `context` to non-PermDock PEPs, and whether `alternatives` should be answered only through `search/action`.
 - The Problem Details base URI.

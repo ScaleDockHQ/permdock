@@ -1,0 +1,142 @@
+---
+title: Extension interfaces
+description: The fixed set of interfaces through which providers, stores, sinks and compilers plug into PermDock (SubjectResolver, MembershipSource, RoleSource, ApprovalStore, DecisionSink, SnapshotSource, LimitStore, WhereCompiler, on() events), their trust classes, the in-process default each ships with, how provider principal types are extended without global augmentation, and the conformance runners in @permdock/testing.
+---
+
+Status: proposed ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable))
+Phase: 1 (interfaces, defaults, runners), 2 to 4 (implementations)
+
+PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-not-plugin)). What it has instead is a short list of interfaces, each with one job, one trust class and one in-process default, passed explicitly to `createPermDock`. A provider (Supabase, Clerk, Better Auth), a store (Postgres, Redis, PermDock Cloud), a sink (OpenTelemetry, a SIEM) or a compile target (Drizzle, MongoDB, a sync engine) implements one of them; nothing else can reach the evaluator. This page is the list. If an integration needs something not on it, that is an ADR, not a new option.
+
+## The interfaces
+
+| Interface | Job | Trust class | Default in `permdock` | Implemented by |
+| --- | --- | --- | --- | --- |
+| `SubjectResolver<TInput, TPrincipal>` | Turn verified auth material into a `Subject` | Subject input: shapes the outcome | The policy's own `subject` function | `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromConvex`, `subjectFromMcp`, yours |
+| `MembershipSource` | Add tenant, team and resource memberships to a principal | Subject input | What `subject` and `context` returned | Provider mappers, your `document_members` table |
+| `RoleSource` | Resolve tenant-defined custom roles to declared roles; list assignable roles | Subject input | `memoryRoleSource(customRoles)` | Better Auth `organizationRole`, Supabase `role_permissions`, WorkOS, Clerk, Auth0 organisation roles, your table |
+| `ApprovalStore` | Hold pending `approval-required` decisions until a human answers | Operational: never influences an outcome | `memoryApprovalStore()` | Postgres, Redis, Durable Objects, PermDock Cloud ([approvals](/docs/adapters/approvals)) |
+| `DecisionSink` | Receive decision events after the fact | Operational | `memorySink()` | OpenTelemetry, SIEMs, a table, PermDock Cloud ([audit](/docs/concepts/audit-and-observability)) |
+| `SnapshotSource` | Distribute and invalidate snapshots | Operational | In-process `snapshot()` | PermDock Cloud, your cache ([snapshots](/docs/concepts/snapshots)) |
+| `LimitStore` | Count usage for `limit` grants (Phase 4) | Operational with one exception: an exhausted quota denies | In-memory counter | Redis, Upstash, Postgres |
+| `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/local-first-sync)) |
+| `on(event, handler)` | Observe `decision`, `denied`, `approval`, `auth` events | Observational: cannot change a `Decision` | No-op | Logging, metrics, tests |
+
+Two rules follow from the table. **Subject inputs run once per `createPermDock`**, before any check, and their output is frozen into the subject; they never run during `can` or `decide`, so a slow membership lookup costs one await per request, not one per button. **Operational interfaces never sit in the decision path**: `decide` returns before a sink is awaited, a store is consulted only on resume (and the resume re-runs `decide`), and a snapshot source distributes what the in-process instance already computed (invariant 15). `permdock/cloud` implements the three operational interfaces and none of the subject inputs.
+
+## Subject inputs
+
+### SubjectResolver
+
+```ts
+import type { StandardSchemaV1 } from '@standard-schema/spec'
+
+interface SubjectResolver<TInput, TPrincipal extends Principal = Principal> {
+  (input: TInput, options?: { tenant?: string }): Subject<TPrincipal> | Promise<Subject<TPrincipal>>
+}
+```
+
+Every `subjectFrom*` function satisfies it, and so does the `subject` function you pass to `definePolicy`. A resolver never throws: an unverifiable token, a missing session or a failed schema check yields the anonymous subject and an `on('auth')` event with the reason ([authentication](/docs/concepts/authentication)). The optional `tenant` is the active tenant the server resolved from the request; the resolver compares it against the memberships it finds and sets `principal.tenant` only on a match ([tenancy](/docs/concepts/tenancy)).
+
+### Typed provider principals
+
+Each provider entry exports a base principal type and accepts a `schema` option, any Standard Schema, for the claims or fields it cannot know in advance:
+
+```ts
+import { subjectFromSupabase, type SupabasePrincipal } from 'permdock/supabase'
+import { z } from 'zod'
+
+const claims = z.object({ tenant_id: z.string().uuid(), user_role: z.enum(['viewer', 'admin']), plan: z.enum(['free', 'pro']) })
+
+export const subject = subjectFromSupabase(supabase, {
+  schema: claims,                                   // validated once per request; typed from InferOutput
+  tenant: (c) => c.tenant_id,
+  roles: (c) => [c.user_role, ...(c.plan === 'pro' ? ['pro'] : [])],
+})
+// typeof subject: SubjectResolver<SupabaseClient, SupabasePrincipal & z.output<typeof claims>>
+```
+
+| Entry | Base type | What it fixes | What `schema` adds |
+| --- | --- | --- | --- |
+| `permdock/supabase` | `SupabasePrincipal` | `id` (`sub`), `kind: 'user'`, `assurance` (`aal`), `email` when present | Custom access token hook claims; `user_metadata` is never read |
+| `permdock/clerk` | `ClerkPrincipal` | `id`, `tenant` (active organization), `memberships[0]` from `org_role`, `fea` roles | Custom session claims |
+| `permdock/better-auth` | `BetterAuthPrincipal` | `id`, `tenant` (`activeOrganizationId`), memberships from `member` and `teamMember` rows | `additionalFields` on the user |
+| `permdock/jwt` | `JwtPrincipal` | `id`, `kind`, `assurance`, `binding`, RFC 9068 `roles` / `groups` / `entitlements` | Any other claim |
+| `permdock/convex` | `ConvexPrincipal` | `id` (`tokenIdentifier` or `subject`), `kind` | Custom claims on the identity |
+| `permdock/mcp` | `McpPrincipal` | `id` from `authInfo`, `kind`, the `actor` and `delegation` halves | `authInfo.extra` claims |
+
+Validation failure is not a throw: the principal becomes anonymous and `on('auth')` reports `schema` as the reason, the same fail-closed rule as an invalid token. The `schema` output type is intersected with the base type, so `subject.plan` in a condition is typed and a typo is a compile error. There is no `declare module 'permdock'` augmentation and no `$Infer` accessor: augmentation types values that may not exist at runtime and cannot be validated, and an inference accessor cannot see configuration TypeScript cannot link statically ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships) alternatives).
+
+Two helper types cover the policy side: `PrincipalOf<typeof policy>` and `SubjectOf<typeof policy>` are the principal and subject types the policy's `subject` function produces, for use in server actions, tests and handlers without re-deriving them.
+
+### MembershipSource and RoleSource
+
+```ts
+interface MembershipSource {
+  membershipsFor(principal: { id: string; kind?: string }, options: { tenant?: string }): Membership[] | Promise<Membership[]>
+}
+
+interface RoleSource {
+  rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>
+  assignable?(tenant: string): string[] | Promise<string[]>
+}
+```
+
+Both are documented with their evaluation rules on the [tenancy](/docs/concepts/tenancy) page. They are read-only from PermDock's point of view: PermDock never creates, updates or deletes a membership or a custom role, so a source is a query, not a repository. A source that throws yields no memberships or no custom roles for that request (fewer grants, never more) and an `on('auth')` event; it never fails the request.
+
+## Operational interfaces
+
+`ApprovalStore`, `DecisionSink` and `SnapshotSource` are defined on their own pages ([approvals](/docs/adapters/approvals), [audit and observability](/docs/concepts/audit-and-observability), [snapshots](/docs/concepts/snapshots)) and summarised here for the trust rule only. `LimitStore` is Phase 4 and its shape is an open question on [policies](/docs/concepts/policies); it is the one operational interface whose answer (quota exhausted) produces a `denied`, which is why it is listed separately and why a store failure is treated as exhausted.
+
+```ts
+interface WhereCompiler<TTarget, TOptions = unknown> {
+  (condition: PortableCondition, target: TTarget, options?: TOptions): unknown
+}
+```
+
+`toWhere` from each query adapter is a `WhereCompiler`. A compiler receives the normalised JSON tree ([conditions](/docs/concepts/conditions)), including the `memberOf` node, and must return a fail-closed value (an always-false expression, `{ OR: [] }`, `eb.lit(false)`) when the condition is the empty allow set. It never receives closures; `permdock.where` has already excluded them and set `partial`. A community compiler for a new target (MongoDB, a sync engine's permission language) implements this interface and runs `testWhereCompiler` below; it does not become a package entry without an ADR ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+
+## Events
+
+`permdock.on(event, handler)` registers observers on the request-scoped instance:
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `decision` | `DecisionEvent` (permission, outcome, subject summary, tenant, membership, via, actor, delegation) | Every `decide`, `assert`, `can` |
+| `denied` | The same, filtered | Outcome `denied` |
+| `approval` | `ApprovalRequest` | Outcome `approval-required`, and on resolve |
+| `auth` | `{ reason, source }` | A resolver, membership source or role source failed closed: invalid token, schema mismatch, unknown role name, groups overflow, source threw |
+
+Handlers cannot change a `Decision`; they receive a frozen copy after the outcome is computed. Throwing inside a handler is caught and reported once.
+
+## Conformance runners
+
+`@permdock/testing` ships one runner per interface so an implementation can prove it honours the contract before it is used:
+
+```ts
+import { testSubjectResolver, testMembershipSource, testRoleSource, testApprovalStore, testDecisionSink, testSnapshotSource, testWhereCompiler } from '@permdock/testing'
+
+testSubjectResolver(subjectFromSupabase(client, { schema }), { valid: [session], invalid: [expiredSession, tamperedSession] })
+testMembershipSource(documentMembers, { principals: [alice], expect: { alice: [{ on: { resource: 'document', id: 'd_1' }, roles: ['editor'] }] } })
+testRoleSource(betterAuthRoles, { tenants: ['o_acme'], declared: policy.assignable })
+testApprovalStore(postgresStore)
+testWhereCompiler(toMongo, { fixtures: conditionFixtures })
+```
+
+| Runner | Asserts |
+| --- | --- |
+| `testSubjectResolver` | Never throws; invalid material yields the anonymous subject and an `auth` event; valid material yields a frozen principal whose fields match the base type and the schema; `tenant` is set only on a membership match |
+| `testMembershipSource` | Returns only well-formed memberships (one scope shape each); a throw yields an empty list; results are JSON |
+| `testRoleSource` | Every `includes` entry is a declared assignable role or is dropped; `assignable` is a subset of the declared assignable roles; unknown tenants yield an empty list |
+| `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; the token is opaque to the store |
+| `testDecisionSink` | Accepts batches; `flush` is idempotent; a throw never propagates to the caller |
+| `testSnapshotSource` | Round-trips snapshot v2 through the format schema; invalidation is observed by a subscriber |
+| `testWhereCompiler` | Every fixture in the portable subset compiles; the empty allow set compiles to a fail-closed value; closures are rejected with `PermDockValidationError` |
+
+The runners are what the provider adapters run in this repository's CI and what a community implementation runs in its own.
+
+## Open questions
+
+- Whether `SubjectResolver` should receive the request itself (for DPoP or mTLS binding checks) or keep those in the adapter kernel that already has the request (the current design).
+- `LimitStore`'s shape and whether a store failure should deny (proposed) or fall back to unlimited (rejected on fail-closed grounds, recorded for completeness).
+- Whether `WhereCompiler` should be a formal export of `permdock` or stay a type the query adapters share internally until a community compiler exists.

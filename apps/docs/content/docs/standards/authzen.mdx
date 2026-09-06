@@ -58,12 +58,21 @@ An evaluation request for `permdock.decide(permissions.post.update, post)`:
 
 ```json
 {
-  "subject": { "type": "user", "id": "u_123", "properties": { "orgId": "org_9", "roles": ["member"], "actor": { "type": "mcp-client", "id": "https://agent.example/cimd.json" } } },
+  "subject": {
+    "type": "user", "id": "u_123",
+    "properties": {
+      "roles": [],
+      "memberships": [{ "tenant": "org_9", "roles": ["member"] }, { "tenant": "org_9", "team": "t_design", "roles": ["lead"], "via": "group:9f2c" }],
+      "actor": { "type": "mcp-client", "id": "https://agent.example/cimd.json" }
+    }
+  },
   "action": { "name": "post.update" },
   "resource": { "type": "post", "id": "p_42", "properties": { "authorId": "u_123", "orgId": "org_9", "published": false } },
-  "context": { "delegation": { "scopes": ["post:update"] } }
+  "context": { "tenant": "org_9", "delegation": { "scopes": ["post:update"] } }
 }
 ```
+
+`subject.properties.memberships` carries the [tenancy](/docs/concepts/tenancy) memberships (AuthZEN 1.0 names group memberships as an example subject property) and `context.tenant` the active tenant, because the tenant is a property of the request, not of the subject. A single-tenant policy that still uses `orgId` on the principal sends it as a property as before.
 
 The response carries the boolean AuthZEN decision plus PermDock's `Decision` in `context` so PEPs that understand it get reasons, alternatives and the approval token:
 
@@ -88,6 +97,9 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject` and 
 | --- | --- |
 | `subject.type`, `subject.id` | `principal` (`subject.id` in policy conditions) |
 | `subject.properties` | Principal fields returned by `definePolicy`'s `subject` function, plus `actor` |
+| `subject.properties.memberships` | `principal.memberships` (tenant, team and resource roles, [tenancy](/docs/concepts/tenancy)) |
+| `context.tenant` | `principal.tenant`, the active tenant for this request; absent means no tenant, never a default |
+| `.well-known/authzen-configuration/<tenant>` | Per-tenant PDP metadata served by `handler` and the hosted ADS when the deployment is multi-tenant |
 | `action.name` | `permission.key` (`post.update`); resolved with `findPermission` |
 | `resource.type` | Resource node name (`post`) |
 | `resource.id` | Value of the resource's `id` field |
@@ -100,6 +112,7 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject` and 
 | `/search/action` | Granted keys from `listPermissions` for one resource (the catalog question) |
 | `/search/resource` | `filter` for arrays, `where` for query compilers |
 | `/search/subject` | Iterating known subjects; Phase 2, see open questions |
+| `/search/resource` as a claim source (AuthZEN claims draft) | `permdock.roles({ tenant })` and `memberships()` for the authenticated subject ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) |
 | `.well-known` metadata | `.well-known/authzen-configuration` served by `handler` |
 | Certification levels Basic / Batch / Search / Discovery | Phase 2 target for `permdock/authzen` |
 
@@ -114,5 +127,5 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject` and 
 
 - How `/search/subject` is answered when PermDock has no subject store of its own; likely an adapter-supplied enumerator, or an explicit "not supported" in the metadata document until the Search certification level is attempted.
 - Whether the client decision endpoint should accept `subject` from the request body at all, or ignore it and always use the authenticated session (the safer default; see [threat model](/docs/security/threat-model)).
-- Which AuthZEN `context` keys to standardise for `actor` and `delegation` so other PDPs can read them; today they are PermDock-specific.
+- Which AuthZEN `context` keys to standardise for `actor`, `delegation` and `tenant` so other PDPs can read them; today they are PermDock-specific.
 - Whether `approval-required` should be a distinct AuthZEN-level signal in a future profile rather than a `false` with extra context.

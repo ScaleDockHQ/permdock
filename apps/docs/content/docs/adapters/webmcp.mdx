@@ -41,7 +41,8 @@ function PostTools() {
 - Tool names are derived from the permission key (`post.update` becomes `post_update`); `title` and `description` come from action metadata when actions are declared as a record.
 - `readOnlyHint` is `true` for actions tagged read-only in metadata (default for `read` and `list`); `untrustedContentHint` is `true` for tools that return user-generated content, also from metadata.
 - The resource schema becomes the tool `inputSchema` (via Standard JSON Schema) for instance actions; collection actions use the schema declared in metadata or accept no input.
-- `signal` unregisters everything on abort; the adapter also aborts and re-registers internally when the snapshot changes (role change, `invalidate`, SSF event).
+- `signal` unregisters everything on abort; the adapter also aborts and re-registers internally when the snapshot changes (role change, tenant switch through `useTenant().switchTo`, `invalidate`, SSF event).
+- `tenant` (optional) registers tools against `permdock.tenant(id)` instead of the active tenant, for a page that shows another organisation's workspace. Tool descriptions include the tenant's `meta.title` from the snapshot when one is present so a browser agent can tell two workspaces apart; the tenant id itself is never a tool argument the agent may set ([tenancy](/docs/concepts/tenancy)). A snapshot with `simulated: true` registers no tools at all.
 
 ## Request lifecycle
 
@@ -58,6 +59,7 @@ function PostTools() {
 - The `tools` Permissions-Policy: `registerTools` is a no-op with a development warning when `document.modelContext` is absent (policy denied, unsupported browser, or the polyfill not loaded).
 - Snapshot freshness: tools are registered from the snapshot's `status`; a `server-only` permission (closure grant) is not registered until the decision endpoint has answered.
 - Nothing about the user's identity: the snapshot is issued by the server and is the only source of grants.
+- Tenant arguments: if the resource schema carries the `scopes.tenant.key` field (`orgId`), the adapter fills it from the active tenant and rejects a differing value supplied by the agent before the handler runs (`tenant-mismatch`), so a browser agent cannot address another tenant's rows through a tool it holds legitimately.
 
 ## How denials surface
 
@@ -83,3 +85,4 @@ function PostTools() {
 - Whether instance actions with `where` conditions should register with a description that states the condition ("only your own posts") or register only when the condition can be evaluated client-side.
 - How approvals should be presented in a page with no host UI for confirmation; the polyfill and native implementations may differ.
 - Whether `registerTools` should accept multiple groups in one call to share a single abort scope.
+- Whether a multi-tenant page should register one tool set per tenant with a suffix (`post_update__acme`) or, as documented, one set for the active tenant that re-registers on switch.

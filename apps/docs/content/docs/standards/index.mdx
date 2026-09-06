@@ -28,6 +28,7 @@ The `Phase` column is the first phase in which PermDock uses the standard; adapt
 | [RFC 9457 Problem Details](/docs/standards/problem-details) | RFC 9457 | RFC | 403 bodies in [HTTP adapters](/docs/adapters/server-kernel), [errors](/docs/concepts/errors) | 1 |
 | [OpenID AuthZEN Authorization API](/docs/standards/authzen) | 1.0, final Jan 2026 | final | Decision endpoint (1), [authzen adapter](/docs/adapters/authzen) (2), [pdp provider](/docs/adapters/pdp) (4) | 2 |
 | [OAuth for agents](/docs/standards/oauth-agent-delegation) | RFC 9396, RFC 8693, RFC 9449, IETF drafts | RFCs plus IETF drafts | [Subject](/docs/concepts/subject) `actor` and `delegation` (1), `authorizationDetails` per permission (1), chain verification (4) | 1 |
+| [JWT authorization claims](/docs/standards/jwt-authorization-claims) | RFC 9068 section 2.2.3.1, RFC 7643 (SCIM) encoding; AuthZEN claims draft | RFCs plus an individual draft | Default `roles`, `groups`, `entitlements` mapping in [`permdock/jwt`](/docs/adapters/jwt) and provider mappers (1); `/search/resource` as a claim source (2) | 1 |
 | [FAPI 2.0 Security Profile](/docs/standards/fapi-2) | FAPI 2.0 | final | [`permdock/jwt`](/docs/adapters/jwt) `profile: 'fapi2'` (1), `x-permdock-securityProfile` in [CLI openapi](/docs/cli/openapi) (2) | 1 |
 | [GNAP](/docs/standards/gnap) | RFC 9635 | RFC (no mainstream AS support) | `delegation.access` next to `authorizationDetails`; no GNAP client | 4 |
 | [Agent docs standards](/docs/standards/agent-docs-standards) | AGENTS.md, Agent Skills, llms.txt (AAIF, Dec 2025) | community conventions | Shipped skills, `AGENTS.md`, `llms.txt`, [for AI agents](/docs/for-ai-agents) | 1 |
@@ -52,7 +53,7 @@ Standards pages carry one of four `Status` values. `planned`, `in progress` and 
 
 ## By phase
 
-- **Phase 1 (core + agents).** Standard Schema for definitions and boundary validation; Problem Details for HTTP denials; the AuthZEN-shaped decision endpoint and batched client; the two-principal subject with `scope` and `authorizationDetails` on every permission; `permdock/jwt` with the FAPI 2.0 profile; skills, `AGENTS.md` and `llms.txt`; the watch list.
+- **Phase 1 (core + agents).** Standard Schema for definitions and boundary validation; Problem Details for HTTP denials; the AuthZEN-shaped decision endpoint and batched client; the two-principal subject with `scope` and `authorizationDetails` on every permission; `permdock/jwt` with the FAPI 2.0 profile and the RFC 9068 `roles` / `groups` / `entitlements` mapping into roles and memberships; skills, `AGENTS.md` and `llms.txt`; the watch list.
 - **Phase 2 (surfaces).** `permdock/mcp` with `scopeChallenge`, elicitation and EMA awareness; the full `permdock/authzen` endpoint set and a certification run; OpenAPI 3.2 emission and import, Overlay output, Arazzo input and the `x-permdock-` namespace registration; WebMCP and A2A adapters.
 - **Phase 3 (data).** Postgres RLS generate, import and verify; the SSF/CAEP receiver against the CAEP Interoperability Profile.
 - **Phase 4 (ecosystem).** The `pdp` AuthZEN client provider; Web Bot Auth verification in HTTP adapters; delegation-chain verification and GNAP `access` evaluation; the docs MCP server.

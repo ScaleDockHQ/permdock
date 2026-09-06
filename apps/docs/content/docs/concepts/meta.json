@@ -6,11 +6,14 @@
     "policies",
     "conditions",
     "subject",
+    "tenancy",
     "authentication",
     "decisions",
     "snapshots",
     "validation",
     "audit-and-observability",
+    "extension-interfaces",
+    "ui",
     "errors",
     "wire-formats"
   ]

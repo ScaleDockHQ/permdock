@@ -14,16 +14,18 @@ PermDock is specified before it is implemented. This page lists what each phase 
 ### Phase 1: v0.1 "core + agents"
 
 - Definitions: `definePermissions`, `resource`, typed references, nested groups, `mergePermissions`, `listPermissions`, `findPermission`.
-- Policy: `definePolicy`, `role`, `allow`, `deny`, `subject`; role fragments merged by name; `approval: 'human'` grants.
+- Policy: `definePolicy`, `role`, `allow`, `deny`, `subject`; role fragments merged by name; `approval: 'human'` grants; `allow` / `deny` over arrays of references.
+- Tenancy ([0024](/docs/decisions/0024-scoped-roles-and-memberships), [tenancy](/docs/concepts/tenancy)): `principal.memberships` and `principal.tenant`; scoped roles (`role(name, grants, { on: 'tenant' | 'team' | resource, assignable })`), `definePolicy({ scopes })`, `resource({ parent })` derivation; tenant-defined `CustomRole`s through `RoleSource` (`memoryRoleSource`) and `MembershipSource`; the `memberOf` condition node in the evaluator and snapshot; reasons `tenant-mismatch`, `no-membership`, `scope`, `expired-membership`; instance methods `tenant`, `team`, `memberships`, `tenants`, `roles`, `assignable`.
 - Portable conditions with the in-memory evaluator; closures as branded non-portable grants.
-- Two-principal subject (`principal`, `actor`, `delegation`).
-- `createPermDock` with `can`, `decide` (three outcomes), `assert`, `filter`, `simulate`, `snapshot`, `on`.
+- Two-principal subject (`principal`, `actor`, `delegation`); every `subjectFrom*` typed as a `SubjectResolver` with a `schema` option for custom claims ([extension interfaces](/docs/concepts/extension-interfaces)).
+- `createPermDock` with `can`, `decide` (three outcomes), `assert`, `filter`, `simulate` (including `{ roles, memberships, tenant }` previews), `snapshot` (v2: memberships, tenant, `tenants`, `simulated`), `on`; `describe(decision)`.
 - Standard Schema validation in `boundary` mode.
 - AuthZEN-shaped decision endpoint and batched client.
 - `@permdock/testing`.
-- `permdock/react`; `permdock/next` (Cache Components, explicit factory); the Fetch server kernel and `permdock/hono`; `permdock/ai-sdk`, `permdock/claude-agent`, `permdock/eve` and `permdock/openai`.
+- `permdock/react` (`usePermission`, `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject`, `<Protected>`; [UI](/docs/concepts/ui)); `permdock/next` (Cache Components, explicit factory); the Fetch server kernel and `permdock/hono`; `permdock/ai-sdk`, `permdock/claude-agent`, `permdock/eve` and `permdock/openai`.
 - `permdock/approvals` (`ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, the `PermDock-Approval` resume header) and the `DecisionSink` interface with `memorySink`. See [0022](/docs/decisions/0022-approvals-are-pluggable).
-- `permdock/jwt` (`subjectFromJwt`, JWKS, RFC 8725 checks, `profile: 'fapi2'`, `jose` optional peer); the `subjectFrom*` provider pattern. See [authentication](/docs/concepts/authentication).
+- `permdock/jwt` (`subjectFromJwt`, JWKS, RFC 8725 checks, `profile: 'fapi2'`, `jose` optional peer; RFC 9068 `roles` / `groups` / `entitlements` mapped to roles and memberships, [JWT authorization claims](/docs/standards/jwt-authorization-claims)); the `subjectFrom*` provider pattern. See [authentication](/docs/concepts/authentication).
+- `@permdock/testing` conformance runners for every extension interface (`testSubjectResolver`, `testMembershipSource`, `testRoleSource`, `testApprovalStore`, `testDecisionSink`, `testSnapshotSource`, `testWhereCompiler`); tenancy cases in the policy matrix.
 - Agent Skills (`wire-permdock`, `audit-permissions`), `AGENTS.md`, `llms.txt`; `permdock skills`.
 - `apps/docs` scaffolded over the Phase 0 content.
 - Examples: `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`.
@@ -45,9 +47,9 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 ### Phase 3: v0.6–0.9 "data"
 
-- `permdock.where` compilers for Drizzle, Prisma and Kysely.
-- `permdock rls generate | import | verify`; `import` emits `permissions.generated.ts`.
-- `supabase` provider (`subjectFromSupabase`, custom access token hook emitted by `rls generate --rbac-scaffold`, `authorize()` scaffold).
+- `permdock.where` compilers for Drizzle, Prisma and Kysely, including the `memberOf` node (active-tenant equality, `inArray` over held tenants, membership-table joins, declared-parent derivation).
+- `permdock rls generate | import | verify`; `import` emits `permissions.generated.ts`; `memberOf` compiles through the dialect's `memberships` table mapping, `verify` fixtures carry `memberships` and `tenant`.
+- `supabase` provider (`subjectFromSupabase` with `tenant` and `memberships` claims, custom access token hook emitted by `rls generate --rbac-scaffold`, `authorize()` scaffold with an optional tenant parameter).
 - Async `context` for relations; schema-aware field-level grants.
 - `permdock/ssf` CAEP receiver.
 - `tests/integration` parity suite on Postgres via testcontainers.
@@ -55,7 +57,7 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 ### Phase 4: v1.0 "ecosystem"
 
-- Providers: `better-auth`, `clerk`, `convex`, `pdp` (AuthZEN client).
+- Providers: `better-auth` (organization and team memberships, `betterAuthRoleSource` over dynamic roles), `clerk` (active organization as tenant, `memberships: 'all'`, custom roles and role sets as a `RoleSource`), `convex`, `pdp` (AuthZEN client).
 - Quota grants with a pluggable `LimitStore`.
 - Web Bot Auth verification in HTTP adapters; delegation-chain verification in `permdock/jwt`.
 - `permdock simulate` over [Arazzo](/docs/standards/arazzo) workflows; `permdock arazzo check`.
@@ -78,7 +80,9 @@ PermDock is specified before it is implemented. This page lists what each phase 
 - Requiring a network call to decide. PermDock is a PDP you embed; PermDock Cloud is optional, and every hosted capability (approvals, decision log, snapshot distribution) has an in-process default behind the same interface ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads)).
 - A policy DSL; policies are TypeScript data.
 - Replacing authentication or issuing tokens.
-- Zanzibar-scale relation graphs; bridge to OpenFGA or SpiceDB through a provider.
+- Zanzibar-scale relation graphs; bridge to OpenFGA or SpiceDB through a provider. Resource roles follow declared, finite `parent` chains only; self-referential hierarchies (folders in folders) are the bridge's job ([tenancy](/docs/concepts/tenancy)).
+- Tenant, team, invitation, membership or custom-role storage and management APIs. PermDock reads memberships and custom roles through `MembershipSource` and `RoleSource`; the auth provider or the application owns the tables and the invitation flow ([0024](/docs/decisions/0024-scoped-roles-and-memberships)).
+- UI components beyond `<Protected>`: no tenant-switcher dropdown, role badge or approval dialog. Hooks return data; the design system renders it ([UI](/docs/concepts/ui)).
 - CommonJS output or Node versions older than the ESM-only baseline.
 - Copying permix, CASL or Kilpi APIs ([0001](/docs/decisions/0001-greenfield-mit)).
 - Wrapping tools that already read PermDock's output. Spec producers, SDK generators, docs UIs, auth providers with JWKS, agent frameworks without a hook of their own, audit sinks and flag SDKs are reached through wire formats and recipes ([0023](/docs/decisions/0023-compose-openapi-ecosystem)).
@@ -99,7 +103,13 @@ These are the questions the plan leaves open. Each is resolved in the phase wher
 9. **`LimitStore` and quotas.** The `LimitStore` interface for `limit` grants, and whether quotas belong in core or in an adapter. Phase 4. See [Policies](/docs/concepts/policies).
 10. **`approval-required` over plain HTTP.** Resolved: the client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record in the `ApprovalStore` and re-runs `decide` ([0022](/docs/decisions/0022-approvals-are-pluggable), [Approvals](/docs/security/approvals)).
 11. **Terminal token storage.** Which OS keychain binding `permdock/terminal` uses as its optional peer, and whether the mode-0600 file fallback is acceptable in CI images. Phase 2. See [Terminal](/docs/adapters/terminal).
+12. **`parent` typing on `resource`.** Whether `parent.resource` is a string name or a reference, and whether a resource may declare more than one parent. Phase 1. See [Permissions](/docs/concepts/permissions), [Tenancy](/docs/concepts/tenancy).
+13. **Separation of duty (`exclusiveWith`).** Whether INCITS 359 dynamic separation of duty ships as a `permdock doctor` lint over memberships, an evaluation rule, or not at all. Phase 1 decides the lint; the rule is not planned. See [Tenancy](/docs/concepts/tenancy).
+14. **Snapshot scope across tenants.** Whether `snapshot({ tenants: 'all' })` stays an opt-in for small membership lists or becomes the default when the subject holds fewer than a threshold of tenants. Phase 1. See [Snapshots](/docs/concepts/snapshots).
+15. **`useApproval` transport.** Poll the `approvalsHandler` route (default) or subscribe through a configured `SnapshotSource`. Phase 1 ships polling. See [UI](/docs/concepts/ui).
 
-Resolved since Phase 0 started: delegation-chain verification never happens in core; `permdock/jwt` and the provider adapters verify tokens and chains and hand core a subject ([0018](/docs/decisions/0018-authentication-is-upstream)). The hosted-service non-goal was reworded and the embedded-PDP / hosted-ADS split recorded ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads)); approvals storage, expiry, HTTP resume and plan approvals were fixed ([0022](/docs/decisions/0022-approvals-are-pluggable)).
+Resolved since Phase 0 started: multi-tenant roles, teams, resource roles and tenant-defined custom roles are memberships on the principal plus scoped role declarations, with `RoleSource` and `MembershipSource` as the only new inputs ([0024](/docs/decisions/0024-scoped-roles-and-memberships)); provider principal types extend through generics and Standard Schema, never module augmentation ([extension interfaces](/docs/concepts/extension-interfaces)); the multi-organization snapshot question on the Clerk page, the global-versus-organization roles question on the Better Auth page, the multiple-roles question on the Supabase page and the `memberOf` node question on the RLS page are closed by the same decision.
+
+Resolved earlier: delegation-chain verification never happens in core; `permdock/jwt` and the provider adapters verify tokens and chains and hand core a subject ([0018](/docs/decisions/0018-authentication-is-upstream)). The hosted-service non-goal was reworded and the embedded-PDP / hosted-ADS split recorded ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads)); approvals storage, expiry, HTTP resume and plan approvals were fixed ([0022](/docs/decisions/0022-approvals-are-pluggable)).
 
 Questions raised on individual pages (for example the `create` arity in [0004](/docs/decisions/0004-actions-vs-collection), grants emission in [rls](/docs/cli/rls)) are tracked on those pages and promoted here when they affect more than one adapter.

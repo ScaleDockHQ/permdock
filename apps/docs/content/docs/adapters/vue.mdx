@@ -46,7 +46,10 @@ const { allowed, status } = usePermission(permissions.post.update, () => props.p
 | `permdockPlugin` | `app.use(permdockPlugin, options)` with the same options as the React provider (`snapshot`, `endpoint`, `fetch`, `headers`). Provides the store through `provide`/`inject`. |
 | `usePermDock` | Returns the snapshot-backed instance with reactive `status`. |
 | `usePermission` | Accepts the reference and a getter or ref for the resource so the answer tracks `id` changes. Returns `allowed`, `status`, `decision` as refs. |
-| `Protected` | Component with `permission` and `data` props and `default`, `pending`, `fallback` slots. The default slot receives the granted `Decision`. |
+| `Protected` | Component with `permission`, `data` and optional `tenant` props and `default`, `pending`, `fallback` slots. The default slot receives the granted `Decision`. |
+| `usePermissions`, `useFilter` | Composables mirroring the React hooks: several references against one getter, and `filter` over a getter of rows; results are computed refs. |
+| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles` | Composables returning refs (`tenant`, `tenants`, `memberships`, `roles`, `assignable`) plus `switchTo`; the same semantics as React ([UI](/docs/concepts/ui), [tenancy](/docs/concepts/tenancy)). |
+| `useApproval`, `useSubject` | Composables for the `approval-required` flow and the snapshot's subject summary (`simulated` included). |
 
 For Nuxt (Phase 4) the plugin runs in a Nuxt plugin file and the snapshot arrives from a server route built with the [server kernel](/docs/adapters/server-kernel).
 
@@ -82,6 +85,6 @@ During SSR (Vite SSR or Nuxt) the store is created per request and hydrated on t
 
 ## Open questions
 
-- Exact identifier names. The plan fixes only the React names; this page proposes `permdockPlugin`, `usePermDock`, `usePermission` and `Protected` for Vue. Alternatives: a `createPermDockPlugin` factory (rejected so far because it collides with the Next.js build-hook name) or a `v-protected` directive for attribute-level gating.
+- Exact identifier names. The plan fixes only the React names; this page proposes `permdockPlugin`, `usePermDock`, `usePermission` and `Protected` for Vue, with the tenancy and UI composables keeping their React names (the [UI parity table](/docs/adapters) is the contract). Alternatives: a `createPermDockPlugin` factory (rejected so far because it collides with the Next.js build-hook name) or a `v-protected` directive for attribute-level gating.
 - Whether `usePermission` should accept a plain value as well as a getter, given that Vue cannot observe replacement of a plain object argument.
 - Whether the Nuxt module belongs in `permdock/vue` or in its own `permdock/nuxt` entry (Phase 4 item).

@@ -24,10 +24,13 @@ type DecisionEvent = {
   scope: string                       // 'post:delete'
   resource: { type: string; id?: string }   // id from the resource's `id` field; absent for collection actions
   subject: {
-    principal: { id: string; roles: string[] } | null
+    principal: { id: string; roles: string[]; tenant?: string } | null
     actor?: { id: string; kind: string }
     delegation?: { scopes?: string[]; authorizationDetails?: unknown[] }
   }
+  tenant?: string                     // the active tenant for this request
+  membership?: Membership             // the membership that supplied the matched role; absent for global roles
+  via?: string                        // 'group:<id>' | 'team:<id>' when the membership was inherited
   matched?: { role: string; permission: string }        // granted / approval-required
   denials?: Array<{ role: string | null; reason: string }> // denied
   alternatives?: string[]             // permission keys
@@ -40,6 +43,8 @@ type DecisionEvent = {
 ```
 
 The event contains the result. permix's `hooks` gave you `{ path, data }` before the check and nothing after, so an audit log could record that a check happened but not what it returned; issue [#38](https://github.com/letstri/permix/issues/38) asked for the result and stayed open. PermDock's event is emitted after evaluation and includes `outcome`, `denials`, `matched` and `alternatives`, which is what an audit trail, an anomaly detector or a "why can't I see this" support tool needs.
+
+`tenant`, `membership` and `via` make a tenant-scoped audit log a filter and let a sink answer "which team grant let this happen" ([tenancy](/docs/concepts/tenancy)). A tenant-defined custom role appears through its resolved declared role in `matched.role`; the custom name is on the `membership`.
 
 Handlers are fire-and-forget: they run after the decision is computed, a throwing handler is reported to `on('error')` and never changes the outcome, and async handlers are not awaited by `can` or `decide`. If your sink needs backpressure, buffer in the handler.
 
