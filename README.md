@@ -228,6 +228,8 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 
 Full matrix with status, phases and related standards: [Adapters](./apps/docs/content/docs/adapters/index.mdx).
 
+Around the OpenAPI output, PermDock composes with the tools you already run rather than wrapping them: next-openapi-gen (Next.js, TanStack Start, React Router, SvelteKit, Nuxt, Astro) and Redocly CLI apply the Overlay; Hey API, Orval, Scalar and OpenAPI-to-MCP bridges read the result as standard `security`. Recipes on the [OpenAPI adapter](./apps/docs/content/docs/adapters/openapi.mdx) page; the rule in [decision 0023](./apps/docs/content/docs/decisions/0023-compose-openapi-ecosystem.mdx).
+
 ## Comparison
 
 - **permix**: closest in adapter breadth, but a mutable global core, boolean-only hydration, no explain, and closed to API change. PermDock is the clean-room successor to the permix v5 PR stack.

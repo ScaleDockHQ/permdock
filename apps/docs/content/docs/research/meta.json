@@ -11,6 +11,9 @@
     "expo-router",
     "next-intl-extraction-model",
     "agent-standards-2026",
-    "commercial-landscape"
+    "commercial-landscape",
+    "openapi-ecosystem",
+    "agent-frameworks",
+    "local-first-sync"
   ]
 }

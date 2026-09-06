@@ -35,7 +35,7 @@ OpenAPI 3.2 specifically matters for agent callers. MCP clients and A2A agents o
 - Each guarded operation also receives `x-permdock-permissions: ['post.delete']`, the permission `key` list, so tools that do not understand scopes can still see the requirement and `permdock usage` can cross-check the document against the catalog.
 - Resource schemas are exported via Standard JSON Schema into `components.schemas` when the validator supports it (see [Standard Schema](/docs/standards/standard-schema)).
 
-Framework hooks: `hono-openapi` `describeRoute`, `@hono/zod-openapi` `createRoute`, oRPC `oo.spec(middleware, ...)` and `trpc-to-openapi` `protect` all accept a security fragment; the [HTTP adapters](/docs/adapters/hono) and [RPC adapters](/docs/adapters/orpc) pass PermDock's fragment into them.
+Framework hooks: `hono-openapi` `describeRoute`, `@hono/zod-openapi` `createRoute`, oRPC `oo.spec(middleware, ...)`, `trpc-to-openapi` `protect`, `@elysia/openapi` `detail`, `@fastify/swagger` schemas and `@nestjs/swagger` decorators all accept a security fragment; the [HTTP adapters](/docs/adapters/hono) and [RPC adapters](/docs/adapters/orpc) pass PermDock's fragment into them. Producers without such a hook (next-openapi-gen for Next.js and the other frameworks it scans, hand-written descriptions) receive the same fields as an [Overlay](/docs/standards/openapi-overlay) applied at build time. Downstream, SDK generators (Hey API, Orval), docs UIs (Scalar) and gateways read the standard `security` fields and need nothing PermDock-specific; the pipeline and the tools in it are on the [OpenAPI ecosystem](/docs/research/openapi-ecosystem) page and the rule is [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem).
 
 ```ts
 import { createPermDock } from 'permdock/hono'
@@ -93,7 +93,7 @@ Only the three registered `x-oai-*` names are ever emitted; PermDock does not co
 
 - [OpenAPI Specification 3.2.0 release](https://github.com/OAI/OpenAPI-Specification/releases/tag/3.2.0).
 - [OAI Extension Registry](https://spec.openapis.org/registry/extension/) and [Namespace Registry](https://spec.openapis.org/registry/namespace/).
-- [Landscape research](/docs/research/landscape), "OpenAPI 3.1 security" notes and the `hono-openapi`, `@hono/zod-openapi`, oRPC `oo.spec` and `trpc-to-openapi` hook comparison.
+- [Landscape research](/docs/research/landscape), "OpenAPI 3.1 security" notes and the `hono-openapi`, `@hono/zod-openapi`, oRPC `oo.spec` and `trpc-to-openapi` hook comparison; [OpenAPI ecosystem research](/docs/research/openapi-ecosystem) for producers without a hook, appliers and consumers.
 - [ADR 0014: target OpenAPI 3.2](/docs/decisions/0014-openapi-3-2) and [ADR 0019: extensions and Overlay](/docs/decisions/0019-openapi-extensions-and-overlay).
 
 ## Related

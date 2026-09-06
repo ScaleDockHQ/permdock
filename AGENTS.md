@@ -19,7 +19,9 @@ packages/
                        better-auth, clerk, convex, pdp)
                       skills/ (wire-permdock, audit-permissions) shipped in the package
   cli/                npm `@permdock/cli` — collect, catalog, usage, openapi, rls, doctor, skills;
-                      also exports `permdock/next/plugin` (createPermDockPlugin: build-time collect only)
+                      also exports `permdock/next/plugin` (createPermDockPlugin) and `@permdock/cli/unplugin`
+                      (createPermDockUnplugin for Vite / Rollup / webpack / Rspack / esbuild): both build-time collect only;
+                      ships the Spectral / Redocly / vacuum ruleset file for `permdock openapi` invariants
   testing/            npm `@permdock/testing` — policy matrix tests, snapshot fixtures, RLS parity runner, instant() helpers
 apps/
   docs/               Fumadocs v16 on Next.js 16.3; content in apps/docs/content/docs (exists today)
@@ -83,7 +85,8 @@ pnpm changeset             # every user-visible change
 - Definitions: `definePermissions`, `resource`, `mergePermissions`, `listPermissions`, `findPermission`. Policy: `definePolicy`, `role`, `allow`, `deny`, `subject`.
 - Instance methods: `can`, `decide`, `assert`, `filter`, `where`, `simulate`, `snapshot`, `on`.
 - Errors: `PermDockDeniedError`, `PermDockApprovalRequiredError`, `PermDockValidationError`.
-- CLI: `permdock <command>`; Next build hook: `createPermDockPlugin` (collect only, never API wiring). `permdock openapi` flags: `--target 3.1|3.2|3.3`, `--format document|overlay`, `--check`, `--profile fapi2`.
+- CLI: `permdock <command>`; build hooks: `createPermDockPlugin` (Next) and `createPermDockUnplugin` (Vite, Rollup, webpack, Rspack, esbuild via unplugin), both collect only, never API wiring. `permdock openapi` flags: `--target 3.1|3.2|3.3`, `--format document|overlay`, `--check`, `--profile fapi2`.
+- Ecosystem rule (ADR 0023): PermDock composes with spec producers (next-openapi-gen, hono-openapi), appliers (next-openapi-gen, Redocly CLI), SDK generators (Hey API, Orval), docs UIs (Scalar), auth providers with JWKS, agent frameworks without a hook, sinks and flag SDKs through wire formats and recipes. No `permdock/hey-api`, `permdock/scalar`, `permdock/next-openapi-gen` or per-provider packages beyond the planned adapter list. Never write `x-scalar-*`, `x-stainless-*` or `x-readme`; `x-badges` is the one opt-in rendering hint outside `x-permdock-*` and the registered set.
 - OpenAPI extensions: `x-permdock-*` only (namespace registration is a Phase 2 task); `x-oai-*` names only when they exist in the OAI extension registry (`x-oai-deprecated`, `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl`).
 
 Details and rationale: `apps/docs/content/docs/getting-started/naming.mdx`, `decisions/0005-naming-convention.mdx`.
@@ -94,7 +97,7 @@ Details and rationale: `apps/docs/content/docs/getting-started/naming.mdx`, `dec
 - Every folder has `meta.json` with `title` and an explicit `pages` order (`---Section---` separators allowed); root `meta.json` has `root: true`. Adding a page means adding it to `meta.json`.
 - Links between pages are `/docs/<path>` URLs, never `.mdx` file paths. `README.md` and `PRODUCT.md`, which render on GitHub, link to the `.mdx` files directly.
 - One page per adapter (`adapters/<name>.mdx`) and per standard (`standards/<name>.mdx`), each with `Status: planned | in progress | shipped` and `Phase: n` lines directly under the frontmatter. Standards pages PermDock follows but has no adapter for yet use `Status: tracking`. A standards page's `Phase` is the first phase PermDock uses the standard; adapter phases are listed in-page. Update `Status` in the same PR that ships the code.
-- Decisions are ADRs in `decisions/NNNN-slug.mdx` (Status, Context, Decision, Consequences, Alternatives considered, Related). Append-only; supersede, do not delete. Next number: 0023.
+- Decisions are ADRs in `decisions/NNNN-slug.mdx` (Status, Context, Decision, Consequences, Alternatives considered, Related). Append-only; supersede, do not delete. Next number: 0024.
 - Research pages end with Adopt / adapt / avoid and Decisions informed.
 - No `{`, `}` or bare `<` in prose (MDX parses them); use backticks.
 
@@ -109,6 +112,8 @@ Details and rationale: `apps/docs/content/docs/getting-started/naming.mdx`, `dec
 | Add an agent-runtime adapter | `adapters/<name>.mdx` with the outcome mapping table, `security/approvals.mdx` surfaces table, `adapters/index.mdx` denial table, `apps/examples/<name>-agent`, `research/agent-standards-2026.mdx` if the runtime's hook is new |
 | Add a condition operator | in-memory evaluator, JSON schema, Drizzle / Prisma / Kysely / RLS compilers (or explicit non-portable marking), `concepts/conditions.mdx`, `adapters/rls.mdx` portable-subset table |
 | Add a CLI command or flag | `cli/<command>.mdx`, `cli/index.mdx` table, `permdock doctor` if it is a check, the skill |
+| Name a third-party tool PermDock composes with (producer, applier, generator, docs UI, bridge, provider, framework, sink) | `research/openapi-ecosystem.mdx`, `research/agent-frameworks.mdx` or `research/local-first-sync.mdx` matrix; the adapter or concept page carrying the recipe; `standards/watch-list.mdx` if it is a specification; never a new package entry without an ADR |
+| Change the OpenAPI Overlay shape or the `x-badges` hint | `standards/openapi-overlay.mdx`, `adapters/openapi.mdx`, `cli/openapi.mdx`, `adapters/next.mdx` recipe, the lint ruleset file, `@permdock/testing` fixtures |
 | Add or bump a standard | `standards/<name>.mdx`, `standards/index.mdx` table (including the Maturity column), `standards/watch-list.mdx` row, the adapter page that uses it, `security/*` if it changes the threat model |
 | Add a subject provider or claim mapping | `concepts/authentication.mdx` source table, the provider's adapter page "Verified material" section, `security/threat-model.mdx` token rows, `getting-started/naming.mdx` `subjectFrom*` row |
 | Add an OpenAPI extension | `standards/openapi-registry.mdx` table, `standards/openapi-3-2.mdx`, `adapters/openapi.mdx`, `cli/openapi.mdx`, the registry PR once the namespace is registered |

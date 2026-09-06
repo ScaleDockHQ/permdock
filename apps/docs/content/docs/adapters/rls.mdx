@@ -90,6 +90,10 @@ In the database, a denial is one of three observable outcomes and the runner nam
 
 The in-process side answers with a [Decision](/docs/concepts/decisions), so a `denied` decision paired with `filtered` or `rejected` is parity, and `granted` paired with anything else is a failure. HTTP adapters convert `42501` from the database into the same RFC 9457 `403` body as an in-process denial when the app opts in.
 
+## Databases without row-level security
+
+`permdock rls` is Postgres-only because `CREATE POLICY` is. SQLite and its hosted forms (Cloudflare D1, Turso and libSQL, Expo SQLite and op-sqlite on device), MySQL and PlanetScale, and document stores have no RLS to generate or verify. The rest of the data story still applies to them: `permdock.where` compiles the same portable condition to Drizzle, Kysely or Prisma `where` clauses for those dialects, `filter` runs in memory, and the parity suite runs against SQLite in CI so the compilers agree with the evaluator even where no database policy exists. What these targets lose is the second, database-enforced line of defence; the [threat model](/docs/security/threat-model) lists RLS as defence in depth, not as the primary control, so a D1 or Turso deployment is complete without it. On-device SQLite in React Native additionally uses the client snapshot for `filter`; the `where` compiler is the same one the server uses ([React Native](/docs/adapters/react-native)). MongoDB and local-first sync engines with their own permission languages are evaluated as `where` targets at Phase 3 planning ([local-first sync](/docs/research/local-first-sync)).
+
 ## Example app
 
 `apps/examples/supabase-rls`: a Supabase project with `posts` and `team_user`, a PermDock policy with ownership, tenant claim and membership grants, generated Drizzle `pgPolicy` entries and an SQL migration, the `authorize()` RBAC scaffold, an `import` run against the same database that reproduces the definitions, and `verify` output in both pgTAP and Node form.

@@ -70,9 +70,15 @@ The "Phase" column is the first phase in which PermDock acts on the row, followi
 | [OpenAPI 3.3](/docs/standards/openapi-3-3) | OpenAPI Initiative | In development (`v3.3-dev`) | Security configuration updates, Standardized API Features, security profiles | Tracking until release; emitter targets 3.2 meanwhile | 2 |
 | [OpenAPI Overlay 1.1](/docs/standards/openapi-overlay) | OpenAPI Initiative | Released Jan 2026 | Repeatable transformations of OpenAPI documents (`update`, `remove`, `copy` actions) | Implements: `permdock openapi` applies its security additions as an Overlay; see [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay) | 2 |
 | [Arazzo 1.1](/docs/standards/arazzo) | OpenAPI Initiative | Released May 2026 | Multi-step API workflows over OpenAPI and AsyncAPI sources | Consumes: the permissions a workflow needs, step by step; see the Arazzo page | 2 |
+| Overlay 1.2 | OpenAPI Initiative | In development | Reusable actions; `targetFormat` so one Overlay targets OpenAPI or AsyncAPI documents | Tracking: PermDock emits 1.1.0; next-openapi-gen already applies 1.2. Adopt when a 1.2 feature is needed ([Overlay](/docs/standards/openapi-overlay)) | tracking |
+| AsyncAPI 3 | AsyncAPI Initiative | Released | Event-driven API descriptions; Arazzo 1.1 source type | Tracking: no emitter. If needed, the same Overlay engine with `targetFormat: asyncapi`, not a new adapter ([Arazzo](/docs/standards/arazzo)) | tracking |
 | [OpenAPI registries](/docs/standards/openapi-registry) | OpenAPI Initiative | Living registries | Extension and namespace registration | Implements: register the `x-permdock-` namespace | 2 |
 | [A2A 1.0](/docs/standards/a2a) | Linux Foundation | 1.0 | Agent Card security schemes and requirements | Implements: `permdock/a2a` | 2 |
 | [MCP authorization](/docs/standards/mcp-authorization) | Model Context Protocol | Spec 2026-07-28 | OAuth 2.1 resource servers, scope challenges, Enterprise-Managed Authorization | Implements: `permdock/mcp` | 2 |
+| SPIFFE / SPIRE | CNCF | Graduated project; SVID formats stable | Workload identity documents (X.509-SVID, JWT-SVID) for service-to-service calls | Consumes: a verified SVID as `actor` material for workload callers, next to the WIMSE row; see [subject](/docs/concepts/subject) | 4 |
+| OCSF (Open Cybersecurity Schema Framework) | Linux Foundation | Schema 1.x released | Vendor-neutral event schema SIEMs ingest; has authentication and authorization event classes | Consumes: a documented projection of PermDock decision events onto the OCSF authorization class for `DecisionSink` implementations; see [audit and observability](/docs/concepts/audit-and-observability) | 3 |
+| CloudEvents 1.0 | CNCF | Released | Common envelope for event data | Consumes: the envelope for decision events leaving a `DecisionSink` over HTTP or a queue; see [wire formats](/docs/concepts/wire-formats) | 3 |
+| AG-UI | CopilotKit (open protocol) | Released, evolving | Event stream between an agent backend and a UI, including tool-call and human-in-the-loop events | Tracking: where an `approval-required` decision surfaces in a chat UI; see [agent frameworks](/docs/research/agent-frameworks) | tracking |
 
 ## By PermDock concept
 
@@ -82,8 +88,9 @@ The same rows, grouped by the part of PermDock they touch. This is the view to u
 - **Delegation (`scopes`, `authorizationDetails`, `access`, `chain`).** RFC 9396 and GNAP define the two structured formats; RAR Metadata and Error Remediation defines how insufficient authorization is reported back; Identity and Authorization Chaining defines `chain`; Grant Management defines the consent object the delegation came from.
 - **Decision (`granted`, `denied`, `approval-required`, `alternatives`).** AuthZEN is the wire format; RAR Error Remediation and RFC 6750 (through FAPI 2.0) shape how `alternatives` is rendered to OAuth clients; MCP and A2A shape how it is rendered to agents.
 - **Snapshot freshness.** SSF, CAEP, RISC and the CAEP Interoperability Profile deliver invalidation events; OpenID Provider Commands is the overlapping alternative; `session_expiry` from the Enterprise Extensions and the IPSIE SL1 profile bound how long a snapshot may live.
-- **Catalog and documents.** OpenAPI 3.2 and 3.3, Overlay, Arazzo and the registries define what `permdock openapi` and `permdock collect` emit and how `x-permdock-` extensions are registered. RFC 9728 defines the metadata an MCP server publishes about itself.
-- **Trust between services.** Transaction tokens carry context inside a domain; Identity Chaining carries it across domains; OpenID Federation is the candidate for establishing trust between `permdock/pdp` and a remote PDP without pairwise configuration.
+- **Catalog and documents.** OpenAPI 3.2 and 3.3, Overlay 1.1 (and 1.2 when needed), Arazzo and the registries define what `permdock openapi` and `permdock collect` emit and how `x-permdock-` extensions are registered; AsyncAPI is the format an Overlay could target later. RFC 9728 defines the metadata an MCP server publishes about itself.
+- **Audit events.** OCSF defines the class a `DecisionSink` projects decision events onto for SIEMs; CloudEvents defines the envelope when those events leave the process.
+- **Trust between services.** Transaction tokens carry context inside a domain; Identity Chaining carries it across domains; WIMSE and SPIFFE define the workload identities that become `actor`; OpenID Federation is the candidate for establishing trust between `permdock/pdp` and a remote PDP without pairwise configuration.
 
 ## Review cadence
 
@@ -111,6 +118,7 @@ A removed row's standards page, if one existed, is kept and marked superseded ra
 - [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-security-profile-2_0-final.html).
 - [Transaction Tokens](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/), [WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch) and [RFC 9635](https://datatracker.ietf.org/doc/html/rfc9635) on the IETF datatracker.
 - [OpenAPI Specification milestones](https://github.com/OAI/OpenAPI-Specification/milestones), [Overlay 1.1.0](https://spec.openapis.org/overlay/v1.1.0.html), [Arazzo 1.1.0](https://spec.openapis.org/arazzo/v1.1.0.html) and the [OpenAPI registries](https://spec.openapis.org/registry/).
+- [SPIFFE](https://spiffe.io/docs/latest/spiffe-about/overview/), [OCSF schema](https://schema.ocsf.io/), [CloudEvents](https://cloudevents.io/) and [AG-UI](https://docs.ag-ui.com/).
 - Other RFCs and drafts are referenced by number or name.
 
 ## Related

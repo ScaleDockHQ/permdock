@@ -66,6 +66,15 @@ What `simulate({ arazzo, openapi, subject })` does, step by step:
 5. All `[permission, data]` pairs are passed to the existing `simulate` batch, so the semantics are unchanged: no `on('decision')` events per step (one `simulate` event for the plan), no approval tokens issued, no quota consumed.
 6. The result lists one `Decision` per step in workflow order plus the worst `outcome` across steps.
 
+### Where the documents come from
+
+`simulate` reads the **applied** description: the producer's output with PermDock's Overlay merged, not the source before it. Without the Overlay no operation carries `x-permdock-permissions` and every step is `denied` with reason `undocumented` ([OpenAPI Overlay](/docs/standards/openapi-overlay)). Arazzo documents themselves come from wherever the team writes them; two producers worth naming because they share the `operationId` join key with PermDock:
+
+- [next-openapi-gen](https://github.com/tazo90/next-openapi-gen/blob/main/docs/arazzo.md) compiles an `arazzo` block into workflow files after the spec write, against the generated `operationId`s, and applies Overlay files first, so its output is already the applied description.
+- Redocly CLI's `generate-arazzo` drafts a workflow from an OpenAPI description and `respect` executes one ([commands](https://redocly.com/docs/cli/commands)); `simulate` sits between the two as the authorization pre-flight.
+
+PermDock composes with these rather than wrapping them ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)); none is a dependency, and none moves `simulate` earlier than Phase 4.
+
 ### Surfacing approval-required steps
 
 An `approval-required` step tells the caller that executing it will stop for a human (or a policy-defined approver) unless approval is obtained first. Because `simulate` issues no tokens, the caller uses the step list to request approval before running the workflow; the approval flow and the binding of an approval token to permission key, resource id, subject and actor are described on [approvals](/docs/security/approvals). Whether one approval can cover a whole plan is an open question on that page; until it is decided, each `approval-required` step needs its own approval and the step's `decision` carries what to ask for.
@@ -106,6 +115,7 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 - [Arazzo Specification 1.1.0](https://spec.openapis.org/arazzo/v1.1.0.html).
 - [Arazzo announcement, OpenAPI Initiative](https://www.openapis.org/arazzo-specification).
 - [Agent standards research](/docs/research/agent-standards-2026): the "workflow-step permission requirements" item, previously not pursued and now scheduled for Phase 4.
+- [OpenAPI ecosystem research](/docs/research/openapi-ecosystem): the producers that emit Arazzo files and the applied-description rule.
 
 ## Related
 

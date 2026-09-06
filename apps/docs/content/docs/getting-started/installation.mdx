@@ -27,6 +27,23 @@ npm and yarn work the same way; the repository itself uses pnpm workspaces.
 - A current Node.js LTS release for servers and the CLI. Browser and React Native bundles are produced from the same ESM entry points.
 - Zero runtime dependencies in core. `@standard-schema/spec` is the only regular dependency and it is types only.
 
+## Runtimes
+
+Core uses only the [WinterTC Minimum Common API](https://min-common-api.proposal.wintertc.org/) (`fetch`, `Request`, `Response`, `URL`, `crypto.subtle`, `TextEncoder`, `structuredClone`) and no Node built-ins, no `AsyncLocalStorage`, no module-level state. That is by construction (invariants 7 and 12 in `AGENTS.md`) and a conformance test in `tests/bundle` asserts it from Phase 1: every client entry and `permdock/server` must load in a bare WinterTC-shaped global. The table lists what each runtime adds or lacks; nothing in it changes how a decision is made.
+
+| Runtime | Core, `permdock/server`, agent adapters | Notes |
+| --- | --- | --- |
+| Node.js LTS | Yes | The CLI and `permdock/node` need Node; `permdock/jwt` uses `jose`'s Node build |
+| Bun | Yes | Elysia's home runtime; `bun test` runs the policy matrix unchanged |
+| Deno, Deno Deploy | Yes | Import from npm specifiers or JSR once published; no Node built-ins to polyfill |
+| Cloudflare Workers | Yes | `memoryApprovalStore` is per isolate: use Durable Objects or KV behind `ApprovalStore` and `SnapshotSource` ([approvals](/docs/adapters/approvals)); D1 has no RLS, `where` compilers still apply ([RLS](/docs/adapters/rls)) |
+| Vercel Functions (Fluid), Edge | Yes | `permdock/next` targets the Node runtime for `React.cache` and `'use cache: private'`; the Fetch kernel runs on Edge too |
+| Netlify Functions and Edge | Yes | Same as Vercel Edge |
+| AWS Lambda | Yes | Through `permdock/node` or a Fetch adapter such as Hono's; approvals need an external `ApprovalStore` |
+| Browsers, React Native (Hermes) | Client entries only | `permdock/react`, `permdock/react-native`, `permdock/webmcp`; no policy code ships (invariant 8) |
+
+The one runtime-specific caveat is state: any store or sink that defaults to memory (`memoryApprovalStore`, `memorySink`) is per process or per isolate and resets on cold start. `permdock doctor` warns when the memory store is the configured `ApprovalStore` in a serverless target. Recipes for Durable Objects, KV, Redis and Postgres stores live on the [approvals](/docs/adapters/approvals) and [audit and observability](/docs/concepts/audit-and-observability) pages; none is a package.
+
 ## A Standard Schema validator
 
 Resources are defined from any validator that implements [Standard Schema](/docs/standards/standard-schema). Bring the one you already use:
@@ -49,6 +66,7 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 | `permdock/react` | `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>` | 1 |
 | `permdock/next` | `createPermDock` returning `getPermDock`, `getPermission`, `PermDockProvider`, `permdockHandler` | 1 |
 | `permdock/next/plugin` | `createPermDockPlugin` (build-time `collect` hook only) | 2 |
+| `@permdock/cli/unplugin` | `createPermDockUnplugin` (the same `collect` hook for Vite, Rollup, webpack, Rspack and esbuild; TanStack Start, React Router, SvelteKit, Nuxt, Astro, Solid) | 2 |
 | `permdock/server` | Fetch-first kernel shared by the HTTP adapters | 1 |
 | `permdock/hono` | `createPermDock` returning `permdock` middleware and `protect` | 1 |
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | Same shape as `permdock/hono` | 2 |

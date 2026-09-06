@@ -106,6 +106,27 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 
 Adapters translate this outcome: the Vercel AI SDK gets `user-approval`, `WorkflowAgent` suspends through `needsApproval`, MCP raises an elicitation, HTTP returns 403 Problem Details with an `approval-required` type. See [decisions](/docs/concepts/decisions) and [approvals](/docs/security/approvals).
 
+## Feature flags and entitlements are context, not grants
+
+Flags (Vercel Flags SDK, PostHog, LaunchDarkly) and billing entitlements (Stripe Entitlements, a `plan` column) answer "is this capability on for this subject", and it is tempting to make them grants. They are inputs to the subject instead. Resolve them in the policy's `subject` function (or `context` when they need a call) and let them select roles; the grants stay attached to roles:
+
+```ts
+const pro = role('pro', [allow(permissions.report.export, { where: { ownerId: subject.id } })])
+const newCheckout = role('new-checkout', [allow(permissions.billing.invoice.pay, { where: { orgId: subject.orgId } })])
+
+export const policy = definePolicy(permissions, {
+  roles: [member, pro, newCheckout],
+  subject: (user) =>
+    user && {
+      id: user.id,
+      orgId: user.orgId,
+      roles: [...user.roles, ...(user.plan === 'pro' || user.plan === 'team' ? ['pro'] : []), ...(user.flags.newCheckout ? ['new-checkout'] : [])],
+    },
+})
+```
+
+Three reasons to keep the split. The policy stays the single statement of who may do what; a flag flipping in a dashboard can only select a role the policy already declares, never widen a grant. Roles reach the snapshot, the SQL `where` and generated RLS the same way as any subject field, so the UI and the database agree, and `permdock usage` can show which grants a flag unlocks. And a flag is never a security control: a `denied` decision cannot be turned into `granted` by a flag, only a matching `allow` can, and `deny` still overrides. A flag evaluated asynchronously belongs in `context` with the role selection done there; the result is the same frozen subject. Provider permission arrays (WorkOS `permissions`, Kinde `permissions`, Auth0 `permissions`) follow the same rule as `delegation.scopes` or `context` ([authentication](/docs/concepts/authentication), provider recipes). No flag SDK gets an adapter ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+
 ## Limits
 
 `limit: { count, per }` is a quota grant scheduled for Phase 4. It is non-portable (it cannot appear in a snapshot or an RLS policy), it needs a pluggable `LimitStore` to count usage, and when the quota is exhausted the decision is `denied` with reason `limit`. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case.

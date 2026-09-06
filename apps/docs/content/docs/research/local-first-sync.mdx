@@ -1,0 +1,64 @@
+---
+title: Local-first sync engines and MongoDB as where targets
+description: How Zero, ElectricSQL, PowerSync, InstantDB and TinyBase express read and write permissions, how MongoDB queries relate to PermDock's portable condition AST, and which of them are candidates for a where compiler at Phase 3 planning.
+---
+
+Source: a review run in September 2026 of data layers outside Postgres where a PermDock user would want the same condition to reach the database. Two groups: local-first sync engines, each with its own permission language, and MongoDB, where CASL's `where` compilation originated. The question for each is whether PermDock's portable condition AST ([conditions](/docs/concepts/conditions)) can be compiled into the target's own filter form, and what is lost when it cannot. Sources are the projects' documentation linked below; APIs are as documented at review time.
+
+## Why this matters
+
+PermDock's data story is one AST evaluated in three places: in memory (`can`, `filter`), in SQL (`where` for Drizzle, Prisma and Kysely) and in the database (generated Postgres RLS). That is what makes the client snapshot and the server decision agree ([ADR 0010](/docs/decisions/0010-policy-as-data-portable-conditions)). Local-first apps add a fourth place: the sync engine that decides which rows reach a device and which writes it accepts. If PermDock cannot express its conditions there, the app keeps two permission languages again, which is the problem PermDock exists to remove. The React Native adapter's persisted snapshot already answers the read side for UI; the sync engine answers it for data.
+
+## Sync engines
+
+| Engine | Permission language | Read filtering | Write checks | Fit with the portable AST |
+| --- | --- | --- | --- | --- |
+| [Zero](https://zero.rocicorp.dev/) (Rocicorp) | Permissions defined in TypeScript as ZQL query expressions per table and operation (`select`, `insert`, `update`, `delete`) with `authData` from a JWT | Server evaluates permission queries when syncing | Same expressions on mutate | High: `eq`, `in`, `and`, `or`, comparisons and `subject.*` references map to ZQL builders; relations via `exists`. A `toZeroPermissions(policy)` compiler is plausible |
+| [ElectricSQL](https://electric-sql.com/docs) | Shapes: a table plus a `where` clause (SQL subset) defined by the server; authorization is your proxy deciding which shapes a client may subscribe to | Shape `where` clauses | Writes go through your API, not Electric | High for reads: the portable AST compiles to the shape `where` SQL subset; writes are ordinary server routes already guarded by `protect` |
+| [PowerSync](https://docs.powersync.com/) | Sync rules in YAML: bucket definitions with SQL-like `SELECT` and `WHERE` using token parameters | Bucket queries | Writes through your backend | Medium: bucket `WHERE` accepts a SQL subset comparable to Electric's; the YAML format means a generator, like `permdock rls generate`, rather than a runtime call |
+| [InstantDB](https://www.instantdb.com/docs) | Rules language: `allow` expressions per namespace for `view`, `create`, `update`, `delete`, with `auth` and `data` bindings | Rule expressions | Same | Medium: expressions are close to conditions (`data.authorId == auth.id`) but relation traversal and functions differ; a generator target |
+| [TinyBase](https://tinybase.org/) | None built in; synchronisation is peer to peer or via a server the app writes | App code | App code | Low: nothing to compile to. `filter` and the snapshot on the client, `protect` on the server |
+
+Three of the five (Zero, Electric, PowerSync) express read permissions as a SQL-like or query-builder filter over a table with token-derived parameters, which is the same shape as PermDock's `where` compilers and the generated RLS `USING` clause. The portable subset PermDock already limits itself to for RLS ([adapters/rls](/docs/adapters/rls), portable-subset table) is a good predictor of what compiles cleanly to each engine.
+
+Two design points hold for all of them. First, the subject material must reach the engine the same way it reaches RLS: from a verified JWT claim (Zero `authData`, PowerSync token parameters, an Electric proxy reading the token), never from client state ([authentication](/docs/concepts/authentication)). Second, the engine filter is the read side; every write still passes through a server route or mutator guarded by `protect`, so `approval-required` and closures keep working where the engine cannot express them.
+
+## MongoDB
+
+CASL's `where` compilation targets Mongo query operators, and Mongoose implements Standard Schema, so a PermDock user on MongoDB has the schema half already. The condition AST maps directly: `eq` to equality, `in` to `$in`, comparisons to `$gt` and friends, `and` and `or` to `$and` and `$or`, `subject.*` references to values substituted before the query is built. Nested paths map to dotted field names, and the prototype-safety rule (invariant 10) already forbids the segments that would be dangerous in a Mongo path. What has no counterpart is RLS: MongoDB has no row-level policy, so the compiler is the only data-layer control, the same position as SQLite and D1 ([adapters/rls](/docs/adapters/rls), databases without row-level security). Prisma's MongoDB connector means a `permdock/prisma` `toWhere` may already cover the common case; a Mongoose or native-driver `toFilter` is the open question.
+
+## Candidates for Phase 3 planning
+
+None of these is scheduled. The [roadmap](/docs/roadmap) lists them as candidates evaluated when the Drizzle, Prisma and Kysely compilers exist and the parity suite shows which AST nodes are stable:
+
+1. **MongoDB** through `permdock/prisma` first (no new entry), then a `toFilter` for Mongoose or the native driver if demand shows.
+2. **Zero** as a `toZeroPermissions(policy)` generator, because its TypeScript permission definitions are the closest to PermDock's own shape and its users are the local-first audience most likely to also run React Native.
+3. **ElectricSQL shapes and PowerSync sync rules** as generator targets alongside `permdock rls generate`, sharing the portable subset.
+4. **InstantDB** rules as a generator target if the first three prove the approach.
+
+Each would be a `where`-style compiler or a generator in `@permdock/cli`, never a runtime dependency, and each must be added to the parity suite in `@permdock/testing` so the engine's filter agrees with the in-memory evaluator (the condition-operator rule in the maintainer guide: every operator has an evaluator, a JSON form and a compilation or an explicit non-portable marking).
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- The RLS portable subset as the contract for every additional filter target; an operator that does not compile to RLS is unlikely to compile to a sync engine either.
+- Token-derived subject material as the only input to engine filters, mirroring the RLS `auth.jwt()` rule.
+- Prisma's MongoDB connector as the zero-cost first MongoDB path.
+
+Adapt:
+
+- Zero permissions, Electric shapes and PowerSync sync rules as generator outputs beside `permdock rls generate`, decided at Phase 3 planning.
+- InstantDB rules after the SQL-like targets.
+
+Avoid:
+
+- A runtime adapter that calls a sync engine's API; every target here is a compiler or generator.
+- Letting an engine's filter become the only control: writes stay behind `protect`.
+- Scheduling any of this before the three Phase 3 compilers and the parity suite exist.
+
+## Decisions informed
+
+- [ADR 0023: compose with the OpenAPI toolchain](/docs/decisions/0023-compose-openapi-ecosystem), point 7 (compilers and generators, not adapters).
+- [ADR 0010: policy as data, portable conditions](/docs/decisions/0010-policy-as-data-portable-conditions) (the AST these targets compile).
+- Pages shaped: [adapters/rls](/docs/adapters/rls) (databases without RLS), [React Native adapter](/docs/adapters/react-native), [roadmap](/docs/roadmap) Phase 4 candidates, [CASL v7 research](/docs/research/casl-v7) (the Mongo lineage).

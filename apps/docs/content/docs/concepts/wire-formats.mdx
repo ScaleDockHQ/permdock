@@ -122,6 +122,13 @@ Emitted by `on('decision')`. See [audit and observability](/docs/concepts/audit-
 }
 ```
 
+Two documented projections leave the event unchanged and exist so `DecisionSink` implementations agree with each other ([audit and observability](/docs/concepts/audit-and-observability)):
+
+- **OCSF.** `toOcsf(event)` maps a decision event onto the [OCSF](https://schema.ocsf.io/) Authorization activity class: `outcome` to `status`, `denials[].reason` to `status_detail`, `permission` and `scope` to the resource and privilege fields, `subject.principal` to `actor.user`, `subject.actor` to the acting application, `adapter` and `source` to `metadata.product`. The exact class and field names are pinned to one OCSF version when the function ships and recorded here.
+- **CloudEvents 1.0 envelope.** On the wire, each event is `{ specversion: '1.0', type: 'dev.permdock.decision' | 'dev.permdock.approval', source: '<service>', subject: '<permission key>', id, time, datacontenttype: 'application/json', data: <event> }`. The PermDock Cloud sink and any queue or HTTP sink use it.
+
+Changing either projection is a wire-format change and follows the versioning rule below.
+
 ## Approval request v1
 
 Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See [approvals](/docs/security/approvals) and the [approvals adapter](/docs/adapters/approvals).

@@ -28,17 +28,18 @@ PermDock is specified before it is implemented. This page lists what each phase 
 - `apps/docs` scaffolded over the Phase 0 content.
 - Examples: `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`.
 - `tests/types` matrix for TypeScript 5.9, 6 and 7.
+- `tests/bundle` runtime conformance: core, `permdock/server` and every client entry load in a bare WinterTC Minimum Common API global (no Node built-ins), alongside the per-entry gzip measurements ([installation](/docs/getting-started/installation), runtimes).
 
 ### Phase 2: v0.2–0.5 "surfaces"
 
 - `permdock/mcp` (`scopeChallenge`, Enterprise-Managed Authorization, elicitation for approvals).
 - `permdock/authzen` full endpoint set and a certification run.
-- `permdock/openapi` targeting 3.2 (document and [Overlay](/docs/standards/openapi-overlay) output, `x-permdock-*` extensions, `--target 3.3` experimental); register the `permdock` namespace in the [OpenAPI registries](/docs/standards/openapi-registry).
+- `permdock/openapi` targeting 3.2 (document and [Overlay](/docs/standards/openapi-overlay) output, `x-permdock-*` extensions, `--target 3.3` experimental); register the `permdock` namespace in the [OpenAPI registries](/docs/standards/openapi-registry). Composed with the toolchain, not wrapping it: the Overlay is the Next.js recipe through next-openapi-gen, Hey API / Orval / Scalar read standard `security`, a Spectral / Redocly / vacuum ruleset file ships alongside ([0023](/docs/decisions/0023-compose-openapi-ecosystem), [OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
 - `permdock/react-native` (Expo Router).
 - `express`, `fastify`, `elysia`, `nest`, `node`; `trpc`, `orpc`; `vue`, `svelte`, `solid`.
 - `permdock/terminal` for consumers' own CLIs (device flow login, `filterCommands`, `--json` Problem Details, agent-run mode).
 - `permdock/webmcp`, `permdock/a2a`, `permdock/otel`.
-- CLI: `collect` (with the `createPermDockPlugin` build hook), `catalog`, `usage`, `doctor`.
+- CLI: `collect` (with the `createPermDockPlugin` Next build hook and `createPermDockUnplugin`, an [unplugin](https://unplugin.unjs.io)-based hook for Vite, Rollup, webpack, Rspack and esbuild so TanStack Start, React Router, SvelteKit, Nuxt, Astro and Solid projects get build-time `collect` before their adapters land; collect only, never runtime wiring), `catalog`, `usage`, `doctor`.
 - `permdock/cloud`: the optional client (`ApprovalStore`, `DecisionSink`, `SnapshotSource` over HTTP). PermDock Cloud alpha in the separate `PermDock-Cloud` repository (hosted AuthZEN ADS, approval inbox, decision log) and the Vercel Marketplace listing with `eve-agent` as its template. See [0021](/docs/decisions/0021-embedded-pdp-hosted-ads).
 - One example per adapter plus `monorepo` and `terminal`; `tests/e2e` with Playwright including `instant()`.
 
@@ -60,6 +61,7 @@ PermDock is specified before it is implemented. This page lists what each phase 
 - `permdock simulate` over [Arazzo](/docs/standards/arazzo) workflows; `permdock arazzo check`.
 - Tracked, not built: [OpenAPI 3.3](/docs/standards/openapi-3-3) native security profiles, [GNAP](/docs/standards/gnap) `access` as a delegation input. See the [standards watch list](/docs/standards/watch-list).
 - Nuxt, Astro, React Router, TanStack Start; Effect.
+- Candidates evaluated at Phase 3 planning, not scheduled: MongoDB and local-first sync engines (Zero, ElectricSQL, PowerSync, InstantDB) as `where` targets ([local-first sync](/docs/research/local-first-sync)); LangGraph.js as an agent adapter ([agent frameworks](/docs/research/agent-frameworks)).
 - Docs MCP server; devtools panel.
 
 ## Versioning policy
@@ -79,6 +81,8 @@ PermDock is specified before it is implemented. This page lists what each phase 
 - Zanzibar-scale relation graphs; bridge to OpenFGA or SpiceDB through a provider.
 - CommonJS output or Node versions older than the ESM-only baseline.
 - Copying permix, CASL or Kilpi APIs ([0001](/docs/decisions/0001-greenfield-mit)).
+- Wrapping tools that already read PermDock's output. Spec producers, SDK generators, docs UIs, auth providers with JWKS, agent frameworks without a hook of their own, audit sinks and flag SDKs are reached through wire formats and recipes ([0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+- Angular. No `permdock/angular` is planned in any phase. Angular apps consume the snapshot through the AuthZEN decision endpoint and the plain JSON snapshot format ([wire formats](/docs/concepts/wire-formats)); a community adapter can follow the [Vue](/docs/adapters/vue) shape. Revisited only on demonstrated demand.
 
 ## Open questions
 

@@ -1,16 +1,33 @@
 ---
 title: OpenAPI
-description: permdock/openapi emits OpenAPI 3.2 security schemes, per-operation security and x-permdock-permissions from permission references, hooks into hono-openapi, @hono/zod-openapi, oRPC and trpc-to-openapi, and imports OpenAPI documents into a catalog.
+description: permdock/openapi emits OpenAPI 3.2 security schemes, per-operation security and x-permdock-permissions from permission references, hooks into hono-openapi, @hono/zod-openapi, oRPC and trpc-to-openapi, hands an Overlay to next-openapi-gen and other producers, and imports OpenAPI documents into a catalog.
 ---
 
 Status: planned
 Phase: 2
 
-`permdock/openapi` works in both directions. Outbound, it derives `securitySchemes`, per-operation `security` and an `x-permdock-permissions` extension from the permission references attached to routes, targeting OpenAPI 3.2 with registered `x-oai-*` fallbacks (and `x-permdock-oauth2MetadataUrl`) for 3.1 documents. Inbound, `permdock openapi import` reads an OpenAPI document and generates a `definePermissions()` file from its operations and scopes.
+`permdock/openapi` works in both directions. Outbound, it derives `securitySchemes`, per-operation `security` and an `x-permdock-permissions` extension from the permission references attached to routes, targeting OpenAPI 3.2 with registered `x-oai-*` fallbacks (and `x-permdock-oauth2MetadataUrl`) for 3.1 documents, either in-process through a framework's generator hook or as an [Overlay](/docs/standards/openapi-overlay) applied to a document another tool produced. Inbound, `permdock openapi import` reads an OpenAPI document and generates a `definePermissions()` file from its operations and scopes.
 
 ## Purpose
 
-No OpenAPI generator in the TypeScript ecosystem is fed by an authorization library; every one of them (`@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`) expects `security` to be attached by hand per route. PermDock already knows the permission for each protected route (`protect(permissions.post.delete, ...)`), and each permission carries a `scope`. Emitting the security metadata from that knowledge keeps the document honest: a route cannot document a scope it does not enforce. OpenAPI 3.2 ([release](https://github.com/OAI/OpenAPI-Specification/releases/tag/3.2.0)) adds the device authorization flow, `oauth2MetadataUrl`, `deprecated` on security schemes and security schemes referenced by URI, which is why 3.2 is the primary target ([decision 0014](/docs/decisions/0014-openapi-3-2)).
+No OpenAPI generator in the TypeScript ecosystem is fed by an authorization library; every one of them (`@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger`, next-openapi-gen) expects `security` to be attached by hand per route. PermDock already knows the permission for each protected route (`protect(permissions.post.delete, ...)`), and each permission carries a `scope`. Emitting the security metadata from that knowledge keeps the document honest: a route cannot document a scope it does not enforce. OpenAPI 3.2 ([release](https://github.com/OAI/OpenAPI-Specification/releases/tag/3.2.0)) adds the device authorization flow, `oauth2MetadataUrl`, `deprecated` on security schemes and security schemes referenced by URI, which is why 3.2 is the primary target ([decision 0014](/docs/decisions/0014-openapi-3-2)).
+
+PermDock is one stage of a pipeline it does not own: a producer writes the description, PermDock adds authorization, an applier merges it, and SDK generators, docs UIs and bridges consume the result. It composes with those tools through standard fields and an Overlay rather than wrapping any of them ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), [OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
+
+## Works with
+
+| Stage | Tools | How PermDock connects |
+| --- | --- | --- |
+| Producers with an in-process hook | `hono-openapi`, `@hono/zod-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger` | `describe()`, `security()`, `spec()` passed into the generator next to `protect` |
+| Producers without a hook | [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) (Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro), hand-written YAML or JSON | `overlay()` or `permdock openapi emit --format overlay`, applied by the producer or a CLI |
+| Appliers | next-openapi-gen `overlay.apply`, Redocly CLI `join --overlay` | Consume the Overlay; PermDock ships none |
+| SDK generators | [Hey API](https://heyapi.dev) (`@hey-api/openapi-ts`), [Orval](https://orval.dev), Redocly `generate-client` | Read standard `security`; no PermDock code |
+| Docs UIs | [Scalar](https://scalar.com), Swagger UI, Redoc, Stoplight Elements, fumadocs-openapi | Read standard `security`; Scalar optionally renders the `x-badges` approval hint |
+| OpenAPI-to-MCP bridges | Orval MCP output, Scalar, Speakeasy | Bind each generated tool's `permission` from `x-permdock-permissions` ([MCP adapter](/docs/adapters/mcp)) |
+| Linters | Spectral, Redocly lint, vacuum | A PermDock ruleset file (Phase 2) checks the document invariants |
+| Workflows | Arazzo runners, `permdock.simulate` | Read `operationId` and `x-permdock-permissions` from the applied description ([Arazzo](/docs/standards/arazzo)) |
+
+The full producer, applier and consumer matrix with notes per tool is on the [OpenAPI ecosystem](/docs/research/openapi-ecosystem) research page.
 
 ## API
 
@@ -60,6 +77,35 @@ const doc = overlay({ extends: './openapi.json' })
 // { overlay: '1.1.0', info: {...}, extends: './openapi.json', actions: [...] }
 ```
 
+### Recipe: a producer without a hook (Next.js and next-openapi-gen)
+
+Next.js route handlers have no built-in spec generator, so `permdock/next` has no in-process hook. next-openapi-gen scans the route files, generates `operationId`s, applies Overlay files before writing the spec, and scaffolds Scalar. PermDock's contribution is the Overlay:
+
+```ts
+// openapi-gen.config.ts
+export default defineConfig({
+  openapi: '3.2.0',
+  overlay: { apply: ['./permdock.overlay.json'] },
+})
+```
+
+```bash
+permdock openapi emit --doc public/openapi.json --format overlay --out permdock.overlay.json
+pnpm exec openapi-gen generate      # applies the Overlay, writes the spec, scaffolds Scalar
+```
+
+Two rules keep the recipe honest. `operationId` is the join key: next-openapi-gen generates one per route, the Overlay targets it, and `--check` fails when it is missing. And there is one owner per field: on operations PermDock covers, do not also use next-openapi-gen's `@auth` JSDoc tag or `authPresets`; PermDock owns `security`, the producer owns paths and schemas. The same recipe applies to any producer that cannot call `describe()`, including hand-written descriptions. The [Next.js adapter](/docs/adapters/next) page repeats it in context.
+
+### Recipe: SDK generators and docs UIs
+
+Nothing to wire. Point `@hey-api/openapi-ts`, Orval or Redocly `generate-client` at the applied description; the generated SDK attaches credentials from `securitySchemes` and the right scopes per operation. Scalar, Swagger UI and Redoc render `security` as they render any description. A denial arrives as the documented `403` Problem Details body, which generated SDKs surface as the typed error.
+
+Optional, off by default: `docsHints: { badges: true }` (name illustrative) adds `x-badges: [{ name: 'Approval required' }]` to operations whose permission carries `approval`, so portals that render `x-badges` (Scalar does) show the hint without understanding PermDock. It is a rendering hint with no semantics and the only field PermDock writes outside `x-permdock-*` and the registered set. PermDock never writes `x-scalar-*` ([registries](/docs/standards/openapi-registry)).
+
+### Recipe: linters
+
+A ruleset file for Spectral, Redocly and vacuum ships with the CLI in Phase 2. It checks that every operation carrying `x-permdock-permissions` also carries `security`, that no `x-oai-*` name outside the registered three appears, and that an Overlay has no `remove` on `security`. Teams that already lint descriptions in CI get PermDock's invariants for free; `permdock openapi emit --check` stays the authoritative gate.
+
 ## Request lifecycle
 
 There is no request path: this adapter runs at document generation time and at import time.
@@ -94,7 +140,7 @@ The adapter emits metadata; enforcement and denials belong to the server adapter
 
 ## Example app
 
-No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-openapi`, `apps/examples/orpc` uses `oo.spec`, `apps/examples/trpc` uses `trpc-to-openapi` `protect`, and `apps/examples/monorepo` runs `permdock openapi import` on a third-party document and merges the generated permissions.
+No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-openapi`, `apps/examples/orpc` uses `oo.spec`, `apps/examples/trpc` uses `trpc-to-openapi` `protect`, `apps/examples/next` runs next-openapi-gen with `overlay.apply` and serves the result in Scalar, and `apps/examples/monorepo` runs `permdock openapi import` on a third-party document, merges the generated permissions, and generates a client with `@hey-api/openapi-ts` from the applied description.
 
 ## Related standards
 
@@ -107,12 +153,13 @@ No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-opena
 - [Problem Details](/docs/standards/problem-details): documented `403` body.
 - [CLI: openapi](/docs/cli/openapi): `permdock openapi` emit, import, `--target`, `--format` and `--check`.
 - [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay): extensions and Overlay.
+- [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem) and [OpenAPI ecosystem](/docs/research/openapi-ecosystem): how the adapter composes with producers, appliers and consumers.
 
 ## Open questions
 
 - Whether `describe` should also emit `x-permdock-conditions` by default or only with an option, given conditions can leak model details to API consumers.
 - How to map several permissions on one route (AND versus OR) in `security` without inventing a vendor extension.
-- Whether `overlay()` should be the default return shape for framework hooks once generators can consume an Overlay directly, making the fragment API a compatibility layer.
+- Decided by [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem): the fragment API stays for producers with an in-process hook; the Overlay is the documented default for producers without one. Whether the fragment API becomes a compatibility layer is revisited only if generators start consuming Overlays directly.
 - Import heuristics for action names when `operationId` is absent and paths are irregular; a mapping file may be needed.
 - Whether to emit `securitySchemes` per document or as a shared URI-referenced document in monorepos with several APIs.
 - `trpc-to-openapi` supports only a boolean `protect`; per-scope requirements may need an upstream change or post-processing of the generated document.

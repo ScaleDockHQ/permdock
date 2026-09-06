@@ -44,7 +44,7 @@ permdock openapi emit --doc openapi.json --check                          # exit
 4. With `--profile fapi2`, writes `x-permdock-securityProfile: "fapi2"` on the scheme and refuses (exit `2`) a scheme that accepts tokens anywhere but the HTTP header, since FAPI 2.0 forbids query-parameter tokens for resource servers.
 5. Writes `x-permdock-catalog` at document level with the catalog version and generator, so `--check` can detect drift.
 
-Everything not owned by PermDock is left untouched; the command is safe to run on documents produced by `@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi` or hand-written specs. With `--format overlay` the source is not modified at all.
+Everything not owned by PermDock is left untouched; the command is safe to run on documents produced by `@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger`, next-openapi-gen or hand-written specs. With `--format overlay` the source is not modified at all. Operations whose source already carries `security` that PermDock would replace are reported as findings, so two tools writing `security` on one operation is caught in CI ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)).
 
 ```json
 {
@@ -84,6 +84,30 @@ Everything not owned by PermDock is left untouched; the command is safe to run o
 permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay.json
 # apply with any Overlay 1.x applier, then serve or publish the result
 ```
+
+### Applying the Overlay
+
+PermDock ships no applier; the project's existing tool does it. Two common pipelines:
+
+```ts
+// next-openapi-gen: openapi-gen.config.ts (Next.js, TanStack Start, React Router, SvelteKit, Nuxt, Astro, Hono, Express)
+export default defineConfig({
+  openapi: '3.2.0',
+  overlay: { apply: ['./permdock.overlay.json'] },   // applied before the spec is written; Scalar and Arazzo see the result
+})
+```
+
+```bash
+# Redocly CLI: lint, bundle and generate-client pipelines
+redocly lint permdock.overlay.json                                             # validates the Overlay itself
+redocly join openapi.json --overlay permdock.overlay.json -o dist/openapi.json  # applies it
+```
+
+The next-openapi-gen option is documented in its [Overlay guide](https://github.com/tazo90/next-openapi-gen/blob/main/docs/overlay.md); Redocly's `join --overlay` is marked experimental in its [command reference](https://redocly.com/docs/cli/commands). Scalar's CLI lists Overlay support as roadmap, so a Scalar pipeline applies the Overlay with one of the above before `scalar registry publish`. Downstream, point `@hey-api/openapi-ts`, Orval or Scalar at `dist/openapi.json`; they read standard `security` and need no PermDock code ([OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
+
+### Lint ruleset
+
+Phase 2 ships a ruleset file for Spectral, Redocly and vacuum alongside the CLI. It encodes the document invariants `--check` enforces so teams that already lint descriptions see the same findings in their linter: an operation with `x-permdock-permissions` and no `security`, an `x-oai-*` name outside `x-oai-deprecated`, `x-oai-deviceAuthorization` and `x-oai-deviceAuthorizationUrl`, a vendor namespace PermDock does not own, and an Overlay `remove` targeting `security`. `--check` remains the authoritative gate; the ruleset is a convenience.
 
 ## Import
 
@@ -125,5 +149,7 @@ Fails when a permission was added, renamed or deprecated without regenerating th
 - [FAPI 2.0](/docs/standards/fapi-2)
 - [OpenAPI adapter](/docs/adapters/openapi)
 - [catalog](/docs/cli/catalog)
+- [OpenAPI ecosystem](/docs/research/openapi-ecosystem): producers, appliers and consumers the command works with
 - [0014: Target OpenAPI 3.2](/docs/decisions/0014-openapi-3-2)
 - [0019: Extensions and Overlay](/docs/decisions/0019-openapi-extensions-and-overlay)
+- [0023: Compose with the OpenAPI toolchain](/docs/decisions/0023-compose-openapi-ecosystem)

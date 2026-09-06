@@ -23,7 +23,8 @@ An applier resolves each `target` against the description and applies the action
 
 `permdock openapi emit` can write the mutated document, and that is still the default (`--format document`) because it is the simplest thing to serve. The Overlay form is preferred whenever the OpenAPI description is owned by someone other than the team running PermDock, or whenever the security metadata should be reviewable on its own:
 
-- **The source stays owned by the API team.** A generator (`@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`) or a hand-written file remains the single source of truth for paths, schemas and descriptions. PermDock adds authorization metadata beside it instead of rewriting it.
+- **The source stays owned by the API team.** A generator (`@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`, next-openapi-gen) or a hand-written file remains the single source of truth for paths, schemas and descriptions. PermDock adds authorization metadata beside it instead of rewriting it.
+- **It is how PermDock reaches producers it has no hook in.** Next.js route handlers, and every framework next-openapi-gen scans, have no in-process place to call `describe()`. The Overlay is the hand-off: the producer generates, PermDock overlays, the producer's applier merges ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)). For generated descriptions the Overlay is therefore the documented default even though `--format document` stays the CLI default.
 - **PermDock's output is reviewable.** The Overlay contains exactly what PermDock decided: which operations require which scopes, which keys they map to, which scheme they use. A reviewer reads a few dozen lines instead of diffing a whole regenerated description.
 - **Repeatable and diffable in CI.** The Overlay is a deterministic function of the catalog and the source's `operationId`s. `permdock openapi emit --format overlay --check` fails when the committed Overlay no longer matches, which catches a permission renamed without the document following, and a document edited to change what PermDock emitted.
 - **One Overlay, many descriptions.** A monorepo with several APIs that share one catalog can apply one `securitySchemes` Overlay to each, which answers the "shared scheme document" question on the [adapter page](/docs/adapters/openapi) without URI-referenced schemes (a 3.2-only feature).
@@ -107,6 +108,18 @@ Rules the emitter follows:
 
 Any Overlay 1.x applier can consume the file: it takes the OpenAPI description (from `extends` or a command-line argument) and the Overlay and writes the combined description. Run it as a build step and serve or publish the result; the source description in the repository stays unchanged. PermDock does not ship its own applier in Phase 2; the document form covers projects that do not want one.
 
+| Applier | Where it runs | Notes |
+| --- | --- | --- |
+| [next-openapi-gen](https://github.com/tazo90/next-openapi-gen/blob/main/docs/overlay.md) `overlay.apply` | Inside `openapi-gen generate`, for Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono and Express projects | Applied before the spec is written, so the Scalar UI it scaffolds and the Arazzo files it compiles see the applied description. Accepts Overlay 1.0, 1.1 and 1.2. The Next.js recipe |
+| [Redocly CLI](https://redocly.com/docs/cli/commands) `join --overlay` | Lint, bundle and `generate-client` pipelines | Experimental flag; `redocly lint permdock.overlay.json` validates the Overlay itself |
+| Scalar CLI | Docs and registry pipelines | Overlay support is on Scalar's roadmap; apply with one of the above before `scalar registry publish` |
+
+Whichever applier runs, the producer must not also write `security` on the operations PermDock covers (next-openapi-gen `@auth` and `authPresets`, for example). One owner per field: PermDock owns `security`, the producer owns paths and schemas. `--check` reports operations whose source already carries `security` the Overlay would replace.
+
+**`operationId` is the join key.** Producers generate it, the Overlay targets it, Arazzo steps reference it. A producer configured to omit `operationId`s cannot be overlaid; `--check` fails on the first operation without one rather than falling back to path-and-method targeting.
+
+**Overlay 1.2.** The next minor adds reusable actions and a `targetFormat` field (so one Overlay can target OpenAPI or AsyncAPI documents). PermDock emits 1.1.0 and reads nothing back, so there is no change until a 1.2 feature is needed; the appliers above already accept 1.2. Tracked on the [watch list](/docs/standards/watch-list).
+
 ### CI recipe
 
 ```yaml
@@ -159,8 +172,9 @@ Mitigations:
 - [OpenAPI registries](/docs/standards/openapi-registry): the `x-permdock-*` namespace.
 - [OpenAPI 3.3](/docs/standards/openapi-3-3): what changes when a native security-profile construct exists.
 - [Arazzo workflows](/docs/standards/arazzo): reading the applied description back to pre-flight a workflow.
-- [OpenAPI adapter](/docs/adapters/openapi) and [CLI: openapi](/docs/cli/openapi).
-- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay).
+- [OpenAPI adapter](/docs/adapters/openapi), [Next.js adapter](/docs/adapters/next) and [CLI: openapi](/docs/cli/openapi).
+- [OpenAPI ecosystem](/docs/research/openapi-ecosystem): producers, appliers and consumers.
+- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay) and [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem).
 
 ## Open questions
 

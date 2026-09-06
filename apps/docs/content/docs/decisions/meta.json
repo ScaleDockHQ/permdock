@@ -22,6 +22,7 @@
     "0019-openapi-extensions-and-overlay",
     "0020-measure-bundle-size-then-set-a-baseline",
     "0021-embedded-pdp-hosted-ads",
-    "0022-approvals-are-pluggable"
+    "0022-approvals-are-pluggable",
+    "0023-compose-openapi-ecosystem"
   ]
 }

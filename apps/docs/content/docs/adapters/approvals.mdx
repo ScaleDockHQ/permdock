@@ -122,6 +122,21 @@ export function drizzleApprovalStore(db: Db): ApprovalStore {
 
 The actor check (`by.principal.id !== request.subject.actor?.id`) is performed by `approvalsHandler` and by the agent adapters before `resolve` is called; a store used from custom code should repeat it.
 
+## Recipes for other stores
+
+The Drizzle store above is the template; every other backing store is the same four methods over a different driver, and none is a package ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)):
+
+| Runtime or store | `ApprovalStore` | Notes |
+| --- | --- | --- |
+| Cloudflare Durable Objects | One object per approval `token`, or one per tenant holding a map; `alarm()` implements expiry | The natural fit: single-writer, survives isolate restarts, colocated with the Agents SDK. KV works for `SnapshotSource` (eventually consistent reads are fine for snapshots) but not for approvals, which need a consistent `resolve` |
+| Cloudflare D1, Turso, SQLite | The Drizzle store with the `sqlite` dialect | `expiresAt` comparisons in the query; a scheduled job or the read path sweeps expired rows |
+| Redis, Upstash, Vercel KV | Hash per `token` with `EXPIRE` set to `expiresAt`; `resolve` is a `WATCH` or Lua script so two approvers cannot both win | Good for serverless functions; `list` needs a secondary index (a sorted set per subject) |
+| Postgres, Neon, Supabase | The Drizzle store with the `pg` dialect, or the equivalent Prisma or Kysely queries | Row-level security on the approvals table can restrict `list` to the approver's tenant using the same generated policies as the rest of the schema |
+| Durable execution (Inngest, Vercel Workflow, LangGraph checkpointer) | The framework's own durable step or state holds the pending request; `resolve` is the event that resumes it | The token check still runs in the adapter on resume ([agent frameworks](/docs/research/agent-frameworks)) |
+| PermDock Cloud | `cloud().approvals` | The hosted implementation of the same interface ([Cloud adapter](/docs/adapters/cloud)) |
+
+Whatever the store, `permdock doctor` warns when `memoryApprovalStore()` is the configured store in a serverless or edge target, because a cold start would lose pending approvals ([installation](/docs/getting-started/installation), runtimes).
+
 ## Example app
 
 None of its own. `apps/examples/ai-sdk-agent`, `apps/examples/eve-agent` and `apps/examples/openai-agent` each mount `approvalsHandler` next to their agent and include a test that approves from a second authenticated user and refuses an approval from the actor itself. `apps/examples/terminal` resolves approvals interactively against the same store.

@@ -86,6 +86,14 @@ A denied call returns an MCP tool result with `isError: true`, a plain-language 
 - `approval-required` uses MCP elicitation. Because the 2026-07-28 core is stateless, the elicitation is a multi-round-trip request: the server returns an elicitation request carrying `Decision.token`; the client answers in a new request; the adapter re-runs the check and compares the token so the approval cannot be replayed onto different arguments. See [approvals](/docs/security/approvals).
 - Enterprise-Managed Authorization clients (ID-JAG obtained via RFC 8693 token exchange, redeemed with an RFC 7523 JWT-bearer grant) and Client ID Metadata Document clients need no extra configuration: the adapter only reads `authInfo`.
 
+## Generated MCP servers from OpenAPI
+
+Orval, Scalar, Speakeasy and similar tools generate an MCP server from an OpenAPI description, one tool per operation. Agents then reach the API through that server, and unless the generated tools carry a `permission`, `list_tools` filtering, scope step-up and `approval-required` elicitation never run. The binding already exists in the description: every operation PermDock covers carries `x-permdock-permissions` ([OpenAPI adapter](/docs/adapters/openapi)).
+
+Recipe: run the bridge on the **applied** description (the producer's output with PermDock's [Overlay](/docs/standards/openapi-overlay) merged), then map each generated tool to `registerTool` with `permission: findPermission(operation['x-permdock-permissions'][0])`. Where the bridge exposes a per-operation hook, do it there; otherwise wrap the generated server with `protectServer` and supply the mapping from `operationId` to permission key, which `permdock openapi` can emit as part of the catalog. `findPermission` is the one place a string key enters the public API, and it throws on an unknown key, so a bridge cannot register a tool for an operation the catalog does not know. Operations without `x-permdock-permissions` are not registered (fail closed), the same rule `simulate` applies to Arazzo steps.
+
+This is a recipe, not a package: PermDock composes with the bridge through the extension it already writes ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), [OpenAPI ecosystem](/docs/research/openapi-ecosystem)). Standard `security` is not enough here because the bridge needs the permission key, not the OAuth scope; it is the one consumer for which `x-permdock-*` carries information the standard fields cannot.
+
 ## Example app
 
 `apps/examples/mcp-server`: a Streamable HTTP server with `post` tools, a fake authorization server issuing scoped tokens, a script that demonstrates a `list_tools` difference between two callers, a scope step-up, a denied call with alternatives and an elicitation-backed delete.
@@ -97,6 +105,7 @@ A denied call returns an MCP tool result with `isError: true`, a plain-language 
 - [Approvals](/docs/security/approvals): `approval: 'human'`, replay-safe tokens.
 - [Problem Details](/docs/standards/problem-details): shared vocabulary for the `structuredContent` refusal body.
 - [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse.
+- [OpenAPI 3.2](/docs/standards/openapi-3-2) and [OpenAPI ecosystem](/docs/research/openapi-ecosystem): `x-permdock-permissions` as the binding for generated MCP servers.
 
 ## Open questions
 

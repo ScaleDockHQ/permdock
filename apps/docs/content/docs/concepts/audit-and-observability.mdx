@@ -94,6 +94,15 @@ Implementations that ship or are documented:
 
 A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A failing sink is reported to `on('error')` and never changes an outcome.
 
+### Sink recipes and the OCSF projection
+
+Sinks for Sentry, PostHog, Datadog, Axiom, Better Stack, a Postgres table or a queue are recipes, not entries: each is the interface above with `write` calling the vendor SDK or a driver ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), the general rule). Two things make those recipes interchangeable:
+
+- **An OCSF projection.** The [Open Cybersecurity Schema Framework](https://schema.ocsf.io/) is the vendor-neutral schema SIEMs ingest. PermDock documents one mapping from a decision event onto the OCSF Authorization activity class (category System Activity or IAM, depending on the OCSF version in use): `outcome` to `status` and `status_detail`, `permission` and `scope` to the `resource` and `privileges` fields, `subject.principal` to `actor.user`, `subject.actor` to `actor.process` or `actor.app_name`, `denials[].reason` to `status_detail`, `adapter` and `source` to `metadata.product`. The projection is a pure function shipped as `toOcsf(event)` in a later `@permdock/testing` or CLI utility and documented on [wire formats](/docs/concepts/wire-formats); a sink that wants SIEM-ready output applies it before `write`. The event format itself does not change.
+- **A CloudEvents envelope.** When events leave the process over HTTP or a queue, wrap each in a [CloudEvents 1.0](https://cloudevents.io/) envelope: `type` `dev.permdock.decision` or `dev.permdock.approval`, `source` the service, `subject` the permission key, `data` the event. Every broker and function platform accepts it, and the PermDock Cloud sink uses the same envelope on the wire.
+
+Both are documented now, before the Cloud repository fixes its ingest format, because changing them later is a format bump for two repositories. Neither is a dependency; the projection and the envelope are plain objects.
+
 ### What is not logged
 
 The event never includes the resource object itself, the parsed schema output, the closure source, or any token or secret from `authInfo`. Add fields in your handler if you need them; `resource.id` is there so you can join.

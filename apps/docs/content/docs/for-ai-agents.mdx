@@ -95,6 +95,16 @@ const { allowed, status } = usePermission(permissions.post.update, post)
 
 Finish with `pnpm exec permdock doctor` and add `permdock collect --check` and `permdock usage --strict` to CI. Full versions: [quick start](/docs/getting-started/quick-start), [Next.js adapter](/docs/adapters/next), [MCP adapter](/docs/adapters/mcp), [AI SDK adapter](/docs/adapters/ai-sdk).
 
+### The shortest OpenAPI recipe
+
+If the project already generates an OpenAPI description, do not write `security` by hand and do not add a PermDock wrapper around the generator. Emit PermDock's Overlay and let the existing pipeline apply it:
+
+```bash
+permdock openapi emit --doc public/openapi.json --format overlay --out permdock.overlay.json
+```
+
+For Next.js and the other frameworks next-openapi-gen scans, add `overlay: { apply: ['./permdock.overlay.json'] }` to `openapi-gen.config.ts`; for Redocly pipelines, `redocly join openapi.json --overlay permdock.overlay.json -o dist/openapi.json`. Hey API, Orval, Scalar and any OpenAPI-to-MCP bridge then read the applied description with no PermDock code. Rules: every operation needs an `operationId`; do not also declare security through the producer (`@auth`, `authPresets`) on operations PermDock covers; add `permdock openapi emit --format overlay --check` to CI. Details: [OpenAPI adapter](/docs/adapters/openapi), [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem).
+
 ## Invariants an agent must keep
 
 - Permissions are references (`permissions.post.update`), never strings, in every public API. Strings only appear as `.key` and `.scope` at boundaries, converted back with `findPermission`.

@@ -60,6 +60,8 @@ Applications that need approvals to survive a restart implement the interface ov
 | A2A | Skill returns a structured "approval required" result with `token` | Caller retries with the token; open question whether to use task states |
 | WebMCP | Tool handler returns a structured refusal with `token`; page renders its own approval UI | Page re-invokes the guarded route with the token |
 | React / Next.js UI | `usePermission` reports `allowed: false`; `decide` on the server shows `approval-required` for rendering an approval button | Server action re-checks with the token |
+| Chat UIs over AG-UI | The backend emits the approval request (reason, `token`, what to ask) as an AG-UI human-in-the-loop or custom event; the UI renders the control | The answer flows back on the same stream; the adapter in the backend recomputes and compares `token` ([agent frameworks](/docs/research/agent-frameworks)) |
+| Other frameworks (LangGraph.js, Mastra, Inngest AgentKit, Google ADK) | Recipes, not adapters: `decide` in the framework's before-tool hook; `approval-required` parks as an `interrupt`, `suspend` or waiting step | The durable step resumes with the token; the same store and token check apply ([agent frameworks](/docs/research/agent-frameworks)) |
 
 The AI SDK adapter fails closed: `denied` maps to `'denied'`, `approval-required` maps to `'user-approval'`, and `'not-applicable'` is never returned, in contrast to `@ai-sdk/policy-opa`, which executes tools on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
 

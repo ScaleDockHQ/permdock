@@ -85,6 +85,29 @@ export async function loadSnapshot() {
 5. Closure grants. `usePermission` posts batched `evaluations` to `app/api/permdock/route.ts`; `permdockHandler` resolves the same subject, validates the posted data at the boundary and answers.
 6. Segments that must not be prefetched with permission UI export `instant = false`.
 
+## OpenAPI
+
+Next.js has no built-in spec generator, so `permdock/next` has no in-process OpenAPI hook. The recipe is a producer plus PermDock's Overlay ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)):
+
+1. [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) scans `app/api/**/route.ts`, generates an `operationId` per handler, and scaffolds Scalar as the docs UI.
+2. `permdock openapi emit --format overlay` writes `permdock.overlay.json` with `securitySchemes`, per-operation `security` and `x-permdock-*` for every handler that calls `getPermDock().assert(...)` or is wrapped by `permdockHandler` ([CLI: openapi](/docs/cli/openapi)).
+3. next-openapi-gen's `overlay.apply` merges the Overlay before writing the spec, so Scalar, any Arazzo files it compiles, and SDK generators such as `@hey-api/openapi-ts` see the applied description.
+
+```ts
+// openapi-gen.config.ts
+export default defineConfig({
+  openapi: '3.2.0',
+  overlay: { apply: ['./permdock.overlay.json'] },
+})
+```
+
+```bash
+permdock openapi emit --doc public/openapi.json --format overlay --out permdock.overlay.json --check   # CI
+pnpm exec openapi-gen generate
+```
+
+Rules: `operationId` is the join key, and `--check` fails on a handler without one. Do not use next-openapi-gen's `@auth` JSDoc tag or `authPresets` on handlers PermDock covers; two sources of `security` on one operation is the failure mode the recipe exists to avoid. PermDock owns `security`; the producer owns paths and schemas. The Overlay is the documented default here because the description is generated on every build ([Overlay](/docs/standards/openapi-overlay)).
+
 ## What it validates
 
 - Posted decision-endpoint bodies against the AuthZEN `evaluations` schema and posted resource data against the resource's Standard Schema (`validate: 'boundary'`).
@@ -101,14 +124,15 @@ export async function loadSnapshot() {
 
 ## Example app
 
-`apps/examples/next`: Next.js 16.3 with Cache Components enabled, `src/permdock/server.ts`, a private-cached snapshot, admin and billing routes guarded by `Protected`, a post editor with a database-dependent `getPermission` under `Suspense`, a role-change Server Action that calls `updateTag`, and `@next/playwright` tests using `instant()` to assert that navigating to a guarded route paints from the prefetched shell without a blocking request.
+`apps/examples/next`: Next.js 16.3 with Cache Components enabled, `src/permdock/server.ts`, a private-cached snapshot, admin and billing routes guarded by `Protected`, a post editor with a database-dependent `getPermission` under `Suspense`, a role-change Server Action that calls `updateTag`, next-openapi-gen with `overlay.apply` serving the applied description in Scalar, and `@next/playwright` tests using `instant()` to assert that navigating to a guarded route paints from the prefetched shell without a blocking request.
 
 ## Related standards
 
 - [AuthZEN](/docs/standards/authzen): decision endpoint shapes served by `permdockHandler`.
 - [Problem Details](/docs/standards/problem-details): Route Handler denials.
 - [Standard Schema](/docs/standards/standard-schema): boundary validation.
-- Research: [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation), [next-intl extraction model](/docs/research/next-intl-extraction-model). Decisions: [0006 explicit factory](/docs/decisions/0006-explicit-factory-not-plugin).
+- [OpenAPI 3.2](/docs/standards/openapi-3-2) and [OpenAPI Overlay](/docs/standards/openapi-overlay): the next-openapi-gen recipe above.
+- Research: [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation), [next-intl extraction model](/docs/research/next-intl-extraction-model), [OpenAPI ecosystem](/docs/research/openapi-ecosystem). Decisions: [0006 explicit factory](/docs/decisions/0006-explicit-factory-not-plugin), [0023 compose with the OpenAPI toolchain](/docs/decisions/0023-compose-openapi-ecosystem).
 
 ## Open questions
 
