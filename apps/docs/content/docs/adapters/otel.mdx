@@ -46,6 +46,8 @@ Recorded per check:
 
 The logger interface is a type-only structural contract (`debug`, `info`, `warn`, `error` taking a message and an attributes object), so `console`, pino, winston or a test spy all satisfy it without an adapter.
 
+In an agent, the framework or the model SDK usually opens an `execute_tool` span from the [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) around each tool call, with `gen_ai.tool.name` and `gen_ai.tool.call.id`. `permdock.decide` nests under it because the listener starts its span in the current context, so LLM-observability backends (Langfuse, LangSmith, Braintrust, Datadog LLM Observability, Sentry, PostHog) show the decision as a child of the tool call with no PermDock-specific integration. The adapter also copies `gen_ai.tool.name` and `gen_ai.tool.call.id` from the parent span onto its own when present, so a denial can be grouped by tool without joining spans. The GenAI conventions are still at Development status (the `execute_tool` span and its attributes are not yet stable), so these two attribute names are pinned in the adapter and revisited when the conventions stabilise; none of PermDock's own `permdock.*` attributes depend on them.
+
 ## Request lifecycle
 
 1. `instrument` (or the `otel` option) registers an `on('decision')` listener on the instance.

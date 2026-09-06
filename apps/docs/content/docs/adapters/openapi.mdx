@@ -19,12 +19,13 @@ PermDock is one stage of a pipeline it does not own: a producer writes the descr
 | Stage | Tools | How PermDock connects |
 | --- | --- | --- |
 | Producers with an in-process hook | `hono-openapi`, `@hono/zod-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger` | `describe()`, `security()`, `spec()` passed into the generator next to `protect` |
-| Producers without a hook | [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) (Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro), hand-written YAML or JSON | `overlay()` or `permdock openapi emit --format overlay`, applied by the producer or a CLI |
-| Appliers | next-openapi-gen `overlay.apply`, Redocly CLI `join --overlay` | Consume the Overlay; PermDock ships none |
-| SDK generators | [Hey API](https://heyapi.dev) (`@hey-api/openapi-ts`), [Orval](https://orval.dev), Redocly `generate-client` | Read standard `security`; no PermDock code |
-| Docs UIs | [Scalar](https://scalar.com), Swagger UI, Redoc, Stoplight Elements, fumadocs-openapi | Read standard `security`; Scalar optionally renders the `x-badges` approval hint |
-| OpenAPI-to-MCP bridges | Orval MCP output, Scalar, Speakeasy | Bind each generated tool's `permission` from `x-permdock-permissions` ([MCP adapter](/docs/adapters/mcp)) |
+| Producers without a hook | [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) (Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro), [TypeSpec](https://typespec.io), tsoa, ts-rest, Effect HttpApi, hand-written YAML or JSON | `overlay()` or `permdock openapi emit --format overlay`, applied by the producer or a CLI |
+| Appliers | next-openapi-gen `overlay.apply`, Redocly CLI `join --overlay`, Bump.sh `bump overlay`, Speakeasy CLI, Zuplo CLI, `overlays-js`, `openapi-format` | Consume the Overlay; PermDock ships none |
+| SDK generators | [Hey API](https://heyapi.dev) (`@hey-api/openapi-ts`), [Orval](https://orval.dev), [Kubb](https://kubb.dev), openapi-typescript, OpenAPI Generator, Kiota, Fern, Speakeasy, Redocly `generate-client` | Read standard `security`; no PermDock code |
+| Docs UIs and hosts | [Scalar](https://scalar.com), Swagger UI, Redoc, Stoplight Elements, fumadocs-openapi, Zudoku; hosted: Mintlify, Bump.sh, Fern docs, Redocly Realm, GitBook, Postman | Read standard `security`; Scalar optionally renders the `x-badges` approval hint; PermDock never writes a host's own extensions |
+| OpenAPI-to-MCP bridges | Orval and Kubb MCP output, Scalar, Speakeasy, Fern, Mintlify, Postman MCP Generator, Zuplo, Kong `openapi2mcp`, AWS AgentCore Gateway | Bind each generated tool's `permission` from `x-permdock-permissions` ([MCP adapter](/docs/adapters/mcp)) |
 | Linters | Spectral, Redocly lint, vacuum | A PermDock ruleset file (Phase 2) checks the document invariants |
+| Testing and diff | Schemathesis `ignored_auth`, oasdiff, Prism, Microcks | Read `security`; turn PermDock's output into a runtime parity test and a breaking-change gate ([CLI: openapi](/docs/cli/openapi)) |
 | Workflows | Arazzo runners, `permdock.simulate` | Read `operationId` and `x-permdock-permissions` from the applied description ([Arazzo](/docs/standards/arazzo)) |
 
 The full producer, applier and consumer matrix with notes per tool is on the [OpenAPI ecosystem](/docs/research/openapi-ecosystem) research page.

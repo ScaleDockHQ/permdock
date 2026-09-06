@@ -101,6 +101,7 @@ Core has no runtime dependencies. A few entries verify material or talk to a ven
 | --- | --- | --- |
 | `permdock/jwt` | `jose` | JWS verification and JWKS fetching; see [JWT](/docs/adapters/jwt) |
 | `permdock/otel` | `@opentelemetry/api` | Span and metric emission |
+| `permdock/mcp` | `@modelcontextprotocol/server` 2.x (types only) | `protectServer` duck-types the `McpServer` at runtime; the peer supplies `AuthInfo` and `registerTool` option types. SDK 1.x is not supported ([MCP adapter](/docs/adapters/mcp), Hosting) |
 | `permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex` | The provider SDK | Session and claim verification stays with the provider; see [authentication](/docs/concepts/authentication) |
 | `permdock/terminal` | An OS keychain binding | Token storage; falls back to a mode-0600 file |
 

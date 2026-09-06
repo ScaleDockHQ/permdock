@@ -137,6 +137,50 @@ The Drizzle store above is the template; every other backing store is the same f
 
 Whatever the store, `permdock doctor` warns when `memoryApprovalStore()` is the configured store in a serverless or edge target, because a cold start would lose pending approvals ([installation](/docs/getting-started/installation), runtimes).
 
+## Delivery
+
+A store holds the pending request; something still has to tell a human. Delivery is a recipe over the `approval` event that fires when a request is created (`permdock.on('approval')`, or the same event arriving at a `DecisionSink`), never a package, and the approver's identity always comes from the surface that authenticated them, never from the message ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), [threat model](/docs/security/threat-model)). The reference recipe is the [Vercel Chat SDK](https://chat-sdk.dev), because it is the one surface that is durable, signature-verified and reaches Slack, Microsoft Teams and Discord from one call; it is also what the PermDock Cloud inbox uses for its Slack and Teams delivery, so self-hosters and Cloud users run the same code path.
+
+```ts
+import { requestApproval } from 'chat/workflow'
+import { permdock, store } from './permdock'        // the factory result and your ApprovalStore
+import { subjectFromChatUser } from './subjects'    // maps a verified chat user to a Subject
+
+// `approval` events fire when a request is created and when it is resolved; a DecisionSink sees the same events
+permdock.on('approval', async (event) => {
+  if (event.request.status !== 'pending') return
+  // Runs inside a Workflow SDK step, so the wait survives redeploys and cold starts
+  const outcome = await requestApproval({
+    channel: process.env.APPROVALS_CHANNEL!,
+    approvers: await approversFor(event.request),   // Slack / Teams user ids allowed to answer
+    title: `Approve ${event.request.permission}?`,
+    body: describe(event.request),                  // reason, resource id, actor, expiry from the request
+    timeout: event.request.expiresAt,
+  })
+  // `outcome.user.id` is the platform-verified responder; the Chat SDK checked the signature
+  const by = await subjectFromChatUser(outcome.user)
+  await store.resolve(event.request.token, outcome.approved ? 'approved' : 'rejected', { by })
+})
+```
+
+What the recipe does and does not do:
+
+- **Identity.** The Chat SDK verifies the platform signature on the interaction and returns `user.id`; `subjectFromChatUser` maps that id to a `Subject` from your own directory (a Slack user id to an employee record). `store.resolve` then applies the actor-is-not-approver rule and any `requireDistinctApprover` policy, and the resumed call recomputes the `token`, so a forged or replayed card cannot approve a different call.
+- **Durability.** `requestApproval` is a Workflow SDK step; the pending wait outlives the function invocation. The store record is still the source of truth: if the workflow is lost, the request expires at `expiresAt` and the agent's resume fails closed.
+- **Approvers.** `approvers` on the card limits who can click; PermDock's check runs anyway, because the card is a convenience and the store is the control.
+- **Not delivery of the decision.** Denials are not sent anywhere by this recipe; they are decision events for a sink ([audit and observability](/docs/concepts/audit-and-observability)).
+
+Other surfaces implement the same three steps (send, wait, resolve with a verified identity):
+
+| Surface | Send and wait | Verified responder | Notes |
+| --- | --- | --- | --- |
+| Trigger.dev waitpoints | `wait.createToken` produces an HMAC-signed callback URL; `wait.forToken` suspends the task | Whoever your callback endpoint authenticates (a session or a signed link); the token is not an identity | Pair with the approval UI or a Chat SDK card that calls the callback |
+| Temporal, Restate, Inngest, Cloudflare Workflows | Signals, awakeables, `step.waitForEvent`, `waitForEvent` | The event's sender as authenticated by your HTTP layer | The durable step holds the wait; the store record holds the request |
+| n8n | AI Agent tool "Require approval" and the "Send and Wait for Response" node (Slack, Teams, Gmail, Telegram, Discord, WhatsApp) | n8n's own credential for the channel; map the responder in the workflow | No-code delivery for agents that run inside n8n; the tools themselves are guarded through `permdock/mcp` |
+| Eve | `approval.response` receives the authenticated `responder` | Eve | The adapter already does this; no delivery code needed ([Eve adapter](/docs/adapters/eve)) |
+| Email and notification infrastructure (Resend, Knock, Novu, Courier, Twilio) | Send a message with a link to `approvalsHandler` | The approver's session on the approval page | A channel only; a link is never an approval by itself (open question below) |
+| PermDock Cloud | Inbox UI plus Slack and Teams through the Chat SDK recipe above | Cloud authentication and the platform signature | The hosted implementation of the same store and the same recipe ([Cloud adapter](/docs/adapters/cloud)) |
+
 ## Example app
 
 None of its own. `apps/examples/ai-sdk-agent`, `apps/examples/eve-agent` and `apps/examples/openai-agent` each mount `approvalsHandler` next to their agent and include a test that approves from a second authenticated user and refuses an approval from the actor itself. `apps/examples/terminal` resolves approvals interactively against the same store.
@@ -153,5 +197,7 @@ None of its own. `apps/examples/ai-sdk-agent`, `apps/examples/eve-agent` and `ap
 ## Open questions
 
 - Whether `list` needs cursor pagination in the interface or whether the Cloud store may add it as an extension.
-- Notification delivery (email, Slack, push) is out of scope for the open-source entry; whether a `notify` hook on the store or on the adapter is the right seam for self-hosters.
 - Whether `once()`-style session-scoped approvals (Eve's helper) should be expressible as a store policy or stay a runtime concern.
+- Whether an emailed link can carry an approval without a session on the approver side, and how it would bind to an identity. Slack, Teams and Discord are no longer part of this question: the Chat SDK verifies the platform signature and returns the responder, so the "Delivery" recipe covers them.
+
+Resolved: notification delivery. It was an open question whether a `notify` hook on the store or the adapter was the right seam. The answer is neither: delivery is a recipe over the `approval` event that already fires on `on('approval')` and reaches every sink, the Chat SDK recipe above is the reference, and the Cloud inbox uses the same recipe for Slack and Teams. No new interface method.

@@ -108,6 +108,37 @@ pnpm exec openapi-gen generate
 
 Rules: `operationId` is the join key, and `--check` fails on a handler without one. Do not use next-openapi-gen's `@auth` JSDoc tag or `authPresets` on handlers PermDock covers; two sources of `security` on one operation is the failure mode the recipe exists to avoid. PermDock owns `security`; the producer owns paths and schemas. The Overlay is the documented default here because the description is generated on every build ([Overlay](/docs/standards/openapi-overlay)).
 
+## MCP route
+
+A Next.js app exposes an MCP server as a route handler through [`mcp-handler`](https://github.com/vercel/mcp-handler); `permdock/mcp` guards it with the same policy and the same subject resolver the rest of the app uses ([MCP adapter](/docs/adapters/mcp), Hosting). This is the route the PermDock Cloud template on the Vercel Marketplace exposes ([Cloud adapter](/docs/adapters/cloud)).
+
+```ts
+// app/api/mcp/route.ts
+import { createMcpHandler, withMcpAuth } from 'mcp-handler'
+import { createPermDock } from 'permdock/mcp'
+import { createJwtSubjectResolver } from 'permdock/jwt'
+import { policy, permissions } from '@/permissions'
+import { store } from '@/permdock'          // the same ApprovalStore the server components use
+
+const verify = createJwtSubjectResolver({ issuer: process.env.AUTH_ISSUER!, audience: process.env.MCP_RESOURCE! })
+const { protectServer } = createPermDock(policy, { subject: (authInfo) => authInfo.extra?.subject ?? null, store })
+
+const handler = createMcpHandler((server) => {
+  const guarded = protectServer(server)
+  guarded.registerTool('delete_post', { permission: permissions.post.delete, inputSchema, data: loadPost }, deletePost)
+})
+
+const authed = withMcpAuth(handler, async (_req, token) => {
+  const subject = await verify(token)
+  if (!subject.principal) return undefined
+  return { token, clientId: subject.claims.client_id, scopes: subject.claims.scope?.split(' ') ?? [], expiresAt: subject.expiresAt, extra: { subject } }
+}, { required: true })
+
+export { authed as GET, authed as POST }
+```
+
+Three rules. The subject comes from the verified bearer token, never from the app session: an MCP client is not a browser and carries no cookie. `store` must be durable on Vercel because each invocation is stateless (`memoryApprovalStore()` would drop a pending approval; `permdock doctor` warns). And the route is unrelated to `permdockHandler()`, which serves the client decision endpoint for the React side; the two can share one policy file and nothing else. `mcp-handler` also mounts on Nuxt, SvelteKit and Hono with the same file, so the recipe is not Next-specific.
+
 ## What it validates
 
 - Posted decision-endpoint bodies against the AuthZEN `evaluations` schema and posted resource data against the resource's Standard Schema (`validate: 'boundary'`).

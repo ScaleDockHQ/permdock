@@ -96,7 +96,15 @@ A sink receives `decision` events and the `approval` events that the store emits
 
 ### Sink recipes and the OCSF projection
 
-Sinks for Sentry, PostHog, Datadog, Axiom, Better Stack, a Postgres table or a queue are recipes, not entries: each is the interface above with `write` calling the vendor SDK or a driver ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), the general rule). Two things make those recipes interchangeable:
+Sinks for Sentry, PostHog, Datadog, Axiom, Better Stack, a Postgres table or a queue are recipes, not entries: each is the interface above with `write` calling the vendor SDK or a driver ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), the general rule). The destinations fall into three groups with three different ingestion shapes:
+
+| Destination | Examples | Ingests | Recipe |
+| --- | --- | --- | --- |
+| LLM observability | Langfuse, LangSmith, Braintrust, Datadog LLM Observability, Sentry AI monitoring, PostHog LLM analytics | OpenTelemetry GenAI spans (`execute_tool`, `gen_ai.tool.name`) | No sink at all: `permdock/otel` nests `permdock.decide` under the framework's `execute_tool` span, so the decision arrives with the trace ([OpenTelemetry adapter](/docs/adapters/otel)). The GenAI conventions are still at Development status; the two attribute names the adapter copies are pinned and revisited on stabilisation |
+| SIEM and security lake | Splunk, Microsoft Sentinel, Datadog Cloud SIEM, AWS Security Lake, Google SecOps, Elastic Security | OCSF, natively or through a mapping | A sink whose `write` applies the OCSF projection below and posts the batch; the projection is what makes one recipe serve all of them |
+| Compliance evidence | Vanta, Drata, Secureframe | Access-review evidence from connected systems, usually pulled from a queryable log | Query your own sink's table (or the Cloud export) for events by `subject.principal`, `actor` and `outcome` over the review window; the event already carries the fields an access review asks for |
+
+Two things make those recipes interchangeable:
 
 - **An OCSF projection.** The [Open Cybersecurity Schema Framework](https://schema.ocsf.io/) is the vendor-neutral schema SIEMs ingest. PermDock documents one mapping from a decision event onto the OCSF Authorization activity class (category System Activity or IAM, depending on the OCSF version in use): `outcome` to `status` and `status_detail`, `permission` and `scope` to the `resource` and `privileges` fields, `subject.principal` to `actor.user`, `subject.actor` to `actor.process` or `actor.app_name`, `denials[].reason` to `status_detail`, `adapter` and `source` to `metadata.product`. The projection is a pure function shipped as `toOcsf(event)` in a later `@permdock/testing` or CLI utility and documented on [wire formats](/docs/concepts/wire-formats); a sink that wants SIEM-ready output applies it before `write`. The event format itself does not change.
 - **A CloudEvents envelope.** When events leave the process over HTTP or a queue, wrap each in a [CloudEvents 1.0](https://cloudevents.io/) envelope: `type` `dev.permdock.decision` or `dev.permdock.approval`, `source` the service, `subject` the permission key, `data` the event. Every broker and function platform accepts it, and the PermDock Cloud sink uses the same envelope on the wire.

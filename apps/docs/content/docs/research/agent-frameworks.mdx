@@ -28,6 +28,11 @@ Most frameworks fail the third test: they consume MCP servers, in which case `pe
 | Vercel Workflow with AI SDK `WorkflowAgent` | `needsApproval` | Yes | Durable workflow suspend | `permdock/ai-sdk` | Nothing to add |
 | [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks) | `PreToolUse` hook returning allow, deny or ask | Yes | The CLI re-prompts | `permdock/claude-agent` `permissionRequestHook` | Nothing to add |
 | [Cursor hooks](https://cursor.com/docs/agent/hooks) | `beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile` returning allow, deny or ask | Yes | The IDE re-prompts | Nothing | Recipe: a hook script that calls a `permdock/terminal`-style guard; tool names map to permissions, the subject comes from the developer's verified login. Documented, not packaged |
+| [Gemini CLI hooks](https://geminicli.com/docs/hooks/) | `BeforeTool` returning a `decision` of `allow`, `deny` or `ask` with a `reason`; `AfterTool` for audit | Yes | The CLI re-prompts | Nothing | Same recipe as Cursor and Claude Code; the three coding agents share one hook script shape (tool name plus arguments in, a decision out), so one guard serves all of them |
+| Codex CLI, OpenCode | Pre-tool hooks with allow or deny (Codex); OpenCode plugin `tool.execute.before` throwing to block | Refuse yes; ask depends on the CLI's prompt | The CLI re-prompts where supported | Nothing | Same recipe; tracked because the hook protocols are younger than Claude Code's |
+| [n8n AI Agent](https://docs.n8n.io/advanced-ai/) | "Require approval" option on agent tools, "Send and Wait for Response" node (Slack, Teams, Gmail, Telegram, Discord, WhatsApp) | Yes through the wait node | n8n execution resumes on the response | `permdock/mcp` when the agent's tools are an MCP server | Recipe: expose tools through `permdock/mcp`; n8n's approval is the no-code delivery surface and the store record still lives behind the MCP server |
+| [AWS Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/) Gateway and Policy | Gateway turns OpenAPI, Lambda and MCP targets into MCP tools; Policy evaluates Cedar with `context.toolName` and `context.input.*` | Refuse yes at the gateway; ask requires the application (Runtime keeps agent state) | AgentCore Runtime session | `permdock/mcp` when the target is your own MCP server; the applied OpenAPI description for OpenAPI targets | Recipe: same as the [MCP adapter](/docs/adapters/mcp) bridge recipe; Cedar is a possible compile target, considered and not scheduled ([commercial landscape](/docs/research/commercial-landscape)) |
+| OpenAI Agents SDK tool guardrails | `toolInputGuardrails`, `toolOutputGuardrails` with tripwires | Refuse yes; ask no | `needsApproval` covers it | `permdock/openai` | A second hook noted on the [OpenAI adapter](/docs/adapters/openai); `needsApproval` stays primary because guardrails cannot pause |
 | Custom loops on raw provider SDKs | Whatever the loop author writes | Author's choice | Author's choice | `permdock` core | `decide` and `assert` directly; the [for AI agents](/docs/for-ai-agents) page is the recipe |
 
 Two protocols sit beside the frameworks and matter for the approvals story rather than for tool gating:
@@ -36,6 +41,7 @@ Two protocols sit beside the frameworks and matter for the approvals story rathe
 | --- | --- | --- |
 | [AG-UI](https://docs.ag-ui.com/) | An event stream between an agent backend and a UI: text, tool-call start and end, state, and human-in-the-loop events | Where an `approval-required` decision should appear in a chat UI. A backend using any adapter above emits the pending approval (reason, `token`, what to ask) as an AG-UI tool-call or custom event; the UI renders the approval control; the answer flows back and the adapter recomputes `token`. PermDock defines the payload (the approval request wire format on [wire formats](/docs/concepts/wire-formats)), not the event type |
 | Agent Client Protocol (ACP) | Editor-to-coding-agent protocol (Zed and others) with permission requests for tool use | Same shape as Claude Code and Cursor hooks; a guard in the agent process answers permission requests from `decide`. Tracking only |
+| [Vercel Chat SDK](https://chat-sdk.dev) | A delivery surface, not a framework: `requestApproval` from a `chat/workflow` step posts an approval card to Slack, Teams or Discord, verifies the platform signature and returns the responder's `user.id`; durable through the Workflow SDK | Where an `approval-required` decision reaches a human who is not in the chat UI. The reference delivery recipe on the [approvals adapter](/docs/adapters/approvals): the responder id is mapped to a `Subject` and `store.resolve` runs PermDock's actor and token checks |
 
 ## What the table says
 
@@ -43,7 +49,9 @@ Two protocols sit beside the frameworks and matter for the approvals story rathe
 - **The AI SDK is the second.** Mastra, Cloudflare Agents and Vercel Workflow build on it; `capabilityMiddleware` and `toolApproval` apply.
 - **Durable execution frameworks want approvals as steps.** LangGraph checkpoints, Inngest steps, Mastra suspend, Cloudflare Durable Objects: each is a place to park an `approval-required` decision and resume with the token. The `ApprovalStore` interface ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)) is what these recipes implement; the durable store is theirs, the token check is PermDock's.
 - **Only LangGraph.js is large enough and hook-complete enough** to justify an adapter, and only if the recipe (wrap tools, `interrupt` on approval) proves too fiddly for users to write themselves. Phase 4 at earliest, after the five shipped adapters have shown which translation problems recur.
-- **Developer-tool hooks are a new surface.** Cursor and Claude Code hooks turn a coding agent's shell and MCP calls into permission requests. `permdock/terminal` already answers "may this command run" for a consumer's CLI; the same guard behind a hook script answers it for the agent driving the IDE. This is documented as a recipe because the hook protocols are young and differ per editor.
+- **Developer-tool hooks are a new surface.** Cursor, Claude Code, Gemini CLI, Codex CLI and OpenCode hooks turn a coding agent's shell and MCP calls into permission requests. `permdock/terminal` already answers "may this command run" for a consumer's CLI; the same guard behind a hook script answers it for the agent driving the IDE. This is documented as a recipe because the hook protocols are young and differ per editor, though they converge on the same shape: tool name and arguments in, allow, deny or ask out.
+- **Gateways are arriving with their own policy engines.** AgentCore Policy evaluates Cedar at the gateway with the tool name and parsed arguments. It cannot see the row or pause for a human, so it complements rather than replaces an in-process check; the two agree when they read the same applied OpenAPI description.
+- **Delivery is the missing half of approvals.** Every hook pauses; none of them tells a human. Chat SDK, n8n's wait node and the durable runtimes are where the pending request becomes a message, and each hands back an identity PermDock only has to compare against the actor.
 
 ## Adopt / adapt / avoid
 
@@ -57,7 +65,9 @@ Adapt:
 
 - LangGraph.js `interrupt` as a Phase 4 adapter candidate, gated on evidence from the recipe.
 - ADK `beforeToolCallback`, Inngest middleware and Mastra `suspend` as documented recipes on the [approvals](/docs/security/approvals) surfaces table, not adapters.
-- Cursor and Claude Code hook scripts as a `permdock/terminal` recipe once the hook protocols settle.
+- Cursor, Claude Code, Gemini CLI, Codex CLI and OpenCode hook scripts as one `permdock/terminal` recipe once the hook protocols settle.
+- Vercel Chat SDK `requestApproval` as the reference delivery recipe for `approval-required`; n8n's wait node and the durable runtimes as the alternatives.
+- AgentCore Gateway as an OpenAPI-to-MCP bridge; Cedar as a compile target only on demand.
 
 Avoid:
 

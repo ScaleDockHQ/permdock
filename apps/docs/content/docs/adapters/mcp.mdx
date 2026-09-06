@@ -41,9 +41,52 @@ guarded.registerTool('list_posts', { permission: permissions.post.list, inputSch
 - `subject` receives the SDK `AuthInfo` and returns the principal (or `null` for anonymous). The adapter fills `actor` with `authInfo.clientId` and `delegation` with `authInfo.scopes` and, when present, RFC 9396 `authorization_details` from the token, so a decision is the principal's grants intersected with what the client was delegated.
 - `protectServer` also installs a `list_tools` filter and an elicitation bridge for `approval-required` decisions.
 
+## Hosting
+
+`protectServer` wraps an SDK v2 `McpServer` wherever it is created, so the hosting layer needs no PermDock code. The common host for Fetch frameworks is [`mcp-handler`](https://github.com/vercel/mcp-handler) 2.x, which turns an `McpServer` definition into a `(Request) => Promise<Response>` handler for Next.js route handlers, Nuxt and Nitro, SvelteKit, Hono and any Fetch-compatible framework, serves the 2026-07-28 stateless protocol natively and falls back to 2025-era Streamable HTTP for older clients.
+
+```ts
+// app/api/mcp/route.ts (Next.js), or the equivalent route in Nuxt, SvelteKit or Hono
+import { createMcpHandler, withMcpAuth } from 'mcp-handler'
+import { createPermDock } from 'permdock/mcp'
+import { createJwtSubjectResolver } from 'permdock/jwt'
+import { policy, permissions } from '@/permissions'
+
+const verify = createJwtSubjectResolver({ issuer: process.env.AUTH_ISSUER!, audience: process.env.MCP_RESOURCE! })
+
+const { protectServer } = createPermDock(policy, {
+  subject: (authInfo) => authInfo.extra?.subject ?? null,   // the Subject `verifyToken` placed on AuthInfo
+})
+
+const handler = createMcpHandler((server) => {
+  const guarded = protectServer(server)                      // the SDK v2 McpServer the callback receives
+  guarded.registerTool('delete_post', { permission: permissions.post.delete, inputSchema, data: loadPost }, deletePost)
+  guarded.registerTool('list_posts', { permission: permissions.post.list, inputSchema: listSchema }, listPosts)
+})
+
+// Step 1 of the request lifecycle on a Fetch host: verify the bearer token and attach AuthInfo
+const authed = withMcpAuth(
+  handler,
+  async (_req, token) => {
+    const subject = await verify(token)                       // never throws; anonymous on failure
+    if (!subject.principal) return undefined                  // 401 with the RFC 9728 challenge
+    return { token, clientId: subject.claims.client_id, scopes: subject.claims.scope?.split(' ') ?? [], expiresAt: subject.expiresAt, extra: { subject } }
+  },
+  { required: true },
+)
+
+export { authed as GET, authed as POST }
+```
+
+- **`withMcpAuth`** is where the bearer token is verified on a Fetch host; it answers `401` and `403` with `WWW-Authenticate` challenges pointing at the protected resource metadata. The `verifyToken` callback returns the SDK `AuthInfo` (`token`, `clientId`, `scopes`, `expiresAt`, `extra`) that `subject` receives; the recipe builds it from `permdock/jwt`, which verifies against the issuer's JWKS and never throws. `scopes` becomes `delegation.scopes` and `clientId` becomes `actor.id` exactly as with the SDK's own bearer middleware.
+- **`protectedResourceHandler`** from `mcp-handler` serves the RFC 9728 Protected Resource Metadata document. PermDock does not touch it, but its `scopes_supported` should list the `scope` of every permission the server exposes so clients can request them up front; `permdock collect` emits that list in the catalog ([CLI: collect](/docs/cli/collect)).
+- **Stateless serving.** The 2026-07-28 handler holds no session, so the `approval-required` elicitation is a multi-round-trip request and the pending approval lives only in the `ApprovalStore`. On Vercel Functions, Cloudflare Workers or any other host where invocations do not share memory, `memoryApprovalStore()` loses pending approvals between calls; use a durable store ([approvals adapter](/docs/adapters/approvals)). `permdock doctor` warns when it detects this combination.
+- **Other hosts.** The official MCP framework middleware for Express (Node `IncomingMessage` servers), Cloudflare's `McpAgent` in the Agents SDK (a Durable Object per session, which is also a natural `ApprovalStore`), FastMCP for TypeScript and xmcp each construct or expose the same `McpServer`; `protectServer` wraps it at the point of construction. None of them needs a PermDock entry ([ecosystem index](/docs/research/ecosystem-index)).
+- **SDK version.** `permdock/mcp` targets `@modelcontextprotocol/server` 2.x (a types-only optional peer; `protectServer` duck-types the server at runtime, [installation](/docs/getting-started/installation)). SDK 1.x (`@modelcontextprotocol/sdk`) and `mcp-handler` 1.x are not supported: `scopeChallenge` and `ctx.http.authInfo` are v2 features, and 1.x's variadic `server.tool()` and `extra.authInfo` have no equivalents the adapter can wrap. The `mcp-handler` migration notes cover the move (`registerTool` instead of `server.tool`, `ctx.http?.authInfo` instead of `extra.authInfo`, Standard Schema for `inputSchema`).
+
 ## Request lifecycle
 
-1. Transport: the SDK's bearer middleware validates the access token, checks `iss` per RFC 9207 and attaches `authInfo`.
+1. Transport: the SDK's bearer middleware (or `withMcpAuth` on a Fetch host, above) validates the access token, checks `iss` per RFC 9207 and attaches `authInfo`.
 2. `list_tools`: the adapter builds a request-scoped `PermDock` from `authInfo` and returns only tools whose collection-level check passes (`can(permission)` for collection actions; for instance actions, whether any grant exists for that permission). The model never sees tools this caller cannot use.
 3. `call_tool`: arguments are validated against `inputSchema`; if `data` is declared, the resource is loaded and validated against the resource schema (boundary mode).
 4. Scope check: if the token lacks the permission's `scope`, the adapter answers with the SDK `scopeChallenge`, producing a `403` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="post:delete ..."`. Scope accumulation follows SEP-2350: the challenge lists the union of previously granted scopes plus the missing one, so a step-up never drops authority the client already had.
@@ -96,7 +139,7 @@ This is a recipe, not a package: PermDock composes with the bridge through the e
 
 ## Example app
 
-`apps/examples/mcp-server`: a Streamable HTTP server with `post` tools, a fake authorization server issuing scoped tokens, a script that demonstrates a `list_tools` difference between two callers, a scope step-up, a denied call with alternatives and an elicitation-backed delete.
+`apps/examples/mcp-server`: a server with `post` tools mounted through `mcp-handler` on Hono (the framework-agnostic proof; the same route file runs unchanged on Next.js, Nuxt and SvelteKit), `withMcpAuth` backed by `permdock/jwt`, a fake authorization server issuing scoped tokens, a script that demonstrates a `list_tools` difference between two callers, a scope step-up, a denied call with alternatives and an elicitation-backed delete. `apps/examples/next` mounts the same tools at `app/api/mcp/route.ts` ([Next.js adapter](/docs/adapters/next), MCP route).
 
 ## Related standards
 

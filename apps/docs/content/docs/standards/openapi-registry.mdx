@@ -101,7 +101,7 @@ For [Web Bot Auth](/docs/standards/web-bot-auth), PermDock documents signed agen
 1. Never invent an `x-oai-*` name. The `oai` namespace belongs to the OpenAPI Initiative; if a 3.2 or 3.3 feature has no registered pre-3.2 extension, the fallback is `x-permdock-*` (as for `oauth2MetadataUrl`).
 2. Use a registered extension whenever one exists for the purpose, including extensions outside the `oai` namespace (`x-agent-trust`).
 3. Otherwise use `x-permdock-*`, document it in the table above, and version its shape through `x-permdock-catalog.v`.
-4. Never write into another registered namespace (`x-ms-`, `x-sap-`, `x-scalar-`, `x-jsonschema-`), even when a field there looks close.
+4. Never write into another registered namespace (`x-ms-`, `x-sap-`, `x-scalar-`, `x-jsonschema-`), nor into an unregistered vendor namespace a consumer reads as its own: gateway import fields (`x-amazon-apigateway-*`, `x-google-*`, `x-kong-*`, `x-zuplo-*`), docs-host and generator fields (`x-mint`, `x-mcp`, `x-topics`, `x-fern-*`, `x-speakeasy-*`, `x-stainless-*`, `x-readme`). A team that wants one of those derived from PermDock's fields writes its own consumer-side overlay ([OpenAPI ecosystem](/docs/research/openapi-ecosystem)), even when a field there looks close.
 5. The importer reads the native fields, the registered fallbacks and the `x-permdock-*` set; unknown extensions are preserved untouched, never dropped.
 
 The emitter's test fixtures enforce rule 1 mechanically: output containing any `x-oai-*` name outside the three registered ones fails the suite.

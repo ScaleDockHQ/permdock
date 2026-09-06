@@ -1,6 +1,6 @@
 ---
 title: doctor
-description: "Diagnose a PermDock installation: server-only imports in client entries, unknown references, ungranted permissions, stale catalogs, missing skills and the TypeScript version."
+description: "Diagnose a PermDock installation: server-only imports in client entries, unknown references, ungranted permissions, stale catalogs, roles or tenants read from unverified claims, missing skills and the TypeScript version."
 ---
 
 Status: planned
@@ -32,6 +32,8 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD007` | Policy validation mode `never` with an HTTP, MCP or agent adapter present | warning |
 | `PD008` | Reserved identifier used for a public export | warning |
 | `PD009` | Duplicate `permdock` copies in the dependency tree | error |
+| `PD010` | Roles or tenant read from an unverified or user-editable claim | error |
+| `PD011` | Tenant read from an optional claim under a multi-tenant issuer | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -68,6 +70,14 @@ Public exports named `dock`, `ability`, a `can` that defines rather than checks,
 ### PD009: duplicate copies
 
 Two versions of `permdock` in `node_modules` are not a correctness problem for references (identity is by key, [0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)) but are for types and bundle size; reported with the two paths.
+
+### PD010: roles or tenant from an unverified claim
+
+Reads the `claims` option of every `subjectFromJwt` and `createJwtSubjectResolver` call and the field accesses in `definePolicy`'s `subject` function, and reports a `roles` or `tenant` source that is one of: `email` or anything derived from it (a `.split('@')` on `email` is the common form), `name`, `preferred_username`, `picture`, or a bucket the provider documents as user-editable (`user_metadata`, Clerk `unsafeMetadata`, Stytch `untrusted_metadata`, Stack Auth `clientMetadata`, Ory `traits`, Cognito `custom:*` attributes without a write restriction). These are the escalation paths in the [threat model](/docs/security/threat-model): the token is genuine, the claim is not authoritative. The fix names the server-set counterpart for the detected provider (`app_metadata`, `publicMetadata`, `trusted_metadata`, `serverMetadata`, `metadata_admin`) or, for roles, points at a database lookup in `context` ([claim trust rules](/docs/concepts/authentication)).
+
+### PD011: tenant from an optional claim
+
+Fires when `claims.tenant` names a claim the issuer emits only for some accounts and the issuer is a multi-tenant one: Google's `hd` under `accounts.google.com` (absent for consumer accounts), Entra `tid` under the `common` or `organizations` endpoint (personal accounts arrive with the consumers tenant), Okta `groups`-derived tenants without a filter. A missing tenant yields a subject without one, which tenant-scoped conditions deny, so this is a warning rather than an error; it exists because the usual next step is a default tenant in the resolver, which is the bug. The fix is to compare the claim against onboarded tenants in the resolver, or to restrict the issuer (`login.microsoftonline.com/<tenant>/v2.0` instead of `common`, the `hd` authorization parameter at Google) so the IdP filters first ([single sign-on](/docs/concepts/authentication#single-sign-on-and-directories)).
 
 ## Example report
 

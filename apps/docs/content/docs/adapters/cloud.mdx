@@ -36,7 +36,7 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 
 - `cloud()` returns a frozen object; `approvals`, `sink` and `snapshots` are the three interfaces. There is no `decide` on it.
 - `sink` batches events in memory and flushes on an interval, on size, and at the end of a request when the runtime exposes `waitUntil`. Delivery failure never affects a decision and is reported through `on('error')`.
-- `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store; the inbox UI, Slack and email delivery, and approver groups are Cloud features layered on the same records.
+- `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store; the inbox UI, Slack, Teams and email delivery, and approver groups are Cloud features layered on the same records. Slack and Teams delivery is the Vercel Chat SDK recipe from the [approvals adapter](/docs/adapters/approvals) "Delivery" section, run by the Cloud instead of by your application; a self-hoster who copies that recipe gets identical cards and the same signature-verified responder.
 - `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)).
 - Zero required dependencies: the client uses `fetch` and the wire formats from core. It is server-only and `tests/bundle` asserts no client entry reaches it.
 
@@ -87,7 +87,7 @@ PermDock Cloud is listed as a native Marketplace integration so a Vercel project
 1. The application decides locally. Nothing on this path touches the network.
 2. `on('decision')` events go to `pd.sink`, which batches and posts them to `POST /v1/environments/:env/decisions` with the key.
 3. An `approval-required` outcome causes the adapter to call `pd.approvals.create`, which posts the `ApprovalRequest` to `POST /v1/environments/:env/approvals`. The Cloud notifies the configured approvers.
-4. An approver resolves the request in the inbox UI (or through Slack or email actions). The Cloud authenticates the approver, applies the actor and distinct-approver rules, records `resolvedBy`.
+4. An approver resolves the request in the inbox UI, through a Slack or Teams card (Chat SDK `requestApproval`; the platform signature identifies the responder) or through an email link that lands on the authenticated inbox. The Cloud authenticates the approver, applies the actor and distinct-approver rules, records `resolvedBy`.
 5. The application's retried call reads the record via `pd.approvals.get`, re-runs `decide` locally, compares the token and proceeds. The resumed decision goes to the sink like any other.
 
 ## What it validates

@@ -61,6 +61,7 @@ Applications that need approvals to survive a restart implement the interface ov
 | WebMCP | Tool handler returns a structured refusal with `token`; page renders its own approval UI | Page re-invokes the guarded route with the token |
 | React / Next.js UI | `usePermission` reports `allowed: false`; `decide` on the server shows `approval-required` for rendering an approval button | Server action re-checks with the token |
 | Chat UIs over AG-UI | The backend emits the approval request (reason, `token`, what to ask) as an AG-UI human-in-the-loop or custom event; the UI renders the control | The answer flows back on the same stream; the adapter in the backend recomputes and compares `token` ([agent frameworks](/docs/research/agent-frameworks)) |
+| Slack, Microsoft Teams, Discord through the Vercel Chat SDK | The store's `approval` event triggers `requestApproval` from a `chat/workflow` step; the card carries the reason and names the approvers | The Chat SDK verifies the platform signature and returns the responder's `user.id`; the app maps it to a `Subject` and calls `store.resolve`, which applies the actor rule; the resumed call recomputes `token` ([approvals adapter](/docs/adapters/approvals), Delivery) |
 | Other frameworks (LangGraph.js, Mastra, Inngest AgentKit, Google ADK) | Recipes, not adapters: `decide` in the framework's before-tool hook; `approval-required` parks as an `interrupt`, `suspend` or waiting step | The durable step resumes with the token; the same store and token check apply ([agent frameworks](/docs/research/agent-frameworks)) |
 
 The AI SDK adapter fails closed: `denied` maps to `'denied'`, `approval-required` maps to `'user-approval'`, and `'not-applicable'` is never returned, in contrast to `@ai-sdk/policy-opa`, which executes tools on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
@@ -102,6 +103,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - [Eve human-in-the-loop](https://eve.dev/docs/human-in-the-loop): `approval` request and response policies, `session.auth.initiator` and `current`.
 - [OpenAI Agents SDK human-in-the-loop](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/): `needsApproval`, `interruptions`, `RunState` serialisation.
 - Product plan, "Decision" section: `token` as a hash of permission key, resource id, subject and actor.
+- [Vercel Chat SDK `requestApproval`](https://chat-sdk.dev) (6 August 2026): durable approval cards for Slack, Teams and Discord with signature-verified responders.
 
 ## Resolved
 
@@ -114,5 +116,5 @@ The following were open questions on this page until [ADR 0022](/docs/decisions/
 
 ## Open questions
 
-- Whether approvals should be answerable through a signed link (email, Slack) without a session on the approver side, and how that link binds to the approver's identity.
+- Whether approvals should be answerable through a signed link in an email without a session on the approver side, and how that link binds to the approver's identity. Chat platforms are settled: the Chat SDK's signature-verified responder is the identity ([approvals adapter](/docs/adapters/approvals), Delivery).
 - Whether a `deny` verdict should be remembered for the rest of an agent run (the OpenAI SDK's `alwaysReject`) or whether every call must ask again; the current rule is per call.

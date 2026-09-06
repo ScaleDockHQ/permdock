@@ -1,0 +1,216 @@
+---
+title: Ecosystem index
+description: Every third-party tool, platform and product the PermDock documentation names, grouped by category, with how PermDock composes with each (standard security fields, the Overlay, subjectFromJwt, ApprovalStore, DecisionSink, MCP, AuthZEN or a recipe) and the page that owns the recipe.
+---
+
+Source: a consolidation run in September 2026 after two ecosystem reviews ([OpenAPI ecosystem](/docs/research/openapi-ecosystem), [commercial landscape](/docs/research/commercial-landscape)) kept surfacing tools that had been evaluated but recorded on different pages. This page is the single list. It carries no analysis of its own: each row names the tool, what it is, the mechanism PermDock reaches it through, and the page where the recipe or verdict lives. When a new tool is named anywhere in the docs, it gets a row here in the same change (the rule is in the maintainer guide).
+
+The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem): PermDock composes through wire formats and interfaces, and ships a package entry only for the adapters on the [adapters](/docs/adapters) matrix.
+
+| Mechanism | Meaning |
+| --- | --- |
+| `security` | The tool reads standard OpenAPI `security` and `securitySchemes` from the applied description; nothing PermDock-specific |
+| Overlay | The tool applies or consumes PermDock's [OpenAPI Overlay](/docs/standards/openapi-overlay) |
+| `x-permdock-*` | The tool reads a PermDock extension (only the OpenAPI-to-MCP bridges need one) |
+| `subjectFromJwt` | The tool issues JWTs verified by [`permdock/jwt`](/docs/adapters/jwt) against its JWKS |
+| `authInfo` | The tool issues the access tokens [`permdock/mcp`](/docs/adapters/mcp) receives as `AuthInfo` |
+| MCP | The tool consumes or hosts MCP servers, so `protectServer` already guards it |
+| AI SDK | The tool builds on the AI SDK, so `permdock/ai-sdk` applies |
+| AuthZEN | The tool is an AuthZEN policy enforcement point or decision point ([AuthZEN](/docs/standards/authzen)) |
+| `ApprovalStore` | The tool holds or delivers approvals through the [approvals](/docs/adapters/approvals) interface |
+| `DecisionSink` | The tool receives decision events through a sink recipe or OpenTelemetry ([audit](/docs/concepts/audit-and-observability)) |
+| `where` target | The tool is a compile target for portable conditions, shipped or candidate |
+| Hook | The tool has an in-process hook a shipped adapter fills |
+| Recipe | Documented composition; no package |
+| Tracking | Named and watched; nothing to do yet |
+
+## OpenAPI producers
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| next-openapi-gen | Route scanner for Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono, Express; applies Overlays | Overlay | [Next.js adapter](/docs/adapters/next), [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| hono-openapi, @hono/zod-openapi | Hono spec generators | Hook (`describe`, `security`) | [Hono adapter](/docs/adapters/hono) |
+| @orpc/openapi | oRPC spec generator | Hook (`spec`) | [oRPC adapter](/docs/adapters/orpc) |
+| trpc-to-openapi | tRPC spec generator | Hook plus Overlay for per-scope | [tRPC adapter](/docs/adapters/trpc) |
+| @elysia/openapi | Elysia spec generator | Hook | [Elysia adapter](/docs/adapters/elysia) |
+| @fastify/swagger, @nestjs/swagger | Fastify and Nest spec generators | Hook | [Fastify](/docs/adapters/fastify), [Nest](/docs/adapters/nest) |
+| TypeSpec | Design-first API language (1.0 GA), emits OpenAPI 3.0 to 3.2 | Overlay on emitter output | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| tsoa, ts-rest, Effect HttpApi, feTS | Code-first producers without a per-route hook | Overlay | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| Hand-written YAML or JSON | Design-first descriptions | Overlay | [OpenAPI adapter](/docs/adapters/openapi) |
+
+## Overlay appliers
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| next-openapi-gen `overlay.apply` | Applies inside `generate` | Overlay | [Next.js adapter](/docs/adapters/next) |
+| Redocly CLI `join --overlay` | Lint, bundle, generate pipelines | Overlay | [CLI: openapi](/docs/cli/openapi) |
+| Bump.sh CLI `bump overlay`, GitHub Action | Applies at docs deploy | Overlay | [CLI: openapi](/docs/cli/openapi) |
+| Speakeasy CLI `overlay apply` | SDK generation workflows | Overlay | [CLI: openapi](/docs/cli/openapi) |
+| Zuplo CLI | Gateway import | Overlay | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| overlays-js, openapi-format, oas-patch | Vendor-neutral appliers | Overlay | [CLI: openapi](/docs/cli/openapi) |
+| Scalar CLI | Docs and registry; Overlay support on its roadmap | Tracking | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+
+## SDK generators
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Hey API (`@hey-api/openapi-ts`) | Typed SDKs, TanStack Query, validators | `security` | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| Orval | Clients, TanStack Query, MSW mocks, MCP servers | `security`; `x-permdock-*` for MCP output | [OpenAPI ecosystem](/docs/research/openapi-ecosystem), [MCP adapter](/docs/adapters/mcp) |
+| Kubb | Plugin-based generator including MCP and Redoc output | `security`; `x-permdock-*` for MCP output | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| openapi-typescript, openapi-fetch | Types-only generation and a typed fetch wrapper | Nothing to do | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| OpenAPI Generator, Kiota | Multi-language generators | `security` | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| Redocly `generate-client` | Clients | `security` | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| Fern, Speakeasy | Commercial SDK, docs and MCP generators | `security`; never their namespaces | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| Stainless | SDK generator; acquired by Anthropic, hosted product wound down | Historical; `x-stainless-*` never written | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+
+## Docs UIs and hosts
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Scalar | API reference and client; renders `x-badges` | `security`, optional `x-badges` hint | [OpenAPI adapter](/docs/adapters/openapi) |
+| Swagger UI, Redoc, Stoplight Elements, RapiDoc, fumadocs-openapi, Zudoku | Open-source docs UIs | `security` | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| Mintlify | Hosted docs; `x-mint`, `x-mcp`; generates an MCP server | `security`; never its namespaces | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| Bump.sh | Hosted docs and changelog; applier | `security`, Overlay | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| Fern docs, Redocly Realm, Docusaurus OpenAPI, GitBook, Postman | Hosted or static docs | `security` | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| ReadMe | Hosted docs; `x-readme` | Never written | [OpenAPI registries](/docs/standards/openapi-registry) |
+
+## OpenAPI-to-MCP bridges and MCP hosts
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Orval, Kubb, Scalar, Speakeasy, Fern, Mintlify, Postman MCP Generator | Generate an MCP server from a description | `x-permdock-permissions` bound as each tool's `permission` | [MCP adapter](/docs/adapters/mcp) |
+| Zuplo (`x-zuplo-route.mcp`), Kong `openapi2mcp` and `ai-mcp-proxy` | Gateway-hosted MCP from a description | `x-permdock-permissions`; gateway extensions never written | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| AWS Bedrock AgentCore Gateway | OpenAPI, Lambda and MCP targets as MCP tools; Cedar policy | MCP when self-hosted; `security` and `operationId` otherwise | [Agent frameworks](/docs/research/agent-frameworks), [commercial landscape](/docs/research/commercial-landscape) |
+| mcp-handler (Vercel) | Fetch handler for MCP servers on Next.js, Nuxt, SvelteKit, Hono; `withMcpAuth`, `protectedResourceHandler` | MCP (`protectServer` inside `createMcpHandler`) | [MCP adapter](/docs/adapters/mcp) Hosting, [Next.js adapter](/docs/adapters/next) MCP route |
+| @modelcontextprotocol/server 2.x | Official TypeScript SDK v2 | Types-only optional peer of `permdock/mcp` | [MCP adapter](/docs/adapters/mcp), [installation](/docs/getting-started/installation) |
+| Official Express middleware, Cloudflare `McpAgent`, FastMCP (TypeScript), xmcp | Other MCP hosts | MCP | [MCP adapter](/docs/adapters/mcp) Hosting |
+| mcp-remote | stdio bridge for remote servers | Nothing to do | [MCP adapter](/docs/adapters/mcp) |
+
+## Linters, testing and diff
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Spectral, Redocly lint, vacuum | OpenAPI linters | PermDock ruleset file (Phase 2) | [CLI: openapi](/docs/cli/openapi) |
+| Schemathesis `ignored_auth` | Property-based API tests; verifies protected operations reject anonymous calls | Recipe in CI | [CLI: openapi](/docs/cli/openapi) |
+| oasdiff | Breaking-change diff; `security` removals are breaking | Recipe in CI | [CLI: openapi](/docs/cli/openapi) |
+| Prism, Microcks | Mock servers honouring `security` | `security` | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
+| MSW | Request mocking used by `@permdock/testing` fixtures | Recipe | [testing](/docs/adapters/testing) |
+
+## API gateways and decision services
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Kong, Envoy `ext_authz`, Tyk, Zuplo, WSO2 | Gateways with AuthZEN enforcement points | AuthZEN (in-app handler or PermDock Cloud ADS) | [AuthZEN adapter](/docs/adapters/authzen) |
+| Cerbos, Permit.io, AuthZed (SpiceDB), Oso, OpenFGA, Topaz, Keycloak | Authorization products and engines | AuthZEN through `permdock/pdp`; positioning | [comparison](/docs/comparison), [commercial landscape](/docs/research/commercial-landscape) |
+| Cedar, Amazon Verified Permissions, AgentCore Policy | Policy language and its hosted engines | Compile target considered, not scheduled | [comparison](/docs/comparison), [commercial landscape](/docs/research/commercial-landscape) |
+| Gateway import namespaces (`x-amazon-apigateway-*`, `x-google-*`, `x-kong-*`, `x-zuplo-*`, `x-ms-*`) | Vendor extensions in descriptions | Never written | [OpenAPI registries](/docs/standards/openapi-registry) |
+
+## Identity providers and agent identity
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Supabase Auth, Clerk, Better Auth, Convex | Providers with an in-process verification hook | Adapter (`subjectFrom*`) | [authentication](/docs/concepts/authentication), provider pages |
+| Clerk Billing | Plans and features as `pla` and `fea` claims | Roles under "entitlements are roles" | [Clerk provider](/docs/adapters/clerk) |
+| Auth.js (NextAuth) | Framework session | Session resolver | [authentication](/docs/concepts/authentication) |
+| WorkOS AuthKit and Connect, Auth0, Logto, Kinde, Neon Auth, Stack Auth, Firebase Auth, Amazon Cognito, Keycloak, Ory | JWKS-publishing providers | `subjectFromJwt` | [authentication](/docs/concepts/authentication) |
+| Stytch Connected Apps, Descope, Scalekit, Auth0 Token Vault, Supabase OAuth 2.1 server | OAuth 2.1 authorization servers for MCP servers | `subjectFromJwt`, `authInfo` | [authentication](/docs/concepts/authentication), [MCP authorization](/docs/standards/mcp-authorization) |
+| Okta (Cross App Access), Microsoft Entra ID (Agent ID) | Enterprise IdPs with agent identity | `subjectFromJwt`; EMA / ID-JAG transparent | [authentication](/docs/concepts/authentication), [delegation](/docs/security/delegation) |
+| Google Identity (Sign in with Google, Google Workspace) | Consumer and workforce OIDC IdP; `hd` tenant, no groups in the token | `subjectFromJwt` or the auth layer's session; groups from a directory lookup | [authentication](/docs/concepts/authentication) single sign-on |
+| Enterprise SSO layers (WorkOS AuthKit and Directory Sync, Clerk Enterprise SSO, Better Auth SSO plugin, Auth0 Organizations, Supabase SAML) | SAML / OIDC termination and group-to-role mapping in front of the app | Session or JWT consumed by `subjectFrom*`; a SCIM receiver is considered, not scheduled | [authentication](/docs/concepts/authentication), [commercial landscape](/docs/research/commercial-landscape) |
+| Frontegg, PropelAuth, SuperTokens, Hanko | Application-auth vendors | `subjectFromJwt` | [authentication](/docs/concepts/authentication) |
+| Vercel Agent Auth (Better Auth) | Delegated agent identities via RFC 8693 | `actor` and `delegation` mapper when published | [commercial landscape](/docs/research/commercial-landscape) |
+| Web Bot Auth, SPIFFE | Workload and bot identity | `actor` from signature or SVID | [Web Bot Auth](/docs/standards/web-bot-auth), [threat model](/docs/security/threat-model) |
+
+## Agent runtimes and frameworks
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Vercel AI SDK 7 | Model and tool layer | Adapter (`permdock/ai-sdk`) | [AI SDK adapter](/docs/adapters/ai-sdk) |
+| Claude Agent SDK | Anthropic agent runtime | Adapter (`permdock/claude-agent`) | [Claude Agent adapter](/docs/adapters/claude-agent) |
+| Eve | Vercel agent framework | Adapter (`permdock/eve`) | [Eve adapter](/docs/adapters/eve) |
+| OpenAI Agents SDK | OpenAI agent runtime; tool guardrails as a second hook; Agent Builder retiring | Adapter (`permdock/openai`) | [OpenAI adapter](/docs/adapters/openai) |
+| Model Context Protocol servers | Tool protocol | Adapter (`permdock/mcp`) | [MCP adapter](/docs/adapters/mcp) |
+| WebMCP | Browser tool registration | Adapter (`permdock/webmcp`) | [WebMCP adapter](/docs/adapters/webmcp) |
+| A2A | Agent-to-agent protocol | Adapter (`permdock/a2a`) | [A2A adapter](/docs/adapters/a2a) |
+| LangGraph.js | Graph runtime with `interrupt` | Recipe; Phase 4 adapter candidate | [agent frameworks](/docs/research/agent-frameworks) |
+| Mastra, Cloudflare Agents SDK, Vercel Workflow `WorkflowAgent` | AI SDK based runtimes | AI SDK | [agent frameworks](/docs/research/agent-frameworks) |
+| Inngest AgentKit, Google ADK | Runtimes with before-tool hooks | Recipe | [agent frameworks](/docs/research/agent-frameworks) |
+| OpenAI Apps SDK (ChatGPT apps) | Apps as MCP servers | MCP | [agent frameworks](/docs/research/agent-frameworks) |
+| n8n | Workflow automation with AI Agent approvals | MCP; approval delivery recipe | [agent frameworks](/docs/research/agent-frameworks), [approvals adapter](/docs/adapters/approvals) |
+| AWS Bedrock AgentCore Runtime and Policy | Hosted agent runtime with Cedar at the gateway | MCP; recipe | [agent frameworks](/docs/research/agent-frameworks) |
+| Arcade, Composio, Permit MCP Gateway, Oso for Agents | Hosted tool-auth proxies | Positioning only | [commercial landscape](/docs/research/commercial-landscape) |
+| AG-UI, Agent Client Protocol | UI and editor protocols | Payload carried unchanged; tracking | [agent frameworks](/docs/research/agent-frameworks) |
+
+## Coding-agent hooks
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Claude Code hooks | `PreToolUse` allow, deny, ask | Adapter (`permissionRequestHook`) | [Claude Agent adapter](/docs/adapters/claude-agent) |
+| Cursor hooks, Gemini CLI hooks, Codex CLI, OpenCode | Pre-tool hooks in coding agents | Recipe over a `permdock/terminal` guard | [agent frameworks](/docs/research/agent-frameworks), [terminal adapter](/docs/adapters/terminal) |
+| Cursor and Claude Code plugin marketplaces, skills.sh | Distribution of the shipped skills | Distribution | [commercial landscape](/docs/research/commercial-landscape) |
+
+## Approval delivery and durable execution
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Vercel Chat SDK `requestApproval` | Approval cards on Slack, Teams, Discord with signature-verified responders | `ApprovalStore` delivery recipe (reference) | [approvals adapter](/docs/adapters/approvals) Delivery |
+| Vercel Workflow SDK | Durable steps | Holds the wait | [approvals adapter](/docs/adapters/approvals) |
+| Trigger.dev waitpoints, Temporal, Restate, Inngest, Cloudflare Workflows | Durable execution runtimes | `ApprovalStore` recipe | [approvals adapter](/docs/adapters/approvals) |
+| Cloudflare Durable Objects, D1, Turso, SQLite, Redis, Upstash, Vercel KV, Postgres, Neon, Supabase | Backing stores | `ApprovalStore` recipe | [approvals adapter](/docs/adapters/approvals) |
+| Knock, Novu, Courier, Resend, Twilio | Notification channels | Recipe; link to `approvalsHandler` | [approvals adapter](/docs/adapters/approvals) |
+| Slack App Directory | Listing for an approval bot | Distribution | [commercial landscape](/docs/research/commercial-landscape) |
+| PermDock Cloud | Hosted store, inbox, delivery | `cloud().approvals` | [Cloud adapter](/docs/adapters/cloud) |
+
+## Sinks, observability and compliance
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| OpenTelemetry (`@opentelemetry/api`), GenAI semantic conventions | Tracing API and the `execute_tool` span | Adapter (`permdock/otel`) | [OpenTelemetry adapter](/docs/adapters/otel) |
+| Langfuse, LangSmith, Braintrust, Datadog LLM Observability, Sentry, PostHog | LLM observability | OpenTelemetry; no sink needed | [audit](/docs/concepts/audit-and-observability) |
+| Splunk, Microsoft Sentinel, Datadog Cloud SIEM, AWS Security Lake, Google SecOps, Elastic Security | SIEMs and security lakes | `DecisionSink` with the OCSF projection | [audit](/docs/concepts/audit-and-observability) |
+| Axiom, Better Stack, a Postgres table, a queue | Log and event destinations | `DecisionSink` recipe; CloudEvents envelope | [audit](/docs/concepts/audit-and-observability) |
+| Vanta, Drata, Secureframe | Compliance evidence | Query the sink or the Cloud export | [audit](/docs/concepts/audit-and-observability) |
+| OCSF, CloudEvents | Schemas for the events on the wire | Projection and envelope | [wire formats](/docs/concepts/wire-formats) |
+| PermDock Cloud decision log | Hosted sink | `cloud().sink` | [Cloud adapter](/docs/adapters/cloud) |
+
+## Feature flags and entitlements
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| OpenFeature | CNCF vendor-neutral flag API | `subject` or `context` input | [policies](/docs/concepts/policies) |
+| Vercel Flags SDK, PostHog, LaunchDarkly, Statsig, Unleash, Flagsmith, GrowthBook | Flag vendors | Through OpenFeature or directly as `context`; never grants | [policies](/docs/concepts/policies) |
+| Stripe Entitlements, Clerk Billing, Frontegg entitlements, Kinde `feature_flags` | Billing and plan entitlements | Roles under "entitlements are roles" | [policies](/docs/concepts/policies), [Clerk provider](/docs/adapters/clerk) |
+
+## Databases and sync engines
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Drizzle, Prisma, Kysely | TypeScript query builders and ORMs | Adapter (`toWhere`) | [Drizzle](/docs/adapters/drizzle), [Prisma](/docs/adapters/prisma), [Kysely](/docs/adapters/kysely) |
+| Postgres, Supabase, Neon (RLS) | Row-level security targets | `permdock rls generate` | [RLS adapter](/docs/adapters/rls) |
+| Convex | Backend platform | Adapter (`permdock/convex`) | [Convex adapter](/docs/adapters/convex) |
+| Zero, ElectricSQL, PowerSync, InstantDB, TinyBase | Local-first sync engines | `where` target candidates (Phase 3 planning) | [local-first sync](/docs/research/local-first-sync) |
+| MongoDB | Document database | `where` target candidate | [local-first sync](/docs/research/local-first-sync) |
+| Payload CMS | CMS with access-control functions returning `Where` | Tracking | [landscape](/docs/research/landscape) |
+| Cloudflare D1, Turso, SQLite | SQLite-family stores | Drizzle `sqlite` dialect; `ApprovalStore` recipe | [approvals adapter](/docs/adapters/approvals) |
+
+## Distribution channels
+
+| Channel | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| npm (`permdock`, `@permdock/cli`, `@permdock/testing`) | The packages | Install path | [installation](/docs/getting-started/installation) |
+| Vercel Marketplace | Native integration listing for PermDock Cloud; `eve-agent` template | Cloud provisioning | [Cloud adapter](/docs/adapters/cloud), [commercial landscape](/docs/research/commercial-landscape) |
+| Supabase partner marketplace, Convex components directory | Provider ecosystems | Distribution | [commercial landscape](/docs/research/commercial-landscape) |
+| Cursor and Claude Code plugin marketplaces, skills.sh | Skills and a docs MCP | Distribution | [commercial landscape](/docs/research/commercial-landscape) |
+| GitHub (App for `audit-permissions`; Actions recipe for `--check`) | CI and review | Recipe; Cloud PR bot | [CLI: openapi](/docs/cli/openapi), [commercial landscape](/docs/research/commercial-landscape) |
+| MCP Registry | Discovery of MCP servers | Tracking | [agent docs standards](/docs/standards/agent-docs-standards) |
+| AWS Marketplace | Later channel for the hosted ADS | Not before the Cloud alpha | [commercial landscape](/docs/research/commercial-landscape) |
+
+## Adopt / adapt / avoid
+
+The verdicts live on the pages in the last column; this page only fixes the rule that produced them. Adopt: standard fields, the Overlay, `subjectFromJwt`, the three hosted-capability interfaces, MCP and AuthZEN as the six mechanisms through which every row is reached. Adapt: a recipe on the owning page whenever a tool needs more than a standard field, and a consumer-side overlay when a tool wants a derived value in its own namespace. Avoid: a package entry for any row on this page that is not already on the [adapters](/docs/adapters) matrix, and naming a tool anywhere in the docs without a row here.
+
+## Decisions informed
+
+- [ADR 0023: compose with the OpenAPI toolchain](/docs/decisions/0023-compose-openapi-ecosystem), whose general rule this index applies to every category.
+- [ADR 0021: embedded PDP, hosted ADS](/docs/decisions/0021-embedded-pdp-hosted-ads) and [ADR 0022: approvals are pluggable](/docs/decisions/0022-approvals-are-pluggable), whose interfaces are the mechanisms for the delivery, store and sink rows.
+- [ADR 0018: authentication is upstream](/docs/decisions/0018-authentication-is-upstream), whose rule produces the identity rows.

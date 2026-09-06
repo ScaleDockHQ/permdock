@@ -1,6 +1,6 @@
 ---
 title: OpenAPI ecosystem, September 2026
-description: How PermDock's Overlay and standard security output fit the TypeScript OpenAPI toolchain (next-openapi-gen, hono-openapi, Hey API, Orval, Redocly, Scalar, Arazzo runners, OpenAPI-to-MCP bridges), which tools are producers, appliers or consumers, and what PermDock adopts, adapts and avoids.
+description: How PermDock's Overlay and standard security output fit the TypeScript OpenAPI toolchain (next-openapi-gen, hono-openapi, TypeSpec, Hey API, Orval, Kubb, Redocly, Bump.sh, Scalar, Mintlify, Fern, Speakeasy, Schemathesis, Arazzo runners, OpenAPI-to-MCP bridges), which tools are producers, appliers or consumers, and what PermDock adopts, adapts and avoids.
 ---
 
 Source: a review run in September 2026 of the tools a TypeScript team already has in its OpenAPI pipeline, asking what PermDock must emit so each of them works without knowing PermDock exists, and where a recipe is enough versus where an adapter would be needed. Sources were the tools' documentation and repositories linked below. The review produced [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem) and the recipes on the [OpenAPI adapter](/docs/adapters/openapi), [Next.js adapter](/docs/adapters/next), [MCP adapter](/docs/adapters/mcp), [CLI: openapi](/docs/cli/openapi) and [Overlay](/docs/standards/openapi-overlay) pages.
@@ -51,6 +51,8 @@ The join key across all four stages is `operationId`. Producers generate it, the
 | [@elysia/openapi](https://elysiajs.com/plugins/openapi) | Elysia | `detail.security` | In-process | Scalar is the default UI ([Elysia adapter](/docs/adapters/elysia)) |
 | [@fastify/swagger](https://github.com/fastify/fastify-swagger), [@nestjs/swagger](https://docs.nestjs.com/openapi/introduction) | Fastify, Nest | Schema `security`, decorators | In-process | [Fastify](/docs/adapters/fastify), [Nest](/docs/adapters/nest) |
 | Hand-written YAML or JSON | Any | Author writes `security` | Overlay | Design-first teams; the Overlay keeps PermDock's contribution separate |
+| [TypeSpec](https://typespec.io) 1.0 | Design-first, any framework | `@useAuth` decorators compiled by `@typespec/openapi3` | Overlay on the emitted document | 1.0 GA; emits OpenAPI 3.0, 3.1 and 3.2; an MCP server emitter is being explored upstream. The Overlay is applied to the emitter output, never to the `.tsp` source, so TypeSpec stays the single authoring surface |
+| [tsoa](https://tsoa-community.github.io/docs/), [ts-rest](https://ts-rest.com), [Effect HttpApi](https://effect.website/docs/platform/http-api), [feTS](https://the-guild.dev/openapi/fets) | Express, Koa, Hapi (tsoa); any (ts-rest, Effect); any Fetch runtime (feTS) | Decorators or contract-level `security` | Overlay | Code-first producers with no per-route hook PermDock can attach to; the same two-command recipe as next-openapi-gen |
 
 next-openapi-gen matters most because it is the only producer for Next.js route handlers, which is where `permdock/next` lives. Its `overlay.apply` option means the Overlay is applied inside the same `generate` run, so the recipe is two commands and no glue code.
 
@@ -61,6 +63,10 @@ next-openapi-gen matters most because it is the only producer for Next.js route 
 | next-openapi-gen `overlay.apply` | Inside `openapi-gen generate` | 1.0, 1.1, 1.2 | Applies before writing the spec, so Scalar and Arazzo see the applied result |
 | [Redocly CLI](https://redocly.com/docs/cli/commands) `join --overlay` | Lint, bundle, `generate-client` pipelines | 1.x | Experimental flag; `redocly lint` also validates Overlay documents. Common in design-first teams |
 | [Scalar CLI](https://github.com/scalar/cli) | Docs and registry pipelines | none yet | Overlay support is on Scalar's roadmap; apply with one of the above before `scalar registry publish` |
+| [Bump.sh CLI](https://docs.bump.sh/help/specification-support/overlays/) `bump overlay` | Docs deploy pipelines; the Bump.sh GitHub Action takes an `overlay:` input | 1.x | Applies at deploy time so the hosted docs show the applied description while the repository keeps the producer's file untouched |
+| [Speakeasy CLI](https://www.speakeasy.com/docs/prep-openapi/overlays) `speakeasy overlay apply` | SDK generation workflows | 1.x | Speakeasy's own extensions arrive through overlays too, so a project can chain PermDock's Overlay and Speakeasy's in one workflow |
+| [Zuplo CLI](https://zuplo.com/docs) | Gateway import | 1.x | Applies before the description is imported as gateway routes |
+| [openapi-format](https://github.com/thim81/openapi-format), [oas-patch](https://github.com/apigee/oas-patch), [overlays-js](https://github.com/lornajane/openapi-overlays-js) | Generic CLIs and libraries | 1.x | Vendor-neutral appliers for pipelines without one of the above; `overlays-js` is the reference JavaScript implementation |
 
 PermDock emits Overlay 1.1.0. Overlay 1.2 adds reusable actions and `targetFormat` (including `asyncapi`); it is tracked on the [watch list](/docs/standards/watch-list) and adopted when a 1.2 feature is needed, not before.
 
@@ -71,6 +77,10 @@ PermDock emits Overlay 1.1.0. Overlay 1.2 adds reusable actions and `targetForma
 | [Hey API](https://heyapi.dev) (`@hey-api/openapi-ts`) | Typed SDKs, TanStack Query hooks, validators | `security`, `securitySchemes` | Emit standard fields | Recipe: point it at the applied description. A plugin reading `x-permdock-*` is Phase 4 at earliest |
 | [Orval](https://orval.dev) | Clients, TanStack Query, MSW mocks, MCP servers | `security` | Emit standard fields; `x-permdock-permissions` for the MCP output | Recipe; see bridges below |
 | [Redocly `generate-client`](https://redocly.com/docs/cli/commands/generate-client) | Clients | `security` | Emit standard fields | Recipe |
+| [openapi-typescript](https://openapi-ts.dev) with `openapi-fetch` | Types-only generation plus a typed fetch wrapper; the most used TypeScript generator | Schemas; `security` is not projected into types | Nothing; credentials are attached by the application | Nothing to do. `openapi-fetch` is in maintenance mode, which is one reason Hey API is the recommended SDK path |
+| [Kubb](https://kubb.dev) | Plugin-based generator: types, clients, TanStack Query, MSW, Zod, Redoc docs, MCP servers | `security`; `x-permdock-permissions` for the MCP plugin | Emit standard fields | Recipe; the MCP output follows the bridge recipe below |
+| [OpenAPI Generator](https://openapi-generator.tech) (`typescript-fetch`, `typescript-axios`), [Kiota](https://learn.microsoft.com/openapi/kiota/) | Multi-language generators | `security`, `securitySchemes` | Emit standard fields | Nothing to do; teams generating non-TypeScript clients from the same description get the same scopes |
+| [Fern](https://buildwithfern.com), [Speakeasy](https://www.speakeasy.com) | Commercial SDK, docs and MCP-server generators | `security`; own `x-fern-*` and `x-speakeasy-*` extensions | Emit standard fields; never write their namespaces | Recipe; see bridges below for the MCP output. Stainless, the third of this group, was acquired by Anthropic on 18 May 2026 and its hosted generator is being wound down; the `x-stainless-*` never-write rule stays because published descriptions still carry the fields |
 | [Scalar API Reference](https://scalar.com/products/api-references/openapi) | Docs UI, Try-it client | `security`, OAuth scopes, `x-badges`, several vendor code-sample extensions | Standard fields; optional `x-badges` approval hint | Recipe; an operation-level plugin for `x-permdock-*` needs upstream plugin API support first |
 | Swagger UI, Redoc, Stoplight Elements, RapiDoc, fumadocs-openapi | Docs UIs | `security` | Standard fields | Nothing to do |
 | API gateways (Kong, Envoy, Tyk, Zuplo) | Enforcement from the description or from AuthZEN | `security`; AuthZEN | Standard fields; `permdock/authzen` | Already covered on [AuthZEN](/docs/standards/authzen) |
@@ -78,9 +88,35 @@ PermDock emits Overlay 1.1.0. Overlay 1.2 adds reusable actions and `targetForma
 | `permdock openapi import` | PermDock's own consumer | `security`, `x-permdock-*` | Round-trips its own output | [CLI: openapi](/docs/cli/openapi) |
 | Arazzo runners, `permdock.simulate` | Workflow pre-flight | `operationId`, `x-permdock-permissions` | Run on the applied description | [Arazzo](/docs/standards/arazzo) |
 
+### Docs hosts
+
+Hosted documentation products are consumers too, and every one of them is a commercial product a team may already pay for. All read standard `security` and `securitySchemes`; several add their own extensions, which PermDock never writes ([registries](/docs/standards/openapi-registry)).
+
+| Host | Own extensions | Applies Overlays | Also generates | Notes |
+| --- | --- | --- | --- | --- |
+| [Mintlify](https://mintlify.com/docs/api-playground/openapi-setup) | `x-mint` (page metadata, `href`), `x-mcp` (per-operation MCP exposure) | No; apply before upload | An MCP server from the docs and the description, honouring `securitySchemes` | The most direct overlap with the bridge recipe below: an operation's `x-mcp` opt-in should match whether it carries `x-permdock-permissions` |
+| [Bump.sh](https://bump.sh) | `x-topics` (narrative sections) | Yes, `bump overlay` and the GitHub Action | Changelog and diff | The applier and the host are one tool; a natural fit for `--check` in the same workflow |
+| [Fern docs](https://buildwithfern.com/learn/docs) | `x-fern-*` | No | SDKs and an MCP server from the same description | Docs, SDK and MCP from one applied description |
+| [Zudoku](https://zudoku.dev) | none required | No | none | Zuplo's open-source docs UI; reads `security` and lets a team self-host |
+| [Redocly Realm](https://redocly.com/realm) | `x-*` rendering hints of its own | Yes, through Redocly CLI | Mock server | The Redocly CLI applier feeds it |
+| [Docusaurus OpenAPI](https://docusaurus-openapi.tryingpan.dev/), [GitBook](https://gitbook.com), [Postman](https://www.postman.com) | Postman collections import `security` | No | Postman: collections and an MCP server | Import the applied description |
+
 ### OpenAPI-to-MCP bridges
 
-Orval, Scalar, Speakeasy and several smaller tools generate an MCP server from an OpenAPI description, one tool per operation. Agents then call the API through that server. Without PermDock in the loop the generated tools have no `permission` binding and `permdock/mcp`'s `list_tools` filtering and `approval-required` elicitation never run. The recipe on the [MCP adapter](/docs/adapters/mcp): read the operation's `x-permdock-permissions` from the applied description and bind it as the generated tool's `permission`. Standard `security` is not enough here because the bridge needs the permission key, not the scope; this is the one consumer for which the extension carries information the standard field cannot.
+Orval, Kubb, Scalar, Speakeasy, Fern, Mintlify, Postman's MCP Generator, Zuplo, Kong's `openapi2mcp`, AWS Bedrock AgentCore Gateway and several smaller tools generate an MCP server from an OpenAPI description, one tool per operation. Agents then call the API through that server. Without PermDock in the loop the generated tools have no `permission` binding and `permdock/mcp`'s `list_tools` filtering and `approval-required` elicitation never run. The recipe on the [MCP adapter](/docs/adapters/mcp): read the operation's `x-permdock-permissions` from the applied description and bind it as the generated tool's `permission`. Standard `security` is not enough here because the bridge needs the permission key, not the scope; this is the one consumer for which the extension carries information the standard field cannot.
+
+Several bridges carry their own per-operation extension for tool exposure, and each is a consumer-side concern that PermDock never writes: Mintlify `x-mcp`, Zuplo `x-zuplo-route.mcp`, Kong `x-kong-mcp-tool-name` and the `ai-mcp-proxy` plugin, Speakeasy `x-speakeasy-mcp`. Two deserve a note:
+
+- **Speakeasy scopes.** `x-speakeasy-mcp.scopes` tags each tool with scope strings and the generated server takes `--scope` flags at start time, so it is a coarse, deploy-time filter, not a per-caller check. The recipe is a consumer-side overlay that derives `x-speakeasy-mcp.scopes` from the operation's `permission.scope` values (`post:delete` becomes a Speakeasy scope of the same name), so the two models agree, while `permdock/mcp` remains the per-caller `list_tools` and `call_tool` check inside the generated server.
+- **AgentCore Gateway.** The gateway turns OpenAPI targets into MCP tools and applies Cedar policies whose `context.toolName` is the `operationId` ([commercial landscape](/docs/research/commercial-landscape)). Because the tools are MCP, `protectServer` still applies when the server runs in your process; when Amazon hosts the target, the Cedar policy is the enforcement point and PermDock's contribution is the applied description's `security` and the operation ids it can check against.
+
+### Testing and diff
+
+Three tool classes read `security` in ways that turn PermDock's output into a runtime check:
+
+- [Schemathesis](https://schemathesis.readthedocs.io/) has an `ignored_auth` check: for every operation declaring `security`, it sends the request without credentials and fails if the server answers anything other than `401` or `403`. Run against the applied description, it is a parity test that every operation PermDock says is protected actually rejects an anonymous call, which catches a route that lost its `protect` after the description was published.
+- [oasdiff](https://www.oasdiff.com) treats a removed or weakened `security` requirement as a breaking change; a CI step comparing the previous and current applied descriptions is a second line behind `permdock openapi --check`.
+- [Prism](https://stoplight.io/open-source/prism) and [Microcks](https://microcks.io) mock servers answer `401` for operations with `security` when credentials are absent, so client-side tests exercise the denied path against the same description.
 
 ### Scalar specifics
 
@@ -107,14 +143,17 @@ Adopt:
 - The Overlay as the hand-off between PermDock and every producer it has no in-process hook for; `operationId` as the join key.
 - Standard `security` and `securitySchemes` as the contract with SDK generators, docs UIs and gateways, so Hey API, Orval, Redocly and Scalar work with no PermDock code.
 - next-openapi-gen `overlay.apply` as the Next.js applier and Scalar as the default docs UI it scaffolds.
-- The existing appliers (next-openapi-gen, Redocly CLI) instead of shipping one.
+- The existing appliers (next-openapi-gen, Redocly CLI, Bump.sh, Speakeasy, `overlays-js`) instead of shipping one.
 - An existing OpenAPI parser for `permdock openapi` rather than a hand-rolled AST.
+- Schemathesis `ignored_auth` and oasdiff as the runtime and diff checks behind `--check`, documented on the [CLI page](/docs/cli/openapi).
+- TypeSpec and other design-first producers through the same Overlay, applied to emitter output.
 
 Adapt:
 
 - `x-badges` as an opt-in approval hint for docs UIs that render it; no semantics, off by default.
 - A Spectral / Redocly / vacuum ruleset expressing PermDock's document invariants, shipped as a file.
 - `x-permdock-permissions` as the binding OpenAPI-to-MCP bridges read, documented as a recipe on the MCP adapter page.
+- A consumer-side overlay deriving Speakeasy `x-speakeasy-mcp.scopes` and Mintlify `x-mcp` opt-ins from PermDock's fields, so a team's docs host and SDK vendor agree with the policy without PermDock writing their namespaces.
 - Later first-party plugins (Hey API operation plugin, Scalar operation plugin) only if recipes fail, and only after upstream plugin APIs support the operation level.
 - Overlay 1.2 when a 1.2 feature is needed.
 
@@ -122,7 +161,8 @@ Avoid:
 
 - Wrapping a producer, generator or docs UI in a PermDock package.
 - Two sources of `security` on one operation.
-- Writing into `x-scalar-*`, `x-stainless-*`, `x-readme` or any `x-oai-*` name that is not registered.
+- Writing into `x-scalar-*`, `x-stainless-*`, `x-readme`, `x-mint`, `x-mcp`, `x-speakeasy-*`, `x-fern-*`, `x-topics`, gateway import namespaces (`x-amazon-apigateway-*`, `x-google-*`, `x-kong-*`, `x-zuplo-*`) or any `x-oai-*` name that is not registered.
+- A docs-host or generator package (`permdock/mintlify`, `permdock/bump`, `permdock/fern`): each is reached through the applied description.
 - Making the Overlay the CLI default before the document form is unnecessary.
 - Moving Arazzo `simulate` earlier than Phase 4 because a producer happens to compile Arazzo.
 
@@ -131,4 +171,4 @@ Avoid:
 - [ADR 0023: compose with the OpenAPI toolchain](/docs/decisions/0023-compose-openapi-ecosystem)
 - [ADR 0019: extensions and Overlay](/docs/decisions/0019-openapi-extensions-and-overlay) (the Overlay-applier deferral is confirmed)
 - [ADR 0014: OpenAPI 3.2](/docs/decisions/0014-openapi-3-2)
-- Pages shaped: [OpenAPI adapter](/docs/adapters/openapi), [Next.js adapter](/docs/adapters/next), [MCP adapter](/docs/adapters/mcp), [CLI: openapi](/docs/cli/openapi), [OpenAPI Overlay](/docs/standards/openapi-overlay), [Arazzo](/docs/standards/arazzo), [OpenAPI 3.2](/docs/standards/openapi-3-2), [landscape](/docs/research/landscape)
+- Pages shaped: [OpenAPI adapter](/docs/adapters/openapi), [Next.js adapter](/docs/adapters/next), [MCP adapter](/docs/adapters/mcp), [CLI: openapi](/docs/cli/openapi), [OpenAPI Overlay](/docs/standards/openapi-overlay), [Arazzo](/docs/standards/arazzo), [OpenAPI 3.2](/docs/standards/openapi-3-2), [landscape](/docs/research/landscape), [ecosystem index](/docs/research/ecosystem-index)

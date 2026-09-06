@@ -54,6 +54,8 @@ What `protectServer` does with each MCP concept:
 | MCP 2026-07-28 concept | PermDock feature |
 | --- | --- |
 | Server as OAuth 2.1 resource server | `subject: (authInfo) => ...` builds the principal from the validated token |
+| Bearer verification on a Fetch host (`mcp-handler` `withMcpAuth`, `verifyToken`) | Produces the `AuthInfo` PermDock consumes; the recipe fills it from `permdock/jwt` so `scopes` and `clientId` arrive verified ([MCP adapter](/docs/adapters/mcp), Hosting) |
+| RFC 9728 Protected Resource Metadata (`protectedResourceHandler`) | Not written by PermDock; its `scopes_supported` should list every permission `scope` the server exposes, which `permdock collect` emits |
 | `registerTool(..., { scopeChallenge })` | `permission` option on `guarded.registerTool`; `permission.scope` fills `scopeChallenge` |
 | `requireScopes()` | Applied automatically for tools with a `permission` |
 | `403 insufficient_scope` step-up | Emitted when `permission.scope` is missing from `authInfo.scopes` |

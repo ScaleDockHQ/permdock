@@ -1,6 +1,6 @@
 ---
 title: Commercial landscape, September 2026
-description: How open-core authorization vendors, auth providers and agent tool-auth startups price and position in September 2026, what the agent runtimes leave to the application, what the Vercel Marketplace requires, and what all of that changed in the PermDock plan.
+description: How open-core authorization vendors, auth providers, MCP authorization servers, agent tool-auth products (including AgentCore Policy), approval-delivery surfaces (Vercel Chat SDK, durable runtimes, n8n), observability and compliance buyers and distribution channels position in September 2026, what the Vercel Marketplace requires, and what all of that changed in the PermDock plan.
 ---
 
 Source: a survey run in September 2026 asking whether PermDock should have a commercial layer, what shape it should take, and how it should relate to the authentication providers it consumes tokens from. Sources were vendor pricing pages, launch posts, SDK documentation and the Vercel Marketplace approval checklist, linked inline. Prices are as published on the day and will drift; the structure of each model is the finding, not the number. The survey produced [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads) and [ADR 0022](/docs/decisions/0022-approvals-are-pluggable), the `permdock/approvals`, `permdock/cloud`, `permdock/eve` and `permdock/openai` entries, and the reworded roadmap non-goal.
@@ -24,6 +24,11 @@ What none of them sell: typed permission references, conditions that compile to 
 - **Clerk.** M2M tokens, API keys, `@clerk/agent-toolkit`, and an Eve integration whose documentation explicitly hands off ["authorize tool calls against permissions on the principal"](https://clerk.com/docs/guides/ai/eve/custom-channel-auth.md) to the application. Custom roles sit behind a B2B add-on at about 100 USD per month, and `has()` remains boolean and string-keyed.
 - **Supabase.** RLS plus an [OAuth 2.1 server](https://supabase.com/blog/oauth2-provider) with MCP authorization arriving and granular scopes announced as coming. Enforcement stays in Postgres; nothing typed sits above it.
 - **Convex.** A components directory with three community authorization components (`convex-authz`, `convex-permissions`, `convex-roles`), none typed against a schema or condition-aware. A `permdock/convex` component is distribution rather than revenue.
+- **Clerk Billing.** Plans and features ride in the session token as `pla` and `fea` claims, and `has({ permission })` is gated by whether the plan includes the feature. A billing plan is therefore an entitlement source for PermDock: `subjectFromClerk` reads `fea` under the "entitlements are roles" rule ([policies](/docs/concepts/policies)), so a policy can say `role('pro')` without a second flag system ([Clerk provider](/docs/adapters/clerk)).
+- **MCP authorization servers as a product.** Since the 2026-07-28 MCP release made servers OAuth 2.1 resource servers, several providers sell the authorization-server half: Stytch Connected Apps (Twilio), Descope Agentic Identity Hub, Scalekit, WorkOS Connect (GA May 2026), Auth0 Token Vault, Supabase's OAuth 2.1 server. Each issues the tokens `permdock/mcp` consumes as `authInfo`, and each publishes a JWKS, so they are rows on the [authentication](/docs/concepts/authentication) provider table rather than adapters.
+- **Enterprise agent identity.** Okta Agent SSO and Cross App Access (GA 24 August 2026) implement the Identity Assertion JWT Authorization Grant that MCP's Enterprise-Managed Authorization extension uses, and Microsoft Entra Agent ID gives agents directory identities. Both produce tokens whose `sub` is the human and whose client is the agent, which is exactly the two-principal subject ([delegation](/docs/security/delegation)); nothing in PermDock changes, the mapping table just names them.
+- **Other application-auth vendors.** Frontegg (ships its own RBAC and entitlements; overlap, consumed as claims), PropelAuth, SuperTokens, Hanko, Kinde, Logto, Stack Auth: JWKS-publishing providers reached through `subjectFromJwt`, recorded in the provider table with their role and organisation claims.
+- **Enterprise SSO and directories are sold, not built.** Google Workspace, Entra ID and Okta logins reach an application through an SSO product (WorkOS AuthKit and Directory Sync, Clerk Enterprise SSO, Better Auth's SSO plugin, Auth0 Organizations, Supabase SAML), and the part that matters to authorization, turning directory groups into application roles, is what WorkOS, Frontegg and Okta charge for under "enterprise RBAC" or "directory sync". PermDock's position is the same as for authentication: the auth layer or the IdP maps groups to role names, and PermDock reads a role claim or a row the sync wrote ([authentication](/docs/concepts/authentication), single sign-on). A SCIM receiver that maintains group-to-role assignments and feeds a `SnapshotSource` is the one enterprise feature the Cloud could add without touching the decision path; recorded below as considered and not scheduled.
 
 Conclusion: position PermDock as complementary and say so in one sentence everywhere: authentication says who; PermDock says what they may do, for which row, and whether a human must confirm. The provider adapters (`subjectFromClerk`, `subjectFromSupabase`, `subjectFromBetterAuth`, and an Agent Auth mapper when the protocol is published) consume their tokens and never issue them ([authentication](/docs/concepts/authentication)).
 
@@ -31,7 +36,9 @@ Conclusion: position PermDock as complementary and say so in one sentence everyw
 
 - **Arcade**: about 25 USD per month plus 0.10 USD per authorization event and 0.01 USD per tool call. **Composio**: about 29 USD per month, metered per tool call. Both sit between the agent and the tool as a hosted proxy.
 - Permit's MCP Gateway and Oso for Agents occupy the same position. A wave of enterprise "agent identity" rounds ([NewCore, 66M USD](https://techcrunch.com/2026/06/15/ai-agents-are-becoming-employees-newcore-emerges-with-66m-to-give-them-identities/), Hush, Willow, JetStream Clearance) targets the same layer from the identity side.
-- Nobody sells a developer-first, embedded, typed decision that also drives the human approval. The proxies see tool names and arguments as strings and cannot know that `delete_post` on `p_42` is the author's own post.
+- **Amazon Bedrock AgentCore Policy** (GA March 2026) is the first hosted product to evaluate tool arguments: [Cedar](https://docs.cedarpolicy.com/) policies attached to an AgentCore Gateway see `context.toolName` (the OpenAPI `operationId` for OpenAPI targets), `context.input.*` for the parsed arguments and custom attributes such as an `approvalStatus`, with Cedar's deny-overrides-permit semantics. It runs only in front of AgentCore-hosted targets, so it is a gateway rather than a library, and it has no notion of the row (`p_42` is a string to it) or of a human approval outcome. Because Cedar's model is permit and forbid with `when` conditions, PermDock's portable conditions could compile to Cedar `when` clauses the way they compile to SQL; that is recorded as considered and not scheduled ([comparison](/docs/comparison), Cedar section), and AgentCore Gateway is treated as an OpenAPI-to-MCP bridge ([OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
+- **OpenAI** is shutting down Agent Builder on 30 November 2026 and steering builders to the Agents SDK, ChatKit and the Connector Registry. `permdock/openai` targets the SDK's `needsApproval` and `interruptions` and is unaffected; the SDK's tool guardrails (`toolInputGuardrails`, `toolOutputGuardrails`) are a second hook for argument checks and are noted on the [OpenAI adapter](/docs/adapters/openai).
+- Nobody sells a developer-first, embedded, typed decision that also drives the human approval. The proxies see tool names and arguments as strings and cannot know that `delete_post` on `p_42` is the author's own post; AgentCore Policy comes closest and stops at the gateway.
 
 The tension this creates is the one ADR 0021 resolves: a "permissions gateway" in the decision hot path would be exactly the strings-in, boolean-out product PermDock is positioned against, and would compete on the crowded side. The hosted service therefore hosts the operational layer and an AuthZEN endpoint, and never becomes a required hop for `decide`.
 
@@ -44,6 +51,13 @@ Every runtime now has a policy hook and a pause, and every one leaves the approv
 - **AI SDK 7** `toolApproval`, **Claude Agent SDK** `canUseTool`, **MCP** elicitation: as recorded on [approvals](/docs/security/approvals).
 
 The store, the approver identity, the expiry and the resume proof are the same problem five times. That is the case for `ApprovalStore` as an interface in the open-source package ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)) and for the hosted inbox as the first Cloud feature.
+
+Delivery of the approval to a human is the part every runtime leaves out, and it is where the products are:
+
+- **Vercel Chat SDK** ([`requestApproval`](https://chat-sdk.dev), 6 August 2026): from a `chat/workflow` step, posts an approval card to Slack, Microsoft Teams or Discord with an `approvers` list, verifies the platform signature on the response and resolves with the responder's `user.id`; durable through the Workflow SDK. The one delivery surface that is Vercel-native, signature-verified and works without a PermDock UI, which is why it is the reference recipe on the [approvals adapter](/docs/adapters/approvals) and what the Cloud inbox uses for Slack and Teams.
+- **Durable execution runtimes**: Trigger.dev waitpoints (`wait.createToken` with an HMAC-signed callback URL, `wait.forToken`), Temporal signals, Restate awakeables, Inngest `step.waitForEvent`, Cloudflare Workflows `waitForEvent`. Each holds the pending call; the `ApprovalStore` record and the token recompute still live in PermDock.
+- **n8n**: an AI Agent tool option "Require approval" and a "Send and Wait for Response" node for Slack, Gmail, Teams, Telegram, Discord and WhatsApp. A no-code approval surface for teams that run agents in n8n; PermDock is reached through `permdock/mcp` on the tool side.
+- **Notification infrastructure**: Knock, Novu, Courier, Resend, Twilio. Channels, not approval semantics; a `DecisionSink` recipe sends the request and the approver still answers through an authenticated surface.
 
 ## 5. AuthZEN is final and the gateways speak it
 
@@ -60,7 +74,26 @@ From the [approval checklist](https://vercel.com/docs/integrations/create-integr
 
 A hosted product must exist to be listable, which orders the roadmap: approvals and the decision log first, then the listing, with `apps/examples/eve-agent` as the template because Eve is Vercel's own agent runtime and its docs point at exactly the gap the inbox fills.
 
-## 7. Pricing anchors
+## 7. Observability and compliance buyers
+
+The decision log has three kinds of downstream consumer, none of which PermDock should wrap ([audit and observability](/docs/concepts/audit-and-observability)):
+
+- **LLM observability**: Langfuse, LangSmith, Braintrust, Datadog LLM Observability, Sentry AI monitoring, PostHog LLM analytics. Each ingests OpenTelemetry GenAI spans; a decision event attaches to the `execute_tool` span as a span event, so `permdock/otel` is the integration and the vendor is a destination. The `execute_tool` span and `gen_ai.tool.name` are still at Development status in the semantic conventions, so the attribute names are pinned and revisited on stabilisation.
+- **SIEMs**: Splunk, Microsoft Sentinel, Datadog Cloud SIEM, AWS Security Lake, Google SecOps ingest OCSF natively; the documented OCSF projection of a decision event is what makes a sink recipe portable across them.
+- **Compliance evidence**: Vanta and Drata collect access-review evidence from connected systems. A decision log with principal, actor, delegation and outcome per event is that evidence for agent actions; the Cloud exposes it as an export, and self-hosters query their own sink.
+
+## 8. Distribution channels
+
+Where a developer or a team discovers PermDock, beyond npm and the docs:
+
+- **Vercel Marketplace**: section 6 above; `eve-agent` as the template.
+- **Coding-agent marketplaces**: the Cursor plugin marketplace and the Claude Code plugin format bundle skills, rules and MCP servers; [skills.sh](https://skills.sh) indexes standalone skills. `wire-permdock` and `audit-permissions` ship in the package today; a plugin listing adds a docs MCP server so an agent can read the adapter pages while wiring. Distribution, not revenue, like `permdock/convex`.
+- **GitHub**: a GitHub App running `audit-permissions` on pull requests is the Cloud's PR-bot form (considered and set aside as a standalone product below); the CI recipe on the [CLI page](/docs/cli/openapi) is the free path and a first-party Action was set aside because the two commands are the whole integration.
+- **Slack App Directory**: the approval bot, if built on the Chat SDK, is listable; the Cloud inbox's Slack surface is the candidate.
+- **Supabase partner marketplace** and the **Convex components directory**: section 2 and section 6.
+- **AWS Marketplace**: relevant only when the hosted ADS is sold to teams enforcing from Go or Java services on AWS; not before the Cloud alpha.
+
+## 9. Pricing anchors
 
 Not decisions, but the ranges the survey found so the Cloud repository starts from evidence:
 
@@ -78,6 +111,9 @@ Not decisions, but the ranges the survey found so the Cloud repository starts fr
 - **Agent-facing paid tooling alone** (hosted `permdock doctor`, `audit-permissions` as a PR bot). Cheap on top of the CLI but low willingness to pay on its own; bundled into the Cloud dashboards.
 - **Renaming to a broader brand.** Deferred; the naming convention is public API ([ADR 0005](/docs/decisions/0005-naming-convention)) and "PermDock Cloud" is sufficient for the service. Trademark checks on any alternative were not performed.
 - **Consulting or support contracts.** Available at any time, not a product decision.
+- **A Cedar compile target.** Portable conditions to Cedar `when` clauses so AgentCore Policy and Amazon Verified Permissions enforce the same policy. Feasible (the combining rule is identical) and not scheduled; revisited if AgentCore adoption among PermDock users warrants it.
+- **A first-party GitHub Action.** Two `run:` lines cover it; an action would add a version line to maintain for no capability.
+- **A SCIM receiver for group-to-role assignment.** The Cloud would accept SCIM 2.0 provisioning from Google Workspace, Entra ID or Okta, keep a per-tenant group-to-role table, and publish it through `SnapshotSource` so role changes and deprovisioning reach snapshots without a token refresh. It fits the operational-layer pattern (an interface with an in-process default, no influence on the decision path, [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)) and competes with WorkOS Directory Sync and Frontegg on a feature enterprise buyers already pay for. Not scheduled: the open-source path (map in the IdP or the auth layer, or sync into your own table) covers the need, and the IPSIE AL1 SCIM profile is still a draft ([watch list](/docs/standards/watch-list)).
 
 ## Adopt / adapt / avoid
 
@@ -89,6 +125,8 @@ Adopt:
 - Eve's `approval.request` / `approval.response` split and the OpenAI SDK's serialisable `RunState` as the two runtime shapes the approvals design must fit.
 - Vercel Marketplace's environment-per-project resource model and its env-var provisioning as the install path, with `permdock doctor` as the verification.
 - The Supabase self-hosting posture: every hosted capability is an interface with an in-process default in the open-source package.
+- Vercel Chat SDK `requestApproval` as the reference approval-delivery recipe for self-hosters and the Cloud alike; signature-verified responders keep the approver identity out of PermDock's hands.
+- OCSF and the OTel GenAI `execute_tool` span as the two projections that make every observability and SIEM vendor a destination rather than an integration.
 
 Adapt:
 
@@ -96,6 +134,9 @@ Adapt:
 - The proxies' human-approval feature becomes a per-tool binding inside the server plus an `ApprovalStore`, rather than a network hop.
 - Auth0's and Clerk's agent identity work is consumed as `actor` and `delegation` through `subjectFrom*` mappers, not competed with.
 - Better Auth's sequencing lesson: library first (Phase 1 and 2), Cloud alpha only when `ai-sdk`, `eve`, `openai` and `mcp` exist to feed it.
+- MCP authorization servers (Stytch, Descope, Scalekit, WorkOS Connect, Auth0 Token Vault) and enterprise agent identity (Okta Cross App Access, Entra Agent ID) as provider-table rows: tokens in, `actor` and `delegation` out.
+- Clerk Billing's `fea` claim as an entitlement source under the "entitlements are roles" rule.
+- AgentCore Gateway as one more OpenAPI-to-MCP bridge; Cedar as a compile target only if demand appears.
 
 Avoid:
 
@@ -104,6 +145,8 @@ Avoid:
 - A gateway in the tool-call hot path.
 - Pricing the Cloud on decisions made by the embedded engine, which would penalise the library's own success; meters are principals, approvals, retained decisions and hosted ADS evaluations.
 - A second package for the client; one install path, one version line.
+- Per-vendor packages for delivery channels, observability destinations, SIEMs or identity providers; every one is a recipe over `ApprovalStore`, `DecisionSink` or `subjectFromJwt` ([ecosystem index](/docs/research/ecosystem-index)).
+- Owning the approver identity: the platform (Chat SDK, Eve `responder`, the session) verifies who answered; PermDock only checks that the approver is not the actor.
 
 ## Decisions informed
 

@@ -103,7 +103,19 @@ redocly lint permdock.overlay.json                                             #
 redocly join openapi.json --overlay permdock.overlay.json -o dist/openapi.json  # applies it
 ```
 
-The next-openapi-gen option is documented in its [Overlay guide](https://github.com/tazo90/next-openapi-gen/blob/main/docs/overlay.md); Redocly's `join --overlay` is marked experimental in its [command reference](https://redocly.com/docs/cli/commands). Scalar's CLI lists Overlay support as roadmap, so a Scalar pipeline applies the Overlay with one of the above before `scalar registry publish`. Downstream, point `@hey-api/openapi-ts`, Orval or Scalar at `dist/openapi.json`; they read standard `security` and need no PermDock code ([OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
+```bash
+# Bump.sh: apply at deploy time (the GitHub Action takes the same file as its `overlay:` input)
+bump overlay openapi.json permdock.overlay.json > dist/openapi.json
+bump deploy dist/openapi.json --doc my-api
+
+# Speakeasy: chain PermDock's Overlay with Speakeasy's own in one workflow
+speakeasy overlay apply -s openapi.json -o permdock.overlay.json > dist/openapi.json
+
+# Vendor-neutral: the reference JavaScript applier
+npx openapi-overlays-js --openapi openapi.json --overlay permdock.overlay.json > dist/openapi.json
+```
+
+The next-openapi-gen option is documented in its [Overlay guide](https://github.com/tazo90/next-openapi-gen/blob/main/docs/overlay.md); Redocly's `join --overlay` is marked experimental in its [command reference](https://redocly.com/docs/cli/commands). Bump.sh documents `bump overlay` and the Action input in its [Overlays guide](https://docs.bump.sh/help/specification-support/overlays/); Speakeasy's applier is part of its [overlay workflow](https://www.speakeasy.com/docs/prep-openapi/overlays); Zuplo applies Overlays before importing a description as routes. Scalar's CLI lists Overlay support as roadmap, so a Scalar pipeline applies the Overlay with one of the above before `scalar registry publish`. Downstream, point `@hey-api/openapi-ts`, Orval, Kubb, Scalar, Mintlify, Fern or any docs host at `dist/openapi.json`; they read standard `security` and need no PermDock code ([OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
 
 ### Lint ruleset
 
@@ -133,6 +145,29 @@ The generated file merges with hand-written definitions through `mergePermission
 ```
 
 Fails when a permission was added, renamed or deprecated without regenerating the document or Overlay, when an operation references a permission that no longer exists, or when a committed Overlay differs from what the catalog would produce (including a `remove` on `security` that PermDock never emits). `--check` never writes.
+
+A complete workflow adds two third-party checks behind it. Neither needs PermDock code and there is no first-party action: the two commands above are the whole integration ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+
+```yaml
+name: openapi
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec permdock collect --check
+      - run: pnpm exec permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay.json --check
+      - run: npx openapi-overlays-js --openapi openapi.json --overlay permdock.overlay.json > dist/openapi.json
+      # Breaking-change diff: a removed or weakened security requirement fails the job
+      - run: npx oasdiff breaking origin/main:dist/openapi.json dist/openapi.json --fail-on ERR
+      # Runtime parity: every operation with `security` must reject an anonymous call
+      - run: pipx run schemathesis run dist/openapi.json --url http://localhost:3000 --checks ignored_auth
+```
+
+[oasdiff](https://www.oasdiff.com) classifies `security` removals as breaking; [Schemathesis](https://schemathesis.readthedocs.io/) `ignored_auth` sends each protected operation without credentials and fails on anything other than `401` or `403`, which catches a route whose `protect` was removed after the description was published ([OpenAPI ecosystem](/docs/research/openapi-ecosystem), testing and diff).
 
 ## Open questions
 

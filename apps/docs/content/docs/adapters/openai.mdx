@@ -93,6 +93,7 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 - `guardTools` removals are silent to the model; they appear in `on('decision')` with `source: 'adapter'`.
 - Resume failures use `message` values `approval-expired`, `approval-mismatch`, `approval-rejected` and `approval-not-found`.
 - Hosted MCP tools reached through the SDK's `requireApproval` and `onApproval` can call `needsApproval` inside `onApproval`; the mapping is the same, with the MCP server name and tool name as the lookup key in `tools`.
+- The SDK's tool guardrails (`toolInputGuardrails`, `toolOutputGuardrails`) are a second hook: an input guardrail can call `decide` and return a tripwire with the same Decision-derived message, which is useful when a team already routes all argument checks through guardrails. `needsApproval` remains the primary hook because it is the only one that can pause for `approval-required`; a guardrail can only allow or reject. OpenAI's Agent Builder is being retired on 30 November 2026 and does not affect this adapter, which targets the SDK ([commercial landscape](/docs/research/commercial-landscape)).
 
 ## Example app
 
