@@ -1,0 +1,86 @@
+---
+title: Supabase
+description: The permdock/supabase provider maps Supabase JWT claims to a PermDock subject, scaffolds the authorize() RBAC tables and hook, and compiles named permissions to authorize('perm') calls in RLS policies.
+---
+
+Status: planned
+Phase: 3
+
+`permdock/supabase` is a provider: it does not check permissions itself, it produces the subject PermDock checks against, from a Supabase session or access token. It also owns the Supabase-specific half of [RLS generation](/docs/adapters/rls): the `user_roles` / `role_permissions` / `authorize()` scaffold from Supabase's RBAC guide and the compilation of named permissions to `authorize('perm')`.
+
+## Purpose
+
+Supabase apps have two enforcement points, the application and Postgres RLS, and one identity source, the JWT. Supabase's recommended RBAC ([Custom Claims and RBAC](https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac)) stores roles in `user_roles`, permissions in `role_permissions`, injects `user_role` into the JWT through a `custom_access_token_hook`, and evaluates `authorize('channels.delete')` inside policies. That is a named-permission catalog in disguise. The provider aligns PermDock with it: PermDock's `permissions` becomes the source of `role_permissions`, `subject.roles` comes from the JWT claim, and generated policies call `authorize()` with PermDock keys.
+
+## API
+
+```ts
+import { createPermDock } from 'permdock'
+import { subjectFromSupabase, supabaseRls } from 'permdock/supabase'
+
+// server: from a verified access token or a server client session
+const { data: { user } } = await supabase.auth.getUser()
+const permdock = await createPermDock(policy, subjectFromSupabase(user, { claims: jwtClaims }))
+
+// policy: declare how Supabase claims map to subject fields used by conditions and RLS
+export const policy = definePolicy(permissions, {
+  roles: [member, admin],
+  subject: (user: SupabaseSubject | null) => user && { id: user.id, orgId: user.claims.tenant_id, roles: user.roles },
+  rls: supabaseRls({ roleClaim: 'user_role', claims: { orgId: 'tenant_id' } }),
+})
+```
+
+- `subjectFromSupabase(user, options)` returns `{ id: auth.uid, roles, claims }` where `id` is the `sub`, `roles` is derived from the configured role claim (default `user_role` in `app_metadata` or top-level), and `claims` exposes `app_metadata` values; `user_metadata` is never read because it is user-writable.
+- `supabaseRls(options)` tells `permdock rls` how `subject.id` (`(select auth.uid())`), `subject.claim(...)` (`(select auth.jwt()) ->> 'claim'`) and `subject.roles` (`authorize()`) compile.
+- `permdock rls generate --rbac supabase` emits: enums `app_role` and `app_permission` (from `listPermissions`), tables `user_roles(user_id, role)` and `role_permissions(role, permission)`, seed rows for every role and grant in the policy, the `custom_access_token_hook(event jsonb)` PL/pgSQL function, and the `security definer stable` function `authorize(requested_permission app_permission) returns boolean`.
+- Named permissions without conditions compile to `using ((select authorize('post.delete')))`; conditional grants compile to `authorize(...) and (cond)`.
+
+Claim mapping used by both the in-process subject and the RLS compiler:
+
+| Subject field | Source in the JWT | In generated policies |
+|---|---|---|
+| `subject.id` | `sub` | `(select auth.uid())` |
+| `subject.roles` | `user_role` (from the Auth Hook) | `authorize('perm')` via `role_permissions` |
+| `subject.claim('tenant_id')` | `app_metadata.tenant_id` or a top-level custom claim | `(select auth.jwt()) ->> 'tenant_id'` |
+| anonymous | no token, or `role = anon` | `auth.uid()` is NULL; `TO anon` grants only |
+
+## Request lifecycle
+
+1. The client signs in; Supabase Auth runs the `custom_access_token_hook`, which reads `user_roles` and adds `user_role` to the JWT.
+2. Server request: the adapter in use (`permdock/next`, `permdock/hono`) verifies the token through the Supabase server client, calls `subjectFromSupabase`, and creates the request-scoped `PermDock`.
+3. In-process checks (`can`, `assert`, `filter`, `where`) run with `subject.roles` from the claim and `subject.claims` for tenant conditions.
+4. Database access: with `toWhere` the filter travels in the query; with RLS the database evaluates `authorize()` and the compiled conditions under the `authenticated` role with `request.jwt.claims` set by PostgREST or by the app's transaction preamble.
+5. Snapshot: `permdock.snapshot()` is sent to the client; claims are stale until token refresh, so a role change should also trigger `updateTag` and a session refresh.
+
+## What it validates
+
+- Token verification is Supabase's job (`auth.getUser()` or JWKS); the provider never parses an unverified JWT for authorization.
+- Role claim shape: `user_role` must be a string or string array matching role names declared in `definePolicy`; unknown role names are dropped with a warning (fail closed: fewer grants, never more).
+- `app_metadata` versus `user_metadata`: only `app_metadata` claims are exposed as `subject.claims`.
+- `permdock rls generate --rbac supabase` checks that every grant's permission key fits the `app_permission` enum and that seed rows match the policy; `permdock rls verify` runs fixtures with `set local role authenticated` and `request.jwt.claims` containing `user_role`.
+
+## How denials surface
+
+- In-process: the usual [Decision](/docs/concepts/decisions); HTTP adapters produce RFC 9457 `403` bodies.
+- In Postgres: `authorize()` returning false yields `filtered` (SELECT, UPDATE `USING`) or `rejected 42501` (INSERT and UPDATE `WITH CHECK`); `permdock rls verify` maps these to the in-process outcome.
+- Anonymous requests: `auth.uid()` is NULL, so `(select auth.uid()) = user_id` is never true and every ownership policy filters; in-process, `subjectFromSupabase(null)` yields the anonymous subject and only anonymous grants apply.
+- Stale claims: a demoted user keeps `user_role` until refresh; the [SSF receiver](/docs/adapters/ssf) or an app-level `updateTag` on role change shortens the window.
+
+## Example app
+
+`apps/examples/supabase-rls`: shared with the [RLS adapter](/docs/adapters/rls): a Next.js app using `@supabase/ssr`, `subjectFromSupabase` in `src/permdock/server.ts`, the generated RBAC scaffold as a Supabase migration, `authorize()`-based policies, and `supabase test db` pgTAP files produced by `permdock rls verify --format pgtap`.
+
+## Related standards
+
+- [Postgres RLS](/docs/standards/postgres-rls): `auth.uid()`, `auth.jwt()`, `authorize()`, roles `anon` / `authenticated` / `service_role`.
+- [Research: Postgres RLS](/docs/research/postgres-rls): Supabase specifics, RBAC guide, Splinter lints, `supabase gen types` limits.
+- [RLS adapter](/docs/adapters/rls): `generate`, `import`, `verify`.
+- [Subject](/docs/concepts/subject): principal fields and `subject.context`.
+
+## Open questions
+
+- The plan names the provider's job (JWT claims to subject, `authorize()` scaffold, compile to `authorize('perm')`); `subjectFromSupabase` and `supabaseRls` are proposed names for the two exports and may change.
+- Whether `role_permissions` should be seeded from the policy at migration time (drift risk when roles change in code) or read back at runtime through `import`.
+- How to handle multiple roles per user when Supabase's guide assumes a single `user_role` claim.
+- Whether to support the deprecated `auth.role()` on import for older projects or map it to the `TO` clause only.
+- Client-side: whether the browser Supabase client should receive a PermDock snapshot from the server or derive a coarse one from the JWT roles when offline.

@@ -1,0 +1,90 @@
+---
+title: Drizzle
+description: permdock/drizzle compiles portable conditions to Drizzle where clauses with toWhere, generates pgPolicy entries for RLS through drizzle-orm/supabase helpers, and reuses drizzle-zod schemas for generated definitions.
+---
+
+Status: planned
+Phase: 3
+
+`permdock/drizzle` takes the portable condition returned by `permdock.where(permission)` and turns it into a Drizzle SQL expression bound to a table. The same conditions feed `permdock rls generate --target drizzle`, which emits `pgPolicy(...)` entries next to the table definition so drizzle-kit owns the migration.
+
+## Purpose
+
+A condition such as `where: { authorId: subject.id }` is evaluated in memory by `can`, serialised into snapshots for the client, and must also filter a list query in the database, or the UI and the API disagree about which rows exist. CASL proved that one condition AST can drive an in-memory interpreter and a `where` builder, and that priority must be respected when flattening allows and denies ([CASL research](/docs/research/casl-v7)). `permdock/drizzle` is the Drizzle interpreter for PermDock's [conditions](/docs/concepts/conditions), and Drizzle is the primary RLS compile target because `pgPolicy` and `drizzle-orm/supabase` already model policies as code ([RLS research](/docs/research/postgres-rls)).
+
+## API
+
+```ts
+import { toWhere } from 'permdock/drizzle'
+import { posts } from './schema'
+
+const rows = await db
+  .select()
+  .from(posts)
+  .where(toWhere(permdock.where(permissions.post.read), posts))
+
+// combine with app filters: toWhere returns a Drizzle SQL expression
+await db.select().from(posts).where(and(toWhere(permdock.where(permissions.post.read), posts), eq(posts.published, true)))
+
+// column mapping when schema field names differ from Drizzle column names
+toWhere(condition, posts, { columns: { authorId: posts.author_id } })
+```
+
+- `toWhere(condition, table, options?)` maps each condition field to a column of `table` by name (or via `options.columns`), and each operator (`eq`, `ne`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `isNull`, `contains`, `and`, `or`, `not`) to the Drizzle operator of the same meaning.
+- `subject.<field>` and `subject.context.<key>` references are resolved to bound parameters from the request-scoped `PermDock` before compilation; the result contains no user-controlled SQL.
+- When nothing is granted, `toWhere` returns a constant `false` SQL expression so the query yields no rows (fail closed).
+- Closure grants cannot compile; `permdock.where` reports them as `{ portable: false }` and `toWhere` throws `PermDockValidationError` with the offending grant.
+
+RLS generation reuses the same compiler:
+
+```ts
+// emitted by: permdock rls generate --target drizzle --dialect supabase
+import { pgPolicy } from 'drizzle-orm/pg-core'
+import { authenticatedRole, authUid } from 'drizzle-orm/supabase'
+
+export const posts = pgTable('posts', { /* columns */ }, (t) => [
+  pgPolicy('post_read_member', { for: 'select', to: authenticatedRole, using: sql`${authUid} = ${t.authorId}` }),
+  pgPolicy('post_update_member', { for: 'update', to: authenticatedRole, using: sql`${authUid} = ${t.authorId}`, withCheck: sql`${authUid} = ${t.authorId}` }),
+])
+```
+
+## Request lifecycle
+
+1. The request-scoped `PermDock` is created from the policy and subject.
+2. `permdock.where(permission)` flattens the grants for that permission: each allow condition is ANDed with the negation of all higher-priority denies, and the results are ORed. Unconditional allow yields `true`; no grant yields `false`.
+3. `toWhere` walks the resulting tree and produces a Drizzle SQL expression bound to the table's columns, with subject values as parameters.
+4. The app composes the expression with its own filters and runs the query.
+5. `on('decision')` fires once with `outcome` derived from whether anything was granted, plus `permdock.filter`-style metadata for observability.
+
+For RLS, the same tree is compiled by the CLI at build time instead of per request; `subject.id` becomes `(select auth.uid())` under the `supabase` dialect, a GUC read under `guc`, and `auth.user_id()` under `neon` (see [RLS](/docs/adapters/rls)).
+
+## What it validates
+
+- Every field in the condition exists on the table (or in `options.columns`); a missing column throws at compile time in tests and at first use in production with the field name.
+- Operator and column type compatibility is left to Drizzle's own typing; `toWhere` is typed so `condition` must come from the resource whose schema the table was declared for when `drizzle-zod` schemas are used in the definition.
+- Subject values are always parameters, never interpolated.
+- Nothing about the rows themselves: `where` runs before rows exist, and rows coming back from the database are trusted (`validate: 'boundary'` does not run on them).
+
+## How denials surface
+
+- No grant: a constant `false` expression and an empty result; the caller sees zero rows, not an error. Combine with `assert(permissions.post.list)` beforehand to distinguish "forbidden" from "not found" ([CASL issue #794](https://github.com/stalniy/casl/issues/794) describes the ambiguity).
+- Non-portable grant: `PermDockValidationError` with `reason: 'non-portable-condition'` and the grant's role, so it is caught in tests rather than at runtime.
+- In RLS mode: a `USING` policy filters silently; a `WITH CHECK` policy raises `42501`; `permdock rls verify` classifies both.
+
+## Example app
+
+`apps/examples/drizzle`: a Hono API over Postgres with `posts` and `memberships`, `toWhere` on list endpoints, generated `pgPolicy` entries checked into the schema, drizzle-kit migrations, and a parity test comparing `filter` in-process against `toWhere` results and against RLS under `set local role`.
+
+## Related standards
+
+- [Postgres RLS](/docs/standards/postgres-rls): policy semantics that the generated `pgPolicy` entries follow.
+- [Conditions](/docs/concepts/conditions): the portable operator set.
+- [RLS adapter](/docs/adapters/rls): `generate`, `import`, `verify`.
+- [Research: Postgres RLS](/docs/research/postgres-rls): Drizzle `pgPolicy`, `drizzle-orm/supabase` helpers, `crudPolicy` for Neon.
+
+## Open questions
+
+- Relation conditions (`memberOf` style membership through a join table): whether `toWhere` should emit `IN (select ...)` itself or require the app to pass a subquery builder.
+- `contains` on arrays versus JSONB versus text: which Drizzle operator each column type should map to.
+- Whether `toWhere` should accept the permission directly (`toWhere(permdock, permissions.post.read, posts)`) to avoid the two-step call.
+- How `drizzle-zod` generated schemas and hand-written Standard Schemas coexist in one `resource()` definition when `permdock rls import --from drizzle` is used.

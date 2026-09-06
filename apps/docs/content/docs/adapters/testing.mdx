@@ -1,0 +1,88 @@
+---
+title: Testing
+description: "@permdock/testing ships policy matrix tests over roles, permissions and fixtures, snapshot fixtures for UI adapters, an RLS parity runner, Next.js instant() helpers and Vitest type tests."
+---
+
+Status: planned
+Phase: 1
+
+## Purpose
+
+`@permdock/testing` is a separate package (it depends on Vitest, Playwright helpers and a Postgres client, none of which belong in `permdock`). It gives every app the same four kinds of test the PermDock repo runs on itself: a policy matrix that pins each role's outcome for every permission and fixture, snapshot fixtures so UI adapters can be tested without a server, an RLS parity runner that proves generated policies agree with `can()`, and helpers for asserting Instant Navigation behaviour in Next.js. Type tests cover what the runtime cannot: that arity, reference identity and subject narrowing are enforced by the compiler.
+
+## API
+
+```ts
+import { describePolicy, snapshotFixture, rlsParity, expectTypeOf } from '@permdock/testing'
+import { policy } from '../src/policy'
+import { permissions } from '../src/permissions'
+
+describePolicy(policy, {
+  subjects: {
+    anonymous: null,
+    member: { id: 'u1', orgId: 'o1', roles: ['member'] },
+    admin:  { id: 'u2', orgId: 'o1', roles: ['admin'] },
+  },
+  fixtures: {
+    ownPost:   { id: 'p1', authorId: 'u1', orgId: 'o1', published: false },
+    otherPost: { id: 'p2', authorId: 'u9', orgId: 'o1', published: true },
+  },
+  matrix: {
+    [permissions.post.create.key]: { anonymous: 'denied', member: 'granted', admin: 'granted' },
+    [permissions.post.update.key]: {
+      ownPost:   { anonymous: 'denied', member: 'granted', admin: 'granted' },
+      otherPost: { anonymous: 'denied', member: 'denied',  admin: 'granted' },
+    },
+    [permissions.post.delete.key]: {
+      ownPost: { member: 'approval-required', admin: 'granted' },
+    },
+  },
+})
+```
+
+| Export | Role |
+|---|---|
+| `describePolicy(policy, config)` | Generates one Vitest `describe` per permission and one `it` per subject and fixture, asserting `decide(...).outcome`. Every permission from `listPermissions` must appear in `matrix` (`exhaustive: true` by default); a missing cell fails the suite, so a new permission cannot ship untested. Cells accept `'granted'`, `'denied'`, `'approval-required'`, or an object with `denials` and `alternatives` for exact assertions. |
+| `snapshotFixture(policy, subject, options?)` | Returns the JSON `permdock.snapshot()` would produce for that subject (optionally scoped with `include`), for use as the `snapshot` prop of `PermDockProvider` in component tests and Storybook. |
+| `mockEndpoint(policy, subjects)` | A Fetch-compatible handler answering AuthZEN `evaluations` requests from a chosen subject, for testing closure-backed `usePermission` without a server (MSW or Vitest browser mode). |
+| `rlsParity(policy, options)` | Runs each matrix cell in-process and against a Postgres database under `set local role` plus `request.jwt.claims`, comparing outcomes as `allowed`, `filtered` or `rejected 42501`. Wraps testcontainers; emits pgTAP on request. |
+| `instant` | Re-exports and wraps `@next/playwright` helpers so the example and user apps can assert that a guarded route renders from the prefetched App Shell without a blocking request, and that `updateTag` refreshes the shell. |
+| `expectTypeOf` and type fixtures | Vitest `expectTypeOf`-based assertions for arity (`can(permissions.post.create, post)` is an error), reference identity across `mergePermissions`, subject narrowing after `assert`, and `never` exhaustiveness on `Decision.outcome` switches. |
+
+## Request lifecycle
+
+Tests do not run a request, but the helpers follow the same order as adapters so failures point at the right layer:
+
+1. Subject: `describePolicy` builds each `PermDock` with `createPermDock(policy, subject)`, including `null` for anonymous and optional `actor` / `delegation` for agent cases (a matrix may declare `agents` whose cells must never exceed their principal's).
+2. Instance: one immutable instance per subject; fixtures are validated against the resource schema before use so a malformed fixture fails as `PermDockValidationError`, not as a wrong outcome.
+3. Check: `decide` for every cell; `filter` for collection cells when `fixtures` are arrays; `simulate` for agent plans.
+4. Denial surface: cells asserting `denials` compare `role` and `reason` text, keeping error messages stable for models and UI.
+
+## What it validates
+
+- Matrix exhaustiveness against `listPermissions(permissions)`.
+- Fixtures against resource schemas (always, regardless of the policy's `validate` mode).
+- Agent cells: an `actor` with `delegation` never receives `granted` where its principal is `denied`.
+- RLS parity: for each `read` cell, `filter` in-process equals the rows visible under the database role; for `create`/`update`/`delete`, `granted` equals a successful statement and `denied` equals `rejected 42501` or `filtered` (zero rows affected), per the semantics in [Postgres RLS](/docs/standards/postgres-rls).
+- Snapshot fixtures round-trip through the snapshot v1 schema so UI tests use exactly what the provider validates.
+
+## How denials surface
+
+Test failures print the `Decision`: outcome, matched grant, `denials` with role and reason, `alternatives`. Parity failures print both sides (in-process outcome and database outcome with the SQL error code). Type failures are ordinary `tsc` errors surfaced by Vitest's typecheck mode.
+
+## Example app
+
+— (no dedicated example). Every example under `apps/examples` carries a `describePolicy` suite; `apps/examples/supabase-rls` runs `rlsParity` against testcontainers in `tests/integration`; `apps/examples/next` uses `instant` in `tests/e2e`.
+
+## Related standards
+
+- [Postgres RLS](/docs/standards/postgres-rls): parity semantics (`USING`, `WITH CHECK`, `42501`).
+- [AuthZEN](/docs/standards/authzen): `mockEndpoint` request and response shapes.
+- Research: [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation), [Postgres RLS research](/docs/research/postgres-rls).
+
+## Open questions
+
+- Matrix keys: the sketch above uses `permission.key` strings as object keys because TypeScript object literals cannot be keyed by references; a tuple-based `cells([permissions.post.update, fixture, outcomes])` form would keep references typed and is the main alternative.
+- Whether `describePolicy` should also emit a Markdown or JSON report of the matrix for `permdock catalog`.
+- Which Postgres drivers `rlsParity` supports out of the box (`pg`, `postgres`, Supabase local) and whether Neon's branching can replace testcontainers in CI.
+- Whether `instant` should live here or stay an example-only dependency on `@next/playwright`.

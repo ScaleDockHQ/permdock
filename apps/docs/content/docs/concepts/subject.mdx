@@ -1,0 +1,158 @@
+---
+title: Subject
+description: A subject is a principal, an optional actor and the authority delegated between them; a decision is principal grants intersected with delegation.
+---
+
+Who is asking? In a classic web app the answer is "the logged-in user". In 2026 the answer is often "an agent, acting for a user, with a token that lets it do part of what the user can". PermDock models both with one subject type: a `principal` (the human or service whose grants apply), an optional `actor` (the agent doing the asking) and a `delegation` (the authority the principal handed to the actor). A decision is the principal's grants intersected with the delegated authority, so an agent can never exceed its user ([ADR 0012](/docs/decisions/0012-two-principal-subject)).
+
+## Shape
+
+```ts
+type Subject = {
+  principal: Principal | null                 // from the policy's `subject` function; null = anonymous
+  actor?: { id: string; kind: string; [k: string]: unknown }
+  delegation?: {
+    scopes?: string[]                          // OAuth scopes, matched against permission.scope
+    authorizationDetails?: AuthorizationDetail[] // RFC 9396 objects, matched per permission
+    chain?: unknown                            // attenuated delegation chain (Later)
+  }
+  context: Record<string, unknown>            // loaded by the policy's `context` function
+}
+```
+
+```ts
+const permdock = await createPermDock(policy, user)                        // human or service: principal only
+const permdock = await createPermDock(policy, user, { actor, delegation }) // agent on behalf of user
+```
+
+The decision endpoint, MCP, AI SDK, HTTP and A2A adapters build the third argument for you; see "How adapters fill actor and delegation" below.
+
+## Principal
+
+The principal is whatever the policy's `subject` function returns:
+
+```ts
+definePolicy(permissions, {
+  roles,
+  subject: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
+})
+```
+
+- Its fields are the values that `subject.<field>` references read in [conditions](/docs/concepts/conditions). Nothing else about the user is visible to the policy.
+- `roles` selects which `role()` grants apply.
+- It is computed once per `createPermDock`, frozen, and included in the snapshot so the client evaluates the same conditions against the same values.
+- It is never taken from a model, a tool argument or a request body. Adapters derive it from verified auth material (session cookie, bearer token `authInfo`, provider session). See the [threat model](/docs/security/threat-model).
+
+The `principal` may be a service account. A cron job or a backend-to-backend call has a principal with roles and no actor.
+
+## Anonymous
+
+When `subject` returns `null` the principal is anonymous. Anonymous has no roles, so with the default policy every check is `denied` with reason `anonymous`, and `assert` narrows nothing. The granted branch of a `Decision` types `subject.principal` as non-null, which is how `assert` gives you a narrowed subject for the rest of the handler (Kilpi's `Grant(subject)` trick, carried through RSC and client types where Kilpi loses it).
+
+`can` on an anonymous `PermDock` still works and still returns `false`; it never throws.
+
+## Context
+
+`context` is for relations you need in conditions but that are not on the user record: team memberships, org settings, a feature flag. It is loaded once per `createPermDock`, which makes `createPermDock` async only when the policy declares it:
+
+```ts
+definePolicy(permissions, {
+  roles,
+  subject: (user) => user && { id: user.id, roles: user.roles },
+  context: async (user) => ({ teamIds: user ? await loadTeamIds(user.id) : [] }),
+})
+
+allow(permissions.post.read, { where: { teamId: { in: subject.context.teamIds } } })
+```
+
+Context values must be JSON so they can travel in the snapshot and compile to SQL (`team_id IN (select team_id from team_user where user_id = (select auth.uid()))` on the RLS side; the compiler maps `subject.context.teamIds` to that subselect through a per-key mapping declared on the RLS adapter). This is PermDock's answer to the "no real ReBAC" complaint against permix ([permix #25](https://github.com/letstri/permix/issues/25)): relations are resolved up front and become ordinary data, so checks stay synchronous and portable.
+
+## Actor
+
+The actor identifies the agent. It has an `id` and a `kind` plus whatever the adapter knows:
+
+| Adapter | `actor.kind` | `actor.id` | Source |
+| --- | --- | --- | --- |
+| `permdock/mcp` | `'mcp-client'` | OAuth `client_id` | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server) |
+| `permdock/ai-sdk` | `'ai-sdk'` | your `runtimeContext.agentId` | the `actor` option of `createPermDock` |
+| `permdock/claude-agent` | `'claude-agent'` | session or agent name | the `actor` option |
+| HTTP adapters with Web Bot Auth | `'web-bot'` | the verified `Signature-Agent` key id | RFC 9421 HTTP Message Signatures |
+| `permdock/a2a` | `'a2a-agent'` | the calling Agent Card identity | A2A `securitySchemes` on the authenticated extended card |
+| none | absent | absent | a plain human or service request |
+
+The actor appears on every decision and audit event so you can answer "which agent did this, for whom". The actor never has grants of its own; only the principal has roles.
+
+## Delegation
+
+Delegation is the authority the principal has given the actor. Two carriers are understood today:
+
+### OAuth scopes
+
+Every permission has a `scope` string (`permissions.post.update.scope === 'post:update'`). With `delegation.scopes` present, a permission is only grantable when its scope is in the list. MCP servers get this for free: `protectServer` reads `authInfo.scopes`, and when a scope is missing the server answers with a `scopeChallenge` so the client can step up ([MCP authorization](/docs/standards/mcp-authorization)).
+
+### RFC 9396 authorization_details
+
+Rich Authorization Requests carry structured objects instead of flat scopes. PermDock treats each permission as an `authorization_details` type, so it can both emit an object for a consent screen and verify one on a token:
+
+```json
+{
+  "type": "post",
+  "actions": ["update"],
+  "identifier": "post_123"
+}
+```
+
+`permissions.post.update` carries an `authorizationDetails` type that says which fields may appear (`type` from the resource, `actions` from the action, `identifier` from the resource `id` field, optional `locations`). A decision on `post_456` with the object above is `denied` with reason `not-delegated`. See [OAuth agent delegation](/docs/standards/oauth-agent-delegation).
+
+### Delegation chains
+
+The Agent Delegation Chain and Credential Delegation drafts describe tokens that attenuate across agent hops. PermDock accepts the chain as opaque `delegation.chain` today and leaves verification to the token layer; Phase 4 may verify monotonic attenuation in core. See the open questions.
+
+### Example: an MCP server
+
+```ts
+import { createPermDock } from 'permdock/mcp'
+
+const { protectServer } = createPermDock(policy, {
+  subject: (authInfo) => userFrom(authInfo), // principal from the verified token
+})
+// actor     = { id: authInfo.clientId, kind: 'mcp-client' }
+// delegation = { scopes: authInfo.scopes, authorizationDetails: authInfo.extra?.authorization_details }
+```
+
+You write the principal mapping once; the adapter fills `actor` and `delegation` from `authInfo` on every request. When a scope is missing, the tool result is a refusal plus a `scopeChallenge` naming `permission.scope`, and the MCP client can step up (scopes accumulate across step-ups per SEP-2350). See the [MCP adapter](/docs/adapters/mcp).
+
+### Service principals
+
+A backend job or a partner service is a principal with roles of its own, created with `createPermDock(policy, serviceUser)` and no actor. Do not model it as an actor without a principal: actors never hold grants, so such a subject is denied everything. If a service calls on behalf of a user, the user is the principal and the service is the actor with a delegation.
+
+## The intersection rule
+
+```text
+decision = evaluate(principal.roles, permission, data)  ∩  delegated(delegation, permission, data)
+```
+
+1. Evaluate the policy for the principal as if no actor existed. `denied` stays `denied`.
+2. If there is a `delegation`, check the permission against it: scope present, or an `authorization_details` object whose `type`, `actions` and `identifier` cover this permission and this row.
+3. If the delegation does not cover it, the outcome is `denied` with a denial `{ role: null, reason: 'not-delegated' }`, and `alternatives` lists the permissions on the same resource that both the principal holds and the delegation covers.
+4. `approval-required` survives the intersection: a delegated actor still needs the human gate.
+
+An actor with no `delegation` at all is treated as having none: every check is `denied` with reason `no-delegation`. This is the fail-closed default; an adapter that cannot find scopes on a token does not silently grant everything the user has.
+
+## Where the subject shows up
+
+- `Decision.subject` on `granted` is the narrowed subject (`principal` non-null).
+- `on('decision')` events carry `principal.id`, `principal.roles`, `actor` and `delegation` so audit can distinguish "Alice deleted a post" from "the reporting agent deleted a post for Alice under scope `post:delete`".
+- Snapshots include the principal and the delegation, not the actor's secrets, so the client can evaluate the same intersection offline.
+- AuthZEN messages map `principal` to `subject`, and put `actor` and `delegation` under `context` ([AuthZEN](/docs/standards/authzen)).
+
+## Choosing what goes in the principal
+
+Put in the principal only what conditions reference and what you are willing to ship to the client in a snapshot. An email address that no condition uses is noise on the wire; a `tenantId` that RLS filters on belongs there. Keep it flat and JSON: strings, numbers, booleans, arrays of those.
+
+## Open questions
+
+- Whether delegation-chain verification (monotonic attenuation across hops) belongs in core or stays in the token layer.
+- The exact `authorization_details` mapping when a permission is a collection action with no `identifier`.
+- Whether `actor` should be allowed to carry its own roles for service accounts that call on their own behalf, or whether such calls should simply use the service as `principal` (the current design).
+- How anonymous principals receive grants, if at all (see [policies](/docs/concepts/policies)).

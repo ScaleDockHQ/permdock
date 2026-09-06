@@ -1,0 +1,4 @@
+{
+  "title": "Security",
+  "pages": ["threat-model", "owasp-agentic", "approvals", "delegation"]
+}

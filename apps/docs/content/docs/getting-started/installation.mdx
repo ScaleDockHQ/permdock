@@ -1,0 +1,115 @@
+---
+title: Installation
+description: Install the permdock package, pick a Standard Schema validator, and learn which subpath exports exist.
+---
+
+PermDock is in Phase 0. Nothing is published to npm yet; the commands below describe the intended install experience so that the docs, README and skills agree before the first release. See the [roadmap](/docs/roadmap) for what ships in which phase.
+
+## Packages
+
+| Package | Purpose | Required |
+| --- | --- | --- |
+| `permdock` | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...) | Yes |
+| `@permdock/cli` | `permdock collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills` | Optional, dev only |
+| `@permdock/testing` | Policy matrix tests, snapshot fixtures, RLS parity runner, `instant()` helpers | Optional, dev only |
+
+```bash
+pnpm add permdock
+pnpm add -D @permdock/cli @permdock/testing
+```
+
+npm and yarn work the same way; the repository itself uses pnpm workspaces.
+
+## Requirements
+
+- TypeScript 5.9, 6 or 7. The type tests in `tests/types` run against all three, and the public API avoids template-literal unions so TypeScript 7 stays fast. Permissions are typed object references, not string unions.
+- ESM only. There is no CommonJS build. Your `tsconfig.json` needs a `moduleResolution` that understands package `exports` (`bundler`, `node16` or `nodenext`) so subpath imports such as `permdock/react` resolve.
+- A current Node.js LTS release for servers and the CLI. Browser and React Native bundles are produced from the same ESM entry points.
+- Zero runtime dependencies in core. `@standard-schema/spec` is the only regular dependency and it is types only.
+
+## A Standard Schema validator
+
+Resources are defined from any validator that implements [Standard Schema](/docs/standards/standard-schema). Bring the one you already use:
+
+```bash
+pnpm add zod      # or
+pnpm add valibot  # or
+pnpm add arktype
+```
+
+PermDock never imports a validator itself. `resource(Post, ...)` reads `Post['~standard']` to infer the instance type and to validate untrusted input at trust boundaries (see [validation](/docs/concepts/validation)). Boundary validation is synchronous, so a schema whose `validate` returns a Promise produces a typed `PermDockValidationError` instead of a silent deny.
+
+## Subpath exports
+
+All adapters live in the one `permdock` package. Import only what a bundle needs; nothing from a server entry is reachable from a client entry.
+
+| Import path | Contents | Phase |
+| --- | --- | --- |
+| `permdock` | `definePermissions`, `resource`, `mergePermissions`, `listPermissions`, `findPermission`, `definePolicy`, `role`, `allow`, `deny`, `subject`, `createPermDock`, errors | 1 |
+| `permdock/react` | `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>` | 1 |
+| `permdock/next` | `createPermDock` returning `getPermDock`, `getPermission`, `PermDockProvider`, `permdockHandler` | 1 |
+| `permdock/next/plugin` | `createPermDockPlugin` (build-time `collect` hook only) | 2 |
+| `permdock/server` | Fetch-first kernel shared by the HTTP adapters | 1 |
+| `permdock/hono` | `createPermDock` returning `permdock` middleware and `protect` | 1 |
+| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | Same shape as `permdock/hono` | 2 |
+| `permdock/trpc`, `permdock/orpc` | RPC middleware with OpenAPI hooks | 2 |
+| `permdock/mcp` | `createPermDock` returning `protectServer` | 2 |
+| `permdock/ai-sdk` | `createPermDock` returning `toolApproval`, `capabilityMiddleware`, `needsApproval` | 1 |
+| `permdock/claude-agent` | `createPermDock` returning `canUseTool`, `permissionRequestHook` | 1 |
+| `permdock/webmcp` | `registerTools` | 2 |
+| `permdock/a2a` | `createPermDock` returning `agentCard`, `extendedAgentCard` | 2 |
+| `permdock/authzen` | `createPermDock` returning the AuthZEN `handler` | 1 (endpoint), 2 (full) |
+| `permdock/ssf` | `createPermDock` returning the CAEP `receiver` | 3 |
+| `permdock/openapi` | OpenAPI 3.2 emission and import | 2 |
+| `permdock/otel` | Span per check and a decision counter | 2 |
+| `permdock/react-native` | React adapter plus persisted `storage` | 2 |
+| `permdock/vue`, `permdock/svelte`, `permdock/solid` | UI adapters | 2 |
+| `permdock/drizzle`, `permdock/prisma`, `permdock/kysely` | `toWhere` condition compilers | 3 |
+| `permdock/supabase`, `permdock/better-auth`, `permdock/clerk`, `permdock/convex`, `permdock/pdp` | Subject providers | 3 and 4 |
+
+The full matrix with example apps and related standards is on the [adapters index](/docs/adapters).
+
+## TypeScript configuration
+
+A minimal `tsconfig.json` that works with the subpath exports and keeps inference fast:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+`strict` matters: subject narrowing through `assert` and the `actions` / `collection` arity checks rely on strict null checks. The library itself is built with `isolatedDeclarations` and `erasableSyntaxOnly`, so its declaration files contain no inferred-only types and load quickly.
+
+## Where files go
+
+| File | Contents | Imported by |
+| --- | --- | --- |
+| `src/permissions.ts` | `definePermissions()` or `mergePermissions()`; no rules | Everything, including client bundles |
+| `src/policy.ts` | `definePolicy()` with roles | Server only |
+| `src/permdock/server.ts` | `createPermDock` from a server adapter | Server code |
+| `src/permissions.generated.ts` | Output of `permdock rls import` or `openapi import` | `src/permissions.ts` |
+| `permissions.catalog.json` | Output of `permdock collect`; committed | CI (`--check`), docs, OpenAPI |
+
+The [quick start](/docs/getting-started/quick-start) fills in the first three.
+
+## Verify the install
+
+```bash
+pnpm permdock doctor
+```
+
+`doctor` checks the TypeScript version, module resolution, that exactly one copy of `permdock` is installed, that no server entry is imported from a client file, and that the catalog produced by `permdock collect` is fresh. It is the first thing the shipped `wire-permdock` skill runs.
+
+## Next steps
+
+- [Quick start](/docs/getting-started/quick-start): define, grant, check, guard.
+- [Larger apps](/docs/getting-started/larger-apps): per-feature definitions, `mergePermissions`, `permdock collect`.
+- [Naming](/docs/getting-started/naming): why every adapter exports `createPermDock`.

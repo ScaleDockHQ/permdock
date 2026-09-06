@@ -1,0 +1,188 @@
+---
+title: Kilpi v1 deep-dive
+description: Source study of @kilpi/core 1.1.3 and its client and React packages, the v0 to v1 API correction, and what PermDock adopts, adapts and avoids from its decision object, subject narrowing and client caching.
+---
+
+Source: read from `main` of `Jussinevavuori/kilpi` and the published npm tarballs on 2026-09-06. Packages: `@kilpi/core` 1.1.3, `@kilpi/client` 1.1.0, `@kilpi/react-server` 1.0.4, `@kilpi/react-client` 1.0.6 (all last published 2025-12-30; about 620 downloads a month for core). The repo has 89 stars, zero open issues or PRs, a single maintainer, and the last commit is from 2025-12-30 ("fix: change internal implementation of kilpi query to allow for use with .d.ts files"). No activity for eight months as of the study. The same report covers [zap-studio/permit](/docs/research/zap-studio-permit).
+
+## The v0 versus v1 correction
+
+The original brief for this study named `Kilpi.scoped`, `runInScope`, `.authorize()` / `.isAuthorized()` / `.getAuthorization()`, `protector()` / `redactor()`, the `Access` component, `useIsAuthorized` and `onUnauthorized`. All of those are v0 APIs. Kilpi 1.0 ([blog post, 2025-10-12](https://kilpi.vercel.app/blog/2025-10-10-kilpi-v1-0); [upgrade guide](https://kilpi.vercel.app/docs/upgrade/v1-0)) removed scope entirely ("It also required `async_hooks`, which caused Kilpi to not work in some runtimes") and collapsed the four check methods into one fluent proxy. The `after()` / `unstable_after` caveat disappeared with scope; the v0 pattern had been `Kilpi.runInScope(async () => { Kilpi.onUnauthorized(...); return next(); })` ([v0 server actions post](https://github.com/Jussinevavuori/kilpi/blob/main/apps/docs/blog/2025-03-28-how-to-protect-nextjs-server-actions.mdx)). Everything below describes v1 as it exists in source.
+
+## Mental model
+
+Server-first, async everywhere. `getSubject(ctx?)` is the auth adapter. A policy is a function of the subject and an optional object that returns `Grant(subject)` or `Deny({ message?, reason?, metadata? })`. Policies live in a nested object; you reach one through a proxy and call `.authorize()` ([quickstart](https://kilpi.vercel.app/docs/getting-started/quickstart)):
+
+```ts
+export const Kilpi = createKilpi({
+  async getSubject(ctx?: MyContextType) {
+    return await myAuthenticationProvider.getCurrentUser(ctx);
+  },
+  policies: {
+    posts: {
+      async create(subject) {
+        if (!subject) return Deny();
+        return Grant(subject);
+      },
+      async delete(subject, post: { authorId: string }) {
+        if (!subject) return Deny();
+        if (subject.id !== post.authorId) return Deny();
+        return Grant(subject);
+      },
+    },
+  },
+});
+
+const { granted } = await Kilpi.posts.delete(post).authorize({ ctx });
+const { subject } = await Kilpi.posts.create().authorize().assert();
+```
+
+`getSubject` runs on every `authorize()` unless a cache hook answers ([subject docs](https://kilpi.vercel.app/docs/concepts/subject)). Core ships no cache; the docs offer AsyncLocalStorage and request-object recipes, and `ReactServerPlugin` provides one via `React.cache`.
+
+## Public surface
+
+- `createKilpi({ getSubject, policies, onUnauthorizedAssert?, plugins? })`, `Grant`, `Deny`, `KilpiError.Internal`, `KilpiError.Unauthorized`, `createKilpiPlugin`, `getPolicyByAction`, `EndpointPlugin`, `AuditPlugin`; types `Policy`, `Policyset`, `Decision`, `GrantedDecision`, `DeniedDecision`, `PolicysetActions`, `GetPolicyByAction`, `InferPolicyInputs`, `InferPolicySubject`.
+- Instance: `Kilpi.<path>(obj?)` returns a `KilpiPolicy` with `.authorize({ ctx?, subject? })` returning a promise of a `Decision` that also has `assert(handler?)`, plus `$action`; `Kilpi.$getSubject({ ctx })`, `Kilpi.$query(fn, { authorize })`, `Kilpi.$hooks` (`onAfterAuthorization`, `onSubjectResolved`, `onSubjectRequestFromCache`, `onUnauthorizedAssert`, `unregisterAll`), `Kilpi.$$infer`.
+- All non-policy members are `$`-prefixed; the docs forbid policy names starting with `$`.
+
+## How the fluent proxy is built
+
+Runtime ([createKilpi.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/core/src/createKilpi.ts), [utils/proxy.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/core/src/utils/proxy.ts)): a `Proxy` over the core-plus-plugins object. If `Reflect.has(target, prop)` the access is reflected (so `$hooks` and plugin methods work); otherwise it enters a tRPC tinyrpc-style recursive proxy that accumulates the path on `get` and, on `apply`, builds `new KilpiPolicy({ core, action: path.join('.'), inputs: args })`. `getPolicyByAction` later splits on `.` and reduces into the policyset, throwing `KilpiError.Internal` if the leaf is not a function. Because `Reflect.has` also sees the prototype chain, a policy namespace named like a built-in prototype property could in theory collide.
+
+Types: a recursive mapped type walks the policyset, detecting leaves with `$Value extends Policy<infer $TInputs, any, any>`:
+
+```ts
+type FluentPolicyProxyApi<TCore, T, TPath extends string = ""> = {
+  [TKey in keyof T]: TKey extends string
+    ? T[TKey] extends infer $Value
+      ? (TPath extends "" ? TKey : `${TPath}.${TKey}`) extends infer $TAction
+        ? $Value extends Policy<infer $TInputs, any, any>
+          ? $TAction extends PolicysetActions<TCore["$$infer"]["policies"]>
+            ? (...inputs: $TInputs) => KilpiPolicy<TCore, $TAction>
+            : `TS Error: $TAction is invalid (...)`
+          : FluentPolicyProxyApi<TCore, $Value, $TAction>
+        : never : never : never;
+};
+```
+
+`PolicysetActions` is a template-literal key walk with `.` as separator and `GetPolicyByAction` is a recursive value lookup. Inputs are constrained to zero or one object.
+
+## Subject narrowing via `Grant(subject)`
+
+([types.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/core/src/types.ts), [decision.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/core/src/decision.ts).)
+
+```ts
+export type Policy<TInputs, TSubjectInput, TSubjectOutput = TSubjectInput> =
+  (subject: TSubjectInput, ...inputs: TInputs) => Decision<TSubjectOutput> | Promise<Decision<TSubjectOutput>>;
+export function Grant<TSubject>(subject: TSubject): GrantedDecision<TSubject> { return { granted: true, subject }; }
+```
+
+`Grant` is generic over its argument, so after `if (!subject) return Deny()` TypeScript's control-flow narrowing makes `Grant(subject)` return a granted decision over the non-nullable subject; the policy's inferred return type carries it; `KilpiPolicy.evaluate` types the decision with `InferPolicySubject`. That is why `const { subject } = await Kilpi.authed().authorize().assert(); subject.id` compiles. Caveat: the narrowing is lost everywhere else. `KilpiClientPolicy.authorize()` returns a decision over the base client subject type, the `Authorize` render prop receives a `GrantedDecision` over the base core subject, and hook events are typed the same way.
+
+## Protected queries
+
+([KilpiQuery.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/core/src/KilpiQuery.ts), [docs](https://kilpi.vercel.app/docs/concepts/protected-queries).)
+
+```ts
+const getUserDetails = Kilpi.$query(
+  async (userId: string) => db.users.findById(userId),
+  {
+    async authorize({ output: user }) {
+      if (!user) return null;
+      const { granted } = await Kilpi.users.readPrivate(user).authorize();
+      if (!granted) return { userId: user.id, name: user.name };
+      return { userId: user.id, name: user.name, email: user.email };
+    },
+  },
+);
+await getUserDetails.authorized(id);   // redacted type: email?: string
+await getUserDetails.unauthorized(id); // raw
+```
+
+The implementation is about twenty lines: `authorized()` fetches the subject, runs the query, then calls `authorize({ input, output, subject })`. Authorisation is post-fetch only; the redacted return type is inferred from `authorize`. v0's `.filter` was removed as an anti-pattern.
+
+## Unauthorised handling
+
+([KilpiCore.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/core/src/KilpiCore.ts).) `assert()` runs three layers: the per-call `.assert(handler)`, every `$hooks.onUnauthorizedAssert`, then the global `onUnauthorizedAssert`. It runs all of them even if one throws, rethrows the first error, and otherwise throws `KilpiError.Unauthorized(decision)`. `onAfterAuthorization` hooks are fire-and-forget.
+
+## Plugin system
+
+([KilpiPlugin.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/core/src/KilpiPlugin.ts).) A plugin is a function of the core returning an optional `extendCore`. `createKilpi` declares ten generics `P_00` to `P_09` and uses an `AnyLengthHead` tuple type so `plugins: [A, B]` infers exactly two; at runtime `Object.assign(Core, ...exts)`. Server plugins cannot extend the policy object. Client plugins can (`extendPolicy`), but typing requires global module augmentation of `IKilpiClientPolicy` in `@kilpi/client` ([type.extension.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/react-client/src/type.extension.ts)), so one plugin's types leak to every client instance in the program.
+
+## Endpoint and client
+
+([EndpointPlugin.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/core/src/plugins/EndpointPlugin/EndpointPlugin.ts), [createKilpiClient.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/client/src/createKilpiClient.ts), [KilpiClientCache.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/client/src/KilpiClientCache.ts).)
+
+- Server: `Kilpi.$createPostEndpoint()` returns a `Request` to `Response` handler. It requires `Authorization: Bearer` with a secret that is a public environment variable (obfuscation, not authentication). The body is SuperJSON of an array of `fetchDecision` requests whose `object` is `z.any()`; the subject is resolved once per batch and each item evaluated with `policy.authorize({ subject })`. Bug: the `getContext` option is declared but never called, so `processRequests` runs without context. Because `object` is client-supplied and unvalidated, decisions are only trustworthy for UI.
+- Client: `createKilpiClient({ infer: {} as typeof Kilpi, connect: { endpointUrl, secret }, batching: { batchDelayMs, jobTimeoutMs } })`. Same recursive proxy, plus a `decorateNamespace` hook so `KilpiClient.users.read.$invalidate()` and `KilpiClient.users.$invalidate()` work. The batcher dedupes by deep equality ignoring `requestId`. The cache is a `Map` from a key to a promise of a decision, keyed by `fastJsonStableStringify([...action.split('.'), object])`; invalidation is prefix matching on the stringified key; there is no TTL and no stale-while-revalidate. Hooks: `onBeforeSendRequest` (extra headers), `onCacheInvalidate({ path, matches })`.
+- Dependencies: core hard-depends on `zod@3` and `superjson` (dist 20.7 kB before deps) even if the endpoint is never used; the client adds `nanoid` and `fast-json-stable-stringify` (21.9 kB).
+
+## React
+
+([ReactServerPlugin.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/react-server/src/plugins/ReactServerPlugin.ts), [Authorize.tsx](https://github.com/Jussinevavuori/kilpi/blob/main/packages/react-server/src/components/Authorize.tsx), [useAuthorize.ts](https://github.com/Jussinevavuori/kilpi/blob/main/packages/react-client/src/hooks/useAuthorize.ts).)
+
+RSC: `createRscCache = React.cache(() => ({ value }))` gives a per-request mutable box; the plugin wires `onSubjectRequestFromCache` and `onSubjectResolved` to it and stores a per-page handler for `Kilpi.$onUnauthorizedRscAssert(fn)`. Detecting RSC context is a hack: `rscProbe() === rscProbe()` where `rscProbe = React.cache(() => Math.random())`.
+
+```tsx
+const { Authorize } = Kilpi.$createReactServerComponents();
+<Authorize policy={Kilpi.posts.create()} Unauthorized={<UnauthorizedMessage />} Pending={<Loading />}>
+  {({ subject }) => <CreatePostForm userName={subject.name} />}
+</Authorize>
+```
+
+`Authorize` is an async component wrapping `Suspense` around an inner async component that awaits `policy.authorize()`.
+
+Next.js caveats in the v1 docs ([Next.js installation](https://kilpi.vercel.app/docs/installation/next-js)): return `null` from `getSubject` when `process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD` because `headers()` and `cookies()` throw at build time, and use a global `onUnauthorizedAssert` that calls `redirect()`.
+
+Client React: `KilpiClient.posts.edit(post).useAuthorize({ isDisabled })` returns a discriminated union with `status`, `granted`, `decision`, `error` and `isPending`; `AuthorizeClient` takes `policy`, `Pending`, `Unauthorized`, `Error`, `Idle`, `isDisabled`. State is `useState` per hook instance sharing the promise cache; refetch is triggered by resetting to `idle` on a matching `onCacheInvalidate`. Gotcha: the fetch effect's dependencies are `[isDisabled, status, signalRef]` and the invalidation effect's are empty, so changing the object passed to the policy (one post to another) does not refetch.
+
+## Tests
+
+Core: `KilpiPolicy`, `KilpiQuery`, `KilpiHooks`, `KilpiPlugin` (plus type tests), `EndpointPlugin`, `AuditPlugin`, `subjectCaching`, `context`. Client: batch, dedupe, cache, abort. React: `Authorize`, `AuthorizeClient`, `useAuthorize`.
+
+## What PermDock takes from the path-addressed tree
+
+Kilpi proves that a path-addressed policy tree (`Kilpi.posts.edit(post)`) gives excellent DX, but it pays for it with a `Proxy` plus a heavy recursive mapped type, and the same string path (`posts.edit`) is what the client, cache key, audit event and endpoint all speak. With `permissions.post.update` as a real object PermDock gets the same addressing without a `Proxy`: the tree is built eagerly from the definition, each leaf is plain JSON with a `key`, and the schema lives on the resource node. The leaf is serialisable by `key` (Kilpi's cache-key idea) and needs no `$` prefix convention because `can`, `assert` and `on` live on the `PermDock` instance and helpers such as `listPermissions` are functions, which removes Kilpi's name-collision rules and the `Reflect.has` prototype pitfall. Subject narrowing is carried through `assert`, RSC and client adapters, where Kilpi drops it. Arity is encoded in the leaf type so `can(permissions.post.create)` and `can(permissions.post.update, post)` are both statically exact, whereas Kilpi caps inputs at one object and permit requires one.
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- `Decision` as a discriminated union carrying `message`, `reason` and `metadata`.
+- `Grant(subject)` argument-inferred subject narrowing.
+- `.assert(handler?)` with layered unauthorised handlers (per call, hooks, global) that all run before the first error is rethrown.
+- Lazy `getSubject(ctx?)` with `onSubjectRequestFromCache` and `onSubjectResolved` hooks; no AsyncLocalStorage in core (v1 removed it for runtime compatibility); `React.cache` in the RSC adapter.
+- "Infer the server type on the client" (`infer: {} as typeof Kilpi`).
+- Typed namespace-prefix cache invalidation on the client; the `onBeforeSendRequest` header hook.
+- `Pending`, `Unauthorized`, `Error`, `Idle` render props.
+- The tuple-generic plugin inference trick.
+
+Adapt:
+
+- Protected queries: keep the co-located `authorize({ input, output, subject })` redaction idea but add pre-fetch checks (an open question in the [roadmap](/docs/roadmap)).
+- The Proxy-generated path tree is the right shape; PermDock materialises it statically from the definition.
+- Batching and dedupe are good, but cache keys come from the schema-declared `id` field on `resource()`, not `stableStringify(object)`, and `usePermission` refetches when the resource id changes.
+- Plugin typing should be instance-scoped, not global module augmentation.
+
+Avoid:
+
+- Hard `zod` and `superjson` dependencies in core.
+- `$`-prefixed instance members to dodge collisions with policy names.
+- An unvalidated `object: z.any()` on the decision endpoint, a public-secret "auth", and dead options such as `getContext`.
+- Narrowing lost on client, RSC and hook types.
+- `useAuthorize` not refetching when the input object changes.
+- Hand-typed resource objects per policy with no schema.
+- The `React.cache` RSC-probe hack.
+- Depending on a single-maintainer project quiet for eight months.
+
+## Decisions informed
+
+- [ADR 0003: reference-based permissions](/docs/decisions/0003-reference-based-permissions)
+- [ADR 0004: actions vs collection](/docs/decisions/0004-actions-vs-collection)
+- [ADR 0005: naming convention](/docs/decisions/0005-naming-convention) (no `$` prefixes)
+- [ADR 0007: decide, not explain](/docs/decisions/0007-decide-not-explain)
+- [ADR 0008: plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key)
+- [ADR 0009: boundary validation](/docs/decisions/0009-boundary-validation)
+- [ADR 0013: three-outcome decision](/docs/decisions/0013-three-outcome-decision)
+- [ADR 0015: no runtime dependencies in core](/docs/decisions/0015-no-runtime-deps-in-core)
+- Pages shaped: [decisions](/docs/concepts/decisions), [subject](/docs/concepts/subject), [errors](/docs/concepts/errors), [snapshots](/docs/concepts/snapshots), [audit and observability](/docs/concepts/audit-and-observability), [react](/docs/adapters/react), [next](/docs/adapters/next), [authzen](/docs/adapters/authzen), [threat model](/docs/security/threat-model) (decision-endpoint authentication).

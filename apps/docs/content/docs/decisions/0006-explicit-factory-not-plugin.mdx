@@ -1,0 +1,59 @@
+---
+title: "0006: Explicit factory file, not a Next.js plugin"
+description: Why apps wire PermDock through src/permdock/server.ts instead of a Next.js plugin with module augmentation, and why createPermDockPlugin is a build hook only.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Two wiring styles were considered for the Next.js adapter, and by extension for Vite, Expo and Hono apps.
+
+**Plugin plus request config**, the next-intl model: `createPermDockPlugin()` in `next.config.ts` aliases a request config file (`src/permdock/request.ts`) so `getPermDock()` and `getPermission()` can be imported straight from `permdock/next` with no app-level export. The types of the policy and subject reach those functions through TypeScript module augmentation, the way next-intl types `Messages` via `AppConfig`.
+
+**Explicit factory file**, the Kilpi, Better Auth and Drizzle model: the app creates its instance once in `src/permdock/server.ts` and exports the resulting functions.
+
+The plugin style has real appeal for agents (one import path everywhere), but it is Next-specific: React Native and Vite apps would need a different mechanism, module augmentation is global (one policy per app), and the resolver alias is invisible in the code being read.
+
+## Decision
+
+Wiring is an **explicit factory file**. Every server and agent adapter exports `createPermDock`, and the app owns the exports:
+
+```ts
+// src/permdock/server.ts (server-only)
+import { createPermDock } from 'permdock/next'
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
+  subject: async () => getUser(await cookies()),
+  tag: (user) => `permdock:${user.id}`,
+})
+```
+
+Client hooks (`usePermDock`, `usePermission`, `Protected`) are still direct imports from `permdock/react`, because their types flow from the permission reference they receive, not from a generic factory; only the policy-aware server side needs the factory. The same shape applies to `permdock/hono`, `permdock/mcp`, `permdock/ai-sdk` and Expo apps.
+
+`createPermDockPlugin` exists, but only as a **build hook**: `createPermDockPlugin({ collect: { srcPath } })` in `next.config.ts` runs `permdock collect` during `next dev` and `next build`. It never aliases modules, augments types or wires the API.
+
+## Consequences
+
+- One pattern works in every bundler and runtime; the skill and the quick start show a single file.
+- No module augmentation, so an app can hold several policies (per tenant, per test) and TypeScript 7 sees ordinary exports.
+- Server-only code is concentrated in one file, which `permdock doctor` checks for accidental client imports.
+- Apps carry a small amount of boilerplate (the factory file) that the plugin model would have hidden.
+- Import paths for `getPermDock` are app-specific (`@/permdock/server`) rather than package-level; docs state the conventional path.
+
+## Alternatives considered
+
+- **next-intl-style plugin with module augmentation.** Rejected as Next-only, global, and implicit; kept as the model for the `use*` / `get*` vocabulary and for the `collect` build hook.
+- **Per-app generic factory for React hooks** (permix PR #56, `createPermix`). Superseded: reference-based typing makes it unnecessary, and direct exports match how `useTranslations` is imported.
+- **Global singleton** (permix `setup()`). Rejected; it is the request-leak bug that started the project (permix issue #27).
+
+## Related
+
+- [Next.js adapter](/docs/adapters/next)
+- [Next.js build plugin](/docs/cli/next-plugin)
+- [Collect](/docs/cli/collect)
+- [Larger apps](/docs/getting-started/larger-apps)
+- [next-intl extraction model](/docs/research/next-intl-extraction-model)
+- [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation)
+- [0005: Naming convention](/docs/decisions/0005-naming-convention)

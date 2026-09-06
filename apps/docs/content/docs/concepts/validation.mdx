@@ -1,0 +1,150 @@
+---
+title: Validation
+description: PermDock validates resource data against its Standard Schema only where it crossed a trust boundary, synchronously, with a typed error.
+---
+
+A permission check is only as good as the data it checks. `can(permissions.post.update, post)` with a `post` that a client made up is a check against fiction. PermDock attaches each resource's Standard Schema to the resource node and runs it on data that came from outside the trust boundary, and only there: trusted rows loaded by your own server code are not re-validated on every call. This page defines the modes, what counts as a boundary, and why validation is synchronous ([ADR 0009](/docs/decisions/0009-boundary-validation)).
+
+## Modes
+
+`definePolicy` takes a `validate` option:
+
+| Mode | Behaviour | When to use |
+| --- | --- | --- |
+| `'boundary'` (default) | Validate data that an adapter marks as untrusted: HTTP bodies, MCP tool arguments, decision-endpoint requests, agent-supplied objects. Skip data passed directly by server code. | Almost always |
+| `'always'` | Validate every instance passed to `can`, `decide`, `assert`, `filter`, regardless of origin. | Development, test suites, while migrating an untyped codebase |
+| `'never'` | Never run schemas. Types are still enforced at compile time. | Hot paths where every row came from your own database and the type is trusted |
+
+The two comparison points that shaped the default: `@zap-studio/permit` validates every `can()` call, which is wasted work for rows the server just read; Kilpi's decision endpoint accepted `z.any()` and never validated, so a client could fabricate the object the server decided on ([research](/docs/research/zap-studio-permit), [Kilpi](/docs/research/kilpi-v1)).
+
+## What a boundary is
+
+Data has crossed a trust boundary when it was constructed by a party the policy does not trust to describe the resource honestly:
+
+| Source | Boundary? | Who marks it |
+| --- | --- | --- |
+| Row loaded from your database in a Route Handler | No | You pass it directly to `decide` |
+| JSON body of an HTTP request | Yes | `protect(permission, load?)` in HTTP adapters validates `load`'s result when it derives from the body, and validates the body itself when it is the resource |
+| MCP tool arguments | Yes | `protectServer` validates `data(args)` output against the resource schema before deciding |
+| AI SDK or Claude Agent SDK tool call arguments | Yes | `toolApproval`, `canUseTool` validate the object built from `args` |
+| Decision endpoint request from the React client | Yes | `permdockHandler` and the `authzen` handler validate the `resource` object |
+| Persisted or cached snapshot on a device | Yes, but UI-only | The client PermDock validates shape before use; it never authorises writes |
+| Objects created inside a closure grant | No | Closures run on the server with trusted inputs |
+
+Adapters express this with a `trusted: false` marker on the data they pass to core; you can do the same when calling `decide` yourself:
+
+```ts
+permdock.decide(permissions.post.update, body, { trusted: false })
+```
+
+Validation happens before evaluation. Its output (the schema's parsed value, with defaults and transforms applied) is what conditions read, so the type the grant was written against is the type that runs.
+
+### Example: HTTP body
+
+```ts
+// permdock/hono
+app.patch(
+  '/posts/:id',
+  protect(permissions.post.update, async (c) => {
+    const current = await loadPost(c.req.param('id'))      // trusted: from your database
+    const next = { ...current, ...(await c.req.json()) }    // untrusted: merged from the body
+    return { current, next }
+  }),
+  handler,
+)
+```
+
+`protect` knows the body was involved, validates `next` against `Post`, and evaluates `where` against `current` and `check` against the validated `next`. A body that sets `authorId` to another user fails `check` and returns 403; a body with `authorId: 42` (a number) fails validation and returns 400.
+
+### Example: MCP tool arguments
+
+```ts
+guarded.registerTool(
+  'update_post',
+  { permission: permissions.post.update, inputSchema, data: (args) => loadPost(args.id) },
+  handler,
+)
+```
+
+`inputSchema` validates the arguments as the MCP SDK always does. The object returned by `data` is what PermDock decides on: because it derives from model-supplied `args`, `protectServer` treats it as boundary data and validates it against `Post` too. A model that invents a post object cannot pass a check by shaping it well; the server loaded the row.
+
+### filter
+
+`filter(permission, rows)` treats its input as trusted by default (rows came from your query). Pass `{ trusted: false }` when the array came from a client, for example when re-checking a list a browser sent back.
+
+## Choosing a mode per environment
+
+| Environment | Recommended | Why |
+| --- | --- | --- |
+| Production server | `'boundary'` | Validates exactly the inputs that can lie |
+| Tests and CI | `'always'` | Catches fixtures that drift from the schema |
+| Local development | `'always'` | Surfaces mismatches between database rows and schema early |
+| Edge or high-throughput read path with trusted rows only | `'never'` | Saves the validator call; types still hold |
+| Client (snapshot-backed PermDock) | fixed to shape checks | The client never authorises writes; validation there is for UX consistency only |
+
+The mode is a policy option, so set it from an environment variable in `definePolicy` if it differs per environment.
+
+## Synchronous schemas
+
+Boundary validation is synchronous. `can` and `decide` never await, snapshots are evaluated in render, and Expo Router guards need an answer on the first frame. Standard Schema allows `validate` to return a Promise, so PermDock checks the result: if a schema returns a thenable, PermDock throws `PermDockValidationError` with `code: 'async-schema'` and a message naming the resource, instead of denying silently the way permit's sync-only rule comparison does.
+
+Async refinements belong in your API's input validation, before PermDock sees the object. Resource schemas describe shape and identity; they should not fetch.
+
+```ts
+// good: shape only
+const Post = z.object({ id: z.string(), authorId: z.string(), published: z.boolean() })
+
+// throws PermDockValidationError { code: 'async-schema' } at the first boundary check
+const Post = z.object({ id: z.string() }).refine(async (p) => await exists(p.id))
+```
+
+## PermDockValidationError
+
+```ts
+class PermDockValidationError extends Error {
+  readonly name: 'PermDockValidationError'
+  readonly code: 'invalid-data' | 'async-schema' | 'no-schema'
+  readonly permission: string          // 'post.update'
+  readonly resource: string            // 'post'
+  readonly issues: StandardSchemaV1.Issue[]
+  readonly boundary: string            // 'http-body' | 'mcp-args' | 'decision-endpoint' | 'tool-args' | 'manual'
+}
+```
+
+- `invalid-data` carries the schema's `issues` (path, message) in the Standard Schema issue format, unchanged, so you can hand them to whatever renders your validator's errors.
+- `async-schema` is a configuration error and should fail loudly in development.
+- `no-schema` is thrown when `validate: 'always'` meets a schema-less resource with instance actions; schema-less resources are allowed only for collection actions or with `'boundary'` and trusted data.
+
+Adapters catch it and respond in their own vocabulary: HTTP adapters return `400 application/problem+json` with `type` ending in `/validation` and the `issues`; MCP returns `isError: true` with the issues as `structuredContent`; the AI SDK adapter returns `denied` with a model-readable list of invalid fields so the model can fix its call. `decide` itself, when called with `trusted: false`, does not throw: it returns `denied` with reason `validation` and attaches the error under `denials[0].detail`. `assert` throws. See [errors](/docs/concepts/errors).
+
+## Types are still enforced
+
+Validation modes only change runtime behaviour. At compile time:
+
+- `can(permissions.post.update, data)` requires `data` to be assignable to the schema output type.
+- `can(permissions.post.create, data)` is an error: collection actions take no instance.
+- Conditions reference only fields that exist on the schema output.
+
+`'never'` is therefore not "untyped"; it is "trust the type".
+
+`permdock doctor` warns when a policy uses `'never'` together with an HTTP, MCP or agent adapter, because those adapters exist precisely to receive untrusted data.
+
+## Standard JSON Schema
+
+Because resources are Standard Schema values, PermDock can also ask them for JSON Schema through the Standard JSON Schema interface where the validator supports it. That feeds:
+
+- the [catalog](/docs/cli/catalog): `permissions.catalog.json` includes a JSON Schema per resource next to each permission;
+- [OpenAPI 3.2](/docs/standards/openapi-3-2) emission: resource schemas become components, `x-permdock-permissions` references them;
+- MCP tool `inputSchema` validation when a tool's arguments are the resource itself.
+
+No validator-specific converter is involved. See [Standard Schema](/docs/standards/standard-schema).
+
+## Performance
+
+Boundary validation runs once per untrusted object, not once per check: the adapter validates, then passes the parsed value to `decide` as trusted. In `'always'` mode the parsed value is cached per object identity for the lifetime of the `PermDock`, so `filter` over a thousand rows validates each row once. Schema cost is the validator's; PermDock adds a single `~standard.validate` call.
+
+## Open questions
+
+- Whether `trusted: false` should be the option name or whether adapters should pass a `boundary` string only.
+- Whether `'boundary'` should also validate objects passed to the React client's `decide` from user code, or only those that reach the endpoint.
+- How to surface async schemas at the type level: Standard Schema's `validate` type is `Result | Promise<Result>` for every library, so a compile-time check would need per-validator knowledge.

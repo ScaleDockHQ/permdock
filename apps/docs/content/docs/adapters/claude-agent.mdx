@@ -1,0 +1,91 @@
+---
+title: Claude Agent SDK
+description: permdock/claude-agent answers Claude Agent SDK canUseTool callbacks and PermissionRequest hooks from PermDock decisions, mapping built-in tools such as Bash to typed permissions.
+---
+
+Status: planned
+Phase: 1
+
+`permdock/claude-agent` plugs PermDock into the two permission surfaces of the Claude Agent SDK: the `canUseTool` callback that runs before every tool invocation, and the `PermissionRequest` hook that fires when the SDK is about to ask a human. Both are answered from one `Decision`, so the same policy that guards an HTTP route decides whether an agent may run a shell command.
+
+## Purpose
+
+The Claude Agent SDK exposes tool use to the host application as a callback: the SDK proposes a tool call, the host allows or denies it, optionally rewriting the input. Without a policy layer, hosts hard-code tool names and argument patterns in that callback. `permdock/claude-agent` replaces the hard-coding with a `tools` map from SDK tool names to permission references, and applies PermDock's [subject](/docs/concepts/subject) model so the agent acts as an `actor` under the user's authority and never exceeds it. The result is the same three-outcome mapping used by [permdock/ai-sdk](/docs/adapters/ai-sdk) and [permdock/mcp](/docs/adapters/mcp), with a human approval path where a grant says `approval: 'human'`.
+
+## API
+
+```ts
+import { createPermDock } from 'permdock/claude-agent'
+
+const { canUseTool, permissionRequestHook } = createPermDock(policy, {
+  subject: () => currentUser,
+  actor: () => ({ id: 'claude-agent', kind: 'claude-agent' }),
+  tools: {
+    Bash:  { permission: permissions.shell.run,   data: (input) => ({ command: input.command }) },
+    Write: { permission: permissions.file.write,  data: (input) => ({ path: input.file_path }) },
+    Read:  { permission: permissions.file.read,   data: (input) => ({ path: input.file_path }) },
+    mcp__posts__delete_post: { permission: permissions.post.delete, data: (input) => loadPost(input.id) },
+  },
+})
+
+query({
+  prompt,
+  options: {
+    canUseTool,
+    hooks: { PermissionRequest: [permissionRequestHook] },
+  },
+})
+```
+
+- `tools` keys are SDK tool names, including built-ins (`Bash`, `Read`, `Write`, `Edit`, `WebFetch`) and MCP tools by their prefixed name. Each entry names a permission and, for instance-level actions, a `data` resolver that turns the tool input into the resource shape the permission's schema expects.
+- `subject` and `actor` are resolved once per `query` unless they are functions of the call context; `delegation` can be supplied when the host holds scoped credentials for the agent.
+- `canUseTool` and `permissionRequestHook` are ready to pass to the SDK; both close over the same request-scoped `PermDock`.
+
+## Request lifecycle
+
+1. The model proposes a tool call. The SDK invokes `canUseTool(toolName, input, context)`.
+2. The adapter looks up `toolName` in `tools`. Unmapped tools are denied (fail closed) with a message naming the tool.
+3. If `data` is declared, the input is projected into the resource shape and validated against the resource schema (boundary mode).
+4. `permdock.decide(permission, data)` runs.
+5. The outcome maps to the SDK's return value:
+
+| Decision outcome | `canUseTool` result |
+|---|---|
+| `granted` | allow, with the (possibly normalised) input |
+| `denied` | deny, with a message built from denials and alternatives |
+| `approval-required` | defer to the human path: the adapter returns the SDK's ask behaviour so the `PermissionRequest` hook fires |
+
+6. When the SDK asks for human confirmation, `permissionRequestHook` receives the request. The adapter attaches `Decision.token` and a summary (permission key, resource identity, reason) so the prompt shown to the human is specific. When the human answers, the hook re-runs `decide` and compares the token before allowing; a mismatch or an expired token denies.
+7. `on('decision')` fires for every step, including the human's answer, for audit and `permdock/otel`.
+
+## What it validates
+
+- Tool input against the permission's resource schema after `data` projection (`validate: 'boundary'`). For `Bash`, a `shell.run` resource can carry `command` so `where` conditions such as an allow-listed prefix are expressed as portable conditions, not regexes in the callback.
+- Subject provenance: the subject comes from the host process, never from the conversation or tool input.
+- Approval replays: token equality between the `approval-required` decision and the human's answer.
+- Coverage in development: a warning lists SDK tools enabled for the session that are missing from `tools`, because those calls will be denied at runtime.
+
+## How denials surface
+
+- `denied` returns the SDK deny behaviour with a message such as `Denied: shell.run (command not allow-listed). You may: file.read, file.write.` The message is built from `Decision.denials` reasons and `alternatives` so the model can self-correct.
+- `approval-required` becomes a human prompt through the `PermissionRequest` hook rather than a silent deny; the prompt carries the permission key and the resource identity.
+- Errors thrown by a `data` resolver or by the policy are caught, logged through `on('decision')` and reported as a deny; the agent loop never receives an unhandled exception from the permission layer.
+- There is no pass-through or default-allow mode; the SDK's own permission modes remain in force on top of PermDock's answer.
+
+## Example app
+
+`apps/examples/claude-agent`: a CLI host that runs `query` with `Bash`, `Read`, `Write` and one MCP tool, two users (a reader whose `Bash` is denied, a maintainer whose `Bash` requires approval for `rm` commands), and tests that a tampered approval answer is refused and every decision is logged.
+
+## Related standards
+
+- [Approvals](/docs/security/approvals): `approval: 'human'`, replay-safe `token`.
+- [Delegation](/docs/security/delegation): the agent as `actor`, principal grants intersected with delegated authority.
+- [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse, least agency.
+- [MCP authorization](/docs/standards/mcp-authorization): for MCP tools reached through the Claude Agent SDK.
+
+## Open questions
+
+- The exact SDK return shapes for allow, deny and ask are tracked against the current Claude Agent SDK release; the adapter will pin a minimum SDK version.
+- Whether the adapter should support `updatedInput` rewriting (for example, forcing `cwd` for `Bash`) as a grant option, or leave rewriting to the host.
+- Whether a `shell.run` resource schema should ship as a helper for common built-in tools, or stay app-defined.
+- Whether `PermissionRequest` decisions should be persisted so an approval survives a restarted session (cf. `WorkflowAgent` durable suspend in the AI SDK adapter).

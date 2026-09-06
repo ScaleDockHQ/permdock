@@ -1,0 +1,176 @@
+---
+title: CASL v7 deep-dive
+description: Source study of @casl/ability 7.0.1, @casl/react 7.0.1 and @casl/prisma 2.0.2, and what PermDock adopts, adapts and avoids from the most mature in-process authorization library.
+---
+
+Source: read from the `master` branch of `stalniy/casl` in September 2026. Versions: `@casl/ability` 7.0.1 (2026-06-10), `@casl/react` 7.0.1, `@casl/prisma` 2.0.2. Source root: [packages/casl-ability/src](https://github.com/stalniy/casl/tree/master/packages/casl-ability/src). The docs site is a single-page app that cannot be fetched, so the Markdown sources in [docs-src/src/content/pages](https://github.com/stalniy/casl/tree/master/docs-src/src/content/pages) were read instead; they are built as "vnext" while the READMEs still link to `/v6/`, and the `advanced/ability-inheritance` page is literally `TODO`.
+
+CASL matters because it is the only in-process TypeScript library that compiles conditions to ORM `where` clauses and supports field-level rules. Its internals are the best available reference for a rule index and a portable condition AST. Its public API and typing strategy are the best available list of things not to repeat.
+
+## Core data model
+
+`RawRule` ([RawRule.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/RawRule.ts)) is plain JSON:
+
+```ts
+{ action: A | A[], subject?: S | S[], conditions?: C, fields?: string | string[], inverted?: boolean, reason?: string }
+```
+
+`Rule` ([Rule.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/Rule.ts)) wraps it with `priority`, `origin`, resolved `action` (aliases expanded once) and lazily compiled `_matchConditions` and `_matchField`, compiled on first `matchesConditions` or `matchesField`; reading `rule.ast` triggers compilation. The constructor validates: an empty `fields: []` throws; conditions without a `conditionsMatcher` throw.
+
+`RuleIndex` ([RuleIndex.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/RuleIndex.ts)) is a `Map` of subject type to a `Map` of action to a bucket of rules plus a `merged` flag. Rules are walked from last to first with `priority = length - i - 1`, so the last-defined rule has priority 0 and each bucket is already sorted high to low: "last rule wins" is simply "first match in the list".
+
+`possibleRulesFor(action, type)` merges four buckets with `mergePrioritized` (a merge sort on priority): the rules for the type and action, the type and `manage`, `all` and the action, `all` and `manage`. It then caches the merged, frozen array back into the index. `rulesFor` adds field filtering only when the index has per-field rules, using `filterWithLazyAllocation` so no new array is allocated when everything matches ([PR #1194](https://github.com/stalniy/casl/pull/1194)).
+
+Evaluation ([Ability.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/Ability.ts)):
+
+```ts
+relevantRuleFor(action, subject, field) {
+  const rules = this.rulesFor(action, this.detectSubjectType(subject), field);
+  for (const r of rules) if (r.matchesConditions(subject)) return r;   // first = highest priority
+  return null;
+}
+can = !!rule && !rule.inverted;   cannot = !can
+```
+
+A semantic worth knowing: when checking a subject type (a string or class) rather than an instance, a conditional `can` rule matches ("can I read some Post?") while a conditional `cannot` only matches if its conditions are semantically match-all. In v7 that means `{}` or `and([])`, which fixed [#684](https://github.com/stalniy/casl/issues/684) and [#1198](https://github.com/stalniy/casl/issues/1198). `_indexAndAnalyzeRules` inspects `typeof subject` across the rules and picks a detection strategy automatically: all classes means `object.constructor`; all strings means `__caslSubjectType__ || constructor.modelName || constructor.name`. Events use a hand-rolled linked list; `on()` returns an unsubscribe function and handlers are copied before emit so self-unsubscription is safe.
+
+## Conditions (ucast)
+
+The default matcher ([matchers/conditions.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/matchers/conditions.ts)) registers `$eq $ne $lt $lte $gt $gte $in $nin $all $size $regex $options $elemMatch $exists`. Logical `$and $or $nor $not` are deliberately excluded ("combine can and cannot instead", per the [conditions in depth](https://github.com/stalniy/casl/blob/master/docs-src/src/content/pages/guide/conditions-in-depth/en.md) guide); `buildMongoQueryMatcher` re-adds them. `createFactory(instructions, interpreters)` from `@ucast/mongo2js` is a parser, then an AST, then a JavaScript interpreter, with `Date` and `toJSON` (ObjectId) normalised before comparison.
+
+The AST in `@ucast/core` ([Condition.ts](https://github.com/stalniy/ucast/blob/master/packages/core/src/Condition.ts)):
+
+```ts
+class Condition { operator: string; value: unknown }
+class FieldCondition extends Condition { field: string }          // eq / in / gt ...
+class CompoundCondition extends Condition { value: Condition[] }  // and / or / not
+// { authorId: 1, status: { $in: ['a'] } }  →  and([ eq('authorId', 1), in('status', ['a']) ])
+```
+
+`buildAnd` and `buildOr` flatten nested same-operator nodes and collapse single children.
+
+`rulesToCondition` ([extra/rulesToCondition.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/extra/rulesToCondition.ts), new in v7, replaces `rulesToQuery`) turns the sequential switch-case semantics of rule evaluation into boolean algebra. Walk from high to low priority; each conditional `cannot` is pushed onto a list of higher cannots; each conditional `can` becomes `and([can, ...higherCannots])` inside an `or` list; an unconditional `cannot` stops the walk; an unconditional `can` stops the walk and contributes `and(higherCannots)` or an empty condition. The result is `null` when nothing is allowed. This fixed the long-standing priority bug in [#1010](https://github.com/stalniy/casl/issues/1010) via [PR #1193](https://github.com/stalniy/casl/pull/1193): for years the runtime check and the database query could disagree. `rulesToAST` does the same with `buildAnd` and `buildOr` and a `not` wrapper for inverted rules; adapters such as Prisma supply their own `AND`, `OR` and `NOT` hooks.
+
+## Field-level permissions
+
+`fieldPatternMatcher` ([matchers/field.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/matchers/field.ts)): `*` matches any characters except `.`, `**` matches anything; the regex is compiled lazily and a plain `indexOf` is used when there are no wildcards. `matchesField(undefined)` on a field-scoped rule returns `!inverted`, so `can('update', post)` is true if any field is allowed and field-scoped cannots are skipped.
+
+`permittedFieldsOf(ability, action, subject, { fieldsFrom })` ([extra/permittedFieldsOf.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/extra/permittedFieldsOf.ts)) iterates from low to high priority toggling a `Set`: add for `can`, delete for `cannot`. `AccessibleFields` wraps it for the Mongoose-style `accessibleFieldsBy(ability, 'update').ofType('Post')` and `.of(doc)`.
+
+Pitfalls: CASL does not know the schema, so `fieldsFrom: rule => rule.fields || ALL_FIELDS` is mandatory; wildcard patterns are returned verbatim (`'address.*'`) and need a custom pick ([restricting fields](https://github.com/stalniy/casl/blob/master/docs-src/src/content/pages/guide/restricting-fields/en.md)); type-versus-instance checks differ, so `permittedFieldsOf(ability, 'update', 'Article')` returns fields even when a given instance would yield none.
+
+## Subject type detection and TypeScript
+
+`subject('Post', dto)` defines a non-enumerable `__caslSubjectType__` on the user's own object and throws if the object is re-tagged with a different type ([utils.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/utils.ts)). Default detection falls back to `constructor.modelName || constructor.name`, which breaks under minification, hence the advice to add `static modelName`.
+
+Types ([types.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/types.ts)):
+
+```ts
+type AppAbility = MongoAbility<[Actions, Subjects], MongoQuery>;   // AbilityTuple = [string, Subject]
+type Subjects = InferSubjects<typeof Post | typeof User, true> | 'all';
+interface ForcedSubject<T> { readonly __caslSubjectType__: T }
+type TaggedInterface<T> = ForcedSubject<T> | { kind: T } | { __typename: T };
+```
+
+Per-subject condition typing (`ConditionsOf`) is done with a homemade higher-kinded-type encoding (`hkt.ts`: `Container`, `GenericFactory`, `ProduceGeneric`) so that `MongoQuery<Post>` is produced from the subject passed to `can`. The awkward parts: `Subjects` must list both the type name and the instance type (`'Post' | Post`); the IDE suggests invalid action and subject pairs for per-subject tuples ([#900](https://github.com/stalniy/casl/issues/900), open); classes with protected constructors defeat `InferSubjects` ([#995](https://github.com/stalniy/casl/issues/995), open); nested conditions need a hand-written flattened type such as `User & { 'address.street': string }` ([TypeScript guide](https://github.com/stalniy/casl/blob/master/docs-src/src/content/pages/advanced/typescript/en.md)); `detectSubjectType: o => o.constructor` needs an `ExtractSubjectType` cast.
+
+## AbilityBuilder and options
+
+```ts
+const { can, cannot, rules, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
+can(['read', 'update'], 'Post', ['title', 'body'], { authorId: user.id });  // fields?, conditions?
+cannot('delete', 'Post', { published: true }).because('Published posts are immutable');
+const ability = build({
+  detectSubjectType, anyAction: 'manage', anySubjectType: 'all',
+  resolveAction: createAliasResolver({ modify: ['update', 'delete'] }),
+  conditionsMatcher, fieldMatcher,
+});
+```
+
+`_addRule` disambiguates the third positional argument by `typeof`: string or array means fields, object means conditions ([AbilityBuilder.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/AbilityBuilder.ts)). `defineAbility(cb, options)` supports async callbacks. `createMongoAbility` is `new Ability(rules, { conditionsMatcher: mongoQueryMatcher, fieldMatcher: fieldPatternMatcher })`; v7 renamed `PureAbility` to `Ability` and removed its defaults ([CHANGELOG 7.0.0](https://github.com/stalniy/casl/blob/master/packages/casl-ability/CHANGELOG.md)). Aliases are expanded at index time, one-directional, cycle-validated, and `manage` is reserved. `ability.update(rules)` re-indexes in place and emits `update` and `updated` with the rules and target. The docs contain a whole cookbook page on renaming `can` and `cannot` to `allow` and `forbid` because the define-versus-check overload confuses users ([less confusing can API](https://github.com/stalniy/casl/blob/master/docs-src/src/content/pages/cookbook/less-confusing-can-api/en.md)).
+
+## Serialisation
+
+`packRules` ([extra/packRules.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/extra/packRules.ts)) produces `[action, subject, conditions | 0, inverted ? 1 : 0, fields | 0, reason]` with arrays joined by commas and trailing falsy entries dropped; `packSubject` and `unpackSubject` handle class subjects. The docs say "about 2x smaller, format is not public". The typical SSR or JWT flow is server `defineRulesFor(user)`, JSON rules in a token or props, then client `createMongoAbility(unpackRules(rules))` or `ability.update(...)` ([cache rules](https://github.com/stalniy/casl/blob/master/docs-src/src/content/pages/cookbook/cache-rules/en.md)). In Next.js RSC the `Ability` class instance cannot cross the server-to-client boundary; raw rules must be passed to a `'use client'` provider ([#999](https://github.com/stalniy/casl/issues/999)).
+
+## ForbiddenError and "why denied"
+
+```ts
+ForbiddenError.from(ability).setMessage('...').throwUnlessCan('read', post, 'title');
+const err = ForbiddenError.from(ability).unlessCan('read', post);  // returns the error or undefined
+// err.action, err.subject, err.subjectType, err.field; message = setMessage || rule.reason || default
+ForbiddenError.setDefaultMessage(e => `Cannot ${e.action} ${e.subjectType}`);
+```
+
+([ForbiddenError.ts](https://github.com/stalniy/casl/blob/master/packages/casl-ability/src/ForbiddenError.ts).) Limits: `reason` only exists when an inverted rule matched; default-deny (no rule at all) yields no explanation; there is no report of which condition failed or which `can` rules were candidates; `relevantRuleFor` returns only the winning rule. The class also uses a hand-built `NativeError` prototype hack.
+
+## React
+
+[Can.ts](https://github.com/stalniy/casl/blob/master/packages/casl-react/src/Can.ts) and [useAbility.ts](https://github.com/stalniy/casl/blob/master/packages/casl-react/src/hooks/useAbility.ts). v7 exports only `AbilityProvider`, `useAbility` and `Can`; `createContextualCan` and `AbilityContext` are gone ([discussion #1017](https://github.com/stalniy/casl/discussions/1017)). `useAbility` uses `useSyncExternalStore` subscribed to `ability.on('updated')` with `ability.rules` as the snapshot, which is the right pattern. `Can` takes `I`, `this`, `field`, `not` and `passThrough` (aliases `do` / `on`, `I` / `a` / `an` / `this`) and its children may be a render prop receiving `isAllowed`, `reason` and `ability`; it is memoised on ability, rules, action, subject and field.
+
+Assessment: the English-sentence props are cute but produce a four-way union prop type with poor error messages; `this` as a prop name is odd; narrowing loses `ForcedSubject` ([#974](https://github.com/stalniy/casl/issues/974)); users must remember `ability.rules` in hook dependency arrays ([#756](https://github.com/stalniy/casl/issues/756)).
+
+## Prisma v2
+
+[accessibleBy.ts](https://github.com/stalniy/casl/blob/master/packages/casl-prisma/src/accessibleBy.ts): `accessibleBy(ability, action = 'read').ofType('Post')` (the v1 `accessibleBy(ability).Post` proxy is gone) runs `rulesToCondition` with `AND` and `OR` hooks and wraps inverted rules in `NOT`; a `null` result becomes `{ OR: [] }`. Fail-closed: v2 no longer throws `ForbiddenError` ([PR #1196](https://github.com/stalniy/casl/pull/1196), context in [#794](https://github.com/stalniy/casl/issues/794) and [#404](https://github.com/stalniy/casl/issues/404)); instead `createCaslExtension()` ([createCaslExtension.ts](https://github.com/stalniy/casl/blob/master/packages/casl-prisma/src/createCaslExtension.ts)) rewrites any `where` containing an empty `OR` into `{ ...where, OR: [], AND: [where] }` so every operation returns no records, working around [prisma#17367](https://github.com/prisma/prisma/issues/17367). Without the extension Prisma rejects the query.
+
+Conditions are Prisma `WhereInput` parsed by a ucast `PrismaQueryParser` ([PrismaQueryParser.ts](https://github.com/stalniy/casl/blob/master/packages/casl-prisma/src/prisma/PrismaQueryParser.ts)): `equals not in notIn lt lte gt gte mode startsWith endsWith contains isEmpty has hasSome hasEvery NOT AND OR every some none is isNot isSet`; relations become a `FieldCondition` whose value is a nested condition, and the JavaScript interpreter evaluates them on loaded relation data (`every` is vacuously true, [PR #1180](https://github.com/stalniy/casl/pull/1180)). Prisma 7's custom-output generator is handled by a `@casl/prisma/runtime` entry that avoids importing `@prisma/client`; you write a small wrapper with `PrismaQueryOf` and `WhereInputOf` ([README](https://github.com/stalniy/casl/blob/master/packages/casl-prisma/README.md)). Prisma DTOs still need `subject('Post', row)` ([#783](https://github.com/stalniy/casl/issues/783), open).
+
+## Pain points from the tracker
+
+1. [#900](https://github.com/stalniy/casl/issues/900) (open): wrong subject suggestions for per-subject action tuples.
+2. [#995](https://github.com/stalniy/casl/issues/995) (open): `InferSubjects` fails on protected constructors.
+3. [#1064](https://github.com/stalniy/casl/issues/1064) and [discussion #1066](https://github.com/stalniy/casl/discussions/1066): `constructor.name` detection clashes with NestJS DTOs and isomorphic use.
+4. [#333](https://github.com/stalniy/casl/issues/333) (31 comments): conditions were untyped; led to the HKT machinery.
+5. [#999](https://github.com/stalniy/casl/issues/999): Next.js 15, an `Ability` instance cannot be passed from RSC to client.
+6. [#858](https://github.com/stalniy/casl/issues/858): hydration mismatch with `Can` (closed unfixed).
+7. [#1010](https://github.com/stalniy/casl/issues/1010) fixed by [PR #1193](https://github.com/stalniy/casl/pull/1193): `rulesToQuery` ignored rule priority.
+8. [#684](https://github.com/stalniy/casl/issues/684) and [#1198](https://github.com/stalniy/casl/issues/1198): empty conditions versus `null` behaved differently.
+9. [#794](https://github.com/stalniy/casl/issues/794), [#404](https://github.com/stalniy/casl/issues/404): "forbidden versus not found" ambiguity in `accessibleBy`.
+10. [#1044](https://github.com/stalniy/casl/issues/1044), [#430](https://github.com/stalniy/casl/issues/430): subject detection surprises (mangling, class instance plus conditions).
+11. [#427](https://github.com/stalniy/casl/issues/427), [#621](https://github.com/stalniy/casl/issues/621), [#1231](https://github.com/stalniy/casl/issues/1231): ESM/CJS and Prisma output-path packaging breakages.
+12. [Discussion #1078](https://github.com/stalniy/casl/discussions/1078): no templating for `user.id` placeholders in database-stored rules; [#8](https://github.com/stalniy/casl/issues/8) (open since 2017, 68 comments): generic SQL support never landed.
+
+The last item is directly relevant: CASL rules hold concrete values (`authorId: user.id`), which is why they cannot be stored per role or compiled to RLS. PermDock conditions reference `subject.id` symbolically and bind values at evaluation or compile time ([conditions](/docs/concepts/conditions)).
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- Rules as plain JSON (`action, resource, conditions, fields, inverted, reason`) wrapped by a `Rule` that keeps `origin` and `priority` and compiles matchers lazily.
+- A priority-sorted index per resource and action with pre-merged, frozen, cached buckets and wildcard buckets; "last rule wins".
+- Parser, then a portable AST (`FieldCondition` / `CompoundCondition`), then interpreters: one AST feeds the in-memory check, the Prisma, Drizzle and Mongo `where` builders, and serialisation.
+- The v7 `rulesToCondition` flattening (each allow ANDed with all higher-priority denies), its `null` short-circuit, and the fail-closed empty-`OR` plus client-extension pattern.
+- `reason` on rules, a non-throwing `unlessCan`-style API, `useSyncExternalStore` subscription, render-prop children with `isAllowed` and `reason` plus `passThrough`.
+- `*` and `**` field patterns with lazy regex compilation; lazy-allocation filtering.
+
+Adapt:
+
+- Drop subject detection entirely. `can(permissions.post.update, post)` already knows the resource; validate the instance with the resource's Standard Schema at trust boundaries instead of tagging objects.
+- Derive condition and field types from the schema's inferred output (typed dot paths) instead of HKT tricks and hand-written flattened types.
+- Make `permittedFieldsOf` schema-aware, no `fieldsFrom`, and expand wildcards against real keys.
+- Make the type-versus-instance distinction explicit: `actions` take an instance, `collection` actions do not, rather than overloading one method.
+- Prefer immutable snapshots that carry JSON over in-place `update()` with events, so RSC and SSR boundaries only ever carry data.
+- Resolve aliases and action groups at definition time in the resource, not via a one-directional `resolveAction`.
+- Return a structured denial (`role`, `reason`, matched grant, alternatives) rather than a message; `relevantRuleFor` alone cannot explain default-deny.
+- Ship a versioned, documented snapshot format rather than a "not public" packed format.
+
+Avoid:
+
+- `[Actions, Subjects]` string-tuple generics, `InferSubjects`, `ForcedSubject`, `TaggedInterface`, `subject()` mutation of user objects, and `constructor.name`: the source of most CASL TypeScript and DX issues.
+- The same name (`can`) for defining and checking; positional `can(action, subject, fieldsOrConditions, conditions)` overloads.
+- Letting conditions be any dialect (Mongo or Prisma `WhereInput`); pick one canonical portable dialect and compile to adapters.
+- Function conditions as a first-class path; if offered, brand them as non-portable.
+- Class instances as the unit of state across contexts and serialisation; custom `Error` prototype hacks.
+- Undocumented or unversioned public surfaces, docs pages left as `TODO`, v6 URLs for a v7 library.
+
+## Decisions informed
+
+- [ADR 0003: reference-based permissions](/docs/decisions/0003-reference-based-permissions)
+- [ADR 0004: actions vs collection](/docs/decisions/0004-actions-vs-collection)
+- [ADR 0005: naming convention](/docs/decisions/0005-naming-convention) (no `can` as a definer, no `ability`)
+- [ADR 0007: decide, not explain](/docs/decisions/0007-decide-not-explain)
+- [ADR 0008: plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key)
+- [ADR 0009: boundary validation](/docs/decisions/0009-boundary-validation)
+- [ADR 0010: policy as data, portable conditions](/docs/decisions/0010-policy-as-data-portable-conditions)
+- Pages shaped: [permissions](/docs/concepts/permissions), [policies](/docs/concepts/policies), [conditions](/docs/concepts/conditions), [decisions](/docs/concepts/decisions), [snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats), [react](/docs/adapters/react), [prisma](/docs/adapters/prisma), [drizzle](/docs/adapters/drizzle), [kysely](/docs/adapters/kysely).

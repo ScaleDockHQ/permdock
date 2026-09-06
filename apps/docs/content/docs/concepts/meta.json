@@ -1,0 +1,16 @@
+{
+  "title": "Concepts",
+  "defaultOpen": true,
+  "pages": [
+    "permissions",
+    "policies",
+    "conditions",
+    "subject",
+    "decisions",
+    "snapshots",
+    "validation",
+    "audit-and-observability",
+    "errors",
+    "wire-formats"
+  ]
+}

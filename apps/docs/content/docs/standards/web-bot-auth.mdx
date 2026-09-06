@@ -1,0 +1,95 @@
+---
+title: Web Bot Auth
+description: How Web Bot Auth (RFC 9421 HTTP Message Signatures with Signature-Agent discovery) gives PermDock's HTTP adapters a verified agent identity to fill the actor half of the subject.
+---
+
+Status: planned
+Phase: 4
+
+## What it is
+
+Web Bot Auth is an IETF effort, presented at [IETF 126](https://datatracker.ietf.org/meeting/126/materials/slides-126-webbotauth-http-message-signatures-for-automated-traffic-00), to let automated HTTP clients (crawlers, agents, bots) prove who they are cryptographically rather than by User-Agent string or IP range:
+
+- Requests carry **RFC 9421 HTTP Message Signatures**: the client signs selected components of the request (method, authority, path, selected headers) with a private key and sends the signature and its parameters in `Signature` and `Signature-Input` headers.
+- A **`Signature-Agent`** header names where the verifier can discover the signer's public keys, so an origin can verify a signature from an agent it has never seen before by fetching the agent's key directory.
+- The result is a verified, stable identity for the software making the request, independent of any user session it may also carry.
+
+## Why it matters for PermDock
+
+PermDock's subject has two halves: `principal` (the human or service whose grants apply) and `actor` (the agent making the call). In MCP the actor comes from the OAuth `clientId`; in the AI SDK from the runtime context; in A2A from the calling agent's card. Plain HTTP has had no equivalent: a request from an agent looks like a request from a browser. Web Bot Auth fills that gap. When an HTTP adapter verifies a Web Bot Auth signature, the signer's identity becomes `actor`, and policies can distinguish "the user did this" from "an agent did this for the user" without changing the application's authentication. See [subject](/docs/concepts/subject) and [delegation](/docs/security/delegation).
+
+Two things Web Bot Auth does not provide, and PermDock does not infer from it: the principal (that still comes from the session or bearer token) and delegated authority (that comes from scopes or `authorization_details`). A verified actor with no delegation is an actor with no authority.
+
+## How PermDock uses it
+
+```ts
+import { createPermDock } from 'permdock/hono'
+
+export const { permdock, protect } = createPermDock(policy, {
+  subject: (c) => c.get('user'),
+  webBotAuth: {
+    verify: true,                                  // verify RFC 9421 signatures when present
+    keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }), // key discovery policy
+    required: false,                               // unsigned requests are still allowed, with no actor
+  },
+})
+app.use(permdock())
+app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler)
+// A verified signature sets actor = { id: <signer key id>, kind: 'web-bot-auth' } on the request-scoped PermDock
+```
+
+Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
+
+- **Verification is optional and off by default** until Phase 4. When enabled, a request with `Signature-Input` is verified against keys discovered through `Signature-Agent`, subject to an allow-list of key directories.
+- **Invalid signature fails closed.** A request that claims a signature but fails verification is rejected before any permission check, with a Problem Details body of type `.../invalid-signature`. It is never downgraded to an anonymous actor.
+- **Verified signer becomes `actor`.** `actor.id` is the signer's key identifier and `actor.kind` is `'web-bot-auth'`. Policies may reference `subject.actor` in conditions (for example, denying `post.publish` when any actor is present), and `on('decision')` events include it for audit.
+- **Delegation still comes from the token.** If the same request carries a bearer token with scopes, those fill `delegation` exactly as they do for non-signed requests. If it carries none, the actor has no delegated authority and every check is denied, which is the intended outcome for an unknown bot.
+- **OpenAPI.** Routes that accept signed agent traffic can be marked so the [OpenAPI emitter](/docs/standards/openapi-3-2) documents the signature requirement as an `http` security scheme; the exact representation is an open question.
+
+### Request lifecycle
+
+1. An agent sends `DELETE /posts/p_42` with a bearer token for user u_123 and RFC 9421 `Signature` and `Signature-Input` headers, plus `Signature-Agent` pointing at its key directory.
+2. The adapter's `permdock()` middleware sees the signature, checks the `Signature-Agent` host against the allow-list, fetches (or reads from cache) the public key, and verifies the signed components.
+3. On success, the request-scoped `PermDock` is built with `principal` from the token, `actor` from the signer, and `delegation` from the token scopes.
+4. `protect(permissions.post.delete, ...)` loads the post and calls `decide`. A policy that denies `post.delete` for any `actor` (a "humans only" rule) yields `denied`; otherwise the normal grant and delegation intersection applies.
+5. The 403 body, if any, is a Problem Details document; the `on('decision')` event names the signer as `actor`.
+
+### Policy examples
+
+```ts
+const member = role('member', [
+  allow(permissions.post.read),
+  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  deny(permissions.post.publish, { where: { actor: { present: true } } }), // agents may draft, humans publish
+])
+```
+
+The `actor`-aware condition shape is illustrative; see the open questions on [subject](/docs/concepts/subject) for how `subject.actor` is exposed in portable conditions.
+
+## Mapping table
+
+| Web Bot Auth / RFC 9421 concept | PermDock concept |
+| --- | --- |
+| `Signature`, `Signature-Input` headers | Verified by the HTTP adapter when `webBotAuth.verify` is on |
+| `Signature-Agent` key discovery | `webBotAuth.keys` discovery policy with an allow-list of directories |
+| Signer key identifier | `actor.id` |
+| Signature scheme | `actor.kind: 'web-bot-auth'` |
+| Unsigned request | No `actor`; principal from the session as usual |
+| Failed verification | Rejected before authorization (fail closed) |
+| Verified agent without a token | `actor` set, `delegation` empty, every check denied |
+| Verified agent with a user token | Two-principal subject; decision = principal grants ∩ delegation |
+| `subject.actor` in a condition | Policy can distinguish agent-driven from human-driven calls |
+| Audit | `actor` included in `on('decision')` events and OTel attributes |
+
+## Sources
+
+- [Web Bot Auth: HTTP Message Signatures for automated traffic, IETF 126 slides](https://datatracker.ietf.org/meeting/126/materials/slides-126-webbotauth-http-message-signatures-for-automated-traffic-00).
+- RFC 9421 (HTTP Message Signatures), referenced by number.
+- Product plan, HTTP adapter section ("Optional Web Bot Auth verification (RFC 9421) fills `actor` for agent callers") and Phase 4 roadmap.
+
+## Open questions
+
+- The adapter option names (`webBotAuth`, `keys`, `required`) are illustrative; the shape will be fixed when Phase 4 starts and the draft has stabilised.
+- Whether PermDock should implement RFC 9421 verification itself or depend on a small verified library, given the zero-runtime-dependency rule for core (the HTTP adapters are not core, so a dependency is permitted but should be weighed).
+- How to represent the signature requirement in OpenAPI 3.2 output.
+- Whether a verified actor should be able to map to a *service principal* (an agent acting on its own behalf, with its own role) rather than always requiring a human principal; this is the same question raised in [OAuth for agent delegation](/docs/standards/oauth-agent-delegation).

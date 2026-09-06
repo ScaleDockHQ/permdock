@@ -1,0 +1,105 @@
+---
+title: Adapters
+description: One core, one Fetch-first server kernel, and thin typed adapters for UI frameworks, HTTP servers, RPC layers, agent runtimes, the decision plane, databases and auth providers.
+---
+
+Status: planned
+Phase: 1
+
+PermDock ships as one npm package (`permdock`) with subpath exports. Every subpath is a thin adapter over the same core: the typed permission definition, the policy, and the immutable, request-scoped `PermDock` instance created by `createPermDock`. Adapters never re-implement evaluation. They resolve the subject from the framework's request or session, build the instance once per request, and translate the resulting `Decision` into the framework's own vocabulary: an HTTP 403 Problem Details body, a Next.js `redirect()`, an MCP refusal, an AI SDK approval verdict, or a boolean for a router guard.
+
+## Why thin adapters over one core
+
+- One evaluation path. `can`, `decide`, `assert`, `filter`, `where`, `simulate` and `snapshot` live on the core instance; adapters only add framework glue. Fixes and semantics (deny overrides allow, fail-closed, boundary validation) apply everywhere at once.
+- One name everywhere. Every server and agent adapter exports `createPermDock`; the import path names the framework (`permdock/hono`, `permdock/next`), the identifier never does. See [naming](/docs/getting-started/naming).
+- A Fetch-first kernel. `permdock/server` speaks `Request` / `Response`. Hono, Express, Fastify, Elysia, Nest and Node adapters wrap the kernel with a few lines of typed glue instead of five separate implementations (the pattern permix reached only in a rejected PR; see [permix lessons](/docs/research/permix-lessons)).
+- Client entries are server-free. `permdock/react`, `permdock/react-native`, `permdock/vue`, `permdock/svelte`, `permdock/solid` and `permdock/webmcp` import only the definition and a snapshot. Policies and subject resolvers never enter a client bundle.
+- Size stays small. Each entry has its own bundle budget (`tests/bundle`); core targets roughly 3 kB gzip with zero runtime dependencies.
+
+## Adapter matrix
+
+Phases come from the [roadmap](/docs/roadmap). Everything is `planned` in Phase 0. Example apps live under `apps/examples/<name>`.
+
+| Adapter | Import path | What `createPermDock` (or the entry) returns | Example app | Phase | Related standards |
+|---|---|---|---|---|---|
+| [react](/docs/adapters/react) | `permdock/react` | Direct exports, no factory: `PermDockProvider`, `usePermDock`, `usePermission`, `Protected` | `apps/examples/react-vite` | 1 | [AuthZEN](/docs/standards/authzen), [Problem Details](/docs/standards/problem-details) |
+| [react-native](/docs/adapters/react-native) | `permdock/react-native` | Same exports as React plus a `storage` option for a persisted snapshot | `apps/examples/expo` | 2 | [AuthZEN](/docs/standards/authzen) |
+| [next](/docs/adapters/next) | `permdock/next` | `getPermDock`, `getPermission`, `PermDockProvider`, `permdockHandler` | `apps/examples/next` | 1 | [AuthZEN](/docs/standards/authzen), [Problem Details](/docs/standards/problem-details) |
+| [vue](/docs/adapters/vue) | `permdock/vue` | Plugin install plus `usePermDock` / `usePermission` composables and a `Protected` component (names open) | `apps/examples/vue` | 2 | [AuthZEN](/docs/standards/authzen) |
+| [svelte](/docs/adapters/svelte) | `permdock/svelte` | Context setter plus `permission` store and a `Protected` component (names open) | `apps/examples/svelte` | 2 | [AuthZEN](/docs/standards/authzen) |
+| [solid](/docs/adapters/solid) | `permdock/solid` | `PermDockProvider`, `usePermDock`, `usePermission` signal accessor, `Protected` (names open) | `apps/examples/solid` | 2 | [AuthZEN](/docs/standards/authzen) |
+| [server-kernel](/docs/adapters/server-kernel) | `permdock/server` | Fetch kernel: `permdock(request)`, `protect`, `problem`, `openapi` hook contract | — | 1 | [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2), [Web Bot Auth](/docs/standards/web-bot-auth) |
+| [hono](/docs/adapters/hono) | `permdock/hono` | `permdock` middleware and `protect` route guard | `apps/examples/hono` | 1 | [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2), [Web Bot Auth](/docs/standards/web-bot-auth) |
+| [express](/docs/adapters/express) | `permdock/express` | `permdock` middleware and `protect` middleware | `apps/examples/express` | 2 | [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2) |
+| [fastify](/docs/adapters/fastify) | `permdock/fastify` | `permdock` plugin (decorates `request.permdock`) and `protect` preHandler | `apps/examples/fastify` | 2 | [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2) |
+| [elysia](/docs/adapters/elysia) | `permdock/elysia` | `permdock` plugin (derives `permdock` into context) and `protect` hook | `apps/examples/elysia` | 2 | [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2) |
+| [nest](/docs/adapters/nest) | `permdock/nest` | `PermDockModule`, `PermDockGuard`, `Protect` decorator (names open) | `apps/examples/nest` | 2 | [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2) |
+| [node](/docs/adapters/node) | `permdock/node` | `permdock` and `protect` over `http.IncomingMessage` / `http.ServerResponse` | — | 2 | [Problem Details](/docs/standards/problem-details) |
+| [trpc](/docs/adapters/trpc) | `permdock/trpc` | `permdock` context helper and `protect` middleware; `trpc-to-openapi` `protect` hook | `apps/examples/trpc` | 2 | [OpenAPI 3.2](/docs/standards/openapi-3-2), [Problem Details](/docs/standards/problem-details) |
+| [orpc](/docs/adapters/orpc) | `permdock/orpc` | `permdock` middleware and `protect` middleware; `oo.spec` OpenAPI hook | `apps/examples/orpc` | 2 | [OpenAPI 3.2](/docs/standards/openapi-3-2), [Problem Details](/docs/standards/problem-details) |
+| [mcp](/docs/adapters/mcp) | `permdock/mcp` | `protectServer` | `apps/examples/mcp-server` | 2 | [MCP authorization](/docs/standards/mcp-authorization), [OAuth agent delegation](/docs/standards/oauth-agent-delegation) |
+| [ai-sdk](/docs/adapters/ai-sdk) | `permdock/ai-sdk` | `toolApproval`, `capabilityMiddleware`, `needsApproval` | `apps/examples/ai-sdk-agent` | 1 | [OAuth agent delegation](/docs/standards/oauth-agent-delegation) |
+| [claude-agent](/docs/adapters/claude-agent) | `permdock/claude-agent` | `canUseTool`, `permissionRequestHook` | `apps/examples/claude-agent` | 1 | [OAuth agent delegation](/docs/standards/oauth-agent-delegation) |
+| [webmcp](/docs/adapters/webmcp) | `permdock/webmcp` | `registerTools` (client entry, no factory) | `apps/examples/webmcp` | 2 | [WebMCP](/docs/standards/webmcp) |
+| [a2a](/docs/adapters/a2a) | `permdock/a2a` | `agentCard`, `extendedAgentCard` | `apps/examples/a2a-agent` | 2 | [A2A](/docs/standards/a2a) |
+| [authzen](/docs/adapters/authzen) | `permdock/authzen` | `handler` serving evaluation, evaluations, search and discovery | `apps/examples/authzen-pdp` | 2 | [AuthZEN](/docs/standards/authzen) |
+| [ssf](/docs/adapters/ssf) | `permdock/ssf` | `receiver` for CAEP Security Event Tokens | — | 3 | [Shared Signals and CAEP](/docs/standards/shared-signals-caep) |
+| [openapi](/docs/adapters/openapi) | `permdock/openapi` | Security emitter and document importer used by the HTTP and RPC hooks | — | 2 | [OpenAPI 3.2](/docs/standards/openapi-3-2) |
+| [otel](/docs/adapters/otel) | `permdock/otel` | `on('decision')` listener that emits one span per check | — | 2 | — |
+| [drizzle](/docs/adapters/drizzle) | `permdock/drizzle` | `toWhere` condition compiler | `apps/examples/drizzle` | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
+| [prisma](/docs/adapters/prisma) | `permdock/prisma` | `toWhere` condition compiler | `apps/examples/prisma` | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
+| [kysely](/docs/adapters/kysely) | `permdock/kysely` | `toWhere` condition compiler | — | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
+| [rls](/docs/adapters/rls) | `@permdock/cli` (`permdock rls`) | `generate`, `import`, `verify` | `apps/examples/supabase-rls` | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
+| [supabase](/docs/adapters/supabase) | `permdock/supabase` | Provider: JWT claims to subject, `authorize()` RBAC scaffold | `apps/examples/supabase-rls` | 3 | [Postgres RLS](/docs/standards/postgres-rls) |
+| [better-auth](/docs/adapters/better-auth) | `permdock/better-auth` | Provider: session and access-control roles to subject | `apps/examples/better-auth` | 4 | — |
+| [clerk](/docs/adapters/clerk) | `permdock/clerk` | Provider: Clerk session and organisation roles to subject | `apps/examples/clerk` | 4 | — |
+| [convex](/docs/adapters/convex) | `permdock/convex` | Provider: Convex identity to subject inside functions | `apps/examples/convex` | 4 | — |
+| [pdp](/docs/adapters/pdp) | `permdock/pdp` | AuthZEN PEP client that answers checks from a remote PDP | `apps/examples/authzen-pdp` | 4 | [AuthZEN](/docs/standards/authzen) |
+| [testing](/docs/adapters/testing) | `@permdock/testing` | Policy matrix tests, snapshot fixtures, RLS parity runner, `instant()` helpers | — | 1 | [Postgres RLS](/docs/standards/postgres-rls) |
+
+## The shared adapter contract
+
+Every adapter page documents the same eight sections (Purpose, API, Request lifecycle, What it validates, How denials surface, Example app, Related standards, Open questions). The behaviour below is common to all of them.
+
+### Request lifecycle
+
+1. Subject resolve. The adapter calls the `subject` option you passed to `createPermDock` with the framework's native handle (`c` in Hono, `req` in Express, `authInfo` in MCP, `cookies()` in Next.js). It may return `null` for anonymous callers. Agent adapters also fill `actor` and `delegation` from the runtime's auth info; the subject is never taken from a model-supplied argument.
+2. `createPermDock`. Exactly one immutable `PermDock` is built per request (or per RSC render, per tool call, per RPC procedure) and stored where the framework expects request state. Nothing is shared across requests; there is no global `setup()`.
+3. Check. Handlers call `can`, `decide`, `assert`, `filter` or `where` on the request-scoped instance, or let `protect(permission, loadData)` do it before the handler runs.
+4. Denial surface. The adapter turns a `denied` or `approval-required` `Decision` into the framework's response type and forwards the `on('decision')` event to audit. See [decisions](/docs/concepts/decisions).
+
+### What every adapter validates
+
+- Permission references are typed; adapters never accept a permission string from the outside. Strings only appear as `.key` and `.scope` on the wire.
+- Data that crossed a trust boundary (HTTP body, route params fed into `loadData`, MCP tool arguments, client `refresh` payloads on the decision endpoint) is validated against the resource's Standard Schema when the policy uses `validate: 'boundary'` (the default). Trusted server rows are not re-validated. See [validation](/docs/concepts/validation).
+- Snapshots and decision-endpoint requests are validated against the published wire schemas ([wire formats](/docs/concepts/wire-formats)) before they touch the evaluator.
+- Server-only entries (`permdock/next`, the HTTP adapters, providers) are marked so that importing them from a client component fails at build time instead of leaking a policy into the browser bundle.
+
+### How denials surface
+
+| Surface | `denied` | `approval-required` |
+|---|---|---|
+| HTTP and RPC | `403` with `application/problem+json`: `type`, `title`, `status`, `permission`, `denials`, `alternatives` | `403` with `type` ending in `/approval-required`, plus `token` |
+| Next.js server | `assert` runs layered handlers; the default handler calls `redirect()` or `notFound()` as configured | Same handler chain; the app decides where to send the user |
+| React and other UI | `usePermission` returns `allowed: false` with `status`; `Protected` renders `fallback` | `allowed: false`, `decision.outcome === 'approval-required'` exposed for a "request access" UI |
+| MCP | Tool result with `isError: true` and Decision reasons in `structuredContent`; missing scope becomes a `403 insufficient_scope` challenge | Elicitation request to the client |
+| AI SDK and Claude Agent SDK | `denied` with reason and alternatives | `user-approval` or `needsApproval`; the Claude hook returns an ask verdict |
+
+Denial bodies are written for models as well as humans: `denials[].reason` is a sentence, `alternatives` lists permitted permissions on the same resource. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
+
+### Naming rules
+
+- `createPermDock` is the factory in every server and agent adapter. UI adapters export hooks and components directly because the permission reference already carries the types.
+- Client hooks are `use*`; async server counterparts are `get*` (`usePermission` / `getPermission`).
+- The request-scoped instance is always reachable under the name `permdock` (`c.get('permdock')`, `req.permdock`, `ctx.permdock`).
+- No framework name in identifiers, no `dock`, no `ability`, no `$`-prefixed members.
+
+### Adapter contribution checklist
+
+An adapter is complete when all five artefacts exist and cross-reference each other (AGENTS.md carries the same list as "when you change X also update Y"):
+
+1. Docs page under `apps/docs/content/docs/adapters/<name>.mdx` with the eight standard sections and truthful `Status` / `Phase` lines, plus a row in the matrix above and an entry in `meta.json`.
+2. Skill reference: a short file under the shipped `wire-permdock` skill so an agent can wire the adapter without reading source.
+3. Example app under `apps/examples/<name>` that runs in CI and exercises deny, approval-required and the framework's OpenAPI or guard integration where applicable.
+4. Catalog: the adapter's public identifiers registered in the `permdock doctor` checks and, for HTTP adapters, the OpenAPI hook covered by `permdock openapi`.
+5. Tests: unit tests next to the entry, a `tests/types` case for the typed generics, a `tests/bundle` budget for the entry, and, where an example exists, an e2e run under `tests/e2e`.

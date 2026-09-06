@@ -1,0 +1,113 @@
+---
+title: OpenID AuthZEN
+description: How PermDock speaks the OpenID AuthZEN Authorization API 1.0 as a policy decision point (permdock/authzen) and as a policy enforcement point (the pdp provider).
+---
+
+Status: planned
+Phase: 1
+
+Phase 1 ships the AuthZEN-shaped decision endpoint and batched client used by the React adapter. Phase 2 ships the full `permdock/authzen` endpoint set and a certification run; Phase 4 ships the `pdp` provider.
+
+## What it is
+
+The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) went final in January 2026. It standardises the request and response between a policy enforcement point (PEP, the thing asking) and a policy decision point (PDP, the thing answering):
+
+- `POST /access/v1/evaluation`: one decision for a `subject`, `action`, `resource` and optional `context`.
+- `POST /access/v1/evaluations`: a batched, "boxcar" request evaluating many subject/action/resource tuples in one round trip.
+- `POST /access/v1/search/subject`, `/search/resource`, `/search/action`: given two of the three, list the third (who can do this, which resources can this subject act on, what can this subject do on this resource).
+- A `.well-known` PDP metadata document for discovery.
+- A [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels.
+
+Keycloak and the NLgov profile implement it, and PDP vendors including Cerbos, Topaz, Axiomatics and PlainID participate in the interop work.
+
+## Why it matters for PermDock
+
+PermDock needs a decision endpoint anyway: the React client asks the server for grants backed by closures, the `pdp` provider defers to a remote PDP, and `simulate()` batch-evaluates an agent's plan. Inventing a wire format for that (as Kilpi's endpoint plugin did) means every other tool has to learn it. Speaking AuthZEN means:
+
+- Cerbos, Topaz, Keycloak or any certified PDP can call PermDock, and PermDock can call them, without translation.
+- The catalog question "what can this user do on this resource" is AuthZEN action search; `filter` and `where` are resource search; `simulate` is a boxcar `evaluations` request.
+- Certification is a concrete, external proof of correctness that no TypeScript permissions library has today.
+
+See [ADR 0011](/docs/decisions/0011-authzen-wire-format) and [wire formats](/docs/concepts/wire-formats).
+
+## How PermDock uses it
+
+### PermDock as a PDP
+
+```ts
+import { createPermDock } from 'permdock/authzen'
+export const { handler } = createPermDock(policy, { subject: fromBearer })
+// Serves /access/v1/evaluation, /evaluations, /search/action, /search/resource, /search/subject,
+// and .well-known/authzen-configuration.
+```
+
+The Next.js `permdockHandler()` and the React `endpoint` use the same request and response schemas, so the client decision endpoint is an AuthZEN PDP with a restricted policy: it only answers for the authenticated caller's own subject. The endpoint must sit behind the application's real authentication; see the [threat model](/docs/security/threat-model) on why a shared public secret is not enough.
+
+### PermDock as a PEP
+
+The [`pdp` provider](/docs/adapters/pdp) turns a remote AuthZEN PDP into a grant source: a role's grants can be resolved by calling `/access/v1/evaluation` (or `/evaluations` for `simulate`), and the response is folded into the same `Decision` union as local grants. `deny` still overrides `allow`, and a network failure is a denial, never a grant.
+
+### Request and response
+
+An evaluation request for `permdock.decide(permissions.post.update, post)`:
+
+```json
+{
+  "subject": { "type": "user", "id": "u_123", "properties": { "orgId": "org_9", "roles": ["member"], "actor": { "type": "mcp-client", "id": "https://agent.example/cimd.json" } } },
+  "action": { "name": "post.update" },
+  "resource": { "type": "post", "id": "p_42", "properties": { "authorId": "u_123", "orgId": "org_9", "published": false } },
+  "context": { "delegation": { "scopes": ["post:update"] } }
+}
+```
+
+The response carries the boolean AuthZEN decision plus PermDock's `Decision` in `context` so PEPs that understand it get reasons, alternatives and the approval token:
+
+```json
+{
+  "decision": true,
+  "context": {
+    "outcome": "granted",
+    "matched": { "role": "member", "permission": "post.update" },
+    "token": "sha256:..."
+  }
+}
+```
+
+A denial is `"decision": false` with `context.outcome` equal to `denied` and `context.denials` listing role and reason; an `approval-required` outcome is also `"decision": false` so AuthZEN-only PEPs fail closed, with `context.outcome` equal to `approval-required` and the `token` for the approval flow.
+
+The boxcar form wraps many `{ action, resource }` pairs under one `subject` and is what `simulate()` sends; resource search maps to `filter` / `where`; action search maps to iterating `listPermissions(permissions)` for one resource and returning the granted keys.
+
+## Mapping table
+
+| AuthZEN 1.0 concept | PermDock concept |
+| --- | --- |
+| `subject.type`, `subject.id` | `principal` (`subject.id` in policy conditions) |
+| `subject.properties` | Principal fields returned by `definePolicy`'s `subject` function, plus `actor` |
+| `action.name` | `permission.key` (`post.update`); resolved with `findPermission` |
+| `resource.type` | Resource node name (`post`) |
+| `resource.id` | Value of the resource's `id` field |
+| `resource.properties` | The instance passed to `decide`; validated at the boundary |
+| `context` | `delegation` (scopes, `authorization_details`) and request context |
+| `decision: true` | `outcome: 'granted'` |
+| `decision: false` | `outcome: 'denied'` or `'approval-required'` (distinguished in `context.outcome`) |
+| Response `context` | Full `Decision`: `matched`, `denials`, `alternatives`, `token` |
+| `/access/v1/evaluations` (boxcar) | `permdock.simulate([...])` and the batched React client |
+| `/search/action` | Granted keys from `listPermissions` for one resource (the catalog question) |
+| `/search/resource` | `filter` for arrays, `where` for query compilers |
+| `/search/subject` | Iterating known subjects; Phase 2, see open questions |
+| `.well-known` metadata | `.well-known/authzen-configuration` served by `handler` |
+| Certification levels Basic / Batch / Search / Discovery | Phase 2 target for `permdock/authzen` |
+
+## Sources
+
+- [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html).
+- [AuthZEN certification programme](https://github.com/openid/authzen/issues/433).
+- [Landscape research](/docs/research/landscape) for the PDP vendor context and the Cerbos AuthZEN-with-MCP discussion.
+- [ADR 0011: AuthZEN as the wire format](/docs/decisions/0011-authzen-wire-format).
+
+## Open questions
+
+- How `/search/subject` is answered when PermDock has no subject store of its own; likely an adapter-supplied enumerator, or an explicit "not supported" in the metadata document until the Search certification level is attempted.
+- Whether the client decision endpoint should accept `subject` from the request body at all, or ignore it and always use the authenticated session (the safer default; see [threat model](/docs/security/threat-model)).
+- Which AuthZEN `context` keys to standardise for `actor` and `delegation` so other PDPs can read them; today they are PermDock-specific.
+- Whether `approval-required` should be a distinct AuthZEN-level signal in a future profile rather than a `false` with extra context.

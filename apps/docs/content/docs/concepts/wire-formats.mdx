@@ -1,0 +1,287 @@
+---
+title: Wire formats
+description: The JSON shapes PermDock reads and writes, permission leaves, conditions, snapshot v1, AuthZEN messages, the catalog, Decisions and Problem Details, with an example of each.
+---
+
+Everything PermDock puts on a wire, in a file or in a log is plain JSON with a documented shape. No superjson, no class instances, no private compact encodings. This page is the reference for those shapes; the concept pages explain the semantics. Field names marked provisional may still change before the core implementation lands and will be versioned when they do.
+
+## Permission leaf
+
+`JSON.stringify(permissions.post.update)`. The schema is not included; it lives on the resource node. See [permissions](/docs/concepts/permissions).
+
+```json
+{
+  "key": "post.update",
+  "scope": "post:update",
+  "resource": "post",
+  "action": "update",
+  "meta": { "title": "Edit post", "description": "Change title or body", "tags": ["editor"] }
+}
+```
+
+`key` is the identity. A leaf that comes back from `JSON.parse` resolves to the same grant as the original. Collection actions look identical; arity is a property of the resource definition, visible in the catalog as `"kind": "collection"`.
+
+## Condition
+
+The normalised form of `{ where: { authorId: subject.id, teamId: { in: subject.context.teamIds } } }`. See [conditions](/docs/concepts/conditions).
+
+```json
+{
+  "op": "and",
+  "conditions": [
+    { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } },
+    { "op": "in", "field": "teamId", "value": { "ref": "subject.context.teamIds" } }
+  ]
+}
+```
+
+| Node | Shape |
+| --- | --- |
+| Comparison | `{ "op": "eq" \| "ne" \| "gt" \| "gte" \| "lt" \| "lte" \| "contains", "field": string, "value": Value }` |
+| Membership | `{ "op": "in" \| "notIn", "field": string, "value": Value[] \| Ref }` |
+| Null test | `{ "op": "isNull", "field": string, "value": boolean }` |
+| Compound | `{ "op": "and" \| "or", "conditions": Condition[] }`, `{ "op": "not", "condition": Condition }` |
+| Reference | `{ "ref": "subject.<field>" }` or `{ "ref": "subject.context.<key>" }` |
+| Date | `{ "date": "2026-09-06T10:15:00Z" }` |
+| Opaque (imported) | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }` |
+
+Literals are JSON literals. Single-child compounds are collapsed and nested same-operator compounds are flattened when the grant is defined, so consumers see a canonical tree. Field names are provisional.
+
+## Snapshot v1
+
+Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots).
+
+```json
+{
+  "v": 1,
+  "issuedAt": "2026-09-06T10:15:00Z",
+  "subject": {
+    "principal": { "id": "u_1", "orgId": "o_1", "roles": ["member"] },
+    "delegation": { "scopes": ["post:read", "post:update"] },
+    "context": { "teamIds": ["t_1"] }
+  },
+  "roles": ["member"],
+  "grants": [
+    { "permission": "post.read", "effect": "allow", "role": "member" },
+    { "permission": "post.update", "effect": "allow", "role": "member",
+      "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
+    { "permission": "post.delete", "effect": "allow", "role": "member", "approval": "human",
+      "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
+    { "permission": "post.publish", "effect": "allow", "role": "member", "portable": false }
+  ],
+  "include": ["post"]
+}
+```
+
+A grant entry has `permission`, `effect` (`allow` or `deny`), `role`, optional `where`, `check`, `approval`, and `portable: false` when the server-side grant is a closure or opaque. Readers must reject a `v` they do not know.
+
+## Decision
+
+The return value of `decide`, and the payload inside AuthZEN `context` and Problem Details. See [decisions](/docs/concepts/decisions).
+
+```json
+{ "outcome": "granted", "matched": { "role": "member", "permission": "post.update" }, "token": "pd1.…",
+  "subject": { "principal": { "id": "u_1", "roles": ["member"] } } }
+```
+
+```json
+{ "outcome": "denied",
+  "denials": [{ "role": "member", "reason": "condition" }, { "role": null, "reason": "not-delegated" }],
+  "alternatives": ["post.read"] }
+```
+
+```json
+{ "outcome": "approval-required", "grant": { "role": "member", "permission": "post.delete" },
+  "reason": "human", "token": "pd1.…" }
+```
+
+In JSON, `alternatives` is an array of permission keys; in memory it is an array of leaves.
+
+## Decision event
+
+Emitted by `on('decision')`. See [audit and observability](/docs/concepts/audit-and-observability).
+
+```json
+{
+  "type": "decision",
+  "at": "2026-09-06T10:15:00Z",
+  "outcome": "denied",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": { "type": "post", "id": "42" },
+  "subject": {
+    "principal": { "id": "u_1", "roles": ["member"] },
+    "actor": { "id": "mcp-client-7", "kind": "mcp-client" },
+    "delegation": { "scopes": ["post:read", "post:update"] }
+  },
+  "denials": [{ "role": null, "reason": "not-delegated" }],
+  "alternatives": ["post.read", "post.update"],
+  "trusted": false,
+  "source": "adapter",
+  "adapter": "mcp"
+}
+```
+
+## AuthZEN
+
+The decision endpoint, `permdock/authzen` and the `pdp` provider speak the OpenID AuthZEN Authorization API 1.0 ([spec](https://openid.net/specs/authorization-api-1_0.html)). PermDock maps `principal` to `subject`, the permission leaf to `resource.type` plus `action.name`, and puts `actor`, `delegation` and the full `Decision` under `context`. See [AuthZEN](/docs/standards/authzen) and the [adapter](/docs/adapters/authzen).
+
+### Evaluation
+
+`POST /access/v1/evaluation`
+
+```json
+{
+  "subject": { "type": "user", "id": "u_1" },
+  "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1", "orgId": "o_1", "published": false } },
+  "action": { "name": "update" },
+  "context": { "actor": { "id": "mcp-client-7", "kind": "mcp-client" }, "delegation": { "scopes": ["post:update"] } }
+}
+```
+
+```json
+{
+  "decision": true,
+  "context": { "permdock": { "outcome": "granted", "matched": { "role": "member", "permission": "post.update" }, "token": "pd1.…" } }
+}
+```
+
+`resource.properties` is the instance and is treated as boundary data: validated against the resource schema before evaluation. The server derives `subject` from the caller's credentials and ignores a mismatching body `subject` unless the caller is a trusted PDP client.
+
+### Evaluations (boxcar)
+
+`POST /access/v1/evaluations`: the wire form of `simulate` and of the React provider's batched requests.
+
+```json
+{
+  "subject": { "type": "user", "id": "u_1" },
+  "evaluations": [
+    { "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1" } }, "action": { "name": "update" } },
+    { "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1" } }, "action": { "name": "delete" } },
+    { "resource": { "type": "post" }, "action": { "name": "create" } }
+  ]
+}
+```
+
+```json
+{
+  "evaluations": [
+    { "decision": true,  "context": { "permdock": { "outcome": "granted", "matched": { "role": "member", "permission": "post.update" } } } },
+    { "decision": false, "context": { "permdock": { "outcome": "approval-required", "reason": "human", "token": "pd1.…" } } },
+    { "decision": true,  "context": { "permdock": { "outcome": "granted", "matched": { "role": "member", "permission": "post.create" } } } }
+  ]
+}
+```
+
+`approval-required` is `decision: false` at the AuthZEN level, because the action must not proceed yet; the PermDock outcome in `context` tells a PermDock-aware client to start the approval flow.
+
+### Search
+
+`POST /access/v1/search/action` answers "what can this subject do to this resource" (the `alternatives` computation), `search/resource` answers "which posts may this subject read" (the portable `where` compiled and executed by your resolver, or the snapshot filter), `search/subject` answers "who may do this" when a subject directory is configured.
+
+```json
+{ "subject": { "type": "user", "id": "u_1" }, "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1" } } }
+```
+
+```json
+{ "results": [ { "name": "read" }, { "name": "update" } ], "page": { "next_token": "" } }
+```
+
+`GET /.well-known/authzen-configuration` lists the supported endpoints.
+
+## Catalog
+
+Output of `permdock collect` and `permdock catalog --format json`. The same list is available at runtime from `listPermissions(permissions)`; the catalog adds usage, the resource JSON Schema and grants-by-role. See [catalog](/docs/cli/catalog).
+
+```json
+{
+  "v": 1,
+  "generatedAt": "2026-09-06T10:15:00Z",
+  "resources": {
+    "post": {
+      "id": "id",
+      "schema": { "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+                  "properties": { "id": { "type": "string" }, "authorId": { "type": "string" }, "published": { "type": "boolean" } },
+                  "required": ["id", "authorId", "published"] }
+    }
+  },
+  "permissions": [
+    { "key": "post.update", "scope": "post:update", "resource": "post", "action": "update", "kind": "instance",
+      "meta": { "title": "Edit post" },
+      "usedIn": ["src/features/posts/edit-button.tsx:14", "src/app/posts/[id]/page.tsx:22"],
+      "grantedBy": ["member", "admin"] },
+    { "key": "post.create", "scope": "post:create", "resource": "post", "action": "create", "kind": "collection",
+      "usedIn": [], "grantedBy": ["member", "admin"] }
+  ]
+}
+```
+
+`schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file byte-for-byte with a fresh run.
+
+## Problem Details
+
+`application/problem+json` bodies from the HTTP adapters. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
+
+```json
+{
+  "type": "https://permdock.dev/problems/denied",
+  "title": "Permission denied",
+  "status": 403,
+  "detail": "post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.",
+  "instance": "/posts/42",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": { "type": "post", "id": "42" },
+  "denials": [{ "role": "member", "reason": "condition" }],
+  "alternatives": ["post.read", "post.update"]
+}
+```
+
+```json
+{
+  "type": "https://permdock.dev/problems/approval-required",
+  "title": "Approval required",
+  "status": 403,
+  "detail": "post.delete requires human approval (human). Token: pd1.…",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": { "type": "post", "id": "42" },
+  "reason": "human",
+  "token": "pd1.…"
+}
+```
+
+```json
+{
+  "type": "https://permdock.dev/problems/validation",
+  "title": "Invalid resource data",
+  "status": 400,
+  "detail": "post.update: invalid post data at authorId: Expected string, received number.",
+  "permission": "post.update",
+  "resource": { "type": "post" },
+  "issues": [{ "path": ["authorId"], "message": "Expected string, received number" }]
+}
+```
+
+The base URI in `type` is a placeholder until the docs domain is final.
+
+## RFC 9396 authorization_details
+
+What PermDock emits for a consent screen and verifies on a token for `permissions.post.update` on post 42. See [subject](/docs/concepts/subject).
+
+```json
+[{ "type": "post", "actions": ["update"], "identifier": "42" }]
+```
+
+## Versioning
+
+- `v` fields on the snapshot and catalog follow the format, not the package version. A breaking change to a shape bumps `v`; readers reject unknown majors.
+- Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning.
+- AuthZEN messages follow the 1.0 spec; PermDock-specific data lives only under `context.permdock`.
+
+## Open questions
+
+- Condition field names (`op`, `field`, `value`, `ref`, `date`) and snapshot grant field names (`effect`, `portable`).
+- Whether the catalog should embed resource JSON Schemas or reference a separate `resources.schema.json`.
+- How much of the `Decision` to expose in AuthZEN `context` to non-PermDock PEPs, and whether `alternatives` should be answered only through `search/action`.
+- The Problem Details base URI.

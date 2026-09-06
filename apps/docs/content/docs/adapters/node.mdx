@@ -1,0 +1,80 @@
+---
+title: Node http
+description: permdock/node wraps the Fetch kernel for raw node:http handlers (IncomingMessage and ServerResponse) and for any framework not covered by a dedicated adapter.
+---
+
+Status: planned
+Phase: 2
+
+## Purpose
+
+Some services run on `node:http` directly, on a framework without a PermDock adapter (Koa, Polka, h3), or on a custom server. `permdock/node` converts `IncomingMessage` / `ServerResponse` to the Fetch `Request` / `Response` pair the [server kernel](/docs/adapters/server-kernel) expects, and exposes the kernel's `permdock`, `protect` and `problem` in a callback shape. It is also the conversion layer the [Express](/docs/adapters/express) and [Nest](/docs/adapters/nest) adapters reuse. Runtimes that already expose Fetch handlers (Bun, Deno, Workers, `srvx`) should use `permdock/server` directly.
+
+## API
+
+```ts
+import { createServer } from 'node:http'
+import { createPermDock } from 'permdock/node'
+import { policy } from './policy'
+import { permissions } from './permissions'
+
+const { permdock, protect, send } = createPermDock(policy, { subject: (req) => userFromCookie(req.headers.cookie) })
+
+createServer(async (req, res) => {
+  const instance = await permdock(req)                                 // request-scoped PermDock, memoised per req
+
+  if (req.method === 'DELETE' && req.url?.startsWith('/posts/')) {
+    const guard = await protect(permissions.post.delete, () => loadPost(idFrom(req.url)))(req)
+    if (!guard.ok) return send(res, guard.response)                    // 403 application/problem+json
+    await deletePost(guard.data)
+    res.statusCode = 204
+    return res.end()
+  }
+
+  res.statusCode = 200
+  res.end(JSON.stringify(instance.filter(permissions.post.read, await listPosts())))
+}).listen(3000)
+```
+
+| Export | Role |
+|---|---|
+| `permdock(req)` | Converts the request once (headers, method, URL; body is streamed lazily), resolves the subject, builds the instance, memoises it in a `WeakMap` keyed by `req`. |
+| `protect(permission, loadData?)` | Returns `(req) => Promise<Guard>`; same result shape as the kernel (`ok`, `permdock`, `decision`, `data` or `response`). |
+| `send(res, response)` | Writes a Fetch `Response` to a `ServerResponse` (status, headers, body). Used for Problem Details and for the decision endpoint. |
+| `permdockHandler()` | `(req, res) => Promise<void>` implementing the AuthZEN-shaped decision endpoint for mounting under any path. |
+| `toRequest(req)` / `fromResponse(res, response)` | Exported converters so other adapters and custom frameworks can reuse them. |
+
+## Request lifecycle
+
+1. `permdock(req)` converts and resolves the subject once; subsequent calls with the same `req` return the same instance.
+2. `protect` loads data, validates untrusted input, decides, and hands back either the instance and data or a ready `Response`.
+3. The handler writes its own response or forwards the kernel's through `send`.
+4. Decisions are emitted through `on('decision')` with method and URL path.
+
+The conversion is intentionally lazy. Headers, method and URL are copied when `permdock(req)` is first called; the body is exposed as a stream on the Fetch `Request` and only read when a loader or the decision endpoint consumes it, so a plain `GET` costs no buffering. Because the kernel memoises on the original `req`, frameworks built on `node:http` (Koa's `ctx.req`, h3's `event.node.req`) can call `permdock(ctx.req)` from their own middleware and get the same instance in every layer of the request.
+
+## What it validates
+
+- Untrusted loader results and JSON bodies against the resource schema under `validate: 'boundary'`. Body parsing is only performed when a loader or the decision endpoint asks for it, with a configurable size limit.
+- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
+- The `Host` header (or a configured `origin`) when constructing the Fetch `Request` URL, so a missing header does not throw.
+
+## How denials surface
+
+`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation failures; `401` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+
+## Example app
+
+— (no dedicated example). The adapter is covered by unit tests using `node:http` on an ephemeral port and by the Express example, which builds on the same converters.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details).
+- [Web Bot Auth](/docs/standards/web-bot-auth): signature verification works on the converted `Request` when enabled in the kernel.
+
+## Open questions
+
+- Whether `send` should also handle streaming bodies from the kernel or only buffered Problem Details bodies.
+- Whether to ship a tiny router helper for the example-free case or keep the entry strictly to conversion and guards.
+- Support for `http2` `Http2ServerRequest`, which has a compatible but not identical shape.
+- Whether Koa and h3 deserve thin named entries (`permdock/koa`, `permdock/h3`) once this converter exists, or whether documenting the `permdock(ctx.req)` recipe here is enough.

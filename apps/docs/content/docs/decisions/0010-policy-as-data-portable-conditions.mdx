@@ -1,0 +1,49 @@
+---
+title: "0010: Policy as data with portable conditions"
+description: Why roles are arrays of allow and deny grants whose conditions are a JSON AST, why closures are branded non-portable, and why one JSON format serves snapshots, catalogs and RLS.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+A permission check needs to happen in five places with one answer: in the browser (boolean for a button), in an array filter, in an ORM `where` clause, in a Postgres RLS policy, and in an audit log. Libraries that express rules as closures (permix, Kilpi) can only do the first two, and permix's own docs note that function rules cannot be hydrated to the client. CASL solved this in 2018 with MongoDB-style condition objects compiled by `@ucast` to Prisma and Mongoose; ZenStack compiles a DSL to SQL; `typed-policy` compiles one AST to Drizzle. Nobody offers one condition format across UI boolean, ORM `where` and RLS, and nobody exposes the policy itself as inspectable data for agents.
+
+The RLS research showed that a small condition subset round-trips cleanly to and from Postgres: equality against the subject, membership, literal columns, `and` / `or` / `not`. Everything richer is opaque SQL.
+
+## Decision
+
+- A **role is data**: `role('member', [allow(...), deny(...)])`, an array of grants. Roles compose by concatenation and merge by name across feature files.
+- A **grant** is `allow(permission, options?)` or `deny(permission, options?)`. Options: `where` (current row, RLS `USING`), `check` (next row, RLS `WITH CHECK`), `approval`, `limit`, `reason`.
+- **Conditions are a portable JSON AST.** Operators: `eq`, `ne`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `isNull`, `contains`, `and`, `or`, `not`. Operands are row fields typed from the resource schema, literals, and `subject.<field>` or `subject.context.<key>` references. Dates are tagged ISO strings; there is no `superjson`.
+- **Closures are allowed but branded non-portable**: `allow(permissions.post.publish, (post, ctx) => ...)`. They run server-side only, appear in snapshots as `{ portable: false }`, are answered by the decision endpoint on the client, and are rejected by `permdock rls generate` with a named error.
+- **One format everywhere**: the same condition JSON appears in `snapshot()`, in the catalog, in the AuthZEN `context`, and as the input of `toDrizzle` / `toPrisma` / `toSQL` and the RLS generator.
+- Semantics: deny overrides allow; allows OR together; nothing granted is denied; each allow is ANDed with all applicable denies when compiling to a single `where` (CASL v7's `rulesToCondition` flattening); an empty result compiles to a fail-closed false condition.
+
+## Consequences
+
+- `usePermission(permissions.post.update, post)` answers ownership offline from the snapshot with no client-side rule duplication.
+- `permdock.where()` feeds Drizzle, Prisma and Kysely; `permdock rls generate` emits policies; `permdock rls import` produces the same AST from `pg_policies`.
+- Policies can be diffed, reviewed, catalogued and audited by tools and agents; `permdock usage` can report granted-by-no-role.
+- Authors lose expressiveness in the portable path and must consciously opt into a closure, which the type system marks as server-only.
+- The operator set is deliberately small; extending it is an RFC-lite change because every compiler must implement it.
+
+## Alternatives considered
+
+- **Closures as the primary condition path** (permix, Kilpi). Rejected: not serialisable, not compilable, invisible to audit.
+- **MongoDB query syntax** (CASL). Proven, but carries operators PermDock cannot compile to RLS and overlaps with Prisma's own filter syntax; a smaller, explicit AST is easier for agents to produce correctly.
+- **A policy DSL** (Cedar, Rego, ZModel, Polar). Rejected as a non-goal: a second language to learn and no TypeScript inference over resource fields.
+- **Multiple condition dialects per target.** Rejected; CASL's history shows one AST with several interpreters is the maintainable shape.
+
+## Related
+
+- [Policies](/docs/concepts/policies)
+- [Conditions](/docs/concepts/conditions)
+- [Snapshots](/docs/concepts/snapshots)
+- [Wire formats](/docs/concepts/wire-formats)
+- [RLS adapter](/docs/adapters/rls)
+- [Drizzle adapter](/docs/adapters/drizzle)
+- [CASL v7 deep-dive](/docs/research/casl-v7)
+- [Postgres RLS research](/docs/research/postgres-rls)

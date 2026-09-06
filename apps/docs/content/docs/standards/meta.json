@@ -1,0 +1,19 @@
+{
+  "title": "Standards",
+  "pages": [
+    "index",
+    "standard-schema",
+    "openapi-3-2",
+    "problem-details",
+    "postgres-rls",
+    "---Agents---",
+    "mcp-authorization",
+    "authzen",
+    "oauth-agent-delegation",
+    "shared-signals-caep",
+    "webmcp",
+    "a2a",
+    "web-bot-auth",
+    "agent-docs-standards"
+  ]
+}

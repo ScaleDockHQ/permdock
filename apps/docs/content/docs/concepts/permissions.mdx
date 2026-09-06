@@ -1,0 +1,166 @@
+---
+title: Permissions
+description: Permissions are typed references built from Standard Schema resources; each leaf is plain JSON identified by its key.
+---
+
+A permission in PermDock is a value, not a string. `permissions.post.update` is an object you can go to the definition of, rename safely, pass as a prop, log, and hand to `can`, `allow`, `usePermission` or `registerTool`. This page describes how the tree is built, what a leaf contains, and the invariants every adapter relies on.
+
+## Building the tree
+
+```ts
+import { definePermissions, resource } from 'permdock'
+import { z } from 'zod' // or valibot / arktype / effect — any Standard Schema
+
+const Post = z.object({ id: z.string(), authorId: z.string(), orgId: z.string(), published: z.boolean() })
+const Invoice = z.object({ id: z.string(), orgId: z.string(), amount: z.number() })
+
+export const permissions = definePermissions({
+  post: resource(Post, {
+    id: 'id',
+    actions: ['read', 'update', 'delete', 'publish'],
+    collection: ['create', 'list'],
+  }),
+  billing: {
+    invoice: resource(Invoice, { actions: ['read', 'pay'] }),
+    plan: resource({ collection: ['view', 'change'] }),
+  },
+})
+```
+
+`definePermissions` walks the object eagerly and materialises a frozen tree. There is no Proxy and no lazy path accumulation; every node exists at module load, which is what makes the tree serialisable and cheap to autocomplete.
+
+### resource()
+
+`resource(schema?, options)` describes one kind of thing:
+
+| Option | Type | Purpose |
+| --- | --- | --- |
+| `schema` (first argument) | any Standard Schema | Infers the instance type for `actions` and conditions; validates untrusted input at trust boundaries. Optional: `resource({ collection: [...] })` is schema-less. |
+| `id` | key of the schema output | Identity field used for client cache keys, `filter`, decision tokens and RLS row identity. Defaults to `'id'` when the schema has one. |
+| `actions` | array or record | Instance-level actions: `can(permissions.post.update, post)` requires a `Post`. |
+| `collection` | array or record | Type-level actions: `can(permissions.post.create)` takes no instance. |
+
+### actions versus collection
+
+The split is the answer to CASL's "can I read some Post versus this Post" ambiguity ([ADR 0004](/docs/decisions/0004-actions-vs-collection)). Arity is part of the type:
+
+```ts
+permdock.can(permissions.post.update, post) // ok
+permdock.can(permissions.post.update)       // type error: instance required
+permdock.can(permissions.post.create)       // ok
+permdock.can(permissions.post.create, post) // type error: collection action
+```
+
+An action name may appear in both lists when both readings are meaningful (`read` on an instance and `read` on the collection would be two different leaves: `post.read` and, for example, `post.list`). Prefer distinct names so `.key` values stay unambiguous.
+
+### Nested groups
+
+Groups nest arbitrarily: feature, then resource, then action is the common shape (`billing.invoice.pay`). A group is any plain object whose values are resources or further groups. Groups are the namespace mechanism for [larger apps](/docs/getting-started/larger-apps): a shared package owns one top-level group and the app merges it.
+
+### Metadata records
+
+`actions` and `collection` accept a record instead of an array when a leaf needs metadata for catalogs, docs, OpenAPI or MCP tool descriptions:
+
+```ts
+post: resource(Post, {
+  actions: {
+    read:   { title: 'Read post', readOnly: true },
+    update: { title: 'Edit post', description: 'Change title or body', tags: ['editor'] },
+    delete: { title: 'Delete post', tags: ['destructive'] },
+  },
+  collection: ['create', 'list'],
+})
+```
+
+Metadata is plain JSON and lands on the leaf as `meta`. The [WebMCP adapter](/docs/adapters/webmcp) reads `readOnly` for `readOnlyHint`; the [catalog](/docs/cli/catalog) prints `title` and `description`.
+
+## What a leaf contains
+
+```ts
+permissions.post.update
+// Permission<'post.update', Post>
+// {
+//   key: 'post.update',
+//   scope: 'post:update',
+//   resource: 'post',
+//   action: 'update',
+//   meta: { ... }
+// }
+```
+
+| Field | Example | Used by |
+| --- | --- | --- |
+| `key` | `'post.update'` | Grants, snapshots, cache keys, audit events, catalog, `findPermission` |
+| `scope` | `'billing:invoice:pay'` | OAuth scopes, MCP `scopeChallenge`, OpenAPI `securitySchemes`, RFC 9396 `authorization_details` |
+| `resource` | `'post'` | Lookup of the resource node (schema, `id` field), `alternatives` in denials |
+| `action` | `'update'` | RLS command mapping (`update` becomes `USING` plus `WITH CHECK`), tool descriptions |
+| `meta` | `{ title, description, tags, readOnly }` | Catalogs, docs, tool hints |
+
+The schema is not on the leaf. It lives on the resource node, reachable through the definition, so a leaf stays JSON-serialisable while `can(permissions.post.update, post)` still knows that `post` must be a `Post`.
+
+### Type-level view
+
+Two phantom type parameters ride along with each leaf: the key literal and the instance type.
+
+```ts
+type UpdatePost = typeof permissions.post.update // Permission<'post.update', Post>
+type CreatePost = typeof permissions.post.create // Permission<'post.create', never>: collection action
+
+function guard<K extends string, T>(permission: Permission<K, T>, data: T) { /* ... */ }
+```
+
+No template-literal unions are generated from the tree, which keeps TypeScript 7 checking fast and keeps error messages readable. Conditions and field lists are typed from the schema output (`StandardSchemaV1.InferOutput`), not from hand-written flat types.
+
+## Invariants
+
+These hold for every leaf and every adapter depends on them ([ADR 0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)).
+
+1. A leaf is plain, frozen, JSON-serialisable data. It can be passed as a prop across the RSC boundary, posted to the decision endpoint, stored in a queue message, or printed in a log.
+2. Identity is by `key`, never by object identity. Two bundle copies of the definition module, a leaf that came back from `JSON.parse`, and the leaf in the merged registry all resolve to the same grant. `mergePermissions` preserves object identity as a convenience, but nothing relies on it.
+3. An unknown reference is a type error. `allow(permissions.post.archive)` fails to compile; `findPermission(permissions, 'post.archive')` returns `undefined` at runtime.
+4. Leaves are prototype-safe. Keys such as `constructor` or `__proto__` are rejected by `definePermissions`, and lookups use own-property checks.
+5. The definition has no rules and no secrets, so it can be imported by client bundles, React Native, MCP servers, the CLI and tests.
+
+## Registry helpers
+
+Helpers are functions, not methods on the tree, so a resource named `list` or `find` never collides with them.
+
+```ts
+import { listPermissions, findPermission } from 'permdock'
+
+listPermissions(permissions)
+// [{ key: 'post.read', scope: 'post:read', resource: 'post', action: 'read', meta }, ...]
+
+findPermission(permissions, 'post.update')      // Permission | undefined
+findPermission(permissions, scopeFromJwt)       // strings from a DB, JWT scope or OpenAPI doc
+```
+
+`listPermissions` is the runtime catalog. `permdock collect` produces the same list at build time and adds usage information; the two agree by construction because both come from the definition. `findPermission` is the only place a string enters the system, and its result is typed as a union of all leaves so the next call is typed again.
+
+`mergePermissions` combines definitions from several files; see [larger apps](/docs/getting-started/larger-apps).
+
+## Serialised form
+
+```json
+{
+  "key": "post.update",
+  "scope": "post:update",
+  "resource": "post",
+  "action": "update",
+  "meta": { "title": "Edit post", "tags": ["editor"] }
+}
+```
+
+This is the exact object you get from `JSON.stringify(permissions.post.update)`. The [wire formats](/docs/concepts/wire-formats) page lists it next to conditions, snapshots and AuthZEN messages.
+
+## What permissions are not
+
+- Not rules. Who may do what lives in the [policy](/docs/concepts/policies).
+- Not classes. There is no subject detection, no `constructor.name`, no tagging of user objects.
+- Not strings in the public API. `can('post.update', post)` does not exist; `can(findPermission(permissions, key)!, post)` is the explicit escape hatch.
+
+## Open questions
+
+- Whether a leaf should carry an `authorizationDetails` example object in `meta` for consent screens or derive it entirely from `scope` and the resource `id`.
+- Field-level permissions: whether they are expressed as a `fields` option on grants (schema-aware, wildcards expanded against real keys) or as separate leaves.
+- A maximum nesting depth for groups (a cap of 10 was discussed) and whether the CLI should enforce it.

@@ -1,0 +1,93 @@
+---
+title: catalog
+description: Export the permission catalog as JSON, JSON Schema or Markdown, and the shape of the catalog document.
+---
+
+Status: planned
+Phase: 2
+
+`permdock catalog` turns the merged permission definition into documents that people, CI and agents read without running the app. It is the read-only sibling of [collect](/docs/cli/collect): `collect` scans source and writes `permissions.catalog.json`; `catalog` renders that catalog (or the runtime definition directly) in the requested format.
+
+## Usage
+
+```bash
+permdock catalog --format json     > permissions.catalog.json
+permdock catalog --format schema   > permissions.schema.json     # JSON Schema of the catalog document
+permdock catalog --format markdown > docs/permissions.md
+permdock catalog --from ./src/permissions.ts   # render straight from the definition module, skipping collect
+permdock catalog --include post --include billing.invoice        # scope to a subtree
+```
+
+## Where the data comes from
+
+Permission leaves are plain JSON and the definition is a runtime value ([0003](/docs/decisions/0003-reference-based-permissions), [0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)), so the catalog is produced by importing the definition module and walking `listPermissions(permissions)`. Resource schemas are exported through Standard JSON Schema (`~standard.jsonSchema.output(...)`) when the validator supports it (Zod, Valibot and ArkType do); resources whose validator does not implement Standard JSON Schema get `schema: null` and a warning.
+
+Usage sites and defining files are only present when the catalog was produced by `collect`, because they need the source scan.
+
+## Catalog JSON shape
+
+```json
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-09-06T10:00:00Z",
+  "generator": "@permdock/cli@0.2.0",
+  "resources": {
+    "post": {
+      "id": "id",
+      "schema": { "type": "object", "properties": { "id": { "type": "string" } } },
+      "definedIn": "features/posts/permissions.ts"
+    }
+  },
+  "permissions": [
+    {
+      "key": "post.update",
+      "scope": "post:update",
+      "resource": "post",
+      "action": "update",
+      "arity": "instance",
+      "meta": { "title": "Update post", "description": "Edit a post you own" },
+      "usages": [
+        { "file": "app/posts/[id]/page.tsx", "line": 42, "call": "assert" },
+        { "file": "features/posts/policy.ts", "line": 12, "call": "allow" }
+      ]
+    },
+    {
+      "key": "post.create",
+      "scope": "post:create",
+      "resource": "post",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    }
+  ]
+}
+```
+
+Notes on the shape:
+
+- `permissions` is a flat array sorted by `key`; nesting (`billing.invoice.pay`) is expressed in the dotted key, and `resource` holds the dotted resource path.
+- `arity` is `instance` or `collection` ([0004](/docs/decisions/0004-actions-vs-collection)).
+- `meta` is whatever the definition attached to the action (`title`, `description`, `tags`, or any JSON); it is what MCP tool descriptions and Markdown output use.
+- `schema` is a JSON Schema document; the `target` (`draft-2020-12`, `openapi-3.0`) is selectable with `--schema-target`.
+- The catalog never contains grants, roles or conditions. Those belong to the policy, which is server-only, and are reported by [usage](/docs/cli/usage) and rendered by `permdock rls`.
+- The `$schema` URL is the published JSON Schema of the catalog format, which is the same document `--format schema` emits, so agents can validate a catalog offline. The exact hostname is fixed when the docs site launches.
+
+## Markdown output
+
+`--format markdown` renders one section per resource with a table of actions, arity, scope and metadata, and (when present) usage counts. It is intended to be committed under `docs/` or pasted into a PR so reviewers can see the permission surface change without reading TypeScript.
+
+## Consumers
+
+- [openapi](/docs/cli/openapi) reads the catalog to emit `securitySchemes` scopes and `x-permdock-permissions`.
+- The MCP adapter uses `meta` for tool descriptions and `arity` to decide whether a `data` loader is required.
+- The docs MCP server and `llms.txt` expose the Markdown output so agents can ask "which permissions exist?".
+- `@permdock/testing` compares a policy matrix against the catalog to find permissions with no test.
+
+## Related
+
+- [collect](/docs/cli/collect)
+- [Wire formats](/docs/concepts/wire-formats)
+- [Standard Schema](/docs/standards/standard-schema)
+- [For AI agents](/docs/for-ai-agents)

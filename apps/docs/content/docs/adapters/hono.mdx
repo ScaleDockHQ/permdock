@@ -1,0 +1,100 @@
+---
+title: Hono
+description: permdock/hono wraps the Fetch kernel as a Hono middleware and a protect route guard, with OpenAPI 3.2 security emitted through hono-openapi or @hono/zod-openapi.
+---
+
+Status: planned
+Phase: 1
+
+## Purpose
+
+Hono is the first HTTP adapter because it already speaks Fetch, runs on Node, Bun, Deno and Workers, and is what the example backends for the React, Vue, Solid and Expo examples use. `permdock/hono` is a thin wrapper over the [server kernel](/docs/adapters/server-kernel): a middleware that puts the request-scoped `PermDock` on the context, a `protect` guard for routes, and hooks that emit OpenAPI 3.2 `security` for the two common OpenAPI integrations.
+
+## API
+
+```ts
+import { Hono } from 'hono'
+import { createPermDock } from 'permdock/hono'
+import { policy } from './policy'
+import { permissions } from './permissions'
+
+export const { permdock, protect } = createPermDock(policy, { subject: (c) => c.get('user') })
+
+const app = new Hono<Env>()
+app.use(permdock())                                      // c.get('permdock') is the request-scoped PermDock
+app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler)
+// deny → 403 application/problem+json { type, title, permission, denials, alternatives }; approval-required → 403 with type .../approval-required
+// OpenAPI 3.2 `security`, `securitySchemes` (incl. oauth2MetadataUrl, deviceAuthorization, deprecated) emitted via the framework hook; x-oai-* fallbacks for 3.1
+// Optional Web Bot Auth verification (RFC 9421) fills `actor` for agent callers
+```
+
+| Export | Role |
+|---|---|
+| `permdock()` | Middleware. Resolves the subject with the `subject` option (receives the Hono context `c`), builds the instance through the kernel and sets it as `c.set('permdock', instance)`. The `Variables` type is augmented per factory instance, so `c.get('permdock')` is typed without global module augmentation. |
+| `protect(permission, loadData?)` | Route middleware. For instance actions `loadData(c)` runs first; the result is available to the handler as `c.get('permdockData')` and validated at the boundary if the loader is marked untrusted. Denials short-circuit with a Problem Details response. |
+| `permdockHandler()` | Mounts the AuthZEN-shaped decision endpoint (`POST /`) for `permdock/react` clients on any sub-app: `app.route('/api/permdock', permdockHandler())`. |
+| `openapi` | Kernel hook contract, used by the two integrations below. |
+
+### OpenAPI hooks
+
+With `hono-openapi`:
+
+```ts
+import { describeRoute } from 'hono-openapi'
+app.delete('/posts/:id',
+  describeRoute({ ...openapi.security(permissions.post.delete), description: 'Delete a post' }),
+  protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))),
+  handler,
+)
+```
+
+With `@hono/zod-openapi`:
+
+```ts
+const route = createRoute({
+  method: 'delete', path: '/posts/{id}',
+  security: openapi.security(permissions.post.delete).security,
+  responses: { 403: openapi.problemResponse() },
+})
+```
+
+`openapi.securitySchemes()` returns the `oauth2` scheme with every `scope` from `listPermissions(permissions)`, plus `oauth2MetadataUrl` and `deviceAuthorization` when configured. Emitted documents target OpenAPI 3.2; for a 3.1 document the same values are written under `x-oai-*` extensions. `permdock openapi` in the CLI reads the same hook output to check that every protected route is documented.
+
+## Request lifecycle
+
+1. `app.use(permdock())` runs; `subject(c)` is called once per request (typically reading a user set by an auth middleware earlier in the chain) and the kernel builds the instance. Anonymous callers get an anonymous instance, not an error.
+2. `protect(...)` on a route loads data if needed, calls `decide`, and either continues (`c.get('permdock')`, `c.get('permdockData')`) or returns the 403.
+3. Handlers may call `c.get('permdock').assert(...)` for checks that need data only the handler has; `PermDockDeniedError` thrown there is caught by an `app.onError` helper the adapter installs and turned into the same Problem Details body.
+4. Every decision is emitted through `on('decision')` with method and route path for audit and [otel](/docs/adapters/otel).
+
+## What it validates
+
+- Request bodies and params passed to an untrusted `loadData` against the resource schema (`validate: 'boundary'`); `PermDockValidationError` becomes `400 application/problem+json` with `issues`.
+- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
+- Web Bot Auth signatures when the kernel option is enabled (Phase 4).
+- Middleware order: calling `protect` before `permdock()` throws at startup with a message naming both middlewares, instead of failing per request.
+
+## How denials surface
+
+- `denied`: `403` Problem Details with `permission`, `denials`, `alternatives`.
+- `approval-required`: `403` with `type` ending in `/approval-required` and a `token` the client can present after approval.
+- Validation failure: `400` with `issues`.
+- Anonymous subject on a permission that requires one: `401` when a `WWW-Authenticate` scheme is configured, otherwise `403`.
+
+## Example app
+
+`apps/examples/hono`: a posts API with an auth middleware stub, `permdock()` and `protect` on CRUD routes, `hono-openapi` documentation with emitted `securitySchemes`, the decision endpoint mounted at `/api/permdock` for the React, Vue, Solid and Expo examples, and Vitest tests using `app.request()` asserting the exact Problem Details bodies for deny, approval-required and validation failure.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details).
+- [OpenAPI 3.2](/docs/standards/openapi-3-2), [decision 0014](/docs/decisions/0014-openapi-3-2).
+- [Web Bot Auth](/docs/standards/web-bot-auth).
+- [AuthZEN](/docs/standards/authzen) for the decision endpoint.
+
+## Open questions
+
+- Whether the loaded resource should be exposed as `c.get('permdockData')` or passed into the handler through a typed wrapper (`protect(permission, load, (c, data) => ...)`), which avoids a second context key.
+- Default behaviour when `loadData` returns `null`: `404` versus `403` (kernel open question).
+- Whether to ship the `app.onError` helper as part of `permdock()` or require an explicit `app.onError(permdockError)`.
+- Support for Hono's `createMiddleware` typing so `permdock()` composes with user-defined `Env` without the factory generic.

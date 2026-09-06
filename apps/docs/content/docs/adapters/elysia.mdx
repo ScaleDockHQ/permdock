@@ -1,0 +1,85 @@
+---
+title: Elysia
+description: permdock/elysia derives a request-scoped PermDock into Elysia's context and provides protect as a typed beforeHandle hook that keeps validated route types.
+---
+
+Status: planned
+Phase: 2
+
+## Purpose
+
+Elysia is Fetch-native and Bun-first, so the [server kernel](/docs/adapters/server-kernel) runs unchanged. `permdock/elysia` is a plugin that uses `derive` to attach `permdock` to the context and a `protect` hook for `beforeHandle`. The adapter is typed against Elysia's inferred route context so `params` and `body` validated with TypeBox or Zod keep their types inside `loadData` (permix's Elysia guard was typed against the raw `Context`, breaking with validated routes).
+
+## API
+
+```ts
+import { Elysia } from 'elysia'
+import { createPermDock } from 'permdock/elysia'
+import { policy } from './policy'
+import { permissions } from './permissions'
+
+export const { permdock, protect } = createPermDock(policy, { subject: ({ store }) => store.user ?? null })
+
+const app = new Elysia()
+  .use(permdock())                                              // ctx.permdock is the request-scoped PermDock
+  .delete('/posts/:id', async ({ permdockData: post, set }) => {
+    await deletePost(post)
+    set.status = 204
+  }, {
+    beforeHandle: protect(permissions.post.delete, ({ params }) => loadPost(params.id)),
+    detail: openapi.security(permissions.post.delete),          // @elysiajs/openapi
+  })
+```
+
+| Export | Role |
+|---|---|
+| `permdock()` | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context. Uses `as('global')` scoping so routes registered after `.use` see it. |
+| `protect(permission, loadData?)` | `beforeHandle` hook. Loads data (`ctx.permdockData`), validates untrusted input, decides. On denial it returns a `Response` with Problem Details, which Elysia sends without running the handler. |
+| `permdockHandler()` | Plugin mounting the AuthZEN-shaped decision endpoint under a prefix. |
+| `openapi` | Kernel hook contract; `openapi.security(permission)` returns the `detail` fragment for `@elysiajs/openapi` and `openapi.securitySchemes()` the document-level components. |
+
+### Guarding a group
+
+Elysia's `guard` and `group` apply hooks to many routes at once. `protect` composes with them for collection actions, and instance actions still take a per-route loader:
+
+```ts
+app.group('/admin', (admin) =>
+  admin
+    .guard({ beforeHandle: protect(permissions.admin.access) })
+    .get('/audit', listAudit)
+    .delete('/users/:id', removeUser, { beforeHandle: protect(permissions.user.delete, ({ params }) => loadUser(params.id)) }),
+)
+```
+
+Because hooks run in registration order, the group-level `protect` decides first and the route-level one only runs for callers that already hold `admin.access`.
+
+## Request lifecycle
+
+1. `derive` resolves the subject and builds the instance once per request.
+2. `protect` runs before the handler; the loaded, validated resource is available as `permdockData`.
+3. Handlers call `permdock.assert(...)` for checks with handler-local data; PermDock errors are mapped by the plugin's `onError` to Problem Details.
+4. Decisions are emitted with method and route path through `on('decision')`.
+
+## What it validates
+
+- Untrusted `loadData` results and bodies against the resource schema under `validate: 'boundary'`; Elysia's own schema validation runs first.
+- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
+- Plugin presence: `protect` without `permdock()` fails at startup with a message naming both.
+
+## How denials surface
+
+`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation failures; `401` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+
+## Example app
+
+`apps/examples/elysia`: Bun runtime, posts API with the plugin and `protect`, `@elysiajs/openapi` emitting `securitySchemes`, the decision endpoint, and `bun test` cases using `app.handle(new Request(...))` asserting exact denial bodies.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2).
+
+## Open questions
+
+- Whether to use `derive` or `resolve` for subject resolution (`resolve` runs after validation, which matters when the subject comes from a validated header schema).
+- Whether `permdockData` should be added to the context by `protect` or the handler should call the loader again.
+- Elysia version floor and the Node adapter (`@elysiajs/node`) test matrix.

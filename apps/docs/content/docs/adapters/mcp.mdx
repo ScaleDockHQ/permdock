@@ -1,0 +1,107 @@
+---
+title: MCP
+description: permdock/mcp guards MCP tools with typed permissions, scope step-up challenges, per-caller tool lists, boundary-validated arguments and model-readable refusals.
+---
+
+Status: planned
+Phase: 2
+
+`permdock/mcp` wraps an MCP server built with the official TypeScript SDK v2 so that every tool declares the permission it needs. The adapter turns that declaration into an OAuth scope challenge, a filtered `list_tools` response, validated arguments and a structured refusal, so the model learns why a call was refused and what it may do instead.
+
+## Purpose
+
+MCP servers are OAuth 2.1 resource servers under the [2026-07-28 specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization). The SDK exposes `ctx.http.authInfo` (scopes, client id, expiry) and a `scopeChallenge` option on `registerTool`, but leaves per-tool authorization to hand-written checks in each handler. `permdock/mcp` replaces those checks with one `permission` reference per tool and applies the rest of PermDock to the call: the two-principal [subject](/docs/concepts/subject), [boundary validation](/docs/concepts/validation) of arguments, three-outcome [decisions](/docs/concepts/decisions) and [audit](/docs/concepts/audit-and-observability). The OWASP Top 10 for Agentic Applications asks for exactly this: per-tool least-privilege profiles attached to each tool as authorization policy, plus deterministic argument validation ([ASI02 / ASI03](/docs/security/owasp-agentic)).
+
+## API
+
+```ts
+import { createPermDock } from 'permdock/mcp'
+
+const { protectServer } = createPermDock(policy, {
+  subject: (authInfo) => userFrom(authInfo), // principal; actor = client_id, delegation = scopes / authorization_details
+})
+
+const guarded = protectServer(server)
+
+guarded.registerTool(
+  'delete_post',
+  {
+    permission: permissions.post.delete,   // typed reference; scope 'post:delete' derived from it
+    inputSchema,                           // Standard Schema for the tool arguments
+    data: (args) => loadPost(args.id),     // resolves the resource instance for an instance-level action
+  },
+  handler,
+)
+
+guarded.registerTool('list_posts', { permission: permissions.post.list, inputSchema }, listHandler)
+```
+
+- `createPermDock(policy, options)` returns `protectServer`, which wraps an SDK `McpServer` (or a compatible object) and returns the same server with a permission-aware `registerTool`.
+- `permission` is required. Collection actions (`permissions.post.list`) need no `data`; instance actions require `data` so the adapter can evaluate `where` conditions against the real row.
+- `subject` receives the SDK `AuthInfo` and returns the principal (or `null` for anonymous). The adapter fills `actor` with `authInfo.clientId` and `delegation` with `authInfo.scopes` and, when present, RFC 9396 `authorization_details` from the token, so a decision is the principal's grants intersected with what the client was delegated.
+- `protectServer` also installs a `list_tools` filter and an elicitation bridge for `approval-required` decisions.
+
+## Request lifecycle
+
+1. Transport: the SDK's bearer middleware validates the access token, checks `iss` per RFC 9207 and attaches `authInfo`.
+2. `list_tools`: the adapter builds a request-scoped `PermDock` from `authInfo` and returns only tools whose collection-level check passes (`can(permission)` for collection actions; for instance actions, whether any grant exists for that permission). The model never sees tools this caller cannot use.
+3. `call_tool`: arguments are validated against `inputSchema`; if `data` is declared, the resource is loaded and validated against the resource schema (boundary mode).
+4. Scope check: if the token lacks the permission's `scope`, the adapter answers with the SDK `scopeChallenge`, producing a `403` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="post:delete ..."`. Scope accumulation follows SEP-2350: the challenge lists the union of previously granted scopes plus the missing one, so a step-up never drops authority the client already had.
+5. Decision: `permdock.decide(permission, data)` runs with the two-principal subject.
+6. Outcome: `granted` runs the handler; `denied` returns a refusal; `approval-required` starts an elicitation round trip (below).
+7. `on('decision')` fires with outcome, permission key, actor and delegation for audit and `permdock/otel`.
+
+## What it validates
+
+| Input | Validation |
+|---|---|
+| Tool arguments | `inputSchema` (any Standard Schema), before `data` runs |
+| Resource instance from `data` | Resource schema, `validate: 'boundary'` |
+| Token | `iss` (RFC 9207), audience, expiry: performed by the SDK middleware, not by PermDock |
+| Scopes | Permission `scope` must be present in `authInfo.scopes` |
+| `authorization_details` | Parsed into `delegation` and intersected with grants |
+| Model-supplied subject | Never trusted; the subject comes from `authInfo` only |
+
+Validation failures surface as `PermDockValidationError` and are reported as `isError: true` results with the issue list, not as protocol errors, so the model can correct its arguments.
+
+## How denials surface
+
+A denied call returns an MCP tool result with `isError: true`, a plain-language `content` entry and a `structuredContent` object carrying the [Decision](/docs/concepts/decisions):
+
+```json
+{
+  "isError": true,
+  "content": [{ "type": "text", "text": "Denied: post.delete on post_42. You may: post.read, post.update." }],
+  "structuredContent": {
+    "outcome": "denied",
+    "permission": "post.delete",
+    "resource": { "type": "post", "id": "post_42" },
+    "denials": [{ "role": "member", "reason": "not-author" }],
+    "alternatives": ["post.read", "post.update"]
+  }
+}
+```
+
+- Missing scope is not a denial: it is a `403 insufficient_scope` step-up challenge at the HTTP layer, so the client can obtain more authority and retry.
+- `approval-required` uses MCP elicitation. Because the 2026-07-28 core is stateless, the elicitation is a multi-round-trip request: the server returns an elicitation request carrying `Decision.token`; the client answers in a new request; the adapter re-runs the check and compares the token so the approval cannot be replayed onto different arguments. See [approvals](/docs/security/approvals).
+- Enterprise-Managed Authorization clients (ID-JAG obtained via RFC 8693 token exchange, redeemed with an RFC 7523 JWT-bearer grant) and Client ID Metadata Document clients need no extra configuration: the adapter only reads `authInfo`.
+
+## Example app
+
+`apps/examples/mcp-server`: a Streamable HTTP server with `post` tools, a fake authorization server issuing scoped tokens, a script that demonstrates a `list_tools` difference between two callers, a scope step-up, a denied call with alternatives and an elicitation-backed delete.
+
+## Related standards
+
+- [MCP authorization](/docs/standards/mcp-authorization): `scopeChallenge`, `requireScopes`, CIMD, RFC 9207, EMA / ID-JAG, elicitation.
+- [OAuth agent delegation](/docs/standards/oauth-agent-delegation): RFC 9396 `authorization_details`, RFC 8693 token exchange, delegation chains.
+- [Approvals](/docs/security/approvals): `approval: 'human'`, replay-safe tokens.
+- [Problem Details](/docs/standards/problem-details): shared vocabulary for the `structuredContent` refusal body.
+- [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse.
+
+## Open questions
+
+- Whether `list_tools` should hide tools with instance-level conditions or show them with a `permdock` annotation stating that per-row checks apply.
+- How to represent `alternatives` for tools that map several permissions to one tool name.
+- Whether the adapter should expose `requireScopes()` for handlers registered outside `protectServer`.
+- Where MCP Tasks (long-running tool calls) re-check the decision: at submission only, or again at completion.
+- Whether to verify delegation chains in the adapter or leave that to the token layer (tracked on the [roadmap](/docs/roadmap)).

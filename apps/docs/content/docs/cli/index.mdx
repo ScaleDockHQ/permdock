@@ -1,0 +1,86 @@
+---
+title: CLI
+description: The @permdock/cli package, its commands, exit codes and how to run it in CI.
+---
+
+Status: planned
+Phase: 2
+
+`@permdock/cli` is the tooling companion to `permdock`. It is a separate package because it depends on `oxc-parser` (to scan TypeScript source) and `pgsql-parser` (to read Postgres policies), neither of which belongs in an application bundle. See [0002: One umbrella package](/docs/decisions/0002-umbrella-package).
+
+The CLI never evaluates a policy against a real subject and never needs secrets. It reads permission definitions, source files, OpenAPI documents and database catalogs, and writes generated files, reports and diffs.
+
+## Install
+
+```bash
+pnpm add -D @permdock/cli
+# or run without installing
+npx @permdock/cli doctor
+```
+
+The binary is `permdock`. All commands accept `--cwd` and `--config permdock.config.ts`. A config file is optional; every option can be passed as a flag.
+
+```ts
+// permdock.config.ts
+import { defineConfig } from '@permdock/cli'
+
+export default defineConfig({
+  permissions: './src/permissions.ts',      // the merged definition module
+  policy: './src/policy.ts',                // server-only; used by usage, rls, doctor
+  collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
+  catalog: { out: './permissions.catalog.json' },
+})
+```
+
+## Commands
+
+| Command | Purpose | Phase | Page |
+| --- | --- | --- | --- |
+| `permdock collect` | Scan `srcPath[]` for `definePermissions()` and `permissions.x.y` usages; write the catalog and generated barrel; `--check` for CI | 2 | [collect](/docs/cli/collect) |
+| `permdock catalog` | Export the catalog as JSON, JSON Schema or Markdown | 2 | [catalog](/docs/cli/catalog) |
+| `permdock usage` | Report defined-but-unused, used-but-ungranted and granted-by-no-role permissions | 2 | [usage](/docs/cli/usage) |
+| `permdock openapi` | Emit `security` and `securitySchemes` into an OpenAPI document, or import one into a generated definition | 2 | [openapi](/docs/cli/openapi) |
+| `permdock rls` | `generate`, `import` and `verify` Postgres RLS policies | 3 | [rls](/docs/cli/rls) |
+| `permdock doctor` | Check wiring, imports, references, catalog freshness, skills and the TypeScript version | 2 | [doctor](/docs/cli/doctor) |
+| `permdock skills` | Install or update the `wire-permdock` and `audit-permissions` Agent Skills | 1 | [skills](/docs/cli/skills) |
+
+The Next.js build hook `createPermDockPlugin` is documented on its own page: [Next.js plugin](/docs/cli/next-plugin).
+
+## Exit codes
+
+All commands share one contract so CI steps can be written without parsing output.
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success; for `--check` and `verify`, no drift and no findings |
+| `1` | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors |
+| `2` | Usage or configuration error: unknown flag, missing config, unreadable definition module, unsupported TypeScript version |
+
+Warnings never change the exit code unless `--strict` is passed.
+
+## Output
+
+Every command prints a human-readable report by default and supports `--json` for machine consumption. JSON reports carry a `$schema` field pointing at the report schema shipped in the package so agents can validate them. Paths in reports are relative to `--cwd`.
+
+## CI usage
+
+```yaml
+# .github/workflows/permissions.yml
+- run: pnpm exec permdock collect --check       # catalog and barrel up to date
+- run: pnpm exec permdock usage --strict         # no ungranted or unused permissions
+- run: pnpm exec permdock doctor                 # wiring, imports, TS version
+- run: pnpm exec permdock openapi --check --doc openapi.json
+```
+
+`permdock rls verify --db $DATABASE_URL` runs in the integration job that has a Postgres service; see [rls](/docs/cli/rls).
+
+## How the CLI reads definitions
+
+Permission definitions are runtime values ([0003](/docs/decisions/0003-reference-based-permissions)), so most commands import the definition module and call `listPermissions()`; no type information is needed. Source scanning with `oxc-parser` is used only where usage sites matter (`collect`, `usage`, `doctor`) and never depends on the TypeScript compiler API, which TS 7.0 does not expose stably.
+
+Modules are loaded with the project's own resolver (`tsx`-style on-the-fly transpilation), so `permissions.ts` may import schemas from Zod, Valibot or ArkType freely. The `policy` module is loaded only by `usage`, `rls` and `doctor`, and only in the process running the CLI.
+
+## Open questions
+
+- Whether `collect` should emit the `mergePermissions` barrel or only the catalog ([collect](/docs/cli/collect)).
+- Whether `permdock.config.ts` should also configure `@permdock/testing` fixtures.

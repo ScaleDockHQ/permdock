@@ -1,0 +1,70 @@
+---
+title: Comparison
+description: How PermDock differs from permix, CASL, Kilpi, zap-studio/permit, Better Auth access control, hosted PDPs, ZenStack and the AI SDK OPA adapter.
+---
+
+PermDock is in Phase 0: every PermDock capability below is a design, not shipped code. The other libraries are described as they were in September 2026, based on the [landscape survey](/docs/research/landscape) and the deep-dive research pages. Where a fact could not be verified it is left out rather than guessed.
+
+The short version: the TypeScript space splits into in-process libraries with good key inference but weak data-layer and agent stories (permix, CASL, Kilpi, permit, Better Auth) and external policy engines with strings in and booleans out (Cerbos, Permit.io, OpenFGA, SpiceDB, Oso Cloud). PermDock tries to be an in-process library with typed references over Standard Schema resources, one condition format that reaches SQL and RLS, structured decisions, and first-class MCP, AI SDK and AuthZEN surfaces.
+
+## permix
+
+permix v4.1.2 is the closest library in adapter breadth: React, Vue, Solid, Svelte, Next.js App Router (per-request instance via React `cache()`), TanStack Start, Node, Express, Hono, Fastify, Elysia, tRPC, oRPC, Effect and Drizzle, all as subpath exports of one 2.64 kB gzip package, with `llms.txt` and agent skills. Its typing is template-literal keys (`check('post.create')`), its core is a mutable global `setup()`, hydration collapses function rules to booleans, there is no condition AST (so no SQL or RLS), no explain, no Standard Schema, no OpenAPI, no MCP, and React Native is undocumented. Twenty-five pull requests asking for these were closed or left open; PermDock is the clean-room answer ([0001](/docs/decisions/0001-greenfield-mit), [permix lessons](/docs/research/permix-lessons)).
+
+## CASL v7
+
+CASL (`@casl/ability` 7.0.1, about 1.4M weekly downloads) is the only mature in-process library that compiles conditions to Prisma and Mongoose `where` clauses and does field-level permissions. v7 (May 2026) modernised it: `rulesToCondition`, frozen rule arrays, `reason` on rules, `relevantRuleFor`. Typing is declared `[Actions, Subjects]` tuples rather than inferred from a definition; subject detection needs classes or `subject()` wrappers; there is no Standard Schema, no SSR hydration API beyond `packRules`, no Next.js, React Native, MCP or OpenAPI story, a dual CJS/ESM build, and no `llms.txt`. PermDock adopts CASL's rule-as-data and one-AST-many-interpreters architecture and drops subject detection and the shared `can` name ([CASL v7 deep-dive](/docs/research/casl-v7)).
+
+## Kilpi v1
+
+Kilpi 1.1 is server-first: policies are functions returning `Grant(subject)` or `Deny()`, `authorize()` is async, protected queries redact fields post-fetch, an audit plugin batches decision events, an RSC plugin offers `Access` components, and `@kilpi/client` fetches decisions from an endpoint with caching and batching. It has 89 stars and no commits since December 2025. It has no Standard Schema (Zod internally), no data-layer `where`, no React Native, MCP or OpenAPI, `zod` and `superjson` in core, and `$`-prefixed instance members. PermDock keeps Kilpi's discriminated decision, subject narrowing through `assert`, layered unauthorized handlers and batched client decisions, and drops the rest ([Kilpi v1 deep-dive](/docs/research/kilpi-v1)).
+
+## @zap-studio/permit
+
+`@zap-studio/permit` 2.0.1 is the only authorization library built on Standard Schema: resources are validators, rule parameter types are inferred, `allow` / `deny` / `when` compose policies, evaluation is fail-closed, and it is about 2.8 kB minified with structured errors and OpenTelemetry hooks. It ships no adapters, no hydration, no OpenAPI and no MCP, validates on every call, requires a resource object for every action, and makes `@opentelemetry/api` a required peer. PermDock adopts the Standard Schema resources, fail-closed evaluation and span-per-check, and makes validation a boundary concern ([zap-studio/permit deep-dive](/docs/research/zap-studio-permit)).
+
+## Better Auth access control
+
+Better Auth's `createAccessControl(statement)` plus `newRole()` gives typed RBAC from an `as const` statement, with async `hasPermission` on server and client, a synchronous `checkRolePermission` for static roles, and dynamic roles stored in the database. It is RBAC only (no conditions), has no UI helpers, hydration or data layer, and is coupled to Better Auth. PermDock layers on top through the `better-auth` provider: Better Auth resolves the session and roles, PermDock owns permissions, conditions and decisions ([Better Auth provider](/docs/adapters/better-auth)).
+
+## Hosted and policy-language PDPs
+
+Cerbos (YAML policies with CEL, embedded WASM PDP, query plan to Prisma and Drizzle, React hooks, AuthZEN support), Permit.io (OPA/OPAL-backed PDP, an MCP Gateway that proxies agent traffic), OpenFGA (Zanzibar ReBAC, `listObjects` for filtering, an MCP authorization guide), SpiceDB (Zanzibar with CEL caveats, gRPC SDK) and Oso Cloud (Polar rules, `listLocal` SQL fragments, "Oso for Agents" monitoring) all evaluate policies outside your TypeScript code. Their SDKs take strings and return booleans; none infer types from your model; MCP support is a proxy or a guide, not something you embed in your server. PermDock is embedded and typed, and interoperates with all of them through AuthZEN: its decision endpoint is an AuthZEN PDP and its `pdp` provider is an AuthZEN client ([0011](/docs/decisions/0011-authzen-wire-format)). Zanzibar-scale relation graphs remain a non-goal; bridge to OpenFGA or SpiceDB through a provider.
+
+## ZenStack v3
+
+ZenStack v3 (3.9.3) puts `@@allow` / `@@deny` policies in a Prisma-compatible ZModel schema and compiles them to SQL through Kysely, so reads are filtered and writes rejected at the query layer, with an auto-generated CRUD API and TanStack Query hooks. v3 removed the DB-free `check()` that v2 offered, so there is no way to ask "can this user?" in the UI without a database round-trip, policies are a DSL rather than TypeScript, and there is no `llms.txt`. PermDock keeps checks in-process and portable to both UI and SQL, and does not own the ORM.
+
+## @ai-sdk/policy-opa
+
+Vercel's reference policy adapter for AI SDK 7 tool approvals evaluates Rego (via WASM or an HTTP OPA) inside `toolApproval`, narrows the tool list with `opaCapabilityMiddleware`, and offers a `shadow` mode. It fails open on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)) and requires writing Rego with no link to the application's permission model. `permdock/ai-sdk` fills the same hooks from the app's typed policy, maps the three-outcome `Decision` to `approved` / `denied` / `user-approval`, never returns `not-applicable`, and re-checks approvals against a replay-safe token ([AI SDK adapter](/docs/adapters/ai-sdk)).
+
+## Feature matrix
+
+Legend: yes, partial (with a note), no, planned (PermDock, not implemented). Hosted PDPs are summarised as a group; see the paragraph above for which vendor does what.
+
+| Capability | PermDock | permix | CASL v7 | Kilpi v1 | zap/permit | Better Auth AC | Hosted PDPs | ZenStack v3 | ai-sdk/policy-opa |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Typed references (not strings) | planned | no (template-literal keys) | no (declared tuples) | partial (inferred keys, Proxy paths) | no (string actions) | no (`as const` keys) | no | n/a (DSL) | no (Rego) |
+| Standard Schema resources | planned | no | no | no | yes | no | no | no | no |
+| Portable conditions to SQL / RLS | planned (Drizzle, Prisma, Kysely, RLS) | no | partial (Prisma, Mongoose `where`) | no | no | no | partial (Cerbos query plan, Oso `listLocal`, OpenFGA `listObjects`) | yes (compiled SQL) | no |
+| Structured decisions / explain | planned (`Decision` with reasons, alternatives) | no | partial (`reason`, `relevantRuleFor`) | partial (`Deny` message, audit plugin) | partial (structured errors) | no | partial (audit logs, policy tests) | no | no |
+| Snapshots carrying conditions | planned | no (booleans only) | partial (`packRules`) | no (fetch per decision) | no | no | no | no | no |
+| React Server Components / Next.js | planned (Cache Components, `use cache: private`) | yes (per-request `cache()`) | no | partial (RSC `Access`) | no | partial (via Better Auth Next SDK) | no | no | no |
+| React Native | planned (persisted snapshot) | undocumented | works, DIY | no | no | partial (Expo via Better Auth) | partial (fetch clients) | no | no |
+| MCP tool authorization | planned (`scopeChallenge`, filtered `list_tools`) | no | no | no | no | no | partial (Permit gateway proxy, OpenFGA guide) | no | no |
+| AI SDK approvals | planned (`toolApproval`, capability middleware, `needsApproval`) | no | no | no | no | no | no | no | yes (fails open on unknown) |
+| OpenAPI `security` emission | planned (3.2 with 3.1 fallbacks) | no | no | no | no | no | no | no | no |
+| AuthZEN | planned (endpoint and client, certification target) | no | no | no | no | no | partial (Cerbos) | no | no |
+| RLS import into app permissions | planned | no | no | no | no | no | no | no | no |
+| `llms.txt` / skills | planned (both, plus docs MCP) | yes (both) | no | no | `llms.txt` | `llms.txt` | `llms.txt` (Cerbos, OpenFGA, SpiceDB, Oso) | no | n/a |
+| Core size | budget about 3 kB gzip | 2.64 kB gzip | about 6.17 kB min+gzip | not measured | about 2.8 kB min | part of Better Auth | SDKs 2.6–5.6 MB unpacked (Permit, SpiceDB) | ORM-sized | WASM or HTTP |
+
+## What PermDock does not try to do
+
+- Replace authentication: sessions, tokens and users come from Better Auth, Clerk, Supabase, Convex or your own code.
+- Be a hosted service or a policy language; policies are TypeScript data.
+- Model Zanzibar-scale relation graphs; use OpenFGA or SpiceDB through a provider.
+- Issue tokens or verify signatures in core; those live in adapters and the token layer.
+
+See the [roadmap](/docs/roadmap) for phases and the [landscape survey](/docs/research/landscape) for the per-library detail and gap matrix these paragraphs are drawn from.

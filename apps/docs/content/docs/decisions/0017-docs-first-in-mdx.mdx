@@ -1,0 +1,52 @@
+---
+title: "0017: Docs first, in Fumadocs-ready MDX"
+description: Why research, design and decisions are written as MDX under apps/docs/content/docs before any code or docs app exists, and the conventions that make that work.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+PermDock's Phase 0 has no code. It has a plan, five research reports, a standards survey and a long design conversation. The question was where to put that material so that it stays the source of truth once implementation starts, is readable today on GitHub, and is consumable by coding agents without conversion.
+
+The docs app is planned as Fumadocs v16 on Next.js 16.3, which reads a content tree of `.mdx` files with YAML frontmatter and `meta.json` navigation files. Fumadocs also generates `llms.txt`, `llms-full.txt` and a `.md` version of each page, which is exactly the agent-facing output PermDock wants. Writing the same material first as a wiki, a Notion export or a `docs/` folder of plain Markdown would mean a second migration later.
+
+## Decision
+
+Research and design are written **once, as MDX, under `apps/docs/content/docs/`**, before the docs app exists. The tree is the spec. `README.md`, `PRODUCT.md` and `AGENTS.md` summarise and link into it rather than duplicating it.
+
+Conventions, chosen so the same files render on GitHub now and in Fumadocs later:
+
+- Every page starts with YAML frontmatter containing `title` and a one-sentence `description`. No `#` heading in the body; content starts with a paragraph or `##`.
+- Every folder has a `meta.json` with `title` and an explicit `pages` order; the root `meta.json` sets `root: true`.
+- Bodies are plain Markdown: headings, lists, tables, fenced code with language tags (`ts`, `tsx`, `sql`, `json`, `bash`, `mermaid`). No imports, no JSX, no Fumadocs components until the app is scaffolded. Because MDX parses them, raw `<` and curly braces are avoided in prose and written in backticks.
+- Adapter, standards and CLI pages carry `Status: planned | in progress | shipped` and `Phase: n` lines directly under the frontmatter so an agent can tell what exists.
+- Links between pages are absolute `/docs/<path>` URLs; never links to `.mdx` files.
+- Sections: `getting-started`, `concepts`, `adapters` (one page per adapter), `cli`, `standards` (one page per standard), `security`, `research` (one page per report, ending with adopt / adapt / avoid), `decisions` (numbered ADRs with Status, Context, Decision, Consequences, Alternatives considered, Related).
+- When the app is scaffolded, `create-fumadocs-app` is run into a temporary directory and merged, or `source.config.ts` is pointed at the existing folder; the content is not moved.
+
+## Consequences
+
+- The docs are versioned with the code from the first commit, and every later API change has a page to update.
+- Agents get `llms.txt`, per-page Markdown and a docs MCP server for free once the app exists, with no content migration.
+- ADRs give contributors and agents the reasoning behind each constraint, so "why not strings?" is a link rather than a discussion.
+- Writing without components means no callouts, tabs or cards yet; pages use headings and tables instead, and can be enriched later without changing content.
+- Docs describe planned behaviour in present tense; the `Status` line and the roadmap keep that honest, and `permdock doctor` will eventually compare shipped exports against documented ones.
+- Maintainers must update docs, skill, example app and catalog together when an adapter changes; `AGENTS.md` lists these "when you change X also update Y" rules.
+
+## Alternatives considered
+
+- **Plain Markdown in `/docs`, convert later.** Rejected: frontmatter and `meta.json` are cheap to add now and expensive to retrofit across a hundred pages.
+- **Scaffold the Fumadocs app first.** Rejected for Phase 0: it would pull Next.js and React into a repository with no library code yet; the content is the deliverable.
+- **Docs generated from source (TypeDoc-style).** Rejected as the primary source: there is no source yet, and API reference is a complement to concept pages, not a replacement.
+- **A wiki or Notion.** Rejected: not versioned with code, not consumable by `llms.txt` tooling, not reviewable in pull requests.
+
+## Related
+
+- [For AI agents](/docs/for-ai-agents)
+- [Agent docs standards](/docs/standards/agent-docs-standards)
+- [Roadmap](/docs/roadmap)
+- [Agent standards 2026](/docs/research/agent-standards-2026)
+- [0016: Repository layout and toolchain](/docs/decisions/0016-repo-layout-and-toolchain)

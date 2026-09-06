@@ -1,0 +1,98 @@
+---
+title: Postgres row-level security
+description: Postgres RLS as a compile target and import source for PermDock policies, covering CREATE POLICY semantics, Supabase helpers, GUC patterns, pg_policies introspection, and the Drizzle and Prisma 8 authoring surfaces.
+---
+
+Status: planned
+Phase: 3
+
+## What it is
+
+PostgreSQL row-level security lets a table carry policies that filter or reject rows per statement, evaluated by the database regardless of which application issued the query. The relevant syntax is [`CREATE POLICY`](https://www.postgresql.org/docs/current/sql-createpolicy.html):
+
+```sql
+CREATE POLICY name ON table
+  [ AS PERMISSIVE | RESTRICTIVE ]
+  [ FOR ALL | SELECT | INSERT | UPDATE | DELETE ]
+  [ TO role, ... ]
+  [ USING (expr) ]
+  [ WITH CHECK (expr) ]
+```
+
+Semantics that matter for code generation:
+
+- **Combination.** Permissive policies for the same command are OR'd; restrictive policies are AND'd; the result is `(AND restrictives) AND (OR permissives)`. Zero permissive policies means deny. `FOR ALL` policies are folded into whichever command is being evaluated.
+- **Clause legality.** `SELECT` takes only `USING`; `INSERT` takes only `WITH CHECK`; `DELETE` takes only `USING`; `UPDATE` and `ALL` take both, and if `WITH CHECK` is omitted `USING` is reused for the new row.
+- **Cross-command coupling.** `UPDATE` and `DELETE` that read columns also need a passing `SELECT` policy, and `RETURNING` rows must satisfy the `SELECT` policy.
+- **Denial modes.** `USING` silently filters (zero rows); `WITH CHECK` raises `42501`; a missing `GRANT` raises `42501` before any policy runs.
+- **Roles and grants** are separate from policies. Default `TO PUBLIC`; policies run with the caller's privileges.
+
+Introspection is through the [`pg_policies`](https://www.postgresql.org/docs/current/view-pg-policies.html) view (`schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check`), backed by [`pg_policy`](https://www.postgresql.org/docs/current/catalog-pg-policy.html). The `qual` and `with_check` columns are deparsed with `pg_get_expr`, which returns normalised SQL (explicit casts, `( SELECT auth.uid() AS uid)`), not the original text. Enablement lives in `pg_class.relrowsecurity` and `relforcerowsecurity`.
+
+### Supabase
+
+Every request runs as `anon` or `authenticated` via `SET LOCAL ROLE` from the JWT `role` claim; `service_role` has `bypassrls`. Helpers: `auth.uid()` (NULL when unauthenticated) and `auth.jwt()` (the claims as `jsonb`; read `app_metadata`, never user-writable `user_metadata`). `auth.role()` is deprecated in favour of the `TO` clause. Claims are exposed as the GUCs `request.jwt.claims` and `request.jwt.claim.sub`, which tests and the Drizzle `createDrizzle` wrapper set. The [performance guide](https://supabase.com/docs/guides/database/postgres/row-level-security-performance) says to wrap helpers as `(select auth.uid())`, index filtered columns, always write `TO authenticated`, and prefer `IN (subselect)` over correlated joins. Supabase's [RBAC pattern](https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac) (`user_roles`, `role_permissions`, a custom access token hook and an `authorize(permission)` function used as `using ((select authorize('channels.delete')))`) is a named-permission catalog in SQL.
+
+### Generic Postgres and Neon
+
+Without Supabase helpers, the pattern is a GUC set per transaction (`set_config('app.user_id', ..., true)`) and policies reading `current_setting('app.user_id', true)::uuid`. Neon's Data API validates the JWT and provides `auth.user_id()` and `auth.uid()` with roles `authenticated` and `anonymous`.
+
+### Authoring surfaces
+
+- [Drizzle](https://orm.drizzle.team/docs/rls): `pgPolicy(name, { as, to, for, using, withCheck })` in a table definition, `drizzle-orm/supabase` (`authenticatedRole`, `anonRole`, `authUid`, `createDrizzle`), `drizzle-orm/neon` `crudPolicy`; `drizzle-kit generate` diffs policies.
+- Prisma 8 ([changelog](https://www.prisma.io/changelog/2026-07-17), [prisma-next#945](https://github.com/prisma/prisma-next/pull/945)): `@@rls` on a model, top-level `policy_select|insert|update|delete|all` blocks with `target`, `roles`, `using`, `withCheck`, `role` declarations, and `db verify` for policy drift.
+- Parsers: [`pgsql-parser`](https://github.com/constructive-io/pgsql-parser) (libpg_query in WASM, symmetric parse and deparse) and [`@pgsql/parser`](https://www.npmjs.com/package/@pgsql/parser); since `qual` is a bare expression, parse `SELECT 1 WHERE <qual>` and take the where clause.
+- Testing: pgTAP via [`supabase test db`](https://supabase.com/docs/guides/database/testing) with `policies_are`, `policy_roles_are`, `policy_cmd_is`, and `set local role` plus `request.jwt.claims` for behavioural tests.
+
+## Why it matters for PermDock
+
+RLS is the only enforcement layer that survives a bypassed application, and Supabase users already write it. But a policy written twice (once in SQL, once in TypeScript) drifts. PermDock's portable condition AST is designed so one condition evaluates in the UI, filters arrays, compiles to `where` clauses, and generates RLS, and so existing RLS can be imported back into a typed catalog. No existing tool does the import direction; Kysera's `@kysera/rls` is the only dual-mode prior art and generates one direction for raw-SQL policies only. See the [rls adapter](/docs/adapters/rls), [CLI rls](/docs/cli/rls) and the [RLS research](/docs/research/postgres-rls).
+
+## How PermDock uses it
+
+```bash
+permdock rls generate --target drizzle|sql|prisma --dialect supabase|neon|guc
+permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts
+permdock rls verify --db $DATABASE_URL
+```
+
+- **Generate.** Roles and grants become policies: `allow` is `PERMISSIVE`, `deny` is `RESTRICTIVE` with `NOT (cond)`; `read` is `SELECT USING`, `create` is `INSERT WITH CHECK` on the new row, `update` is `USING` (current row, from `where`) plus `WITH CHECK` (next row, from `check`), `delete` is `DELETE USING`. A `SELECT` policy is generated or verified whenever update or delete grants exist. Default `TO authenticated`; `service_role` is never emitted. Companion `ENABLE ROW LEVEL SECURITY`, grant and revoke statements, `(select ...)` wrappers and index suggestions are emitted alongside. With `--rbac supabase`, named permissions compile to `authorize('post.delete')` and the `user_roles` / `role_permissions` / hook scaffold is generated.
+- **Import.** `pg_policies` plus `pg_class.relrowsecurity` are read, `qual` and `with_check` parsed with `pgsql-parser`, and pattern-matched to portable nodes; anything else becomes `opaque({ sql, fingerprint })`, kept verbatim for regeneration and flagged in the catalog. Fingerprints come from the deparsed AST, not raw text, so `pg_get_expr` normalisation does not register as drift. `FOR ALL` is split into four entries. The output is a deterministic `definePermissions()` file that merges with hand-written ones.
+- **Verify.** For each fixture (subject, row, next row, action), `can()` runs in-process and the same operation runs inside `BEGIN ... ROLLBACK` with `set local role` and `set_config('request.jwt.claims', ...)`; outcomes are classified `allowed`, `filtered` (zero rows) or `rejected` (`42501`) and any mismatch fails. Emitted as pgTAP or run from Node; opaque policies are reported as untestable app-side.
+
+## Mapping table
+
+| Postgres / Supabase concept | PermDock concept |
+| --- | --- |
+| `allow(permission, { where })` | `AS PERMISSIVE ... USING (cond)` |
+| `deny(permission, { where })` | `AS RESTRICTIVE ... USING (NOT (cond))` |
+| `read` action | `FOR SELECT USING` |
+| `create` action, `check` | `FOR INSERT WITH CHECK` (next row) |
+| `update` action, `where` + `check` | `FOR UPDATE USING (current) WITH CHECK (next)` |
+| `delete` action | `FOR DELETE USING` |
+| `eq(row.user_id, subject.id)` | `(select auth.uid()) = user_id` or `current_setting('app.user_id', true)::uuid = user_id` |
+| `eq(row.tenant_id, subject.claim)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` or a GUC |
+| Membership via join table | `id in (select resource_id from memberships where user_id = (select auth.uid()))`; `EXISTS` recognised on import |
+| Named permission | `(select authorize('post.delete'))` with `--rbac supabase` |
+| App roles | JWT claims, not Postgres roles; policies default `TO authenticated` |
+| `service_role` | Never emitted (bypasses RLS) |
+| Anything not portable | `opaque({ sql, fingerprint })` |
+| `pg_policies` row | Catalog entry: table, cmd, permissive, roles, condition or opaque, fingerprint, source SQL |
+| Drizzle `pgPolicy` | `--target drizzle` output |
+| Prisma 8 `policy_*` block, `@@rls` | `--target prisma` output |
+
+## Sources
+
+- [PostgreSQL CREATE POLICY](https://www.postgresql.org/docs/current/sql-createpolicy.html), [pg_policies](https://www.postgresql.org/docs/current/view-pg-policies.html), [pg_policy](https://www.postgresql.org/docs/current/catalog-pg-policy.html).
+- [Supabase RLS guide](https://supabase.com/docs/guides/database/postgres/row-level-security), [RLS performance](https://supabase.com/docs/guides/database/postgres/row-level-security-performance), [Custom claims and RBAC](https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac), [Testing](https://supabase.com/docs/guides/database/testing).
+- [Drizzle RLS](https://orm.drizzle.team/docs/rls), [Neon RLS with Drizzle](https://neon.com/docs/guides/neon-rls-drizzle).
+- [Prisma 8 changelog](https://www.prisma.io/changelog/2026-07-17), [prisma-next#945](https://github.com/prisma/prisma-next/pull/945).
+- [pgsql-parser](https://github.com/constructive-io/pgsql-parser), [@pgsql/parser](https://www.npmjs.com/package/@pgsql/parser).
+- [Kysera multi-tenancy](https://kysera.dev/docs/guides/multi-tenancy) as prior art.
+
+## Open questions
+
+- SQL three-valued logic versus JavaScript booleans (`auth.uid()` NULL, nullable columns) and `uuid` versus `text` casts: how far `verify` should go in surfacing these as warnings rather than mismatches.
+- Whether `generate` should own migrations (idempotent `DROP POLICY IF EXISTS` plus `CREATE POLICY`) or always delegate diffing to drizzle-kit, Prisma 8 or Atlas.
+- Whether opaque conditions should be evaluable app-side through a user-supplied closure keyed by fingerprint, or stay server-only.
+- Which Splinter / `get_advisors` findings `verify` should fail on versus report.

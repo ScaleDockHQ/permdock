@@ -1,0 +1,80 @@
+---
+title: Solid
+description: permdock/solid maps the snapshot-backed provider, hook and guard onto Solid context, signal accessors and a component.
+---
+
+Status: planned
+Phase: 2
+
+## Purpose
+
+Same model as [React](/docs/adapters/react): snapshot from the server, local evaluation of portable grants, batched decision endpoint for closure grants. `permdock/solid` exposes it through a context provider, accessor-returning hooks so answers participate in Solid's fine-grained reactivity, and a guard component. No policy or server module is imported.
+
+## API
+
+```tsx
+import { PermDockProvider, usePermDock, usePermission, Protected } from 'permdock/solid'
+import { permissions } from '~/permissions'
+
+<PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
+  <App />
+</PermDockProvider>
+
+function PostActions(props: { post: Post }) {
+  const permdock = usePermDock()                                            // can / decide / status / invalidate
+  const canEdit = usePermission(permissions.post.update, () => props.post) // accessor: () => { allowed, status, decision }
+
+  return (
+    <Protected permission={permissions.post.update} data={props.post} pending={<Skeleton />} fallback={<Locked />}>
+      <EditButton />
+    </Protected>
+  )
+}
+```
+
+| Export | Role |
+|---|---|
+| `PermDockProvider` | Creates the client store once, validates the snapshot, provides it through Solid context. Options match the React provider. |
+| `usePermDock` | Returns the store: `can`, `decide`, `status` (accessor), `invalidate`, `refresh`. |
+| `usePermission` | Takes the reference and an accessor for the resource; returns an accessor of `allowed`, `status`, `decision`. Tracks the resource `id`, so a new post re-evaluates. |
+| `Protected` | Guard component with `permission`, `data`, `pending`, `fallback` props; children may be a function receiving the granted `Decision`. |
+
+For SolidStart the snapshot is loaded in a server function from a request-scoped `PermDock` and the decision endpoint is an API route built on the [server kernel](/docs/adapters/server-kernel).
+
+## Request lifecycle
+
+1. The server creates the request-scoped instance and returns `permdock.snapshot()` with the page (or from a session endpoint).
+2. `PermDockProvider` validates the snapshot and builds one store per provider instance. The subscription is created during render (`createRenderEffect`), so hydrated answers are present on the first paint; permix's Solid adapter subscribed in a deferred effect and missed the first render.
+3. `usePermission` derives portable answers synchronously in a memo keyed by `reference.key` plus resource `id`. Non-portable grants create a resource that posts a batched AuthZEN `evaluations` request to `endpoint`.
+4. `invalidate(permissions.post)` drops cached answers under the namespace and refetches active ones.
+
+Accessors matter for correctness here: `usePermission(permissions.post.update, () => props.post)` re-evaluates when `props.post.id` changes, whereas passing `props.post` directly would read the prop once and freeze the answer (the refetch bug Kilpi's `useAuthorize` had). The adapter accepts only an accessor for instance actions, so the type system prevents the mistake.
+
+For SSR with `renderToStream`, the provider serialises nothing extra: the snapshot is already page data, and the client store is created from the same JSON, so hydration produces identical answers.
+
+## What it validates
+
+- The snapshot against the snapshot v1 schema; on failure the store is `server-only`.
+- Arity of `usePermission` at the type level.
+- Nothing about resource data on the client; posted data is validated at the decision endpoint boundary and every mutation is re-checked by the API.
+
+## How denials surface
+
+- The accessor yields `allowed: false` and a `decision` with `denials` and `alternatives` or the `approval-required` reason.
+- `Protected` renders `fallback`; a function `fallback` receives the `Decision`.
+- The decision endpoint answers with [Problem Details](/docs/standards/problem-details); client failures degrade to `server-only`.
+
+## Example app
+
+`apps/examples/solid`: Vite plus Solid with a Hono API from `apps/examples/hono`. Shows a portable ownership check, a closure grant through the endpoint, `invalidate` after a mutation, and a Vitest browser test asserting first-render correctness.
+
+## Related standards
+
+- [AuthZEN](/docs/standards/authzen), [Problem Details](/docs/standards/problem-details), [Standard Schema](/docs/standards/standard-schema).
+- Concepts: [snapshots](/docs/concepts/snapshots), [decisions](/docs/concepts/decisions).
+
+## Open questions
+
+- Exact identifier names. The plan is silent for Solid; this page proposes reusing the React names (`PermDockProvider`, `usePermDock`, `usePermission`, `Protected`) with accessor-returning semantics, since Solid conventionally shares React naming. The alternative is `createPermission` to match Solid's `create*` primitive convention.
+- Whether `usePermission` should return a single accessor or a tuple of accessors (`allowed()`, `status()`) for finer-grained tracking.
+- Whether SolidStart helpers belong here or in a separate `permdock/solid-start` entry.

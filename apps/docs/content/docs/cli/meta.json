@@ -1,0 +1,14 @@
+{
+  "title": "CLI",
+  "pages": [
+    "index",
+    "collect",
+    "catalog",
+    "usage",
+    "openapi",
+    "rls",
+    "doctor",
+    "skills",
+    "next-plugin"
+  ]
+}

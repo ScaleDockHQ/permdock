@@ -1,0 +1,86 @@
+---
+title: Standards
+description: Why PermDock is standards-first and which specification each part of the library implements or targets.
+---
+
+Status: planned
+Phase: 1
+
+PermDock is an in-process library, not a hosted policy service. It still has to talk to the rest of an authorization stack: identity providers that issue tokens, policy decision points that already exist in an organisation, API gateways that read OpenAPI documents, database engines that enforce row-level security, and agent runtimes (MCP servers, the AI SDK, the Claude Agent SDK, A2A agents, browsers running WebMCP) that need a yes/no/ask answer for every tool call. Every one of those seams already has a specification. PermDock adopts the specification instead of inventing a wire format, a policy language or a token shape of its own.
+
+## Why standards-first
+
+- **Interop with PDPs and PEPs.** The decision endpoint speaks OpenID AuthZEN 1.0, so a Cerbos, Topaz or Keycloak deployment can call PermDock, and the `pdp` provider can call any certified PDP. See [AuthZEN](/docs/standards/authzen) and [ADR 0011](/docs/decisions/0011-authzen-wire-format).
+- **Interop with identity providers.** Subjects carry OAuth scopes and RFC 9396 `authorization_details`; revocation arrives as CAEP events; MCP Enterprise-Managed Authorization tokens are consumed as-is. See [OAuth for agents](/docs/standards/oauth-agent-delegation) and [Shared Signals and CAEP](/docs/standards/shared-signals-caep).
+- **Interop with agent runtimes.** Each runtime already has a permission hook (`scopeChallenge`, `toolApproval`, `canUseTool`, Agent Card `securityRequirements`, `document.modelContext.registerTool`). PermDock translates one `Decision` into each vocabulary rather than asking runtimes to learn a new one.
+- **Agents can wire PermDock without bespoke formats.** A coding agent that knows Standard Schema, OpenAPI, Problem Details and MCP authorization already knows most of PermDock's surface. Skills, `AGENTS.md` and `llms.txt` follow the same rule: use the format agents already read. See [Agent docs standards](/docs/standards/agent-docs-standards).
+- **Fewer things to get wrong.** Fail-closed defaults, `deny` overriding `allow`, prototype-safe paths and boundary validation are easier to audit when the inputs are well-specified formats rather than free-form objects. See the [threat model](/docs/security/threat-model).
+
+The trade-off is that PermDock inherits the pace and gaps of each specification. Where a standard is still a draft (agent delegation chains, Web Bot Auth) the corresponding feature is scheduled late and marked as an open question.
+
+## Standards PermDock implements or targets
+
+| Standard | Version / date | Where PermDock uses it | Phase |
+| --- | --- | --- | --- |
+| [Standard Schema](/docs/standards/standard-schema) | v1 (`@standard-schema/spec`), Standard JSON Schema | `resource()` definitions, [boundary validation](/docs/concepts/validation), catalog and OpenAPI schemas | 1 |
+| [RFC 9457 Problem Details](/docs/standards/problem-details) | RFC 9457 | 403 bodies in [HTTP adapters](/docs/adapters/server-kernel), [errors](/docs/concepts/errors) | 1 |
+| [OpenID AuthZEN Authorization API](/docs/standards/authzen) | 1.0, final Jan 2026 | Decision endpoint, [authzen adapter](/docs/adapters/authzen), [pdp provider](/docs/adapters/pdp) | 1 (endpoint), 2 (full set) |
+| [OAuth for agents](/docs/standards/oauth-agent-delegation) | RFC 9396, RFC 8693, RFC 9449, IETF drafts | [Subject](/docs/concepts/subject) `actor` and `delegation`, `authorizationDetails` per permission | 1 (subject), 4 (chain verification) |
+| [Agent docs standards](/docs/standards/agent-docs-standards) | AGENTS.md, Agent Skills, llms.txt (AAIF, Dec 2025) | Shipped skills, `AGENTS.md`, `llms.txt`, [for AI agents](/docs/for-ai-agents) | 1 |
+| [MCP authorization](/docs/standards/mcp-authorization) | Spec 2026-07-28, TS SDK v2 | [mcp adapter](/docs/adapters/mcp): `scopeChallenge`, elicitation, EMA | 2 |
+| [OpenAPI](/docs/standards/openapi-3-2) | 3.2, Sept 2025 (3.1 via `x-oai-*`) | [openapi adapter](/docs/adapters/openapi), [CLI openapi](/docs/cli/openapi) | 2 |
+| [WebMCP](/docs/standards/webmcp) | W3C WebML CG, Chrome docs | [webmcp adapter](/docs/adapters/webmcp) | 2 |
+| [A2A](/docs/standards/a2a) | 1.0, Linux Foundation | [a2a adapter](/docs/adapters/a2a) | 2 |
+| [Postgres RLS](/docs/standards/postgres-rls) | PostgreSQL `CREATE POLICY`, Supabase, Drizzle `pgPolicy`, Prisma 8 | [rls adapter](/docs/adapters/rls), [CLI rls](/docs/cli/rls) | 3 |
+| [Shared Signals and CAEP](/docs/standards/shared-signals-caep) | SSF 1.0, CAEP 1.0, final Oct 2025 | [ssf adapter](/docs/adapters/ssf) invalidating [snapshots](/docs/concepts/snapshots) | 3 |
+| [Web Bot Auth](/docs/standards/web-bot-auth) | IETF draft, RFC 9421 | `actor` in HTTP adapters | 4 |
+
+Related security frameworks that are not wire standards but shape the design: the [OWASP Top 10 for Agentic Applications](/docs/security/owasp-agentic) and the [threat model](/docs/security/threat-model).
+
+## By phase
+
+- **Phase 1 (core + agents).** Standard Schema for definitions and boundary validation; Problem Details for HTTP denials; the AuthZEN-shaped decision endpoint and batched client; the two-principal subject with `scope` and `authorizationDetails` on every permission; skills, `AGENTS.md` and `llms.txt`.
+- **Phase 2 (surfaces).** `permdock/mcp` with `scopeChallenge`, elicitation and EMA awareness; the full `permdock/authzen` endpoint set and a certification run; OpenAPI 3.2 emission and import; WebMCP and A2A adapters.
+- **Phase 3 (data).** Postgres RLS generate, import and verify; the SSF/CAEP receiver.
+- **Phase 4 (ecosystem).** The `pdp` AuthZEN client provider; Web Bot Auth verification in HTTP adapters; delegation-chain verification; the docs MCP server.
+
+## One decision, many vocabularies
+
+The standards above meet in one place: a `Decision` from `decide`. Each adapter translates the same three outcomes into the vocabulary its runtime already has.
+
+| Outcome | HTTP (RFC 9457) | MCP | AI SDK 7 | AuthZEN |
+| --- | --- | --- | --- | --- |
+| `granted` | Handler runs | Handler runs | `'approved'` | `decision: true` |
+| `denied` | 403 `.../denied` with `denials`, `alternatives` | `isError: true` with reasons and `alternatives` | `'denied'` | `decision: false`, `context.outcome: 'denied'` |
+| `approval-required` | 403 `.../approval-required` with `token` | Elicitation carrying `token` | `'user-approval'` | `decision: false`, `context.outcome: 'approval-required'` |
+
+No adapter ever emits an outcome outside these three; in particular the AI SDK adapter never returns `'not-applicable'`, the value that lets `@ai-sdk/policy-opa` fail open.
+
+## How to read a standards page
+
+Every page in this section follows the same layout so an agent can scan it:
+
+1. **What it is**: the specification, its status and the parts PermDock cares about.
+2. **Why it matters for PermDock**: the problem it solves for a permissions library.
+3. **How PermDock uses it**: the adapter, API or CLI command that implements it, in the exact shapes from the [API design](/docs/getting-started/quick-start).
+4. **Mapping table**: specification concept on the left, PermDock concept on the right.
+5. **Sources**: the URLs the page was written from. Nothing on a standards page is asserted without one.
+6. **Open questions**: what the plan leaves undecided.
+
+The `Status` and `Phase` lines under each page's frontmatter follow the [roadmap](/docs/roadmap). Everything is `planned` until Phase 1 ships.
+
+## What PermDock deliberately does not standardise
+
+- **Policy language.** Roles are TypeScript data (`role`, `allow`, `deny`) and conditions are a small portable JSON AST, see [conditions](/docs/concepts/conditions). PermDock does not export Cedar or Rego and does not import them.
+- **Token issuance.** PermDock consumes scopes, `authorization_details`, ID-JAG-derived tokens and delegation chains; it never mints them.
+- **Authentication.** Providers (Supabase, Better Auth, Clerk, Convex) map an authenticated session to a subject. PermDock starts where authentication ends.
+
+## Sources
+
+- Product plan, "Standards and agent runtimes (Sept 2026)" section, and the [research survey](/docs/research/agent-standards-2026).
+- Each individual standards page lists its own primary sources.
+
+## Open questions
+
+- Which standards deserve a certification or conformance run beyond AuthZEN (see [AuthZEN](/docs/standards/authzen)); OpenAPI 3.2 output could be validated against the official schema in CI.
+- Whether to publish PermDock's own extension vocabularies (`x-permdock-permissions`, the Problem Details `type` URIs, the `authorizationDetails` type) as a small registry page so other tools can reference them.

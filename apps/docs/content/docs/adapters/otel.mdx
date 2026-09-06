@@ -1,0 +1,86 @@
+---
+title: OpenTelemetry
+description: permdock/otel records a span and a counter per permission check with decision attributes, behind a structural logger interface, with @opentelemetry/api as an optional dependency that is never required.
+---
+
+Status: planned
+Phase: 2
+
+`permdock/otel` subscribes to `permdock.on('decision')` and emits one span per check plus a decision counter, carrying the outcome, permission key, resource id and actor as attributes. It depends on `@opentelemetry/api` only if the host app already has it installed; without it, the adapter degrades to the structural logger interface and nothing else changes.
+
+## Purpose
+
+Audit needs the result, not just the attempt: permix's audit hook lacked the outcome ([permix #38](https://github.com/letstri/permix/issues/38)), and `@zap-studio/permit` showed the right instrumentation shape (span per check, decision attribute, counter) but made `@opentelemetry/api` a required peer, which every consumer without OpenTelemetry then had to install. PermDock keeps core free of runtime dependencies and puts telemetry in an adapter that resolves the API at runtime. The events it consumes are the same [Decision](/docs/concepts/decisions) events every other adapter emits, so MCP refusals, AI SDK approvals and HTTP denials all appear in one trace.
+
+## API
+
+```ts
+import { createPermDock } from 'permdock'
+import { instrument } from 'permdock/otel'
+
+const permdock = await createPermDock(policy, user)
+
+instrument(permdock, {
+  tracer: 'permdock',                 // tracer / meter name; default 'permdock'
+  logger,                             // optional structural logger: { debug, info, warn, error }
+  attributes: (event) => ({ 'app.tenant': event.subject?.orgId }),  // extra attributes per check
+  redact: ['subject.email'],          // attribute paths never recorded
+})
+```
+
+Server adapters accept the same options under `otel` so instrumentation applies to every request-scoped instance:
+
+```ts
+import { createPermDock } from 'permdock/hono'
+export const { permdock, protect } = createPermDock(policy, { subject: (c) => c.get('user'), otel: { logger } })
+```
+
+Recorded per check:
+
+| Signal | Name | Attributes |
+|---|---|---|
+| Span | `permdock.decide` | `permdock.outcome` (`granted` / `denied` / `approval-required`), `permdock.permission` (key), `permdock.scope`, `permdock.resource.type`, `permdock.resource.id`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.delegation.scopes`, `permdock.matched.role`, `permdock.denials.count`, `permdock.validate` |
+| Counter | `permdock.decisions` | `permdock.outcome`, `permdock.permission`, `permdock.adapter` |
+| Histogram | `permdock.decide.duration` | `permdock.outcome`, `permdock.permission` |
+| Log | `permdock.decision` | same fields as the span, through the structural logger |
+
+The logger interface is a type-only structural contract (`debug`, `info`, `warn`, `error` taking a message and an attributes object), so `console`, pino, winston or a test spy all satisfy it without an adapter.
+
+## Request lifecycle
+
+1. `instrument` (or the `otel` option) registers an `on('decision')` listener on the instance.
+2. On each `can`, `decide`, `assert`, `filter` or `simulate` call the instance emits a decision event containing the Decision, the permission, the resource identity (from the resource `id` field), subject, actor, delegation and timing.
+3. If `@opentelemetry/api` resolves at runtime, the listener starts and ends a span under the current context (so the check nests under the HTTP or tool span the framework created), records the counter and histogram, and adds an event to the span on `denied` with the denial reasons.
+4. If it does not resolve, the listener writes a single structured log line through `logger`; when no logger is given, nothing is written and the listener costs one function call.
+5. `simulate` emits one parent span with a child span per item; `filter` emits one span with `permdock.filter.total` and `permdock.filter.kept`.
+
+The adapter never awaits: recording is synchronous and cannot delay a decision.
+
+## What it validates
+
+- It validates nothing about permissions; it observes. In development it warns when `redact` paths do not match any attribute and when `@opentelemetry/api` is installed but no provider is registered (spans would be no-ops).
+- Attribute hygiene: resource ids and subject ids are recorded, resource payloads and condition values are not; `redact` removes anything else the app considers sensitive.
+
+## How denials surface
+
+- Span status is left `UNSET` for `denied` and `approval-required`: a denial is a correct decision, not an error. Set `errorOnDeny: true` to mark denied spans as `ERROR` for alerting.
+- A `permdock.denied` span event lists `role` and `reason` per denial and the `alternatives` keys.
+- `PermDockValidationError` (boundary validation failure) is recorded as a span exception with the issue count, and the check counts as `denied` in the counter.
+- Because the same event feeds the [audit hook](/docs/concepts/audit-and-observability), an app can keep audit in its database and traces in its collector without duplicating decision logic.
+
+## Example app
+
+None. The Hono example (`apps/examples/hono`) and the MCP example (`apps/examples/mcp-server`) enable `otel` and ship a console exporter configuration so traces are visible locally.
+
+## Related standards
+
+- [Audit and observability](/docs/concepts/audit-and-observability): the `on('decision')` event contract.
+- [Decision 0015](/docs/decisions/0015-no-runtime-deps-in-core): why the OpenTelemetry API is optional and lives outside core.
+- [Research: zap-studio permit](/docs/research/zap-studio-permit): the instrumentation pattern adopted and the required-peer lesson.
+
+## Open questions
+
+- Attribute naming: `permdock.*` versus aligning with OpenTelemetry semantic conventions for authorization if such conventions stabilise.
+- Whether the histogram is worth its cardinality by default or should be opt-in.
+- How to correlate an `approval-required` span with the later approval replay (span link by `Decision.token` is the current idea).
+- Whether the structural logger should be exported from core so other adapters can log without importing `permdock/otel`.

@@ -1,0 +1,151 @@
+---
+title: Expo Router protected routes
+description: Why Expo Router's synchronous Stack.Protected and Tabs.Protected guards force a persisted permission snapshot, and the consequences for permdock/react-native.
+---
+
+Source: Expo Router's protected routes (`Stack.Protected` and `Tabs.Protected`, available from Expo SDK 53) studied in September 2026 alongside the Next.js 16.3 work, to make sure one snapshot model serves both the web and native adapters. The resulting design is the [react-native adapter](/docs/adapters/react-native), scheduled for Phase 2.
+
+## What Expo Router provides
+
+Expo Router guards a group of screens with a boolean prop:
+
+```tsx
+import { Stack } from 'expo-router'
+
+export default function RootLayout() {
+  const isAdmin = useIsAdmin()
+  return (
+    <Stack>
+      <Stack.Protected guard={isAdmin}>
+        <Stack.Screen name="admin" />
+      </Stack.Protected>
+      <Stack.Screen name="index" />
+    </Stack>
+  )
+}
+```
+
+`Tabs.Protected` does the same for tab navigators. The guard is a plain boolean read during render, so the router decides on the first frame which screens exist. When the guard flips to `false`, the protected screens stop existing in the navigator, and Expo Router handles moving the user off them.
+
+The property that matters for a permissions library is that the guard is synchronous. There is no promise, no loading state and no "pending" value. If the answer is not known at render time, the only options are to render `false` (and hide the screens, causing a flash and possibly a redirect once the real answer arrives) or to hold the whole navigator behind a splash screen until the answer is known.
+
+## Why this matters for a permissions library
+
+On the web, the [Next.js 16.3 work](/docs/research/nextjs-16-3-instant-navigation) forced a distinction between a snapshot that can be prefetched and data-dependent checks that stream. Expo Router forces the same distinction, harder: the navigator's structure depends on the answer, and the answer must exist before the first frame.
+
+A library that answers `usePermission()` by calling a server, or by waiting for a session to load, cannot drive `Stack.Protected` without either a splash-screen delay on every cold start or a guard that briefly lies. Both are what a native user notices most.
+
+A library whose client instance is a snapshot (roles plus grants plus portable conditions, as JSON) can persist that snapshot on the device. The next cold start reads it synchronously from storage, answers every guard on the first frame, and revalidates in the background. Because the snapshot carries the `where` condition, ownership checks such as `usePermission(permissions.post.update, post)` also work offline; nothing has to be re-implemented on the client ([snapshots](/docs/concepts/snapshots)).
+
+## Design consequences for `permdock/react-native`
+
+### Same API as `permdock/react`, plus `storage`
+
+`permdock/react-native` re-exports `PermDockProvider`, `usePermDock`, `usePermission` and `Protected` from `permdock/react` and adds one option: `storage`. The storage adapter is a small synchronous key-value interface (get, set, remove) so both MMKV and AsyncStorage-backed implementations can satisfy it; MMKV is the recommended default because its reads are synchronous, which is what a first-frame guard requires.
+
+```tsx
+import { PermDockProvider, usePermission } from 'permdock/react-native'
+import { mmkv } from './storage'   // any { get, set, remove } with synchronous reads
+
+const storage = { get: (k) => mmkv.getString(k), set: (k, v) => mmkv.set(k, v), remove: (k) => mmkv.delete(k) }
+
+export default function RootLayout() {
+  return (
+    <PermDockProvider storage={storage} endpoint={`${API}/permdock`}>
+      <Navigator />
+    </PermDockProvider>
+  )
+}
+
+function Navigator() {
+  const admin = usePermission(permissions.admin.access)   // answered from the persisted snapshot on frame one
+  return (
+    <Stack>
+      <Stack.Protected guard={admin.allowed}>
+        <Stack.Screen name="admin" />
+      </Stack.Protected>
+      <Stack.Screen name="index" />
+    </Stack>
+  )
+}
+```
+
+### Stale-while-revalidate is the lifecycle
+
+The provider follows one sequence:
+
+1. On mount, read the persisted snapshot synchronously. If present, the instance is `ready` immediately with `status: 'stale'` on every hook until confirmed.
+2. Fetch a fresh snapshot from the decision endpoint in the background. On success, replace the snapshot, persist it and move hooks to `status: 'ready'`. If the fresh snapshot changes a guard from `true` to `false`, Expo Router performs the redirect itself.
+3. If there is no persisted snapshot (first install, or after logout cleared storage), hooks report `status: 'pending'` and `allowed: false` until the fetch resolves. This is the one case where the app should hold the splash screen, and it happens once per install rather than once per launch.
+4. Closure grants that are not portable are answered by the decision endpoint, batched and deduped, exactly as in the web adapter, and report `status: 'server-only'` while offline.
+
+The `status` field exists for this reason: `Stack.Protected` only reads `allowed`, but in-screen `Protected` regions can show a `pending` render prop instead of flashing a locked state.
+
+### In-screen guards use `Protected`
+
+`Stack.Protected` decides which screens exist; `Protected` from the same package decides which sections of a screen render, with `pending` and `fallback` render props. The two are meant to be used together: navigator-level guards for whole features, in-screen guards for actions on a resource, both fed by one snapshot.
+
+### Logout and account switching clear storage
+
+The persisted snapshot is per user. `PermDockProvider` exposes `invalidate()` from `usePermDock()`; the app calls it on logout, which removes the persisted snapshot so the next user does not see the previous user's guards for a frame. Scoped snapshots (`snapshot({ include: [...] })`) keep the persisted payload small for large policies.
+
+## Web and native side by side
+
+The two client adapters solve the same problem with different delivery mechanisms:
+
+| Concern | `permdock/next` (web) | `permdock/react-native` (Expo) |
+| --- | --- | --- |
+| Where the first-frame answer comes from | Snapshot in the prefetched App Shell | Snapshot in device storage |
+| What makes it available before render | `"use cache: private"` with `cacheLife` | Synchronous `storage.get()` on mount |
+| Guard surface | `Protected`, Server Components under Suspense | `Stack.Protected`, `Tabs.Protected`, `Protected` |
+| Refresh trigger | `updateTag(tag(user))` after a mutation | Background fetch on mount and on `invalidate()` |
+| Revocation path | SSF receiver calls `updateTag` | Revalidation interval; no push without an app channel |
+| Closure grants | Batched AuthZEN call to `permdockHandler()` | Same endpoint, `status: 'server-only'` offline |
+| Cold start with no cache | Server renders the shell | Splash screen once, then persisted forever |
+
+Everything above the transport is shared: the snapshot format, the condition evaluator, `usePermission`'s return shape and the decision endpoint. That sharing is the practical payoff of keeping the snapshot as plain JSON rather than a class instance.
+
+## What this rules out
+
+- A hook that suspends or returns `undefined` until a network call completes. `Stack.Protected` needs a boolean on frame one.
+- Boolean-only snapshots. A guard for `permissions.post.update` on a specific post needs the ownership condition to be evaluated locally, which means the snapshot must carry conditions, not results.
+- A client that re-implements the policy. Keeping a second copy of the rules on the device is what CASL users end up doing; PermDock ships the same policy data to both sides instead ([CASL v7](/docs/research/casl-v7)).
+- Storage adapters with asynchronous reads as the default. They push the first-frame answer to the next tick and reintroduce the flash the design exists to avoid; AsyncStorage remains supported for apps that already use it, with the documented cost of one splash-screen frame.
+
+## Open questions
+
+Carried onto the [react-native adapter](/docs/adapters/react-native) page:
+
+- Snapshot versioning: the persisted snapshot carries the snapshot format version (`snapshot v1` in [wire formats](/docs/concepts/wire-formats)) so an app update with a newer format can discard an old snapshot rather than misread it.
+- Encryption: whether the default MMKV instance should be created with an encryption key, given the snapshot reveals the user's roles and grant shapes.
+- Revocation latency: a native client has no `updateTag`. The SSF/CAEP receiver on the server can only shorten the revalidation interval or push a signal through the app's own channel; the adapter documents the interval as the revocation bound.
+- Whether `Tabs.Protected` and `Stack.Protected` need any adapter-specific helper beyond `usePermission(...).allowed`, or whether the example app is enough.
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- `Stack.Protected` and `Tabs.Protected` as the navigator-level guard surface; PermDock supplies the boolean, Expo Router owns the redirect behaviour.
+- A persisted snapshot as the source of first-frame answers, with a synchronous storage adapter (MMKV) as the recommended default.
+- Stale-while-revalidate with an explicit `status` so the UI can distinguish stale, pending and server-only answers.
+
+Adapt:
+
+- The web `PermDockProvider` gains a `storage` option in the native entry point; everything else (`usePermission`, `Protected`, the batched decision endpoint) is shared with `permdock/react`.
+- `invalidate()` doubles as the logout hook that clears persisted state.
+- Scoped snapshots to bound the on-device payload.
+
+Avoid:
+
+- Suspending hooks or `undefined` guard values.
+- Boolean-only client state.
+- Duplicating policy logic in the app bundle.
+- A splash screen on every launch; it is acceptable only once per install.
+
+## Decisions informed
+
+- [ADR 0008: plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key) (a snapshot must round-trip through device storage)
+- [ADR 0010: policy as data, portable conditions](/docs/decisions/0010-policy-as-data-portable-conditions) (offline ownership checks)
+- [ADR 0006: explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin) (the same `src/permdock/` wiring in Expo as in Vite and Hono)
+- [ADR 0005: naming convention](/docs/decisions/0005-naming-convention)
+- Pages shaped: [react-native](/docs/adapters/react-native), [react](/docs/adapters/react), [snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats), [ssf](/docs/adapters/ssf).

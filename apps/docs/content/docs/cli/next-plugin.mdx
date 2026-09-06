@@ -1,0 +1,81 @@
+---
+title: Next.js plugin
+description: createPermDockPlugin runs permdock collect during next dev and next build; it is a build hook only and never wires the PermDock API.
+---
+
+Status: planned
+Phase: 2
+
+`createPermDockPlugin` is exported from `permdock/next/plugin` and wraps `next.config.ts`. Its only job is to run [collect](/docs/cli/collect) while Next.js runs, the way next-intl's loader keeps extracted message catalogs in sync during development. It does not alias modules, does not augment types and does not create a `PermDock` instance. API wiring is the explicit factory file described in [0006: Explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin).
+
+## Usage
+
+```ts
+// next.config.ts
+import { createPermDockPlugin } from 'permdock/next/plugin'
+
+const withPermDock = createPermDockPlugin({
+  collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
+})
+
+export default withPermDock({
+  // your Next.js config
+})
+```
+
+`srcPath` accepts first-party folders, sibling workspace packages and installed packages, so a monorepo where `@acme/ui` ships its own `permissions.ts` next to its components is collected into the app's catalog without any manual import.
+
+## What it does
+
+| Phase | Behaviour |
+| --- | --- |
+| `next dev` | Runs `collect` once at startup, then watches `srcPath` and re-runs on change. Writes `permissions.catalog.json` (and the barrel when `collect.barrel` is enabled). Failures are logged, never fatal. |
+| `next build` | Runs `collect --check`. A stale catalog fails the build with the diff, so a deployment can never ship a catalog that disagrees with the code. `PERMDOCK_COLLECT=write` switches to writing instead of checking for build pipelines that commit generated files. |
+| `next start` | Nothing. |
+
+The plugin resolves `@permdock/cli` from the app's `node_modules` and runs it in-process; the CLI package must be a dev dependency. When it is missing, the plugin logs one warning and does nothing, so `permdock/next/plugin` can be imported in a project that has not installed the CLI yet.
+
+## What it does not do
+
+- It does not provide `getPermDock`, `getPermission` or `usePermission`. Those come from your factory file and from `permdock/react`.
+- It does not add a webpack or Turbopack alias for a request config module.
+- It does not augment `permdock` types with your policy or subject.
+- It does not run `usage`, `doctor` or `openapi`; those stay explicit CI steps.
+
+This is deliberate. The alternative, a next-intl-style plugin plus request config plus module augmentation, would have given a package-level import for server helpers at the cost of being Next-only and global to one policy per app. Explicit factories work identically in Vite, Expo and Hono, and agents follow one recipe.
+
+## Options
+
+```ts
+createPermDockPlugin({
+  collect: {
+    srcPath: string[]          // required; globs relative to the app root
+    out?: string               // default 'permissions.catalog.json'
+    barrel?: boolean | string  // default false; true writes src/permissions.generated.ts
+  },
+  onDrift?: 'error' | 'warn'   // build behaviour on a stale catalog; default 'error'
+})
+```
+
+Settings can also live in `permdock.config.ts`; plugin options override the file.
+
+## Turbopack
+
+Next.js 16.3 builds with Turbopack by default. The plugin does not register a loader or a Turbopack rule; it hooks Next's config lifecycle and runs the collector as a side process, so it works with Turbopack and webpack alike and has no effect on the module graph or on the App Shell used by Instant Navigations ([Next.js 16.3 research](/docs/research/nextjs-16-3-instant-navigation)).
+
+## Example
+
+`apps/examples/next` and `apps/examples/monorepo` in the repository use the plugin; `monorepo` collects from two sibling feature packages and fails its CI on drift.
+
+## Open questions
+
+- Whether the plugin should write the catalog into `.next/` during `next dev` and only commit on demand, avoiding a modified file in the working tree during development.
+- Equivalent build hooks for Vite (`vite-plugin-permdock`) and Expo (Metro) are planned once `collect` is stable; they will be thin wrappers over the same CLI call.
+
+## Related
+
+- [collect](/docs/cli/collect)
+- [Next.js adapter](/docs/adapters/next)
+- [Larger apps](/docs/getting-started/larger-apps)
+- [next-intl extraction model](/docs/research/next-intl-extraction-model)
+- [0006: Explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin)

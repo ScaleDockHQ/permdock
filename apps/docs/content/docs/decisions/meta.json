@@ -1,0 +1,22 @@
+{
+  "title": "Decisions",
+  "pages": [
+    "0001-greenfield-mit",
+    "0002-umbrella-package",
+    "0003-reference-based-permissions",
+    "0004-actions-vs-collection",
+    "0005-naming-convention",
+    "0006-explicit-factory-not-plugin",
+    "0007-decide-not-explain",
+    "0008-plain-json-leaves-identity-by-key",
+    "0009-boundary-validation",
+    "0010-policy-as-data-portable-conditions",
+    "0011-authzen-wire-format",
+    "0012-two-principal-subject",
+    "0013-three-outcome-decision",
+    "0014-openapi-3-2",
+    "0015-no-runtime-deps-in-core",
+    "0016-repo-layout-and-toolchain",
+    "0017-docs-first-in-mdx"
+  ]
+}

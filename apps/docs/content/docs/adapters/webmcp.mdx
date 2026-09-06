@@ -1,0 +1,85 @@
+---
+title: WebMCP
+description: permdock/webmcp registers browser-exposed WebMCP tools only for actions the current snapshot allows, with hints from action metadata and automatic unregistration when permissions change.
+---
+
+Status: planned
+Phase: 2
+
+`permdock/webmcp` is the client-side twin of [permdock/mcp](/docs/adapters/mcp). A page calls `registerTools` with a permission group and the snapshot-backed `PermDock` from `usePermDock()`; the adapter registers one WebMCP tool per allowed action on `document.modelContext`, sets tool hints from action metadata, and unregisters tools whenever the snapshot changes.
+
+## Purpose
+
+WebMCP lets a web page expose tools to in-browser agents through `document.modelContext.registerTool()` ([Chrome docs](https://developer.chrome.com/docs/ai/webmcp); `navigator.modelContext` is deprecated in Chrome 150). Pages are gated by the `tools` Permissions-Policy, and each tool can declare `readOnlyHint` and `untrustedContentHint`. The question a page must answer before registering anything is "which tools may this user trigger?", and that is exactly what the client [snapshot](/docs/concepts/snapshots) holds. Registering tools the user cannot use invites a denied call; registering nothing wastes the capability. `permdock/webmcp` registers the allowed subset and keeps it in sync.
+
+## API
+
+```tsx
+import { registerTools } from 'permdock/webmcp'
+import { usePermDock } from 'permdock/react'
+
+function PostTools() {
+  const permdock = usePermDock()
+  useEffect(() => {
+    const controller = new AbortController()
+    registerTools(document.modelContext, permissions.post, {
+      permdock,
+      signal: controller.signal,
+      handlers: {
+        read:   async ({ id }) => api.posts.get(id),
+        update: async ({ id, ...patch }) => api.posts.update(id, patch),
+        create: async (input) => api.posts.create(input),
+      },
+    })
+    return () => controller.abort()
+  }, [permdock])
+  return null
+}
+```
+
+- `registerTools(modelContext, permissionGroup, options)` walks the group (`permissions.post` is a resource node; a nested group such as `permissions.billing` is also accepted) and registers a tool per action for which `permdock.can(permission)` (collection) or a grant exists (instance actions) in the snapshot.
+- Tool names are derived from the permission key (`post.update` becomes `post_update`); `title` and `description` come from action metadata when actions are declared as a record.
+- `readOnlyHint` is `true` for actions tagged read-only in metadata (default for `read` and `list`); `untrustedContentHint` is `true` for tools that return user-generated content, also from metadata.
+- The resource schema becomes the tool `inputSchema` (via Standard JSON Schema) for instance actions; collection actions use the schema declared in metadata or accept no input.
+- `signal` unregisters everything on abort; the adapter also aborts and re-registers internally when the snapshot changes (role change, `invalidate`, SSF event).
+
+## Request lifecycle
+
+1. Mount: the component reads the snapshot-backed `PermDock` and calls `registerTools`.
+2. Registration: for each action in the group, the adapter evaluates the snapshot and registers only allowed tools, carrying hints and JSON Schema input.
+3. Agent call: the browser agent invokes a tool. The adapter validates the input against the resource schema (boundary mode), re-checks `permdock.decide(permission, input)` against the current snapshot, then calls the app handler.
+4. Server enforcement: the handler calls the app's API, where a server adapter (`permdock/next`, `permdock/hono`) makes the authoritative decision. The client check is a filter for good UX, never the security boundary.
+5. Snapshot change: `usePermDock()` re-renders with a new snapshot; the adapter aborts the previous registrations and repeats step 2.
+6. Unmount or navigation: the `AbortSignal` fires and all tools are unregistered.
+
+## What it validates
+
+- Tool input against the resource's Standard Schema before the handler runs (`validate: 'boundary'`): agent-supplied arguments are untrusted.
+- The `tools` Permissions-Policy: `registerTools` is a no-op with a development warning when `document.modelContext` is absent (policy denied, unsupported browser, or the polyfill not loaded).
+- Snapshot freshness: tools are registered from the snapshot's `status`; a `server-only` permission (closure grant) is not registered until the decision endpoint has answered.
+- Nothing about the user's identity: the snapshot is issued by the server and is the only source of grants.
+
+## How denials surface
+
+- Not registered: the default. A tool the user cannot use never appears in the page's tool list, so an agent cannot attempt it.
+- Denied at call time (snapshot changed between listing and calling): the handler is not invoked; the adapter returns a tool error result whose text carries the Decision reason and `alternatives`, mirroring the MCP refusal shape.
+- `approval-required`: the adapter does not run the handler; it returns a result asking the agent to obtain user confirmation in the page UI. The app may provide an `onApprovalRequired` callback to open its own confirmation dialog and resolve the call with the approval token.
+- Server denials: the API answers RFC 9457 `application/problem+json`; the adapter forwards the problem `title` and `detail` to the agent as a tool error.
+
+## Example app
+
+`apps/examples/webmcp`: a Vite React app with `post` tools, a role switcher that changes the snapshot, the `tools` Permissions-Policy set in the dev server headers, `@mcp-b/webmcp-polyfill` for browsers without native support, and Puppeteer tests using `page.webmcp` to assert the registered tool list per role and a denied call after a role downgrade.
+
+## Related standards
+
+- [WebMCP](/docs/standards/webmcp): `document.modelContext`, Permissions-Policy `tools`, hints, `AbortSignal`, Puppeteer `page.webmcp`, polyfill.
+- [Standard Schema](/docs/standards/standard-schema): input schemas via Standard JSON Schema.
+- [Snapshots](/docs/concepts/snapshots): what the client knows and when it changes.
+- [MCP adapter](/docs/adapters/mcp): the server-side counterpart.
+
+## Open questions
+
+- Naming: `post_update` versus `post.update` as the tool name, depending on WebMCP name constraints.
+- Whether instance actions with `where` conditions should register with a description that states the condition ("only your own posts") or register only when the condition can be evaluated client-side.
+- How approvals should be presented in a page with no host UI for confirmation; the polyfill and native implementations may differ.
+- Whether `registerTools` should accept multiple groups in one call to share a single abort scope.

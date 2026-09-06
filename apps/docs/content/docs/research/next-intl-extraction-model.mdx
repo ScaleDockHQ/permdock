@@ -1,0 +1,153 @@
+---
+title: The next-intl extraction model
+description: How next-intl's useExtracted turns colocated declarations into a compiled catalog, and how PermDock adopts the same model for permdock collect, the use*/get* naming duality, mergePermissions and scoped snapshots.
+---
+
+Source: next-intl's [message extraction docs](https://next-intl.dev/docs/usage/extraction) and the [useExtracted announcement](https://next-intl.dev/blog/use-extracted), studied in September 2026 while answering "how do typed permissions scale from one file to a monorepo". next-intl is not an authorization library; it is here because it solved the same shape of problem (many colocated typed declarations, one central artifact, client and server consumers) for translations, and its solution maps almost one-to-one onto permissions.
+
+## The problem next-intl solved
+
+Translation libraries traditionally start from a central message file: you write `messages/en.json`, then reference keys from components with `t('posts.editor.title')`. That inverts the natural order of work. The declaration lives far from the code that needs it, keys drift, and dead keys accumulate. It is exactly the problem permix's string-union permission catalog had: the definition lives in one place, the usages elsewhere, and only a scan can tell you whether they agree ([permix lessons](/docs/research/permix-lessons)).
+
+`useExtracted` flips it. The component declares the message where it is used:
+
+```tsx
+import { useExtracted } from 'next-intl'
+
+function Editor() {
+  const t = useExtracted()
+  return <h1>{t('Edit post')}</h1>
+}
+```
+
+The colocated string is the source of truth. A build-time loader (or the `unstable_extractMessages` API) walks the source, collects every declaration and writes the message catalog as a compile output. Target locales are then synced from that catalog. The developer never edits the catalog by hand; drift between code and catalog is a build failure, not a runtime surprise.
+
+The model has five properties that matter here:
+
+1. Colocated declarations. The thing is defined next to the code that uses it.
+2. The catalog is a compile output. It is produced by scanning sources, kept in sync during `next dev` and `next build`, and checked in CI.
+3. Namespaces avoid collisions. Packages in a monorepo ship their own messages under a namespace, and the app merges them; the docs recommend this explicitly for shared packages.
+4. A `use*` / `get*` duality. `useExtracted()` is the client hook; `getExtracted()` is its async counterpart for Server Components and other non-React server code. Same semantics, two entry points chosen by where the code runs.
+5. Works uncompiled. In tests and in tools that do not run the loader, `useExtracted()` still works by falling back to the declaration itself, so the build step is an optimisation of delivery, not a prerequisite for correctness.
+
+## How PermDock adopts it
+
+### Colocated `definePermissions()` is the source of truth
+
+Each feature defines its permissions next to its code:
+
+```ts
+// features/posts/permissions.ts
+import { definePermissions, resource } from 'permdock'
+import { Post } from './schema'
+
+export const postPermissions = definePermissions({
+  post: resource(Post, {
+    actions: ['read', 'update', 'delete', 'publish'],
+    collection: ['create', 'list'],
+  }),
+})
+```
+
+Because permissions are typed references rather than strings ([ADR 0003](/docs/decisions/0003-reference-based-permissions)), the runtime definition already is the catalog. This is where PermDock differs from both next-intl and from permix's catalog PR: there is no need to parse source to build the definition, because executing the module produces it. The scan exists for a different purpose, described next.
+
+### `permdock collect` produces the catalog as a compile output
+
+`permdock collect` scans `srcPath[]` with oxc-parser for two things: `definePermissions()` calls (so definitions in sibling packages and in `node_modules/@acme/*` are found without being imported by the app) and `permissions.x.y` usages (so coverage can be computed). It emits `permissions.catalog.json`, a JSON Schema, Markdown documentation and a generated barrel, and `--check` fails CI when the committed catalog drifts from source, the way next-intl fails when target locales are out of sync. `permdock usage` reports defined-but-unused, used-but-ungranted and granted-by-no-role leaves; the last two are the checks permix could not do because its usages were untyped strings.
+
+`createPermDockPlugin({ collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] } })` in `next.config.ts` runs the same collector during `next dev` and `next build`, mirroring next-intl's loader. It is deliberately a build hook only: the plugin never wires the API or augments module types, which is the pattern rejected in [ADR 0006](/docs/decisions/0006-explicit-factory-not-plugin).
+
+### Nested groups are the namespace mechanism
+
+next-intl recommends namespaces for shared packages. PermDock's equivalent is the nested resource group:
+
+```ts
+// packages/billing/src/permissions.ts (client-safe, shipped with the package)
+export const billingPermissions = definePermissions({
+  billing: {
+    invoice: resource(Invoice, { actions: ['read', 'pay'] }),
+    plan: resource({ collection: ['view', 'change'] }),
+  },
+})
+
+// apps/web/src/permissions.ts
+export const permissions = mergePermissions(postPermissions, billingPermissions)
+permissions.billing.invoice.pay   // the leaf shipped by the package
+```
+
+`mergePermissions` deep-merges groups, preserves leaf identity (`permissions.post.update === postPermissions.post.update`, so feature code can keep importing its local registry) and turns a duplicate key into a type error and a runtime throw. Leaf identity is by `key` and leaves are plain frozen JSON ([ADR 0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)), which is what lets two bundles holding separate copies of the definition module still agree, and what lets a leaf cross an RSC boundary as a prop.
+
+Roles compose the same way: `role('member', [...])` fragments defined per feature are passed together to `definePolicy`, roles with the same name merge their grants, and a grant that references a leaf outside the merged registry is a type error ([policies](/docs/concepts/policies)).
+
+### The `use*` / `get*` duality becomes the naming convention
+
+`usePermission(permissions.post.update, post)` is fully typed by the reference it receives, so, like `useTranslations`, it is imported straight from the package with no factory. `getPermDock()` and `getPermission()` are the async Server Component counterparts of `usePermDock()` and `usePermission()`, exactly as `getExtracted()` is to `useExtracted()`. The convention is written up in [naming](/docs/getting-started/naming) and [ADR 0005](/docs/decisions/0005-naming-convention); the reason it was chosen over inventing new names is that Next.js developers already know what the prefix pair means.
+
+### Scoped snapshots are message namespaces for the client
+
+next-intl lets a page pass only the message namespaces it needs to the client. `permdock.snapshot({ include: [permissions.post] })` does the same for grants: a client route receives only the roles and portable conditions relevant to the posts feature, which keeps the privately cached App Shell payload small on the web ([Next.js 16.3](/docs/research/nextjs-16-3-instant-navigation)) and the persisted payload small on device ([Expo Router](/docs/research/expo-router)).
+
+### Generated definitions merge like any feature file
+
+`permdock rls import` and `permdock openapi import` emit `src/permissions.generated.ts`, a deterministic `definePermissions()` call with a `// @generated` header. It merges through `mergePermissions` like any hand-written feature file, and `permdock rls verify` keeps both directions honest ([Postgres RLS](/docs/research/postgres-rls)). This is the analogue of next-intl shipping message files alongside package code so the app can merge them in.
+
+### Works uncompiled
+
+Tests and scripts import `permissions` and `policy` directly and never need the collector to have run. The catalog only adds coverage reporting, documentation and CI drift detection on top; it is not required for `permdock.can()` to be correct. This is the same relationship `useExtracted` has to its loader.
+
+## The mapping in one table
+
+| next-intl | PermDock | Notes |
+| --- | --- | --- |
+| `useExtracted()` declaration in a component | `definePermissions()` in a feature folder | Colocated source of truth |
+| Build-time loader / `unstable_extractMessages` | `permdock collect` / `createPermDockPlugin({ collect })` | Runs in `next dev` and `next build` |
+| `messages/*.json` catalog | `permissions.catalog.json`, JSON Schema, Markdown | Compile output, committed, `--check` in CI |
+| Target-locale sync failure | `--check` drift failure, `permdock usage` gaps | CI, not runtime |
+| Namespaces for shared packages | Nested resource groups merged by `mergePermissions` | `permissions.billing.invoice.pay` |
+| `useTranslations` imported directly | `usePermission` imported directly | Typed by its argument, no factory |
+| `useExtracted` / `getExtracted` | `usePermDock` / `getPermDock`, `usePermission` / `getPermission` | Client hook versus async server function |
+| Passing a message namespace to the client | `snapshot({ include: [permissions.post] })` | Smaller client payload |
+| Messages shipped inside a package | `permissions.ts` shipped inside a package, or `permissions.generated.ts` | Merged by the app |
+| Works without the loader in tests | Works without `collect` in tests | Collector is additive |
+
+## Where the analogy stops
+
+- next-intl must extract because a string literal is not a value that exists at runtime in a queryable form. PermDock's definitions do exist at runtime, so the collector scans usages for coverage rather than to construct anything. If the scan fails, the catalog is stale; nothing at runtime changes.
+- Translations have a target-locale sync step. Permissions have a policy: the "target" for a definition is the set of roles that grant it, and `permdock usage` reports the gap (granted-by-no-role, used-but-ungranted) instead of syncing anything automatically.
+- next-intl's loader rewrites source. PermDock's plugin only reads it; the generated barrel is an output file, not a transform of the developer's modules.
+
+## Open questions
+
+- Whether `permdock collect` should emit the `mergePermissions` barrel as well as the catalog, or only the catalog and leave the barrel to the developer. next-intl has no equivalent step because messages are merged at runtime by the provider.
+- Whether scanning `node_modules/@acme/*` should be opt-in per package (as in the `srcPath` sketch) or discovered from a `permdock` field in each package's `package.json`.
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- Colocated declarations as the source of truth, with the catalog as a compile output kept in sync by a build hook and enforced by `--check` in CI.
+- The `use*` / `get*` duality as the naming rule for client hooks and async server functions.
+- Namespaces for shared packages, implemented as nested resource groups merged by `mergePermissions`.
+- Passing only the needed namespace to the client, implemented as scoped snapshots.
+- The "works uncompiled" property: tests never depend on the collector.
+
+Adapt:
+
+- The scan is for usage coverage and cross-package discovery, not for building the definition; the runtime definition is the catalog.
+- The build plugin is restricted to running `collect`; API wiring stays in an explicit factory file.
+- Generated definitions (from RLS or OpenAPI) participate in the merge as ordinary feature files.
+
+Avoid:
+
+- A central string catalog that usages reference by name (the permix model and the pre-`useExtracted` model).
+- Source-rewriting transforms; PermDock only reads source.
+- Any runtime dependency on the collector having run.
+
+## Decisions informed
+
+- [ADR 0005: naming convention](/docs/decisions/0005-naming-convention)
+- [ADR 0003: reference-based permissions](/docs/decisions/0003-reference-based-permissions)
+- [ADR 0008: plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key)
+- [ADR 0006: explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin)
+- [ADR 0016: repo layout and toolchain](/docs/decisions/0016-repo-layout-and-toolchain) (oxc-parser as the collector's parser)
+- Pages shaped: [larger apps](/docs/getting-started/larger-apps), [naming](/docs/getting-started/naming), [collect](/docs/cli/collect), [usage](/docs/cli/usage), [catalog](/docs/cli/catalog), [next plugin](/docs/cli/next-plugin), [permissions](/docs/concepts/permissions), [snapshots](/docs/concepts/snapshots).

@@ -1,0 +1,174 @@
+---
+title: Quick start
+description: Define permissions as typed references, grant them to roles, create a PermDock, and guard a React and Next.js app.
+---
+
+This page walks through the four files a PermDock app has: a definition, a policy, a server entry, and UI. Everything below is the Phase 0 design; the API follows the "API design v3" section of the product plan and may still move during core implementation.
+
+## 1. Define permissions
+
+The definition is importable everywhere (server, client, React Native, MCP, tests). It contains no rules and no secrets.
+
+```ts
+// src/permissions.ts
+import { definePermissions, resource } from 'permdock'
+import { z } from 'zod' // or valibot / arktype: any Standard Schema
+
+const Post = z.object({
+  id: z.string(),
+  authorId: z.string(),
+  orgId: z.string(),
+  published: z.boolean(),
+})
+
+export const permissions = definePermissions({
+  post: resource(Post, {
+    id: 'id',                                         // identity field: cache keys, filter, RLS
+    actions: ['read', 'update', 'delete', 'publish'], // take an instance
+    collection: ['create', 'list'],                    // do not
+  }),
+})
+```
+
+`permissions.post.update` is a `Permission<'post.update', Post>`: a plain frozen object with `key` (`'post.update'`), `scope` (`'post:update'`), `resource`, `action` and `meta`. Because the schema lives on the resource node and not on the leaf, a leaf can be passed as a React prop across the RSC boundary or logged as JSON. See [permissions](/docs/concepts/permissions).
+
+## 2. Write a policy
+
+The policy is server-only. Roles are arrays of grants; conditions are data.
+
+```ts
+// src/policy.ts (server-only)
+import { definePolicy, role, allow, deny, subject } from 'permdock'
+import { permissions } from './permissions'
+
+const member = role('member', [
+  allow(permissions.post.read),
+  allow(permissions.post.list),
+  allow(permissions.post.create),
+  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),
+])
+
+const admin = role('admin', [
+  ...member.grants,
+  allow(permissions.post.delete),
+  allow(permissions.post.publish),
+  deny(permissions.post.publish, { where: { published: true } }),
+])
+
+export const policy = definePolicy(permissions, {
+  roles: [member, admin],
+  subject: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
+  validate: 'boundary',
+})
+```
+
+`subject.id` is a reference to a principal field, not the value; it is what lets the same grant run in the browser, filter an array, compile to a SQL `where` and become an RLS `USING` clause. Deny overrides allow, allows OR together, and anything not granted is denied. See [policies](/docs/concepts/policies) and [conditions](/docs/concepts/conditions).
+
+## 3. Create a PermDock and check
+
+```ts
+import { createPermDock } from 'permdock'
+import { policy } from './policy'
+import { permissions } from './permissions'
+
+const permdock = await createPermDock(policy, user) // sync when the policy declares no async `context`; never throws
+
+permdock.can(permissions.post.update, post)  // boolean
+permdock.can(permissions.post.create)        // collection action: no instance, enforced by the type
+
+const decision = permdock.decide(permissions.post.delete, post)
+switch (decision.outcome) {
+  case 'granted':           // { subject, matched, token }
+  case 'denied':            // { denials: [{ role, reason }], alternatives }
+  case 'approval-required': // { grant, reason, token }
+}
+
+permdock.assert(permissions.post.update, post) // returns the granted Decision or throws PermDockDeniedError / PermDockApprovalRequiredError
+```
+
+`createPermDock` returns a frozen, request-scoped `PermDock`. Create one per request (or per user session in the browser); never share a mutable global. `decide` is the full answer, `can` is the boolean shortcut, `assert` is for handlers that must stop on denial. See [decisions](/docs/concepts/decisions) and [errors](/docs/concepts/errors).
+
+## 4. Guard React UI
+
+Client code imports hooks directly from `permdock/react`; no factory is needed because the types flow through the permission reference.
+
+```tsx
+import { PermDockProvider, usePermission, Protected } from 'permdock/react'
+import { permissions } from './permissions'
+
+export function App({ snapshot, children }) {
+  return (
+    <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
+      {children}
+    </PermDockProvider>
+  )
+}
+
+export function EditButton({ post }) {
+  const { allowed, status } = usePermission(permissions.post.update, post)
+  if (status === 'pending') return <Skeleton />
+  return allowed ? <button>Edit</button> : null
+}
+
+export function DeleteButton({ post }) {
+  return (
+    <Protected permission={permissions.post.delete} data={post} pending={<Skeleton />} fallback={null}>
+      <button>Delete</button>
+    </Protected>
+  )
+}
+```
+
+The `snapshot` is produced on the server by `permdock.snapshot()` and carries the roles and portable grants, so `usePermission(permissions.post.update, post)` answers the ownership check locally without a network round trip. Grants that use closures cannot be serialised; for those the provider calls `endpoint`, batched and deduplicated by permission key and resource id. `status` is `'ready'`, `'pending'`, `'stale'` or `'server-only'`. See [snapshots](/docs/concepts/snapshots) and the [React adapter](/docs/adapters/react).
+
+## 5. Next.js server entry
+
+On the server, `createPermDock` from `permdock/next` returns the async `get*` counterparts of the client `use*` hooks. Keep it in one explicit file.
+
+```ts
+// src/permdock/server.ts (server-only)
+import { createPermDock } from 'permdock/next'
+import { cookies } from 'next/headers'
+import { policy } from '@/policy'
+
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
+  subject: async () => getUser(await cookies()),
+  tag: (user) => `permdock:${user.id}`, // updateTag() on role change refreshes prefetches
+})
+```
+
+```tsx
+// app/layout.tsx: loads the snapshot once per request and serialises it to the client
+import { PermDockProvider } from '@/permdock/server'
+
+export default function RootLayout({ children }) {
+  return <PermDockProvider>{children}</PermDockProvider>
+}
+```
+
+```ts
+// app/posts/[id]/page.tsx, a Server Action, or a Route Handler
+import { getPermDock, getPermission } from '@/permdock/server'
+
+const permdock = await getPermDock()
+permdock.assert(permissions.post.update, post)
+
+const { allowed } = await getPermission(permissions.post.update, post)
+```
+
+```ts
+// app/api/permdock/route.ts: decision endpoint for closure grants and client refreshes
+import { permdockHandler } from '@/permdock/server'
+export const { POST } = permdockHandler()
+```
+
+Client components keep importing `usePermission` from `permdock/react`. The snapshot resolver is meant to be wrapped in `'use cache: private'` with a `cacheLife` of at least five minutes so guards resolve from the prefetched App Shell; data-dependent checks stream under Suspense. Details are on the [Next.js adapter](/docs/adapters/next) page.
+
+## What you have now
+
+- One definition, imported by every layer, that is also the runtime catalog (`listPermissions(permissions)`).
+- One policy that produces booleans in the UI, decisions on the server, and, later, SQL `where` clauses and RLS policies from the same `where` conditions.
+- A `PermDock` per request whose `decide` result can be logged, mapped to RFC 9457 Problem Details, or turned into an AI SDK or MCP approval.
+
+Continue with [larger apps](/docs/getting-started/larger-apps) when the definition outgrows one file, or with an adapter page for your server: [Hono](/docs/adapters/hono), [MCP](/docs/adapters/mcp), [AI SDK](/docs/adapters/ai-sdk).

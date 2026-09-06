@@ -1,0 +1,119 @@
+---
+title: Next.js
+description: permdock/next wires one explicit server factory into Server Components, Server Actions, Route Handlers and the client, built for Next.js 16.3 Cache Components and Instant Navigations.
+---
+
+Status: planned
+Phase: 1
+
+## Purpose
+
+`permdock/next` is the full-stack adapter. One `createPermDock` call in a server-only file returns the async server API (`getPermDock`, `getPermission`), a Server Component provider that serialises the snapshot for `permdock/react`, and a Route Handler for the batched decision endpoint. The design goals come from [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation): permission-gated UI must land in the prefetched App Shell, never block a navigation, and refresh when roles change.
+
+## API
+
+```ts
+// src/permdock/server.ts (server-only)
+import 'server-only'
+import { cookies } from 'next/headers'
+import { createPermDock } from 'permdock/next'
+import { policy } from '@/policy'
+
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
+  subject: async () => getUser(await cookies()),
+  tag: (user) => `permdock:${user.id}`,      // updateTag() on role change refreshes prefetches
+  onDenied: () => redirect('/forbidden'),   // default assert handler; per-call handlers still run first
+})
+```
+
+```tsx
+// app/layout.tsx: loads the snapshot once per request and serialises it to the client
+import { PermDockProvider } from '@/permdock/server'
+export default function Layout({ children }) {
+  return <PermDockProvider include={[permissions.post, permissions.billing]}>{children}</PermDockProvider>
+}
+
+// app/posts/[id]/page.tsx (RSC), a Server Action or a Route Handler
+import { getPermDock, getPermission } from '@/permdock/server'
+const permdock = await getPermDock()
+permdock.assert(permissions.post.update, post)
+const { allowed } = await getPermission(permissions.post.update, post)
+
+// app/api/permdock/route.ts: decision endpoint for closure grants
+import { permdockHandler } from '@/permdock/server'
+export const { POST } = permdockHandler()
+
+// Client components import from permdock/react, never from permdock/next
+import { usePermission, Protected } from 'permdock/react'
+```
+
+| Export | Role |
+|---|---|
+| `getPermDock` | Async. Resolves the subject once per request through `React.cache`, builds the request-scoped `PermDock`, returns it. Safe to call from layouts, pages, Server Actions and Route Handlers; concurrent calls in one render share the same instance. |
+| `getPermission` | Async counterpart of `usePermission`: returns `allowed`, `status: 'ready'` and the `Decision`. |
+| `PermDockProvider` | Server Component. Awaits the snapshot (optionally scoped with `include`) and renders the client `PermDockProvider` from `permdock/react` with `snapshot` and `endpoint` filled in. |
+| `permdockHandler` | Returns `POST` (and `GET` for `.well-known` discovery) implementing the AuthZEN-shaped decision endpoint on top of the same subject resolver. |
+| `tag` | Builds the cache tag for the subject's snapshot. Call `updateTag(tag(user))` in the Server Action that changes roles so prefetched shells are refreshed. |
+
+### Why an explicit factory file and not a Next plugin
+
+The `next.config.ts` plugin (`createPermDockPlugin`) exists only as a build hook for `permdock collect`; it never wires runtime API. Runtime wiring lives in `src/permdock/server.ts` because:
+
+- The file is the single import boundary between server and client. It can carry `import 'server-only'`, so a client component importing `getPermDock` fails at build time (permix issue 49 leaked Prisma and Better Auth into the browser bundle through a middleware callback).
+- Types flow from the returned object, not from module augmentation. Two policies, or a test double, can coexist.
+- Same shape in Vite, Expo and Hono: one file, one `createPermDock`. See [ADR 0006](/docs/decisions/0006-explicit-factory-not-plugin).
+
+## Request lifecycle
+
+1. A request or RSC render starts. The first call to `getPermDock`, `getPermission` or `PermDockProvider` runs the `subject` resolver inside `React.cache`; the result is memoised for the rest of the render. Server Actions and Route Handlers get their own instance per invocation.
+2. Snapshot. `PermDockProvider` calls the snapshot resolver. The documented pattern wraps it in a function the app author owns:
+
+```ts
+// src/permdock/snapshot.ts
+import { cacheLife } from 'next/cache'
+export async function loadSnapshot() {
+  'use cache: private'
+  cacheLife({ stale: 300 })           // at least 5 minutes so the App Shell may include it
+  const permdock = await getPermDock()
+  return permdock.snapshot({ include: [permissions.post] })
+}
+```
+
+   `'use cache: private'` caches per browser session, so session-derived output is allowed into the prefetched App Shell. Anything that reads `cookies()` without it must render behind a `Suspense` boundary or the navigation blocks.
+3. Guards resolve from the shell. Client `Protected` and `usePermission` answer from the prefetched snapshot, so a link to an admin page paints on click. Data-dependent checks (`getPermission(permissions.post.update, post)` where `post` comes from the database) sit under `Suspense` and stream.
+4. Mutations. A Server Action calls `permdock.assert(...)`, performs the write, then `updateTag(tag(user))` if the write changed roles or grants, which invalidates the private cache and the client refetches.
+5. Closure grants. `usePermission` posts batched `evaluations` to `app/api/permdock/route.ts`; `permdockHandler` resolves the same subject, validates the posted data at the boundary and answers.
+6. Segments that must not be prefetched with permission UI export `instant = false`.
+
+## What it validates
+
+- Posted decision-endpoint bodies against the AuthZEN `evaluations` schema and posted resource data against the resource's Standard Schema (`validate: 'boundary'`).
+- Snapshot scope: `include` must reference groups or resources from the policy's definition; unknown references are a type error.
+- Build-time: `permdock/next` is marked server-only; importing it from a `'use client'` module fails the build. The definition module stays client-safe.
+- Nothing about data already loaded on the server (trusted rows).
+
+## How denials surface
+
+- `assert` runs the layered handlers: the per-call handler, instance `on('denied')` hooks, then `onDenied` from the factory. The default redirects; apps may throw `notFound()` instead. `PermDockApprovalRequiredError` carries the replay-safe `token` so an approval page can call the action again.
+- `getPermission` never throws; it returns the `Decision`.
+- Route Handlers using `permdockHandler` and the HTTP kernel answer `403 application/problem+json`.
+- Client components behave as in [React](/docs/adapters/react).
+
+## Example app
+
+`apps/examples/next`: Next.js 16.3 with Cache Components enabled, `src/permdock/server.ts`, a private-cached snapshot, admin and billing routes guarded by `Protected`, a post editor with a database-dependent `getPermission` under `Suspense`, a role-change Server Action that calls `updateTag`, and `@next/playwright` tests using `instant()` to assert that navigating to a guarded route paints from the prefetched shell without a blocking request.
+
+## Related standards
+
+- [AuthZEN](/docs/standards/authzen): decision endpoint shapes served by `permdockHandler`.
+- [Problem Details](/docs/standards/problem-details): Route Handler denials.
+- [Standard Schema](/docs/standards/standard-schema): boundary validation.
+- Research: [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation), [next-intl extraction model](/docs/research/next-intl-extraction-model). Decisions: [0006 explicit factory](/docs/decisions/0006-explicit-factory-not-plugin).
+
+## Open questions
+
+- Whether a library entry can carry `'use cache: private'` itself or whether the directive must live in app code. The docs assume app code until verified; the adapter may ship a `defineSnapshotLoader` helper that documents the `cacheLife` floor.
+- Build-phase behaviour: returning an anonymous subject during `next build` (Kilpi's `NEXT_PHASE` workaround) versus requiring the snapshot loader to be private-cached, which already avoids `cookies()` at build time.
+- Whether `getPermDock` should accept a `subject` override for Route Handlers authenticated with a bearer token instead of cookies.
+- `notFound()` versus `redirect()` as the default denial for pages.
+- Whether the Pages Router gets any support (current answer: no).

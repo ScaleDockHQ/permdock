@@ -1,0 +1,97 @@
+---
+title: Agent docs standards
+description: AGENTS.md, Agent Skills and llms.txt as the formats coding agents read, and what PermDock ships in each so an agent can wire and audit permissions without reading source.
+---
+
+Status: planned
+Phase: 1
+
+Phase 1 ships the skills, `AGENTS.md`, `llms.txt` and `.md` per docs page. The docs MCP server is Phase 4.
+
+## What it is
+
+Three conventions have converged into the way coding agents learn a codebase or a library:
+
+- **AGENTS.md** is a Markdown file at the repository root with instructions for agents working in the repo: layout, commands, invariants, conventions. Since December 2025 it is governed by the **Agentic AI Foundation** (AAIF) under the Linux Foundation, alongside Agent Skills ([overview](https://blog.agentailor.com/posts/top-ai-agent-standards-2026)). `CLAUDE.md` is the older Claude-specific name for the same idea; the recommended practice is to keep `CLAUDE.md` a symlink to `AGENTS.md` rather than maintain two files.
+- **Agent Skills** are directories containing a `SKILL.md` with frontmatter (`name`, `description`) and a body of step-by-step instructions, optionally with supporting files. Agents load a skill when its description matches the task. Skills are distributed through **skills.sh** and installed with `npx skills add <source>`. Also under the AAIF.
+- **llms.txt** is a root-level Markdown file that gives language models a curated index of a site's documentation, with `llms-full.txt` as the concatenated full text. Docs sites also increasingly serve a `.md` version of every page so an agent can fetch exactly one page as plain text.
+
+## Why it matters for PermDock
+
+PermDock's audience is TypeScript product teams *and the coding agents working in their repos*. The success metric in the plan is "agent time to first check": how fast an agent can go from `npm install permdock` to a passing `can()` in an unfamiliar codebase. That depends on the agent finding instructions in the places it already looks, in formats it already parses. Inventing a PermDock-specific docs format would defeat the purpose. See [for AI agents](/docs/for-ai-agents).
+
+The same rule applies to the maintainer side: an agent contributing to PermDock reads `AGENTS.md` for the "when you change X also update Y" list (adapter, docs page, skill, example, catalog), so the convention is used in both directions.
+
+## How PermDock uses it
+
+### What PermDock ships
+
+| Artefact | Location | Audience |
+| --- | --- | --- |
+| `wire-permdock` skill | `packages/permdock/skills/wire-permdock/SKILL.md`, also on skills.sh | Agents adding PermDock to an app: define, policy, `createPermDock`, first adapter, first test |
+| `audit-permissions` skill | `packages/permdock/skills/audit-permissions/SKILL.md`, also on skills.sh | Agents finding unguarded routes and tools, unused or ungranted permissions (wraps `permdock usage`) |
+| `AGENTS.md` | Repository root | Agents contributing to PermDock: layout, commands, invariants, naming, docs conventions |
+| `CLAUDE.md` | Repository root, symlink to `AGENTS.md` | Claude Code and other tools that look for this name |
+| `llms.txt`, `llms-full.txt` | Docs site root | Models indexing the documentation |
+| `.md` per docs page | Docs site, same path with `.md` | Agents fetching one page as text |
+| Docs MCP server | Docs site route (Phase 4) | Agents querying the docs through MCP tools |
+| JSON Schema catalog | `permdock catalog --format json-schema` | Agents and tools reading the permission model without TypeScript |
+
+Install the skills into a project:
+
+```bash
+npx skills add ScaleDockHQ/PermDock
+```
+
+The skills are also shipped inside the `permdock` npm package so `permdock skills` from `@permdock/cli` can install them offline into `.cursor/skills`, `.claude/skills` or the tool-specific location an agent runtime expects. See [CLI skills](/docs/cli/skills).
+
+### Conventions the docs follow for agents
+
+- Every docs page has frontmatter `title` and `description`, one topic per page, plain Markdown bodies, so `.md` and `llms-full.txt` are lossless.
+- Adapter and standards pages carry `Status` and `Phase` lines so an agent knows whether an import path exists yet.
+- Error messages and Problem Details `detail` text are written so a model can act on them (what was denied, why, what is permitted instead); see [Problem Details](/docs/standards/problem-details).
+- Code examples use the exact public identifiers (`createPermDock`, `permissions.post.update`) and never placeholders an agent might copy literally.
+- `permdock doctor` reports the same findings the `audit-permissions` skill looks for, so the skill and the CLI cannot drift.
+
+### `SKILL.md` shape
+
+```md
+---
+name: wire-permdock
+description: Add PermDock to a TypeScript app. Use when asked to add permissions, roles, authorization or access control, or to guard a route, tool or component.
+---
+
+1. Install `permdock`. Detect the validator in use (zod, valibot, arktype, effect).
+2. Create `src/permissions.ts` with `definePermissions` and `resource(...)`.
+3. Create `src/policy.ts` with `definePolicy`, `role`, `allow`, `deny`.
+4. Pick the adapter for the framework (see table) and export `createPermDock(...)` from `src/permdock/server.ts`.
+5. Guard one route or component and add a policy-matrix test with `@permdock/testing`.
+6. Run `permdock doctor` and fix what it reports.
+```
+
+## Mapping table
+
+| Convention | PermDock artefact |
+| --- | --- |
+| `AGENTS.md` (AAIF) | Repository-root maintainer guide |
+| `CLAUDE.md` | Symlink to `AGENTS.md` |
+| Agent Skill `SKILL.md` | `wire-permdock`, `audit-permissions` |
+| skills.sh + `npx skills add` | `npx skills add ScaleDockHQ/PermDock` |
+| Skills bundled with a package | `packages/permdock/skills/`, installed by `permdock skills` |
+| `llms.txt` / `llms-full.txt` | Generated by the docs app from the MDX tree |
+| `.md` per page | Served by the docs app for every route |
+| MCP docs server | Docs app route exposing search and page-fetch tools (Phase 4) |
+| Machine-readable model | `permdock catalog` JSON and JSON Schema output |
+
+## Sources
+
+- [Top AI agent standards 2026 overview](https://blog.agentailor.com/posts/top-ai-agent-standards-2026): AGENTS.md and Agent Skills under the Agentic AI Foundation, skills.sh and `npx skills add`.
+- Product plan, differentiator 13 ("Agent-native") and the `AGENTS.md` outline.
+- [MCP llms.txt](https://modelcontextprotocol.io/llms.txt) as an example of the convention in a specification site.
+
+## Open questions
+
+- Whether `audit-permissions` should be one skill or split into "audit routes" and "audit tools" so descriptions match narrower tasks.
+- Which agent runtimes' skill directories `permdock skills` should write to by default, and whether to detect them from the repository.
+- Whether `llms.txt` should list every page or a curated subset with `llms-full.txt` as the complete fallback.
+- How the docs MCP server authenticates, if at all, and whether it should dogfood `permdock/mcp` with a read-only policy.

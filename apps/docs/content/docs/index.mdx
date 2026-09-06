@@ -1,0 +1,50 @@
+---
+title: PermDock
+description: Typed permissions for TypeScript apps, APIs, databases, and AI agents.
+---
+
+PermDock lets you define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have, grant them to roles with portable conditions, and check them in React, React Native, Next.js, Hono, tRPC and MCP servers. The same conditions compile to SQL `where` clauses and Postgres Row Level Security policies, and the same decision object drives tool approvals in the Vercel AI SDK and the Claude Agent SDK.
+
+```ts
+import { definePermissions, resource, definePolicy, role, allow, subject, createPermDock } from 'permdock'
+
+export const permissions = definePermissions({
+  post: resource(Post, { id: 'id', actions: ['read', 'update', 'delete'], collection: ['create', 'list'] }),
+})
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read),
+      allow(permissions.post.create),
+      allow(permissions.post.update, { where: { authorId: subject.id } }),
+    ]),
+  ],
+  subject: (user: User | null) => user && { id: user.id, roles: user.roles },
+})
+
+const permdock = await createPermDock(policy, user)
+permdock.can(permissions.post.update, post) // boolean
+permdock.decide(permissions.post.delete, post) // { outcome: 'granted' | 'denied' | 'approval-required', ... }
+```
+
+## What makes it different
+
+- **Reference-based.** `permissions.post.update` is a typed object with a `key`, a `scope` and a schema. Go-to-definition works, renames are safe, and there are no template-literal unions for TypeScript 7 to chew through.
+- **Standard-Schema-native.** Resources are defined from any [Standard Schema](/docs/standards/standard-schema) validator; instance types are inferred; untrusted inputs are validated at trust boundaries.
+- **Policy as data.** Roles are arrays of `allow` / `deny` grants with [portable conditions](/docs/concepts/conditions). One condition evaluates in the browser, filters arrays, compiles to Drizzle / Prisma / Kysely `where`, and generates RLS.
+- **Decisions, not booleans.** [`decide()`](/docs/concepts/decisions) returns `granted`, `denied` or `approval-required` with reasons and alternatives; adapters turn that into Problem Details, MCP refusals and AI SDK approval states.
+- **Non-blocking UI.** [Snapshots](/docs/concepts/snapshots) carry conditions to the client so `usePermission` answers ownership checks offline and `<Protected>` never blocks a Next.js 16.3 instant navigation.
+- **Agent-native.** Two-principal [subject](/docs/concepts/subject) (principal + actor + delegation), [MCP](/docs/adapters/mcp), [AI SDK](/docs/adapters/ai-sdk) and [Claude Agent SDK](/docs/adapters/claude-agent) adapters, an [AuthZEN](/docs/adapters/authzen) decision endpoint, skills and `llms.txt`.
+
+## Where to go next
+
+- [Installation](/docs/getting-started/installation) and the [quick start](/docs/getting-started/quick-start).
+- [Larger apps](/docs/getting-started/larger-apps): define per feature, merge centrally, generate from RLS or OpenAPI.
+- [Adapters](/docs/adapters): one page per framework, runtime and data layer, each with its status and phase.
+- [Standards](/docs/standards) and [security](/docs/security/threat-model).
+- [Research](/docs/research/landscape) and [decision records](/docs/decisions/0001-greenfield-mit) explaining why PermDock looks the way it does.
+
+## Status
+
+PermDock is in Phase 0: the product plan, this documentation tree, `README.md`, `PRODUCT.md` and `AGENTS.md` exist; the packages do not yet. Every adapter and standards page carries a `Status` and `Phase` line. See the [roadmap](/docs/roadmap).

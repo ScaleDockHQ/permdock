@@ -1,0 +1,55 @@
+---
+title: "0007: decide() returns a Decision"
+description: Why the structured check is called decide and returns a discriminated Decision instead of an explain() method with a message, and why explain may survive as an alias.
+---
+
+## Status
+
+Accepted, September 2026. The `explain` alias is an open question.
+
+## Context
+
+Denial reasons were one of the most requested features in the permix PR stack (#73, permix issue #22) and are weak everywhere in the landscape: CASL has `reason` on rules and `relevantRuleFor`, Kilpi's `Deny()` carries `message`, `reason` and `metadata`, `@zap-studio/permit` has structured errors, PDPs rely on audit logs. Nobody returns a structured decision by default.
+
+Early PermDock drafts had three methods: `can()` for a boolean, `explain()` for a human-readable reason, and `assert()` to throw. Two things changed that shape. First, the result is consumed by machines more often than by people: an MCP refusal, an AI SDK `toolApproval` callback, an RFC 9457 problem body and an audit event all need the same structured payload. Second, the three-outcome model ([0013](/docs/decisions/0013-three-outcome-decision)) means the result is a discriminated union, not an annotated boolean. "Explain" describes a string; "decide" describes a value that drives control flow.
+
+## Decision
+
+`permdock.decide(permission, data?)` returns a `Decision`, discriminated on `outcome`:
+
+```ts
+type Decision =
+  | { outcome: 'granted'; subject; matched; token }
+  | { outcome: 'denied'; denials: Array<{ role; reason }>; alternatives: Permission[] }
+  | { outcome: 'approval-required'; grant; reason; token }
+```
+
+`can()` is `decide().outcome === 'granted'`. `assert()` returns the granted `Decision` (subject narrowed to non-null) or throws `PermDockDeniedError` / `PermDockApprovalRequiredError` carrying the same `Decision`. `simulate()` returns an array of decisions for a batch, mirroring AuthZEN `evaluations`. `on('decision')` emits the same object plus actor and delegation.
+
+`explain` is not a separate method. Whether to export `explain` as a documented alias of `decide` for discoverability ("why was this denied?" is how agents phrase the question) is an open question to settle in Phase 1 with real skill and prompt testing.
+
+## Consequences
+
+- One payload serves UI copy, HTTP 403 bodies, MCP `structuredContent`, AI SDK approval results and audit logs; adapters only translate the vocabulary.
+- `alternatives` lists permitted permissions on the same resource so a model can self-correct instead of retrying the same call.
+- `token` is a hash of permission key, resource id, subject and actor, so an approval replay cannot be swapped onto different arguments.
+- Every denial carries the role and grant that caused it; `reason` strings come from the policy author, not from a message template.
+- Human-readable text is derived, not primary: adapters and skills format `Decision` into prose.
+
+## Alternatives considered
+
+- **`explain()` returning a message** (the original draft, CASL's `ForbiddenError` message). Rejected: a string cannot drive `toolApproval` or elicitation and is not comparable in tests.
+- **Boolean `can()` plus a separate `why()`.** Two calls evaluate the policy twice and can disagree; `decide` is the single evaluation.
+- **Grant / Deny classes** (Kilpi). Good discriminated shape, but class instances do not cross RSC or wire boundaries; `Decision` is plain JSON.
+- **Dropping `can()` entirely.** Rejected; a boolean is the right answer for `if` statements and `filter`.
+
+## Related
+
+- [Decisions](/docs/concepts/decisions)
+- [Errors](/docs/concepts/errors)
+- [Audit and observability](/docs/concepts/audit-and-observability)
+- [Approvals](/docs/security/approvals)
+- [AI SDK adapter](/docs/adapters/ai-sdk)
+- [MCP adapter](/docs/adapters/mcp)
+- [Kilpi v1 deep-dive](/docs/research/kilpi-v1)
+- [0013: Three-outcome decision](/docs/decisions/0013-three-outcome-decision)

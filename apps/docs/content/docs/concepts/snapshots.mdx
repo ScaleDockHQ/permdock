@@ -1,0 +1,163 @@
+---
+title: Snapshots
+description: A snapshot serialises roles, grants and portable conditions so clients evaluate permissions offline; closures stay server-only and invalidation is explicit.
+---
+
+The client needs to know what the current user may do, without a round trip per button and without duplicating the policy in a second `setup()` call. PermDock's answer is the snapshot: `permdock.snapshot()` serialises the subject, the roles and every portable grant, including conditions, as JSON. The browser or React Native app builds a snapshot-backed `PermDock` from it and answers `usePermission(permissions.post.update, post)` locally, ownership check included. Grants that cannot be serialised are marked, and the client asks a decision endpoint for those.
+
+This is the design response to permix's hydration, which collapsed function rules to booleans and forced a duplicated client `setup()`, and to CASL's undocumented `packRules` format ([research](/docs/research/permix-lessons), [CASL v7](/docs/research/casl-v7)).
+
+## Producing a snapshot
+
+```ts
+const permdock = await createPermDock(policy, user)
+
+const full   = permdock.snapshot()
+const scoped = permdock.snapshot({ include: [permissions.post, permissions.billing.plan] })
+```
+
+`snapshot` is synchronous and pure. It includes only what the current subject's roles grant, so a member's snapshot never reveals admin grants.
+
+### Scoped snapshots
+
+`include` limits the snapshot to the listed groups or leaves. Anything outside reports `status: 'server-only'` on the client and is resolved through the endpoint. This is how a large policy ships only the grants a route needs, the equivalent of passing one message namespace to the client in next-intl. See [larger apps](/docs/getting-started/larger-apps).
+
+## Wire format v1
+
+```json
+{
+  "v": 1,
+  "issuedAt": "2026-09-06T10:15:00Z",
+  "subject": {
+    "principal": { "id": "u_1", "orgId": "o_1", "roles": ["member"] },
+    "delegation": { "scopes": ["post:read", "post:update"] },
+    "context": { "teamIds": ["t_1", "t_2"] }
+  },
+  "roles": ["member"],
+  "grants": [
+    { "permission": "post.read",    "effect": "allow", "role": "member" },
+    { "permission": "post.update",  "effect": "allow", "role": "member",
+      "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
+    { "permission": "post.delete",  "effect": "allow", "role": "member", "approval": "human",
+      "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
+    { "permission": "post.publish", "effect": "allow", "role": "member", "portable": false }
+  ],
+  "include": ["post"]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `v` | Format version. Readers reject unknown majors; the format is public and documented here and in [wire formats](/docs/concepts/wire-formats). |
+| `subject` | The frozen principal, delegation and context the conditions reference. The actor's secrets are never included. |
+| `roles` | The role names that were applied. |
+| `grants` | One entry per grant, keyed by permission `key`; conditions in the [portable JSON form](/docs/concepts/conditions). |
+| `portable: false` | The grant exists but uses a closure or an opaque condition; the client must ask the server. |
+| `include` | Present on scoped snapshots so the client knows which groups are authoritative. |
+
+Conditions are plain JSON (no superjson; dates as tagged ISO strings), so the snapshot, the catalog and RLS generation share one condition format.
+
+## The client PermDock
+
+```tsx
+import { PermDockProvider, usePermDock, usePermission, Protected } from 'permdock/react'
+
+<PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
+  <App />
+</PermDockProvider>
+
+const permdock = usePermDock()
+permdock.can(permissions.post.update, post)      // boolean, from the snapshot
+permdock.decide(permissions.post.update, post)   // Decision, from the snapshot
+permdock.status(permissions.post.publish)        // 'server-only'
+permdock.invalidate(permissions.post)            // drop cached endpoint answers under post.*
+```
+
+The client instance has the same `can` and `decide` as the server one, evaluated against the snapshot with the same in-memory evaluator. It adds `status` and `invalidate`, and it consults the endpoint for anything the snapshot marks as `portable: false` or does not include. `usePermDock` subscribes through `useSyncExternalStore`, so a snapshot refresh re-renders exactly the components that read it.
+
+### status
+
+`usePermission` returns `{ allowed, status }`:
+
+| Status | Meaning | What the UI should do |
+| --- | --- | --- |
+| `'ready'` | Answered from the snapshot, or the endpoint has replied | Render on `allowed` |
+| `'pending'` | Not in the snapshot; an endpoint request is in flight | Render the `pending` slot; never block navigation |
+| `'stale'` | Answered from a snapshot or cache that has been invalidated; a refresh is in flight | Render on `allowed`, expect a change |
+| `'server-only'` | Not in the snapshot and no endpoint configured, or the permission is outside `include` and offline | Render `fallback`; treat as denied |
+
+`allowed` is always a boolean so guards never see `undefined`. During `'pending'` it is `false`. `<Protected>` maps the statuses to its `pending` and `fallback` props.
+
+### The decision endpoint
+
+`endpoint` is a URL that answers closure grants and refreshes. The React provider batches requests within a tick, dedupes by permission key plus resource `id`, and caches by that key. The request and response bodies are AuthZEN `evaluations` messages ([AuthZEN](/docs/standards/authzen)), so the same server route serves the React client, the `pdp` provider and any AuthZEN PEP. `permdockHandler()` from the Next.js adapter and the `authzen` adapter both implement it.
+
+Data sent to the endpoint has crossed a trust boundary. The server validates it against the resource schema (`validate: 'boundary'`) and re-evaluates with its own subject, never the client's. The endpoint must be behind real authentication, not a shared public secret; see [validation](/docs/concepts/validation) and the [threat model](/docs/security/threat-model).
+
+## Invalidation
+
+A snapshot is a point-in-time view. Three things refresh it:
+
+| Trigger | Mechanism |
+| --- | --- |
+| Role or grant change on the server (Next.js) | `updateTag(tag(user))` where `tag` is the function you gave `createPermDock` from `permdock/next`; the App Shell prefetch is refreshed and the client receives a new snapshot on the next navigation |
+| Identity provider signal | `permdock/ssf` receives a CAEP `session-revoked`, `credential-change` or `assurance-level-change` event and calls the same tag update, so staleness is bounded by the IdP, not by a TTL ([Shared Signals](/docs/standards/shared-signals-caep)) |
+| Client-side knowledge | `permdock.invalidate(permissions.post)` drops endpoint answers under `post.*` and marks snapshot-derived answers `'stale'` until the provider refreshes |
+
+`invalidate` takes a reference (a group or a leaf), never a string prefix, so it is typed and rename-safe; it is the typed version of Kilpi's namespace invalidation. Snapshots also carry `issuedAt`, and the provider accepts a `maxAge` after which everything is reported `'stale'` while a refresh is fetched.
+
+## Next.js and Instant Navigations
+
+Next.js 16.3 puts session-derived output in the prefetched App Shell only when it is produced inside `'use cache: private'` with a stale time of at least five minutes ([guide](https://nextjs.org/docs/app/guides/instant-navigation)). The Next.js adapter's `PermDockProvider` reads the snapshot through a resolver you wrap that way, so guards resolve from the shell without blocking, and `tag` gives `updateTag` a handle for invalidation. Anything the snapshot cannot answer streams under Suspense with `status: 'pending'`. The `next` example app ships `@next/playwright` `instant()` tests proving guards never block navigation. See the [Next.js adapter](/docs/adapters/next).
+
+## React Native and Expo Router
+
+Expo Router's `Stack.Protected guard={boolean}` is synchronous, so the first frame needs an answer before any network. `permdock/react-native` adds a `storage` option (MMKV, AsyncStorage or any key-value store) to the provider: the last snapshot is persisted, read on launch, used for the first render, and revalidated in the background.
+
+```tsx
+<PermDockProvider storage={mmkvStorage} endpoint="https://api.example.com/permdock">
+  <Stack>
+    <Stack.Protected guard={usePermission(permissions.admin.access).allowed}>
+      <Stack.Screen name="admin" />
+    </Stack.Protected>
+  </Stack>
+</PermDockProvider>
+```
+
+A persisted snapshot is reported as `'stale'` until the refresh completes, which is the honest status: the guard shows the last known answer immediately and corrects itself if roles changed. See the [React Native adapter](/docs/adapters/react-native).
+
+## Testing with snapshots
+
+Snapshots are plain JSON, so UI tests do not need a server. `@permdock/testing` builds fixtures from a policy and a user:
+
+```ts
+import { snapshotFor } from '@permdock/testing'
+import { render } from '@testing-library/react'
+
+const snapshot = snapshotFor(policy, memberUser, { include: [permissions.post] })
+
+render(
+  <PermDockProvider snapshot={snapshot}>
+    <EditButton post={ownPost} />
+  </PermDockProvider>,
+)
+```
+
+Without an `endpoint`, closure grants resolve to `status: 'server-only'`, which is the correct thing to assert against in a component test: the component should render its `fallback`, not hang on `pending`. Storybook stories use the same fixtures. See the [testing adapter](/docs/adapters/testing).
+
+## Size
+
+A grant entry is roughly the size of its condition. A policy with two hundred portable grants serialises to a few kilobytes; scoping with `include` and gzip on the transport keep it small. Snapshots contain no schemas, no metadata and no closure source, and the same subject always produces byte-identical output for the same policy, so they cache well behind `'use cache: private'` and in `storage`.
+
+## What is not in a snapshot
+
+- Closures and opaque conditions: only their existence (`portable: false`).
+- Grants of roles the subject does not have.
+- Quota state for `limit` grants (Later); those are always `server-only`.
+- Anything from the actor beyond what appears in `delegation`.
+
+## Open questions
+
+- Whether large policies should ship full grants or per-permission booleans; grants keep offline ownership checks working, booleans are smaller.
+- Field names in the v1 format (`effect`, `portable`, `include`) are provisional until the core implementation lands.
+- Default `maxAge` for a snapshot, and whether `issuedAt` should be signed so a tampered persisted snapshot on a device is detected (it is UI-only either way).

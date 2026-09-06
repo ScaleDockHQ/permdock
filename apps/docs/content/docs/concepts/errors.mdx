@@ -1,0 +1,154 @@
+---
+title: Errors
+description: PermDock throws three error classes, each carrying the Decision or issues that caused it, and adapters map them to Problem Details and model-readable refusals.
+---
+
+PermDock's evaluation path never throws: `can`, `decide`, `filter`, `where`, `simulate` and `snapshot` return values for every input, including anonymous subjects, unknown roles and invalid data. Throwing is reserved for `assert` and for configuration mistakes, and it uses exactly three classes. Each carries the structured object that explains it, so an adapter, a test or a log never has to parse a message.
+
+## The three classes
+
+| Class | Thrown by | Carries | HTTP |
+| --- | --- | --- | --- |
+| `PermDockDeniedError` | `assert` when the outcome is `denied`; `protect`, `protectServer` and the agent adapters on your behalf | the `denied` `Decision` | 403, `type` `/denied` |
+| `PermDockApprovalRequiredError` | `assert` when the outcome is `approval-required` | the `approval-required` `Decision` including `token` | 403, `type` `/approval-required` |
+| `PermDockValidationError` | boundary validation when data fails its resource schema, when a schema is async, or when a schema is missing in `'always'` mode | `code`, `issues`, `permission`, `resource`, `boundary` | 400, `type` `/validation` |
+
+All three extend `Error`, set `name` to the class name, and are exported from `permdock`. They are ordinary subclasses with no prototype tricks, so `instanceof` works across the package's own entry points; across bundle copies, check `error.name`.
+
+## PermDockDeniedError
+
+```ts
+class PermDockDeniedError extends Error {
+  readonly name: 'PermDockDeniedError'
+  readonly decision: Extract<Decision, { outcome: 'denied' }>
+  readonly permission: string          // 'post.delete'
+  readonly scope: string               // 'post:delete'
+  readonly resource: { type: string; id?: string }
+  readonly subject: Subject            // principal may be null
+  toProblemDetails(options?: { instance?: string }): ProblemDetails
+}
+```
+
+```ts
+try {
+  permdock.assert(permissions.post.delete, post)
+} catch (error) {
+  if (error instanceof PermDockDeniedError) {
+    error.decision.denials      // [{ role: 'member', reason: 'condition' }]
+    error.decision.alternatives // [permissions.post.read, permissions.post.update]
+    error.message               // 'post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.'
+  }
+}
+```
+
+`message` is deterministic and model-readable (below). `assert` throws it only after the layered unauthorized handlers have run; if one of them threw (a Next.js `redirect()`, for example) that error propagates instead. See [decisions](/docs/concepts/decisions).
+
+## PermDockApprovalRequiredError
+
+```ts
+class PermDockApprovalRequiredError extends Error {
+  readonly name: 'PermDockApprovalRequiredError'
+  readonly decision: Extract<Decision, { outcome: 'approval-required' }>
+  readonly permission: string
+  readonly scope: string
+  readonly resource: { type: string; id?: string }
+  readonly token: string               // bind the approval reply to these arguments
+  readonly reason: string              // 'human'
+  toProblemDetails(options?: { instance?: string }): ProblemDetails
+}
+```
+
+It is a distinct class rather than a flag on the denied error because callers handle it differently: a denial ends the request, an approval requirement starts a workflow. The AI SDK adapter turns it into `user-approval`, MCP into an elicitation, `WorkflowAgent` into a durable suspend, and HTTP into a 403 with the token. See [approvals](/docs/security/approvals).
+
+## PermDockValidationError
+
+```ts
+class PermDockValidationError extends Error {
+  readonly name: 'PermDockValidationError'
+  readonly code: 'invalid-data' | 'async-schema' | 'no-schema'
+  readonly permission: string
+  readonly resource: string
+  readonly issues: StandardSchemaV1.Issue[]   // empty for 'async-schema' and 'no-schema'
+  readonly boundary: string                   // 'http-body' | 'mcp-args' | 'tool-args' | 'decision-endpoint' | 'manual'
+  toProblemDetails(options?: { instance?: string }): ProblemDetails
+}
+```
+
+`issues` is the Standard Schema issue array unchanged, so it renders with whatever you already use for your validator's errors. `code: 'async-schema'` and `'no-schema'` are configuration errors and should be treated as bugs, not user input problems. Details on modes and boundaries: [validation](/docs/concepts/validation).
+
+## When each is thrown
+
+| Situation | `decide` | `assert` | Adapter behaviour |
+| --- | --- | --- | --- |
+| No grant, deny matched, condition false, anonymous | `denied` | throws `PermDockDeniedError` | 403 Problem Details; MCP `isError` refusal; AI SDK `denied` |
+| Delegation does not cover the permission | `denied` with `not-delegated` | throws `PermDockDeniedError` | MCP adds a `scopeChallenge` so the client can step up |
+| Grant with `approval: 'human'` matched | `approval-required` | throws `PermDockApprovalRequiredError` | 403 `/approval-required`; AI SDK `user-approval`; MCP elicitation |
+| Untrusted data fails its schema | `denied` with reason `validation` | throws `PermDockValidationError` | 400 `/validation` with `issues` |
+| Schema returns a Promise at a boundary | throws `PermDockValidationError` (`async-schema`) | same | 500; this is a configuration bug |
+| Closure grant throws | `denied` with `closure-error` | throws `PermDockDeniedError` | 403; the closure's error is attached as `cause` on the denial |
+| Unknown permission string in `findPermission` | returns `undefined` | n/a | Your code decides; typed references cannot be unknown |
+
+The only case where `decide` throws is a misconfigured schema. Everything a request can cause is a `Decision`.
+
+## How adapters map them
+
+```text
+PermDockDeniedError            → 403 application/problem+json  type .../denied
+PermDockApprovalRequiredError  → 403 application/problem+json  type .../approval-required
+PermDockValidationError        → 400 application/problem+json  type .../validation
+```
+
+- HTTP adapters (`permdock/hono` and siblings) call `toProblemDetails({ instance: request.url })` and set `Content-Type: application/problem+json`. Nothing else is needed in your handlers.
+- `permdock/next`: `assert` inside a Server Component or Action runs your `onDenied` handler first (typically `redirect()` or `notFound()`); in a Route Handler the error becomes Problem Details.
+- `permdock/mcp`: denied and validation errors become a tool result with `isError: true`, the `message` as text content and the Decision fields as `structuredContent`; a missing scope also produces the `scopeChallenge` step-up; approval becomes an elicitation.
+- `permdock/ai-sdk`: never throws into the model loop; `toolApproval` returns `denied` with the message as the reason, or `user-approval`.
+- `permdock/claude-agent`: `canUseTool` returns a deny result with the message; approval returns an ask.
+- `permdock/authzen`: never throws to the client; `decision: false` with the Decision in `context`.
+- `permdock/trpc`, `permdock/orpc`: mapped to the framework's `FORBIDDEN` and `BAD_REQUEST` error codes with the Problem Details object as `cause`.
+
+## Problem Details shape
+
+All three `toProblemDetails()` results share the RFC 9457 members plus PermDock extensions:
+
+```json
+{
+  "type": "https://permdock.dev/problems/denied",
+  "title": "Permission denied",
+  "status": 403,
+  "detail": "post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.",
+  "instance": "/posts/42",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": { "type": "post", "id": "42" },
+  "denials": [{ "role": "member", "reason": "condition" }],
+  "alternatives": ["post.read", "post.update"]
+}
+```
+
+The approval variant adds `reason` and `token`; the validation variant replaces `denials` with `issues` and uses status 400. The base URI for `type` is a placeholder until the docs domain is final. Full JSON for each is on [wire formats](/docs/concepts/wire-formats); the standard itself is described under [Problem Details](/docs/standards/problem-details).
+
+## Writing error text for models
+
+The `message` and `detail` strings are consumed by LLMs through MCP refusals and AI SDK tool results as often as by humans. They follow a fixed template so a model learns it once:
+
+```text
+<permission> denied for subject <id>: <role> (<reason>)[, <role> (<reason>)]. Alternatives: <key>, <key>.
+<permission> requires human approval (<reason>). Token: <token>.
+<permission>: invalid <resource> data at <path>: <message>[; ...].
+```
+
+Guidance the adapters and your own handlers should follow:
+
+- Lead with the permission key. It is the one identifier the model already has from the tool description.
+- Name the reason with the stable reason code, then a short clause. Do not paraphrase the policy.
+- Always include alternatives when they exist; a model with alternatives self-corrects, a model without them retries.
+- Never include the policy, closure source, other subjects' data or stack traces.
+- Keep it to one line per outcome. Multi-paragraph refusals get truncated in tool results.
+
+The same strings appear in `on('decision')` events, so the audit log and the model see identical text.
+
+## Open questions
+
+- How `approval-required` should surface over plain HTTP beyond the 403 body: a polling URL, a callback, or leaving orchestration to the caller.
+- Whether `PermDockDeniedError` should expose `status` as a property so non-HTTP callers can map it, or whether that belongs only on `toProblemDetails()`.
+- Whether errors should carry a `cause` chain to the closure error by default or only in development.

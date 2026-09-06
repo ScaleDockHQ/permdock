@@ -1,0 +1,157 @@
+---
+title: Postgres and Supabase RLS research
+description: What Postgres row-level security, Supabase helpers, Drizzle pgPolicy, Prisma 8 policies and the surrounding tooling make possible for a round-trip between PermDock conditions and database policies.
+---
+
+Source: research conducted in September 2026 across the Postgres manual, Supabase docs and source, Drizzle ORM docs, Prisma changelog and `prisma-next` releases, Kysera, Neon, Nile, PostgREST, ZenStack, Atlas, Bytebase, Basejump, the libpg_query parser family and pgTAP. The goal was to decide whether PermDock's portable conditions can compile to RLS, whether existing RLS can be imported, and how to prove the two agree. The result is the [rls adapter](/docs/adapters/rls), the [`permdock rls` CLI](/docs/cli/rls) and the [Postgres RLS standard page](/docs/standards/postgres-rls).
+
+## Postgres RLS fundamentals relevant to codegen
+
+Syntax and combination rules ([CREATE POLICY](https://www.postgresql.org/docs/current/sql-createpolicy.html)):
+
+- `CREATE POLICY name ON table [AS PERMISSIVE|RESTRICTIVE] [FOR ALL|SELECT|INSERT|UPDATE|DELETE] [TO role, ...] [USING (expr)] [WITH CHECK (expr)]`. Defaults: PERMISSIVE, ALL, PUBLIC.
+- Permissive policies of the same command type are ORed; restrictive policies are ANDed; the result is the AND of the restrictives ANDed with the OR of the permissives. Zero permissive policies means deny. `ALL` policies fold into whichever command type is being evaluated.
+- Clause legality: SELECT has no `WITH CHECK`; INSERT has no `USING`; DELETE has no `WITH CHECK`; UPDATE and ALL take both, and if `WITH CHECK` is omitted the `USING` expression is reused for the new-row check.
+- Cross-command coupling: UPDATE or DELETE statements that read columns (WHERE, RETURNING, SET) also need a passing SELECT or ALL policy; RETURNING rows must satisfy SELECT policies or the statement errors. Supabase restates this as "UPDATE requires a SELECT policy" ([RLS guide](https://supabase.com/docs/guides/database/postgres/row-level-security)).
+- Denial semantics differ: `USING` silently filters; `WITH CHECK` raises `42501`; a missing GRANT raises `42501` before any policy runs. This drives the three parity outcomes below.
+- Expressions cannot contain aggregates or window functions; they run with the caller's privileges, so referenced tables and functions need grants; `LEAKPROOF` functions may run before policy quals.
+
+Introspection:
+
+- [`pg_policies`](https://www.postgresql.org/docs/current/view-pg-policies.html): `schemaname`, `tablename`, `policyname`, `permissive` (`PERMISSIVE` or `RESTRICTIVE`), `roles name[]`, `cmd` (`ALL`, `SELECT`, ...), `qual text`, `with_check text`.
+- The underlying [`pg_policy`](https://www.postgresql.org/docs/current/catalog-pg-policy.html) catalog: `polcmd` (`r`, `a`, `w`, `d`, `*`), `polpermissive`, `polroles oid[]` (0 means PUBLIC), `polqual` and `polwithcheck` as `pg_node_tree`. The view deparses them with `pg_get_expr(polqual, polrelid)`, which returns normalised SQL (explicit casts, parenthesisation, `( SELECT auth.uid() AS uid)`), not the original text. Enablement lives in `pg_class.relrowsecurity` and `relforcerowsecurity`.
+
+Performance guidance ([RLS guide](https://supabase.com/docs/guides/database/postgres/row-level-security), [RLS performance](https://supabase.com/docs/guides/database/postgres/row-level-security-performance), Splinter lints):
+
+- Wrap stable helpers: `(select auth.uid()) = user_id` forces an InitPlan so the function runs once per statement rather than per row (Splinter [`auth_rls_initplan`](https://supabase.github.io/splinter/0003_auth_rls_initplan/), WARN).
+- Index every column a policy filters on; only the leading btree column counts.
+- Always specify `TO authenticated` so `anon` short-circuits.
+- Avoid correlated joins; prefer `team_id in (select team_id from team_user where user_id = (select auth.uid()))`, or a `security definer` function (with `set search_path = ''`, in a non-exposed schema) to bypass RLS on the join table and break `42P17` recursion.
+- Splinter [`multiple_permissive_policies`](https://supabase.github.io/splinter/0006_multiple_permissive_policies/) warns that N permissive policies per role and command cost N evaluations and are a common source of logic bugs.
+
+## Supabase specifics
+
+- Roles: every request runs as `anon` or `authenticated` (PostgREST issues `SET LOCAL ROLE` from the `role` claim); `service_role` has `bypassrls`. Grants are separate from policies; new tables in `public` may already grant all four privileges to `anon` and `authenticated`, so codegen should emit `revoke all ... from anon, authenticated; grant ...` next to the policies.
+- Helpers: `auth.uid()` returns NULL when unauthenticated, so `null = user_id` is never true; `auth.jwt()` returns jsonb (use `app_metadata`, never `user_metadata`, and remember the JWT is stale until refresh). `auth.role()` and `auth.email()` are marked deprecated in the auth migrations ("Use auth.jwt() -> 'role'") and Supabase's own skill says to use the `TO` clause instead ([auth migration](https://github.com/supabase/auth/blob/master/migrations/20220531120530_add_auth_jwt_function.up.sql), [agent-skills](https://github.com/supabase/agent-skills/blob/main/skills/supabase/SKILL.md)).
+- Claims are exposed as GUCs: `request.jwt.claims` (json) and `request.jwt.claim.sub`; `auth.jwt()` is just `current_setting('request.jwt.claims', true)::jsonb`. This is what tests and Drizzle's `createDrizzle` wrapper set.
+- RBAC pattern ([Custom Claims and RBAC](https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac)): enums `app_permission` and `app_role`, tables `user_roles(user_id, role)` and `role_permissions(role, permission)`, a `custom_access_token_hook(event jsonb)` PL/pgSQL Auth Hook that injects `user_role` into the JWT, and a `security definer stable` function `authorize(requested_permission app_permission) returns boolean` that reads `auth.jwt() ->> 'user_role'` and counts `role_permissions`; policies are `using ((select authorize('channels.delete')))`. This is a named-permission catalog in SQL and is PermDock's preferred compile target for named permissions: `permdock rls generate --rbac supabase` scaffolds the tables, hook and function and compiles `permissions.channel.delete` to `authorize('channel.delete')`.
+- `supabase gen types typescript` emits only `Tables` (`Row`, `Insert`, `Update`), `Views`, `Functions`, `Enums`, `CompositeTypes`; no policy information ([generating types](https://supabase.com/docs/guides/api/rest/generating-types)). Verified: policies never appear in generated types.
+- MCP: the official server exposes `list_tables`, `execute_sql`, `apply_migration`, `list_migrations`, `get_advisors` (runs Splinter lints including the RLS ones) ([supabase-mcp](https://github.com/supabase-community/supabase-mcp)); there is no `list_policies` tool, so policy introspection means `execute_sql` against `pg_policies`.
+- Studio has an AI RLS editor (GPT-4o, prompt tuned for `(select ...)` wrapping, per-command policies, discouraging `all` and restrictive) plus an experimental programmatic generator that walks foreign-key paths to `auth.users` ([blog](https://supabase.com/blog/studio-introducing-assistant), [PR #26895](https://github.com/supabase/supabase/pull/26895), [PR #40881](https://github.com/supabase/supabase/pull/40881)). The FK-path breadth-first search in PR 40881 is a useful reference for auto-deriving ownership policies.
+
+## Drizzle ORM
+
+([RLS docs](https://orm.drizzle.team/docs/rls).)
+
+- `pgTable.withRLS('t', {...})` (older releases: `.enableRLS()`) enables RLS with no policies; adding any `pgPolicy` auto-enables it.
+- `pgPolicy(name, { as, to, for, using, withCheck })` inside the table's third argument, with `as` of `permissive` or `restrictive`, `to` a role, role array or `public`, `for` one of `all`, `select`, `insert`, `update`, `delete`, and `using` / `withCheck` as `sql` fragments; `pgPolicy(...).link(existingTable)` attaches to tables Drizzle does not own (for example `realtime.messages`).
+- `pgRole(name, { createRole, createDb, inherit })`, `.existing()` to exclude from migrations; `entities.roles: { provider: 'supabase' | 'neon', include, exclude }` in `drizzle.config.ts`.
+- `drizzle-orm/supabase` exports `anonRole`, `authenticatedRole`, `serviceRole`, `postgresRole`, `supabaseAuthAdminRole`, `authUsers`, `realtimeMessages`, `authUid` (the `(select auth.uid())` fragment) and `realtimeTopic`, plus a `createDrizzle(token, { admin, client })` wrapper that runs `set_config('request.jwt.claims', ..., true)`, `set_config('request.jwt.claim.sub', ..., true)` and `set local role` inside a transaction.
+- `drizzle-orm/neon` exports `crudPolicy({ role, read, modify })`, which expands to four `pgPolicy` entries named `crud-<role>-policy-select|insert|update|delete`, `authUid(col)` as `(select auth.user_id() = col)`, `authenticatedRole`, `anonymousRole` ([Neon guide](https://neon.com/docs/guides/neon-rls-drizzle)).
+- `drizzle-kit generate` diffs policies and emits `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` SQL.
+
+Drizzle is the pragmatic first compile target: PermDock emits `pgPolicy(...)` entries (or a `sql` fragment) and lets drizzle-kit own migration diffing ([drizzle adapter](/docs/adapters/drizzle)).
+
+## Other ORMs and platforms
+
+- Prisma up to 7: no native RLS; the sanctioned pattern is a client extension that batches `set_config('app.tenant_id', ..., true)` and the query inside `$transaction` ([prisma-client-extensions/row-level-security](https://github.com/prisma/prisma-client-extensions/tree/main/row-level-security)). Known pitfalls: the extension's `query()` may not bind to the transaction client ([prisma#20678](https://github.com/prisma/prisma/issues/20678)) and nested many-to-many writes can lose the GUC.
+- Prisma 8 (July 2026): native RLS authoring. `@@rls` on a model enables RLS fail-closed; top-level `policy_select`, `policy_insert`, `policy_update`, `policy_delete` and `policy_all` blocks carry `target`, `roles`, `using` and `withCheck`; `role` declarations; a TypeScript DSL with `policySelect()`, `rlsEnabled()` and `role()`; `migration plan` emits `ENABLE RLS`, `CREATE POLICY` and `ALTER POLICY ... RENAME`; `db verify` fails on policy drift; `@prisma/orm-extension-supabase` supplies `anon`, `authenticated` and `service_role` ([changelog 2026-07-17](https://www.prisma.io/changelog/2026-07-17), [prisma-next#945](https://github.com/prisma/prisma-next/pull/945), [releases](https://github.com/prisma/prisma-next/releases)). A second compile target ([prisma adapter](/docs/adapters/prisma)).
+- Kysely: nothing built in; use `onReserveConnection` (per-acquire `SET` / `RESET`) or a transaction plus `set_config` ([mikro-orm discussion](https://github.com/mikro-orm/mikro-orm/discussions/6137)). Kysera's `@kysera/rls` is the closest prior art to PermDock's goal: one `defineRLSSchema` drives app-side query injection (`filter`, `allow`, `deny`, `validate`) and `@kysera/rls/native` `PostgresRLSGenerator` emits `ENABLE RLS` and `CREATE POLICY` for policies that carry raw `using` / `withCheck` SQL, with `syncContextToPostgres()` mirroring context into `app.*` GUCs and `createPolicyTester()` for DB-less tests ([Kysera multi-tenancy](https://kysera.dev/docs/guides/multi-tenancy)). It generates in one direction only and only for raw-SQL policies.
+- Neon: Neon Authorize became Neon RLS and is now part of the Data API; the JWT is validated at the API, `pg_session_jwt` provides `auth.user_id()` (text `sub`) and `auth.uid()` (uuid), roles `authenticated` and `anonymous` ([blog](https://neon.com/blog/introducing-neon-authorize), [Data API](https://neon.com/docs/data-api/get-started)).
+- Nile: tenant isolation via `set nile.tenant_id = '...'` on tenant-aware tables with a reserved `tenant_id uuid` column instead of user-written policies ([Nile](https://www.thenile.dev/docs/tenant-virtualization/tenant-isolation)). Translation target is tenant equality only.
+- PostgREST: `authenticator` role, `SET LOCAL ROLE` from the role claim, claims in `request.jwt.claims`, `db-pre-request` hook for custom validation ([PostgREST auth](https://docs.postgrest.org/en/latest/references/auth.html)).
+- ZenStack, as contrast: `@@allow` and `@@deny` policies compile into Kysely query-AST filters at the application layer (v3), database-agnostic, no migrations, and the project claims better performance than RLS; raw SQL, triggers and cascades are not covered ([access control](https://zenstack.dev/docs/orm/access-control/), [querying](https://zenstack.dev/docs/orm/access-control/query), [policy-handler.ts](https://github.com/zenstackhq/zenstack/blob/d7c41d8567debef44b8c282c439c3e43803d7568/packages/plugins/policy/src/policy-handler.ts)). PermDock offers both: app-side `where` filters and RLS export, with parity tests as the glue.
+
+## Existing translation tools and parsers
+
+- No mainstream `supabase-rls-to-typescript` or `rls-to-zod` exists; searches surface only `supazod` and `supabase-to-zod`, which consume `gen types` output and therefore contain zero policy data ([supazod](https://github.com/dohooo/supazod)). The RLS-to-app direction is unoccupied.
+- Schema as code: Atlas has first-class `policy "name" { on, as, for, to, using, check }` blocks plus `row_security { enabled, enforced }`, custom lint rules, and `atlas schema test` that switches roles ([Atlas v0.25](https://atlasgo.io/blog/2024/07/09/v025-row-level-security), [HCL reference](https://atlasgo.io/hcl/postgres), [RLS guide](https://atlasgo.io/guides/rls-policy)). Bytebase treats policies as ordinary SQL under review workflows ([Bytebase](https://www.bytebase.com/reference/postgres/how-to/postgres-row-level-security/)). Sqitch is plain SQL; `CREATE POLICY` lacks `IF NOT EXISTS`, so idempotent scripts use `DROP POLICY IF EXISTS` or a `DO` block guarded by a `pg_policies` lookup ([Stack Overflow](https://stackoverflow.com/questions/69024643/how-to-idempotently-define-row-level-security-policies-in-postgresql)).
+- Basejump (a Supabase SaaS starter with account and membership RLS) ships [supabase-test-helpers](https://github.com/usebasejump/supabase-test-helpers): `tests.create_supabase_user()`, `tests.authenticate_as()`, `tests.authenticate_as_service_role()`, `tests.clear_authentication()`, `tests.rls_enabled(schema[, table])`, `tests.freeze_time()`. `supa_audit` is an audit-trail extension, not policy tooling.
+- Parsers for `qual` and `with_check`: `libpg-query` and [pgsql-parser](https://github.com/constructive-io/pgsql-parser) (the real Postgres parser compiled to WASM, symmetric parse and deparse, `@pgsql/types`), [@pgsql/parser](https://www.npmjs.com/package/@pgsql/parser) (runtime-selectable PG 15 to 18 grammars), `pg-query-emscripten` (older predecessor), and [pgsql-ast-parser](https://github.com/oguimbal/pgsql-ast-parser) (pure TypeScript, `astVisitor`, `astMapper`, `toSql`, no PL/pgSQL, incomplete coverage). Because `qual` is a bare expression, parse `SELECT 1 WHERE <qual>` and take the `whereClause` node. Prefer libpg_query-based parsing for fidelity and use its deparser to produce a canonical fingerprint for drift detection.
+
+## Testing RLS
+
+- pgTAP via `supabase test db` (files under `supabase/tests/`, `begin; select plan(n); ... select * from finish(); rollback;`) ([testing](https://supabase.com/docs/guides/database/testing), [pgTAP](https://supabase.com/docs/guides/database/extensions/pgtap)). Structural asserts: `policies_are(schema, table, names[])`, `policy_roles_are`, `policy_cmd_is`, `has_table_privilege`. Behavioural: `set local role authenticated; set local request.jwt.claim.sub = '<uuid>'` (or `set request.jwt.claims to '{"role":"authenticated","sub":"..."}'`), then `results_eq`, `is_empty`, `throws_ok(..., '42501')`.
+- Match the assertion to the denial mode: a missing grant means `throws_ok 42501`; a `WITH CHECK` failure means `throws_ok 42501`; a `USING` filter means `is_empty` over a statement with `RETURNING`, followed by a read proving the target row is intact. Never prove an allowed write with `lives_ok`, which passes on zero rows.
+- Alternatives: Atlas `schema test` (`exec` blocks under non-privileged roles), Kysera `createPolicyTester` (app-side only), or any Node runner using `pg` with the same `set local` preamble inside a rolled-back transaction.
+
+## Design recommendation: the portable subset
+
+Model conditions as a small typed tree over `subject` (id, claims, roles, permissions), `row` (the current row, RLS `USING`) and the next row (RLS `WITH CHECK`). The subset that round-trips:
+
+| Portable node | Supabase SQL | Neon or generic GUC |
+|---|---|---|
+| `eq(row.user_id, subject.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` or `current_setting('app.user_id', true)::uuid = user_id` |
+| `eq(row.tenant_id, subject.claim('tenant_id'))` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | `tenant_id = current_setting('app.tenant_id', true)::uuid` |
+| `eq(subject.claim('user_role'), 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | GUC variant |
+| `claimContains('app_metadata.teams', row.team_id)` | `team_id in (select jsonb_array_elements_text((select auth.jwt())->'app_metadata'->'teams'))::uuid` | none |
+| `memberOf(join_table, { resource_col, user_col, extra eq or in })` | `id in (select resource_id from memberships where user_id = (select auth.uid()) [and role in (...)])` | same |
+| `hasPermission('channels.delete')` | `(select authorize('channels.delete'))` | opaque unless a function is mapped |
+| `eq(row.is_public, true)`, `eq(row.status, 'published')`, `isNull`, `isNotNull`, `true`, `false`, `and`, `or`, `not` | literal SQL | literal SQL |
+
+Import recognises both `EXISTS (select 1 from m where m.res_id = t.id and m.user_id = auth.uid())` and the `IN (subselect)` form as `memberOf`; generate emits the `IN` form (Supabase's performance guidance) or a `security definer` helper for hot tables. Everything else (`now()` and interval arithmetic, `CASE`, multi-join subqueries, `current_user`, custom functions, claim checks beyond simple equality such as `aal`) becomes an `opaque({ sql, fingerprint })` node: kept verbatim for regeneration, unusable for app-side `can()`, and flagged in the catalog. In PermDock's public vocabulary these nodes are written with the operators on the [conditions](/docs/concepts/conditions) page (`eq`, `in`, `and`, `or`, `not`, `subject.<field>`, `subject.context.<key>`); the table above uses the research report's working names.
+
+## Semantic mapping rules
+
+| PermDock | Postgres |
+|---|---|
+| `read` grant | `FOR SELECT USING (cond)` |
+| `create` grant with `check` | `FOR INSERT WITH CHECK (cond on new row)` |
+| `update` grant with `where` and `check` | `FOR UPDATE USING (where on current row) WITH CHECK (check on new row)`; a grant that only mentions the current row collapses to `USING` only, because Postgres reuses it |
+| `delete` grant | `FOR DELETE USING (cond)` |
+| `allow` | `AS PERMISSIVE` |
+| `deny` | `AS RESTRICTIVE` with `NOT (cond)` |
+| role | a claim, never a Postgres role; default `TO authenticated`; public-visible permissions `TO anon, authenticated`; `service_role` never emitted because it bypasses RLS |
+
+- Import splits `FOR ALL` into four catalog entries; export merges them only if identical.
+- Generate a SELECT policy, or verify that `read` covers `update` and `delete`, whenever update or delete permissions exist, because Postgres requires SELECT access to filter and for RETURNING.
+- Warn if a table ends up with zero permissive policies for a role and command.
+- Import maps `roles = {public}` to all subjects and non-Supabase role names to opaque role constraints.
+- Always emit the companion `ENABLE ROW LEVEL SECURITY`, optional `FORCE`, and grant and revoke statements; emit `(select ...)` wrappers and index suggestions for every filtered column.
+
+## The `permdock rls` CLI
+
+- `generate --target drizzle|sql|prisma --dialect supabase|neon|guc`: portable conditions become `pgPolicy(...)` entries (with `authenticatedRole`, `authUid`) or a raw migration (`drop policy if exists` plus `create policy`, plus grants and indexes); the Prisma 8 target emits `policy_*` blocks with `@@rls`. Named permissions compile to `authorize()` when `--rbac supabase` is set, and the CLI can also emit the `user_roles`, `role_permissions` and hook scaffolding.
+- `import --db <url>` or `--sql <dump>`: read `pg_policies` plus `pg_class.relrowsecurity`, parse `qual` and `with_check` with `pgsql-parser`, pattern-match to portable nodes, and write `src/permissions.generated.ts` plus a catalog (table, command, permissive, roles, condition or opaque, fingerprint, source SQL). Deparse-normalised fingerprints, not raw text, detect drift on re-import.
+- `verify --db <url>`: for each fixture of subject, row, optional next row and action, compute `can()` in-process, then run the operation inside `BEGIN ... ROLLBACK` with `set local role`, `set_config('request.jwt.claims', ..., true)` and `set_config('request.jwt.claim.sub', ..., true)`, using `RETURNING`, and classify the outcome as `allowed`, `filtered` (zero rows) or `rejected` (`42501`). Emit as pgTAP for `supabase test db` or run directly via `pg` in Node; fail on any mismatch and report opaque policies as untestable app-side.
+
+## Risks to document
+
+- Semantic drift: SQL three-valued logic (`auth.uid()` NULL, nullable columns) versus JavaScript booleans; type casts (`uuid` versus `text` `sub`); JWT claim staleness versus live app lookups; `user_metadata` being user-writable.
+- `USING` versus `WITH CHECK` confusion (the classic "user reassigns `user_id`" hole), `ALL` policies hiding intent, the SELECT prerequisite for UPDATE and DELETE, RETURNING interactions.
+- Grants: `42501` from a missing grant masquerades as a policy denial; codegen must own grants too.
+- Role mapping mismatch between app roles and the three Supabase roles; `service_role`, `bypassrls` and table owners (without `FORCE`) skipping policies entirely; views defaulting to `security definer` (use `security_invoker = true`).
+- Performance: unwrapped helper calls, unindexed filter columns, correlated joins, many permissive policies, recursion (`42P17`); surface Splinter and `get_advisors` findings in `verify`.
+- Round-trip stability: `pg_get_expr` rewrites text, so import-then-generate must compare ASTs, and migrations must be idempotent (`DROP POLICY IF EXISTS`, or delegate diffing to drizzle-kit, Prisma 8 or Atlas).
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- The Supabase RBAC scaffold (`user_roles`, `role_permissions`, `custom_access_token_hook`, `authorize()`) as the compile target for named permissions.
+- Drizzle `pgPolicy` plus `drizzle-orm/supabase` helpers, raw SQL, and Prisma 8 `policy_*` blocks as the three generate targets.
+- `pg_policies` plus `pgsql-parser` for import, with deparsed-AST fingerprints for drift.
+- pgTAP and `supabase-test-helpers` conventions for behavioural tests; the `allowed` / `filtered` / `rejected 42501` classification.
+- Supabase performance rules baked into generated SQL: `(select ...)` wrappers, `TO authenticated`, `IN (subselect)` over joins, index suggestions.
+- Kysera's dual-mode idea (one definition, app-side and native), extended to both directions.
+
+Adapt:
+
+- `where` (current row) and `check` (next row) on `update` and `create` grants mirror `USING` and `WITH CHECK`; the same words drive Drizzle, Prisma and Kysely `where` compilers.
+- Symbolic `subject.*` references instead of concrete values so one grant compiles to `auth.uid()`, a GUC, or a bound runtime value.
+- `opaque` nodes for everything outside the portable subset, so imported policies regenerate byte-for-byte while the catalog marks them as untestable app-side.
+
+Avoid:
+
+- Emitting `service_role` policies or trusting `user_metadata`.
+- Mapping app roles to Postgres roles.
+- Comparing policy text instead of ASTs.
+- `lives_ok` as proof of an allowed write.
+- Relying on `supabase gen types` or the Supabase MCP server for policy data; neither exposes policies.
+
+## Decisions informed
+
+- [ADR 0010: policy as data, portable conditions](/docs/decisions/0010-policy-as-data-portable-conditions)
+- [ADR 0008: plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key) (generated definitions merge by key)
+- [ADR 0003: reference-based permissions](/docs/decisions/0003-reference-based-permissions) (named permissions compile to `authorize('key')`)
+- Pages shaped: [conditions](/docs/concepts/conditions), [policies](/docs/concepts/policies), [rls](/docs/adapters/rls), [drizzle](/docs/adapters/drizzle), [prisma](/docs/adapters/prisma), [kysely](/docs/adapters/kysely), [supabase](/docs/adapters/supabase), [rls CLI](/docs/cli/rls), [Postgres RLS standard](/docs/standards/postgres-rls), [larger apps](/docs/getting-started/larger-apps), [testing](/docs/adapters/testing), [threat model](/docs/security/threat-model).

@@ -1,0 +1,112 @@
+---
+title: OAuth for agent delegation
+description: How RFC 9396 Rich Authorization Requests, RFC 8693 token exchange, DPoP, CIBA and the IETF agent-delegation drafts shape PermDock's two-principal subject and the rule that an agent can never exceed its user.
+---
+
+Status: planned
+Phase: 1
+
+Phase 1 ships the two-principal subject (`principal`, `actor`, `delegation`) and the `authorizationDetails` type on every permission. Phase 4 ships delegation-chain verification and Web Bot Auth actor derivation.
+
+## What it is
+
+A cluster of OAuth specifications and drafts describes how a human's authority is handed to software that acts for them:
+
+- **RFC 9396 Rich Authorization Requests (RAR).** Replaces flat scopes with an `authorization_details` array of typed JSON objects (`type`, `actions`, `locations`, `datatypes`, and type-specific fields). It is the carrier of constrained authority: not "may access posts" but "may update posts where the author is this user".
+- **RFC 8693 token exchange.** Lets a client trade one token for another, optionally with an `actor_token`, producing tokens that name both who the request is for and who is making it (`act` claim).
+- **DPoP (RFC 9449).** Binds a token to a key so a stolen token is useless without the private key; relevant when agents hold long-lived credentials.
+- **CIBA.** Client-Initiated Backchannel Authentication: the agent asks, the user approves on a separate device. A standards-based human-in-the-loop primitive.
+- **[Agent Delegation Chain](https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00)** (WIMSE draft): carries authority as RAR `authorization_details` across multiple agent hops and enforces **offline-verifiable monotonic attenuation**: each hop can only narrow what it received, and a verifier can check the whole chain without calling back to the issuer.
+- **[Credential Delegation Protocol](https://datatracker.ietf.org/doc/draft-sweeney-wimse-credential-delegation/)** (WIMSE draft): composes RFC 8693, DPoP, RAR and CIBA into one delegation flow.
+- **[OAuth for AI agents on behalf of a user](https://datatracker.ietf.org/doc/html/draft-oauth-ai-agents-on-behalf-of-user-02)**: adds `requested_actor` to the authorization request and `actor_token` to the token request so the resulting token names the agent as well as the user.
+- **MCP Enterprise-Managed Authorization.** ID-JAG via RFC 8693 token exchange redeemed with RFC 7523; see [MCP authorization](/docs/standards/mcp-authorization).
+- **Transaction tokens.** Short-lived tokens that carry authorization context across microservices inside a trust domain; a natural carrier for a PermDock snapshot or decision between services.
+
+## Why it matters for PermDock
+
+The net effect of these specifications is that an authorization check is no longer "can this user" but "can this user, acting through this agent, under this delegated authority". A single-subject API cannot express that, and retrofitting a second principal later is painful. PermDock therefore locks in a two-principal subject before v0.1 ([ADR 0012](/docs/decisions/0012-two-principal-subject)):
+
+- `principal`: the human or service whose grants are evaluated.
+- `actor` (optional): the agent making the call: an MCP `clientId`, an AI SDK agent name, a Web Bot Auth key, an A2A card.
+- `delegation` (optional): the authority the principal handed to the actor: OAuth scopes and/or RAR `authorization_details`, or an attenuated delegation chain.
+
+A decision is **principal grants intersected with delegated authority**. The intersection is what makes "an agent can never exceed its user" a structural property rather than a policy the developer has to remember to write. See [subject](/docs/concepts/subject) and [delegation](/docs/security/delegation).
+
+## How PermDock uses it
+
+```ts
+import { createPermDock } from 'permdock'
+
+// Human case
+const permdock = await createPermDock(policy, user)
+
+// Agent case: actor + delegation
+const agentDock = await createPermDock(policy, user, {
+  actor: { id: authInfo.clientId, kind: 'mcp' },
+  delegation: {
+    scopes: authInfo.scopes,                          // OAuth scopes
+    authorizationDetails: authInfo.authorization_details, // RFC 9396 objects, if present
+  },
+})
+agentDock.can(permissions.post.update, post) // true only if the user may AND the delegation covers it
+```
+
+Adapters fill `actor` and `delegation` automatically from `authInfo` (MCP), `runtimeContext` (AI SDK), the verified signature (Web Bot Auth) or the Agent Card (A2A), so application code rarely constructs them by hand.
+
+### `authorizationDetails` on every permission
+
+Each permission reference carries `scope` (`post:update`) and an `authorizationDetails` type. The type name is derived from the key and the constraint payload is the permission's portable condition, so PermDock can do two things:
+
+- **Emit** RAR objects for a consent screen: "this agent asks to update posts you authored" becomes a typed `authorization_details` entry that an authorization server can render and issue.
+- **Verify** RAR objects on incoming tokens: the `delegation.authorizationDetails` entries are matched by `type` to permissions, and their constraints are intersected with the principal's grant conditions.
+
+```json
+{
+  "type": "permdock:post.update",
+  "actions": ["update"],
+  "locations": ["https://api.example.com/posts"],
+  "where": { "authorId": "$subject.id" }
+}
+```
+
+### Attenuation invariants
+
+- A delegation may only remove or narrow; a grant that the principal lacks cannot be added by any `authorization_details` entry, `actor_token` or chain hop.
+- A chain hop that widens is rejected and the decision is `denied` with a reason of kind `delegation`.
+- Missing `delegation` on an agent call is treated as no delegated authority, so an actor without scopes is denied everything (fail closed). Adapters always supply at least the token scopes.
+
+### What PermDock does not do
+
+PermDock does not issue tokens, run token exchange, validate DPoP proofs or drive CIBA. Those belong to the authorization server and the transport layer. PermDock consumes their output.
+
+## Mapping table
+
+| OAuth concept | PermDock concept |
+| --- | --- |
+| Resource owner / user in the token | `principal` |
+| `client_id`, `act` claim, `actor_token`, `requested_actor` | `actor` |
+| OAuth `scope` | `delegation.scopes`, matched against `permission.scope` |
+| RFC 9396 `authorization_details` | `delegation.authorizationDetails`, matched against `permission.authorizationDetails` type |
+| RAR constraint payload | Portable condition (`where` / `check`), intersected with the grant's condition |
+| Agent Delegation Chain hops | `delegation.chain`; each hop intersected, widening rejected (Phase 4) |
+| Monotonic attenuation | Structural: decision = principal grants ∩ delegation |
+| RFC 8693 token exchange, ID-JAG | Transparent; resulting token's claims feed `principal`, `actor`, `delegation` |
+| DPoP, CIBA | Transport and consent layer; CIBA is one way `approval-required` can be fulfilled |
+| Transaction tokens | Carrier for a snapshot or `Decision` between services (open question) |
+| Consent screen contents | Emitted from `permission.authorizationDetails` and the grant condition |
+
+## Sources
+
+- [Agent Delegation Chain draft](https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00).
+- [Credential Delegation Protocol draft](https://datatracker.ietf.org/doc/draft-sweeney-wimse-credential-delegation/).
+- [OAuth for AI agents on behalf of a user draft](https://datatracker.ietf.org/doc/html/draft-oauth-ai-agents-on-behalf-of-user-02).
+- [MCP Enterprise-Managed Authorization](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/extensions/auth/enterprise-managed-authorization.mdx).
+- RFC 9396, RFC 8693, RFC 9449 and RFC 7523 are referenced by number; see the drafts above for how they compose.
+- [ADR 0012: two-principal subject](/docs/decisions/0012-two-principal-subject).
+
+## Open questions
+
+- Whether delegation chains are verified in core (offline, per the Agent Delegation Chain draft) or left to the token layer, with core trusting an already-flattened `authorization_details` array.
+- The exact `type` naming for `authorizationDetails` (`permdock:<key>` above is a placeholder) and how the portable condition is serialised inside it so an authorization server can render it.
+- Whether a transaction token profile for carrying a `Decision` or snapshot between services is worth specifying, or whether AuthZEN calls between services are sufficient.
+- How `actor`-only calls (a service agent with no human principal) are modelled: a service principal with its own role, or a dedicated subject shape.

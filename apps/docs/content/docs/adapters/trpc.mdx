@@ -1,0 +1,82 @@
+---
+title: tRPC
+description: permdock/trpc adds a request-scoped PermDock to tRPC context and a protect middleware that loads the resource from procedure input, with a trpc-to-openapi hook for OpenAPI security.
+---
+
+Status: planned
+Phase: 2
+
+## Purpose
+
+tRPC procedures have no HTTP surface of their own, so the [server kernel](/docs/adapters/server-kernel) is used for subject resolution and decision mapping while denials become `TRPCError` values. `permdock/trpc` gives you `ctx.permdock` on every procedure and `protect(permission, load)` as a middleware whose loader receives the parsed input, so the same typed reference guards a mutation and documents it. When `trpc-to-openapi` exposes procedures as REST, the adapter's hook emits OpenAPI 3.2 `security` for them.
+
+## API
+
+```ts
+// server/permdock.ts
+import { initTRPC } from '@trpc/server'
+import { createPermDock } from 'permdock/trpc'
+import { policy } from './policy'
+import { permissions } from './permissions'
+
+export const { permdock, protect, openapi } = createPermDock(policy, { subject: (opts) => opts.ctx.user ?? null })
+
+const t = initTRPC.context<Context>().create()
+export const router = t.router
+export const procedure = t.procedure.use(permdock())               // ctx.permdock is the request-scoped PermDock
+
+// server/routers/posts.ts
+export const postsRouter = router({
+  list: procedure.query(async ({ ctx }) => ctx.permdock.filter(permissions.post.read, await listPosts())),
+
+  remove: procedure
+    .input(z.object({ id: z.string() }))
+    .use(protect(permissions.post.delete, ({ input }) => loadPost(input.id)))
+    .meta(openapi.security(permissions.post.delete))               // trpc-to-openapi: { openapi: { protect: true, ... } }
+    .mutation(async ({ ctx }) => deletePost(ctx.permdockData)),
+})
+```
+
+| Export | Role |
+|---|---|
+| `permdock()` | Middleware. Calls `subject(opts)` once per request (memoised on `ctx` so nested routers share the instance) and extends `ctx` with `permdock`. Typed through tRPC's middleware context inference, no manual context augmentation. |
+| `protect(permission, load?)` | Middleware placed after `.input(...)`. `load` receives `input`, `ctx`; the result is validated at the boundary when the loader is untrusted and passed on as `ctx.permdockData`. Denials throw `TRPCError` with code `FORBIDDEN` and the Problem Details body as `cause`. |
+| `openapi.security(permission)` | Returns the `meta` fragment for `trpc-to-openapi`: `protect: true`, `securitySchemes` scope names, and `x-permdock-permissions`. `openapi.securitySchemes()` feeds `generateOpenApiDocument`. |
+| `permdockHandler` | Procedure (or standalone Fetch handler) implementing the AuthZEN-shaped decision endpoint for `permdock/react` clients that share the tRPC server. |
+
+## Request lifecycle
+
+1. The tRPC adapter (Fetch, Express, Next.js) builds `ctx` with the authenticated user.
+2. `permdock()` resolves the subject once and adds the instance to `ctx`.
+3. `protect` runs after input parsing: load, validate, decide, continue with `ctx.permdockData` or throw.
+4. Procedures call `ctx.permdock.assert(...)`, `filter` or `where` for checks that need procedure-local data; thrown PermDock errors are mapped to `TRPCError` by an `errorFormatter` helper so the client receives the Problem Details fields under `data`.
+5. `on('decision')` events carry the procedure path and type.
+
+## What it validates
+
+- Loader results marked untrusted and inputs used as resource data against the resource schema under `validate: 'boundary'`, after tRPC's own input parser.
+- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
+- Middleware order: `protect` before `permdock()` is a type error because `ctx.permdock` is absent from the inferred context.
+
+## How denials surface
+
+- `denied`: `TRPCError` code `FORBIDDEN`, message from the first denial reason, `cause` carrying the Problem Details object (`permission`, `denials`, `alternatives`). Over `trpc-to-openapi` the HTTP response is `403 application/problem+json`.
+- `approval-required`: `TRPCError` code `FORBIDDEN` with `cause.type` ending in `/approval-required` and `cause.token`.
+- Boundary validation failure: `TRPCError` code `BAD_REQUEST` with `issues`.
+- Anonymous subject: `UNAUTHORIZED` when the procedure requires one.
+
+## Example app
+
+`apps/examples/trpc`: tRPC v11 with the Fetch adapter on Hono, a posts router using `permdock()` and `protect`, `trpc-to-openapi` generating a 3.2 document with `securitySchemes` from the hook, a React client using `permdock/react` against the shared decision endpoint, and Vitest tests calling procedures through `createCaller` and asserting `TRPCError` codes and `cause` bodies.
+
+## Related standards
+
+- [OpenAPI 3.2](/docs/standards/openapi-3-2) through `trpc-to-openapi`.
+- [Problem Details](/docs/standards/problem-details) for the REST surface and the `cause` shape.
+- [AuthZEN](/docs/standards/authzen) for the decision endpoint.
+
+## Open questions
+
+- Whether `ctx.permdockData` is the right hand-off or `protect` should accept the procedure resolver directly (`protect(permission, load, resolver)`), avoiding a context key.
+- tRPC version floor: the plan targets v11; `trpc-to-openapi` compatibility with the newest middleware typing needs a test in `tests/types`.
+- Whether the decision endpoint should be a tRPC procedure (typed client, batched by tRPC) or the plain AuthZEN Fetch handler (shared with non-tRPC clients). Current lean: both, with the procedure delegating to the handler.

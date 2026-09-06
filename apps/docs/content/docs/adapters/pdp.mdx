@@ -1,0 +1,94 @@
+---
+title: Remote PDP
+description: The permdock/pdp provider is an AuthZEN policy enforcement point client that asks a remote decision point such as Cerbos, Topaz, Keycloak, Axiomatics, PlainID or OPA, maps requests and responses to PermDock decisions, fails closed on anything unknown, and bridges to OpenFGA or SpiceDB relation graphs.
+---
+
+Status: planned
+Phase: 4
+
+`permdock/pdp` lets a PermDock instance defer some or all decisions to a remote Policy Decision Point that speaks the OpenID AuthZEN Authorization API. The same typed references, `Decision` outcomes, adapters and audit apply; only the source of truth moves. It is the mirror image of [permdock/authzen](/docs/adapters/authzen), which makes PermDock the PDP.
+
+## Purpose
+
+Organisations that already run a central PDP (Cerbos, Topaz, Keycloak, Axiomatics, PlainID, OPA behind an AuthZEN shim) want application code to stay typed and framework-integrated while policy lives elsewhere. Relation-graph systems (OpenFGA, SpiceDB) answer questions PermDock's condition model does not attempt to answer at scale; replacing them is a stated non-goal ([roadmap](/docs/roadmap)). The provider gives both groups one integration: PermDock permissions map to AuthZEN `action` and `resource` fields, the remote answer becomes a `Decision`, and everything downstream (HTTP `403` bodies, MCP refusals, AI SDK approvals, snapshots) is unchanged.
+
+## API
+
+```ts
+import { createPermDock } from 'permdock'
+import { remotePdp } from 'permdock/pdp'
+
+export const policy = definePolicy(permissions, {
+  roles: [member, admin],                       // local grants still apply
+  subject: (user) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
+  providers: [
+    remotePdp({
+      url: 'https://pdp.example.com',           // discovers /.well-known/authzen-configuration
+      auth: { bearer: () => getServiceToken() },
+      permissions: [permissions.billing],       // which permissions are delegated; others stay local
+      mapping: {
+        subject:  (s) => ({ type: 'user', id: s.id, properties: { orgId: s.orgId, roles: s.roles } }),
+        resource: (permission, data) => ({ type: permission.resource, id: data?.id, properties: data }),
+        action:   (permission) => ({ name: permission.action }),
+      },
+      timeout: 300,
+      cache: { ttl: '5s' },
+    }),
+  ],
+})
+```
+
+- `remotePdp(options)` returns a provider that handles `decide` for the listed permissions (or all when `permissions` is omitted). Local roles and grants remain in force; the outcome is the intersection: local `denied` wins, local `granted` still requires the remote `true` when the permission is delegated.
+- `mapping` defaults to `type = permission.resource`, `id = data[resource.id]`, `action.name = permission.action`, `subject.type = 'user'`; override for PDPs with their own naming.
+- `simulate` sends one `evaluations` boxcar request; `filter` sends `evaluations` with one item per row unless the PDP advertises `search/resource`, in which case `filter` and `where` call resource search and the provider returns the permitted ids (`where` compiles to `in(row.id, ids)`).
+- Discovery reads `.well-known/authzen-configuration` to learn endpoints and supported features; a static `endpoints` object can be supplied when discovery is unavailable.
+
+## Request lifecycle
+
+1. `decide(permission, data)` runs local evaluation first. A local `denied` (explicit deny or no local grant for a non-delegated permission) short-circuits without a network call.
+2. For delegated permissions, the provider builds the AuthZEN evaluation request from `mapping` and adds `subject.properties.actor` and `subject.properties.delegation` when the PermDock subject has an actor.
+3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache (key: subject id, actor id, permission key, resource id).
+4. The response is mapped:
+
+| Remote response | PermDock Decision |
+|---|---|
+| `decision: true` | `granted` (matched: `provider: 'pdp'`) |
+| `decision: false` with `context.outcome: 'approval-required'` | `approval-required` with `context.token` when present |
+| `decision: false` | `denied`; `context.denials` and `context.alternatives` copied when present, otherwise `reason: 'pdp-denied'` |
+| timeout, network error, non-2xx, unparseable body, unknown shape | `denied` with `reason: 'pdp-unavailable'` or `'pdp-invalid-response'` |
+
+5. `on('decision')` fires with the provider name, latency, and whether the answer came from cache.
+
+## What it validates
+
+- Responses are validated against the AuthZEN response schema before mapping; any deviation is `denied` (fail closed). This is the explicit contrast with fail-open adapters such as `@ai-sdk/policy-opa` on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
+- `resource.properties` sent to the PDP are validated against the resource schema when they crossed a boundary (`validate: 'boundary'`), so untrusted data is never forwarded unchecked.
+- Discovery documents are validated; a PDP that advertises no `evaluation` endpoint is a configuration error at startup.
+- Delegation invariant: an agent can never exceed its user even when the remote PDP grants, because local delegation intersection runs before and after the remote call.
+
+## How denials surface
+
+- Identically to local denials: `Decision` with `denials` and `alternatives` (alternatives are computed locally from the catalog and merged with remote ones), HTTP `403` Problem Details, MCP `structuredContent`, AI SDK `denied`.
+- Unavailability is a denial, not an exception; the reason distinguishes it so operators can alert on `pdp-unavailable` without conflating it with policy.
+- The client snapshot marks delegated permissions as `server-only`; `usePermission` asks the decision endpoint, which asks the PDP.
+
+Relation graphs: `openfga` and `spicedb` presets wrap their `check` / `listObjects` and `CheckPermission` / `LookupResources` calls behind the same provider interface (subject to relation tuple mapping supplied by the app). `filter` uses list-objects to return permitted ids; `where` compiles to an `in` condition over those ids. PermDock does not model or store relation tuples.
+
+## Example app
+
+None. The [authzen-pdp example](/docs/adapters/authzen) runs a second process that uses `remotePdp` against the PermDock PDP so both halves are exercised; `tests/integration` runs the provider against Topaz and OpenFGA containers.
+
+## Related standards
+
+- [AuthZEN](/docs/standards/authzen): request and response schemas, search, discovery.
+- [Delegation](/docs/security/delegation): actor and delegation forwarded to the PDP.
+- [Threat model](/docs/security/threat-model): fail closed, never trust unknown responses.
+- [Research: landscape](/docs/research/landscape): Cerbos, Topaz, OpenFGA, SpiceDB, Oso and other hosted PDPs.
+
+## Open questions
+
+- `remotePdp` and the `providers` option on `definePolicy` are proposed shapes; the plan names the provider and its AuthZEN client role only.
+- Cache semantics: whether a positive decision may be cached at all, and how SSF events should purge the cache per subject.
+- Intersection rule: whether a local unconditional `allow` should be able to skip the remote call for a delegated permission (current: no).
+- OpenFGA and SpiceDB presets need a tuple mapping DSL or a callback per permission; the callback is the minimal choice.
+- Whether PermDock should verify AuthZEN certification of the remote PDP at startup or only rely on discovery.

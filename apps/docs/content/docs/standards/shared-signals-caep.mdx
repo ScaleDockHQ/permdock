@@ -1,0 +1,89 @@
+---
+title: Shared Signals and CAEP
+description: How the OpenID Shared Signals Framework 1.0 and CAEP 1.0 let permdock/ssf invalidate snapshots the moment an identity provider revokes a session instead of waiting for a TTL.
+---
+
+Status: planned
+Phase: 3
+
+## What it is
+
+The OpenID Foundation's [Shared Signals Framework (SSF) 1.0 and Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/tag/caep/) became final in October 2025. SSF is the plumbing: a transmitter (usually an identity provider) sends Security Event Tokens (SETs) to a receiver (an application or another IdP) over either RFC 8935 push (the transmitter POSTs to the receiver) or RFC 8936 poll (the receiver fetches). CAEP is the vocabulary of events about a session's continued validity, including:
+
+- `session-revoked`: the user's session at the IdP ended (sign-out, admin action, risk signal).
+- `credential-change`: a password, key or MFA factor was changed, added or removed.
+- `assurance-level-change`: the user's authentication assurance went up or down.
+
+Transmitters in production include Microsoft Entra, Okta and Auth0; Keycloak shipped an [experimental SSF transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support) in July 2026.
+
+## Why it matters for PermDock
+
+PermDock's client model is snapshot-based: `permdock.snapshot()` serialises roles and grants, the React and React Native adapters answer checks from it, and Next.js caches it with `"use cache: private"` and a tag. A snapshot is only as fresh as its TTL. Without SSF, revoking a user's session at the IdP leaves a stale snapshot granting UI access until the cache expires. With an SSF receiver, the IdP tells PermDock the moment something changes, and PermDock invalidates exactly that user's snapshot and client cache. The snapshot model moves from "stale for N minutes" to "stale until the IdP says so". See [snapshots](/docs/concepts/snapshots).
+
+## How PermDock uses it
+
+```ts
+import { createPermDock } from 'permdock/ssf'
+import { updateTag } from 'next/cache'
+
+export const { receiver } = createPermDock(policy, {
+  onEvent: {
+    'session-revoked': ({ subject }) => updateTag(`permdock:${subject.id}`),
+    'credential-change': ({ subject }) => updateTag(`permdock:${subject.id}`),
+    'assurance-level-change': ({ subject, event }) => audit(event),
+  },
+})
+// Mount `receiver` as the RFC 8935 push endpoint, or run it as an RFC 8936 poller.
+```
+
+What the [ssf adapter](/docs/adapters/ssf) does:
+
+- **Receives SETs** over push or poll, verifies the transmitter's signature and issuer according to the stream configuration, and rejects anything that fails verification (fail closed: an unverifiable event is dropped and logged, never acted on).
+- **Resolves the subject.** CAEP subject identifiers (email, issuer-and-subject, opaque) are mapped to the application's user id through an adapter option, because PermDock does not have a user store.
+- **Invalidates.** Each handler receives the resolved subject and the raw event. The typical action is `updateTag('permdock:<user>')` in Next.js, or calling the client `invalidate()` channel so `usePermDock()` refetches. Snapshots scoped with `include` share the same tag, so one event clears all of a user's scoped snapshots.
+- **Feeds audit.** Events are emitted on the same observability path as decisions (see [audit and observability](/docs/concepts/audit-and-observability)) so a `session-revoked` followed by a `denied` decision is traceable.
+
+PermDock is only a receiver. It never transmits events and does not manage SSF streams beyond the configuration needed to verify incoming SETs.
+
+### Event lifecycle
+
+1. The IdP ends a user's session (admin action, risk signal, sign-out everywhere) and emits a `session-revoked` SET on the stream the application subscribed to.
+2. The SET reaches `receiver`, by POST (RFC 8935) or by the receiver's next poll (RFC 8936).
+3. `receiver` verifies the signature and issuer against the stream configuration. On failure the event is logged and dropped.
+4. The subject identifier is resolved to the application's user id through the configured mapper.
+5. The `onEvent['session-revoked']` handler runs: `updateTag('permdock:<user>')` in Next.js, or the client `invalidate()` channel elsewhere.
+6. The next request for that user builds a fresh `PermDock` and snapshot; `usePermDock().status` on connected clients moves to `stale` and then `ready` after refetch.
+7. The event is recorded on the audit path alongside decisions.
+
+### Relationship to snapshot TTLs
+
+CAEP does not replace the TTL; it shortens the window. Snapshots still expire so that a missed event (a transmitter outage, a poll gap) cannot leave stale authority indefinitely, and the TTL becomes a backstop rather than the primary freshness mechanism.
+
+## Mapping table
+
+| SSF / CAEP concept | PermDock concept |
+| --- | --- |
+| Transmitter (Entra, Okta, Auth0, Keycloak) | Configured issuer whose SETs `receiver` accepts |
+| Receiver | `receiver` from `createPermDock` in `permdock/ssf` |
+| RFC 8935 push delivery | `receiver` mounted as an HTTP endpoint |
+| RFC 8936 poll delivery | `receiver` run as a poller with the stream's poll endpoint |
+| SET (Security Event Token) | Verified, then dispatched to `onEvent` by event type |
+| `session-revoked` | Invalidate the subject's snapshot and client caches |
+| `credential-change` | Invalidate the subject's snapshot (roles may depend on MFA state) |
+| `assurance-level-change` | Audit, and optionally invalidate when policy conditions read assurance level from context |
+| Subject identifier formats | Adapter option mapping to the application's `subject.id` |
+| Unverifiable SET | Dropped and logged; no invalidation, no grant change |
+
+## Sources
+
+- [OpenID Foundation CAEP and Shared Signals announcements](https://openid.net/tag/caep/).
+- [Keycloak experimental SSF support](https://www.keycloak.org/2026/07/experimental-ssf-support).
+- RFC 8935 (push) and RFC 8936 (poll) are referenced by number.
+- Product plan, "Standards and agent runtimes (Sept 2026)" section.
+
+## Open questions
+
+- Whether the receiver should also support a generic "invalidate everything for this issuer" handler for stream-level events, or stay strictly per-subject.
+- How the client-side `invalidate()` channel is delivered in non-Next.js apps (server-sent events, WebSocket, or simply a short revalidation interval after a server-side invalidation).
+- Whether `assurance-level-change` should be able to *raise* the effective policy (for example, unlock `approval: 'human'` grants after step-up authentication) or only lower it; today the plan treats it as audit plus invalidation.
+- Which transmitters to test against in `tests/integration`; Keycloak's transmitter is the only self-hostable option today and is experimental.

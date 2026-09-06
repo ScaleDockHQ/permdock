@@ -1,0 +1,58 @@
+---
+title: "0012: Two-principal subject"
+description: Why a subject is a principal plus an optional actor and delegation, and why a decision is principal grants intersected with delegated authority.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Classic authorization has one subject: the user. In 2026 the caller is increasingly an agent acting for a user: an MCP client with an OAuth token, an AI SDK agent inside a workflow, a Claude Agent SDK session, an A2A peer, or an HTTP bot signing requests with Web Bot Auth. The standards written for this all separate who the authority belongs to from who is exercising it:
+
+- RFC 9396 Rich Authorization Requests carry constrained authority as `authorization_details`.
+- The [Agent Delegation Chain](https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00) and [Credential Delegation Protocol](https://datatracker.ietf.org/doc/draft-sweeney-wimse-credential-delegation/) drafts describe monotonic attenuation across hops.
+- [OAuth for AI agents on behalf of a user](https://datatracker.ietf.org/doc/html/draft-oauth-ai-agents-on-behalf-of-user-02) introduces `requested_actor` and `actor_token`.
+- MCP's [Enterprise-Managed Authorization](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/extensions/auth/enterprise-managed-authorization.mdx) extension redeems an ID-JAG through RFC 8693 token exchange.
+- OWASP's Top 10 for Agentic Applications names ASI03 Identity and Privilege Abuse.
+
+A single-subject model forces a choice between "the agent is the user" (privilege escalation: the agent can do everything the user can) and "the agent is its own role" (the agent's grants are not bounded by the user it serves).
+
+## Decision
+
+The subject has **two principals and a delegation**:
+
+- `principal`: the human or service the authority belongs to. Resolved by the policy's `subject(user)` function; `null` means anonymous.
+- `actor` (optional): the agent exercising the authority. `{ id, kind }`, for example an MCP `client_id`, an AI SDK agent name, a Web Bot Auth key id or an A2A card.
+- `delegation` (optional): what the principal handed to the actor: OAuth scopes, RFC 9396 `authorization_details`, or an attenuated delegation chain.
+
+`createPermDock(policy, user)` covers the human case; `createPermDock(policy, user, { actor, delegation })` covers agents. Adapters fill `actor` and `delegation` from `authInfo` automatically.
+
+**A decision is principal grants intersected with delegated authority.** A permission is granted to an agent only if the principal's roles grant it and the delegation covers its `scope` (or its `authorizationDetails` type). An agent can never exceed its user. Every permission reference carries `scope` and an `authorizationDetails` type so PermDock can both emit RAR objects for consent screens and verify them.
+
+## Consequences
+
+- `on('decision')` events and problem details name both principals, which is what an audit of agent activity needs.
+- `permdock/mcp` maps `scope` to `scopeChallenge` step-up naturally: a missing delegation is `insufficient_scope`, a missing principal grant is a refusal with reasons.
+- `simulate()` lets an agent pre-flight a plan against both its user's grants and its own delegation before acting.
+- Policies stay simple: roles are written for principals; delegation is enforced by the intersection, not by extra roles for agents.
+- Whether to verify delegation chains inside core or leave verification to the token layer is an open question (roadmap); core initially trusts the adapter's parsed `delegation`.
+- AuthZEN has one subject; actor and delegation travel in `context` ([0011](/docs/decisions/0011-authzen-wire-format)).
+
+## Alternatives considered
+
+- **Agent equals user.** Rejected: OWASP ASI03 in one line.
+- **Agent as a role.** Rejected: unbounded by the user, and per-user agent roles do not scale.
+- **Scopes only, no principal grants.** Rejected: scopes are coarse and cannot express row conditions; the intersection keeps conditions.
+- **Full delegation-chain verification in core.** Deferred: needs cryptographic dependencies that violate [0015](/docs/decisions/0015-no-runtime-deps-in-core); planned as a Phase 4 adapter.
+
+## Related
+
+- [Subject](/docs/concepts/subject)
+- [Delegation](/docs/security/delegation)
+- [OAuth agent delegation](/docs/standards/oauth-agent-delegation)
+- [MCP authorization](/docs/standards/mcp-authorization)
+- [OWASP Agentic Top 10](/docs/security/owasp-agentic)
+- [MCP adapter](/docs/adapters/mcp)
+- [Agent standards 2026](/docs/research/agent-standards-2026)

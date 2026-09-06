@@ -1,0 +1,63 @@
+---
+title: "0016: Repository layout and toolchain"
+description: The packages, apps and tests layout, the pnpm, Turborepo, tsdown, Oxlint and Vitest toolchain, and the TypeScript 5.9/6/7 support matrix.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Several of the permix PRs that were merged or closed concerned tooling rather than API: a TS 5.9/6/7 matrix, tsdown, Oxlint/Oxfmt, bundle budgets, coverage thresholds, Release Please (#54, #58, #67–#69, #72). Those choices were validated on a real codebase and are carried forward. Two platform facts constrain them further: TypeScript 7 ships as a native compiler with no stable programmatic API until 7.1, so codegen must not depend on the compiler API; and Node's type stripping plus Bun and Deno reward source that uses only erasable syntax.
+
+The repository also hosts a docs app and one example app per adapter, which needs a layout that keeps publishable packages separate from apps and from cross-package test suites.
+
+## Decision
+
+**Layout**
+
+- `/packages`: `permdock` (core plus one folder per subpath adapter, `skills/` shipped in the package), `cli` (`@permdock/cli`, owns `createPermDockPlugin`), `testing` (`@permdock/testing`).
+- `/apps`: `docs` (Fumadocs v16 on Next.js 16.3, dogfooding PermDock, with `llms.txt`, `llms-full.txt`, `.md` per page and a docs MCP route) and `examples/<name>`, one per adapter plus `monorepo`.
+- `/tests`: `e2e` (Playwright across examples, including `@next/playwright` `instant()`), `types` (TS 5.9, 6 and 7 matrix), `integration` (Postgres via testcontainers for RLS parity and providers), `bundle` (size budgets per entry).
+
+**Toolchain**
+
+- pnpm workspaces with catalogs for shared dependency versions; Turborepo for task orchestration and caching.
+- tsdown for builds, emitting `.d.ts` from `isolatedDeclarations` so declaration emit does not depend on the TypeScript compiler API.
+- Oxlint and Oxfmt for linting and formatting.
+- Vitest for unit tests and type tests; 95% coverage threshold on `packages/permdock`; Playwright for e2e; testcontainers for Postgres.
+- `publint` and `arethetypeswrong` on every package before publish.
+- Changesets for changelogs and versioning, with Release Please as the accepted alternative if automated release PRs are preferred; one of the two is chosen when Phase 1 publishes.
+
+**TypeScript**
+
+- Supported: TypeScript 5.9, 6 and 7, tested in `tests/types`.
+- `isolatedDeclarations` and `erasableSyntaxOnly` are enabled in every package: exported functions have explicit return types; no enums, namespaces, parameter properties or `import x = require`.
+- `strict` everywhere; `moduleResolution` settings that TS 6 removed are never used.
+
+## Consequences
+
+- Public function signatures are always explicit, which also makes generated docs and skills more precise.
+- Codegen (`collect`, `openapi`, `rls`) parses with `oxc-parser` and reads runtime definitions; it never loads the TypeScript compiler.
+- Every adapter has an example app, so e2e tests double as living documentation and skills can point at working code.
+- The type matrix triples type-test time; Turborepo caching keeps it tolerable.
+- Contributors need pnpm and Node 22; the repo does not support npm or Yarn workflows.
+
+## Alternatives considered
+
+- **tsc for declaration emit.** Rejected: slower, and TS 7.0 has no stable API for tooling to hook into.
+- **ESLint and Prettier.** Rejected for speed and configuration surface; Oxlint/Oxfmt were already adopted in the permix work.
+- **Jest.** Rejected: Vitest has first-class type tests and ESM.
+- **Examples inside `packages/*`.** Rejected: examples are apps with their own dependency trees and must never be published.
+- **Single `tests/` folder inside each package.** Unit tests do live next to sources; the top-level `/tests` is for suites that span packages.
+
+## Related
+
+- [Installation](/docs/getting-started/installation)
+- [Testing adapter](/docs/adapters/testing)
+- [Adapters](/docs/adapters)
+- [permix lessons](/docs/research/permix-lessons)
+- [0002: One umbrella package](/docs/decisions/0002-umbrella-package)
+- [0015: No runtime dependencies in core](/docs/decisions/0015-no-runtime-deps-in-core)
+- [0017: Docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx)

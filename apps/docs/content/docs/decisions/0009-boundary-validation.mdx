@@ -1,0 +1,53 @@
+---
+title: "0009: Validate at the boundary by default"
+description: Why resource schemas run only on data that crossed a trust boundary, why the default is boundary rather than always or never, and why validation is synchronous.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+PermDock resources are defined over Standard Schema validators, so every `can(permission, data)` call could validate `data` against the resource schema. `@zap-studio/permit` does exactly that and pays for it on every check; permix never validates and infers nothing; CASL detects the subject type but never validates the instance.
+
+Which data needs validation depends on where it came from:
+
+- A row loaded by the server from its own database is already typed and trusted; validating it again costs time and adds nothing.
+- An HTTP body, an MCP tool argument object, a client `refresh` payload or anything a model produced is untrusted. A condition like `where: { authorId: subject.id }` evaluated against unvalidated input is a bypass waiting to happen: an agent can pass `{ authorId: <its user id> }` and "own" any post.
+
+Standard Schema's `validate` may return a Promise. PermDock's `can` is synchronous and runs on the client, so async validation cannot be awaited inside a check.
+
+## Decision
+
+`definePolicy` accepts `validate: 'boundary' | 'always' | 'never'`, default **`'boundary'`**.
+
+- `boundary`: the resource schema runs on data that PermDock knows crossed a trust boundary: request bodies in HTTP adapters, tool arguments in `permdock/mcp`, `permdock/ai-sdk` and `permdock/claude-agent`, the AuthZEN endpoint's `resource` object, and client-initiated `refresh` calls to the decision endpoint. Trusted server rows passed directly to `can` are not re-validated.
+- `always`: every `can` / `decide` / `filter` validates. For development and for policies that cannot tell trusted from untrusted data.
+- `never`: no runtime validation; types only.
+
+Validation is **synchronous**. If a schema's `validate` returns a Promise, PermDock throws `PermDockValidationError` with a typed message naming the resource, instead of silently denying or awaiting. Validation failure is a denial with `reason: 'invalid-resource'` plus the schema issues, never an exception on the hot path.
+
+## Consequences
+
+- The MCP, AI SDK and HTTP adapters validate model- and client-supplied arguments before a single condition is evaluated, closing the ownership-spoofing hole by default.
+- Server code paths keep the cost of a check at a frozen index lookup plus condition evaluation.
+- Adapters must mark boundary data explicitly (the `data` loader in `protect` is trusted; the raw request body is not). This is part of the adapter contract and is checked by `@permdock/testing`.
+- Schemas with async refinements (database uniqueness checks, remote lookups) are unusable as resource schemas; the error says so at definition time in development.
+- `validate: 'never'` is a documented footgun and `permdock doctor` warns when it is used in a policy that also has MCP or HTTP adapters.
+
+## Alternatives considered
+
+- **Validate always** (`@zap-studio/permit`). Safest, rejected as the default for cost on trusted rows and for double-validating data that a framework validator already checked.
+- **Never validate; types only** (permix, CASL). Rejected: leaves the agent-supplied-argument bypass open.
+- **Per-call `{ validate: true }` flag.** Kept as an override, rejected as the primary mechanism because call sites forget flags; boundary classification belongs in the adapter.
+- **Await async schemas.** Rejected: would make `can` async on the client and in `filter`, and Standard Schema documents the "throw on Promise" pattern for sync consumers.
+
+## Related
+
+- [Validation](/docs/concepts/validation)
+- [Standard Schema](/docs/standards/standard-schema)
+- [Threat model](/docs/security/threat-model)
+- [MCP adapter](/docs/adapters/mcp)
+- [Server kernel](/docs/adapters/server-kernel)
+- [zap-studio/permit deep-dive](/docs/research/zap-studio-permit)

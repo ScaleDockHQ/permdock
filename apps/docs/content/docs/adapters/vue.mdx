@@ -1,0 +1,87 @@
+---
+title: Vue
+description: permdock/vue maps the snapshot-backed provider, hook and guard from the React adapter onto a Vue plugin, composables and a component.
+---
+
+Status: planned
+Phase: 2
+
+## Purpose
+
+Same model as [React](/docs/adapters/react): the server serialises `permdock.snapshot()`, the client evaluates portable grants locally with the core evaluator, and closure grants go to the batched decision endpoint. `permdock/vue` exposes that through Vue's own primitives: an app plugin for installation, composables returning refs, and a guard component. No policy or server module is imported.
+
+## API
+
+```ts
+// main.ts
+import { createApp } from 'vue'
+import { permdockPlugin } from 'permdock/vue'
+
+createApp(App)
+  .use(permdockPlugin, { snapshot, endpoint: '/api/permdock' })
+  .mount('#app')
+```
+
+```vue
+<script setup lang="ts">
+import { usePermDock, usePermission } from 'permdock/vue'
+import { permissions } from '@/permissions'
+
+const props = defineProps<{ post: Post }>()
+const permdock = usePermDock()                                       // can / decide / status / invalidate
+const { allowed, status } = usePermission(permissions.post.update, () => props.post) // refs; refetch when post.id changes
+</script>
+
+<template>
+  <Protected :permission="permissions.post.update" :data="post">
+    <EditButton />
+    <template #pending><Skeleton /></template>
+    <template #fallback><Locked /></template>
+  </Protected>
+</template>
+```
+
+| Export | Role |
+|---|---|
+| `permdockPlugin` | `app.use(permdockPlugin, options)` with the same options as the React provider (`snapshot`, `endpoint`, `fetch`, `headers`). Provides the store through `provide`/`inject`. |
+| `usePermDock` | Returns the snapshot-backed instance with reactive `status`. |
+| `usePermission` | Accepts the reference and a getter or ref for the resource so the answer tracks `id` changes. Returns `allowed`, `status`, `decision` as refs. |
+| `Protected` | Component with `permission` and `data` props and `default`, `pending`, `fallback` slots. The default slot receives the granted `Decision`. |
+
+For Nuxt (Phase 4) the plugin runs in a Nuxt plugin file and the snapshot arrives from a server route built with the [server kernel](/docs/adapters/server-kernel).
+
+## Request lifecycle
+
+1. The server creates a request-scoped `PermDock`, calls `snapshot()` and embeds the JSON in the page or a session endpoint.
+2. `permdockPlugin` validates the snapshot and creates one client store per app instance (SSR-safe: no module-level singleton).
+3. `usePermission` computes the cache key from `reference.key` plus the resource `id`. Portable grants answer synchronously; non-portable grants enqueue a batched AuthZEN `evaluations` request to `endpoint`.
+4. Answers are reactive; `invalidate(permissions.post)` drops cached answers under the namespace and pending components re-request.
+
+During SSR (Vite SSR or Nuxt) the store is created per request and hydrated on the client from the same snapshot, so the first client render matches the server (the first-render mismatch permix had in its Vue adapter came from subscribing inside an effect instead of during setup).
+
+## What it validates
+
+- The snapshot against the snapshot v1 schema; invalid snapshots put the store in `server-only` mode.
+- Arity of `usePermission` (collection versus instance actions) at the type level.
+- Nothing about resource data on the client; the decision endpoint validates posted data at the boundary and the API re-checks every mutation.
+
+## How denials surface
+
+- `allowed` becomes `false`; `decision` carries `denials` and `alternatives` or the `approval-required` reason.
+- `Protected` renders the `fallback` slot, which receives the `Decision` for "request access" UI.
+- Endpoint failures leave `status` at `server-only` with `allowed: false`; the endpoint itself answers with [Problem Details](/docs/standards/problem-details).
+
+## Example app
+
+`apps/examples/vue`: Vite plus Vue 3 with a Hono API from `apps/examples/hono`. Shows a portable ownership check, a closure grant through the endpoint, `invalidate` after a mutation, and a Vitest component test for first-render correctness.
+
+## Related standards
+
+- [AuthZEN](/docs/standards/authzen), [Problem Details](/docs/standards/problem-details), [Standard Schema](/docs/standards/standard-schema).
+- Concepts: [snapshots](/docs/concepts/snapshots), [decisions](/docs/concepts/decisions).
+
+## Open questions
+
+- Exact identifier names. The plan fixes only the React names; this page proposes `permdockPlugin`, `usePermDock`, `usePermission` and `Protected` for Vue. Alternatives: a `createPermDockPlugin` factory (rejected so far because it collides with the Next.js build-hook name) or a `v-protected` directive for attribute-level gating.
+- Whether `usePermission` should accept a plain value as well as a getter, given that Vue cannot observe replacement of a plain object argument.
+- Whether the Nuxt module belongs in `permdock/vue` or in its own `permdock/nuxt` entry (Phase 4 item).

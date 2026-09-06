@@ -1,0 +1,91 @@
+---
+title: Shared Signals (SSF / CAEP)
+description: permdock/ssf receives Shared Signals Framework security event tokens (push and poll) and maps CAEP events to snapshot and cache invalidation so permissions go stale when the IdP says so, not on a timer.
+---
+
+Status: planned
+Phase: 3
+
+`permdock/ssf` is a receiver for Security Event Tokens delivered under the Shared Signals Framework. It verifies incoming CAEP events such as `session-revoked`, `credential-change` and `assurance-level-change`, resolves the affected subject, and calls the app's `onEvent` handlers, which typically invalidate the Next.js cache tag and client snapshots for that user.
+
+## Purpose
+
+PermDock snapshots are cached: on the server behind `use cache: private` and `updateTag`, on the client in `PermDockProvider`, on React Native in persisted storage. Without a signal, a revoked session or a demoted role stays effective until the cache expires. Shared Signals Framework 1.0 and CAEP 1.0 (final October 2025, [OpenID Foundation](https://openid.net/tag/caep/)) define how identity providers transmit such events: Entra, Okta and Auth0 transmit today and Keycloak ships an [experimental transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support). A receiver in PermDock turns "stale for N minutes" into "stale until the IdP says so".
+
+## API
+
+```ts
+import { createPermDock } from 'permdock/ssf'
+import { updateTag } from 'next/cache'
+
+export const { receiver } = createPermDock(policy, {
+  issuer: 'https://login.example.com',                 // expected SET issuer
+  audience: 'https://app.example.com/ssf',            // this receiver
+  jwks: 'https://login.example.com/.well-known/jwks.json',
+  subject: (setSubject) => userIdFrom(setSubject),    // maps the SET sub_id to a PermDock principal id
+  onEvent: {
+    'session-revoked':         ({ subject }) => updateTag(`permdock:${subject.id}`),
+    'credential-change':       ({ subject }) => updateTag(`permdock:${subject.id}`),
+    'assurance-level-change':  ({ subject, event }) => updateTag(`permdock:${subject.id}`),
+  },
+})
+
+app.post('/ssf/events', (c) => receiver.push(c.req.raw))   // RFC 8935 push delivery
+receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) // RFC 8936 poll delivery
+```
+
+- `receiver.push(request)` is a Fetch handler for RFC 8935 push delivery: it accepts `application/secevent+jwt`, verifies, dispatches and returns `202`.
+- `receiver.poll(options)` runs RFC 8936 poll delivery from a long-lived process: it fetches pending SETs, dispatches them and acknowledges by `jti`.
+- `onEvent` is keyed by CAEP event type. Handlers receive the resolved `subject`, the raw `event` claims, `event_timestamp` and the `jti`.
+- `subject` maps the SET `sub_id` (formats `iss_sub`, `email`, `opaque`, and others defined by the Subject Identifiers RFC) to the id PermDock uses in `tag` and snapshots.
+
+## Request lifecycle
+
+1. Delivery: a SET arrives by push (HTTP POST) or poll (fetched batch).
+2. Verification: signature against `jwks`, `iss` equals `issuer`, `aud` contains `audience`, `iat` within tolerance, `jti` not seen before (replay store, in-memory by default, pluggable).
+3. Parsing: the `events` claim is walked; each CAEP event URI maps to a short name (`session-revoked`, `credential-change`, `assurance-level-change`, `token-claims-change`, `device-compliance-change`).
+4. Subject resolution: `sub_id` is passed to `subject`; unknown subjects are logged and acknowledged (an event for a user this app does not know is not an error).
+5. Dispatch: `onEvent[type]` runs. Typical handlers call `updateTag` so the next navigation refetches the snapshot, and, when the app has a realtime channel, push an `invalidate()` to connected clients.
+6. Acknowledgement: push returns `202 Accepted`; poll acknowledges processed `jti` values in the next request. Handler failures are reported per event (`400` with an `err` body for push, retained for redelivery for poll).
+7. `on('decision')` is not involved; the receiver emits its own `on('event')` for audit.
+
+## What it validates
+
+| Check | Failure |
+|---|---|
+| JWS signature, `alg` allow-list | `400 invalid_key` / `invalid_request` per RFC 8935 |
+| `iss`, `aud`, `iat` | `400 invalid_issuer` / `invalid_audience` |
+| `jti` replay | acknowledged, not dispatched, logged |
+| Event URI known | unknown events acknowledged and ignored unless `onEvent['*']` is set |
+| `sub_id` format | supported formats mapped; others handed to `subject` raw |
+
+The receiver never trusts the SET body to identify the transmitter; the signature and issuer do. It does not accept unsigned or `none`-algorithm tokens.
+
+## How denials surface
+
+This adapter does not make permission decisions, so there are no denials in the PermDock sense. Its effect is indirect and visible in three places:
+
+- Server: after `updateTag`, `getPermDock()` and `getPermission()` compute from a fresh snapshot on the next request; a revoked session resolves to an anonymous subject and every check is denied.
+- Client: `usePermission` reports `status: 'stale'` until the new snapshot arrives, then `allowed` flips; `Protected` shows `fallback` for permissions that were removed.
+- Audit: `on('event')` records event type, subject id, transmitter and the tags invalidated, so a revocation and the subsequent denials can be correlated.
+
+Delivery failures return the RFC 8935 error object (`err`, `description`) so the transmitter retries.
+
+## Example app
+
+None. The receiver is exercised in `tests/integration` against recorded SETs from the transmitters listed above and a Keycloak container. The Next.js example (`apps/examples/next`) documents mounting `receiver.push` as a route handler.
+
+## Related standards
+
+- [Shared Signals and CAEP](/docs/standards/shared-signals-caep): SSF 1.0, CAEP 1.0 event catalogue, RFC 8935 push, RFC 8936 poll, transmitters.
+- [Snapshots](/docs/concepts/snapshots): what gets invalidated.
+- [Next.js adapter](/docs/adapters/next): `tag` and `updateTag` integration.
+- [React adapter](/docs/adapters/react): client `invalidate` and `stale` status.
+
+## Open questions
+
+- Replay store: in-memory is fine for a single instance; multi-instance deployments need a shared store, and the interface for it is undecided.
+- Whether to ship a stream-management helper (creating the stream at the transmitter, `add_subject`) or leave transmitter configuration to the IdP console.
+- How `assurance-level-change` should influence decisions beyond invalidation, for example a `subject.context.aal` value that conditions can reference.
+- Whether client push (WebSocket or SSE `invalidate`) belongs in this adapter or in the React adapters with `permdock/ssf` only invalidating server tags.
+- Keycloak's transmitter is experimental; event shapes may change before Phase 3.

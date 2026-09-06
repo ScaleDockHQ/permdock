@@ -1,0 +1,57 @@
+---
+title: "0003: Reference-based permissions"
+description: Why permissions are typed objects like permissions.post.update instead of string keys or template-literal unions.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Every in-process TypeScript authorization library identifies a permission with a string. permix uses template-literal unions (`check('post.create')`), CASL uses declared `[Actions, Subjects]` tuples, Better Auth infers keys from an `as const` statement, `@zap-studio/permit` parses `"post:write"` at runtime. Strings have known costs:
+
+- No go-to-definition or rename refactoring; a typo is a compile error at best and a silent deny at worst.
+- Template-literal unions over resources times actions multiply. TypeScript 7 compiles faster but its instantiation and recursion limits are unchanged, so large catalogs still hurt editor latency.
+- A permission has no place to carry metadata. Scope strings for OAuth, titles for MCP tool descriptions and RFC 9396 `authorization_details` types must live in a side table.
+- A catalog must be extracted from source or declared twice, because the type union does not exist at runtime.
+
+permix PR #64 asked for a runtime catalog with a CI freshness check; the answer was another extraction step over string markers.
+
+## Decision
+
+A permission is a **typed reference**: `permissions.post.update` is a plain frozen object produced by `definePermissions()` and `resource()`, typed as `Permission<'post.update', Post>`. It carries `key`, `resource`, `action`, `scope` and `meta`; the resource schema and identity field live on the resource node. Every public API takes the reference:
+
+```ts
+permdock.can(permissions.post.update, post)
+allow(permissions.post.delete, { approval: 'human' })
+usePermission(permissions.post.update, post)
+registerTool('delete_post', { permission: permissions.post.delete }, handler)
+```
+
+Strings appear only as `.key` (audit, cache, catalog) and `.scope` (OAuth, MCP). `findPermission(permissions, 'post.update')` converts inbound strings (database rows, JWT scopes, OpenAPI documents) back to references at the boundary. Helpers are functions (`listPermissions`, `findPermission`, `mergePermissions`) rather than methods on the tree, so a resource named `list` can never collide with an API.
+
+## Consequences
+
+- The runtime definition **is** the catalog. `permdock collect` scans usages for coverage and drift; it does not have to reconstruct the definition from source.
+- Types flow from the reference argument, so React hooks and server helpers are direct exports with no per-app generic factory (see [0006](/docs/decisions/0006-explicit-factory-not-plugin)).
+- Unknown permissions are type errors, not runtime denials; the fail-closed runtime path still exists for strings resolved through `findPermission`.
+- No template-literal union is ever built, which keeps the type checker fast on catalogs with hundreds of leaves and keeps PermDock friendly to TS 5.9, 6 and 7.
+- Leaves must stay plain JSON so they can cross RSC and wire boundaries; identity is by `key`, not object identity (see [0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)).
+- Dead permissions are detectable by unused-export analysis and by `permdock usage`.
+
+## Alternatives considered
+
+- **Template-literal string keys** (permix). Best-in-class autocomplete for small catalogs, rejected for type-checker cost, no metadata, no refactoring, and a second extraction pipeline for the catalog.
+- **Declared action and subject tuples with runtime subject detection** (CASL). Rejected: the reference already names the resource, so `detectSubjectType`, `subject()` wrappers and `constructor.name` checks are unnecessary.
+- **Proxy-generated path trees** (Kilpi). Right shape, but a Proxy cannot be serialised or introspected. PermDock materialises the same tree eagerly from the definition.
+- **Both strings and references.** Rejected to keep one public API; strings remain a boundary concern handled by `findPermission`.
+
+## Related
+
+- [Permissions](/docs/concepts/permissions)
+- [Wire formats](/docs/concepts/wire-formats)
+- [CASL v7 deep-dive](/docs/research/casl-v7)
+- [Kilpi v1 deep-dive](/docs/research/kilpi-v1)
+- [permix lessons](/docs/research/permix-lessons)
+- [0004: actions vs collection](/docs/decisions/0004-actions-vs-collection)

@@ -1,0 +1,151 @@
+---
+title: Decisions
+description: decide returns a discriminated Decision with three outcomes, matched grants, denials, alternatives and a replay-safe token; assert and simulate build on it.
+---
+
+`can` returns a boolean. Everything else in PermDock is built on `decide`, which returns a `Decision`: a discriminated union that says whether the check passed, why, what the caller could do instead, and a token that binds any follow-up approval to these exact arguments. Adapters translate the same object into HTTP Problem Details, MCP refusals, AI SDK approval states and audit events ([ADR 0007](/docs/decisions/0007-decide-not-explain), [ADR 0013](/docs/decisions/0013-three-outcome-decision)).
+
+## The three outcomes
+
+```ts
+type Decision =
+  | { outcome: 'granted';           subject: Subject; matched: Grant; token: string }
+  | { outcome: 'denied';            denials: Array<{ role: string | null; reason: string }>; alternatives: Permission[] }
+  | { outcome: 'approval-required'; grant: Grant; reason: string; token: string }
+```
+
+| Outcome | When | `can` | `assert` |
+| --- | --- | --- | --- |
+| `granted` | At least one `allow` matched, no `deny` matched, delegation covers it | `true` | returns the decision |
+| `denied` | A `deny` matched, nothing matched, anonymous, validation failed, or delegation does not cover it | `false` | throws `PermDockDeniedError` |
+| `approval-required` | The matched `allow` carries `approval: 'human'` and no approval has been recorded for this token | `false` | throws `PermDockApprovalRequiredError` |
+
+There is no fourth outcome. `not-applicable`, which the Vercel AI SDK uses when no policy covers a tool, does not exist in PermDock: a permission with no grant is `denied`. That is the fail-closed default, and the reason `@ai-sdk/policy-opa`'s fail-open behaviour on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)) cannot happen through `permdock/ai-sdk`.
+
+### granted
+
+```ts
+const decision = permdock.decide(permissions.post.update, post)
+if (decision.outcome === 'granted') {
+  decision.subject.principal.id // narrowed: principal is non-null here
+  decision.matched.role         // 'member'
+  decision.matched.permission   // 'post.update'
+  decision.token                // opaque string, see below
+}
+```
+
+`matched` is the grant that produced the outcome: the role name, the permission key and the normalised condition. It is JSON, so it can be logged as the justification for the action.
+
+### denied
+
+```ts
+{
+  outcome: 'denied',
+  denials: [
+    { role: 'member', reason: 'condition' },        // the member allow did not match
+    { role: 'admin',  reason: 'deny' },             // an admin deny matched
+  ],
+  alternatives: [permissions.post.read, permissions.post.update],
+}
+```
+
+`denials` has one entry per role that was consulted. Reasons are short stable strings:
+
+| Reason | Meaning |
+| --- | --- |
+| `no-grant` | The role has no grant for this permission |
+| `condition` | An allow exists but its `where` / `check` did not match |
+| `deny` | A deny matched (overrides everything) |
+| `closure-error` | A closure threw; treated as no match |
+| `opaque-condition` | An imported opaque condition cannot be evaluated in memory |
+| `anonymous` | No principal |
+| `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
+| `limit` | Quota exhausted (Later) |
+| `validation` | Boundary validation failed ([validation](/docs/concepts/validation)) |
+
+This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant.
+
+### alternatives
+
+`alternatives` lists permissions on the same resource that the subject does hold for this data (or for the collection). A model that was refused `post.delete` sees that `post.read` and `post.update` are available and can re-plan instead of retrying the same call. `alternatives` is computed lazily and only for `denied`; on hot paths use `can`, which skips it. The [MCP adapter](/docs/adapters/mcp) puts alternatives in `structuredContent`; HTTP adapters put them in Problem Details.
+
+### approval-required
+
+```ts
+{
+  outcome: 'approval-required',
+  grant: { role: 'member', permission: 'post.delete', where: { /* ... */ } },
+  reason: 'human',
+  token: 'pd1.…',
+}
+```
+
+The grant matched, so the principal is allowed in principle, but a human must confirm this specific action. The adapter decides how to ask:
+
+| Surface | Mapping |
+| --- | --- |
+| Vercel AI SDK `toolApproval` | `'user-approval'`; the approval reply is re-checked against `token` on resume |
+| Vercel AI SDK `WorkflowAgent` | `needsApproval(permission)` suspends the durable workflow |
+| Claude Agent SDK | `canUseTool` returns an ask result; `permissionRequestHook` carries the reason |
+| MCP | Elicitation (stateless multi-round-trip request in the 2026-07-28 spec) |
+| HTTP | `403 application/problem+json` with `type` ending in `/approval-required` and the token in the body |
+| React | `usePermission` returns `allowed: false` with `status: 'ready'`; the UI may render an "ask for approval" affordance using `decide` |
+
+See [approvals](/docs/security/approvals) for the full human-in-the-loop flow.
+
+## token
+
+`token` is present on `granted` and `approval-required`. It is a hash over the permission key, the resource `id` (or the collection marker), the frozen principal, the actor and a policy version. It has one job: an approval or a granted decision produced for one set of arguments cannot be replayed against another. When an approval reply comes back, the adapter recomputes the token from the actual tool arguments and rejects the reply if it differs. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approvals; PermDock computes it from the decision so every adapter gets it.
+
+The token is not a capability. Possessing it grants nothing; it only proves that a decision with these inputs was issued. Its exact encoding is provisional (see open questions) and should be treated as opaque.
+
+## assert
+
+```ts
+const { subject } = permdock.assert(permissions.post.delete, post)
+// subject.principal is non-null from here on
+```
+
+`assert` returns the `granted` decision or throws. Before throwing it runs the layered unauthorized handlers, in order, and rethrows the first error any of them produced:
+
+1. The per-call handler: `permdock.assert(permission, data, { onDenied: (d) => redirect('/login') })`.
+2. Instance hooks registered with `permdock.on('denied', handler)` (event name provisional; `on('decision')` is the audit event and is not an unauthorized handler).
+3. The policy default declared in `definePolicy`.
+
+All layers run even if an earlier one throws, so audit hooks still fire when a Next.js handler calls `redirect()`. If nothing throws, `assert` throws `PermDockDeniedError` or `PermDockApprovalRequiredError` itself. The layering is borrowed from Kilpi's `.assert(handler?)` ([research](/docs/research/kilpi-v1)); it lets the Next.js adapter redirect and the HTTP adapters emit Problem Details from one place. Error classes are documented under [errors](/docs/concepts/errors).
+
+## simulate
+
+```ts
+const results = await permdock.simulate([
+  [permissions.post.update, post],
+  [permissions.post.delete, post],
+  [permissions.post.create],
+])
+// Decision[] in the same order
+```
+
+`simulate` evaluates a batch without side effects: no `on('decision')` events for the individual checks (one `simulate` event instead), no approval tokens issued, no quota consumed. It is the pre-flight an agent runs over its plan before executing, and it is the same shape as an AuthZEN `evaluations` boxcar request, so the decision endpoint and the `pdp` provider expose it over HTTP unchanged ([AuthZEN](/docs/standards/authzen)).
+
+## Mapping decisions to other vocabularies
+
+| PermDock | AI SDK `toolApproval` | MCP tool result | HTTP | AuthZEN |
+| --- | --- | --- | --- | --- |
+| `granted` | `approved` | tool runs | 2xx | `decision: true` |
+| `denied` | `denied` with reason and alternatives | `isError: true`, refusal text plus `structuredContent` with denials and alternatives | `403` Problem Details `/denied` | `decision: false`, denials in `context` |
+| `approval-required` | `user-approval` | elicitation | `403` Problem Details `/approval-required` | `decision: false`, `context.outcome: 'approval-required'` |
+
+Each adapter page documents its exact translation; the [wire formats](/docs/concepts/wire-formats) page has the JSON.
+
+## Immutability and performance
+
+- A `Decision` is a frozen plain object. It can be cached by the client keyed on permission key plus resource id, serialised to the decision endpoint response, or stored with an audit record.
+- `decide` never throws and never awaits: the policy is data, `context` was loaded at `createPermDock`, and closures that return a Promise are awaited only through `decideAsync` (see open questions) or through `assert` in async handlers.
+- `can` is `decide(...).outcome === 'granted'` with `alternatives` skipped.
+
+## Open questions
+
+- Whether `decide` needs an async twin for closure grants that return Promises, or whether closures must be sync when `decide` is used and only `assert` and adapters may await.
+- Token encoding: raw hash versus a short prefixed format (`pd1.`), and whether it includes a policy version so a policy change invalidates outstanding approvals.
+- Whether `alternatives` should be limited to the same resource or may include collection actions on related resources.
+- The exact set of denial reason codes; the list above is the working set.

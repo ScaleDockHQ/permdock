@@ -1,0 +1,82 @@
+---
+title: WebMCP
+description: How permdock/webmcp registers browser-exposed tools through document.modelContext only when the client snapshot allows them, and how WebMCP hints and Permissions-Policy fit in.
+---
+
+Status: planned
+Phase: 2
+
+## What it is
+
+WebMCP is a browser API, incubated in the W3C WebML Community Group and documented by [Chrome](https://developer.chrome.com/docs/ai/webmcp), that lets a web page expose tools to agents running in or alongside the browser, in the same shape as MCP tools:
+
+- `document.modelContext.registerTool(...)` registers a tool with a name, description, input schema and handler. The earlier `navigator.modelContext` entry point is [deprecated in Chrome 150](https://byteiota.com/webmcp-chrome-150-navigator-modelcontext-deprecation/) in favour of `document.modelContext`.
+- A `tools` **Permissions-Policy** directive controls whether a document (and which embedded frames) may register tools at all.
+- Tool annotations `readOnlyHint` and `untrustedContentHint` tell the agent whether a tool mutates state and whether its output may contain untrusted content that should not be treated as instructions.
+- Registration accepts an `AbortSignal`; aborting it unregisters the tool, which is how a page removes tools when its state changes.
+- Puppeteer exposes `page.webmcp` so tests can enumerate and call a page's tools deterministically.
+- `@mcp-b/webmcp-polyfill` provides the API in browsers that do not ship it yet.
+
+## Why it matters for PermDock
+
+A page that registers a "delete post" tool for every visitor is handing agents a capability the current user may not have. The client already holds a PermDock snapshot for exactly this reason: it knows which permissions the user has, including ownership conditions, without a round trip. `permdock/webmcp` is the same idea as `permission` on `registerTool` in [permdock/mcp](/docs/adapters/mcp), running on the client: register only the tools the snapshot allows, describe them from the permission metadata, and unregister them when the snapshot changes. See the [webmcp adapter](/docs/adapters/webmcp).
+
+Two boundaries stay server-side. The snapshot decides what to *register*; the server still decides what to *execute*, because a page-level tool handler calls the same API route that `protect` guards. And tool arguments coming from an agent are untrusted input, validated at the boundary like MCP tool arguments.
+
+## How PermDock uses it
+
+```tsx
+import { usePermDock } from 'permdock/react'
+import { registerTools } from 'permdock/webmcp'
+
+function PostTools() {
+  const permdock = usePermDock()
+  useEffect(() => {
+    const controller = new AbortController()
+    registerTools(document.modelContext, permissions.post, {
+      permdock,
+      signal: controller.signal,
+    })
+    return () => controller.abort()
+  }, [permdock])
+  return null
+}
+```
+
+What `registerTools` does:
+
+- Iterates `listPermissions(permissions.post)` and registers one tool per collection action the snapshot grants (`can(permissions.post.create)`), plus instance actions when a `data` resolver is supplied so ownership conditions can be checked per call.
+- Fills `name`, `description` and `inputSchema` from the permission's action metadata and the resource's Standard JSON Schema.
+- Sets `readOnlyHint` for actions marked read-only in the action metadata (`read`, `list`) and leaves it unset for mutations.
+- Sets `untrustedContentHint` when the resource carries user-generated fields, or when configured explicitly, so the agent does not treat tool output as instructions.
+- Passes the caller's `AbortSignal` through and additionally aborts and re-registers when the snapshot changes (`usePermDock().status` moving to `stale` and back to `ready`), so revoked permissions disappear from the tool list without a reload.
+- Does nothing when `document.modelContext` is undefined and no polyfill is present; `permdock doctor` reports the missing Permissions-Policy header if the page is served without `tools`.
+
+## Mapping table
+
+| WebMCP concept | PermDock concept |
+| --- | --- |
+| `document.modelContext.registerTool` | `registerTools(document.modelContext, permissions.<resource>, options)` |
+| `navigator.modelContext` (deprecated) | Not used; the polyfill's `document.modelContext` is targeted |
+| Tool name and description | Permission key and action metadata (`title`, `description`) |
+| Tool `inputSchema` | Resource's Standard JSON Schema |
+| `readOnlyHint` | Action metadata `readOnly`, defaulted for `read` / `list` |
+| `untrustedContentHint` | Adapter option or resource metadata |
+| `AbortSignal` unregistration | Caller's signal plus automatic abort on snapshot change |
+| Permissions-Policy `tools` | Deployment requirement checked by `permdock doctor` |
+| Which tools exist for this user | `can(...)` against the client snapshot |
+| Whether a tool call succeeds | Server-side `protect` on the route the handler calls |
+| Puppeteer `page.webmcp` | Used in the `webmcp` example's tests to assert the registered tool list per role |
+| `@mcp-b/webmcp-polyfill` | Supported; the adapter only requires the `document.modelContext` shape |
+
+## Sources
+
+- [Chrome WebMCP documentation](https://developer.chrome.com/docs/ai/webmcp).
+- [WebMCP in Chrome 150: `navigator.modelContext` deprecation](https://byteiota.com/webmcp-chrome-150-navigator-modelcontext-deprecation/).
+- Product plan, "Standards and agent runtimes (Sept 2026)" and the `permdock/webmcp` API sketch.
+
+## Open questions
+
+- Whether instance-level tools should be registered per visible resource (one tool per post) or once with an `id` argument checked at call time; the latter is smaller but the snapshot can only answer it when a `data` resolver is supplied.
+- How `approval-required` surfaces inside a page: the browser has no elicitation channel, so the handler likely returns a structured refusal with the token and the page renders its own approval UI.
+- Whether the adapter should refuse to register mutating tools when `usePermDock().status` is `pending` or `server-only`, or register them and rely on the server check.

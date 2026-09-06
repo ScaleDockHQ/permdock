@@ -1,0 +1,129 @@
+---
+title: For AI agents
+description: How a coding agent should install, wire, check and audit PermDock, and how PermDock's errors and denials are written for models.
+---
+
+PermDock's second audience is the coding agent working in a TypeScript repository. Every page, skill, error message and CLI report is written so that an agent can wire PermDock end-to-end, verify its work and explain a denial without reading library source. This page is the entry point for that agent. Nothing here is implemented yet (Phase 0); the [roadmap](/docs/roadmap) says when each piece lands.
+
+## Start here
+
+```bash
+npx skills add ScaleDockHQ/PermDock
+```
+
+This installs two Agent Skills into the folders your agent reads (`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`):
+
+- **`wire-permdock`**: detect the framework and validator, create `src/permissions.ts`, `src/policy.ts` and the factory file, add the first check and the first UI guard, run the CLI checks, add CI steps.
+- **`audit-permissions`**: review an existing installation for ungranted or unused permissions, missing approvals on destructive agent-reachable actions, closures that could be portable, and the OWASP Agentic Top 10 mapping.
+
+The same skills ship inside the `permdock` npm package and can be installed with `permdock skills install`, so the skill version always matches the library version. See [skills](/docs/cli/skills).
+
+## What the repository gives you
+
+| Artifact | Where | Use it for |
+| --- | --- | --- |
+| `AGENTS.md` (`CLAUDE.md` is a symlink) | repository root | Maintainer guide: layout, commands, invariants, "when you change X also update Y" |
+| `llms.txt`, `llms-full.txt` | docs site root | Index and full text of the docs for context loading |
+| `.md` per page | append `.md` to any docs URL | Read one page as Markdown without HTML |
+| Docs MCP server | docs site route (Phase 4) | Search and read docs from inside an MCP-capable agent |
+| `permissions.catalog.json` and its JSON Schema | app repository, `permdock catalog --format schema` | Know which permissions exist, their arity, scopes and metadata |
+| `permdock doctor --json` | app repository | Machine-readable findings with stable codes and fixes |
+| Example apps | `apps/examples/<adapter>` | Working code for every adapter, exercised by e2e tests |
+
+Standards for these artifacts are on the [Agent docs standards](/docs/standards/agent-docs-standards) page.
+
+## The shortest wiring recipe
+
+Three files and one check. Import paths and identifiers follow the [naming convention](/docs/getting-started/naming); do not invent framework-prefixed names.
+
+```ts
+// src/permissions.ts — importable everywhere; no rules, no secrets
+import { definePermissions, resource } from 'permdock'
+import { Post } from './schemas' // any Standard Schema validator
+
+export const permissions = definePermissions({
+  post: resource(Post, {
+    id: 'id',
+    actions: ['read', 'update', 'delete'],
+    collection: ['create', 'list'],
+  }),
+})
+```
+
+```ts
+// src/policy.ts — server-only
+import { definePolicy, role, allow, subject } from 'permdock'
+import { permissions } from './permissions'
+
+const member = role('member', [
+  allow(permissions.post.read),
+  allow(permissions.post.list),
+  allow(permissions.post.create),
+  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),
+])
+
+export const policy = definePolicy(permissions, {
+  roles: [member],
+  subject: (user: User | null) => user && { id: user.id, roles: user.roles },
+})
+```
+
+```ts
+// src/permdock/server.ts — the explicit factory; same pattern for permdock/hono, permdock/mcp, permdock/ai-sdk
+import { createPermDock } from 'permdock/next'
+import { policy } from '../policy'
+
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
+  subject: async () => getUser(await cookies()),
+})
+```
+
+Then, in a Server Component or Server Action:
+
+```ts
+const permdock = await getPermDock()
+permdock.assert(permissions.post.update, post)
+```
+
+And in a client component:
+
+```tsx
+import { usePermission } from 'permdock/react'
+const { allowed, status } = usePermission(permissions.post.update, post)
+```
+
+Finish with `pnpm exec permdock doctor` and add `permdock collect --check` and `permdock usage --strict` to CI. Full versions: [quick start](/docs/getting-started/quick-start), [Next.js adapter](/docs/adapters/next), [MCP adapter](/docs/adapters/mcp), [AI SDK adapter](/docs/adapters/ai-sdk).
+
+## Invariants an agent must keep
+
+- Permissions are references (`permissions.post.update`), never strings, in every public API. Strings only appear as `.key` and `.scope` at boundaries, converted back with `findPermission`.
+- Instance actions take the row; collection actions do not. The type checker enforces it; do not cast around it.
+- The policy module and any `createPermDock` call are server-only. Never import them from a `'use client'` file; `permdock doctor` (`PD001`) will catch it, the bundler may not.
+- Never trust a model-supplied subject. The subject comes from the session or token through the adapter; tool arguments are validated at the boundary and never decide who the caller is.
+- Prefer portable `where` conditions to closures so snapshots, RLS and SQL compilers cover the rule.
+- A `Decision` is `granted`, `denied` or `approval-required`. Never introduce `not-applicable` or map an unknown outcome to approval.
+- Put `approval: 'human'` on destructive actions reachable by agents (`delete`, `publish`, payments).
+
+## How errors and denials are written for models
+
+PermDock assumes the reader of a denial may be a language model deciding what to do next, so denials carry structure rather than prose:
+
+- `decide()` returns `{ outcome: 'denied', denials: [{ role, reason }], alternatives: [...] }`. `reason` is the policy author's string; `alternatives` lists permissions on the same resource this subject does hold, so the model can pick a permitted action instead of retrying the same one.
+- `approval-required` carries the grant, a reason and a `token`. Adapters turn it into AI SDK `user-approval`, `WorkflowAgent` `needsApproval`, MCP elicitation or an HTTP 403 with the `.../approval-required` problem type; the token must be echoed back when the approval resumes.
+- MCP refusals return `isError: true` with the `Decision` in `structuredContent`, and missing delegation produces a `scopeChallenge` naming the exact scope (`post:delete`) to request.
+- HTTP adapters emit RFC 9457 `application/problem+json` with `type`, `title`, `permission`, `denials` and `alternatives`; see [Errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
+- `PermDockValidationError` names the resource and the schema issues; `PermDockDeniedError` and `PermDockApprovalRequiredError` carry the `Decision`.
+- CLI reports use stable codes (`PD001`...) with a one-line fix each, and `--json` output carries a `$schema`.
+- `simulate([[permission, data], ...])` lets an agent pre-flight a whole plan and read every decision before acting; it is the in-process form of AuthZEN `evaluations`.
+
+## Reading the docs
+
+- Concepts first: [Permissions](/docs/concepts/permissions), [Policies](/docs/concepts/policies), [Decisions](/docs/concepts/decisions), [Subject](/docs/concepts/subject).
+- One adapter page per framework, each with the same sections (purpose, API, lifecycle, validation, denials, example app, standards, open questions): [Adapters](/docs/adapters).
+- Decision records explain why a constraint exists; cite them instead of relitigating: [0003](/docs/decisions/0003-reference-based-permissions), [0006](/docs/decisions/0006-explicit-factory-not-plugin), [0013](/docs/decisions/0013-three-outcome-decision).
+- The `Status` and `Phase` lines under a page's frontmatter say whether the thing exists yet. In Phase 0, nothing does.
+
+## Security framing for agent code
+
+PermDock's agent features map onto the [OWASP Top 10 for Agentic Applications](/docs/security/owasp-agentic): per-tool permissions with `approval: 'human'` gates and boundary validation address ASI02 Tool Misuse; the two-principal subject and delegation intersection address ASI03 Identity and Privilege Abuse. When writing tool handlers, wire the permission on the tool (`permission` in `registerTool` or the `tools` map) rather than checking inside the handler, so `list_tools` and capability middleware can hide what the caller may not do.

@@ -1,0 +1,231 @@
+---
+title: Authorization landscape (September 2026)
+description: Survey of TypeScript and JavaScript authorization libraries, hosted policy engines, auth-provider access control, schema-embedded policies and MCP tooling, with a gap matrix that motivates PermDock.
+---
+
+Source: survey conducted 2026-09-06. Star counts and last-commit dates are shields.io badge values fetched that day; versions are from `npm view` on the same day; bundle sizes for permix and CASL are permix's own measurements (2026-06-02), other sizes are npm `unpackedSize`. Anything that could not be confirmed is marked unverified. Companion deep-dives: [permix](/docs/research/permix-lessons), [CASL v7](/docs/research/casl-v7), [Kilpi v1](/docs/research/kilpi-v1), [zap-studio/permit](/docs/research/zap-studio-permit).
+
+## Executive takeaways
+
+- Two families dominate: in-process TypeScript libraries with declared permission definitions (CASL, permix, Kilpi, accesscontrol, Better Auth's `createAccessControl`), and external PDPs with strings-in, boolean-out SDKs (Cerbos, Permit.io, OpenFGA, SpiceDB, Oso Cloud, casbin). The second family has near-zero TypeScript inference; the first has good key inference but weak or no data-layer integration (CASL is the exception).
+- Standard Schema is essentially unused in authorization. Only `@zap-studio/permit` builds resource definitions on `~standard`, despite 30+ validators implementing the spec and Zod and ArkType also implementing Standard JSON Schema.
+- Nobody emits OpenAPI `security` or scopes from permissions. Every generator (`@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `zod-to-openapi`) requires hand-attaching `security` per route.
+- MCP per-tool authorization is a hand-written scope check inside tool handlers in the official SDK. The products in this space are proxies (Permit MCP Gateway), ReBAC guides (OpenFGA), agent monitoring (Oso for Agents) or Python-first tool platforms (Arcade). No TypeScript library exposes a declarative permission-to-tool binding.
+- permix is the closest thing to a modern all-framework library, but it has no conditions-to-SQL, no explain, no Standard Schema, no OpenAPI, no React Native docs.
+- CASL remains the only mature in-process library that turns conditions into Prisma and Mongoose `where` clauses and does field-level permissions. v7 (May 2026) modernised it, but typing is declared, not inferred, and there is no `llms.txt`.
+- Explain-why-denied is universally weak. CASL has `reason` on rules and `relevantRuleFor`; the PDPs have audit logs and policy tests; Kilpi has an audit plugin; nobody returns a structured decision trace by default.
+- TypeScript 7 (Go-native) is shipping: `typescript@7.0.2` was published 2026-09-06. The compile-time budget for heavy generics got roomier but instantiation and recursion limits are unchanged. The disruption is the missing stable compiler API in 7.0 (planned for 7.1), which affects codegen tools, not runtime libraries.
+
+## In-process TypeScript libraries
+
+### CASL
+
+`@casl/ability` 7.0.1, `@casl/react` 7.0.1, `@casl/prisma` 2.0.2, `@casl/mongoose` 9.0.2. MIT, about 7.1k stars, last commit the week of the survey.
+
+- Model: rules are `action` plus `subject` plus optional MongoDB-style `conditions` (via `@ucast`) plus `fields` (glob patterns) plus `inverted`. Isomorphic.
+- Typing: `AbilityBuilder<MongoAbility<[Actions, Subjects]>>`; the action and subject tuple is declared, not inferred from a definition object. Subject types come from classes or `subject('Post', obj)`; object detection needs `detectSubjectType`.
+- Adapters: `@casl/react` (`Can`, `useAbility`), `@casl/vue`, `@casl/angular`, `@casl/aurelia`. No Next.js or RSC-specific code, no Svelte or Solid, no server middlewares.
+- Runtime: `packRules` / `unpackRules` for compact serialisation (SSR hydration is do-it-yourself), `ability.update(rules)` with `on('updated')`, `ForbiddenError.from(ability).throwUnlessCan(...)`, `reason` on rules, `relevantRuleFor()`.
+- Data layer: `accessibleBy(ability, 'read').ofType('Post')` returns a Prisma `WhereInput`; v2 no longer throws on no rules, you add `createCaslExtension` so empty conditions fail closed (Prisma 4 to 7; Prisma 7 needs the `@casl/prisma/runtime` wrapper). `rulesToQuery` was replaced by `rulesToCondition` in v7; `rulesToAST` for custom SQL.
+- None of Standard Schema, Zod, OpenAPI; `casl.js.org/llms.txt` returns 404. Dual CJS/ESM, about 6.17 kB min+gzip core.
+- v7 breaking changes (2026-05-21): `PureAbility` renamed `Ability`, `rulesToQuery` renamed `rulesToCondition`, `readonly Rule[]`, empty conditions mean match-all.
+- Sources: [repo](https://github.com/stalniy/casl), [ability 7.0.0 release](https://github.com/stalniy/casl/releases/tag/%40casl%2Fability%407.0.0), [prisma 2.0.0 release](https://github.com/stalniy/casl/releases/tag/%40casl%2Fprisma%402.0.0), [@casl/prisma on npm](https://www.npmjs.com/package/@casl/prisma).
+
+### permix
+
+`permix` 4.1.2. MIT, 617 stars, ESM-only, Node 22+.
+
+- Model: resource by action booleans, optionally data-typed so rules can be closures over the entity; RBAC, ABAC and "ReBAC patterns" via closures. No condition AST.
+- Typing: `createPermix<{ post: ['create','read'] }>()`; `check('post.create')` keys are template-literal unions; `.contextKey('permissions')` literal inference in the tRPC adapter; the Drizzle adapter derives resource keys from schema export names.
+- Adapters, all subpaths of one package: React, Vue, Solid, Svelte, Next.js App Router (per-request instance via React `cache()`), TanStack Start, Node, `permix/server`, Express, Hono, Fastify, Elysia, tRPC, oRPC, Effect, Drizzle. No NestJS, Nuxt, Astro, Remix or React Native docs.
+- Runtime: `setup()`, `check()`, `template()`, `hook()`, `isReady`, `dehydrate()` / `hydrate()` (function rules cannot serialise). No route guards, no optimistic UI, no caching beyond Next `cache()`.
+- No validation, no OpenAPI, no explain. `llms.txt` and `llms-full.txt` served; agent skills mentioned. Core 2.64 kB gzip; adapters 0.8 to 2.2 kB.
+- Sources: [repo](https://github.com/letstri/permix), [comparison](https://permix.letstri.dev/docs/comparison), [Next.js](https://permix.letstri.dev/docs/integrations/next), [Drizzle](https://permix.letstri.dev/docs/integrations/drizzle), [hydration](https://permix.letstri.dev/docs/guide/hydration).
+
+### Kilpi
+
+`@kilpi/core` 1.1.3, `@kilpi/client` 1.1.0, `@kilpi/react-server` 1.0.4. MIT, 89 stars, ESM, last commit December 2025.
+
+- Model: policies as TypeScript functions returning `Grant(subject)` or `Deny()`, subject resolved by `getSubject()`; server-first.
+- Typing: subject narrowing after grant, resource parameter types, policy keys inferred from the `policies` object. No Standard Schema (Zod internally).
+- Adapters: RSC plugin (`Authorize` component), `@kilpi/client` (fetch decisions with caching and batching), `@kilpi/react-client`. Next.js and Hono examples; no Vue, Svelte, Solid, Express or tRPC packages.
+- Runtime: `authorize()` and `assert()`, protected queries that co-locate authorisation with data fetching and redact fields, `onUnauthorizedAssert`, `onAfterAuthorization`, `AuditPlugin` with batch, periodical, manual and immediate strategies and `waitUntil` for serverless.
+- No data layer (redaction is post-fetch), no OpenAPI, `llms.txt` returns 404. Nine months without commits.
+- Sources: [repo](https://github.com/Jussinevavuori/kilpi), [audit plugin](https://kilpi.vercel.app/docs/plugins/audit/).
+
+### accesscontrol
+
+`accesscontrol` 3.1.0. MIT, 2.3k stars, last commit July 2026, ESM, Node 20+. RBAC plus attribute (field glob) filtering; v3 (2026 rewrite) adds `.where()` conditions, enforced ownership, custom actions, `require()` gates, async `grantedAsync`, audit events, deny-overrides inheritance. Roles, resources and actions are runtime strings; no adapters, no where clauses, no `llms.txt`. Source: [repo](https://github.com/onury/accesscontrol).
+
+### Smaller and unmaintained
+
+- `@rbac/rbac` 2.2.2 (published 2026-08-28): small RBAC with role inheritance and async `can()`.
+- `role-acl` 4.5.4 and `permissio` 2.0.2 (LGPL-3.0): unmaintained since 2022.
+- `@typed-policy/core` 0.4.0 (MIT, 0 stars, February 2026): one policy AST (`eq`, `neq`, `inArray`, `gt`, `lt`, `exists`) with `evaluate()` on the client and `compileToDrizzle()` for a `where` fragment. Conceptually the "one definition, SQL and UI" idea; tiny and unproven.
+- `@permx/core` 0.4.0 (MIT, 0 stars, April 2026): structured RBAC stored in Mongoose or Prisma, Express middleware, headless React SDK (`Can`, `CanField`, `RouteGuard`, `FeatureGate`).
+- `permissionize`, `zod-permissions`, `access-control-ts`, `@authz/core`, `casl-prisma` do not exist on npm.
+
+### @zap-studio/permit
+
+`@zap-studio/permit` 2.0.1 (published 2026-09-01). MIT, monorepo with 171 stars, ESM, Node 18+. The only authorization library built on Standard Schema: `createPolicy({ resource: schema, actions })`, `allow`, `deny`, `when`, role hierarchies, policy merging; resource types inferred from any Standard Schema validator. Framework-agnostic with no shipped adapters; structured errors, optional logging, OpenTelemetry hooks; no hydration, data layer or OpenAPI. `zapstudio.dev/llms.txt` serves. Sources: [monorepo](https://github.com/zap-studio/monorepo), [npm](https://www.npmjs.com/package/@zap-studio/permit). Detail in [zap-studio/permit](/docs/research/zap-studio-permit).
+
+## External policy engines with JavaScript SDKs
+
+### Cerbos
+
+`@cerbos/core` 0.33.0, `@cerbos/http` 0.30.0, `@cerbos/grpc`, `@cerbos/embedded` 0.15.4 (WASM), `@cerbos/react` 0.5.0, `@cerbos/hub`. Apache-2.0; cerbos 4.6k stars, JS SDK 83 stars; ESM, Node 22+. Policy-as-code in YAML with CEL conditions evaluated by a PDP (sidecar, hub or embedded WASM). SDK typed on the protocol (`checkResource({ principal, resource, actions })`), resource kinds and actions are strings, no typegen from policies found (unverified). ORM adapters via query plan (`planResources` to Drizzle, Prisma, Mongoose), OpenTelemetry, audit logs, YAML policy tests, AuthZEN support. `docs.cerbos.dev/llms.txt` serves. Sources: [JS SDK](https://github.com/cerbos/cerbos-sdk-javascript), [docs](https://docs.cerbos.dev/).
+
+### Permit.io
+
+`permitio` 2.7.6. MIT; permit-node 46 stars, OPAL 5.5k stars; CommonJS, 2.6 MB unpacked. RBAC, ABAC and ReBAC via an OPA/OPAL-backed PDP; `permit.check(user, action, resource)` with strings. No adapters. The Permit MCP Gateway is a proxy between agents and MCP servers that classifies tools into trust levels by name, enforces at `call_tool` and returns everything from `list_tools`; enforcement is external to your code. `docs.permit.io/llms.txt` returns 404. Sources: [permit-node](https://github.com/permitio/permit-node), [docs](https://docs.permit.io/).
+
+### OpenFGA / Auth0 FGA
+
+`@openfga/sdk` 0.9.7. Apache-2.0; openfga 5.7k stars, js-sdk 88 stars; CJS and ESM, Node 20.19+. Zanzibar ReBAC with a DSL model; `check`, `batchCheck`, `listObjects`, `listUsers`, `expand`. OpenAPI-generated client, no types derived from your model (unverified). `listObjects` returns ids to feed `WHERE id IN (...)`, not a where-clause compiler. The official MCP guide models users, agents and tools as principals (`can_call`, `executor`, `viewer`) and filters tool lists with `listObjects`. `openfga.dev/llms.txt` serves. Sources: [js-sdk](https://github.com/openfga/js-sdk), [docs](https://openfga.dev/docs).
+
+### SpiceDB / AuthZed
+
+`@authzed/authzed-node` 1.6.1. Apache-2.0, spicedb 7k stars, ESM, 5.6 MB unpacked (gRPC and protobuf), published October 2025. Zanzibar ReBAC with a schema language and CEL caveats; `CheckPermission`, `LookupResources`, `LookupSubjects`, watch API. Strings in and out, no adapters. `authzed.com/llms.txt` serves. Source: [authzed-node](https://github.com/authzed/authzed-node).
+
+### Oso
+
+`oso` 0.27.3 is deprecated (Apache-2.0, 3.5k stars, last commit February 2025); `oso-cloud` 2.6.0 (March 2026). Polar language over facts; `authorize`, `list`, and `listLocal` / `authorizeLocal` return SQL fragments to filter your own database. "Oso for Agents" is discovery, monitoring and an edge proxy for agent traffic and MCP connectors, a security product rather than a library. `osohq.com/docs/llms.txt` serves. Sources: [oso](https://github.com/osohq/oso), [docs](https://www.osohq.com/docs).
+
+### casbin
+
+`casbin` 5.51.1. Apache-2.0, node-casbin 2.9k stars, moved to `apache/casbin-node-casbin`; CJS, about 510 kB. Model files (`.conf`) plus policy CSV or DB adapters; `enforce(sub, obj, act)`; RBAC with domains, ABAC via matcher expressions. No TypeScript inference, no adapters, no data layer, no `llms.txt`. Source: [repo](https://github.com/apache/casbin-node-casbin).
+
+## Authorization bundled with auth providers
+
+### Better Auth
+
+`better-auth` 1.7.3 (MIT, 30k stars, ESM). `createAccessControl(statement)` with `statement = { resource: ['action', ...] } as const`, then `ac.newRole({...})`; used by the `organization` and `admin` plugins. Pure RBAC without conditions; "dynamic access control" stores roles in the database at runtime. Resource and action keys are inferred from the `as const` statement. Checks: server `auth.api.hasPermission`, client `authClient.organization.hasPermission` (network) and `checkRolePermission` (sync, excludes dynamic roles). No `Can`-style UI helpers, no hydration API, no data layer. `better-auth.com/llms.txt` serves. PermDock layers on top rather than competing ([better-auth adapter](/docs/adapters/better-auth)). Sources: [organization plugin](https://better-auth.com/docs/plugins/organization), [admin plugin](https://better-auth.com/docs/plugins/admin).
+
+### Clerk
+
+Org-scoped custom permissions (`org:invoices:create`), roles, features and plans. `has()` returns a boolean, `protect()` throws or redirects, `Protect` renders conditionally. Server-side `has()` only for custom permissions; system permissions need role checks. Type safety via manual `ClerkAuthorization` interface augmentation. Works in Next.js and Expo (Expo SDK existence verified, `has()` parity not). Vendor-locked, no conditions, no data layer. `clerk.com/llms.txt` serves. Source: [authorization checks](https://clerk.com/docs/guides/secure/authorization-checks).
+
+### Auth.js / NextAuth
+
+28k stars. No authorization primitives: augment `Session` and `JWT` types, copy `role` in `jwt()` / `session()` callbacks, gate in the `authorized()` middleware callback or `auth()` in RSC. Sources: [discussion #9609](https://github.com/nextauthjs/next-auth/discussions/9609), [RBAC blog](https://hassanr.com/blogs/nextauth-v5-role-based-access-control-nextjs.html).
+
+## Policy in the schema or data layer
+
+### ZenStack v3
+
+`@zenstackhq/orm` 3.9.3, `@zenstackhq/plugin-policy` 3.9.3 (MIT, 2.9k stars, ESM, published 2026-09-01). ZModel (Prisma-compatible schema) with `@@allow` / `@@deny` on models and `@allow` / `@deny` on fields, `auth()` for the current user, deny wins. Policies compile into SQL through Kysely so reads are filtered and writes rejected at the query layer. The ORM client is fully typed from the schema; policies themselves are DSL. v3 removed the DB-free `check()` permission checker that v2 had (SAT-based, with `useCheckPost` hooks), so UI-side "can I?" checks are gone. Auto CRUD API and TanStack Query hooks; Zod generation. `zenstack.dev/llms.txt` returns 404. Sources: [write policies](https://zenstack.dev/docs/orm/access-control/write-policies), [field-level](https://zenstack.dev/docs/orm/access-control/field-level), [migrate v2](https://zenstack.dev/docs/migrate-v2), [breaking changes](https://github.com/zenstackhq/zenstack-v3/blob/dev/BREAKINGCHANGES.md).
+
+### Keel and Nile
+
+Keel: `@permission(expression, roles, actions)` on models and actions, expressions over the record and `ctx.identity`, multiple permissions ORed, secure by default. The `teamkeel/keel` repo returned "not found" from shields, so maintenance status is unverified. Nile: tenant isolation via virtualised Postgres, `nile.withContext({ tenantId })` scopes all queries; row-level tenancy, not a permissions library (1.1k stars, active).
+
+### Payload, Directus, Strapi
+
+- Payload (45k stars): access functions per collection operation return `boolean | Where` (row-level via a query constraint); field-level access is boolean only. Ships a Claude plugin with skills, including an [access-control reference](https://github.com/payloadcms/payload/blob/main/tools/claude-plugin/skills/payload/reference/ACCESS-CONTROL.md), a notable example of agent-first docs.
+- Directus (38k stars): v11 policies produce permissions with `action`, `collection`, `permissions: Filter`, `validation: Filter`, `presets`, `fields: string[]`; fully data-driven. [Docs](https://directus-directus.mintlify.app/core-concepts/permissions).
+- Strapi (73k stars): admin RBAC with per-field toggles; custom conditions are handlers returning a boolean or a sift.js query object registered via `conditionProvider.register()`. [Docs](https://docs-v4.strapi.io/dev-docs/configurations/rbac).
+
+## MCP and agent tool authorization
+
+- MCP spec: OAuth 2.1 with PKCE; servers are resource servers; clients must implement RFC 9728 (Protected Resource Metadata) and RFC 8707 (resource indicators); servers should return `WWW-Authenticate` with `scope` hints; `insufficient_scope` enables step-up. Scopes are considered too coarse for per-tool control and the spec leaves per-tool authorization to the server. [Spec](https://modelcontextprotocol.io/specification), [llms.txt](https://modelcontextprotocol.io/llms.txt).
+- Official TypeScript SDK: v1 `@modelcontextprotocol/sdk` 1.30.0; v2 `@modelcontextprotocol/server` 2.0.0 (published 2026-07-28, ESM, Node 20+). `requireBearerAuth` attaches `AuthInfo` (`scopes`, `clientId`, `expiresAt`) to `ctx.http.authInfo`; per-tool checks are hand-written in handlers returning `isError: true`. The `scopeChallenge` option on `registerTool` (PR #1624) is the one declarative hook and is what [`permdock/mcp`](/docs/adapters/mcp) builds on.
+- Permit MCP Gateway (proxy), OpenFGA MCP guide (ReBAC over tools), Oso for Agents (monitoring and proxy), Arcade (`@tool(requires_auth=...)` decorator, Python-first, TS parity unverified), Composio (`connected_account_id` per toolkit). None is a TypeScript library you embed in your own MCP server.
+- Cerbos discusses AuthZEN as the PDP-to-PEP standard relevant to MCP ([blog](https://www.cerbos.dev/blog)).
+
+## Cross-cutting specifications
+
+### Standard Schema
+
+`@standard-schema/spec` 1.1.0 (December 2025, 3.6k stars). Three interfaces under one `~standard` key: `StandardTypedV1` (`version: 1`, `vendor`, `types`), `StandardSchemaV1` (adds `validate(value, options?)` returning a value or `issues`), `StandardJSONSchemaV1` (adds `jsonSchema.input(opts)` / `.output(opts)` with `target` of `draft-2020-12`, `draft-07`, `openapi-3.0` or a string). Type extraction via `StandardSchemaV1.InferInput` / `InferOutput`. Sync-only consumers may throw if `validate` returns a Promise. Implementers listed on the site: Zod 3.24+, Valibot 1.0+, ArkType 2.0+, Effect Schema 3.13+, yup 1.7+, joi 18+, typia 9.2+, Mongoose 9.7+, VineJS 4+, protovalidate-es, Arri, Sury, decoders, remult, Paseri, Lex SDK and about fifteen smaller ones. Consumers: tRPC, TanStack Form and Router, Hono, Elysia, oRPC, React Hook Form, next-safe-action, RTK Query, Inngest, Restate, FastMCP, xsMCP, Muppet. Guidance followed by PermDock: install `@standard-schema/spec` as a regular dependency because it is part of the public API. Sources: [standardschema.dev](https://standardschema.dev/), [schema](https://standardschema.dev/schema), [repo](https://github.com/standard-schema/standard-schema). See [Standard Schema](/docs/standards/standard-schema).
+
+### TypeScript 7
+
+`typescript@7.0.2` published 2026-09-06 (ESM package). 7.0 is the native compiler with roughly 8 to 12 times faster builds and no stable programmatic compiler API (planned for 7.1), so ts-morph, api-extractor and typedoc-style codegen break until updated; 6.0 was the bridge that turned deprecations into errors (`strict` default true, `moduleResolution: node10` removed, `baseUrl` deprecated). Library implications adopted in [ADR 0016](/docs/decisions/0016-repo-layout-and-toolchain): `isolatedDeclarations` so `.d.ts` emit can be done by fast tools; `erasableSyntaxOnly` for Node type stripping, Bun and Deno; keep permission keys bounded and avoid deep recursive conditional types because type-level limits are unchanged; derive codegen from runtime definitions or Standard JSON Schema, never the compiler API. Exact 7.0 release date and the 7.1 API timeline are approximate.
+
+### OpenAPI 3.1 security
+
+`components.securitySchemes` (`apiKey`, `http` with `scheme: bearer`, `oauth2` with `flows.*.scopes`, `openIdConnect`, `mutualTLS`); root-level `security` as default; per-operation `security` overrides (empty array means public); alternatives are ORed across array entries and ANDed within an object; scopes are only meaningful for `oauth2` and `openIdConnect`; `x-*` extensions are allowed on any object. How generators attach security:
+
+- `@hono/zod-openapi` 1.6.3: `app.openAPIRegistry.registerComponent('securitySchemes', ...)` and `createRoute({ security: [...] })`. [Repo](https://github.com/honojs/middleware/tree/main/packages/zod-openapi).
+- `hono-openapi` 1.3.1: `describeRoute({ security: [...] })` per route plus `components.securitySchemes` in generator options. [Repo](https://github.com/rhinobase/hono-openapi).
+- `@orpc/openapi` 1.15.0: `oo.spec(middleware, spec => ({ ...spec, security: [...] }))` extends operation objects from middleware, the cleanest hook for an authorization middleware. [Docs](https://orpc.unnoq.com/docs/openapi).
+- `trpc-to-openapi` 3.3.0: `.meta({ openapi: { protect: true } })` maps to global security schemes; no per-scope granularity. [Repo](https://github.com/mcampa/trpc-to-openapi).
+- `@asteasolutions/zod-to-openapi` 9.1.0: `registry.registerComponent('securitySchemes', ...)`, `registry.registerPath({ security })`. [Repo](https://github.com/asteasolutions/zod-to-openapi).
+
+Nothing in any authorization library populates these. PermDock targets OpenAPI 3.2 instead ([ADR 0014](/docs/decisions/0014-openapi-3-2)) and hooks into every one of the above ([openapi adapter](/docs/adapters/openapi)).
+
+## Gap matrix
+
+Legend: yes, partial, no.
+
+| Capability | CASL | permix | Kilpi | accesscontrol | Better Auth | Cerbos | OpenFGA | ZenStack | zap/permit |
+|---|---|---|---|---|---|---|---|---|---|
+| Inferred keys from definition | partial (declared tuple) | yes | yes | partial | yes (`as const`) | no | no | n/a (DSL) | yes |
+| Standard Schema resources | no | no | no | no | no | no | no | no | yes |
+| Conditions to where clause | yes (Prisma, Mongoose) | no | no | no | no | yes (Prisma, Drizzle) | partial (`listObjects`) | yes (compiled SQL) | no |
+| Field-level | yes | no | partial (redact) | yes (attributes) | no | partial | no | yes | no |
+| React + Next RSC + RN | partial (React only) | partial (React, Next; RN undocumented) | partial (RSC, client) | no | partial (via auth SDKs) | partial (React) | no | no | no |
+| Vue / Svelte / Solid | Vue, Angular, Aurelia | yes, all | no | no | no | no | no | no | no |
+| Hono / Elysia / Fastify / tRPC / oRPC | no | yes | partial (examples) | no | no | no | no | partial (adapters) | no |
+| SSR hydration API | partial (pack/unpack) | yes | partial (client fetch) | no | no | no | no | no | no |
+| Non-blocking or streaming page checks | no | partial (per-request cache) | partial (async RSC) | no | no | partial (hooks with loading) | no | no | no |
+| Explain why denied | partial (`reason`, `relevantRuleFor`) | no | no | partial (events) | no | partial (audit, tests) | partial (`expand`) | no | partial (structured errors) |
+| Audit hooks | partial | partial (hooks) | yes (plugin) | yes (events) | no | yes | yes | no | partial (OTel) |
+| OpenAPI security emission | no | no | no | no | no | no | no | no | no |
+| MCP tool binding | no | no | no | no | no | no | partial (guide) | no | no |
+| `llms.txt` or skills | no | yes, both | no | no | yes (llms) | yes (llms) | yes (llms) | no | yes (llms) |
+| ESM-only | dual | yes | yes | yes | yes | yes | dual | yes | yes |
+
+## Gaps nobody fills well
+
+1. Standard-Schema-native definitions. Only `@zap-studio/permit` consumes `~standard`; nobody derives both resource types and a JSON Schema export of the permission model. PermDock: `resource(Schema, ...)` gives inferred permission types, typed conditions on `InferOutput`, and a JSON Schema catalog for docs and agents.
+2. MCP tool authorization. The SDK gives `authInfo.scopes` and `scopeChallenge`; SaaS options are proxies. PermDock: `permission` on `registerTool` filters `list_tools`, wraps handlers, and emits scope challenges from permission keys ([mcp adapter](/docs/adapters/mcp)).
+3. React Native plus Next.js App Router in one library. permix is closest but RN is undocumented; CASL works in RN with do-it-yourself hydration; Clerk covers both only for its own permissions. PermDock: one snapshot format feeds `permdock/react`, `permdock/react-native` and `permdock/next`.
+4. Non-blocking per-page checks. Nobody streams decisions: an RSC guard that resolves inside Suspense, batched client decision fetches, stale-while-revalidate, optimistic UI. PermDock: `usePermission()` returns `{ allowed, status }` and `Protected` renders the shell immediately ([Next.js 16.3 research](/docs/research/nextjs-16-3-instant-navigation)).
+5. OpenAPI emission. All generators expose a hook; no authorization library populates it.
+6. AI-agent-first docs. Best in class today: permix (`llms.txt`, `llms-full`, skills), Payload (Claude plugin skills), the SaaS vendors (`llms.txt`). Missing everywhere: JSON Schema export of policies, a docs MCP server, explain or dry-run tooling agents can call.
+7. Explain-why-denied and dry-run. CASL's `reason` plus `relevantRuleFor` is the high-water mark; PDPs rely on audit logs. A structured decision with matched grant, denials and alternatives, and a `simulate()` pre-flight, is uncontested ([decisions](/docs/concepts/decisions)).
+8. Conditions to SQL without ORM lock-in. CASL (Prisma, Mongo), Cerbos (query plan), ZenStack (compiled), Oso Cloud (`listLocal`) and typed-policy (Drizzle) each do one flavour; none offers Drizzle, Prisma, Kysely and raw SQL from a Standard-Schema-typed condition AST that also evaluates to a boolean on the client ([conditions](/docs/concepts/conditions), [rls adapter](/docs/adapters/rls)).
+
+## Verification notes
+
+Could not verify: Cerbos, OpenFGA and Oso Cloud type generation from policies or models; the `@zap-studio/permit` adapter list beyond its README; permix and Kilpi behaviour in React Native; the ZenStack v3 server adapter list; Arcade TS SDK `requires_auth` parity; Keel repo status; exact TS 7.0 release date. Several packages named in the original brief do not exist on npm; `role-acl` and `permissio` are unmaintained since 2022; the original `oso` npm package is deprecated in favour of `oso-cloud`.
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- permix's single-package, subpath-export layout and its `llms.txt` plus shipped-skills posture.
+- CASL's proof that one condition AST can drive both in-memory checks and ORM `where` clauses.
+- `@zap-studio/permit`'s Standard Schema resources and `@standard-schema/spec` as a regular dependency.
+- Kilpi's discriminated decision object and layered assert handlers.
+- Cerbos's embedded (WASM) PDP idea, as motivation for a client snapshot that answers offline.
+- oRPC's middleware-attached OpenAPI spec extension as the model for emitting security from a guard.
+
+Adapt:
+
+- Better Auth `createAccessControl` roles become a provider input, not a competitor.
+- OpenFGA and SpiceDB relation graphs are bridged through a provider rather than reimplemented.
+- ZenStack's compiled-policy approach becomes `permdock.where()` compilers plus RLS export, with parity tests as the glue, while keeping the DB-free `can()` that ZenStack v3 dropped.
+- The Permit MCP Gateway's trust-level idea becomes per-tool `permission` bindings inside the server, not a proxy.
+
+Avoid:
+
+- Strings-in, boolean-out SDKs as the primary API.
+- Type-only definitions (permix) or declared tuples (CASL) as the typing strategy.
+- Required runtime dependencies in core (Kilpi's `zod` and `superjson`, permit's `@opentelemetry/api` peer).
+- Vendor-locked permissions (Clerk) and DSLs that need their own compiler (ZModel, Polar, Cedar, Rego) as the authoring format.
+- Relying on the TypeScript compiler API for codegen while TS 7.0 has none.
+
+## Decisions informed
+
+- [ADR 0001: greenfield, MIT](/docs/decisions/0001-greenfield-mit)
+- [ADR 0002: one umbrella package](/docs/decisions/0002-umbrella-package)
+- [ADR 0003: reference-based permissions](/docs/decisions/0003-reference-based-permissions)
+- [ADR 0007: decide, not explain](/docs/decisions/0007-decide-not-explain)
+- [ADR 0010: policy as data, portable conditions](/docs/decisions/0010-policy-as-data-portable-conditions)
+- [ADR 0011: AuthZEN wire format](/docs/decisions/0011-authzen-wire-format)
+- [ADR 0014: OpenAPI 3.2](/docs/decisions/0014-openapi-3-2)
+- [ADR 0015: no runtime dependencies in core](/docs/decisions/0015-no-runtime-deps-in-core)
+- [ADR 0016: repo layout and toolchain](/docs/decisions/0016-repo-layout-and-toolchain)
+- Pages shaped: [comparison](/docs/comparison), [Standard Schema](/docs/standards/standard-schema), [openapi](/docs/adapters/openapi), [mcp](/docs/adapters/mcp), [better-auth](/docs/adapters/better-auth), [clerk](/docs/adapters/clerk), [pdp](/docs/adapters/pdp), [drizzle](/docs/adapters/drizzle), [prisma](/docs/adapters/prisma), [kysely](/docs/adapters/kysely), [rls](/docs/adapters/rls), [conditions](/docs/concepts/conditions), [decisions](/docs/concepts/decisions), [for AI agents](/docs/for-ai-agents).

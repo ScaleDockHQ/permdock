@@ -1,0 +1,80 @@
+---
+title: A2A
+description: permdock/a2a emits A2A Agent Cards whose skills carry security requirements derived from permissions and filters the authenticated extended card by the caller's grants.
+---
+
+Status: planned
+Phase: 2
+
+`permdock/a2a` maps A2A skills to permission references. From that map it emits the public Agent Card with `securitySchemes` and per-skill `securityRequirements`, and it builds the authenticated extended card for a specific caller by keeping only skills the caller may invoke. It is the A2A counterpart of `list_tools` filtering in [permdock/mcp](/docs/adapters/mcp).
+
+## Purpose
+
+A2A 1.0 ([specification](https://a2a-protocol.org/latest/specification/)) describes agents through Agent Cards: a public card lists skills and the security schemes required to call them, and an authenticated extended card may expose different skills per caller. Cards can be signed. Without a permission layer, the skill list is static and every caller sees the same card. With `permdock/a2a`, each skill's security requirement is the permission's `scope`, and the extended card is a per-caller view computed from the same policy that guards the skill at execution time.
+
+## API
+
+```ts
+import { createPermDock } from 'permdock/a2a'
+
+const { agentCard, extendedAgentCard, protectSkill } = createPermDock(policy, {
+  subject: (auth) => userFrom(auth),                    // caller principal from the A2A request auth
+  card: { name: 'Posts agent', url: 'https://agent.example.com/a2a', version: '1.0.0' },
+  securitySchemes: { oauth: { type: 'oauth2', oauth2MetadataUrl: 'https://auth.example.com/.well-known/oauth-authorization-server' } },
+  skills: {
+    summarise: { permission: permissions.post.read,   description: 'Summarise a post' },
+    publish:   { permission: permissions.post.publish, data: (task) => loadPost(task.postId) },
+  },
+})
+
+app.get('/.well-known/agent-card.json', (c) => c.json(agentCard()))
+app.get('/a2a/extended-card', (c) => c.json(extendedAgentCard(c.get('auth'))))
+app.post('/a2a/tasks', protectSkill((task) => task.skillId), handleTask)
+```
+
+- `skills` maps skill ids to a permission and optional metadata; `data` resolves the resource for instance-level actions from the task payload.
+- `agentCard()` returns the public card: every skill, each with `securityRequirements` naming the configured scheme and the permission's `scope` (`post:read`, `post:publish`).
+- `extendedAgentCard(auth)` builds a request-scoped `PermDock` and returns only skills with a grant for the caller; `securityRequirements` are unchanged.
+- `protectSkill(selector)` is middleware for the task endpoint: it resolves the skill id, runs `decide`, and rejects the task when the outcome is not `granted`.
+- Card signing is delegated to the host's key material; the adapter exposes `sign(card, key)` as a thin helper so the filtered extended card can be signed per response.
+
+## Request lifecycle
+
+1. Discovery: a client fetches the public card. No authentication; scopes per skill are visible so the client can request them during OAuth.
+2. Authenticated discovery: the client fetches the extended card with a bearer token. The adapter resolves the subject, fills `actor` from the token's client identity and `delegation` from scopes or `authorization_details`, and filters skills with `can(permission)` (collection) or any-grant (instance).
+3. Task submission: `protectSkill` maps the task to a skill and permission, validates the task payload against the resource schema when `data` exists, and calls `decide`.
+4. Outcome: `granted` runs the task; `denied` and `approval-required` answer with an A2A task failure carrying the Decision (below).
+5. `on('decision')` records the discovery filter and the task decision with `actor` and `delegation`.
+
+## What it validates
+
+- Task payloads against the resource schema when a `data` resolver is declared (`validate: 'boundary'`).
+- Scope presence: the caller's token must carry the skill's `scope`; a missing scope is reported as a `401`/`403` with `WWW-Authenticate` naming the required scope, matching the security requirement in the card.
+- Card consistency: in development, the adapter asserts that every skill declares exactly one permission and that the `securitySchemes` referenced by `securityRequirements` exist.
+- Caller identity is never taken from the task body; it comes from the transport authentication only.
+
+## How denials surface
+
+- In discovery: the skill is absent from the extended card. The public card is never filtered, so a caller can always learn what scopes to request.
+- At execution: an A2A task in the failed state whose error is an RFC 9457 Problem Details object: `type` ending in `/denied` or `/approval-required`, `permission`, `denials`, `alternatives`. HTTP status `403`.
+- `approval-required`: the task enters an input-required state with the `Decision.token` and a human-readable prompt in the message; when the caller returns the approval, the adapter re-checks the token before continuing.
+- Missing scope: standard OAuth step-up (`insufficient_scope`), not a denial.
+
+## Example app
+
+`apps/examples/a2a-agent`: a Hono server exposing two skills, a public and an extended card, a fake authorization server with two clients (one scoped to `post:read`, one to both scopes), and tests showing the extended card differs per caller, a task denial with alternatives, and signed card verification.
+
+## Related standards
+
+- [A2A](/docs/standards/a2a): Agent Card, `securitySchemes`, `securityRequirements`, signed cards, authenticated extended card.
+- [OAuth agent delegation](/docs/standards/oauth-agent-delegation): scopes and `authorization_details` as delegated authority.
+- [OpenAPI 3.2](/docs/standards/openapi-3-2): the same `oauth2MetadataUrl` security scheme shape.
+- [Problem Details](/docs/standards/problem-details): task error body.
+
+## Open questions
+
+- The plan names only `agentCard` and `extendedAgentCard`; `protectSkill` and `sign` are proposed here as the minimum needed for execution-time enforcement and per-caller signing, and may move or be renamed.
+- Whether `securityRequirements` should list the permission scope alone or the scope plus a coarse agent scope.
+- How to express instance-level conditions in skill descriptions so a calling agent can plan (the same question as `list_tools` in MCP).
+- Whether card signing belongs in the adapter or stays a host concern with a documented recipe.
+- Whether the extended card should include `alternatives` hints for skills that were filtered out.

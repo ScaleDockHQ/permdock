@@ -1,0 +1,163 @@
+---
+title: Audit and observability
+description: Every check emits a decision event with outcome, reasons, actor and delegation; permdock/otel adds a span per check; HTTP denials are RFC 9457 Problem Details.
+---
+
+An authorization library that cannot tell you what it decided, for whom, and why, is a liability at incident time. PermDock treats observability as part of the decision: `on('decision')` delivers the full `Decision` with the subject and the arguments, `permdock/otel` turns the same data into spans and a counter, and HTTP adapters emit RFC 9457 Problem Details that carry the denial reasons and alternatives to the caller.
+
+## on('decision')
+
+```ts
+const permdock = await createPermDock(policy, user, { actor, delegation })
+
+permdock.on('decision', (event) => audit.write(event))
+```
+
+Every `can`, `decide`, `assert` and `filter` emits one event per evaluated check (`filter` emits one event with the counts, not one per row; `simulate` emits one `simulate` event). The event is a frozen JSON object:
+
+```ts
+type DecisionEvent = {
+  type: 'decision'
+  at: string                          // ISO timestamp
+  outcome: 'granted' | 'denied' | 'approval-required'
+  permission: string                  // 'post.delete'
+  scope: string                       // 'post:delete'
+  resource: { type: string; id?: string }   // id from the resource's `id` field; absent for collection actions
+  subject: {
+    principal: { id: string; roles: string[] } | null
+    actor?: { id: string; kind: string }
+    delegation?: { scopes?: string[]; authorizationDetails?: unknown[] }
+  }
+  matched?: { role: string; permission: string }        // granted / approval-required
+  denials?: Array<{ role: string | null; reason: string }> // denied
+  alternatives?: string[]             // permission keys
+  token?: string
+  trusted: boolean                    // whether the data crossed a boundary and was validated
+  source: 'can' | 'decide' | 'assert' | 'filter' | 'endpoint' | 'adapter'
+  adapter?: string                    // 'next' | 'hono' | 'mcp' | 'ai-sdk' | ...
+}
+```
+
+The event contains the result. permix's `hooks` gave you `{ path, data }` before the check and nothing after, so an audit log could record that a check happened but not what it returned; issue [#38](https://github.com/letstri/permix/issues/38) asked for the result and stayed open. PermDock's event is emitted after evaluation and includes `outcome`, `denials`, `matched` and `alternatives`, which is what an audit trail, an anomaly detector or a "why can't I see this" support tool needs.
+
+Handlers are fire-and-forget: they run after the decision is computed, a throwing handler is reported to `on('error')` and never changes the outcome, and async handlers are not awaited by `can` or `decide`. If your sink needs backpressure, buffer in the handler.
+
+### Principal and actor in every event
+
+For agent traffic the event distinguishes the human (`principal`) from the agent (`actor`) and records the authority it used (`delegation`). "The reporting agent deleted post 42 for Alice under scope `post:delete`, matched by the admin role" is one event, not a join across three logs. See [subject](/docs/concepts/subject).
+
+### Example sink
+
+```ts
+permdock.on('decision', (event) => {
+  if (event.outcome === 'granted' && Math.random() > 0.1) return // sample routine grants
+  queue.push({
+    at: event.at,
+    outcome: event.outcome,
+    permission: event.permission,
+    resourceId: event.resource.id,
+    principalId: event.subject.principal?.id ?? null,
+    actorId: event.subject.actor?.id ?? null,
+    reasons: event.denials?.map((d) => d.reason) ?? [],
+    adapter: event.adapter,
+  })
+})
+```
+
+Register the handler once where you create the `PermDock` (the server factory file), or pass it to the adapter's `createPermDock` options so every request-scoped instance inherits it.
+
+### What is not logged
+
+The event never includes the resource object itself, the parsed schema output, the closure source, or any token or secret from `authInfo`. Add fields in your handler if you need them; `resource.id` is there so you can join.
+
+## permdock/otel
+
+```ts
+import { withOtel } from 'permdock/otel'
+
+const permdock = withOtel(await createPermDock(policy, user), { tracer, meter })
+```
+
+`permdock/otel` is an optional entry that subscribes to `on('decision')` and emits:
+
+| Signal | Name | Attributes |
+| --- | --- | --- |
+| Span (one per check) | `permdock.check` | `permdock.permission`, `permdock.outcome`, `permdock.resource.type`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.adapter`, `permdock.denials` (comma-joined reasons on `denied`) |
+| Counter | `permdock.checks` | `permdock.permission`, `permdock.outcome`, `permdock.adapter` |
+| Histogram | `permdock.check.duration` | same as the counter |
+
+`@opentelemetry/api` is an optional peer of `permdock/otel`, never of core: `@zap-studio/permit` made it a required peer, which forces the dependency on every consumer; PermDock keeps core at zero runtime dependencies. The meter and tracer are resolved when `withOtel` is called so that module initialisation order relative to the SDK does not matter. The span is a child of whatever is active, so a check inside a Hono handler nests under the HTTP server span and a check inside an MCP tool nests under the tool call.
+
+## Problem Details
+
+HTTP adapters answer a denied `assert` with `403 application/problem+json` per [RFC 9457](/docs/standards/problem-details). The body is generated from the `Decision`:
+
+```json
+{
+  "type": "https://permdock.dev/problems/denied",
+  "title": "Permission denied",
+  "status": 403,
+  "detail": "post.delete was denied for the current subject.",
+  "instance": "/posts/42",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": { "type": "post", "id": "42" },
+  "denials": [
+    { "role": "member", "reason": "condition" }
+  ],
+  "alternatives": ["post.read", "post.update"]
+}
+```
+
+```json
+{
+  "type": "https://permdock.dev/problems/approval-required",
+  "title": "Approval required",
+  "status": 403,
+  "detail": "post.delete requires human approval.",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": { "type": "post", "id": "42" },
+  "reason": "human",
+  "token": "pd1.…"
+}
+```
+
+```json
+{
+  "type": "https://permdock.dev/problems/validation",
+  "title": "Invalid resource data",
+  "status": 400,
+  "permission": "post.update",
+  "resource": { "type": "post" },
+  "issues": [{ "path": ["authorId"], "message": "Expected string, received number" }]
+}
+```
+
+Rules the adapters follow:
+
+- `type` is a stable URI per outcome (the base URI above is a placeholder until the docs domain is final). `title` is constant per `type`; `detail` is human-readable and may vary.
+- The extension members `permission`, `scope`, `resource`, `denials`, `alternatives`, `reason`, `token` and `issues` are the machine-readable part. Their names match the `Decision` and the audit event, so a client library can parse all three with one type.
+- `approval-required` is a 403 with its own `type`, not a 401 and not a 202: the request was understood and refused pending a human. How a plain HTTP client then obtains the approval is an open question in the plan.
+- The body never contains the policy, the closure source, or another subject's data. `denials` names roles the subject holds, which the subject already knows.
+- OpenAPI emission documents the 403 responses with these schemas on every protected operation.
+
+Model-readable text: the `detail` strings are written for an LLM as much as for a person ("post.delete was denied for the current subject; permitted alternatives: post.read, post.update"), because the MCP and AI SDK adapters reuse them as refusal text. See [errors](/docs/concepts/errors).
+
+## Putting it together
+
+| Question | Where the answer is |
+| --- | --- |
+| Was this specific request denied and why? | The Problem Details body, or the `decision` on the thrown `PermDockDeniedError` |
+| Which agent did what for which user last week? | Your audit sink fed by `on('decision')`, filtered on `subject.actor` |
+| How often is `post.delete` denied per adapter? | The `permdock.checks` counter |
+| Why is this page slow? | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint |
+| What changed in who can do what? | `permdock usage` and the policy matrix snapshot in `@permdock/testing`, in review |
+
+## Open questions
+
+- The Problem Details base URI.
+- The `permdock/otel` entry point shape (`withOtel` above is a placeholder) and the `on('error')` event for failing handlers; the plan only fixes "span per check".
+- Whether `on('decision')` should also fire for client-side snapshot evaluations (useful for UX analytics, noisy for audit); the current design emits only on the server and on the endpoint.
+- Whether `permdock/otel` should emit a log record per denial in addition to the span, for backends that index logs but not spans.
+- Sampling: whether `granted` events should be sampled by default under high load while `denied` and `approval-required` are always emitted.

@@ -1,0 +1,155 @@
+---
+title: Policies
+description: Roles are arrays of allow and deny grants over permission references; definePolicy binds them to a subject, context and validation mode.
+---
+
+A policy answers "who may do what, under which conditions". In PermDock it is data: roles are arrays of grants, grants are `allow` or `deny` of a permission reference with optional conditions and options, and `definePolicy` binds the roles to a definition and to the function that turns your user into a subject. Because the policy is data, it can be snapshotted to the client, compiled to SQL, printed as a matrix in tests, and diffed in review.
+
+The policy is server-only. It is the one file in a PermDock app that must never reach a client bundle; `permdock doctor` checks for it.
+
+## Shape
+
+```ts
+import { definePolicy, role, allow, deny, subject } from 'permdock'
+import { permissions } from './permissions'
+
+const member = role('member', [
+  allow(permissions.post.read),
+  allow(permissions.post.list),
+  allow(permissions.post.create),
+  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.publish, (post, ctx) => post.authorId === ctx.subject.id),
+  allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),
+  allow(permissions.billing.invoice.pay, { limit: { count: 10, per: '1h' } }),
+  allow(permissions.billing.plan.view),
+])
+
+const admin = role('admin', [
+  ...member.grants,
+  allow(permissions.post.delete),
+  allow(permissions.billing.plan.change),
+  deny(permissions.post.publish, { where: { published: true } }),
+])
+
+export const policy = definePolicy(permissions, {
+  roles: [member, admin],
+  subject: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
+  context: async (user) => ({ teamIds: await loadTeamIds(user.id) }),
+  validate: 'boundary',
+})
+```
+
+## Roles
+
+`role(name, grants)` returns `{ name, grants }`. A role is looked up by name from `subject.roles`, so role names are the only strings in a policy, and they are data you already store (in your users table, JWT claims or Better Auth roles). Roles are not Postgres roles; when RLS is generated, app roles become claims and every policy targets `TO authenticated` (see [RLS](/docs/adapters/rls)).
+
+### Spreading grants
+
+`...member.grants` copies a role's grants into another. It is plain array spread, so the result is visible, reviewable and needs no hierarchy resolver. The admin above has every member grant plus unconditional delete.
+
+### Role fragments
+
+Roles may be declared in several files and passed together to `definePolicy`. Roles with the same name merge their grants in declaration order:
+
+```ts
+export const policy = definePolicy(permissions, {
+  roles: [...postRoles, ...billingRoles], // two 'member' fragments become one role
+  subject,
+})
+```
+
+Merging is a concatenation of grant arrays; the evaluation rules below make order irrelevant to the outcome. A fragment that references a leaf outside `permissions` is a type error, which is what keeps a feature from granting a permission the app never merged. See [larger apps](/docs/getting-started/larger-apps).
+
+## Grants
+
+`allow(permission, condition?)` and `deny(permission, condition?)` are the only two grant constructors.
+
+| Second argument | Meaning |
+| --- | --- |
+| omitted | Unconditional |
+| `{ where }` | Portable condition on the current row (RLS `USING`) |
+| `{ check }` | Portable condition on the next row (RLS `WITH CHECK`) for `create` and `update` |
+| `{ where, check }` | Both, for `update` |
+| `(data, ctx) => boolean` | Closure: runtime only, branded non-portable |
+| `{ ..., approval: 'human' }` | Grant is valid but the decision is `approval-required` until a human approves |
+| `{ ..., limit: { count, per } }` | Quota grant (Later): non-portable, needs a `LimitStore` |
+
+Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` or `check` because there is no row; they accept closures over `ctx` only.
+
+## Evaluation semantics
+
+The rules are short and they are the whole story ([ADR 0010](/docs/decisions/0010-policy-as-data-portable-conditions)):
+
+1. Collect the grants of every role in `subject.roles` for the requested permission key.
+2. If any `deny` matches, the outcome is `denied`. Deny overrides allow, regardless of role or declaration order.
+3. Otherwise, if any `allow` matches, the outcome is `granted` (or `approval-required` if the matched allow carries `approval`). Allows OR together.
+4. Otherwise the outcome is `denied` with an empty match. Nothing granted means denied; there is no `not-applicable`.
+5. For an agent subject, the result is then intersected with the delegated authority (see [subject](/docs/concepts/subject)).
+
+A grant "matches" when its condition evaluates to `true` for the given data and subject. An unconditional grant always matches. A closure that throws counts as not matching and is reported in the decision's `denials` with a reason. Evaluation never throws; `can` and `decide` are safe to call from render paths.
+
+Because deny is absolute, the compiled SQL form is simple: each allow becomes a `PERMISSIVE` policy, each deny becomes a `RESTRICTIVE` policy with `NOT (condition)`, and Postgres computes the same result.
+
+### What a missing grant means
+
+There is no default-allow anywhere. A permission with no grant in any of the subject's roles is denied, and `permdock usage` reports it as granted-by-no-role so unreachable permissions are visible in CI.
+
+### Type safety
+
+- `allow(permissions.post.archive)` fails to compile if `archive` was never defined.
+- `allow(permissions.post.update, { where: { autorId: subject.id } })` fails to compile: `autorId` is not a field of `Post`.
+- `roles: user.roles` where `roles` contains a name no `role()` declared is a runtime deny for that role plus a `permdock doctor` warning, not a throw.
+
+## Approval
+
+`approval: 'human'` marks a grant whose match is necessary but not sufficient. When it is the matched allow, `decide` returns `{ outcome: 'approval-required', grant, reason, token }` instead of `granted`. The token binds the pending approval to the permission key, resource id, subject and actor so an approved reply cannot be replayed against different arguments.
+
+Adapters translate this outcome: the Vercel AI SDK gets `user-approval`, `WorkflowAgent` suspends through `needsApproval`, MCP raises an elicitation, HTTP returns 403 Problem Details with an `approval-required` type. See [decisions](/docs/concepts/decisions) and [approvals](/docs/security/approvals).
+
+## Limits
+
+`limit: { count, per }` is a quota grant scheduled for Phase 4. It is non-portable (it cannot appear in a snapshot or an RLS policy), it needs a pluggable `LimitStore` to count usage, and when the quota is exhausted the decision is `denied` with reason `limit`. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case.
+
+## definePolicy options
+
+| Option | Type | Notes |
+| --- | --- | --- |
+| `roles` | `Role[]` | Required. Fragments with the same name merge. |
+| `subject` | `(user) => Principal \| null` | Required. Returns the values referenced as `subject.<field>` in conditions, plus `roles`. `null` means anonymous. |
+| `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (team memberships, org settings) once per `createPermDock`; referenced as `subject.context.<key>`. Declaring it makes `createPermDock` async. |
+| `validate` | `'boundary'`, `'always'` or `'never'` | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation). |
+| `onDenied` | `(decision) => never \| void` | Optional default unauthorized handler for `assert`; runs last in the layered chain. |
+
+The `subject` function is the only place PermDock touches your user object. It is called once per `createPermDock` and its return value is frozen. Anything not returned from it is invisible to conditions, which is deliberate: conditions can only reference values that also exist in the snapshot and in the SQL session.
+
+## Closures
+
+A closure grant is `(data, ctx) => boolean | Promise<boolean>`, where `ctx` contains `subject`, `actor`, `delegation` and the loaded `context`. Closures are branded as non-portable at the type level:
+
+- `permdock.where(permission)` returns a condition that excludes closure grants and marks the result `partial`.
+- `permdock.snapshot()` serialises the grant as `{ portable: false }` so the client knows to ask the decision endpoint.
+- `permdock rls generate` reports the grant as not generated.
+
+Use a closure when the check needs something a portable condition cannot express (a call to another service, a computed value). Prefer loading the data in `context` and writing a portable `where` when you can, so the UI, the query layer and the database all agree.
+
+## Testing a policy
+
+`@permdock/testing` renders a matrix of roles by permissions with the outcome for representative fixtures, and snapshots it:
+
+```ts
+import { policyMatrix } from '@permdock/testing'
+
+test('policy matrix', () => {
+  expect(policyMatrix(policy, { fixtures: { post: [ownPost, otherPost] } })).toMatchSnapshot()
+})
+```
+
+A change in the matrix is a change in who can do what, and shows up in review as a snapshot diff.
+
+## Open questions
+
+- Ergonomics of `subject.*` references versus closures: whether to offer typed helpers such as `subject.context.teamIds.contains(row.teamId)` or keep the object form only.
+- The `LimitStore` interface, and whether quotas belong in core or in a separate entry.
+- Whether same-named role fragments should be allowed to both `allow` and `deny` the same permission or whether that should be a lint error.
+- Anonymous grants: whether `role('anonymous', ...)` is applied automatically when `subject` returns `null`, or whether anonymous is always fully denied.
+- The name of the policy-level default unauthorized handler (`onDenied` above is a placeholder; the plan only says "policy default").

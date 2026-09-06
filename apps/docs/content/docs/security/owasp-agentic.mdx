@@ -1,0 +1,95 @@
+---
+title: OWASP Top 10 for Agentic Applications
+description: How PermDock features map to the OWASP Top 10 for Agentic Applications (December 2025), with detailed coverage of ASI02 Tool Misuse and ASI03 Identity and Privilege Abuse.
+---
+
+The [OWASP Top 10 for Agentic Applications](https://genai.owasp.org/download/52117) (December 2025) names the ways autonomous agents fail their operators. Two of its entries, ASI02 Tool Misuse and ASI03 Identity and Privilege Abuse, describe the exact problem a permissions library exists to solve, and the document's recommended controls read like a specification for `permission` on `registerTool`. This page maps PermDock features to the list so a team, or an agent auditing a team's code, can check coverage item by item.
+
+## Scope of this mapping
+
+The project sources quote the OWASP document for ASI02, ASI03 and its cross-cutting recommendations (per-tool least-privilege profiles, deterministic argument validation, human-in-the-loop gates, "Least Agency"). The names of the other eight entries are not reproduced in the sources this page was written from, so they are listed by ID only and their mitigations are marked provisional until the official text is incorporated. PermDock addresses authorization; several OWASP entries concern memory, supply chain or inter-agent trust, where PermDock contributes audit and least agency but is not the primary control.
+
+## Mapping table
+
+| ID | Name | PermDock mitigation |
+| --- | --- | --- |
+| ASI01 | Name not in project sources | Provisional: decisions evaluated outside the model; model-supplied subjects never trusted; boundary validation of tool arguments |
+| ASI02 | Tool Misuse | `permission` on each tool (scope, condition, `approval`, `limit`); boundary validation of arguments; `list_tools` and `capabilityMiddleware` filtering; `simulate()` pre-flight; `denied` with `alternatives`; see below |
+| ASI03 | Identity and Privilege Abuse | Two-principal subject (`principal`, `actor`, `delegation`); decision = principal grants ∩ delegation; monotonic attenuation across hops; `actor` in every audit event; see below |
+| ASI04 | Name not in project sources | Provisional: fail-closed `Decision`; deny overrides allow; `approval: 'human'` for consequential actions |
+| ASI05 | Name not in project sources | Provisional: portable conditions are data, no eval; snapshots and imports never executed |
+| ASI06 | Name not in project sources | Provisional: `on('decision')` audit with outcome, reasons, actor and delegation; `permdock/otel` |
+| ASI07 | Name not in project sources | Provisional: A2A extended card filtered per caller; `actor` and `delegation` required for agent-to-agent calls |
+| ASI08 | Name not in project sources | Provisional: CAEP receiver invalidates on `session-revoked`; `simulate()` bounds a plan before execution |
+| ASI09 | Name not in project sources | Provisional: model-readable `denied` reasons and `alternatives` so the model self-corrects rather than escalating |
+| ASI10 | Name not in project sources | Provisional: `limit` grants with server-side `LimitStore` (Phase 4); quotas per actor |
+
+## ASI02 Tool Misuse
+
+OWASP asks for "per-tool least-privilege profiles (scopes, maximum rate, and egress allowlists) ... expressed as authorization policy stanzas attached to each tool", deterministic validation of tool arguments, human-in-the-loop gates for consequential actions, and "Least Agency": give the agent the minimum capability the task needs.
+
+### Authorization policy stanzas attached to each tool
+
+That phrase is `permission` on `registerTool`. The stanza is the permission reference plus its grants in the policy:
+
+```ts
+guarded.registerTool(
+  'delete_post',
+  { permission: permissions.post.delete, inputSchema, data: (args) => loadPost(args.id) },
+  handler,
+)
+
+const member = role('member', [
+  allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),
+  allow(permissions.billing.invoice.pay, { limit: { count: 10, per: '1h' } }),
+])
+```
+
+- **Scopes**: `permission.scope` (`post:delete`) is the OAuth scope, emitted as the MCP `scopeChallenge`, the OpenAPI scope and the A2A `securityRequirements` entry.
+- **Maximum rate**: `limit` grants (Phase 4) bound how often a subject or actor may exercise a permission, enforced by a server-owned `LimitStore`.
+- **Egress allow-lists**: not a PermDock feature; PermDock records this as out of scope and points at the runtime's network policy. A permission may still carry `meta` describing the egress a tool needs, so the catalog documents it.
+
+### Deterministic argument validation
+
+Tool arguments are model output and therefore untrusted. `validate: 'boundary'` runs the resource's Standard Schema on them before any rule executes; failures are `denied` with `issues`, never a thrown exception that the runtime might swallow into "tool executed". See [validation](/docs/concepts/validation).
+
+### Human-in-the-loop gates
+
+`approval: 'human'` on a grant produces `outcome: 'approval-required'`, which the adapters surface as AI SDK `user-approval`, `WorkflowAgent` `needsApproval`, Claude Agent SDK `canUseTool` asking, or an MCP elicitation, always with a replay-safe `token`. See [approvals](/docs/security/approvals).
+
+### Least Agency
+
+- `capabilityMiddleware` (AI SDK) and `list_tools` filtering (MCP) narrow the tools a model sees to those the subject may call, before the model plans.
+- `simulate([[permission, data], ...])` batch-evaluates an agent's intended calls (an AuthZEN boxcar request) so a plan can be trimmed or rejected before the first side effect.
+- `denied` decisions carry `alternatives`: permitted permissions on the same resource, so the model picks a smaller action instead of retrying or escalating.
+
+### Audit
+
+Every check emits `on('decision')` with outcome, matched grant, denials, `actor` and `delegation`; `permdock/otel` adds a span per check. A tool-misuse investigation can reconstruct what the agent tried, under whose authority, and why it was refused.
+
+## ASI03 Identity and Privilege Abuse
+
+The failure is an agent operating with more authority than the human it serves, or with an identity that cannot be traced back to anyone. PermDock's answer is structural rather than procedural:
+
+- **Two principals.** `createPermDock(policy, user, { actor, delegation })`. The human is `principal`, the agent is `actor`, and `delegation` is the authority the human granted (OAuth scopes, RFC 9396 `authorization_details`, or an attenuated chain). Adapters fill `actor` and `delegation` from verified `authInfo`, never from prompt content.
+- **Intersection, not union.** A decision is the principal's grants intersected with the delegation. An agent with `post:delete` scope acting for a user who lacks `post.delete` is denied. An agent acting for an admin but delegated only `post:read` is denied everything else. "An agent can never exceed its user" is not a rule the developer writes; it is how `decide` works.
+- **Monotonic attenuation.** Delegation-chain hops can only narrow. A hop that widens is rejected with a `delegation` reason (Phase 4 verification in core is an open question; see [delegation](/docs/security/delegation)).
+- **No anonymous agents.** An `actor` without `delegation` has no authority; a Web Bot Auth signature that fails verification is rejected, not downgraded.
+- **Traceability.** `actor.id` (MCP client id, CIMD URL, AI SDK agent name, signing key, A2A card) is in every decision event and in the AuthZEN `subject.properties`, so privilege use is attributable to a specific agent and a specific human.
+- **Revocation propagates.** CAEP `session-revoked` and `credential-change` events invalidate the principal's snapshots, so a compromised human session does not leave agents holding stale authority.
+
+## Using this page in an audit
+
+The `audit-permissions` skill walks a repository and reports, per ASI02 and ASI03 control: tools registered without `permission`, routes without `protect`, permissions granted with no `approval` on destructive actions, agent adapters constructed without `actor`, and decision events not consumed by any sink. `permdock doctor` reports the same findings from the CLI. See [Agent docs standards](/docs/standards/agent-docs-standards).
+
+## Sources
+
+- [OWASP Top 10 for Agentic Applications, December 2025 (PDF)](https://genai.owasp.org/download/52117), as quoted in the product plan: ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse, per-tool least-privilege profiles "expressed as authorization policy stanzas attached to each tool", deterministic argument validation, human-in-the-loop gates, Least Agency.
+- [`@ai-sdk/policy-opa` fail-open issue](https://github.com/vercel/ai/issues/19978) as the motivating example for fail-closed adapters.
+- [Threat model](/docs/security/threat-model) for the invariants referenced above.
+
+## Open questions
+
+- Incorporating the official names and descriptions of ASI01, ASI04 to ASI10 from the OWASP document and replacing the provisional mitigations with specific ones.
+- Whether egress allow-lists should be representable in permission `meta` in a structured way so `permdock catalog` can export a per-tool profile in the shape OWASP describes.
+- Whether `simulate()` should be exposed to the model as a tool itself (a "check my plan" tool) or remain a runtime-side pre-flight.

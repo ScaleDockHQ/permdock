@@ -1,0 +1,100 @@
+---
+title: Naming
+description: The PermDock naming convention, the use* and get* duality, reserved words, and what each adapter's createPermDock returns.
+---
+
+PermDock has one naming rule: the brand is the noun. The decision object is a `PermDock`, the variable is `permdock`, the factory is `createPermDock`, and the import path, not the identifier, says which framework you are in. Every package, docs page, skill, error message and example follows this page. The rationale is recorded in [ADR 0005](/docs/decisions/0005-naming-convention).
+
+## The three core names
+
+| Name | Kind | Meaning |
+| --- | --- | --- |
+| `PermDock` | type | The immutable, request-scoped decision object returned by `createPermDock`. Methods: `can`, `decide`, `assert`, `filter`, `where`, `simulate`, `snapshot`, `on`. |
+| `permdock` | variable | The conventional name for a `PermDock` instance, and the npm package name. Also the CLI binary (`permdock collect`). |
+| `createPermDock` | function | Exported by core and by every server and agent adapter. Core returns a `PermDock`; adapters return a framework-shaped object. |
+
+```ts
+import { createPermDock } from 'permdock'        // core: PermDock
+import { createPermDock } from 'permdock/next'   // Next.js: { getPermDock, getPermission, PermDockProvider, permdockHandler }
+import { createPermDock } from 'permdock/hono'   // Hono: { permdock, protect }
+import { createPermDock } from 'permdock/mcp'    // MCP: { protectServer }
+```
+
+There is no `NextDock`, `HonoDock`, `createNextPermDock` or `createMcpPermDock`. When two adapters are used in one file, alias at the import: `import { createPermDock as createHonoPermDock } from 'permdock/hono'`.
+
+## use* on the client, get* on the server
+
+React reads permissions synchronously from a snapshot; servers resolve them asynchronously per request. PermDock follows the duality next-intl uses for `useTranslations` / `getTranslations` and `useExtracted` / `getExtracted`:
+
+| Client (`permdock/react`) | Server (`createPermDock` from `permdock/next`) | Returns |
+| --- | --- | --- |
+| `usePermDock()` | `await getPermDock()` | A `PermDock` (snapshot-backed on the client, full policy on the server) |
+| `usePermission(permission, data?)` | `await getPermission(permission, data?)` | `{ allowed, status }` on the client; the same shape awaited on the server |
+| `<PermDockProvider snapshot endpoint>` | `<PermDockProvider>` from the factory result | Client context; the server variant loads the snapshot once per request and serialises it |
+
+The client hooks and `<Protected>` are direct exports with no factory: the permission reference carries all the types, so `usePermission(permissions.post.update, post)` is fully typed without a generic wrapper. Only the server side needs a factory, because only the server holds the policy.
+
+## Definition and policy vocabulary
+
+| Word | Used for | Never used for |
+| --- | --- | --- |
+| `definePermissions` | Build the reference tree from resources and groups | Rules |
+| `resource` | One resource node: schema, `id` field, `actions`, `collection` | Anything without a schema-or-actions shape |
+| `actions` | Instance-level actions (`can(permissions.post.update, post)`) | Type-level checks |
+| `collection` | Type-level actions (`can(permissions.post.create)`) | Instance checks |
+| `mergePermissions`, `listPermissions`, `findPermission` | Registry helpers; functions so they never collide with resource names | Methods on the tree |
+| `definePolicy` | Bind roles, `subject`, `context`, `validate` to a definition | Defining permissions |
+| `role` | A named array of grants; same-named roles merge | Postgres roles |
+| `allow`, `deny` | The two grant constructors | Checking |
+| `subject` | Both the reference object used in conditions (`subject.id`) and the `definePolicy` option that maps a user to principal values | The agent (that is `actor`) |
+| `principal`, `actor`, `delegation` | The three parts of a subject | Synonyms for user or role |
+| `granted`, `denied`, `approval-required` | The three `Decision.outcome` values | `not-applicable`, `allow`, `deny` |
+| `where`, `check` | Conditions on the current row and on the next row | Query building outside conditions |
+| `key`, `scope` | The dotted (`post.update`) and colon (`post:update`) string forms of a permission | Public API arguments |
+
+Strings appear only as `.key` and `.scope` on the wire, in audit events and in catalogs. The public API takes references.
+
+## Reserved words
+
+These never appear as public identifiers, for the reasons given:
+
+| Word | Why it is reserved |
+| --- | --- |
+| `dock` | Early sketches used it as the instance name; it reads oddly next to `PermDock` and collides with nothing meaningful. Only `permdock` is used. |
+| `ability` | CASL's noun; using it would imply CASL semantics (subject detection, `manage`/`all`) that PermDock does not have. |
+| `can` as a definer | CASL uses `can` both to define and to check rules, which its own cookbook documents as confusing ([less-confusing-can-api](https://github.com/stalniy/casl/blob/master/docs-src/src/content/pages/cookbook/less-confusing-can-api/en.md)). PermDock defines with `allow` / `deny` and checks with `can`. |
+| `$`-prefixed members | Kilpi prefixes every instance member with `$` to avoid clashing with policy names in a Proxy tree. PermDock keeps methods on the instance and the tree separate, so no prefix is needed. |
+| `explain` | Replaced by `decide`, which returns the full `Decision` rather than a message ([ADR 0007](/docs/decisions/0007-decide-not-explain)). |
+| `Can`, `Guard`, `Access` | Component names already used by CASL, older sketches and Kilpi; the PermDock component is `<Protected>`. |
+
+## What each adapter's createPermDock returns
+
+| Import path | Returns | Notes |
+| --- | --- | --- |
+| `permdock` | `PermDock` | `await createPermDock(policy, user, { actor?, delegation? })`; sync when the policy declares no `context` |
+| `permdock/next` | `{ getPermDock, getPermission, PermDockProvider, permdockHandler }` | Options: `subject`, `tag` |
+| `permdock/hono` | `{ permdock, protect }` | `permdock()` is middleware; `protect(permission, load?)` guards a route |
+| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | `{ permdock, protect }` | Same shape as Hono over the shared kernel |
+| `permdock/trpc`, `permdock/orpc` | `{ permdock, protect }` | `protect` is a procedure middleware |
+| `permdock/mcp` | `{ protectServer }` | `protectServer(server).registerTool(name, { permission, ... }, handler)` |
+| `permdock/ai-sdk` | `{ toolApproval, capabilityMiddleware, needsApproval }` | Options: `subject`, `actor`, `tools` |
+| `permdock/claude-agent` | `{ canUseTool, permissionRequestHook }` | Options: `subject`, `tools` |
+| `permdock/authzen` | `{ handler }` | Serves evaluation, evaluations, search and `.well-known` |
+| `permdock/ssf` | `{ receiver }` | RFC 8935 push and RFC 8936 poll receiver for CAEP events |
+| `permdock/a2a` | `{ agentCard, extendedAgentCard }` | Options: `skills` |
+
+Two entries deliberately do not export `createPermDock`:
+
+- `permdock/react` (and `react-native`, `vue`, `svelte`, `solid`) export `PermDockProvider`, `usePermDock`, `usePermission` and `<Protected>` directly.
+- `permdock/webmcp` exports `registerTools(document.modelContext, group, { permdock })` because it consumes a client `PermDock` rather than creating one. `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` export `toWhere`.
+
+## Files and folders
+
+- The server factory lives in `src/permdock/server.ts` in every example. The definition is `src/permissions.ts`; the policy is `src/policy.ts`; generated definitions are `src/permissions.generated.ts`.
+- Example apps are `apps/examples/<adapter>`; the docs page is `/docs/adapters/<adapter>`; the source folder is `packages/permdock/src/<adapter>`. The same short name is used in all three.
+- Errors are `PermDockDeniedError`, `PermDockApprovalRequiredError` and `PermDockValidationError`. Problem Details `type` URIs end in `/denied`, `/approval-required` and `/validation`.
+
+## Open questions
+
+- Whether `decide` should get an `explain` alias for discoverability.
+- Whether `<Protected>` should be joined by a second, `<Can>`-style inline render-prop component.

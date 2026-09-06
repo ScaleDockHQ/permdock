@@ -1,0 +1,152 @@
+---
+title: Next.js 16.3 Instant Navigations
+description: "What the Next.js 16.3 App Shell, 'use cache: private', Partial Prefetching and the instant() test helper mean for a permissions library, and the design consequences for permdock/next."
+---
+
+Source: the [Next.js 16.3 release post](https://nextjs.org/blog/next-16-3) and the [Instant Navigation guide](https://nextjs.org/docs/app/guides/instant-navigation), read in September 2026 while designing the Next.js adapter. This page records the constraints the release imposes on anything that reads a session, and how PermDock's snapshot model fits them. The resulting design is the [next adapter](/docs/adapters/next); the example app is `apps/examples/next`.
+
+## What changed in 16.3
+
+Instant Navigations make a route transition render from prefetched output instead of waiting on the server. The mechanism has a few parts that matter to authorization:
+
+- App Shell. Each route has a shell that Next.js prefetches ahead of a click. The shell holds static output and, under the conditions below, session-derived output. Whatever is in the shell paints immediately on navigation.
+- `"use cache: private"`. A function that reads `cookies()` or `headers()` can still contribute to the App Shell if it is wrapped in a `"use cache: private"` scope with a `cacheLife` profile whose `stale` period is at least five minutes. The cache is client-only: it is keyed per browser and never shared across users. This is the release's answer to "per-user content in a prefetched shell".
+- Suspense placement. Anything that touches `cookies()` or `headers()` and is not privately cached must sit behind a Suspense boundary. If it does not, the navigation blocks until the server responds, which defeats the feature.
+- Partial Prefetching. The shell and the parts behind Suspense are prefetched and streamed separately; the shell lands first and the Suspense fallbacks resolve as data arrives. This is the Cache Components model from Next.js 16 applied to navigation.
+- `updateTag`. Cached output, including private caches, can be refreshed by tag. Calling `updateTag(tag)` after a mutation invalidates prefetched shells that depend on that tag, so the next navigation sees fresh data.
+- `instant = false`. A segment can opt out of Instant Navigation by exporting `instant = false`. It is the escape hatch for pages that genuinely cannot render from a shell.
+- `@next/playwright` `instant()`. The release ships a Playwright helper that asserts a navigation completed from prefetched UI without a server round trip. It turns "this page is instant" into a test.
+
+The guide also has a section written for AI agents; PermDock's `wire-permdock` skill follows the same shape so an agent wiring the Next.js adapter sees the same rules the framework publishes.
+
+## Why this matters for a permissions library
+
+Almost every permission check on a page depends on who the user is, and "who the user is" comes from a cookie. Under 16.3 there are only three legal places for that check:
+
+1. Inside a `"use cache: private"` scope with `stale` at least five minutes, in which case the result can be in the App Shell and paints instantly.
+2. Behind a Suspense boundary, in which case the shell paints and the guarded region streams in.
+3. Nowhere on an instant route, which means exporting `instant = false`.
+
+A library that resolves the user and evaluates rules at the top of every page, the way permix's `setup()` in a layout does, forces option 3 on every route that uses it. A library whose client hook suspends until a network decision returns forces a fallback flash on every guarded region. Neither is acceptable for a library that claims to be built for Next.js 16.3.
+
+The resolution is the split PermDock already has for other reasons: the policy is data, and the per-user result of applying it is a JSON snapshot that carries portable conditions ([snapshots](/docs/concepts/snapshots)). A snapshot is exactly the kind of value that fits a private cache. It changes rarely (when roles change), it is small when scoped per feature, and a five-minute staleness window is acceptable when there is also a tag to bust it.
+
+## Design consequences for `permdock/next`
+
+### The snapshot resolver is the privately cached unit
+
+`createPermDock` from `permdock/next` takes an async `subject` resolver that reads the session and a `tag` function that derives a cache tag from the user:
+
+```ts
+// src/permdock/server.ts (server-only)
+import { createPermDock } from 'permdock/next'
+
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
+  subject: async () => getUser(await cookies()),
+  tag: (user) => `permdock:${user.id}`,
+})
+```
+
+The snapshot computation is documented as the function the app wraps in `"use cache: private"` with a `cacheLife` profile of at least five minutes, so that `PermDockProvider` in the root layout can serialise a snapshot that is already in the App Shell. Guards that only need roles and portable conditions (`usePermission(permissions.admin.access)`, `Protected` around a navigation item) then resolve from the prefetched shell without any server work on click.
+
+Open question recorded during research: whether a library can emit the `"use cache"` directive on behalf of the consuming app. The directive is compiler-level and tied to the app's own source, and it was not established whether Next.js processes directives inside `node_modules`. The safe design is for the app author to write the wrapper and for PermDock to document the exact shape and the `cacheLife` floor. This stays an open question on the [next adapter](/docs/adapters/next) page until the adapter is implemented.
+
+### Data-dependent checks stream under Suspense
+
+A check such as `getPermission(permissions.post.update, post)` needs the post, which needs a database read. That belongs in a Server Component behind Suspense:
+
+```tsx
+// app/posts/[id]/page.tsx
+export default function Page({ params }) {
+  return (
+    <>
+      <PostShell />                         {/* in the App Shell */}
+      <Suspense fallback={<EditorSkeleton />}>
+        <Editor params={params} />          {/* reads the post, calls getPermDock() */}
+      </Suspense>
+    </>
+  )
+}
+
+async function Editor({ params }) {
+  const permdock = await getPermDock()
+  const post = await loadPost((await params).id)
+  permdock.assert(permissions.post.update, post)
+  return <PostEditor post={post} />
+}
+```
+
+`getPermDock()` is memoised per request with `React.cache`, so a layout and a page in the same request share one instance, which is the race permix PR #57 had to fix by hand ([permix lessons](/docs/research/permix-lessons)).
+
+### The client hook never suspends
+
+`usePermission()` from `permdock/react` returns `{ allowed, status }` with `status` one of `ready`, `pending`, `stale` or `server-only`, and `Protected` accepts `pending` and `fallback` render props. A guarded region renders its pending state synchronously from whatever the snapshot already says and never throws a promise. Closure grants that the snapshot cannot answer are resolved through the decision endpoint exposed by `permdockHandler()` (batched and deduped, AuthZEN-shaped) and arrive as `ready` later, without blocking the navigation.
+
+### Invalidation uses tags, not TTLs
+
+The `tag` option exists so role changes can call `updateTag('permdock:<user>')` and refresh that user's prefetched shells. The same hook is what the [ssf adapter](/docs/adapters/ssf) calls when an identity provider sends a CAEP `session-revoked` or `credential-change` event, which turns "stale for five minutes" into "stale until the IdP says so" ([agent standards](/docs/research/agent-standards-2026)).
+
+### Tests prove the guards are instant
+
+The example app ships `@next/playwright` `instant()` tests asserting that navigating to a guarded route completes from the prefetched shell, and that a role change followed by `updateTag` changes what the next navigation shows. `@permdock/testing` exposes helpers for those assertions so every adapter example can reuse them. permix's own Next.js PR ran a Playwright matrix across Next 15.5, 16.0 and 16.3 with PPR; PermDock inherits the matrix idea for the `next` example.
+
+### `instant = false` is documented, not needed
+
+Because guards resolve from the snapshot and data checks stream, PermDock does not require any route to export `instant = false`. The docs mention it as the framework's escape hatch for pages that read a cookie outside both a private cache and Suspense. Whether `permdock doctor` should flag a top-level `getPermDock()` call that is neither cached nor wrapped is an open item on the [doctor](/docs/cli/doctor) page.
+
+## Request lifecycle, end to end
+
+Putting the pieces together, one navigation to a guarded page proceeds like this:
+
+1. Before the click, Next.js prefetches the route's App Shell. The shell includes `PermDockProvider`'s serialised snapshot because the snapshot resolver ran inside `"use cache: private"` on an earlier request for this browser, and its `stale` window has not elapsed.
+2. On click, the shell paints. `usePermission(permissions.admin.access)` in the navigation reads the snapshot and answers synchronously with `status: 'ready'`. `Protected` regions whose permission is portable render their final state immediately.
+3. Server Components behind Suspense start streaming. `getPermDock()` runs once per request via `React.cache`, loads the same subject the snapshot was built from, and `assert` or `getPermission` run against real data.
+4. Any client region whose grant is a closure (not portable) posts an AuthZEN-shaped evaluation to `permdockHandler()`'s route, batched with other pending checks in the same tick, and moves from `pending` to `ready` when the response lands.
+5. If a Server Action changes the user's roles, it calls `updateTag(tag(user))`. The next prefetch rebuilds the shell with a fresh snapshot; no client code polls.
+
+| Concern | Where it lives | Why |
+| --- | --- | --- |
+| Role and portable-condition checks | Snapshot in the App Shell | Answered before any server round trip |
+| Checks needing a database row | Server Component under Suspense | Shell paints first, region streams |
+| Closure grants on the client | Decision endpoint, batched | Cannot be serialised; stays server-side |
+| Invalidation | `updateTag` by user tag | Prefetched shells are refreshed, not expired |
+| Proof | `instant()` Playwright tests | Regressions that block navigation fail CI |
+
+## What this rules out
+
+- A mutable global initialised in a layout. It has no place in the shell and blocks navigation.
+- Hydrating booleans only. A shell that can only answer "yes or no" per permission cannot answer `usePermission(permissions.post.update, post)` for a post it has not seen; snapshots carry the `where` condition so the client evaluates ownership locally.
+- Hooks that suspend on a network decision. They produce fallback flashes on every guarded region.
+- Class instances crossing the RSC boundary. The snapshot is JSON and the permission leaf is JSON ([ADR 0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)), so both can be props of a client component; CASL's `Ability` instance cannot ([CASL v7](/docs/research/casl-v7)).
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- The App Shell plus private cache as the delivery path for the per-user snapshot; `cacheLife` with `stale` of at least five minutes as the documented floor.
+- Suspense as the only place for data-dependent checks on an instant route.
+- `updateTag` keyed by a PermDock-generated tag as the invalidation primitive, driven by role changes and by the SSF receiver.
+- `@next/playwright` `instant()` as an acceptance test in the example app and as a helper in `@permdock/testing`.
+- The guide's "AI agents" section as the template for the Next.js part of the `wire-permdock` skill.
+
+Adapt:
+
+- `getPermDock()` and `getPermission()` are async server counterparts of `usePermDock()` and `usePermission()`, following the [naming convention](/docs/getting-started/naming); both read from one request-scoped instance.
+- Scoped snapshots (`snapshot({ include: [permissions.post] })`) keep the privately cached payload small for large policies.
+- The `"use cache: private"` wrapper is written by the app, with PermDock supplying the resolver and the tag, until it is proven that the directive can live inside the package.
+
+Avoid:
+
+- Any API that requires `setup()` in a layout or a global `ready` flag.
+- Client hooks that throw promises.
+- Relying on `instant = false` as the default way to make authorization work.
+- Emitting anything non-serialisable from the server to the client provider.
+
+## Decisions informed
+
+- [ADR 0006: explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin)
+- [ADR 0008: plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key)
+- [ADR 0010: policy as data, portable conditions](/docs/decisions/0010-policy-as-data-portable-conditions)
+- [ADR 0005: naming convention](/docs/decisions/0005-naming-convention) (`use*` versus `get*`)
+- [ADR 0017: docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx) (the docs app itself runs Fumadocs on Next.js 16.3 and dogfoods the adapter)
+- Pages shaped: [next](/docs/adapters/next), [react](/docs/adapters/react), [snapshots](/docs/concepts/snapshots), [ssf](/docs/adapters/ssf), [testing](/docs/adapters/testing), [doctor](/docs/cli/doctor), [next plugin](/docs/cli/next-plugin) (build hook only, never API wiring).

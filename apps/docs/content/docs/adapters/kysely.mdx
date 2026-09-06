@@ -1,0 +1,89 @@
+---
+title: Kysely
+description: permdock/kysely compiles portable conditions into Kysely expression-builder callbacks with toWhere, fails closed when nothing is granted, and documents the Kysera @kysera/rls dual-mode prior art.
+---
+
+Status: planned
+Phase: 3
+
+`permdock/kysely` is the Kysely interpreter for PermDock's portable [conditions](/docs/concepts/conditions). `toWhere` returns a callback for Kysely's expression builder, so the permission filter composes with the rest of a typed query. Kysely has no RLS support of its own; RLS for Kysely users comes from `permdock rls generate --target sql` and a transaction helper that sets the session role and claims.
+
+## Purpose
+
+Kysely users write queries by hand, which makes them the group most likely to forget the permission filter on one endpoint. `toWhere` makes the filter a one-liner derived from the same policy that guards the mutation. The only prior art for a dual-mode schema in the Kysely world is Kysera's `@kysera/rls`: one `defineRLSSchema` drives app-side query injection (`filter` / `allow` / `deny` / `validate`) and `@kysera/rls/native` emits `ENABLE RLS` / `CREATE POLICY` for policies that carry raw `using` / `withCheck` SQL, with `syncContextToPostgres()` mirroring context into `app.*` GUCs and `createPolicyTester()` for DB-less tests ([Kysera multi-tenancy](https://kysera.dev/docs/guides/multi-tenancy)). It generates in one direction only and only for raw-SQL policies; PermDock generates from portable conditions and imports back ([RLS research](/docs/research/postgres-rls)).
+
+## API
+
+```ts
+import { toWhere, withSubject } from 'permdock/kysely'
+
+const rows = await db
+  .selectFrom('posts')
+  .selectAll()
+  .where(toWhere(permdock.where(permissions.post.read), 'posts'))
+  .where('published', '=', true)
+  .execute()
+
+// column mapping when schema fields differ from column names
+toWhere(condition, 'posts', { columns: { authorId: 'author_id' } })
+
+// RLS instead of app-side filtering: run the query under the caller's role and claims
+await withSubject(db, permdock, async (trx) => {
+  return trx.selectFrom('posts').selectAll().execute()   // policies from `permdock rls generate --target sql` apply
+})
+```
+
+- `toWhere(condition, table, options?)` returns `(eb) => Expression<SqlBool>`; fields map to `table.column` references, operators map to Kysely binary operators and `eb.and` / `eb.or` / `eb.not`, `in` / `notIn` to `in` / `not in`, `isNull` to `is null`, `contains` to `@>` for arrays and `like` for strings.
+- No grant returns `(eb) => eb.lit(false)`, so the query yields no rows (fail closed).
+- `subject.<field>` and `subject.context.<key>` values become bound parameters via `eb.val`.
+- `withSubject(db, permdock, fn)` opens a transaction and runs `set local role` plus `set_config('request.jwt.claims', ..., true)` (Supabase dialect) or `set_config('app.user_id', ..., true)` (GUC dialect) before `fn`, so database-side RLS sees the same subject as the in-process check. Dialect follows the policy's `rls` configuration.
+
+Operator mapping:
+
+| Portable operator | Kysely |
+|---|---|
+| `eq`, `ne`, `gt`, `gte`, `lt`, `lte` | `eb(col, '=' / '!=' / '>' / '>=' / '<' / '<=', eb.val(v))` |
+| `in`, `notIn` | `eb(col, 'in', values)` / `eb(col, 'not in', values)` |
+| `isNull` | `eb(col, 'is', null)` |
+| `contains` | `@>` for array columns, `like` for text (column type from `options.columns`) |
+| `and`, `or`, `not` | `eb.and([...])`, `eb.or([...])`, `eb.not(...)` |
+
+## Request lifecycle
+
+1. The request-scoped `PermDock` is created from the policy and subject.
+2. `permdock.where(permission)` flattens grants into a portable tree (allows ORed, each ANDed with higher-priority deny negations); unconditional allow yields `true`, no grant yields `false`.
+3. `toWhere` compiles the tree into an expression-builder callback bound to the table name and column map.
+4. Kysely composes the callback with the rest of the query; subject values travel as parameters.
+5. With `withSubject`, steps 2 to 4 are skipped and the database enforces the generated policies; the in-process `PermDock` is still used for `assert` before writes and for `on('decision')`.
+
+## What it validates
+
+- Column existence is checked by Kysely's types when the database interface is typed; `toWhere` is generic over the `DB` type so an unknown column is a type error.
+- Closure grants: `permdock.where` reports `{ portable: false }`; `toWhere` throws `PermDockValidationError` naming the grant.
+- `withSubject` validates that the policy declares an RLS dialect and that the connection user may `set role` to the target role; otherwise it throws before running `fn`.
+- Rows returned from the database are trusted and not schema-validated.
+
+## How denials surface
+
+- App-side: `eb.lit(false)` and an empty result. Pair with `assert(permissions.post.list)` to answer `403` rather than an empty list when the caller lacks the collection permission.
+- Database-side (`withSubject`): `USING` policies filter silently; `WITH CHECK` violations raise `42501`, which Kysely surfaces as a driver error; `permdock rls verify` classifies both as `filtered` and `rejected`.
+- Non-portable grant: `PermDockValidationError` at compile time, so it fails in tests.
+- Missing GRANT on the table also raises `42501` before any policy runs; `permdock rls generate` emits grants alongside policies to avoid this masquerade.
+
+## Example app
+
+None. Kysely is covered by `tests/integration` (parity between `filter`, `toWhere` and generated SQL policies against a testcontainers Postgres) and by a snippet in the [RLS adapter](/docs/adapters/rls) page.
+
+## Related standards
+
+- [Postgres RLS](/docs/standards/postgres-rls): `USING` versus `WITH CHECK`, `42501`, grants.
+- [Conditions](/docs/concepts/conditions): operator set.
+- [RLS adapter](/docs/adapters/rls): `generate --target sql` and the transaction preamble `withSubject` uses.
+- [Research: Postgres RLS](/docs/research/postgres-rls): Kysera `@kysera/rls` dual-mode design, `onReserveConnection` and `set_config` patterns.
+
+## Open questions
+
+- Whether `withSubject` belongs in `permdock/kysely` or in a database-agnostic `permdock/rls` runtime shared with Drizzle and Prisma.
+- `contains` semantics per column type (array, JSONB, text) need a column-type hint or a `columns` map entry.
+- Membership conditions: emit `in (select ...)` through `eb.selectFrom` or require the app to supply the subquery.
+- Whether to offer a `createPolicyTester`-style DB-less parity helper in `@permdock/testing`, mirroring Kysera.

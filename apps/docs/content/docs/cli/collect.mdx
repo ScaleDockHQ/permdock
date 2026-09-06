@@ -1,0 +1,80 @@
+---
+title: collect
+description: Scan source paths for definePermissions() calls and permission usages, write the catalog and generated barrel, and fail CI on drift.
+---
+
+Status: planned
+Phase: 2
+
+`permdock collect` is the build step that turns colocated permission definitions into a central catalog. It is modelled on next-intl's `useExtracted` extraction: the source of truth is the code where permissions are declared and used, and the catalog is a compile output that is checked in and kept fresh by tooling. See [next-intl extraction model](/docs/research/next-intl-extraction-model) and [Larger apps](/docs/getting-started/larger-apps).
+
+## Usage
+
+```bash
+permdock collect                       # write permissions.catalog.json (+ barrel, see below)
+permdock collect --check               # exit 1 if the outputs on disk differ from what would be written
+permdock collect --src ./src --src ../ui/src --src './node_modules/@acme/*'
+permdock collect --watch               # rebuild on change (what the Next.js plugin does in next dev)
+```
+
+Options come from `permdock.config.ts` (`collect.srcPath`, `catalog.out`) and can be overridden with flags.
+
+## What it scans
+
+`collect` parses every `.ts` and `.tsx` file under each `srcPath` entry with `oxc-parser` and records two things:
+
+1. **Definitions**: every `definePermissions({...})` and `resource(...)` call, with its file, export name and the static shape of the tree (resource names, `actions`, `collection`, action metadata). Schemas are not evaluated during the scan; the catalog's resource schemas come from executing the merged definition module and calling Standard JSON Schema.
+2. **Usages**: every member access rooted at a known definition export, such as `permissions.post.update` or `postPermissions.post.read`, together with the call it feeds (`can`, `decide`, `assert`, `usePermission`, `protect`, `allow`, `registerTool`, ...). Usages are what `permdock usage` and `permdock doctor` report on.
+
+`srcPath` entries may point at first-party code, sibling packages in a monorepo and installed packages (`./node_modules/@acme/*`), exactly as next-intl allows for shared UI packages. Globs are resolved relative to `--cwd`.
+
+Scanning is static: dynamic keys, computed member access and permissions resolved through `findPermission(permissions, someString)` are recorded as `dynamic` usages and reported separately rather than guessed at.
+
+## Outputs
+
+- **`permissions.catalog.json`**: the catalog described on the [catalog](/docs/cli/catalog) page, including for each permission its `key`, `scope`, arity, metadata, defining file and usage sites. Deterministic ordering and formatting so diffs are meaningful.
+- **Generated barrel** (`src/permissions.generated.ts` by default, only when `collect.barrel` is enabled): a `// @generated` file that imports every discovered `definePermissions()` export and passes them to `mergePermissions()`. This is the open question below.
+
+Generated files carry a header with the CLI version and the list of inputs, and are formatted with Oxfmt so they do not churn under the project's formatter.
+
+## `--check` in CI
+
+`--check` computes the outputs in memory and compares them with the files on disk. Any difference exits `1` and prints a unified diff. This is the permissions equivalent of next-intl checking that target locale files are in sync with the extracted source messages: adding a permission, renaming a resource or changing action metadata without re-running `collect` fails the build.
+
+```yaml
+- run: pnpm exec permdock collect --check
+```
+
+The [Next.js plugin](/docs/cli/next-plugin) runs `collect` during `next dev` and `next build`, so in a Next.js app the check mostly catches commits made without running the dev server.
+
+## Relationship to the runtime
+
+`collect` does not define permissions. Because permission leaves are runtime values, the merged definition module is the catalog at runtime (`listPermissions(permissions)`), and `collect` exists for three things the runtime cannot do: know where permissions are used, know about features that are not yet imported into the app, and produce artifacts (JSON, JSON Schema, Markdown) that CI, docs and agents read without executing code.
+
+## Next.js integration
+
+```ts
+// next.config.ts
+import { createPermDockPlugin } from 'permdock/next/plugin'
+
+const withPermDock = createPermDockPlugin({
+  collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
+})
+
+export default withPermDock({})
+```
+
+The plugin is a build hook only; it never wires the API. See [Next.js plugin](/docs/cli/next-plugin) and [0006: Explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin).
+
+## Open questions
+
+- **Barrel or catalog only.** Emitting `src/permissions.generated.ts` with a ready-made `mergePermissions()` call means a feature only has to export `definePermissions()` and it is part of the app registry, which matches how next-intl collects messages nobody imports by hand. The cost is a generated module in the import graph of the app, the client and React Native, and a second place where the merge is defined. The alternative is catalog only, with the app writing `mergePermissions(...)` explicitly. The plan leans towards emitting the barrel behind `collect.barrel: true` and defaulting to catalog only; this is decided in Phase 2 with the `monorepo` example app.
+- Whether usage scanning should also cover role fragments (`allow(permissions.x.y)`) in policy files so `usage` can compute granted-by-no-role without loading the policy module.
+
+## Related
+
+- [catalog](/docs/cli/catalog)
+- [usage](/docs/cli/usage)
+- [Larger apps](/docs/getting-started/larger-apps)
+- [Permissions](/docs/concepts/permissions)
+- [0008: Plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key)

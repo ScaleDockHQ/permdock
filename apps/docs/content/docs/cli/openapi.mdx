@@ -1,0 +1,89 @@
+---
+title: openapi
+description: Emit security and securitySchemes into an existing OpenAPI document from the permission catalog, or import a document into a generated definition.
+---
+
+Status: planned
+Phase: 2
+
+`permdock openapi` works in both directions between a permission catalog and an OpenAPI document. It targets OpenAPI 3.2 and falls back to 3.1 with `x-oai-*` extensions ([0014](/docs/decisions/0014-openapi-3-2)). The runtime hooks that attach `security` while a framework generates its document live in `permdock/openapi` ([OpenAPI adapter](/docs/adapters/openapi)); the CLI is for documents that already exist as files.
+
+## Emit
+
+```bash
+permdock openapi emit --doc openapi.json --out openapi.json
+permdock openapi emit --doc openapi.yaml --scheme permdockOAuth --metadata-url https://auth.example.com/.well-known/oauth-authorization-server
+permdock openapi emit --doc openapi.json --check         # exit 1 if the document would change
+```
+
+`emit` reads the catalog (or the definition module) and the document, then:
+
+1. Adds or updates `components.securitySchemes.<scheme>` as an `oauth2` scheme whose `scopes` are every permission `scope` in the catalog, with `meta.description` as the scope description. On 3.2 it sets `oauth2MetadataUrl` and, when `--device-flow` is passed, a `deviceAuthorization` flow; on 3.1 the same values are written as `x-oai-oauth2MetadataUrl` and `x-oai-deviceAuthorization`.
+2. For every operation that declares `x-permdock-permissions` (an array of permission keys, written by the runtime hooks or by hand), adds a `security` entry requiring the matching scopes and validates that each key exists in the catalog. Unknown keys are errors.
+3. Marks scopes whose permission carries `meta.deprecated` as `deprecated` on the scheme (3.2) or `x-oai-deprecated` (3.1).
+4. Writes `x-permdock-catalog` at document level with the catalog version and generator, so `--check` can detect drift.
+
+Everything not owned by PermDock is left untouched; the command is safe to run on documents produced by `@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi` or hand-written specs.
+
+```json
+{
+  "paths": {
+    "/posts/{id}": {
+      "delete": {
+        "x-permdock-permissions": ["post.delete"],
+        "security": [{ "permdockOAuth": ["post:delete"] }]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "permdockOAuth": {
+        "type": "oauth2",
+        "oauth2MetadataUrl": "https://auth.example.com/.well-known/oauth-authorization-server",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://auth.example.com/authorize",
+            "tokenUrl": "https://auth.example.com/token",
+            "scopes": { "post:delete": "Delete a post you own" }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## Import
+
+```bash
+permdock openapi import --doc https://api.example.com/openapi.json --out src/permissions.generated.ts
+permdock openapi import --doc openapi.yaml --out src/permissions.generated.ts --schema zod
+```
+
+`import` produces a deterministic `definePermissions()` module with a `// @generated` header from a document:
+
+- Each `x-permdock-permissions` key becomes a leaf; when absent, scopes on `oauth2` and `openIdConnect` security requirements are converted from the colon form (`post:delete`) to keys (`post.delete`).
+- Resources are inferred from the key prefix; when an operation's request or response schema is referenced, it is emitted as the resource schema in the validator selected by `--schema zod|valibot|arktype`, or as a schema-less resource otherwise.
+- Arity is `instance` when the operation path contains a parameter after the resource segment (`/posts/{id}`), `collection` otherwise; this heuristic is recorded in `meta.inferredFrom` so a reviewer can override it.
+
+The generated file merges with hand-written definitions through `mergePermissions()` like any other feature file ([Larger apps](/docs/getting-started/larger-apps)). Re-running `import` rewrites the file; hand edits belong in a sibling definition.
+
+## `--check` in CI
+
+```yaml
+- run: pnpm exec permdock openapi emit --doc openapi.json --check
+```
+
+Fails when a permission was added, renamed or deprecated without regenerating the document, or when an operation references a permission that no longer exists.
+
+## Open questions
+
+- Whether `emit` should also write per-operation `x-permdock-arity` and the resource id parameter name so an agent can build the `data` loader from the document alone.
+- Import from Arazzo workflow descriptions (per-step permissions) is out of scope until there is a consumer.
+
+## Related
+
+- [OpenAPI 3.2 standard](/docs/standards/openapi-3-2)
+- [OpenAPI adapter](/docs/adapters/openapi)
+- [catalog](/docs/cli/catalog)
+- [0014: Target OpenAPI 3.2](/docs/decisions/0014-openapi-3-2)

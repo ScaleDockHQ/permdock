@@ -1,0 +1,93 @@
+---
+title: Roadmap
+description: PermDock's phases from the Phase 0 specification to v1.0, the versioning policy, non-goals and the open design questions.
+---
+
+PermDock is specified before it is implemented. This page lists what each phase delivers, how versions are numbered while the API settles, what the project deliberately does not do, and the questions the plan leaves open. Adapter and standards pages carry a `Status` and `Phase` line that points back here.
+
+## Phases
+
+### Phase 0: specification (now)
+
+`README.md`, `PRODUCT.md`, `AGENTS.md` (with `CLAUDE.md` as a symlink), the MIT `LICENSE`, and the full docs tree under `apps/docs/content/docs/`: getting started, concepts, one page per adapter, CLI, standards, security, research and decision records. No code. See [0017: Docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx).
+
+### Phase 1: v0.1 "core + agents"
+
+- Definitions: `definePermissions`, `resource`, typed references, nested groups, `mergePermissions`, `listPermissions`, `findPermission`.
+- Policy: `definePolicy`, `role`, `allow`, `deny`, `subject`; role fragments merged by name; `approval: 'human'` grants.
+- Portable conditions with the in-memory evaluator; closures as branded non-portable grants.
+- Two-principal subject (`principal`, `actor`, `delegation`).
+- `createPermDock` with `can`, `decide` (three outcomes), `assert`, `filter`, `simulate`, `snapshot`, `on`.
+- Standard Schema validation in `boundary` mode.
+- AuthZEN-shaped decision endpoint and batched client.
+- `@permdock/testing`.
+- `permdock/react`; `permdock/next` (Cache Components, explicit factory); the Fetch server kernel and `permdock/hono`; `permdock/ai-sdk` and `permdock/claude-agent`.
+- Agent Skills (`wire-permdock`, `audit-permissions`), `AGENTS.md`, `llms.txt`; `permdock skills`.
+- `apps/docs` scaffolded over the Phase 0 content.
+- Examples: `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`.
+- `tests/types` matrix for TypeScript 5.9, 6 and 7.
+
+### Phase 2: v0.2–0.5 "surfaces"
+
+- `permdock/mcp` (`scopeChallenge`, Enterprise-Managed Authorization, elicitation for approvals).
+- `permdock/authzen` full endpoint set and a certification run.
+- `permdock/openapi` targeting 3.2.
+- `permdock/react-native` (Expo Router).
+- `express`, `fastify`, `elysia`, `nest`, `node`; `trpc`, `orpc`; `vue`, `svelte`, `solid`.
+- `permdock/webmcp`, `permdock/a2a`, `permdock/otel`.
+- CLI: `collect` (with the `createPermDockPlugin` build hook), `catalog`, `usage`, `doctor`.
+- One example per adapter plus `monorepo`; `tests/e2e` with Playwright including `instant()`.
+
+### Phase 3: v0.6–0.9 "data"
+
+- `permdock.where` compilers for Drizzle, Prisma and Kysely.
+- `permdock rls generate | import | verify`; `import` emits `permissions.generated.ts`.
+- `supabase` provider (JWT claims to subject, `authorize()` scaffold).
+- Async `context` for relations; schema-aware field-level grants.
+- `permdock/ssf` CAEP receiver.
+- `tests/integration` parity suite on Postgres via testcontainers.
+- Examples: `supabase-rls`, `drizzle`, `prisma`.
+
+### Phase 4: v1.0 "ecosystem"
+
+- Providers: `better-auth`, `clerk`, `convex`, `pdp` (AuthZEN client).
+- Quota grants with a pluggable `LimitStore`.
+- Web Bot Auth verification in HTTP adapters; delegation-chain verification.
+- Nuxt, Astro, React Router, TanStack Start; Effect.
+- Docs MCP server; devtools panel.
+
+## Versioning policy
+
+- Releases follow semver. During `0.x`, minor versions may change the public API; patch versions never do.
+- Any change to a public identifier, wire format (permission leaf, condition JSON, snapshot, catalog, AuthZEN mapping) or default behaviour goes through an RFC-lite: a short pull request against the relevant docs page and decision record, open for comment before code lands. New decision records are numbered in order.
+- Adapters version with core; there is no independent adapter versioning ([0002](/docs/decisions/0002-umbrella-package)).
+- `1.0.0` is cut when Phase 4 lands. From then on, breaking changes require a major version and a migration note per adapter page.
+- `@permdock/cli` and `@permdock/testing` follow the same major version as `permdock` and declare the compatible `permdock` range as a peer dependency.
+- Deprecations are announced one minor version before removal during `0.x`, one major version after `1.0`.
+
+## Non-goals
+
+- A hosted policy service or SaaS PDP.
+- A policy DSL; policies are TypeScript data.
+- Replacing authentication or issuing tokens.
+- Zanzibar-scale relation graphs; bridge to OpenFGA or SpiceDB through a provider.
+- CommonJS output or Node versions older than the ESM-only baseline.
+- Copying permix, CASL or Kilpi APIs ([0001](/docs/decisions/0001-greenfield-mit)).
+
+## Open questions
+
+These are the questions the plan leaves open. Each is resolved in the phase where the affected code is written, by updating the linked page and, where a decision changes, adding a decision record.
+
+1. **`decide` vs an `explain` alias.** Whether to export `explain` as a documented alias of `decide` for discoverability by agents. Phase 1. See [0007](/docs/decisions/0007-decide-not-explain).
+2. **`Protected` vs a second inline component.** Whether `permdock/react` also ships a `Can`-style render-prop component alongside `Protected`, or `Protected` grows a render-prop form. Phase 1. See [React adapter](/docs/adapters/react).
+3. **`subject.*` reference ergonomics vs closures.** Whether `subject.id` style references in portable conditions are ergonomic enough that closures stay rare, or a typed builder is needed. Phase 1. See [Conditions](/docs/concepts/conditions).
+4. **Snapshot contents for large policies.** Whether `snapshot()` ships full grants with conditions or per-permission booleans (with conditions only where needed) when policies are large; scoped snapshots are the current answer. Phase 1. See [Snapshots](/docs/concepts/snapshots).
+5. **Protected-query helper.** Whether to add `permdock.protect(queryFn, { before, after })` for co-located authorization and redaction around a data fetch, Kilpi-style. Phase 2 or later. See [Kilpi v1](/docs/research/kilpi-v1).
+6. **`collect` output.** Whether `permdock collect` emits the `mergePermissions` barrel or only the catalog. Phase 2. See [collect](/docs/cli/collect).
+7. **Field-level API shape.** How schema-aware field-level grants are declared (`fields` on a grant, a separate permission per field, or `*` / `**` patterns as in CASL). Phase 3. See [Policies](/docs/concepts/policies).
+8. **Decision-endpoint authentication.** The endpoint must be behind real authentication (session or bearer), never Kilpi's public-secret obfuscation; the exact adapter contract is open. Phase 1. See [AuthZEN adapter](/docs/adapters/authzen).
+9. **`LimitStore` and quotas.** The `LimitStore` interface for `limit` grants, and whether quotas belong in core or in an adapter. Phase 4. See [Policies](/docs/concepts/policies).
+10. **`approval-required` over plain HTTP.** How an HTTP client proceeds after a 403 with the `approval-required` problem type: retry with a token, a consent endpoint, or adapter-specific. Phase 1 for the problem type, later for the flow. See [Approvals](/docs/security/approvals).
+11. **Delegation-chain verification.** Whether to verify RFC 9396 `authorization_details` and delegation chains in core or leave verification to the token layer and adapters. Phase 4. See [Delegation](/docs/security/delegation).
+
+Questions raised on individual pages (for example the `create` arity in [0004](/docs/decisions/0004-actions-vs-collection), grants emission in [rls](/docs/cli/rls)) are tracked on those pages and promoted here when they affect more than one adapter.

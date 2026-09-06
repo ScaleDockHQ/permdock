@@ -1,0 +1,87 @@
+---
+title: React
+description: permdock/react gives client components a snapshot-backed PermDock through PermDockProvider, usePermDock, usePermission and Protected, with a batched decision endpoint for closure grants.
+---
+
+Status: planned
+Phase: 1
+
+## Purpose
+
+`permdock/react` answers permission questions in the browser without duplicating rules on the client. The server serialises `permdock.snapshot()` (roles and grants, portable conditions included) and the provider evaluates it locally with the same core evaluator that runs on the server. Ownership checks such as `usePermission(permissions.post.update, post)` resolve synchronously from the snapshot; only grants that use closures or async `context` go to the decision endpoint. Nothing in this entry imports a policy, a subject resolver or a server module.
+
+This replaces two permix patterns that failed in practice: hydration that collapsed function rules to booleans and forced a second client `setup()`, and a generic factory (`createPermix()`) whose only job was to carry types. Here the permission reference carries the types, so hooks are direct exports, like next-intl's `useTranslations`.
+
+## API
+
+```tsx
+import { PermDockProvider, usePermDock, usePermission, Protected } from 'permdock/react'
+import { permissions } from '@/permissions' // definition only: client-safe
+
+<PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
+  <App />
+</PermDockProvider>
+
+const permdock = usePermDock()
+permdock.can(permissions.post.create)                   // boolean from the snapshot
+permdock.decide(permissions.post.update, post)          // Decision, same shape as on the server
+permdock.status                                         // 'ready' | 'pending' | 'stale' | 'server-only'
+permdock.invalidate(permissions.post)                   // drop cached endpoint answers under a namespace
+
+const { allowed, status, decision } = usePermission(permissions.post.update, post)
+
+<Protected permission={permissions.post.update} data={post} pending={<Skeleton />} fallback={<Locked />}>
+  <EditButton />
+</Protected>
+```
+
+| Export | Role |
+|---|---|
+| `PermDockProvider` | Takes `snapshot` (from the server) and an optional `endpoint`. Holds one snapshot-backed `PermDock` in an external store and exposes it through context. Accepts `fetch` and `headers` options for the endpoint call. |
+| `usePermDock` | Returns the snapshot-backed instance: `can`, `decide`, `status`, `invalidate`, `refresh`. Subscribes with `useSyncExternalStore`, so every consumer re-renders when the snapshot or an endpoint answer changes. |
+| `usePermission` | Returns `allowed`, `status` and the full `decision` for one permission and, for instance actions, one resource. Refetches when the resource `id` changes, not only when the reference changes. |
+| `Protected` | Component form of `usePermission`. `pending` renders while the answer is in flight, `fallback` when denied or approval-required. Children may be a render function receiving the granted `Decision` with a narrowed subject. |
+
+`status` values: `ready` (answered from the snapshot or a cached endpoint answer), `pending` (endpoint request in flight), `stale` (a previous answer is shown while a revalidation runs), `server-only` (the grant depends on a closure or async context and no endpoint is configured; `allowed` is `false`).
+
+## Request lifecycle
+
+1. The server creates a request-scoped `PermDock`, calls `snapshot()` (optionally scoped with `include`) and passes the JSON to `PermDockProvider`. In Next.js this is done by the `PermDockProvider` from `permdock/next`; in Vite apps the snapshot arrives from your own session endpoint.
+2. `PermDockProvider` validates the snapshot against the snapshot v1 schema and builds a client `PermDock`. Portable grants evaluate locally.
+3. `usePermission(reference, data)` computes a cache key from `reference.key` plus the resource id declared by the resource's `id` field. If the matching grant is portable, the answer is synchronous and `status` is `ready`.
+4. If the grant is marked `portable: false` in the snapshot (closure or async context), the hook enqueues a request to `endpoint`. Requests issued within the same tick are batched into one AuthZEN `evaluations` call and deduplicated by cache key.
+5. The endpoint (`permdockHandler` in Next.js, or any server adapter exposing the same route) rebuilds the subject from the session, validates the posted resource data at the boundary, evaluates, and returns one `Decision` per item.
+6. Answers are cached per key. `invalidate(permissions.post)` drops every key under that namespace; `refresh()` refetches the snapshot itself.
+
+During SSR the provider renders from the snapshot alone, so server and first client render agree. Endpoint answers are requested only after mount.
+
+## What it validates
+
+- The incoming `snapshot` against the snapshot v1 wire schema. A malformed snapshot yields a provider in `server-only` mode, never a crash and never an allow.
+- Nothing about `data` on the client. Client-side answers are UI hints. The decision endpoint validates the posted data against the resource schema (`validate: 'boundary'`) before evaluating, and every mutation is re-checked by the server adapter that performs it.
+- That `usePermission` is called with the right arity: collection actions take no `data`, instance actions require it. This is a type error, not a runtime check.
+
+## How denials surface
+
+- `usePermission` returns `allowed: false` and the `decision` (`denied` with `denials` and `alternatives`, or `approval-required` with `reason`). The hook never throws and never suspends.
+- `Protected` renders `fallback`. When `fallback` is a function it receives the `Decision`, so a "request access" button can be shown for `approval-required`.
+- Endpoint failures (network, 401 from an expired session) leave the hook in `pending` and then `server-only`; `allowed` stays `false`. The decision endpoint itself answers denials as `403 application/problem+json`, described in [Problem Details](/docs/standards/problem-details).
+
+## Example app
+
+`apps/examples/react-vite`: a Vite app with a tiny Hono backend that serves the snapshot and mounts the decision endpoint from `permdock/hono`. It shows a portable ownership check answered offline, a closure grant answered through the batched endpoint, `invalidate` after a mutation, and a Vitest browser-mode test asserting that the first render never flashes a denied state for a portable grant.
+
+## Related standards
+
+- [AuthZEN](/docs/standards/authzen): the decision endpoint uses the `evaluations` request and response shapes.
+- [Problem Details](/docs/standards/problem-details): endpoint denial bodies.
+- [Standard Schema](/docs/standards/standard-schema): boundary validation of posted resource data.
+- Concepts: [snapshots](/docs/concepts/snapshots), [decisions](/docs/concepts/decisions), [wire formats](/docs/concepts/wire-formats).
+
+## Open questions
+
+- Whether `Protected` should have a sibling inline component in the style of CASL's `Can` render-prop, or whether the function-child form is enough (listed in the roadmap open questions).
+- Whether large policies ship full grants or per-permission booleans in the snapshot; the hook API does not change either way, but `status` semantics for `server-only` might.
+- Cache key when a resource declares no `id` field: fall back to a stable hash of the validated data, or require `id` for endpoint-backed checks.
+- Decision-endpoint authentication: it must reuse the app's real session, never a shared public secret. How the React provider forwards credentials (`fetch` option with `credentials: 'include'` by default) needs a decision.
+- Whether the provider should expose the AuthZEN `search/action` call as `usePermittedActions(resource)` for menus.

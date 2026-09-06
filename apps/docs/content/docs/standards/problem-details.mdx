@@ -1,0 +1,98 @@
+---
+title: RFC 9457 Problem Details
+description: The application/problem+json body PermDock's HTTP adapters return for denied and approval-required decisions, and why it is written for humans and models alike.
+---
+
+Status: planned
+Phase: 1
+
+## What it is
+
+RFC 9457 (Problem Details for HTTP APIs) defines a JSON media type, `application/problem+json`, for describing errors in HTTP responses. A problem document has five standard members, all optional:
+
+- `type`: a URI identifying the problem type; dereferencing it should yield documentation.
+- `title`: a short, human-readable summary that does not change between occurrences.
+- `status`: the HTTP status code, duplicated for convenience.
+- `detail`: a human-readable explanation specific to this occurrence.
+- `instance`: a URI identifying this specific occurrence.
+
+Problem types may define additional members ("extension members"). Consumers ignore members they do not understand.
+
+## Why it matters for PermDock
+
+A denial has to leave the process somehow. Every HTTP adapter (Hono, Express, Fastify, Elysia, Nest, Node, and tRPC and oRPC over HTTP) needs one answer to "what does a 403 look like", and that answer should be one that API clients, gateways and coding agents already know how to parse. RFC 9457 is that answer. It also gives PermDock a place to put the structured parts of a `Decision` (the permission, the denials, the alternatives, the approval token) without inventing an envelope.
+
+Model readability is a design goal: an agent that receives a 403 should be able to read why and what it may do instead, so it self-corrects instead of retrying the same call. The `detail` text is written for that audience, and `alternatives` is the machine-readable version of the same hint. See [decisions](/docs/concepts/decisions) and [errors](/docs/concepts/errors).
+
+## How PermDock uses it
+
+`assert` runs layered unauthorized handlers and rethrows `PermDockDeniedError` or `PermDockApprovalRequiredError`; the [server kernel](/docs/adapters/server-kernel) converts those errors into a 403 with `Content-Type: application/problem+json`.
+
+A denial:
+
+```json
+{
+  "type": "https://permdock.dev/problems/denied",
+  "title": "Permission denied",
+  "status": 403,
+  "detail": "Subject u_123 (role member) may not delete post p_42: the grant requires authorId = subject.id. Permitted on this post: post.read, post.update.",
+  "instance": "/posts/p_42",
+  "permission": "post.delete",
+  "denials": [
+    { "role": "member", "reason": { "kind": "condition", "condition": { "eq": ["authorId", { "subject": "id" }] } } }
+  ],
+  "alternatives": ["post.read", "post.update"]
+}
+```
+
+An approval-required decision:
+
+```json
+{
+  "type": "https://permdock.dev/problems/approval-required",
+  "title": "Approval required",
+  "status": 403,
+  "detail": "Deleting post p_42 requires human approval. Resubmit with the approval token once approved.",
+  "instance": "/posts/p_42",
+  "permission": "post.delete",
+  "token": "sha256:..."
+}
+```
+
+Rules:
+
+- **`type` URIs are stable** and per outcome: `.../denied`, `.../approval-required`, `.../validation` (for `PermDockValidationError` at a boundary, status 400). They resolve to the docs pages describing each outcome. The `permdock.dev` host in the examples is a placeholder until the docs domain is fixed (see open questions).
+- **`permission`** is the permission `key`, never the object; keys are the wire form of references.
+- **`denials`** mirrors `Decision.denials`: one entry per role that had a matching grant and why it did not apply. Conditions are the portable JSON AST, so a client can show exactly which constraint failed. Closure grants appear as `{ "kind": "closure" }` with no further detail.
+- **`alternatives`** lists permission keys on the same resource the subject does hold, so a model can pick a permitted action.
+- **`token`** appears only on `approval-required` and is the replay-safe hash described in [approvals](/docs/security/approvals).
+- **Nothing secret** is in the body: no other users' grants, no role definitions beyond the role name, no raw SQL from opaque conditions. What a 403 reveals is bounded by what the subject's own snapshot already reveals.
+- HTTP adapters set `Content-Type: application/problem+json` and the status from `status`. tRPC and oRPC adapters embed the same object as the error's `data` because they own their envelopes.
+
+## Mapping table
+
+| RFC 9457 member | PermDock value |
+| --- | --- |
+| `type` | `https://permdock.dev/problems/denied`, `.../approval-required`, `.../validation` |
+| `title` | Fixed per type: "Permission denied", "Approval required", "Invalid input" |
+| `status` | 403 for denied and approval-required, 400 for validation |
+| `detail` | Model-readable sentence built from `Decision` reasons and `alternatives` |
+| `instance` | Request path (adapter-supplied) |
+| Extension `permission` | `permission.key` |
+| Extension `denials` | `Decision.denials` (role, reason, portable condition) |
+| Extension `alternatives` | `Decision.alternatives` as keys |
+| Extension `token` | `Decision.token` (approval-required only) |
+| Extension `issues` | Standard Schema `issues` (validation only) |
+| Media type | `application/problem+json` |
+
+## Sources
+
+- RFC 9457, Problem Details for HTTP APIs, referenced by number.
+- Product plan, HTTP adapter section ("deny → 403 application/problem+json ...") and the [decisions concept](/docs/concepts/decisions).
+- [OWASP Agentic Top 10 mapping](/docs/security/owasp-agentic) for why denials are written to be model-readable.
+
+## Open questions
+
+- Whether `approval-required` over plain HTTP should be a 403 (as planned) or a distinct status with a `Retry-After`-style hint, and how a client resumes with the token in a stateless request; see [approvals](/docs/security/approvals).
+- Whether to expose a `problems/*` registry page in the docs so `type` URIs dereference to the exact page, and whether the host should be configurable for self-hosted deployments.
+- Whether `denials` should be omitted by default in production and enabled per adapter, trading self-correction hints for a smaller information surface.

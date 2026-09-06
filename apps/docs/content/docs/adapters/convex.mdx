@@ -1,0 +1,93 @@
+---
+title: Convex
+description: The permdock/convex provider builds a PermDock subject from ctx.auth inside Convex queries, mutations and actions, and ships the snapshot to the client through a Convex query.
+---
+
+Status: planned
+Phase: 4
+
+`permdock/convex` is a provider for Convex functions. Inside a query, mutation or action it turns `ctx.auth.getUserIdentity()` (plus any roles stored in Convex tables) into a PermDock subject and a request-scoped `PermDock`, so function bodies call `assert`, `can` and `filter` with typed permissions. A companion query returns the snapshot so the Convex React client can drive `PermDockProvider`.
+
+## Purpose
+
+Convex has authentication (`ctx.auth`) and leaves authorization to code inside each function. Permission logic therefore lives as `if` statements per function, unshared with the React client, and cannot be explained or audited. PermDock fits Convex's per-invocation model well: every function invocation is a request, so an immutable request-scoped `PermDock` per invocation is natural, and Convex's reactive queries deliver snapshot updates to the client without polling.
+
+## API
+
+```ts
+// convex/permdock.ts
+import { createPermDock } from 'permdock/convex'
+import { policy } from './policy'
+
+export const { withPermDock, snapshotQuery } = createPermDock(policy, {
+  subject: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+    const user = await ctx.db.query('users').withIndex('by_token', (q) => q.eq('tokenIdentifier', identity.tokenIdentifier)).unique()
+    return user && { id: user._id, orgId: user.orgId, roles: user.roles }
+  },
+})
+
+// convex/posts.ts
+export const remove = mutation({
+  args: { id: v.id('posts') },
+  handler: withPermDock(async (ctx, { id }) => {
+    const post = await ctx.db.get(id)
+    ctx.permdock.assert(permissions.post.delete, post)
+    await ctx.db.delete(id)
+  }),
+})
+
+export const list = query({
+  args: {},
+  handler: withPermDock(async (ctx) => ctx.permdock.filter(permissions.post.read, await ctx.db.query('posts').collect())),
+})
+
+// convex/permissions.ts
+export const snapshot = snapshotQuery()          // client: useQuery(api.permissions.snapshot) → PermDockProvider snapshot
+```
+
+- `createPermDock(policy, options)` returns `withPermDock`, a handler wrapper that resolves the subject from `ctx`, builds the request-scoped instance and attaches it as `ctx.permdock`; and `snapshotQuery`, a ready-made Convex query that returns `permdock.snapshot()` for the caller (optionally scoped: `snapshotQuery({ include: [permissions.post] })`).
+- `subject` receives the Convex context so it can read identity and role tables; it may be sync when roles live in the identity claims.
+- Works for `query`, `mutation`, `action` and `internal*` variants; in actions without database access the subject resolver must rely on identity claims.
+
+## Request lifecycle
+
+1. A Convex function is invoked with an authenticated (or anonymous) caller.
+2. `withPermDock` calls `subject(ctx)`; identity comes from `ctx.auth`, roles from claims or a table lookup.
+3. `createPermDock(policy, subject)` produces `ctx.permdock`, frozen for this invocation.
+4. The handler calls `assert` before writes and `filter` / `can` for reads; conditions evaluate against documents already loaded from `ctx.db`.
+5. `on('decision')` events are collected per invocation and, when configured, written to an audit table through `ctx.db.insert` at the end of a mutation (queries cannot write and log through `console` instead).
+6. Client: `useQuery(api.permissions.snapshot)` re-runs reactively when the user's roles document changes, so `PermDockProvider` receives the new snapshot without `invalidate()`.
+
+## What it validates
+
+- Identity comes only from `ctx.auth`; function arguments never influence the subject.
+- Arguments are validated by Convex validators (`v.*`) before the handler runs; documents loaded from `ctx.db` are trusted server data and are not re-validated (`validate: 'boundary'` treats them as trusted).
+- Roles read from a table must match role names in `definePolicy`; unknown names are dropped with a warning.
+- `filter` on collected documents is in-process; Convex has no `where` compiler target, so large tables should be indexed by the condition fields (for example `by_author`) and queried with `withIndex` before `filter` is applied as the final gate.
+
+## How denials surface
+
+- `assert` throws `PermDockDeniedError` or `PermDockApprovalRequiredError`; the wrapper converts them into a Convex `ConvexError` whose `data` is the RFC 9457 Problem Details object (`type`, `title`, `permission`, `denials`, `alternatives`), so the client receives structured, serialisable denial data.
+- `filter` and `can` never throw; a query returns the permitted subset.
+- Anonymous callers yield the anonymous subject; only anonymous grants apply.
+- The snapshot query itself never fails on denial; it returns whatever grants the subject holds, including none.
+
+## Example app
+
+`apps/examples/convex`: a Vite React app with Convex Auth, a `users` table with roles, `withPermDock` on `posts` functions, `snapshotQuery` feeding `PermDockProvider`, `Protected` in the UI, and a test that a role change in the `users` document flips `usePermission` without a reload.
+
+## Related standards
+
+- [Subject](/docs/concepts/subject): principal and roles.
+- [Snapshots](/docs/concepts/snapshots): what the snapshot query returns.
+- [Errors](/docs/concepts/errors): `PermDockDeniedError` mapped to `ConvexError`.
+- [Research: landscape](/docs/research/landscape): where Convex fits among providers.
+
+## Open questions
+
+- `withPermDock` and `snapshotQuery` are proposed names; the plan only states "ctx.auth identity to subject inside Convex functions; snapshot to client".
+- Whether to also offer a `customQuery` / `customMutation` builder (convex-helpers style) so `ctx.permdock` is available without wrapping each handler.
+- Closure grants: the client snapshot marks them `server-only`; whether the decision endpoint should be a Convex query or reuse the HTTP AuthZEN handler through Convex HTTP actions.
+- Audit persistence from queries (read-only) versus mutations; a scheduled action may be needed to flush query-side decisions.

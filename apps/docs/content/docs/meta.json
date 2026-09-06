@@ -1,0 +1,23 @@
+{
+  "title": "PermDock",
+  "root": true,
+  "defaultOpen": true,
+  "pages": [
+    "index",
+    "---Start---",
+    "getting-started",
+    "concepts",
+    "---Integrate---",
+    "adapters",
+    "cli",
+    "---Reference---",
+    "standards",
+    "security",
+    "comparison",
+    "roadmap",
+    "for-ai-agents",
+    "---Background---",
+    "research",
+    "decisions"
+  ]
+}

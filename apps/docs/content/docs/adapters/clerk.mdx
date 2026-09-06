@@ -1,0 +1,89 @@
+---
+title: Clerk
+description: The permdock/clerk provider maps Clerk session claims, organization roles and permissions to a PermDock subject so PermDock conditions, snapshots and adapters run on top of Clerk authentication.
+---
+
+Status: planned
+Phase: 4
+
+`permdock/clerk` is a provider. Clerk supplies the authenticated user, the active organization, its role and Clerk-defined permissions; PermDock supplies conditions, decisions, snapshots and adapters. The provider reads Clerk's session claims (server) or the `useAuth` / `useOrganization` state (client) and returns the subject PermDock expects.
+
+## Purpose
+
+Clerk's authorization primitives (`has()`, `auth.protect()`, `Protect`) check organization roles, custom permissions such as `org:invoices:create`, and billing features ([landscape](/docs/research/landscape)). They are boolean, string-keyed, tied to Clerk's organization model, and cannot express ownership or row conditions. PermDock keeps Clerk as the identity and role source and adds the permission model on top: typed references, `where` conditions, `approval-required`, agent adapters and data compilers. Where a team already defines Clerk permissions, the provider maps them to PermDock roles so nothing has to be defined twice.
+
+## API
+
+```ts
+// src/permdock/server.ts
+import { createPermDock } from 'permdock/next'
+import { auth } from '@clerk/nextjs/server'
+import { subjectFromClerk } from 'permdock/clerk'
+
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
+  subject: async () => subjectFromClerk(await auth()),
+  tag: (subject) => `permdock:${subject.id}`,
+})
+// subject = { id: userId, orgId, roles: ['org:admin'], clerkPermissions: ['org:invoices:create'], sessionClaims }
+
+// policy: map Clerk roles and permissions onto PermDock roles
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('org:admin',  [allow(permissions.post.delete), allow(permissions.billing.plan.change)]),
+    role('org:member', [allow(permissions.post.read), allow(permissions.post.update, { where: { authorId: subject.id } })]),
+  ],
+  subject: (s: ClerkSubject | null) => s && { id: s.id, orgId: s.orgId, roles: s.roles },
+})
+```
+
+- `subjectFromClerk(authObject, options?)` accepts the result of `auth()` (Next.js), `getAuth(req)` (other frameworks) or a verified session token payload, and returns `id` (`userId`), `orgId`, `roles` (the organization role plus any roles configured via `options.rolesFromClaims`), `clerkPermissions` (custom permissions from the session claims) and selected `sessionClaims`.
+- `options.permissions` maps Clerk permission strings to PermDock grants when a team keeps Clerk permissions as the source: `{ 'org:invoices:create': permissions.billing.invoice.create }` produces an extra allow for subjects carrying that permission.
+- Client: no Clerk-specific hook is needed. The client uses the server-issued snapshot through `PermDockProvider`; the app calls `usePermDock().invalidate()` when Clerk's `useOrganization` reports a switch.
+
+Field mapping:
+
+| Clerk auth object | PermDock subject |
+|---|---|
+| `userId` | `id` |
+| `orgId` | `orgId` |
+| `orgRole` | first entry of `roles` |
+| `orgPermissions` | `clerkPermissions`, turned into grants through `options.permissions` |
+| `sessionClaims.*` | `claims.*` (custom claims configured in the Clerk session token template) |
+
+## Request lifecycle
+
+1. Clerk middleware authenticates the request and populates `auth()` with `userId`, `orgId`, `orgRole`, `orgPermissions` and session claims.
+2. `subjectFromClerk` maps these to the PermDock subject; the active organization defines `orgId`.
+3. `createPermDock` builds the request-scoped instance; `getPermDock()` / `getPermission()` and the snapshot resolver use it.
+4. On organization switch or role change, Clerk emits a new session token; the app calls `updateTag` for the user (Clerk webhooks `organizationMembership.updated` are the server trigger) and the client `invalidate()` runs on `useOrganization` change.
+
+## What it validates
+
+- Token verification is Clerk's; the provider only reads the already-verified auth object or a payload the app verified with Clerk's SDK.
+- Role and permission strings from Clerk must match names declared in `definePolicy` or `options.permissions`; unknown strings are dropped with a development warning (fail closed).
+- Custom session claims used in conditions (for example a `plan` claim) are exposed under `subject.claims` and typed by the app through `ClerkSubject` augmentation; they are not validated beyond presence.
+- Nothing is read from the client-side Clerk state for authorization decisions.
+
+## How denials surface
+
+- Through PermDock: `Decision` with denials and alternatives; `assert` runs the Next.js `redirect()` handler when configured; HTTP adapters emit RFC 9457 `403`.
+- Clerk's `Protect` and `has()` remain available for Clerk-native checks (billing features, plugin routes); apps are encouraged to use `Protected` from `permdock/react` for everything expressed as a PermDock permission so there is one denial path.
+- Signed-out users yield the anonymous subject; only anonymous grants apply.
+
+## Example app
+
+`apps/examples/clerk`: a Next.js 16.3 app with Clerk organizations, `subjectFromClerk` in `src/permdock/server.ts`, a PermDock policy that maps `org:admin` / `org:member` and one Clerk custom permission, `Protected` in the UI, and an `instant()` test proving guards resolve from the prefetched shell.
+
+## Related standards
+
+- [Subject](/docs/concepts/subject): principal fields and roles.
+- [Next.js adapter](/docs/adapters/next): the factory this provider plugs into.
+- [Snapshots](/docs/concepts/snapshots): client state and invalidation.
+- [Research: landscape](/docs/research/landscape): Clerk authorization checks.
+
+## Open questions
+
+- `subjectFromClerk` and the `options.permissions` mapping are proposed shapes; the plan only states "session claims and org roles to subject".
+- Whether Clerk permission strings should become PermDock roles (one role per permission) or direct grants attached to the subject; the current design uses direct grants via `options.permissions`.
+- Expo: Clerk's Expo SDK is supported by the React Native adapter through the same snapshot path; whether a Clerk-specific persisted-snapshot helper is needed is undecided.
+- Multi-organization users: whether the snapshot should include grants for all memberships or only the active organization (current: active only).

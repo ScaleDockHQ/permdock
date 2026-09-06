@@ -1,0 +1,88 @@
+---
+title: A2A
+description: How permdock/a2a emits Agent Card security schemes and requirements per skill and filters the authenticated extended card by the caller's permissions.
+---
+
+Status: planned
+Phase: 2
+
+## What it is
+
+The [Agent2Agent (A2A) protocol 1.0](https://a2a-protocol.org/latest/specification/) is a Linux Foundation project for agent-to-agent communication, backed by [more than 150 organisations](https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year). An agent publishes an **Agent Card** describing its identity, endpoints and **skills**. The parts relevant to authorization:
+
+- `securitySchemes` and `securityRequirements` on the card, using the OpenAPI-style vocabulary, declare how a caller must authenticate and which scopes it needs.
+- **Signed cards** let a caller verify that a card was published by the agent it claims to describe.
+- The **authenticated extended card** is a second card, fetched with credentials, that can expose caller-specific skills: the same agent shows different capabilities to different callers.
+
+## Why it matters for PermDock
+
+An A2A agent built on PermDock has two authorization jobs. Outbound, its card must state which scopes each skill requires, and that information already exists as `permission.scope`. Inbound, when another agent calls a skill, the request carries a principal (the user the calling agent works for), an actor (the calling agent) and delegated authority, which is exactly the two-principal subject. Per-skill permission requirements and permission-filtered extended cards are the A2A twin of MCP `list_tools` filtering. See the [a2a adapter](/docs/adapters/a2a).
+
+## How PermDock uses it
+
+```ts
+import { createPermDock } from 'permdock/a2a'
+
+const { agentCard, extendedAgentCard, protectSkill } = createPermDock(policy, {
+  subject: (auth) => userFrom(auth),        // principal from the caller's token
+  skills: {
+    summarise: { permission: permissions.post.read },
+    publish:   { permission: permissions.post.publish, data: (params) => loadPost(params.postId) },
+  },
+})
+
+// Public card: securitySchemes + securityRequirements per skill, derived from permission.scope
+app.get('/.well-known/agent-card.json', (c) => c.json(agentCard()))
+// Extended card: only the skills this caller may invoke
+app.get('/agent/authenticatedExtendedCard', (c) => c.json(extendedAgentCard(c.get('auth'))))
+```
+
+What the adapter does:
+
+- **Emits `securitySchemes`** from the adapter's OAuth configuration (the same shape used by the [OpenAPI emitter](/docs/standards/openapi-3-2)), and a **`securityRequirements`** entry per skill listing the skill's `permission.scope`.
+- **Filters the extended card.** `extendedAgentCard(auth)` builds a request-scoped `PermDock` from the caller's credentials and includes only skills whose permission the subject holds (`can` on collection actions; instance actions are included when a representative check or an explicit `advertise` rule passes).
+- **Guards skill execution.** `protectSkill` wraps a skill handler: it validates parameters against the resource schema at the boundary, loads the instance with `data`, calls `decide`, and returns a structured refusal with reasons and `alternatives` on `denied`, or an approval request on `approval-required`.
+- **Fills `actor` and `delegation`** from the calling agent's identity and token scopes, so the calling agent cannot exceed the user it acts for.
+- **Signed cards** are produced by the hosting framework's signing step; the adapter supplies the card content and leaves signing to the deployment, because PermDock does not manage keys.
+
+### Request lifecycle
+
+1. A calling agent fetches the public card and reads the `securityRequirements` for the skill it wants (`post:publish`).
+2. It obtains a token with that scope for the user it acts for, typically through the OAuth flows described in [OAuth for agent delegation](/docs/standards/oauth-agent-delegation).
+3. It fetches the authenticated extended card. `extendedAgentCard(auth)` builds a request-scoped `PermDock` and lists only the skills the subject may invoke, so the caller learns up front whether `publish` is available to this user.
+4. It invokes the skill. `protectSkill` validates parameters at the boundary, loads the instance, and calls `decide` with `principal` from the token, `actor` from the caller's identity and `delegation` from the token scopes.
+5. `granted` runs the handler; `denied` returns the reasons and `alternatives`; `approval-required` returns the approval `token` (see [approvals](/docs/security/approvals)).
+6. The decision is emitted through `on('decision')` with the calling agent as `actor`, so cross-agent calls are attributable.
+
+### Relationship to the other agent adapters
+
+The A2A adapter reuses the MCP adapter's translation of a `Decision` into a structured refusal and the OpenAPI emitter's security-scheme configuration. An agent that exposes both an MCP server and an A2A card from the same policy advertises the same scopes in both, and the extended card and `list_tools` agree on what a caller may do.
+
+## Mapping table
+
+| A2A 1.0 concept | PermDock concept |
+| --- | --- |
+| Agent Card `securitySchemes` | Adapter OAuth configuration, shared with the OpenAPI emitter |
+| Agent Card `securityRequirements` (per skill) | `permission.scope` of the skill's permission |
+| Skill | Entry in `skills: { name: { permission, data? } }` |
+| Authenticated extended card | `extendedAgentCard(auth)` filtered by `can` per skill |
+| Public card | `agentCard()` listing all skills with their requirements |
+| Signed card | Out of scope; content provided, signing left to the host |
+| Calling agent identity | `actor` |
+| Caller's token scopes / `authorization_details` | `delegation` |
+| User the calling agent acts for | `principal` via `subject(auth)` |
+| Skill invocation | `protectSkill`: boundary validation, `decide`, structured refusal |
+| Refusal payload | `Decision` reasons and `alternatives` |
+
+## Sources
+
+- [A2A protocol specification](https://a2a-protocol.org/latest/specification/).
+- [Linux Foundation announcement: A2A surpasses 150 organisations](https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year).
+- Product plan, `permdock/a2a` API sketch.
+
+## Open questions
+
+- The exact adapter surface: the plan names `agentCard` and `extendedAgentCard`; `protectSkill` above is a proposed addition that mirrors `protect` in HTTP adapters and is not yet locked.
+- How a skill that maps to an instance-level permission should be advertised in the extended card when no instance is known at card-fetch time.
+- Whether A2A task lifecycle states can carry `approval-required` natively (a task waiting on input) rather than as a refusal; see [approvals](/docs/security/approvals).
+- Whether the public card should list scopes for skills the caller can never obtain, or whether that is itself an information-disclosure concern (see [threat model](/docs/security/threat-model)).

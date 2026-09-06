@@ -1,0 +1,100 @@
+---
+title: doctor
+description: "Diagnose a PermDock installation: server-only imports in client entries, unknown references, ungranted permissions, stale catalogs, missing skills and the TypeScript version."
+---
+
+Status: planned
+Phase: 2
+
+`permdock doctor` runs every check PermDock knows how to make about a repository and prints a report with a fix for each finding. It is the first command an agent runs after wiring PermDock and the last one before opening a pull request. Findings have stable codes so skills and CI can reference them.
+
+## Usage
+
+```bash
+permdock doctor                # all checks
+permdock doctor --json         # report with $schema, for agents
+permdock doctor --only imports,references
+permdock doctor --fix          # apply safe fixes (install skills, regenerate the catalog)
+```
+
+Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
+
+## Checks
+
+| Code | Check | Severity |
+| --- | --- | --- |
+| `PD001` | Server-only imports in client entries | error |
+| `PD002` | Unknown permission references | error |
+| `PD003` | Permissions used but never granted | warning |
+| `PD004` | Stale catalog or generated barrel | error |
+| `PD005` | Missing or outdated Agent Skills | warning |
+| `PD006` | Unsupported TypeScript version | error |
+| `PD007` | Policy validation mode `never` with an HTTP, MCP or agent adapter present | warning |
+| `PD008` | Reserved identifier used for a public export | warning |
+| `PD009` | Duplicate `permdock` copies in the dependency tree | error |
+
+### PD001: server-only imports in client entries
+
+Policy modules, `createPermDock` from `permdock/next` and any file that imports from `permdock/hono`, `permdock/mcp` or a provider must never be reachable from a client bundle. `doctor` builds the import graph from `collect.srcPath` with `oxc-parser`, marks files with `'use client'` or under known client roots (Vite `src/`, Expo `app/`) as client entries, and reports any path from a client entry to a server-only module. This is the permix issue #49 class of bug (server code leaking into client bundles), caught before the bundler does something surprising.
+
+### PD002: unknown permission references
+
+Member accesses rooted at a definition export that do not resolve to a leaf (`permissions.post.archive` when `archive` is not an action), and `findPermission(permissions, 'literal')` calls with a literal that no key matches. These are type errors in TypeScript projects; `doctor` catches them in JavaScript files, MDX and generated code too.
+
+### PD003: used but ungranted
+
+The same analysis as [usage](/docs/cli/usage), reported here at warning level so a single `doctor` run covers it.
+
+### PD004: stale catalog
+
+Runs `collect --check` in memory. A stale `permissions.catalog.json` or generated barrel is an error because downstream tools (OpenAPI emission, MCP descriptions, the docs) read the file, not the code.
+
+### PD005: skills
+
+Checks that the `wire-permdock` and `audit-permissions` skills are installed for the agents configured in the repository (`.agents/skills`, `.claude/skills`, `.cursor/skills`) and that their version matches the installed `permdock`. `--fix` runs `permdock skills install`. See [skills](/docs/cli/skills).
+
+### PD006: TypeScript version
+
+Reads the resolved `typescript` version and compares it with the supported matrix (5.9, 6, 7). Warns on 7.0 when a tool that needs the compiler API is detected, because TS 7.0 does not ship a stable one. Also verifies that `isolatedDeclarations` is not required of the consumer: PermDock enables it for itself, apps do not have to.
+
+### PD007: validation mode
+
+`validate: 'never'` is a documented footgun when untrusted input reaches `can()`. If the policy sets it and the repository imports an HTTP, MCP, AI SDK or Claude Agent adapter, `doctor` says so and links to [Validation](/docs/concepts/validation).
+
+### PD008: reserved identifiers
+
+Public exports named `dock`, `ability`, a `can` that defines rather than checks, or `$`-prefixed members in modules that import `permdock`. Enforces the [naming convention](/docs/decisions/0005-naming-convention) in userland code where a skill would otherwise learn the wrong names.
+
+### PD009: duplicate copies
+
+Two versions of `permdock` in `node_modules` are not a correctness problem for references (identity is by key, [0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)) but are for types and bundle size; reported with the two paths.
+
+## Example report
+
+```text
+permdock doctor
+
+  ✖ PD001  app/(marketing)/pricing/page.tsx imports src/permdock/server.ts through src/lib/billing.ts
+           fix: move the check into a Server Component or import from 'permdock/react'
+  ✖ PD004  permissions.catalog.json is stale (post.publish added)
+           fix: pnpm exec permdock collect
+  ⚠ PD005  skill wire-permdock@0.1.0 installed, 0.2.0 available
+           fix: pnpm exec permdock skills install
+
+  2 errors, 1 warning
+```
+
+The Unicode markers are replaced with `error` / `warn` under `--no-color` or when stdout is not a TTY.
+
+## Open questions
+
+- Whether `doctor` should compare shipped `permdock` exports against the documented adapter pages once the docs app exists (a "docs drift" check for maintainers).
+- Detection of client roots for frameworks without a convention (plain Vite, Solid Start) may need a `doctor.clientEntries` config option.
+
+## Related
+
+- [CLI](/docs/cli)
+- [usage](/docs/cli/usage)
+- [skills](/docs/cli/skills)
+- [Threat model](/docs/security/threat-model)
+- [For AI agents](/docs/for-ai-agents)

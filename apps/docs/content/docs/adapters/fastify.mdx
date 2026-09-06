@@ -1,0 +1,82 @@
+---
+title: Fastify
+description: permdock/fastify registers the Fetch kernel as a Fastify plugin that decorates request.permdock and provides protect as a typed preHandler hook.
+---
+
+Status: planned
+Phase: 2
+
+## Purpose
+
+Fastify's plugin system, request decorators and typed route generics map cleanly onto the [server kernel](/docs/adapters/server-kernel). `permdock/fastify` registers a plugin that resolves the subject in an `onRequest` hook and decorates `request.permdock`; `protect` is a `preHandler` that loads data, decides and replies with Problem Details on denial. Fastify already fails closed after `reply.send()` in a hook, so denial never falls through to the handler.
+
+## API
+
+```ts
+import Fastify from 'fastify'
+import { createPermDock } from 'permdock/fastify'
+import { policy } from './policy'
+import { permissions } from './permissions'
+
+export const { permdock, protect } = createPermDock(policy, { subject: (request) => request.user ?? null })
+
+const app = Fastify()
+await app.register(permdock)                                             // request.permdock is the request-scoped PermDock
+
+app.delete<{ Params: { id: string } }>('/posts/:id', {
+  preHandler: protect(permissions.post.delete, (request) => loadPost(request.params.id)),
+  schema: { security: openapi.security(permissions.post.delete).security },   // @fastify/swagger
+}, async (request, reply) => {
+  await deletePost(request.permdockData)
+  return reply.code(204).send()
+})
+```
+
+| Export | Role |
+|---|---|
+| `permdock` | Plugin (wrapped with `fastify-plugin` so decorators are visible to the parent scope). Adds `request.permdock` and registers an error handler mapping PermDock errors to Problem Details. |
+| `protect(permission, loadData?)` | `preHandler` hook. Typed against the route's `RouteGenericInterface`, so `request.params` and `request.body` keep their types inside `loadData` (permix's Elysia and Fastify guards lost route typing). |
+| `permdockHandler` | Plugin mounting the AuthZEN-shaped decision endpoint: `app.register(permdockHandler, { prefix: '/api/permdock' })`. |
+| `openapi` | Kernel hook contract; feeds `@fastify/swagger` route `schema.security` and the document-level `securitySchemes`. |
+
+### Encapsulation
+
+Fastify plugins are encapsulated by default. `permdock` is wrapped with `fastify-plugin` so the decorator and error handler are visible to the registering scope and its children; registering it once on the root instance covers every route. Apps that want different policies per prefix register the plugin from a second `createPermDock` result inside a child scope, and `request.permdock` is typed per scope through Fastify's declaration merging on the plugin's generic rather than a global `FastifyRequest` augmentation.
+
+```ts
+await app.register(async (admin) => {
+  await admin.register(adminPermdock)          // a second factory with a stricter policy
+  admin.get('/audit', { preHandler: adminProtect(permissions.audit.read) }, listAudit)
+}, { prefix: '/admin' })
+```
+
+## Request lifecycle
+
+1. The plugin's `onRequest` hook calls `subject(request)` once and builds the instance.
+2. `protect` runs as `preHandler`: load, validate untrusted input, decide, continue or `reply.code(403)`.
+3. Handlers call `request.permdock.assert(...)`; thrown PermDock errors reach the plugin's `setErrorHandler` and become Problem Details.
+4. `on('decision')` events carry `request.method` and `request.routeOptions.url`.
+
+## What it validates
+
+- Untrusted `loadData` results and bodies under `validate: 'boundary'`. Fastify's own JSON Schema validation runs first; PermDock validates only the resource shape used by the policy.
+- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
+- Plugin registration: using `protect` on a route in a scope where the plugin is not registered throws at startup.
+
+## How denials surface
+
+`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation; `401` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+
+## Example app
+
+`apps/examples/fastify`: posts API with the plugin, `protect` on CRUD routes, `@fastify/swagger` emitting `securitySchemes` and per-route `security`, the decision endpoint, and `app.inject()` tests asserting exact denial bodies.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2).
+
+## Open questions
+
+- Whether the plugin should also register the error handler or leave that to the app (some apps already own `setErrorHandler`).
+- Whether `request.permdockData` should exist or the loader result should be passed by re-running the loader inside the handler.
+- Type-provider interplay: confirm `protect` keeps inference with `@fastify/type-provider-zod` and TypeBox providers.

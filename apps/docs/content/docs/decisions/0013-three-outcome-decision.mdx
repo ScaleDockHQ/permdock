@@ -1,0 +1,55 @@
+---
+title: "0013: Three-outcome decision"
+description: Why a Decision is granted, denied or approval-required, why there is no not-applicable outcome, and how approval grants and tokens work.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Agent runtimes added a third answer to "may this happen?". The Vercel AI SDK 7 [`toolApproval`](https://ai-sdk.dev/docs/agents/tool-approvals) callback returns `approved`, `denied`, `user-approval` or `not-applicable`; `WorkflowAgent` suspends a durable workflow on `needsApproval`; the Claude Agent SDK's `canUseTool` can ask the user; MCP 2026-07-28 has stateless elicitation. OWASP ASI02 asks for human-in-the-loop gates on risky tools.
+
+Two lessons from the reference adapter shaped the design. `@ai-sdk/policy-opa` fails open on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)): an outcome the adapter does not understand becomes "approved". And `experimental_toolApprovalSecret` exists because an approval granted for one set of arguments can otherwise be replayed against another.
+
+A boolean cannot represent "allowed, but only after a human confirms", and an authorization library must never answer "I don't know".
+
+## Decision
+
+`Decision.outcome` is exactly one of:
+
+- **`granted`**: a grant matched and no deny applied. Carries `subject` (narrowed), `matched` and `token`.
+- **`denied`**: no grant matched, a deny applied, validation failed, the delegation did not cover the scope, or the reference is unknown at runtime. Carries `denials` (role and reason per failure) and `alternatives`.
+- **`approval-required`**: a grant with `approval: 'human'` matched and nothing denied. Carries `grant`, `reason` and `token`.
+
+There is **no `not-applicable`**. Anything PermDock cannot evaluate is `denied` with a reason. Adapters map outcomes to the runtime vocabulary and never emit a fourth value: AI SDK `approved` / `denied` / `user-approval`; `WorkflowAgent` `needsApproval` true only for `approval-required`; MCP elicitation for `approval-required`, `isError` refusal for `denied`; HTTP 403 `application/problem+json` with a `.../approval-required` `type`.
+
+`approval: 'human'` is a **grant option**, not a condition function: `allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' })`. `token` is a hash of permission key, resource id, subject and actor; adapters re-check the token when an approval is resumed, so a replay cannot be swapped onto different arguments.
+
+## Consequences
+
+- One `Decision` drives the UI, HTTP, MCP, AI SDK and Claude Agent SDK surfaces; each adapter is a small translation table.
+- Fail-closed is structural: an unhandled outcome in a `switch` is a `never` type error, and there is no value that a downstream consumer could misread as approval.
+- `assert` throws `PermDockApprovalRequiredError` separately from `PermDockDeniedError`, so an HTTP handler can render a consent step instead of a refusal.
+- `approval-required` in a snapshot lets `usePermission` render a "requires confirmation" state instead of hiding the button.
+- How `approval-required` should surface over plain HTTP beyond the 403 problem type (retry with a token, a separate consent endpoint) is an open question on the roadmap.
+- The approval decision itself (who approves, where it is recorded) is outside PermDock; the library provides the outcome and the replay-safe token.
+
+## Alternatives considered
+
+- **Boolean plus a `pending` flag.** Rejected; three states in two fields invite the fail-open misreads `policy-opa` demonstrated.
+- **Approval as a condition closure.** Rejected: it would make approval non-portable and invisible to snapshots and catalogs.
+- **`not-applicable` for unknown references or missing rules** (AI SDK vocabulary). Rejected: it delegates the fail-closed decision to the caller.
+- **Approval outcome carrying no token.** Rejected after reading the `experimental_toolApprovalSecret` rationale.
+
+## Related
+
+- [Decisions](/docs/concepts/decisions)
+- [Approvals](/docs/security/approvals)
+- [Errors](/docs/concepts/errors)
+- [AI SDK adapter](/docs/adapters/ai-sdk)
+- [Claude Agent adapter](/docs/adapters/claude-agent)
+- [MCP adapter](/docs/adapters/mcp)
+- [OWASP Agentic Top 10](/docs/security/owasp-agentic)
+- [0007: decide() returns a Decision](/docs/decisions/0007-decide-not-explain)
