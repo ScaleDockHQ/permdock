@@ -1,0 +1,140 @@
+---
+title: OpenAPI registries
+description: "The OpenAPI Initiative registries, the x-permdock- namespace PermDock emits, which registered x-oai-* and x-agent-trust extensions it reuses, and the rule for never inventing names in someone else's namespace."
+---
+
+Status: planned
+Phase: 2
+
+## What it is
+
+The OpenAPI Initiative maintains a set of [registries](https://spec.openapis.org/registry/) that give shared names to things the specification itself leaves open:
+
+| Registry | What it lists |
+| --- | --- |
+| Extension Field | Individual `x-*` fields with a defined meaning and the objects they may appear on |
+| Namespace | Prefixes of the form `x-{namespace}-` reserved for one organisation or project |
+| Format | Values for the JSON Schema `format` keyword |
+| Tag Kind | Values for the tag `kind` field |
+| Media Type | Media types with defined handling in OpenAPI descriptions |
+| Draft Feature | Features being trialled before they enter the specification |
+| Alternative Schema | Schema languages other than JSON Schema that a description may reference |
+
+Registering is a pull request against [OAI/spec.openapis.org](https://github.com/OAI/spec.openapis.org/) that adds a Markdown file under `registries/_{registryName}`. The [Namespace Registry](https://spec.openapis.org/registry/namespace/) requires the prefix format `x-{namespace}-` with lowercase identifiers; registered namespaces are `fdx`, `jsonschema`, `ms`, `oai` (reserved for the OpenAPI Initiative), `oas-draft`, `oas`, `sap` and `scalar`.
+
+The [Extension Registry](https://spec.openapis.org/registry/extension/) entries that matter to PermDock:
+
+- `x-oai-deprecated`: marks a Security Scheme deprecated in documents older than 3.2.
+- `x-oai-deviceAuthorization`: the OAuth 2.0 device authorization flow inside `flows`, pre-3.2.
+- `x-oai-deviceAuthorizationUrl`: the RFC 8628 device authorization endpoint, pre-3.2.
+- `x-agent-trust`: a trust-level metadata block for agent-authenticated `apiKey` security schemes, carrying the signature `algorithm`, a trust level vocabulary and a JWKS endpoint for local verification.
+
+There is no registered `x-oai-oauth2MetadataUrl`, and `permdock` is not a registered namespace today.
+
+## Why it matters for PermDock
+
+PermDock puts permission keys, portable conditions, approval metadata and security-profile declarations into OpenAPI documents so gateways, SDK generators, portals and agents can read them. Every one of those fields is an extension. Two things go wrong when extensions are named casually:
+
+- **Collisions.** An `x-permissions` field means something different to every tool that emits one. A registered namespace makes `x-permdock-permissions` mean exactly one thing.
+- **Impersonation.** Writing an unregistered `x-oai-*` name looks official and is not; a viewer that implements the registered `x-oai-*` set will ignore it or, worse, misread it. `oai` is reserved for the OpenAPI Initiative.
+
+Conversely, when a registered extension already says what PermDock needs to say, reusing it means other tools understand the output without knowing PermDock exists. That is why the 3.1 fallbacks for device authorization and deprecation use the `x-oai-*` names, and why the Web Bot Auth security scheme carries `x-agent-trust` rather than an `x-permdock-*` twin.
+
+## How PermDock uses it
+
+### The `permdock` namespace
+
+Registering `permdock` in the Namespace Registry is a Phase 2 action item, done in the same phase as the `permdock/openapi` entry and `permdock openapi`:
+
+1. Open a pull request against [OAI/spec.openapis.org](https://github.com/OAI/spec.openapis.org/) adding a Markdown file for the `permdock` namespace under the namespace registry directory.
+2. Prefix: `x-permdock-`; identifiers are lowercase, camelCase after the prefix as in `x-permdock-securityProfile` (the registry constrains the namespace token, not the suffix).
+3. Point the entry at this page as the description of every field in the namespace.
+
+Until the registration lands, the extensions are still valid OpenAPI (any `x-` field is), but the prefix is not reserved. Nothing in PermDock's output changes when it is.
+
+### PermDock extensions
+
+| Extension | Appears on | JSON shape | Purpose |
+| --- | --- | --- | --- |
+| `x-permdock-permissions` | Operation | Array of permission keys: `["post.delete"]`; the matching `scope` of each key appears in the operation's `security` | The permissions `protect` enforces on the route, in catalog terms |
+| `x-permdock-conditions` | Operation | Object keyed by permission key whose values are portable condition JSON ([wire formats](/docs/concepts/wire-formats)) | What a scope allows beyond "the scope is present", e.g. `authorId = subject.id` |
+| `x-permdock-securityProfile` | Security Scheme, Operation, root | String, currently `"fapi2"` | Declares that the resource server implements a named security profile ([FAPI 2.0](/docs/standards/fapi-2)); an operation-level value overrides the scheme's |
+| `x-permdock-approval` | Operation | Object keyed by permission key: `{ "post.delete": { "reason": "human" } }` | The operation may answer `approval-required`; clients can plan for an approval step ([approvals](/docs/security/approvals)) |
+| `x-permdock-oauth2MetadataUrl` | Security Scheme (3.1 targets only) | URL string | Fallback for the 3.2 `oauth2MetadataUrl` field, for which no `x-oai-*` extension is registered |
+| `x-permdock-catalog` | Root | `{ "v": 1, "generator": "...", "catalog": "sha256:..." }` | Lets `permdock openapi --check` detect drift between catalog and document |
+
+Every value is plain JSON that survives the same round trips as a permission leaf; nothing in an extension is a reference to a runtime object.
+
+```json
+{
+  "paths": {
+    "/posts/{id}": {
+      "delete": {
+        "operationId": "deletePost",
+        "security": [{ "permdockOAuth": ["post:delete"] }],
+        "x-permdock-permissions": ["post.delete"],
+        "x-permdock-conditions": {
+          "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } }
+        },
+        "x-permdock-approval": { "post.delete": { "reason": "human" } },
+        "x-permdock-securityProfile": "fapi2",
+        "responses": { "204": { "description": "Deleted" }, "403": { "$ref": "#/components/responses/PermDockDenied" } }
+      }
+    }
+  }
+}
+```
+
+### Registered names PermDock reuses
+
+| Situation | Registered extension | Where PermDock writes it |
+| --- | --- | --- |
+| Deprecated scheme, `--target 3.1` | `x-oai-deprecated` | Security Scheme |
+| Device authorization flow, `--target 3.1` | `x-oai-deviceAuthorization` | Inside `flows` of an `oauth2` scheme |
+| Device authorization endpoint, `--target 3.1` | `x-oai-deviceAuthorizationUrl` | Inside that flow |
+| Web Bot Auth agent identity | `x-agent-trust` | The `apiKey` Security Scheme that carries the signature |
+
+For [Web Bot Auth](/docs/standards/web-bot-auth), PermDock documents signed agent traffic as an `apiKey` scheme with `in: header` and `name: Signature-Agent`, the header through which the verifier discovers the signer's keys. The `x-agent-trust` block on that scheme carries the signature `algorithm`, the trust level (using the vocabulary the registry entry defines) and the JWKS endpoint the adapter verifies against. PermDock does not define its own trust vocabulary; the field names and allowed values are taken from the registry entry when the Phase 4 HTTP adapters implement verification.
+
+### Rules
+
+1. Never invent an `x-oai-*` name. The `oai` namespace belongs to the OpenAPI Initiative; if a 3.2 or 3.3 feature has no registered pre-3.2 extension, the fallback is `x-permdock-*` (as for `oauth2MetadataUrl`).
+2. Use a registered extension whenever one exists for the purpose, including extensions outside the `oai` namespace (`x-agent-trust`).
+3. Otherwise use `x-permdock-*`, document it in the table above, and version its shape through `x-permdock-catalog.v`.
+4. Never write into another registered namespace (`x-ms-`, `x-sap-`, `x-scalar-`, `x-jsonschema-`), even when a field there looks close.
+5. The importer reads the native fields, the registered fallbacks and the `x-permdock-*` set; unknown extensions are preserved untouched, never dropped.
+
+The emitter's test fixtures enforce rule 1 mechanically: output containing any `x-oai-*` name outside the three registered ones fails the suite.
+
+## Mapping table
+
+| Registry concept | PermDock concept |
+| --- | --- |
+| Namespace `permdock`, prefix `x-permdock-` | Every PermDock-specific field in a document |
+| Extension `x-oai-deprecated` | `meta.deprecated` on an action, 3.1 output |
+| Extension `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` | `flows: ['deviceAuthorization']` adapter option, 3.1 output |
+| Extension `x-agent-trust` | Web Bot Auth `apiKey` scheme emitted by the HTTP adapters |
+| Extension Registry, no entry for `oauth2MetadataUrl` | `x-permdock-oauth2MetadataUrl` |
+| Format, Tag Kind, Media Type, Draft Feature, Alternative Schema registries | Not used; PermDock emits standard JSON Schema formats and no draft features |
+
+## Sources
+
+- [OpenAPI Initiative registries](https://spec.openapis.org/registry/).
+- [Namespace Registry](https://spec.openapis.org/registry/namespace/).
+- [Extension Registry](https://spec.openapis.org/registry/extension/).
+- [OAI/spec.openapis.org](https://github.com/OAI/spec.openapis.org/), where registrations are submitted.
+
+## Related
+
+- [OpenAPI 3.2](/docs/standards/openapi-3-2): the 3.1 fallback table.
+- [OpenAPI Overlay](/docs/standards/openapi-overlay): how the extensions are delivered without mutating the source document.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3): why `x-permdock-securityProfile` exists.
+- [Web Bot Auth](/docs/standards/web-bot-auth): the scheme that carries `x-agent-trust`.
+- [OpenAPI adapter](/docs/adapters/openapi) and [CLI: openapi](/docs/cli/openapi).
+- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay).
+
+## Open questions
+
+- Whether `x-permdock-permissions` should become an array of `{ key, scope }` objects so a document is self-describing without the catalog; today the scope is only readable from `security`.
+- The exact `x-agent-trust` field names and trust-level values, to be copied from the registry entry when Phase 4 starts.
+- Whether `x-permdock-catalog` should carry a hash of the catalog or its `v` and generator version only.

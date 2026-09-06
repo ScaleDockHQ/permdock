@@ -52,7 +52,7 @@ The survey called this the single most important change to lock before v0.1, bec
 
 ## 4. Continuous access evaluation replaces "snapshot until expiry"
 
-Shared Signals Framework 1.0 and CAEP 1.0 are final (October 2025; [OpenID Foundation](https://openid.net/tag/caep/)). Entra, Okta and Auth0 transmit events; Keycloak shipped an [experimental transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support) in July 2026. Events such as `session-revoked`, `credential-change` and `assurance-level-change` travel as Security Event Tokens over RFC 8935 push or RFC 8936 poll.
+Shared Signals Framework 1.0 and CAEP 1.0 are final (approved 2 September 2025; [OpenID Foundation](https://openid.net/three-shared-signals-final-specifications-approved/)). Entra, Okta and Auth0 transmit events; Keycloak shipped an [experimental transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support) in July 2026. Events such as `session-revoked`, `credential-change` and `assurance-level-change` travel as Security Event Tokens over RFC 8935 push or RFC 8936 poll.
 
 What it changed: `permdock/ssf` was added as a receiver that maps those events to `updateTag('permdock:<user>')` on Next.js and to client `invalidate()`. The snapshot model goes from "stale for N minutes" to "stale until the identity provider says so" ([ssf adapter](/docs/adapters/ssf), [Shared Signals and CAEP](/docs/standards/shared-signals-caep), [Next.js 16.3](/docs/research/nextjs-16-3-instant-navigation)).
 
@@ -70,7 +70,7 @@ What it changed:
 ## 6. Other protocol targets moving under us
 
 - A2A 1.0 ([specification](https://a2a-protocol.org/latest/specification/)) is under the Linux Foundation with more than 150 organisations ([announcement](https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year)). Agent Cards carry `securitySchemes` and `securityRequirements`, cards can be signed, and an authenticated extended card can expose different skills per caller. `permdock/a2a` emits per-skill security requirements and filters the extended card by the caller's permissions, the A2A twin of MCP `list_tools` filtering ([a2a adapter](/docs/adapters/a2a), [A2A standard](/docs/standards/a2a)).
-- OpenAPI 3.2 ([release](https://github.com/OAI/OpenAPI-Specification/releases/tag/3.2.0), September 2025) added the device authorization flow, `oauth2MetadataUrl`, `deprecated` on security schemes, and security schemes referenced by URI. The plan had said 3.1; it now targets 3.2 with `x-oai-*` fallbacks for 3.1 consumers ([ADR 0014](/docs/decisions/0014-openapi-3-2), [openapi adapter](/docs/adapters/openapi), [OpenAPI 3.2 standard](/docs/standards/openapi-3-2)).
+- OpenAPI 3.2 ([release](https://github.com/OAI/OpenAPI-Specification/releases/tag/3.2.0), September 2025) added the device authorization flow, `oauth2MetadataUrl`, `deprecated` on security schemes, and security schemes referenced by URI. The plan had said 3.1; it now targets 3.2 with registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` for 3.1 consumers ([ADR 0014](/docs/decisions/0014-openapi-3-2), [openapi adapter](/docs/adapters/openapi), [OpenAPI 3.2 standard](/docs/standards/openapi-3-2)).
 
 ## 7. Security frameworks that name the problem
 

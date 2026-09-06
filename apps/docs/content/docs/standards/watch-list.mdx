@@ -1,0 +1,121 @@
+---
+title: Standards watch list
+description: Every specification PermDock follows, its maturity as of September 2026, why it matters for a permissions library, and what PermDock does about it in which phase.
+---
+
+Status: tracking
+Phase: 1
+
+This page is the inventory behind the [standards](/docs/standards) section. Each standards page covers one specification PermDock implements or targets; this list also covers the ones it only follows. It is the single place to check whether a draft that changed last month affects a PermDock adapter.
+
+## How the list is maintained
+
+- The list is reviewed at every release. Each row's "Date and maturity" is checked against the publishing body's index (the OpenID Foundation specifications index, the IETF datatracker, the OpenAPI Initiative specification site, the MCP and A2A specification sites) and updated in the same pull request as the release changeset.
+- A row whose "PermDock action" is a concrete change to an adapter, the core or the CLI stays here until that change ships, then keeps a short pointer to the page that documents it.
+- A specification gets its own page under `standards/` when PermDock implements it, or when it shapes a public API even before code exists (as [GNAP](/docs/standards/gnap) and [FAPI 2.0](/docs/standards/fapi-2) do). The row stays; the page becomes its link.
+- Rows never disappear silently. A specification PermDock stops following moves to "Removed rows" with the reason and the release in which it was removed.
+- Dates and maturity levels are copied from the publishing body, never inferred. A row without a date means the source index did not give one at the last review.
+
+Status vocabulary for the "PermDock action" column: **implements** (an adapter or core feature exists or is planned with a phase), **consumes** (PermDock reads what the spec produces, without a dedicated adapter), **checklist** (the spec constrains how an adapter is written), **tracking** (followed, no code planned).
+
+## Reading the table
+
+The "Date and maturity" column uses each body's own vocabulary, which is not interchangeable:
+
+| Term | Body | Meaning for PermDock |
+| --- | --- | --- |
+| Final | OpenID Foundation | Stable; PermDock may implement and, where a programme exists, certify against it |
+| Implementer's draft | OpenID Foundation | Stable enough to build against with the expectation of small changes; PermDock implements only when the feature is needed in the same phase |
+| RFC | IETF | Stable; referenced by number |
+| RFC Editor queue | IETF | Approved by the IESG and awaiting publication; content is final, the RFC number is not yet assigned |
+| WG draft | IETF | Adopted by a working group; field names may still change, so PermDock designs against it but does not fix wire formats on it |
+| Individual draft | IETF | Not yet adopted by a working group; tracking only |
+| Released | OpenAPI Initiative, MCP, A2A | A versioned specification is published; PermDock may emit or consume it |
+| In development | OpenAPI Initiative | On a development branch with an open milestone; no emission until release |
+
+The "Phase" column is the first phase in which PermDock acts on the row, following the same rule as the `Phase` line on every standards page. Adapter phases are those of the [adapter matrix](/docs/adapters). A row whose action is tracking has no phase and says so.
+
+## The list
+
+| Spec | Body | Date and maturity | Relevance | PermDock action | Phase |
+| --- | --- | --- | --- | --- | --- |
+| [Authorization API 1.0 (AuthZEN)](/docs/standards/authzen) | OpenID Foundation | Final, Jan 2026 | Wire format between PEPs and PDPs | Implements: the decision endpoint (1), `permdock/authzen` (2), `permdock/pdp` (4) | 1 |
+| [Shared Signals Framework 1.0, CAEP 1.0, RISC 1.0](/docs/standards/shared-signals-caep) | OpenID Foundation | Final, Sept 2025 (approved 2 Sept 2025) | Session revocation and credential-change events | Implements: `permdock/ssf` receiver invalidating snapshots | 3 |
+| CAEP Interoperability Profile 1.0 | OpenID Foundation (Shared Signals WG) | Implementer's draft, Jul 2026 | Which CAEP events and delivery a receiver must support to interoperate | Checklist for the [`ssf` adapter](/docs/adapters/ssf) | 3 |
+| OpenID Federation 1.0 | OpenID Foundation | Final, Feb 2026 | Trust establishment between parties without pairwise configuration | Tracking: candidate for establishing trust between a remote PDP and PEPs in `permdock/pdp` | 4 |
+| OpenID Connect Enterprise Extensions (`session_expiry`) | OpenID Foundation | Draft, Sep 2025 | ID token claim stating when the IdP session ends | Consumes: `session_expiry` as an upper bound on snapshot staleness for provider adapters | 4 |
+| OpenID Provider Commands | OpenID Foundation | Draft, Sep 2025 | IdP-initiated lifecycle commands to relying parties (deprovision, revoke) | Tracking: overlap with CAEP for snapshot invalidation | tracking |
+| IPSIE Common Requirements 1.0 | OpenID Foundation (IPSIE WG) | Draft 00, Aug 2025 | Enterprise interoperability levels: Session Lifecycle SL1-SL3, Account Lifecycle AL1-AL3 | Checklist for provider adapters (`supabase`, `better-auth`, `clerk`, `convex`) | 3 |
+| IPSIE SL1 OpenID Connect Profile | OpenID Foundation (IPSIE WG) | Draft 00, Apr 2025 | `iss` in responses, PKCE, RFC 8414 metadata, `acr` / `amr` / `auth_time` / `session_expiry`, re-authentication, DPoP SHOULD | Checklist: which token claims provider adapters expose to the principal | 3 |
+| IPSIE AL1 SCIM 2.0 Profile | OpenID Foundation (IPSIE WG) | Draft | RFC 7523 JWT profile for SCIM authentication | Tracking: relevant only if PermDock reads role assignments from SCIM | tracking |
+| OpenID4VP 1.0, OpenID4VCI 1.0 | OpenID Foundation | Final, Jul 2025 and Sep 2025 | Verifiable credential presentation and issuance | Tracking: verified attributes as inputs to `principal` fields | tracking |
+| OpenID Connect for Identity Assurance 1.0 (`verified_claims`) | OpenID Foundation | Final with errata, Jul 2026 | Claims carrying assurance level and evidence | Consumes: assurance-level conditions on `principal.assurance` in provider adapters | 4 |
+| OpenID Connect Ephemeral Subject Identifier | OpenID Foundation | Draft, Jul 2026 | Per-transaction subject identifiers | Checklist: audit events must not assume a stable `principal.id` across sessions | tracking |
+| OpenID Connect Key Binding | OpenID Foundation | Draft, Aug 2026 | Binding ID tokens to client keys | Tracking: relevant to `permdock/jwt` `sender` once stable | tracking |
+| Grant Management for OAuth 2.0 | OpenID Foundation (FAPI WG) | Implementer's draft | Grants as manageable consent objects | Tracking: `grant_id` in audit, revoked grants as invalidation; see [FAPI 2.0](/docs/standards/fapi-2) | tracking |
+| [FAPI 2.0 Security Profile](/docs/standards/fapi-2) | OpenID Foundation (FAPI WG) | Final | Resource-server requirements 5.3.4 and cryptography 5.4.1 | Implements: `permdock/jwt` `profile: 'fapi2'`; `x-permdock-securityProfile` in `permdock openapi` | 1 |
+| RFC 9700 OAuth 2.0 Security Best Current Practice | IETF OAuth WG | RFC, Jan 2025 | Baseline security for OAuth resource servers | Checklist for `permdock/jwt` defaults and the [threat model](/docs/security/threat-model) | 1 |
+| RFC 8725 JWT Best Current Practices and rfc8725bis | IETF OAuth WG | RFC; bis in the RFC Editor queue, Aug 2026 | Algorithm allow-lists, `typ`, `kid` handling, key confusion | Checklist for `permdock/jwt`; the bis replaces it when published | 1 |
+| RFC 9396 Rich Authorization Requests | IETF OAuth WG | RFC | Structured `authorization_details` instead of flat scopes | Implements: `delegation.authorizationDetails`, one type per permission | 1 |
+| OAuth 2.0 RAR Metadata and Error Remediation | IETF OAuth WG | Draft, Aug 2026 | Metadata for RAR types and structured remediation on insufficient authorization | Implements: `Decision.alternatives` rendered in the remediation shape for step-up; see [delegation](/docs/security/delegation) | 2 |
+| OAuth Identity and Authorization Chaining Across Domains | IETF OAuth WG | RFC Editor queue, Jul 2026 | Carrying identity and authorization across trust domains | Implements: `delegation.chain` verification | 4 |
+| Transaction Tokens | IETF OAuth WG | WG draft rev 11, Jul 2026 | Propagating identity and authorization context through a call chain inside a trust domain | Consumes: snapshot id and decision id in `azd`, subject re-derived from `sub_id` and `azd`; see [delegation](/docs/security/delegation) | 4 |
+| Transaction Tokens for Agents; Cross-domain Transaction Tokens; Transaction Tokens BCP | IETF (individual drafts) | Drafts, May to Jul 2026 | Agent context and cross-domain extensions of transaction tokens | Tracking: follow with the transaction-token row | tracking |
+| WIMSE architecture | IETF WIMSE WG | WG draft 08, Jul 2026 | Workload identity, identity proxies, context propagation | Checklist: workloads as service principals in the [subject](/docs/concepts/subject) model | 1 |
+| [GNAP (RFC 9635)](/docs/standards/gnap) | IETF | RFC | Successor negotiation protocol; `access` rights array | Consumes: `delegation.access` next to `authorizationDetails`; no client | 4 |
+| OAuth 2.1 | IETF OAuth WG | Draft | Consolidated OAuth 2.0 with PKCE and without implicit and password grants | Checklist: MCP servers are OAuth 2.1 resource servers; `permdock/jwt` defaults follow it | 1 |
+| RFC 9449 DPoP, RFC 8705 mTLS | IETF OAuth WG | RFCs | Sender-constrained tokens (`cnf.jkt`, `cnf.x5t#S256`) | Implements: `permdock/jwt` `sender: 'dpop'` or `'mtls'`; the verified binding is recorded on the subject | 1 |
+| RFC 9728 Protected Resource Metadata | IETF OAuth WG | RFC | Discovery document a resource server publishes | Consumes: required by [MCP authorization](/docs/standards/mcp-authorization); `permdock/mcp` reads its scopes | 2 |
+| [Web Bot Auth](/docs/standards/web-bot-auth) (RFC 9421 HTTP Message Signatures, Signature-Agent) | IETF | Drafts | Verified identity for automated HTTP clients | Implements: verified signer becomes `actor` in HTTP adapters | 4 |
+| [OpenAPI 3.3](/docs/standards/openapi-3-3) | OpenAPI Initiative | In development (`v3.3-dev`) | Security configuration updates, Standardized API Features, security profiles | Tracking until release; emitter targets 3.2 meanwhile | 2 |
+| [OpenAPI Overlay 1.1](/docs/standards/openapi-overlay) | OpenAPI Initiative | Released Jan 2026 | Repeatable transformations of OpenAPI documents (`update`, `remove`, `copy` actions) | Implements: `permdock openapi` applies its security additions as an Overlay; see [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay) | 2 |
+| [Arazzo 1.1](/docs/standards/arazzo) | OpenAPI Initiative | Released May 2026 | Multi-step API workflows over OpenAPI and AsyncAPI sources | Consumes: the permissions a workflow needs, step by step; see the Arazzo page | 2 |
+| [OpenAPI registries](/docs/standards/openapi-registry) | OpenAPI Initiative | Living registries | Extension and namespace registration | Implements: register the `x-permdock-` namespace | 2 |
+| [A2A 1.0](/docs/standards/a2a) | Linux Foundation | 1.0 | Agent Card security schemes and requirements | Implements: `permdock/a2a` | 2 |
+| [MCP authorization](/docs/standards/mcp-authorization) | Model Context Protocol | Spec 2026-07-28 | OAuth 2.1 resource servers, scope challenges, Enterprise-Managed Authorization | Implements: `permdock/mcp` | 2 |
+
+## By PermDock concept
+
+The same rows, grouped by the part of PermDock they touch. This is the view to use when changing one of these concepts: every specification listed under it may constrain the change.
+
+- **Subject (`principal`, `actor`, `binding`).** FAPI 2.0, DPoP and mTLS, RFC 8725 and rfc8725bis, RFC 9700, OAuth 2.1 and the IPSIE SL1 profile define what `permdock/jwt` may accept and which claims reach the principal. WIMSE and the transaction-token drafts define workloads as principals. Web Bot Auth fills `actor` for plain HTTP. IDA `verified_claims` and the verifiable-credential specifications are the candidate sources for `principal.assurance`. The Ephemeral Subject Identifier draft is a reminder that `principal.id` may not be stable across sessions.
+- **Delegation (`scopes`, `authorizationDetails`, `access`, `chain`).** RFC 9396 and GNAP define the two structured formats; RAR Metadata and Error Remediation defines how insufficient authorization is reported back; Identity and Authorization Chaining defines `chain`; Grant Management defines the consent object the delegation came from.
+- **Decision (`granted`, `denied`, `approval-required`, `alternatives`).** AuthZEN is the wire format; RAR Error Remediation and RFC 6750 (through FAPI 2.0) shape how `alternatives` is rendered to OAuth clients; MCP and A2A shape how it is rendered to agents.
+- **Snapshot freshness.** SSF, CAEP, RISC and the CAEP Interoperability Profile deliver invalidation events; OpenID Provider Commands is the overlapping alternative; `session_expiry` from the Enterprise Extensions and the IPSIE SL1 profile bound how long a snapshot may live.
+- **Catalog and documents.** OpenAPI 3.2 and 3.3, Overlay, Arazzo and the registries define what `permdock openapi` and `permdock collect` emit and how `x-permdock-` extensions are registered. RFC 9728 defines the metadata an MCP server publishes about itself.
+- **Trust between services.** Transaction tokens carry context inside a domain; Identity Chaining carries it across domains; OpenID Federation is the candidate for establishing trust between `permdock/pdp` and a remote PDP without pairwise configuration.
+
+## Review cadence
+
+Each release the maintainer running the release checks, per row: has the maturity changed (draft to implementer's draft, RFC Editor queue to RFC, in development to released); has the publishing body renamed or split the document; does the change touch a PermDock action that has already shipped. A maturity change alone updates the row. A change to a shipped behaviour opens an issue against the adapter page and, if a wire format or security default moves, a decision record. Rows whose action is "checklist" are re-read against the adapter they constrain at the release that ships that adapter.
+
+## How to propose a row
+
+1. Open an issue titled `watch: <spec name>` with the canonical URL from the publishing body, the current maturity (final, implementer's draft, RFC, RFC Editor queue, working-group draft, individual draft, in development) and its date.
+2. State the relevance in one sentence: which PermDock concept (subject, delegation, decision, snapshot, catalog, adapter) the specification touches.
+3. Propose the action using the vocabulary above (implements, consumes, checklist, tracking) and, for anything other than tracking, the phase from the [roadmap](/docs/roadmap) in which it lands.
+4. If the specification changes a wire format or a security default, say so; that row also needs a decision record and the updates listed in `AGENTS.md`.
+
+Rows are added by pull request against this page only. A row that reaches "implements" gets its own standards page in the same pull request as the code.
+
+## Removed rows
+
+None yet. When a row is removed it is listed here with the release, the reason (superseded, abandoned by its body, out of scope) and the row that replaces it if any.
+
+A removed row's standards page, if one existed, is kept and marked superseded rather than deleted, following the same append-only rule as decision records.
+
+## Sources
+
+- [OpenID Foundation specifications index](https://openid.net/developers/specs/) and the [modification-ordered listing](https://openid.net/specs/?C=M;O=D) for OpenID dates and maturity.
+- [IPSIE Working Group specifications](https://openid.net/wg/ipsie/specifications/), the [SL1 OpenID Connect Profile](https://openid.github.io/ipsie-openid-sl1/draft-openid-ipsie-sl1-profile.html), the [AL1 SCIM Profile](https://openid.github.io/ipsie-scim-al1/draft-ipsie-scim-al1-profile.html) and [IPSIE Common Requirements](https://openid.net/specs/ipsie-common-requirements-1_0-00.html).
+- [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-security-profile-2_0-final.html).
+- [Transaction Tokens](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/), [WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch) and [RFC 9635](https://datatracker.ietf.org/doc/html/rfc9635) on the IETF datatracker.
+- [OpenAPI Specification milestones](https://github.com/OAI/OpenAPI-Specification/milestones), [Overlay 1.1.0](https://spec.openapis.org/overlay/v1.1.0.html), [Arazzo 1.1.0](https://spec.openapis.org/arazzo/v1.1.0.html) and the [OpenAPI registries](https://spec.openapis.org/registry/).
+- Other RFCs and drafts are referenced by number or name.
+
+## Related
+
+- [Standards](/docs/standards): the pages for everything PermDock implements.
+- [Roadmap](/docs/roadmap): the phases the last column refers to.
+- [Adapters](/docs/adapters): adapter phases.
+- [Threat model](/docs/security/threat-model) and [delegation](/docs/security/delegation): where the checklist rows are applied.

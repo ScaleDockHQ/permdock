@@ -4,8 +4,15 @@
     "index",
     "standard-schema",
     "openapi-3-2",
+    "openapi-3-3",
+    "openapi-overlay",
+    "arazzo",
+    "openapi-registry",
     "problem-details",
     "postgres-rls",
+    "---Authentication---",
+    "fapi-2",
+    "gnap",
     "---Agents---",
     "mcp-authorization",
     "authzen",
@@ -14,6 +21,8 @@
     "webmcp",
     "a2a",
     "web-bot-auth",
-    "agent-docs-standards"
+    "agent-docs-standards",
+    "---Tracking---",
+    "watch-list"
   ]
 }

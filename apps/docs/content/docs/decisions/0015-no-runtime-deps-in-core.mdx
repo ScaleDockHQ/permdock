@@ -1,11 +1,11 @@
 ---
 title: "0015: No runtime dependencies in core"
-description: Why permdock depends only on @standard-schema/spec, ships ESM-only under a ~3 kB gzip budget, and keeps validators, serialisers and OpenTelemetry out of core.
+description: Why permdock depends only on @standard-schema/spec, ships ESM-only, and keeps validators, serialisers and OpenTelemetry out of core.
 ---
 
 ## Status
 
-Accepted, September 2026.
+Accepted, September 2026. The size-budget bullet is superseded by [0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline).
 
 ## Context
 
@@ -22,7 +22,7 @@ Standard Schema exists so that a library can accept Zod, Valibot, ArkType or Eff
 - `permdock` has **exactly one runtime dependency: `@standard-schema/spec`**. Everything else is an optional peer dependency of the adapter that needs it (`react`, `next`, `hono`, `@modelcontextprotocol/server`, `ai`, `drizzle-orm`, ...).
 - **No validator, no serialiser, no telemetry in core.** Conditions and snapshots are plain JSON with tagged ISO date strings; there is no `superjson`. OpenTelemetry lives in `permdock/otel` behind a structural, type-only `Tracer` interface.
 - **ESM-only.** No CommonJS build, no dual package hazard, `"type": "module"` with an `exports` map.
-- **Budget: core under about 3 kB gzip**, measured per entry point in `tests/bundle`; each adapter has its own budget. A budget regression fails CI.
+- **Size is measured, not capped in advance.** Per-entry gzip is recorded in `tests/bundle`; the regression baseline is the measured size after core ships, not a 3 kB guess ([0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)).
 - No `eval`, no `new Function`, no dynamic `require`; condition evaluation is a switch over the AST.
 
 ## Consequences
@@ -31,7 +31,7 @@ Standard Schema exists so that a library can accept Zod, Valibot, ArkType or Eff
 - Heavy work belongs in `@permdock/cli` (parsers) and `@permdock/testing` (test frameworks), never in `permdock` ([0002](/docs/decisions/0002-umbrella-package)).
 - Features that need libraries (delegation-chain signature verification, quota stores, RLS parsing) are adapters or CLI commands, which shapes the roadmap.
 - Contributors cannot reach for a utility package; small helpers are written in-tree and covered by tests.
-- The budget forces the condition AST and the permission tree to stay small, which also keeps snapshots small.
+- Keeping validators, serialisers and telemetry out of core also keeps the condition AST, the permission tree and snapshots small. A numeric gzip cap is not set until that core is measured ([0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)).
 
 ## Alternatives considered
 
@@ -49,3 +49,4 @@ Standard Schema exists so that a library can accept Zod, Valibot, ArkType or Eff
 - [Kilpi v1 deep-dive](/docs/research/kilpi-v1)
 - [zap-studio/permit deep-dive](/docs/research/zap-studio-permit)
 - [0016: Repository layout and toolchain](/docs/decisions/0016-repo-layout-and-toolchain)
+- [0020: Measure bundle size, then set a baseline](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)

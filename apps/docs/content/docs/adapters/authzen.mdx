@@ -37,6 +37,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 | `GET /.well-known/authzen-configuration` | PDP metadata: endpoint URLs, supported features | Discovery |
 
 - `handler` is a Fetch handler (`Request` to `Response`), so it mounts on Hono, Next.js route handlers, Node and any [server kernel](/docs/adapters/server-kernel) adapter.
+- The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `Decision` under `context.permdock` that the embedded engine produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)).
 - `resources` tells the handler how to load an instance by id (for `where` conditions on instance actions) and how to enumerate for resource search.
 - `subject` authenticates the calling PEP or end user; see "decision endpoint auth" below.
 
@@ -62,7 +63,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 - Request bodies against the AuthZEN schemas; malformed requests get `400` with Problem Details.
 - `resource.properties` against the resource's Standard Schema when they are used as the instance (boundary validation): a PEP is a trust boundary. When the handler loads the row itself, no validation runs.
 - Unknown `resource.type` or `action.name`: `decision: false` with a `context.reason` of `unknown-permission`; never an exception.
-- Decision-endpoint authentication must be real authentication (bearer tokens, mTLS, session), not a shared static secret; Kilpi's public-secret obfuscation is an explicit anti-pattern ([threat model](/docs/security/threat-model)).
+- Decision-endpoint authentication must be real authentication (bearer tokens, mTLS, session), not a shared static secret; Kilpi's public-secret obfuscation is an explicit anti-pattern ([threat model](/docs/security/threat-model)). In-app, `subject` reads the application's session or a `subjectFromJwt` result; on the hosted ADS, callers present a Vercel OIDC token or an OAuth client-credentials token verified with `permdock/jwt`. This closes roadmap open question 8.
 
 ## How denials surface
 

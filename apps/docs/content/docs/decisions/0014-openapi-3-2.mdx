@@ -5,7 +5,7 @@ description: Why PermDock emits OpenAPI 3.2 security objects and downgrades to 3
 
 ## Status
 
-Accepted, September 2026.
+Accepted, September 2026. The 3.1 fallback rule is amended by [0019](/docs/decisions/0019-openapi-extensions-and-overlay): only the registered `x-oai-deprecated`, `x-oai-deviceAuthorization` and `x-oai-deviceAuthorizationUrl` are emitted; `oauth2MetadataUrl` falls back to `x-permdock-oauth2MetadataUrl` because no `x-oai-` name is registered for it, and `--openapi-version` became `--target`.
 
 ## Context
 

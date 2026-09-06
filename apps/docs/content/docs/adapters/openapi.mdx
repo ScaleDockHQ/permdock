@@ -6,7 +6,7 @@ description: permdock/openapi emits OpenAPI 3.2 security schemes, per-operation 
 Status: planned
 Phase: 2
 
-`permdock/openapi` works in both directions. Outbound, it derives `securitySchemes`, per-operation `security` and an `x-permdock-permissions` extension from the permission references attached to routes, targeting OpenAPI 3.2 with `x-oai-*` fallbacks for 3.1 documents. Inbound, `permdock openapi import` reads an OpenAPI document and generates a `definePermissions()` file from its operations and scopes.
+`permdock/openapi` works in both directions. Outbound, it derives `securitySchemes`, per-operation `security` and an `x-permdock-permissions` extension from the permission references attached to routes, targeting OpenAPI 3.2 with registered `x-oai-*` fallbacks (and `x-permdock-oauth2MetadataUrl`) for 3.1 documents. Inbound, `permdock openapi import` reads an OpenAPI document and generates a `definePermissions()` file from its operations and scopes.
 
 ## Purpose
 
@@ -17,14 +17,14 @@ No OpenAPI generator in the TypeScript ecosystem is fed by an authorization libr
 ```ts
 import { createPermDock } from 'permdock/openapi'
 
-const { securitySchemes, security, describe, spec } = createPermDock(policy, {
+const { securitySchemes, security, describe, spec, overlay } = createPermDock(policy, {
   scheme: {
     name: 'oauth',
     type: 'oauth2',
     oauth2MetadataUrl: 'https://auth.example.com/.well-known/oauth-authorization-server',
     flows: { authorizationCode: {}, deviceAuthorization: {} },   // scopes filled from the catalog
   },
-  target: '3.2',      // '3.2' | '3.1' ('3.1' emits x-oai-* fallbacks)
+  target: '3.2',      // '3.1' | '3.2' | '3.3' ('3.1' emits the registered fallbacks; '3.3' is experimental)
 })
 
 // hono-openapi
@@ -45,6 +45,20 @@ generateSpecs(app, { components: { securitySchemes: securitySchemes() } })
 - `describe(permission)` returns `security` plus `x-permdock-permissions: ['post.delete']` and, when the permission has conditions, `x-permdock-conditions` in the portable JSON format so clients can explain what a scope allows.
 - `spec(permission)` is the oRPC `oo.spec` callback form: it receives the operation object and returns it extended.
 - `deprecated: true` on an action's metadata marks the scope `deprecated` in 3.2 and emits `x-oai-deprecated` for 3.1.
+- `securityProfile: 'fapi2'` in the adapter options writes `x-permdock-securityProfile: "fapi2"` on the scheme, so consumers know the resource server follows the [FAPI 2.0 Security Profile](/docs/standards/fapi-2) (bearer or DPoP tokens in the header only, sender-constrained tokens verified). The CLI equivalent is `--profile fapi2`.
+
+## Registry and namespace
+
+Every PermDock-specific field in a document is an OpenAPI extension under the `x-permdock-` prefix: `x-permdock-permissions`, `x-permdock-conditions`, `x-permdock-securityProfile`, `x-permdock-approval`, `x-permdock-oauth2MetadataUrl` and the root-level `x-permdock-catalog`. Registering the `permdock` namespace in the OAI [Namespace Registry](https://spec.openapis.org/registry/namespace/) is a Phase 2 action item. When the OpenAPI Initiative has already registered an extension for the same purpose (`x-oai-deprecated`, `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` for 3.1 targets, `x-agent-trust` for agent-authenticated `apiKey` schemes) the adapter emits the registered name instead of inventing one; it never coins an `x-oai-*` name. The full extension table and the rules are on [OpenAPI registries](/docs/standards/openapi-registry).
+
+## Overlay output
+
+The adapter can describe its changes as an [OpenAPI Overlay](/docs/standards/openapi-overlay) instead of returning fragments to be spliced into the document. `overlay()` returns an Overlay 1.1.0 document whose `actions` target operations by `operationId` and `update` them with `security` and `x-permdock-*` fields, plus one action for `components.securitySchemes`. The source document stays untouched and owned by the API team; the Overlay is reviewed and applied in the build. `permdock openapi emit --format overlay` produces the same output from the CLI.
+
+```ts
+const doc = overlay({ extends: './openapi.json' })
+// { overlay: '1.1.0', info: {...}, extends: './openapi.json', actions: [...] }
+```
 
 ## Request lifecycle
 
@@ -66,7 +80,8 @@ Import (`permdock openapi import ./openapi.json --out src/permissions.generated.
 
 - Every permission referenced in `describe` / `security` exists in the catalog (type error at compile time; runtime throw for strings from `findPermission`).
 - Scopes are unique across the catalog and match the `resource:action` convention; collisions after `mergePermissions` are reported.
-- 3.1 target: 3.2-only fields (`oauth2MetadataUrl`, `deviceAuthorization`, `deprecated` on schemes, URI-referenced schemes) are moved to `x-oai-*` extensions so the document stays valid 3.1.
+- 3.1 target: 3.2-only fields are moved to extensions so the document stays valid 3.1: `deviceAuthorization` to `x-oai-deviceAuthorization` (with `x-oai-deviceAuthorizationUrl`), `deprecated` on schemes to `x-oai-deprecated`, `oauth2MetadataUrl` to `x-permdock-oauth2MetadataUrl` (no `x-oai-*` extension is registered for it), and URI-referenced schemes are inlined.
+- Extension names: only registered `x-oai-*` names and `x-permdock-*` names appear in output; any other prefix is a bug.
 - Import: documents are validated against the OpenAPI 3.1 or 3.2 schema before generation; unknown security scheme types produce `opaque` scope entries rather than failing.
 
 ## How denials surface
@@ -83,15 +98,21 @@ No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-opena
 
 ## Related standards
 
-- [OpenAPI 3.2](/docs/standards/openapi-3-2): security scheme additions and `x-oai-*` fallbacks.
+- [OpenAPI 3.2](/docs/standards/openapi-3-2): security scheme additions and the 3.1 fallback table.
+- [OpenAPI registries](/docs/standards/openapi-registry): the `x-permdock-*` namespace and registered names.
+- [OpenAPI Overlay](/docs/standards/openapi-overlay): the `--format overlay` output and its threat model.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3): the experimental `3.3` target.
+- [FAPI 2.0](/docs/standards/fapi-2): what `securityProfile: 'fapi2'` declares.
 - [Standard Schema](/docs/standards/standard-schema): request and response schemas via Standard JSON Schema.
 - [Problem Details](/docs/standards/problem-details): documented `403` body.
-- [CLI: openapi](/docs/cli/openapi): `permdock openapi` emit, import and `--check`.
+- [CLI: openapi](/docs/cli/openapi): `permdock openapi` emit, import, `--target`, `--format` and `--check`.
+- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay): extensions and Overlay.
 
 ## Open questions
 
 - Whether `describe` should also emit `x-permdock-conditions` by default or only with an option, given conditions can leak model details to API consumers.
 - How to map several permissions on one route (AND versus OR) in `security` without inventing a vendor extension.
+- Whether `overlay()` should be the default return shape for framework hooks once generators can consume an Overlay directly, making the fragment API a compatibility layer.
 - Import heuristics for action names when `operationId` is absent and paths are irregular; a mapping file may be needed.
 - Whether to emit `securitySchemes` per document or as a shared URI-referenced document in monorepos with several APIs.
 - `trpc-to-openapi` supports only a boolean `protect`; per-scope requirements may need an upstream change or post-processing of the generated document.

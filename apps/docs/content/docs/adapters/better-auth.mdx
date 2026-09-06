@@ -40,6 +40,16 @@ export const policy = definePolicy(permissions, {
 - `rolesFromAccessControl(config, permissions)` maps each Better Auth statement entry `resource: [action]` to `allow(permissions.<resource>.<action>)` where a matching PermDock permission exists, producing role fragments that merge with hand-written fragments of the same name. Unmatched entries are reported, never silently dropped.
 - Server adapters accept the provider directly: `createPermDock(policy, { subject: (c) => subjectFromBetterAuth(auth, c.get('session')) })` in `permdock/hono`.
 
+## Verified material
+
+`subjectFromBetterAuth(auth, session)` consumes the session Better Auth's server API returned; it never reads the cookie or the session token itself ([Authentication and PermDock](/docs/concepts/authentication)).
+
+- **Input.** The result of `auth.api.getSession({ headers })` on the server, which Better Auth has looked up (or decoded from the signed cookie cache) and validated for expiry. A session object assembled by the app, a client-side `useSession()` value or a raw cookie is not accepted; a `null` session yields the anonymous subject.
+- **Fields used.** `session.user.id` becomes `principal.id`; `session.session.activeOrganizationId` becomes `orgId`; `session.session.expiresAt` becomes `subject.expiresAt`; `session.session.id` is carried on audit events.
+- **Roles.** Global roles come from `user.role` as managed by the `admin` plugin; organization roles come from the member record the `organization` plugin holds for the active organization, including dynamic roles from the database. Both are server-managed; a user cannot edit them through the client API. Profile fields the user can change (`name`, `image`) are never used for grants.
+- **Cookie cache staleness.** When Better Auth's cookie cache is enabled, `getSession` may answer from the signed cookie without hitting the database until the cache `maxAge` elapses. During that window `user.role` and the member record reflect the state at cache time: a demoted admin keeps the admin role until the cookie refreshes. If role changes must apply on the next request, disable the cookie cache for routes that use PermDock, call `getSession` with `disableCookieCache: true`, or pair the provider's `onRoleChange` hook with `updateTag` and a session refresh.
+- **No token parsing.** Better Auth's bearer and JWT plugins produce tokens for other consumers; if an API receives one of those, verify it with Better Auth's own endpoint or with [`permdock/jwt`](/docs/adapters/jwt) against the plugin's JWKS, then pass the verified result on. The provider does not verify tokens.
+
 ## Request lifecycle
 
 1. Better Auth authenticates the request and yields a session with `activeOrganizationId`.

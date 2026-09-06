@@ -1,0 +1,260 @@
+---
+title: Terminal (your own CLI)
+description: permdock/terminal puts permission checks inside command-line tools you build with commander, citty, oclif, yargs, clack or Ink, with verified subjects from device flow, keychain, env or CI tokens, sysexits exit codes and Problem Details on --json.
+---
+
+Status: planned
+Phase: 2
+
+Not to be confused with `@permdock/cli`. That package is PermDock's own developer tool (`permdock collect`, `permdock doctor`); this page is about the library entry you import when the command-line tool is yours and its commands need to be authorised.
+
+| | `permdock/terminal` (this page) | `@permdock/cli` |
+|---|---|---|
+| What it is | A subpath of the `permdock` package, imported by the CLI you ship to your users | A separate dev-dependency with the `permdock` binary, run by you and your CI |
+| What it does | Resolves a verified subject for the process, guards command actions, filters help output, formats denials, sets exit codes | Scans source, writes catalogs, checks OpenAPI and RLS drift; never evaluates a policy against a real subject ([CLI](/docs/cli)) |
+
+## Purpose
+
+A CLI is a client like any other: the user behind it holds grants, the binary may be driven by a person or by an AI agent's shell tool, and a refused command must explain itself to both. `permdock/terminal` applies the same [subject](/docs/concepts/subject) model, three-outcome [decisions](/docs/concepts/decisions) and [errors](/docs/concepts/errors) as the HTTP and agent adapters to a process instead of a request. The differences are in how the subject arrives (a token stored on disk or minted by CI, not a cookie), how a denial is shown (stderr and an exit code, not a 403) and how an approval is asked for (a prompt on the TTY, or a refusal when there is none). The adapter never trusts an unverified `--user` or `--actor` flag; every identity comes from a token verified with [permdock/jwt](/docs/adapters/jwt) or a provider `subjectFrom*` helper.
+
+## Install
+
+```bash
+pnpm add permdock
+```
+
+Optional peers: the OS keychain binding used by the `keychain` source, and your prompt library (`@clack/prompts`, Ink) if you replace the default `node:readline` confirm.
+
+## API
+
+```ts
+import { createPermDock } from 'permdock/terminal'
+import { subjectFromJwt } from 'permdock/jwt'
+import { policy } from './policy'
+import { permissions } from './permissions'
+
+const issuer = 'https://auth.acme.dev'
+
+export const { permdock, protect, filterCommands, format, exitCode } = createPermDock(policy, {
+  subject: async ({ token }) => {
+    const jwt = await token(['env', 'keychain', 'ci-oidc', 'device'])   // first source that yields a token wins
+    return jwt ? subjectFromJwt(jwt, { issuer, audience: 'acme-cli' }) : null   // null = anonymous
+  },
+  actor: async ({ token }) => {
+    const jwt = await token([{ env: 'PERMDOCK_ACTOR_TOKEN' }])          // agent-run mode; see below
+    return jwt ? subjectFromJwt(jwt, { issuer, audience: 'acme-cli-agent' }) : undefined
+  },
+  storage: { service: 'acme-cli' },                                      // keychain entry; file fallback in the config dir
+  interactive: process.stdout.isTTY && !process.env.CI,                  // default shown; controls approval prompts
+  output: { json: process.argv.includes('--json') },                     // default shown; selects Problem Details output
+})
+```
+
+| Export | Role |
+|---|---|
+| `permdock()` | Resolves the subject once and returns a process-scoped `PermDock`. Memoised for the process lifetime; `permdock({ refresh: true })` re-resolves after `login`, `logout` or `--as <profile>` switches the stored profile. Anonymous callers get an anonymous instance, not an error. |
+| `protect(permission, load?)` | Returns a wrapper for a command action. `load(...args)` receives the framework's action arguments and returns the resource instance; the wrapped action runs only on `granted` (or after an approval) and receives `{ permdock, data, decision }` as its first argument. |
+| `filterCommands(entries, options)` | Removes or annotates entries the subject cannot run before they are registered with the framework, so help output matches authority. |
+| `format(decision, options)` | Renders a `denied` or `approval-required` decision as text for stderr or, with `json: true`, as the RFC 9457 Problem Details object the HTTP adapters emit. |
+| `exitCode(decision)` | Maps an outcome to a `sysexits.h` code (table below). |
+
+`subject` and `actor` receive a `token(sources)` helper that walks the listed sources in order and returns the first raw token found, or `null`. Verification is your call to `subjectFromJwt` or a provider helper; the adapter refuses to build a principal from anything that has not been verified. `delegation` is lifted from the verified actor token (`scope`, RFC 9396 `authorization_details`) so a decision is the principal's grants intersected with what the agent was delegated ([delegation](/docs/security/delegation)).
+
+## Subject sources
+
+| Source | How the token is obtained | Typical use |
+|---|---|---|
+| `device` | OAuth 2.0 device authorization grant (RFC 8628). The CLI prints `user_code` and `verification_uri` (and opens `verification_uri_complete` when a browser is available), polls the token endpoint honouring `interval` and `slow_down`, then stores the result through `storage`. | Interactive `login` on a developer machine |
+| `keychain` | Reads the token stored by a previous `device` login from the OS keychain via an optional peer; falls back to a mode-0600 file when no keychain is available (headless Linux, containers). Refreshes with the refresh token when expired. | Every later invocation |
+| `env` | `PERMDOCK_TOKEN` (or a configured name) holding a JWT or an API key that your `subject` resolver exchanges for a principal. | Scripts, non-interactive shells |
+| `ci-oidc` | GitHub Actions or GitLab CI id tokens, exchanged with RFC 8693 token exchange at your authorization server for a workload principal (`kind: 'workload'`). The CLI never sees a long-lived secret. | Pipelines |
+| anonymous | `token()` returned `null` and `subject` returned `null`. | Public read-only commands |
+
+All sources end in the same verification step. A `--user` flag, a `USER` environment variable or a git config email are never accepted as identity; they may at most select which stored profile to load (`--as`), and the profile's token is still verified.
+
+## Process lifecycle
+
+1. The CLI parses arguments; commands are registered through `filterCommands`, so `--help` already reflects the subject.
+2. The first call to `permdock()` resolves the subject (and actor) once. A `device` source may block here for the login round trip.
+3. `protect` runs `load` for instance actions, validates the result at the boundary when `load` is marked untrusted (JSON from stdin or a file), then calls `assert`. `granted` runs your action; `denied` writes `format(decision)` to stderr and exits `77`; `approval-required` prompts when `interactive` is true, otherwise writes the Problem Details `approval` extension and exits `75`.
+4. Every decision, including the human's answer to a prompt, is emitted through `on('decision')` with the command path so audit and [otel](/docs/adapters/otel) see it.
+
+## Exit codes
+
+Codes follow the BSD `sysexits.h` conventions so shell scripts and agents can branch without parsing output.
+
+| Code | Name | When |
+|---|---|---|
+| `0` | `EX_OK` | `granted` and the action completed |
+| `75` | `EX_TEMPFAIL` | `approval-required` in a non-interactive process: the command can succeed once someone approves |
+| `77` | `EX_NOPERM` | `denied`, including anonymous subjects and a declined approval prompt |
+| `78` | `EX_CONFIG` | The adapter is misconfigured: no verifier, unreachable authorization server metadata, async schema at a boundary |
+
+Failures inside your action keep whatever code your framework assigns; the adapter only sets codes for outcomes it produced. This is a different contract from the `0` / `1` / `2` codes of [`@permdock/cli`](/docs/cli), which reports findings, not permissions.
+
+## Filtering help output
+
+`filterCommands` is the terminal counterpart of the MCP adapter's `list_tools` filter ([MCP](/docs/adapters/mcp)): what the subject cannot run is hidden or marked before the framework ever sees it.
+
+```ts
+const instance = await permdock()
+
+const visible = filterCommands([
+  { name: 'status',   permission: permissions.deploy.read,     description: 'Show the current deployment' },
+  { name: 'deploy',   permission: permissions.deploy.run,      description: 'Deploy a service' },
+  { name: 'rollback', permission: permissions.deploy.rollback, description: 'Roll back to the previous release' },
+], { mode: 'annotate' })   // or 'hide'
+
+for (const entry of visible) program.command(entry.name).description(entry.description)
+```
+
+- `mode: 'hide'` returns only entries whose collection-level check passes (`can(permission)` for collection actions; for instance actions, whether any grant exists for the permission). Unknown commands then fail with the framework's usual "unknown command" error, revealing nothing.
+- `mode: 'annotate'` keeps every entry and appends `(requires deploy:run)` to the description of entries the subject lacks, using the permission's `scope`. A reader sees `rollback  Roll back to the previous release (requires deploy:rollback)` and knows what to ask for. Hiding suits tools driven by agents; annotating suits people who can request access.
+
+## Formatting denials
+
+```ts
+process.stderr.write(format(decision, { json: false }))
+```
+
+```text
+deploy.run denied for subject u_1: developer (condition). Alternatives: deploy.read, deploy.status.
+  reason      the service is in the "production" environment and you hold deploy.run for "staging" only
+  you may     acme status api, acme deploy api --env staging
+  to request  acme request-access deploy:run --service api
+```
+
+With `--json` (or `output.json`), `format` returns the same object `toProblemDetails()` produces for the HTTP adapters, so an agent that already parses `application/problem+json` from your API parses the CLI without a second code path:
+
+```json
+{
+  "type": "https://permdock.dev/problems/denied",
+  "title": "Permission denied",
+  "status": 403,
+  "detail": "deploy.run denied for subject u_1: developer (condition). Alternatives: deploy.read, deploy.status.",
+  "instance": "acme deploy api",
+  "permission": "deploy.run",
+  "scope": "deploy:run",
+  "resource": { "type": "service", "id": "api" },
+  "denials": [{ "role": "developer", "reason": "condition" }],
+  "alternatives": ["deploy.read", "deploy.status"]
+}
+```
+
+`status` is kept so the object validates against the same schema; `instance` carries the command line with arguments, never with secrets or environment values. The text form follows the one-line template from [errors](/docs/concepts/errors) so a model driving the CLI sees the same first line it would see in an MCP refusal.
+
+## approval-required
+
+A grant with `approval: 'human'` produces `approval-required` ([approvals](/docs/security/approvals)). The adapter binds the prompt to `Decision.token`, a hash of permission key, resource id, subject and actor, and re-runs `decide` after the answer so a revocation between question and answer still denies.
+
+- Interactive (`interactive: true`, which defaults to a TTY on stdout and no `CI` variable): the default confirm prints the permission key, the resource identity and the reason, waits for `y`, and continues only if the recomputed token matches. Declining exits `77`.
+- Non-interactive (`CI=true`, no TTY, output piped): the decision is not prompted for. `--yes`, `--force` or any other flag is not accepted as an approval, because a flag can be typed by the same agent that asked for the action. The CLI exits `75` and prints Problem Details with an `approval` extension:
+
+```json
+{
+  "type": "https://permdock.dev/problems/approval-required",
+  "title": "Approval required",
+  "status": 403,
+  "permission": "deploy.run",
+  "resource": { "type": "service", "id": "api" },
+  "reason": "human",
+  "token": "pd1.…",
+  "approval": { "at": "https://console.acme.dev/approvals?token=pd1.…", "hint": "Ask a release manager to approve, then re-run." }
+}
+```
+
+Where the approval is recorded and how the re-run finds it are the application's concern; the adapter only guarantees the token check on resume. Replacing the prompt with clack:
+
+```ts
+import { confirm, isCancel } from '@clack/prompts'
+
+createPermDock(policy, {
+  // ...
+  interactive: {
+    confirm: async ({ permission, resource, reason }) => {
+      const answer = await confirm({ message: `${permission} on ${resource.type} ${resource.id} (${reason}). Continue?` })
+      return answer === true && !isCancel(answer)
+    },
+  },
+})
+```
+
+An Ink `useInput` component can implement the same `confirm` contract; the adapter only needs a `Promise<boolean>`.
+
+## Agent-driven CLIs
+
+When an AI agent runs your CLI through a shell tool, two identities are involved and the adapter records both:
+
+- The `principal` is the logged-in human whose stored token the process finds through `keychain` or `env`. Their grants are the ceiling.
+- The `actor` is the agent. It is filled from a verified environment token, for example a short-lived JWT minted for the agent session and exposed as `PERMDOCK_ACTOR_TOKEN` by the harness. A bare `--actor claude` flag is ignored, and a subject that arrives only via an actor token is denied: an agent cannot act without a human principal.
+- `delegation` comes from the actor token (`scope`, `authorization_details`) and narrows what the agent-run CLI may do. A human who may `deploy.run` in production does not make the agent able to, unless the delegation says so.
+- `on('decision')` events carry both `principal.id` and `actor.id`, so a `deploy.run` executed by an agent is distinguishable from the same command typed by the person.
+
+Combined with `filterCommands({ mode: 'hide' })`, the agent's `--help` shows only what the delegation allows, and `--json` refusals give it the `alternatives` it needs to re-plan. This is the CLI form of the least-agency and tool-misuse controls in [OWASP Agentic Top 10](/docs/security/owasp-agentic) (ASI02, ASI03); the identity model is described under [delegation](/docs/security/delegation).
+
+## Storage and secrets
+
+- Tokens obtained by the `device` source are written to the OS keychain when the optional peer is installed, under the `storage.service` name. Without it, they go to `credentials.json` in the platform config directory (`$XDG_CONFIG_HOME/<service>` on Linux and macOS, `%APPDATA%\<service>` on Windows) with the directory at mode `0700` and the file at `0600`; the adapter refuses to read a credentials file that is group- or world-readable.
+- `logout` deletes the entry and, when the authorization server advertises a `revocation_endpoint` in its RFC 8414 metadata, revokes the refresh token so the copy on disk is useless afterwards.
+- Tokens never appear in `argv`. There is no `--token` flag, and the adapter warns on startup when a value that parses as a JWT is found among the arguments, because `argv` is visible to other users via `ps` and to shell history.
+- Tokens are never written to `on('decision')` events, Problem Details, or `--verbose` output; events carry the subject id and the token's `jti` at most. An expired refresh token falls through to the next source, typically `device`, which prompts for a new login.
+
+## Examples
+
+commander:
+
+```ts
+import { Command } from 'commander'
+import { permdock, protect, format, exitCode } from './permdock'
+
+const program = new Command('acme')
+
+program.command('deploy <service>')
+  .option('--env <env>', 'target environment', 'staging')
+  .action(protect(permissions.deploy.run, (service, opts) => loadService(service, opts.env))(
+    async ({ data }, service, opts) => {
+      await deploy(data, opts.env)
+    },
+  ))
+
+program.command('login').action(async () => { await permdock({ refresh: true, source: 'device' }) })
+
+await program.parseAsync()
+```
+
+citty:
+
+```ts
+import { defineCommand, runMain } from 'citty'
+
+const deploy = defineCommand({
+  meta: { name: 'deploy', description: 'Deploy a service' },
+  args: { service: { type: 'positional', required: true }, env: { type: 'string', default: 'staging' } },
+  run: protect(permissions.deploy.run, ({ args }) => loadService(args.service, args.env))(
+    async ({ data }, { args }) => { await deploy(data, args.env) },
+  ),
+})
+
+runMain(defineCommand({ meta: { name: 'acme' }, subCommands: { deploy } }))
+```
+
+Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, print `format(error.decision, output)` to stderr and call `process.exit(exitCode(error.decision))`; a `--json` run prints nothing else on stdout, so `acme deploy api --json || echo $?` yields `77` and a parseable object.
+
+## Example app
+
+`apps/examples/terminal`: a small deploy CLI built with commander and clack with `login` (device flow against a fake authorization server), `logout` (keychain or file removal plus revocation), `status` / `deploy` / `rollback` guarded by `protect`, `--help` built through `filterCommands` in both modes, `--json` output, an approval-gated production deploy, and an agent-run mode that reads `PERMDOCK_ACTOR_TOKEN` and shows the narrowed help and audit events. Tests in `tests/e2e` drive the binary under a pseudo-TTY to cover the confirm prompt, then re-run the same commands with `CI=true` and a pipe to assert exit `75` and the `approval` extension.
+
+## Related
+
+- [Authentication](/docs/concepts/authentication): how tokens become subjects.
+- [JWT adapter](/docs/adapters/jwt): `subjectFromJwt`, issuer and audience checks.
+- [Node http](/docs/adapters/node): the same `protect` shape for a server process.
+- [MCP](/docs/adapters/mcp): `list_tools` filtering that `filterCommands` mirrors.
+- [Approvals](/docs/security/approvals): the replay-safe `token` and resume flow.
+- [Errors](/docs/concepts/errors): error classes and the Problem Details shape.
+- [CLI](/docs/cli): `@permdock/cli`, the developer tool this adapter is not.
+
+## Open questions
+
+- Whether `protect` should pass `{ permdock, data, decision }` as the first action argument or as the last, given that commander appends `options` and `command` while citty passes a single context object.
+- The exact `approval` extension members (`at`, `hint`) and whether they belong in the shared Problem Details vocabulary on [wire formats](/docs/concepts/wire-formats); which keychain peer to recommend.

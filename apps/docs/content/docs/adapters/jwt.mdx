@@ -1,0 +1,189 @@
+---
+title: JWT
+description: "permdock/jwt verifies bearer JWTs against a JWKS or secret with jose as an optional peer and returns a PermDock subject: principal from sub, delegation from scope and authorization_details, actor from act, sender binding from cnf. Verification failure yields the anonymous subject, never an exception."
+---
+
+Status: planned
+Phase: 1
+
+`permdock/jwt` is the one place in the `permdock` package that verifies a token. It exists because core cannot: core has no runtime dependency other than `@standard-schema/spec` ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)), and signature verification needs a crypto library. `permdock/jwt` takes `jose` as an optional peer dependency, applies the RFC 8725 checklist from [Authentication and PermDock](/docs/concepts/authentication), and maps the verified claims to a [subject](/docs/concepts/subject). It is used by HTTP adapters that receive bearer tokens directly and by the MCP adapter when the SDK exposes the raw token.
+
+## Purpose
+
+Most apps already have something that verifies tokens: a framework session, a provider SDK, the MCP SDK's bearer middleware. Those go through the [provider adapters](/docs/adapters/supabase) or the framework adapters. `permdock/jwt` covers the remaining cases: an API that accepts tokens from a generic OAuth 2.0 / OIDC issuer, a service that receives client-credentials or workload tokens, a transaction token inside a trust domain, or an MCP server that wants to read `authorization_details` and `cnf` the SDK does not surface. In each case the output is a `Subject` with `principal`, `actor`, `delegation` and `binding` filled from claims, so the rest of PermDock behaves exactly as with a session.
+
+## API
+
+```ts
+import { subjectFromJwt, createJwtSubjectResolver, verifyDpopProof } from 'permdock/jwt'
+
+const subject = await subjectFromJwt(token, {
+  jwks: new URL('https://login.example.com/.well-known/jwks.json'),   // URL | JSONWebKeySet | { secret: Uint8Array }
+  issuer: 'https://login.example.com',
+  audience: 'https://api.example.com',
+  algorithms: ['ES256', 'PS256', 'EdDSA'],                             // explicit allow-list; 'none' is never accepted
+  clockTolerance: 5,                                                   // seconds
+  claims: {
+    id: 'sub',                                                         // dot paths, own-property lookups only
+    roles: 'app_metadata.roles',
+    tenant: 'app_metadata.tenant',
+    assurance: 'acr',
+  },
+  delegation: {
+    scopes: 'scope',                                                   // space-separated string or array
+    authorizationDetails: 'authorization_details',                     // RFC 9396
+    access: 'access',                                                  // GNAP, RFC 9635 section 8
+  },
+  actor: { from: 'act' },                                              // or (claims) => Actor
+  sender: 'dpop',                                                      // 'none' | 'dpop' | 'mtls'
+  profile: 'fapi2',                                                    // optional; see below
+})
+```
+
+| Export | Role |
+|---|---|
+| `subjectFromJwt(token, options)` | Verifies one token and returns a `Subject`. `token` may be `undefined` or `null` (no header), in which case the result is anonymous without an audit event. Never throws. |
+| `createJwtSubjectResolver(options)` | Returns `(token, request?) => Promise<Subject>` with a cached JWKS. Use one resolver per issuer for the life of the process; pass it as the `subject` option of a server adapter. |
+| `verifyDpopProof(request, claims)` | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: proof signature, `htm` / `htu` match, `iat` window, `ath` hash of the access token. Returns `{ ok: true }` or `{ ok: false, reason }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere. |
+
+Option notes:
+
+- `claims.*` paths are resolved with own-property lookups; `__proto__`, `constructor` and `prototype` segments are rejected at configuration time (threat model invariant 4). A path that resolves to nothing leaves the field absent; a missing `id` path makes the subject anonymous.
+- `claims.kind` may name a claim or be a literal (`'workload'`) so client-credentials tokens produce `principal.kind: 'workload'` ([subject](/docs/concepts/subject), "Workload principals").
+- `actor.from: 'act'` takes the innermost `act.sub` as `actor.id` with `kind: 'oauth-actor'` and stores the full nesting as `delegation.chain`. A function receives the verified claims and returns an `Actor` or `undefined`.
+- `sender: 'dpop'` attaches `binding: { method: 'dpop', thumbprint: cnf.jkt }` and, when a `request` is available, runs `verifyDpopProof`. `sender: 'mtls'` attaches `binding: { method: 'mtls', thumbprint: cnf['x5t#S256'] }` and compares it to the certificate thumbprint the adapter passes in. The binding goes on `actor` when an `act` chain is present, otherwise on `principal`.
+- `expiresAt` on the returned subject is `exp`, or `min(exp, session_expiry)` when the IPSIE / Enterprise Extensions claim is present; `snapshot()` copies it.
+
+### JWKS caching
+
+`createJwtSubjectResolver` fetches the JWKS lazily on first use and caches it:
+
+- The cache honours `Cache-Control: max-age` on the JWKS response, with a configurable floor and ceiling (`jwksCache: { minTtl, maxTtl }`).
+- An unknown `kid` triggers a refetch at most once per `jwksCache.cooldown` seconds (default 60), so a flood of tokens with bogus `kid` values cannot turn the resolver into a JWKS-fetch amplifier.
+- A fetch error keeps the previous key set until it expires, then fails closed: tokens are rejected with reason `jwks-unavailable`. Nothing is ever verified against an empty or partially fetched set.
+- Key rotation with a standby key (Supabase's standby / current / previously used / revoked model, or any issuer that publishes the next key ahead of time) needs no configuration: the new `kid` is found on the next refetch.
+
+## Behaviour on invalid tokens
+
+Every failure produces the same outcome: the anonymous subject (`principal: null`, no actor, no delegation) and one `on('auth')` audit event with a `reason` code. `can` on the resulting `PermDock` returns `false`; `decide` returns `denied` with reason `anonymous`. Nothing throws.
+
+| Input | Result | `reason` |
+|---|---|---|
+| Signature does not verify | anonymous | `invalid-signature` |
+| `exp` in the past beyond `clockTolerance` | anonymous | `expired` |
+| `nbf` or `iat` in the future beyond `clockTolerance` | anonymous | `not-yet-valid` |
+| `aud` does not contain the configured audience | anonymous | `wrong-audience` |
+| `iss` differs from the configured issuer | anonymous | `wrong-issuer` |
+| `alg` not in `algorithms` | anonymous | `alg-not-allowed` |
+| `alg: none` (with or without a signature) | anonymous | `alg-none` |
+| `kid` absent from the JWKS after one refetch | anonymous | `unknown-kid` |
+| Token carries `jku`, `x5u` or `jwk` headers | ignored; verification proceeds against the configured keys only | none (logged at debug) |
+| Token is not a JWS (malformed, JWE without a configured key) | anonymous | `malformed` |
+| `sender: 'dpop'` and the `DPoP` proof is missing or invalid | anonymous | `dpop-proof-invalid` |
+| `sender: 'mtls'` and the certificate thumbprint differs from `cnf.x5t#S256` | anonymous | `mtls-binding-mismatch` |
+| `profile: 'fapi2'` and no `cnf` claim | anonymous | `sender-constraint-required` |
+| `profile: 'fapi2'` and the token arrived in a query parameter | anonymous | `token-in-query` |
+| JWKS could not be fetched and no cached set remains | anonymous | `jwks-unavailable` |
+
+The audit event carries the reason, the `kid` and `alg` seen, the issuer claimed and the request id when the adapter has one. It never carries the token.
+
+## What `profile: 'fapi2'` enforces
+
+Setting `profile: 'fapi2'` applies the resource-server and cryptography requirements of the [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-security-profile-2_0-final.html) as configuration defaults that cannot be loosened:
+
+- **Token location** (5.3.4): the access token is accepted only from the `Authorization` header (RFC 6750 section 2.1) or the `DPoP` header scheme (RFC 9449 section 7.1). A token in a query parameter (RFC 6750 section 2.3) is rejected with `token-in-query`, even if it would otherwise verify.
+- **Validity, integrity, expiration** (5.3.4): the full checklist above; `clockTolerance` is capped at a few seconds.
+- **Sender constraint** (5.3.4): the token must be sender-constrained via mTLS (RFC 8705) or DPoP (RFC 9449); `sender: 'none'` is not accepted under this profile, and a token without `cnf` is rejected with `sender-constraint-required`.
+- **Cryptography** (5.4.1): `algorithms` is restricted to `PS256`, `ES256` and `EdDSA`; RSA keys under 2048 bits and EC keys under 224 bits in the JWKS are skipped; `none` remains impossible.
+- **Sufficient authorization** (5.3.4): the profile asks the resource server to verify that the token's authorization covers the requested access. That is PermDock's decision itself: the token's `scope` and `authorization_details` become `delegation`, and the permission is `denied` with reason `not-delegated` when they do not cover it. The FAPI 2.0 note recommending RFC 9396 when `scope` is not expressive enough is why `delegation.authorizationDetails` is a first-class field ([FAPI 2.0](/docs/standards/fapi-2)).
+
+## Usage
+
+### Inside a Hono route
+
+```ts
+import { Hono } from 'hono'
+import { createPermDock } from 'permdock/hono'
+import { createJwtSubjectResolver } from 'permdock/jwt'
+import { policy } from './policy'
+import { permissions } from './permissions'
+
+const resolve = createJwtSubjectResolver({
+  jwks: new URL('https://login.example.com/.well-known/jwks.json'),
+  issuer: 'https://login.example.com',
+  audience: 'https://api.example.com',
+  algorithms: ['ES256'],
+  claims: { id: 'sub', roles: 'app_metadata.roles' },
+  delegation: { scopes: 'scope' },
+  sender: 'dpop',
+})
+
+export const { permdock, protect } = createPermDock(policy, {
+  subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw),   // request enables the DPoP proof check
+})
+
+const app = new Hono()
+app.use(permdock())
+app.patch('/posts/:id', protect(permissions.post.update, (c) => loadPost(c.req.param('id'))), handler)
+```
+
+`bearerFrom` reads the `Authorization` header only; the resolver itself never looks at the URL. A request with no header resolves to anonymous, and `protect` answers `401` with `WWW-Authenticate` for permissions any role could grant, `403` otherwise ([server kernel](/docs/adapters/server-kernel)).
+
+### Inside the MCP adapter
+
+The MCP SDK verifies the bearer token and attaches `authInfo` with `scopes`, `clientId` and `expiresAt`. When the SDK also exposes `authInfo.token`, `permdock/jwt` can re-read the claims the SDK does not surface, such as `authorization_details`, `act` and `cnf`:
+
+```ts
+import { createPermDock } from 'permdock/mcp'
+import { createJwtSubjectResolver } from 'permdock/jwt'
+
+const resolve = createJwtSubjectResolver({ /* same options as above */ })
+
+const { protectServer } = createPermDock(policy, {
+  subject: async (authInfo) => {
+    const subject = await resolve(authInfo.token)
+    return subject.principal                       // the adapter still fills actor = clientId, delegation = scopes
+  },
+  delegation: async (authInfo) => (await resolve(authInfo.token)).delegation,   // adds authorization_details, access
+})
+```
+
+The SDK's verification and the resolver's verification must agree on issuer and audience; the resolver's result is the one PermDock trusts for claims the SDK did not check. Resolver calls are memoised per token within one request, so the two lines above verify once.
+
+## What it validates
+
+- Signature, `alg`, `kid`, `iss`, `aud`, `exp`, `nbf`, `iat` as listed in the behaviour table.
+- DPoP proof (`sender: 'dpop'`) and mTLS thumbprint (`sender: 'mtls'`) when the adapter supplies the request or certificate.
+- Claim path safety at configuration time.
+- Role names against the policy: unknown names are dropped with a development warning.
+- Nothing about the user beyond the token: no introspection, no userinfo call, no revocation list. Revocation before `exp` is the job of the [SSF receiver](/docs/adapters/ssf) or of an introspection step you add to your resolver.
+
+## Not an authentication library
+
+`permdock/jwt` does not log users in, redirect to an authorization server, issue, refresh or revoke tokens, manage sessions or cookies, or implement any OAuth grant. It consumes a token that a client obtained elsewhere and verifies it. If you need the client side of OAuth, use your provider's SDK or an OAuth client library and hand the resulting token to `subjectFromJwt` ([Authentication and PermDock](/docs/concepts/authentication)).
+
+## How denials surface
+
+The resolver produces subjects, not denials. A verification failure becomes an anonymous subject, and the adapter in use turns the subsequent decision into its normal denial: RFC 9457 `401` / `403` from HTTP adapters ([Problem Details](/docs/standards/problem-details)), an `isError` result from MCP. The `reason` code is on the `on('auth')` audit event and in the `permdock/otel` span, never in the response body, so a caller cannot probe the verifier with crafted tokens.
+
+## Example app
+
+No example of its own. `permdock/jwt` is exercised inside `apps/examples/hono` (bearer tokens from a local issuer, DPoP on one route) and `apps/examples/mcp-server` (the fake authorization server issues tokens with `authorization_details`, which the resolver reads next to the SDK's `authInfo`).
+
+## Bundle budget
+
+`permdock/jwt` is server-only. `jose` is an optional peer dependency and is never bundled into the entry; client entries (`permdock/react`, `permdock/react-native`, `permdock/webmcp`, the client half of framework adapters) do not import `permdock/jwt`, and `tests/bundle` asserts it. The entry's own budget covers claim mapping and the JWKS cache logic only.
+
+## Related standards
+
+- [FAPI 2.0 Security Profile](/docs/standards/fapi-2): sections 5.3.4 and 5.4.1, enforced by `profile: 'fapi2'`.
+- [GNAP](/docs/standards/gnap): the `access` array mapped to `delegation.access`.
+- [OAuth agent delegation](/docs/standards/oauth-agent-delegation): RFC 9396 `authorization_details`, RFC 8693 `act` chains.
+- [Shared Signals (SSF / CAEP)](/docs/standards/shared-signals-caep): revocation before `exp`.
+
+## Open questions
+
+- Whether `createJwtSubjectResolver` should accept several issuers (a map from `iss` to options) or whether multi-issuer setups compose resolvers themselves.
+- Whether the `on('auth')` event should be a separate event name or a `decision` event with `outcome: 'denied'` and `reason: 'anonymous'` plus the verification reason.
+- Whether `verifyDpopProof` needs a replay cache for `jti` or whether the `iat` window is enough for PermDock's purposes.
+- The exact `actor.kind` for `act`-derived actors (`'oauth-actor'` is a placeholder) and how it lines up with the MCP adapter's `'mcp-client'`.

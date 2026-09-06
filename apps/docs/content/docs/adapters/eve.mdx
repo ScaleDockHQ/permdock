@@ -1,0 +1,110 @@
+---
+title: Eve
+description: permdock/eve turns PermDock decisions into Eve tool approval policies and approval response policies, takes principal and actor from the durable session's auth, and stores pending approvals in a pluggable ApprovalStore.
+---
+
+Status: planned
+Phase: 1
+
+`permdock/eve` connects the [Decision](/docs/concepts/decisions) model to Eve's `approval` hook on `defineTool`. Eve already pauses a session durably and renders the approval on every channel; what it asks the application for is the policy that decides whether a call may run, must wait for a person, or is refused, and a second policy that decides who may press Approve. Both come out of one `createPermDock` call, typed against your permissions, fail-closed.
+
+## Purpose
+
+Eve's [human-in-the-loop](https://eve.dev/docs/human-in-the-loop) hook receives the session context plus `{ toolName, toolInput, approvedTools, callId }` and returns an AI SDK 7 approval status: `"not-applicable"` to continue, `"user-approval"` to pause, `"approved"` or `"denied"` (optionally `{ type, reason }`) to decide in code. It offers `never()`, `once()` and `always()` helpers and leaves anything input- or caller-dependent to a custom function. Its `response` policy receives the authenticated `responder` and decides whether that person may approve *this* call, and the docs note that a shared request stays pending when a responder is rejected so another eligible approver can act. That is a policy decision point with an approval store missing in the middle; `permdock/eve` supplies both from the application's PermDock policy and an [ApprovalStore](/docs/adapters/approvals).
+
+## API
+
+```ts
+import { defineTool } from 'eve/tools'
+import { createPermDock } from 'permdock/eve'
+
+const { approval, approvalFor, permdock } = createPermDock(policy, {
+  tools: {
+    delete_post: { permission: permissions.post.delete, data: (input) => loadPost(input.id) },
+    refund:      { permission: permissions.charge.refund, data: (input) => loadCharge(input.chargeId) },
+  },
+  store,                                   // ApprovalStore; memoryApprovalStore() when omitted
+  approvers: { roles: ['finance-admin'] }, // who may resolve; see below
+})
+
+export default defineTool({
+  description: 'Refund a charge.',
+  inputSchema: z.object({ chargeId: z.string(), amount: z.number() }),
+  approval,                                // { request, response } built from the tools map
+  async execute(input, ctx) {
+    const pd = await permdock(ctx)         // request-scoped PermDock for checks inside the tool
+    pd.assert(permissions.charge.refund, await loadCharge(input.chargeId))
+    return refund(input)
+  },
+})
+
+// Or gate a single tool without the map:
+approval: approvalFor(permissions.charge.refund, (input) => loadCharge(input.chargeId))
+```
+
+- `approval` is an Eve `{ request, response }` pair. `request` looks the tool name up in `tools`, resolves the resource, calls `decide` and maps the outcome. `response` checks the responder against the approval record and the `approvers` rule.
+- `approvalFor(permission, data?)` builds the same pair for one tool inline.
+- `permdock(ctx)` returns a request-scoped `PermDock` from `ctx.session` for checks inside `execute` or in other Eve code.
+- `store` is the [ApprovalStore](/docs/adapters/approvals). `approvers` is either `{ roles }` (approver must hold one of these roles in the PermDock policy) or a function `(responder, request) => boolean`; the actor rule (an agent never approves its own call) is enforced regardless.
+
+### Subject from the session
+
+Eve exposes two authenticated principals on `ctx.session.auth`: `initiator`, who created the session, and `current`, who sent this turn. Each has `principalId`, `principalType`, `authenticator` and `attributes`. `permdock/eve` maps them:
+
+| PermDock subject part | Eve source | Notes |
+| --- | --- | --- |
+| `principal` | `session.auth.initiator` | The human the session acts for; roles come from `policy.subject` or `attributes` you declare as server-set |
+| `actor` | `session.auth.current` when it is not the initiator, else the Eve app principal | `kind: 'eve'`; a schedule-dispatched turn (`authenticator: 'app'`, `principalId: 'eve:app'`) is an actor with no human `current` |
+| `delegation` | `attributes.scopes` or `attributes.authorization_details` when the connection's token carries them | Absent means "whatever the principal may do" ([delegation](/docs/security/delegation)) |
+
+The `subject` and `actor` options override these defaults when an application encodes identity differently. Model output, `toolInput` and `attributes` that Eve marks as user-supplied never build a subject ([authentication](/docs/concepts/authentication)).
+
+## Request lifecycle
+
+1. Eve is about to execute a tool and calls `approval.request` with the session and `toolInput`.
+2. The adapter validates `toolInput` against the resource schema when a `data` resolver exists, loads the resource and calls `decide`.
+3. The outcome maps to Eve's vocabulary:
+
+| Decision outcome | `approval.request` returns | Eve behaviour |
+| --- | --- | --- |
+| `granted` | `"not-applicable"` | Tool runs without a prompt |
+| `approval-required` | `"user-approval"` | Session parks at `session.waiting`; `input.requested` emitted; an `ApprovalRequest` with `token` is written to the store |
+| `denied` | `{ type: "denied", reason }` | Tool does not run; the model receives `reason` built from denials and alternatives |
+| unmapped tool, invalid input, thrown resolver | `{ type: "denied", reason }` | Fail closed |
+
+4. A person presses Approve on a channel. Eve calls `approval.response` with the authenticated `responder`. The adapter loads the record by `callId`, refuses a responder whose `principalId` is the request's actor, applies `approvers`, and on success calls `store.resolve` with the responder as approver, returning `{ status: "allowed" }`. Otherwise it returns `{ status: "rejected", reason }` and Eve keeps the request pending for another responder.
+5. Eve settles the original call once and resumes the turn. Before `execute`, the adapter re-runs `decide`, recomputes `token` and compares it with the stored one; a mismatch or an expired record turns the resumed call into a denial.
+6. Every step emits `on('decision')`; the ask, the answer and the resumed decision share `token`.
+
+`"not-applicable"` is used only for `granted`. It is Eve's word for "continue", and the adapter never reaches it without a positive decision, so the fail-open path `@ai-sdk/policy-opa` has does not exist here.
+
+## What it validates
+
+- `toolInput` against the resource's Standard Schema when `data` is declared; Eve's `toolInput` may be `undefined`, which is a validation failure and therefore a denial.
+- The subject comes from `session.auth`, never from `toolInput` or the model.
+- The responder in `approval.response` is Eve's authenticated principal; it must not be the actor, must satisfy `approvers`, and its verdict is recorded in the store.
+- Replays: the token is recomputed on resume. `once()`-style reuse is not offered; each call has its own request, which is also what Eve's docs recommend for non-idempotent side effects across replays.
+
+## How denials surface
+
+- `{ type: "denied", reason }` with `reason` built from the Decision: the failing roles, the reason kind and the `alternatives` list, phrased for the model ("charge.refund denied: member (condition). Alternatives: charge.read.").
+- A rejected responder gets `{ status: "rejected", reason: "approver is the actor of this request" }` (or the `approvers` reason); the request stays pending, matching Eve's semantics.
+- Expired or mismatched approvals on resume are denials with `detail` `approval-expired` or `approval-mismatch`.
+
+## Example app
+
+`apps/examples/eve-agent`: an Eve app with `post` and `charge` tools, a member and an admin, Slack and web channels, `approvalsHandler` mounted for an inbox page, and tests asserting that a cross-tenant refund is denied with a reason, a large refund parks the session and resumes only after an approver who is not the actor approves, and a tampered resume is refused. This example is also the deploy template for the PermDock Cloud listing on the Vercel Marketplace: swapping `memoryApprovalStore()` for `cloud().approvals` is the only change ([Cloud adapter](/docs/adapters/cloud)).
+
+## Related standards
+
+- [Approvals](/docs/security/approvals) and [ADR 0022](/docs/decisions/0022-approvals-are-pluggable): the token, the store, the approver rules.
+- [Delegation](/docs/security/delegation): the actor half of the subject for agent turns.
+- [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 tool misuse via per-tool permissions and input validation.
+- [AI SDK adapter](/docs/adapters/ai-sdk): Eve's approval status vocabulary is the AI SDK 7 one.
+
+## Open questions
+
+- Whether `permdock(ctx)` should be memoised per turn or per session; Eve turns may replay steps, and a frozen per-turn instance is the safer default.
+- How `approvers: { roles }` should be evaluated when the approver's roles come from a different identity source (Slack workspace membership) than the policy's `subject` mapper.
+- Whether Eve's `approvedTools` (session-scoped sticky approvals) should ever be consulted, or whether PermDock's per-call rule should always win. Current answer: per-call always wins.
+- Multi-tenant approval resolution (Eve's per-tenant approval policy for connection tools) and whether the `tools` map needs a tenant dimension.

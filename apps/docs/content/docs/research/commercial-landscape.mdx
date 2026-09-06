@@ -1,0 +1,114 @@
+---
+title: Commercial landscape, September 2026
+description: How open-core authorization vendors, auth providers and agent tool-auth startups price and position in September 2026, what the agent runtimes leave to the application, what the Vercel Marketplace requires, and what all of that changed in the PermDock plan.
+---
+
+Source: a survey run in September 2026 asking whether PermDock should have a commercial layer, what shape it should take, and how it should relate to the authentication providers it consumes tokens from. Sources were vendor pricing pages, launch posts, SDK documentation and the Vercel Marketplace approval checklist, linked inline. Prices are as published on the day and will drift; the structure of each model is the finding, not the number. The survey produced [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads) and [ADR 0022](/docs/decisions/0022-approvals-are-pluggable), the `permdock/approvals`, `permdock/cloud`, `permdock/eve` and `permdock/openai` entries, and the reworded roadmap non-goal.
+
+## 1. Open-core authorization: free engine, paid operational layer
+
+Every surviving open-core authorization vendor gives the decision engine away and charges for what surrounds it.
+
+- **Cerbos.** The PDP is Apache-2.0 with no caps. [Cerbos Hub](https://www.cerbos.dev/pricing) is priced on monthly active principals: free, then about 25 USD per month, then about 933 USD per month, then enterprise. Their own explanation of the split: ["you pay for the operational layer, not for the ability to make decisions"](https://www.cerbos.dev/blog/open-source-vs-paid-cerbos), which is policy distribution, an audit store and data enrichment. Cerbos also ships AuthZEN support and an embedded WASM PDP, so it is the closest structural analogue to what PermDock is choosing.
+- **Permit.io.** Free to 1,000 monthly active users and 20 tenants, then roughly 5 to 25 USD per month per step, then enterprise ([quota summary](https://pocketlantern.dev/briefs/permit-community-quota-limits-2026)). The PDP is OPA / OPAL underneath; the paid product is the UI, the sync and, for agents, an MCP Gateway that proxies tool traffic.
+- **AuthZed.** SpiceDB is free; [AuthZed Cloud](https://authzed.com/pricing) is metered at about 2 USD per hour of running cluster, Dedicated by consultation. The product is hosting a stateful graph, which is a different cost structure from a stateless decision service.
+- **Oso.** A cautionary case: Oso deprecated its embeddable open-source library in favour of Oso Cloud and has since repositioned as ["Oso for Agents"](https://www.osohq.com/pricing) at about 15 USD per user per month with agent session monitoring. The community reaction to the library deprecation is why PermDock's MIT core is declared untouchable in ADR 0021.
+- **Warrant / WorkOS FGA.** Warrant was acquired by WorkOS and the [standalone FGA product was deprecated](https://monetizationworks.com/products/warrant); FGA is now sold only inside the WorkOS bundle at about 150 USD per month. Authorization as a line item inside an identity bundle is the second pattern to watch.
+
+What none of them sell: typed permission references, conditions that compile to UI, SQL and RLS from one definition, `approval-required` as a first-class outcome, or a decision record that names principal, actor and delegation. That gap is the one the [landscape](/docs/research/landscape) page identified and it is intact.
+
+## 2. Auth providers are moving into agent identity, not application permissions
+
+- **Vercel and Better Auth.** Vercel [acquired Better Auth on 7 July 2026](https://vercel.com/blog/vercel-acquires-better-auth) to bring the Agent Auth protocol (scoped, revocable, delegated agent identities via RFC 8693 token exchange) into Vercel Connect and the Eve agent framework. Better Auth's own hosted attempt, "Better Auth Infrastructure" (dashboard and audit logs, launched 1 January 2026), was wound down within six months because [a four-person team could not run a library and a platform at once](https://better-auth.com/blog/better-auth-joins-vercel). Two lessons: the actor and delegation halves of the two-principal subject will increasingly arrive as standard tokens, and sequencing a library before a platform is not optional for a small team.
+- **Auth0 for AI Agents.** Token Vault plus CIBA asynchronous authorization, sold as a [50 percent add-on on the base plan](https://auth0.com/pricing.md). It is identity-level and per monthly active user; it answers "may this agent obtain a token for this API", not "may it delete this row".
+- **Clerk.** M2M tokens, API keys, `@clerk/agent-toolkit`, and an Eve integration whose documentation explicitly hands off ["authorize tool calls against permissions on the principal"](https://clerk.com/docs/guides/ai/eve/custom-channel-auth.md) to the application. Custom roles sit behind a B2B add-on at about 100 USD per month, and `has()` remains boolean and string-keyed.
+- **Supabase.** RLS plus an [OAuth 2.1 server](https://supabase.com/blog/oauth2-provider) with MCP authorization arriving and granular scopes announced as coming. Enforcement stays in Postgres; nothing typed sits above it.
+- **Convex.** A components directory with three community authorization components (`convex-authz`, `convex-permissions`, `convex-roles`), none typed against a schema or condition-aware. A `permdock/convex` component is distribution rather than revenue.
+
+Conclusion: position PermDock as complementary and say so in one sentence everywhere: authentication says who; PermDock says what they may do, for which row, and whether a human must confirm. The provider adapters (`subjectFromClerk`, `subjectFromSupabase`, `subjectFromBetterAuth`, and an Agent Auth mapper when the protocol is published) consume their tokens and never issue them ([authentication](/docs/concepts/authentication)).
+
+## 3. Agent tool authorization is funded, and it is proxies and runtimes
+
+- **Arcade**: about 25 USD per month plus 0.10 USD per authorization event and 0.01 USD per tool call. **Composio**: about 29 USD per month, metered per tool call. Both sit between the agent and the tool as a hosted proxy.
+- Permit's MCP Gateway and Oso for Agents occupy the same position. A wave of enterprise "agent identity" rounds ([NewCore, 66M USD](https://techcrunch.com/2026/06/15/ai-agents-are-becoming-employees-newcore-emerges-with-66m-to-give-them-identities/), Hush, Willow, JetStream Clearance) targets the same layer from the identity side.
+- Nobody sells a developer-first, embedded, typed decision that also drives the human approval. The proxies see tool names and arguments as strings and cannot know that `delete_post` on `p_42` is the author's own post.
+
+The tension this creates is the one ADR 0021 resolves: a "permissions gateway" in the decision hot path would be exactly the strings-in, boolean-out product PermDock is positioned against, and would compete on the crowded side. The hosted service therefore hosts the operational layer and an AuthZEN endpoint, and never becomes a required hop for `decide`.
+
+## 4. Agent runtimes pause; the application must store, notify and resume
+
+Every runtime now has a policy hook and a pause, and every one leaves the approval record to the application ([agent standards survey](/docs/research/agent-standards-2026) covers the hooks themselves).
+
+- **Eve** ([human-in-the-loop](https://eve.dev/docs/human-in-the-loop)): `approval` on `defineTool` receives the session and `toolInput` and returns an AI SDK 7 status; `approval.response` receives the authenticated `responder` and decides whether that person may approve this call; a rejected responder leaves the request pending for another. The docs note that a four-eyes flow needs an application-owned approval request. `session.auth.initiator` and `session.auth.current` give the principal and the actor for free.
+- **OpenAI Agents SDK** ([human-in-the-loop](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/)): `needsApproval` as a boolean predicate evaluated after argument parsing, with malformed arguments failing closed; `interruptions` on the result; `RunState` serialisable with `toString()` and `fromString()` so approvals can wait for days; `state.approve()` / `state.reject({ message })`; hosted MCP tools via `requireApproval` and `onApproval`. The SDK warns that `runContext.context` is persisted data and should not carry secrets.
+- **AI SDK 7** `toolApproval`, **Claude Agent SDK** `canUseTool`, **MCP** elicitation: as recorded on [approvals](/docs/security/approvals).
+
+The store, the approver identity, the expiry and the resume proof are the same problem five times. That is the case for `ApprovalStore` as an interface in the open-source package ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)) and for the hosted inbox as the first Cloud feature.
+
+## 5. AuthZEN is final and the gateways speak it
+
+The [AuthZEN 1.0](https://openid.net/specs/authorization-api-1_0.html) specification is final and [certification is rolling out](https://github.com/openid/authzen/issues/433). An [implementation survey](https://andrewdoering.org/blog/2026/authzen-shared-signals-framework-part-4-implementation/) lists Kong, Envoy `ext_authz`, Tyk, Zuplo and WSO2 shipping as AuthZEN policy enforcement points. The terminology distinction is settled too: a PDP is embedded, an Authorization Decision Service is a hosted API-first service ([Schwartz](https://gluufederation.medium.com/authorization-decision-service-vs-policy-decision-point-whats-in-a-name-1f8a51e72bcd)). A hosted PermDock endpoint therefore has an audience with no SDK at all: author policy in TypeScript, review it in a PR, enforce it from a Go service or a gateway. AuthZEN is the interoperability credential, not the product.
+
+## 6. Vercel Marketplace: what a native listing takes
+
+From the [approval checklist](https://vercel.com/docs/integrations/create-integration/approval-checklist) and the [billing guide](https://vercel.com/docs/integrations/create-integration/billing):
+
+- An integration server implementing the Partner API: installation upsert and delete (account sync via Vercel SSO), a products and plans endpoint, resource provisioning, billing data pushed at least daily, invoice submission, and handling of `invoice.notpaid` and overdue webhooks with a 15-day grace period. Vercel publishes a [sample integration server](https://github.com/vercel/example-marketplace-integration).
+- A provisionable resource. For PermDock Cloud the unit is an environment per Vercel project and environment, which is also how Cerbos Hub and Permit model tenancy. Provisioning writes `PERMDOCK_CLOUD_URL` and a server-only `PERMDOCK_CLOUD_KEY`.
+- Vercel SSO into the vendor dashboard, support links via SSO, usage charts in the Vercel sidebar, a Getting Started guide, and a required deploy template. Listing is free; native integrations bill through Vercel; Supabase and Convex are already listed.
+- Supabase is building a [partner marketplace with OAuth-app installs](https://github.com/supabase/supabase/pull/44574), a second channel for later.
+
+A hosted product must exist to be listable, which orders the roadmap: approvals and the decision log first, then the listing, with `apps/examples/eve-agent` as the template because Eve is Vercel's own agent runtime and its docs point at exactly the gap the inbox fills.
+
+## 7. Pricing anchors
+
+Not decisions, but the ranges the survey found so the Cloud repository starts from evidence:
+
+| Meter | Range observed | Used by |
+| --- | --- | --- |
+| Monthly active principals (agents counted as actors) | free to about 1,000; 25 to 150 USD per month growth; enterprise custom | Cerbos Hub, Permit |
+| Stored or resolved approvals, approver seats | no direct precedent at the application-permission layer; Auth0 CIBA is per MAU, Arcade per authorization event | Auth0, Arcade |
+| Retained decisions | bundled into the principal tier by Cerbos; Oso prices agent monitoring per user | Cerbos, Oso |
+| ADS evaluations | per call at the gateway layer | Arcade, Composio |
+
+## Considered and set aside
+
+- **An MCP proxy or permissions gateway.** Rejected; see section 3 and the [landscape](/docs/research/landscape) "Adapt" section on per-tool bindings.
+- **Paid adapters or a source-available core.** Rejected: adapter breadth is the adoption funnel and Oso's deprecation shows the trust cost.
+- **Agent-facing paid tooling alone** (hosted `permdock doctor`, `audit-permissions` as a PR bot). Cheap on top of the CLI but low willingness to pay on its own; bundled into the Cloud dashboards.
+- **Renaming to a broader brand.** Deferred; the naming convention is public API ([ADR 0005](/docs/decisions/0005-naming-convention)) and "PermDock Cloud" is sufficient for the service. Trademark checks on any alternative were not performed.
+- **Consulting or support contracts.** Available at any time, not a product decision.
+
+## Adopt / adapt / avoid
+
+Adopt:
+
+- Cerbos's split: free complete engine, paid operational layer, priced on monthly active principals with agents counted as actors.
+- The PDP / ADS vocabulary: PermDock is embedded, PermDock Cloud is a hosted Authorization Decision Service and control plane.
+- AuthZEN as the hosted endpoint's wire format so gateways and non-TypeScript services enforce TypeScript-authored policy with no SDK.
+- Eve's `approval.request` / `approval.response` split and the OpenAI SDK's serialisable `RunState` as the two runtime shapes the approvals design must fit.
+- Vercel Marketplace's environment-per-project resource model and its env-var provisioning as the install path, with `permdock doctor` as the verification.
+- The Supabase self-hosting posture: every hosted capability is an interface with an in-process default in the open-source package.
+
+Adapt:
+
+- Cerbos Hub's audit store becomes a `DecisionSink` interface fed by the existing `DecisionEvent`, so self-hosters get the same records.
+- The proxies' human-approval feature becomes a per-tool binding inside the server plus an `ApprovalStore`, rather than a network hop.
+- Auth0's and Clerk's agent identity work is consumed as `actor` and `delegation` through `subjectFrom*` mappers, not competed with.
+- Better Auth's sequencing lesson: library first (Phase 1 and 2), Cloud alpha only when `ai-sdk`, `eve`, `openai` and `mcp` exist to feed it.
+
+Avoid:
+
+- Any design where `decide` needs the Cloud; the roadmap non-goal is now "requiring a network call to decide".
+- Deprecating or relicensing the open-source core; the MIT engine is the product's trust anchor.
+- A gateway in the tool-call hot path.
+- Pricing the Cloud on decisions made by the embedded engine, which would penalise the library's own success; meters are principals, approvals, retained decisions and hosted ADS evaluations.
+- A second package for the client; one install path, one version line.
+
+## Decisions informed
+
+- [ADR 0021: Embedded PDP, hosted ADS and control plane](/docs/decisions/0021-embedded-pdp-hosted-ads)
+- [ADR 0022: Approvals are pluggable](/docs/decisions/0022-approvals-are-pluggable)
+- [ADR 0018: Authentication is upstream](/docs/decisions/0018-authentication-is-upstream) (providers consumed, never competed with)
+- [ADR 0011: AuthZEN wire format](/docs/decisions/0011-authzen-wire-format) (the hosted ADS speaks it)
+- Pages shaped: adapters [approvals](/docs/adapters/approvals), [cloud](/docs/adapters/cloud), [eve](/docs/adapters/eve), [openai](/docs/adapters/openai), [authzen](/docs/adapters/authzen); concepts [audit and observability](/docs/concepts/audit-and-observability), [wire formats](/docs/concepts/wire-formats); security [approvals](/docs/security/approvals), [threat model](/docs/security/threat-model); [roadmap](/docs/roadmap), [comparison](/docs/comparison).

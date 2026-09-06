@@ -25,6 +25,7 @@ flowchart LR
   Server["Server code (trusted)"] --> Core
   Core -->|snapshot| Client
   Core -->|where / RLS| DB["Database"]
+  Core -.->|decision events, approval records| Store["ApprovalStore / DecisionSink (in-memory, your DB, or PermDock Cloud)"]
   IdP["Identity provider"] -->|token, CAEP events| Adapter
 ```
 
@@ -33,6 +34,7 @@ flowchart LR
 - **Server to core.** Trusted rows from the application's own database are not re-validated (`validate: 'boundary'`).
 - **Core to database.** Generated `where` clauses and RLS are trusted by the database; they must be correct and never widen access.
 - **IdP to adapter.** Tokens and CAEP events are trusted only after signature and issuer verification.
+- **Core to store and sink.** The approval store and decision sink are trusted server components (the same standing as the database). They never influence a decision; a resume re-runs `decide` and recomputes the token before trusting a stored `approved`.
 
 ## Invariants
 
@@ -50,6 +52,7 @@ flowchart LR
 12. **Approval tokens are replay-safe.** `Decision.token` is a hash of permission key, resource id, subject and actor. An approval for one call cannot be replayed on another. See [approvals](/docs/security/approvals).
 13. **Quotas are server-side.** `limit` grants (Phase 4) are enforced by a `LimitStore` the server owns, never by the client snapshot.
 14. **Immutable, request-scoped instances.** `createPermDock` returns a frozen object per request; nothing mutates shared state between requests.
+15. **No network call to decide.** `can`, `decide`, `assert`, `filter`, `where`, `simulate` and `snapshot` run in-process; the `pdp` provider is the only opt-in exception. Approval stores, decision sinks and snapshot sources are interfaces with in-process defaults; PermDock Cloud is one implementation and is never required ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)).
 
 ## Threat table
 
@@ -76,10 +79,25 @@ flowchart LR
 | Agent floods a paid action | `limit` grants with server-side `LimitStore` (Phase 4) | [Policies](/docs/concepts/policies) |
 | Unsigned bot impersonates an agent | Web Bot Auth verification fails closed; unsigned requests have no `actor` | [Web Bot Auth](/docs/standards/web-bot-auth) |
 | Decisions not auditable | `on('decision')` carries outcome, reasons, actor, delegation; `permdock/otel` | [Audit and observability](/docs/concepts/audit-and-observability) |
+| Token with `alg: none`, or an RSA public key replayed as an HMAC secret (key confusion) | Explicit `algorithms` allow-list, `none` never accepted, keys only from the configured JWKS, `jku` / `x5u` / `jwk` headers ignored | [JWT adapter](/docs/adapters/jwt), [Authentication](/docs/concepts/authentication) |
+| Unverified claims used for grants (decoded JWT, `X-User-Id` header, client-supplied `userId`) | Only `subjectFrom*` outputs and framework session APIs feed the subject; verification failure yields anonymous, never a partial principal | [Authentication](/docs/concepts/authentication), [Server kernel](/docs/adapters/server-kernel) |
+| Access token in a query string (logged by proxies, leaked via `Referer`) | Tokens read from `Authorization` / `DPoP` headers only; rejected outright under `profile: 'fapi2'` | [JWT adapter](/docs/adapters/jwt), [FAPI 2.0](/docs/standards/fapi-2) |
+| Stale token honoured after revocation or role change | `exp` and `session_expiry` bound `expiresAt`; CAEP `session-revoked` / `credential-change` invalidate by subject; role-from-`context` when freshness matters | [Authentication](/docs/concepts/authentication), [Shared Signals](/docs/standards/shared-signals-caep) |
+| Privilege escalation through user-editable claims (`user_metadata.role = 'admin'`, Clerk unsafe metadata) | Providers read only server-set claims (`app_metadata`, hook-injected claims, backend-set metadata); user-editable metadata is never a grant source | [Supabase provider](/docs/adapters/supabase), [Clerk provider](/docs/adapters/clerk) |
+| Terminal token stored on disk read by another process or user | Short-lived, scoped tokens in the OS credential store where available, file mode `0600` otherwise; refresh tokens never written in plain text; CAEP revocation where the issuer supports it | [Terminal adapter](/docs/adapters/terminal) |
+| Agent-run CLI claims an actor or principal via `--actor` or a bare `PERMDOCK_ACTOR` name (as opposed to a verified `PERMDOCK_ACTOR_TOKEN` JWT) | Flags and environment variables never build a subject; actor and principal come from a verified token (device grant, client credentials, workload identity) or the process is anonymous | [Terminal adapter](/docs/adapters/terminal), [Authentication](/docs/concepts/authentication) |
+| Non-interactive approval bypass (`--yes`, piped stdin, agent answering its own prompt) | `approval-required` in a non-TTY resolves to `denied`; approval `token` is bound to permission, resource id, subject and actor, so a scripted answer cannot approve a different call | [Terminal adapter](/docs/adapters/terminal), [Approvals](/docs/security/approvals) |
+| OpenAPI Overlay strips `security` before the document is published | `permdock openapi --check` applies the Overlay in CI and diffs the result against the generated `security` requirements; a removed or weakened requirement fails the build | [OpenAPI adapter](/docs/adapters/openapi), [OpenAPI Overlay](/docs/standards/openapi-overlay) |
+| Approval store tampered with (a record flipped from `pending` to `approved`, or a forged record inserted) | The store is a trusted server component like the database; resume still re-runs `decide` and recomputes `token`, so a forged record for a different call fails the comparison; `approval` events give an audit trail of every transition | [Approvals adapter](/docs/adapters/approvals), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable) |
+| Approver identity spoofed (agent approves its own call, or the approve request names an approver) | Approver comes only from authentication (`subject` on `approvalsHandler`, Eve's `responder`, the session); an approver equal to the request's `actor` is refused; `requireDistinctApprover` also excludes the principal | [Approvals](/docs/security/approvals), [Eve adapter](/docs/adapters/eve) |
+| Approval reused after the window (long-lived pending approval spent later) | `expiresAt` on the request record; `expire()` marks stale records; resume against an expired record is `denied` | [Approvals adapter](/docs/adapters/approvals) |
+| `PERMDOCK_CLOUD_KEY` leaked to a client bundle or log | Server-only entry; `tests/bundle` asserts no client entry reaches `permdock/cloud`; `permdock doctor` flags `NEXT_PUBLIC_*` or client imports; keys are per environment and rotatable; the key never authorises a decision | [Cloud adapter](/docs/adapters/cloud) |
+| Unauthenticated or cross-environment caller on the hosted ADS | Vercel OIDC or client-credentials token verified with `permdock/jwt`; `aud` bound to the environment; no shared-secret mode; body `subject` ignored unless the caller is a registered trusted PEP | [Cloud adapter](/docs/adapters/cloud), [AuthZEN adapter](/docs/adapters/authzen), invariant 9 |
+| Cloud unreachable or returning an unknown format | Decisions never depend on the Cloud (invariant 15); the sink drops to `on('error')`; an unknown `v` is rejected; a resume that cannot read its record is `denied` | [Cloud adapter](/docs/adapters/cloud), invariant 1 |
 
 ## Out of scope
 
-- Authentication, session management and token validation (providers and frameworks own these; PermDock consumes their result).
+- Authentication, login, session management and token issuance (providers and frameworks own these; PermDock consumes their result). Token *verification* is in scope only for the optional `permdock/jwt` entry and the provider adapters, never for core; see [Authentication and PermDock](/docs/concepts/authentication) and [ADR 0018](/docs/decisions/0018-authentication-is-upstream).
 - Protecting the server process itself (secrets, dependency supply chain) beyond PermDock's own zero-runtime-dependency core.
 - Preventing an application from calling `can` with the wrong permission; types reduce this, tests and the `audit-permissions` skill catch the rest.
 
@@ -88,4 +106,4 @@ flowchart LR
 - Whether `denials` and `alternatives` in 403 bodies should be off by default in production (see [Problem Details](/docs/standards/problem-details)).
 - The `LimitStore` interface and whether quotas belong in core at all.
 - Whether to verify delegation chains in core or trust the token layer (see [delegation](/docs/security/delegation)).
-- How `approval-required` surfaces over plain HTTP without a session to resume into (see [approvals](/docs/security/approvals)).
+- Whether approvals answered through a signed link (email, Slack action) without an approver session are acceptable, and how the link binds to an identity (see [approvals](/docs/security/approvals)).

@@ -4,7 +4,8 @@ description: How PermDock speaks the OpenID AuthZEN Authorization API 1.0 as a p
 ---
 
 Status: planned
-Phase: 1
+Phase: 2
+Adapter phases: `permdock/authzen` 2, `permdock/pdp` 4.
 
 Phase 1 ships the AuthZEN-shaped decision endpoint and batched client used by the React adapter. Phase 2 ships the full `permdock/authzen` endpoint set and a certification run; Phase 4 ships the `pdp` provider.
 
@@ -42,6 +43,10 @@ export const { handler } = createPermDock(policy, { subject: fromBearer })
 ```
 
 The Next.js `permdockHandler()` and the React `endpoint` use the same request and response schemas, so the client decision endpoint is an AuthZEN PDP with a restricted policy: it only answers for the authenticated caller's own subject. The endpoint must sit behind the application's real authentication; see the [threat model](/docs/security/threat-model) on why a shared public secret is not enough.
+
+### PermDock as a hosted ADS
+
+PermDock Cloud runs the same `permdock/authzen` handler against a published policy as an Authorization Decision Service ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)). Because AuthZEN is the wire format, an API gateway with an AuthZEN policy enforcement point (Kong, Envoy, Tyk, Zuplo, WSO2) or a service in Go, Python or Java enforces a TypeScript-authored policy with no PermDock SDK. Callers authenticate with a Vercel OIDC token or OAuth client credentials; the response is the standard `decision` plus the PermDock `Decision` under `context.permdock`, exactly as from the embedded handler. Running the handler yourself remains the default ([Cloud adapter](/docs/adapters/cloud)).
 
 ### PermDock as a PEP
 

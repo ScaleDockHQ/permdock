@@ -21,28 +21,32 @@ PermDock is specified before it is implemented. This page lists what each phase 
 - Standard Schema validation in `boundary` mode.
 - AuthZEN-shaped decision endpoint and batched client.
 - `@permdock/testing`.
-- `permdock/react`; `permdock/next` (Cache Components, explicit factory); the Fetch server kernel and `permdock/hono`; `permdock/ai-sdk` and `permdock/claude-agent`.
+- `permdock/react`; `permdock/next` (Cache Components, explicit factory); the Fetch server kernel and `permdock/hono`; `permdock/ai-sdk`, `permdock/claude-agent`, `permdock/eve` and `permdock/openai`.
+- `permdock/approvals` (`ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, the `PermDock-Approval` resume header) and the `DecisionSink` interface with `memorySink`. See [0022](/docs/decisions/0022-approvals-are-pluggable).
+- `permdock/jwt` (`subjectFromJwt`, JWKS, RFC 8725 checks, `profile: 'fapi2'`, `jose` optional peer); the `subjectFrom*` provider pattern. See [authentication](/docs/concepts/authentication).
 - Agent Skills (`wire-permdock`, `audit-permissions`), `AGENTS.md`, `llms.txt`; `permdock skills`.
 - `apps/docs` scaffolded over the Phase 0 content.
-- Examples: `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`.
+- Examples: `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`.
 - `tests/types` matrix for TypeScript 5.9, 6 and 7.
 
 ### Phase 2: v0.2–0.5 "surfaces"
 
 - `permdock/mcp` (`scopeChallenge`, Enterprise-Managed Authorization, elicitation for approvals).
 - `permdock/authzen` full endpoint set and a certification run.
-- `permdock/openapi` targeting 3.2.
+- `permdock/openapi` targeting 3.2 (document and [Overlay](/docs/standards/openapi-overlay) output, `x-permdock-*` extensions, `--target 3.3` experimental); register the `permdock` namespace in the [OpenAPI registries](/docs/standards/openapi-registry).
 - `permdock/react-native` (Expo Router).
 - `express`, `fastify`, `elysia`, `nest`, `node`; `trpc`, `orpc`; `vue`, `svelte`, `solid`.
+- `permdock/terminal` for consumers' own CLIs (device flow login, `filterCommands`, `--json` Problem Details, agent-run mode).
 - `permdock/webmcp`, `permdock/a2a`, `permdock/otel`.
 - CLI: `collect` (with the `createPermDockPlugin` build hook), `catalog`, `usage`, `doctor`.
-- One example per adapter plus `monorepo`; `tests/e2e` with Playwright including `instant()`.
+- `permdock/cloud`: the optional client (`ApprovalStore`, `DecisionSink`, `SnapshotSource` over HTTP). PermDock Cloud alpha in the separate `PermDock-Cloud` repository (hosted AuthZEN ADS, approval inbox, decision log) and the Vercel Marketplace listing with `eve-agent` as its template. See [0021](/docs/decisions/0021-embedded-pdp-hosted-ads).
+- One example per adapter plus `monorepo` and `terminal`; `tests/e2e` with Playwright including `instant()`.
 
 ### Phase 3: v0.6–0.9 "data"
 
 - `permdock.where` compilers for Drizzle, Prisma and Kysely.
 - `permdock rls generate | import | verify`; `import` emits `permissions.generated.ts`.
-- `supabase` provider (JWT claims to subject, `authorize()` scaffold).
+- `supabase` provider (`subjectFromSupabase`, custom access token hook emitted by `rls generate --rbac-scaffold`, `authorize()` scaffold).
 - Async `context` for relations; schema-aware field-level grants.
 - `permdock/ssf` CAEP receiver.
 - `tests/integration` parity suite on Postgres via testcontainers.
@@ -52,7 +56,9 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 - Providers: `better-auth`, `clerk`, `convex`, `pdp` (AuthZEN client).
 - Quota grants with a pluggable `LimitStore`.
-- Web Bot Auth verification in HTTP adapters; delegation-chain verification.
+- Web Bot Auth verification in HTTP adapters; delegation-chain verification in `permdock/jwt`.
+- `permdock simulate` over [Arazzo](/docs/standards/arazzo) workflows; `permdock arazzo check`.
+- Tracked, not built: [OpenAPI 3.3](/docs/standards/openapi-3-3) native security profiles, [GNAP](/docs/standards/gnap) `access` as a delegation input. See the [standards watch list](/docs/standards/watch-list).
 - Nuxt, Astro, React Router, TanStack Start; Effect.
 - Docs MCP server; devtools panel.
 
@@ -67,7 +73,7 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 ## Non-goals
 
-- A hosted policy service or SaaS PDP.
+- Requiring a network call to decide. PermDock is a PDP you embed; PermDock Cloud is optional, and every hosted capability (approvals, decision log, snapshot distribution) has an in-process default behind the same interface ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads)).
 - A policy DSL; policies are TypeScript data.
 - Replacing authentication or issuing tokens.
 - Zanzibar-scale relation graphs; bridge to OpenFGA or SpiceDB through a provider.
@@ -85,9 +91,11 @@ These are the questions the plan leaves open. Each is resolved in the phase wher
 5. **Protected-query helper.** Whether to add `permdock.protect(queryFn, { before, after })` for co-located authorization and redaction around a data fetch, Kilpi-style. Phase 2 or later. See [Kilpi v1](/docs/research/kilpi-v1).
 6. **`collect` output.** Whether `permdock collect` emits the `mergePermissions` barrel or only the catalog. Phase 2. See [collect](/docs/cli/collect).
 7. **Field-level API shape.** How schema-aware field-level grants are declared (`fields` on a grant, a separate permission per field, or `*` / `**` patterns as in CASL). Phase 3. See [Policies](/docs/concepts/policies).
-8. **Decision-endpoint authentication.** The endpoint must be behind real authentication (session or bearer), never Kilpi's public-secret obfuscation; the exact adapter contract is open. Phase 1. See [AuthZEN adapter](/docs/adapters/authzen).
+8. **Decision-endpoint authentication.** Resolved: the in-app endpoint sits behind the application's session or bearer authentication via the `subject` option; the hosted ADS accepts Vercel OIDC tokens or OAuth client credentials verified with `permdock/jwt`; there is no shared-secret mode ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads), [Cloud adapter](/docs/adapters/cloud)).
 9. **`LimitStore` and quotas.** The `LimitStore` interface for `limit` grants, and whether quotas belong in core or in an adapter. Phase 4. See [Policies](/docs/concepts/policies).
-10. **`approval-required` over plain HTTP.** How an HTTP client proceeds after a 403 with the `approval-required` problem type: retry with a token, a consent endpoint, or adapter-specific. Phase 1 for the problem type, later for the flow. See [Approvals](/docs/security/approvals).
-11. **Delegation-chain verification.** Whether to verify RFC 9396 `authorization_details` and delegation chains in core or leave verification to the token layer and adapters. Phase 4. See [Delegation](/docs/security/delegation).
+10. **`approval-required` over plain HTTP.** Resolved: the client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record in the `ApprovalStore` and re-runs `decide` ([0022](/docs/decisions/0022-approvals-are-pluggable), [Approvals](/docs/security/approvals)).
+11. **Terminal token storage.** Which OS keychain binding `permdock/terminal` uses as its optional peer, and whether the mode-0600 file fallback is acceptable in CI images. Phase 2. See [Terminal](/docs/adapters/terminal).
+
+Resolved since Phase 0 started: delegation-chain verification never happens in core; `permdock/jwt` and the provider adapters verify tokens and chains and hand core a subject ([0018](/docs/decisions/0018-authentication-is-upstream)). The hosted-service non-goal was reworded and the embedded-PDP / hosted-ADS split recorded ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads)); approvals storage, expiry, HTTP resume and plan approvals were fixed ([0022](/docs/decisions/0022-approvals-are-pluggable)).
 
 Questions raised on individual pages (for example the `create` arity in [0004](/docs/decisions/0004-actions-vs-collection), grants emission in [rls](/docs/cli/rls)) are tracked on those pages and promoted here when they affect more than one adapter.

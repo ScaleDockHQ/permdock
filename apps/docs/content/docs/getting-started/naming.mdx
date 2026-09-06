@@ -51,8 +51,17 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `granted`, `denied`, `approval-required` | The three `Decision.outcome` values | `not-applicable`, `allow`, `deny` |
 | `where`, `check` | Conditions on the current row and on the next row | Query building outside conditions |
 | `key`, `scope` | The dotted (`post.update`) and colon (`post:update`) string forms of a permission | Public API arguments |
+| `subjectFrom<Provider>` | Turning verified material into a `Subject`: `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromMcp` | Verifying, logging in, or anything that can throw |
+| `createJwtSubjectResolver` | The cached, reusable form of `subjectFromJwt` (one per issuer, JWKS cache) | A second `createPermDock` |
+| `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler` | The pluggable store behind `approval-required`, its in-process default, and the Fetch routes for approvers (`permdock/approvals`) | Deciding; a store never influences `decide` |
+| `DecisionSink`, `memorySink` | The pluggable destination for `on('decision')` events and its in-process default | Blocking a decision; sinks are fire-and-forget |
+| `store`, `sink`, `snapshots` | The three options every adapter's `createPermDock` accepts for an `ApprovalStore`, a `DecisionSink` and a `SnapshotSource` | Anything else; `store` is never a database handle |
+| `cloud` | `cloud({ url, key })` from `permdock/cloud`, returning `approvals`, `sink` and `snapshots` for PermDock Cloud | A factory for a `PermDock`; there is no `decide` on it |
+| `PermDock-Approval` | The HTTP request header carrying an approval `token` on a retried request | Anything else on the wire |
 
 Strings appear only as `.key` and `.scope` on the wire, in audit events and in catalogs. The public API takes references.
+
+The `subjectFrom<Provider>` pattern names the source of the material (a JWT, a Supabase claims object, a Clerk auth object, a Better Auth session, MCP `authInfo`), always returns a `Subject` (anonymous when the material cannot be trusted) and never throws, so every provider reads the same way at the call site: `createPermDock(policy, subjectFromClerk(await auth()))`. See [Authentication and PermDock](/docs/concepts/authentication).
 
 ## Reserved words
 
@@ -75,10 +84,13 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/next` | `{ getPermDock, getPermission, PermDockProvider, permdockHandler }` | Options: `subject`, `tag` |
 | `permdock/hono` | `{ permdock, protect }` | `permdock()` is middleware; `protect(permission, load?)` guards a route |
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | `{ permdock, protect }` | Same shape as Hono over the shared kernel |
+| `permdock/terminal` | `{ permdock, protect, filterCommands, format }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not `@permdock/cli` |
 | `permdock/trpc`, `permdock/orpc` | `{ permdock, protect }` | `protect` is a procedure middleware |
 | `permdock/mcp` | `{ protectServer }` | `protectServer(server).registerTool(name, { permission, ... }, handler)` |
 | `permdock/ai-sdk` | `{ toolApproval, capabilityMiddleware, needsApproval }` | Options: `subject`, `actor`, `tools` |
 | `permdock/claude-agent` | `{ canUseTool, permissionRequestHook }` | Options: `subject`, `tools` |
+| `permdock/eve` | `{ approval, approvalFor, permdock }` | `approval` is Eve's `{ request, response }` pair for `defineTool`; options: `tools`, `store`, `approvers` |
+| `permdock/openai` | `{ needsApproval, guardTools, resolveInterruptions, permdock }` | Options: `subject`, `actor`, `tools`, `store` |
 | `permdock/authzen` | `{ handler }` | Serves evaluation, evaluations, search and `.well-known` |
 | `permdock/ssf` | `{ receiver }` | RFC 8935 push and RFC 8936 poll receiver for CAEP events |
 | `permdock/a2a` | `{ agentCard, extendedAgentCard }` | Options: `skills` |
@@ -86,7 +98,8 @@ These never appear as public identifiers, for the reasons given:
 Two entries deliberately do not export `createPermDock`:
 
 - `permdock/react` (and `react-native`, `vue`, `svelte`, `solid`) export `PermDockProvider`, `usePermDock`, `usePermission` and `<Protected>` directly.
-- `permdock/webmcp` exports `registerTools(document.modelContext, group, { permdock })` because it consumes a client `PermDock` rather than creating one. `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` export `toWhere`.
+- `permdock/webmcp` exports `registerTools(document.modelContext, group, { permdock })` because it consumes a client `PermDock` rather than creating one. `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` export `toWhere`. `permdock/jwt` exports `subjectFromJwt` and `createJwtSubjectResolver` because it produces a subject for a factory, not an instance.
+- `permdock/approvals` exports `memoryApprovalStore` and `approvalsHandler`, and `permdock/cloud` exports `cloud`; both produce values you pass *to* a factory (`store`, `sink`, `snapshots`) rather than a `PermDock`.
 
 ## Files and folders
 

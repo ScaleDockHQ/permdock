@@ -48,7 +48,7 @@ The stack was meant to merge in order: `#54 → #56 → #57`, then `#63 → #64 
 | [#54](https://github.com/letstri/permix/pull/54) | Develop on TypeScript 7.0.2 while publishing types for consumers on TS 5.9 to 7 (peer `>=5.9 <8`, CI matrix 5.9.3 / 6.0.2 / 7.0.2); strict pnpm catalogs; Turborepo 2.10; a resolve hook loading TS 6 for tsdown, svelte-check and vue-tsc because TS 7 has no compiler API. | `tests/types` matrix on TS 5.9 / 6 / 7, pnpm catalogs, Turborepo ([ADR 0016](/docs/decisions/0016-repo-layout-and-toolchain)). |
 | [#58](https://github.com/letstri/permix/pull/58) | Reconstructed `CHANGELOG.md` for all 72 npm versions; Release Please and commitlint with npm provenance; CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue and PR templates, Dependabot. | Changesets or Release Please for publishing, OSS conventions from the first release. |
 | [#65](https://github.com/letstri/permix/pull/65) | Catalog bumps (`@types/node` 26, React 19.2.8, Vite 8.2, Vitest 4.1, oxlint 1.80), drizzle pinned to `1.0.0-rc.4`, tRPC held at 11.17 because 11.18 makes `checkMiddleware` invariant, Actions `checkout@v7`, Node 24. | Dependency hygiene as a routine, peer floors chosen deliberately. |
-| [#67](https://github.com/letstri/permix/pull/67) | Consumer-style minified and gzipped budgets per entry point in CI; unbundled module graph with side-effect boundaries; React `Check` subscribes to its derived boolean only. | `tests/bundle` size budgets per entry, core under about 3 kB gzip. |
+| [#67](https://github.com/letstri/permix/pull/67) | Consumer-style minified and gzipped budgets per entry point in CI; unbundled module graph with side-effect boundaries; React `Check` subscribes to its derived boolean only. | `tests/bundle` per-entry gzip measurement; a regression baseline is set after core ships, not a 3 kB guess ([ADR 0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)). |
 | [#68](https://github.com/letstri/permix/pull/68) | Rewrote README, maintainer `AGENTS.md`, consumer skills (one always-loaded `SKILL.md` plus short per-adapter references), a conceptual layer (concepts, security, adapter chooser, cookbook). | Docs-first in MDX ([ADR 0017](/docs/decisions/0017-docs-first-in-mdx)), `AGENTS.md`, shipped skills ([for AI agents](/docs/for-ai-agents)). |
 | [#69](https://github.com/letstri/permix/pull/69) | Vitest V8 coverage with a 95% gate on statements, lines, functions and branches; `test.yml` CI; pre-publish coverage check; reached 98.8% statements / 95.05% branches. | 95% coverage gate. |
 | [#72](https://github.com/letstri/permix/pull/72) | `chokidar` / `oxc-parser` / `tinyglobby` as optional peers so UI-only installs do not pull native extractor deps; per-file mtime parse cache with `--force`; TS-compat CI builds `dist` once. | Extractor dependencies live in `@permdock/cli`, never in `permdock` ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)). |
@@ -117,7 +117,7 @@ Adapters shipped today: `react`, `vue`, `solid`, `svelte`, `next`, `tanstack-sta
 Adopt:
 
 - One npm package with subpath exports rather than `@permix/*` scoped packages ([ADR 0002](/docs/decisions/0002-umbrella-package)).
-- Zero runtime dependencies in core and a small gzip budget per entry.
+- Zero runtime dependencies in core. Per-entry gzip size is measured; a regression budget is set from the Phase 1 baseline ([ADR 0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)).
 - Agent skills shipped inside the npm package, `llms.txt` and `llms-full.txt` on the docs site.
 - Per-request instances stashed on the framework's request context in HTTP adapters.
 - Type-aware Oxlint and Oxfmt, tsdown, pnpm catalogs, Turborepo (the two merged PRs).
@@ -152,4 +152,5 @@ Avoid:
 - [ADR 0015: no runtime dependencies in core](/docs/decisions/0015-no-runtime-deps-in-core)
 - [ADR 0016: repo layout and toolchain](/docs/decisions/0016-repo-layout-and-toolchain)
 - [ADR 0017: docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx)
+- [ADR 0020: measure bundle size, then set a baseline](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)
 - Pages shaped: [snapshots](/docs/concepts/snapshots), [decisions](/docs/concepts/decisions), [validation](/docs/concepts/validation), [audit and observability](/docs/concepts/audit-and-observability), [threat model](/docs/security/threat-model), [next](/docs/adapters/next), [server kernel](/docs/adapters/server-kernel), [better-auth](/docs/adapters/better-auth), [pdp](/docs/adapters/pdp), [collect](/docs/cli/collect), [for AI agents](/docs/for-ai-agents).

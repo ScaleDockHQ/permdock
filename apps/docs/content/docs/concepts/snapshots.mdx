@@ -54,6 +54,7 @@ const scoped = permdock.snapshot({ include: [permissions.post, permissions.billi
 | `grants` | One entry per grant, keyed by permission `key`; conditions in the [portable JSON form](/docs/concepts/conditions). |
 | `portable: false` | The grant exists but uses a closure or an opaque condition; the client must ask the server. |
 | `include` | Present on scoped snapshots so the client knows which groups are authoritative. |
+| `issuedAt`, `expiresAt` | Unix seconds. `expiresAt` is optional and copied from the subject (`min(exp, session_expiry)` of the token it was built from, see [authentication](/docs/concepts/authentication)); past it the client reports `'stale'` regardless of `maxAge`. |
 
 Conditions are plain JSON (no superjson; dates as tagged ISO strings), so the snapshot, the catalog and RLS generation share one condition format.
 

@@ -122,6 +122,35 @@ Emitted by `on('decision')`. See [audit and observability](/docs/concepts/audit-
 }
 ```
 
+## Approval request v1
+
+Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See [approvals](/docs/security/approvals) and the [approvals adapter](/docs/adapters/approvals).
+
+```json
+{
+  "v": 1,
+  "token": "pd1.…",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": { "type": "post", "id": "42" },
+  "subject": {
+    "principal": { "id": "u_1", "roles": ["member"] },
+    "actor": { "id": "eve:app", "kind": "eve" },
+    "delegation": { "scopes": ["post:delete"] }
+  },
+  "detail": "post.delete requires human approval (human).",
+  "adapter": "eve",
+  "createdAt": "2026-09-06T10:15:00Z",
+  "expiresAt": "2026-09-06T11:15:00Z",
+  "status": "approved",
+  "resolvedAt": "2026-09-06T10:20:31Z",
+  "resolvedBy": "u_9",
+  "note": "Confirmed with the author"
+}
+```
+
+`status` is `pending`, `approved`, `rejected` or `expired`; `resolvedAt`, `resolvedBy` and `note` appear only once resolved. The record never carries the resource object, the policy, or tokens from `authInfo`. On the wire, the HTTP resume header is `PermDock-Approval: <token>`.
+
 ## AuthZEN
 
 The decision endpoint, `permdock/authzen` and the `pdp` provider speak the OpenID AuthZEN Authorization API 1.0 ([spec](https://openid.net/specs/authorization-api-1_0.html)). PermDock maps `principal` to `subject`, the permission leaf to `resource.type` plus `action.name`, and puts `actor`, `delegation` and the full `Decision` under `context`. See [AuthZEN](/docs/standards/authzen) and the [adapter](/docs/adapters/authzen).
@@ -275,7 +304,7 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 
 ## Versioning
 
-- `v` fields on the snapshot and catalog follow the format, not the package version. A breaking change to a shape bumps `v`; readers reject unknown majors.
+- `v` fields on the snapshot, approval request and catalog follow the format, not the package version. A breaking change to a shape bumps `v`; readers reject unknown majors.
 - Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning.
 - AuthZEN messages follow the 1.0 spec; PermDock-specific data lives only under `context.permdock`.
 

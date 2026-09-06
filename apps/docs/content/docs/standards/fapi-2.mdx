@@ -1,0 +1,148 @@
+---
+title: FAPI 2.0 Security Profile
+description: "What the FAPI 2.0 Security Profile requires of a resource server and how permdock/jwt with profile: 'fapi2' and the OpenAPI emitter enforce those requirements before a permission check runs."
+---
+
+Status: planned
+Phase: 1
+
+Phase 1 ships `subjectFromJwt(token, { profile: 'fapi2' })` in `permdock/jwt`. Phase 2 ships the `x-permdock-securityProfile` extension in `permdock openapi`. Adapter phases: `permdock/jwt` 1, `permdock/openapi` 2. Grant Management is tracking only.
+
+## What it is
+
+The [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-security-profile-2_0-final.html) is a final specification of the OpenID Foundation's FAPI Working Group. It started in open banking (the "Financial-grade API" name) and is now positioned as a general-purpose, high-security OAuth 2.0 profile: a fixed set of choices for confidential clients, authorization servers and resource servers that removes the options in OAuth 2.0 that have caused real-world breaches. The profile was formally analysed against the FAPI 2.0 Attacker Model, a companion specification that states which attacker capabilities the profile defends against.
+
+Three parts matter for a permissions library, because they are the parts a resource server, and therefore the application PermDock runs in, has to get right:
+
+### 5.3.4 Requirements for resource servers
+
+A FAPI 2.0 resource server:
+
+1. Accepts access tokens only in the HTTP `Authorization` header, either as a bearer token per RFC 6750 section 2.1 or as a DPoP-bound token per RFC 9449 section 7.1.
+2. Does not accept access tokens in query parameters (RFC 6750 section 2.3).
+3. Verifies the token's validity, integrity, expiration and revocation status.
+4. Verifies that the authorization represented by the token is sufficient for the requested resource access, and otherwise returns an error per RFC 6750 section 3.1 (`insufficient_scope`).
+5. Supports and verifies sender-constrained tokens, via mutual TLS (RFC 8705) and/or DPoP (RFC 9449).
+
+### 5.4.1 Cryptography
+
+JWTs adhere to RFC 8725 (JSON Web Token Best Current Practices). Signing algorithms are `PS256`, `ES256` or `EdDSA` (Ed25519); `none` is never accepted. RSA keys are at least 2048 bits, elliptic-curve keys at least 224 bits, and credentials carry at least 128 bits of entropy.
+
+### The RAR recommendation
+
+Note 5 of the authorization-server requirements says that OAuth 2.0 Rich Authorization Requests (RFC 9396) are recommended "when the scope parameter is not expressive enough". That is the same conclusion PermDock reached independently: every permission carries both a `scope` string and an `authorizationDetails` type, so a FAPI 2.0 deployment that moved to RAR feeds `delegation.authorizationDetails` directly. See [OAuth for agent delegation](/docs/standards/oauth-agent-delegation) and [delegation](/docs/security/delegation).
+
+## Why it matters for PermDock
+
+FAPI 2.0 draws the line between authentication and authorization exactly where PermDock does. Requirements 1, 2, 3 and 5 are about establishing who the caller is and that the token really belongs to them; requirement 4 is the permission check. PermDock does not authenticate ([ADR 0018](/docs/decisions/0018-authentication-is-upstream)), but `permdock/jwt` is where a verified token becomes a subject, and it is the natural place to refuse tokens that a FAPI 2.0 resource server must refuse. Getting that wrong upstream makes every downstream `decide` call meaningless: a perfectly correct policy evaluated for a subject derived from a replayed bearer token is still a breach.
+
+The profile also gives PermDock a concrete, externally defined bar for "high security" instead of an in-house checklist. When a regulated deployment (open banking, health data, Australia CDR) asks whether the permission layer is FAPI 2.0 compatible, the answer is a table, not an argument.
+
+## How PermDock uses it
+
+### `permdock/jwt` with `profile: 'fapi2'`
+
+```ts
+import { createPermDock } from 'permdock/hono'
+import { createJwtSubjectResolver } from 'permdock/jwt'
+
+const resolve = createJwtSubjectResolver({
+  jwks: new URL('https://as.bank.example/.well-known/jwks.json'),
+  issuer: 'https://as.bank.example',
+  audience: 'https://api.bank.example',
+  claims: { id: 'sub', roles: 'roles' },
+  delegation: { scopes: 'scope', authorizationDetails: 'authorization_details' },
+  profile: 'fapi2',          // turns the 5.3.4 / 5.4.1 rules on
+  sender: 'dpop',            // or 'mtls'; 'none' is not accepted under this profile
+})
+
+export const { permdock, protect } = createPermDock(policy, {
+  subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw), // request enables the DPoP proof check
+})
+```
+
+`subjectFromJwt(token, { profile: 'fapi2', sender: 'dpop' })` is the one-shot form of the same resolver. `profile: 'fapi2'` is a preset over the individual options and cannot be relaxed option by option: a deployment that needs to accept, say, a query-string token is not FAPI 2.0 and should not claim the profile. The `sender` option names which sender-constraint mechanism the deployment uses, so the adapter knows whether to look for `cnf.jkt` (DPoP) or `cnf.x5t#S256` (mTLS) and which transport evidence (the `DPoP` proof header, the client certificate the platform exposes) to check it against. The verified binding is attached to the subject as `binding` so audit can show which key the request was bound to.
+
+### What PermDock enforces
+
+| FAPI 2.0 requirement | Behaviour under `profile: 'fapi2'` | Failure |
+| --- | --- | --- |
+| 5.3.4 (1) token in the `Authorization` header, bearer or DPoP | The resolver reads only the `Authorization` header; the scheme must be `Bearer` or `DPoP` and must match `sender` | Anonymous subject (`principal: null`); a missing header produces no audit event, a wrong scheme is logged |
+| 5.3.4 (2) no tokens in query parameters | A token found in the query string is rejected, even if it would otherwise verify | Anonymous subject, audit reason `token-in-query` |
+| 5.3.4 (3) validity, integrity, expiration, revocation | Signature against `jwks`, `iss` equals `issuer`, `aud` contains `audience`, `exp`, `nbf` and `iat` honoured within `clockTolerance`; revocation arrives as a CAEP `session-revoked` event through [`permdock/ssf`](/docs/adapters/ssf), which invalidates the subject's snapshot | Anonymous subject, audit reason naming the failed claim |
+| 5.3.4 (4) authorization sufficiency | The `decide` call. `delegation.scopes` and `delegation.authorizationDetails` are filled from the token and intersected with the principal's grants | `denied` Decision with reason `not-delegated`; HTTP adapters answer 403 with `WWW-Authenticate: Bearer error="insufficient_scope", scope="post:update"` and a Problem Details body whose `alternatives` lists what the token would have allowed |
+| 5.3.4 (5) sender-constrained tokens | A token without a `cnf` claim is rejected; with `sender: 'dpop'` the `DPoP` proof is verified against `cnf.jkt` (RFC 9449 section 7.1); with `sender: 'mtls'` the client certificate thumbprint is compared with `cnf.x5t#S256` (RFC 8705); `sender: 'none'` is not accepted under the profile | Anonymous subject, audit reason `sender-constraint-required`, `dpop-proof-invalid` or `mtls-binding-mismatch` |
+| 5.4.1 algorithms | `algorithms` is restricted to `PS256`, `ES256` and `EdDSA`; `none` and the `HS*` and `RS*` families are refused before signature verification | Anonymous subject, audit reason `alg-not-allowed` or `alg-none` |
+| 5.4.1 key sizes | JWKS keys below 2048 bits (RSA) or 224 bits (EC) are skipped when the key set is loaded | Tokens signed with a skipped key fail as `unknown-kid`; `permdock doctor` warns about the skipped keys |
+| RFC 8725 practices | `alg` comes from the allow-list, never from the header alone; `kid` selects a key from the configured JWKS only; `jku`, `x5u` and `jwk` headers are ignored | Anonymous subject |
+
+Two consequences follow from the fail-closed rule:
+
+- Every row above that ends in an anonymous subject leaves `can()` returning `false` and `assert` producing the 401-class Problem Details the authentication layer defines; the policy never sees a half-verified principal. See [authentication](/docs/concepts/authentication).
+- The only row that produces a `denied` Decision is requirement 4. RFC 6750 section 3.1 asks for `insufficient_scope` when the token lacks authority, and PermDock has the information to say what would have sufficed: `Decision.alternatives` becomes the `scope` hint in `WWW-Authenticate` and the `alternatives` member of the [Problem Details](/docs/standards/problem-details) body. The same field drives MCP `scopeChallenge` step-ups ([MCP authorization](/docs/standards/mcp-authorization)), so an OAuth client and an MCP client are told the same thing in their own vocabulary.
+
+### `permdock openapi`
+
+FAPI 2.0 has no OpenAPI representation of its own. `permdock openapi` marks operations protected by a FAPI 2.0 subject resolver with `x-permdock-securityProfile: fapi2` next to the operation's `security` requirement, and declares the OAuth 2.0 security scheme with `x-permdock-oauth2MetadataUrl` pointing at the issuer's RFC 8414 metadata (or the native 3.2 `oauth2MetadataUrl` field). Gateways and client generators that understand the extension can enforce sender constraint at the edge; those that do not ignore it.
+
+```yaml
+paths:
+  /posts/{id}:
+    patch:
+      security:
+        - oauth2: [post:update]
+      x-permdock-permissions: [post.update]
+      x-permdock-securityProfile: fapi2
+```
+
+The OpenAPI Initiative has said that the 3.3 line is investigating native support for security profiles, with FAPI 2.0 as one of the two named candidates. When a native construct lands, PermDock emits it for 3.3 targets and keeps the extension for 3.1 and 3.2; see [OpenAPI 3.3](/docs/standards/openapi-3-3) and [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay).
+
+## Grant Management
+
+[Grant Management for OAuth 2.0](https://openid.net/developers/specs/) is a FAPI Working Group implementer's draft, born from PSD2 and the Australian Consumer Data Right, for "managing grants that represent the consent a data subject has given": a grant gets an identifier, a client can query, update, replace or revoke it, and an authorization request can refer to an existing grant instead of asking for consent again.
+
+The shape lines up with two PermDock concepts:
+
+- A grant, as a consent object, is what PermDock's `approval-required` outcome produces when a human approves: an `approval` token bound to permission key, resource id, subject and actor ([approvals](/docs/security/approvals)). A Grant Management `grant_id` is the authorization-server-side twin of that token.
+- The contents of a grant (scopes and `authorization_details`) are exactly `delegation`; a `grant_id` on an incoming token is therefore a pointer to the delegation the token carries.
+
+PermDock tracks the draft and does not implement it: grant lifecycle is authorization-server work, and PermDock never mints or manages tokens. If the draft reaches final and authorization servers ship it, the candidate integration is recording `grant_id` in audit events and treating a revoked grant like a CAEP `session-revoked` event. See the [watch list](/docs/standards/watch-list).
+
+## Out of scope: Message Signing
+
+FAPI 2.0 Message Signing (signed authorization requests and responses via JAR and JARM, signed introspection responses, HTTP message signing for non-repudiation) is a separate final specification aimed at the client and authorization server. It changes nothing about how a resource server turns a token into a subject, so `permdock/jwt` neither requires nor verifies it. Deployments that need non-repudiation of API requests handle it in the HTTP layer before PermDock runs.
+
+## Mapping table
+
+| FAPI 2.0 concept | PermDock concept |
+| --- | --- |
+| Resource server | The application process running `createPermDock`; `permdock/jwt` is its token-to-subject step |
+| Access token (`sub`, `client_id`, `scope`, `authorization_details`) | `principal` from `sub` and issuer claims, `actor` from `client_id` when it differs from the subject, `delegation` from `scope` and `authorization_details` |
+| Sender constraint (`cnf.jkt`, `cnf.x5t#S256`) | `sender: 'dpop'` or `'mtls'`; the verified binding is recorded on the subject for audit |
+| Authorization sufficiency (5.3.4 item 4) | `permdock.decide(permission, data)` |
+| RFC 6750 `insufficient_scope` | `denied` Decision rendered as `WWW-Authenticate` plus Problem Details with `alternatives` |
+| RAR recommendation | `delegation.authorizationDetails`, one type per permission |
+| Grant Management `grant_id` | Approval token and `delegation`, tracking only |
+| 5.4.1 algorithm list | The `alg` allow-list fixed by the profile |
+
+## Sources
+
+- [FAPI 2.0 Security Profile (final)](https://openid.net/specs/fapi-security-profile-2_0-final.html), sections 5.3.4, 5.4.1 and note 5.
+- [OpenID Foundation specifications index](https://openid.net/developers/specs/) for FAPI 2.0 Message Signing, the Attacker Model, FAPI CIBA and Grant Management for OAuth 2.0.
+- [OpenAPI Initiative newsletter, June 2026](https://www.openapis.org/blog/2026/06/09/openapi-initiative-newsletter-june-2026) for the 3.3 security-profile investigation.
+- RFC 6750, RFC 8705, RFC 8725, RFC 9396 and RFC 9449 are referenced by number.
+
+## Related
+
+- [JWT adapter](/docs/adapters/jwt): the full `subjectFromJwt` option set, of which `profile: 'fapi2'` is one preset.
+- [Authentication](/docs/concepts/authentication) and [ADR 0018](/docs/decisions/0018-authentication-is-upstream): where token verification stops and permissions start.
+- [OAuth for agent delegation](/docs/standards/oauth-agent-delegation) and [delegation](/docs/security/delegation): RAR `authorization_details` as `delegation`.
+- [Problem Details](/docs/standards/problem-details): the 403 body that carries `alternatives`.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3) and [OpenAPI 3.2](/docs/standards/openapi-3-2): where `x-permdock-securityProfile` goes and what may replace it.
+- [Standards watch list](/docs/standards/watch-list): Grant Management, rfc8725bis and RAR error remediation.
+
+## Open questions
+
+- Whether `profile: 'fapi2'` should also require RFC 9728 Protected Resource Metadata to be published for the resource, or leave that to the deployment (MCP already requires it; plain HTTP APIs do not).
+- How the DPoP proof and the client certificate reach `subjectFromJwt` on platforms that terminate TLS in front of the application (a header contract is needed for mTLS; DPoP is self-contained).
+- Whether requirement 3's "revocation status" needs a per-token check (an introspection or `jti` deny-list hook in `permdock/jwt`) in deployments without an SSF transmitter, or whether short `exp` plus CAEP is the only supported answer.

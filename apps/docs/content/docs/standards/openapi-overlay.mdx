@@ -1,0 +1,169 @@
+---
+title: OpenAPI Overlay
+description: "How permdock openapi --format overlay emits an Overlay 1.1.0 document that adds security, securitySchemes and x-permdock-* fields to an OpenAPI description without mutating it, how to apply and check it in CI, and why the Overlay never removes security."
+---
+
+Status: planned
+Phase: 2
+
+## What it is
+
+The [Overlay Specification 1.1.0](https://spec.openapis.org/overlay/v1.1.0.html) (released 14 January 2026; 1.0.0 was 17 October 2024) describes a document that repeatably applies transformations to one or many OpenAPI descriptions: adding metadata, removing elements before sharing a description, updating descriptions. An Overlay document has:
+
+| Field | Meaning |
+| --- | --- |
+| `overlay` | The Overlay specification version, `1.1.0` |
+| `info` | `title` and `version` of the Overlay itself |
+| `extends` | URI of the OpenAPI description the Overlay applies to (optional; an applier may be given the target explicitly) |
+| `actions` | Ordered list of actions. Each has a `target` JSONPath expression selecting nodes in the description, plus one of `update` (merge a value into every selected node), `remove` (delete every selected node) or, new in 1.1, `copy` (copy a value from another location) |
+
+An applier resolves each `target` against the description and applies the actions in order; the output is a new OpenAPI description. The source is never edited.
+
+## Why PermDock prefers an Overlay
+
+`permdock openapi emit` can write the mutated document, and that is still the default (`--format document`) because it is the simplest thing to serve. The Overlay form is preferred whenever the OpenAPI description is owned by someone other than the team running PermDock, or whenever the security metadata should be reviewable on its own:
+
+- **The source stays owned by the API team.** A generator (`@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`) or a hand-written file remains the single source of truth for paths, schemas and descriptions. PermDock adds authorization metadata beside it instead of rewriting it.
+- **PermDock's output is reviewable.** The Overlay contains exactly what PermDock decided: which operations require which scopes, which keys they map to, which scheme they use. A reviewer reads a few dozen lines instead of diffing a whole regenerated description.
+- **Repeatable and diffable in CI.** The Overlay is a deterministic function of the catalog and the source's `operationId`s. `permdock openapi emit --format overlay --check` fails when the committed Overlay no longer matches, which catches a permission renamed without the document following, and a document edited to change what PermDock emitted.
+- **One Overlay, many descriptions.** A monorepo with several APIs that share one catalog can apply one `securitySchemes` Overlay to each, which answers the "shared scheme document" question on the [adapter page](/docs/adapters/openapi) without URI-referenced schemes (a 3.2-only feature).
+
+The Overlay is the delivery mechanism; the semantics of every field it writes are on [OpenAPI 3.2](/docs/standards/openapi-3-2) and [OpenAPI registries](/docs/standards/openapi-registry).
+
+## How PermDock uses it
+
+### Output
+
+```bash
+permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay.json
+```
+
+```json
+{
+  "overlay": "1.1.0",
+  "info": { "title": "PermDock authorization metadata", "version": "2026-09-06T10:15:00Z" },
+  "extends": "./openapi.json",
+  "actions": [
+    {
+      "target": "$.components.securitySchemes",
+      "description": "OAuth 2.0 scheme with every catalog scope",
+      "update": {
+        "permdockOAuth": {
+          "type": "oauth2",
+          "oauth2MetadataUrl": "https://auth.example.com/.well-known/oauth-authorization-server",
+          "x-permdock-securityProfile": "fapi2",
+          "flows": {
+            "authorizationCode": {
+              "authorizationUrl": "https://auth.example.com/authorize",
+              "tokenUrl": "https://auth.example.com/token",
+              "scopes": {
+                "post:read": "Read a post",
+                "post:update": "Edit a post you own",
+                "post:delete": "Delete a post you own"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "target": "$.paths.*[?@.operationId == 'deletePost']",
+      "description": "post.delete",
+      "update": {
+        "security": [{ "permdockOAuth": ["post:delete"] }],
+        "x-permdock-permissions": ["post.delete"],
+        "x-permdock-conditions": {
+          "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } }
+        },
+        "x-permdock-approval": { "post.delete": { "reason": "human" } }
+      }
+    },
+    {
+      "target": "$.paths.*[?@.operationId == 'updatePost']",
+      "description": "post.update",
+      "update": {
+        "security": [{ "permdockOAuth": ["post:update"] }],
+        "x-permdock-permissions": ["post.update"]
+      }
+    },
+    {
+      "target": "$",
+      "description": "Catalog fingerprint for permdock openapi --check",
+      "update": { "x-permdock-catalog": { "v": 1, "generator": "@permdock/cli", "catalog": "sha256:..." } }
+    }
+  ]
+}
+```
+
+Rules the emitter follows:
+
+- Operations are targeted by `operationId`, never by path and method, so the Overlay survives a route being moved. Operations without an `operationId` are reported as findings (exit `1`) rather than targeted by position.
+- Which operations appear comes from the same source as the document form: `x-permdock-permissions` already present in the source (written by the framework hooks), or the route registry when the CLI runs inside the project.
+- Actions are sorted (`securitySchemes`, then operations by `operationId`, then root) and the `info.version` is derived from the catalog, so two runs over the same inputs produce byte-identical output.
+- **The Overlay never contains a `remove` action on `security` or `securitySchemes`**, and never an `update` that sets `security` to `[]` unless the permission is explicitly public in the catalog. Loosening a document's security is not something PermDock does on anyone's behalf.
+- `--target 3.1` swaps the 3.2 fields for the registered fallbacks (`x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl`, `x-oai-deprecated`) and `x-permdock-oauth2MetadataUrl`, exactly as in document mode.
+
+### Applying
+
+Any Overlay 1.x applier can consume the file: it takes the OpenAPI description (from `extends` or a command-line argument) and the Overlay and writes the combined description. Run it as a build step and serve or publish the result; the source description in the repository stays unchanged. PermDock does not ship its own applier in Phase 2; the document form covers projects that do not want one.
+
+### CI recipe
+
+```yaml
+# .github/workflows/permissions.yml
+- run: pnpm exec permdock collect --check
+- run: pnpm exec permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay.json --check
+# apply permdock.overlay.json to openapi.json with your Overlay applier, then publish the result
+```
+
+`--check` regenerates the Overlay in memory and compares it byte-for-byte with the committed file. It fails on a renamed or removed permission, a new protected route with no entry, a changed `operationId`, and any hand edit to the committed Overlay, including one that adds a `remove` action.
+
+## Threat: an Overlay that removes security
+
+An Overlay is code that rewrites an API description, and `remove` is a legitimate action in the specification. An attacker who can modify the Overlay in a pipeline, or substitute their own, can strip `security` from every operation in the published description:
+
+```json
+{ "target": "$.paths.*.*.security", "remove": true }
+```
+
+The published description would then claim the API is public. Enforcement is unaffected (PermDock's `protect` does not read the document), but clients, gateways and agents that trust the description would attempt unauthenticated calls, and a gateway that derives its policy from the description would stop enforcing.
+
+Mitigations:
+
+- PermDock's Overlay **never** contains `remove` on `security` or `securitySchemes`, so the presence of one is a signal, not a configuration choice.
+- `permdock openapi emit --format overlay --check` fails on any difference from the regenerated Overlay, including an added `remove`. Run it in the same job that applies the Overlay.
+- Treat the Overlay like any other build input: commit it, review it, and do not fetch it from a mutable URL at build time.
+- Keep enforcement independent of the document. PermDock's `protect` guards routes from the policy, not from the OpenAPI description, so a tampered description cannot open a route ([threat model](/docs/security/threat-model)).
+
+## Mapping table
+
+| Overlay concept | PermDock concept |
+| --- | --- |
+| `extends` | `--doc` |
+| `actions[].target` on `$.components.securitySchemes` | `securitySchemes()` from the adapter, every catalog `scope` |
+| `actions[].target` by `operationId` | One protected route; `describe(permission)` output |
+| `update.security` | `security(permission)` |
+| `update.x-permdock-*` | Permission keys, portable conditions, approval metadata, security profile |
+| `remove` | Never emitted for security fields |
+| `copy` (1.1) | Not used |
+| Deterministic output | `--check` in CI |
+
+## Sources
+
+- [Overlay Specification 1.1.0](https://spec.openapis.org/overlay/v1.1.0.html).
+- [OpenAPI Initiative registries](https://spec.openapis.org/registry/), for the extension names the Overlay writes.
+
+## Related
+
+- [OpenAPI 3.2](/docs/standards/openapi-3-2): the fields the Overlay adds.
+- [OpenAPI registries](/docs/standards/openapi-registry): the `x-permdock-*` namespace.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3): what changes when a native security-profile construct exists.
+- [Arazzo workflows](/docs/standards/arazzo): reading the applied description back to pre-flight a workflow.
+- [OpenAPI adapter](/docs/adapters/openapi) and [CLI: openapi](/docs/cli/openapi).
+- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay).
+
+## Open questions
+
+- Whether to target the operation object (as above) or the `security` array itself, given Overlay's merge semantics for arrays; the operation object keeps one action per route but relies on the applier replacing `security` rather than appending to it.
+- Whether PermDock should ship a minimal applier in `@permdock/cli` (`permdock openapi apply`) so `--check` can also validate the applied result, not only the Overlay.
+- Signing the Overlay (a detached signature checked before applying) versus relying on repository review and `--check`.

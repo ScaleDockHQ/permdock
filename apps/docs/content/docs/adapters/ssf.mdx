@@ -10,7 +10,7 @@ Phase: 3
 
 ## Purpose
 
-PermDock snapshots are cached: on the server behind `use cache: private` and `updateTag`, on the client in `PermDockProvider`, on React Native in persisted storage. Without a signal, a revoked session or a demoted role stays effective until the cache expires. Shared Signals Framework 1.0 and CAEP 1.0 (final October 2025, [OpenID Foundation](https://openid.net/tag/caep/)) define how identity providers transmit such events: Entra, Okta and Auth0 transmit today and Keycloak ships an [experimental transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support). A receiver in PermDock turns "stale for N minutes" into "stale until the IdP says so".
+PermDock snapshots are cached: on the server behind `use cache: private` and `updateTag`, on the client in `PermDockProvider`, on React Native in persisted storage. Without a signal, a revoked session or a demoted role stays effective until the cache expires. Shared Signals Framework 1.0 and CAEP 1.0 (final since 2 September 2025, [OpenID Foundation](https://openid.net/three-shared-signals-final-specifications-approved/)) define how identity providers transmit such events: Entra, Okta and Auth0 transmit today and Keycloak ships an [experimental transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support). A receiver in PermDock turns "stale for N minutes" into "stale until the IdP says so".
 
 ## API
 
@@ -61,6 +61,18 @@ receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) 
 
 The receiver never trusts the SET body to identify the transmitter; the signature and issuer do. It does not accept unsigned or `none`-algorithm tokens.
 
+## CAEP Interoperability Profile
+
+SSF 1.0 and CAEP 1.0 leave a transmitter and a receiver several choices: which event types to emit, which delivery method to offer, which subject identifier formats to use. Two conformant implementations can therefore fail to interoperate. The OpenID Foundation's Shared Signals Working Group published the [CAEP Interoperability Profile 1.0](https://openid.net/developers/specs/) as an implementer's draft in July 2026 to close that gap: it fixes the subset of CAEP event types and the delivery behaviour that an interoperable transmitter must produce and an interoperable receiver must accept.
+
+`permdock/ssf` targets the receiver side of the profile:
+
+- The event types the profile requires are the ones `onEvent` is keyed by; the receiver accepts them without configuration and treats profile-required delivery as the baseline rather than an option.
+- Events and subject identifier formats outside the profile still work through `onEvent['*']` and the `subject` mapper, so a transmitter that emits more than the profile is not rejected.
+- `tests/integration` records SETs from transmitters that claim the profile and replays them against the receiver, so a profile revision that changes a required shape shows up as a failing fixture rather than a silent drop.
+
+The profile is an implementer's draft and may change before Phase 3; its row on the [standards watch list](/docs/standards/watch-list) is reviewed each release, and this section is updated when the profile reaches final.
+
 ## How denials surface
 
 This adapter does not make permission decisions, so there are no denials in the PermDock sense. Its effect is indirect and visible in three places:
@@ -78,6 +90,7 @@ None. The receiver is exercised in `tests/integration` against recorded SETs fro
 ## Related standards
 
 - [Shared Signals and CAEP](/docs/standards/shared-signals-caep): SSF 1.0, CAEP 1.0 event catalogue, RFC 8935 push, RFC 8936 poll, transmitters.
+- [Standards watch list](/docs/standards/watch-list): the CAEP Interoperability Profile, OpenID Provider Commands and `session_expiry` rows that affect snapshot freshness.
 - [Snapshots](/docs/concepts/snapshots): what gets invalidated.
 - [Next.js adapter](/docs/adapters/next): `tag` and `updateTag` integration.
 - [React adapter](/docs/adapters/react): client `invalidate` and `stale` status.

@@ -17,6 +17,11 @@
     "0014-openapi-3-2",
     "0015-no-runtime-deps-in-core",
     "0016-repo-layout-and-toolchain",
-    "0017-docs-first-in-mdx"
+    "0017-docs-first-in-mdx",
+    "0018-authentication-is-upstream",
+    "0019-openapi-extensions-and-overlay",
+    "0020-measure-bundle-size-then-set-a-baseline",
+    "0021-embedded-pdp-hosted-ads",
+    "0022-approvals-are-pluggable"
   ]
 }

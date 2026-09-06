@@ -1,9 +1,9 @@
 ---
 title: Authorization landscape (September 2026)
-description: Survey of TypeScript and JavaScript authorization libraries, hosted policy engines, auth-provider access control, schema-embedded policies and MCP tooling, with a gap matrix that motivates PermDock.
+description: Survey of TypeScript and JavaScript authorization libraries, policy engines (Cedar and Amazon Verified Permissions, Open Policy Agent, the Zanzibar family, Casbin), auth-provider access control, schema-embedded policies and MCP tooling, with a gap matrix that motivates PermDock.
 ---
 
-Source: survey conducted 2026-09-06. Star counts and last-commit dates are shields.io badge values fetched that day; versions are from `npm view` on the same day; bundle sizes for permix and CASL are permix's own measurements (2026-06-02), other sizes are npm `unpackedSize`. Anything that could not be confirmed is marked unverified. Companion deep-dives: [permix](/docs/research/permix-lessons), [CASL v7](/docs/research/casl-v7), [Kilpi v1](/docs/research/kilpi-v1), [zap-studio/permit](/docs/research/zap-studio-permit).
+Source: survey conducted 2026-09-06. Star counts and last-commit dates are shields.io badge values fetched that day; versions are from `npm view` on the same day; bundle sizes for permix and CASL are permix's own measurements (2026-06-02), other sizes are npm `unpackedSize`. The Cedar, Amazon Verified Permissions, Open Policy Agent, Auth0 FGA and WorkOS FGA entries, and the extended OpenFGA, SpiceDB, casbin and accesscontrol entries, were read from the vendors' official docs, repositories and npm pages on the same day. Anything that could not be confirmed is marked unverified. Companion deep-dives: [permix](/docs/research/permix-lessons), [CASL v7](/docs/research/casl-v7), [Kilpi v1](/docs/research/kilpi-v1), [zap-studio/permit](/docs/research/zap-studio-permit).
 
 ## Executive takeaways
 
@@ -55,7 +55,13 @@ Source: survey conducted 2026-09-06. Star counts and last-commit dates are shiel
 
 ### accesscontrol
 
-`accesscontrol` 3.1.0. MIT, 2.3k stars, last commit July 2026, ESM, Node 20+. RBAC plus attribute (field glob) filtering; v3 (2026 rewrite) adds `.where()` conditions, enforced ownership, custom actions, `require()` gates, async `grantedAsync`, audit events, deny-overrides inheritance. Roles, resources and actions are runtime strings; no adapters, no where clauses, no `llms.txt`. Source: [repo](https://github.com/onury/accesscontrol).
+`accesscontrol` 3.1.0 (published 2026-07-16). MIT, 2.3k stars, last commit July 2026, ESM, Node 20+; two pinned runtime dependencies (`notation`, `dtrexp`).
+
+- Model: chainable grants per role, `ac.grant('user').createOwn('video')`, `ac.can('admin').updateAny('video')` returning `granted` and `attributes`; CRUD helpers are sugar over `.action()` / `.do()` so custom actions such as `publish:own` work; `.extend()` inheritance with deny-overrides; possession `any` versus `own`, enforced when `policy.ownerField` or a resolver is configured.
+- v3 (2026 rewrite) policy engine: `.where('$.order.value <= 100000')` conditions with operators `==`, `in`, `contains`, `matches` (opt-in regex), `before` / `after` / `during` (dtrexp schedules), `cidr`, combinable with `and` / `or` / `not`, stored as canonical JSON; `require()` gates at global, category or resource scope that can only restrict and fail closed on missing context; groups and categories via `setup()`; `defineCondition` plus `grantedAsync` for async custom checks.
+- Runtime: glob attribute lists (`['*', '!password', 'profile.*']`) and `filter()` for field-level output; `tryCan()` never throws; `access`, `change` and `error` events; `snapshot()` / `restore()` and `getGrantsList()` for database persistence; `lock()`; prototype-pollution-safe name handling; strict mode for unknown roles and actions; `nestjs-accesscontrol` as the official framework integration, Express shown as an example.
+- Roles, resources and actions are runtime strings with no inference; conditions evaluate in memory only (no `where` clause or RLS); no client snapshot, no UI helpers, no OpenAPI, MCP or AuthZEN, no `llms.txt`.
+- Sources: [repo](https://github.com/onury/accesscontrol), [npm](https://www.npmjs.com/package/accesscontrol).
 
 ### Smaller and unmaintained
 
@@ -79,13 +85,36 @@ Source: survey conducted 2026-09-06. Star counts and last-commit dates are shiel
 
 `permitio` 2.7.6. MIT; permit-node 46 stars, OPAL 5.5k stars; CommonJS, 2.6 MB unpacked. RBAC, ABAC and ReBAC via an OPA/OPAL-backed PDP; `permit.check(user, action, resource)` with strings. No adapters. The Permit MCP Gateway is a proxy between agents and MCP servers that classifies tools into trust levels by name, enforces at `call_tool` and returns everything from `list_tools`; enforcement is external to your code. `docs.permit.io/llms.txt` returns 404. Sources: [permit-node](https://github.com/permitio/permit-node), [docs](https://docs.permit.io/).
 
-### OpenFGA / Auth0 FGA
+### OpenFGA
 
-`@openfga/sdk` 0.9.7. Apache-2.0; openfga 5.7k stars, js-sdk 88 stars; CJS and ESM, Node 20.19+. Zanzibar ReBAC with a DSL model; `check`, `batchCheck`, `listObjects`, `listUsers`, `expand`. OpenAPI-generated client, no types derived from your model (unverified). `listObjects` returns ids to feed `WHERE id IN (...)`, not a where-clause compiler. The official MCP guide models users, agents and tools as principals (`can_call`, `executor`, `viewer`) and filters tool lists with `listObjects`. `openfga.dev/llms.txt` serves. Sources: [js-sdk](https://github.com/openfga/js-sdk), [docs](https://openfga.dev/docs).
+`@openfga/sdk` 0.9.7. Apache-2.0; openfga 5.7k stars, js-sdk 88 stars; CJS and ESM, Node 20.19+. Owned by the Cloud Native Computing Foundation.
+
+- Model: Zanzibar ReBAC. A model DSL (`model`, `schema 1.1`, `type document` with `relations` such as `define viewer: [user]`, usersets like `organization#member`, object-to-object relations for parent folders) plus relationship tuples written through the API. RBAC is modelled as relations on objects; ABAC through [conditions](https://openfga.dev/docs/modeling/conditions) (Google CEL expressions with typed parameters attached to tuples, evaluated against request `context`, default evaluation cost cap of 100) and contextual tuples.
+- API: `Check`, `BatchCheck` (the docs suggest parallel `Check` under ten items), `Read` (stored tuples only, no graph traversal), `Expand` (userset tree for one relation), `ListObjects` (objects of one type a user has a relation with, positioned for access-aware filtering of small collections) and `ListUsers`. HTTP and gRPC; SDKs for JavaScript, Go, Java, .NET and Python; Postgres, MySQL or SQLite as production datastores; CLI, VS Code extension, GitHub Actions, Helm charts, OpenTelemetry.
+- OpenAPI-generated client, no types derived from your model (unverified). `ListObjects` returns ids to feed `WHERE id IN (...)`, not a where-clause compiler.
+- Agents: the [use cases](https://openfga.dev/docs/use-cases) section covers AI agent authorization, RAG filtering and [MCP server authorization](https://openfga.dev/docs/use-cases/mcp-server-authorization): a `tool` type with `define can_call: [user:*, user, role#assignee]`, a `check` on every request and list-objects to filter the tool list; agents are modelled as their own principals for independent scoping and revocation.
+- `openfga.dev/llms.txt` serves. Sources: [js-sdk](https://github.com/openfga/js-sdk), [introduction](https://openfga.dev/docs/fga), [modeling](https://openfga.dev/docs/modeling/getting-started), [relationship queries](https://openfga.dev/docs/interacting/relationship-queries).
+
+### Auth0 FGA (Okta FGA)
+
+The managed service built on OpenFGA. Auth0's product page states in its FAQ that "Auth0 FGA is built on OpenFGA", and Auth0 Lab records the Sandcastle experiment graduating as "Okta FGA" while its core was published as OpenFGA, so the two names refer to one service. Documentation at docs.fga.dev follows the OpenFGA shape: define an authorization model, write relationship tuples, check permissions from your API with the SDK. Vendor claims of a 99.99 percent availability SLA, multi-region deployment and a logging API for an audit trail are the vendor's own and were not independently checked. Positioning is explicitly about RAG, MCP servers and agents as principals. Same limits as OpenFGA for PermDock's purposes: strings in and booleans out, no types from your model, filtering via list-objects ids. Sources: [product page](https://auth0.com/fine-grained-authorization), [docs](https://docs.fga.dev/), [Auth0 Lab](https://lab.auth0.com/experiments/sandcastle).
 
 ### SpiceDB / AuthZed
 
-`@authzed/authzed-node` 1.6.1. Apache-2.0, spicedb 7k stars, ESM, 5.6 MB unpacked (gRPC and protobuf), published October 2025. Zanzibar ReBAC with a schema language and CEL caveats; `CheckPermission`, `LookupResources`, `LookupSubjects`, watch API. Strings in and out, no adapters. `authzed.com/llms.txt` serves. Source: [authzed-node](https://github.com/authzed/authzed-node).
+`@authzed/authzed-node` 1.6.1. Apache-2.0, spicedb 7k stars, ESM, 5.6 MB unpacked (gRPC and protobuf), published October 2025.
+
+- Model: Zanzibar ReBAC with a `.zed` [schema language](https://authzed.com/docs/spicedb/concepts/schema): `definition` per object type, `relation` with allowed subject types (`user`, `group#member`, wildcards `user:*`), `permission` as computed sets with union (`+`), intersection (`&`), exclusion (`-`) and arrows (`parent_folder->read`, `.any`, `.all`); caveats are CEL expressions (`caveat ip_allowlist(...)`) that make a relationship conditional at check time; relationships can expire.
+- API: `CheckPermission`, `CheckBulkPermissions`, `LookupResources`, `LookupSubjects`, `WriteRelationships`, `ReadRelationships`, a Watch API, ZedTokens for consistency. The [list-endpoint guide](https://authzed.com/docs/spicedb/modeling/protecting-a-list-endpoint) names the three filtering strategies: `LookupResources` ids into `WHERE id = ANY(ARRAY[...])` when the accessible set is small (the docs suggest under 10,000), `CheckBulkPermissions` over pages of candidates otherwise, and Materialize (early access) for a denormalised local permission set, AuthZed's version of Zanzibar's Leopard cache.
+- Agents: an AuthZed MCP server, a SpiceDB Dev MCP server and LangChain / LangGraph and RAG integrations are documented; the "Coming from Open Policy Agent" guide targets OPA users.
+- Strings in and out, no adapters, no types from the schema. `authzed.com/llms.txt` serves. Sources: [authzed-node](https://github.com/authzed/authzed-node), [schema language](https://authzed.com/docs/spicedb/concepts/schema), [protecting a list endpoint](https://authzed.com/docs/spicedb/modeling/protecting-a-list-endpoint).
+
+### WorkOS FGA
+
+Hosted, part of the WorkOS platform (RBAC, SSO, Directory Sync, AuthKit). Frequently grouped with the Zanzibar family, but its current documentation describes a hierarchical, resource-scoped RBAC and WorkOS says so explicitly: "no confusing schema DSL", "no DSLs to learn".
+
+- Model: resource types are configured in the WorkOS Dashboard; resources are registered at runtime with a type, an id and a parent; roles and permissions (`workspace:edit`, `project:delete`) are scoped to a resource type and a role may include permissions for child types, so one `workspace-admin` assignment propagates down to projects and apps; assignments bind a subject to a role on a resource. Subjects today are organization memberships and groups. A permission's or role's resource-type scope and slug are immutable after creation.
+- API: `check` (one permission on one resource), `listEffectivePermissions` (all permissions on one resource), `listResourcesForMembership` (one permission across resources, for list views), `listMembershipsForResource` (who has access); `@workos-inc/node` exposes `workos.authorization.check({ organizationMembershipId, permissionSlug, resourceExternalId, resourceTypeSlug })` returning `authorized`. Organization-scoped roles and permissions are embedded in AuthKit access tokens so org-wide checks are JWT-only; resource-scoped checks call the API. Vendor performance figures (sub-50 ms p95, strong consistency) are the vendor's own.
+- No conditions or attribute rules in the docs consulted, no policy language, no client snapshot, no types from the model; enforcement is a network call per resource-scoped check. Sources: [overview](https://workos.com/docs/fga), [roles and permissions](https://workos.com/docs/fga/roles-and-permissions), [access checks](https://workos.com/docs/fga/access-checks), [API reference](https://workos.com/docs/reference/fga), [blog](https://workos.com/blog/fga-how-workos-is-rethinking-authorization-for-the-next-generation-of-saas).
 
 ### Oso
 
@@ -93,7 +122,33 @@ Source: survey conducted 2026-09-06. Star counts and last-commit dates are shiel
 
 ### casbin
 
-`casbin` 5.51.1. Apache-2.0, node-casbin 2.9k stars, moved to `apache/casbin-node-casbin`; CJS, about 510 kB. Model files (`.conf`) plus policy CSV or DB adapters; `enforce(sub, obj, act)`; RBAC with domains, ABAC via matcher expressions. No TypeScript inference, no adapters, no data layer, no `llms.txt`. Source: [repo](https://github.com/apache/casbin-node-casbin).
+`casbin` 5.51.1 (published 2026-06-25). Apache-2.0, node-casbin 2.9k stars, moved to `apache/casbin-node-casbin` under the Apache incubator; CJS, about 510 kB; runtime dependencies `@casbin/expression-eval`, `await-lock`, `buffer`, `csv-parse`, `minimatch`.
+
+- Model: the PERM metamodel (Policy, Effect, Request, Matchers) in a `.conf` file. `r = sub, obj, act` defines the request tuple, `p = sub, obj, act, eft` the policy shape, `m = r.sub == p.sub && r.obj == p.obj && r.act == p.act` the matcher, and the effect expression combines matches: `e = some(where (p.eft == allow))` allows if any policy allows, `e = some(where (p.eft == allow)) && !some(where (p.eft == deny))` makes deny override. Policies live in CSV (`p, alice, data1, read`) or database adapters.
+- RBAC: `[role_definition]` with `g = _, _` (and `g2` for resource roles); `g, alice, data2_admin` grouping policies; matcher `g(r.sub, p.sub)`; transitive hierarchy with a default maximum depth of 10; RBAC with domains and tenants as a documented model. ABAC: pass objects into `enforce` and reference fields in the matcher (`m = r.sub == r.obj.Owner`), or store rules in the policy and evaluate them with `eval(p.sub_rule)`. Eighteen documented model families including RESTful path matching (`keyMatch`), IP match, priority (first match wins) and deny-override.
+- API (node-casbin): `newEnforcer(model, policy)`, `enforce(sub, obj, act)` returning a boolean, `enforceSync`, a Management API and an RBAC API (`getRolesForUser`), adapters for persistence, watchers for multi-node consistency, Batch API. The `in` matcher operator is not yet available in Node-Casbin. Casbin's own docs note that a Watcher or Role Manager checkmark means the interface exists, not that an implementation ships for every language.
+- No TypeScript inference (all names are strings), no framework adapters, no data-layer compilation, no client snapshot, no explain beyond the boolean, no `llms.txt`. Multi-language parity (Go, Java, Node.js, PHP, Python, .NET, Rust and more) is the distinctive strength.
+- Sources: [repo](https://github.com/apache/casbin-node-casbin), [npm](https://www.npmjs.com/package/casbin), [overview](https://casbin.org/docs/overview), [how it works](https://casbin.org/docs/how-it-works), [supported models](https://casbin.org/docs/supported-models), [RBAC](https://casbin.org/docs/rbac), [ABAC](https://casbin.org/docs/abac).
+
+### Cedar and Amazon Verified Permissions
+
+Cedar: Apache-2.0 policy language and Rust engine from AWS; `cedar-policy/cedar` about 1.7k stars (GitHub, fetched 2026-09-06). `@cedar-policy/cedar-wasm` 4.12.0 (published 2026-07-28) ships WASM bindings with TypeScript types for the engine's functions, in ESM, CommonJS (`/nodejs`) and `web` (`initSync`) flavours; the reference guide documents Cedar 4.5 and Amazon Verified Permissions states it currently uses Cedar 4.7.
+
+- Model: policies are `permit` or `forbid` with a mandatory `principal`, `action`, `resource` scope (`==`, `in`, `is`) and optional `when` / `unless` conditions over attributes and `context`; annotations (`@id`, `@advice`) carry metadata without affecting evaluation. Combining rule: at least one `permit` and zero `forbid` means allow; any `forbid` or no `permit` means deny (implicit deny, explicit deny overrides).
+- Schema: entity types with attributes, optionality and parent (membership) relations; actions with `appliesTo` principal and resource types and a `context` shape; common types; namespaces; enumerated entity types since 4.3. Cedar does not use the schema at evaluation time; the validator type-checks policies against it when they are authored, and the `cedar-policy-symcc` crate is a symbolic compiler that verifies properties about policy sets with concrete counterexamples. Entities and their attributes are supplied per request as a slice.
+- Amazon Verified Permissions: hosted policy stores (one per application or tenant, optional schema, policy validation rejects invalid policies, policy templates, aliases, namespaces), `IsAuthorized`, `BatchIsAuthorized` (up to 30 requests sharing a principal or resource, up to 100 principals and 100 resources in `entities`) and `IsAuthorizedWithToken` (principal from a Cognito or OIDC ID or access token; principal attributes come only from the token), responses `ALLOW` or `DENY` with `determiningPolicies` and `errors`; console, CLI, SDKs, CDK constructs; an Express middleware integration. Pricing is tiered by authorization requests per month.
+- No inference from an application's TypeScript types (entity literals such as `User::"alice"` are strings at the call site), no compilation of conditions to `where` clauses or RLS in the docs consulted, no approval outcome, no AuthZEN mention found (unverified).
+- Sources: [Cedar reference](https://docs.cedarpolicy.com/), [policy syntax](https://docs.cedarpolicy.com/policies/syntax-policy.html), [schema](https://docs.cedarpolicy.com/schema/schema.html), [repo](https://github.com/cedar-policy/cedar), [`@cedar-policy/cedar-wasm`](https://www.npmjs.com/package/@cedar-policy/cedar-wasm), [what is AVP](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/what-is-avp.html), [policy stores](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/policy-stores.html), [`IsAuthorized`](https://docs.aws.amazon.com/verifiedpermissions/latest/apireference/API_IsAuthorized.html), [`BatchIsAuthorized`](https://docs.aws.amazon.com/verifiedpermissions/latest/apireference/API_BatchIsAuthorized.html), [`IsAuthorizedWithToken`](https://docs.aws.amazon.com/verifiedpermissions/latest/apireference/API_IsAuthorizedWithToken.html).
+
+### Open Policy Agent
+
+Apache-2.0, CNCF graduated. General-purpose policy engine: Rego policies over arbitrary JSON `input` and `data`, used for microservices, Kubernetes admission control, CI/CD, API gateways and Envoy external authorization. `@open-policy-agent/opa-wasm` 1.10.0 (published 2024-11-08; the README calls it work in progress) loads `opa build -t wasm` bundles with `loadPolicy`, `setData` and `evaluate`, in CommonJS, ESM and browser builds.
+
+- Model: Rego rules are if-then statements with a head and a body, complete or partial, with implicit iteration and OR expressed as multiple rules of the same name; domain-agnostic, so deny-override and the shape of principals and resources are conventions of the policy author.
+- Deployment: daemon or sidecar with a REST API (`GET`/`POST /v1/data/<path>` returning `result` and, with decision logging, `decision_id`; Policy, Data, Query, Compile and Health APIs), Go library (`rego.New`, `PrepareForEval`), or WASM. The Compile API performs partial evaluation and can emit data filters for a target dialect (`ucast+prisma`, `ucast+linq`, `sql+postgresql`, `sql+mysql`, `sql+sqlserver`), the closest thing among external engines to a where-clause compiler.
+- Agents: `@ai-sdk/policy-opa` (Vercel) evaluates Rego in AI SDK tool approvals via WASM or HTTP and fails open on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)); see [comparison](/docs/comparison).
+- No inference from an application's types, JSON in and JSON out, a separate policy build and deployment pipeline, no approval outcome, no RLS output; AuthZEN support not found in the docs consulted (unverified).
+- Sources: [introduction](https://www.openpolicyagent.org/docs/latest/), [REST API](https://www.openpolicyagent.org/docs/latest/rest-api/), [`@open-policy-agent/opa-wasm`](https://www.npmjs.com/package/@open-policy-agent/opa-wasm).
 
 ## Authorization bundled with auth providers
 
@@ -189,7 +244,7 @@ Legend: yes, partial, no.
 
 ## Verification notes
 
-Could not verify: Cerbos, OpenFGA and Oso Cloud type generation from policies or models; the `@zap-studio/permit` adapter list beyond its README; permix and Kilpi behaviour in React Native; the ZenStack v3 server adapter list; Arcade TS SDK `requires_auth` parity; Keel repo status; exact TS 7.0 release date. Several packages named in the original brief do not exist on npm; `role-acl` and `permissio` are unmaintained since 2022; the original `oso` npm package is deprecated in favour of `oso-cloud`.
+Could not verify: Cerbos, OpenFGA and Oso Cloud type generation from policies or models; the `@zap-studio/permit` adapter list beyond its README; permix and Kilpi behaviour in React Native; the ZenStack v3 server adapter list; Arcade TS SDK `requires_auth` parity; Keel repo status; exact TS 7.0 release date; AuthZEN support in Cedar, Amazon Verified Permissions, OPA, OpenFGA, Auth0 FGA, SpiceDB and WorkOS FGA (the AuthZEN interop site lists participants as images and the vendors' docs consulted do not mention it); vendor performance and SLA figures for Auth0 FGA and WorkOS FGA; the corporate lineage of WorkOS FGA (only third-party sources describe it, so it is left out); OPA and Cedar type generation from schemas; OPA star count (not fetched). Several packages named in the original brief do not exist on npm; `role-acl` and `permissio` are unmaintained since 2022; the original `oso` npm package is deprecated in favour of `oso-cloud`.
 
 ## Adopt / adapt / avoid
 
@@ -201,6 +256,8 @@ Adopt:
 - Kilpi's discriminated decision object and layered assert handlers.
 - Cerbos's embedded (WASM) PDP idea, as motivation for a client snapshot that answers offline.
 - oRPC's middleware-attached OpenAPI spec extension as the model for emitting security from a guard.
+- Cedar's discipline of validating policies against a schema at authoring time rather than at evaluation, and of returning the determining policies with every decision: PermDock's `permdock collect --check` and `permdock doctor` catch dangling references before deploy, and `Decision.matched` / `denials` name the grants that decided.
+- Cedar's implicit-deny plus forbid-overrides-permit combining rule and accesscontrol's `tryCan()` / `require()` gates as independent confirmation that fail-closed and deny-overrides-allow are the right defaults, not opinions.
 
 Adapt:
 
@@ -208,6 +265,9 @@ Adapt:
 - OpenFGA and SpiceDB relation graphs are bridged through a provider rather than reimplemented.
 - ZenStack's compiled-policy approach becomes `permdock.where()` compilers plus RLS export, with parity tests as the glue, while keeping the DB-free `can()` that ZenStack v3 dropped.
 - The Permit MCP Gateway's trust-level idea becomes per-tool `permission` bindings inside the server, not a proxy.
+- OpenFGA's `ListObjects` and SpiceDB's `LookupResources` become the `filter` implementation of the `pdp` provider presets, with `where` compiling to `in(row.id, ids)`, exactly the `WHERE id = ANY(...)` pattern both vendors document; OPA's Compile API data filters (`ucast+prisma`, `sql+postgresql`) show that an external engine can emit a where clause, which is the bar `permdock/drizzle`, `prisma` and `kysely` must at least meet in-process.
+- Amazon Verified Permissions' policy store (one per application or tenant, schema-validated, `BatchIsAuthorized`) is the reference for what a hosted PDP offers; `permdock/authzen` should expose the same three shapes (single, batch, token-authenticated principal) over AuthZEN rather than a custom API.
+- Casbin's PERM split of request, policy, matcher and effect is a useful checklist for the wire format: PermDock's `Decision` and catalog must make each of those four visible for audit even though the model itself is fixed.
 
 Avoid:
 
@@ -216,6 +276,8 @@ Avoid:
 - Required runtime dependencies in core (Kilpi's `zod` and `superjson`, permit's `@opentelemetry/api` peer).
 - Vendor-locked permissions (Clerk) and DSLs that need their own compiler (ZModel, Polar, Cedar, Rego) as the authoring format.
 - Relying on the TypeScript compiler API for codegen while TS 7.0 has none.
+- Making deny-override or fail-closed configurable, as Casbin's effect expression and OPA's convention-based `allow` rules do; in PermDock they are invariants.
+- Modelling relationship graphs (arrows, usersets, recursive membership) in the portable condition AST; that is the Zanzibar family's job and the `pdp` bridge is the boundary.
 
 ## Decisions informed
 
@@ -228,4 +290,6 @@ Avoid:
 - [ADR 0014: OpenAPI 3.2](/docs/decisions/0014-openapi-3-2)
 - [ADR 0015: no runtime dependencies in core](/docs/decisions/0015-no-runtime-deps-in-core)
 - [ADR 0016: repo layout and toolchain](/docs/decisions/0016-repo-layout-and-toolchain)
+- [ADR 0013: three-outcome decision](/docs/decisions/0013-three-outcome-decision): none of Cedar, AVP, OPA, the Zanzibar family, Casbin or accesscontrol has an approval outcome; each answers allow or deny, which is why `approval-required` is a PermDock-level concept rather than something mapped from a PDP.
+- [ADR 0012: two-principal subject](/docs/decisions/0012-two-principal-subject): OpenFGA and SpiceDB model agents as separate principals with their own tuples; PermDock's `actor` plus `delegation` intersection is the in-process counterpart and is forwarded to remote PDPs in `subject.properties`.
 - Pages shaped: [comparison](/docs/comparison), [Standard Schema](/docs/standards/standard-schema), [openapi](/docs/adapters/openapi), [mcp](/docs/adapters/mcp), [better-auth](/docs/adapters/better-auth), [clerk](/docs/adapters/clerk), [pdp](/docs/adapters/pdp), [drizzle](/docs/adapters/drizzle), [prisma](/docs/adapters/prisma), [kysely](/docs/adapters/kysely), [rls](/docs/adapters/rls), [conditions](/docs/concepts/conditions), [decisions](/docs/concepts/decisions), [for AI agents](/docs/for-ai-agents).

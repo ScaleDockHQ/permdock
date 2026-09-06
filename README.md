@@ -6,9 +6,8 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/ScaleDockHQ/PermDock/ci.yml?label=CI)](https://github.com/ScaleDockHQ/PermDock/actions)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9%20%7C%206%20%7C%207-3178c6.svg)
-![core size](https://img.shields.io/badge/core-%3C%203%20kB%20gzip-success.svg)
 
-Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK and the Claude Agent SDK from the same decision.
+Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
 
 > **Status: Phase 0.** The product plan, this README, [`PRODUCT.md`](./PRODUCT.md), [`AGENTS.md`](./AGENTS.md) and the full documentation tree under [`apps/docs/content/docs`](./apps/docs/content/docs) exist. The packages are not published yet. Everything below is the specification the implementation will follow; see the [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
@@ -22,9 +21,12 @@ Permission logic in a typical TypeScript app is spread across `if (user.role ===
 - **Immutable, request-scoped.** `createPermDock(policy, user)` returns a frozen `PermDock`. Safe in RSC, edge, serverless and concurrent requests.
 - **Decisions, not booleans.** `decide()` returns `granted`, `denied` or `approval-required` with the matched grant, denial reasons and permitted alternatives. Adapters turn that into RFC 9457 Problem Details, model-readable MCP refusals and AI SDK approval states.
 - **Snapshots that carry conditions.** The client answers ownership checks offline; no duplicated client rules; `<Protected>` never blocks a Next.js 16.3 instant navigation.
-- **Agent-native.** Two-principal subject (principal + actor + delegation), MCP / AI SDK / Claude Agent SDK / WebMCP / A2A adapters, an AuthZEN 1.0 decision endpoint, shipped skills, `AGENTS.md` and `llms.txt`.
+- **Agent-native.** Two-principal subject (principal + actor + delegation), MCP / AI SDK / Claude Agent SDK / Eve / OpenAI Agents SDK / WebMCP / A2A adapters, an AuthZEN 1.0 decision endpoint, shipped skills, `AGENTS.md` and `llms.txt`.
+- **Human approvals that resume safely.** `approval: 'human'` grants yield a third outcome with a replay-safe `token`; pending approvals live in a pluggable `ApprovalStore` (in-memory by default, your database, or PermDock Cloud), approvers are authenticated and never the agent, and plain HTTP resumes with a `PermDock-Approval` header.
+- **The Cloud is optional.** Every decision runs in-process. PermDock Cloud adds a hosted approval inbox, decision log and AuthZEN Authorization Decision Service behind interfaces the open-source package ships with in-process defaults; self-host or subscribe, the library is the same. Read [ADR 0021](./apps/docs/content/docs/decisions/0021-embedded-pdp-hosted-ads.mdx).
 - **RLS round-trip.** `permdock rls generate | import | verify` for Supabase, Neon and generic Postgres.
 - **Secure by default.** Fail-closed, deny overrides allow, unknown reference is a type error, prototype-safe, no eval, `service_role` never emitted, model-supplied subjects never trusted.
+- **Authentication stays upstream.** PermDock consumes verified material only: sessions, JWKS-verified JWTs (`permdock/jwt`, FAPI 2.0 profile, `jose` as an optional peer), Supabase / Clerk / Better Auth claims, MCP `authInfo`, workload identities. Read [Authentication](./apps/docs/content/docs/concepts/authentication.mdx).
 
 ## Install
 
@@ -168,6 +170,21 @@ const { toolApproval, capabilityMiddleware } = createPermDock(policy, {
 generateText({ model, tools, toolApproval }) // granted → 'approved', denied → 'denied', approval-required → 'user-approval'
 ```
 
+### Eve
+
+```ts
+import { defineTool } from 'eve/tools'
+import { createPermDock } from 'permdock/eve'
+import { memoryApprovalStore } from 'permdock/approvals'
+const { approval } = createPermDock(policy, {
+  tools: { refund: { permission: permissions.charge.refund, data: (input) => loadCharge(input.chargeId) } },
+  store: memoryApprovalStore(),   // or drizzleApprovalStore(db), or cloud().approvals
+})
+export default defineTool({ description: 'Refund a charge.', inputSchema, approval, execute })
+// granted → "not-applicable" (run), approval-required → "user-approval" (session parks), denied → { type: "denied", reason }
+// approval.response checks the responder against the store: an agent never approves its own call
+```
+
 ### RLS
 
 ```bash
@@ -201,11 +218,12 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 | UI | `permdock/react` `react-vite` [1] · `permdock/react-native` `expo` [2] · `permdock/vue` [2] · `permdock/svelte` [2] · `permdock/solid` [2] |
 | Full-stack | `permdock/next` `next` [1] |
 | HTTP | `permdock/server` kernel [1] · `permdock/hono` `hono` [1] · `permdock/express` [2] · `permdock/fastify` [2] · `permdock/elysia` [2] · `permdock/nest` [2] · `permdock/node` [2] |
+| Terminal | `permdock/terminal` `terminal` [2] for your own commander / citty / oclif / yargs / Ink CLI (not `@permdock/cli`) |
 | RPC | `permdock/trpc` `trpc` [2] · `permdock/orpc` `orpc` [2] |
-| Agents | `permdock/mcp` `mcp-server` [2] · `permdock/ai-sdk` `ai-sdk-agent` [1] · `permdock/claude-agent` `claude-agent` [1] · `permdock/webmcp` `webmcp` [2] · `permdock/a2a` `a2a-agent` [2] |
-| Decision plane | `permdock/authzen` `authzen-pdp` [2] · `permdock/ssf` [3] · `permdock/openapi` [2] · `permdock/otel` [2] · `permdock/pdp` [4] |
+| Agents | `permdock/mcp` `mcp-server` [2] · `permdock/ai-sdk` `ai-sdk-agent` [1] · `permdock/claude-agent` `claude-agent` [1] · `permdock/eve` `eve-agent` [1] · `permdock/openai` `openai-agent` [1] · `permdock/webmcp` `webmcp` [2] · `permdock/a2a` `a2a-agent` [2] |
+| Decision plane | `permdock/authzen` `authzen-pdp` [2] · `permdock/approvals` (`ApprovalStore`, `approvalsHandler`) [1] · `permdock/cloud` (optional PermDock Cloud client) [2] · `permdock/ssf` [3] · `permdock/openapi` (3.2 document or Overlay) [2] · `permdock/otel` [2] · `permdock/pdp` [4] |
 | Data | `permdock/drizzle` `drizzle` [3] · `permdock/prisma` `prisma` [3] · `permdock/kysely` [3] · `permdock rls` `supabase-rls` [3] |
-| Providers | `permdock/supabase` [3] · `permdock/better-auth` `better-auth` [4] · `permdock/clerk` `clerk` [4] · `permdock/convex` `convex` [4] |
+| Auth and providers | `permdock/jwt` [1] · `permdock/supabase` [3] · `permdock/better-auth` `better-auth` [4] · `permdock/clerk` `clerk` [4] · `permdock/convex` `convex` [4] |
 | Testing | `@permdock/testing` [1] |
 
 Full matrix with status, phases and related standards: [Adapters](./apps/docs/content/docs/adapters/index.mdx).
@@ -217,9 +235,11 @@ Full matrix with status, phases and related standards: [Adapters](./apps/docs/co
 - **Kilpi v1**: server-first async policies, `Grant` / `Deny`, RSC `<Access>`; zod + superjson in core, no Standard Schema, RN, MCP or OpenAPI.
 - **`@zap-studio/permit`**: the only other Standard-Schema authz library; boolean results, sync-only rules, no adapters, hydration, OpenAPI or MCP.
 - **Better Auth access control**: RBAC statements bound to Better Auth; PermDock layers conditions, snapshots and adapters on top via a provider.
-- **Hosted PDPs (Cerbos, Permit.io, OpenFGA, SpiceDB, Oso Cloud)**: strings in, boolean out over the network; PermDock embeds as a typed library and can act as an AuthZEN PDP or PEP to them.
+- **Hosted PDPs (Cerbos, Permit.io, OpenFGA, SpiceDB, Oso Cloud)**: strings in, boolean out over the network; PermDock embeds as a typed library, can act as an AuthZEN PDP or PEP to them, and offers the operational layer they sell (approvals, decision log, hosted AuthZEN ADS) as an optional Cloud that is never on the decision path.
 - **ZenStack v3**: compiles policies to SQL but dropped the database-free `check()`; PermDock keeps in-process, UI and SQL evaluation on one AST.
 - **`@ai-sdk/policy-opa`**: Rego policies for AI SDK tool approvals that fail open on unrecognised decisions; `permdock/ai-sdk` uses the app's own typed policy and fails closed.
+- **Cedar / AWS Verified Permissions, OPA / Rego, Casbin**: general policy engines with their own languages; PermDock keeps policies as TypeScript data and can sit in front of them as an AuthZEN PEP (`permdock/pdp`).
+- **Zanzibar family (OpenFGA, SpiceDB, Auth0 FGA, WorkOS FGA)**: relationship graphs at scale; PermDock does not replace them and bridges to them through a provider when a relation lookup is needed.
 
 Details and a feature matrix: [Comparison](./apps/docs/content/docs/comparison.mdx).
 

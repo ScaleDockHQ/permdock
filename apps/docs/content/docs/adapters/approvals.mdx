@@ -1,0 +1,142 @@
+---
+title: Approvals
+description: permdock/approvals is the pluggable store behind every approval-required decision, an in-memory default, a Fetch handler for approvers, and the interface that self-hosted stores and PermDock Cloud implement.
+---
+
+Status: planned
+Phase: 1
+
+`permdock/approvals` holds the part of a human-in-the-loop flow that the agent runtimes leave to the application: the pending request, who answered it, when it expires, and how a later call proves it was approved. It ships the `ApprovalStore` interface, `memoryApprovalStore()` as the default, and `approvalsHandler` so an application can mount list, approve and reject routes for its approvers. Every agent adapter (`ai-sdk`, `eve`, `openai`, `claude-agent`, `mcp`) and the HTTP kernel accept a `store` option typed against this interface. The decision itself is unchanged: `decide` still runs in-process and never waits on a store ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)).
+
+## Purpose
+
+The AI SDK, Eve, the OpenAI Agents SDK, MCP elicitation and the Claude Agent SDK each pause a run and hand the application an approval to collect. None of them stores an auditable approval record, knows who may approve, or expires a stale ask, and Eve's documentation says outright that a four-eyes flow needs an application-owned approval request ([Eve human-in-the-loop](https://eve.dev/docs/human-in-the-loop)). Without a shared store, every adapter would reinvent this, and PermDock Cloud's inbox would be the only durable option. `permdock/approvals` makes the store an interface with an in-process default so an application can run entirely on its own ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)).
+
+## API
+
+```ts
+import { memoryApprovalStore, approvalsHandler } from 'permdock/approvals'
+import type { ApprovalStore, ApprovalRequest } from 'permdock/approvals'
+
+const store = memoryApprovalStore({ ttl: 60 * 60 * 1000 })   // default: one hour
+
+// Every agent and HTTP adapter takes the same option
+const { toolApproval } = createPermDock(policy, { subject, actor, tools, store })
+
+// Routes for approvers: list pending, approve, reject
+const handler = approvalsHandler(store, {
+  subject: (request) => subjectFromJwt(request),   // the approver, from real authentication
+  requireDistinctApprover: false,                  // true = approver must differ from the principal too
+})
+app.all('/permdock/approvals/*', (c) => handler(c.req.raw))
+```
+
+```ts
+interface ApprovalStore {
+  create(request: ApprovalRequest): Promise<void> | void
+  get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null
+  resolve(token: string, verdict: { status: 'approved' | 'rejected'; by: Subject; note?: string }): Promise<ApprovalRequest> | ApprovalRequest
+  list(filter: { status?: ApprovalRequest['status']; principalId?: string; actorId?: string }): Promise<ApprovalRequest[]> | ApprovalRequest[]
+  expire(now?: Date): Promise<number> | number
+}
+```
+
+- `create` is called by an adapter when `decide` returns `approval-required`; the record carries the `token`, the permission key, the resource id, a subject summary, the model-readable `detail`, `createdAt` and `expiresAt` ([wire formats](/docs/concepts/wire-formats)).
+- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`; `approvalsHandler` enforces this before calling the store, and a custom store should too.
+- `list` powers the approver UI and the `permdock/terminal` interactive prompt.
+- `expire` is called opportunistically by adapters and by `approvalsHandler`; a scheduled job may call it as well.
+- `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
+
+`approvalsHandler` routes, all Fetch `Request` to `Response`:
+
+| Route | Purpose | Denial |
+| --- | --- | --- |
+| `GET /pending` | Requests the authenticated approver may resolve | `401` without a subject |
+| `POST /:token/approve` | Marks approved, records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, or the principal with `requireDistinctApprover` |
+| `POST /:token/reject` | Marks rejected with an optional `note` | Same |
+| `GET /:token` | One request, for a confirmation screen | `404` for unknown or foreign tokens |
+
+## Request lifecycle
+
+1. An adapter calls `decide`; the outcome is `approval-required` with a deterministic `token`.
+2. The adapter builds an `ApprovalRequest` and calls `store.create`. An `approval` event with `phase: 'requested'` fires on `on('decision')`.
+3. The runtime surfaces the ask (AI SDK `user-approval`, Eve `input.requested`, OpenAI `interruptions`, a `403` with the token, a terminal prompt).
+4. A person answers through the runtime's own UI, through `approvalsHandler`, or through the PermDock Cloud inbox. `store.resolve` records the verdict and approver; an `approval` event with `phase: 'resolved'` fires.
+5. The original call is retried. The adapter looks up the token, requires `status: 'approved'` and `expiresAt` in the future, re-runs `decide`, recomputes the token and compares. Only then does the tool or route execute; the resumed decision fires as a normal `decision` event carrying the same `token`.
+
+Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token>` header; the [server kernel](/docs/adapters/server-kernel) reads it.
+
+## What it validates
+
+- The approver comes from `subject` in `approvalsHandler` options or from the adapter's verified session, never from the approve request body.
+- The approver is not the request's actor, and optionally not its principal.
+- Status transitions: only `pending` can become `approved` or `rejected`; `expired` is terminal; a second resolve is a `409`.
+- Tokens on resume: unknown, pending, rejected, expired or mismatched tokens are `denied` with reason kind `approval`. No token is ever accepted without a fresh `decide`.
+- `memoryApprovalStore` is per process. The adapter logs a development warning when it is used in a serverless runtime, because a request that resumes on another instance will not find its record.
+
+## How denials surface
+
+- Resume with a bad token: the normal `denied` path of the calling adapter (`'denied'` in the AI SDK, `{ type: 'denied', reason }` in Eve, `state.reject` in OpenAI, `403` Problem Details over HTTP) with `detail` naming the cause: `approval-not-found`, `approval-pending`, `approval-rejected`, `approval-expired`, `approval-mismatch`.
+- Approver not allowed: `403` from `approvalsHandler` with the `denied` problem type and `detail` "approver is the actor of this request".
+- Everything is recorded: the ask, the answer and the resumed decision share `token`, so a `DecisionSink` reconstructs the flow from three rows.
+
+## Recipe: a Drizzle-backed store
+
+The interface is small enough that persistence is a short file. This is documentation, not a shipped entry; PermDock Cloud implements the same interface over its API.
+
+```ts
+import { eq, and, lt } from 'drizzle-orm'
+import type { ApprovalStore, ApprovalRequest } from 'permdock/approvals'
+import { approvals } from './schema'   // columns: token (pk), body (jsonb), status, expires_at, resolved_by
+
+export function drizzleApprovalStore(db: Db): ApprovalStore {
+  return {
+    async create(r) {
+      await db.insert(approvals).values({ token: r.token, body: r, status: r.status, expiresAt: new Date(r.expiresAt) })
+    },
+    async get(token) {
+      const row = await db.query.approvals.findFirst({ where: eq(approvals.token, token) })
+      return row ? { ...row.body, status: row.status } : null
+    },
+    async resolve(token, { status, by, note }) {
+      if (!by.principal) throw new Error('approver must be authenticated')
+      const [row] = await db.update(approvals)
+        .set({ status, resolvedBy: by.principal.id, body: { note } })
+        .where(and(eq(approvals.token, token), eq(approvals.status, 'pending')))
+        .returning()
+      if (!row) throw new Error('approval is not pending')
+      return { ...row.body, status, resolvedBy: row.resolvedBy, resolvedAt: new Date().toISOString(), note }
+    },
+    async list({ status = 'pending' }) {
+      const rows = await db.query.approvals.findMany({ where: eq(approvals.status, status) })
+      return rows.map((row) => ({ ...row.body, status: row.status }))
+    },
+    async expire(now = new Date()) {
+      const rows = await db.update(approvals).set({ status: 'expired' })
+        .where(and(eq(approvals.status, 'pending'), lt(approvals.expiresAt, now))).returning()
+      return rows.length
+    },
+  }
+}
+```
+
+The actor check (`by.principal.id !== request.subject.actor?.id`) is performed by `approvalsHandler` and by the agent adapters before `resolve` is called; a store used from custom code should repeat it.
+
+## Example app
+
+None of its own. `apps/examples/ai-sdk-agent`, `apps/examples/eve-agent` and `apps/examples/openai-agent` each mount `approvalsHandler` next to their agent and include a test that approves from a second authenticated user and refuses an approval from the actor itself. `apps/examples/terminal` resolves approvals interactively against the same store.
+
+## Related standards
+
+- [Approvals](/docs/security/approvals): the grant, the token, the resume flow.
+- [Wire formats](/docs/concepts/wire-formats): the `ApprovalRequest` shape.
+- [Audit and observability](/docs/concepts/audit-and-observability): `approval` events and the `DecisionSink`.
+- [Problem Details](/docs/standards/problem-details): the `403` bodies.
+- [Cloud adapter](/docs/adapters/cloud): the hosted store with an inbox UI.
+- [ADR 0022](/docs/decisions/0022-approvals-are-pluggable).
+
+## Open questions
+
+- Whether `list` needs cursor pagination in the interface or whether the Cloud store may add it as an extension.
+- Notification delivery (email, Slack, push) is out of scope for the open-source entry; whether a `notify` hook on the store or on the adapter is the right seam for self-hosters.
+- Whether `once()`-style session-scoped approvals (Eve's helper) should be expressible as a store policy or stay a runtime concern.

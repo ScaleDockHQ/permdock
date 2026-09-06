@@ -1,0 +1,52 @@
+---
+title: "0018: Authentication is upstream"
+description: Why PermDock consumes only verified material, keeps token verification out of core and in optional-peer entries and provider adapters, names every mapper subjectFrom<Source>, and fails closed to the anonymous subject.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Every PermDock decision starts from a subject, and the subject has to come from somewhere: a session cookie, a bearer JWT, Supabase claims, a Clerk auth object, MCP `authInfo`, a Web Bot Auth signature, a workload identity. The material arrives in a dozen formats, each with its own verification procedure, and the procedure needs cryptography (JWS signature checks, JWKS fetching, DPoP proof validation) that core cannot carry: [ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core) fixes core at one runtime dependency, `@standard-schema/spec`, and a budget of about 3 kB gzip.
+
+At the same time the failure modes are well known and severe. RFC 8725 and its successor draft `rfc8725bis` list them: `alg: none`, key confusion between RSA and HMAC, tokens that name their own key via `jku` or `jwk`, unchecked `aud`, missing clock tolerance. The Supabase and Clerk data models both contain user-editable metadata sitting next to server-set metadata in the same token, and a mapper that reads the wrong one hands a user the power to promote themselves. The [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-security-profile-2_0-final.html) additionally requires resource servers to reject tokens in query strings and to verify sender constraint. A library that touches tokens at all has to get all of this right, or must define precisely where it stops.
+
+The two-principal subject ([ADR 0012](/docs/decisions/0012-two-principal-subject)) makes the question sharper: `actor` and `delegation` are what an agent may do for a user, so they must come from verified token claims (`scope`, `authorization_details`, `act`), never from the agent's own assertion.
+
+## Decision
+
+1. **PermDock consumes verified material only.** Core never sees a token, a cookie or a signature. It receives a `Subject` (or a principal object, or `null`) and treats it as true. What counts as verified is defined on one page, [Authentication and PermDock](/docs/concepts/authentication), and every adapter and provider follows it.
+2. **Verification lives outside core, in two kinds of entry.** `permdock/jwt` verifies bearer JWTs with `jose` as an optional peer dependency and implements the RFC 8725 checklist plus FAPI 2.0 as an opt-in profile. Provider adapters (`permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/mcp`) reuse the provider SDK's verification and only map its output. No verification code, and no crypto dependency, is ever added to `permdock` core or to client entries.
+3. **Every mapper is `subjectFrom<Source>`.** `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromMcp`. The name says what the input is; the return type is always `Subject`; the function never throws and never logs anyone in.
+4. **Fail closed to anonymous.** Material that cannot be verified, or that verifies but has no usable principal id, yields `principal: null` plus an audit event carrying a `reason` code. Anonymous has no roles, so the decision is `denied`. There is no "trust the claims with a warning" mode and no partially trusted principal.
+5. **Only server-set claims feed grants.** `sub` is the id; roles and tenant come from server-controlled claims (`app_metadata`, Auth Hook claims, backend-set metadata) or from the policy's `context` function; user-editable metadata is never read for authorization.
+6. **Sender constraint is recorded by core and checked by adapters.** `binding` (`cnf.jkt`, `cnf.x5t#S256`) travels on the subject and into audit; proof-of-possession is verified where the request is, in `permdock/jwt` or the server kernel.
+
+## Consequences
+
+- Core stays at one dependency and under budget; `jose` is installed only by apps that import `permdock/jwt`, and `tests/bundle` asserts that no client entry reaches it.
+- One documented checklist replaces per-adapter token handling; the threat table gains explicit rows for `none` / key confusion, unverified claims, query-string tokens, stale tokens and metadata escalation ([threat model](/docs/security/threat-model)).
+- Provider pages gain a "Verified material" section that states exactly which SDK call produces the accepted input and which fields are trusted.
+- `Subject` grows `expiresAt`, `principal.kind`, `principal.assurance` and `binding`, so a snapshot can expire with the token and a policy can require MFA or distinguish workloads ([subject](/docs/concepts/subject)).
+- Agent-run processes (CLIs, workers) cannot assert an actor through flags; they present a token or run anonymous. This makes the terminal adapter stricter than most CLI tooling and is intentional.
+- Revocation before `exp` is outside `permdock/jwt`; it is the job of the SSF receiver or an introspection step the app adds. The docs say so rather than implying a guarantee.
+- Teams with a custom identity provider write one resolver ending in `subjectFromJwt`; teams with an unusual token format write a resolver that ends in a plain `Subject` and accept that PermDock cannot check their verification.
+
+## Alternatives considered
+
+- **Bundle `jose` in core so `createPermDock` can take a raw token.** Rejected: it breaks [ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core), ships a JWS verifier to browsers and React Native that never verify anything, and blurs the trust boundary (is this argument a token or a subject?). An optional entry gives the same convenience for the apps that need it.
+- **Ship a full authentication layer** (login, sessions, OAuth client, refresh). Rejected: Better Auth, Clerk, Supabase Auth and the framework session layers already do this well; PermDock would compete with its own providers and take on the security surface of an identity product. `permdock/jwt` deliberately stops at verification of a token someone else obtained.
+- **Accept unverified claims with a warning** (decode the JWT, log "unverified", proceed). Rejected: a warning is not a control. The first app to ship with the warning silenced has an authentication bypass, and PermDock's fail-closed invariant would hold in name only. The anonymous subject is the only acceptable output for unverified input.
+- **Verify in each framework adapter** (Hono middleware verifies, Express middleware verifies, ...). Rejected: N copies of the RFC 8725 checklist drift; one `permdock/jwt` entry plus provider mappers keeps a single implementation, which is also the lesson of the shared [server kernel](/docs/adapters/server-kernel).
+- **Trust `user_metadata` when `app_metadata` is empty** as a convenience for small projects. Rejected: the convenience is exactly the escalation path, and small projects grow.
+
+## Related
+
+- [Authentication and PermDock](/docs/concepts/authentication)
+- [JWT adapter](/docs/adapters/jwt)
+- [Subject](/docs/concepts/subject)
+- [Threat model](/docs/security/threat-model)
+- [0015: No runtime dependencies in core](/docs/decisions/0015-no-runtime-deps-in-core)
+- [0012: Two-principal subject](/docs/decisions/0012-two-principal-subject)

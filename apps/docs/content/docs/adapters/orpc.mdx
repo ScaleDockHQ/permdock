@@ -41,7 +41,7 @@ export const list = base
 | `permdock()` | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. |
 | `protect(permission, load?)` | Middleware placed after `.input(...)`. Loads and boundary-validates the resource, decides, continues with `context.permdockData` or throws `ORPCError` with code `FORBIDDEN`. |
 | `openapi.protect(permission, load?)` | `protect` wrapped with `oo.spec(middleware, (spec) => ...)` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document automatically. |
-| `openapi.securitySchemes()` | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2, with `x-oai-*` fallbacks for 3.1 output. |
+| `openapi.securitySchemes()` | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). |
 | `permdockHandler` | Procedure or Fetch handler for the AuthZEN-shaped decision endpoint. |
 
 ## Request lifecycle

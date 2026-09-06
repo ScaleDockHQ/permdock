@@ -1,0 +1,122 @@
+---
+title: Cloud
+description: permdock/cloud is the thin, optional client for PermDock Cloud; it implements ApprovalStore, DecisionSink and SnapshotSource over a documented HTTP API, never sits in the decision path, and is provisioned from the Vercel Marketplace.
+---
+
+Status: planned
+Phase: 2
+
+`permdock/cloud` is one implementation of the interfaces the rest of the package defines. `cloud({ url, key })` returns an `ApprovalStore` with an inbox UI behind it, a `DecisionSink` with a queryable decision log, and a `SnapshotSource` that distributes signed snapshots and invalidates them on CAEP events. Nothing in this entry is consulted by `can`, `decide`, `filter`, `where` or `simulate`: every decision still runs in-process on the policy in your bundle ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)). Remove the entry and the application keeps working on the in-memory defaults.
+
+PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud` repository (URL to follow once the repository is public). This page defines what the client speaks; that repository implements it.
+
+## Purpose
+
+Three things are worth paying for around an embedded decision engine: a place where pending approvals wait for a person with a UI and notifications; a place where decisions accumulate so "which agent did what for whom" is a query rather than a log grep; and a way for services that do not run TypeScript, and for API gateways, to enforce the same policy. PermDock Cloud provides all three as an Authorization Decision Service plus control plane, and `permdock/cloud` is the client. The Supabase model applies: every capability has an interface in the open-source package with an in-process default, the Cloud is the managed implementation, and the interfaces are documented well enough to implement yourself ([approvals adapter](/docs/adapters/approvals), [audit](/docs/concepts/audit-and-observability)).
+
+## API
+
+```ts
+import { cloud } from 'permdock/cloud'
+
+const pd = cloud({
+  url: process.env.PERMDOCK_CLOUD_URL,     // set by the Marketplace integration or by hand
+  key: process.env.PERMDOCK_CLOUD_KEY,     // server-only; never in NEXT_PUBLIC_* or a client bundle
+  environment: 'production',               // defaults to VERCEL_ENV when present
+})
+
+// Plug into any adapter that accepts store / sink / snapshots
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
+  subject,
+  store: pd.approvals,       // ApprovalStore: persistent, inbox UI, delivery
+  sink: pd.sink,             // DecisionSink: batched, retried, queryable
+  snapshots: pd.snapshots,   // SnapshotSource: distributed, CAEP-invalidated (optional)
+})
+```
+
+- `cloud()` returns a frozen object; `approvals`, `sink` and `snapshots` are the three interfaces. There is no `decide` on it.
+- `sink` batches events in memory and flushes on an interval, on size, and at the end of a request when the runtime exposes `waitUntil`. Delivery failure never affects a decision and is reported through `on('error')`.
+- `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store; the inbox UI, Slack and email delivery, and approver groups are Cloud features layered on the same records.
+- `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)).
+- Zero required dependencies: the client uses `fetch` and the wire formats from core. It is server-only and `tests/bundle` asserts no client entry reaches it.
+
+### Environment variables
+
+| Variable | Set by | Used for |
+| --- | --- | --- |
+| `PERMDOCK_CLOUD_URL` | Marketplace provisioning or you | Base URL of the environment's API |
+| `PERMDOCK_CLOUD_KEY` | Marketplace provisioning or you | Server-side key for the store, sink and snapshot endpoints; rotated from the dashboard |
+| `PERMDOCK_CLOUD_ENV` | Optional | Overrides the environment name when `VERCEL_ENV` is absent |
+
+`permdock doctor` reports whether the variables are present, whether the key reaches the API, and whether a client entry imports `permdock/cloud`.
+
+## What stays local and what the Cloud adds
+
+| Concern | In-process default (always available) | With `permdock/cloud` |
+| --- | --- | --- |
+| Deciding | `decide` on the bundled policy | Unchanged |
+| Pending approvals | `memoryApprovalStore()` | Persistent store, inbox UI, delivery, approver groups, expiry jobs |
+| Audit | `on('decision')` handler, `permdock/otel` | Decision log with retention, per-actor and per-principal queries, anomaly views |
+| Snapshots | Served by the application's endpoint | Edge distribution, signed, invalidated by CAEP |
+| Non-TypeScript callers | Your own `permdock/authzen` deployment | Hosted AuthZEN ADS serving the same policy to gateways and services |
+| Catalog and usage | `permdock collect` and `permdock usage` in CI | Dashboards over the same catalog files, drift alerts |
+
+## Hosted Authorization Decision Service
+
+The Cloud runs the same `permdock/authzen` handler your app could run, against the policy you publish with `permdock cloud push` (a CLI command in Phase 2). Kong, Envoy, Tyk, Zuplo or a Go service calls `POST /access/v1/evaluation` and gets an AuthZEN answer with the PermDock `Decision` under `context.permdock` ([AuthZEN](/docs/standards/authzen)). Decision semantics are identical to the embedded engine because it is the same code; an `evaluations` batch of a policy matrix from `@permdock/testing` is the parity test.
+
+Caller authentication is real authentication ([threat model](/docs/security/threat-model), invariant 9):
+
+- On Vercel, the caller presents its [OIDC token](https://vercel.com/docs/oidc); the ADS verifies it with `permdock/jwt` against Vercel's JWKS and maps `sub`, `project_id` and `environment` to a workload principal.
+- Elsewhere, the caller uses OAuth client credentials issued per environment in the dashboard; the token's `aud` is the environment URL.
+- A request with no verifiable token is answered `401`; a token for another environment is `403`. There is no shared static secret mode.
+
+The ADS never reads a subject from the request body unless the caller is registered as a trusted PEP for that environment, matching the in-app endpoint rule.
+
+## Vercel Marketplace
+
+PermDock Cloud is listed as a native Marketplace integration so a Vercel project gets an environment, its variables and billing without leaving the dashboard.
+
+- **Resource model.** One Marketplace resource is one PermDock environment, created per Vercel project and environment (`production`, `preview`, `development`) so preview approvals never land in the production inbox. `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are written to the project's environment variables on provisioning and rotated from either dashboard.
+- **Integration server.** The Cloud repository implements the Marketplace provisioning API (install, resource create, update, delete, SSO, billing webhooks and invoices) per the [approval checklist](https://vercel.com/docs/integrations/create-integration/approval-checklist); this repository only documents the variables and the `doctor` check.
+- **Template.** `apps/examples/eve-agent` is the deploy template the listing requires: an Eve agent with `post` tools, `permdock/eve` approvals stored in the Cloud, and the inbox linked from the deployed app ([Eve adapter](/docs/adapters/eve)).
+- **Plans.** A free environment with an in-memory-equivalent retention window, then usage-based plans on stored approvals, retained decisions and ADS evaluations; the exact numbers belong to the Cloud repository and the [commercial landscape](/docs/research/commercial-landscape) research, not to the library docs.
+
+## Request lifecycle
+
+1. The application decides locally. Nothing on this path touches the network.
+2. `on('decision')` events go to `pd.sink`, which batches and posts them to `POST /v1/environments/:env/decisions` with the key.
+3. An `approval-required` outcome causes the adapter to call `pd.approvals.create`, which posts the `ApprovalRequest` to `POST /v1/environments/:env/approvals`. The Cloud notifies the configured approvers.
+4. An approver resolves the request in the inbox UI (or through Slack or email actions). The Cloud authenticates the approver, applies the actor and distinct-approver rules, records `resolvedBy`.
+5. The application's retried call reads the record via `pd.approvals.get`, re-runs `decide` locally, compares the token and proceeds. The resumed decision goes to the sink like any other.
+
+## What it validates
+
+- The key is present and server-side; the entry throws at construction (not at decision time) when `url` or `key` is missing, so misconfiguration is visible at boot.
+- Responses from the API are validated against the wire-format versions this package knows; an unknown `v` is rejected and reported, and the adapter falls back to the in-memory store for that request so decisions never depend on the API being reachable.
+- Approver identity on the Cloud side comes from the Cloud's own authentication; the client never asserts who approved.
+
+## How denials surface
+
+- The Cloud is not on the decision path, so it produces no denials of its own. A resume against a request the Cloud reports as `rejected` or `expired` surfaces through the calling adapter exactly as with any store ([approvals adapter](/docs/adapters/approvals)).
+- API unreachable during a resume: `denied` with `detail` `approval-not-found` and an `on('error')` event; the application may retry.
+- The hosted ADS answers denied evaluations with `decision: false` and the PermDock `Decision` under `context.permdock`, and transport errors as Problem Details ([AuthZEN adapter](/docs/adapters/authzen)).
+
+## Example app
+
+`apps/examples/eve-agent` (also the Marketplace template) and a `cloud` variant of `apps/examples/authzen-pdp` in which the PEP process points at a hosted environment instead of the local Hono PDP, asserting identical decisions for the policy matrix.
+
+## Related standards
+
+- [AuthZEN](/docs/standards/authzen): the hosted ADS wire format.
+- [Shared Signals and CAEP](/docs/standards/shared-signals-caep): snapshot invalidation.
+- [Wire formats](/docs/concepts/wire-formats): `ApprovalRequest`, `DecisionEvent`, snapshot v1.
+- [Approvals adapter](/docs/adapters/approvals) and [Audit and observability](/docs/concepts/audit-and-observability): the interfaces this entry implements.
+- [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable).
+
+## Open questions
+
+- Whether `snapshots` belongs in Phase 2 with the store and sink, or later, since it is the only capability that changes a client-visible path.
+- How a self-hosted PermDock Cloud (the repository is open) advertises itself so that `cloud({ url })` works against it with no Marketplace involvement; the target is "point `PERMDOCK_CLOUD_URL` at your deployment".
+- Whether the sink should also accept `permdock/otel` spans, or whether OTel export to the Cloud is a separate collector configuration.
+- The `permdock cloud push` command shape and whether policy publication should be a build step (`createPermDockPlugin`) rather than a CLI command.

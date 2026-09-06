@@ -33,8 +33,9 @@ type DecisionEvent = {
   alternatives?: string[]             // permission keys
   token?: string
   trusted: boolean                    // whether the data crossed a boundary and was validated
-  source: 'can' | 'decide' | 'assert' | 'filter' | 'endpoint' | 'adapter'
-  adapter?: string                    // 'next' | 'hono' | 'mcp' | 'ai-sdk' | ...
+  source: 'can' | 'decide' | 'assert' | 'filter' | 'endpoint' | 'adapter' | 'approval'
+  adapter?: string                    // 'next' | 'hono' | 'mcp' | 'ai-sdk' | 'eve' | 'openai' | ...
+  phase?: 'requested' | 'resolved'    // only on source 'approval'; see the approval store
 }
 ```
 
@@ -65,6 +66,33 @@ permdock.on('decision', (event) => {
 ```
 
 Register the handler once where you create the `PermDock` (the server factory file), or pass it to the adapter's `createPermDock` options so every request-scoped instance inherits it.
+
+### DecisionSink
+
+A handler is enough for one process. When events must leave the process, the adapters take a `sink` option typed against a small interface, with an in-memory default, so the destination is pluggable the same way the [approval store](/docs/adapters/approvals) is ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)):
+
+```ts
+interface DecisionSink {
+  write(events: readonly DecisionEvent[]): Promise<void> | void   // batched; never awaited by decide
+  flush?(): Promise<void>                                          // called at request end when the runtime has waitUntil
+}
+
+import { memorySink } from 'permdock'
+const sink = memorySink({ capacity: 10_000 })   // default; ring buffer, readable in tests and `permdock doctor`
+
+createPermDock(policy, { subject, sink })       // every request-scoped instance writes to it
+```
+
+Implementations that ship or are documented:
+
+| Sink | Where | What it does |
+| --- | --- | --- |
+| `memorySink()` | core | Ring buffer; the default; what `@permdock/testing` asserts against |
+| `permdock/otel` | optional entry | Spans and metrics from the same events (below) |
+| `permdock/cloud` | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud)) |
+| Your own | a few lines | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface |
+
+A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A failing sink is reported to `on('error')` and never changes an outcome.
 
 ### What is not logged
 
@@ -138,7 +166,7 @@ Rules the adapters follow:
 
 - `type` is a stable URI per outcome (the base URI above is a placeholder until the docs domain is final). `title` is constant per `type`; `detail` is human-readable and may vary.
 - The extension members `permission`, `scope`, `resource`, `denials`, `alternatives`, `reason`, `token` and `issues` are the machine-readable part. Their names match the `Decision` and the audit event, so a client library can parse all three with one type.
-- `approval-required` is a 403 with its own `type`, not a 401 and not a 202: the request was understood and refused pending a human. How a plain HTTP client then obtains the approval is an open question in the plan.
+- `approval-required` is a 403 with its own `type`, not a 401 and not a 202: the request was understood and refused pending a human. The client retries with a `PermDock-Approval: <token>` header once the request is approved in the store ([approvals](/docs/security/approvals)).
 - The body never contains the policy, the closure source, or another subject's data. `denials` names roles the subject holds, which the subject already knows.
 - OpenAPI emission documents the 403 responses with these schemas on every protected operation.
 
@@ -149,7 +177,8 @@ Model-readable text: the `detail` strings are written for an LLM as much as for 
 | Question | Where the answer is |
 | --- | --- |
 | Was this specific request denied and why? | The Problem Details body, or the `decision` on the thrown `PermDockDeniedError` |
-| Which agent did what for which user last week? | Your audit sink fed by `on('decision')`, filtered on `subject.actor` |
+| Which agent did what for which user last week? | Your `DecisionSink` (or the PermDock Cloud decision log), filtered on `subject.actor` |
+| Who approved that deletion, and when? | The `approval` events sharing the decision's `token`, with `resolvedBy` on the request record |
 | How often is `post.delete` denied per adapter? | The `permdock.checks` counter |
 | Why is this page slow? | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint |
 | What changed in who can do what? | `permdock usage` and the policy matrix snapshot in `@permdock/testing`, in review |

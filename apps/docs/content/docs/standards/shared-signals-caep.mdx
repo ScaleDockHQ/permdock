@@ -5,10 +5,11 @@ description: How the OpenID Shared Signals Framework 1.0 and CAEP 1.0 let permdo
 
 Status: planned
 Phase: 3
+Adapter phases: `permdock/ssf` 3.
 
 ## What it is
 
-The OpenID Foundation's [Shared Signals Framework (SSF) 1.0 and Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/tag/caep/) became final in October 2025. SSF is the plumbing: a transmitter (usually an identity provider) sends Security Event Tokens (SETs) to a receiver (an application or another IdP) over either RFC 8935 push (the transmitter POSTs to the receiver) or RFC 8936 poll (the receiver fetches). CAEP is the vocabulary of events about a session's continued validity, including:
+The OpenID Foundation's [Shared Signals Framework (SSF) 1.0 and Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/tag/caep/) were approved as Final Specifications on 2 September 2025 ([announcement](https://openid.net/three-shared-signals-final-specifications-approved/)). SSF is the plumbing: a transmitter (usually an identity provider) sends Security Event Tokens (SETs) to a receiver (an application or another IdP) over either RFC 8935 push (the transmitter POSTs to the receiver) or RFC 8936 poll (the receiver fetches). CAEP is the vocabulary of events about a session's continued validity, including:
 
 - `session-revoked`: the user's session at the IdP ended (sign-out, admin action, risk signal).
 - `credential-change`: a password, key or MFA factor was changed, added or removed.

@@ -18,9 +18,9 @@ Supabase apps have two enforcement points, the application and Postgres RLS, and
 import { createPermDock } from 'permdock'
 import { subjectFromSupabase, supabaseRls } from 'permdock/supabase'
 
-// server: from a verified access token or a server client session
-const { data: { user } } = await supabase.auth.getUser()
-const permdock = await createPermDock(policy, subjectFromSupabase(user, { claims: jwtClaims }))
+// server: from claims the Supabase client verified (JWKS locally with asymmetric keys, Auth server with the legacy secret)
+const { data, error } = await supabase.auth.getClaims()
+const permdock = await createPermDock(policy, subjectFromSupabase(error ? null : data.claims))
 
 // policy: declare how Supabase claims map to subject fields used by conditions and RLS
 export const policy = definePolicy(permissions, {
@@ -30,7 +30,7 @@ export const policy = definePolicy(permissions, {
 })
 ```
 
-- `subjectFromSupabase(user, options)` returns `{ id: auth.uid, roles, claims }` where `id` is the `sub`, `roles` is derived from the configured role claim (default `user_role` in `app_metadata` or top-level), and `claims` exposes `app_metadata` values; `user_metadata` is never read because it is user-writable.
+- `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, assurance, claims }`: `id` is the `sub`, `roles` is derived from the configured role claim (default `user_role`, top-level as the hook writes it or under `app_metadata`), `assurance` is `aal`, and `claims` exposes `app_metadata` values; `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
 - `supabaseRls(options)` tells `permdock rls` how `subject.id` (`(select auth.uid())`), `subject.claim(...)` (`(select auth.jwt()) ->> 'claim'`) and `subject.roles` (`authorize()`) compile.
 - `permdock rls generate --rbac supabase` emits: enums `app_role` and `app_permission` (from `listPermissions`), tables `user_roles(user_id, role)` and `role_permissions(role, permission)`, seed rows for every role and grant in the policy, the `custom_access_token_hook(event jsonb)` PL/pgSQL function, and the `security definer stable` function `authorize(requested_permission app_permission) returns boolean`.
 - Named permissions without conditions compile to `using ((select authorize('post.delete')))`; conditional grants compile to `authorize(...) and (cond)`.
@@ -43,6 +43,84 @@ Claim mapping used by both the in-process subject and the RLS compiler:
 | `subject.roles` | `user_role` (from the Auth Hook) | `authorize('perm')` via `role_permissions` |
 | `subject.claim('tenant_id')` | `app_metadata.tenant_id` or a top-level custom claim | `(select auth.jwt()) ->> 'tenant_id'` |
 | anonymous | no token, or `role = anon` | `auth.uid()` is NULL; `TO anon` grants only |
+
+## Verified material
+
+The provider consumes claims that Supabase has already verified; it never parses a raw JWT itself ([Authentication and PermDock](/docs/concepts/authentication)).
+
+### Signing keys and `getClaims()`
+
+Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/docs/guides/auth/signing-keys)):
+
+| System | Algorithm | Verification | Status |
+|---|---|---|---|
+| JWT signing keys | Asymmetric RSA or EC; ES256 recommended | Locally, against the project JWKS at `https://<project>.supabase.co/auth/v1/.well-known/jwks.json` | Recommended |
+| Legacy JWT secret | HS256 shared secret (also signs the `anon` and `service_role` keys) | Round trip to the Auth server | No longer recommended |
+
+`supabase.auth.getClaims()` picks the right path: with asymmetric keys it verifies the signature locally against the JWKS (rotation follows standby, current, previously used, revoked, so a freshly rotated key is already in the set); with the legacy secret it calls the Auth server. Either way the output is verified, and it is the input to `subjectFromSupabase`. Prefer `getClaims()` over decoding the session's `access_token` yourself, and prefer asymmetric keys so a compromised server never holds a secret that can mint tokens. Apps that verify Supabase tokens outside the Supabase client (a Hono API without `@supabase/ssr`) can point [`permdock/jwt`](/docs/adapters/jwt) at the same JWKS URL with `algorithms: ['ES256']`, `issuer: 'https://<project>.supabase.co/auth/v1'` and `audience: 'authenticated'`.
+
+### Claim mapping
+
+`subjectFromSupabase(claims, options)` maps the minted claims to the subject:
+
+| Claim | Trust | Becomes |
+|---|---|---|
+| `sub` | Verified | `principal.id` |
+| `role` (`anon`, `authenticated`, `service_role`) | Verified | The Postgres role the request runs under; `anon` yields the anonymous subject; `service_role` is refused for subject building (a bypass role is not a principal) |
+| `app_metadata.*` and hook-injected top-level claims (`user_role`, `tenant_id`) | Server-set, trusted | `principal.roles`, `principal.claims.*` |
+| `user_metadata.*` | User-writable through the client SDK | **Never read.** A user can set `user_metadata.role = 'admin'` on themselves; it must not become a grant |
+| `aal` (`aal1`, `aal2`) | Verified | `principal.assurance`, for grants that require MFA (`where: { subject: { assurance: 'aal2' } }`) |
+| `session_id` | Verified | Carried on audit events; the key a CAEP `session-revoked` event invalidates |
+| `exp` | Verified | `subject.expiresAt`, copied into snapshots |
+| `email`, `phone`, `is_anonymous` | Verified | Exposed on `principal` only when `options.include` names them; not used for grants |
+
+### The Custom Access Token Hook
+
+The hook runs before Supabase Auth issues a token and may add or remove claims ([Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)). It is how `user_role` gets into the JWT so that both `authorize()` in RLS and `subjectFromSupabase` in the app read the same role from the same place.
+
+SQL form, as `permdock rls generate --rbac supabase` emits it:
+
+```sql
+create or replace function public.custom_access_token_hook(event jsonb)
+returns jsonb
+language plpgsql
+stable
+as $$
+declare
+  claims jsonb;
+  user_role public.app_role;
+begin
+  select role into user_role from public.user_roles where user_id = (event ->> 'user_id')::uuid;
+
+  claims := event -> 'claims';
+  if user_role is not null then
+    claims := jsonb_set(claims, '{user_role}', to_jsonb(user_role));
+  else
+    claims := jsonb_set(claims, '{user_role}', 'null');
+  end if;
+
+  event := jsonb_set(event, '{claims}', claims);
+  return event;
+end;
+$$;
+
+grant usage on schema public to supabase_auth_admin;
+grant execute on function public.custom_access_token_hook to supabase_auth_admin;
+revoke execute on function public.custom_access_token_hook from authenticated, anon, public;
+
+grant all on table public.user_roles to supabase_auth_admin;
+revoke all on table public.user_roles from authenticated, anon, public;
+create policy "Allow auth admin to read user roles" on public.user_roles
+  as permissive for select to supabase_auth_admin using (true);
+```
+
+The grants matter as much as the function: the hook runs as `supabase_auth_admin`, which needs `usage` on the schema, `execute` on the function and read access to `user_roles`; everyone else must lose `execute` so a client cannot call the hook through PostgREST. The hook is enabled in the dashboard under Authentication, then Hooks, or in `config.toml` for local development.
+
+HTTP form: an endpoint (typically an Edge Function) that receives a JSON body with `user_id`, `claims` and `authentication_method`, signed with a standard-webhooks secret (`v1,whsec_...`) that the function must verify before trusting the body, and returns a JSON object with the modified `claims`. Use it when roles live outside Postgres (an external HR system, a billing provider). `permdock rls generate --rbac supabase --hook http` emits the Edge Function skeleton with the signature check and the same `user_role` lookup against a configurable source.
+
+Either form can also strip claims to shrink the token; the scaffold keeps `iss`, `aud`, `exp`, `iat`, `sub`, `role`, `aal`, `session_id`, `email`, `phone` and `is_anonymous`, which is the set Supabase clients and `subjectFromSupabase` need.
+
+Because the scaffold emits the hook next to `authorize()`, the Postgres policy `auth.jwt() ->> 'user_role'` and PermDock's `principal.roles` are two readers of one claim written by one function. A role change in `user_roles` reaches both on the next token refresh; a [Shared Signals receiver](/docs/adapters/ssf) or an app-level `updateTag` shortens the window.
 
 ## Request lifecycle
 

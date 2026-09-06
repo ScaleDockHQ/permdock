@@ -1,0 +1,121 @@
+---
+title: GNAP (RFC 9635)
+description: How the Grant Negotiation and Authorization Protocol's access rights array maps onto PermDock permissions and delegation, why interaction and continuation look like approval-required, and why PermDock only tracks GNAP for now.
+---
+
+Status: tracking
+Phase: 4
+
+PermDock follows GNAP but ships no GNAP-specific adapter. The `access` rights format is accepted as a third delegation input (`delegation.access`); evaluating it in the delegation intersection lands in Phase 4 alongside delegation-chain verification. Adapter phases: [`permdock/jwt`](/docs/adapters/jwt) maps an `access` claim onto `delegation.access` from Phase 1, and until Phase 4 those entries contribute nothing (fail closed). See the [watch list](/docs/standards/watch-list).
+
+## What it is
+
+[RFC 9635, the Grant Negotiation and Authorization Protocol](https://datatracker.ietf.org/doc/html/rfc9635), is the IETF's redesign of delegated authorization. Where OAuth 2.0 grew a family of grant types, extensions and profiles, GNAP defines one negotiation: a client instance sends a grant request describing the access it wants and the subject information it needs, the authorization server (AS) answers with access tokens, a continuation handle, or instructions for involving the resource owner, and the client continues the negotiation until it has what it needs or is refused. Tokens are bound to keys by default. The parts a permissions library cares about:
+
+- **Resource access rights (section 8).** A structured description of what a token allows, designed as the successor to flat scopes.
+- **Interaction (sections 2.5 and 3.3).** How a human is brought into the loop when the AS needs consent.
+- **Continuation (section 5).** How the client polls or modifies a pending grant.
+- **Token management (section 6).** Rotation and revocation of issued tokens.
+- **Subject information (sections 2.2 and 3.4).** Identity claims about the resource owner returned next to, not inside, the access token.
+
+## The `access` rights array
+
+Section 8 defines `access` as a JSON array whose elements are either objects or reference strings; the total access represented is the union of all elements. An object has one required field and a set of common optional ones:
+
+| Field | Meaning |
+| --- | --- |
+| `type` | Required. The kind of resource or API, compared byte-for-byte; a URI is recommended for general-purpose APIs so types do not collide |
+| `actions` | Array of strings naming what may be done (`read`, `update`, ...) |
+| `locations` | URIs of the resource servers the right applies to |
+| `datatypes` | Kinds of data the right covers, as the API defines them |
+| `identifier` | A specific resource instance |
+| `privileges` | Named privilege levels, as the API defines them |
+
+API-specific fields are allowed next to the common ones. Within one object the fields are a cross-product: an object with two `actions` and two `identifier`-like constraints authorises every combination its fields describe. Across objects the array is a union, so narrowing is done by splitting into more specific objects, never by adding a field to a broad one.
+
+Section 8.1 allows an access right to be a plain string, "similar to OAuth 2.0 scope", and the array may mix strings and objects.
+
+RFC 9635 states this directly: "GNAP's structure is designed to be analogous to the OAuth 2.0 Rich Authorization Requests data structure defined in RFC 9396". A GNAP `access` object and a RAR `authorization_details` object share `type`, `actions`, `locations`, `datatypes` and `identifier`; GNAP adds `privileges` and the reference-string form. PermDock's [RAR support](/docs/security/delegation) therefore covers most of GNAP for free.
+
+## Why it matters for PermDock
+
+Two reasons, one present and one contingent.
+
+The present one is design validation. PermDock's permission leaf is `{ key, resource, action, scope, meta }` with a per-permission `authorizationDetails` type. Two independent standards bodies (the IETF for both RAR and GNAP) converged on `type` plus `actions` plus `identifier` as the minimal structured grant. Mapping PermDock onto GNAP costs nothing, which is evidence that the leaf shape is right.
+
+The contingent one is that if GNAP is adopted, tokens carrying `access` arrays will arrive at MCP servers, HTTP APIs and A2A agents, and PermDock must read them as delegated authority without the application writing a translation layer.
+
+## Mapping table
+
+| GNAP concept | PermDock concept |
+| --- | --- |
+| `type` (URI) | One resource node. The catalog emits a stable URI per resource, `https://<catalog-base>/resources/post`, so an AS and PermDock agree on the byte-exact `type` |
+| `actions` | Action keys on that resource (`update` in `post.update`); an action not defined on the resource contributes nothing |
+| `identifier` | A resource-id condition, intersected with the grant's `where`; a decision on a different id is `denied` with reason `not-delegated` |
+| `locations` | Ignored by policy (PermDock does not know its own public URL) but recorded on the `on('decision')` event for audit |
+| `datatypes` | Reserved for field-level grants (Phase 3); ignored until then |
+| `privileges` | A hint that the AS may have mapped the right to a role; recorded in audit, never used to add roles to the principal |
+| Reference string | Matched against `permission.scope`, exactly like `delegation.scopes` |
+| Union across the array | Union of delegated permissions, before intersection with the principal's grants |
+| Cross-product inside an object | Expanded to one delegated permission per action, each carrying the object's `identifier` constraint |
+| Grant request `access_token.access` | What a consent screen shows; emitted from `permission.authorizationDetails` in the same way as RAR |
+| Interaction start `redirect` | `approval-required` rendered as a redirect to an approval page in web adapters |
+| Interaction start `user_code` / `user_code_uri` | `approval-required` rendered as a code to enter on another device; the [terminal adapter](/docs/adapters/terminal) uses this shape |
+| Interaction start `app` | `approval-required` handed to a native app deep link |
+| Interaction finish `redirect` / `push` | Delivery of the approval token back to the caller |
+| Continuation (section 5) | Retrying the check with the approval `token`; polling maps to the client re-asking `decide` |
+| Token rotation and revocation (section 6) | A CAEP `session-revoked` or `token-claims-change` event through [`permdock/ssf`](/docs/adapters/ssf) invalidates the snapshot |
+| Subject information (section 3.4) | Input to the policy's `subject` function; never read from the token body without verification |
+
+### `delegation.access`
+
+When GNAP tokens exist, `delegation` accepts the `access` array next to the two existing inputs:
+
+```ts
+const permdock = await createPermDock(policy, user, {
+  actor: { id: clientInstanceId, kind: 'gnap-client' },
+  delegation: {
+    scopes: ['post:read'],                                 // OAuth scope strings, or GNAP reference strings
+    authorizationDetails: [/* RFC 9396 objects */],
+    access: [                                              // RFC 9635 section 8 objects
+      { type: 'https://api.example.com/permdock/resources/post', actions: ['update'], identifier: 'post_123' },
+    ],
+  },
+})
+```
+
+The three inputs are unioned into one delegated set, then intersected with the principal's grants. The attenuation invariants in [delegation](/docs/security/delegation) apply unchanged: an `access` object cannot add a grant the principal lacks, an unknown `type` contributes nothing, and a malformed object denies the permissions it names.
+
+### Interaction as `approval-required`
+
+GNAP makes the human-in-the-loop step a first-class protocol state: the AS tells the client how to start an interaction (`redirect`, `app`, `user_code`, `user_code_uri`) and how it will learn the outcome (`redirect`, `push`), and the client continues the grant afterwards. PermDock's `approval-required` outcome is the same state one layer down. The `Decision` carries a `token` bound to permission key, resource id, subject and actor ([approvals](/docs/security/approvals)); an adapter chooses the interaction mode its surface supports (a web app redirects, a terminal shows a user code, an MCP server elicits), and the retried check with the token is the continuation. A future GNAP-aware adapter would translate `approval-required` into a GNAP interaction request and the approval token into a continuation, without touching the policy.
+
+## Why tracking
+
+- No mainstream authorization server ships GNAP today; OAuth 2.0 with RAR, DPoP and token exchange covers the same ground in production and is what MCP, the AI SDK providers and the identity vendors implement.
+- The `access` format is close enough to RAR that supporting it is a small addition to the delegation intersection, not an adapter; it lands with delegation-chain verification in Phase 4.
+- PermDock will not ship a GNAP client. Negotiating grants, managing continuation handles and rotating tokens is client and AS work; PermDock consumes the resulting token's `access` array and nothing else, exactly as it consumes OAuth tokens without running OAuth flows.
+
+The row on the [watch list](/docs/standards/watch-list) is reviewed each release. Triggers for promoting GNAP from tracking to planned are a major identity vendor shipping a GNAP AS, or MCP or A2A adopting GNAP as an alternative authorization mechanism.
+
+## Sources
+
+- [RFC 9635, Grant Negotiation and Authorization Protocol](https://datatracker.ietf.org/doc/html/rfc9635): sections 2.2, 2.5, 3.3, 3.4, 5, 6, 8 and 8.1.
+- [OpenAPI Initiative newsletter, June 2026](https://www.openapis.org/blog/2026/06/09/openapi-initiative-newsletter-june-2026): OpenAPI 3.3 investigating GNAP support in security configurations.
+- RFC 9396 is referenced by number.
+
+## Related
+
+- [OAuth for agent delegation](/docs/standards/oauth-agent-delegation): RAR `authorization_details`, the format GNAP `access` is modelled on.
+- [Delegation](/docs/security/delegation): the intersection rule and attenuation invariants that `delegation.access` inherits.
+- [Subject](/docs/concepts/subject): the `principal` / `actor` / `delegation` shape.
+- [Approvals](/docs/security/approvals): the `approval-required` outcome and token that GNAP interaction maps onto.
+- [Terminal adapter](/docs/adapters/terminal): the `user_code` shape in practice.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3): native security-profile work that names GNAP.
+- [Standards watch list](/docs/standards/watch-list).
+
+## Open questions
+
+- Whether PermDock's catalog should publish its resource `type` URIs in a discoverable document so an AS can validate `access` requests against them, or whether the OpenAPI document is that document.
+- How `datatypes` maps once schema-aware field-level grants exist (Phase 3): as a field allow-list on the delegated permission, or ignored.
+- Whether `privileges` should ever influence a decision (for example, as an extra constraint that the principal must hold the named role) or stay audit-only.

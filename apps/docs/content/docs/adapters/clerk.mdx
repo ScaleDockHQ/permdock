@@ -50,6 +50,16 @@ Field mapping:
 | `orgPermissions` | `clerkPermissions`, turned into grants through `options.permissions` |
 | `sessionClaims.*` | `claims.*` (custom claims configured in the Clerk session token template) |
 
+## Verified material
+
+`subjectFromClerk(auth)` consumes only what Clerk has verified; it does not read cookies, headers or tokens itself ([Authentication and PermDock](/docs/concepts/authentication)).
+
+- **Input.** The object returned by `auth()` in Next.js or `getAuth(req)` in other frameworks, after `clerkMiddleware` has verified the session token's signature against Clerk's JWKS, or a session token payload the app verified with Clerk's backend SDK. Anything else (a decoded-but-unverified JWT, a value read from `localStorage`, a `userId` sent by the client) is not accepted: the type is Clerk's `AuthObject`, and a plain object shaped like one produces the anonymous subject with a development warning.
+- **Fields used.** `userId` becomes `principal.id`; `orgId`, `orgRole` and `orgPermissions` describe the active organization; `sessionClaims` supplies the standard claims (`sub`, `exp`, `sid`) plus any custom claims. `sessionClaims.exp` becomes `subject.expiresAt`, and `sid` is carried on audit events so a session revocation can be traced.
+- **Custom claims.** Values a policy condition needs beyond the organization role (a `plan`, a `region`) must come from Clerk's session token template, where they are populated by Clerk from user or organization metadata at token issuance. Only metadata written through the backend API (public and private metadata set server-side) should be projected into claims; metadata the client can edit (unsafe metadata) must not be, because `subjectFromClerk` cannot tell them apart once they are in the token.
+- **Signed-out and expired.** `userId` of `null`, a missing auth object or an expired session yields `principal: null`. Nothing throws; only anonymous grants apply.
+- **Not read.** Clerk's client-side hooks (`useAuth`, `useOrganization`) are never a source for the server subject; they only trigger `invalidate()` on the client.
+
 ## Request lifecycle
 
 1. Clerk middleware authenticates the request and populates `auth()` with `userId`, `orgId`, `orgRole`, `orgPermissions` and session claims.

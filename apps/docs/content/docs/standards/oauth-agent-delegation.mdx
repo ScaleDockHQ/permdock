@@ -5,6 +5,7 @@ description: How RFC 9396 Rich Authorization Requests, RFC 8693 token exchange, 
 
 Status: planned
 Phase: 1
+Adapter phases: `permdock/jwt` 1, `permdock/ai-sdk` 1, `permdock/claude-agent` 1, `permdock/mcp` 2, `permdock/a2a` 2; delegation itself is in core from Phase 1.
 
 Phase 1 ships the two-principal subject (`principal`, `actor`, `delegation`) and the `authorizationDetails` type on every permission. Phase 4 ships delegation-chain verification and Web Bot Auth actor derivation.
 
@@ -41,14 +42,14 @@ import { createPermDock } from 'permdock'
 const permdock = await createPermDock(policy, user)
 
 // Agent case: actor + delegation
-const agentDock = await createPermDock(policy, user, {
+const asAgent = await createPermDock(policy, user, {
   actor: { id: authInfo.clientId, kind: 'mcp' },
   delegation: {
     scopes: authInfo.scopes,                          // OAuth scopes
     authorizationDetails: authInfo.authorization_details, // RFC 9396 objects, if present
   },
 })
-agentDock.can(permissions.post.update, post) // true only if the user may AND the delegation covers it
+asAgent.can(permissions.post.update, post) // true only if the user may AND the delegation covers it
 ```
 
 Adapters fill `actor` and `delegation` automatically from `authInfo` (MCP), `runtimeContext` (AI SDK), the verified signature (Web Bot Auth) or the Agent Card (A2A), so application code rarely constructs them by hand.

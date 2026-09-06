@@ -24,7 +24,7 @@ const app = new Hono<Env>()
 app.use(permdock())                                      // c.get('permdock') is the request-scoped PermDock
 app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler)
 // deny → 403 application/problem+json { type, title, permission, denials, alternatives }; approval-required → 403 with type .../approval-required
-// OpenAPI 3.2 `security`, `securitySchemes` (incl. oauth2MetadataUrl, deviceAuthorization, deprecated) emitted via the framework hook; x-oai-* fallbacks for 3.1
+// OpenAPI 3.2 `security`, `securitySchemes` (incl. oauth2MetadataUrl, deviceAuthorization, deprecated) emitted via the framework hook; registered x-oai-* fallbacks (plus x-permdock-oauth2MetadataUrl) for 3.1
 // Optional Web Bot Auth verification (RFC 9421) fills `actor` for agent callers
 ```
 
@@ -58,7 +58,7 @@ const route = createRoute({
 })
 ```
 
-`openapi.securitySchemes()` returns the `oauth2` scheme with every `scope` from `listPermissions(permissions)`, plus `oauth2MetadataUrl` and `deviceAuthorization` when configured. Emitted documents target OpenAPI 3.2; for a 3.1 document the same values are written under `x-oai-*` extensions. `permdock openapi` in the CLI reads the same hook output to check that every protected route is documented.
+`openapi.securitySchemes()` returns the `oauth2` scheme with every `scope` from `listPermissions(permissions)`, plus `oauth2MetadataUrl` and `deviceAuthorization` when configured. Emitted documents target OpenAPI 3.2; for a 3.1 document `deviceAuthorization` and `deprecated` are written under the registered `x-oai-deviceAuthorization` / `x-oai-deviceAuthorizationUrl` / `x-oai-deprecated` extensions and `oauth2MetadataUrl` under `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). `permdock openapi` in the CLI reads the same hook output to check that every protected route is documented.
 
 ## Request lifecycle
 

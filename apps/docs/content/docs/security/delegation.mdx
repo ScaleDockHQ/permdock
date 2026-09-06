@@ -21,13 +21,13 @@ const permdock = await createPermDock(policy, user, {
 | --- | --- | --- | --- |
 | `principal` | `definePolicy`'s `subject` function from the verified session or token | The user's id, org, roles and other values behind `subject.*` | Trusted after authentication |
 | `actor` | The adapter, from `authInfo.clientId`, runtime context, signature or Agent Card | Who is making the call | Trusted after the runtime verified it; never from prompt content |
-| `delegation` | The adapter, from token scopes, `authorization_details` or a delegation chain | What the principal allowed the actor to do | Trusted after token verification; intersected, never added to |
+| `delegation` | The adapter, from token scopes, `authorization_details`, a GNAP `access` array or a delegation chain | What the principal allowed the actor to do | Trusted after token verification; intersected, never added to |
 
 A call with no `actor` is a human call and behaves exactly as `createPermDock(policy, user)`. A call with an `actor` and no `delegation` has no delegated authority: every check is denied. Adapters therefore always supply at least the token's scopes.
 
 ## Attenuation invariants
 
-1. **Agent ≤ user.** For every permission, `agentDock.can(p, x)` implies `userDock.can(p, x)`. Delegation can only remove or narrow grants. This is enforced by construction: `decide` evaluates the principal's grants first, then filters by delegation.
+1. **Agent ≤ user.** For every permission, `asAgent.can(p, x)` implies `asUser.can(p, x)`. Delegation can only remove or narrow grants. This is enforced by construction: `decide` evaluates the principal's grants first, then filters by delegation.
 2. **Chain hops only narrow.** In a multi-hop chain (user to orchestrator to sub-agent), each hop's authority is the intersection of the previous hop's authority with what it passes on. A hop that names a scope or `authorization_details` entry the previous hop lacked is rejected, and the decision is `denied` with a reason of kind `delegation` naming the offending hop.
 3. **Conditions intersect.** When a grant has `where: { authorId: subject.id }` and the delegation's `authorization_details` for the same permission has a further constraint, both must hold. A delegation cannot relax a grant condition.
 4. **Approval survives delegation.** A grant with `approval: 'human'` still requires approval when exercised through an agent; delegation cannot pre-approve. The approval `token` includes `actor`, so the approval is bound to the agent that asked.
@@ -64,6 +64,43 @@ Every permission reference carries a `scope` and an `authorizationDetails` type.
 
 Scopes remain the coarse layer: `post:update` in `delegation.scopes` is required for `permissions.post.update` to be exercisable at all; the `authorization_details` entry, when present, narrows it further.
 
+### GNAP `access` as a third input
+
+[RFC 9635 (GNAP)](/docs/standards/gnap) describes delegated rights as an `access` array whose objects carry `type`, `actions`, `locations`, `datatypes`, `identifier` and `privileges`, a structure the RFC itself calls analogous to RAR. `delegation.access` accepts those objects next to `scopes` and `authorizationDetails`; `permdock/jwt` fills it from an `access` claim when one is present. The three inputs are unioned into one delegated set before the intersection with the principal's grants, and every invariant above applies to `access` objects unchanged: an unknown `type` contributes nothing, `identifier` narrows to one resource, `privileges` never adds a role. Evaluation of `access` objects in the intersection is Phase 4; until then they are carried and audited but grant nothing.
+
+```ts
+delegation: {
+  scopes: ['post:read'],
+  authorizationDetails: [{ type: 'permdock:post.update', where: { authorId: '$subject.id' } }],
+  access: [{ type: 'https://api.example.com/permdock/resources/post', actions: ['update'], identifier: 'post_123' }],
+}
+```
+
+## RAR metadata and error remediation
+
+When a delegated check is `denied` with reason `not-delegated`, the caller's next move is a step-up: go back to the authorization server and ask for the authority that was missing. RFC 6750 only offers `insufficient_scope` and a flat `scope` hint, which cannot express "you need `post.update` restricted to posts you authored". The IETF draft [OAuth 2.0 RAR Metadata and Error Remediation](/docs/standards/watch-list) (August 2026) fills that gap with two pieces: authorization-server metadata describing the RAR `type` values it supports, and a structured remediation object returned on insufficient authorization that names the `authorization_details` the client should request.
+
+PermDock already computes the content of that object. `Decision.alternatives` lists the permissions on the same resource that the principal holds and that the delegation could cover, and every permission carries an `authorizationDetails` type with its constraint payload. When the caller is an OAuth client, HTTP adapters and `permdock/mcp` therefore render a denied Decision as follows:
+
+- `WWW-Authenticate: Bearer error="insufficient_scope"` with the `scope` values of the alternatives, for clients that only understand RFC 6750.
+- The RFC 9457 Problem Details body with `alternatives` expressed as `authorization_details` objects in the draft's remediation shape, so a RAR-aware client can copy them straight into its next authorization request.
+- For MCP clients, the same alternatives inside the `scopeChallenge`, since SEP-2350 step-up accumulates scopes ([MCP authorization](/docs/standards/mcp-authorization)).
+
+The mapping is one-directional and fail-closed: remediation tells the client what to ask for; it never changes the decision that produced it, and the authorization server remains free to refuse. The draft is a working-group document and its field names may change before Phase 2 ships the HTTP rendering; the Problem Details `alternatives` member is stable regardless, and the remediation shape is emitted next to it rather than instead of it. The metadata half of the draft is where PermDock's catalog `type` URIs would be published so an authorization server can validate `authorization_details` requests against them; that is an open question on the [GNAP page](/docs/standards/gnap) as well.
+
+## Transaction tokens
+
+Inside one trust domain (a set of services behind the same gateway, owned by the same team) requests fan out across several services, and each of them needs to know who the original requester was and what they were authorized to do. Re-sending the user's access token to every hop leaks a long-lived credential; re-authenticating at every hop is slow and loses the delegation context. The IETF OAuth working group's [Transaction Tokens](/docs/standards/watch-list) draft (revision 11, July 2026) solves this with a short-lived JWT, issued by a Transaction Token Service through RFC 8693 token exchange, that carries the requester's identity in `sub_id`, the request context, and an authorization-details object in `azd`, and that is valid only for an `aud` inside the domain.
+
+PermDock's design for it:
+
+- **Carrier, not evaluator.** The service at the edge builds a `PermDock` from the verified access token, takes the `snapshot()` and the `Decision` for the entry-point permission, and places their identifiers, the snapshot id and the decision id, in `azd` when it requests the transaction token. Downstream services do not re-run the edge decision; they re-derive the subject from `sub_id` and `azd` with `permdock/jwt` and evaluate their own permissions against the same principal, actor and delegation.
+- **Delegation travels intact.** `azd` carries the `scopes`, `authorization_details` and `access` that the edge saw, so the attenuation invariants hold at every hop: a downstream service can be more restrictive than the edge, never less.
+- **Never from outside the domain.** A transaction token is accepted only when its `iss` is the domain's Transaction Token Service and its `aud` names this service; one that arrives from outside the trust boundary, or whose `aud` is another service, resolves to the anonymous subject and every check is denied. Cross-domain propagation is the separate Identity and Authorization Chaining specification (RFC Editor queue) and maps to `delegation.chain`, not to `azd`.
+- **Audit correlates by id.** The snapshot id and decision id in `azd` appear on every downstream `on('decision')` event, so an incident review can walk from the edge decision through every hop that acted on it.
+
+The Transaction Tokens for Agents and Cross-domain Transaction Tokens drafts extend the same claims to agent context and to federated domains; both are tracked on the [watch list](/docs/standards/watch-list) and neither changes the rule above. WIMSE's architecture uses transaction tokens for security-context propagation between workloads, which is why a workload appears in PermDock as a service principal rather than as an actor without a principal.
+
 ## Audit
 
 Every `on('decision')` event includes `actor` and `delegation` alongside the principal, outcome and reasons, and `permdock/otel` records them as span attributes. Two questions an incident review must answer, "which agent did this" and "under whose authority", are answered by the event itself. The AuthZEN endpoint carries the same fields in `subject.properties.actor` and `context.delegation` so a remote PDP sees them too.
@@ -74,6 +111,9 @@ Every `on('decision')` event includes `actor` and `delegation` alongside the pri
 - [Agent Delegation Chain draft](https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00) for monotonic attenuation across hops.
 - [OAuth for AI agents on behalf of a user draft](https://datatracker.ietf.org/doc/html/draft-oauth-ai-agents-on-behalf-of-user-02) for `requested_actor` and `actor_token`.
 - [MCP Enterprise-Managed Authorization](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/extensions/auth/enterprise-managed-authorization.mdx) for ID-JAG-derived tokens.
+- [RFC 9635, GNAP](https://datatracker.ietf.org/doc/html/rfc9635), section 8, for the `access` array.
+- [Transaction Tokens](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) (draft-ietf-oauth-transaction-tokens) for `sub_id`, `azd` and the trust-domain `aud` rule; the [WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch) for workload context propagation.
+- RFC 6750, RFC 8693 and the RAR Metadata and Error Remediation draft (draft-ietf-oauth-rar-metadata-remediation) are referenced by name; see the [watch list](/docs/standards/watch-list) for their status.
 - [ADR 0012: two-principal subject](/docs/decisions/0012-two-principal-subject).
 
 ## Open questions

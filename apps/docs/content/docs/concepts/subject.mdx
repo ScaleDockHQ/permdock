@@ -10,14 +10,27 @@ Who is asking? In a classic web app the answer is "the logged-in user". In 2026 
 ```ts
 type Subject = {
   principal: Principal | null                 // from the policy's `subject` function; null = anonymous
-  actor?: { id: string; kind: string; [k: string]: unknown }
+  actor?: { id: string; kind: string; binding?: Binding; [k: string]: unknown }
   delegation?: {
     scopes?: string[]                          // OAuth scopes, matched against permission.scope
     authorizationDetails?: AuthorizationDetail[] // RFC 9396 objects, matched per permission
+    access?: GnapAccess[]                      // GNAP access array (RFC 9635), objects and reference strings
     chain?: unknown                            // attenuated delegation chain (Later)
   }
   context: Record<string, unknown>            // loaded by the policy's `context` function
+  expiresAt?: number                           // from the token's exp / session_expiry; copied into snapshots
 }
+
+type Principal = {
+  id: string                                  // `sub`, a user id, a client id or a SPIFFE ID
+  kind?: 'user' | 'service' | 'workload'      // default 'user'
+  roles?: string[]
+  assurance?: string                          // `aal` / `acr` from the token, for step-up conditions
+  binding?: Binding                           // sender constraint, see "Binding"
+  [k: string]: unknown                        // any other value conditions reference
+}
+
+type Binding = { method: 'dpop' | 'mtls'; thumbprint: string }
 ```
 
 ```ts
@@ -41,7 +54,7 @@ definePolicy(permissions, {
 - Its fields are the values that `subject.<field>` references read in [conditions](/docs/concepts/conditions). Nothing else about the user is visible to the policy.
 - `roles` selects which `role()` grants apply.
 - It is computed once per `createPermDock`, frozen, and included in the snapshot so the client evaluates the same conditions against the same values.
-- It is never taken from a model, a tool argument or a request body. Adapters derive it from verified auth material (session cookie, bearer token `authInfo`, provider session). See the [threat model](/docs/security/threat-model).
+- It is never taken from a model, a tool argument or a request body. Adapters derive it from verified auth material (session cookie, bearer token `authInfo`, provider session) through a `subjectFrom<Source>` function; what counts as verified is defined in [Authentication and PermDock](/docs/concepts/authentication). See also the [threat model](/docs/security/threat-model).
 
 The `principal` may be a service account. A cron job or a backend-to-backend call has a principal with roles and no actor.
 
@@ -125,6 +138,38 @@ You write the principal mapping once; the adapter fills `actor` and `delegation`
 ### Service principals
 
 A backend job or a partner service is a principal with roles of its own, created with `createPermDock(policy, serviceUser)` and no actor. Do not model it as an actor without a principal: actors never hold grants, so such a subject is denied everything. If a service calls on behalf of a user, the user is the principal and the service is the actor with a delegation.
+
+## Workload principals
+
+`principal.kind` distinguishes three kinds of caller that act on their own authority:
+
+| `kind` | Who | `principal.id` | Typical material |
+| --- | --- | --- | --- |
+| `'user'` (default) | A human | The identity provider's `sub` | Session, ID token, access token |
+| `'service'` | An application-level service account or API-key owner | Your service account id | API key lookup, client-credentials token with a `sub` you assigned |
+| `'workload'` | A running workload with a platform identity | A SPIFFE ID (`spiffe://trust-domain/ns/prod/sa/reports`) or the WIMSE workload identifier | Client-credentials token, SPIFFE SVID over mTLS, transaction token |
+
+The WIMSE architecture treats workloads as principals in their own right: a workload has an identity, obtains credentials, and is the subject that security context is propagated for ([WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch)). PermDock follows that: a workload calling on its own behalf is a principal with roles, exactly like a service account, and `kind: 'workload'` exists so policies can say `where: { subject: { kind: 'workload' } }` or audit can separate human from machine traffic.
+
+**Transaction tokens.** Inside a trust domain, the [OAuth Transaction Tokens draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) propagates the original user, the workload chain and an authorization context (`azd`) through every hop of a call chain. PermDock maps them as: the token's subject is the `principal` (the user the transaction is for, or the originating workload); each workload in the chain is recorded as `actor` with `kind: 'workload'`; `azd` is merged into `principal.context` so conditions can reference values the first hop asserted. The `aud` of a transaction token is the trust domain, and `permdock/jwt` checks it like any audience.
+
+**Why a workload is a principal and an agent is an actor.** The distinction is whose authority applies. A nightly report job runs under its own grants; nobody delegated anything to it, so it is a principal. An MCP client, an AI SDK agent or a Web Bot Auth signer exercises a *user's* authority under a delegation, so it is an actor and the user is the principal. The same binary can be both on different requests: a workload is a principal when it runs its own schedule and an actor when it calls with a user's delegated token. What decides is the token, not the process.
+
+## Binding
+
+Sender-constrained tokens carry a `cnf` claim that binds the token to a key the presenter must prove it holds. PermDock keeps that binding on the subject:
+
+```ts
+binding: { method: 'dpop', thumbprint: 'NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs' }   // cnf.jkt, RFC 9449
+binding: { method: 'mtls', thumbprint: 'A4DtL2JmUMhAsvJj5tKyn64SqzmuXbMrJa0n761y5v0' }   // cnf.x5t#S256, RFC 8705
+```
+
+- It sits on `principal` when the token identifies a user or workload acting for itself, and on `actor` when the token carries an `act` chain (the key belongs to the presenting agent).
+- **Core does not check it.** Proof-of-possession needs the HTTP request (the `DPoP` header) or the TLS client certificate, which core never sees. The check belongs to the adapter that has the request: `verifyDpopProof(request, claims)` in `permdock/jwt`, or the mTLS thumbprint comparison in the server kernel. A failed check yields the anonymous subject, so the binding never reaches core in an unverified state.
+- It appears on `on('decision')` events and OTel spans (method and thumbprint) so an audit can prove that a decision was made for a token bound to a specific key. It is not included in snapshots.
+- Under `profile: 'fapi2'` in `permdock/jwt` a token without a binding is rejected ([FAPI 2.0](/docs/standards/fapi-2)).
+
+See [Authentication and PermDock](/docs/concepts/authentication) for where bindings come from.
 
 ## The intersection rule
 

@@ -1,10 +1,11 @@
 ---
 title: OpenAPI 3.2
-description: How PermDock emits OpenAPI 3.2 security schemes, per-operation security and x-permdock-permissions, with x-oai-* fallbacks for 3.1 documents, and imports OpenAPI documents into a catalog.
+description: How PermDock emits OpenAPI 3.2 security schemes, per-operation security and x-permdock-permissions, with registered x-oai-* and x-permdock-* fallbacks for 3.1 documents, and imports OpenAPI documents into a catalog.
 ---
 
 Status: planned
 Phase: 2
+Adapter phases: `permdock/openapi` 2, `permdock openapi` (CLI) 2, `permdock/hono` and `permdock/server` hooks 1, other HTTP and RPC adapter hooks 2.
 
 ## What it is
 
@@ -15,7 +16,7 @@ Phase: 2
 - **`deprecated`** on security schemes, so an API can phase out an API key or a legacy flow while it still works.
 - **Security schemes referenced by URI**, so one organisation-wide security scheme document can be shared across many API descriptions.
 
-Everything else PermDock relies on already existed in 3.1: `components.securitySchemes` (`apiKey`, `http`, `oauth2` with `flows.*.scopes`, `openIdConnect`, `mutualTLS`), a root-level `security` default, per-operation `security` overrides where an empty array means public, OR across array entries and AND within an object, and `x-*` extensions on any object. The 3.1-era convention for the four new features is an `x-oai-*` extension with the same name.
+Everything else PermDock relies on already existed in 3.1: `components.securitySchemes` (`apiKey`, `http`, `oauth2` with `flows.*.scopes`, `openIdConnect`, `mutualTLS`), a root-level `security` default, per-operation `security` overrides where an empty array means public, OR across array entries and AND within an object, and `x-*` extensions on any object. For three of the new features the OpenAPI Initiative's [Extension Registry](https://spec.openapis.org/registry/extension/) lists a pre-3.2 extension: `x-oai-deprecated`, `x-oai-deviceAuthorization` and `x-oai-deviceAuthorizationUrl`. There is no registered extension for `oauth2MetadataUrl` or for URI-referenced schemes; see [OpenAPI registries](/docs/standards/openapi-registry).
 
 ## Why it matters for PermDock
 
@@ -41,7 +42,7 @@ import { createPermDock } from 'permdock/hono'
 export const { permdock, protect, openapi } = createPermDock(policy, {
   subject: (c) => c.get('user'),
   openapi: {
-    version: '3.2',                     // '3.1' switches to x-oai-* fallbacks
+    target: '3.2',                      // '3.1' switches to the registered x-oai-* and x-permdock-* fallbacks
     scheme: 'oauth',
     oauth2MetadataUrl: 'https://auth.example.com/.well-known/oauth-authorization-server',
     flows: ['authorizationCode', 'deviceAuthorization'],
@@ -53,7 +54,21 @@ app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.
 
 ### 3.1 fallbacks
 
-When `version: '3.1'` is selected the emitter writes the same information using the extension names: `x-oai-oauth2MetadataUrl`, `x-oai-deviceAuthorization` (inside `flows`), `x-oai-deprecated` on the scheme, and inlines any scheme that would otherwise be referenced by URI. The scope and `x-permdock-permissions` output is identical in both versions.
+When `target: '3.1'` is selected the emitter writes the same information using extensions, choosing a registered name whenever one exists:
+
+| 3.2 field | 3.1 fallback | Registered in the OAI Extension Registry |
+| --- | --- | --- |
+| `flows.deviceAuthorization` | `x-oai-deviceAuthorization` inside `flows` | yes |
+| `deviceAuthorizationUrl` inside that flow | `x-oai-deviceAuthorizationUrl` | yes |
+| `deprecated` on a security scheme | `x-oai-deprecated` | yes |
+| `oauth2MetadataUrl` | `x-permdock-oauth2MetadataUrl` | no `x-oai-*` extension is registered for it |
+| Scheme referenced by URI | Inlined into `components.securitySchemes` | not applicable |
+
+Only the three registered `x-oai-*` names are ever emitted; PermDock does not coin `x-oai-*` names of its own, because `oai` is the namespace reserved for the OpenAPI Initiative ([Namespace Registry](https://spec.openapis.org/registry/namespace/)). Anything else PermDock needs to say lives under `x-permdock-*` ([OpenAPI registries](/docs/standards/openapi-registry), [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay)). The scope and `x-permdock-permissions` output is identical in both versions. The importer reads both the native 3.2 fields and every fallback in the table.
+
+### 3.3 and later
+
+`target: '3.3'` is experimental and tracks the `v3.3-dev` branch; it currently emits the 3.2 shape plus `x-permdock-securityProfile` and is documented on [OpenAPI 3.3](/docs/standards/openapi-3-3). The default target stays 3.2 until 3.3 is released.
 
 ### Import
 
@@ -66,8 +81,8 @@ When `version: '3.1'` is selected the emitter writes the same information using 
 | `securitySchemes.<name>.flows.*.scopes` | `permission.scope` for every permission used by a guarded route |
 | Per-operation `security` | `protect(permission, ...)` on that route |
 | `security: []` | Route guarded by a permission that every subject is granted (public) |
-| `oauth2MetadataUrl` | Adapter option; passed through to the document (or `x-oai-oauth2MetadataUrl` for 3.1) |
-| Device authorization flow | Adapter option `flows: ['deviceAuthorization']` (or `x-oai-deviceAuthorization`) |
+| `oauth2MetadataUrl` | Adapter option; passed through to the document (or `x-permdock-oauth2MetadataUrl` for 3.1) |
+| Device authorization flow | Adapter option `flows: ['deviceAuthorization']` (or `x-oai-deviceAuthorization` with `x-oai-deviceAuthorizationUrl`) |
 | `deprecated` on a scheme | Adapter option per scheme (or `x-oai-deprecated`) |
 | Scheme referenced by URI | Adapter option `schemeRef`; inlined for 3.1 |
 | `x-permdock-permissions` | Permission `key` list for the operation |
@@ -77,12 +92,20 @@ When `version: '3.1'` is selected the emitter writes the same information using 
 ## Sources
 
 - [OpenAPI Specification 3.2.0 release](https://github.com/OAI/OpenAPI-Specification/releases/tag/3.2.0).
+- [OAI Extension Registry](https://spec.openapis.org/registry/extension/) and [Namespace Registry](https://spec.openapis.org/registry/namespace/).
 - [Landscape research](/docs/research/landscape), "OpenAPI 3.1 security" notes and the `hono-openapi`, `@hono/zod-openapi`, oRPC `oo.spec` and `trpc-to-openapi` hook comparison.
-- [ADR 0014: target OpenAPI 3.2](/docs/decisions/0014-openapi-3-2).
+- [ADR 0014: target OpenAPI 3.2](/docs/decisions/0014-openapi-3-2) and [ADR 0019: extensions and Overlay](/docs/decisions/0019-openapi-extensions-and-overlay).
+
+## Related
+
+- [OpenAPI registries](/docs/standards/openapi-registry): the `x-permdock-*` namespace and the registered names PermDock reuses.
+- [OpenAPI Overlay](/docs/standards/openapi-overlay): `permdock openapi --format overlay`.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3): what is tracked for the next minor.
+- [Arazzo workflows](/docs/standards/arazzo): pre-flighting a workflow against `x-permdock-permissions`.
 
 ## Open questions
 
-- The exact shape of the `openapi` adapter options; the option names in the example above (`scheme`, `flows`, `schemeRef`) are illustrative and will be fixed when the `permdock/openapi` entry is implemented.
+- The exact shape of the `openapi` adapter options; the option names in the example above (`scheme`, `flows`, `schemeRef`) are illustrative and will be fixed when the `permdock/openapi` entry is implemented. `target` mirrors the CLI `--target` flag.
 - Whether a permission with a portable condition should be represented in the document at all (a scope cannot express `authorId = subject.id`); the current plan emits the scope and leaves the condition to `x-permdock-permissions` consumers.
 - Whether import should also read `x-permdock-permissions` to round-trip keys exactly, or only derive keys from scopes.
 - Validating emitted documents against the official 3.2 JSON Schema in CI, and whether `permdock doctor` should do the same locally.

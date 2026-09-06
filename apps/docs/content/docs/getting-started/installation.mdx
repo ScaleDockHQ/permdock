@@ -52,15 +52,21 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 | `permdock/server` | Fetch-first kernel shared by the HTTP adapters | 1 |
 | `permdock/hono` | `createPermDock` returning `permdock` middleware and `protect` | 1 |
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | Same shape as `permdock/hono` | 2 |
+| `permdock/jwt` | `subjectFromJwt`, `createJwtSubjectResolver`: JWKS verification and claim mapping to a subject (`jose` optional peer) | 1 |
+| `permdock/terminal` | `createPermDock` returning `permdock`, `protect`, `filterCommands`, `format` for your own CLI | 2 |
 | `permdock/trpc`, `permdock/orpc` | RPC middleware with OpenAPI hooks | 2 |
 | `permdock/mcp` | `createPermDock` returning `protectServer` | 2 |
 | `permdock/ai-sdk` | `createPermDock` returning `toolApproval`, `capabilityMiddleware`, `needsApproval` | 1 |
 | `permdock/claude-agent` | `createPermDock` returning `canUseTool`, `permissionRequestHook` | 1 |
+| `permdock/eve` | `createPermDock` returning `approval`, `approvalFor`, `permdock` for Eve `defineTool` | 1 |
+| `permdock/openai` | `createPermDock` returning `needsApproval`, `guardTools`, `resolveInterruptions`, `permdock` for the OpenAI Agents SDK | 1 |
+| `permdock/approvals` | `ApprovalStore` interface, `memoryApprovalStore`, `approvalsHandler`; the `store` option of every agent and HTTP adapter | 1 |
+| `permdock/cloud` | `cloud({ url, key })` returning `approvals`, `sink`, `snapshots` for PermDock Cloud; optional, server-only, never on the decision path | 2 |
 | `permdock/webmcp` | `registerTools` | 2 |
 | `permdock/a2a` | `createPermDock` returning `agentCard`, `extendedAgentCard` | 2 |
 | `permdock/authzen` | `createPermDock` returning the AuthZEN `handler` | 1 (endpoint), 2 (full) |
 | `permdock/ssf` | `createPermDock` returning the CAEP `receiver` | 3 |
-| `permdock/openapi` | OpenAPI 3.2 emission and import | 2 |
+| `permdock/openapi` | OpenAPI 3.2 emission (document or Overlay) and import | 2 |
 | `permdock/otel` | Span per check and a decision counter | 2 |
 | `permdock/react-native` | React adapter plus persisted `storage` | 2 |
 | `permdock/vue`, `permdock/svelte`, `permdock/solid` | UI adapters | 2 |
@@ -68,6 +74,17 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 | `permdock/supabase`, `permdock/better-auth`, `permdock/clerk`, `permdock/convex`, `permdock/pdp` | Subject providers | 3 and 4 |
 
 The full matrix with example apps and related standards is on the [adapters index](/docs/adapters).
+
+## Optional peers
+
+Core has no runtime dependencies. A few entries verify material or talk to a vendor SDK and declare an optional peer instead of bundling it:
+
+| Entry | Optional peer | Why |
+| --- | --- | --- |
+| `permdock/jwt` | `jose` | JWS verification and JWKS fetching; see [JWT](/docs/adapters/jwt) |
+| `permdock/otel` | `@opentelemetry/api` | Span and metric emission |
+| `permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex` | The provider SDK | Session and claim verification stays with the provider; see [authentication](/docs/concepts/authentication) |
+| `permdock/terminal` | An OS keychain binding | Token storage; falls back to a mode-0600 file |
 
 ## TypeScript configuration
 
@@ -106,7 +123,7 @@ The [quick start](/docs/getting-started/quick-start) fills in the first three.
 pnpm permdock doctor
 ```
 
-`doctor` checks the TypeScript version, module resolution, that exactly one copy of `permdock` is installed, that no server entry is imported from a client file, and that the catalog produced by `permdock collect` is fresh. It is the first thing the shipped `wire-permdock` skill runs.
+`doctor` checks the TypeScript version, module resolution, that exactly one copy of `permdock` is installed, that no server entry is imported from a client file, that `memoryApprovalStore()` is not the store in a serverless deployment that surfaces approvals, that `PERMDOCK_CLOUD_*` variables (when present) are server-only and reach the API, and that the catalog produced by `permdock collect` is fresh. It is the first thing the shipped `wire-permdock` skill runs.
 
 ## Next steps
 

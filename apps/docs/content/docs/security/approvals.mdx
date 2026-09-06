@@ -29,10 +29,21 @@ Properties:
 
 - Deterministic for the same inputs, so a resumed request can recompute and compare.
 - Includes `actor`, so an approval obtained by one agent cannot be spent by another.
-- Does not include a timestamp; expiry, if wanted, is the runtime's or the application's concern (open question below).
+- Does not include a timestamp; expiry lives on the `ApprovalRequest` record in the store, not in the token ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)).
 - Carries no secret material and reveals nothing beyond what the caller already knows.
 
 On resume, the adapter recomputes the token from the actual call being made and compares it with the approved token. A mismatch is `denied` with a reason of kind `approval`.
+
+## The store
+
+Between the ask and the answer, the pending approval is an `ApprovalRequest` record in an `ApprovalStore` ([approvals adapter](/docs/adapters/approvals)). Every adapter that can surface `approval-required` takes a `store` option and uses `memoryApprovalStore()` when none is given, so nothing here needs infrastructure. The record carries the `token`, the permission key, the resource id, a subject summary, the model-readable `detail`, `createdAt`, `expiresAt` (default one hour) and `status`; on resolution it gains `resolvedBy`, the approver's principal id, and `resolvedAt`. Rules the store and the adapters hold:
+
+- The approver comes from authentication, never from the resume request, and is never the request's actor: an agent cannot approve its own call. `requireDistinctApprover` additionally excludes the principal for true four-eyes flows.
+- Only `pending` becomes `approved` or `rejected`; `expired` is terminal. A resume against anything but `approved` is `denied`.
+- A `simulate()` plan produces one request per `approval-required` step; approving the plan approves each token, and each step is still re-checked at execution.
+- The ask, the answer and the resumed decision are three `on('decision')` records sharing `token`.
+
+Applications that need approvals to survive a restart implement the interface over their database (a Drizzle recipe is on the adapter page). PermDock Cloud implements the same interface with an inbox UI and delivery ([Cloud adapter](/docs/adapters/cloud)).
 
 ## Surfaces
 
@@ -41,8 +52,11 @@ On resume, the adapter recomputes the token from the actual call being made and 
 | AI SDK 7 `generateText` / `streamText` / `ToolLoopAgent` | `toolApproval` returns `'user-approval'` | Approval response is re-checked against `token` before the tool runs |
 | AI SDK 7 `WorkflowAgent` | `needsApproval(permissions.post.delete)` suspends the durable workflow | Workflow resumes; the adapter recomputes and compares `token` |
 | Claude Agent SDK | `canUseTool` returns the ask outcome; `permissionRequestHook` receives the decision | The user's answer is bound to the pending call's `token` |
+| Eve | `approval.request` returns `"user-approval"`; the session parks at `session.waiting` | `approval.response` checks the responder against the store and `approvers`; on resume the adapter recomputes and compares `token` ([Eve adapter](/docs/adapters/eve)) |
+| OpenAI Agents SDK | `needsApproval` returns `true`; the run returns `interruptions` and a serialisable `RunState` | `resolveInterruptions` applies the store's verdict with `state.approve` / `state.reject`; the token is recomputed before `execute` ([OpenAI adapter](/docs/adapters/openai)) |
 | MCP | Elicitation request carrying the reason and `token` (stateless, multi-round-trip) | Client replies with the token; server re-runs `decide` and compares |
-| HTTP adapters | `403` Problem Details with `type` `.../approval-required`, `permission`, `token` | Open question: how a plain HTTP client resumes (see below) |
+| HTTP adapters | `403` Problem Details with `type` `.../approval-required`, `permission`, `token` | Client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record, re-runs `decide` and compares |
+| Terminal (`permdock/terminal`) | Interactive prompt in a TTY; `denied` in a non-TTY | The prompt writes to and reads from the same store, so a CLI approval leaves the same audit record |
 | A2A | Skill returns a structured "approval required" result with `token` | Caller retries with the token; open question whether to use task states |
 | WebMCP | Tool handler returns a structured refusal with `token`; page renders its own approval UI | Page re-invokes the guarded route with the token |
 | React / Next.js UI | `usePermission` reports `allowed: false`; `decide` on the server shows `approval-required` for rendering an approval button | Server action re-checks with the token |
@@ -74,8 +88,8 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 ## What an approval does not do
 
 - It does not grant a permission the subject lacks. Approval sits on top of a matching grant.
-- It does not persist. Each call needs its own approval unless the application stores approvals keyed by token.
-- It does not identify the approver. Who may approve is the runtime's or application's concern; PermDock records the resumed decision through `on('decision')` with the token so the two events can be joined.
+- It does not outlive its request. Each call needs its own approval; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step.
+- It does not decide who may approve beyond the actor rule. Approver eligibility (`approvers` on the agent adapters, `requireDistinctApprover`) is the application's policy; PermDock records the approver on the request and the resumed decision through `on('decision')` so the events can be joined.
 
 ## Sources
 
@@ -83,11 +97,20 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - [AI SDK `needsApproval` deprecation commit](https://github.com/vercel/ai/commit/04585590ff9e93f6823ad550d59a69dc4039cdbf).
 - [AI SDK policy-based tool approvals](https://ai-sdk.dev/docs/agents/policy-tool-approvals) and the [fail-open issue](https://github.com/vercel/ai/issues/19978).
 - [MCP 2026-07-28 release](https://blog.modelcontextprotocol.io/posts/2026-07-28/): stateless elicitation via multi-round-trip requests.
+- [Eve human-in-the-loop](https://eve.dev/docs/human-in-the-loop): `approval` request and response policies, `session.auth.initiator` and `current`.
+- [OpenAI Agents SDK human-in-the-loop](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/): `needsApproval`, `interruptions`, `RunState` serialisation.
 - Product plan, "Decision" section: `token` as a hash of permission key, resource id, subject and actor.
+
+## Resolved
+
+The following were open questions on this page until [ADR 0022](/docs/decisions/0022-approvals-are-pluggable):
+
+- **Plain HTTP resume**: the client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` store record and re-checks. No consent endpoint in core; `approvalsHandler` provides approver routes.
+- **Expiry**: on the `ApprovalRequest` record, not in the token, so the token stays deterministic.
+- **`ApprovalStore`**: shipped as an interface in `permdock/approvals` with an in-memory default; persistence is the application's or the Cloud's.
+- **Bulk approvals**: a `simulate()` plan yields per-step tokens approved together; there is no plan-level token.
 
 ## Open questions
 
-- **Plain HTTP resume.** A 403 with a token tells the client what to do, but there is no standard header or body field for "here is the approval". Candidates: a request header carrying the token, a body field on the retried request, or treating approval as an application concern and only documenting the pattern. This is the open question the plan records as "how `approval-required` should surface over plain HTTP".
-- Whether `token` should include an expiry or nonce, trading replay-within-window protection against the determinism that lets a resumed request recompute it.
-- Whether PermDock should ship a small `ApprovalStore` interface (parallel to `LimitStore`) for applications that want approvals to persist across requests, or leave storage entirely to the runtime.
-- Whether approvals can be granted in bulk for a `simulate()` plan (approve the whole plan once) and how the per-call tokens relate to a plan-level token.
+- Whether approvals should be answerable through a signed link (email, Slack) without a session on the approver side, and how that link binds to the approver's identity.
+- Whether a `deny` verdict should be remembered for the rest of an agent run (the OpenAI SDK's `alwaysReject`) or whether every call must ask again; the current rule is per call.

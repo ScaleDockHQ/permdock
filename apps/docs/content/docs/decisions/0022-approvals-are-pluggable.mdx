@@ -1,0 +1,52 @@
+---
+title: "0022: Approvals are pluggable"
+description: Pending approvals live in an ApprovalStore interface with an in-memory default; the ApprovalRequest wire shape, approver identity, expiry, the PermDock-Approval resume header and plan-level approvals are fixed here so every agent adapter, self-hosted app and PermDock Cloud share one model.
+---
+
+## Status
+
+Accepted, September 2026. Resolves the `ApprovalStore`, expiry and bulk-approval open questions on [approvals](/docs/security/approvals) and roadmap open question 10 (`approval-required` over plain HTTP).
+
+## Context
+
+[0013](/docs/decisions/0013-three-outcome-decision) made `approval-required` a first-class outcome and [approvals](/docs/security/approvals) defined the replay-safe `token`: a hash of permission key, resource id, subject and actor, recomputed on resume and compared. What the docs left open was everything between the ask and the answer: where a pending approval is kept, who may answer it, how long it stays valid, how a plain HTTP client resumes, and whether a `simulate()` plan can be approved once.
+
+Every agent runtime pauses differently but expects the same thing from the application. The AI SDK returns `user-approval` and later an approval response; Eve's `approval` hook pauses a durable session and its docs say a four-eyes flow needs an application-owned approval request resolved by an eligible approver; the OpenAI Agents SDK returns `interruptions` with a serialisable `RunState` and resumes with `state.approve()` or `state.reject()`; MCP uses elicitation; the Claude Agent SDK asks through `canUseTool`. In all five the application must store something, notify someone and correlate the answer to the call.
+
+[0021](/docs/decisions/0021-embedded-pdp-hosted-ads) requires that this be doable without PermDock Cloud. An interface with an in-memory default satisfies that; the Cloud is one more implementation with a UI.
+
+## Decision
+
+1. **`ApprovalStore` is the interface; `memoryApprovalStore()` is the default.** Both live in `permdock/approvals`. Every adapter that can surface `approval-required` accepts `store` in its `createPermDock` options and uses the in-memory store when none is given. The interface has five methods: `create(request)`, `get(token)`, `resolve(token, verdict)`, `list(filter)`, `expire(now)`. Implementations may be async; core never awaits one on the `decide` path (the store is consulted by adapters on resume, not by the evaluator).
+2. **`ApprovalRequest` is a versioned wire format.** Fields: `version`, `token`, `permission` (key), `scope`, `resource` (`type`, `id`), `subject` (principal id and roles, actor id and kind, delegation summary), `detail` (the model-readable sentence from the Decision), `adapter`, `createdAt`, `expiresAt`, `status` (`pending`, `approved`, `rejected`, `expired`), and on resolution `resolvedAt`, `resolvedBy` (approver principal id) and `note`. It never carries the resource object, the policy, tokens from `authInfo` or secrets. It is recorded in [wire formats](/docs/concepts/wire-formats) and fixtures in `@permdock/testing`.
+3. **Expiry lives on the request, not in the token.** `Decision.token` stays deterministic so a resumed call can recompute it. `expiresAt` on the `ApprovalRequest` (default one hour, configurable per adapter) bounds how long an approval may be spent; `expire()` marks stale requests and a resume against an expired request is `denied` with reason kind `approval`.
+4. **The approver is recorded and is never the actor.** `resolve()` requires an approver subject produced by the application's authentication (a session, a `subjectFrom*` result). An approval whose approver id equals the request's `actor.id` is refused: an agent cannot approve its own call. Whether the approver must also differ from the principal (true four-eyes) is an application option, `requireDistinctApprover`, off by default.
+5. **Plain HTTP resumes with the `PermDock-Approval` request header.** A `403` with the `approval-required` problem type returns `token` in the body. The client retries the same request with `PermDock-Approval: <token>`. The server kernel reads the header, looks the token up in the store, requires status `approved`, re-runs `decide`, recomputes the token and compares. A missing, unknown, pending, rejected, expired or mismatched token is `denied`. There is no consent endpoint in core; `approvalsHandler` in `permdock/approvals` provides the list, approve and reject routes an application mounts for its approvers.
+6. **Plan-level approvals are a list of per-call tokens.** `simulate()` over a plan produces one `Decision` per step; the adapter creates one `ApprovalRequest` per `approval-required` step and returns the tokens together. Approving the plan approves each token; each step is still re-checked at execution time. There is no separate plan token, so a step whose inputs changed between plan and execution fails its own comparison.
+7. **Approval events are audit events.** `create` and `resolve` each emit an `approval` event on the instance's `on('decision')` stream (source `approval`), so a `DecisionSink` sees the ask, the answer and the resumed decision as three correlated records sharing `token`.
+
+## Consequences
+
+- `security/approvals.mdx` gains the store lifecycle and the HTTP resume header; its open questions on storage, expiry and bulk approval close.
+- Every agent adapter page (`ai-sdk`, `eve`, `openai`, `claude-agent`, `mcp`) documents the `store` option and which runtime state it correlates with the token (AI SDK approval response, Eve session, OpenAI `RunState`, MCP elicitation reply, Claude `permissionRequestHook`).
+- `permdock/terminal` resolves `approval-required` interactively by writing to and reading from the same store, so a CLI approval leaves the same audit record as a web one.
+- PermDock Cloud implements `ApprovalStore` over its API and adds an inbox UI, delivery (Slack, email, mobile) and approver management; none of that changes the interface.
+- Applications that need approvals to survive a process restart implement the interface over their database; the [approvals adapter](/docs/adapters/approvals) page carries a Drizzle recipe of about thirty lines.
+- The threat model gains rows for store tampering (a store that flips `pending` to `approved` is a trusted server component, like the database) and approver spoofing (the approver subject must come from authentication, never from the resume request).
+
+## Alternatives considered
+
+- **Encode expiry and the approver in the token itself** (a signed JWT-like approval). Rejected: it breaks token determinism, which is what lets a resumed call recompute and compare without a lookup, and it moves state into something the model can see and replay within the window. A deterministic token plus a store record keeps the proof of "this call" separate from the record of "who said yes when".
+- **Leave storage entirely to each runtime** (AI SDK approval payloads, Eve sessions, OpenAI `RunState`). Rejected: the runtimes store *their* state, not the approval record an auditor needs, and none of them knows about approvers. The store is small and gives every runtime the same audit shape.
+- **Ship a persistent store in the open-source package.** Deferred per [0021](/docs/decisions/0021-embedded-pdp-hosted-ads): interfaces and a recipe first, stores when the Cloud's implementation has stabilised the interface.
+- **A consent endpoint instead of a header for HTTP resume.** Rejected as the core mechanism: a header on the retried request keeps the original route as the single enforcement point and needs no new URL surface; a consent UI is an application concern served by `approvalsHandler` or by the Cloud inbox.
+- **A plan token covering a whole `simulate()` result.** Rejected: it would authorise steps whose inputs changed after planning. Per-step tokens approved together give the same one-click experience with per-call safety.
+
+## Related
+
+- [Approvals](/docs/security/approvals)
+- [Approvals adapter](/docs/adapters/approvals)
+- [0013: Three-outcome decision](/docs/decisions/0013-three-outcome-decision)
+- [0021: Embedded PDP, hosted ADS and control plane](/docs/decisions/0021-embedded-pdp-hosted-ads)
+- [Wire formats](/docs/concepts/wire-formats)
+- [Audit and observability](/docs/concepts/audit-and-observability)
