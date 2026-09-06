@@ -1,0 +1,44 @@
+name: Adapter
+description: Propose or track an adapter contribution
+title: 'adapter: '
+labels: ['adapter']
+body:
+  - type: markdown
+    attributes:
+      value: An adapter PR ships the entry, adapters docs page with Status and Phase, a skill reference update, an example app, tests, and a tests/bundle measurement. See AGENTS.md.
+  - type: input
+    id: name
+    attributes:
+      label: Adapter name
+      description: Import path, for example permdock/hono.
+      placeholder: permdock/hono
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Roadmap phase
+      options:
+        - '1'
+        - '2'
+        - '3'
+        - '4'
+    validations:
+      required: true
+  - type: textarea
+    id: surface
+    attributes:
+      label: Runtime surface
+      description: Framework, SDK, or host this adapter wraps.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Contribution checklist
+      options:
+        - label: Docs page at adapters/<name>.mdx with Status and Phase
+        - label: adapters/index.mdx matrix and adapters/meta.json
+        - label: wire-permdock skill reference
+        - label: Example app under apps/examples
+        - label: Tests and a tests/bundle measurement

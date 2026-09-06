@@ -42,7 +42,7 @@ The repository also hosts a docs app and one example app per adapter, which need
 - Codegen (`collect`, `openapi`, `rls`) parses with `oxc-parser` and reads runtime definitions; it never loads the TypeScript compiler.
 - Every adapter has an example app, so e2e tests double as living documentation and skills can point at working code.
 - The type matrix triples type-test time; Turborepo caching keeps it tolerable.
-- Contributors need pnpm and Node 22; the repo does not support npm or Yarn workflows.
+- Contributors need pnpm 12 and Node 24; the repo does not support npm or Yarn workflows.
 
 ## Alternatives considered
 

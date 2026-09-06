@@ -1,0 +1,36 @@
+name: RFC
+description: Propose a public API, wire-format, or CLI change
+title: 'rfc: '
+labels: ['rfc']
+body:
+  - type: markdown
+    attributes:
+      value: Public identifier, wire format, and CLI flag changes start here. Accepted RFCs become an ADR under apps/docs/content/docs/decisions.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What problem does this solve, and who hits it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The API or format change. Name identifiers exactly.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What else was considered and why it lost.
+    validations:
+      required: true
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration
+      description: How existing users move, or why this is additive.
+    validations:
+      required: true

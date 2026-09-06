@@ -1,0 +1,29 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      oxc:
+        patterns:
+          - oxlint
+          - oxfmt
+          - oxlint-tsgolint
+      turbo:
+        patterns:
+          - turbo
+          - '@turbo/*'
+      commitlint:
+        patterns:
+          - '@commitlint/*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - '*'

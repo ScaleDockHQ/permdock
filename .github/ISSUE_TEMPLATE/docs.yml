@@ -1,0 +1,24 @@
+name: Docs
+description: Report a docs error or gap
+title: 'docs: '
+labels: ['docs']
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: Path under apps/docs/content/docs, or a /docs URL.
+      placeholder: getting-started/naming.mdx
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is wrong or missing
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested change
+      description: Optional. A patch or the wording you expected.

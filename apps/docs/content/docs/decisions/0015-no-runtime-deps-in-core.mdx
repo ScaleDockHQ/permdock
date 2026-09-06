@@ -38,7 +38,7 @@ Standard Schema exists so that a library can accept Zod, Valibot, ArkType or Eff
 - **Depend on Zod for schemas and validation** (Kilpi). Rejected: locks out Valibot and ArkType users and adds tens of kilobytes to clients.
 - **`superjson` for dates and sets in conditions.** Rejected: tagged ISO strings cover the RLS-portable subset, and one JSON format must work in Postgres, snapshots and catalogs.
 - **Required `@opentelemetry/api` peer** (`@zap-studio/permit`). Rejected; a type-only logger and tracer interface plus an optional `permdock/otel` adapter gives the same spans without the install.
-- **Dual CJS and ESM builds** (CASL). Rejected: the target runtimes are ESM, Node 22 is the floor, and dual builds double the test matrix.
+- **Dual CJS and ESM builds** (CASL). Rejected: the target runtimes are ESM, Node 24 is the floor, and dual builds double the test matrix.
 - **Vendoring the Standard Schema types.** Acceptable per the spec, rejected because the types are part of PermDock's public API and should version with the spec.
 
 ## Related

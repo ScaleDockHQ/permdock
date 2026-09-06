@@ -4,6 +4,7 @@
 
 [![npm](https://img.shields.io/npm/v/permdock?label=permdock)](https://www.npmjs.com/package/permdock)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/ScaleDockHQ/PermDock/ci.yml?label=CI)](https://github.com/ScaleDockHQ/PermDock/actions)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9%20%7C%206%20%7C%207-3178c6.svg)
 
@@ -277,11 +278,11 @@ The product vision, roadmap and open questions live in [`PRODUCT.md`](./PRODUCT.
 
 ## Contributing
 
-PermDock is a pnpm + Turborepo monorepo (`/packages`, `/apps`, `/tests`). Public API changes go through a short RFC in an issue before a PR. Every adapter ships with a docs page, a skill reference, an example app and tests; see [`AGENTS.md`](./AGENTS.md) for the checklist.
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes go through a short RFC in an issue before a PR. Every adapter ships with a docs page, a skill reference, an example app and tests; the checklist is in [`AGENTS.md`](./AGENTS.md). This project follows the [Contributor Covenant](./CODE_OF_CONDUCT.md).
 
 ## Security
 
-Report vulnerabilities privately to the maintainers (see `SECURITY.md` once published). Do not open public issues for security reports.
+Report vulnerabilities privately. See [`SECURITY.md`](./SECURITY.md). Do not open public issues for security reports.
 
 ## License
 
