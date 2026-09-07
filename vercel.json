@@ -1,7 +1,10 @@
 {
   "services": {
     "docs": {
-      "root": "apps/docs"
+      "root": "apps/docs",
+      "framework": "nextjs",
+      "installCommand": "corepack enable && corepack prepare pnpm@12.3.1 --activate && corepack pnpm@12.3.1 install",
+      "buildCommand": "next build"
     }
   },
   "redirects": [

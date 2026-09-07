@@ -6,7 +6,12 @@
   "global": {
     "env": ["CI", "NODE_ENV"],
     "envMode": "strict",
-    "inputs": ["tsconfig.json"]
+    "inputs": ["tsconfig.json"],
+    "passThroughEnv": [
+      "COREPACK_HOME",
+      "ENABLE_EXPERIMENTAL_COREPACK",
+      "LEFTHOOK"
+    ]
   },
   "tasks": {
     "transit": {

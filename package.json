@@ -10,7 +10,7 @@
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
     "lint": "oxlint .",
-    "prepare": "lefthook install",
+    "prepare": "node -e \"process.env.VERCEL ? process.exit(0) : require('node:child_process').execSync('lefthook install', { stdio: 'inherit' })\"",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
