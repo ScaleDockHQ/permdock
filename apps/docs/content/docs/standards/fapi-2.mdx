@@ -95,7 +95,36 @@ paths:
       x-permdock-securityProfile: fapi2
 ```
 
-The OpenAPI Initiative has said that the 3.3 line is investigating native support for security profiles, with FAPI 2.0 as one of the two named candidates. When a native construct lands, PermDock emits it for 3.3 targets and keeps the extension for 3.1 and 3.2; see [OpenAPI 3.3](/docs/standards/openapi-3-3) and [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay).
+### In OpenAPI 3.3 output
+
+OpenAPI 3.3 is designing a native Security Profile construct with FAPI 2.0 as its worked example (OpenAPI Initiative Discussion #5304). `permdock openapi emit --target 3.3 --profile fapi2` emits that pinned draft shape next to the extension ([OpenAPI 3.3](/docs/standards/openapi-3-3), [ADR 0025](/docs/decisions/0025-draft-protocol-posture)):
+
+- a `type: profile` security scheme (`permdockFapi2` by default) whose `profileMetadata.name` is `fapi-20-security-profile`, the name the proposal registers for this profile; PermDock never coins a registry name;
+- `profileMetadata.supportedParametersSchema` pointing at the FAPI 2.0 parameter schema PermDock publishes, and `profileMetadata.servers` filled from the issuer's metadata URL;
+- one `components.securityProfileRequirements` entry per distinct scope set, listing `token_endpoint_auth_methods: [private_key_jwt, tls_client_auth]` (the two client authentication methods FAPI 2.0 permits), the `grant_types` implied by the configured flows, and the operation's scopes;
+- `x-permdock-securityProfile: fapi2` on the scheme and every covered operation, exactly as on 3.1 and 3.2 output, so a consumer that ignores the `profile` scheme type still sees the declaration.
+
+```yaml
+components:
+  securitySchemes:
+    permdockFapi2:
+      type: profile
+      profileMetadata:
+        name: fapi-20-security-profile
+        supportedParametersSchema: https://permdock.dev/schemas/security-profiles/fapi2.json
+        servers:
+          - name: default
+            url: https://auth.example.com/.well-known/oauth-authorization-server
+  securityProfileRequirements:
+    permdockFapi2PostUpdate:
+      securityScheme:
+        $ref: "#/components/securitySchemes/permdockFapi2"
+      token_endpoint_auth_methods: [private_key_jwt, tls_client_auth]
+      grant_types: [authorization_code]
+      scopes: [post:update]
+```
+
+The resource-server rules PermDock enforces come from the Final FAPI 2.0 Security Profile, not from how OpenAPI describes it; where the two differ, the OpenID Foundation document wins and the OpenAPI output follows. When 3.3.0 is released the native construct replaces the draft shape and the extension stays on 3.1 and 3.2 targets.
 
 ## Grant Management
 
@@ -138,7 +167,8 @@ FAPI 2.0 Message Signing (signed authorization requests and responses via JAR an
 - [Authentication](/docs/concepts/authentication) and [ADR 0018](/docs/decisions/0018-authentication-is-upstream): where token verification stops and permissions start.
 - [OAuth for agent delegation](/docs/standards/oauth-agent-delegation) and [delegation](/docs/security/delegation): RAR `authorization_details` as `delegation`.
 - [Problem Details](/docs/standards/problem-details): the 403 body that carries `alternatives`.
-- [OpenAPI 3.3](/docs/standards/openapi-3-3) and [OpenAPI 3.2](/docs/standards/openapi-3-2): where `x-permdock-securityProfile` goes and what may replace it.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3) and [OpenAPI 3.2](/docs/standards/openapi-3-2): where `x-permdock-securityProfile` goes and the native `type: profile` scheme emitted for 3.3 targets.
+- [ADR 0025](/docs/decisions/0025-draft-protocol-posture): why the 3.3 draft is emitted before release.
 - [Standards watch list](/docs/standards/watch-list): Grant Management, rfc8725bis and RAR error remediation.
 
 ## Open questions

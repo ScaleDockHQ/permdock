@@ -1,10 +1,11 @@
 ---
 title: OpenAPI Overlay
-description: "How permdock openapi --format overlay emits an Overlay 1.1.0 document that adds security, securitySchemes and x-permdock-* fields to an OpenAPI description without mutating it, how to apply and check it in CI, and why the Overlay never removes security."
+description: "How permdock openapi --format overlay emits an Overlay 1.1.0 document (or, behind --overlay 1.2, the pinned Overlay 1.2 draft with reusable actions) that adds security, securitySchemes and x-permdock-* fields to an OpenAPI description without mutating it, how to apply and check it in CI, and why the Overlay never removes security."
 ---
 
 Status: planned
 Phase: 2
+Draft posture: build (Overlay 1.2 pinned to `v1.2-dev` at commit `edd4adea`, 8 August 2026, recorded in `x-permdock-catalog.drafts.overlay`; 1.1.0 stays the default output)
 
 ## What it is
 
@@ -18,6 +19,8 @@ The [Overlay Specification 1.1.0](https://spec.openapis.org/overlay/v1.1.0.html)
 | `actions` | Ordered list of actions. Each has a `target` JSONPath expression selecting nodes in the description, plus one of `update` (merge a value into every selected node), `remove` (delete every selected node) or, new in 1.1, `copy` (copy a value from another location) |
 
 An applier resolves each `target` against the description and applies the actions in order; the output is a new OpenAPI description. The source is never edited.
+
+**Overlay 1.2** (in development on the [`v1.2-dev` branch](https://github.com/OAI/Overlay-Specification/blob/v1.2-dev/src/overlay.md), release date "TBD" in its revision history) adds one construct: reusable actions. A root `components` object holds `components.actions`, a map of Reusable Action Objects, each with a `description` and a `fields` object that is an Action Object without `target`. An entry in `actions` may then be a Reusable Action Reference Object instead of an Action Object: `$ref` (a same-document JSON Pointer restricted to `#/components/actions/`), a required `target`, and an optional `description` that overrides the one in `fields`. Nothing else on the object may be overridden; the `update`, `remove` and `copy` come from the referenced action. Earlier notes on this page and elsewhere described a `targetFormat` field for AsyncAPI targets; that idea is not in the `v1.2-dev` text at the pinned commit and PermDock does not emit it.
 
 ## Why PermDock prefers an Overlay
 
@@ -104,6 +107,77 @@ Rules the emitter follows:
 - **The Overlay never contains a `remove` action on `security` or `securitySchemes`**, and never an `update` that sets `security` to `[]` unless the permission is explicitly public in the catalog. Loosening a document's security is not something PermDock does on anyone's behalf.
 - `--target 3.1` swaps the 3.2 fields for the registered fallbacks (`x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl`, `x-oai-deprecated`) and `x-permdock-oauth2MetadataUrl`, exactly as in document mode.
 
+### Overlay 1.2 output
+
+`--overlay 1.2` (adapter: `overlay({ version: '1.2' })`) emits the Overlay 1.2 draft at the pinned `v1.2-dev` commit instead of 1.1.0. It is the *build* posture of [ADR 0025](/docs/decisions/0025-draft-protocol-posture) applied to a document format rather than to a field: PermDock needs it in Phase 2 because the 1.1 form repeats the same `update` body once per operation, the draft's shape is small enough to write fixtures against, and the stable twin is the 1.1 form itself, one flag away and carrying exactly the same information. `1.1` stays the default until 1.2.0 is released and the appliers in the table below accept it.
+
+The 1.2 form differs from the 1.1 form in exactly one way: every operation `update` body becomes a reusable action, keyed by the permission keys it grants, and the operation entries become references to it. Operations that grant the same permissions share one reusable action; the `securitySchemes`, `securityProfileRequirements` and root catalog actions are unchanged because each has one target.
+
+```json
+{
+  "overlay": "1.2.0",
+  "info": { "title": "PermDock authorization metadata", "version": "2026-09-06T10:15:00Z" },
+  "extends": "./openapi.json",
+  "components": {
+    "actions": {
+      "post.delete": {
+        "description": "post.delete",
+        "fields": {
+          "update": {
+            "security": [{ "permdockOAuth": ["post:delete"] }],
+            "x-permdock-permissions": ["post.delete"],
+            "x-permdock-conditions": {
+              "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } }
+            },
+            "x-permdock-approval": { "post.delete": { "reason": "human" } }
+          }
+        }
+      },
+      "post.update": {
+        "description": "post.update",
+        "fields": {
+          "update": {
+            "security": [{ "permdockOAuth": ["post:update"] }],
+            "x-permdock-permissions": ["post.update"]
+          }
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "target": "$.components.securitySchemes",
+      "description": "OAuth 2.0 scheme with every catalog scope",
+      "update": { "permdockOAuth": { "type": "oauth2", "flows": { "...": "as in the 1.1 example" } } }
+    },
+    { "$ref": "#/components/actions/post.delete", "target": "$.paths.*[?@.operationId == 'deletePost']", "description": "deletePost" },
+    { "$ref": "#/components/actions/post.update", "target": "$.paths.*[?@.operationId == 'updatePost']", "description": "updatePost" },
+    { "$ref": "#/components/actions/post.update", "target": "$.paths.*[?@.operationId == 'patchPost']", "description": "patchPost" },
+    {
+      "target": "$",
+      "description": "Catalog fingerprint for permdock openapi --check",
+      "update": {
+        "x-permdock-catalog": {
+          "v": 1,
+          "generator": "@permdock/cli",
+          "catalog": "sha256:...",
+          "drafts": { "overlay": "1.2-dev@<commit>" }
+        }
+      }
+    }
+  ]
+}
+```
+
+Rules specific to 1.2:
+
+- The reusable-action key is the sorted, comma-joined list of permission keys the operation grants (`post.delete`; `post.read,post.update` for an operation with two). Keys are JSON Pointer tokens, so `~` and `/` are escaped as `~0` and `~1` in the `$ref`, per RFC 6901; permission keys are resource and action identifiers joined by dots ([naming](/docs/getting-started/naming)), so in practice the key appears verbatim.
+- `components.actions` is sorted by key, references keep the same `operationId` order as 1.1 output, and each reference's `description` is the `operationId` so a reviewer can still read the list of covered operations without resolving the pointers. Output is byte-identical across runs, and `--check` compares a committed 1.2 Overlay against a regenerated 1.2 Overlay, never across versions.
+- Only `target` and `description` appear on a reference; `update`, `remove` and `copy` are never written on one, matching the draft's rule. A committed Overlay with a `remove` anywhere on `security`, `securitySchemes` or `securityProfileRequirements`, inline or inside `components.actions`, still fails `--check`.
+- The pin `drafts.overlay` names the `v1.2-dev` commit the shape was checked against, in the root `x-permdock-catalog` action. `--check` fails and `permdock doctor` (`PD012`) warns when a committed 1.2 Overlay carries a different pin; the fix is to regenerate. 1.1 output carries no `drafts` entry for the Overlay.
+- The 1.2 form validates against the `schemas/v1.2-dev` JSON Schema at the pinned commit; `redocly lint` and the shipped ruleset accept both `overlay: 1.1.0` and `overlay: 1.2.0`.
+- **Release switch.** When 1.2.0 is published, `--overlay 1.2` emits the released shape in the next PermDock minor, `drafts.overlay` disappears, and any difference between draft and release is absorbed by the emitter (the importer reads nothing back from an Overlay, so there is no dual-read window). The default moves from `1.1` to `1.2` no earlier than one further minor and only once next-openapi-gen, Redocly CLI, Bump.sh, Speakeasy and `overlays-js` all accept `components.actions`. If reusable actions are dropped before release, `--overlay 1.2` emits the 1.1 shape with `overlay: 1.2.0` and this page records that.
+
 ### Applying
 
 Any Overlay 1.x applier can consume the file: it takes the OpenAPI description (from `extends` or a command-line argument) and the Overlay and writes the combined description. Run it as a build step and serve or publish the result; the source description in the repository stays unchanged. PermDock does not ship its own applier in Phase 2; the document form covers projects that do not want one.
@@ -118,7 +192,7 @@ Whichever applier runs, the producer must not also write `security` on the opera
 
 **`operationId` is the join key.** Producers generate it, the Overlay targets it, Arazzo steps reference it. A producer configured to omit `operationId`s cannot be overlaid; `--check` fails on the first operation without one rather than falling back to path-and-method targeting.
 
-**Overlay 1.2.** The next minor adds reusable actions and a `targetFormat` field (so one Overlay can target OpenAPI or AsyncAPI documents). PermDock emits 1.1.0 and reads nothing back, so there is no change until a 1.2 feature is needed; the appliers above already accept 1.2. Tracked on the [watch list](/docs/standards/watch-list).
+**Which Overlay version to emit.** An applier that does not know `components.actions` rejects a 1.2 Overlay at `overlay: 1.2.0` or, worse, ignores the references. Keep the default `1.1` for Redocly CLI, Bump.sh, Speakeasy and `overlays-js` pipelines until their release notes name Overlay 1.2; next-openapi-gen documents 1.0 to 1.2 and is the first applier the 1.2 form is tested against. The version is a per-pipeline choice; a monorepo can commit both files from one catalog.
 
 ### CI recipe
 
@@ -159,11 +233,13 @@ Mitigations:
 | `update.x-permdock-*` | Permission keys, portable conditions, approval metadata, security profile |
 | `remove` | Never emitted for security fields |
 | `copy` (1.1) | Not used |
+| `components.actions` and `$ref` references (1.2 draft, `--overlay 1.2`) | One reusable action per distinct set of granted permission keys; one reference per operation |
 | Deterministic output | `--check` in CI |
 
 ## Sources
 
 - [Overlay Specification 1.1.0](https://spec.openapis.org/overlay/v1.1.0.html).
+- [Overlay Specification `v1.2-dev`](https://github.com/OAI/Overlay-Specification/blob/v1.2-dev/src/overlay.md) and its `schemas/v1.2-dev` schema, at the commit named in the `Draft posture` line.
 - [OpenAPI Initiative registries](https://spec.openapis.org/registry/), for the extension names the Overlay writes.
 
 ## Related
@@ -174,7 +250,8 @@ Mitigations:
 - [Arazzo workflows](/docs/standards/arazzo): reading the applied description back to pre-flight a workflow.
 - [OpenAPI adapter](/docs/adapters/openapi), [Next.js adapter](/docs/adapters/next) and [CLI: openapi](/docs/cli/openapi).
 - [OpenAPI ecosystem](/docs/research/openapi-ecosystem): producers, appliers and consumers.
-- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay) and [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem).
+- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay), [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem) and [ADR 0025](/docs/decisions/0025-draft-protocol-posture) (the 1.2 draft posture and pin).
+- [Watch list](/docs/standards/watch-list): the Overlay 1.2 row.
 
 ## Open questions
 

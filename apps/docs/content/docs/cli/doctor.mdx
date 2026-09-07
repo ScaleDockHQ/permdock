@@ -34,6 +34,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD009` | Duplicate `permdock` copies in the dependency tree | error |
 | `PD010` | Roles or tenant read from an unverified or user-editable claim | error |
 | `PD011` | Tenant read from an optional claim under a multi-tenant issuer | warning |
+| `PD012` | OpenAPI document or Overlay pinned to a draft revision the installed CLI no longer emits | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -78,6 +79,10 @@ Reads the `claims` option of every `subjectFromJwt` and `createJwtSubjectResolve
 ### PD011: tenant from an optional claim
 
 Fires when `claims.tenant` names a claim the issuer emits only for some accounts and the issuer is a multi-tenant one: Google's `hd` under `accounts.google.com` (absent for consumer accounts), Entra `tid` under the `common` or `organizations` endpoint (personal accounts arrive with the consumers tenant), Okta `groups`-derived tenants without a filter. A missing tenant yields a subject without one, which tenant-scoped conditions deny, so this is a warning rather than an error; it exists because the usual next step is a default tenant in the resolver, which is the bug. The fix is to compare the claim against onboarded tenants in the resolver, or to restrict the issuer (`login.microsoftonline.com/<tenant>/v2.0` instead of `common`, the `hd` authorization parameter at Google) so the IdP filters first ([single sign-on](/docs/concepts/authentication#single-sign-on-and-directories)).
+
+### PD012: stale draft pin
+
+Reads `x-permdock-catalog.drafts` from every OpenAPI document and Overlay `permdock openapi` has written in the repository (found through the `openapi` section of the config or the paths passed to `--doc`) and compares each pin with the revision the installed CLI emits ([OpenAPI 3.3](/docs/standards/openapi-3-3), [ADR 0025](/docs/decisions/0025-draft-protocol-posture)). A mismatch means the document carries an older draft shape than a regeneration would produce, which is a warning here and an error in `permdock openapi emit --check`; the fix is to regenerate. Documents and Overlays without `drafts` (targets `3.1` and `3.2`, Overlay `1.1`) are not checked; a `--overlay 1.2` Overlay carries `drafts.overlay` ([OpenAPI Overlay](/docs/standards/openapi-overlay)).
 
 ## Example report
 

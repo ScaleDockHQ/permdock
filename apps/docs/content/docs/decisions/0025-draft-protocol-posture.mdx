@@ -1,0 +1,68 @@
+---
+title: "0025: Draft protocols: build, name or track"
+description: Why every draft or beta specification PermDock follows gets one of three postures (build against a pinned revision, reserve names only, or track), why --target 3.3 emits the OpenAPI 3.3 Security Profile proposal today rather than waiting for 3.3.0, how the pinned draft revision is recorded in x-permdock-catalog, and why PermDock never emits another vendor's unregistered extension.
+---
+
+## Status
+
+Accepted, September 2026. Supersedes point 4 (target version policy) of [0019](/docs/decisions/0019-openapi-extensions-and-overlay); the other four points of 0019 stand. Extends [0014](/docs/decisions/0014-openapi-3-2) and [0023](/docs/decisions/0023-compose-openapi-ecosystem).
+
+## Context
+
+The [watch list](/docs/standards/watch-list) carries roughly forty specifications, half of them unfinished: OpenAPI 3.3 on `v3.3-dev`, Overlay 1.2, WebMCP as a W3C Community Group draft, Web Bot Auth and the RAR remediation draft at the IETF, the OpenTelemetry GenAI conventions in development status, and a dozen OpenID Foundation drafts. Until now each row said what PermDock would do (implements, consumes, checklist, tracking) but not *when it is allowed to act on an unfinished text*. [0019](/docs/decisions/0019-openapi-extensions-and-overlay) answered that question for one case with a blanket rule: "drafts are not implemented as if final", and `--target 3.3` emitted nothing that existed only in `v3.3-dev`.
+
+That rule was written when the 3.3 security work was a newsletter sentence. Checking the state in September 2026:
+
+- The `v3.3-dev` branch of `OAI/OpenAPI-Specification` is the 3.2 text relabelled "Version 3.3.0". No `profile` security scheme type, no GNAP scheme and no Standardized API Feature text has been merged.
+- The native Security Profile construct exists as a design in OpenAPI Initiative Discussion #5304: a new `securitySchemes` entry with `type: profile` and a `profileMetadata` object (`name`, `supportedParametersSchema`, optional `supportedOperations`, `servers`), a `components.securityProfileRequirements` map whose entries bind a profile scheme to the token-endpoint authentication methods, grant types and scopes an operation accepts, and a registry of approved profile names with `fapi-20-security-profile` as the worked example (Brasil Open Finance). The design is contested by a TSC member and unresolved.
+- GNAP in OpenAPI has no Initiative text at all. The only published shape is a community `x-gnap` vendor extension on `oauth2`-style schemes (`grant_endpoint`, `token_formats`, `key_proofs`, `interaction`, `access_rights`, `continuation`).
+
+Meanwhile PermDock already builds against unfinished text elsewhere without saying so: `permdock/webmcp` targets the incubating `document.modelContext` API, `Decision.alternatives` is rendered in the RAR remediation draft's shape, and the OpenTelemetry adapter copies `gen_ai.tool.*` attribute names that are not yet stable. The 3.3 rule and the rest of the plan disagreed with each other.
+
+The product question is simpler than the policy question. Security Profiles are the one construct that lets an agent discover, from the description alone, that an API demands sender-constrained tokens and refuses query-parameter tokens. That is what PermDock's FAPI 2.0 alignment enforces on the server ([FAPI 2.0](/docs/standards/fapi-2)), and it is worth being early on. Waiting for 3.3.0 to leave a milestone that has been at 42% for months means shipping the vendor extension for a year and then migrating everyone.
+
+## Decision
+
+1. **Three postures.** Every unfinished specification on the watch list carries exactly one posture, shown in a "Posture" column and, on standards pages that have one, a `Draft posture:` line under `Status` and `Phase`:
+   - **build**: PermDock implements the draft's current shape, pinned to a named revision (a commit, a discussion date, a draft number or a specification date). The pin is written on the standards page and, where the output is a document, into the document itself. Changing the pin is a maintainer action with fixtures and a changeset.
+   - **name**: PermDock reserves the public identifiers the specification will need (an option name, a scheme kind, a field on `delegation`) so that adopting it later adds behaviour without renaming anything, but emits and consumes nothing from the draft.
+   - **track**: PermDock follows the text and does nothing else. No identifier depends on it.
+   Finished specifications (Final, RFC, Released) carry no posture; the existing action vocabulary covers them.
+2. **Criteria.** A draft is *built* when all three hold: PermDock needs the capability in the same phase, the draft's shape is concrete enough to write fixtures against, and the output can carry a stable twin so consumers that ignore the draft lose nothing. A draft is *named* when a public identifier would otherwise have to change later. Everything else is tracked.
+3. **`--target 3.3` emits the draft.** `permdock openapi emit --target 3.3` and the adapter option `target: '3.3'` emit the Security Profile shape of Discussion #5304 as of the pinned date: one `type: profile` scheme per declared profile, `profileMetadata.name` from a fixed map (`fapi2` becomes `fapi-20-security-profile`), `profileMetadata.supportedParametersSchema` pointing at the profile parameter schema PermDock publishes, `profileMetadata.servers` from the configured metadata URL, and one `components.securityProfileRequirements` entry per distinct scope set used by operations covered by `--profile fapi2`, each operation keeping its existing `security`. The target stays labelled experimental. There is no separate `--drafts` flag: choosing `3.3` while 3.3 is unreleased is the opt-in.
+4. **The extension twin is always present.** On 3.3 output `x-permdock-securityProfile` is written next to the native construct, on the same schemes and operations. Everything 3.2 output carries is also present. A consumer that rejects an unknown scheme type can strip it and still see the declaration; the importer reads either form.
+5. **The pin is in the document.** `x-permdock-catalog` gains a `drafts` object recording every draft revision the output depends on, for example `"drafts": { "oas": "3.3-dev@<commit>", "securityProfiles": "oai-discussion-5304@2026-09-01" }`. `permdock openapi emit --check` fails, and `permdock doctor` warns, when the pins in a committed document differ from the ones the installed CLI emits, so a regenerated description is never silently mixed with an older draft shape. The catalog format stays `v: 1`; it has not shipped.
+6. **Release switch.** When 3.3.0 is published, `--target 3.3` emits the released construct in the next PermDock minor, the draft shape is dropped rather than kept behind a flag, and the `securityProfiles` pin disappears from `drafts`. If the released construct differs from the draft, the importer accepts both for one minor. The default target moves from `3.2` to `3.3` no earlier than one further minor, as 0019 said. If the Initiative abandons Security Profiles, `--target 3.3` falls back to the 3.2 shape plus the extension and this decision records that outcome.
+7. **`--overlay 1.2` emits the Overlay 1.2 draft.** `permdock openapi emit --format overlay --overlay 1.2` and the adapter option `overlay({ version: '1.2' })` emit the `v1.2-dev` shape at the pinned commit: `overlay: 1.2.0`, one Reusable Action Object under `components.actions` per distinct set of granted permission keys, and one Reusable Action Reference Object (`$ref`, `target`, `description`) per operation. The `securitySchemes`, `securityProfileRequirements` and root catalog actions stay plain actions. Nothing that exists only in a discussion (a `targetFormat` field, AsyncAPI targets) is emitted. The stable twin is the 1.1 form: same actions, inlined, and the default. The pin is `drafts.overlay`, written in the root `x-permdock-catalog` action; `--check` compares within one Overlay version. When 1.2.0 is published, `--overlay 1.2` emits the released shape in the next minor and the pin disappears; the default moves to `1.2` no earlier than one further minor and only once the appliers PermDock documents accept `components.actions` ([OpenAPI Overlay](/docs/standards/openapi-overlay)).
+8. **Never another vendor's extension.** PermDock emits `x-permdock-*`, the registered `x-oai-*` names, `x-agent-trust` and the opt-in `x-badges` hint, and nothing else. It does not emit the community `x-gnap` extension. GNAP gets the *name* posture: a reserved `gnap` scheme kind in the emitter's type model and the existing `delegation.access` input, with output only once a `v3.3-dev` pull request defines a scheme.
+9. **Postures assigned now.** Build: OpenAPI 3.3 Security Profiles (Phase 2), Overlay 1.2 (Phase 2, behind `--overlay 1.2`), WebMCP (Phase 2), RAR Metadata and Error Remediation (Phase 2), OpenTelemetry GenAI conventions (Phase 2), Web Bot Auth (Phase 4). Name: GNAP as an OpenAPI scheme, OAuth 2.1, rfc8725bis, WIMSE architecture, CAEP Interoperability Profile, Transaction Tokens, Identity and Authorization Chaining, OpenID Connect Enterprise Extensions `session_expiry`, the IPSIE Common Requirements and SL1 profile, Ephemeral Subject Identifier. Track: Grant Management, OpenID Provider Commands, IPSIE AL1, OpenID Connect Key Binding, OpenID Federation as a PDP trust input, the individual transaction-token drafts, the AuthZEN claims draft, AG-UI, Cedar, OpenFeature, AsyncAPI. The [watch list](/docs/standards/watch-list) is the authoritative table.
+
+## Consequences
+
+- OpenAPI 3.3 moves from "tracked, not built" in Phase 4 to a Phase 2 deliverable of `permdock/openapi`. The 3.3 output matrix (document and Overlay) gains fixtures keyed by the draft pin in `@permdock/testing`.
+- A 3.3 document produced by PermDock may become invalid against the eventual 3.3 JSON Schema; the experimental label, the twin extension and the `--check` pin are the mitigation. Projects that need a stable document keep the default `3.2`.
+- Overlay 1.2 moves from "adopt when a feature is needed" (0023) to a Phase 2 output behind `--overlay 1.2`, with the same pin and `--check` treatment. The Overlay fixtures in `@permdock/testing` exist in both versions; the 1.2 set is keyed by the pin. `--format overlay` gains one flag and the CLI's output matrix grows from six shapes to nine.
+- 0023's Overlay 1.2 bullet ("tracked, not emitted") is superseded by point 7.
+- Bumping a draft pin is a maintainer workflow: standards page, `x-permdock-catalog.drafts`, fixtures, changeset. `AGENTS.md` gains that row.
+- Every future watch-list row must declare a posture; "we follow it" is no longer an answer on its own.
+- WebMCP, RAR remediation and the OpenTelemetry conventions gain an explicit pin on their pages; nothing about their behaviour changes.
+- 0019's point 4 is superseded; readers of that ADR should follow this one for anything about `--target 3.3`.
+
+## Alternatives considered
+
+- **Keep the 0019 rule and wait for 3.3.0.** Rejected: the milestone has no date, PermDock's whole reason to emit OpenAPI security metadata is agent discovery, and Security Profiles are the discovery construct. Being the first emitter also gives PermDock a seat in the discussion with real output to point at.
+- **A separate `--drafts security-profiles` flag next to `--target 3.3`.** Rejected: it doubles the output matrix for a target that is already labelled experimental, and no one selects `3.3` today for any reason other than the security work. Reconsider only if 3.3 gains a second draft feature PermDock emits independently.
+- **Redesign `x-permdock-securityProfile` to mirror the proposal's object shape and emit nothing native.** Rejected: it would still leave a migration for every consumer, and it would put the draft's field names under a namespace PermDock controls, which is the wrong place to iterate on someone else's design.
+- **Keep Overlay 1.2 at *name* and wait for 1.2.0.** Rejected: the release is close (the `v1.2-dev` text is complete apart from its date, and next-openapi-gen already applies it), reusable actions remove the one structural duplication in PermDock's Overlay, and the twin costs nothing because the 1.1 form is the default. Making `1.2` the default now was also rejected: most appliers in the recipe table document only 1.x support, and an Overlay that an applier silently misreads would be a security-metadata gap, not a formatting one.
+- **Emit `x-gnap`.** Rejected: it is another party's unregistered extension with no Initiative standing, and PermDock's rule since 0019 is registered names or its own namespace only.
+- **A single "experimental" posture instead of three.** Rejected: it hides the difference between "we ship this shape" and "we reserved a word", which is exactly the difference a consumer planning an upgrade needs.
+
+## Related
+
+- [OpenAPI 3.3](/docs/standards/openapi-3-3): the draft shape, the pin and the release switch.
+- [OpenAPI Overlay](/docs/standards/openapi-overlay): the 1.2 draft output behind `--overlay 1.2`.
+- [Watch list](/docs/standards/watch-list): the Posture column.
+- [OpenAPI registries](/docs/standards/openapi-registry): `x-permdock-catalog.drafts` and the extension twin.
+- [FAPI 2.0](/docs/standards/fapi-2) and [GNAP](/docs/standards/gnap): the two profiles named by the 3.3 work.
+- [CLI: openapi](/docs/cli/openapi), [OpenAPI adapter](/docs/adapters/openapi), [CLI: doctor](/docs/cli/doctor).
+- [0014: Target OpenAPI 3.2](/docs/decisions/0014-openapi-3-2), [0019: Extensions and Overlay](/docs/decisions/0019-openapi-extensions-and-overlay), [0023: Compose with the OpenAPI toolchain](/docs/decisions/0023-compose-openapi-ecosystem).

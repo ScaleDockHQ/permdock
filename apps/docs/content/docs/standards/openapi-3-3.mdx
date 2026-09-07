@@ -1,38 +1,95 @@
 ---
 title: OpenAPI 3.3
-description: "What is known about OpenAPI 3.3 (v3.3-dev, security-focused, Security Profiles with FAPI 2.0 and GNAP under investigation), what PermDock emits today with x-permdock-securityProfile, and how --target 3.3 will adopt the native construct without implementing a draft as if it were final."
+description: "What OpenAPI 3.3 contains today (v3.3-dev is still the 3.2 text; Security Profiles exist as OpenAPI Initiative Discussion #5304), the exact shape --target 3.3 emits from that pinned draft next to x-permdock-securityProfile, how the pin is recorded and checked, what happens at 3.3.0, and why GNAP is a reserved name rather than output."
 ---
 
-Status: tracking
+Status: in progress
 Phase: 2
+Draft posture: build (pinned to OAI Discussion #5304 expanded design notes, September 2026; `v3.3-dev` at the commit recorded in `x-permdock-catalog.drafts.oas`)
 
 ## What it is
 
-OpenAPI 3.3 is the next minor version of the OpenAPI Specification. Nothing about it is final. What the OpenAPI Initiative has published so far:
+OpenAPI 3.3 is the next minor version of the OpenAPI Specification, positioned by the OpenAPI Initiative as the security-focused release. What has been published, checked in September 2026:
 
 | Fact | Source |
 | --- | --- |
 | Development happens on branch `v3.3-dev`; 3.1.3 is on `v3.1-dev`, 3.2.1 on `v3.2-dev`, and 4.0.0 (Moonwalk) exists only as discussions in the `OAI/sig-moonwalk` repository | [CONTRIBUTING.md branch table](https://github.com/OAI/OpenAPI-Specification/blob/main/CONTRIBUTING.md) |
-| The `v3.3.0` milestone stands at 16 of 38 issues closed (42%) | [Milestones](https://github.com/OAI/OpenAPI-Specification/milestones) |
+| The `v3.3-dev` text is the 3.2 specification with its version line changed to "Version 3.3.0". No security scheme type, no GNAP text and no Standardized API Feature has been merged | [`v3.3-dev/src/oas.md`](https://github.com/OAI/OpenAPI-Specification/blob/v3.3-dev/src/oas.md) |
+| The `v3.3.0` milestone stands at 16 of 38 issues closed (42%) with no target date | [Milestones](https://github.com/OAI/OpenAPI-Specification/milestones) |
 | 3.3 is described as "strictly compatible with both 3.1 and 3.2", with "more comprehensive updates to parameters, form data modeling, and security configurations" | [Milestones](https://github.com/OAI/OpenAPI-Specification/milestones) |
-| New approaches are created alongside frozen older ones, as steps toward Moonwalk (4.0) | [Milestones](https://github.com/OAI/OpenAPI-Specification/milestones) |
 | 3.3 "promises to be one focused on API Security, with investigations already taking place on supporting the FAPI 2.0 Security Profile and Grant Negotiation and Authorization Protocol (GNAP)"; discussions have started on "what a Security Profile might look like" | [OAI newsletter, June 2026](https://www.openapis.org/blog/2026/06/09/openapi-initiative-newsletter-june-2026) |
+| The Security Profile design lives in Discussion #5304: a `type: profile` security scheme, a `securityProfileRequirements` component and a registry of profile names, with FAPI 2.0 for Brasil Open Finance as the worked example. A TSC member has raised structural objections; the thread is open | [Discussion #5304](https://github.com/OAI/OpenAPI-Specification/discussions/5304) |
 | 3.3 is evaluating Standardized API Features (SAFs): features whose behaviour is defined by an external specification such as an RFC and that need an exception to the normal description rules; cookies (RFC 6265) is the example | [OAI newsletter, June 2026](https://www.openapis.org/blog/2026/06/09/openapi-initiative-newsletter-june-2026) |
 
-Two of those threads intersect PermDock directly. A **Security Profile** construct would give a document a standard place to say "this API's OAuth deployment follows FAPI 2.0" instead of a vendor extension. **GNAP** support would add a security scheme type whose access rights are structured objects, the same shape PermDock already maps from RFC 9396 `authorization_details` ([GNAP](/docs/standards/gnap), [subject](/docs/concepts/subject)).
+Two of those threads intersect PermDock directly. A **Security Profile** gives a document a standard place to say "this API's OAuth deployment follows FAPI 2.0" instead of a vendor extension. **GNAP** support would add a security scheme whose access rights are structured objects, the same shape PermDock already maps from RFC 9396 `authorization_details` ([GNAP](/docs/standards/gnap), [subject](/docs/concepts/subject)).
 
 ## Why it matters for PermDock
 
-PermDock's OpenAPI output exists so that machines, including agents, can discover what a route requires before calling it. Today that is scopes, `oauth2MetadataUrl`, the device flow and `x-permdock-*` extensions ([OpenAPI 3.2](/docs/standards/openapi-3-2)). A native security-profile field would let a client discover that tokens must be sender-constrained and that query-parameter tokens are refused, which is what PermDock's FAPI 2.0 alignment enforces on the server side ([FAPI 2.0](/docs/standards/fapi-2)). A native GNAP scheme would let a document describe structured access rights, which is closer to a permission leaf than a scope string is.
+PermDock's OpenAPI output exists so that machines, including agents, can discover what a route requires before calling it. Today that is scopes, `oauth2MetadataUrl`, the device flow and `x-permdock-*` extensions ([OpenAPI 3.2](/docs/standards/openapi-3-2)). A native security profile lets a client discover that tokens must be sender-constrained and that query-parameter tokens are refused, which is what PermDock's FAPI 2.0 alignment enforces on the server side ([FAPI 2.0](/docs/standards/fapi-2)). That discovery step is the reason PermDock builds the draft instead of waiting: it is the construct agents will read first, and being an early emitter with real output is worth more than a year of vendor-extension-only documents followed by a migration ([ADR 0025](/docs/decisions/0025-draft-protocol-posture)).
 
-Because 3.3 is declared strictly compatible with 3.1 and 3.2, adopting it should be additive: whatever PermDock emits for 3.2 stays valid, and new fields appear only when `--target 3.3` is selected.
+Because 3.3 is declared strictly compatible with 3.1 and 3.2, adopting it is additive: everything PermDock emits for 3.2 stays present, and the profile construct appears only when `--target 3.3` is selected.
 
-## What PermDock does today
+## The draft shape PermDock builds
 
-The profile declaration is an extension in PermDock's own namespace ([OpenAPI registries](/docs/standards/openapi-registry)):
+The pinned design (Discussion #5304, expanded design notes) has three parts.
+
+**A profile security scheme.** A new `type: profile` entry under `components.securitySchemes`. `profileMetadata.name` is the registrable profile name; `supportedParametersSchema` is a JSON Schema listing the parameters a requirement may carry; `supportedOperations` optionally points at an OpenAPI description of the authorization server's operations; `servers` lists where the profile's metadata is hosted.
+
+```yaml
+components:
+  securitySchemes:
+    BrasilOpenFinanceProfile:
+      type: profile
+      profileMetadata:
+        name: fapi-20-security-profile
+        supportedParametersSchema: https://examples.openapis.org/brasil-fapi20-profile-schema.json
+        supportedOperations: https://examples.openapis.org/brazil-protected-operations-openapi.yaml
+        servers:
+          - name: Development
+            url: https://examples.openapis.org/dev/.well-known
+          - name: Production
+            url: https://examples.openapis.org/prod/.well-known
+```
+
+**A Security Profile Requirement.** A named entry under `components.securityProfileRequirements` that references a profile scheme and states, in the profile's own parameter vocabulary, what an operation accepts: token-endpoint authentication methods, grant types and scopes, optionally the authorization-server operation to call.
+
+```yaml
+components:
+  securityProfileRequirements:
+    AccountConsentClientCredentials:
+      securityScheme:
+        $ref: "#/components/securitySchemes/BrasilOpenFinanceProfile"
+      supportedOperation: "$.paths['/auth/1.0/token'].post"
+      token_endpoint_auth_methods:
+        - private_key_jwt
+      grant_types:
+        - client_credentials
+      scopes:
+        - account-information-consent:write
+        - account-information-consent:read
+```
+
+**A registry of profile names.** The Initiative would register `profileMetadata.name` values the way it registers extensions, so `fapi-20-security-profile` means one thing everywhere. PermDock maps its own short identifiers onto those names and never invents a registry name of its own.
+
+Field names above are the proposal's, not PermDock's. They can change; that is what the pin is for.
+
+## What `--target 3.3` emits
+
+`permdock openapi emit --target 3.3 --profile fapi2` and the adapter with `target: '3.3', securityProfile: 'fapi2'` produce, for the same catalog as the 3.2 example on [OpenAPI 3.2](/docs/standards/openapi-3-2):
 
 ```json
 {
+  "openapi": "3.3.0",
+  "paths": {
+    "/posts/{id}": {
+      "delete": {
+        "operationId": "deletePost",
+        "x-permdock-permissions": ["post.delete"],
+        "x-permdock-securityProfile": "fapi2",
+        "security": [{ "permdockOAuth": ["post:delete"] }]
+      }
+    }
+  },
   "components": {
     "securitySchemes": {
       "permdockOAuth": {
@@ -40,49 +97,77 @@ The profile declaration is an extension in PermDock's own namespace ([OpenAPI re
         "oauth2MetadataUrl": "https://auth.example.com/.well-known/oauth-authorization-server",
         "x-permdock-securityProfile": "fapi2",
         "flows": { "authorizationCode": { "authorizationUrl": "https://auth.example.com/authorize", "tokenUrl": "https://auth.example.com/token", "scopes": { "post:delete": "Delete a post you own" } } }
+      },
+      "permdockFapi2": {
+        "type": "profile",
+        "profileMetadata": {
+          "name": "fapi-20-security-profile",
+          "supportedParametersSchema": "https://permdock.dev/schemas/security-profiles/fapi2.json",
+          "servers": [{ "name": "default", "url": "https://auth.example.com/.well-known/oauth-authorization-server" }]
+        }
+      }
+    },
+    "securityProfileRequirements": {
+      "permdockFapi2PostDelete": {
+        "securityScheme": { "$ref": "#/components/securitySchemes/permdockFapi2" },
+        "token_endpoint_auth_methods": ["private_key_jwt", "tls_client_auth"],
+        "grant_types": ["authorization_code"],
+        "scopes": ["post:delete"]
       }
     }
+  },
+  "x-permdock-catalog": {
+    "v": 1,
+    "generator": "@permdock/cli@0.x",
+    "catalog": "sha256:...",
+    "drafts": { "oas": "3.3-dev@<commit>", "securityProfiles": "oai-discussion-5304@2026-09-01" }
   }
 }
 ```
 
-- `x-permdock-securityProfile` is written on the security scheme by `permdock openapi emit --profile fapi2` or the adapter option `securityProfile: 'fapi2'`, and may be repeated on an operation to override the scheme's value for that operation.
-- The only value today is `fapi2`. It declares the resource-server requirements of the FAPI 2.0 Security Profile: tokens accepted in the HTTP header only (bearer per RFC 6750 or DPoP per RFC 9449), never in query parameters; validity, expiry and revocation verified; sender-constraining via mTLS (RFC 8705) or DPoP verified. `--profile fapi2` refuses to annotate a scheme that contradicts those rules.
-- The same extension is emitted for `--target 3.1`, `3.2` and `3.3`. It is the stable form; the native form does not exist yet.
+Rules:
 
-`--target 3.3` is accepted by the CLI and the adapter and marked experimental. It currently produces the 3.2 shape (3.3 is compatible with 3.2) and exists so that projects can start a 3.3 document without a later flag change. Its output tracks `v3.3-dev` and may change between PermDock minor versions until 3.3.0 is released.
+- **One profile scheme per declared profile.** `fapi2` becomes a scheme named `permdockFapi2` (override with `--profile-scheme`) with `profileMetadata.name: fapi-20-security-profile`. The name map is fixed in the emitter and grows only when the Initiative registers a name.
+- **`supportedParametersSchema` is PermDock's.** PermDock publishes a JSON Schema per profile it knows how to declare, listing the parameters its requirements use (`token_endpoint_auth_methods`, `grant_types`, `scopes`). The URL is stable across draft pins.
+- **`servers` comes from the metadata URL.** `--metadata-url` or `scheme.oauth2MetadataUrl` fills one server entry; several `--metadata-url name=url` pairs fill several.
+- **One requirement per distinct scope set.** Operations carrying the same scopes share one `securityProfileRequirements` entry; the entry lists the token-endpoint authentication methods FAPI 2.0 allows (`private_key_jwt`, `tls_client_auth`) and the grant types the configured flows imply. Operations keep their ordinary `security` entry; the proposal has no operation-level field yet and PermDock adds none.
+- **The extension twin is always present.** `x-permdock-securityProfile: "fapi2"` is written on the `oauth2` scheme and on every covered operation exactly as on 3.2 output. A consumer that strips unknown scheme types still sees the declaration; `permdock openapi import` reads either form.
+- **Nothing from 3.2 is dropped.** `oauth2MetadataUrl`, `deprecated`, the device flow and every `x-permdock-*` field are emitted as on `--target 3.2`.
+- **The Overlay form is identical in content.** `--format overlay` adds `update` actions for `components.securitySchemes.permdockFapi2` and `components.securityProfileRequirements`; the Overlay never removes anything ([OpenAPI Overlay](/docs/standards/openapi-overlay)).
+- **Validation.** No official 3.3 JSON Schema exists. `--check` validates 3.3 output against the 3.2 schema with the `profile` scheme type and `securityProfileRequirements` component allowed, using a PermDock-maintained patch schema keyed by the pin. That patch schema ships with the CLI and is replaced by the official one at release.
 
-## Adoption plan
+## The pin
 
-1. **While 3.3 is in development.** `--target 3.3` emits the 3.2 shape plus `x-permdock-securityProfile`. PermDock does not emit any field that exists only in `v3.3-dev`.
-2. **When 3.3.0 is released with a Security Profile construct.** `--target 3.3` emits the native construct for `fapi2`, and keeps `x-permdock-securityProfile` on `--target 3.1` and `3.2` output. The importer reads both. A new ADR records the mapping, and this page's `Status` moves to `planned` (it gains implementation work) and then `shipped`.
-3. **If 3.3.0 ships a GNAP security scheme.** `permdock/openapi` maps permission leaves to GNAP access-right objects (`type`, `actions`, `identifier`) the same way it maps them to RFC 9396 `authorization_details`, and the [GNAP](/docs/standards/gnap) page documents the scheme.
-4. **Standardized API Features.** No action unless a SAF touches security; cookies as a SAF would matter only to the session-cookie handling of the framework adapters, which PermDock does not own ([authentication](/docs/concepts/authentication)).
-5. **Default target.** Stays `3.2` for at least one PermDock minor after 3.3.0 is released, then moves to `3.3` behind a changeset and a note in [OpenAPI 3.2](/docs/standards/openapi-3-2).
+`x-permdock-catalog.drafts` records every draft revision the output depends on (`overlay` joins it on `--overlay 1.2`, see [OpenAPI Overlay](/docs/standards/openapi-overlay)): `oas` is the `v3.3-dev` commit the target's base text was checked against, `securityProfiles` is the discussion and date of the design PermDock implements. The same values appear on this page under `Draft posture`.
 
-## What would change for PermDock
+- `permdock openapi emit --check` fails when a committed document's `drafts` differ from what the installed CLI would write, so a document regenerated after a PermDock upgrade is never silently mixed with an older draft shape.
+- `permdock doctor` reports the same condition as a warning ([CLI: doctor](/docs/cli/doctor)).
+- Bumping the pin is a maintainer change: this page, the emitter's name map and patch schema, the fixtures in `@permdock/testing`, and a changeset. The steps are listed in `AGENTS.md`.
 
-| 3.3 outcome (if adopted) | Today | After 3.3.0 |
-| --- | --- | --- |
-| Native Security Profile field | `x-permdock-securityProfile: "fapi2"` on schemes and operations | Native field on `--target 3.3`; extension kept for 3.1 and 3.2 targets; importer reads both |
-| GNAP security scheme type | Not emitted; GNAP tracked on its own page | Leaves mapped to GNAP access rights; `permdock openapi import` reads them back into keys |
-| Updated security configuration objects | 3.2 `oauth2` scheme with `oauth2MetadataUrl`, device flow, `deprecated` | Same information in whichever object 3.3 defines, chosen by `--target` |
-| Parameter and form-data changes | Not relevant to authorization output | No change; PermDock emits `security`, `securitySchemes`, `responses.403` and extensions only |
-| Standardized API Features | None | None unless a security SAF appears |
-| Moonwalk (4.0) | Not tracked beyond this page | Watched via the [watch list](/docs/standards/watch-list); no output planned |
+## When 3.3.0 is released
 
-## We do not implement drafts as if final
+1. `--target 3.3` emits the released construct in the next PermDock minor. The draft shape is dropped, not kept behind a flag; `drafts.securityProfiles` disappears from the catalog extension and `drafts.oas` follows once no draft-only content remains.
+2. If the released field names differ from the pinned draft, `permdock openapi import` reads both for one minor and `--check` reports documents still carrying the draft shape.
+3. `x-permdock-securityProfile` stays on `--target 3.1` and `3.2` output indefinitely and remains the twin on 3.3 output for one minor after release, then becomes opt-in there.
+4. The default target moves from `3.2` to `3.3` no earlier than one minor after the release, behind a changeset and a note on [OpenAPI 3.2](/docs/standards/openapi-3-2).
+5. If the Initiative drops Security Profiles from 3.3, `--target 3.3` falls back to the 3.2 shape plus the extension and [ADR 0025](/docs/decisions/0025-draft-protocol-posture) records the outcome. Documents already emitted keep validating against the pinned patch schema.
 
-PermDock ships against released specifications. For 3.3 that means:
+## GNAP: a reserved name, no output
 
-- No field from `v3.3-dev` is emitted until 3.3.0 is published, even behind `--target 3.3`. The flag exists; the draft-only content does not.
-- Anything PermDock needs before then is expressed in the `x-permdock-*` namespace, which stays valid in every 3.x version and is what `--target 3.1` and `3.2` will keep using afterwards.
-- The FAPI 2.0 rules PermDock enforces come from the Final FAPI 2.0 Security Profile, not from how OpenAPI might eventually describe it. Where the two differ, the OpenID Foundation document wins and the OpenAPI output follows.
-- This page is updated when the milestone closes or the newsletter announces a release candidate; the `Status: tracking` line means exactly that.
+There is no Initiative text for a GNAP security scheme; the June 2026 newsletter names it as under investigation and nothing has reached `v3.3-dev` or a discussion with a concrete shape. A community `x-gnap` vendor extension exists that describes a GNAP deployment on an `oauth2`-style scheme (`grant_endpoint`, `token_formats`, `key_proofs`, `interaction`, `access_rights`, `continuation`); it has no Initiative standing and PermDock does not emit it, following the rule that output uses `x-permdock-*` and registered names only ([OpenAPI registries](/docs/standards/openapi-registry)).
+
+GNAP's posture is therefore **name**: `permdock/openapi` reserves the scheme kind `gnap` in its options type and the mapping from permission leaves to GNAP access-right objects (`type`, `actions`, `identifier`) is specified on the [GNAP](/docs/standards/gnap) page, so that a `v3.3-dev` pull request defining a scheme can be built without renaming anything. `delegation.access` as an input to `decide` is unchanged and remains Phase 4.
+
+## Standardized API Features and the rest of 3.3
+
+- **SAFs.** No action unless a SAF touches security; cookies as a SAF would matter only to the session-cookie handling of the framework adapters, which PermDock does not own ([authentication](/docs/concepts/authentication)).
+- **Parameter and form-data changes.** Not relevant to authorization output; PermDock emits `security`, `securitySchemes`, `securityProfileRequirements`, `responses.403` and extensions only.
+- **Moonwalk (4.0).** Watched via the [watch list](/docs/standards/watch-list); no output planned.
 
 ## Sources
 
-- [OpenAPI Specification milestones](https://github.com/OAI/OpenAPI-Specification/milestones).
+- [OpenAPI Specification, `v3.3-dev` branch](https://github.com/OAI/OpenAPI-Specification/tree/v3.3-dev) and [milestones](https://github.com/OAI/OpenAPI-Specification/milestones).
+- [Discussion #5304: Security Profiles](https://github.com/OAI/OpenAPI-Specification/discussions/5304), including the expanded design notes that introduce `supportedParametersSchema`, `supportedOperations` and `securityProfileRequirements`.
 - [OpenAPI Specification CONTRIBUTING.md](https://github.com/OAI/OpenAPI-Specification/blob/main/CONTRIBUTING.md), branch table.
 - [OpenAPI Initiative newsletter, June 2026](https://www.openapis.org/blog/2026/06/09/openapi-initiative-newsletter-june-2026).
 - [FAPI 2.0 Security Profile, Final](https://openid.net/specs/fapi-security-profile-2_0-final.html), section 5.3.4 (resource servers).
@@ -90,16 +175,17 @@ PermDock ships against released specifications. For 3.3 that means:
 
 ## Related
 
+- [ADR 0025](/docs/decisions/0025-draft-protocol-posture): the build / name / track postures and why `--target 3.3` emits the draft.
 - [OpenAPI 3.2](/docs/standards/openapi-3-2): the shipped target and default.
-- [OpenAPI registries](/docs/standards/openapi-registry): where `x-permdock-securityProfile` is defined.
+- [OpenAPI registries](/docs/standards/openapi-registry): `x-permdock-securityProfile` and `x-permdock-catalog.drafts`.
 - [OpenAPI Overlay](/docs/standards/openapi-overlay): delivering the profile declaration without editing the source document.
-- [FAPI 2.0](/docs/standards/fapi-2) and [GNAP](/docs/standards/gnap): the two profiles 3.3 is investigating.
-- [Watch list](/docs/standards/watch-list): other specifications being tracked.
-- [CLI: openapi](/docs/cli/openapi): `--target 3.3` and `--profile fapi2`.
-- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay): target version policy.
+- [FAPI 2.0](/docs/standards/fapi-2) and [GNAP](/docs/standards/gnap): the two profiles 3.3 names.
+- [Watch list](/docs/standards/watch-list): every other draft and its posture.
+- [CLI: openapi](/docs/cli/openapi) and [OpenAPI adapter](/docs/adapters/openapi): `--target 3.3`, `--profile fapi2`, `--check`.
+- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay): namespace, fallbacks and Overlay (its target policy is superseded by 0025).
 
 ## Open questions
 
-- Whether `x-permdock-securityProfile` should accept an array (an API that satisfies several profiles) before 3.3 settles the native shape.
-- Whether the default target should move to 3.3 automatically when a document's `openapi` field already says `3.3.x`, mirroring the version detection ADR 0014 describes for 3.1.
-- How to validate `--target 3.3` output in CI before an official 3.3 JSON Schema exists.
+- Whether `x-permdock-securityProfile` should accept an array (an API that satisfies several profiles) now that the native form allows several `type: profile` schemes.
+- Whether `--target 3.3` should be selected automatically when a document's `openapi` field already says `3.3.x`, mirroring the version detection ADR 0014 describes for 3.1.
+- Whether PermDock should file the `fapi-20-security-profile` registration itself once the Initiative opens the profile registry, or wait for the FAPI Working Group to do so.

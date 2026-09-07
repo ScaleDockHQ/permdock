@@ -24,6 +24,7 @@
     "0021-embedded-pdp-hosted-ads",
     "0022-approvals-are-pluggable",
     "0023-compose-openapi-ecosystem",
-    "0024-scoped-roles-and-memberships"
+    "0024-scoped-roles-and-memberships",
+    "0025-draft-protocol-posture"
   ]
 }

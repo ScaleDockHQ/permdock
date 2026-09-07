@@ -16,7 +16,7 @@ PermDock is an in-process library, not a hosted policy service. It still has to 
 - **Agents can wire PermDock without bespoke formats.** A coding agent that knows Standard Schema, OpenAPI, Problem Details and MCP authorization already knows most of PermDock's surface. Skills, `AGENTS.md` and `llms.txt` follow the same rule: use the format agents already read. See [Agent docs standards](/docs/standards/agent-docs-standards).
 - **Fewer things to get wrong.** Fail-closed defaults, `deny` overriding `allow`, prototype-safe paths and boundary validation are easier to audit when the inputs are well-specified formats rather than free-form objects. See the [threat model](/docs/security/threat-model).
 
-The trade-off is that PermDock inherits the pace and gaps of each specification. Where a standard is still a draft (agent delegation chains, Web Bot Auth) the corresponding feature is scheduled late and marked as an open question.
+The trade-off is that PermDock inherits the pace and gaps of each specification. Every unfinished text PermDock follows carries one of three postures ([ADR 0025](/docs/decisions/0025-draft-protocol-posture)): **build** against a pinned revision when the capability is needed now and a stable twin can carry the same information (OpenAPI 3.3 Security Profiles, Overlay 1.2, WebMCP, RAR remediation, the OpenTelemetry GenAI conventions, Web Bot Auth), **name** when only a public identifier must be reserved (GNAP as an OpenAPI scheme, the `permdock/jwt` checklist drafts), or **track**. The [watch list](/docs/standards/watch-list) shows the posture per row.
 
 ## Standards PermDock implements or targets
 
@@ -34,8 +34,8 @@ The `Phase` column is the first phase in which PermDock uses the standard; adapt
 | [Agent docs standards](/docs/standards/agent-docs-standards) | AGENTS.md, Agent Skills, llms.txt (AAIF, Dec 2025) | community conventions | Shipped skills, `AGENTS.md`, `llms.txt`, [for AI agents](/docs/for-ai-agents) | 1 |
 | [MCP authorization](/docs/standards/mcp-authorization) | Spec 2026-07-28, TS SDK v2 | released | [mcp adapter](/docs/adapters/mcp): `scopeChallenge`, elicitation, EMA | 2 |
 | [OpenAPI 3.2](/docs/standards/openapi-3-2) | 3.2, Sept 2025 (3.1 via registered `x-oai-*` and `x-permdock-oauth2MetadataUrl`) | released | [openapi adapter](/docs/adapters/openapi), [CLI openapi](/docs/cli/openapi) | 2 |
-| [OpenAPI 3.3](/docs/standards/openapi-3-3) | 3.3, `v3.3-dev` | in development | Native security profiles and security-configuration updates once released; the emitter targets 3.2 meanwhile | 2 |
-| [OpenAPI Overlay](/docs/standards/openapi-overlay) | 1.1.0, Jan 2026 | released | `permdock openapi` applies its security additions as an Overlay | 2 |
+| [OpenAPI 3.3](/docs/standards/openapi-3-3) | 3.3, `v3.3-dev`; Security Profiles per Discussion #5304 | in development, built from a pinned draft | `--target 3.3` emits the pinned Security Profile draft (`type: profile`, `securityProfileRequirements`) next to `x-permdock-securityProfile`; switches to the released construct at 3.3.0 | 2 |
+| [OpenAPI Overlay](/docs/standards/openapi-overlay) | 1.1.0, Jan 2026; 1.2 in development | released; 1.2 draft, built behind `--overlay 1.2` | `permdock openapi` applies its security additions as an Overlay; `--overlay 1.2` emits the pinned reusable-actions draft | 2 |
 | [Arazzo](/docs/standards/arazzo) | 1.1.0, May 2026 | released | Permissions a multi-step workflow needs, step by step | 2 |
 | [OpenAPI registries](/docs/standards/openapi-registry) | Extension and Namespace registries | living registries | Registering the `x-permdock-` namespace and the extensions PermDock emits | 2 |
 | [WebMCP](/docs/standards/webmcp) | W3C WebML CG, Chrome docs | incubation | [webmcp adapter](/docs/adapters/webmcp) | 2 |
@@ -51,10 +51,12 @@ Related security frameworks that are not wire standards but shape the design: th
 
 Standards pages carry one of four `Status` values. `planned`, `in progress` and `shipped` describe the code that implements the standard. `tracking` is for a specification PermDock follows and has designed against but has no adapter or feature for yet: [GNAP](/docs/standards/gnap) and the [watch list](/docs/standards/watch-list) carry it today. A `tracking` page still has a `Phase` line, naming the phase in which PermDock would first act on the specification if the trigger stated on the page occurs, and it is reviewed each release like every watch-list row. When code is scheduled the status moves to `planned`.
 
+A page for an unfinished text adds a third line, `Draft posture: build | name | track`; a `build` posture names the pinned revision in the same line, as [OpenAPI 3.3](/docs/standards/openapi-3-3) does.
+
 ## By phase
 
 - **Phase 1 (core + agents).** Standard Schema for definitions and boundary validation; Problem Details for HTTP denials; the AuthZEN-shaped decision endpoint and batched client; the two-principal subject with `scope` and `authorizationDetails` on every permission; `permdock/jwt` with the FAPI 2.0 profile and the RFC 9068 `roles` / `groups` / `entitlements` mapping into roles and memberships; skills, `AGENTS.md` and `llms.txt`; the watch list.
-- **Phase 2 (surfaces).** `permdock/mcp` with `scopeChallenge`, elicitation and EMA awareness; the full `permdock/authzen` endpoint set and a certification run; OpenAPI 3.2 emission and import, Overlay output, Arazzo input and the `x-permdock-` namespace registration; WebMCP and A2A adapters.
+- **Phase 2 (surfaces).** `permdock/mcp` with `scopeChallenge`, elicitation and EMA awareness; the full `permdock/authzen` endpoint set and a certification run; OpenAPI 3.2 emission and import, Overlay output (1.1.0, and the pinned 1.2 draft behind `--overlay 1.2`), the pinned OpenAPI 3.3 Security Profile draft behind `--target 3.3`, Arazzo input and the `x-permdock-` namespace registration; WebMCP and A2A adapters.
 - **Phase 3 (data).** Postgres RLS generate, import and verify; the SSF/CAEP receiver against the CAEP Interoperability Profile.
 - **Phase 4 (ecosystem).** The `pdp` AuthZEN client provider; Web Bot Auth verification in HTTP adapters; delegation-chain verification and GNAP `access` evaluation; the docs MCP server.
 

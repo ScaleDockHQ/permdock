@@ -295,6 +295,27 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 
 `roles` and `scopes` are new in this shape ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships)): the role editor recipe on [UI](/docs/concepts/ui) renders the assignable entries, and `permdock usage` reports scoped roles no membership source can fill. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file byte-for-byte with a fresh run.
 
+### `x-permdock-catalog` in OpenAPI documents
+
+`permdock openapi emit` writes a root-level extension that ties a document to the catalog it was generated from ([OpenAPI registries](/docs/standards/openapi-registry)):
+
+```json
+{
+  "x-permdock-catalog": {
+    "v": 1,
+    "generator": "@permdock/cli@0.x",
+    "catalog": "sha256:...",
+    "drafts": {
+      "oas": "3.3-dev@<commit>",
+      "securityProfiles": "oai-discussion-5304@2026-09-01",
+      "overlay": "1.2-dev@<commit>"
+    }
+  }
+}
+```
+
+`drafts` appears only when the output depends on an unfinished specification, today `--target 3.3` (`oas`, `securityProfiles`; [OpenAPI 3.3](/docs/standards/openapi-3-3)) and `--overlay 1.2` (`overlay`; [OpenAPI Overlay](/docs/standards/openapi-overlay)), and carries only the keys that apply; each value names the pinned revision. `permdock openapi emit --check` fails when a committed document's `drafts` differ from the installed CLI's pins ([ADR 0025](/docs/decisions/0025-draft-protocol-posture)). The shape is versioned by `v` like every other extension; `drafts` is added before the first release, so `v` stays `1`.
+
 ## Problem Details
 
 `application/problem+json` bodies from the HTTP adapters. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).

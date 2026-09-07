@@ -7,6 +7,8 @@ description: Why PermDock's OpenAPI output lives in a registered x-permdock- nam
 
 Accepted, September 2026. Amends [0014](/docs/decisions/0014-openapi-3-2): the 3.2 target and the integration hooks stand; the fallback naming and the `--openapi-version` flag described there are replaced by this decision.
 
+Point 4 (target version policy) is superseded by [0025](/docs/decisions/0025-draft-protocol-posture): `--target 3.3` now emits the pinned OpenAPI 3.3 Security Profile draft with `x-permdock-securityProfile` as its twin. Points 1, 2, 3 and 5 stand.
+
 ## Context
 
 [0014](/docs/decisions/0014-openapi-3-2) chose OpenAPI 3.2 as the target and said 3.1 documents would receive "the `x-oai-*` names the OpenAPI Initiative documents". Checking the OpenAPI Initiative's [Extension Registry](https://spec.openapis.org/registry/extension/) shows that only three such names exist for the 3.2 security features: `x-oai-deprecated`, `x-oai-deviceAuthorization` and `x-oai-deviceAuthorizationUrl`. There is no `x-oai-oauth2MetadataUrl`; 0014 had assumed one. The [Namespace Registry](https://spec.openapis.org/registry/namespace/) reserves `oai` for the OpenAPI Initiative and lists `fdx`, `jsonschema`, `ms`, `oas`, `oas-draft`, `sap` and `scalar`; `permdock` is not registered. Meanwhile the registry already carries `x-agent-trust` for agent-authenticated `apiKey` schemes, which overlaps with what the Web Bot Auth adapter will need to say.

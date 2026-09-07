@@ -5,6 +5,7 @@ description: How the Grant Negotiation and Authorization Protocol's access right
 
 Status: tracking
 Phase: 4
+Draft posture: name (RFC 9635 itself is final; the OpenAPI security scheme for GNAP has no Initiative text, so `permdock/openapi` reserves the `gnap` scheme kind and emits nothing, per [ADR 0025](/docs/decisions/0025-draft-protocol-posture))
 
 PermDock follows GNAP but ships no GNAP-specific adapter. The `access` rights format is accepted as a third delegation input (`delegation.access`); evaluating it in the delegation intersection lands in Phase 4 alongside delegation-chain verification. Adapter phases: [`permdock/jwt`](/docs/adapters/jwt) maps an `access` claim onto `delegation.access` from Phase 1, and until Phase 4 those entries contribute nothing (fail closed). See the [watch list](/docs/standards/watch-list).
 
@@ -98,6 +99,17 @@ GNAP makes the human-in-the-loop step a first-class protocol state: the AS tells
 
 The row on the [watch list](/docs/standards/watch-list) is reviewed each release. Triggers for promoting GNAP from tracking to planned are a major identity vendor shipping a GNAP AS, or MCP or A2A adopting GNAP as an alternative authorization mechanism.
 
+## In OpenAPI: a reserved name
+
+The OpenAPI Initiative names GNAP as one of the two security profiles the 3.3 line is investigating, but no text for a GNAP security scheme has reached `v3.3-dev` or a design discussion. The only published shape is the community [`x-gnap` extension](https://github.com/REN-100/gnap-openapi-security-scheme), which describes a GNAP deployment on an `oauth2`-style scheme with `grant_endpoint`, `token_formats`, `key_proofs`, `interaction`, `access_rights` and `continuation` fields. It has no Initiative standing.
+
+GNAP's draft posture in OpenAPI is **name** ([ADR 0025](/docs/decisions/0025-draft-protocol-posture)):
+
+- `permdock/openapi` reserves the scheme kind `gnap` in its `scheme.type` option so that a scheme can be added without renaming anything. Selecting it today is a usage error (exit `2` in the CLI) with a pointer to this page.
+- The mapping from permission leaves to GNAP access-right objects is fixed here: `type` is the resource name, `actions` is the action list, `identifier` is the resource id when the permission's arity is `instance`, `locations` is the document's server URL. It is the same projection `permdock openapi` already uses for RFC 9396 `authorization_details`, so an emitter is a small addition once a scheme exists.
+- PermDock does not emit `x-gnap`: output uses `x-permdock-*` and registered names only ([OpenAPI registries](/docs/standards/openapi-registry)). The importer preserves an `x-gnap` block untouched like any unknown extension and reads nothing from it.
+- Output starts when a `v3.3-dev` pull request defines a GNAP scheme; that change bumps the pin on [OpenAPI 3.3](/docs/standards/openapi-3-3) and adds fixtures, and this page's posture moves to build.
+
 ## Sources
 
 - [RFC 9635, Grant Negotiation and Authorization Protocol](https://datatracker.ietf.org/doc/html/rfc9635): sections 2.2, 2.5, 3.3, 3.4, 5, 6, 8 and 8.1.
@@ -111,7 +123,8 @@ The row on the [watch list](/docs/standards/watch-list) is reviewed each release
 - [Subject](/docs/concepts/subject): the `principal` / `actor` / `delegation` shape.
 - [Approvals](/docs/security/approvals): the `approval-required` outcome and token that GNAP interaction maps onto.
 - [Terminal adapter](/docs/adapters/terminal): the `user_code` shape in practice.
-- [OpenAPI 3.3](/docs/standards/openapi-3-3): native security-profile work that names GNAP.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3): native security-profile work that names GNAP; the reserved `gnap` scheme kind.
+- [ADR 0025](/docs/decisions/0025-draft-protocol-posture): the build / name / track postures.
 - [Standards watch list](/docs/standards/watch-list).
 
 ## Open questions

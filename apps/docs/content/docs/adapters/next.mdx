@@ -113,6 +113,8 @@ permdock openapi emit --doc public/openapi.json --format overlay --out permdock.
 pnpm exec openapi-gen generate
 ```
 
+next-openapi-gen accepts Overlay 1.0 to 1.2, so this recipe is where `--overlay 1.2` (the pinned Overlay 1.2 draft with reusable actions, [OpenAPI Overlay](/docs/standards/openapi-overlay)) can be used first; the default `1.1` output works identically.
+
 Rules: `operationId` is the join key, and `--check` fails on a handler without one. Do not use next-openapi-gen's `@auth` JSDoc tag or `authPresets` on handlers PermDock covers; two sources of `security` on one operation is the failure mode the recipe exists to avoid. PermDock owns `security`; the producer owns paths and schemas. The Overlay is the documented default here because the description is generated on every build ([Overlay](/docs/standards/openapi-overlay)).
 
 ## MCP route

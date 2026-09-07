@@ -60,7 +60,7 @@ next-openapi-gen matters most because it is the only producer for Next.js route 
 
 | Tool | Where it runs | Overlay versions | Notes |
 | --- | --- | --- | --- |
-| next-openapi-gen `overlay.apply` | Inside `openapi-gen generate` | 1.0, 1.1, 1.2 | Applies before writing the spec, so Scalar and Arazzo see the applied result |
+| next-openapi-gen `overlay.apply` | Inside `openapi-gen generate` | 1.0, 1.1, 1.2 | Applies before writing the spec, so Scalar and Arazzo see the applied result; the first applier PermDock's `--overlay 1.2` output is tested against |
 | [Redocly CLI](https://redocly.com/docs/cli/commands) `join --overlay` | Lint, bundle, `generate-client` pipelines | 1.x | Experimental flag; `redocly lint` also validates Overlay documents. Common in design-first teams |
 | [Scalar CLI](https://github.com/scalar/cli) | Docs and registry pipelines | none yet | Overlay support is on Scalar's roadmap; apply with one of the above before `scalar registry publish` |
 | [Bump.sh CLI](https://docs.bump.sh/help/specification-support/overlays/) `bump overlay` | Docs deploy pipelines; the Bump.sh GitHub Action takes an `overlay:` input | 1.x | Applies at deploy time so the hosted docs show the applied description while the repository keeps the producer's file untouched |
@@ -68,7 +68,7 @@ next-openapi-gen matters most because it is the only producer for Next.js route 
 | [Zuplo CLI](https://zuplo.com/docs) | Gateway import | 1.x | Applies before the description is imported as gateway routes |
 | [openapi-format](https://github.com/thim81/openapi-format), [oas-patch](https://github.com/apigee/oas-patch), [overlays-js](https://github.com/lornajane/openapi-overlays-js) | Generic CLIs and libraries | 1.x | Vendor-neutral appliers for pipelines without one of the above; `overlays-js` is the reference JavaScript implementation |
 
-PermDock emits Overlay 1.1.0. Overlay 1.2 adds reusable actions and `targetFormat` (including `asyncapi`); it is tracked on the [watch list](/docs/standards/watch-list) and adopted when a 1.2 feature is needed, not before.
+PermDock emits Overlay 1.1.0 by default and, behind `--overlay 1.2`, the pinned Overlay 1.2 draft, whose one addition is reusable actions (`components.actions` plus `$ref` references); the earlier `targetFormat` idea is not in the `v1.2-dev` text. The 1.2 form collapses the repeated per-operation `update` bodies into one reusable action per permission set. It stays opt-in until 1.2.0 ships and the appliers below accept it ([Overlay](/docs/standards/openapi-overlay), [ADR 0025](/docs/decisions/0025-draft-protocol-posture)).
 
 ## Consumers
 
@@ -132,7 +132,7 @@ The one failure mode of composing is two tools writing `security` on the same op
 
 ## Adjacent formats
 
-- **AsyncAPI.** Arazzo 1.1 accepts AsyncAPI sources and Overlay 1.2 can target AsyncAPI documents. PermDock has no AsyncAPI emitter; if one is ever needed it is the same Overlay engine with `targetFormat: asyncapi`, not a new adapter. Tracked.
+- **AsyncAPI.** Arazzo 1.1 accepts AsyncAPI sources, and an Overlay's JSONPath targets are not bound to OpenAPI. PermDock has no AsyncAPI emitter; if one is ever needed it is the same Overlay engine pointed at an AsyncAPI document, not a new adapter. Tracked.
 - **Problem Details.** The `403` body PermDock documents on protected operations ([Problem Details](/docs/standards/problem-details)) is what generated SDKs surface as the typed error, and what MSW fixtures in `@permdock/testing` return ([testing](/docs/adapters/testing)).
 - **Arazzo.** next-openapi-gen's `arazzo` block compiles workflow files against the generated `operationId`s after the spec write; `simulate({ arazzo, openapi })` must read the applied description so `x-permdock-permissions` is present ([Arazzo](/docs/standards/arazzo)).
 
@@ -155,7 +155,7 @@ Adapt:
 - `x-permdock-permissions` as the binding OpenAPI-to-MCP bridges read, documented as a recipe on the MCP adapter page.
 - A consumer-side overlay deriving Speakeasy `x-speakeasy-mcp.scopes` and Mintlify `x-mcp` opt-ins from PermDock's fields, so a team's docs host and SDK vendor agree with the policy without PermDock writing their namespaces.
 - Later first-party plugins (Hey API operation plugin, Scalar operation plugin) only if recipes fail, and only after upstream plugin APIs support the operation level.
-- Overlay 1.2 when a 1.2 feature is needed.
+- Overlay 1.2 as an opt-in output (`--overlay 1.2`) pinned to `v1.2-dev`, default after release and applier support.
 
 Avoid:
 

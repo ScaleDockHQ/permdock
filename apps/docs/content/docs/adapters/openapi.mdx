@@ -10,6 +10,8 @@ Phase: 2
 
 ## Purpose
 
+The `3.3` target is experimental and emits the pinned OpenAPI 3.3 Security Profile draft next to the stable `x-permdock-securityProfile` extension ([OpenAPI 3.3](/docs/standards/openapi-3-3), [ADR 0025](/docs/decisions/0025-draft-protocol-posture)).
+
 No OpenAPI generator in the TypeScript ecosystem is fed by an authorization library; every one of them (`@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger`, next-openapi-gen) expects `security` to be attached by hand per route. PermDock already knows the permission for each protected route (`protect(permissions.post.delete, ...)`), and each permission carries a `scope`. Emitting the security metadata from that knowledge keeps the document honest: a route cannot document a scope it does not enforce. OpenAPI 3.2 ([release](https://github.com/OAI/OpenAPI-Specification/releases/tag/3.2.0)) adds the device authorization flow, `oauth2MetadataUrl`, `deprecated` on security schemes and security schemes referenced by URI, which is why 3.2 is the primary target ([decision 0014](/docs/decisions/0014-openapi-3-2)).
 
 PermDock is one stage of a pipeline it does not own: a producer writes the description, PermDock adds authorization, an applier merges it, and SDK generators, docs UIs and bridges consume the result. It composes with those tools through standard fields and an Overlay rather than wrapping any of them ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), [OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
@@ -42,7 +44,10 @@ const { securitySchemes, security, describe, spec, overlay } = createPermDock(po
     oauth2MetadataUrl: 'https://auth.example.com/.well-known/oauth-authorization-server',
     flows: { authorizationCode: {}, deviceAuthorization: {} },   // scopes filled from the catalog
   },
-  target: '3.2',      // '3.1' | '3.2' | '3.3' ('3.1' emits the registered fallbacks; '3.3' is experimental)
+  target: '3.2',      // '3.1' | '3.2' | '3.3' ('3.1' emits the registered fallbacks; '3.3' is experimental and
+                      // emits the pinned OpenAPI 3.3 Security Profile draft next to x-permdock-securityProfile)
+  securityProfile: 'fapi2',          // optional; on '3.3' also emits the type: profile scheme
+  profileScheme: 'permdockFapi2',    // optional; name of that scheme
 })
 
 // hono-openapi
@@ -63,7 +68,9 @@ generateSpecs(app, { components: { securitySchemes: securitySchemes() } })
 - `describe(permission)` returns `security` plus `x-permdock-permissions: ['post.delete']` and, when the permission has conditions, `x-permdock-conditions` in the portable JSON format so clients can explain what a scope allows.
 - `spec(permission)` is the oRPC `oo.spec` callback form: it receives the operation object and returns it extended.
 - `deprecated: true` on an action's metadata marks the scope `deprecated` in 3.2 and emits `x-oai-deprecated` for 3.1.
-- `securityProfile: 'fapi2'` in the adapter options writes `x-permdock-securityProfile: "fapi2"` on the scheme, so consumers know the resource server follows the [FAPI 2.0 Security Profile](/docs/standards/fapi-2) (bearer or DPoP tokens in the header only, sender-constrained tokens verified). The CLI equivalent is `--profile fapi2`.
+- `securityProfile: 'fapi2'` in the adapter options writes `x-permdock-securityProfile: "fapi2"` on the scheme and on every described operation, so consumers know the resource server follows the [FAPI 2.0 Security Profile](/docs/standards/fapi-2) (bearer or DPoP tokens in the header only, sender-constrained tokens verified). The CLI equivalent is `--profile fapi2`.
+- `target: '3.3'` with `securityProfile` set additionally emits the pinned [OpenAPI 3.3](/docs/standards/openapi-3-3) Security Profile draft: `securitySchemes()` returns a second, `type: profile` scheme (`profileScheme`, default `permdockFapi2`) with `profileMetadata.name: fapi-20-security-profile`, `supportedParametersSchema` and `servers` from `scheme.oauth2MetadataUrl`; `describe()` and `spec()` are unchanged (operations keep `security` and the extension twin); `securityProfileRequirements()` returns the `components.securityProfileRequirements` map, one entry per distinct scope set, for generators that accept extra components; `overlay()` includes it. The root `x-permdock-catalog.drafts` records the pin. The target is experimental: the shape follows the pinned draft until 3.3.0 is released, then switches to the released construct ([ADR 0025](/docs/decisions/0025-draft-protocol-posture)).
+- `scheme.type: 'gnap'` is a reserved value that throws today with a pointer to the [GNAP](/docs/standards/gnap) page; no GNAP scheme is emitted until the OpenAPI Initiative defines one.
 
 ## Registry and namespace
 
@@ -71,11 +78,14 @@ Every PermDock-specific field in a document is an OpenAPI extension under the `x
 
 ## Overlay output
 
-The adapter can describe its changes as an [OpenAPI Overlay](/docs/standards/openapi-overlay) instead of returning fragments to be spliced into the document. `overlay()` returns an Overlay 1.1.0 document whose `actions` target operations by `operationId` and `update` them with `security` and `x-permdock-*` fields, plus one action for `components.securitySchemes`. The source document stays untouched and owned by the API team; the Overlay is reviewed and applied in the build. `permdock openapi emit --format overlay` produces the same output from the CLI.
+The adapter can describe its changes as an [OpenAPI Overlay](/docs/standards/openapi-overlay) instead of returning fragments to be spliced into the document. `overlay()` returns an Overlay 1.1.0 document whose `actions` target operations by `operationId` and `update` them with `security` and `x-permdock-*` fields, plus one action for `components.securitySchemes`. `overlay({ version: '1.2' })` returns the pinned Overlay 1.2 draft instead: the per-operation bodies become reusable actions under `components.actions`, one per distinct permission set, and each operation is a `$ref` reference with its own `target`; `x-permdock-catalog.drafts.overlay` names the pin ([OpenAPI Overlay](/docs/standards/openapi-overlay), [ADR 0025](/docs/decisions/0025-draft-protocol-posture)). The source document stays untouched and owned by the API team; the Overlay is reviewed and applied in the build. `permdock openapi emit --format overlay` (with `--overlay 1.2` for the draft) produces the same output from the CLI.
 
 ```ts
 const doc = overlay({ extends: './openapi.json' })
 // { overlay: '1.1.0', info: {...}, extends: './openapi.json', actions: [...] }
+
+const draft = overlay({ extends: './openapi.json', version: '1.2' })
+// { overlay: '1.2.0', info: {...}, extends: './openapi.json', components: { actions: {...} }, actions: [...] }
 ```
 
 ### Recipe: a producer without a hook (Next.js and next-openapi-gen)
@@ -129,6 +139,8 @@ Import (`permdock openapi import ./openapi.json --out src/permissions.generated.
 - Scopes are unique across the catalog and match the `resource:action` convention; collisions after `mergePermissions` are reported.
 - 3.1 target: 3.2-only fields are moved to extensions so the document stays valid 3.1: `deviceAuthorization` to `x-oai-deviceAuthorization` (with `x-oai-deviceAuthorizationUrl`), `deprecated` on schemes to `x-oai-deprecated`, `oauth2MetadataUrl` to `x-permdock-oauth2MetadataUrl` (no `x-oai-*` extension is registered for it), and URI-referenced schemes are inlined.
 - Extension names: only registered `x-oai-*` names and `x-permdock-*` names appear in output; any other prefix is a bug.
+- 3.3 target: the `type: profile` scheme and `securityProfileRequirements` validate against a PermDock-maintained patch of the 3.2 JSON Schema keyed by the draft pin, since no official 3.3 schema exists; the `x-permdock-securityProfile` twin is present on every scheme and operation that carries the native construct; `x-permdock-catalog.drafts` names the pin.
+- Overlay 1.2: `overlay({ version: '1.2' })` output validates against the `schemas/v1.2-dev` JSON Schema at the pinned commit; references carry only `$ref`, `target` and `description`, and `components.actions` keys are RFC 6901-escaped in the `$ref`.
 - Import: documents are validated against the OpenAPI 3.1 or 3.2 schema before generation; unknown security scheme types produce `opaque` scope entries rather than failing.
 
 ## How denials surface
@@ -148,12 +160,13 @@ No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-opena
 - [OpenAPI 3.2](/docs/standards/openapi-3-2): security scheme additions and the 3.1 fallback table.
 - [OpenAPI registries](/docs/standards/openapi-registry): the `x-permdock-*` namespace and registered names.
 - [OpenAPI Overlay](/docs/standards/openapi-overlay): the `--format overlay` output and its threat model.
-- [OpenAPI 3.3](/docs/standards/openapi-3-3): the experimental `3.3` target.
+- [OpenAPI 3.3](/docs/standards/openapi-3-3): the experimental `3.3` target and the pinned Security Profile draft it emits.
 - [FAPI 2.0](/docs/standards/fapi-2): what `securityProfile: 'fapi2'` declares.
 - [Standard Schema](/docs/standards/standard-schema): request and response schemas via Standard JSON Schema.
 - [Problem Details](/docs/standards/problem-details): documented `403` body.
 - [CLI: openapi](/docs/cli/openapi): `permdock openapi` emit, import, `--target`, `--format` and `--check`.
 - [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay): extensions and Overlay.
+- [ADR 0025](/docs/decisions/0025-draft-protocol-posture): why `target: '3.3'` emits a pinned draft.
 - [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem) and [OpenAPI ecosystem](/docs/research/openapi-ecosystem): how the adapter composes with producers, appliers and consumers.
 
 ## Open questions

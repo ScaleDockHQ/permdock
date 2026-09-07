@@ -37,6 +37,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | TypeSpec | Design-first API language (1.0 GA), emits OpenAPI 3.0 to 3.2 | Overlay on emitter output | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
 | tsoa, ts-rest, Effect HttpApi, feTS | Code-first producers without a per-route hook | Overlay | [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
 | Hand-written YAML or JSON | Design-first descriptions | Overlay | [OpenAPI adapter](/docs/adapters/openapi) |
+| `x-gnap` (community GNAP security-scheme extension) | Vendor extension describing a GNAP deployment on an OpenAPI security scheme (`grant_endpoint`, `token_formats`, `key_proofs`, `interaction`, `access_rights`, `continuation`); no OpenAPI Initiative standing | Tracking (never emitted; preserved untouched by the importer) | [GNAP](/docs/standards/gnap), [OpenAPI 3.3](/docs/standards/openapi-3-3) |
 
 ## Overlay appliers
 
@@ -220,3 +221,4 @@ The verdicts live on the pages in the last column; this page only fixes the rule
 - [ADR 0021: embedded PDP, hosted ADS](/docs/decisions/0021-embedded-pdp-hosted-ads) and [ADR 0022: approvals are pluggable](/docs/decisions/0022-approvals-are-pluggable), whose interfaces are the mechanisms for the delivery, store and sink rows.
 - [ADR 0018: authentication is upstream](/docs/decisions/0018-authentication-is-upstream), whose rule produces the identity rows.
 - [ADR 0024: scoped roles and memberships](/docs/decisions/0024-scoped-roles-and-memberships), whose `RoleSource` and `MembershipSource` interfaces are the mechanism for the organisation, custom-role, SCIM and entitlement-platform rows.
+- [ADR 0025: draft protocols: build, name or track](/docs/decisions/0025-draft-protocol-posture), whose rule against emitting another party's unregistered extension produces the `x-gnap` row.

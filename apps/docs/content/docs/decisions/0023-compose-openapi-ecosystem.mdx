@@ -7,6 +7,8 @@ description: Why PermDock reaches spec producers (next-openapi-gen, hono-openapi
 
 Accepted, September 2026. Extends [0019](/docs/decisions/0019-openapi-extensions-and-overlay): the `x-permdock-*` namespace, registered fallbacks and Overlay output stand; this decision fixes how that output meets the rest of the TypeScript OpenAPI toolchain and records the general rule for adjacent ecosystems.
 
+The Overlay 1.2 bullet under Decision ("tracked, not emitted") is superseded by [0025](/docs/decisions/0025-draft-protocol-posture), which builds the pinned 1.2 draft behind `--overlay 1.2` with 1.1.0 as the default. The `targetFormat` field that bullet names is not in the `v1.2-dev` text. Everything else here stands.
+
 ## Context
 
 The docs described PermDock's OpenAPI output in isolation. The [adapter page](/docs/adapters/openapi) named four in-process hooks (`hono-openapi`, `@hono/zod-openapi`, `@orpc/openapi`, `trpc-to-openapi`) and nothing downstream. Three gaps followed:
