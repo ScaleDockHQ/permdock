@@ -17,7 +17,7 @@ The repository also hosts a docs app and one example app per adapter, which need
 
 **Layout**
 
-- `/packages`: `permdock` (core plus one folder per subpath adapter, `skills/` shipped in the package), `cli` (`@permdock/cli`, owns `createPermDockPlugin`), `testing` (`@permdock/testing`).
+- `/packages`: `permdock` (core plus one folder per subpath adapter, `skills/` shipped in the package), `cli` (`@permdock/cli`, owns `createPermDockPlugin`), `testing` (`@permdock/testing`), plus two private, never-published config packages that every workspace consumes with `workspace:*`: `typescript-config` (`@permdock/typescript-config`, the `base`, `library`, `react-library` and `next` tsconfig presets) and `ox-config` (`@permdock/ox-config`, the shared Oxlint and Oxfmt baselines). The root `tsconfig.json`, `oxlint.config.ts` and `oxfmt.config.ts` only extend those and add repository-specific ignores.
 - `/apps`: `docs` (Fumadocs v16 on Next.js 16.3, dogfooding PermDock, with `llms.txt`, `llms-full.txt`, `.md` per page and a docs MCP route) and `examples/<name>`, one per adapter plus `monorepo`.
 - `/tests`: `e2e` (Playwright across examples, including `@next/playwright` `instant()`), `types` (TS 5.9, 6 and 7 matrix), `integration` (Postgres via testcontainers for RLS parity and providers), `bundle` (per-entry gzip measurements; a regression baseline is recorded after core ships).
 
@@ -25,7 +25,7 @@ The repository also hosts a docs app and one example app per adapter, which need
 
 - pnpm workspaces with catalogs for shared dependency versions; Turborepo for task orchestration and caching.
 - tsdown for builds, emitting `.d.ts` from `isolatedDeclarations` so declaration emit does not depend on the TypeScript compiler API.
-- Oxlint and Oxfmt for linting and formatting.
+- Oxlint and Oxfmt for linting and formatting, run once from the repository root over every workspace (they are root scripts, not Turborepo tasks); the shared configuration lives in `packages/ox-config`, and `options.typeAware` is set only in the root config.
 - Vitest for unit tests and type tests; 95% coverage threshold on `packages/permdock`; Playwright for e2e; testcontainers for Postgres.
 - `publint` and `arethetypeswrong` on every package before publish.
 - Changesets for changelogs and versioning, with Release Please as the accepted alternative if automated release PRs are preferred; one of the two is chosen when Phase 1 publishes.
@@ -33,7 +33,7 @@ The repository also hosts a docs app and one example app per adapter, which need
 **TypeScript**
 
 - Supported: TypeScript 5.9, 6 and 7, tested in `tests/types`.
-- `isolatedDeclarations` and `erasableSyntaxOnly` are enabled in every package: exported functions have explicit return types; no enums, namespaces, parameter properties or `import x = require`.
+- `isolatedDeclarations` and `erasableSyntaxOnly` are enabled in every package: exported functions have explicit return types; no enums, namespaces, parameter properties or `import x = require`. Packages get both from `@permdock/typescript-config/library.json`; apps extend `next.json`, which keeps `erasableSyntaxOnly` but not `isolatedDeclarations`.
 - `strict` everywhere; `moduleResolution` settings that TS 6 removed are never used.
 
 ## Consequences

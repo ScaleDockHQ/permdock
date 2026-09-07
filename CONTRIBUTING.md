@@ -33,13 +33,20 @@ Useful scripts:
 
 | Command              | What it does                              |
 | -------------------- | ----------------------------------------- |
-| `pnpm run check`     | Format check and Oxlint                   |
+| `pnpm run check`     | Format check, Oxlint and typecheck        |
 | `pnpm run fmt`       | Format with Oxfmt                         |
 | `pnpm run lint`      | Lint with Oxlint                          |
 | `pnpm run build`     | `turbo run build`                         |
 | `pnpm run test`      | `turbo run test`                          |
 | `pnpm run typecheck` | `turbo run typecheck`                     |
 | `pnpm changeset`     | Add a changeset for a user-visible change |
+
+## Adding a workspace
+
+Every package and app extends the shared configuration instead of copying it:
+
+- `tsconfig.json`: `"extends": "@permdock/typescript-config/library.json"` (packages), `react-library.json` (packages with `.tsx` entries) or `next.json` (Next.js apps). Add `"@permdock/typescript-config": "workspace:*"` to `devDependencies` and a `"typecheck": "tsc --noEmit"` script so `turbo run typecheck` picks it up.
+- Linting and formatting run from the root over the whole repository, so a workspace normally needs no `oxlint.config.ts` or `oxfmt.config.ts`. If one does, extend `@permdock/ox-config/oxlint` and `@permdock/ox-config/oxfmt` as described in [`packages/ox-config/README.md`](./packages/ox-config/README.md).
 
 ## Commits
 

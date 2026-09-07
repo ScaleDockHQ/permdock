@@ -5,7 +5,7 @@
   "scripts": {
     "build": "turbo run build",
     "changeset": "changeset",
-    "check": "pnpm run fmt:check && pnpm run lint",
+    "check": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
     "lint": "oxlint .",
@@ -18,6 +18,8 @@
     "@commitlint/cli": "catalog:",
     "@commitlint/config-conventional": "catalog:",
     "@commitlint/types": "catalog:",
+    "@permdock/ox-config": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "lefthook": "catalog:",
     "oxfmt": "catalog:",

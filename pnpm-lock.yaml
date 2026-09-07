@@ -157,6 +157,12 @@ importers:
       '@commitlint/types':
         specifier: 'catalog:'
         version: 21.2.0
+      '@permdock/ox-config':
+        specifier: workspace:*
+        version: link:packages/ox-config
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:packages/typescript-config
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
@@ -178,6 +184,24 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+
+  packages/ox-config:
+    dependencies:
+      oxfmt:
+        specifier: 'catalog:'
+        version: 0.66.0
+      oxlint:
+        specifier: 'catalog:'
+        version: 1.81.0(oxlint-tsgolint@7.0.2001)
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  packages/typescript-config: {}
 
 packages:
 

@@ -1,0 +1,26 @@
+{
+  "name": "@permdock/ox-config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared Oxlint and Oxfmt configuration for the PermDock monorepo.",
+  "license": "MIT",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "exports": {
+    "./oxlint": "./src/oxlint.ts",
+    "./oxfmt": "./src/oxfmt.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/typescript-config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

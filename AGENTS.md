@@ -6,7 +6,7 @@ The product plan and every design decision live in `PRODUCT.md` and `apps/docs/c
 
 ## Status
 
-Phase 0. The docs tree, README, PRODUCT and this file exist; `packages/`, `apps/docs` (the app itself), `apps/examples/` and `tests/` do not yet. Anything you add must match the layout below so Phase 1 does not have to move it.
+Phase 0. The docs tree, README, PRODUCT, this file, the repo tooling (pnpm 12 workspace, Turborepo, Oxlint, Oxfmt, Lefthook, Changesets) and the two private config packages (`packages/typescript-config`, `packages/ox-config`) exist; `packages/permdock`, `apps/docs` (the app itself), `apps/examples/` and `tests/` do not yet. Anything you add must match the layout below so Phase 1 does not have to move it.
 
 ## Repo layout
 
@@ -23,6 +23,10 @@ packages/
                       (createPermDockUnplugin for Vite / Rollup / webpack / Rspack / esbuild): both build-time collect only;
                       ships the Spectral / Redocly / vacuum ruleset file for `permdock openapi` invariants
   testing/            npm `@permdock/testing` — policy matrix tests, snapshot fixtures, RLS parity runner, instant() helpers
+  typescript-config/  private `@permdock/typescript-config` — tsconfig presets every workspace extends:
+                      base.json, library.json (tsdown packages), react-library.json, next.json
+  ox-config/          private `@permdock/ox-config` — `oxlint` (`base`, `ignorePatterns`) and `oxfmt` (`oxfmt()` factory);
+                      the root oxlint.config.ts / oxfmt.config.ts only add repo-specific ignores, `typeAware` and the packages/** override
 apps/
   docs/               Fumadocs v16 on Next.js 16.3; content in apps/docs/content/docs (exists today)
   examples/<name>/    one app per adapter: next, react-vite, expo, vue, svelte, solid, hono, express, fastify,
@@ -45,7 +49,9 @@ pnpm build                 # turbo run build (tsdown)
 pnpm test                  # vitest unit + type tests
 pnpm test:e2e              # playwright across apps/examples
 pnpm test:integration      # testcontainers Postgres
-pnpm lint && pnpm fmt      # oxlint, oxfmt
+pnpm lint && pnpm fmt      # oxlint, oxfmt (root scripts, whole repo; config comes from packages/ox-config)
+pnpm typecheck             # turbo run typecheck (tsc --noEmit per package, presets from packages/typescript-config)
+pnpm check                 # fmt:check + lint + typecheck; what CI and the pre-push hook run
 pnpm check:publish         # publint + arethetypeswrong on every package
 pnpm size                  # per-entry gzip measurements
 pnpm docs:dev              # apps/docs

@@ -1,25 +1,4 @@
 {
-  "compilerOptions": {
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "verbatimModuleSyntax": true,
-    "isolatedDeclarations": true,
-    "declaration": true,
-    "erasableSyntaxOnly": true,
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "moduleDetection": "force",
-    "target": "es2024",
-    "lib": ["ES2024"],
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true
-  },
-  "include": ["commitlint.config.ts"],
-  "exclude": ["node_modules", "dist", ".turbo", "coverage"]
+  "extends": "@permdock/typescript-config/base.json",
+  "include": ["commitlint.config.ts", "oxlint.config.ts", "oxfmt.config.ts"]
 }
