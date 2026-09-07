@@ -36,5 +36,6 @@ What stays in the root config, not here:
 - `options.typeAware: true`. Type-aware linting runs once from the root over the whole repository; `pnpm run lint` and `pnpm run fmt` are root scripts, not Turbo tasks.
 - Repository-specific ignores (`.agents/**`, `.cursor/**`, `.claude/**`, the hand-written Markdown files at the root).
 - The `packages/**` override that turns `import/no-default-export` back on for publishable code.
+- The `apps/**` override that turns off restriction rules Next.js cannot satisfy (`async` Server Components, object spread, CSS side-effect imports).
 
 The package ships TypeScript source (`src/*.ts`) directly. Oxlint and Oxfmt load `*.config.ts` through Node's type stripping, which follows the pnpm workspace symlink to the real path under `packages/`, so no build step is needed.

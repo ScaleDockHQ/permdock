@@ -1,0 +1,48 @@
+{
+  "services": {
+    "docs": {
+      "root": "apps/docs"
+    }
+  },
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/docs",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/docs",
+      "destination": { "service": "docs" }
+    },
+    {
+      "source": "/docs/(.*)",
+      "destination": { "service": "docs" }
+    },
+    {
+      "source": "/_next/(.*)",
+      "destination": { "service": "docs" }
+    },
+    {
+      "source": "/api/search",
+      "destination": { "service": "docs" }
+    },
+    {
+      "source": "/llms.txt",
+      "destination": { "service": "docs" }
+    },
+    {
+      "source": "/llms-full.txt",
+      "destination": { "service": "docs" }
+    },
+    {
+      "source": "/llms.mdx/(.*)",
+      "destination": { "service": "docs" }
+    },
+    {
+      "source": "/og/(.*)",
+      "destination": { "service": "docs" }
+    }
+  ]
+}

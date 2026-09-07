@@ -6,7 +6,9 @@ The product plan and every design decision live in `PRODUCT.md` and `apps/docs/c
 
 ## Status
 
-Phase 0. The docs tree, README, PRODUCT, this file, the repo tooling (pnpm 12 workspace, Turborepo, Oxlint, Oxfmt, Lefthook, Changesets) and the two private config packages (`packages/typescript-config`, `packages/ox-config`) exist; `packages/permdock`, `apps/docs` (the app itself), `apps/examples/` and `tests/` do not yet. Anything you add must match the layout below so Phase 1 does not have to move it.
+Phase 0. The docs tree, README, PRODUCT, this file, the repo tooling (pnpm 12 workspace, Turborepo, Oxlint, Oxfmt, Lefthook, Changesets), the two private config packages (`packages/typescript-config`, `packages/ox-config`) and the Fumadocs app at `apps/docs` exist; `packages/permdock`, `apps/examples/` and `tests/` do not yet. Anything you add must match the layout below so Phase 1 does not have to move it.
+
+The docs app is the first [Vercel Service](https://vercel.com/docs/services): root `vercel.json` sends `/docs`, `/_next`, `/api/search`, `/llms.txt`, `/llms-full.txt`, `/llms.mdx` and `/og` to `apps/docs`. Do **not** set Next.js `basePath: '/docs'` until a second Next.js service exists. MDX already links to `/docs/...`; `basePath` plus `loader({ baseUrl: '/docs' })` double-prefixes `next/link` (`/docs/docs/...`). Until then the docs service owns `/_next` and `/api/search`. A later Hono/Python/Vite service is a rewrite **above** those rules.
 
 ## Repo layout
 
@@ -28,7 +30,7 @@ packages/
   ox-config/          private `@permdock/ox-config` — `oxlint` (`base`, `ignorePatterns`) and `oxfmt` (`oxfmt()` factory);
                       the root oxlint.config.ts / oxfmt.config.ts only add repo-specific ignores, `typeAware` and the packages/** override
 apps/
-  docs/               Fumadocs v16 on Next.js 16.3; content in apps/docs/content/docs (exists today)
+  docs/               Fumadocs v16 on Next.js 16.3 (scaffolded); content in apps/docs/content/docs; first Vercel Service at `/docs`
   examples/<name>/    one app per adapter: next, react-vite, expo, vue, svelte, solid, hono, express, fastify,
                       elysia, nest, terminal, trpc, orpc, mcp-server, ai-sdk-agent, claude-agent, eve-agent,
                       openai-agent, webmcp, a2a-agent, authzen-pdp, supabase-rls, drizzle, prisma, better-auth,
@@ -41,7 +43,7 @@ tests/
   bundle/             per-entry gzip measurements; baseline set after core ships
 ```
 
-## Commands (once Phase 1 lands; keep these names)
+## Commands (keep these names; Phase 1 names that have no package yet will fail until that package exists)
 
 ```bash
 pnpm install

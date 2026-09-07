@@ -2,7 +2,7 @@
 
 This document is the product overview: what PermDock is, who it is for, what it must do, how it is built and in what order. Detail lives in the documentation tree under [`apps/docs/content/docs`](./apps/docs/content/docs) (Fumadocs-ready MDX) and is linked from each section. When the two disagree, the docs tree wins and this file gets fixed.
 
-Version: Phase 0 (September 2026). Nothing is published yet.
+Version: Phase 0 (September 2026). Nothing is published yet. The Fumadocs app is scaffolded over the MDX tree and is the first Vercel Service at `/docs`.
 
 ## 1. Vision and positioning
 
@@ -92,7 +92,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 - AuthZEN-shaped decision endpoint and batched client.
 - `permdock/react` (`usePermission`, `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject`, `<Protected>`; [UI](./apps/docs/content/docs/concepts/ui.mdx)), `permdock/next` (Cache Components, explicit factory), Fetch kernel + `permdock/hono`, `permdock/jwt` (`subjectFromJwt`, `jose` optional peer, `profile: 'fapi2'`), `permdock/ai-sdk`, `permdock/claude-agent`, `permdock/eve`, `permdock/openai`, `@permdock/testing`.
 - `permdock/approvals` (`ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, `PermDock-Approval` resume header) and `DecisionSink` with `memorySink`.
-- Skills, `AGENTS.md`, `llms.txt`; `apps/docs` scaffolded over the Phase 0 content; examples `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`; `tests/types` TS matrix.
+- Skills, `AGENTS.md`, `llms.txt`; examples `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`; `tests/types` TS matrix. The docs app was scaffolded in Phase 0.
 
 **Should (v0.2–0.9, Phases 2–3)**
 
@@ -197,8 +197,8 @@ Full ADR: [0016 repo layout and toolchain](./apps/docs/content/docs/decisions/00
 
 | Phase | Version | Theme | Contents |
 | --- | --- | --- | --- |
-| 0 | — | Plan and docs | README, PRODUCT, AGENTS, MIT LICENSE, full MDX docs tree (concepts, adapters, standards, security, research, decisions) |
-| 1 | v0.1 | Core + agents | Definitions, policies, portable conditions, two-principal subject with memberships and scoped roles (`RoleSource`, `MembershipSource`, snapshot v2), `createPermDock`, boundary validation, AuthZEN-shaped endpoint, `react`, `next`, kernel + `hono`, `jwt`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `approvals` (+ `DecisionSink`), `@permdock/testing`, skills, `apps/docs` scaffold, seven examples, TS matrix |
+| 0 | — | Plan and docs | README, PRODUCT, AGENTS, MIT LICENSE, full MDX docs tree (concepts, adapters, standards, security, research, decisions), Fumadocs app as the first Vercel Service at `/docs` |
+| 1 | v0.1 | Core + agents | Definitions, policies, portable conditions, two-principal subject with memberships and scoped roles (`RoleSource`, `MembershipSource`, snapshot v2), `createPermDock`, boundary validation, AuthZEN-shaped endpoint, `react`, `next`, kernel + `hono`, `jwt`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `approvals` (+ `DecisionSink`), `@permdock/testing`, skills, seven examples, TS matrix |
 | 2 | v0.2–0.5 | Surfaces | `mcp`, `authzen` (+ certification), `openapi` (document + Overlay), `react-native`, remaining HTTP / RPC / UI adapters, `terminal`, `webmcp`, `a2a`, `otel`, `cloud` client, CLI `collect` / `catalog` / `usage` / `doctor`, example per adapter + `monorepo` + `terminal`, e2e; PermDock Cloud alpha (separate repo) and Vercel Marketplace listing |
 | 3 | v0.6–0.9 | Data | `where` compilers (with `memberOf`), `permdock rls` with membership-table mappings, `supabase`, async `context`, field-level grants, `ssf`, integration parity suite, data examples |
 | 4 | v1.0 | Ecosystem | `better-auth` and `clerk` (memberships, `RoleSource` implementations), `convex`, `pdp`, quotas, Web Bot Auth, delegation-chain verification, Arazzo `simulate`, more frameworks, docs MCP server, devtools |

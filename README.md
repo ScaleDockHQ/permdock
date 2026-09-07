@@ -10,7 +10,7 @@
 
 Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
 
-> **Status: Phase 0.** The product plan, this README, [`PRODUCT.md`](./PRODUCT.md), [`AGENTS.md`](./AGENTS.md) and the full documentation tree under [`apps/docs/content/docs`](./apps/docs/content/docs) exist. The packages are not published yet. Everything below is the specification the implementation will follow; see the [roadmap](./apps/docs/content/docs/roadmap.mdx).
+> **Status: Phase 0.** The product plan, this README, [`PRODUCT.md`](./PRODUCT.md), [`AGENTS.md`](./AGENTS.md), the documentation tree and the Fumadocs app at [`apps/docs`](./apps/docs) exist. The packages are not published yet. Everything below is the specification the implementation will follow; see the [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
 ## Why PermDock
 
@@ -264,7 +264,7 @@ npx skills add ScaleDockHQ/PermDock   # installs the `wire-permdock` and `audit-
 ```
 
 - [`AGENTS.md`](./AGENTS.md) (with `CLAUDE.md` as a symlink) describes the repo, invariants and update rules.
-- Every docs page will be served as `.md`, plus `llms.txt` and `llms-full.txt`, and through a docs MCP server once `apps/docs` is live.
+- Every docs page is served as `.md`, plus `llms.txt` and `llms-full.txt`; a docs MCP server follows in Phase 4.
 - Denials are written for models: every `denied` decision carries reasons and permitted `alternatives`; every `approval-required` decision carries a replay-safe `token`.
 - `permdock doctor` and `permdock collect --check` give deterministic feedback in CI.
 
@@ -272,7 +272,7 @@ Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
 
 ## Documentation
 
-Until the Fumadocs site is live, the docs are the MDX tree at [`apps/docs/content/docs`](./apps/docs/content/docs): [getting started](./apps/docs/content/docs/getting-started), [concepts](./apps/docs/content/docs/concepts), [adapters](./apps/docs/content/docs/adapters), [CLI](./apps/docs/content/docs/cli), [standards](./apps/docs/content/docs/standards), [security](./apps/docs/content/docs/security), [research](./apps/docs/content/docs/research) and [decision records](./apps/docs/content/docs/decisions).
+Run `pnpm docs:dev` and open `/docs`. The source of truth is still the MDX tree at [`apps/docs/content/docs`](./apps/docs/content/docs): [getting started](./apps/docs/content/docs/getting-started), [concepts](./apps/docs/content/docs/concepts), [adapters](./apps/docs/content/docs/adapters), [CLI](./apps/docs/content/docs/cli), [standards](./apps/docs/content/docs/standards), [security](./apps/docs/content/docs/security), [research](./apps/docs/content/docs/research) and [decision records](./apps/docs/content/docs/decisions).
 
 The product vision, roadmap and open questions live in [`PRODUCT.md`](./PRODUCT.md).
 

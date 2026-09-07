@@ -5,6 +5,7 @@ const ignorePatterns: readonly string[] = [
   '**/.turbo/**',
   '**/dist/**',
   '**/.next/**',
+  '**/.source/**',
   '**/coverage/**',
   // Hand-written docs stay outside Oxfmt until MDX round-trip is proven.
   '**/*.mdx',

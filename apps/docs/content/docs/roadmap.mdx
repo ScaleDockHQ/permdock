@@ -9,7 +9,7 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 ### Phase 0: specification (now)
 
-`README.md`, `PRODUCT.md`, `AGENTS.md` (with `CLAUDE.md` as a symlink), the MIT `LICENSE`, and the full docs tree under `apps/docs/content/docs/`: getting started, concepts, one page per adapter, CLI, standards, security, research and decision records. No code. See [0017: Docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx).
+`README.md`, `PRODUCT.md`, `AGENTS.md` (with `CLAUDE.md` as a symlink), the MIT `LICENSE`, the full docs tree under `apps/docs/content/docs/`, and the Fumadocs app that serves that tree as the first Vercel Service at `/docs`. `packages/permdock`, example apps and tests do not yet. See [0017: Docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx).
 
 ### Phase 1: v0.1 "core + agents"
 
@@ -27,7 +27,6 @@ PermDock is specified before it is implemented. This page lists what each phase 
 - `permdock/jwt` (`subjectFromJwt`, JWKS, RFC 8725 checks, `profile: 'fapi2'`, `jose` optional peer; RFC 9068 `roles` / `groups` / `entitlements` mapped to roles and memberships, [JWT authorization claims](/docs/standards/jwt-authorization-claims)); the `subjectFrom*` provider pattern. See [authentication](/docs/concepts/authentication).
 - `@permdock/testing` conformance runners for every extension interface (`testSubjectResolver`, `testMembershipSource`, `testRoleSource`, `testApprovalStore`, `testDecisionSink`, `testSnapshotSource`, `testWhereCompiler`); tenancy cases in the policy matrix.
 - Agent Skills (`wire-permdock`, `audit-permissions`), `AGENTS.md`, `llms.txt`; `permdock skills`.
-- `apps/docs` scaffolded over the Phase 0 content.
 - Examples: `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`.
 - `tests/types` matrix for TypeScript 5.9, 6 and 7.
 - `tests/bundle` runtime conformance: core, `permdock/server` and every client entry load in a bare WinterTC Minimum Common API global (no Node built-ins), alongside the per-entry gzip measurements ([installation](/docs/getting-started/installation), runtimes).

@@ -12,5 +12,5 @@
     "incremental": true,
     "plugins": [{ "name": "next" }]
   },
-  "exclude": ["node_modules", ".next", ".turbo", "coverage"]
+  "exclude": ["node_modules", ".next", ".source", ".turbo", "coverage"]
 }

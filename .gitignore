@@ -22,6 +22,9 @@ blob-report/
 .next/
 out/
 
+# fumadocs-mdx
+.source/
+
 # production
 dist/
 build/
