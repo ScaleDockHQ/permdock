@@ -316,6 +316,17 @@ createApp(App).use(permdockPlugin, { snapshot, endpoint: '/api/permdock' });
 
 Composables return refs (`allowed`, `status`, `decision`). Do not import `policy.ts` on the client.
 
+## Svelte — `permdock/svelte`
+
+```ts
+import { setPermDock, permission, Protected } from 'permdock/svelte';
+
+setPermDock({ snapshot, endpoint: '/api/permdock' });
+const canEdit = permission(permissions.post.update, () => post);
+```
+
+Stores are readable (`$canEdit.allowed`). Do not import `policy.ts` on the client.
+
 ## Planned adapters
 
-Svelte and Solid follow the same snapshot-backed client store. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Solid follows the same snapshot-backed client store. Read the adapter page under `/docs/adapters/solid` before inventing identifiers.

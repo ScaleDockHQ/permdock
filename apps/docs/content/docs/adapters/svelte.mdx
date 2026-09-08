@@ -3,7 +3,7 @@ title: Svelte
 description: permdock/svelte maps the snapshot-backed provider, hook and guard onto Svelte context, a readable permission store and a component.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 ## Purpose
@@ -74,7 +74,7 @@ In SvelteKit the snapshot is loaded in `+layout.server.ts` from a request-scoped
 
 ## Example app
 
-`apps/examples/svelte`: SvelteKit with a `+layout.server.ts` snapshot, a `+server.ts` decision endpoint via `permdock/server`, portable and closure-backed checks, `invalidate` after a form action, and a Vitest browser test for first-render correctness.
+`apps/examples/svelte`: Svelte with a server-built Snapshot v2, `setPermDock`, `permission` stores and `<Protected>`. Unit tests evaluate portable grants through the snapshot-backed store so the first paint already shows grant or deny.
 
 ## Related standards
 

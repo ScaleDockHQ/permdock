@@ -78,6 +78,11 @@
       "types": "./dist/vue/index.d.ts",
       "default": "./dist/vue/index.js"
     },
+    "./svelte": {
+      "types": "./dist/svelte/index.d.ts",
+      "svelte": "./dist/svelte/index.js",
+      "default": "./dist/svelte/index.js"
+    },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
@@ -141,6 +146,7 @@
     "react-dom": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:",
+    "svelte": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "valibot": "catalog:",
@@ -167,6 +173,7 @@
     "react": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:",
+    "svelte": "catalog:",
     "vue": "catalog:"
   },
   "peerDependenciesMeta": {
@@ -222,6 +229,9 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "svelte": {
       "optional": true
     },
     "vue": {

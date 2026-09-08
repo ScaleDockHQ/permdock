@@ -24,6 +24,7 @@ export const ENTRIES = {
   './trpc': 'trpc/index.js',
   './orpc': 'orpc/index.js',
   './vue': 'vue/index.js',
+  './svelte': 'svelte/index.js',
   './ai-sdk': 'ai-sdk/index.js',
   './claude-agent': 'claude-agent/index.js',
   './eve': 'eve/index.js',
@@ -36,7 +37,12 @@ export const ENTRIES = {
 export type Entry = keyof typeof ENTRIES;
 
 export const WINTERTC_ENTRIES = ['.', './server', './react'] as const;
-export const CLIENT_ENTRIES = ['./react', './react-native', './vue'] as const;
+export const CLIENT_ENTRIES = [
+  './react',
+  './react-native',
+  './vue',
+  './svelte',
+] as const;
 
 const RELATIVE_IMPORT =
   /(?:from|import)\s*['"](\.\.?\/[^'"]+)['"]|import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/gu;

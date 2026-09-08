@@ -1,6 +1,30 @@
+import { compile } from 'svelte/compiler';
 import { defineConfig } from 'tsdown';
 
+function sveltePlugin(): {
+  readonly name: string;
+  transform(
+    code: string,
+    id: string,
+  ): { readonly code: string; readonly map: unknown } | undefined;
+} {
+  return {
+    name: 'svelte',
+    transform(code, id) {
+      if (!id.endsWith('.svelte')) {
+        return undefined;
+      }
+      const result = compile(code, {
+        filename: id,
+        css: 'injected',
+      });
+      return { code: result.js.code, map: result.js.map };
+    },
+  };
+}
+
 export default defineConfig({
+  plugins: [sveltePlugin()],
   entry: [
     'src/index.ts',
     'src/approvals/index.ts',
@@ -19,6 +43,7 @@ export default defineConfig({
     'src/trpc/index.ts',
     'src/orpc/index.ts',
     'src/vue/index.ts',
+    'src/svelte/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',
