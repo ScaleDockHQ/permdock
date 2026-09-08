@@ -1,5 +1,5 @@
+import { o as Policy } from "../policy-CL40bNGn.js";
 import { s as ApprovalStore } from "../types-DwRNNTg4.js";
-import { o as Policy } from "../policy-Dvre0Da9.js";
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
 //#region src/authzen/types.d.ts
 type AuthzenResourceAdapter = {

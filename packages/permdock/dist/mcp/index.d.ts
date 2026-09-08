@@ -1,6 +1,6 @@
 import { c as AuthorizationDetail } from "../ast-BtUySn6K.js";
+import { o as Policy, v as Permission } from "../policy-CL40bNGn.js";
 import { s as ApprovalStore } from "../types-DwRNNTg4.js";
-import { o as Policy, v as Permission } from "../policy-Dvre0Da9.js";
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/mcp/types.d.ts

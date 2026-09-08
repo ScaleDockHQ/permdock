@@ -376,6 +376,30 @@ registerTools(document.modelContext, permissions.post, {
 
 Never import a policy into this entry. A missing `document.modelContext` is a no-op.
 
+## A2A — `permdock/a2a`
+
+```ts
+import { createPermDock } from 'permdock/a2a';
+
+export const { agentCard, extendedAgentCard, protectSkill } = createPermDock(
+  policy,
+  {
+    subject: (auth) => userFrom(auth),
+    card: {
+      name: 'Posts agent',
+      url: 'https://agent.example.com/a2a',
+      version: '1.0.0',
+    },
+    securitySchemes: { oauth: { type: 'oauth2' } },
+    skills: {
+      summarise: { permission: permissions.post.read },
+    },
+  },
+);
+```
+
+Identity comes from transport auth, never the task body.
+
 ## Planned adapters
 
-Remaining Phase 2 adapters (`a2a`, `otel`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Remaining Phase 2 adapters (`otel`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

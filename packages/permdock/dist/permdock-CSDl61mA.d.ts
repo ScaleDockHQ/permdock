@@ -1,6 +1,6 @@
 import { d as Delegation, g as Subject, m as Membership, o as Actor, t as Condition } from "./ast-BtUySn6K.js";
-import { o as Policy, v as Permission } from "./policy-Dvre0Da9.js";
-import { n as Decision } from "./decision-BvyrBh2L.js";
+import { o as Policy, v as Permission } from "./policy-CL40bNGn.js";
+import { n as Decision } from "./decision-Cjr-7xoX.js";
 import { n as DecisionEvent, o as MembershipSource, p as TokenSigner, r as DecisionSink, s as RoleSource, u as SnapshotV2 } from "./interfaces-DMSVa7et.js";
 //#region src/core/describe.d.ts
 type DecisionDescription = {

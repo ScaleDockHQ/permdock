@@ -1,5 +1,5 @@
-import { b as PermissionTree, v as Permission } from "../policy-Dvre0Da9.js";
-import { n as Decision } from "../decision-BvyrBh2L.js";
+import { b as PermissionTree, v as Permission } from "../policy-CL40bNGn.js";
+import { n as Decision } from "../decision-Cjr-7xoX.js";
 import { u as SnapshotV2 } from "../interfaces-DMSVa7et.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/webmcp/types.d.ts

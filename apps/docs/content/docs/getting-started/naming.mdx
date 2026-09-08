@@ -125,7 +125,7 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/authzen` | `{ handler }` | Serves evaluation, evaluations, search and `.well-known` |
 | `permdock/ssf` | `{ receiver }` | RFC 8935 push and RFC 8936 poll receiver for CAEP events; `receiver.logout` for OIDC Back-Channel Logout |
 | `permdock/scim` | no `createPermDock`; exports `scimHandler`, `memoryDirectoryStore`, `directoryMembershipSource` and the `DirectoryStore` type | The handler is a Fetch handler you mount; the source is a value you pass as `memberships` to a factory |
-| `permdock/a2a` | `{ agentCard, extendedAgentCard }` | Options: `skills` |
+| `permdock/a2a` | `{ agentCard, extendedAgentCard, protectSkill, sign }` | Options: `skills` |
 
 Two entries deliberately do not export `createPermDock`:
 

@@ -3,7 +3,7 @@ title: A2A
 description: permdock/a2a emits A2A Agent Cards whose skills carry security requirements derived from permissions and filters the authenticated extended card by the caller's grants.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 `permdock/a2a` maps A2A skills to permission references. From that map it emits the public Agent Card with `securitySchemes` and per-skill `securityRequirements`, and it builds the authenticated extended card for a specific caller by keeping only skills the caller may invoke. It is the A2A counterpart of `list_tools` filtering in [permdock/mcp](/docs/adapters/mcp).

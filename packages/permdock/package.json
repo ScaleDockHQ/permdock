@@ -122,6 +122,10 @@
     "./webmcp": {
       "types": "./dist/webmcp/index.d.ts",
       "default": "./dist/webmcp/index.js"
+    },
+    "./a2a": {
+      "types": "./dist/a2a/index.d.ts",
+      "default": "./dist/a2a/index.js"
     }
   },
   "scripts": {

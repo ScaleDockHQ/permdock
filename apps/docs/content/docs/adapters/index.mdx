@@ -44,7 +44,7 @@ Phases come from the [roadmap](/docs/roadmap). Adapter pages carry their own `St
 | [eve](/docs/adapters/eve) | `permdock/eve` | `approval` (request and response policies for `defineTool`), `approvalFor`, `permdock` | `apps/examples/eve-agent` (also the Marketplace template) | 1 | [OAuth agent delegation](/docs/standards/oauth-agent-delegation) |
 | [openai](/docs/adapters/openai) | `permdock/openai` | `needsApproval`, `guardTools`, `resolveInterruptions`, `permdock` | `apps/examples/openai-agent` | 1 | [MCP authorization](/docs/standards/mcp-authorization) (hosted MCP tools) |
 | [webmcp](/docs/adapters/webmcp) | `permdock/webmcp` | `registerTools` (client entry, no factory) | `apps/examples/webmcp` | 2 | [WebMCP](/docs/standards/webmcp) |
-| [a2a](/docs/adapters/a2a) | `permdock/a2a` | `agentCard`, `extendedAgentCard` | `apps/examples/a2a-agent` | 2 | [A2A](/docs/standards/a2a) |
+| [a2a](/docs/adapters/a2a) | `permdock/a2a` | `agentCard`, `extendedAgentCard`, `protectSkill` | `apps/examples/a2a-agent` | 2 | [A2A](/docs/standards/a2a) |
 | [authzen](/docs/adapters/authzen) | `permdock/authzen` | `handler` serving evaluation, evaluations, search and discovery | `apps/examples/authzen-pdp` | 2 | [AuthZEN](/docs/standards/authzen) |
 | [approvals](/docs/adapters/approvals) | `permdock/approvals` | No factory: `ApprovalStore` interface, `memoryApprovalStore`, `approvalsHandler`; the `store` option of every agent and HTTP adapter | — (used by `ai-sdk-agent`, `eve-agent`, `openai-agent`, `terminal`) | 1 | [Problem Details](/docs/standards/problem-details) |
 | [cloud](/docs/adapters/cloud) | `permdock/cloud` | No factory: `cloud({ url, key })` returning `approvals`, `sink`, `snapshots` for PermDock Cloud; never on the decision path | `apps/examples/eve-agent` | 2 | [AuthZEN](/docs/standards/authzen), [Shared Signals and CAEP](/docs/standards/shared-signals-caep) |
@@ -96,6 +96,7 @@ Every adapter page documents the same eight sections (Purpose, API, Request life
 | Eve and OpenAI Agents SDK | Eve `{ type: 'denied', reason }`; OpenAI `state.reject(i, { message })` | Eve `"user-approval"` parks the session; OpenAI `needsApproval` returns `true` and the run returns `interruptions`; both resolve through the `ApprovalStore` |
 | Terminal | stderr text or `--json` Problem Details, exit `77` (`EX_NOPERM`) | Interactive TTY confirm; non-interactive exits `75` (`EX_TEMPFAIL`) with an `approval` extension |
 | WebMCP | Tool not registered, or a tool error whose text carries the Decision reason and `alternatives` | Tool result asking the agent to obtain page confirmation; `onApprovalRequired` may resolve it |
+| A2A | Skill absent from the extended card; task failure with Problem Details | Task `input-required` with the Decision token |
 
 Denial bodies are written for models as well as humans: `denials[].reason` is a sentence, `alternatives` lists permitted permissions on the same resource. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
 

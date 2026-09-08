@@ -1,5 +1,26 @@
 import { d as Delegation, h as Principal, o as Actor, t as Condition } from "./ast-BtUySn6K.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
+//#region src/conditions/normalize.d.ts
+type FieldOperator = {
+  readonly eq?: unknown;
+  readonly ne?: unknown;
+  readonly gt?: unknown;
+  readonly gte?: unknown;
+  readonly lt?: unknown;
+  readonly lte?: unknown;
+  readonly contains?: unknown;
+  readonly in?: unknown;
+  readonly notIn?: unknown;
+  readonly isNull?: boolean;
+};
+type WhereShorthand<T = Record<string, unknown>> = {
+  readonly and?: readonly WhereShorthand<T>[];
+  readonly or?: readonly WhereShorthand<T>[];
+  readonly not?: WhereShorthand<T>;
+} & { readonly [K in keyof T]?: T[K] | FieldOperator | {
+  readonly ref: string;
+}; };
+//#endregion
 //#region src/core/permissions.d.ts
 declare const RESOURCE_BRAND: unique symbol;
 declare const TREE_REGISTRY: unique symbol;
@@ -62,27 +83,6 @@ declare function definePermissions<const Input>(input: Input): InferPermissionTr
 declare function listPermissions(tree: PermissionTree | Permission): readonly Permission[];
 declare function findPermission(tree: PermissionTree, keyOrScope: string): Permission | undefined;
 declare function mergePermissions<const Trees extends readonly PermissionTree[]>(...trees: Trees): PermissionTree & RegistryTree;
-//#endregion
-//#region src/conditions/normalize.d.ts
-type FieldOperator = {
-  readonly eq?: unknown;
-  readonly ne?: unknown;
-  readonly gt?: unknown;
-  readonly gte?: unknown;
-  readonly lt?: unknown;
-  readonly lte?: unknown;
-  readonly contains?: unknown;
-  readonly in?: unknown;
-  readonly notIn?: unknown;
-  readonly isNull?: boolean;
-};
-type WhereShorthand<T = Record<string, unknown>> = {
-  readonly and?: readonly WhereShorthand<T>[];
-  readonly or?: readonly WhereShorthand<T>[];
-  readonly not?: WhereShorthand<T>;
-} & { readonly [K in keyof T]?: T[K] | FieldOperator | {
-  readonly ref: string;
-}; };
 //#endregion
 //#region src/core/policy.d.ts
 type ClosureContext = {

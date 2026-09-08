@@ -54,6 +54,7 @@ export default defineConfig({
     'src/openapi/index.ts',
     'src/terminal/index.ts',
     'src/webmcp/index.ts',
+    'src/a2a/index.ts',
   ],
   platform: 'neutral',
   dts: true,

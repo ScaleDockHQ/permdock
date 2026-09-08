@@ -52,7 +52,8 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - `solid` — shipped (`PermDockProvider`, accessor hooks, `<Protected>`).
 - `terminal` — shipped (`permdock`, `protect`, `filterCommands`, `format`, `exitCode`; device flow, `--json` Problem Details, agent-run mode).
 - `webmcp` — shipped (`registerTools` on `document.modelContext`, snapshot-filtered tools, AbortSignal unregistration).
-- `permdock/a2a`, `permdock/otel`.
+- `a2a` — shipped (`agentCard`, `extendedAgentCard`, `protectSkill`, host `sign`).
+- `permdock/otel`.
 - CLI: `collect` (with the `createPermDockPlugin` Next build hook and `createPermDockUnplugin`, an [unplugin](https://unplugin.unjs.io)-based hook for Vite, Rollup, webpack, Rspack and esbuild so TanStack Start, React Router, SvelteKit, Nuxt, Astro and Solid projects get build-time `collect` before their adapters land; collect only, never runtime wiring), `catalog`, `usage`, `doctor`.
 - `permdock/scim`: `scimHandler` (RFC 7644 `/Users` and `/Groups` over the Fetch kernel, static bearer `token` or RFC 7523 `verifier`), the `DirectoryStore` interface with `memoryDirectoryStore`, `directoryMembershipSource` turning synced groups into memberships, the `urn:permdock:scim:schemas:extension:roles:1.0` group extension; `testDirectoryStore` in `@permdock/testing` ([SCIM adapter](/docs/adapters/scim), [0027](/docs/decisions/0027-governance-first-cloud)).
 - Signed decision-batch export (`typ: permdock-decisions+jwt`) as a `DecisionSink` `signer` option, so the Cloud alpha ships evidence with provenance; `permdock/cloud` serves it from its export endpoint together with OCSF and CSV.
