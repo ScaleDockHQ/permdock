@@ -143,6 +143,21 @@ guarded.registerTool(
 
 `actor.kind` is `'mcp-client'`. Missing scopes throw `InsufficientScopeError` (HTTP `403 insufficient_scope`). Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` returns an elicitation payload; resume only from `authInfo.extra.approval`, never from tool arguments.
 
+## AuthZEN — `permdock/authzen`
+
+```ts
+import { createPermDock } from 'permdock/authzen';
+
+export const { handler } = createPermDock(policy, {
+  subject: fromBearer,
+  resources: {
+    post: { load: (id) => loadPost(id), list: () => listPosts() },
+  },
+});
+```
+
+One Fetch handler serves `POST /access/v1/evaluation`, `/evaluations`, `/search/action`, `/search/resource`, `/search/subject` and `GET /.well-known/authzen-configuration`. PEP authentication is required (`401` unless `anonymous: true`). The body `subject` is the evaluation principal when the PEP is trusted (default). Unknown actions return `decision: false` with `context.reason: 'unknown-permission'`. Omit `subjects.list` to drop search/subject from discovery.
+
 ## Planned adapters
 
 Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte, Solid, and React Native follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

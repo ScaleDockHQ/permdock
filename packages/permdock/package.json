@@ -61,6 +61,10 @@
     "./mcp": {
       "types": "./dist/mcp/index.d.ts",
       "default": "./dist/mcp/index.js"
+    },
+    "./authzen": {
+      "types": "./dist/authzen/index.d.ts",
+      "default": "./dist/authzen/index.js"
     }
   },
   "scripts": {

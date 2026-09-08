@@ -20,6 +20,7 @@ export const ENTRIES = {
   './eve': 'eve/index.js',
   './openai': 'openai/index.js',
   './mcp': 'mcp/index.js',
+  './authzen': 'authzen/index.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -84,6 +85,6 @@ export function wintertcViolations(
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   return files.filter((file) =>
-    /[/\\](?:jwt|next|hono|server|approvals|mcp)[/\\]/u.test(file),
+    /[/\\](?:jwt|next|hono|server|approvals|mcp|authzen)[/\\]/u.test(file),
   );
 }

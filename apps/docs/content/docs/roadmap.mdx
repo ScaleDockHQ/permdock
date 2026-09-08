@@ -37,7 +37,7 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 ### Phase 2: v0.2–0.5 "surfaces" (in progress)
 
 - `permdock/mcp` (`scopeChallenge`, Enterprise-Managed Authorization, elicitation for approvals) — shipped.
-- `permdock/authzen` full endpoint set and a certification run.
+- `permdock/authzen` full endpoint set and a certification run — shipped (in-repo Basic / Batch / Search / Discovery shapes).
 - `permdock/openapi` targeting 3.2 (document and [Overlay](/docs/standards/openapi-overlay) output, `x-permdock-*` extensions; the experimental `--overlay 1.2` emitting the pinned Overlay 1.2 reusable-actions draft) with the experimental `--target 3.3` emitting the pinned [OpenAPI 3.3](/docs/standards/openapi-3-3) Security Profile draft (`type: profile` scheme, `securityProfileRequirements`, `x-permdock-securityProfile` as twin, pin in `x-permdock-catalog.drafts`; [0025](/docs/decisions/0025-draft-protocol-posture)); register the `permdock` namespace in the [OpenAPI registries](/docs/standards/openapi-registry). Composed with the toolchain, not wrapping it: the Overlay is the Next.js recipe through next-openapi-gen, Hey API / Orval / Scalar read standard `security`, a Spectral / Redocly / vacuum ruleset file ships alongside ([0023](/docs/decisions/0023-compose-openapi-ecosystem), [OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
 - `permdock/react-native` (Expo Router).
 - `express`, `fastify`, `elysia`, `nest`, `node`; `trpc`, `orpc`; `vue`, `svelte`, `solid`.

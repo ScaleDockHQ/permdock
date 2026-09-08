@@ -3,7 +3,7 @@ title: AuthZEN
 description: permdock/authzen serves the OpenID AuthZEN Authorization API 1.0 (evaluation, evaluations, search, discovery) from a PermDock policy so the decision endpoint is a standard PDP.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 `permdock/authzen` exposes a PermDock policy as an AuthZEN Policy Decision Point. One `handler` serves the evaluation, batched evaluations, search and discovery endpoints. The React decision endpoint (`permdockHandler` in `permdock/next`, the `endpoint` option of `PermDockProvider`) and the [pdp provider](/docs/adapters/pdp) use the same request and response schemas, so PermDock speaks one wire format whether it is the PDP or the PEP.
@@ -75,7 +75,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 
 ## Example app
 
-`apps/examples/authzen-pdp`: a Hono app serving the full endpoint set for the `post` policy, a metadata document, a script that runs the AuthZEN interop test suite request shapes against it, and a second process using the [pdp provider](/docs/adapters/pdp) as a PEP so both halves are exercised in one repo.
+`apps/examples/authzen-pdp`: `src/permissions.ts`, `src/policy.ts` and `src/server.ts` exporting a Fetch `handler` for the `post` policy. In-repo tests cover Basic, Batch, Search and Discovery request shapes. The [pdp provider](/docs/adapters/pdp) as a PEP is Phase 4.
 
 ## Related standards
 
@@ -86,8 +86,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 
 ## Open questions
 
-- `search/subject` needs a subject enumerator (a users table or directory query) that PermDock does not own; the handler may declare `subjects.list` as an optional capability and omit the endpoint from discovery when absent.
 - How `approval-required` should be signalled given AuthZEN's boolean `decision`: `false` plus `context` (current) versus a profile-specific extension.
 - Whether resource search should return ids only or full `properties`, and how large results are paginated for `where` compilers that produce SQL.
 - How the React decision endpoint's batching and per-permission cache keys map onto `evaluations` without over-fetching.
-- Certification: which test vectors the interop suite requires for Search and Discovery beyond the published profile.
+- Certification: which external interop-suite vectors Search and Discovery still require beyond the in-repo request shapes.

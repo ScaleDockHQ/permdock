@@ -15,6 +15,7 @@ export default defineConfig({
     'src/eve/index.ts',
     'src/openai/index.ts',
     'src/mcp/index.ts',
+    'src/authzen/index.ts',
   ],
   platform: 'neutral',
   dts: true,
