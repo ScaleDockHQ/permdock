@@ -12,6 +12,7 @@ export default defineConfig({
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',
+    'src/openai/index.ts',
   ],
   platform: 'neutral',
   dts: true,

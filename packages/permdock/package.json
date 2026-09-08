@@ -48,6 +48,10 @@
     "./eve": {
       "types": "./dist/eve/index.d.ts",
       "default": "./dist/eve/index.js"
+    },
+    "./openai": {
+      "types": "./dist/openai/index.d.ts",
+      "default": "./dist/openai/index.js"
     }
   },
   "scripts": {
@@ -81,6 +85,7 @@
   },
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
+    "@openai/agents": "catalog:",
     "ai": "catalog:",
     "eve": "catalog:",
     "hono": "catalog:",
@@ -90,6 +95,9 @@
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
+    "@openai/agents": {
       "optional": true
     },
     "ai": {

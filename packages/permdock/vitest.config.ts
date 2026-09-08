@@ -24,6 +24,7 @@ export default defineConfig({
         'src/ai-sdk/**',
         'src/claude-agent/**',
         'src/eve/**',
+        'src/openai/**',
         'src/agent/**',
         'src/core/from-snapshot.ts',
       ],

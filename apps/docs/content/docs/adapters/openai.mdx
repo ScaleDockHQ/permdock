@@ -3,7 +3,7 @@ title: OpenAI Agents SDK
 description: permdock/openai turns PermDock decisions into OpenAI Agents SDK needsApproval predicates, guards tool lists per caller, resolves interruptions against a pluggable ApprovalStore, and binds the replay-safe token to the serialised RunState.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 `permdock/openai` connects the [Decision](/docs/concepts/decisions) model to the [OpenAI Agents SDK](https://openai.github.io/openai-agents-js/) for JavaScript. The SDK pauses a run when a tool needs approval, returns `interruptions`, and resumes from the same `RunState` after `state.approve()` or `state.reject()`. What it does not do is decide *whether* a call needs approval from anything richer than a boolean, nor record who approved, nor guarantee that the approved call is the one that runs. The adapter supplies the predicate from the typed policy, the record through an [ApprovalStore](/docs/adapters/approvals), and the binding through the token.
