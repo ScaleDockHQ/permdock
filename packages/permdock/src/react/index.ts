@@ -1,3 +1,5 @@
+'use client';
+
 export { describe } from '../core/describe.ts';
 export { approvalHeaders } from './headers.ts';
 export {

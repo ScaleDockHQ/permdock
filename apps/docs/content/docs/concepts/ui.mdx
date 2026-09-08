@@ -3,7 +3,7 @@ title: Building UI with PermDock
 description: Hidden versus disabled, menus, filtered lists, tenant switchers, role chips, request-access buttons, impersonation banners, view-as previews and role editors, built from the snapshot-backed client instance with usePermission, usePermissions, useFilter, useTenant, useMemberships, useRoles, useAssignableRoles, useApproval, useSubject and describe(decision); the same names in React, React Native, Vue, Svelte and Solid.
 ---
 
-Status: shipped for React ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships))
+Status: shipped for React and Next.js ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships))
 Phase: 1 (React, React Native), 4 (Vue, Svelte, Solid)
 
 The UI half of PermDock has one job: render what the current subject may do, in the active tenant, without a round trip per element and without a second copy of the policy. Everything on this page is built on the snapshot-backed client instance ([snapshots](/docs/concepts/snapshots)): a `PermDock` with the same `can` and `decide` as the server, evaluated against the same portable conditions, plus the tenancy introspection from [tenancy](/docs/concepts/tenancy). Client answers are hints; the server adapter that performs a mutation checks again ([threat model](/docs/security/threat-model)).

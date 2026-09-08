@@ -24,6 +24,10 @@
     "./react": {
       "types": "./dist/react/index.d.ts",
       "default": "./dist/react/index.js"
+    },
+    "./next": {
+      "types": "./dist/next/index.d.ts",
+      "default": "./dist/next/index.js"
     }
   },
   "scripts": {
@@ -44,6 +48,7 @@
     "@vitest/coverage-v8": "catalog:",
     "arktype": "catalog:",
     "jose": "catalog:",
+    "next": "catalog:",
     "publint": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -55,10 +60,14 @@
   },
   "peerDependencies": {
     "jose": "catalog:",
+    "next": "catalog:",
     "react": "catalog:"
   },
   "peerDependenciesMeta": {
     "jose": {
+      "optional": true
+    },
+    "next": {
       "optional": true
     },
     "react": {

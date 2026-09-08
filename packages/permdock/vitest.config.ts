@@ -18,6 +18,7 @@ export default defineConfig({
         'src/fixtures/**',
         'src/jwt/**',
         'src/react/**',
+        'src/next/**',
         'src/core/from-snapshot.ts',
       ],
       thresholds: {
