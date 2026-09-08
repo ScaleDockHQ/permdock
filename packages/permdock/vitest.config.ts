@@ -22,6 +22,7 @@ export default defineConfig({
         'src/server/**',
         'src/hono/**',
         'src/ai-sdk/**',
+        'src/claude-agent/**',
         'src/agent/**',
         'src/core/from-snapshot.ts',
       ],

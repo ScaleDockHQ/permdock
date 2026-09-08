@@ -40,6 +40,10 @@
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
+    },
+    "./claude-agent": {
+      "types": "./dist/claude-agent/index.d.ts",
+      "default": "./dist/claude-agent/index.js"
     }
   },
   "scripts": {
@@ -72,6 +76,7 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "ai": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
@@ -79,6 +84,9 @@
     "react": "catalog:"
   },
   "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
     "ai": {
       "optional": true
     },

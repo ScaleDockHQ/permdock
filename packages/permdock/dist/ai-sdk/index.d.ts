@@ -1,13 +1,7 @@
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-CnUn1fRe.js";
 import { s as ApprovalStore } from "../types-DzwcM0QE.js";
 import { T as Permission, p as Policy } from "../decision-B2jL7xrt.js";
-//#region src/agent/types.d.ts
-type ToolBinding = {
-  readonly permission: Permission;
-  readonly data?: (args: unknown) => unknown;
-};
-type ToolMap = Readonly<Record<string, ToolBinding>>;
-//#endregion
+import { t as ToolMap } from "../types-DhFmgz_o.js";
 //#region src/ai-sdk/create.d.ts
 type AiSdkContext = {
   readonly runtimeContext?: unknown;

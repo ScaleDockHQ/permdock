@@ -3,7 +3,7 @@ title: Claude Agent SDK
 description: permdock/claude-agent answers Claude Agent SDK canUseTool callbacks and PermissionRequest hooks from PermDock decisions, mapping built-in tools such as Bash to typed permissions.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 `permdock/claude-agent` plugs PermDock into the two permission surfaces of the Claude Agent SDK: the `canUseTool` callback that runs before every tool invocation, and the `PermissionRequest` hook that fires when the SDK is about to ask a human. Both are answered from one `Decision`, so the same policy that guards an HTTP route decides whether an agent may run a shell command.

@@ -10,6 +10,7 @@ export default defineConfig({
     'src/server/index.ts',
     'src/hono/index.ts',
     'src/ai-sdk/index.ts',
+    'src/claude-agent/index.ts',
   ],
   platform: 'neutral',
   dts: true,
