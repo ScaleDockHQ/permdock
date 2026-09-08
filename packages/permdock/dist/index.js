@@ -8,7 +8,7 @@ import { n as sha256, t as bytesToBase64Url } from "./sha256-CeSpVRME.js";
 import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-DH4p69J6.js";
 import { c as resource, i as getResource, n as findPermission, o as listPermissions, r as getRegistry, s as mergePermissions, t as definePermissions } from "./permissions-WEkUHQtZ.js";
 import { t as createPermDock } from "./permdock-SsjLPGaY.js";
-import { t as memorySink } from "./sink-nMZcbDjw.js";
+import { n as signDecisionBatch, r as toCloudEvent, t as memorySink } from "./sink-CSxZb96b.js";
 //#region src/conditions/opaque.ts
 function opaque(input) {
 	return freezeDeep({
@@ -392,4 +392,4 @@ function definePolicy(permissions, options) {
 	});
 }
 //#endregion
-export { PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, allow, createPermDock, crud, definePermissions, definePolicy, deny, describe, emptySnapshot, findPermission, fromSnapshot, getResource, listPermissions, memoryRoleSource, memorySink, mergePermissions, opaque, parseSnapshot, readable, resource, role, subject, writable };
+export { PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, allow, createPermDock, crud, definePermissions, definePolicy, deny, describe, emptySnapshot, findPermission, fromSnapshot, getResource, listPermissions, memoryRoleSource, memorySink, mergePermissions, opaque, parseSnapshot, readable, resource, role, signDecisionBatch, subject, toCloudEvent, writable };

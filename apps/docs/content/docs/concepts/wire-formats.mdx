@@ -214,7 +214,7 @@ The envelope is the same for all three:
 | --- | --- | --- | --- |
 | `permdock-snapshot+jwt` | `snapshot`: a Snapshot v2 object | `permdock.snapshot({ signer, audience })`; a `SnapshotSource` (`permdock/cloud` always signs) | The client `PermDockProvider` through `joseTokenVerifier`, or any JOSE library |
 | `permdock-approval+jwt` | `approval`: `{ "token": "pd1.…", "permission", "resource": { "type", "id" }, "status" }` | `approvalsHandler({ signer })` on resolve, for a resume that crosses services | The resuming adapter, which still re-runs `decide` and recomputes the bound `token` |
-| `permdock-decisions+jwt` | `events`: an array of CloudEvents-enveloped decision and approval events | A `DecisionSink` with `signed: true` ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline |
+| `permdock-decisions+jwt` | `events`: an array of CloudEvents-enveloped decision and approval events | A `DecisionSink` with a `signer` (`memorySink({ signer })` or `signDecisionBatch`) ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline |
 
 Signed snapshot, decoded:
 

@@ -82,7 +82,7 @@ interface DecisionSink {
 }
 
 import { memorySink } from 'permdock'
-const sink = memorySink({ capacity: 10_000 })   // default; ring buffer, readable in tests and `permdock doctor`
+const sink = memorySink({ capacity: 10_000, signer })   // ring buffer; `signer` signs each write as `permdock-decisions+jwt`
 
 createPermDock(policy, { subject, sink })       // every request-scoped instance writes to it
 ```
@@ -91,7 +91,7 @@ Implementations that ship or are documented:
 
 | Sink | Where | What it does |
 | --- | --- | --- |
-| `memorySink()` | core | Ring buffer; the default; what `@permdock/testing` asserts against |
+| `memorySink({ signer })` | core | Ring buffer; the default; optional `TokenSigner` signs each `write` (`typ: permdock-decisions+jwt`); what `@permdock/testing` asserts against |
 | `permdock/otel` | optional entry | Spans and metrics from the same events (below) |
 | `permdock/cloud` | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud)) |
 | Your own | a few lines | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface |
@@ -100,7 +100,7 @@ A sink receives `decision` events and the `approval` events that the store emits
 
 **Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was *allowed* to do, so a log that drops grants cannot answer it ([ADR 0027](/docs/decisions/0027-governance-first-cloud)). Cost is controlled by retention, not by omission.
 
-**Signed batch export.** A sink that hands events to a party who must be able to prove where they came from (a SIEM in another trust domain, an auditor, a compliance tool reading an export file) can sign each batch. The batch becomes one compact JWS with `typ: permdock-decisions+jwt`, registered claims `iss`, `iat`, `exp`, `jti`, and the CloudEvents-enveloped events under the `events` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)); the consumer verifies it with any JOSE library against the signer's JWK Set. In this package it is a `TokenSigner` handed to a sink, not a new sink: `permdock/cloud`'s sink takes `signer` and its export endpoint serves signed batches, and the recipe for your own sink is `signer.sign({ events }, { typ: 'permdock-decisions+jwt' })` before `write` posts the batch. Events inside the JWS are the same objects a plain sink receives, so a consumer verifies, unwraps and applies the OCSF projection below unchanged. Signing is evidence for the reader; nothing in PermDock reads a batch back.
+**Signed batch export.** A sink that hands events to a party who must be able to prove where they came from (a SIEM in another trust domain, an auditor, a compliance tool reading an export file) can sign each batch. The batch becomes one compact JWS with `typ: permdock-decisions+jwt`, registered claims `iss`, `iat`, `exp`, `jti`, and the CloudEvents-enveloped events under the `events` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)); the consumer verifies it with any JOSE library against the signer's JWK Set. In this package it is a `TokenSigner` handed to a sink, not a new sink: `memorySink({ signer, audience })` signs each `write`, `signDecisionBatch(events, signer)` is the same helper for your own sink, and `permdock/cloud`'s export endpoint serves signed batches. The recipe is `signer.sign({ events }, { typ: 'permdock-decisions+jwt' })` before `write` posts the batch. Events inside the JWS are the same objects a plain sink receives, so a consumer verifies, unwraps and applies the OCSF projection below unchanged. Signing is evidence for the reader; nothing in PermDock reads a batch back.
 
 ### Sink recipes and the OCSF projection
 

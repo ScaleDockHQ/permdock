@@ -70,10 +70,33 @@ export declare function readable<const A extends ActionList | undefined = undefi
 export declare function writable<const A extends ActionList | undefined = undefined, const C extends ActionList | undefined = undefined>(options?: PresetOptions<A, C>): PresetResult<typeof WRITABLE_ACTIONS, typeof WRITABLE_COLLECTION, A, C>;
 //#endregion
 //#region src/core/sink.d.ts
-export declare function memorySink(options?: {
-  readonly capacity?: number;
-}): DecisionSink & {
-  readonly events: () => readonly SinkEvent[];
+type CloudEventType = "dev.permdock.decision" | "dev.permdock.approval" | "dev.permdock.directory" | "dev.permdock.catalog";
+type CloudEvent = {
+  readonly specversion: "1.0";
+  readonly type: CloudEventType;
+  readonly source: string;
+  readonly subject?: string;
+  readonly id: string;
+  readonly time: string;
+  readonly datacontenttype: "application/json";
+  readonly data: SinkEvent;
 };
+type SignDecisionBatchOptions = {
+  readonly audience?: string | readonly string[];
+  readonly source?: string;
+};
+type MemorySinkOptions = {
+  readonly capacity?: number;
+  readonly signer?: TokenSigner;
+  readonly audience?: string | readonly string[];
+  readonly source?: string;
+};
+type MemorySink = DecisionSink & {
+  readonly events: () => readonly SinkEvent[];
+  readonly batches: () => readonly string[];
+};
+export declare function toCloudEvent(event: SinkEvent, source?: string): CloudEvent;
+export declare function signDecisionBatch(events: readonly SinkEvent[], signer: TokenSigner, options?: SignDecisionBatchOptions): Promise<string>;
+export declare function memorySink(options?: MemorySinkOptions): MemorySink;
 //#endregion
-export { type ActionMeta, type Actor, type ApprovalRequiredDecision, type Assurance, type AuthEvent, type AuthorizationDetail, type Binding, type ClosureContext, type ClosureGrantFn, type Condition, type ConditionRef, type ConditionValue, type CreatePermDockOptions, type CustomRole, type DecideOptions, type Decision, type DecisionDescription, type DecisionEvent, type DecisionSink, type Delegation, type Denial, type DenialReason, type DeniedDecision, type DirectoryEvent, type GnapAccess, type Grant, type GrantCondition, type GrantOptions, type GrantedDecision, type LimitStore, type MatchedGrant, type MemberOfCondition, type Membership, type MembershipSource, type PermDock, PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, type Permission, type PermissionKind, type PermissionTree, type Policy, type Principal, type PrincipalOf, type ProblemDetails, type ResourceInit, type ResourceNode, type ResourceOptions, type ResourceParent, type Role, type RoleOptions, type RoleSource, type RowPair, type SinkEvent, type SnapshotGrant, type SnapshotSource, type SnapshotV2, type Subject, type SubjectOf, type SubjectResolver, type TokenFailureCause, type TokenSigner, type TokenVerifier, type ValidateMode, type VerificationFailure, type VerifiedToken, type WhereCompiler, type WhereResult, allow, createPermDock, definePermissions, definePolicy, deny, describe, emptySnapshot, findPermission, fromSnapshot, getResource, listPermissions, memoryRoleSource, mergePermissions, parseSnapshot, resource, role };
+export { type ActionMeta, type Actor, type ApprovalRequiredDecision, type Assurance, type AuthEvent, type AuthorizationDetail, type Binding, type ClosureContext, type ClosureGrantFn, type CloudEvent, type CloudEventType, type Condition, type ConditionRef, type ConditionValue, type CreatePermDockOptions, type CustomRole, type DecideOptions, type Decision, type DecisionDescription, type DecisionEvent, type DecisionSink, type Delegation, type Denial, type DenialReason, type DeniedDecision, type DirectoryEvent, type GnapAccess, type Grant, type GrantCondition, type GrantOptions, type GrantedDecision, type LimitStore, type MatchedGrant, type MemberOfCondition, type Membership, type MembershipSource, type MemorySink, type MemorySinkOptions, type PermDock, PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, type Permission, type PermissionKind, type PermissionTree, type Policy, type Principal, type PrincipalOf, type ProblemDetails, type ResourceInit, type ResourceNode, type ResourceOptions, type ResourceParent, type Role, type RoleOptions, type RoleSource, type RowPair, type SignDecisionBatchOptions, type SinkEvent, type SnapshotGrant, type SnapshotSource, type SnapshotV2, type Subject, type SubjectOf, type SubjectResolver, type TokenFailureCause, type TokenSigner, type TokenVerifier, type ValidateMode, type VerificationFailure, type VerifiedToken, type WhereCompiler, type WhereResult, allow, createPermDock, definePermissions, definePolicy, deny, describe, emptySnapshot, findPermission, fromSnapshot, getResource, listPermissions, memoryRoleSource, mergePermissions, parseSnapshot, resource, role };

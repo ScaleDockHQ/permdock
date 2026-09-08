@@ -1,7 +1,7 @@
 import { t as freezeDeep } from "../freeze-BF4IK5al.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as sha256 } from "../sha256-CeSpVRME.js";
-import { t as memorySink } from "../sink-nMZcbDjw.js";
+import { t as memorySink } from "../sink-CSxZb96b.js";
 //#region src/scim/auth.ts
 function hexToBytes(hex) {
 	if (hex.length % 2 !== 0) return;

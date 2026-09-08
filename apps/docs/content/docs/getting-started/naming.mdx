@@ -76,7 +76,8 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `fromSnapshot` | Build a client `PermDock` from snapshot v2 so portable grants evaluate locally | A second policy; closures stay on the server |
 | `approvalHeaders` | `{ 'PermDock-Approval': token }` for a retried mutation | Minting a token; it only wraps the one `decide` returned |
 | `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler` | The pluggable store behind `approval-required`, its in-process default, and the Fetch routes for approvers (`permdock/approvals`) | Deciding; a store never influences `decide` |
-| `DecisionSink`, `memorySink` | The pluggable destination for `on('decision')` events and its in-process default | Blocking a decision; sinks are fire-and-forget |
+| `DecisionSink`, `memorySink` | The pluggable destination for `on('decision')` events and its in-process default; `memorySink({ signer })` signs each write | Blocking a decision; sinks are fire-and-forget |
+| `signDecisionBatch` | Sign a `SinkEvent[]` as compact JWS with `typ: permdock-decisions+jwt` and CloudEvents under the `events` claim | Feeding a signed batch back into `decide`; evidence only |
 | `store`, `sink`, `snapshots` | The three options every adapter's `createPermDock` accepts for an `ApprovalStore`, a `DecisionSink` and a `SnapshotSource` | Anything else; `store` is never a database handle |
 | `memberships`, `customRoles`, `tenant` | The three tenancy options every adapter's `createPermDock` accepts: a `MembershipSource`, a `RoleSource`, and how the active tenant is resolved from the request | Reading a tenant from an unsigned header or a model argument |
 | `cloud` | `cloud({ url, key })` from `permdock/cloud`, returning `approvals`, `sink` and `snapshots` for PermDock Cloud | A factory for a `PermDock`; there is no `decide` on it |

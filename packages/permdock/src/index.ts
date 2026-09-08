@@ -86,7 +86,14 @@ export type {
   SubjectOf,
   ValidateMode,
 } from './core/policy.ts';
-export { memorySink } from './core/sink.ts';
+export { memorySink, signDecisionBatch, toCloudEvent } from './core/sink.ts';
+export type {
+  CloudEvent,
+  CloudEventType,
+  MemorySink,
+  MemorySinkOptions,
+  SignDecisionBatchOptions,
+} from './core/sink.ts';
 export type {
   Actor,
   Assurance,
