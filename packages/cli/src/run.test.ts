@@ -40,11 +40,32 @@ describe('run', () => {
     expect(result.stderr).toContain("unknown command 'nope'");
   });
 
-  it('returns exit 2 for openapi and rls in this phase', async () => {
-    const openapi = await run(['openapi']);
+  it('returns exit 2 for rls in this phase', async () => {
     const rls = await run(['rls']);
-    expect(openapi.code).toBe(2);
     expect(rls.code).toBe(2);
+  });
+
+  it('emits security onto an OpenAPI document', async () => {
+    const cwd = appCopy();
+    const result = await run(
+      ['openapi', 'emit', '--doc', 'openapi.json', '--out', 'openapi.out.json'],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('wrote');
+    const check = await run(
+      [
+        'openapi',
+        'emit',
+        '--doc',
+        'openapi.json',
+        '--out',
+        'openapi.out.json',
+        '--check',
+      ],
+      { cwd },
+    );
+    expect(check.code).toBe(0);
   });
 
   it('prints help with --help', async () => {

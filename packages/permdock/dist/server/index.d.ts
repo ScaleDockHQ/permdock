@@ -1,8 +1,8 @@
-import { N as Subject } from "../interfaces-CnUn1fRe.js";
-import { v as Permission } from "../policy-d3iw76Re.js";
-import { n as Decision } from "../decision-koSOp9O_.js";
-import { a as createPermDock, i as ServerPermDockOptions, n as OpenApiHooks, o as createEvaluationsHandler, r as ServerPermDock, t as Guard } from "../create-BRHOxevc.js";
-import { i as ProblemDetails, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-BrBfS4h9.js";
+import { g as Subject } from "../ast-BtUySn6K.js";
+import { v as Permission } from "../policy-Dvre0Da9.js";
+import { n as Decision } from "../decision-BvyrBh2L.js";
+import { a as createPermDock, i as ServerPermDockOptions, n as OpenApiHooks, o as createEvaluationsHandler, r as ServerPermDock, t as Guard } from "../create-KZgWsU_G.js";
+import { i as ProblemDetails, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-C7-s12vy.js";
 //#region src/server/problem.d.ts
 export declare const PROBLEM_BASE = "https://permdock.dev/problems";
 export declare function wwwAuthenticate(decision: Decision, permission: Permission | undefined): string | undefined;

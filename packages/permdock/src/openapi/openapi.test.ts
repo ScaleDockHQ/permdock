@@ -1,0 +1,129 @@
+import { describe, expect, it } from 'vitest';
+
+import { permissions, policy } from '../fixtures/quick-start.ts';
+import { createPermDock, DRAFT_PINS, GNAP_RESERVED } from './index.ts';
+
+describe('permdock/openapi', () => {
+  it('emits oauth2 scopes from the catalog', () => {
+    const {
+      securitySchemes,
+      security,
+      describe: describeOp,
+    } = createPermDock(policy, {
+      scheme: {
+        name: 'oauth',
+        type: 'oauth2',
+        oauth2MetadataUrl:
+          'https://auth.example/.well-known/oauth-authorization-server',
+        flows: { authorizationCode: {} },
+      },
+    });
+    const schemes = securitySchemes();
+    const oauth = schemes.oauth as {
+      readonly type: string;
+      readonly flows: {
+        readonly authorizationCode: {
+          readonly scopes: Readonly<Record<string, string>>;
+        };
+      };
+    };
+    expect(oauth.type).toBe('oauth2');
+    expect(oauth.flows.authorizationCode.scopes['post:update']).toBe(
+      'post.update',
+    );
+    expect(security(permissions.post.delete)).toEqual([
+      { oauth: ['post:delete'] },
+    ]);
+    expect(
+      describeOp(permissions.post.delete)['x-permdock-permissions'],
+    ).toEqual(['post.delete']);
+    expect(describeOp(permissions.post.delete)['x-permdock-approval']).toBe(
+      'human',
+    );
+  });
+
+  it('throws for the reserved gnap scheme kind', () => {
+    expect(() =>
+      createPermDock(policy, {
+        scheme: { name: 'gnap', type: 'gnap' },
+      }).securitySchemes(),
+    ).toThrow(GNAP_RESERVED);
+  });
+
+  it('moves 3.2-only fields to extensions on target 3.1', () => {
+    const { securitySchemes } = createPermDock(policy, {
+      target: '3.1',
+      scheme: {
+        name: 'oauth',
+        type: 'oauth2',
+        oauth2MetadataUrl: 'https://auth.example/.well-known',
+        flows: {
+          authorizationCode: {},
+          deviceAuthorization: { deviceAuthorizationUrl: 'https://dev' },
+        },
+      },
+    });
+    const oauth = securitySchemes().oauth as Record<string, unknown>;
+    expect(oauth.oauth2MetadataUrl).toBeUndefined();
+    expect(oauth['x-permdock-oauth2MetadataUrl']).toBe(
+      'https://auth.example/.well-known',
+    );
+    expect(oauth['x-oai-deviceAuthorization']).toBeTruthy();
+  });
+
+  it('emits a pinned 3.3 profile scheme next to the twin extension', () => {
+    const { securitySchemes, securityProfileRequirements, catalog } =
+      createPermDock(policy, {
+        target: '3.3',
+        securityProfile: 'fapi2',
+        scheme: {
+          name: 'oauth',
+          type: 'oauth2',
+          oauth2MetadataUrl: 'https://auth.example/.well-known',
+          flows: { authorizationCode: {} },
+        },
+      });
+    const schemes = securitySchemes();
+    const profile = schemes.permdockFapi2 as {
+      readonly type: string;
+      readonly profileMetadata: { readonly name: string };
+    };
+    expect(profile.type).toBe('profile');
+    expect(profile.profileMetadata.name).toBe('fapi-20-security-profile');
+    expect(securityProfileRequirements()).toBeTruthy();
+    expect(catalog().drafts).toEqual({
+      oas: DRAFT_PINS.oas,
+      securityProfiles: DRAFT_PINS.securityProfiles,
+    });
+  });
+
+  it('writes overlay 1.1 actions and overlay 1.2 reusable actions', () => {
+    const { overlay } = createPermDock(policy, {
+      scheme: {
+        name: 'oauth',
+        type: 'oauth2',
+        flows: { authorizationCode: {} },
+      },
+    });
+    const v11 = overlay({ extends: './openapi.json' });
+    expect(v11.overlay).toBe('1.1.0');
+    expect(v11.extends).toBe('./openapi.json');
+    expect(JSON.stringify(v11)).not.toContain('targetFormat');
+
+    const v12 = overlay({ extends: './openapi.json', version: '1.2' });
+    expect(v12.overlay).toBe('1.2.0');
+    const components = v12.components as {
+      readonly actions: Readonly<Record<string, unknown>>;
+    };
+    expect(components.actions['post.delete']).toBeTruthy();
+    const actions = v12.actions as readonly { readonly $ref?: string }[];
+    expect(
+      actions.some(
+        (action) =>
+          action.$ref !== undefined &&
+          action.$ref.startsWith('#/components/actions/'),
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(v12)).not.toContain('targetFormat');
+  });
+});

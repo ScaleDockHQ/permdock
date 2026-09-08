@@ -13,6 +13,7 @@ const ARRAY_FLAGS = new Set([
   'agent',
   'only',
   'doc',
+  'metadata-url',
 ]);
 
 export function parseArgs(argv: readonly string[]): ParsedArgs {

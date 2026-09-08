@@ -1,7 +1,9 @@
-import { C as parseArgs, S as flagString, _ as leavesOf, a as rel, b as flagBool, c as formatCatalogJson, d as USAGE_REPORT_SCHEMA, g as asPolicy, h as asPermissionTree, i as listSourceFiles, l as formatCatalogMarkdown, m as resolveCwd, n as scanSources, o as buildCatalog, p as loadConfig, r as defaultSrcPath, s as catalogSchemaDocument, t as runCollect, u as DOCTOR_REPORT_SCHEMA, v as loadModule, x as flagList, y as pickNamed } from "./collect-DLxRBLet.js";
+import { C as parseArgs, S as flagString, _ as leavesOf, a as rel, b as flagBool, c as formatCatalogJson, d as USAGE_REPORT_SCHEMA, g as asPolicy, h as asPermissionTree, i as listSourceFiles, l as formatCatalogMarkdown, m as resolveCwd, n as scanSources, o as buildCatalog, p as loadConfig, r as defaultSrcPath, s as catalogSchemaDocument, t as runCollect, u as DOCTOR_REPORT_SCHEMA, v as loadModule, x as flagList, y as pickNamed } from "./collect-C-3dZgTM.js";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { definePolicy, findPermission } from "permdock";
 import { createRequire } from "node:module";
+import { createPermDock } from "permdock/openapi";
 //#region src/catalog.ts
 async function runCatalog(input) {
 	if (input.format === "schema") return {
@@ -604,6 +606,146 @@ function formatDoctor(report, color) {
 	return `${lines.join("\n")}\n`;
 }
 //#endregion
+//#region src/openapi.ts
+function isRecord(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function mergeRecord(base, extra) {
+	const result = {};
+	for (const [key, value] of Object.entries(base)) result[key] = value;
+	for (const [key, value] of Object.entries(extra)) result[key] = value;
+	return result;
+}
+function stableJson(value) {
+	return `${JSON.stringify(value, null, 2)}\n`;
+}
+async function loadPolicy(cwd, config, from) {
+	const policyPath = from ?? config.policy;
+	if (policyPath !== void 0) {
+		const abs = resolve(cwd, policyPath);
+		return asPolicy(pickNamed(await loadModule(abs), ["policy"]));
+	}
+	const permissionsPath = config.permissions;
+	if (permissionsPath === void 0) throw new Error("PermDock CLI: openapi needs --from, policy or permissions in the config");
+	const tree = asPermissionTree(pickNamed(await loadModule(resolve(cwd, permissionsPath)), ["permissions"]));
+	return definePolicy(tree, {
+		roles: [],
+		subject: () => null
+	});
+}
+function applyDocument(document, policy, factory) {
+	const components = isRecord(document.components) ? document.components : {};
+	const nextSchemes = mergeRecord(isRecord(components.securitySchemes) ? components.securitySchemes : {}, factory.securitySchemes());
+	const requirements = factory.securityProfileRequirements();
+	const nextComponents = mergeRecord(components, mergeRecord({ securitySchemes: nextSchemes }, requirements === void 0 ? {} : { securityProfileRequirements: requirements }));
+	const paths = isRecord(document.paths) ? document.paths : {};
+	const nextPaths = {};
+	for (const [path, item] of Object.entries(paths)) {
+		if (!isRecord(item)) {
+			nextPaths[path] = item;
+			continue;
+		}
+		const nextItem = {};
+		for (const [method, operation] of Object.entries(item)) {
+			if (!isRecord(operation)) {
+				nextItem[method] = operation;
+				continue;
+			}
+			const keys = operation["x-permdock-permissions"];
+			if (!Array.isArray(keys)) {
+				nextItem[method] = operation;
+				continue;
+			}
+			const leaves = keys.map((key) => {
+				if (typeof key !== "string") throw new TypeError("PermDock CLI: x-permdock-permissions must be strings");
+				const leaf = findPermission(policy.permissions, key);
+				if (leaf === void 0) throw new Error(`PermDock CLI: unknown permission '${key}'`);
+				return leaf;
+			});
+			nextItem[method] = mergeRecord(operation, factory.describe(leaves));
+		}
+		nextPaths[path] = nextItem;
+	}
+	return mergeRecord(document, {
+		components: nextComponents,
+		paths: nextPaths,
+		"x-permdock-catalog": factory.catalog()
+	});
+}
+async function runOpenapi(input) {
+	const action = input.rest[0] ?? "emit";
+	if (action !== "emit" && action !== "import") return {
+		code: 2,
+		output: "openapi action must be emit or import"
+	};
+	if (input.doc === void 0) return {
+		code: 2,
+		output: "openapi --doc is required"
+	};
+	const policy = await loadPolicy(input.cwd, input.config, input.from);
+	const factory = createPermDock(policy, {
+		target: input.target,
+		...input.profile === void 0 ? {} : { securityProfile: input.profile },
+		...input.profileScheme === void 0 ? {} : { profileScheme: input.profileScheme },
+		scheme: {
+			name: input.scheme,
+			type: "oauth2",
+			...input.metadataUrl === void 0 ? {} : { oauth2MetadataUrl: input.metadataUrl },
+			flows: input.deviceFlow ? {
+				authorizationCode: {},
+				deviceAuthorization: {}
+			} : { authorizationCode: {} }
+		}
+	});
+	const docPath = resolve(input.cwd, input.doc);
+	if (action === "import") return {
+		code: 2,
+		output: "openapi import ships in a later Phase 2 slice"
+	};
+	if (!existsSync(docPath)) return {
+		code: 2,
+		output: `PermDock CLI: document not found: ${input.doc}`
+	};
+	let parsed;
+	try {
+		parsed = JSON.parse(readFileSync(docPath, "utf8"));
+	} catch {
+		return {
+			code: 2,
+			output: "PermDock CLI: --doc must be a JSON OpenAPI document"
+		};
+	}
+	if (!isRecord(parsed)) return {
+		code: 2,
+		output: "PermDock CLI: OpenAPI document must be an object"
+	};
+	const text = stableJson(input.format === "overlay" ? factory.overlay({
+		extends: input.doc,
+		version: input.overlay
+	}) : applyDocument(parsed, policy, factory));
+	const outPath = resolve(input.cwd, input.out ?? input.doc);
+	if (input.check) {
+		if (!existsSync(outPath)) return {
+			code: 1,
+			output: `openapi drift: missing ${input.out ?? input.doc}`
+		};
+		if (readFileSync(outPath, "utf8") === text) return {
+			code: 0,
+			output: "openapi up to date"
+		};
+		return {
+			code: 1,
+			output: "openapi drift"
+		};
+	}
+	mkdirSync(dirname(outPath), { recursive: true });
+	writeFileSync(outPath, text);
+	return {
+		code: 0,
+		output: `wrote ${input.out ?? input.doc}`
+	};
+}
+//#endregion
 //#region src/run.ts
 const HELP = `permdock — @permdock/cli
 
@@ -613,6 +755,7 @@ Commands:
   usage [--json] [--strict] [--ignore <glob>]
   doctor [--json] [--only <codes>] [--fix]
   skills [install|list|update] [--agent <name>]
+  openapi emit --doc <path> [--target 3.1|3.2|3.3] [--format document|overlay]
 
 Global:
   --cwd <dir>   --config <file>   --json   --no-color
@@ -733,12 +876,53 @@ async function run(argv, options) {
 				writeOut(result.output);
 				return finish(result.code, stdoutChunks, stderrChunks);
 			}
-			case "openapi":
+			case "openapi": {
+				const targetFlag = flagString(args.flags, "target") ?? "3.2";
+				if (targetFlag !== "3.1" && targetFlag !== "3.2" && targetFlag !== "3.3") {
+					writeErr("openapi --target must be 3.1, 3.2 or 3.3");
+					return finish(2, stdoutChunks, stderrChunks);
+				}
+				const formatFlag = flagString(args.flags, "format") ?? "document";
+				if (formatFlag !== "document" && formatFlag !== "overlay") {
+					writeErr("openapi --format must be document or overlay");
+					return finish(2, stdoutChunks, stderrChunks);
+				}
+				const overlayFlag = flagString(args.flags, "overlay") ?? "1.1";
+				if (overlayFlag !== "1.1" && overlayFlag !== "1.2") {
+					writeErr("openapi --overlay must be 1.1 or 1.2");
+					return finish(2, stdoutChunks, stderrChunks);
+				}
+				const profileFlag = flagString(args.flags, "profile");
+				if (profileFlag !== void 0 && profileFlag !== "fapi2") {
+					writeErr("openapi --profile must be fapi2");
+					return finish(2, stdoutChunks, stderrChunks);
+				}
+				const result = await runOpenapi({
+					cwd,
+					config,
+					rest: args.rest,
+					doc: flagString(args.flags, "doc") ?? flagList(args.flags, "doc")[0],
+					out: flagString(args.flags, "out"),
+					from: flagString(args.flags, "from"),
+					target: targetFlag,
+					format: formatFlag,
+					overlay: overlayFlag,
+					check: flagBool(args.flags, "check"),
+					profile: profileFlag,
+					profileScheme: flagString(args.flags, "profile-scheme"),
+					scheme: flagString(args.flags, "scheme") ?? "permdockOAuth",
+					metadataUrl: flagList(args.flags, "metadata-url")[0],
+					deviceFlow: flagBool(args.flags, "device-flow"),
+					io
+				});
+				writeOut(result.output);
+				return finish(result.code, stdoutChunks, stderrChunks);
+			}
 			case "rls":
-				writeErr(`'${args.command}' is not in this Phase 1 CLI. Use collect, catalog, usage, doctor or skills.`);
+				writeErr(`'${args.command}' is not in this Phase 1 CLI. Use collect, catalog, usage, doctor, skills or openapi.`);
 				return finish(2, stdoutChunks, stderrChunks);
 			default:
-				writeErr(`unknown command '${args.command}'. Use collect, catalog, usage, doctor or skills.`);
+				writeErr(`unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills or openapi.`);
 				return finish(2, stdoutChunks, stderrChunks);
 		}
 	} catch (error) {

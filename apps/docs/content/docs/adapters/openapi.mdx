@@ -3,7 +3,7 @@ title: OpenAPI
 description: permdock/openapi emits OpenAPI 3.2 security schemes, per-operation security and x-permdock-permissions from permission references, hooks into hono-openapi, @hono/zod-openapi, oRPC and trpc-to-openapi, hands an Overlay to next-openapi-gen and other producers, and imports OpenAPI documents into a catalog.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 `permdock/openapi` works in both directions. Outbound, it derives `securitySchemes`, per-operation `security` and an `x-permdock-permissions` extension from the permission references attached to routes, targeting OpenAPI 3.2 with registered `x-oai-*` fallbacks (and `x-permdock-oauth2MetadataUrl`) for 3.1 documents, either in-process through a framework's generator hook or as an [Overlay](/docs/standards/openapi-overlay) applied to a document another tool produced. Inbound, `permdock openapi import` reads an OpenAPI document and generates a `definePermissions()` file from its operations and scopes.

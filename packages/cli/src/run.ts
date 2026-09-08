@@ -5,6 +5,7 @@ import { runCatalog } from './catalog.ts';
 import { runCollect } from './collect.ts';
 import { loadConfig, resolveCwd } from './config.ts';
 import { runDoctor } from './doctor.ts';
+import { runOpenapi } from './openapi.ts';
 import { runSkills } from './skills.ts';
 import { runUsage } from './usage.ts';
 
@@ -16,6 +17,7 @@ Commands:
   usage [--json] [--strict] [--ignore <glob>]
   doctor [--json] [--only <codes>] [--fix]
   skills [install|list|update] [--agent <name>]
+  openapi emit --doc <path> [--target 3.1|3.2|3.3] [--format document|overlay]
 
 Global:
   --cwd <dir>   --config <file>   --json   --no-color
@@ -151,15 +153,60 @@ export async function run(
         writeOut(result.output);
         return finish(result.code, stdoutChunks, stderrChunks);
       }
-      case 'openapi':
+      case 'openapi': {
+        const targetFlag = flagString(args.flags, 'target') ?? '3.2';
+        if (
+          targetFlag !== '3.1' &&
+          targetFlag !== '3.2' &&
+          targetFlag !== '3.3'
+        ) {
+          writeErr('openapi --target must be 3.1, 3.2 or 3.3');
+          return finish(2, stdoutChunks, stderrChunks);
+        }
+        const formatFlag = flagString(args.flags, 'format') ?? 'document';
+        if (formatFlag !== 'document' && formatFlag !== 'overlay') {
+          writeErr('openapi --format must be document or overlay');
+          return finish(2, stdoutChunks, stderrChunks);
+        }
+        const overlayFlag = flagString(args.flags, 'overlay') ?? '1.1';
+        if (overlayFlag !== '1.1' && overlayFlag !== '1.2') {
+          writeErr('openapi --overlay must be 1.1 or 1.2');
+          return finish(2, stdoutChunks, stderrChunks);
+        }
+        const profileFlag = flagString(args.flags, 'profile');
+        if (profileFlag !== undefined && profileFlag !== 'fapi2') {
+          writeErr('openapi --profile must be fapi2');
+          return finish(2, stdoutChunks, stderrChunks);
+        }
+        const result = await runOpenapi({
+          cwd,
+          config,
+          rest: args.rest,
+          doc: flagString(args.flags, 'doc') ?? flagList(args.flags, 'doc')[0],
+          out: flagString(args.flags, 'out'),
+          from: flagString(args.flags, 'from'),
+          target: targetFlag,
+          format: formatFlag,
+          overlay: overlayFlag,
+          check: flagBool(args.flags, 'check'),
+          profile: profileFlag,
+          profileScheme: flagString(args.flags, 'profile-scheme'),
+          scheme: flagString(args.flags, 'scheme') ?? 'permdockOAuth',
+          metadataUrl: flagList(args.flags, 'metadata-url')[0],
+          deviceFlow: flagBool(args.flags, 'device-flow'),
+          io,
+        });
+        writeOut(result.output);
+        return finish(result.code, stdoutChunks, stderrChunks);
+      }
       case 'rls':
         writeErr(
-          `'${args.command}' is not in this Phase 1 CLI. Use collect, catalog, usage, doctor or skills.`,
+          `'${args.command}' is not in this Phase 1 CLI. Use collect, catalog, usage, doctor, skills or openapi.`,
         );
         return finish(2, stdoutChunks, stderrChunks);
       default:
         writeErr(
-          `unknown command '${args.command}'. Use collect, catalog, usage, doctor or skills.`,
+          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills or openapi.`,
         );
         return finish(2, stdoutChunks, stderrChunks);
     }

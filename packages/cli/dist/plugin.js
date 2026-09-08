@@ -1,2 +1,2 @@
-import { n as runPluginCollect, t as createPermDockPlugin } from "./plugin-BIaPLL2c.js";
+import { n as runPluginCollect, t as createPermDockPlugin } from "./plugin-DxEMrHcz.js";
 export { createPermDockPlugin, runPluginCollect };

@@ -1,0 +1,12 @@
+{
+  "openapi": "3.2.0",
+  "info": { "title": "mini", "version": "1" },
+  "paths": {
+    "/posts/{id}": {
+      "delete": {
+        "operationId": "deletePost",
+        "x-permdock-permissions": ["post.delete"]
+      }
+    }
+  }
+}

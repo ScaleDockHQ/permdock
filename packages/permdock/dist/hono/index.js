@@ -1,5 +1,5 @@
 import { t as compact } from "../compact-CxCColYy.js";
-import { t as createPermDock$1 } from "../create-CYy9ek7i.js";
+import { t as createPermDock$1 } from "../create-CYzzrAXg.js";
 import { Hono } from "hono";
 //#region src/hono/create.ts
 function createPermDock(policy, options) {

@@ -1,6 +1,6 @@
 "use client";
 import { t as describe } from "../describe-BnKr1Gwo.js";
-import { n as PermDockStoreContext, t as PermDockProvider } from "../provider-CbXLU0Ss.js";
+import { n as PermDockStoreContext, t as PermDockProvider } from "../provider-CT6XmCZL.js";
 import { use, useMemo, useSyncExternalStore } from "react";
 //#region src/react/headers.ts
 function approvalHeaders(token) {

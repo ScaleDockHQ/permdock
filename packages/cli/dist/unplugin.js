@@ -1,4 +1,4 @@
-import { n as runPluginCollect } from "./plugin-BIaPLL2c.js";
+import { n as runPluginCollect } from "./plugin-DxEMrHcz.js";
 import { createUnplugin } from "unplugin";
 //#region src/unplugin.ts
 function collectPlugin(options) {

@@ -3,7 +3,7 @@ title: openapi
 description: Emit security and securitySchemes into an existing OpenAPI document (or as an Overlay) from the permission catalog, or import a document into a generated definition.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 `permdock openapi` works in both directions between a permission catalog and an OpenAPI document. It targets OpenAPI 3.2 by default, can write 3.1 documents using the registered `x-oai-*` fallbacks plus `x-permdock-oauth2MetadataUrl` ([0014](/docs/decisions/0014-openapi-3-2), [0019](/docs/decisions/0019-openapi-extensions-and-overlay)), and can write experimental 3.3 documents that carry the pinned OpenAPI 3.3 Security Profile draft ([0025](/docs/decisions/0025-draft-protocol-posture)). The runtime hooks that attach `security` while a framework generates its document live in `permdock/openapi` ([OpenAPI adapter](/docs/adapters/openapi)); the CLI is for documents that already exist as files.

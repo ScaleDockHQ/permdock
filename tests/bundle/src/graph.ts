@@ -21,6 +21,7 @@ export const ENTRIES = {
   './openai': 'openai/index.js',
   './mcp': 'mcp/index.js',
   './authzen': 'authzen/index.js',
+  './openapi': 'openapi/index.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -85,6 +86,8 @@ export function wintertcViolations(
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   return files.filter((file) =>
-    /[/\\](?:jwt|next|hono|server|approvals|mcp|authzen)[/\\]/u.test(file),
+    /[/\\](?:jwt|next|hono|server|approvals|mcp|authzen|openapi)[/\\]/u.test(
+      file,
+    ),
   );
 }

@@ -1,6 +1,6 @@
-import { d as PermDockDeniedError, f as PermDockValidationError, m as deniedMessage, p as approvalMessage, u as PermDockApprovalRequiredError } from "./snapshot-BqmIo2XQ.js";
+import { d as PermDockDeniedError, f as PermDockValidationError, m as deniedMessage, p as approvalMessage, u as PermDockApprovalRequiredError } from "./snapshot-CEl3OGkJ.js";
 import { t as compact } from "./compact-CxCColYy.js";
-import { o as listPermissions, r as findPermission } from "./permdock-B0coaaS6.js";
+import { a as listPermissions, n as findPermission } from "./permissions-Ca0URXoG.js";
 import { a as resumeFromHeader, n as readApprovalHeader, r as requestApproval } from "./helpers-BHqWg20R.js";
 //#region src/server/problem.ts
 const PROBLEM_BASE = "https://permdock.dev/problems";

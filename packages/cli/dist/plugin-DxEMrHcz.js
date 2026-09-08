@@ -1,4 +1,4 @@
-import { C as parseArgs, p as loadConfig, t as runCollect } from "./collect-DLxRBLet.js";
+import { C as parseArgs, p as loadConfig, t as runCollect } from "./collect-C-3dZgTM.js";
 import { watch } from "node:fs";
 //#region src/plugin.ts
 function createPermDockPlugin(options) {

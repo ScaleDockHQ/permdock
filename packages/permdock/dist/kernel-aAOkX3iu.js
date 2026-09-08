@@ -1,7 +1,7 @@
-import { m as deniedMessage } from "./snapshot-BqmIo2XQ.js";
+import { m as deniedMessage } from "./snapshot-CEl3OGkJ.js";
 import { t as compact } from "./compact-CxCColYy.js";
 import { t as describe } from "./describe-BnKr1Gwo.js";
-import { t as createPermDock } from "./permdock-B0coaaS6.js";
+import { t as createPermDock } from "./permdock-D6_3ggIk.js";
 import { r as requestApproval, t as inspectApproval } from "./helpers-BHqWg20R.js";
 //#region src/agent/reason.ts
 function modelReason(decision, permission, subjectId) {

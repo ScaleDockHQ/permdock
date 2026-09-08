@@ -65,6 +65,10 @@
     "./authzen": {
       "types": "./dist/authzen/index.d.ts",
       "default": "./dist/authzen/index.js"
+    },
+    "./openapi": {
+      "types": "./dist/openapi/index.d.ts",
+      "default": "./dist/openapi/index.js"
     }
   },
   "scripts": {

@@ -1,6 +1,6 @@
 import { t as compact } from "../compact-CxCColYy.js";
 import { c as memoryApprovalStore, t as inspectApproval } from "../helpers-BHqWg20R.js";
-import { t as createAgentKernel } from "../kernel-BVziu7k-.js";
+import { t as createAgentKernel } from "../kernel-aAOkX3iu.js";
 //#region src/openai/create.ts
 function resumeTokenOf(context) {
 	if (typeof context.approval === "string" && context.approval !== "") return context.approval;

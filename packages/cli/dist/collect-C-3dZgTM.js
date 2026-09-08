@@ -10,7 +10,8 @@ const ARRAY_FLAGS = /* @__PURE__ */ new Set([
 	"ignore",
 	"agent",
 	"only",
-	"doc"
+	"doc",
+	"metadata-url"
 ]);
 function parseArgs(argv) {
 	const flags = {};

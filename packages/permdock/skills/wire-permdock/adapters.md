@@ -158,6 +158,19 @@ export const { handler } = createPermDock(policy, {
 
 One Fetch handler serves `POST /access/v1/evaluation`, `/evaluations`, `/search/action`, `/search/resource`, `/search/subject` and `GET /.well-known/authzen-configuration`. PEP authentication is required (`401` unless `anonymous: true`). The body `subject` is the evaluation principal when the PEP is trusted (default). Unknown actions return `decision: false` with `context.reason: 'unknown-permission'`. Omit `subjects.list` to drop search/subject from discovery.
 
+## OpenAPI — `permdock/openapi`
+
+```ts
+import { createPermDock } from 'permdock/openapi';
+
+const { describe, securitySchemes, overlay } = createPermDock(policy, {
+  scheme: { name: 'oauth', type: 'oauth2', flows: { authorizationCode: {} } },
+  target: '3.2',
+});
+```
+
+`describe(permission)` returns `security` plus `x-permdock-permissions`. `overlay({ version: '1.2' })` emits the pinned Overlay 1.2 draft. `target: '3.3'` emits the pinned Security Profile draft next to `x-permdock-securityProfile`. `scheme.type: 'gnap'` throws and emits nothing. CLI: `permdock openapi emit --doc openapi.json`.
+
 ## Planned adapters
 
 Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte, Solid, and React Native follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

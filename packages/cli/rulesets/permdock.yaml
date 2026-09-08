@@ -1,0 +1,29 @@
+# Spectral / Redocly / vacuum ruleset for PermDock OpenAPI output.
+# Compose: point your existing linter at this file. PermDock does not wrap those tools.
+rules:
+  permdock-permissions-need-security:
+    description: Operations with x-permdock-permissions must also declare security.
+    given: $.paths[*][*]
+    severity: error
+    then:
+      field: security
+      function: truthy
+    # Only meaningful when x-permdock-permissions is present; appliers should
+    # combine this with a filter in their own ruleset if they lint the whole spec.
+  permdock-no-unregistered-x-oai:
+    description: Only registered x-oai-* names may appear.
+    given: $..
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: x-oai-(?!deprecated$|deviceAuthorization$|deviceAuthorizationUrl$)
+  permdock-overlay-no-security-remove:
+    description: Overlays must not remove security metadata.
+    given: $.actions[?(@.remove == true)]
+    severity: error
+    then:
+      field: target
+      function: pattern
+      functionOptions:
+        notMatch: security
