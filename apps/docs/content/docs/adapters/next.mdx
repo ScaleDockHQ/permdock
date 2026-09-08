@@ -164,7 +164,7 @@ Three rules. The subject comes from the verified bearer token, never from the ap
 
 ## Example app
 
-`apps/examples/next`: Next.js 16.3 with Cache Components enabled, `src/permdock/server.ts`, a private-cached snapshot, admin and billing routes guarded by `Protected`, a post editor with a database-dependent `getPermission` under `Suspense`, a role-change Server Action that calls `updateTag`, next-openapi-gen with `overlay.apply` serving the applied description in Scalar, and `@next/playwright` tests using `instant()` to assert that navigating to a guarded route paints from the prefetched shell without a blocking request.
+`apps/examples/next`: `src/permissions.ts`, `src/policy.ts`, `src/permdock/server.ts` exporting `getPermDock` / `getPermission` / `PermDockProvider` / `permdockHandler`, and one page that guards `permissions.post.update`. Cache Components, Scalar, and Playwright `instant()` land with `tests/e2e`.
 
 ## Related standards
 

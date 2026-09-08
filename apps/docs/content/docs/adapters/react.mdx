@@ -93,7 +93,7 @@ During SSR the provider renders from the snapshot alone, so server and first cli
 
 ## Example app
 
-`apps/examples/react-vite`: a Vite app with a tiny Hono backend that serves the snapshot and mounts the decision endpoint from `permdock/hono`. It shows a portable ownership check answered offline, a closure grant answered through the batched endpoint, `invalidate` after a mutation, a tenant switcher built on `useTenant` with two organisations, a toolbar from `usePermissions` with `describe(decision)` tooltips, a request-access button on `useApproval`, and a Vitest browser-mode test asserting that the first render never flashes a denied state for a portable grant.
+`apps/examples/react-vite`: `src/permissions.ts`, a server-built Snapshot v2, `PermDockProvider`, and one `Protected` guard on `permissions.post.update`. A Hono snapshot endpoint, tenant switcher, and browser-mode first-paint test land with `tests/e2e`.
 
 ## Related standards
 

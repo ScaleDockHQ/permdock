@@ -96,6 +96,18 @@ export default defineConfig({
       },
     },
     {
+      files: ['apps/examples/**/*.{ts,tsx}'],
+      rules: {
+        // App-router and factory files import across src/ folders.
+        'import/no-relative-parent-imports': 'off',
+        // Vite / Next client entries boot with top-level await.
+        'node/no-top-level-await': 'off',
+        // Adapter factories take Policy (TUser = unknown); typed policies need a cast.
+        'typescript/no-unsafe-type-assertion': 'off',
+        'typescript/no-unsafe-return': 'off',
+      },
+    },
+    {
       files: ['apps/**/*.{ts,tsx,mts,cts}'],
       rules: {
         // Next.js Server Components, route handlers and `next.config` redirects.

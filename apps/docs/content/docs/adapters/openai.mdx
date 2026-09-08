@@ -97,7 +97,7 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 
 ## Example app
 
-`apps/examples/openai-agent`: an agent over `post` tools with a member and an admin, a file-backed `RunState` between two processes, `approvalsHandler` for the approver, and tests asserting that a removed tool is never offered, a denied tool is auto-rejected with alternatives, an approval from the actor is refused, and a resumed call whose arguments changed is rejected on token mismatch.
+`apps/examples/openai-agent`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/openai`, and one `needsApproval` guard on `delete_post`. File-backed `RunState`, `approvalsHandler`, and replay tests land with `tests/e2e`.
 
 ## Related standards
 

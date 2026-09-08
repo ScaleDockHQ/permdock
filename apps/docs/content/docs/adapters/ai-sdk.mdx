@@ -76,7 +76,7 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 
 ## Example app
 
-`apps/examples/ai-sdk-agent`: a `ToolLoopAgent` over `post` tools with two users (member, admin), a `WorkflowAgent` variant that suspends on `delete_post`, and tests asserting that a removed tool is never offered, a denied tool returns alternatives, and a tampered approval replay is refused.
+`apps/examples/ai-sdk-agent`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/ai-sdk`, and one `toolApproval` guard on `delete_post`. `ToolLoopAgent`, `WorkflowAgent`, and replay tests land with `tests/e2e`.
 
 ## Related standards
 

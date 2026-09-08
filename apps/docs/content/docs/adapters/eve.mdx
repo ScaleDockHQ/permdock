@@ -93,7 +93,7 @@ The `subject` and `actor` options override these defaults when an application en
 
 ## Example app
 
-`apps/examples/eve-agent`: an Eve app with `post` and `charge` tools, a member and an admin, Slack and web channels, `approvalsHandler` mounted for an inbox page, and tests asserting that a cross-tenant refund is denied with a reason, a large refund parks the session and resumes only after an approver who is not the actor approves, and a tampered resume is refused. This example is also the deploy template for the PermDock Cloud listing on the Vercel Marketplace: swapping `memoryApprovalStore()` for `cloud().approvals` is the only change ([Cloud adapter](/docs/adapters/cloud)).
+`apps/examples/eve-agent`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/eve`, and one `approval.request` guard on `delete_post`. Slack/web channels, `approvalsHandler`, and resume tests land with `tests/e2e`. This example is also the deploy template for the PermDock Cloud listing on the Vercel Marketplace: swapping `memoryApprovalStore()` for `cloud().approvals` is the only change ([Cloud adapter](/docs/adapters/cloud)).
 
 ## Related standards
 

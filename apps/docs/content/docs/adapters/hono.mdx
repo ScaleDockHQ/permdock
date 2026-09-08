@@ -83,7 +83,7 @@ const route = createRoute({
 
 ## Example app
 
-`apps/examples/hono`: a posts API with an auth middleware stub, `permdock()` and `protect` on CRUD routes, `hono-openapi` documentation with emitted `securitySchemes`, the decision endpoint mounted at `/api/permdock` for the React, Vue, Solid and Expo examples, and Vitest tests using `app.request()` asserting the exact Problem Details bodies for deny, approval-required and validation failure.
+`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, and `protect` on `PATCH /posts/:id`. OpenAPI hooks, the decision endpoint, and Problem Details tests land with `tests/e2e`.
 
 ## Related standards
 

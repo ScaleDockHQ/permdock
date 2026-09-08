@@ -327,6 +327,148 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  apps/examples/ai-sdk-agent:
+    dependencies:
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  apps/examples/claude-agent:
+    dependencies:
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  apps/examples/eve-agent:
+    dependencies:
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  apps/examples/hono:
+    dependencies:
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.7
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  apps/examples/next:
+    dependencies:
+      next:
+        specifier: 'catalog:'
+        version: 16.3.4(@types/node@24.13.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.8(react@19.2.8)
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.7(@types/react@19.2.18)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  apps/examples/openai-agent:
+    dependencies:
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  apps/examples/react-vite:
+    dependencies:
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.8(react@19.2.8)
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.7(@types/react@19.2.18)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   packages/ox-config:
     dependencies:
       oxfmt:
@@ -5461,12 +5603,10 @@ snapshots:
       jose: 6.2.12
       pkce-challenge: 5.0.1
       zod: 4.5.4
-    optional: true
 
   '@modelcontextprotocol/core@2.0.0':
     dependencies:
       zod: 4.5.4
-    optional: true
 
   '@modelcontextprotocol/sdk@1.30.0(supports-color@7.2.0)(zod@4.5.4)':
     dependencies:
@@ -7378,8 +7518,7 @@ snapshots:
 
   is-promise@4.0.0: {}
 
-  isexe@2.0.0:
-    optional: true
+  isexe@2.0.0: {}
 
   jiti@2.6.1: {}
 
@@ -8248,8 +8387,7 @@ snapshots:
 
   parseurl@1.3.3: {}
 
-  path-key@3.1.1:
-    optional: true
+  path-key@3.1.1: {}
 
   path-to-regexp@8.4.2: {}
 
@@ -8577,10 +8715,8 @@ snapshots:
   shebang-command@2.0.0:
     dependencies:
       shebang-regex: 3.0.0
-    optional: true
 
-  shebang-regex@3.0.0:
-    optional: true
+  shebang-regex@3.0.0: {}
 
   shell-quote@1.10.0: {}
 
@@ -8951,7 +9087,6 @@ snapshots:
   which@2.0.2:
     dependencies:
       isexe: 2.0.0
-    optional: true
 
   why-is-node-running@2.3.0:
     dependencies:

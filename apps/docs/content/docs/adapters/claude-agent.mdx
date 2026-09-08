@@ -74,7 +74,7 @@ query({
 
 ## Example app
 
-`apps/examples/claude-agent`: a CLI host that runs `query` with `Bash`, `Read`, `Write` and one MCP tool, two users (a reader whose `Bash` is denied, a maintainer whose `Bash` requires approval for `rm` commands), and tests that a tampered approval answer is refused and every decision is logged.
+`apps/examples/claude-agent`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/claude-agent`, and one `canUseTool` guard on `delete_post`. Hosted `query` with Bash/Read/Write and replay tests land with `tests/e2e`.
 
 ## Related standards
 
