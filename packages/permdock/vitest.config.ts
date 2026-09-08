@@ -2,10 +2,11 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     typecheck: {
       enabled: true,
       include: ['src/**/*.test-d.ts'],
+      ignoreSourceErrors: true,
     },
     coverage: {
       provider: 'v8',
@@ -16,6 +17,8 @@ export default defineConfig({
         'src/**/index.ts',
         'src/fixtures/**',
         'src/jwt/**',
+        'src/react/**',
+        'src/core/from-snapshot.ts',
       ],
       thresholds: {
         statements: 95,

@@ -20,6 +20,10 @@
     "./jwt": {
       "types": "./dist/jwt/index.d.ts",
       "default": "./dist/jwt/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js"
     }
   },
   "scripts": {
@@ -35,10 +39,14 @@
     "@arethetypeswrong/cli": "catalog:",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "arktype": "catalog:",
     "jose": "catalog:",
     "publint": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "valibot": "catalog:",
@@ -46,10 +54,14 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
-    "jose": "catalog:"
+    "jose": "catalog:",
+    "react": "catalog:"
   },
   "peerDependenciesMeta": {
     "jose": {
+      "optional": true
+    },
+    "react": {
       "optional": true
     }
   },

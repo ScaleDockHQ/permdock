@@ -32,24 +32,6 @@ function readPath(root, path) {
 	return current;
 }
 //#endregion
-//#region src/core/subject.ts
-function isPrincipal(value) {
-	if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
-	if ("principal" in value && "context" in value) return false;
-	const record = value;
-	if (typeof record.id !== "string") return false;
-	return Array.isArray(record.roles) || Array.isArray(record.memberships) || record.kind === "user" || record.kind === "service" || record.kind === "workload" || typeof record.issuer === "string";
-}
-function isSubject(value) {
-	return value !== null && typeof value === "object" && "principal" in value && "context" in value && typeof value.context === "object";
-}
-function anonymousSubject(context = {}) {
-	return Object.freeze({
-		principal: null,
-		context: Object.freeze({ ...context })
-	});
-}
-//#endregion
 //#region src/core/sha256.ts
 const K = [
 	1116352408,
@@ -199,4 +181,4 @@ function bytesToBase64Url(bytes) {
 	return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 //#endregion
-export { isSubject as a, ownGet as c, splitPath as d, isPrincipal as i, ownKeys as l, sha256 as n, assertSafeKey as o, anonymousSubject as r, isForbiddenKey as s, bytesToBase64Url as t, readPath as u };
+export { ownGet as a, splitPath as c, isForbiddenKey as i, sha256 as n, ownKeys as o, assertSafeKey as r, readPath as s, bytesToBase64Url as t };

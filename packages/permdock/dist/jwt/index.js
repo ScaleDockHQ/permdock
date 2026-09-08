@@ -1,5 +1,6 @@
-import { d as splitPath, n as sha256, r as anonymousSubject, s as isForbiddenKey, t as bytesToBase64Url, u as readPath } from "../sha256-Yxpg3fJB.js";
+import { c as splitPath, i as isForbiddenKey, n as sha256, s as readPath, t as bytesToBase64Url } from "../sha256-bH0-k349.js";
 import { n as freezeDeep, t as compact } from "../compact-CxCColYy.js";
+import { t as anonymousSubject } from "../subject-Dz8DcVLC.js";
 //#region src/jwt/header.ts
 function compactParts(token) {
 	return token.split(".");

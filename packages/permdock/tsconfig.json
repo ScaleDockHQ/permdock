@@ -2,8 +2,14 @@
   "extends": "@permdock/typescript-config/library.json",
   "compilerOptions": {
     "rootDir": "src",
+    "jsx": "react-jsx",
     "types": ["node"]
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test-d.ts", "src/fixtures/**"]
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.test-d.ts",
+    "src/fixtures/**"
+  ]
 }

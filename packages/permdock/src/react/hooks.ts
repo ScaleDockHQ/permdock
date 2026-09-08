@@ -1,0 +1,163 @@
+import { use, useMemo, useSyncExternalStore } from 'react';
+
+import type { Decision } from '../core/decision.ts';
+import type { Permission } from '../core/permissions.ts';
+import type { Membership } from '../core/subject.ts';
+import type { ClientStore } from './store.ts';
+import type {
+  ApprovalHandle,
+  ApprovalState,
+  ClientPermDock,
+  FilterResult,
+  PermissionSet,
+  PermissionState,
+  SubjectView,
+  TenantView,
+  UseRolesOptions,
+} from './types.ts';
+
+import { PermDockStoreContext } from './context.ts';
+
+function useStore(): ClientStore {
+  const store = use(PermDockStoreContext);
+  if (store === null) {
+    throw new Error('PermDock: hooks require <PermDockProvider>.');
+  }
+  return store;
+}
+
+export function usePermDock(): ClientPermDock {
+  const store = useStore();
+  return useSyncExternalStore(
+    (listener) => store.subscribe(listener),
+    () => store.get(),
+    () => store.get(),
+  );
+}
+
+export function usePermission(
+  permission: Permission,
+  data?: unknown,
+): PermissionState {
+  const store = useStore();
+  const dock = useSyncExternalStore(
+    (listener) => store.subscribe(listener),
+    () => store.get(),
+    () => store.get(),
+  );
+  return useMemo(
+    () => store.permissionState(permission, data),
+    [store, dock, permission, data],
+  );
+}
+
+export function usePermissions(
+  permissions: readonly Permission[],
+  data?: unknown,
+): PermissionSet {
+  const store = useStore();
+  const dock = useSyncExternalStore(
+    (listener) => store.subscribe(listener),
+    () => store.get(),
+    () => store.get(),
+  );
+  return useMemo(() => {
+    const granted: Permission[] = [];
+    const byKey: Record<string, PermissionState> = {};
+    for (const permission of permissions) {
+      const state = store.permissionState(permission, data);
+      byKey[permission.key] = state;
+      if (state.allowed) {
+        granted.push(permission);
+      }
+    }
+    const base: PermissionSet = {
+      granted,
+      get(permission: Permission): PermissionState | undefined {
+        return byKey[permission.key];
+      },
+    };
+    return new Proxy(base, {
+      get(target, prop, receiver): unknown {
+        if (typeof prop === 'string' && Object.hasOwn(byKey, prop)) {
+          return byKey[prop];
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+  }, [store, dock, permissions, data]);
+}
+
+export function useFilter<T>(
+  permission: Permission<string, T, 'instance'>,
+  rows: readonly T[],
+): FilterResult<T> {
+  const dock = usePermDock();
+  return useMemo(() => {
+    const filtered = dock.filter(permission, rows);
+    const result = [...filtered] as T[] & { partial: boolean };
+    result.partial = dock.where(permission).partial;
+    return result;
+  }, [dock, permission, rows]);
+}
+
+export function useTenant(): TenantView {
+  const dock = usePermDock();
+  return {
+    tenant: dock.subject.principal?.tenant ?? null,
+    tenants: dock.tenants(),
+    switchTo: (id: string) => dock.refresh({ tenant: id }),
+    status: dock.status(),
+  };
+}
+
+export function useMemberships(): readonly Membership[] {
+  return usePermDock().memberships();
+}
+
+export function useRoles(options: UseRolesOptions = {}): {
+  readonly roles: readonly string[];
+} {
+  const dock = usePermDock();
+  const scoped = options.team === undefined ? dock : dock.team(options.team);
+  return {
+    roles: scoped.roles(
+      options.tenant === undefined ? undefined : { tenant: options.tenant },
+    ),
+  };
+}
+
+export function useAssignableRoles(): readonly string[] {
+  return usePermDock().assignable();
+}
+
+export function useSubject(): SubjectView {
+  const dock = usePermDock();
+  const snapshot = dock.snapshot();
+  const simulated =
+    typeof snapshot === 'object' &&
+    snapshot !== null &&
+    'simulated' in snapshot &&
+    snapshot.simulated === true;
+  return {
+    principal: dock.subject.principal,
+    actor: dock.subject.actor,
+    delegation: dock.subject.delegation,
+    expiresAt: dock.subject.expiresAt,
+    simulated,
+  };
+}
+
+export function useApproval(decision: Decision): ApprovalHandle {
+  const store = useStore();
+  let state: ApprovalState = 'not-needed';
+  if (decision.outcome === 'approval-required') {
+    state = 'required';
+  }
+  return {
+    state,
+    token:
+      decision.outcome === 'approval-required' ? decision.token : undefined,
+    request: (note?: string) => store.requestApproval(decision, note),
+  };
+}

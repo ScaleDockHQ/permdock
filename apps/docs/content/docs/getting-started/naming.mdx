@@ -73,6 +73,8 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `<provider>RoleSource` | A provider's `RoleSource` implementation (`betterAuthRoleSource`) | A subject mapper |
 | `describe` | `describe(decision)` returning `{ kind, title, detail, alternatives }` for tooltips and Problem Details | Logging; it is pure |
 | `parseSnapshot` | Read snapshot v2 JSON; rejects unknown majors and forbidden keys (`__proto__`, `constructor`, `prototype`) | Evaluating; it is a reader, not `createPermDock` |
+| `fromSnapshot` | Build a client `PermDock` from snapshot v2 so portable grants evaluate locally | A second policy; closures stay on the server |
+| `approvalHeaders` | `{ 'PermDock-Approval': token }` for a retried mutation | Minting a token; it only wraps the one `decide` returned |
 | `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler` | The pluggable store behind `approval-required`, its in-process default, and the Fetch routes for approvers (`permdock/approvals`) | Deciding; a store never influences `decide` |
 | `DecisionSink`, `memorySink` | The pluggable destination for `on('decision')` events and its in-process default | Blocking a decision; sinks are fire-and-forget |
 | `store`, `sink`, `snapshots` | The three options every adapter's `createPermDock` accepts for an `ApprovalStore`, a `DecisionSink` and a `SnapshotSource` | Anything else; `store` is never a database handle |

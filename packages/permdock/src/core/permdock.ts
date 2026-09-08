@@ -1408,4 +1408,5 @@ export function createPermDock(
   return instantiate(policy, subject, options, auth);
 }
 
+export { fromSnapshot } from './from-snapshot.ts';
 export { describe, parseSnapshot };
