@@ -355,6 +355,27 @@ export const { permdock, protect, filterCommands, format, exitCode } =
 
 Not `@permdock/cli`. Never accept `--user` or `--actor` as identity.
 
+## WebMCP — `permdock/webmcp`
+
+Client entry. No factory. Register snapshot-allowed tools on `document.modelContext`:
+
+```ts
+import { registerTools } from 'permdock/webmcp';
+import { usePermDock } from 'permdock/react';
+
+const permdock = usePermDock();
+const controller = new AbortController();
+registerTools(document.modelContext, permissions.post, {
+  permdock,
+  signal: controller.signal,
+  handlers: {
+    update: async (input) => api.posts.update(input),
+  },
+});
+```
+
+Never import a policy into this entry. A missing `document.modelContext` is a no-op.
+
 ## Planned adapters
 
-Remaining Phase 2 adapters (`webmcp`, `a2a`, `otel`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Remaining Phase 2 adapters (`a2a`, `otel`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

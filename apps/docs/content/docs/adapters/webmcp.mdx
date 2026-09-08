@@ -3,8 +3,9 @@ title: WebMCP
 description: permdock/webmcp registers browser-exposed WebMCP tools only for actions the current snapshot allows, with hints from action metadata and automatic unregistration when permissions change.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
+Pinned: Chrome 150 `document.modelContext` (W3C WebML CG draft)
 
 `permdock/webmcp` is the client-side twin of [permdock/mcp](/docs/adapters/mcp). A page calls `registerTools` with a permission group and the snapshot-backed `PermDock` from `usePermDock()`; the adapter registers one WebMCP tool per allowed action on `document.modelContext`, sets tool hints from action metadata, and unregisters tools whenever the snapshot changes.
 

@@ -53,6 +53,7 @@ export default defineConfig({
     'src/authzen/index.ts',
     'src/openapi/index.ts',
     'src/terminal/index.ts',
+    'src/webmcp/index.ts',
   ],
   platform: 'neutral',
   dts: true,

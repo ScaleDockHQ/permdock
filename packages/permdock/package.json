@@ -118,6 +118,10 @@
     "./terminal": {
       "types": "./dist/terminal/index.d.ts",
       "default": "./dist/terminal/index.js"
+    },
+    "./webmcp": {
+      "types": "./dist/webmcp/index.d.ts",
+      "default": "./dist/webmcp/index.js"
     }
   },
   "scripts": {

@@ -1,5 +1,5 @@
 import { t as compact } from "../compact-CxCColYy.js";
-import { a as listPermissions } from "../permissions-Ca0URXoG.js";
+import { o as listPermissions } from "../permissions-HC1OYNNj.js";
 //#region src/openapi/pins.ts
 const DRAFT_PINS = {
 	oas: "3.3-dev@2026-09-01",

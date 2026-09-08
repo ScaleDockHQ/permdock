@@ -215,4 +215,4 @@ function mergePermissions(...trees) {
 	return freezeDeep(attachRegistry(merged, registry, leaves));
 }
 //#endregion
-export { listPermissions as a, getResource as i, findPermission as n, mergePermissions as o, getRegistry as r, resource as s, definePermissions as t };
+export { isRegistryTree as a, resource as c, getResource as i, findPermission as n, listPermissions as o, getRegistry as r, mergePermissions as s, definePermissions as t };

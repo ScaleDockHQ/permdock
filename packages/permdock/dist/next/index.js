@@ -1,7 +1,7 @@
 import { t as compact } from "../compact-CxCColYy.js";
-import { t as createPermDock$1 } from "../permdock-D6_3ggIk.js";
-import { t as PermDockProvider } from "../provider-CEut1D2H.js";
-import { n as createEvaluationsHandler } from "../evaluations-DrCAt2dS.js";
+import { t as createPermDock$1 } from "../permdock-DkpVpMh3.js";
+import { t as PermDockProvider } from "../provider-iIRny3Uh.js";
+import { n as createEvaluationsHandler } from "../evaluations-DSadx8RS.js";
 import { cache } from "react";
 import { jsx } from "react/jsx-runtime";
 //#region src/next/provider.tsx

@@ -1,5 +1,5 @@
 import { t as compact } from "../compact-CxCColYy.js";
-import { t as createPermDock$1 } from "../create-CYzzrAXg.js";
+import { t as createPermDock$1 } from "../create-W1iLgnQz.js";
 import { i as toRequest, n as isServerResponse, r as sendResponse, t as fromResponse } from "../http-kYphIx9F.js";
 //#region src/node/create.ts
 function createPermDock(policy, options) {

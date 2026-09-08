@@ -95,6 +95,7 @@ Every adapter page documents the same eight sections (Purpose, API, Request life
 | AI SDK and Claude Agent SDK | `denied` with reason and alternatives | `user-approval` or `needsApproval`; the Claude hook returns an ask verdict |
 | Eve and OpenAI Agents SDK | Eve `{ type: 'denied', reason }`; OpenAI `state.reject(i, { message })` | Eve `"user-approval"` parks the session; OpenAI `needsApproval` returns `true` and the run returns `interruptions`; both resolve through the `ApprovalStore` |
 | Terminal | stderr text or `--json` Problem Details, exit `77` (`EX_NOPERM`) | Interactive TTY confirm; non-interactive exits `75` (`EX_TEMPFAIL`) with an `approval` extension |
+| WebMCP | Tool not registered, or a tool error whose text carries the Decision reason and `alternatives` | Tool result asking the agent to obtain page confirmation; `onApprovalRequired` may resolve it |
 
 Denial bodies are written for models as well as humans: `denials[].reason` is a sentence, `alternatives` lists permitted permissions on the same resource. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
 

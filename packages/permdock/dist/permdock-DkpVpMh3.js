@@ -1,6 +1,7 @@
-import { c as resolveActiveTenant, d as PermDockDeniedError, f as PermDockValidationError, h as evaluateCondition, i as decisionToken, l as tenantsOf, m as deniedMessage, o as matchScopedMembership, p as approvalMessage, r as signSnapshot, s as nowSeconds, t as buildSnapshot, u as PermDockApprovalRequiredError } from "./snapshot-CEl3OGkJ.js";
+import { c as resolveActiveTenant, i as decisionToken, l as tenantsOf, o as matchScopedMembership, r as signSnapshot, s as nowSeconds, t as buildSnapshot, u as evaluateCondition } from "./snapshot-N9NikhGh.js";
 import { n as freezeDeep, t as compact } from "./compact-CxCColYy.js";
-import { a as listPermissions, i as getResource } from "./permissions-Ca0URXoG.js";
+import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-Q-hDyBns.js";
+import { i as getResource, o as listPermissions } from "./permissions-HC1OYNNj.js";
 import { n as isPrincipal, r as isSubject, t as anonymousSubject } from "./subject-Dz8DcVLC.js";
 //#region src/core/validation.ts
 function isThenable$1(value) {

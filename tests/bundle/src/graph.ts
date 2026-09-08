@@ -34,6 +34,7 @@ export const ENTRIES = {
   './authzen': 'authzen/index.js',
   './openapi': 'openapi/index.js',
   './terminal': 'terminal/index.js',
+  './webmcp': 'webmcp/index.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -45,6 +46,7 @@ export const CLIENT_ENTRIES = [
   './vue',
   './svelte',
   './solid',
+  './webmcp',
 ] as const;
 
 const RELATIVE_IMPORT =
