@@ -306,6 +306,16 @@ base
 
 `protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`. `openapi.protect` is the same guard plus the kernel `security` fragment for `oo.spec`.
 
+## Vue — `permdock/vue`
+
+```ts
+import { permdockPlugin, Protected, usePermission } from 'permdock/vue';
+
+createApp(App).use(permdockPlugin, { snapshot, endpoint: '/api/permdock' });
+```
+
+Composables return refs (`allowed`, `status`, `decision`). Do not import `policy.ts` on the client.
+
 ## Planned adapters
 
-Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Svelte and Solid follow the same snapshot-backed client store. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

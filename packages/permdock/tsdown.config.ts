@@ -18,6 +18,7 @@ export default defineConfig({
     'src/node/index.ts',
     'src/trpc/index.ts',
     'src/orpc/index.ts',
+    'src/vue/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',

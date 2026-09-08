@@ -18,6 +18,7 @@ catalog:
   '@commitlint/config-conventional': 21.2.2
   '@commitlint/types': 21.2.0
   '@orpc/server': 1.15.0
+  vue: 3.5.42
   '@standard-schema/spec': 1.1.0
   '@trpc/server': 11.18.0
   '@tailwindcss/postcss': 4.3.3

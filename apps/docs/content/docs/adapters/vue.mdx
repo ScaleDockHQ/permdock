@@ -3,7 +3,7 @@ title: Vue
 description: permdock/vue maps the snapshot-backed provider, hook and guard from the React adapter onto a Vue plugin, composables and a component.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 ## Purpose
@@ -76,7 +76,7 @@ During SSR (Vite SSR or Nuxt) the store is created per request and hydrated on t
 
 ## Example app
 
-`apps/examples/vue`: Vite plus Vue 3 with a Hono API from `apps/examples/hono`. Shows a portable ownership check, a closure grant through the endpoint, `invalidate` after a mutation, and a Vitest component test for first-render correctness.
+`apps/examples/vue`: Vue 3 with a server-built Snapshot v2, `permdockPlugin`, and `<Protected>` on a portable ownership check. Unit tests render through `renderToString` so the first paint already shows grant or deny.
 
 ## Related standards
 

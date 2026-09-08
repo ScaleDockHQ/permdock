@@ -74,6 +74,10 @@
       "types": "./dist/orpc/index.d.ts",
       "default": "./dist/orpc/index.js"
     },
+    "./vue": {
+      "types": "./dist/vue/index.d.ts",
+      "default": "./dist/vue/index.js"
+    },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
@@ -141,6 +145,7 @@
     "typescript": "catalog:",
     "valibot": "catalog:",
     "vitest": "catalog:",
+    "vue": "catalog:",
     "zod": "catalog:"
   },
   "peerDependencies": {
@@ -161,7 +166,8 @@
     "next": "catalog:",
     "react": "catalog:",
     "reflect-metadata": "catalog:",
-    "rxjs": "catalog:"
+    "rxjs": "catalog:",
+    "vue": "catalog:"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
@@ -216,6 +222,9 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },

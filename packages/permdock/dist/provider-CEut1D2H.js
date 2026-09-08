@@ -1,5 +1,6 @@
 import { t as compact } from "./compact-CxCColYy.js";
-import { n as PermDockStoreContext, t as createClientStore } from "./store-i3_55iQ7.js";
+import { t as PermDockStoreContext } from "./context-Cr1ZrdTc.js";
+import { t as createClientStore } from "./store-C3WR1klI.js";
 import { useMemo } from "react";
 import { jsx } from "react/jsx-runtime";
 //#region src/react/provider.tsx

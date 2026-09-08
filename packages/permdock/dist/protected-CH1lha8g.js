@@ -1,10 +1,5 @@
-import { n as PermDockStoreContext } from "./store-i3_55iQ7.js";
+import { t as PermDockStoreContext } from "./context-Cr1ZrdTc.js";
 import { use, useMemo, useSyncExternalStore } from "react";
-//#region src/react/headers.ts
-function approvalHeaders(token) {
-	return { "PermDock-Approval": token };
-}
-//#endregion
 //#region src/react/hooks.ts
 function useStore() {
 	const store = use(PermDockStoreContext);
@@ -128,4 +123,4 @@ function Protected(props) {
 	return props.children;
 }
 //#endregion
-export { useMemberships as a, usePermissions as c, useTenant as d, approvalHeaders as f, useFilter as i, useRoles as l, useApproval as n, usePermDock as o, useAssignableRoles as r, usePermission as s, Protected as t, useSubject as u };
+export { useMemberships as a, usePermissions as c, useTenant as d, useFilter as i, useRoles as l, useApproval as n, usePermDock as o, useAssignableRoles as r, usePermission as s, Protected as t, useSubject as u };

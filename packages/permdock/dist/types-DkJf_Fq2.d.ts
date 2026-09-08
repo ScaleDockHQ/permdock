@@ -1,4 +1,4 @@
-import { d as Delegation, h as Principal, m as Membership, o as Actor } from "./ast-BtUySn6K.js";
+import { d as Delegation, h as Principal, o as Actor } from "./ast-BtUySn6K.js";
 import { v as Permission } from "./policy-Dvre0Da9.js";
 import { n as Decision } from "./decision-BvyrBh2L.js";
 import { m as TokenVerifier, u as SnapshotV2 } from "./interfaces-DMSVa7et.js";
@@ -79,21 +79,4 @@ type ProtectedProps = {
   }>) => ReactNode);
 };
 //#endregion
-//#region src/react/hooks.d.ts
-declare function usePermDock(): ClientPermDock;
-declare function usePermission(permission: Permission, data?: unknown): PermissionState;
-declare function usePermissions(permissions: readonly Permission[], data?: unknown): PermissionSet;
-declare function useFilter<T>(permission: Permission<string, T, "instance">, rows: readonly T[]): FilterResult<T>;
-declare function useTenant(): TenantView;
-declare function useMemberships(): readonly Membership[];
-declare function useRoles(options?: UseRolesOptions): {
-  readonly roles: readonly string[];
-};
-declare function useAssignableRoles(): readonly string[];
-declare function useSubject(): SubjectView;
-declare function useApproval(decision: Decision): ApprovalHandle;
-//#endregion
-//#region src/react/protected.d.ts
-declare function Protected(props: ProtectedProps): ReactNode;
-//#endregion
-export { approvalHeaders as C, TenantView as S, PermDockProviderProps as _, useMemberships as a, ProtectedProps as b, usePermissions as c, useTenant as d, ApprovalHandle as f, FilterResult as g, ClientStatus as h, useFilter as i, useRoles as l, ClientPermDock as m, useApproval as n, usePermDock as o, ApprovalState as p, useAssignableRoles as r, usePermission as s, Protected as t, useSubject as u, PermissionSet as v, SubjectView as x, PermissionState as y };
+export { FilterResult as a, PermissionState as c, TenantView as d, UseRolesOptions as f, ClientStatus as i, ProtectedProps as l, ApprovalState as n, PermDockProviderProps as o, approvalHeaders as p, ClientPermDock as r, PermissionSet as s, ApprovalHandle as t, SubjectView as u };

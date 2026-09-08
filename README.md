@@ -227,7 +227,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 
 | Group | Adapters |
 | --- | --- |
-| UI | `permdock/react` `react-vite` [1] · `permdock/react-native` `expo` [2] · `permdock/vue` [2] · `permdock/svelte` [2] · `permdock/solid` [2] |
+| UI | `permdock/react` `react-vite` [1] · `permdock/react-native` `expo` [2] · `permdock/vue` `vue` [2] · `permdock/svelte` [2] · `permdock/solid` [2] |
 | Full-stack | `permdock/next` `next` [1] |
 | HTTP | `permdock/server` kernel [1] · `permdock/hono` `hono` [1] · `permdock/express` [2] · `permdock/fastify` [2] · `permdock/elysia` [2] · `permdock/nest` [2] · `permdock/node` [2] |
 | Terminal | `permdock/terminal` `terminal` [2] for your own commander / citty / oclif / yargs / Ink CLI (not `@permdock/cli`) |
