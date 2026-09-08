@@ -13,7 +13,7 @@ export default defineConfig({
       exclude: [
         'src/**/*.test.ts',
         'src/**/*.test-d.ts',
-        'src/index.ts',
+        'src/**/index.ts',
         'src/fixtures/**',
       ],
       thresholds: {

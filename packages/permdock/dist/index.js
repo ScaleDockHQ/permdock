@@ -1,3 +1,4 @@
+import { n as describe, r as freezeDeep, t as compact } from "./compact-7xK8QV2z.js";
 //#region src/conditions/ast.ts
 function isConditionRef(value) {
 	return value !== null && typeof value === "object" && "ref" in value && typeof value.ref === "string";
@@ -174,23 +175,6 @@ function evaluateCondition(condition, data, subject, now = Date.now() / 1e3) {
 	}
 }
 //#endregion
-//#region src/core/freeze.ts
-function freezeDeep(value) {
-	if (value === null || typeof value !== "object") return value;
-	if (value instanceof Map || value instanceof Set) {
-		Object.freeze(value);
-		return value;
-	}
-	if (Object.isFrozen(value)) return value;
-	Object.freeze(value);
-	if (Array.isArray(value)) {
-		for (const item of value) freezeDeep(item);
-		return value;
-	}
-	for (const key of Object.getOwnPropertyNames(value)) freezeDeep(value[key]);
-	return value;
-}
-//#endregion
 //#region src/conditions/opaque.ts
 function opaque(input) {
 	return freezeDeep({
@@ -353,47 +337,6 @@ function normalizeWhere(input) {
 		op: "and",
 		conditions: parts
 	});
-}
-//#endregion
-//#region src/core/describe.ts
-const TENANT_REASONS = /* @__PURE__ */ new Set([
-	"tenant-mismatch",
-	"no-membership",
-	"expired-membership",
-	"scope"
-]);
-const DELEGATION_REASONS = /* @__PURE__ */ new Set(["not-delegated", "no-delegation"]);
-function describe(decision) {
-	if (decision.outcome === "granted") return {
-		kind: "granted",
-		title: "Granted",
-		detail: `${decision.matched.permission} granted.`,
-		alternatives: []
-	};
-	if (decision.outcome === "approval-required") return {
-		kind: "approval",
-		title: "Approval required",
-		detail: `${decision.grant.permission} requires human approval.`,
-		alternatives: []
-	};
-	const reasons = decision.denials.map((denial) => denial.reason);
-	const kind = reasons.some((reason) => TENANT_REASONS.has(reason)) ? "tenant" : reasons.some((reason) => DELEGATION_REASONS.has(reason)) ? "delegation" : reasons.includes("opaque-condition") ? "server-only" : "denied";
-	return {
-		kind,
-		title: kind === "tenant" ? "Wrong tenant" : kind === "delegation" ? "Not delegated" : kind === "server-only" ? "Server only" : "Denied",
-		detail: decision.denials.map((denial) => denial.reason).join(", "),
-		alternatives: decision.alternatives
-	};
-}
-//#endregion
-//#region src/core/compact.ts
-function compact(value) {
-	const result = {};
-	for (const key of Object.keys(value)) {
-		const next = value[key];
-		if (next !== void 0) result[key] = next;
-	}
-	return result;
 }
 //#endregion
 //#region src/core/errors.ts
@@ -720,7 +663,8 @@ function mergePermissions(...trees) {
 	const keys = /* @__PURE__ */ new Set();
 	const registry = /* @__PURE__ */ new Map();
 	for (const tree of trees) mergeNodes(merged, tree, keys, registry, isRegistryTree(tree) ? tree[TREE_REGISTRY] : void 0);
-	return freezeDeep(attachRegistry(merged, registry, collectLeaves(merged)));
+	const leaves = collectLeaves(merged);
+	return freezeDeep(attachRegistry(merged, registry, leaves));
 }
 //#endregion
 //#region src/core/tenancy.ts
@@ -845,7 +789,7 @@ function matchResourceMembership(membership, resourceName, row, resource) {
 //#region src/core/snapshot.ts
 function snapshotGrant(grant, membership) {
 	const scope = grant.scope === "global" ? void 0 : grant.scope === "tenant" || grant.scope === "team" ? grant.scope : { resource: grant.scope.resource };
-	return freezeDeep(compact({
+	const entry = compact({
 		permission: grant.permission.key,
 		effect: grant.effect,
 		role: grant.role,
@@ -855,7 +799,8 @@ function snapshotGrant(grant, membership) {
 		scope,
 		membership,
 		portable: grant.portable ? void 0 : false
-	}));
+	});
+	return freezeDeep(entry);
 }
 function buildSnapshot(input) {
 	const now = input.now ?? Math.floor(Date.now() / 1e3);
@@ -1835,15 +1780,16 @@ function finishSubject(assembled, context, memberships, options) {
 		session: assembled.session,
 		expiresAt: assembled.expiresAt
 	}));
-	return freezeDeep(compact({
-		principal: freezeDeep(compact({
+	const withMemberships = freezeDeep(compact({
+		...assembled.principal,
+		memberships,
+		tenant: resolveActiveTenant({
 			...assembled.principal,
-			memberships,
-			tenant: resolveActiveTenant({
-				...assembled.principal,
-				memberships
-			}, options.tenant ?? assembled.principal.tenant)
-		})),
+			memberships
+		}, options.tenant ?? assembled.principal.tenant)
+	}));
+	return freezeDeep(compact({
+		principal: withMemberships,
 		actor: assembled.actor,
 		delegation: assembled.delegation,
 		context: freezeDeep({ ...context }),
@@ -1880,6 +1826,76 @@ function createPermDock(policy, user, options = {}) {
 	const subject = resolveSubject(policy, user, options, auth);
 	if (isThenable(subject)) return subject.then((resolved) => instantiate(policy, resolved, options, auth));
 	return instantiate(policy, subject, options, auth);
+}
+//#endregion
+//#region src/core/presets.ts
+const CRUD_ACTIONS = {
+	read: { readOnly: true },
+	update: {},
+	delete: { tags: ["destructive"] }
+};
+const CRUD_COLLECTION = {
+	create: {},
+	list: { readOnly: true }
+};
+const READABLE_ACTIONS = { read: { readOnly: true } };
+const READABLE_COLLECTION = { list: { readOnly: true } };
+const WRITABLE_ACTIONS = {
+	read: { readOnly: true },
+	update: {}
+};
+const WRITABLE_COLLECTION = {};
+function isNameList(list) {
+	return Array.isArray(list);
+}
+function toRecord(list) {
+	if (list === void 0) return {};
+	if (isNameList(list)) {
+		const out = {};
+		for (const name of list) out[name] = {};
+		return out;
+	}
+	return { ...list };
+}
+function mergeMeta(base, extra) {
+	return compact({
+		title: extra.title ?? base.title,
+		description: extra.description ?? base.description,
+		tags: extra.tags ?? base.tags,
+		readOnly: extra.readOnly ?? base.readOnly
+	});
+}
+function mergeActionLists(base, extra) {
+	const extraRecord = toRecord(extra);
+	const out = {};
+	for (const [name, baseMeta] of Object.entries(base)) {
+		const extraMeta = extraRecord[name];
+		out[name] = extraMeta === void 0 ? baseMeta : mergeMeta(baseMeta, extraMeta);
+	}
+	for (const [name, extraMeta] of Object.entries(extraRecord)) {
+		if (Object.hasOwn(out, name)) continue;
+		out[name] = extraMeta;
+	}
+	return freezeDeep(out);
+}
+function finishPreset(baseActions, baseCollection, options) {
+	const actions = mergeActionLists(baseActions, options?.actions);
+	const collection = mergeActionLists(baseCollection, options?.collection);
+	return compact({
+		id: options?.id,
+		parent: options?.parent,
+		actions,
+		collection: Object.keys(collection).length === 0 ? void 0 : collection
+	});
+}
+function crud(options) {
+	return finishPreset(CRUD_ACTIONS, CRUD_COLLECTION, options);
+}
+function readable(options) {
+	return finishPreset(READABLE_ACTIONS, READABLE_COLLECTION, options);
+}
+function writable(options) {
+	return finishPreset(WRITABLE_ACTIONS, WRITABLE_COLLECTION, options);
 }
 //#endregion
 //#region src/core/policy.ts
@@ -1942,13 +1958,14 @@ function flattenGrants(grants) {
 function role(name, grants, options) {
 	const scope = resolveRoleScope(options?.on);
 	const assignable = options?.assignable ?? scope !== "global";
+	const normalised = flattenGrants(grants).map((grant) => freezeDeep({
+		...grant,
+		role: name,
+		scope
+	}));
 	return freezeDeep(compact({
 		name,
-		grants: flattenGrants(grants).map((grant) => freezeDeep({
-			...grant,
-			role: name,
-			scope
-		})),
+		grants: normalised,
 		on: options?.on,
 		assignable
 	}));
@@ -2032,4 +2049,4 @@ function memorySink(options = {}) {
 	};
 }
 //#endregion
-export { PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, allow, createPermDock, definePermissions, definePolicy, deny, describe, findPermission, getResource, listPermissions, memoryRoleSource, memorySink, mergePermissions, opaque, parseSnapshot, resource, role, subject };
+export { PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, allow, createPermDock, crud, definePermissions, definePolicy, deny, describe, findPermission, getResource, listPermissions, memoryRoleSource, memorySink, mergePermissions, opaque, parseSnapshot, readable, resource, role, subject, writable };

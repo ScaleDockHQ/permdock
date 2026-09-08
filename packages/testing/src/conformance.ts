@@ -8,6 +8,7 @@ import type {
   SubjectResolver,
   WhereCompiler,
 } from 'permdock';
+import type { ApprovalRequest, ApprovalStore } from 'permdock/approvals';
 
 import { expect, it } from 'vitest';
 
@@ -102,6 +103,56 @@ export function testSnapshotSource(source: SnapshotSource): void {
       const unsubscribe = source.subscribe(() => undefined);
       unsubscribe();
     }
+  });
+}
+
+function sampleApproval(token: string): ApprovalRequest {
+  return {
+    v: 1,
+    token,
+    permission: 'post.delete',
+    scope: 'post:delete',
+    resource: { type: 'post', id: '42' },
+    subject: {
+      principal: { id: 'u_1', roles: ['member'] },
+      actor: { id: 'agent-1', kind: 'eve' },
+    },
+    detail: 'post.delete requires human approval.',
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    status: 'pending',
+  };
+}
+
+const approver: Subject = {
+  principal: { id: 'u_9', roles: ['admin'] },
+  context: {},
+};
+
+export function testApprovalStore(store: ApprovalStore): void {
+  it('creates, gets, lists, resolves and expires', async () => {
+    const request = sampleApproval('opaque-token');
+    await store.create(request);
+    const loaded = await store.get('opaque-token');
+    expect(loaded).toEqual(request);
+    expect(JSON.parse(JSON.stringify(loaded))).toEqual(request);
+    const listed = await store.list({ status: 'pending' });
+    expect(listed.some((item) => item.token === 'opaque-token')).toBe(true);
+    const resolved = await store.resolve('opaque-token', {
+      status: 'approved',
+      by: approver,
+    });
+    expect(resolved.status).toBe('approved');
+    await expect(
+      Promise.resolve().then(() =>
+        store.resolve('opaque-token', { status: 'rejected', by: approver }),
+      ),
+    ).rejects.toThrow(/not pending/);
+    await store.create(sampleApproval('stale-token'));
+    const expired = await store.expire(
+      new Date(Date.now() + 2 * 60 * 60 * 1000),
+    );
+    expect(expired).toBeGreaterThanOrEqual(1);
   });
 }
 

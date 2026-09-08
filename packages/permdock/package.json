@@ -12,6 +12,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./approvals": {
+      "types": "./dist/approvals/index.d.ts",
+      "default": "./dist/approvals/index.js"
     }
   },
   "scripts": {

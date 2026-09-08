@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "token": "pd1.example",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": { "type": "post", "id": "42" },
+  "subject": {
+    "principal": { "id": "u_1", "roles": ["member"], "tenant": "o_1" },
+    "actor": { "id": "eve:app", "kind": "eve" },
+    "delegation": { "scopes": ["post:delete"] }
+  },
+  "detail": "post.delete requires human approval.",
+  "adapter": "eve",
+  "createdAt": "2026-09-08T10:00:00.000Z",
+  "expiresAt": "2026-09-08T11:00:00.000Z",
+  "status": "pending"
+}

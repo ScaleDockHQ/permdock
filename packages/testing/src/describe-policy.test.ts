@@ -8,10 +8,12 @@ import {
   subject,
 } from 'permdock';
 import { memoryRoleSource, memorySink } from 'permdock';
+import { memoryApprovalStore } from 'permdock/approvals';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import {
+  testApprovalStore,
   testDecisionSink,
   testMembershipSource,
   testRoleSource,
@@ -219,4 +221,6 @@ describe('conformance runners', () => {
   });
 
   testWhereCompiler(() => false, { target: {} });
+
+  testApprovalStore(memoryApprovalStore());
 });

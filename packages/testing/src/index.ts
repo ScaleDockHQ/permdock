@@ -7,6 +7,7 @@ export type {
 } from './describe-policy.ts';
 export { snapshotFixture } from './snapshot-fixture.ts';
 export {
+  testApprovalStore,
   testDecisionSink,
   testMembershipSource,
   testRoleSource,

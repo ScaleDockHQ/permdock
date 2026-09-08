@@ -3,7 +3,7 @@ title: Approvals
 description: permdock/approvals is the pluggable store behind every approval-required decision, an in-memory default, a Fetch handler for approvers, and the interface that self-hosted stores and PermDock Cloud implement.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 `permdock/approvals` holds the part of a human-in-the-loop flow that the agent runtimes leave to the application: the pending request, who answered it, when it expires, and how a later call proves it was approved. It ships the `ApprovalStore` interface, `memoryApprovalStore()` as the default, and `approvalsHandler` so an application can mount list, approve and reject routes for its approvers. Every agent adapter (`ai-sdk`, `eve`, `openai`, `claude-agent`, `mcp`) and the HTTP kernel accept a `store` option typed against this interface. The decision itself is unchanged: `decide` still runs in-process and never waits on a store ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)).

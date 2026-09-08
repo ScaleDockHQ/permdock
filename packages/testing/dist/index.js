@@ -123,6 +123,62 @@ function testSnapshotSource(source) {
 		if (source.subscribe !== void 0) source.subscribe(() => void 0)();
 	});
 }
+function sampleApproval(token) {
+	return {
+		v: 1,
+		token,
+		permission: "post.delete",
+		scope: "post:delete",
+		resource: {
+			type: "post",
+			id: "42"
+		},
+		subject: {
+			principal: {
+				id: "u_1",
+				roles: ["member"]
+			},
+			actor: {
+				id: "agent-1",
+				kind: "eve"
+			}
+		},
+		detail: "post.delete requires human approval.",
+		createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+		expiresAt: new Date(Date.now() + 36e5).toISOString(),
+		status: "pending"
+	};
+}
+const approver = {
+	principal: {
+		id: "u_9",
+		roles: ["admin"]
+	},
+	context: {}
+};
+function testApprovalStore(store) {
+	it("creates, gets, lists, resolves and expires", async () => {
+		const request = sampleApproval("opaque-token");
+		await store.create(request);
+		const loaded = await store.get("opaque-token");
+		expect(loaded).toEqual(request);
+		expect(JSON.parse(JSON.stringify(loaded))).toEqual(request);
+		const listed = await store.list({ status: "pending" });
+		expect(listed.some((item) => item.token === "opaque-token")).toBe(true);
+		const resolved = await store.resolve("opaque-token", {
+			status: "approved",
+			by: approver
+		});
+		expect(resolved.status).toBe("approved");
+		await expect(Promise.resolve().then(() => store.resolve("opaque-token", {
+			status: "rejected",
+			by: approver
+		}))).rejects.toThrow(/not pending/);
+		await store.create(sampleApproval("stale-token"));
+		const expired = await store.expire(new Date(Date.now() + 72e5));
+		expect(expired).toBeGreaterThanOrEqual(1);
+	});
+}
 function testWhereCompiler(compiler, options) {
 	it("fails closed on an empty allow set", () => {
 		const compiled = compiler({
@@ -133,4 +189,4 @@ function testWhereCompiler(compiler, options) {
 	});
 }
 //#endregion
-export { describePolicy, expectTypeOf, snapshotFixture, testDecisionSink, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testWhereCompiler };
+export { describePolicy, expectTypeOf, snapshotFixture, testApprovalStore, testDecisionSink, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testWhereCompiler };
