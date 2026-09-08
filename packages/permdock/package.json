@@ -57,6 +57,10 @@
     "./openai": {
       "types": "./dist/openai/index.d.ts",
       "default": "./dist/openai/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "default": "./dist/mcp/index.js"
     }
   },
   "scripts": {

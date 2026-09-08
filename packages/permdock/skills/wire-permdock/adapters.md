@@ -124,6 +124,25 @@ export const { needsApproval, guardTools, resolveInterruptions, permdock } =
 
 `needsApproval` is true unless the decision is granted. `guardTools` drops tools with no grant. `resolveInterruptions` approves or rejects each pause.
 
+## MCP — `permdock/mcp`
+
+```ts
+import { createPermDock } from 'permdock/mcp';
+
+export const { protectServer } = createPermDock(policy, {
+  subject: (authInfo) => authInfo.extra?.subject ?? null,
+});
+
+const guarded = protectServer(server);
+guarded.registerTool(
+  'delete_post',
+  { permission: permissions.post.delete, data: (args) => loadPost(args) },
+  handler,
+);
+```
+
+`actor.kind` is `'mcp-client'`. Missing scopes throw `InsufficientScopeError` (HTTP `403 insufficient_scope`). Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` returns an elicitation payload; resume only from `authInfo.extra.approval`, never from tool arguments.
+
 ## Planned adapters
 
-Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, MCP, Vue, Svelte, Solid, and React Native follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte, Solid, and React Native follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

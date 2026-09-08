@@ -1,4 +1,4 @@
-import { M as Principal, N as Subject, k as Delegation, w as Actor, y as Condition } from "./interfaces-CnUn1fRe.js";
+import { M as Principal, k as Delegation, w as Actor, y as Condition } from "./interfaces-CnUn1fRe.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/core/permissions.d.ts
 declare const RESOURCE_BRAND: unique symbol;
@@ -178,39 +178,4 @@ type SubjectOf<P> = {
   readonly expiresAt?: number;
 };
 //#endregion
-//#region src/core/decision.d.ts
-type DenialReason = "no-grant" | "condition" | "deny" | "closure-error" | "opaque-condition" | "anonymous" | "not-delegated" | "no-delegation" | "insufficient-user-authentication" | "limit" | "validation" | "tenant-mismatch" | "no-membership" | "scope" | "expired-membership" | "unknown-role" | "approval";
-type Denial = {
-  readonly role: string | null;
-  readonly reason: DenialReason;
-  readonly detail?: unknown;
-};
-type MatchedGrant = {
-  readonly role: string;
-  readonly permission: string;
-  readonly where?: Grant["where"];
-  readonly check?: Grant["check"];
-  readonly approval?: "human";
-};
-type GrantedDecision = {
-  readonly outcome: "granted";
-  readonly subject: Subject & {
-    readonly principal: NonNullable<Subject["principal"]>;
-  };
-  readonly matched: MatchedGrant;
-  readonly token: string;
-};
-type DeniedDecision = {
-  readonly outcome: "denied";
-  readonly denials: readonly Denial[];
-  readonly alternatives: readonly Permission[];
-};
-type ApprovalRequiredDecision = {
-  readonly outcome: "approval-required";
-  readonly grant: MatchedGrant;
-  readonly reason: "human";
-  readonly token: string;
-};
-type Decision = GrantedDecision | DeniedDecision | ApprovalRequiredDecision;
-//#endregion
-export { ResourceOptions as A, ActionList as C, PermissionTree as D, PermissionKind as E, listPermissions as F, mergePermissions as I, resource as L, definePermissions as M, findPermission as N, ResourceInit as O, getResource as P, role as S, Permission as T, SubjectOf as _, DeniedDecision as a, definePolicy as b, ClosureContext as c, GrantCondition as d, GrantOptions as f, RoleOptions as g, Role as h, DenialReason as i, ResourceParent as j, ResourceNode as k, ClosureGrantFn as l, PrincipalOf as m, Decision as n, GrantedDecision as o, Policy as p, Denial as r, MatchedGrant as s, ApprovalRequiredDecision as t, Grant as u, ValidateMode as v, ActionMeta as w, deny as x, allow as y };
+export { resource as A, ResourceOptions as C, getResource as D, findPermission as E, listPermissions as O, ResourceNode as S, definePermissions as T, ActionMeta as _, GrantOptions as a, PermissionTree as b, Role as c, ValidateMode as d, allow as f, ActionList as g, role as h, GrantCondition as i, mergePermissions as k, RoleOptions as l, deny as m, ClosureGrantFn as n, Policy as o, definePolicy as p, Grant as r, PrincipalOf as s, ClosureContext as t, SubjectOf as u, Permission as v, ResourceParent as w, ResourceInit as x, PermissionKind as y };

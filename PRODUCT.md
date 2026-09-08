@@ -2,7 +2,7 @@
 
 This document is the product overview: what PermDock is, who it is for, what it must do, how it is built and in what order. Detail lives in the documentation tree under [`apps/docs/content/docs`](./apps/docs/content/docs) (Fumadocs-ready MDX) and is linked from each section. When the two disagree, the docs tree wins and this file gets fixed.
 
-Version: Phase 1 in progress (September 2026). `permdock` core, `@permdock/testing`, Phase 1 adapters, skills, examples, the TS matrix, `@permdock/cli` and `tests/e2e` (Playwright smoke of the Hono example) exist. Remaining Phase 1 work is a bootable Next example so `@next/playwright` `instant()` can run. The Fumadocs app is the first Vercel Service at `/docs`. Nothing is published to npm yet.
+Version: Phase 2 in progress (September 2026). Phase 1 shipped core, adapters, skills, examples, the TS matrix, `@permdock/cli` and `tests/e2e` (Hono smoke; `instant()` waits for a bootable Next example). Phase 2 has started with `permdock/mcp`. The Fumadocs app is the first Vercel Service at `/docs`. Nothing is published to npm yet.
 
 ## 1. Vision and positioning
 

@@ -11,7 +11,7 @@ Permissions are **references** (`permissions.post.update`). Outcomes are `grante
 
 ## 1. Detect
 
-Find the framework (Next.js, Vite + React, Hono, AI SDK, Claude Agent SDK, Eve, OpenAI Agents SDK) and the Standard Schema validator already in the repo (Zod, Valibot, ArkType, Effect Schema).
+Find the framework (Next.js, Vite + React, Hono, MCP, AI SDK, Claude Agent SDK, Eve, OpenAI Agents SDK) and the Standard Schema validator already in the repo (Zod, Valibot, ArkType, Effect Schema).
 
 Done when the adapter import path (`permdock/<framework>`) and the validator import are named.
 

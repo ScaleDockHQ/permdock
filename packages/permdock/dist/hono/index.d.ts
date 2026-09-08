@@ -1,7 +1,7 @@
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-CnUn1fRe.js";
 import { s as ApprovalStore } from "../types-DzwcM0QE.js";
-import { T as Permission, p as Policy } from "../decision-B2jL7xrt.js";
-import { n as OpenApiHooks } from "../create-CIa8vkyc.js";
+import { o as Policy, v as Permission } from "../policy-d3iw76Re.js";
+import { n as OpenApiHooks } from "../create-BRHOxevc.js";
 import { Context, Hono, MiddlewareHandler } from "hono";
 //#region src/hono/create.d.ts
 type HonoPermDockOptions = {

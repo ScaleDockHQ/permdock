@@ -6,7 +6,7 @@ The product plan and every design decision live in `PRODUCT.md` and `apps/docs/c
 
 ## Status
 
-Phase 1 in progress. The docs tree, README, PRODUCT, this file, the repo tooling, config packages, the Fumadocs app, `packages/permdock` (core plus Phase 1 adapters), `packages/testing`, `packages/cli`, consumer skills, example apps, `tests/types`, `tests/bundle` and `tests/e2e` exist. Remaining Phase 1 work is a bootable Next example so `@next/playwright` `instant()` can run; Playwright already smokes the Hono example. Anything you add must match the layout below so later milestones do not have to move it.
+Phase 2 in progress. Phase 1 shipped core, adapters, skills, examples, the TS matrix, `@permdock/cli` and `tests/e2e` (Hono smoke; `instant()` waits for a bootable Next example). Phase 2 has started with `permdock/mcp`. Anything you add must match the layout below so later milestones do not have to move it.
 
 The docs app is the first [Vercel Service](https://vercel.com/docs/services): root `vercel.json` sends `/docs`, `/_next`, `/api/search`, `/llms.txt`, `/llms-full.txt`, `/llms.mdx` and `/og` to `apps/docs`. Do **not** set Next.js `basePath: '/docs'` until a second Next.js service exists. MDX already links to `/docs/...`; `basePath` plus `loader({ baseUrl: '/docs' })` double-prefixes `next/link` (`/docs/docs/...`). Until then the docs service owns `/_next` and `/api/search`. A later Hono/Python/Vite service is a rewrite **above** those rules.
 

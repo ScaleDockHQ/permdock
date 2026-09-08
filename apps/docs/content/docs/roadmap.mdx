@@ -11,7 +11,7 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 `README.md`, `PRODUCT.md`, `AGENTS.md` (with `CLAUDE.md` as a symlink), the MIT `LICENSE`, the full docs tree under `apps/docs/content/docs/`, and the Fumadocs app that serves that tree as the first Vercel Service at `/docs`. See [0017: Docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx).
 
-### Phase 1: v0.1 "core + agents" (in progress)
+### Phase 1: v0.1 "core + agents"
 
 The first milestone shipped `packages/permdock` (root entry: definitions, policy, portable conditions, two-principal subject with tenancy, `createPermDock`, snapshot v2, decision events), `packages/testing` (`@permdock/testing`), the Phase 1 adapters, consumer skills, the seven example apps, `@permdock/cli` (`collect`, `catalog`, `usage`, `doctor`, `skills`, plus collect-only Next and unplugin hooks), and `tests/e2e` (Playwright smoke of the Hono example; `@next/playwright` `instant()` waits for a bootable Next example).
 
@@ -34,9 +34,9 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - `tests/types` matrix for TypeScript 5.9, 6 and 7.
 - `tests/bundle` runtime conformance: core, `permdock/server` and every client entry load in a bare WinterTC Minimum Common API global (no Node built-ins), alongside the per-entry gzip measurements ([installation](/docs/getting-started/installation), runtimes).
 
-### Phase 2: v0.2–0.5 "surfaces"
+### Phase 2: v0.2–0.5 "surfaces" (in progress)
 
-- `permdock/mcp` (`scopeChallenge`, Enterprise-Managed Authorization, elicitation for approvals).
+- `permdock/mcp` (`scopeChallenge`, Enterprise-Managed Authorization, elicitation for approvals) — shipped.
 - `permdock/authzen` full endpoint set and a certification run.
 - `permdock/openapi` targeting 3.2 (document and [Overlay](/docs/standards/openapi-overlay) output, `x-permdock-*` extensions; the experimental `--overlay 1.2` emitting the pinned Overlay 1.2 reusable-actions draft) with the experimental `--target 3.3` emitting the pinned [OpenAPI 3.3](/docs/standards/openapi-3-3) Security Profile draft (`type: profile` scheme, `securityProfileRequirements`, `x-permdock-securityProfile` as twin, pin in `x-permdock-catalog.drafts`; [0025](/docs/decisions/0025-draft-protocol-posture)); register the `permdock` namespace in the [OpenAPI registries](/docs/standards/openapi-registry). Composed with the toolchain, not wrapping it: the Overlay is the Next.js recipe through next-openapi-gen, Hey API / Orval / Scalar read standard `security`, a Spectral / Redocly / vacuum ruleset file ships alongside ([0023](/docs/decisions/0023-compose-openapi-ecosystem), [OpenAPI ecosystem](/docs/research/openapi-ecosystem)).
 - `permdock/react-native` (Expo Router).

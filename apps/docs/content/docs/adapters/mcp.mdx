@@ -3,7 +3,7 @@ title: MCP
 description: permdock/mcp guards MCP tools with typed permissions, scope step-up challenges, per-caller tool lists, boundary-validated arguments and model-readable refusals.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 `permdock/mcp` wraps an MCP server built with the official TypeScript SDK v2 so that every tool declares the permission it needs. The adapter turns that declaration into an OAuth scope challenge, a filtered `list_tools` response, validated arguments and a structured refusal, so the model learns why a call was refused and what it may do instead.
@@ -139,7 +139,7 @@ This is a recipe, not a package: PermDock composes with the bridge through the e
 
 ## Example app
 
-`apps/examples/mcp-server`: a server with `post` tools mounted through `mcp-handler` on Hono (the framework-agnostic proof; the same route file runs unchanged on Next.js, Nuxt and SvelteKit), `withMcpAuth` backed by `permdock/jwt`, a fake authorization server issuing scoped tokens, a script that demonstrates a `list_tools` difference between two callers, a scope step-up, a denied call with alternatives and an elicitation-backed delete. `apps/examples/next` mounts the same tools at `app/api/mcp/route.ts` ([Next.js adapter](/docs/adapters/next), MCP route).
+`apps/examples/mcp-server`: `src/permissions.ts`, `src/policy.ts`, and `src/server.ts` wrapping a duck-typed `McpServer` with `protectServer`. `list_posts`, `update_post` and `delete_post` register typed permissions (`delete` is `approval: 'human'`). Mount the same `registerTool` calls through `mcp-handler` and `withMcpAuth` when you add a transport; the Next example can reuse them at `app/api/mcp/route.ts`.
 
 ## Related standards
 

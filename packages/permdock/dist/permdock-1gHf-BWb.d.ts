@@ -1,5 +1,6 @@
 import { N as Subject, j as Membership, k as Delegation, n as DecisionEvent, o as MembershipSource, p as TokenSigner, r as DecisionSink, s as RoleSource, u as SnapshotV2, w as Actor, y as Condition } from "./interfaces-CnUn1fRe.js";
-import { T as Permission, n as Decision, p as Policy } from "./decision-B2jL7xrt.js";
+import { o as Policy, v as Permission } from "./policy-d3iw76Re.js";
+import { n as Decision } from "./decision-koSOp9O_.js";
 //#region src/core/describe.d.ts
 type DecisionDescription = {
   readonly kind: "granted" | "denied" | "approval" | "tenant" | "delegation" | "server-only";
