@@ -15,6 +15,13 @@ declare function parseSnapshot(json: unknown): SnapshotV2;
 //#region src/core/validation.d.ts
 type Boundary = "http-body" | "mcp-args" | "tool-args" | "decision-endpoint" | "manual";
 //#endregion
+//#region src/core/from-snapshot.d.ts
+declare function fromSnapshot(snapshot: SnapshotV2, options?: {
+  readonly tenant?: string;
+  readonly team?: string;
+}): PermDock;
+declare function emptySnapshot(): SnapshotV2;
+//#endregion
 //#region src/core/permdock.d.ts
 type DecideOptions = {
   readonly trusted?: boolean;
@@ -93,11 +100,4 @@ type CreatePermDockOptions = {
 };
 declare function createPermDock(policy: Policy, user: unknown, options?: CreatePermDockOptions): PermDock | Promise<PermDock>;
 //#endregion
-//#region src/core/from-snapshot.d.ts
-declare function fromSnapshot(snapshot: SnapshotV2, options?: {
-  readonly tenant?: string;
-  readonly team?: string;
-}): PermDock;
-declare function emptySnapshot(): SnapshotV2;
-//#endregion
-export { PermDock as a, createPermDock as c, describe as d, DecideOptions as i, parseSnapshot as l, fromSnapshot as n, RowPair as o, CreatePermDockOptions as r, WhereResult as s, emptySnapshot as t, DecisionDescription as u };
+export { WhereResult as a, fromSnapshot as c, describe as d, RowPair as i, parseSnapshot as l, DecideOptions as n, createPermDock as o, PermDock as r, emptySnapshot as s, CreatePermDockOptions as t, DecisionDescription as u };

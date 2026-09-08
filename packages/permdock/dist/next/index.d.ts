@@ -1,7 +1,7 @@
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-D45oN5-b.js";
 import { s as ApprovalStore } from "../types-DcgC3zN4.js";
 import { T as Permission, n as Decision, p as Policy } from "../decision-JylG_mtz.js";
-import { a as PermDock } from "../from-snapshot-g-xOl0Tw.js";
+import { r as PermDock } from "../permdock-DQYQWaf9.js";
 import { ReactElement, ReactNode } from "react";
 //#region src/next/types.d.ts
 type NextSubjectInput = unknown;

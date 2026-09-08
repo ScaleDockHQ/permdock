@@ -158,6 +158,9 @@ catalogs:
     fumadocs-ui:
       specifier: 16.15.7
       version: 16.15.7
+    hono:
+      specifier: 4.13.7
+      version: 4.13.7
     jose:
       specifier: 6.2.12
       version: 6.2.12
@@ -355,6 +358,9 @@ importers:
       arktype:
         specifier: 'catalog:'
         version: 2.2.3
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.7
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2952,6 +2958,10 @@ packages:
 
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
+
+  hono@4.13.7:
+    resolution: {integrity: sha512-c8/gF9ac8Y78/agExVocyLevgR+JlpNB444Py0FSX8pJoPdYUfUzRcXtYEYGwt6l19qIlVZPN5Mfsw9jFShmQQ==}
+    engines: {node: '>=16.9.0'}
 
   hookable@6.1.1:
     resolution: {integrity: sha512-U9LYDy1CwhMCnprUfeAZWZGByVbhd54hwepegYTK7Pi5NvqEj63ifz5z+xukznehT7i6NIZRu89Ay1AZmRsLEQ==}
@@ -6292,6 +6302,8 @@ snapshots:
       space-separated-tokens: 2.0.2
 
   highlight.js@10.7.3: {}
+
+  hono@4.13.7: {}
 
   hookable@6.1.1: {}
 

@@ -8,6 +8,7 @@ export default defineConfig({
     'src/react/index.ts',
     'src/next/index.ts',
     'src/server/index.ts',
+    'src/hono/index.ts',
   ],
   platform: 'neutral',
   dts: true,

@@ -32,6 +32,10 @@
     "./server": {
       "types": "./dist/server/index.d.ts",
       "default": "./dist/server/index.js"
+    },
+    "./hono": {
+      "types": "./dist/hono/index.d.ts",
+      "default": "./dist/hono/index.js"
     }
   },
   "scripts": {
@@ -51,6 +55,7 @@
     "@types/react-dom": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "arktype": "catalog:",
+    "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
     "publint": "catalog:",
@@ -63,11 +68,15 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
+    "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
     "react": "catalog:"
   },
   "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    },
     "jose": {
       "optional": true
     },

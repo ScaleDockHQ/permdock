@@ -20,6 +20,7 @@ export default defineConfig({
         'src/react/**',
         'src/next/**',
         'src/server/**',
+        'src/hono/**',
         'src/core/from-snapshot.ts',
       ],
       thresholds: {
