@@ -119,14 +119,22 @@ export class PermDockApprovalRequiredError extends Error {
 
 export class PermDockValidationError extends Error {
   public override readonly name = 'PermDockValidationError' as const;
-  public readonly code: 'invalid-data' | 'async-schema' | 'no-schema';
+  public readonly code:
+    | 'invalid-data'
+    | 'async-schema'
+    | 'no-schema'
+    | 'non-portable-condition';
   public readonly permission: string;
   public readonly resource: string;
   public readonly issues: readonly StandardSchemaV1.Issue[];
   public readonly boundary: string;
 
   public constructor(input: {
-    readonly code: 'invalid-data' | 'async-schema' | 'no-schema';
+    readonly code:
+      | 'invalid-data'
+      | 'async-schema'
+      | 'no-schema'
+      | 'non-portable-condition';
     readonly permission: string;
     readonly resource: string;
     readonly issues?: readonly StandardSchemaV1.Issue[];

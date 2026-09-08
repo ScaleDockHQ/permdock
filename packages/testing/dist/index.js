@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, expectTypeOf, it } from "vitest";
 import { createPermDock, listPermissions } from "permdock";
+import { directoryMembershipSource } from "permdock/scim";
 //#region src/describe-policy.ts
 function isOutcomeCell(value) {
 	return value === "granted" || value === "denied" || value === "approval-required" || value !== null && typeof value === "object" && ("denials" in value || "outcome" in value || "alternatives" in value);
@@ -179,6 +180,76 @@ const approver = {
 	},
 	context: {}
 };
+function testDirectoryStore(store, options) {
+	const [home, other] = options.tenants;
+	it("round-trips users and groups, isolates tenants, and drops inactive memberships", async () => {
+		const created = await store.putUser(home, {
+			id: "",
+			userName: "ada",
+			externalId: "00u1",
+			active: true,
+			meta: {
+				created: "",
+				lastModified: ""
+			}
+		});
+		expect(created.id).not.toBe("");
+		expect(await store.getUser(home, created.id)).toMatchObject({
+			userName: "ada",
+			externalId: "00u1"
+		});
+		expect(await store.getUser(other, created.id)).toBeNull();
+		await expect(store.putUser(home, {
+			id: "",
+			userName: "ada",
+			active: true,
+			meta: {
+				created: "",
+				lastModified: ""
+			}
+		})).rejects.toThrow(/userName/);
+		const group = await store.putGroup(home, {
+			id: "g_editors",
+			displayName: "Editors",
+			members: [{ value: created.id }],
+			roles: ["editor"],
+			meta: {
+				created: "",
+				lastModified: ""
+			}
+		});
+		expect(await store.groupsFor(home, created.id)).toEqual([expect.objectContaining({
+			id: group.id,
+			displayName: "Editors"
+		})]);
+		expect(await store.groupsFor(other, created.id)).toEqual([]);
+		const patched = await store.patchUser(home, created.id, [{
+			op: "replace",
+			path: "active",
+			value: false
+		}]);
+		expect(patched.active).toBe(false);
+		const source = directoryMembershipSource(store, { assignable: ["editor"] });
+		expect(await source.membershipsFor({ id: "00u1" }, { tenant: home })).toEqual([]);
+		await store.patchUser(home, created.id, [{
+			op: "replace",
+			path: "active",
+			value: true
+		}]);
+		expect(await source.membershipsFor({ id: "00u1" }, { tenant: home })).toEqual([{
+			tenant: home,
+			team: group.id,
+			roles: ["editor"],
+			via: `group:${group.id}`
+		}]);
+		await store.patchGroup(home, group.id, [{
+			op: "remove",
+			path: "members",
+			value: [{ value: created.id }]
+		}]);
+		expect(await store.groupsFor(home, created.id)).toEqual([]);
+	});
+}
 function testApprovalStore(store) {
 	it("creates, gets, lists, resolves and expires", async () => {
 		const request = sampleApproval("opaque-token");
@@ -302,8 +373,9 @@ function testWhereCompiler(compiler, options) {
 			op: "or",
 			conditions: []
 		}, options.target);
-		expect(compiled === false || compiled === void 0 || compiled === null).toBe(true);
+		const closed = options.isFailClosed === void 0 ? compiled === false || compiled === void 0 || compiled === null : options.isFailClosed(compiled);
+		expect(closed).toBe(true);
 	});
 }
 //#endregion
-export { describePolicy, expectTypeOf, jwtFixtureAudience, jwtFixtureIssuer, jwtFixtureJwks, jwtFixtureTokens, snapshotFixture, testApprovalStore, testDecisionSink, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testTokenSigner, testTokenVerifier, testWhereCompiler };
+export { describePolicy, expectTypeOf, jwtFixtureAudience, jwtFixtureIssuer, jwtFixtureJwks, jwtFixtureTokens, snapshotFixture, testApprovalStore, testDecisionSink, testDirectoryStore, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testTokenSigner, testTokenVerifier, testWhereCompiler };

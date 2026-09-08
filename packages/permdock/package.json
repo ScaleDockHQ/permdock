@@ -138,6 +138,18 @@
     "./cloud": {
       "types": "./dist/cloud/index.d.ts",
       "default": "./dist/cloud/index.js"
+    },
+    "./drizzle": {
+      "types": "./dist/drizzle/index.d.ts",
+      "default": "./dist/drizzle/index.js"
+    },
+    "./prisma": {
+      "types": "./dist/prisma/index.d.ts",
+      "default": "./dist/prisma/index.js"
+    },
+    "./kysely": {
+      "types": "./dist/kysely/index.d.ts",
+      "default": "./dist/kysely/index.js"
     }
   },
   "scripts": {
@@ -192,12 +204,14 @@
     "@orpc/server": "catalog:",
     "@trpc/server": "catalog:",
     "ai": "catalog:",
+    "drizzle-orm": "catalog:",
     "elysia": "catalog:",
     "eve": "catalog:",
     "express": "catalog:",
     "fastify": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
+    "kysely": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "reflect-metadata": "catalog:",
@@ -240,7 +254,13 @@
     "rxjs": {
       "optional": true
     },
+    "drizzle-orm": {
+      "optional": true
+    },
     "eve": {
+      "optional": true
+    },
+    "kysely": {
       "optional": true
     },
     "express": {

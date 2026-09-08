@@ -1,16 +1,6 @@
+import { n as isConditionDate, r as isConditionRef } from "./ast-BMo2MvmN.js";
 import { a as readPath, r as ownGet } from "./paths-AH4M6YYV.js";
 import { n as sha256, t as bytesToBase64Url } from "./sha256-CeSpVRME.js";
-//#region src/conditions/ast.ts
-function isConditionRef(value) {
-	return value !== null && typeof value === "object" && "ref" in value && typeof value.ref === "string";
-}
-function isConditionDate(value) {
-	return value !== null && typeof value === "object" && "date" in value && typeof value.date === "string" && !("ref" in value);
-}
-function isCondition(value) {
-	return value !== null && typeof value === "object" && "op" in value && typeof value.op === "string";
-}
-//#endregion
 //#region src/conditions/evaluate.ts
 function isExpired(membership, now) {
 	return membership.expiresAt !== void 0 && membership.expiresAt <= now;
@@ -166,4 +156,4 @@ function decisionToken(input) {
 	return `pd1.${bytesToBase64Url(sha256(payload))}`;
 }
 //#endregion
-export { isConditionRef as a, isConditionDate as i, evaluateCondition as n, isCondition as r, decisionToken as t };
+export { evaluateCondition as n, decisionToken as t };

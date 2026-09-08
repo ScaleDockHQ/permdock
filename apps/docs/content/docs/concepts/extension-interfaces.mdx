@@ -194,7 +194,7 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; the token is opaque to the store |
 | `testDecisionSink` | Accepts batches; `flush` is idempotent; a throw never propagates to the caller |
 | `testSnapshotSource` | Round-trips snapshot v2 through the format schema; invalidation is observed by a subscriber |
-| `testWhereCompiler` | Every fixture in the portable subset compiles; the empty allow set compiles to a fail-closed value; closures are rejected with `PermDockValidationError` |
+| `testWhereCompiler` | The empty allow set compiles to a fail-closed value (`false` / `null` / `undefined`, or `options.isFailClosed`); adapters pass constant-false SQL, `{ OR: [] }` or `eb.lit(false)` |
 
 The runners are what the provider adapters run in this repository's CI and what a community implementation runs in its own.
 

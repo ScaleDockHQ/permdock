@@ -104,9 +104,9 @@ One AST, several interpreters:
 | In memory | `permdock.can`, `decide`, `filter` | Boolean per row, fail-closed on missing fields |
 | Arrays | `permdock.filter(permissions.post.read, posts)` | `Post[]` |
 | Query fragment | `permdock.where(permissions.post.read)` | The portable condition for the subject's matching grants: allows OR'd, each AND'd with `NOT` of matching denies |
-| Drizzle | `toWhere(permdock.where(...), posts)` from `permdock/drizzle` | An `SQL` expression for `.where()` |
-| Prisma | `toWhere(...)` from `permdock/prisma` | A `WhereInput` object; fail-closed as `{ OR: [] }` when nothing is allowed |
-| Kysely | `toWhere(...)` from `permdock/kysely` | An expression builder callback |
+| Drizzle | `toWhere(permdock.where(...), posts)` from `permdock/drizzle` | An SQL expression for `.where()`; empty allow is constant false; `memberOf` is equality, `inArray`, parent `or`, or `exists` |
+| Prisma | `toWhere(...)` from `permdock/prisma` | A `WhereInput` object; fail-closed as `{ OR: [] }` when nothing is allowed; `memberOf` uses frozen membership ids |
+| Kysely | `toWhere(...)` from `permdock/kysely` | An expression builder callback; empty allow is `eb.lit(false)`; `memberOf` matches Drizzle |
 | Postgres RLS | `permdock rls generate` | `CREATE POLICY` statements, Drizzle `pgPolicy` entries or Prisma 8 `policy_*` blocks |
 
 ```ts

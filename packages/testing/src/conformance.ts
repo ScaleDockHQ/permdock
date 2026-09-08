@@ -318,12 +318,17 @@ export function testTokenSigner(
 
 export function testWhereCompiler<TTarget>(
   compiler: WhereCompiler<TTarget>,
-  options: { readonly target: TTarget },
+  options: {
+    readonly target: TTarget;
+    readonly isFailClosed?: (compiled: unknown) => boolean;
+  },
 ): void {
   it('fails closed on an empty allow set', () => {
     const compiled = compiler({ op: 'or', conditions: [] }, options.target);
-    expect(
-      compiled === false || compiled === undefined || compiled === null,
-    ).toBe(true);
+    const closed =
+      options.isFailClosed === undefined
+        ? compiled === false || compiled === undefined || compiled === null
+        : options.isFailClosed(compiled);
+    expect(closed).toBe(true);
   });
 }

@@ -1,7 +1,7 @@
 import { c as AuthorizationDetail } from "../ast-BtUySn6K.js";
 import { o as Policy, v as Permission } from "../policy-CL40bNGn.js";
 import { s as ApprovalStore } from "../types-DwRNNTg4.js";
-import { i as ProblemDetails } from "../errors-DZNvOxVD.js";
+import { i as ProblemDetails } from "../errors-CqGOiWq6.js";
 import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BuUjSMjB.js";
 //#region src/a2a/types.d.ts
 type A2AAuth = {

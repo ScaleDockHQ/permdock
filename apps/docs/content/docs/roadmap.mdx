@@ -62,7 +62,7 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 
 ### Phase 3: v0.6–0.9 "data"
 
-- `permdock.where` compilers for Drizzle, Prisma and Kysely, including the `memberOf` node (active-tenant equality, `inArray` over held tenants, membership-table joins, declared-parent derivation).
+- `permdock.where` compilers for Drizzle, Prisma and Kysely, including the `memberOf` node (active-tenant equality, `inArray` over held tenants, membership-table joins, declared-parent derivation) — shipped (`permdock/drizzle`, `permdock/prisma`, `permdock/kysely`; `testWhereCompiler` accepts `isFailClosed`).
 - `permdock rls generate | import | verify`; `import` emits `permissions.generated.ts`; `memberOf` compiles through the dialect's `memberships` table mapping, `verify` fixtures carry `memberships` and `tenant`.
 - `supabase` provider (`subjectFromSupabase` with `tenant` and `memberships` claims, custom access token hook emitted by `rls generate --rbac-scaffold`, `authorize()` scaffold with an optional tenant parameter).
 - Async `context` for relations; schema-aware field-level grants.

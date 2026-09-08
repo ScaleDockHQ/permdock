@@ -458,4 +458,4 @@ export const { getPermDock } = createPermDock(policy, {
 
 ## Planned adapters
 
-Phase 3 adapters (`drizzle`, `prisma`, `kysely`, `rls`, `supabase`, `ssf`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+Phase 3 `toWhere` compilers (`permdock/drizzle`, `permdock/prisma`, `permdock/kysely`) ship with `memberOf`. Remaining Phase 3 adapters (`rls`, `supabase`, `ssf`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.

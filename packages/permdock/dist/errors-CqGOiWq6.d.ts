@@ -83,13 +83,13 @@ declare class PermDockApprovalRequiredError extends Error {
 }
 declare class PermDockValidationError extends Error {
   override readonly name: "PermDockValidationError";
-  readonly code: "invalid-data" | "async-schema" | "no-schema";
+  readonly code: "invalid-data" | "async-schema" | "no-schema" | "non-portable-condition";
   readonly permission: string;
   readonly resource: string;
   readonly issues: readonly StandardSchemaV1.Issue[];
   readonly boundary: string;
   constructor(input: {
-    readonly code: "invalid-data" | "async-schema" | "no-schema";
+    readonly code: "invalid-data" | "async-schema" | "no-schema" | "non-portable-condition";
     readonly permission: string;
     readonly resource: string;
     readonly issues?: readonly StandardSchemaV1.Issue[];

@@ -1,4 +1,4 @@
-import { a as isConditionRef, i as isConditionDate, r as isCondition } from "./token-Bz4yFyDE.js";
+import { n as isConditionDate, r as isConditionRef, t as isCondition } from "./ast-BMo2MvmN.js";
 import { i as ownKeys, o as splitPath, t as assertSafeKey } from "./paths-AH4M6YYV.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as describe } from "./describe-BnKr1Gwo.js";
@@ -6,9 +6,9 @@ import { t as compact } from "./compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
 import { n as parseSnapshot } from "./snapshot-BD9YMLyb.js";
 import { n as sha256, t as bytesToBase64Url } from "./sha256-CeSpVRME.js";
-import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-C3bjJS2O.js";
+import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-DouP-ROU.js";
 import { c as resource, i as getResource, n as findPermission, o as listPermissions, r as getRegistry, s as mergePermissions, t as definePermissions } from "./permissions-WEkUHQtZ.js";
-import { t as createPermDock } from "./permdock-CpyyhpgH.js";
+import { t as createPermDock } from "./permdock-CwKJL-qM.js";
 import { n as signDecisionBatch, r as toCloudEvent, t as memorySink } from "./sink-CSxZb96b.js";
 //#region src/conditions/opaque.ts
 function opaque(input) {

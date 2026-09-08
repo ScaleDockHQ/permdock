@@ -53,6 +53,8 @@ Portable subset compiled by `generate` and recognised by `import`:
 
 `memberOf` is the node a tenant-, team- or resource-scoped role produces ([tenancy](/docs/concepts/tenancy)); it is portable only when the generator knows where memberships live. The dialect option `memberships` names the table and columns per scope kind (`{ tenant: { table, tenant, user, role }, team: {...}, resource: { document: {...} } }`); with an active-tenant claim configured and no table, tenant scopes compile to the claim equality and team or resource scopes are reported as non-portable. `import` recognises both the claim equality and the `exists` join and maps them back to `memberOf` when the table matches a configured mapping, otherwise to the older `in(...)` membership form. Expired memberships (`expiresAt`) compile to `and (m.expires_at is null or m.expires_at > now())` when the mapping names an `expiresAt` column.
 
+The same `memberOf` tree is what `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` compile at query time: active-tenant equality, `in` over held tenant or team ids, declared-parent `or`, or an `exists` join when `options.memberships` names the table. Prisma has no `EXISTS` in `WhereInput`, so it always uses the frozen membership ids. `permdock rls generate` is still planned; the app-side compilers already share this portable subset.
+
 Anything else (`now()` arithmetic, `CASE`, multi-join subqueries, custom functions) becomes `opaque({ sql, fingerprint })`: kept verbatim for regeneration, flagged in the catalog, unusable for app-side `can`.
 
 ## Request lifecycle

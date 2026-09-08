@@ -1,5 +1,6 @@
 import { expectTypeOf } from "vitest";
 import { DecisionSink, Membership, MembershipSource, Permission, Policy, RoleSource, SnapshotSource, SnapshotV2, SubjectResolver, TokenSigner, TokenVerifier, WhereCompiler } from "permdock";
+import { DirectoryStore } from "permdock/scim";
 import { ApprovalStore } from "permdock/approvals";
 //#region src/describe-policy.d.ts
 type MatrixOutcome = "granted" | "denied" | "approval-required";
@@ -46,6 +47,9 @@ export declare function testRoleSource(source: RoleSource, options: {
 }): void;
 export declare function testDecisionSink(sink: DecisionSink): void;
 export declare function testSnapshotSource(source: SnapshotSource): void;
+export declare function testDirectoryStore(store: DirectoryStore, options: {
+  readonly tenants: readonly [string, string];
+}): void;
 export declare function testApprovalStore(store: ApprovalStore): void;
 export declare function testTokenVerifier(verifier: TokenVerifier, options?: {
   readonly audience?: string;
@@ -56,6 +60,7 @@ export declare function testTokenSigner(signer: TokenSigner, options: {
 }): void;
 export declare function testWhereCompiler<TTarget>(compiler: WhereCompiler<TTarget>, options: {
   readonly target: TTarget;
+  readonly isFailClosed?: (compiled: unknown) => boolean;
 }): void;
 //#endregion
 //#region src/jwt-fixtures.d.ts
