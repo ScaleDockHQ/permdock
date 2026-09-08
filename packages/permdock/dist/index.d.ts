@@ -1,7 +1,7 @@
 import { A as ConditionRef, C as CustomRole, D as Principal, E as Membership, M as MemberOfCondition, N as OpaqueCondition, O as Subject, S as Binding, T as GnapAccess, _ as WhereCompiler, a as LimitStore, b as Assurance, c as SnapshotGrant, d as SubjectResolver, f as TokenFailureCause, g as VerifiedToken, h as VerificationFailure, j as ConditionValue, k as Condition, l as SnapshotSource, m as TokenVerifier, n as DecisionEvent, o as MembershipSource, p as TokenSigner, r as DecisionSink, s as RoleSource, t as AuthEvent, u as SnapshotV2, v as memoryRoleSource, w as Delegation, x as AuthorizationDetail, y as Actor } from "./interfaces-D45oN5-b.js";
 import { A as ResourceOptions, C as ActionList, D as PermissionTree, E as PermissionKind, F as listPermissions, I as mergePermissions, L as resource, M as definePermissions, N as findPermission, O as ResourceInit, P as getResource, S as role, T as Permission, _ as SubjectOf, a as DeniedDecision, b as definePolicy, c as ClosureContext, d as GrantCondition, f as GrantOptions, g as RoleOptions, h as Role, i as DenialReason, j as ResourceParent, k as ResourceNode, l as ClosureGrantFn, m as PrincipalOf, n as Decision, o as GrantedDecision, p as Policy, r as Denial, s as MatchedGrant, t as ApprovalRequiredDecision, u as Grant, v as ValidateMode, w as ActionMeta, x as deny, y as allow } from "./decision-JylG_mtz.js";
 import { a as PermDock, c as createPermDock, d as describe, i as DecideOptions, l as parseSnapshot, n as fromSnapshot, o as RowPair, r as CreatePermDockOptions, s as WhereResult, t as emptySnapshot, u as DecisionDescription } from "./from-snapshot-g-xOl0Tw.js";
-import { StandardSchemaV1 } from "@standard-schema/spec";
+import { i as ProblemDetails, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-Dh0xCVJ8.js";
 //#region src/conditions/opaque.d.ts
 export declare function opaque(input: {
   readonly sql: string;
@@ -13,106 +13,6 @@ type SubjectRef = ConditionRef & {
   readonly [key: string]: SubjectRef;
 };
 export declare const subject: SubjectRef;
-//#endregion
-//#region src/core/errors.d.ts
-type ProblemDetails = {
-  readonly type: string;
-  readonly title: string;
-  readonly status: number;
-  readonly detail: string;
-  readonly instance?: string;
-  readonly permission?: string;
-  readonly scope?: string;
-  readonly resource?: {
-    readonly type: string;
-    readonly id?: string;
-  };
-  readonly denials?: readonly {
-    readonly role: string | null;
-    readonly reason: string;
-  }[];
-  readonly alternatives?: readonly string[];
-  readonly reason?: string;
-  readonly token?: string;
-  readonly issues?: readonly StandardSchemaV1.Issue[];
-};
-export declare class PermDockDeniedError extends Error {
-  override readonly name: "PermDockDeniedError";
-  readonly decision: Extract<Decision, {
-    readonly outcome: "denied";
-  }>;
-  readonly permission: string;
-  readonly scope: string;
-  readonly resource: {
-    readonly type: string;
-    readonly id?: string;
-  };
-  readonly subject: Subject;
-  constructor(input: {
-    readonly decision: Extract<Decision, {
-      readonly outcome: "denied";
-    }>;
-    readonly permission: string;
-    readonly scope: string;
-    readonly resource: {
-      readonly type: string;
-      readonly id?: string;
-    };
-    readonly subject: Subject;
-    readonly message: string;
-  });
-  toProblemDetails(options?: {
-    readonly instance?: string;
-  }): ProblemDetails;
-}
-export declare class PermDockApprovalRequiredError extends Error {
-  override readonly name: "PermDockApprovalRequiredError";
-  readonly decision: Extract<Decision, {
-    readonly outcome: "approval-required";
-  }>;
-  readonly permission: string;
-  readonly scope: string;
-  readonly resource: {
-    readonly type: string;
-    readonly id?: string;
-  };
-  readonly token: string;
-  readonly reason: string;
-  constructor(input: {
-    readonly decision: Extract<Decision, {
-      readonly outcome: "approval-required";
-    }>;
-    readonly permission: string;
-    readonly scope: string;
-    readonly resource: {
-      readonly type: string;
-      readonly id?: string;
-    };
-    readonly message: string;
-  });
-  toProblemDetails(options?: {
-    readonly instance?: string;
-  }): ProblemDetails;
-}
-export declare class PermDockValidationError extends Error {
-  override readonly name: "PermDockValidationError";
-  readonly code: "invalid-data" | "async-schema" | "no-schema";
-  readonly permission: string;
-  readonly resource: string;
-  readonly issues: readonly StandardSchemaV1.Issue[];
-  readonly boundary: string;
-  constructor(input: {
-    readonly code: "invalid-data" | "async-schema" | "no-schema";
-    readonly permission: string;
-    readonly resource: string;
-    readonly issues?: readonly StandardSchemaV1.Issue[];
-    readonly boundary: string;
-    readonly message: string;
-  });
-  toProblemDetails(options?: {
-    readonly instance?: string;
-  }): ProblemDetails;
-}
 //#endregion
 //#region src/core/presets.d.ts
 type ReadOnlyMeta = {
@@ -174,4 +74,4 @@ export declare function memorySink(options?: {
   readonly events: () => readonly DecisionEvent[];
 };
 //#endregion
-export { type ActionMeta, type Actor, type ApprovalRequiredDecision, type Assurance, type AuthEvent, type AuthorizationDetail, type Binding, type ClosureContext, type ClosureGrantFn, type Condition, type ConditionRef, type ConditionValue, type CreatePermDockOptions, type CustomRole, type DecideOptions, type Decision, type DecisionDescription, type DecisionEvent, type DecisionSink, type Delegation, type Denial, type DenialReason, type DeniedDecision, type GnapAccess, type Grant, type GrantCondition, type GrantOptions, type GrantedDecision, type LimitStore, type MatchedGrant, type MemberOfCondition, type Membership, type MembershipSource, type PermDock, type Permission, type PermissionKind, type PermissionTree, type Policy, type Principal, type PrincipalOf, type ProblemDetails, type ResourceInit, type ResourceNode, type ResourceOptions, type ResourceParent, type Role, type RoleOptions, type RoleSource, type RowPair, type SnapshotGrant, type SnapshotSource, type SnapshotV2, type Subject, type SubjectOf, type SubjectResolver, type TokenFailureCause, type TokenSigner, type TokenVerifier, type ValidateMode, type VerificationFailure, type VerifiedToken, type WhereCompiler, type WhereResult, allow, createPermDock, definePermissions, definePolicy, deny, describe, emptySnapshot, findPermission, fromSnapshot, getResource, listPermissions, memoryRoleSource, mergePermissions, parseSnapshot, resource, role };
+export { type ActionMeta, type Actor, type ApprovalRequiredDecision, type Assurance, type AuthEvent, type AuthorizationDetail, type Binding, type ClosureContext, type ClosureGrantFn, type Condition, type ConditionRef, type ConditionValue, type CreatePermDockOptions, type CustomRole, type DecideOptions, type Decision, type DecisionDescription, type DecisionEvent, type DecisionSink, type Delegation, type Denial, type DenialReason, type DeniedDecision, type GnapAccess, type Grant, type GrantCondition, type GrantOptions, type GrantedDecision, type LimitStore, type MatchedGrant, type MemberOfCondition, type Membership, type MembershipSource, type PermDock, PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, type Permission, type PermissionKind, type PermissionTree, type Policy, type Principal, type PrincipalOf, type ProblemDetails, type ResourceInit, type ResourceNode, type ResourceOptions, type ResourceParent, type Role, type RoleOptions, type RoleSource, type RowPair, type SnapshotGrant, type SnapshotSource, type SnapshotV2, type Subject, type SubjectOf, type SubjectResolver, type TokenFailureCause, type TokenSigner, type TokenVerifier, type ValidateMode, type VerificationFailure, type VerifiedToken, type WhereCompiler, type WhereResult, allow, createPermDock, definePermissions, definePolicy, deny, describe, emptySnapshot, findPermission, fromSnapshot, getResource, listPermissions, memoryRoleSource, mergePermissions, parseSnapshot, resource, role };

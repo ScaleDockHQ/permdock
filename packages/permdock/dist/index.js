@@ -1,8 +1,9 @@
-import { _ as isCondition, a as fromSnapshot, d as PermDockApprovalRequiredError, f as PermDockDeniedError, i as emptySnapshot, n as parseSnapshot, p as PermDockValidationError, v as isConditionDate, y as isConditionRef } from "./snapshot-DjelOg1B.js";
+import { _ as isConditionDate, d as PermDockDeniedError, f as PermDockValidationError, g as isCondition, n as parseSnapshot, u as PermDockApprovalRequiredError, v as isConditionRef } from "./snapshot-BqmIo2XQ.js";
 import { c as splitPath, n as sha256, o as ownKeys, r as assertSafeKey, t as bytesToBase64Url } from "./sha256-bH0-k349.js";
 import { n as freezeDeep, t as compact } from "./compact-CxCColYy.js";
 import { t as describe } from "./describe-BnKr1Gwo.js";
-import { a as getResource, c as resource, i as getRegistry, n as definePermissions, o as listPermissions, r as findPermission, s as mergePermissions, t as createPermDock } from "./permdock-LDgbRlwd.js";
+import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-BAmQunLF.js";
+import { a as getResource, c as resource, i as getRegistry, n as definePermissions, o as listPermissions, r as findPermission, s as mergePermissions, t as createPermDock } from "./permdock-B0coaaS6.js";
 //#region src/conditions/opaque.ts
 function opaque(input) {
 	return freezeDeep({

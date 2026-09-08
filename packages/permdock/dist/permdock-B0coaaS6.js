@@ -1,4 +1,4 @@
-import { c as nowSeconds, d as PermDockApprovalRequiredError, f as PermDockDeniedError, g as evaluateCondition, h as deniedMessage, l as resolveActiveTenant, m as approvalMessage, o as decisionToken, p as PermDockValidationError, r as signSnapshot, s as matchScopedMembership, t as buildSnapshot, u as tenantsOf } from "./snapshot-DjelOg1B.js";
+import { c as resolveActiveTenant, d as PermDockDeniedError, f as PermDockValidationError, h as evaluateCondition, i as decisionToken, l as tenantsOf, m as deniedMessage, o as matchScopedMembership, p as approvalMessage, r as signSnapshot, s as nowSeconds, t as buildSnapshot, u as PermDockApprovalRequiredError } from "./snapshot-BqmIo2XQ.js";
 import { i as isForbiddenKey, o as ownKeys, r as assertSafeKey } from "./sha256-bH0-k349.js";
 import { n as freezeDeep, t as compact } from "./compact-CxCColYy.js";
 import { n as isPrincipal, r as isSubject, t as anonymousSubject } from "./subject-Dz8DcVLC.js";

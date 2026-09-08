@@ -1,5 +1,6 @@
-import { a as fromSnapshot, c as nowSeconds, i as emptySnapshot, n as parseSnapshot } from "./snapshot-DjelOg1B.js";
+import { n as parseSnapshot, s as nowSeconds } from "./snapshot-BqmIo2XQ.js";
 import { t as compact } from "./compact-CxCColYy.js";
+import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-BAmQunLF.js";
 import { createContext, useMemo } from "react";
 import { jsx } from "react/jsx-runtime";
 //#region src/react/context.ts

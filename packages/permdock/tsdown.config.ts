@@ -7,6 +7,7 @@ export default defineConfig({
     'src/jwt/index.ts',
     'src/react/index.ts',
     'src/next/index.ts',
+    'src/server/index.ts',
   ],
   platform: 'neutral',
   dts: true,
