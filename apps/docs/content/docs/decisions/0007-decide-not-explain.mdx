@@ -5,7 +5,7 @@ description: Why the structured check is called decide and returns a discriminat
 
 ## Status
 
-Accepted, September 2026. The `explain` alias is an open question.
+Accepted, September 2026. The `explain` alias was rejected in [0028](/docs/decisions/0028-synchronous-evaluation).
 
 ## Context
 
@@ -26,7 +26,7 @@ type Decision =
 
 `can()` is `decide().outcome === 'granted'`. `assert()` returns the granted `Decision` (subject narrowed to non-null) or throws `PermDockDeniedError` / `PermDockApprovalRequiredError` carrying the same `Decision`. `simulate()` returns an array of decisions for a batch, mirroring AuthZEN `evaluations`. `on('decision')` emits the same object plus actor and delegation.
 
-`explain` is not a separate method. Whether to export `explain` as a documented alias of `decide` for discoverability ("why was this denied?" is how agents phrase the question) is an open question to settle in Phase 1 with real skill and prompt testing.
+`explain` is not a separate method and is not an alias of `decide`. Call `decide` for the structured result and `describe(decision)` for prose ([0028](/docs/decisions/0028-synchronous-evaluation)).
 
 ## Consequences
 
@@ -53,3 +53,4 @@ type Decision =
 - [MCP adapter](/docs/adapters/mcp)
 - [Kilpi v1 deep-dive](/docs/research/kilpi-v1)
 - [0013: Three-outcome decision](/docs/decisions/0013-three-outcome-decision)
+- [0028: Synchronous evaluation](/docs/decisions/0028-synchronous-evaluation)

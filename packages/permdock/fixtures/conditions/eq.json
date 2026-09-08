@@ -1,0 +1,5 @@
+{
+  "op": "eq",
+  "field": "authorId",
+  "value": { "ref": "subject.id" }
+}

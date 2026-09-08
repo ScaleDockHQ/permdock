@@ -39,7 +39,7 @@ export const permissions = definePermissions({
 | `id` | key of the schema output | Identity field used for client cache keys, `filter`, decision tokens and RLS row identity. Defaults to `'id'` when the schema has one. |
 | `actions` | array or record | Instance-level actions: `can(permissions.post.update, post)` requires a `Post`. |
 | `collection` | array or record | Type-level actions: `can(permissions.post.create)` takes no instance. |
-| `parent` | `{ field, resource }` | Optional. Declares that this resource belongs to another (`folder` to `project` through `projectId`), so a resource-scoped role held on the parent applies to this row. Finite by construction: a resource cannot name itself. See [tenancy](/docs/concepts/tenancy). |
+| `parent` | `{ field, resource }` | Optional. `resource` is the parent **name string** (the last path segment). Exactly one parent. The name is resolved at `definePolicy` after `mergePermissions` ([0030](/docs/decisions/0030-parent-typing)). See [tenancy](/docs/concepts/tenancy). |
 
 ### actions versus collection
 
@@ -48,15 +48,17 @@ The split is the answer to CASL's "can I read some Post versus this Post" ambigu
 ```ts
 permdock.can(permissions.post.update, post) // ok
 permdock.can(permissions.post.update)       // type error: instance required
-permdock.can(permissions.post.create)       // ok
-permdock.can(permissions.post.create, post) // type error: collection action
+permdock.can(permissions.post.create)       // ok: type-level "may I create"
+permdock.can(permissions.post.create, body) // ok: optional body; a check grant matches only with a body
 ```
+
+Collection `check` is [0029](/docs/decisions/0029-check-on-collection-actions).
 
 An action name may appear in both lists when both readings are meaningful (`read` on an instance and `read` on the collection would be two different leaves: `post.read` and, for example, `post.list`). Prefer distinct names so `.key` values stay unambiguous.
 
 ### Nested groups
 
-Groups nest arbitrarily: feature, then resource, then action is the common shape (`billing.invoice.pay`). A group is any plain object whose values are resources or further groups. Groups are the namespace mechanism for [larger apps](/docs/getting-started/larger-apps): a shared package owns one top-level group and the app merges it.
+Groups nest arbitrarily: feature, then resource, then action is the common shape (`billing.invoice.pay`). A group is any plain object whose values are resources or further groups. Nesting is capped at 10; a deeper tree throws at `definePermissions`. Groups are the namespace mechanism for [larger apps](/docs/getting-started/larger-apps): a shared package owns one top-level group and the app merges it.
 
 ### Metadata records
 
@@ -101,11 +103,11 @@ The schema is not on the leaf. It lives on the resource node, reachable through 
 
 ### Type-level view
 
-Two phantom type parameters ride along with each leaf: the key literal and the instance type.
+Two phantom type parameters ride along with each leaf: the key literal, the instance type, and the kind.
 
 ```ts
-type UpdatePost = typeof permissions.post.update // Permission<'post.update', Post>
-type CreatePost = typeof permissions.post.create // Permission<'post.create', never>: collection action
+type UpdatePost = typeof permissions.post.update // Permission<'post.update', Post, 'instance'>
+type CreatePost = typeof permissions.post.create // Permission<'post.create', Post, 'collection'>: optional body
 
 function guard<K extends string, T>(permission: Permission<K, T>, data: T) { /* ... */ }
 ```
@@ -164,5 +166,3 @@ This is the exact object you get from `JSON.stringify(permissions.post.update)`.
 
 - Whether a leaf should carry an `authorizationDetails` example object in `meta` for consent screens or derive it entirely from `scope` and the resource `id`.
 - Field-level permissions: whether they are expressed as a `fields` option on grants (schema-aware, wildcards expanded against real keys) or as separate leaves.
-- A maximum nesting depth for groups (a cap of 10 was discussed) and whether the CLI should enforce it.
-- Exact typing of `parent` (the resource named by string as sketched on [tenancy](/docs/concepts/tenancy), or by reference) and whether a resource may declare two parents.

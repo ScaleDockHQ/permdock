@@ -18,7 +18,7 @@ const all    = permdock.snapshot({ tenants: 'all' })          // every membershi
 const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).snapshot()   // simulated: true
 ```
 
-`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip ([tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)).
+`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([0031](/docs/decisions/0031-snapshot-contents), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `parseSnapshot(json)` is the public reader.
 
 ### Simulated snapshots
 
@@ -171,10 +171,10 @@ A persisted snapshot is reported as `'stale'` until the refresh completes, which
 Snapshots are plain JSON, so UI tests do not need a server. `@permdock/testing` builds fixtures from a policy and a user:
 
 ```ts
-import { snapshotFor } from '@permdock/testing'
+import { snapshotFixture } from '@permdock/testing'
 import { render } from '@testing-library/react'
 
-const snapshot = snapshotFor(policy, memberUser, { include: [permissions.post] })
+const snapshot = snapshotFixture(policy, memberUser, { include: [permissions.post] })
 
 render(
   <PermDockProvider snapshot={snapshot}>
@@ -199,7 +199,5 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 
 ## Open questions
 
-- Whether large policies should ship full grants or per-permission booleans; grants keep offline ownership checks working, booleans are smaller.
-- Field names in the v2 format (`effect`, `portable`, `include`, `scope`, `membership`, `tenants`, `simulated`) are provisional until the core implementation lands.
 - Whether a `tenants: 'all'` snapshot for a subject with many memberships should be paged or capped, and whether `include` should accept a tenant filter.
 - Default `maxAge` for a snapshot. (Whether `issuedAt` needs protecting is settled: a signed snapshot covers it, and an unsigned one is UI-only; see "Signed snapshots" above.)

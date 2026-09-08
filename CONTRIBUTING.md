@@ -31,15 +31,16 @@ pnpm run check
 
 Useful scripts:
 
-| Command              | What it does                              |
-| -------------------- | ----------------------------------------- |
-| `pnpm run check`     | Format check, Oxlint and typecheck        |
-| `pnpm run fmt`       | Format with Oxfmt                         |
-| `pnpm run lint`      | Lint with Oxlint                          |
-| `pnpm run build`     | `turbo run build`                         |
-| `pnpm run test`      | `turbo run test`                          |
-| `pnpm run typecheck` | `turbo run typecheck`                     |
-| `pnpm changeset`     | Add a changeset for a user-visible change |
+| Command                  | What it does                                         |
+| ------------------------ | ---------------------------------------------------- |
+| `pnpm run check`         | Format check, Oxlint and typecheck                   |
+| `pnpm run check:publish` | publint and arethetypeswrong on publishable packages |
+| `pnpm run fmt`           | Format with Oxfmt                                    |
+| `pnpm run lint`          | Lint with Oxlint                                     |
+| `pnpm run build`         | `turbo run build`                                    |
+| `pnpm run test`          | `turbo run test`                                     |
+| `pnpm run typecheck`     | `turbo run typecheck`                                |
+| `pnpm changeset`         | Add a changeset for a user-visible change            |
 
 ## Adding a workspace
 

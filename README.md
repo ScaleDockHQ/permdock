@@ -10,7 +10,7 @@
 
 Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
 
-> **Status: Phase 0.** The product plan, this README, [`PRODUCT.md`](./PRODUCT.md), [`AGENTS.md`](./AGENTS.md), the documentation tree and the Fumadocs app at [`apps/docs`](./apps/docs) exist. The packages are not published yet. Everything below is the specification the implementation will follow; see the [roadmap](./apps/docs/content/docs/roadmap.mdx).
+> **Status: Phase 1 in progress.** `permdock` core and `@permdock/testing` exist. Adapters, example apps and the TS matrix are remaining Phase 1 work. The packages are not published to npm yet. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
 ## Why PermDock
 

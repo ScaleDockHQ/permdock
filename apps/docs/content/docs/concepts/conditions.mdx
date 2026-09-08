@@ -144,8 +144,8 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 
 - Field names, literal types and reference types come from the resource schema output. `{ where: { authorId: subject.orgId } }` compiles only if both are strings; a mismatch is an error.
 - `in` requires an array on the right-hand side and a scalar field on the left.
-- `check` on a `read` or `delete` grant is a type error, as is `where` on a collection action.
-- Closures require the exact `(data: Post, ctx) => boolean | Promise<boolean>` signature; the `data` type is the schema output.
+- `check` on a `read` or `delete` grant is a type error, as is `where` on a collection action. Collection grants may carry `check` ([0029](/docs/decisions/0029-check-on-collection-actions)).
+- Closures require the exact `(data: Post, ctx) => boolean` signature; the `data` type is the schema output. A thenable from a closure is a `closure-error` denial ([0028](/docs/decisions/0028-synchronous-evaluation)).
 
 ## Semantics to keep in mind
 
@@ -157,7 +157,6 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 
 ## Open questions
 
-- Exact field names of the JSON tree (`op`, `field`, `value`, `ref`, `date` above are provisional).
 - Whether `contains` should be split into `arrayContains` and `stringContains` for clearer SQL mapping.
 - Nested field paths (`address.city`) and array-of-object fields: v1 excludes them; a later version may add a typed path helper.
 - How much of the Supabase `authorize('perm')` RBAC pattern should be recognised on import as a named-permission node rather than opaque SQL.

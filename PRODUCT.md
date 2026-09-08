@@ -2,7 +2,7 @@
 
 This document is the product overview: what PermDock is, who it is for, what it must do, how it is built and in what order. Detail lives in the documentation tree under [`apps/docs/content/docs`](./apps/docs/content/docs) (Fumadocs-ready MDX) and is linked from each section. When the two disagree, the docs tree wins and this file gets fixed.
 
-Version: Phase 0 (September 2026). Nothing is published yet. The Fumadocs app is scaffolded over the MDX tree and is the first Vercel Service at `/docs`.
+Version: Phase 1 in progress (September 2026). `permdock` core and `@permdock/testing` exist; adapters, example apps and the TS matrix are the remaining Phase 1 milestones. The Fumadocs app is the first Vercel Service at `/docs`. Nothing is published to npm yet.
 
 ## 1. Vision and positioning
 
@@ -232,10 +232,10 @@ Detail: [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
 Tracked in [roadmap](./apps/docs/content/docs/roadmap.mdx); resolved items become ADRs.
 
-1. `decide` vs an `explain` alias for discoverability.
+1. Resolved: `explain` is not an alias of `decide`; call `decide` then `describe` ([ADR 0028](./apps/docs/content/docs/decisions/0028-synchronous-evaluation.mdx)).
 2. `<Protected>` vs a second `<Can>`-style inline render-prop component.
-3. `subject.*` reference ergonomics vs closures for common conditions.
-4. Whether `snapshot` ships full grants or per-permission booleans for very large policies.
+3. Resolved: `subject` is a typed reference builder (`subject.id`, `subject.context.teamIds`) that produces `{ ref: 'subject.<path>' }` ([ADR 0028](./apps/docs/content/docs/decisions/0028-synchronous-evaluation.mdx), [conditions](./apps/docs/content/docs/concepts/conditions.mdx)).
+4. Resolved: snapshots ship full grants with normalised conditions; `include` is the size lever ([ADR 0031](./apps/docs/content/docs/decisions/0031-snapshot-contents.mdx)).
 5. A protected-query helper (`permdock.protect(queryFn, { before, after })`) for co-located redaction (Kilpi's idea).
 6. Whether `collect` should also emit the `mergePermissions` barrel or only the catalog.
 7. Field-level API shape (schema-aware `permittedFields`).
@@ -243,12 +243,12 @@ Tracked in [roadmap](./apps/docs/content/docs/roadmap.mdx); resolved items becom
 9. `LimitStore` interface and whether quotas belong in core or a subpath.
 10. Resolved, see below.
 11. Which OS keychain binding `permdock/terminal` uses as its optional peer, and whether the mode-0600 file fallback is acceptable in CI images.
-12. `parent` typing on `resource` (string name vs reference; one parent or several).
-13. Separation of duty (`exclusiveWith`) as a `permdock doctor` lint over memberships, or not at all.
-14. Whether `snapshot({ tenants: 'all' })` stays opt-in or becomes the default below a membership-count threshold.
+12. Resolved: `parent.resource` is a resource name string; a resource has exactly one parent, resolved at `definePolicy` ([ADR 0030](./apps/docs/content/docs/decisions/0030-parent-typing.mdx)).
+13. Deferred to Phase 2: `exclusiveWith` ships as a `permdock doctor` lint over memberships, not an evaluation rule ([tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)).
+14. Resolved: `snapshot({ tenants: 'all' })` stays opt-in; no membership-count threshold ([ADR 0031](./apps/docs/content/docs/decisions/0031-snapshot-contents.mdx)).
 15. `useApproval` transport: poll `approvalsHandler` (default) or subscribe through a `SnapshotSource`.
 
-Resolved: multi-tenant roles, teams, resource roles and tenant-defined custom roles are memberships on the principal plus scoped role declarations, with `RoleSource` and `MembershipSource` as the only new inputs; provider principal types extend through generics and Standard Schema, never module augmentation ([ADR 0024](./apps/docs/content/docs/decisions/0024-scoped-roles-and-memberships.mdx)). Delegation-chain and token verification never happen in core; `permdock/jwt` and the provider `subjectFrom*` helpers verify and hand core a subject ([ADR 0018](./apps/docs/content/docs/decisions/0018-authentication-is-upstream.mdx)). Decision-endpoint auth (8): the in-app endpoint uses the application's session or bearer via `subject`; the hosted ADS accepts Vercel OIDC or client-credentials tokens verified with `permdock/jwt`; no shared-secret mode ([ADR 0021](./apps/docs/content/docs/decisions/0021-embedded-pdp-hosted-ads.mdx)). `approval-required` over HTTP (10): retry with a `PermDock-Approval: <token>` header against an `approved` `ApprovalStore` record ([ADR 0022](./apps/docs/content/docs/decisions/0022-approvals-are-pluggable.mdx)). Sink sampling: every event is written by default, sampling is opt-in; the SCIM receiver is scheduled as `permdock/scim` with a hosted relay ([ADR 0027](./apps/docs/content/docs/decisions/0027-governance-first-cloud.mdx)).
+Resolved: multi-tenant roles, teams, resource roles and tenant-defined custom roles are memberships on the principal plus scoped role declarations, with `RoleSource` and `MembershipSource` as the only new inputs; provider principal types extend through generics and Standard Schema, never module augmentation ([ADR 0024](./apps/docs/content/docs/decisions/0024-scoped-roles-and-memberships.mdx)). Delegation-chain and token verification never happen in core; `permdock/jwt` and the provider `subjectFrom*` helpers verify and hand core a subject ([ADR 0018](./apps/docs/content/docs/decisions/0018-authentication-is-upstream.mdx)). Decision-endpoint auth (8): the in-app endpoint uses the application's session or bearer via `subject`; the hosted ADS accepts Vercel OIDC or client-credentials tokens verified with `permdock/jwt`; no shared-secret mode ([ADR 0021](./apps/docs/content/docs/decisions/0021-embedded-pdp-hosted-ads.mdx)). `approval-required` over HTTP (10): retry with a `PermDock-Approval: <token>` header against an `approved` `ApprovalStore` record ([ADR 0022](./apps/docs/content/docs/decisions/0022-approvals-are-pluggable.mdx)). Sink sampling: every event is written by default, sampling is opt-in; the SCIM receiver is scheduled as `permdock/scim` with a hosted relay ([ADR 0027](./apps/docs/content/docs/decisions/0027-governance-first-cloud.mdx)). Core evaluation is synchronous; closures return a boolean; `explain` is not an alias of `decide` ([ADR 0028](./apps/docs/content/docs/decisions/0028-synchronous-evaluation.mdx)). Collection `check` is optional-body ([ADR 0029](./apps/docs/content/docs/decisions/0029-check-on-collection-actions.mdx)). `parent.resource` is a name string ([ADR 0030](./apps/docs/content/docs/decisions/0030-parent-typing.mdx)). Snapshots ship full grants; `tenants: 'all'` stays opt-in ([ADR 0031](./apps/docs/content/docs/decisions/0031-snapshot-contents.mdx)).
 
 ## 14. Commercial model
 

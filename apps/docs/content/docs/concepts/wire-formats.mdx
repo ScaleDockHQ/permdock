@@ -3,7 +3,7 @@ title: Wire formats
 description: The JSON shapes PermDock reads and writes, permission leaves, conditions, snapshot v2, memberships and custom roles, AuthZEN messages, the catalog, Decisions and Problem Details, with an example of each.
 ---
 
-Everything PermDock puts on a wire, in a file or in a log is plain JSON with a documented shape. No superjson, no class instances, no private compact encodings. This page is the reference for those shapes; the concept pages explain the semantics. Field names marked provisional may still change before the core implementation lands and will be versioned when they do.
+Everything PermDock puts on a wire, in a file or in a log is plain JSON with a documented shape. No superjson, no class instances, no private compact encodings. This page is the reference for those shapes; the concept pages explain the semantics. Field names are final as of the Phase 1 core milestone.
 
 ## Permission leaf
 
@@ -46,7 +46,7 @@ The normalised form of `{ where: { authorId: subject.id, teamId: { in: subject.c
 | Scope (from scoped roles) | `{ "op": "memberOf", "scope": "tenant" \| "team" \| "resource", "field": string, "roles": string[], "resource"?: string, "parents"?: string[] }` ([tenancy](/docs/concepts/tenancy)) |
 | Opaque (imported) | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }` |
 
-Literals are JSON literals. Single-child compounds are collapsed and nested same-operator compounds are flattened when the grant is defined, so consumers see a canonical tree. Field names are provisional.
+Literals are JSON literals. Single-child compounds are collapsed and nested same-operator compounds are flattened when the grant is defined, so consumers see a canonical tree. Field names `op`, `field`, `value`, `ref` and `date` are final.
 
 ## Snapshot v2
 
@@ -83,7 +83,7 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
 }
 ```
 
-A grant entry has `permission`, `effect` (`allow` or `deny`), `role`, optional `where`, `check`, `approval`, `scope` (`"tenant"`, `"team"` or `{ "resource": string }`) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. Readers must reject a `v` they do not know.
+A grant entry has `permission`, `effect` (`allow` or `deny`), `role`, optional `where`, `check`, `approval`, `scope` (`"tenant"`, `"team"` or `{ "resource": string }`) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
 
 ## Membership and custom role
 
@@ -437,7 +437,6 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 
 ## Open questions
 
-- Condition field names (`op`, `field`, `value`, `ref`, `date`, the `memberOf` node) and snapshot grant field names (`effect`, `portable`, `scope`, `membership`).
 - Whether decision events should carry the full matching `membership` or only its scope identifiers.
 - Whether the catalog should embed resource JSON Schemas or reference a separate `resources.schema.json`.
 - How much of the `Decision` to expose in AuthZEN `context` to non-PermDock PEPs, and whether `alternatives` should be answered only through `search/action`.

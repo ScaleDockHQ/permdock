@@ -88,7 +88,7 @@ export const policy = definePolicy(permissions, {
 Two more options:
 
 - `assignable` (default `true` for scoped roles, `false` for global roles) marks a role a tenant admin may hand out and compose into custom roles. `owner` above is held but never handed out.
-- `exclusiveWith: ['approver']` is recorded as an open question (INCITS 359 separation of duty); it would be a `permdock doctor` lint over memberships, not an evaluation rule.
+- `exclusiveWith: ['approver']` is deferred to Phase 2 as a `permdock doctor` lint over memberships (INCITS 359 static separation of duty), not an evaluation rule.
 
 ### Scope keys and typing
 
@@ -110,7 +110,7 @@ export const permissions = definePermissions({
 const editor = role('editor', [allow([permissions.document.update, permissions.folder.update])], { on: [permissions.folder, permissions.document] })
 ```
 
-An `editor` membership on folder `f_1` matches `document.update` for a document whose `folderId` is `f_1`. The chain is finite because it is typed: document to folder to project, three hops, declared once. Self-referential parents (folders in folders) are deliberately not expressible; that is the Zanzibar case and the [pdp adapter](/docs/adapters/pdp) bridges it ([roadmap](/docs/roadmap) non-goals). The row must carry the parent field; a missing parent field is a non-match, never a walk-up query. Exact typing of `parent` (string name versus reference) is a Phase 1 detail recorded under open questions.
+An `editor` membership on folder `f_1` matches `document.update` for a document whose `folderId` is `f_1`. The chain is finite because it is typed: document to folder to project, three hops, declared once. `parent.resource` is the parent **name string**, not a reference; a resource declares at most one parent; the name is resolved at `definePolicy` after any `mergePermissions` ([0030](/docs/decisions/0030-parent-typing)). Self-referential parents (folders in folders) are deliberately not expressible; that is the Zanzibar case and the [pdp adapter](/docs/adapters/pdp) bridges it ([roadmap](/docs/roadmap) non-goals). The row must carry the parent field; a missing parent field is a non-match, never a walk-up query.
 
 ### Grants over several references
 
@@ -270,8 +270,7 @@ For teams that audit against INCITS 359-2012 (the NIST RBAC standard): a request
 
 ## Open questions
 
-- Exact typing of `parent` on `resource()` (string name as above versus a reference), and whether two parents (a document in a folder and in a project) are allowed.
 - Cross-tenant guests: whether a principal has a home tenant that snapshots and RLS should know about.
-- `exclusiveWith` as a doctor lint (static separation of duty) and whether a dynamic variant (two roles not active in one session) is worth a runtime rule.
+- `exclusiveWith` as a Phase 2 `permdock doctor` lint (static separation of duty). A dynamic variant (two roles not active in one session) is not planned.
 - Whether `delegation` without an `actor` is the right model for an API key attenuated below its owner's memberships.
 - The membership table mapping for RLS when a project has one table per scope versus one polymorphic table.

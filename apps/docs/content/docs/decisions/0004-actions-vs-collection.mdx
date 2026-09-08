@@ -29,7 +29,7 @@ post: resource(Post, {
 })
 ```
 
-The arity is part of the permission's type. `permdock.can(permissions.post.update)` without a `post` is a compile error; `permdock.can(permissions.post.create, post)` is one too. Schema-less resources may declare only `collection` actions. The same rule applies to `decide`, `assert`, `usePermission`, `protect`, `registerTool` (`data` is required for instance permissions) and `allow` (a `where` condition is only valid on an instance action).
+The arity is part of the permission's type. `permdock.can(permissions.post.update)` without a `post` is a compile error. `create` stays a collection action; when a collection grant carries `check`, `can(permissions.post.create, body?)` accepts an optional body ([0029](/docs/decisions/0029-check-on-collection-actions)). Schema-less resources may declare only `collection` actions. The same rule applies to `decide`, `assert`, `usePermission`, `protect`, `registerTool` (`data` is required for instance permissions) and `allow` (a `where` condition is only valid on an instance action).
 
 ## Consequences
 
@@ -37,7 +37,7 @@ The arity is part of the permission's type. `permdock.can(permissions.post.updat
 - `filter` and `where` are only available on instance actions, `list` is a collection action; the distinction mirrors RLS `SELECT ... USING` versus the right to run the query at all.
 - Catalog, OpenAPI and MCP output can state whether a permission needs a resource id, which drives the `data` loader in `protect` and `registerTool`.
 - Definition authors must decide up front which bucket an action is in; renaming an action from one bucket to the other is a type-visible change in every call site.
-- Open question: the plan puts `create` in `collection` but also defines `check` (RLS `WITH CHECK`, the next row) for `create`. Either `create` accepts an optional boundary-validated body when a `check` condition exists, or apps declare `create` as an instance action when they need it. This is decided during Phase 1 core work and tracked on the [roadmap](/docs/roadmap).
+- Collection grants may carry `check` (never `where`). `can(permissions.post.create, body?)` accepts an optional body; without a body a `check` grant does not match ([0029](/docs/decisions/0029-check-on-collection-actions)).
 
 ## Alternatives considered
 
@@ -55,3 +55,4 @@ The arity is part of the permission's type. `permdock.can(permissions.post.updat
 - [CASL v7 deep-dive](/docs/research/casl-v7)
 - [zap-studio/permit deep-dive](/docs/research/zap-studio-permit)
 - [0003: Reference-based permissions](/docs/decisions/0003-reference-based-permissions)
+- [0029: check on collection actions](/docs/decisions/0029-check-on-collection-actions)

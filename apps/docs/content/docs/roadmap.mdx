@@ -7,11 +7,13 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 ## Phases
 
-### Phase 0: specification (now)
+### Phase 0: specification
 
-`README.md`, `PRODUCT.md`, `AGENTS.md` (with `CLAUDE.md` as a symlink), the MIT `LICENSE`, the full docs tree under `apps/docs/content/docs/`, and the Fumadocs app that serves that tree as the first Vercel Service at `/docs`. `packages/permdock`, example apps and tests do not yet. See [0017: Docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx).
+`README.md`, `PRODUCT.md`, `AGENTS.md` (with `CLAUDE.md` as a symlink), the MIT `LICENSE`, the full docs tree under `apps/docs/content/docs/`, and the Fumadocs app that serves that tree as the first Vercel Service at `/docs`. See [0017: Docs first, in MDX](/docs/decisions/0017-docs-first-in-mdx).
 
-### Phase 1: v0.1 "core + agents"
+### Phase 1: v0.1 "core + agents" (in progress)
+
+The first milestone shipped `packages/permdock` (root entry: definitions, policy, portable conditions, two-principal subject with tenancy, `createPermDock`, snapshot v2, decision events) and `packages/testing` (`@permdock/testing`). Adapters, example apps, `tests/bundle` and the TS 5.9/6/7 matrix remain.
 
 - Definitions: `definePermissions`, `resource`, typed references, nested groups, `mergePermissions`, `listPermissions`, `findPermission`.
 - Policy: `definePolicy`, `role`, `allow`, `deny`, `subject`; role fragments merged by name; `approval: 'human'` grants; `allow` / `deny` over arrays of references.
@@ -94,10 +96,10 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 These are the questions the plan leaves open. Each is resolved in the phase where the affected code is written, by updating the linked page and, where a decision changes, adding a decision record.
 
-1. **`decide` vs an `explain` alias.** Whether to export `explain` as a documented alias of `decide` for discoverability by agents. Phase 1. See [0007](/docs/decisions/0007-decide-not-explain).
+1. **`decide` vs an `explain` alias.** Resolved: `explain` is not exported. Call `decide` for the structured result and `describe` for prose ([0028](/docs/decisions/0028-synchronous-evaluation), [0007](/docs/decisions/0007-decide-not-explain)).
 2. **`Protected` vs a second inline component.** Whether `permdock/react` also ships a `Can`-style render-prop component alongside `Protected`, or `Protected` grows a render-prop form. Phase 1. See [React adapter](/docs/adapters/react).
-3. **`subject.*` reference ergonomics vs closures.** Whether `subject.id` style references in portable conditions are ergonomic enough that closures stay rare, or a typed builder is needed. Phase 1. See [Conditions](/docs/concepts/conditions).
-4. **Snapshot contents for large policies.** Whether `snapshot()` ships full grants with conditions or per-permission booleans (with conditions only where needed) when policies are large; scoped snapshots are the current answer. Phase 1. See [Snapshots](/docs/concepts/snapshots).
+3. **`subject.*` reference ergonomics vs closures.** Resolved: `subject` is a typed reference builder (`subject.id`, `subject.context.teamIds`) producing `{ ref: 'subject.<path>' }`. Closures stay the branded escape hatch ([conditions](/docs/concepts/conditions), [0028](/docs/decisions/0028-synchronous-evaluation)).
+4. **Snapshot contents for large policies.** Resolved: snapshots ship full grants with normalised conditions; `include` is the size lever ([0031](/docs/decisions/0031-snapshot-contents), [Snapshots](/docs/concepts/snapshots)).
 5. **Protected-query helper.** Whether to add `permdock.protect(queryFn, { before, after })` for co-located authorization and redaction around a data fetch, Kilpi-style. Phase 2 or later. See [Kilpi v1](/docs/research/kilpi-v1).
 6. **`collect` output.** Whether `permdock collect` emits the `mergePermissions` barrel or only the catalog. Phase 2. See [collect](/docs/cli/collect).
 7. **Field-level API shape.** How schema-aware field-level grants are declared (`fields` on a grant, a separate permission per field, or `*` / `**` patterns as in CASL). Phase 3. See [Policies](/docs/concepts/policies).
@@ -105,9 +107,9 @@ These are the questions the plan leaves open. Each is resolved in the phase wher
 9. **`LimitStore` and quotas.** The `LimitStore` interface for `limit` grants, and whether quotas belong in core or in an adapter. Phase 4. See [Policies](/docs/concepts/policies).
 10. **`approval-required` over plain HTTP.** Resolved: the client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record in the `ApprovalStore` and re-runs `decide` ([0022](/docs/decisions/0022-approvals-are-pluggable), [Approvals](/docs/security/approvals)).
 11. **Terminal token storage.** Which OS keychain binding `permdock/terminal` uses as its optional peer, and whether the mode-0600 file fallback is acceptable in CI images. Phase 2. See [Terminal](/docs/adapters/terminal).
-12. **`parent` typing on `resource`.** Whether `parent.resource` is a string name or a reference, and whether a resource may declare more than one parent. Phase 1. See [Permissions](/docs/concepts/permissions), [Tenancy](/docs/concepts/tenancy).
-13. **Separation of duty (`exclusiveWith`).** Whether INCITS 359 dynamic separation of duty ships as a `permdock doctor` lint over memberships, an evaluation rule, or not at all. Phase 1 decides the lint; the rule is not planned. See [Tenancy](/docs/concepts/tenancy).
-14. **Snapshot scope across tenants.** Whether `snapshot({ tenants: 'all' })` stays an opt-in for small membership lists or becomes the default when the subject holds fewer than a threshold of tenants. Phase 1. See [Snapshots](/docs/concepts/snapshots).
+12. **`parent` typing on `resource`.** Resolved: `parent.resource` is a resource name string; a resource has exactly one parent, validated at `definePolicy` after `mergePermissions` ([0030](/docs/decisions/0030-parent-typing), [Permissions](/docs/concepts/permissions), [Tenancy](/docs/concepts/tenancy)).
+13. **Separation of duty (`exclusiveWith`).** Deferred to Phase 2: a `permdock doctor` lint over memberships, not an evaluation rule. See [Tenancy](/docs/concepts/tenancy).
+14. **Snapshot scope across tenants.** Resolved: `snapshot({ tenants: 'all' })` stays opt-in; there is no membership-count threshold ([0031](/docs/decisions/0031-snapshot-contents), [Snapshots](/docs/concepts/snapshots)).
 15. **`useApproval` transport.** Poll the `approvalsHandler` route (default) or subscribe through a configured `SnapshotSource`. Phase 1 ships polling. See [UI](/docs/concepts/ui).
 
 Resolved since Phase 0 started: multi-tenant roles, teams, resource roles and tenant-defined custom roles are memberships on the principal plus scoped role declarations, with `RoleSource` and `MembershipSource` as the only new inputs ([0024](/docs/decisions/0024-scoped-roles-and-memberships)); provider principal types extend through generics and Standard Schema, never module augmentation ([extension interfaces](/docs/concepts/extension-interfaces)); the multi-organization snapshot question on the Clerk page, the global-versus-organization roles question on the Better Auth page, the multiple-roles question on the Supabase page and the `memberOf` node question on the RLS page are closed by the same decision.

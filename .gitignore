@@ -25,9 +25,8 @@ out/
 # fumadocs-mdx
 .source/
 
-# production
-dist/
-build/
+# packed tarballs
+*.tgz
 
 # env
 .env

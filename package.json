@@ -6,6 +6,7 @@
     "build": "turbo run build",
     "changeset": "changeset",
     "check": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck",
+    "check:publish": "turbo run check:publish",
     "docs:dev": "turbo run dev --filter=docs",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",

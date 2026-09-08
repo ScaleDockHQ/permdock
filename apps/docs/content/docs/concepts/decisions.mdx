@@ -63,6 +63,8 @@ if (decision.outcome === 'granted') {
 | `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)) |
 | `limit` | Quota exhausted (Later) |
 | `validation` | Boundary validation failed ([validation](/docs/concepts/validation)) |
+| `unknown-role` | A role name on the principal or a membership is not declared |
+| `tenant-mismatch`, `no-membership`, `scope`, `expired-membership` | Tenancy misses ([tenancy](/docs/concepts/tenancy)) |
 
 This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant.
 
@@ -98,7 +100,7 @@ See [approvals](/docs/security/approvals) for the full human-in-the-loop flow.
 
 `token` is present on `granted` and `approval-required`. It is a hash over the permission key, the resource `id` (or the collection marker), the frozen principal, the actor and a policy version. It has one job: an approval or a granted decision produced for one set of arguments cannot be replayed against another. When an approval reply comes back, the adapter recomputes the token from the actual tool arguments and rejects the reply if it differs. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approvals; PermDock computes it from the decision so every adapter gets it.
 
-The token is not a capability. Possessing it grants nothing; it only proves that a decision with these inputs was issued. Its exact encoding is provisional (see open questions) and should be treated as opaque.
+The token is not a capability. Possessing it grants nothing; it only proves that a decision with these inputs was issued. Encoding is `pd1.` plus base64url of a SHA-256 over the permission key, the resource id or `*`, the canonical principal, the canonical actor, and the policy fingerprint. Treat the string as opaque.
 
 ## assert
 
@@ -110,7 +112,7 @@ const { subject } = permdock.assert(permissions.post.delete, post)
 `assert` returns the `granted` decision or throws. Before throwing it runs the layered unauthorized handlers, in order, and rethrows the first error any of them produced:
 
 1. The per-call handler: `permdock.assert(permission, data, { onDenied: (d) => redirect('/login') })`.
-2. Instance hooks registered with `permdock.on('denied', handler)` (event name provisional; `on('decision')` is the audit event and is not an unauthorized handler).
+2. Instance hooks registered with `permdock.on('denied', handler)`. `on('decision')` is the audit event and is not an unauthorized handler.
 3. The policy default declared in `definePolicy`.
 
 All layers run even if an earlier one throws, so audit hooks still fire when a Next.js handler calls `redirect()`. If nothing throws, `assert` throws `PermDockDeniedError` or `PermDockApprovalRequiredError` itself. The layering is borrowed from Kilpi's `.assert(handler?)` ([research](/docs/research/kilpi-v1)); it lets the Next.js adapter redirect and the HTTP adapters emit Problem Details from one place. Error classes are documented under [errors](/docs/concepts/errors).
@@ -118,7 +120,7 @@ All layers run even if an earlier one throws, so audit hooks still fire when a N
 ## simulate
 
 ```ts
-const results = await permdock.simulate([
+const results = permdock.simulate([
   [permissions.post.update, post],
   [permissions.post.delete, post],
   [permissions.post.create],
@@ -141,12 +143,9 @@ Each adapter page documents its exact translation; the [wire formats](/docs/conc
 ## Immutability and performance
 
 - A `Decision` is a frozen plain object. It can be cached by the client keyed on permission key plus resource id, serialised to the decision endpoint response, or stored with an audit record.
-- `decide` never throws and never awaits: the policy is data, `context` was loaded at `createPermDock`, and closures that return a Promise are awaited only through `decideAsync` (see open questions) or through `assert` in async handlers.
+- `decide` never throws and never awaits: the policy is data, `context` was loaded at `createPermDock`, and a thenable from a closure is a `closure-error` denial reported to `on('error')` ([0028](/docs/decisions/0028-synchronous-evaluation)).
 - `can` is `decide(...).outcome === 'granted'` with `alternatives` skipped.
 
 ## Open questions
 
-- Whether `decide` needs an async twin for closure grants that return Promises, or whether closures must be sync when `decide` is used and only `assert` and adapters may await.
-- Token encoding: raw hash versus a short prefixed format (`pd1.`), and whether it includes a policy version so a policy change invalidates outstanding approvals.
 - Whether `alternatives` should be limited to the same resource or may include collection actions on related resources.
-- The exact set of denial reason codes; the list above is the working set.

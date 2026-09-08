@@ -1,0 +1,222 @@
+import {
+  allow,
+  definePermissions,
+  definePolicy,
+  deny,
+  resource,
+  role,
+  subject,
+} from 'permdock';
+import { memoryRoleSource, memorySink } from 'permdock';
+import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
+
+import {
+  testDecisionSink,
+  testMembershipSource,
+  testRoleSource,
+  testSnapshotSource,
+  testSubjectResolver,
+  testWhereCompiler,
+} from './conformance.ts';
+import { describePolicy } from './describe-policy.ts';
+import { snapshotFixture } from './snapshot-fixture.ts';
+
+const Post = z.object({
+  id: z.string(),
+  authorId: z.string(),
+  orgId: z.string(),
+  published: z.boolean(),
+});
+
+const permissions = definePermissions({
+  post: resource(Post, {
+    id: 'id',
+    actions: ['read', 'update', 'delete', 'publish'],
+    collection: ['create', 'list'],
+  }),
+});
+
+type User = {
+  readonly id: string;
+  readonly orgId: string;
+  readonly roles: readonly string[];
+};
+
+const member = role('member', [
+  allow(permissions.post.read),
+  allow(permissions.post.list),
+  allow(permissions.post.create),
+  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.delete, {
+    where: { authorId: subject.id },
+    approval: 'human',
+  }),
+]);
+
+const admin = role('admin', [
+  ...member.grants,
+  allow(permissions.post.update),
+  allow(permissions.post.delete),
+  allow(permissions.post.publish),
+  deny(permissions.post.publish, { where: { published: true } }),
+]);
+
+const policy = definePolicy(permissions, {
+  roles: [member, admin],
+  subject: (user: User | null) =>
+    user === null
+      ? null
+      : { id: user.id, orgId: user.orgId, roles: user.roles },
+});
+
+const ownPost = { id: 'p1', authorId: 'u1', orgId: 'o1', published: false };
+const otherPost = { id: 'p2', authorId: 'u9', orgId: 'o1', published: true };
+
+describePolicy(policy, {
+  subjects: {
+    anonymous: null,
+    member: { id: 'u1', orgId: 'o1', roles: ['member'] },
+    admin: { id: 'u2', orgId: 'o1', roles: ['admin'] },
+  },
+  fixtures: { ownPost, otherPost },
+  matrix: {
+    [permissions.post.create.key]: {
+      anonymous: 'denied',
+      member: 'granted',
+      admin: 'granted',
+    },
+    [permissions.post.list.key]: {
+      anonymous: 'denied',
+      member: 'granted',
+      admin: 'granted',
+    },
+    [permissions.post.read.key]: {
+      ownPost: { anonymous: 'denied', member: 'granted', admin: 'granted' },
+      otherPost: { anonymous: 'denied', member: 'granted', admin: 'granted' },
+    },
+    [permissions.post.update.key]: {
+      ownPost: { anonymous: 'denied', member: 'granted', admin: 'granted' },
+      otherPost: { anonymous: 'denied', member: 'denied', admin: 'granted' },
+    },
+    [permissions.post.delete.key]: {
+      ownPost: {
+        anonymous: 'denied',
+        member: 'approval-required',
+        admin: 'granted',
+      },
+      otherPost: { anonymous: 'denied', member: 'denied', admin: 'granted' },
+    },
+    [permissions.post.publish.key]: {
+      ownPost: { anonymous: 'denied', member: 'denied', admin: 'granted' },
+      otherPost: { anonymous: 'denied', member: 'denied', admin: 'denied' },
+    },
+  },
+});
+
+describe('snapshotFixture', () => {
+  it('returns snapshot v2 JSON', async () => {
+    const snapshot = await snapshotFixture(policy, {
+      id: 'u1',
+      orgId: 'o1',
+      roles: ['member'],
+    });
+    expect(snapshot.v).toBe(2);
+    expect(snapshot.roles).toContain('member');
+  });
+
+  it('accepts include, tenants and simulated previews', async () => {
+    const snapshot = await snapshotFixture(
+      policy,
+      { id: 'u1', orgId: 'o1', roles: ['member'] },
+      {
+        include: [permissions.post.read],
+        tenants: 'all',
+        simulated: true,
+        tenant: 'o1',
+      },
+    );
+    expect(snapshot.v).toBe(2);
+    expect(snapshot.simulated).toBe(true);
+  });
+});
+
+describePolicy(policy, {
+  exhaustive: false,
+  subjects: { member: { id: 'u1', orgId: 'o1', roles: ['member'] } },
+  matrix: {
+    [permissions.post.create.key]: { member: { outcome: 'granted' } },
+    [permissions.post.list.key]: {
+      member: { outcome: 'granted', denials: [{ reason: 'no-grant' }] },
+    },
+  },
+});
+
+describe('conformance runners', () => {
+  testSubjectResolver(
+    (input: unknown) => {
+      if (input === null) {
+        return { principal: null, context: {} };
+      }
+      return { principal: { id: 'u1' }, context: {} };
+    },
+    { invalid: null },
+  );
+
+  testMembershipSource(
+    {
+      membershipsFor: () => [{ tenant: 'o1', roles: ['viewer'] }],
+    },
+    {
+      principals: [{ id: 'alice' }],
+      expect: { alice: [{ tenant: 'o1', roles: ['viewer'] }] },
+    },
+  );
+
+  testMembershipSource(
+    {
+      membershipsFor(): never {
+        throw new Error('nope');
+      },
+    },
+    { principals: [{ id: 'bob' }] },
+  );
+
+  testRoleSource(
+    {
+      rolesFor: () => [{ tenant: 'o1', name: 'staff', includes: ['member'] }],
+      assignable: () => ['member'],
+    },
+    { tenant: 'o1', declared: ['member'] },
+  );
+
+  testDecisionSink({
+    write: () => undefined,
+    flush: () => undefined,
+  });
+
+  testSnapshotSource({
+    get: () => ({
+      v: 1,
+      issuedAt: 1,
+      subject: { principal: null, context: {} },
+      roles: [],
+      grants: [],
+      tenants: [],
+    }),
+  });
+
+  testSnapshotSource({
+    get: () => ({
+      v: 2,
+      issuedAt: 1,
+      subject: { principal: null, context: {} },
+      roles: [],
+      grants: [],
+      tenants: [],
+    }),
+    subscribe: () => () => undefined,
+  });
+
+  testWhereCompiler(() => false, { target: {} });
+});

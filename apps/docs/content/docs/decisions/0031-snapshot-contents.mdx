@@ -1,0 +1,38 @@
+---
+title: "0031: Snapshots ship grants, tenants all is opt-in"
+description: Why snapshot v2 serialises full grants with conditions, why include is the size lever, and why tenants all stays an opt-in.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Open question 4 asked whether `snapshot()` should ship full grants with conditions or per-permission booleans when policies are large. Open question 14 asked whether `snapshot({ tenants: 'all' })` should become the default below a membership-count threshold so a tenant switcher works without a round trip.
+
+Booleans cannot answer ownership (`authorId === subject.id`) on the client, which is the reason snapshots exist ([snapshots](/docs/concepts/snapshots)). A threshold default would put every tenant's grants on the wire for small accounts and surprise operators when the tenth membership flipped the default off.
+
+## Decision
+
+Snapshots ship the full grant list with normalised portable conditions. Size is controlled by `include` (groups or leaves); grants outside `include` are absent and the client treats those permissions as `server-only`. Closures and opaque conditions appear as `{ portable: false }` without source.
+
+`tenants: 'all'` stays opt-in. The default snapshot is scoped to the active tenant plus global grants. There is no membership-count threshold.
+
+## Consequences
+
+- The client in-memory evaluator is the same function as the server; ownership and `memberOf` work offline.
+- A large policy is a routing problem (`include` per page), not a format problem.
+- A tenant switcher that must not round-trip calls `snapshot({ tenants: 'all' })` explicitly.
+- Simulated snapshots still carry `simulated: true` and must not be used for real tokens ([0028](/docs/decisions/0028-synchronous-evaluation) does not change this).
+
+## Alternatives considered
+
+- **Per-permission booleans, conditions only where needed.** Rejected: the client would have to know which permissions are data-dependent, and a boolean cannot represent `approval-required`.
+- **Default `tenants: 'all'` below N memberships.** Rejected: a silent format change at a count threshold, and N is application-specific.
+
+## Related
+
+- [Snapshots](/docs/concepts/snapshots)
+- [Wire formats](/docs/concepts/wire-formats)
+- [0024: Scoped roles and memberships](/docs/decisions/0024-scoped-roles-and-memberships)

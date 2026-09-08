@@ -27,6 +27,10 @@
     "0024-scoped-roles-and-memberships",
     "0025-draft-protocol-posture",
     "0026-spec-aligned-naming",
-    "0027-governance-first-cloud"
+    "0027-governance-first-cloud",
+    "0028-synchronous-evaluation",
+    "0029-check-on-collection-actions",
+    "0030-parent-typing",
+    "0031-snapshot-contents"
   ]
 }

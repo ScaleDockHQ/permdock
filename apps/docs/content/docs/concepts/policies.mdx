@@ -92,7 +92,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `{ ..., approval: 'human' }` | Grant is valid but the decision is `approval-required` until a human approves |
 | `{ ..., limit: { count, per } }` | Quota grant (Later): non-portable, needs a `LimitStore` |
 
-Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` or `check` because there is no row; they accept closures over `ctx` only.
+Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` (there is no current row). They may carry `check` on the proposed body; without a body a `check` grant does not match ([0029](/docs/decisions/0029-check-on-collection-actions)). Closures over `ctx` only remain valid on collection grants.
 
 ## Evaluation semantics
 
@@ -168,7 +168,7 @@ The `subject` function is the only place PermDock touches your user object. It i
 
 ## Closures
 
-A closure grant is `(data, ctx) => boolean | Promise<boolean>`, where `ctx` contains `subject`, `actor`, `delegation` and the loaded `context`. Closures are branded as non-portable at the type level:
+A closure grant is `(data, ctx) => boolean`, where `ctx` contains `subject`, `actor`, `delegation` and the loaded `context`. A thenable returned by a closure is a `closure-error` denial ([0028](/docs/decisions/0028-synchronous-evaluation)). Closures are branded as non-portable at the type level:
 
 - `permdock.where(permission)` returns a condition that excludes closure grants and marks the result `partial`.
 - `permdock.snapshot()` serialises the grant as `{ portable: false }` so the client knows to ask the decision endpoint.
@@ -192,9 +192,7 @@ A change in the matrix is a change in who can do what, and shows up in review as
 
 ## Open questions
 
-- Ergonomics of `subject.*` references versus closures: whether to offer typed helpers such as `subject.context.teamIds.contains(row.teamId)` or keep the object form only. Scoped roles remove the most common case (tenant and team membership) from this question.
 - The `LimitStore` interface, and whether quotas belong in core or in a separate entry.
 - Whether same-named role fragments should be allowed to both `allow` and `deny` the same permission or whether that should be a lint error.
 - Anonymous grants: whether `role('anonymous', ...)` is applied automatically when `subject` returns `null`, or whether anonymous is always fully denied.
-- The name of the policy-level default unauthorized handler (`onDenied` above is a placeholder; the plan only says "policy default").
 - Whether a fluent policy builder should exist outside core for teams that prefer it; core stays data ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships) alternatives).

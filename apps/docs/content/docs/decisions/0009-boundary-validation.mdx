@@ -5,7 +5,7 @@ description: Why resource schemas run only on data that crossed a trust boundary
 
 ## Status
 
-Accepted, September 2026.
+Accepted, September 2026. The denial reason for a boundary failure is `validation`, which supersedes the `invalid-resource` name used in the original Decision text.
 
 ## Context
 
@@ -26,7 +26,7 @@ Standard Schema's `validate` may return a Promise. PermDock's `can` is synchrono
 - `always`: every `can` / `decide` / `filter` validates. For development and for policies that cannot tell trusted from untrusted data.
 - `never`: no runtime validation; types only.
 
-Validation is **synchronous**. If a schema's `validate` returns a Promise, PermDock throws `PermDockValidationError` with a typed message naming the resource, instead of silently denying or awaiting. Validation failure is a denial with `reason: 'invalid-resource'` plus the schema issues, never an exception on the hot path.
+Validation is **synchronous**. If a schema's `validate` returns a Promise, PermDock throws `PermDockValidationError` with a typed message naming the resource, instead of silently denying or awaiting. Validation failure is a denial with `reason: 'validation'` plus the schema issues, never an exception on the hot path. (An earlier draft of this Decision named that reason `invalid-resource`; core ships `validation`.)
 
 ## Consequences
 

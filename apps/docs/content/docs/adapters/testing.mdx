@@ -3,12 +3,12 @@ title: Testing
 description: "@permdock/testing ships policy matrix tests over roles, permissions and fixtures, snapshot fixtures for UI adapters, an RLS parity runner, Next.js instant() helpers and Vitest type tests."
 ---
 
-Status: planned
+Status: in progress
 Phase: 1
 
 ## Purpose
 
-`@permdock/testing` is a separate package (it depends on Vitest, Playwright helpers and a Postgres client, none of which belong in `permdock`). It gives every app the same four kinds of test the PermDock repo runs on itself: a policy matrix that pins each role's outcome for every permission and fixture, snapshot fixtures so UI adapters can be tested without a server, an RLS parity runner that proves generated policies agree with `can()`, and helpers for asserting Instant Navigation behaviour in Next.js. Type tests cover what the runtime cannot: that arity, reference identity and subject narrowing are enforced by the compiler.
+`@permdock/testing` is a separate package (it depends on Vitest; later milestones add Playwright helpers and a Postgres client, none of which belong in `permdock`). The first milestone ships `describePolicy`, `snapshotFixture`, the core-backed conformance runners (`testSubjectResolver`, `testMembershipSource`, `testRoleSource`, `testDecisionSink`, `testSnapshotSource`, `testWhereCompiler`) and Vitest type fixtures. `mockEndpoint`, `mswHandlers`, `rlsParity`, `instant`, `testApprovalStore`, `testTokenVerifier` and `testTokenSigner` follow with their adapters.
 
 ## API
 

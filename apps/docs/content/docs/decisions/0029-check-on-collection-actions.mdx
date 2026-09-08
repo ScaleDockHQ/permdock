@@ -1,0 +1,41 @@
+---
+title: "0029: check on collection actions"
+description: Why create stays a collection action, why a collection grant may carry check, and how can accepts an optional body for that check.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+[0004](/docs/decisions/0004-actions-vs-collection) put `create` in `collection` so `can(permissions.post.create)` needs no instance, and defined `check` (RLS `WITH CHECK`, the next row) for `create`. Those two choices conflicted: a collection action has no row, but `check` is a condition on a row. The ADR left the resolution to Phase 1.
+
+Apps that need to reject a proposed body (ownership of the new row, tenant key, required fields beyond the schema) would otherwise have to declare `create` as an instance action and pass a placeholder, which is the `@zap-studio/permit` shape [0004](/docs/decisions/0004-actions-vs-collection) rejected.
+
+## Decision
+
+`create` stays a collection action. A collection grant may carry `check` and must not carry `where`. When a collection grant has `check`, `can(permission, body?)` / `decide(permission, body?)` accept an optional body, typed as the resource schema output and boundary-validated when `trusted: false`.
+
+- Without a body, a `check` grant does not match (fail-closed): the caller asked "may I create" without saying what, so a row-level `check` cannot be true.
+- An unconditional collection grant still matches with no body.
+- Instance actions keep required data. `where` stays instance-only.
+
+## Consequences
+
+- `can(permissions.post.create)` remains the type-level "may I create at all" check.
+- `can(permissions.post.create, body)` is the `WITH CHECK` form adapters use for `INSERT`.
+- RLS generation can emit `FOR INSERT WITH CHECK (check)` from the same grant.
+- The documented `Permission<'post.create', never>` phantom is wrong: collection leaves carry the schema output type so the optional body is typed; arity is expressed by `kind: 'collection'` making data optional.
+
+## Alternatives considered
+
+- **No `check` on collection actions; declare `create` under `actions` when a body is needed.** Rejected: it makes the common "create in this tenant" case an instance action with a dummy row, and it splits `create` across apps.
+- **Optional body on every collection action regardless of `check`.** Rejected: a `list` grant has no next row; passing a body would silently ignore it or invent a match.
+
+## Related
+
+- [0004: Instance actions vs collection actions](/docs/decisions/0004-actions-vs-collection)
+- [Permissions](/docs/concepts/permissions)
+- [Conditions](/docs/concepts/conditions)
+- [RLS adapter](/docs/adapters/rls)

@@ -1,0 +1,15 @@
+{
+  "type": "decision",
+  "at": "2026-01-01T00:00:00.000Z",
+  "outcome": "granted",
+  "permission": "post.read",
+  "scope": "post:read",
+  "resource": { "type": "post", "id": "p1" },
+  "subject": {
+    "principal": { "id": "u1", "roles": ["member"] }
+  },
+  "matched": { "role": "member", "permission": "post.read" },
+  "token": "pd1.fixture",
+  "trusted": true,
+  "source": "decide"
+}

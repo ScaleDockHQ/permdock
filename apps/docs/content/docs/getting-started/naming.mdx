@@ -69,6 +69,7 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `subjectFromIntrospection` | Phase 4: an RFC 9767 introspection response in, `Subject` out | An HTTP client; the call is yours |
 | `<provider>RoleSource` | A provider's `RoleSource` implementation (`betterAuthRoleSource`) | A subject mapper |
 | `describe` | `describe(decision)` returning `{ kind, title, detail, alternatives }` for tooltips and Problem Details | Logging; it is pure |
+| `parseSnapshot` | Read snapshot v2 JSON; rejects unknown majors and forbidden keys (`__proto__`, `constructor`, `prototype`) | Evaluating; it is a reader, not `createPermDock` |
 | `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler` | The pluggable store behind `approval-required`, its in-process default, and the Fetch routes for approvers (`permdock/approvals`) | Deciding; a store never influences `decide` |
 | `DecisionSink`, `memorySink` | The pluggable destination for `on('decision')` events and its in-process default | Blocking a decision; sinks are fire-and-forget |
 | `store`, `sink`, `snapshots` | The three options every adapter's `createPermDock` accepts for an `ApprovalStore`, a `DecisionSink` and a `SnapshotSource` | Anything else; `store` is never a database handle |
@@ -164,6 +165,5 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 
 ## Open questions
 
-- Whether `decide` should get an `explain` alias for discoverability.
 - Whether `<Protected>` should be joined by a second, `<Can>`-style inline render-prop component.
 - Whether the derived-instance methods should be `tenant(id)` / `team(id)` (current) or a single `scope({ tenant, team })`; the [tenancy](/docs/concepts/tenancy) page carries the rationale for two named methods.

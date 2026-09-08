@@ -1,0 +1,20 @@
+{
+  "v": 2,
+  "issuedAt": 1700000000,
+  "subject": {
+    "principal": {
+      "id": "u1",
+      "roles": ["member"]
+    },
+    "context": {}
+  },
+  "roles": ["member"],
+  "grants": [
+    {
+      "permission": "post.read",
+      "effect": "allow",
+      "role": "member"
+    }
+  ],
+  "tenants": []
+}

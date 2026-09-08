@@ -1,0 +1,6 @@
+{
+  "op": "memberOf",
+  "scope": "tenant",
+  "field": "orgId",
+  "roles": ["viewer"]
+}
