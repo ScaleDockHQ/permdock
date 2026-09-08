@@ -47,6 +47,7 @@ interface ApprovalStore {
 - `list` powers the approver UI and the `permdock/terminal` interactive prompt.
 - `expire` is called opportunistically by adapters and by `approvalsHandler`; a scheduled job may call it as well.
 - `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
+- `signer` (optional, a `TokenSigner` such as `joseTokenSigner` from `permdock/jwt`) makes `approvalsHandler` return, on approve, a compact JWS with `typ: permdock-approval+jwt` alongside the bare token: registered claims `iss`, `aud`, `sub` (the principal), `iat`, `exp` (= the request's `expiresAt`), `jti`, and `{ token, permission, resource, status }` under the `approval` claim ([wire formats](/docs/concepts/wire-formats)). It exists for a resume that crosses services or trust domains, where the resuming side wants proof of who resolved the request before it spends a `decide`. The bound hash `token` stays the thing that is compared ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)): the adapter verifies the JWS with its `verifier`, extracts `approval.token`, and then runs the unchanged step 5 below. `PermDock-Approval` carries either form; the kernel tells them apart by the `pd1.` prefix versus the three-segment JWS shape.
 
 `approvalsHandler` routes, all Fetch `Request` to `Response`:
 

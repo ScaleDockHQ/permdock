@@ -34,11 +34,11 @@ Walks an agent through adding PermDock to an existing app:
 1. Detect the framework (Next.js, Vite, Expo, Hono, Express, tRPC, MCP server, AI SDK, Claude Agent SDK) and the validator already in use (Zod, Valibot, ArkType).
 2. Create `src/permissions.ts` with `definePermissions()` over the app's existing schemas, splitting `actions` and `collection` per resource.
 3. Create `src/policy.ts` with `definePolicy()`, roles as `allow` / `deny` arrays, portable `where` conditions first, closures only when necessary.
-4. Create the factory file for the framework (`src/permdock/server.ts` with `createPermDock` from `permdock/<framework>`), following the [naming convention](/docs/getting-started/naming).
+4. Create the factory file for the framework (`src/permdock/server.ts` with `createPermDock` from `permdock/<framework>`), following the [naming convention](/docs/getting-started/naming). When the app receives OAuth or OIDC access tokens, wire `subjectFromJwt` Discovery-first: `discovery: '<issuer>'` rather than a hand-copied `jwks` URL, `audience` set to the resource identifier, `algorithms` written as `Ed25519` / `ES256` / `PS256`, and the default `accept: 'access-token'` left in place so an ID token never authorises an API call ([JWT adapter](/docs/adapters/jwt)).
 5. Add the first check (`assert` in a server handler), the first UI guard (`usePermission` or `Protected`), and the decision endpoint where closures exist.
 6. Run `permdock collect`, `permdock usage` and `permdock doctor`, fix findings, and add `collect --check` to CI.
 
-The skill contains the exact import paths and code shapes from the [quick start](/docs/getting-started/quick-start) and one section per adapter, and states the invariants an agent must not violate: never string keys in public APIs, never `not-applicable`, never import the policy in a client entry, never trust a model-supplied subject.
+The skill contains the exact import paths and code shapes from the [quick start](/docs/getting-started/quick-start) and one section per adapter, and states the invariants an agent must not violate: never string keys in public APIs, never `not-applicable`, never import the policy in a client entry, never trust a model-supplied subject, never verify a token with `EdDSA`, `none` or `RSA1_5` in the allow-list.
 
 ### audit-permissions
 

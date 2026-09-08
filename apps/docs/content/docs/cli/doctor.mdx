@@ -35,6 +35,9 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD010` | Roles or tenant read from an unverified or user-editable claim | error |
 | `PD011` | Tenant read from an optional claim under a multi-tenant issuer | warning |
 | `PD012` | OpenAPI document or Overlay pinned to a draft revision the installed CLI no longer emits | warning |
+| `PD013` | Polymorphic `EdDSA` in a JWT `algorithms` list instead of `Ed25519` | warning |
+| `PD014` | `discovery` issuer mismatch, plain-HTTP issuer, or `jwks` without `issuer` | error |
+| `PD015` | Token verification that does not check `typ`, or `accept: 'id-token'` on an API route | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -83,6 +86,18 @@ Fires when `claims.tenant` names a claim the issuer emits only for some accounts
 ### PD012: stale draft pin
 
 Reads `x-permdock-catalog.drafts` from every OpenAPI document and Overlay `permdock openapi` has written in the repository (found through the `openapi` section of the config or the paths passed to `--doc`) and compares each pin with the revision the installed CLI emits ([OpenAPI 3.3](/docs/standards/openapi-3-3), [ADR 0025](/docs/decisions/0025-draft-protocol-posture)). A mismatch means the document carries an older draft shape than a regeneration would produce, which is a warning here and an error in `permdock openapi emit --check`; the fix is to regenerate. Documents and Overlays without `drafts` (targets `3.1` and `3.2`, Overlay `1.1`) are not checked; a `--overlay 1.2` Overlay carries `drafts.overlay` ([OpenAPI Overlay](/docs/standards/openapi-overlay)).
+
+### PD013: polymorphic `EdDSA`
+
+Reads the `algorithms` option of every `subjectFromJwt`, `createJwtSubjectResolver`, `joseTokenVerifier` and `joseTokenSigner` call and warns when it lists `EdDSA`. RFC 9864 registers the fully-specified `Ed25519` (and `Ed448`) and deprecates the polymorphic name because a verifier cannot tell from `alg` alone which curve it is committing to ([JOSE](/docs/standards/jose)). The runtime accepts `EdDSA` only for a `crv: Ed25519` key, so this is a warning; the fix is to write `Ed25519`. `none` or `RSA1_5` in the list is an error under the same check, since the runtime refuses them regardless.
+
+### PD014: discovery and issuer configuration
+
+Errors when a `discovery` value is not an `https:` URL, when `discovery` and `jwks` or `issuer` are both set (the document supplies both and a hand-set `issuer` that differs is the misconfiguration Discovery section 4.3 exists to catch), or when `jwks` is configured without `issuer`. With network access (`--online`) it fetches the Discovery document once and reports an `issuer` that does not equal the configured one byte for byte, a missing `jwks_uri`, or a `jwks_uri` on a different origin than the issuer, each of which the runtime would treat as `discovery-mismatch` and resolve every token to anonymous ([OpenID Connect](/docs/standards/openid-connect)).
+
+### PD015: token type
+
+Warns when a custom `TokenVerifier` passed as `verifier` does not declare `typ` handling (the conformance runner `testTokenVerifier` covers the runtime side; this is the static hint), and when `accept: 'id-token'` appears in a resolver used by an HTTP, MCP or agent adapter rather than a BFF session layer, because an ID token is not an access token and never carries `delegation` ([JWT adapter](/docs/adapters/jwt)). It also reports a resolver whose `profile: 'fapi2'` is paired with `algorithms` that include `RS256`, which the profile forbids.
 
 ## Example report
 

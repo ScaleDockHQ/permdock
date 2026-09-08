@@ -9,7 +9,7 @@ A PermDock subject has two halves. `principal` is the human or service whose gra
 
 ```ts
 const permdock = await createPermDock(policy, user, {
-  actor: { id: 'https://agent.example/cimd.json', kind: 'mcp' },
+  actor: { id: 'https://agent.example/cimd.json', kind: 'mcp-client' },
   delegation: {
     scopes: ['post:read', 'post:update'],
     authorizationDetails: [{ type: 'permdock:post.update', where: { authorId: '$subject.id' } }],
@@ -38,7 +38,7 @@ A call with no `actor` is a human call and behaves exactly as `createPermDock(po
 
 | Adapter | `actor` | `delegation` |
 | --- | --- | --- |
-| `permdock/mcp` | `authInfo.clientId` (an OAuth client id or a CIMD URL), `kind: 'mcp'` | `authInfo.scopes`; `authorization_details` when the token carries them (including ID-JAG-derived tokens under Enterprise-Managed Authorization) |
+| `permdock/mcp` | `authInfo.clientId` (an OAuth client id or a CIMD URL), `kind: 'mcp-client'` | `authInfo.scopes`; `authorization_details` when the token carries them (including ID-JAG-derived tokens under Enterprise-Managed Authorization) |
 | `permdock/ai-sdk` | `actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' })` | Supplied by the application per call; defaults to the principal's full authority only when explicitly configured |
 | `permdock/claude-agent` | The Claude Agent SDK session, `kind: 'claude-agent'` | Configured per session; the `tools` map bounds what the agent can even ask for |
 | `permdock/a2a` | The calling agent's identity from its card or token, `kind: 'a2a'` | Caller's token scopes and `authorization_details` |
@@ -66,7 +66,7 @@ Scopes remain the coarse layer: `post:update` in `delegation.scopes` is required
 
 ### GNAP `access` as a third input
 
-[RFC 9635 (GNAP)](/docs/standards/gnap) describes delegated rights as an `access` array whose objects carry `type`, `actions`, `locations`, `datatypes`, `identifier` and `privileges`, a structure the RFC itself calls analogous to RAR. `delegation.access` accepts those objects next to `scopes` and `authorizationDetails`; `permdock/jwt` fills it from an `access` claim when one is present. The three inputs are unioned into one delegated set before the intersection with the principal's grants, and every invariant above applies to `access` objects unchanged: an unknown `type` contributes nothing, `identifier` narrows to one resource, `privileges` never adds a role. Evaluation of `access` objects in the intersection is Phase 4; until then they are carried and audited but grant nothing.
+[RFC 9635 (GNAP)](/docs/standards/gnap) describes delegated rights as an `access` array whose objects carry `type`, `actions`, `locations`, `datatypes`, `identifier` and `privileges`, a structure the RFC itself calls analogous to RAR. `delegation.access` accepts those objects next to `scopes` and `authorizationDetails`. At a resource server the normative source is [RFC 9767](https://www.rfc-editor.org/rfc/rfc9767.html) (GNAP Resource Server Connections): `permdock/jwt` fills it from the `access` claim of a JWT-formatted access token (RFC 9767 sections 2.1 and 2.2), and in Phase 4 `subjectFromIntrospection` fills it from the `access` array of an introspection response (section 3.3), which the AS may have filtered to what this RS is allowed to see ([GNAP](/docs/standards/gnap)). The three inputs are unioned into one delegated set before the intersection with the principal's grants, and every invariant above applies to `access` objects unchanged: an unknown `type` contributes nothing, `identifier` narrows to one resource, `privileges` never adds a role. Evaluation of `access` objects in the intersection is Phase 4; until then they are carried and audited but grant nothing.
 
 ```ts
 delegation: {
@@ -111,7 +111,7 @@ Every `on('decision')` event includes `actor` and `delegation` alongside the pri
 - [Agent Delegation Chain draft](https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00) for monotonic attenuation across hops.
 - [OAuth for AI agents on behalf of a user draft](https://datatracker.ietf.org/doc/html/draft-oauth-ai-agents-on-behalf-of-user-02) for `requested_actor` and `actor_token`.
 - [MCP Enterprise-Managed Authorization](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/extensions/auth/enterprise-managed-authorization.mdx) for ID-JAG-derived tokens.
-- [RFC 9635, GNAP](https://datatracker.ietf.org/doc/html/rfc9635), section 8, for the `access` array.
+- [RFC 9635, GNAP](https://datatracker.ietf.org/doc/html/rfc9635), section 8, for the `access` array; [RFC 9767, GNAP Resource Server Connections](https://www.rfc-editor.org/rfc/rfc9767.html) for how a resource server obtains it (introspection, JWT-formatted tokens).
 - [Transaction Tokens](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) (draft-ietf-oauth-transaction-tokens) for `sub_id`, `azd` and the trust-domain `aud` rule; the [WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch) for workload context propagation.
 - RFC 6750, RFC 8693 and the RAR Metadata and Error Remediation draft (draft-ietf-oauth-rar-metadata-remediation) are referenced by name; see the [watch list](/docs/standards/watch-list) for their status.
 - [ADR 0012: two-principal subject](/docs/decisions/0012-two-principal-subject).

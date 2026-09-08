@@ -61,7 +61,7 @@ What `protectServer` does with each MCP concept:
 | `403 insufficient_scope` step-up | Emitted when `permission.scope` is missing from `authInfo.scopes` |
 | SEP-2350 scope accumulation | Challenge lists only missing scopes; `simulate()` can pre-compute the full set for a plan |
 | `ctx.http.authInfo.scopes` | `delegation.scopes`; intersected with principal grants |
-| `authInfo.clientId` | `actor.id` with `actor.kind: 'mcp'` |
+| `authInfo.clientId` | `actor.id` with `actor.kind: 'mcp-client'` |
 | Handler returning `isError: true` | `Decision` denied, with reasons and `alternatives` in `structuredContent` |
 | Tool `inputSchema` | Cross-checked against the resource's Standard JSON Schema; args validated at the boundary |
 | Stateless elicitation (MRTR) | `approval-required` outcome; approval re-checked against `Decision.token` |

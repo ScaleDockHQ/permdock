@@ -55,7 +55,7 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
 ```json
 {
   "v": 2,
-  "issuedAt": "2026-09-06T10:15:00Z",
+  "issuedAt": 1788999900,
   "subject": {
     "principal": {
       "id": "u_1", "roles": [], "tenant": "o_1",
@@ -190,6 +190,54 @@ Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See [approvals](
 ```
 
 `status` is `pending`, `approved`, `rejected` or `expired`; `resolvedAt`, `resolvedBy` and `note` appear only once resolved. The record never carries the resource object, the policy, or tokens from `authInfo`. On the wire, the HTTP resume header is `PermDock-Approval: <token>`.
+
+## Signed outputs
+
+Three artefacts can leave the process as compact JWS (RFC 7515) signed by a `TokenSigner` ([extension interfaces](/docs/concepts/extension-interfaces), [JOSE](/docs/standards/jose)). Signing is additive: the JSON object above is placed unchanged under one private claim next to registered JWT claims, so no `v` changes and a reader that already understands the JSON form understands the payload. Anything that can verify a JWS against a JWK Set, in any language, can verify these.
+
+The envelope is the same for all three:
+
+- **Header**: exactly `alg`, `kid` and `typ`. `alg` is one of the [`permdock/jwt`](/docs/adapters/jwt) allow-list (`ES256`, `PS256`, `Ed25519`; `RS256` outside `profile: 'fapi2'`); never `none`. `kid` names a key in the signer's JWK Set. `typ` is one of the three values below and a verifier rejects any other. No `crit`, no `jku`, no `x5u`, no embedded `jwk`: the verifier is configured with the key set, never told where to fetch it by the token.
+- **Registered claims**: `iss` (the signing service's URL), `aud` (the intended consumer), `iat`, `exp`, `jti` (RFC 7519 section 4.1). `sub` is present when the artefact is about one principal and equals `subject.principal.id`. All times are NumericDate seconds.
+- **One private claim** carrying the artefact: `snapshot`, `approval` or `events`. Nothing PermDock-specific appears at the top level; PermDock never registers a claim name in the IANA JWT registry for these.
+
+| `typ` | Private claim | Producer | Consumer |
+| --- | --- | --- | --- |
+| `permdock-snapshot+jwt` | `snapshot`: a Snapshot v2 object | `permdock.snapshot({ signer, audience })`; a `SnapshotSource` (`permdock/cloud` always signs) | The client `PermDockProvider` through `joseTokenVerifier`, or any JOSE library |
+| `permdock-approval+jwt` | `approval`: `{ "token": "pd1.…", "permission", "resource": { "type", "id" }, "status" }` | `approvalsHandler({ signer })` on resolve, for a resume that crosses services | The resuming adapter, which still re-runs `decide` and recomputes the bound `token` |
+| `permdock-decisions+jwt` | `events`: an array of CloudEvents-enveloped decision and approval events | A `DecisionSink` with `signed: true` ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline |
+
+Signed snapshot, decoded:
+
+```json
+{
+  "alg": "Ed25519", "kid": "2026-09", "typ": "permdock-snapshot+jwt"
+}
+.
+{
+  "iss": "https://app.example.com",
+  "aud": "https://app.example.com",
+  "sub": "u_1",
+  "iat": 1788999900,
+  "exp": 1789000000,
+  "jti": "snap_01J8…",
+  "snapshot": { "v": 2, "issuedAt": 1788999900, "expiresAt": 1789000000, "subject": { "…": "…" }, "roles": ["member"], "grants": ["…"], "tenants": ["o_1"], "include": ["post"] }
+}
+```
+
+Rules that hold for every signed output:
+
+- `exp` equals the artefact's own expiry (`snapshot.expiresAt`, `approval` request `expiresAt`) when it has one; otherwise the signer's default (one hour for `permdock-decisions+jwt`). A verifier applies `exp` before reading the private claim.
+- `iat` equals `snapshot.issuedAt` for snapshots. A tampered persisted snapshot fails signature verification, which resolves the question of whether `issuedAt` needs separate protection.
+- `sub` is redundant with `snapshot.subject.principal.id` by design: a consumer can route or cache on registered claims without parsing the private claim.
+- A signed approval never replaces the bound hash `token` ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)): the resuming adapter verifies the JWS, then compares `approval.token` with a freshly recomputed token exactly as it would for a bare `PermDock-Approval` header. The JWS proves who resolved it; the token proves what was approved.
+- A signed decision batch is evidence, not input: no PermDock code path reads `events` back to make a decision.
+- Keys are published as a JWK Set at `/.well-known/jwks.json` by any signer that serves consumers outside its process; `permdock/cloud` does. Rotation is the JWKS rule consumers already apply to identity providers: publish the new `kid`, keep the old key until every artefact signed with it has expired.
+- These three `typ` values are recorded on [OpenAPI registry](/docs/standards/openapi-registry); an artefact is never emitted with a `typ` that page does not list.
+
+JWE is not used for any output: snapshots are UI-only and contain nothing the subject may not see, approval tokens are bound hashes, and decision batches go to destinations that already hold the events. A team that needs confidentiality wraps the JWS in JWE on its own transport.
+
+`@permdock/testing` ships one fixture per `typ` (a key pair, the signed compact form, the decoded payload) and `testTokenSigner` asserts that a custom signer's output for the fixture payload verifies with the fixture public key and carries exactly the three header parameters.
 
 ## AuthZEN
 
@@ -374,6 +422,7 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 ## Versioning
 
 - `v` fields on the snapshot, approval request and catalog follow the format, not the package version. A breaking change to a shape bumps `v`; readers reject unknown majors.
+- The JWS envelope of a signed output is versioned by its `typ`: a change to the header set, the registered claims or the private claim name is a new `typ` (`permdock-snapshot.v2+jwt`), never a silent change, so a verifier configured for one `typ` keeps rejecting what it does not understand.
 - Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning.
 - AuthZEN messages follow the 1.0 spec; PermDock-specific data lives only under `context.permdock`.
 

@@ -30,8 +30,10 @@ Each of them exposes a `subjectFrom<Source>` function. The name says where the m
 | Source | Verified by | Becomes | Adapter |
 | --- | --- | --- | --- |
 | Session cookie | The framework's session layer (Next.js, Better Auth server API) | `principal` from the session user | `permdock/next`, `permdock/better-auth` |
-| Bearer JWT | Signature, `iss`, `aud`, `exp`, `nbf` against a JWKS or shared secret | `principal` from `sub`; global roles from RFC 9068 `roles`, team memberships from `groups`, entitlement roles from `entitlements` ([JWT authorization claims](/docs/standards/jwt-authorization-claims)); `tenant` from the configured claim; `delegation` from `scope`, `authorization_details`; `actor` from `act` | `permdock/jwt` (`subjectFromJwt`) |
-| Supabase `getClaims()` output | `@supabase/supabase-js` against the project JWKS (asymmetric keys) or the Auth server (legacy secret) | `principal.id` from `sub`, roles and `tenant` from `app_metadata` / hook claim, `assurance` from `aal`; memberships from your tables through `memberships` | `permdock/supabase` (`subjectFromSupabase`) |
+| OAuth 2.0 / OIDC access token (bearer or DPoP JWT, `typ: at+jwt` or `JWT`) | Signature, `iss`, `aud`, `exp`, `nbf`, `typ` against the JWKS named by [OIDC Discovery](/docs/standards/openid-connect) (`discovery`) or a configured `jwks` | `principal` from `sub` and `issuer` from `iss`; `assurance` from `acr` / `amr` / `auth_time`; `session` from `sid`; global roles from RFC 9068 `roles`, team memberships from `groups`, entitlement roles from `entitlements` ([JWT authorization claims](/docs/standards/jwt-authorization-claims)); `tenant` from the configured claim; `delegation` from `scope`, `authorization_details`, GNAP `access`; `actor` from `act`; `binding` from `cnf` | `permdock/jwt` (`subjectFromJwt`) |
+| OIDC ID token (`accept: 'id-token'`, explicit opt-in for BFF patterns) | As above, plus `aud` must equal the client id and `nonce` is verified by the RP, not by PermDock | Same principal fields; never `delegation` (an ID token carries no `scope` for a resource server) | `permdock/jwt` (`subjectFromJwt`) |
+| GNAP introspection response (Phase 4) | The RS's own credential at the AS introspection endpoint (RFC 9767); the response is trusted as server-to-server material | `principal` from `sub`, `issuer` from `iss`; `delegation.access` from `access`; `binding` from `key` | `permdock/jwt` (`subjectFromIntrospection`) |
+| Supabase `getClaims()` output | `@supabase/supabase-js` against the project JWKS (asymmetric keys) or the Auth server (legacy secret) | `principal.id` from `sub`, `issuer` from `iss`, roles and `tenant` from `app_metadata` / hook claim, `assurance.acr` from `aal`; memberships from your tables through `memberships` | `permdock/supabase` (`subjectFromSupabase`) |
 | Clerk session claims | Clerk middleware and `auth()` | `principal` from `userId`; `tenant` from the active `orgId`; a membership `{ tenant: orgId, roles: [orgRole] }`; `fea` entitlement roles; custom claims through `schema` | `permdock/clerk` (`subjectFromClerk`) |
 | Better Auth session | `auth.api.getSession` on the server | `principal` from the user; `tenant` from `activeOrganizationId`; memberships from `member` and `teamMember` rows; custom roles from `organizationRole` through a `RoleSource` | `permdock/better-auth` (`subjectFromBetterAuth`) |
 | MCP `authInfo` | The MCP SDK's bearer verification (`requireBearerAuth`, RFC 9207 `iss` check) | `principal` from the token's user; `actor` from `clientId`; `delegation` from `scopes` | `permdock/mcp` (`subjectFromMcp`) |
@@ -136,17 +138,20 @@ With [scoped roles](/docs/concepts/tenancy) the same lookup produces memberships
 
 ## JWT validation checklist
 
-`permdock/jwt` implements this list; if you verify tokens yourself before calling a `subjectFrom*` function, your verifier must too. It follows RFC 8725 (JSON Web Token Best Current Practices) and its successor draft, `rfc8725bis`, which is in the RFC Editor queue.
+`permdock/jwt` implements this list; if you verify tokens yourself before calling a `subjectFrom*` function, or plug a custom `TokenVerifier` in through the `verifier` option ([extension interfaces](/docs/concepts/extension-interfaces)), your verifier must too. It follows RFC 8725 (JSON Web Token Best Current Practices) and its successor draft, `rfc8725bis`, which is in the RFC Editor queue; the per-item mapping is on the [JOSE](/docs/standards/jose) page.
 
-1. **Allowed algorithms are an explicit list.** Configure `algorithms: ['ES256', 'PS256', 'EdDSA']` (or the subset your issuer uses). A token whose `alg` is not in the list is rejected before any key lookup.
-2. **`none` is never allowed**, whatever the list says.
-3. **The token never picks the key.** `jku`, `x5u` and embedded `jwk` headers are ignored; keys come only from the configured JWKS URL, key set or secret. This closes key-confusion attacks where an RSA public key is fed to an HMAC verifier.
-4. **`kid` must resolve in the JWKS.** An unknown `kid` triggers at most one refetch per configured interval; if it still does not resolve, the token is rejected.
-5. **`iss` equals the configured issuer.** Exact string comparison.
-6. **`aud` contains this resource.** A token issued for another API is rejected even when the signature is valid.
-7. **`exp` and `nbf` are checked** with a small, explicit clock tolerance (seconds, not minutes). `iat` in the future is rejected under the same tolerance.
-8. **Signature before claims.** Claims are parsed only after the signature verified; an attacker cannot make the verifier branch on unverified data.
-9. **Bearer tokens come from the `Authorization` header** (RFC 6750 section 2.1) or the `DPoP` scheme (RFC 9449 section 7.1). Tokens in query strings are rejected under `profile: 'fapi2'` and discouraged everywhere.
+1. **Keys and issuer come from Discovery, or from explicit configuration.** With `discovery: '<issuer>'` the resolver fetches `<issuer>/.well-known/openid-configuration` (RFC 8414 `/.well-known/oauth-authorization-server` as fallback), requires the document's `issuer` to equal the configured one byte for byte, and takes `jwks_uri` from it. Discovery is over HTTPS only and is cached with the JWKS; it runs in the resolver, never in `decide`. Without `discovery`, `jwks` and `issuer` are both required ([OpenID Connect](/docs/standards/openid-connect)).
+2. **Allowed algorithms are an explicit list.** The default is `ES256`, `PS256`, `Ed25519` (RFC 9864's fully-specified name), plus `RS256` outside `profile: 'fapi2'`; configure the subset your issuer uses. `EdDSA` is accepted only for a `crv: Ed25519` key and `permdock doctor` suggests the fully-specified name. A token whose `alg` is not in the list is rejected before any key lookup.
+3. **`none` is never allowed**, whatever the list says; nor is `RSA1_5` for JWE.
+4. **The token never picks the key.** `jku`, `x5u` and embedded `jwk` headers are ignored; keys come only from the JWKS Discovery named or the configured key set. This closes key-confusion attacks where an RSA public key is fed to an HMAC verifier.
+5. **`kid` must resolve in the JWKS.** An unknown `kid` triggers at most one refetch per configured interval; if it still does not resolve, the token is rejected.
+6. **`iss` equals the configured or discovered issuer.** Exact string comparison.
+7. **`aud` contains this resource.** A token issued for another API is rejected even when the signature is valid.
+8. **`typ` is checked.** `at+jwt` (RFC 9068) or `JWT` for access tokens, `at+jwt` only under `profile: 'fapi2'`; an ID token (`nonce` present, `aud` equal to a client id) is rejected unless `accept: 'id-token'` was chosen. A JWE is accepted only when `decryptionKeys` is configured, and only as a nested JWS with `cty: JWT`.
+9. **`exp` and `nbf` are checked** with a small, explicit clock tolerance (seconds, not minutes). `iat` in the future is rejected under the same tolerance.
+10. **Signature before claims.** Claims are parsed only after the signature verified; an attacker cannot make the verifier branch on unverified data.
+11. **Bearer tokens come from the `Authorization` header** (RFC 6750 section 2.1) or the `DPoP` scheme (RFC 9449 section 7.1). Tokens in query strings are rejected under `profile: 'fapi2'` and discouraged everywhere.
+12. **Every failure is one shape.** The token becomes the anonymous subject and `on('auth')` receives `reason: 'invalid-token'` with a `cause` from the closed list on the [JWT adapter](/docs/adapters/jwt); HTTP adapters render `WWW-Authenticate: Bearer error="invalid_token"` from the reason alone ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)).
 
 ## Token to delegation
 
@@ -168,8 +173,8 @@ FAPI 2.0 and the IPSIE profiles ask resource servers to accept sender-constraine
 
 | `cnf` member | Standard | On the subject |
 | --- | --- | --- |
-| `cnf.jkt` | DPoP, RFC 9449 | `binding: { method: 'dpop', thumbprint }` |
-| `cnf.x5t#S256` | OAuth 2.0 mTLS, RFC 8705 | `binding: { method: 'mtls', thumbprint }` |
+| `cnf.jkt` | DPoP, RFC 9449 | `binding: { jkt }` (the `cnf` member, verbatim; [ADR 0026](/docs/decisions/0026-spec-aligned-naming)) |
+| `cnf.x5t#S256` | OAuth 2.0 mTLS, RFC 8705 | `binding: { 'x5t#S256' }` |
 
 The binding is attached to `principal` when the token identifies a user or workload acting for itself, and to `actor` when the token carries an `act` chain (the key belongs to the agent that presented it). Core stores it and puts it on audit events; **checking** it is an adapter concern, because proof-of-possession needs the request: `verifyDpopProof(request, claims)` in `permdock/jwt` compares the `DPoP` header's JWK thumbprint to `cnf.jkt`, and the mTLS check compares the client certificate the TLS terminator forwarded to `cnf.x5t#S256`. Under `profile: 'fapi2'` a token without `cnf` is rejected outright ([FAPI 2.0](/docs/standards/fapi-2)).
 
@@ -179,7 +184,7 @@ A verified token is a statement about the past. Three signals bound how long Per
 
 - **`exp`.** The subject built from a token inherits its expiry, and `snapshot()` sets `expiresAt` to it so a client stops trusting cached grants when the token would have expired.
 - **`session_expiry`.** The IPSIE SL1 profile and OpenID Connect Enterprise Extensions add a `session_expiry` claim to ID tokens and require re-authentication after it ([IPSIE SL1 profile](https://openid.github.io/ipsie-openid-sl1/draft-openid-ipsie-sl1-profile.html)). When present it is the earlier bound: `expiresAt = min(exp, session_expiry)`.
-- **CAEP events.** `session-revoked`, `credential-change` and `assurance-level-change` delivered through the Shared Signals Framework invalidate the subject's cached snapshots immediately, so revocation is bounded by the identity provider rather than by a timer ([SSF adapter](/docs/adapters/ssf)).
+- **CAEP events and Back-Channel Logout.** `session-revoked`, `credential-change` and `assurance-level-change` delivered through the Shared Signals Framework, and an OpenID Connect `logout_token` (`typ: logout+jwt`) delivered by the OP, invalidate the subject's cached snapshots immediately, matched by `issuer` + `principal.id` or by `session` (`sid`), so revocation is bounded by the identity provider rather than by a timer ([SSF adapter](/docs/adapters/ssf), [OpenID Connect](/docs/standards/openid-connect)).
 
 None of these make a stale token *verify* differently: an expired token is rejected by the checklist above, and a revoked but unexpired token is only caught by CAEP or by an introspection call your resolver chooses to make.
 
@@ -216,8 +221,8 @@ const subject = await subjectFromJwt(token, {
   actor: { from: 'act' },
 })
 // subject = {
-//   principal: { id: 'user_42', kind: 'user', roles: ['editor'], tenant: 'acme' } | null,
-//   actor?:    { id: 'https://agent.example/cimd.json', kind: 'oauth-actor' },
+//   principal: { id: 'user_42', issuer: 'https://login.example.com', kind: 'user', roles: ['editor'], tenant: 'acme' } | null,
+//   actor?:    { id: 'https://agent.example/cimd.json', kind: 'oauth-client' },   // from `act`, RFC 8693
 //   delegation?: { scopes: ['post:read', 'post:update'], authorizationDetails: [...] },
 //   expiresAt: 1757164800,
 // }

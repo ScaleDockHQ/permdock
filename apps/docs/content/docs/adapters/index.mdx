@@ -86,16 +86,18 @@ Every adapter page documents the same eight sections (Purpose, API, Request life
 
 | Surface | `denied` | `approval-required` |
 |---|---|---|
-| HTTP and RPC | `403` with `application/problem+json`: `type`, `title`, `status`, `permission`, `denials`, `alternatives` | `403` with `type` ending in `/approval-required`, plus `token` |
+| HTTP and RPC | `403` with `application/problem+json`: `type`, `title`, `status`, `permission`, `denials`, `alternatives`. For OAuth callers the RFC 6750 / RFC 9470 header rides along: an unverifiable token is `401` `.../unauthenticated` with `WWW-Authenticate: Bearer error="invalid_token"`; `not-delegated` / `no-delegation` add `error="insufficient_scope", scope="…"`; `insufficient-user-authentication` is `401` `.../step-up-required` with `error="insufficient_user_authentication", acr_values="…", max_age=…` ([Problem Details](/docs/standards/problem-details)) | `403` with `type` ending in `/approval-required`, plus `token` |
 | Next.js server | `assert` runs layered handlers; the default handler calls `redirect()` or `notFound()` as configured | Same handler chain; the app decides where to send the user |
 | React and other UI | `usePermission` returns `allowed: false` with `status`; `Protected` renders `fallback`; a disabled control uses `usePermission` plus `describe(decision)` for the reason | `allowed: false`, `decision.outcome === 'approval-required'` exposed for a "request access" UI; `useApproval` tracks the request |
-| MCP | Tool result with `isError: true` and Decision reasons in `structuredContent`; missing scope becomes a `403 insufficient_scope` challenge | Elicitation request to the client |
+| MCP | Tool result with `isError: true` and Decision reasons in `structuredContent`; `not-delegated` becomes a `403 insufficient_scope` challenge, `insufficient-user-authentication` a step-up elicitation carrying `acr_values` | Elicitation request to the client |
 | AI SDK and Claude Agent SDK | `denied` with reason and alternatives | `user-approval` or `needsApproval`; the Claude hook returns an ask verdict |
 | Eve and OpenAI Agents SDK | Eve `{ type: 'denied', reason }`; OpenAI `state.reject(i, { message })` | Eve `"user-approval"` parks the session; OpenAI `needsApproval` returns `true` and the run returns `interruptions`; both resolve through the `ApprovalStore` |
 
 Denial bodies are written for models as well as humans: `denials[].reason` is a sentence, `alternatives` lists permitted permissions on the same resource. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
 
 Tenancy adds four reason codes every surface carries unchanged: `tenant-mismatch` (the row belongs to another tenant), `no-membership` (the active tenant is not one the subject belongs to), `scope` (the role is held, but not for this row or team) and `expired-membership`. HTTP bodies add `tenant` next to `permission`; MCP `structuredContent` and agent denials carry the same fields so a model can tell "wrong workspace" from "not allowed" ([tenancy](/docs/concepts/tenancy)).
+
+Authentication adds two more that every surface renders from the reason alone ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)): `on('auth')` failures are `reason: 'invalid-token'` with a `cause` (the token becomes anonymous, so the Decision reason a caller sees is `anonymous`), and a failed `subject.assurance` condition is `insufficient-user-authentication`, the RFC 9470 step-up; agent surfaces carry the required `acr` in the denial so the runtime can ask the user to re-authenticate rather than retry.
 
 ### UI parity
 

@@ -1,6 +1,6 @@
 ---
 title: OpenAPI registries
-description: "The OpenAPI Initiative registries, the x-permdock- namespace PermDock emits, which registered x-oai-* and x-agent-trust extensions it reuses, and the rule for never inventing names in someone else's namespace."
+description: "The OpenAPI Initiative registries, the x-permdock- namespace PermDock emits, which registered x-oai-* and x-agent-trust extensions it reuses, the JWS typ values PermDock signs with, and the rule for never inventing names in someone else's namespace."
 ---
 
 Status: planned
@@ -94,6 +94,18 @@ Every value is plain JSON that survives the same round trips as a permission lea
 | Device authorization endpoint, `--target 3.1` | `x-oai-deviceAuthorizationUrl` | Inside that flow |
 | Web Bot Auth agent identity | `x-agent-trust` | The `apiKey` Security Scheme that carries the signature |
 
+### JWS `typ` values PermDock emits
+
+These are not OpenAPI extensions but they are the other namespace PermDock writes into a registered-vocabulary position: the `typ` header parameter of every JWS PermDock signs (RFC 7515 section 4.1.9; the value is a media type name without the `application/` prefix per RFC 7519 section 5.1). They are listed here so that one page holds every name PermDock places in a shared registry-shaped slot, and so that emitting a `typ` not in this table is a documentation failure before it is a code one ([JOSE](/docs/standards/jose), [wire formats](/docs/concepts/wire-formats)).
+
+| `typ` | Private claim | Emitted by | Since |
+| --- | --- | --- | --- |
+| `permdock-snapshot+jwt` | `snapshot` (Snapshot v2) | `permdock.snapshot({ signer })`, `permdock/cloud` snapshots | Phase 1 |
+| `permdock-approval+jwt` | `approval` | `approvalsHandler({ signer })` | Phase 1 |
+| `permdock-decisions+jwt` | `events` | A `DecisionSink` with `signer`, `permdock/cloud` export | Phase 2 |
+
+The `+jwt` structured syntax suffix is registered (RFC 8417 section 7.2), so any JOSE library treats these as JWTs. The names themselves are not registered media types, unlike `at+jwt` (RFC 9068), `secevent+jwt` (RFC 8417) and `logout+jwt` (Back-Channel Logout), whose specifications registered `application/…` types; registering `application/permdock-snapshot+jwt` and its siblings is a Phase 2 task next to the `permdock` namespace registration, and until then the names are safe because a verifier only accepts the `typ` it was configured for. A breaking change to an envelope is a new `typ` value and a new row, never a changed row. Fixtures in `@permdock/testing` assert the set of `typ` values the package can emit equals this table.
+
 For [Web Bot Auth](/docs/standards/web-bot-auth), PermDock documents signed agent traffic as an `apiKey` scheme with `in: header` and `name: Signature-Agent`, the header through which the verifier discovers the signer's keys. The `x-agent-trust` block on that scheme carries the signature `algorithm`, the trust level (using the vocabulary the registry entry defines) and the JWKS endpoint the adapter verifies against. PermDock does not define its own trust vocabulary; the field names and allowed values are taken from the registry entry when the Phase 4 HTTP adapters implement verification.
 
 ### Rules
@@ -117,6 +129,7 @@ The emitter's test fixtures enforce rule 1 mechanically: output containing any `
 | Extension `x-agent-trust` | Web Bot Auth `apiKey` scheme emitted by the HTTP adapters |
 | Extension Registry, no entry for `oauth2MetadataUrl` | `x-permdock-oauth2MetadataUrl` |
 | Format, Tag Kind, Media Type, Draft Feature, Alternative Schema registries | Not used; PermDock emits standard JSON Schema formats and no draft features |
+| (JOSE, not OAI) JWS `typ` header values | `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`, the closed list above |
 
 ## Sources
 

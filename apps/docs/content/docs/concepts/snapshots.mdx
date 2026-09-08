@@ -18,7 +18,7 @@ const all    = permdock.snapshot({ tenants: 'all' })          // every membershi
 const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).snapshot()   // simulated: true
 ```
 
-`snapshot` is synchronous and pure. It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip ([tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)).
+`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip ([tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)).
 
 ### Simulated snapshots
 
@@ -33,7 +33,7 @@ const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).sna
 ```json
 {
   "v": 2,
-  "issuedAt": "2026-09-06T10:15:00Z",
+  "issuedAt": 1788999900,
   "subject": {
     "principal": {
       "id": "u_1", "roles": ["support"], "tenant": "o_1",
@@ -76,6 +76,24 @@ const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).sna
 | `issuedAt`, `expiresAt` | Unix seconds. `expiresAt` is optional and copied from the subject (`min(exp, session_expiry)` of the token it was built from, see [authentication](/docs/concepts/authentication)); the earliest membership `expiresAt` also bounds it. Past it the client reports `'stale'` regardless of `maxAge`. |
 
 Conditions are plain JSON (no superjson; dates as tagged ISO strings), so the snapshot, the catalog and RLS generation share one condition format.
+
+### Signed snapshots
+
+A snapshot that is persisted on a device, served from an edge that is not the application, or consumed by code in another language can be signed:
+
+```ts
+import { joseTokenSigner, joseTokenVerifier } from 'permdock/jwt'
+
+const signer = joseTokenSigner({ key: privateJwk, alg: 'Ed25519', kid: '2026-09' })
+const jws = await permdock.snapshot({ include: [permissions.post], signer, audience: 'https://app.example.com' })
+
+// client, or any service in any language with a JOSE library and the JWKS
+<PermDockProvider snapshot={jws} verifier={joseTokenVerifier({ jwks: 'https://app.example.com/.well-known/jwks.json', typ: 'permdock-snapshot+jwt' })} />
+```
+
+With `signer`, `snapshot` returns a `Promise<string>`: a compact JWS with header `alg`, `kid`, `typ: 'permdock-snapshot+jwt'`, registered claims `iss`, `aud`, `sub` (the principal id), `iat` (= `issuedAt`), `exp` (= `expiresAt`), `jti`, and the unchanged v2 object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)). The client verifies before hydrating; a snapshot whose signature, `typ`, `aud` or `exp` fails is treated as absent and every guard reports `'server-only'` until a refresh succeeds. Without `signer` the plain JSON form is returned, and it remains the default for the common case where the server that computed the snapshot also serves the page.
+
+`SnapshotSource` implementations may serve either form; the client accepts both and applies `verifier` only to a string. `permdock/cloud` always signs and publishes its keys at `/.well-known/jwks.json` ([Cloud adapter](/docs/adapters/cloud)).
 
 ## The client PermDock
 
@@ -184,4 +202,4 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 - Whether large policies should ship full grants or per-permission booleans; grants keep offline ownership checks working, booleans are smaller.
 - Field names in the v2 format (`effect`, `portable`, `include`, `scope`, `membership`, `tenants`, `simulated`) are provisional until the core implementation lands.
 - Whether a `tenants: 'all'` snapshot for a subject with many memberships should be paged or capped, and whether `include` should accept a tenant filter.
-- Default `maxAge` for a snapshot, and whether `issuedAt` should be signed so a tampered persisted snapshot on a device is detected (it is UI-only either way).
+- Default `maxAge` for a snapshot. (Whether `issuedAt` needs protecting is settled: a signed snapshot covers it, and an unsigned one is UI-only; see "Signed snapshots" above.)

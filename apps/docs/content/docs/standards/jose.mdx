@@ -1,0 +1,135 @@
+---
+title: JOSE (JWT, JWS, JWE, JWK, JWA)
+description: "The JSON Object Signing and Encryption family as PermDock consumes it (bearer JWTs, JWKS, cnf bindings) and produces it (JWS-signed snapshots, approval tokens, decision exports), with the RFC 8725 / rfc8725bis checklist permdock/jwt follows and the interoperability contract that lets any language verify what PermDock signs."
+---
+
+Status: planned
+Phase: 1
+
+Phase 1 ships the consuming half in [`permdock/jwt`](/docs/adapters/jwt) (`joseTokenVerifier`, the algorithm allow-list, JWKS and Discovery caching, the JWE posture) and the producing half (`joseTokenSigner`, `permdock.snapshot({ signer })`). Phase 3 uses the same verifier for SET-style events in [`permdock/ssf`](/docs/adapters/ssf); Phase 4 adds `subjectFromIntrospection`. Adapter phases: `permdock/jwt` 1, `permdock/approvals` 1 (optional signed token), `permdock/cloud` 1 (signed snapshot distribution), `permdock/ssf` 3.
+
+## What it is
+
+JOSE is the IETF family of formats for signing, encrypting and describing keys in JSON. Every OpenID Connect token, every RFC 9068 access token, every DPoP proof and every Shared Signals event is one of these:
+
+| RFC | Name | What it defines | Where PermDock meets it |
+| --- | --- | --- | --- |
+| [RFC 7515](https://www.rfc-editor.org/rfc/rfc7515.html) | JWS, JSON Web Signature | A signed payload in compact (`header.payload.signature`) or JSON serialization; the header parameters `alg`, `kid`, `typ`, `cty`, `jku`, `jwk`, `x5u`, `x5c`, `x5t#S256`, `crit` | Every token `permdock/jwt` verifies and everything PermDock signs |
+| [RFC 7516](https://www.rfc-editor.org/rfc/rfc7516.html) | JWE, JSON Web Encryption | An encrypted payload with `alg` (key management) and `enc` (content encryption); a nested JWT is a JWS inside a JWE with `cty: JWT` | Accepted only when `decryptionKeys` is configured |
+| [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517.html) | JWK, JSON Web Key | A key as JSON (`kty`, `use`, `key_ops`, `alg`, `kid`, `x5c`) and a JWK Set (`keys`) | The `jwks` option, the `jwks_uri` Discovery returns, `cnf.jwk`, the `/.well-known/jwks.json` PermDock Cloud publishes |
+| [RFC 7518](https://www.rfc-editor.org/rfc/rfc7518.html) | JWA, JSON Web Algorithms | The `alg` and `enc` identifiers (`RS256`, `PS256`, `ES256`, `HS256`, `none`, `RSA-OAEP`, `A256GCM`) and the key types `RSA`, `EC`, `oct` | The `algorithms` allow-list |
+| [RFC 8037](https://www.rfc-editor.org/rfc/rfc8037.html) | CFRG curves in JOSE | `kty: OKP` with `crv: Ed25519`, `Ed448`, `X25519`, `X448`; the polymorphic `alg: EdDSA` | Ed25519 keys in JWKS |
+| [RFC 9864](https://www.rfc-editor.org/rfc/rfc9864.html) | Fully-specified algorithms for JOSE and COSE | Registers `Ed25519` and `Ed448` as `alg` values and deprecates `EdDSA`, whose meaning depended on the key | The value the allow-list uses; the reason `permdock doctor` warns on `EdDSA` |
+| [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html) | JWT, JSON Web Token | Registered claims `iss`, `sub`, `aud`, `exp`, `nbf`, `iat`, `jti`; the `typ: JWT` header; NumericDate | The claim set `subjectFromJwt` maps and every payload PermDock signs |
+| [RFC 7800](https://www.rfc-editor.org/rfc/rfc7800.html) | Proof-of-possession key semantics | The `cnf` claim with `jwk`, `jwe`, `kid`, `jku`; DPoP adds `jkt` (RFC 9449), mTLS adds `x5t#S256` (RFC 8705) | `Binding` on the subject |
+| [RFC 8725](https://www.rfc-editor.org/rfc/rfc8725.html) and [rfc8725bis](https://datatracker.ietf.org/doc/draft-ietf-oauth-rfc8725bis/) | JWT Best Current Practices | The checklist below | What `permdock/jwt` enforces by default |
+| [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068.html) | JWT profile for OAuth 2.0 access tokens | `typ: at+jwt`, required `iss`, `exp`, `aud`, `sub`, `client_id`, `iat`, `jti`; the `roles`, `groups`, `entitlements` claims | The default `accept: 'access-token'` shape |
+| [draft-ietf-jose-deprecate-none-rsa15](https://datatracker.ietf.org/doc/draft-ietf-jose-deprecate-none-rsa15/) | Deprecating `none` and `RSA1_5` | Marks the unsigned JWS algorithm and the PKCS#1 v1.5 JWE key-management algorithm deprecated in the registry | Both already refused; the registry status is recorded here |
+
+The JOSE working group publishes the registries at [IANA](https://www.iana.org/assignments/jose/jose.xhtml); every `alg`, `enc`, `kty`, header parameter and `typ` media type PermDock reads or writes is registered there or in the [IANA media types registry](https://www.iana.org/assignments/media-types/media-types.xhtml).
+
+## Why it matters for PermDock
+
+A permissions library that never verified a signature would still depend on JOSE, because the identity it reasons about arrives inside a JWT. PermDock goes one step further in both directions:
+
+- **Consuming.** `permdock/jwt` is the one place in the package that verifies a signature. Every default there (algorithm allow-list, `typ` check, ignored `jku` / `x5u` / `jwk` headers, key selection by `kid` only, JWE refused without keys) is a line of the RFC 8725 checklist, so a deployment that turns the adapter on gets the Best Current Practice without reading it.
+- **Producing.** Snapshots cross a trust boundary (server to browser, Cloud to edge, one service to another). Plain JSON is enough when the transport is authenticated; when it is not, or when a consumer is written in another language, the snapshot needs a signature that consumer can check without PermDock. JOSE is the only signature format every language already has a library for, so PermDock signs with compact JWS and registered header parameters and never invents a signature envelope ([wire formats](/docs/concepts/wire-formats)).
+
+Core stays free of all of it. `permdock` core has one runtime dependency, `@standard-schema/spec` ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)); the JOSE implementation lives behind two interfaces, `TokenVerifier` and `TokenSigner` ([extension interfaces](/docs/concepts/extension-interfaces)), and `permdock/jwt` implements them with [`jose`](https://github.com/panva/jose) as an optional peer.
+
+## How PermDock uses it
+
+### What PermDock consumes
+
+| Input | Format | Where |
+| --- | --- | --- |
+| Bearer or DPoP-bound access token | Compact JWS, `typ: at+jwt` or `JWT`; optionally a nested JWS inside a JWE (`cty: JWT`) | `subjectFromJwt`, `createJwtSubjectResolver` |
+| DPoP proof | Compact JWS, `typ: dpop+jwt`, header `jwk`, claims `htm`, `htu`, `iat`, `jti`, `ath` | `verifyDpopProof` |
+| Key set | JWK Set from `jwks`, or from `jwks_uri` after Discovery | The JWKS cache |
+| Sender binding | `cnf.jkt` (DPoP), `cnf.x5t#S256` (mTLS), `cnf.jwk`, `cnf.kid` | `Binding` on the subject |
+| Security Event Tokens | Compact JWS, `typ: secevent+jwt` (RFC 8417) for SSF and CAEP; `typ: logout+jwt` for Back-Channel Logout | `permdock/ssf` (Phase 3) |
+| GNAP `access` claim | Registered claim on an RFC 9767 JWT | `delegation.access` |
+| Introspection response | JSON, not JOSE; the RFC 9767 shape | `subjectFromIntrospection` (Phase 4) |
+
+### The RFC 8725 / rfc8725bis checklist
+
+Each row is a default of `permdock/jwt`; the "reason" column is the `on('auth')` code the adapter emits when a token fails it ([JWT adapter](/docs/adapters/jwt)).
+
+| Practice (RFC 8725 section) | `permdock/jwt` behaviour | Reason on failure |
+| --- | --- | --- |
+| 3.1 Perform algorithm verification | `alg` must be in the configured `algorithms`; the header's `alg` never selects the verification routine on its own | `alg-not-allowed` |
+| 3.1 / bis Reject `none` | `alg: none` is refused before any other check, signature present or not | `alg-none` |
+| 3.2 Use appropriate algorithms | Default allow-list `PS256`, `ES256`, `Ed25519`, plus `RS256` outside `profile: 'fapi2'`; the `HS*` family only with an explicit `{ secret }`; `RSA1_5` never | `alg-not-allowed` |
+| 3.3 Validate all cryptographic operations | A key that fails to import or a signature that fails to verify is a failure, never a fallthrough | `invalid-signature` |
+| 3.4 Validate cryptographic inputs | EC points on the curve, RSA keys at least 2048 bits, EC keys at least 224 bits under `fapi2`; undersized keys skipped at JWKS load | `unknown-kid` for tokens that used a skipped key |
+| 3.5 Ensure cryptographic keys have sufficient entropy | `{ secret }` must be at least 256 bits for `HS256` | Configuration error at resolver creation |
+| 3.6 Avoid compression of data containing secrets | `zip` in a JWE header is rejected | `encrypted-token` |
+| 3.7 Use UTF-8 | Payload decoded as UTF-8 only | `malformed` |
+| 3.8 Validate issuer and subject | `iss` equals `issuer` (or the Discovery document's `issuer`); `sub` present and a string | `wrong-issuer`, `invalid-claims` |
+| 3.9 Use and validate audience | `aud` contains `audience`; `accept: 'id-token'` additionally checks `azp` | `wrong-audience` |
+| 3.10 Do not trust received claims | `jku`, `x5u`, `jwk` and `x5c` headers are ignored; `kid` selects only from the configured key set; `crit` with an unknown parameter is rejected | none (logged), `malformed` |
+| 3.11 Use explicit typing | `typ` is checked: `at+jwt` (RFC 9068) or `JWT` for access tokens, `at+jwt` only under `fapi2`, `logout+jwt` and `secevent+jwt` in `permdock/ssf`, PermDock's own `permdock-*+jwt` values on its outputs | `wrong-token-type` |
+| 3.12 Use mutually exclusive validation rules for different kinds of JWTs | One resolver accepts one `accept` value; an ID token is never verified by an access-token resolver and vice versa | `wrong-token-type` |
+| bis: prefer fully-specified algorithms | `Ed25519` is the allow-list value; `alg: EdDSA` is accepted only when the selected key is `OKP` / `crv: Ed25519`, and `permdock doctor` reports it | `alg-not-allowed` for `EdDSA` on any other curve |
+| bis: `exp`, `nbf`, `iat` | All three honoured within `clockTolerance`; a token without `exp` is rejected | `expired`, `not-yet-valid`, `invalid-claims` |
+
+### What PermDock produces
+
+Every output is compact JWS, signed through a `TokenSigner`, with a registered `typ` and registered claim names. The payload PermDock adds sits under one private claim named after the format so it never collides with a registered claim:
+
+| Output | `typ` | Claims | Where |
+| --- | --- | --- | --- |
+| Signed snapshot | `permdock-snapshot+jwt` | `iss`, `aud`, `sub` (= `principal.id`), `iat`, `exp` (= `expiresAt`), `jti`, `snapshot` (the unchanged Snapshot v2 object) | `permdock.snapshot({ signer })`, `SnapshotSource` implementations, `permdock/cloud` |
+| Signed approval token | `permdock-approval+jwt` | `iss`, `aud`, `sub`, `iat`, `exp`, `jti`, `approval` (the bound hash token and its request id) | `approvalsHandler({ signer })` for cross-service resume |
+| Signed decision export | `permdock-decisions+jwt` | `iss`, `iat`, `jti`, `events` (an array of CloudEvents-shaped decision events) | A `DecisionSink` option for batch export and `permdock/cloud` |
+
+The specification of each payload is on [wire formats](/docs/concepts/wire-formats); the three `typ` values are listed on the [OpenAPI registry](/docs/standards/openapi-registry) page next to the `x-permdock-*` extensions so they are registered together.
+
+### The interoperability contract
+
+1. **Compact JWS only.** No JSON serialization, no detached payloads, no custom envelope. `jose` in TypeScript and any of the Go, Python, Java, .NET, Rust, Ruby or PHP libraries on the OpenID Foundation's [implementations list](https://openid.net/developers/jwt-jws-jwe-jwk-and-jwa-implementations/) verify it without knowing PermDock exists.
+2. **Registered header parameters only.** `alg`, `kid`, `typ`, optionally `cty` and `x5t#S256`. PermDock never writes `jku`, `x5u` or `jwk` into a header it signs, so a verifier that follows RFC 8725 has nothing to ignore.
+3. **Algorithms from the allow-list.** `Ed25519` by default, `ES256` and `PS256` available; never `HS*` on anything that leaves the process, never `none`.
+4. **Registered claim names with registered semantics.** `iss`, `aud`, `sub`, `iat`, `exp`, `nbf`, `jti` mean what RFC 7519 says; PermDock's own data lives in exactly one private claim per format (`snapshot`, `approval`, `events`). Times inside those claims are NumericDate seconds too (Snapshot v2 `issuedAt` and `expiresAt`), so the envelope's `exp` equals the snapshot's `expiresAt`.
+5. **Keys are published as a JWK Set.** A signer that serves consumers outside the process publishes `/.well-known/jwks.json`; `permdock/cloud` does. Rotation follows the JWKS rules the consumer already applies to identity providers: new `kid` first, old key kept until every signed artefact with it has expired.
+6. **Verification is the consumer's TokenVerifier.** In TypeScript, `joseTokenVerifier({ jwks, algorithms, typ })` from `permdock/jwt`; elsewhere, any JOSE library with `typ` and `alg` pinned.
+
+## Mapping table
+
+| JOSE concept | PermDock concept |
+| --- | --- |
+| JWS compact serialization | The wire form of every token verified and every artefact signed |
+| `alg` allow-list | `algorithms` option; `PS256`, `ES256`, `Ed25519` (+ `RS256` outside `fapi2`) |
+| `kid` | Key selection in the JWKS cache; `kid` on signed outputs |
+| `typ` | `accept` option (`at+jwt`, `JWT`, or ID token rules); `permdock-*+jwt` on outputs |
+| JWK Set | `jwks` option, Discovery `jwks_uri`, Cloud `/.well-known/jwks.json` |
+| JWE (`alg` + `enc`) | Accepted only with `decryptionKeys`; nested JWS-in-JWE with `cty: JWT` |
+| `cnf` (`jkt`, `x5t#S256`, `jwk`, `kid`) | `Binding` on `principal` or `actor` |
+| Registered claims `iss`, `sub`, `aud`, `exp`, `nbf`, `iat`, `jti` | `principal.issuer`, `principal.id`, `audience`, `expiresAt`, verified-only, verified-only, replay id on signed outputs |
+| Signing | `TokenSigner`; `joseTokenSigner({ key, alg })` |
+| Verification | `TokenVerifier`; `joseTokenVerifier({ jwks })` or `joseTokenVerifier({ discovery })` |
+| Deprecated `none`, `RSA1_5`, polymorphic `EdDSA` | Refused, refused, accepted for `crv: Ed25519` with a doctor warning |
+
+## Sources
+
+- RFC 7515, 7516, 7517, 7518, 7519 (May 2015), RFC 7800 (Apr 2016), RFC 8037 (Jan 2017), RFC 8725 (Feb 2020), RFC 9068 (Oct 2021), RFC 9864 (2025), linked in the table above.
+- [draft-ietf-oauth-rfc8725bis](https://datatracker.ietf.org/doc/draft-ietf-oauth-rfc8725bis/) (RFC Editor queue, Aug 2026) and [draft-ietf-jose-deprecate-none-rsa15](https://datatracker.ietf.org/doc/draft-ietf-jose-deprecate-none-rsa15/).
+- [IANA JOSE registries](https://www.iana.org/assignments/jose/jose.xhtml) and the [JWT claims registry](https://www.iana.org/assignments/jwt/jwt.xhtml).
+- [OpenID Foundation, JWT / JWS / JWE / JWK / JWA implementations](https://openid.net/developers/jwt-jws-jwe-jwk-and-jwa-implementations/), the list of libraries the interoperability contract is written for.
+- [`jose` on GitHub](https://github.com/panva/jose): the optional peer `permdock/jwt` uses (`jwtVerify`, `createRemoteJWKSet`, `SignJWT`, `typ` and `requiredClaims` options).
+
+## Related
+
+- [JWT adapter](/docs/adapters/jwt): every option the checklist refers to.
+- [OpenID Connect](/docs/standards/openid-connect): the identity claims carried in these formats and Discovery.
+- [FAPI 2.0](/docs/standards/fapi-2): the profile that fixes the algorithm list.
+- [Extension interfaces](/docs/concepts/extension-interfaces): `TokenVerifier`, `TokenSigner`, `testTokenVerifier`.
+- [Wire formats](/docs/concepts/wire-formats): the signed snapshot, approval and decision-export payloads.
+- [Threat model](/docs/security/threat-model): algorithm confusion, JWE without integrity, key rotation rows.
+- [Shared Signals and CAEP](/docs/standards/shared-signals-caep): SETs as JWS.
+
+## Open questions
+
+- Whether to offer the JWS JSON serialization for signed decision exports so one batch can carry several signatures (a Cloud-side and a tenant-side key), or whether one compact JWS per key is enough.
+- Whether `joseTokenVerifier` should support `x5c` chains for deployments whose issuer publishes certificates rather than bare keys, or leave that to a custom `TokenVerifier`.
+- Whether signed snapshots should ever be encrypted (JWE) for browser delivery, or whether the rule "nothing secret in a snapshot" ([snapshots](/docs/concepts/snapshots)) makes that unnecessary by construction.

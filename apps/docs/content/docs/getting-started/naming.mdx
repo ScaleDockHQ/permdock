@@ -61,7 +61,12 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `where`, `check` | Conditions on the current row and on the next row | Query building outside conditions |
 | `key`, `scope` | The dotted (`post.update`) and colon (`post:update`) string forms of a permission | Public API arguments |
 | `subjectFrom<Provider>` | Turning verified material into a `Subject` with `roles`, `tenant` and `memberships`: `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromMcp`; every one accepts a `schema` (Standard Schema) for custom claims | Verifying, logging in, or anything that can throw |
-| `createJwtSubjectResolver` | The cached, reusable form of `subjectFromJwt` (one per issuer, JWKS cache); options `claims.roles` / `groups` / `entitlements` / `tenant` / `memberships` and `groupRoles` | A second `createPermDock` |
+| `createJwtSubjectResolver` | The cached, reusable form of `subjectFromJwt` (one per issuer, Discovery and JWKS cache); options `discovery` or `jwks`, `accept`, `algorithms`, `claims.roles` / `groups` / `entitlements` / `tenant` / `memberships` / `assurance` / `session`, `groupRoles`, `verifier` | A second `createPermDock` |
+| `TokenVerifier`, `TokenSigner` | The two JOSE interfaces core declares as types: `verify(token, expectations)` returning `{ ok, claims, header }` or `{ ok: false, reason: 'invalid-token', cause }`, and `sign(payload, { typ })` returning compact JWS | Anything that throws; anything that decides |
+| `joseTokenVerifier`, `joseTokenSigner` | The `permdock/jwt` implementations of the two interfaces over the optional `jose` peer | Exports of core |
+| `verifier`, `signer` | The option names for a `TokenVerifier` (`subjectFromJwt`, `permdock/ssf`) and a `TokenSigner` (`permdock.snapshot`, `approvalsHandler`, `permdock/cloud`) | `jwt`, `jose`, `crypto` as option names |
+| `discovery`, `accept` | The `permdock/jwt` options for OpenID Connect Discovery (an issuer URL that supplies `jwks_uri` and `issuer`) and for which token kind a resolver accepts (`'access-token'` default, `'id-token'`) | Guessing the token kind from its claims |
+| `subjectFromIntrospection` | Phase 4: an RFC 9767 introspection response in, `Subject` out | An HTTP client; the call is yours |
 | `<provider>RoleSource` | A provider's `RoleSource` implementation (`betterAuthRoleSource`) | A subject mapper |
 | `describe` | `describe(decision)` returning `{ kind, title, detail, alternatives }` for tooltips and Problem Details | Logging; it is pure |
 | `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler` | The pluggable store behind `approval-required`, its in-process default, and the Fetch routes for approvers (`permdock/approvals`) | Deciding; a store never influences `decide` |
@@ -107,16 +112,41 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/eve` | `{ approval, approvalFor, permdock }` | `approval` is Eve's `{ request, response }` pair for `defineTool`; options: `tools`, `store`, `approvers` |
 | `permdock/openai` | `{ needsApproval, guardTools, resolveInterruptions, permdock }` | Options: `subject`, `actor`, `tools`, `store` |
 | `permdock/authzen` | `{ handler }` | Serves evaluation, evaluations, search and `.well-known` |
-| `permdock/ssf` | `{ receiver }` | RFC 8935 push and RFC 8936 poll receiver for CAEP events |
+| `permdock/ssf` | `{ receiver }` | RFC 8935 push and RFC 8936 poll receiver for CAEP events; `receiver.logout` for OIDC Back-Channel Logout |
 | `permdock/a2a` | `{ agentCard, extendedAgentCard }` | Options: `skills` |
 
 Two entries deliberately do not export `createPermDock`:
 
 - `permdock/react` (and `react-native`, `vue`, `svelte`, `solid`) export `PermDockProvider`, `usePermDock`, `usePermission`, `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject` and `<Protected>` directly.
 - `permdock/better-auth`, `permdock/clerk` and `permdock/supabase` export their `subjectFrom*` mapper and, where the provider stores roles, a `<provider>RoleSource`; both are values you pass to a factory.
-- `permdock/webmcp` exports `registerTools(document.modelContext, group, { permdock })` because it consumes a client `PermDock` rather than creating one. `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` export `toWhere`. `permdock/jwt` exports `subjectFromJwt` and `createJwtSubjectResolver` because it produces a subject for a factory, not an instance.
+- `permdock/webmcp` exports `registerTools(document.modelContext, group, { permdock })` because it consumes a client `PermDock` rather than creating one. `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` export `toWhere`. `permdock/jwt` exports `subjectFromJwt`, `createJwtSubjectResolver`, `verifyDpopProof`, `joseTokenVerifier` and `joseTokenSigner` because it produces subjects, verifiers and signers for a factory, not an instance.
 - `permdock/approvals` exports `memoryApprovalStore` and `approvalsHandler`, and `permdock/cloud` exports `cloud`; both produce values you pass *to* a factory (`store`, `sink`, `snapshots`) rather than a `PermDock`.
 - Build hooks live in `@permdock/cli`, not in `permdock`: `permdock/next/plugin` exports `createPermDockPlugin` and `@permdock/cli/unplugin` exports `createPermDockUnplugin` (Vite, Rollup, webpack, Rspack, esbuild through [unplugin](https://unplugin.unjs.io)). Both run `collect` at build time and never wire runtime API ([0006](/docs/decisions/0006-explicit-factory-not-plugin)). The `create` prefix and the `PermDock` noun follow the factory rule; the suffix names the host (`Plugin` for Next's config API, `Unplugin` for the bundler family).
+
+## Spec names
+
+PermDock's subject vocabulary is TypeScript, camelCase and typed; the specifications it consumes are JSON claims with short registered names. [ADR 0026](/docs/decisions/0026-spec-aligned-naming) fixes the rule: where a spec name exists, PermDock either uses it verbatim or maps to it exactly once, in the table below and on [subject](/docs/concepts/subject); PermDock never coins a second spelling for a concept a specification already names. Names in the "PermDock" column that are new in ADR 0026 are marked.
+
+| Specification name | Source | PermDock name | Rule |
+| --- | --- | --- | --- |
+| `sub` | RFC 7519, OIDC Core | `principal.id` | Opaque string, compared byte for byte |
+| `iss` | RFC 7519, OIDC Core | `principal.issuer` (new) | Always set by `subjectFrom*`; identity is `issuer` + `id` |
+| `aud` | RFC 7519 | `audience` option | Verified, not stored |
+| `exp` | RFC 7519 | `subject.expiresAt`, `Membership.expiresAt`, `ApprovalRequest.expiresAt`, snapshot `expiresAt` | NumericDate (Unix seconds) everywhere, the same unit as `exp`; the JWS envelope's `exp` copies it |
+| `iat`, `nbf`, `jti` | RFC 7519 | none on the subject; `iat`, `jti` on signed outputs | Verified, then dropped |
+| `act` | RFC 8693 | `actor` (ADR 0012) | Innermost `act.sub` is `actor.id`; the nesting is `delegation.chain` |
+| `client_id`, `azp` | RFC 9068, OIDC Core | `actor.id` when the client acts under a delegation; verified otherwise | `actor.kind` `'oauth-client'` or `'mcp-client'` |
+| `scope` | RFC 6749, RFC 9068 | `delegation.scopes`; `permission.scope` | Space-separated string on the wire, array in TypeScript |
+| `authorization_details` | RFC 9396 | `delegation.authorizationDetails`; `permission.authorizationDetails` | One RAR `type` per permission |
+| `access` | RFC 9635, RFC 9767 | `delegation.access` | Objects and reference strings kept verbatim |
+| `cnf` (`jkt`, `x5t#S256`, `jwk`, `kid`) | RFC 7800, RFC 9449, RFC 8705 | `binding` with the same member names (reshaped) | FAPI's "sender-constrained" gives the field its name; the members are the `cnf` members so it round-trips |
+| `acr`, `amr`, `auth_time` | OIDC Core, RFC 8176 | `principal.assurance.acr`, `.amr`, `.authTime` (new fields) | Provider `aal` maps into `acr` |
+| `sid` | OIDC Front- and Back-Channel Logout | `subject.session` (new) | The join key for `logout_token` and CAEP events |
+| `roles`, `groups`, `entitlements` | RFC 9068 | `principal.roles`; `principal.memberships` (`team` from `groups`) | SCIM `value` only |
+| `jwks_uri`, `issuer` (Discovery) | OIDC Discovery, RFC 8414 | `discovery` option; `jwks` and `issuer` options | Discovery supplies both |
+| `typ` (`at+jwt`, `JWT`, `logout+jwt`, `secevent+jwt`) | RFC 9068, RFC 7519, OIDC, RFC 8417 | `accept` option; `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt` on outputs | Explicit typing, RFC 8725 section 3.11 |
+| `invalid_token`, `insufficient_scope`, `insufficient_user_authentication` | RFC 6750, RFC 9470 | `on('auth')` reason `invalid-token` (renamed); Decision reasons `not-delegated` / `no-delegation` and `insufficient-user-authentication` (new) | Hyphenated in PermDock, underscored on the wire; the HTTP adapter renders without a second table |
+| `Subject`, `Resource`, `Action`, `Context` | AuthZEN 1.0 | `principal` (+ `actor`, `delegation`, `tenant` under `context`), `resource`, `action`, `context` | The evaluation mapping on [AuthZEN](/docs/standards/authzen) |
 
 ## Files and folders
 

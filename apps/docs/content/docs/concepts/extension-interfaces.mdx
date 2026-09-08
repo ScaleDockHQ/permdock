@@ -1,9 +1,9 @@
 ---
 title: Extension interfaces
-description: The fixed set of interfaces through which providers, stores, sinks and compilers plug into PermDock (SubjectResolver, MembershipSource, RoleSource, ApprovalStore, DecisionSink, SnapshotSource, LimitStore, WhereCompiler, on() events), their trust classes, the in-process default each ships with, how provider principal types are extended without global augmentation, and the conformance runners in @permdock/testing.
+description: The fixed set of interfaces through which providers, verifiers, signers, stores, sinks and compilers plug into PermDock (SubjectResolver, TokenVerifier, TokenSigner, MembershipSource, RoleSource, ApprovalStore, DecisionSink, SnapshotSource, LimitStore, WhereCompiler, on() events), their trust classes, the in-process default each ships with, how provider principal types are extended without global augmentation, and the conformance runners in @permdock/testing.
 ---
 
-Status: proposed ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable))
+Status: proposed ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable), [ADR 0026](/docs/decisions/0026-spec-aligned-naming))
 Phase: 1 (interfaces, defaults, runners), 2 to 4 (implementations)
 
 PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-not-plugin)). What it has instead is a short list of interfaces, each with one job, one trust class and one in-process default, passed explicitly to `createPermDock`. A provider (Supabase, Clerk, Better Auth), a store (Postgres, Redis, PermDock Cloud), a sink (OpenTelemetry, a SIEM) or a compile target (Drizzle, MongoDB, a sync engine) implements one of them; nothing else can reach the evaluator. This page is the list. If an integration needs something not on it, that is an ADR, not a new option.
@@ -13,6 +13,8 @@ PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-
 | Interface | Job | Trust class | Default in `permdock` | Implemented by |
 | --- | --- | --- | --- | --- |
 | `SubjectResolver<TInput, TPrincipal>` | Turn verified auth material into a `Subject` | Subject input: shapes the outcome | The policy's own `subject` function | `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromConvex`, `subjectFromMcp`, yours |
+| `TokenVerifier<TClaims>` | Establish that a JWS (or nested JWE) is genuine and return its claims, never throwing | Subject input: feeds `SubjectResolver`; a wrong verifier admits a forged principal | None in core (type only); `joseTokenVerifier` in `permdock/jwt` | Another JOSE library, a KMS-backed verifier, an introspection client ([JOSE](/docs/standards/jose)) |
+| `TokenSigner` | Produce compact JWS for PermDock's own outputs (snapshots, approval tokens, decision exports) | Operational: signs what core already computed; never influences an outcome | None in core (type only); `joseTokenSigner` in `permdock/jwt` | A KMS or HSM signer, `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)) |
 | `MembershipSource` | Add tenant, team and resource memberships to a principal | Subject input | What `subject` and `context` returned | Provider mappers, your `document_members` table |
 | `RoleSource` | Resolve tenant-defined custom roles to declared roles; list assignable roles | Subject input | `memoryRoleSource(customRoles)` | Better Auth `organizationRole`, Supabase `role_permissions`, WorkOS, Clerk, Auth0 organisation roles, your table |
 | `ApprovalStore` | Hold pending `approval-required` decisions until a human answers | Operational: never influences an outcome | `memoryApprovalStore()` | Postgres, Redis, Durable Objects, PermDock Cloud ([approvals](/docs/adapters/approvals)) |
@@ -22,7 +24,7 @@ PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-
 | `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/local-first-sync)) |
 | `on(event, handler)` | Observe `decision`, `denied`, `approval`, `auth` events | Observational: cannot change a `Decision` | No-op | Logging, metrics, tests |
 
-Two rules follow from the table. **Subject inputs run once per `createPermDock`**, before any check, and their output is frozen into the subject; they never run during `can` or `decide`, so a slow membership lookup costs one await per request, not one per button. **Operational interfaces never sit in the decision path**: `decide` returns before a sink is awaited, a store is consulted only on resume (and the resume re-runs `decide`), and a snapshot source distributes what the in-process instance already computed (invariant 15). `permdock/cloud` implements the three operational interfaces and none of the subject inputs.
+Two rules follow from the table. **Subject inputs run once per `createPermDock`**, before any check, and their output is frozen into the subject; they never run during `can` or `decide`, so a slow membership lookup costs one await per request, not one per button. **Operational interfaces never sit in the decision path**: `decide` returns before a sink is awaited, a store is consulted only on resume (and the resume re-runs `decide`), a snapshot source distributes what the in-process instance already computed, and a signer signs it afterwards (invariant 15). `permdock/cloud` implements the three operational stores and a `TokenSigner` for the snapshots it distributes, and none of the subject inputs. Core declares `TokenVerifier` and `TokenSigner` as types only, so the one runtime dependency rule ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)) holds: the JOSE implementation lives in `permdock/jwt` behind the optional `jose` peer.
 
 ## Subject inputs
 
@@ -37,6 +39,40 @@ interface SubjectResolver<TInput, TPrincipal extends Principal = Principal> {
 ```
 
 Every `subjectFrom*` function satisfies it, and so does the `subject` function you pass to `definePolicy`. A resolver never throws: an unverifiable token, a missing session or a failed schema check yields the anonymous subject and an `on('auth')` event with the reason ([authentication](/docs/concepts/authentication)). The optional `tenant` is the active tenant the server resolved from the request; the resolver compares it against the memberships it finds and sets `principal.tenant` only on a match ([tenancy](/docs/concepts/tenancy)).
+
+### TokenVerifier
+
+```ts
+interface TokenVerifier<TClaims extends JwtClaims = JwtClaims> {
+  verify(token: string, expectations: {
+    typ?: string | string[]              // 'at+jwt', 'JWT', 'logout+jwt', 'secevent+jwt', 'permdock-snapshot+jwt', ...
+    audience?: string | string[]
+    issuer?: string                      // when not fixed at construction (Discovery supplies it)
+    clockTolerance?: number
+  }): Promise<VerifiedToken<TClaims> | VerificationFailure>
+}
+
+type VerifiedToken<TClaims> = { ok: true; claims: TClaims; header: { alg: string; kid?: string; typ?: string } }
+type VerificationFailure = { ok: false; reason: 'invalid-token'; cause: TokenFailureCause }
+```
+
+`verify` never throws and never returns a partially verified result: signature, `alg`, `kid`, `typ`, `iss`, `aud`, `exp`, `nbf`, `iat` are all checked before `ok: true`. `TokenFailureCause` is the closed list on the [JWT adapter](/docs/adapters/jwt) behaviour table (`invalid-signature`, `expired`, `wrong-audience`, `wrong-token-type`, `alg-not-allowed`, `encrypted-token`, ...), so an `on('auth')` event has the same shape whichever verifier produced it. `subjectFromJwt` takes a `verifier`; `permdock/ssf` takes one for SETs and `logout_token`s; `SnapshotSource` consumers use one for signed snapshots. The built-in implementation is `joseTokenVerifier({ jwks | discovery, algorithms, typ, decryptionKeys })`. A verifier that calls an RFC 7662 or RFC 9767 introspection endpoint satisfies the same interface: `claims` is the introspection response, `cause` is `expired` for `active: false`.
+
+### TokenSigner
+
+```ts
+interface TokenSigner {
+  sign(payload: Record<string, unknown>, options: {
+    typ: 'permdock-snapshot+jwt' | 'permdock-approval+jwt' | 'permdock-decisions+jwt'
+    audience?: string | string[]
+    expiresAt?: number                   // NumericDate (Unix seconds); written as `exp`
+  }): Promise<string>                    // compact JWS
+  readonly kid?: string
+  jwks?(): Promise<JSONWebKeySet>        // public keys, for a /.well-known/jwks.json route
+}
+```
+
+`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iat` and `jti` itself and copies `iss` from its configuration, so the caller only supplies the format-specific claim (`snapshot`, `approval`, `events`) and optional `aud` / `exp`. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer })`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` is the plain Snapshot v2 JSON it always was ([wire formats](/docs/concepts/wire-formats)).
 
 ### Typed provider principals
 
@@ -61,7 +97,7 @@ export const subject = subjectFromSupabase(supabase, {
 | `permdock/supabase` | `SupabasePrincipal` | `id` (`sub`), `kind: 'user'`, `assurance` (`aal`), `email` when present | Custom access token hook claims; `user_metadata` is never read |
 | `permdock/clerk` | `ClerkPrincipal` | `id`, `tenant` (active organization), `memberships[0]` from `org_role`, `fea` roles | Custom session claims |
 | `permdock/better-auth` | `BetterAuthPrincipal` | `id`, `tenant` (`activeOrganizationId`), memberships from `member` and `teamMember` rows | `additionalFields` on the user |
-| `permdock/jwt` | `JwtPrincipal` | `id`, `kind`, `assurance`, `binding`, RFC 9068 `roles` / `groups` / `entitlements` | Any other claim |
+| `permdock/jwt` | `JwtPrincipal` | `id` (`sub`), `issuer` (`iss`), `kind`, `assurance` (`acr`, `amr`, `authTime`), `binding` (`cnf`), RFC 9068 `roles` / `groups` / `entitlements` | Any other claim |
 | `permdock/convex` | `ConvexPrincipal` | `id` (`tokenIdentifier` or `subject`), `kind` | Custom claims on the identity |
 | `permdock/mcp` | `McpPrincipal` | `id` from `authInfo`, `kind`, the `actor` and `delegation` halves | `authInfo.extra` claims |
 
@@ -105,7 +141,7 @@ interface WhereCompiler<TTarget, TOptions = unknown> {
 | `decision` | `DecisionEvent` (permission, outcome, subject summary, tenant, membership, via, actor, delegation) | Every `decide`, `assert`, `can` |
 | `denied` | The same, filtered | Outcome `denied` |
 | `approval` | `ApprovalRequest` | Outcome `approval-required`, and on resolve |
-| `auth` | `{ reason, source }` | A resolver, membership source or role source failed closed: invalid token, schema mismatch, unknown role name, groups overflow, source threw |
+| `auth` | `{ reason, cause?, source }` | A resolver, verifier, membership source or role source failed closed. `reason` is `invalid-token` (RFC 6750 vocabulary) for anything a `TokenVerifier` rejected, with the specific `cause`; `schema`, `unknown-role`, `groups-overflow` and `source-threw` for the others |
 
 Handlers cannot change a `Decision`; they receive a frozen copy after the outcome is computed. Throwing inside a handler is caught and reported once.
 
@@ -114,9 +150,11 @@ Handlers cannot change a `Decision`; they receive a frozen copy after the outcom
 `@permdock/testing` ships one runner per interface so an implementation can prove it honours the contract before it is used:
 
 ```ts
-import { testSubjectResolver, testMembershipSource, testRoleSource, testApprovalStore, testDecisionSink, testSnapshotSource, testWhereCompiler } from '@permdock/testing'
+import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testApprovalStore, testDecisionSink, testSnapshotSource, testWhereCompiler } from '@permdock/testing'
 
 testSubjectResolver(subjectFromSupabase(client, { schema }), { valid: [session], invalid: [expiredSession, tamperedSession] })
+testTokenVerifier(myVerifier, { jwks: fixtureJwks })          // runs the JWT adapter behaviour table against the fixture tokens
+testTokenSigner(kmsSigner, { verifier: joseTokenVerifier({ jwks: await kmsSigner.jwks() }) })
 testMembershipSource(documentMembers, { principals: [alice], expect: { alice: [{ on: { resource: 'document', id: 'd_1' }, roles: ['editor'] }] } })
 testRoleSource(betterAuthRoles, { tenants: ['o_acme'], declared: policy.assignable })
 testApprovalStore(postgresStore)
@@ -126,6 +164,8 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | Runner | Asserts |
 | --- | --- |
 | `testSubjectResolver` | Never throws; invalid material yields the anonymous subject and an `auth` event; valid material yields a frozen principal whose fields match the base type and the schema; `tenant` is set only on a membership match |
+| `testTokenVerifier` | Never throws; every fixture token in the behaviour table produces the listed `cause` (`alg: none`, wrong `typ`, `jku` header ignored, JWE without keys, `EdDSA` on a non-Ed25519 key, expired, wrong audience, unknown `kid`); a valid `at+jwt` returns `ok: true` with the fixture claims and header; `RSA1_5` and `none` are rejected regardless of configuration |
+| `testTokenSigner` | Output is compact JWS whose protected header has exactly `alg`, `kid`, `typ`; `alg` is in the allow-list; `iat`, `jti` and `iss` are set; the supplied verifier accepts it with the same `typ`; `jwks()` when present contains the signing key's public half |
 | `testMembershipSource` | Returns only well-formed memberships (one scope shape each); a throw yields an empty list; results are JSON |
 | `testRoleSource` | Every `includes` entry is a declared assignable role or is dropped; `assignable` is a subset of the declared assignable roles; unknown tenants yield an empty list |
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; the token is opaque to the store |
@@ -140,3 +180,4 @@ The runners are what the provider adapters run in this repository's CI and what 
 - Whether `SubjectResolver` should receive the request itself (for DPoP or mTLS binding checks) or keep those in the adapter kernel that already has the request (the current design).
 - `LimitStore`'s shape and whether a store failure should deny (proposed) or fall back to unlimited (rejected on fail-closed grounds, recorded for completeness).
 - Whether `WhereCompiler` should be a formal export of `permdock` or stay a type the query adapters share internally until a community compiler exists.
+- Whether `TokenVerifier` should expose a `jwks()` or `keys()` accessor so `permdock doctor` can report the key set a deployment verifies against, or whether that stays specific to `joseTokenVerifier`.

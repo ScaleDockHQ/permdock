@@ -60,6 +60,7 @@ if (decision.outcome === 'granted') {
 | `opaque-condition` | An imported opaque condition cannot be evaluated in memory |
 | `anonymous` | No principal |
 | `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
+| `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)) |
 | `limit` | Quota exhausted (Later) |
 | `validation` | Boundary validation failed ([validation](/docs/concepts/validation)) |
 

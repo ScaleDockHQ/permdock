@@ -11,6 +11,8 @@
     "problem-details",
     "postgres-rls",
     "---Authentication---",
+    "openid-connect",
+    "jose",
     "jwt-authorization-claims",
     "fapi-2",
     "gnap",

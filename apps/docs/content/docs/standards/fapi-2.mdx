@@ -26,7 +26,9 @@ A FAPI 2.0 resource server:
 
 ### 5.4.1 Cryptography
 
-JWTs adhere to RFC 8725 (JSON Web Token Best Current Practices). Signing algorithms are `PS256`, `ES256` or `EdDSA` (Ed25519); `none` is never accepted. RSA keys are at least 2048 bits, elliptic-curve keys at least 224 bits, and credentials carry at least 128 bits of entropy.
+JWTs adhere to RFC 8725 (JSON Web Token Best Current Practices). Signing algorithms are `PS256`, `ES256` or `EdDSA` "using the `Ed25519` variant"; `none` is never accepted. RSA keys are at least 2048 bits, elliptic-curve keys at least 224 bits, and credentials carry at least 128 bits of entropy.
+
+The profile's note under 5.4.1 observed that no registered, fully-specified algorithm for "`EdDSA` using the `Ed25519` variant" existed and allowed one once registered. [RFC 9864](https://www.rfc-editor.org/rfc/rfc9864.html) (Fully-Specified Algorithms for JOSE and COSE) has since registered `Ed25519` (and `Ed448`) as JWS `alg` values and deprecated the polymorphic `EdDSA` identifier. The FAPI 2.0 list PermDock enforces is therefore `PS256`, `ES256` and `Ed25519`, with `alg: EdDSA` accepted only when the resolved key is an `OKP` key with `crv: Ed25519` ([JOSE](/docs/standards/jose)).
 
 ### The RAR recommendation
 
@@ -68,11 +70,11 @@ export const { permdock, protect } = createPermDock(policy, {
 | FAPI 2.0 requirement | Behaviour under `profile: 'fapi2'` | Failure |
 | --- | --- | --- |
 | 5.3.4 (1) token in the `Authorization` header, bearer or DPoP | The resolver reads only the `Authorization` header; the scheme must be `Bearer` or `DPoP` and must match `sender` | Anonymous subject (`principal: null`); a missing header produces no audit event, a wrong scheme is logged |
-| 5.3.4 (2) no tokens in query parameters | A token found in the query string is rejected, even if it would otherwise verify | Anonymous subject, audit reason `token-in-query` |
-| 5.3.4 (3) validity, integrity, expiration, revocation | Signature against `jwks`, `iss` equals `issuer`, `aud` contains `audience`, `exp`, `nbf` and `iat` honoured within `clockTolerance`; revocation arrives as a CAEP `session-revoked` event through [`permdock/ssf`](/docs/adapters/ssf), which invalidates the subject's snapshot | Anonymous subject, audit reason naming the failed claim |
+| 5.3.4 (2) no tokens in query parameters | A token found in the query string is rejected, even if it would otherwise verify | Anonymous subject, audit cause `token-in-query` |
+| 5.3.4 (3) validity, integrity, expiration, revocation | Signature against `jwks`, `iss` equals `issuer`, `aud` contains `audience`, `exp`, `nbf` and `iat` honoured within `clockTolerance`; revocation arrives as a CAEP `session-revoked` event through [`permdock/ssf`](/docs/adapters/ssf), which invalidates the subject's snapshot | Anonymous subject, audit reason `invalid-token` with a cause naming the failed claim |
 | 5.3.4 (4) authorization sufficiency | The `decide` call. `delegation.scopes` and `delegation.authorizationDetails` are filled from the token and intersected with the principal's grants | `denied` Decision with reason `not-delegated`; HTTP adapters answer 403 with `WWW-Authenticate: Bearer error="insufficient_scope", scope="post:update"` and a Problem Details body whose `alternatives` lists what the token would have allowed |
-| 5.3.4 (5) sender-constrained tokens | A token without a `cnf` claim is rejected; with `sender: 'dpop'` the `DPoP` proof is verified against `cnf.jkt` (RFC 9449 section 7.1); with `sender: 'mtls'` the client certificate thumbprint is compared with `cnf.x5t#S256` (RFC 8705); `sender: 'none'` is not accepted under the profile | Anonymous subject, audit reason `sender-constraint-required`, `dpop-proof-invalid` or `mtls-binding-mismatch` |
-| 5.4.1 algorithms | `algorithms` is restricted to `PS256`, `ES256` and `EdDSA`; `none` and the `HS*` and `RS*` families are refused before signature verification | Anonymous subject, audit reason `alg-not-allowed` or `alg-none` |
+| 5.3.4 (5) sender-constrained tokens | A token without a `cnf` claim is rejected; with `sender: 'dpop'` the `DPoP` proof is verified against `cnf.jkt` (RFC 9449 section 7.1); with `sender: 'mtls'` the client certificate thumbprint is compared with `cnf.x5t#S256` (RFC 8705); `sender: 'none'` is not accepted under the profile | Anonymous subject, audit cause `sender-constraint-required`, `dpop-proof-invalid` or `mtls-binding-mismatch` |
+| 5.4.1 algorithms | `algorithms` is restricted to `PS256`, `ES256` and `Ed25519` (RFC 9864); `EdDSA` is accepted only for an `OKP` / `crv: Ed25519` key and reported by `permdock doctor`; `none`, `RSA1_5` and the `HS*` and `RS*` families are refused before signature verification | Anonymous subject, audit cause `alg-not-allowed` or `alg-none` |
 | 5.4.1 key sizes | JWKS keys below 2048 bits (RSA) or 224 bits (EC) are skipped when the key set is loaded | Tokens signed with a skipped key fail as `unknown-kid`; `permdock doctor` warns about the skipped keys |
 | RFC 8725 practices | `alg` comes from the allow-list, never from the header alone; `kid` selects a key from the configured JWKS only; `jku`, `x5u` and `jwk` headers are ignored | Anonymous subject |
 
@@ -152,11 +154,12 @@ FAPI 2.0 Message Signing (signed authorization requests and responses via JAR an
 | RFC 6750 `insufficient_scope` | `denied` Decision rendered as `WWW-Authenticate` plus Problem Details with `alternatives` |
 | RAR recommendation | `delegation.authorizationDetails`, one type per permission |
 | Grant Management `grant_id` | Approval token and `delegation`, tracking only |
-| 5.4.1 algorithm list | The `alg` allow-list fixed by the profile |
+| 5.4.1 algorithm list | The `alg` allow-list fixed by the profile: `PS256`, `ES256`, `Ed25519` |
 
 ## Sources
 
-- [FAPI 2.0 Security Profile (final)](https://openid.net/specs/fapi-security-profile-2_0-final.html), sections 5.3.4, 5.4.1 and note 5.
+- [FAPI 2.0 Security Profile (final)](https://openid.net/specs/fapi-security-profile-2_0-final.html), sections 5.3.4, 5.4.1 (including its note on a fully-specified Ed25519 algorithm) and note 5.
+- [RFC 9864, Fully-Specified Algorithms for JOSE and COSE](https://www.rfc-editor.org/rfc/rfc9864.html), section 2.2 (`Ed25519`, `Ed448`) and the deprecation of polymorphic identifiers.
 - [OpenID Foundation specifications index](https://openid.net/developers/specs/) for FAPI 2.0 Message Signing, the Attacker Model, FAPI CIBA and Grant Management for OAuth 2.0.
 - [OpenAPI Initiative newsletter, June 2026](https://www.openapis.org/blog/2026/06/09/openapi-initiative-newsletter-june-2026) for the 3.3 security-profile investigation.
 - RFC 6750, RFC 8705, RFC 8725, RFC 9396 and RFC 9449 are referenced by number.
@@ -164,6 +167,7 @@ FAPI 2.0 Message Signing (signed authorization requests and responses via JAR an
 ## Related
 
 - [JWT adapter](/docs/adapters/jwt): the full `subjectFromJwt` option set, of which `profile: 'fapi2'` is one preset.
+- [JOSE](/docs/standards/jose) and [OpenID Connect](/docs/standards/openid-connect): the algorithm registry, RFC 9864 and the Discovery step that supplies `jwks` and `issuer`.
 - [Authentication](/docs/concepts/authentication) and [ADR 0018](/docs/decisions/0018-authentication-is-upstream): where token verification stops and permissions start.
 - [OAuth for agent delegation](/docs/standards/oauth-agent-delegation) and [delegation](/docs/security/delegation): RAR `authorization_details` as `delegation`.
 - [Problem Details](/docs/standards/problem-details): the 403 body that carries `alternatives`.

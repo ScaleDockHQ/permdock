@@ -124,6 +124,8 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | SCIM 2.0 directories (Okta, Entra ID, Google Workspace via WorkOS Directory Sync or the provider's SCIM endpoint) | Group provisioning; group `id` / `value` as team identifiers | Team memberships keyed on the SCIM id, `via: 'group:<id>'`; a Cloud SCIM receiver is considered, not scheduled | [JWT authorization claims](/docs/standards/jwt-authorization-claims), [authentication](/docs/concepts/authentication) |
 | Vercel Agent Auth (Better Auth) | Delegated agent identities via RFC 8693 | `actor` and `delegation` mapper when published | [commercial landscape](/docs/research/commercial-landscape) |
 | Web Bot Auth, SPIFFE | Workload and bot identity | `actor` from signature or SVID | [Web Bot Auth](/docs/standards/web-bot-auth), [threat model](/docs/security/threat-model) |
+| `jose` (panva) | JOSE library for JavaScript runtimes: JWS / JWE / JWK / JWT, remote JWK Sets, `EmbeddedJWK`, `typ` and `requiredClaims` checks | Optional peer of `permdock/jwt` and `permdock/ssf`; `joseTokenVerifier` and `joseTokenSigner` wrap it, and any other library plugs in through `TokenVerifier` / `TokenSigner` | [JWT adapter](/docs/adapters/jwt), [JOSE](/docs/standards/jose) |
+| OpenID Connect providers publishing Discovery (`/.well-known/openid-configuration`) | Source of `issuer` and `jwks_uri` for verification | `subjectFromJwt({ discovery })`; RFC 8414 fallback | [OpenID Connect](/docs/standards/openid-connect), [JWT adapter](/docs/adapters/jwt) |
 
 ## Agent runtimes and frameworks
 

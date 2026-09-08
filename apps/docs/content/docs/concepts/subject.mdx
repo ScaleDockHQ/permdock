@@ -18,23 +18,28 @@ type Subject = {
     chain?: unknown                            // attenuated delegation chain (Later)
   }
   context: Record<string, unknown>            // loaded by the policy's `context` function
-  expiresAt?: number                           // from the token's exp / session_expiry; copied into snapshots
+  session?: string                             // `sid`: the login this request belongs to; the join key for logout and CAEP events
+  expiresAt?: number                           // NumericDate seconds, from the token's exp / session_expiry; copied into snapshots
 }
 
 type Principal = {
   id: string                                  // `sub`, a user id, a client id or a SPIFFE ID
+  issuer?: string                             // `iss`; identity is issuer + id, always set by subjectFrom*
   kind?: 'user' | 'service' | 'workload'      // default 'user'
   roles?: string[]                            // global roles
   memberships?: Membership[]                  // roles held in a tenant, a team or on one resource
   tenant?: string                             // the active tenant for this request; never defaulted
-  assurance?: string                          // `aal` / `acr` from the token, for step-up conditions
+  assurance?: Assurance                       // `acr`, `amr`, `auth_time`, for step-up conditions
   binding?: Binding                           // sender constraint, see "Binding"
   [k: string]: unknown                        // any other value conditions reference
 }
 
 type Membership = { tenant?: string; team?: string; on?: { resource: string; id: string }; roles: string[]; via?: string; expiresAt?: number }
-type Binding = { method: 'dpop' | 'mtls'; thumbprint: string }
+type Assurance = { acr?: string; amr?: string[]; authTime?: number }          // OIDC Core section 2; provider `aal` maps into `acr`
+type Binding = { jkt?: string; 'x5t#S256'?: string; jwk?: JsonWebKey; kid?: string }   // the RFC 7800 `cnf` members, verbatim
 ```
+
+Field names follow one rule ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)): where a specification names the concept, PermDock uses that name or maps to it exactly once, in the "Spec names" table on [naming](/docs/getting-started/naming). `id`, `issuer`, `expiresAt`, `actor`, `delegation.scopes` and `authorizationDetails` are the camelCase spellings of `sub`, `iss`, `exp`, `act`, `scope` and `authorization_details`; `assurance` and `binding` carry the claims' own member names inside.
 
 ```ts
 const permdock = await createPermDock(policy, user)                        // human or service: principal only
@@ -93,11 +98,14 @@ The actor identifies the agent. It has an `id` and a `kind` plus whatever the ad
 | Adapter | `actor.kind` | `actor.id` | Source |
 | --- | --- | --- | --- |
 | `permdock/mcp` | `'mcp-client'` | OAuth `client_id` | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server) |
+| `permdock/jwt` with an `act` claim | `'oauth-client'` | innermost `act.sub` (RFC 8693) | the verified token; the nesting is `delegation.chain` |
 | `permdock/ai-sdk` | `'ai-sdk'` | your `runtimeContext.agentId` | the `actor` option of `createPermDock` |
 | `permdock/claude-agent` | `'claude-agent'` | session or agent name | the `actor` option |
 | HTTP adapters with Web Bot Auth | `'web-bot'` | the verified `Signature-Agent` key id | RFC 9421 HTTP Message Signatures |
 | `permdock/a2a` | `'a2a-agent'` | the calling Agent Card identity | A2A `securitySchemes` on the authenticated extended card |
 | none | absent | absent | a plain human or service request |
+
+This table is the closed list of `actor.kind` values; the transaction-token and SPIFFE recipes below add `'workload'`, and the agent-runtime adapters add their own name (`'eve'`, `'openai-agent'`, `'claude-agent'`, `'terminal'`) on their pages. An adapter adds its row here before using a new value ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)).
 
 The actor appears on every decision and audit event so you can answer "which agent did this, for whom". The actor never has grants of its own; only the principal has roles.
 
@@ -165,16 +173,17 @@ The WIMSE architecture treats workloads as principals in their own right: a work
 
 ## Binding
 
-Sender-constrained tokens carry a `cnf` claim that binds the token to a key the presenter must prove it holds. PermDock keeps that binding on the subject:
+Sender-constrained tokens carry a `cnf` claim (RFC 7800) that binds the token to a key the presenter must prove it holds. PermDock keeps that binding on the subject as the `cnf` object itself, member names unchanged, so it round-trips into signed outputs and into a verifier in another language without translation ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)):
 
 ```ts
-binding: { method: 'dpop', thumbprint: 'NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs' }   // cnf.jkt, RFC 9449
-binding: { method: 'mtls', thumbprint: 'A4DtL2JmUMhAsvJj5tKyn64SqzmuXbMrJa0n761y5v0' }   // cnf.x5t#S256, RFC 8705
+binding: { jkt: 'NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs' }          // DPoP, RFC 9449: JWK thumbprint of the proof key
+binding: { 'x5t#S256': 'A4DtL2JmUMhAsvJj5tKyn64SqzmuXbMrJa0n761y5v0' }   // mTLS, RFC 8705: certificate thumbprint
 ```
 
+- The method is implied by the member: `jkt` is DPoP, `x5t#S256` is mTLS; `jwk` and `kid` are accepted for RFC 7800 completeness but no adapter verifies them today. An object with none of the four members is not a binding and is dropped.
 - It sits on `principal` when the token identifies a user or workload acting for itself, and on `actor` when the token carries an `act` chain (the key belongs to the presenting agent).
 - **Core does not check it.** Proof-of-possession needs the HTTP request (the `DPoP` header) or the TLS client certificate, which core never sees. The check belongs to the adapter that has the request: `verifyDpopProof(request, claims)` in `permdock/jwt`, or the mTLS thumbprint comparison in the server kernel. A failed check yields the anonymous subject, so the binding never reaches core in an unverified state.
-- It appears on `on('decision')` events and OTel spans (method and thumbprint) so an audit can prove that a decision was made for a token bound to a specific key. It is not included in snapshots.
+- It appears on `on('decision')` events and OTel spans (the `cnf` member and its value) so an audit can prove that a decision was made for a token bound to a specific key. It is not included in snapshots.
 - Under `profile: 'fapi2'` in `permdock/jwt` a token without a binding is rejected ([FAPI 2.0](/docs/standards/fapi-2)).
 
 See [Authentication and PermDock](/docs/concepts/authentication) for where bindings come from.
@@ -195,7 +204,7 @@ An actor with no `delegation` at all is treated as having none: every check is `
 ## Where the subject shows up
 
 - `Decision.subject` on `granted` is the narrowed subject (`principal` non-null).
-- `on('decision')` events carry `principal.id`, `principal.roles`, `tenant`, the matching `membership` and its `via`, `actor` and `delegation` so audit can distinguish "Alice deleted a post" from "the reporting agent deleted a post for Alice under scope `post:delete`", and "as a design-team lead" from "as an Acme admin".
+- `on('decision')` events carry `principal.id` and `principal.issuer`, `principal.roles`, `tenant`, the matching `membership` and its `via`, `actor` and `delegation` so audit can distinguish "Alice deleted a post" from "the reporting agent deleted a post for Alice under scope `post:delete`", and "as a design-team lead" from "as an Acme admin".
 - Snapshots include the principal (memberships and active tenant included) and the delegation, not the actor's secrets, so the client can evaluate the same intersection offline.
 - AuthZEN messages map `principal` to `subject`, put `memberships` under `subject.properties`, and put `actor`, `delegation` and the active `tenant` under `context` ([AuthZEN](/docs/standards/authzen)).
 
@@ -205,7 +214,7 @@ Put in the principal only what conditions reference and what you are willing to 
 
 | Value | Where it goes | Why |
 | --- | --- | --- |
-| The user id, kind, assurance | `principal` fields | Referenced by conditions and the token binding |
+| The user id and issuer, kind, assurance (`acr`, `amr`, `authTime`) | `principal` fields | Referenced by conditions (`subject.assurance.acr`), step-up challenges and the token binding |
 | Global roles (`support`, `platform-admin`, `pro`) | `principal.roles` | Apply everywhere |
 | A role held in a tenant, a team or on a document | `principal.memberships` | Scoped roles, `memberOf`, tenant-scoped audit, the UI's role chips |
 | The tenant this request is about | `principal.tenant` | Selected by the server from the URL or the provider's active organisation, only when a membership matches |

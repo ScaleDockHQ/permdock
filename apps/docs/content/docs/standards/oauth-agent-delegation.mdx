@@ -43,7 +43,7 @@ const permdock = await createPermDock(policy, user)
 
 // Agent case: actor + delegation
 const asAgent = await createPermDock(policy, user, {
-  actor: { id: authInfo.clientId, kind: 'mcp' },
+  actor: { id: authInfo.clientId, kind: 'mcp-client' },
   delegation: {
     scopes: authInfo.scopes,                          // OAuth scopes
     authorizationDetails: authInfo.authorization_details, // RFC 9396 objects, if present

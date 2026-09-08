@@ -26,8 +26,9 @@ type Principal = {
   roles?: string[]                       // global roles, unchanged
   memberships?: Membership[]
   tenant?: string                        // the active tenant for this request
-  assurance?: string
-  binding?: Binding
+  issuer?: string                        // `iss`; identity is issuer + id
+  assurance?: { acr?: string; amr?: string[]; authTime?: number }
+  binding?: Binding                      // RFC 7800 `cnf` members
   [k: string]: unknown
 }
 ```

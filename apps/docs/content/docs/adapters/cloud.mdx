@@ -37,7 +37,11 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 - `cloud()` returns a frozen object; `approvals`, `sink` and `snapshots` are the three interfaces. There is no `decide` on it.
 - `sink` batches events in memory and flushes on an interval, on size, and at the end of a request when the runtime exposes `waitUntil`. Delivery failure never affects a decision and is reported through `on('error')`.
 - `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store; the inbox UI, Slack, Teams and email delivery, and approver groups are Cloud features layered on the same records. Slack and Teams delivery is the Vercel Chat SDK recipe from the [approvals adapter](/docs/adapters/approvals) "Delivery" section, run by the Cloud instead of by your application; a self-hoster who copies that recipe gets identical cards and the same signature-verified responder.
-- `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)).
+- `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)). Everything the Cloud serves is signed: a compact JWS with `typ: permdock-snapshot+jwt` and the unchanged Snapshot v2 object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats)).
+
+### Keys
+
+The Cloud signs with a per-environment key through the `TokenSigner` interface ([extension interfaces](/docs/concepts/extension-interfaces)) and publishes the public half as a JWK Set at `<PERMDOCK_CLOUD_URL>/.well-known/jwks.json`. `cloud()` configures the client `PermDockProvider` with `joseTokenVerifier({ jwks: <that URL>, typ: 'permdock-snapshot+jwt', audience: <your app> })` so verification is on by default; a consumer in another language points its JOSE library at the same JWKS. Algorithms are `Ed25519` by default, `ES256` on request for consumers whose libraries lack Ed25519; never `RS256` in a FAPI 2.0 environment. Rotation follows the JWKS rule: the new `kid` is published, the old key stays until the last snapshot signed with it has passed `exp`, and the dashboard shows both. Signed decision-log exports (`typ: permdock-decisions+jwt`) use the same key and endpoint ([audit and observability](/docs/concepts/audit-and-observability)). The private key never leaves the Cloud; the `PERMDOCK_CLOUD_KEY` API key is unrelated to it and cannot sign anything.
 - Zero required dependencies: the client uses `fetch` and the wire formats from core. It is server-only and `tests/bundle` asserts no client entry reaches it.
 
 ### Environment variables
@@ -58,7 +62,7 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 | Pending approvals | `memoryApprovalStore()` | Persistent store, inbox UI scoped per tenant, delivery, approver groups, expiry jobs |
 | Memberships and custom roles | `subjectFrom*`, `context`, your `MembershipSource` and `RoleSource` | Nothing. The Cloud never implements either interface, so it never joins the decision path (invariant 15); a hosted SCIM receiver is considered, not scheduled ([commercial landscape](/docs/research/commercial-landscape)) |
 | Audit | `on('decision')` handler, `permdock/otel` | Decision log with retention, per-actor, per-principal and per-tenant queries (the `tenant`, `membership` and `via` fields of every event), anomaly views |
-| Snapshots | Served by the application's endpoint | Edge distribution, signed, invalidated by CAEP |
+| Snapshots | Served by the application's endpoint, plain JSON or signed with your own `TokenSigner` | Edge distribution, always signed (`permdock-snapshot+jwt`, keys at `/.well-known/jwks.json`), invalidated by CAEP |
 | Non-TypeScript callers | Your own `permdock/authzen` deployment | Hosted AuthZEN ADS serving the same policy to gateways and services |
 | Catalog and usage | `permdock collect` and `permdock usage` in CI | Dashboards over the same catalog files, drift alerts |
 
@@ -111,7 +115,8 @@ PermDock Cloud is listed as a native Marketplace integration so a Vercel project
 
 - [AuthZEN](/docs/standards/authzen): the hosted ADS wire format.
 - [Shared Signals and CAEP](/docs/standards/shared-signals-caep): snapshot invalidation.
-- [Wire formats](/docs/concepts/wire-formats): `ApprovalRequest`, `DecisionEvent`, snapshot v1.
+- [Wire formats](/docs/concepts/wire-formats): `ApprovalRequest`, `DecisionEvent`, Snapshot v2 and the signed-output envelope.
+- [JOSE](/docs/standards/jose) and the [JWT adapter](/docs/adapters/jwt): the `TokenSigner` and `TokenVerifier` the Cloud signs and clients verify with.
 - [Approvals adapter](/docs/adapters/approvals) and [Audit and observability](/docs/concepts/audit-and-observability): the interfaces this entry implements.
 - [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable).
 
