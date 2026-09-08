@@ -3,7 +3,7 @@ title: oRPC
 description: permdock/orpc adds a request-scoped PermDock to oRPC context, a protect middleware fed by procedure input, and an oo.spec hook that emits OpenAPI 3.2 security for the generated document.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 ## Purpose
@@ -67,7 +67,7 @@ export const list = base
 
 ## Example app
 
-`apps/examples/orpc`: oRPC on Hono with a posts contract, `permdock()` and `openapi.protect` on mutations, `OpenAPIGenerator` output checked into the example and validated by `permdock openapi --check`, a React client using `permdock/react` against the shared decision endpoint, and Vitest tests calling procedures directly and through the OpenAPI handler.
+`apps/examples/orpc`: oRPC with `permdock()` and `protect` on `posts.update` (granted) and `posts.publish` (denied for `member`). Unit tests call procedures through `call()` and assert `ORPCError` codes and Problem Details `data`.
 
 ## Related standards
 

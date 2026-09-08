@@ -288,6 +288,24 @@ procedure
 
 `protect` throws `TRPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `cause`. `openapi.security(permission)` is the `trpc-to-openapi` meta fragment.
 
+## oRPC — `permdock/orpc`
+
+```ts
+import { createPermDock } from 'permdock/orpc';
+
+export const { permdock, protect, permdockHandler } = createPermDock(policy, {
+  subject: ({ context }) => context.user ?? null,
+});
+
+const base = os.$context<Context>().use(permdock());
+base
+  .input(z.object({ id: z.string() }))
+  .use(protect(permissions.post.delete, ({ input }) => loadPost(input.id)))
+  .handler(({ context }) => deletePost(context.permdockData));
+```
+
+`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`. `openapi.protect` is the same guard plus the kernel `security` fragment for `oo.spec`.
+
 ## Planned adapters
 
-oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

@@ -17,6 +17,7 @@ export default defineConfig({
     'src/nest/index.ts',
     'src/node/index.ts',
     'src/trpc/index.ts',
+    'src/orpc/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',
