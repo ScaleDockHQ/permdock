@@ -20,6 +20,7 @@ export const ENTRIES = {
   './fastify': 'fastify/index.js',
   './elysia': 'elysia/index.js',
   './nest': 'nest/index.js',
+  './node': 'node/index.js',
   './ai-sdk': 'ai-sdk/index.js',
   './claude-agent': 'claude-agent/index.js',
   './eve': 'eve/index.js',
@@ -91,7 +92,7 @@ export function wintertcViolations(
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   return files.filter((file) =>
-    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|server|approvals|mcp|authzen|openapi)[/\\]/u.test(
+    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|server|approvals|mcp|authzen|openapi)[/\\]/u.test(
       file,
     ),
   );

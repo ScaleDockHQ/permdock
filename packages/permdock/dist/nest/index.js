@@ -2,56 +2,9 @@ import { d as PermDockDeniedError, f as PermDockValidationError, u as PermDockAp
 import { t as compact } from "../compact-CxCColYy.js";
 import { a as problemResponse } from "../evaluations-DrCAt2dS.js";
 import { t as createPermDock$1 } from "../create-CYzzrAXg.js";
+import { i as toRequest, n as isServerResponse, r as sendResponse } from "../http-kYphIx9F.js";
 import { Catch, Controller, Get, Inject, Injectable, Module, Post, Req, Res, createParamDecorator } from "@nestjs/common";
 import { APP_FILTER, Reflector } from "@nestjs/core";
-//#region src/nest/http.ts
-function toRequest(req) {
-	const host = headerValue(req.headers.host) ?? "localhost";
-	const url = `${req.protocol ?? "http"}://${host}${req.originalUrl ?? req.url ?? "/"}`;
-	const headers = new Headers();
-	for (const [key, value] of Object.entries(req.headers)) {
-		if (typeof value === "string") {
-			headers.set(key, value);
-			continue;
-		}
-		if (Array.isArray(value)) for (const item of value) headers.append(key, item);
-	}
-	const method = req.method ?? "GET";
-	if (method === "GET" || method === "HEAD") return new Request(url, {
-		method,
-		headers
-	});
-	const body = bodyOf(req, headers);
-	if (body === void 0) return new Request(url, {
-		method,
-		headers
-	});
-	return new Request(url, {
-		method,
-		headers,
-		body
-	});
-}
-function headerValue(value) {
-	if (typeof value === "string" && value.length > 0) return value;
-	if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-}
-function bodyOf(req, headers) {
-	if (req.body === void 0) return;
-	if (typeof req.body === "string") return req.body;
-	if (!headers.has("content-type")) headers.set("content-type", "application/json");
-	return JSON.stringify(req.body);
-}
-async function sendResponse(res, response) {
-	res.statusCode = response.status;
-	for (const [key, value] of response.headers.entries()) res.setHeader(key, value);
-	const body = Buffer.from(await response.arrayBuffer());
-	res.end(body);
-}
-function isServerResponse(value) {
-	return typeof value === "object" && value !== null && "setHeader" in value && typeof value.setHeader === "function" && "end" in value;
-}
-//#endregion
 //#region src/nest/create.ts
 const PROTECT_KEY = "permdock:protect";
 var PermDockHttpError = class extends Error {

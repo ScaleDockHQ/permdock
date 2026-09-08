@@ -255,6 +255,21 @@ export const { PermDockModule, PermDockGuard, Protect, InjectPermDock } =
 
 Register `PermDockGuard` as `APP_GUARD` with `useExisting`. `Protect` attaches a permission (and optional loader) to a handler or class. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
 
+## Node — `permdock/node`
+
+```ts
+import { createPermDock } from 'permdock/node';
+
+export const { permdock, protect, send, permdockHandler } = createPermDock(
+  policy,
+  {
+    subject: (req) => userFromCookie(req.headers.cookie),
+  },
+);
+```
+
+Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Express and Nest reuse `toRequest` / `fromResponse`.
+
 ## Planned adapters
 
-Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

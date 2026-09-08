@@ -15,6 +15,7 @@ export default defineConfig({
     'src/fastify/index.ts',
     'src/elysia/index.ts',
     'src/nest/index.ts',
+    'src/node/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',

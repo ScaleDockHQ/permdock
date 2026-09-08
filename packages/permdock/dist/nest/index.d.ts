@@ -3,20 +3,11 @@ import { o as Policy, v as Permission } from "../policy-Dvre0Da9.js";
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
 import { r as PermDock } from "../permdock-ChXNJ7qn.js";
 import { n as OpenApiHooks } from "../create-KZgWsU_G.js";
+import { a as toRequest, i as sendResponse, t as NodeRequest } from "../http-DQtjxCmn.js";
 import { CanActivate, ExceptionFilter, Type } from "@nestjs/common";
-import { IncomingMessage, ServerResponse } from "node:http";
-//#region src/nest/http.d.ts
-type NestHttpRequest = IncomingMessage & {
-  readonly originalUrl?: string;
-  readonly protocol?: string;
-  readonly body?: unknown;
-  readonly params?: Record<string, string>;
-};
-export declare function toRequest(req: NestHttpRequest): Request;
-export declare function sendResponse(res: ServerResponse, response: Response): Promise<void>;
-//#endregion
 //#region src/nest/create.d.ts
-type NestRequest = NestHttpRequest & {
+type NestRequest = NodeRequest & {
+  readonly params?: Readonly<Record<string, string>>;
   permdock?: PermDock;
   permdockData?: unknown;
 };
@@ -41,4 +32,4 @@ type NestPermDock = {
 };
 export declare function createPermDock(policy: Policy, options: NestPermDockOptions): NestPermDock;
 //#endregion
-export type { NestPermDock, NestPermDockOptions, NestProtect, NestRequest };
+export { type NestPermDock, type NestPermDockOptions, type NestProtect, type NestRequest, sendResponse, toRequest };

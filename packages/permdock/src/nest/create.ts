@@ -51,6 +51,7 @@ import {
 const PROTECT_KEY = 'permdock:protect';
 
 export type NestRequest = NestHttpRequest & {
+  readonly params?: Readonly<Record<string, string>>;
   permdock?: PermDock;
   permdockData?: unknown;
 };
