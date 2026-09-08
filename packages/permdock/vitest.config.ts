@@ -27,6 +27,7 @@ export default defineConfig({
         'src/openai/**',
         'src/agent/**',
         'src/scim/**',
+        'src/cloud/**',
         'src/core/from-snapshot.ts',
       ],
       thresholds: {

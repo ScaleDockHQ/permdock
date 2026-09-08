@@ -434,6 +434,28 @@ export const scim = scimHandler({
 
 The handler writes users and groups. It never decides. Unknown or non-assignable role names are stored and dropped when memberships are read.
 
+## Cloud — `permdock/cloud`
+
+No factory for a `PermDock`. `cloud({ url, key })` returns `approvals`, `sink` and `snapshots` to pass into any adapter. It never implements `MembershipSource` or `RoleSource` and never decides.
+
+```ts
+import { cloud } from 'permdock/cloud';
+
+const pd = cloud({
+  url: process.env.PERMDOCK_CLOUD_URL,
+  key: process.env.PERMDOCK_CLOUD_KEY,
+});
+
+export const { getPermDock } = createPermDock(policy, {
+  subject,
+  store: pd.approvals,
+  sink: pd.sink,
+  snapshots: pd.snapshots,
+});
+```
+
+`PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are server-only. A Cloud outage leaves directory memberships at their last synced state.
+
 ## Planned adapters
 
-Remaining Phase 2 adapters (`cloud`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Phase 3 adapters (`drizzle`, `prisma`, `kysely`, `rls`, `supabase`, `ssf`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.

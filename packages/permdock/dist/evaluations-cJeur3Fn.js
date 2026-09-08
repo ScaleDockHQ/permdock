@@ -1,7 +1,7 @@
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
 import { n as findPermission, o as listPermissions } from "./permissions-WEkUHQtZ.js";
-import { a as resumeFromHeader, n as readApprovalHeader, r as requestApproval } from "./helpers-uYfiESeW.js";
+import { a as resumeFromHeader, n as readApprovalHeader, r as requestApproval } from "./helpers-Ce24VOuf.js";
 //#region src/server/problem.ts
 const PROBLEM_BASE = "https://permdock.dev/problems";
 function quoted(value) {

@@ -1,8 +1,8 @@
 import { t as describe } from "./describe-BnKr1Gwo.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { a as deniedMessage } from "./errors-DDT8tC4N.js";
-import { t as createPermDock } from "./permdock-SsjLPGaY.js";
-import { r as requestApproval, t as inspectApproval } from "./helpers-uYfiESeW.js";
+import { t as createPermDock } from "./permdock-CpyyhpgH.js";
+import { r as requestApproval, t as inspectApproval } from "./helpers-Ce24VOuf.js";
 //#region src/agent/reason.ts
 function modelReason(decision, permission, subjectId) {
 	if (decision.outcome === "denied") return deniedMessage(permission?.key ?? "unknown", subjectId, decision.denials, decision.alternatives.map((leaf) => leaf.key));

@@ -57,6 +57,7 @@ export default defineConfig({
     'src/a2a/index.ts',
     'src/otel/index.ts',
     'src/scim/index.ts',
+    'src/cloud/index.ts',
   ],
   platform: 'neutral',
   dts: true,

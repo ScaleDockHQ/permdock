@@ -134,6 +134,10 @@
     "./scim": {
       "types": "./dist/scim/index.d.ts",
       "default": "./dist/scim/index.js"
+    },
+    "./cloud": {
+      "types": "./dist/cloud/index.d.ts",
+      "default": "./dist/cloud/index.js"
     }
   },
   "scripts": {

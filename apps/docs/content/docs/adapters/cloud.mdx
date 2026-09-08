@@ -3,7 +3,7 @@ title: Cloud
 description: permdock/cloud is the thin, optional client for PermDock Cloud; it implements ApprovalStore, DecisionSink and SnapshotSource over a documented HTTP API, never sits in the decision path, and is provisioned from the Vercel Marketplace.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 `permdock/cloud` is one implementation of the interfaces the rest of the package defines. `cloud({ url, key })` returns a `DecisionSink` with a queryable decision log sold as compliance evidence and agent governance, an `ApprovalStore` with an inbox UI behind it, and a `SnapshotSource` that distributes signed snapshots and invalidates them on CAEP events. Nothing in this entry is consulted by `can`, `decide`, `filter`, `where` or `simulate`: every decision still runs in-process on the policy in your bundle ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)). Remove the entry and the application keeps working on the in-memory defaults.
@@ -43,6 +43,20 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 
 The Cloud signs with a per-environment key through the `TokenSigner` interface ([extension interfaces](/docs/concepts/extension-interfaces)) and publishes the public half as a JWK Set at `<PERMDOCK_CLOUD_URL>/.well-known/jwks.json`. `cloud()` configures the client `PermDockProvider` with `joseTokenVerifier({ jwks: <that URL>, typ: 'permdock-snapshot+jwt', audience: <your app> })` so verification is on by default; a consumer in another language points its JOSE library at the same JWKS. Algorithms are `Ed25519` by default, `ES256` on request for consumers whose libraries lack Ed25519; never `RS256` in a FAPI 2.0 environment. Rotation follows the JWKS rule: the new `kid` is published, the old key stays until the last snapshot signed with it has passed `exp`, and the dashboard shows both. Signed decision-log exports (`typ: permdock-decisions+jwt`) use the same key and endpoint ([audit and observability](/docs/concepts/audit-and-observability)). The private key never leaves the Cloud; the `PERMDOCK_CLOUD_KEY` API key is unrelated to it and cannot sign anything.
 - Zero required dependencies: the client uses `fetch` and the wire formats from core. It is server-only and `tests/bundle` asserts no client entry reaches it.
+
+### HTTP API
+
+The client speaks these paths under `PERMDOCK_CLOUD_URL`. `:env` is `environment`, then `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`.
+
+| Method | Path | Interface |
+| --- | --- | --- |
+| `POST` | `/v1/environments/:env/decisions` | `sink.write` / `sink.flush` body `{ events }` |
+| `POST` | `/v1/environments/:env/approvals` | `approvals.create` |
+| `GET` | `/v1/environments/:env/approvals/:token` | `approvals.get` (unreachable or unknown → `null`) |
+| `POST` | `/v1/environments/:env/approvals/:token/resolve` | `approvals.resolve` (`409` not pending, `410` expired, `404` missing) |
+| `GET` | `/v1/environments/:env/approvals` | `approvals.list` |
+| `POST` | `/v1/environments/:env/approvals/expire` | `approvals.expire` |
+| `GET` | `/v1/environments/:env/snapshot` | `snapshots.get` (Snapshot v2 JSON or `permdock-snapshot+jwt`) |
 
 ### Environment variables
 

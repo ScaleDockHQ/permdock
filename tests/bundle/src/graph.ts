@@ -38,6 +38,7 @@ export const ENTRIES = {
   './a2a': 'a2a/index.js',
   './otel': 'otel/index.js',
   './scim': 'scim/index.js',
+  './cloud': 'cloud/index.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -109,7 +110,7 @@ export function wintertcViolations(
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   return files.filter((file) =>
-    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim)[/\\]/u.test(
+    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud)[/\\]/u.test(
       file,
     ),
   );

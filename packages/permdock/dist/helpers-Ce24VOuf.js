@@ -1,19 +1,7 @@
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as describe } from "./describe-BnKr1Gwo.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
-//#region src/approvals/errors.ts
-var ApprovalError = class extends Error {
-	name = "ApprovalError";
-	code;
-	constructor(code, message) {
-		super(message);
-		this.code = code;
-	}
-};
-function isApprovalError(value) {
-	return value instanceof ApprovalError;
-}
-//#endregion
+import { t as ApprovalError } from "./errors-BQyxzFvZ.js";
 //#region src/approvals/types.ts
 const APPROVAL_HEADER = "PermDock-Approval";
 const DEFAULT_APPROVAL_TTL_MS = 36e5;
@@ -178,4 +166,4 @@ function resumeFromHeader(store, headers, now) {
 	return inspectApproval(store, token, now);
 }
 //#endregion
-export { resumeFromHeader as a, memoryApprovalStore as c, isApprovalError as d, resolveApproval as i, APPROVAL_HEADER as l, readApprovalHeader as n, summariseSubject as o, requestApproval as r, assertApprover as s, inspectApproval as t, DEFAULT_APPROVAL_TTL_MS as u };
+export { resumeFromHeader as a, memoryApprovalStore as c, resolveApproval as i, APPROVAL_HEADER as l, readApprovalHeader as n, summariseSubject as o, requestApproval as r, assertApprover as s, inspectApproval as t, DEFAULT_APPROVAL_TTL_MS as u };
