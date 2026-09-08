@@ -1,20 +1,21 @@
 ---
 title: NestJS
-description: permdock/nest provides a module, a guard and a Protect decorator so Nest controllers get a request-scoped PermDock over either the Express or the Fastify platform adapter.
+description: permdock/nest provides a module, a guard and a Protect decorator so Nest controllers get a request-scoped PermDock over the Express platform adapter.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 ## Purpose
 
-Nest structures authorization as guards and decorators, so `permdock/nest` maps the [server kernel](/docs/adapters/server-kernel) onto that shape: a module that registers the factory, a guard registered as `APP_GUARD` that builds the request-scoped instance and evaluates route metadata, a `Protect` decorator that attaches the permission (and optional loader) to a handler, and a parameter decorator to inject the instance. It works on both `@nestjs/platform-express` and `@nestjs/platform-fastify` because the kernel only needs the underlying request converted once. NestJS was permix's most requested and never-shipped adapter (issue 11).
+Nest structures authorization as guards and decorators, so `permdock/nest` maps the [server kernel](/docs/adapters/server-kernel) onto that shape: a module that registers the factory, a guard registered as `APP_GUARD` that builds the request-scoped instance and evaluates route metadata, a `Protect` decorator that attaches the permission (and optional loader) to a handler, and a parameter decorator to inject the instance. The kernel only needs the underlying Node request converted once. GraphQL and microservice transports pass through when `context.getType()` is not `http`.
 
 ## API
 
 ```ts
 // permdock.module.ts
 import { Module } from '@nestjs/common'
+import { APP_GUARD } from '@nestjs/core'
 import { createPermDock } from 'permdock/nest'
 import { policy } from './policy'
 
@@ -22,7 +23,7 @@ export const { PermDockModule, PermDockGuard, Protect, InjectPermDock } = create
   subject: (request) => request.user ?? null,
 })
 
-@Module({ imports: [PermDockModule], providers: [{ provide: APP_GUARD, useClass: PermDockGuard }] })
+@Module({ imports: [PermDockModule], providers: [{ provide: APP_GUARD, useExisting: PermDockGuard }] })
 export class AppModule {}
 
 // posts.controller.ts
@@ -45,19 +46,20 @@ export class PostsController {
 
 | Export | Role |
 |---|---|
-| `PermDockModule` | Registers the kernel factory as a provider so guards and services can inject it. |
-| `PermDockGuard` | `CanActivate` implementation. Builds the request-scoped instance once per request (stored on the request), reads `Protect` metadata from the handler and class, runs `loadData`, decides, and throws a `ForbiddenException` carrying the Problem Details body. Routes without `Protect` metadata pass through but still get an instance. |
+| `PermDockModule` | Registers the kernel factory as a provider so guards and services can inject it. Also registers `PermDockExceptionFilter` as `APP_FILTER`. |
+| `PermDockGuard` | `CanActivate` implementation. Builds the request-scoped instance once per request (stored on the request), reads `Protect` metadata from the handler and class, runs `loadData`, decides, and throws before the handler. Routes without `Protect` metadata pass through but still get an instance. Register as `APP_GUARD` with `useExisting`. |
 | `Protect(permission, loadData?)` | Method or class decorator setting metadata for the guard. Multiple decorators on class and method are all enforced. |
 | `InjectPermDock()` | Parameter decorator injecting the request-scoped instance into handlers. |
-| `PermDockExceptionFilter` | Optional filter that renders PermDock exceptions as `application/problem+json`; without it Nest's default JSON body is used. |
+| `PermDockExceptionFilter` | Filter that renders PermDock exceptions as `application/problem+json` with `WWW-Authenticate` when the kernel sets it. |
 | `permdockHandler` | Controller class for the AuthZEN-shaped decision endpoint, mountable under `/api/permdock`. |
+| `openapi` | Kernel hook contract for `@nestjs/swagger`. |
 
 ## Request lifecycle
 
-1. `PermDockGuard` runs for every route; it converts the platform request, calls `subject(request)` once, builds the instance and caches it on the request object.
+1. `PermDockGuard` runs for every HTTP route; it converts the platform request, calls `subject(request)` once, builds the instance and caches it on the request object.
 2. If the handler or class carries `Protect` metadata, the guard runs the loader, validates untrusted input, and decides. Denials throw before the handler executes.
 3. Handlers receive the instance through `@InjectPermDock()` and may call `assert`, `filter` or `where`.
-4. `PermDockExceptionFilter` maps thrown PermDock errors to Problem Details; `on('decision')` events carry the controller and handler names.
+4. `PermDockExceptionFilter` maps thrown PermDock errors to Problem Details.
 
 ## What it validates
 
@@ -67,19 +69,12 @@ export class PostsController {
 
 ## How denials surface
 
-`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation failures; `401` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation failures; `401` plus `WWW-Authenticate` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
 
 ## Example app
 
-`apps/examples/nest`: a posts module on the Express platform with the guard as `APP_GUARD`, `Protect` on CRUD handlers, `@nestjs/swagger` emitting `securitySchemes` through the `openapi` hook, the decision endpoint controller, and e2e tests with `@nestjs/testing` plus supertest run against both platform adapters.
+`apps/examples/nest`: a posts module on the Express platform with the guard as `APP_GUARD`, `Protect` on `PATCH /posts/:id` and `POST /posts/:id/publish`, and the decision endpoint controller.
 
 ## Related standards
 
 - [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2).
-
-## Open questions
-
-- Exact identifier names. The plan is silent for Nest; this page proposes `PermDockModule`, `PermDockGuard`, `Protect`, `InjectPermDock` (parameter decorator, named to avoid clashing with the `PermDock` type) and `PermDockExceptionFilter`. The decorator could be `Permission` instead of `Protect` to mirror Nest's `Roles` convention.
-- Whether the guard should be global (`APP_GUARD`) by default or applied per controller, and how it composes with existing `AuthGuard` ordering.
-- How `loadData` obtains injected services (a loader that receives the `ExecutionContext` and a `ModuleRef`, or a class-based loader provider).
-- GraphQL and microservice transports: out of scope for Phase 2, but the guard should not break when `context.getType()` is not `http`.

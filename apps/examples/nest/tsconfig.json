@@ -1,0 +1,14 @@
+{
+  "extends": "@permdock/typescript-config/base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "erasableSyntaxOnly": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "lib": ["ES2024", "DOM"],
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

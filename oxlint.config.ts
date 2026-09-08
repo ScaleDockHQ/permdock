@@ -151,6 +151,20 @@ export default defineConfig({
       },
     },
     {
+      files: [
+        'packages/permdock/src/nest/**/*.{ts,tsx}',
+        'apps/examples/nest/**/*.{ts,tsx}',
+      ],
+      rules: {
+        // Nest modules, controllers and side-effect `reflect-metadata`.
+        'eslint/class-methods-use-this': 'off',
+        'typescript/no-extraneous-class': 'off',
+        'eslint/max-classes-per-file': 'off',
+        'import/no-unassigned-import': 'off',
+        'typescript/explicit-member-accessibility': 'off',
+      },
+    },
+    {
       files: ['apps/examples/**/*.{ts,tsx}'],
       rules: {
         // App-router and factory files import across src/ folders.

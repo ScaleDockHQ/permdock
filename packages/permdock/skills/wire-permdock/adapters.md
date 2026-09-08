@@ -242,6 +242,19 @@ const app = new Elysia().use(permdock()).delete('/posts/:id', handler, {
 
 Fetch-native plugin via `derive`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
 
+## Nest — `permdock/nest`
+
+```ts
+import { createPermDock } from 'permdock/nest';
+
+export const { PermDockModule, PermDockGuard, Protect, InjectPermDock } =
+  createPermDock(policy, {
+    subject: (request) => request.user ?? null,
+  });
+```
+
+Register `PermDockGuard` as `APP_GUARD` with `useExisting`. `Protect` attaches a permission (and optional loader) to a handler or class. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
+
 ## Planned adapters
 
-Nest, Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

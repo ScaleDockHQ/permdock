@@ -112,7 +112,8 @@ These never appear as public identifiers, for the reasons given:
 | `permdock` | `PermDock` | `await createPermDock(policy, user, { tenant?, memberships?, customRoles?, actor?, delegation? })`; sync when the policy declares no `context` and no async source |
 | `permdock/next` | `{ getPermDock, getPermission, PermDockProvider, permdockHandler }` | Options: `subject`, `tag`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots` |
 | `permdock/hono` | `{ permdock, protect }` | `permdock()` is middleware; `protect(permission, load?)` guards a route |
-| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | `{ permdock, protect }` | Same shape as Hono over the shared kernel |
+| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect }` | Same shape as Hono over the shared kernel |
+| `permdock/nest` | `{ PermDockModule, PermDockGuard, Protect, InjectPermDock }` | Register `PermDockGuard` as `APP_GUARD` with `useExisting` |
 | `permdock/terminal` | `{ permdock, protect, filterCommands, format }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not `@permdock/cli` |
 | `permdock/trpc`, `permdock/orpc` | `{ permdock, protect }` | `protect` is a procedure middleware |
 | `permdock/mcp` | `{ protectServer }` | `protectServer(server).registerTool(name, { permission, ... }, handler)` |

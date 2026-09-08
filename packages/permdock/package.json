@@ -58,6 +58,10 @@
       "types": "./dist/elysia/index.d.ts",
       "default": "./dist/elysia/index.js"
     },
+    "./nest": {
+      "types": "./dist/nest/index.d.ts",
+      "default": "./dist/nest/index.js"
+    },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
@@ -98,6 +102,9 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
+    "@nestjs/common": "catalog:",
+    "@nestjs/core": "catalog:",
+    "@nestjs/platform-express": "catalog:",
     "@permdock/typescript-config": "workspace:*",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
@@ -114,6 +121,8 @@
     "publint": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "valibot": "catalog:",
@@ -122,6 +131,9 @@
   },
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
+    "@nestjs/common": "catalog:",
+    "@nestjs/core": "catalog:",
+    "@nestjs/platform-express": "catalog:",
     "@openai/agents": "catalog:",
     "ai": "catalog:",
     "elysia": "catalog:",
@@ -131,7 +143,9 @@
     "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
-    "react": "catalog:"
+    "react": "catalog:",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
@@ -144,6 +158,21 @@
       "optional": true
     },
     "elysia": {
+      "optional": true
+    },
+    "@nestjs/common": {
+      "optional": true
+    },
+    "@nestjs/core": {
+      "optional": true
+    },
+    "@nestjs/platform-express": {
+      "optional": true
+    },
+    "reflect-metadata": {
+      "optional": true
+    },
+    "rxjs": {
       "optional": true
     },
     "eve": {
