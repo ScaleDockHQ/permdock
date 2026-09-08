@@ -1,0 +1,14 @@
+{
+  "name": "@permdock/types-ts59",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "permdock": "workspace:*",
+    "typescript": "catalog:ts59",
+    "zod": "catalog:"
+  }
+}

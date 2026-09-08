@@ -3,6 +3,7 @@ packages:
   - apps/*
   - apps/examples/*
   - tests/*
+  - tests/types/*
 
 catalog:
   '@anthropic-ai/claude-agent-sdk': 0.3.263
@@ -45,6 +46,12 @@ catalog:
   valibot: 1.4.2
   vitest: 5.0.0
   zod: 4.5.4
+
+catalogs:
+  ts59:
+    typescript: 5.9.3
+  ts6:
+    typescript: 6.0.3
 
 catalogMode: strict
 engineStrict: false

@@ -1,0 +1,17 @@
+{
+  "name": "@permdock/bundle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "permdock": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

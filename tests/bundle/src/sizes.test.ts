@@ -1,0 +1,25 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+
+import { ENTRIES, gzipGraph, walk } from './graph.ts';
+
+const baselinePath = join(
+  dirname(fileURLToPath(import.meta.url)),
+  'baseline.json',
+);
+
+describe('per-entry gzip', () => {
+  it('matches the recorded baseline', () => {
+    const baseline = JSON.parse(readFileSync(baselinePath, 'utf8')) as Record<
+      string,
+      number
+    >;
+    const measured: Record<string, number> = {};
+    for (const [entry, file] of Object.entries(ENTRIES)) {
+      measured[entry] = gzipGraph(walk(file));
+    }
+    expect(measured).toEqual(baseline);
+  });
+});

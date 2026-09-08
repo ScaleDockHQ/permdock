@@ -96,6 +96,23 @@ export default defineConfig({
       },
     },
     {
+      files: ['tests/**/*.{ts,tsx}'],
+      rules: {
+        'oxc/no-async-await': 'off',
+        'eslint/no-undefined': 'off',
+        'unicorn/import-style': 'off',
+        'unicorn/prefer-import-meta-properties': 'off',
+        'typescript/no-unsafe-assignment': 'off',
+        'typescript/no-unsafe-call': 'off',
+        'typescript/no-unsafe-member-access': 'off',
+        'typescript/no-unsafe-return': 'off',
+        'typescript/no-unsafe-type-assertion': 'off',
+        'typescript/explicit-function-return-type': 'off',
+        'typescript/explicit-module-boundary-types': 'off',
+        'import/no-relative-parent-imports': 'off',
+      },
+    },
+    {
       files: ['apps/examples/**/*.{ts,tsx}'],
       rules: {
         // App-router and factory files import across src/ folders.
