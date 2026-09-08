@@ -181,6 +181,26 @@ import { PermDockProvider, usePermission } from 'permdock/react-native';
 
 `storage` is `{ getItem, setItem, removeItem }` (MMKV, SecureStore, AsyncStorage). `snapshotUrl` revalidates in the background. `permdock.clear()` drops the persisted snapshot on sign-out. Do not import `policy.ts` on the client.
 
+## Express — `permdock/express`
+
+```ts
+import { createPermDock } from 'permdock/express';
+
+export const { permdock, protect, errorHandler } = createPermDock(policy, {
+  subject: (req) => req.user ?? null,
+});
+
+app.use(permdock());
+app.delete(
+  '/posts/:id',
+  protect(permissions.post.delete, (req) => loadPost(req.params.id)),
+  handler,
+);
+app.use(errorHandler());
+```
+
+Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
+
 ## Planned adapters
 
-Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Fastify, Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

@@ -46,6 +46,10 @@
       "types": "./dist/hono/index.d.ts",
       "default": "./dist/hono/index.js"
     },
+    "./express": {
+      "types": "./dist/express/index.d.ts",
+      "default": "./dist/express/index.js"
+    },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
@@ -87,11 +91,13 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
     "@permdock/typescript-config": "workspace:*",
+    "@types/express": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "arktype": "catalog:",
+    "express": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
@@ -109,6 +115,7 @@
     "@openai/agents": "catalog:",
     "ai": "catalog:",
     "eve": "catalog:",
+    "express": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
@@ -125,6 +132,9 @@
       "optional": true
     },
     "eve": {
+      "optional": true
+    },
+    "express": {
       "optional": true
     },
     "hono": {

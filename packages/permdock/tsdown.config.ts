@@ -11,6 +11,7 @@ export default defineConfig({
     'src/next/plugin.ts',
     'src/server/index.ts',
     'src/hono/index.ts',
+    'src/express/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',

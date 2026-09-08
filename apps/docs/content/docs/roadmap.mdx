@@ -40,7 +40,7 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - `permdock/authzen` full endpoint set and a certification run — shipped (in-repo Basic / Batch / Search / Discovery shapes).
 - `permdock/openapi` targeting 3.2 (document and [Overlay](/docs/standards/openapi-overlay) output, `x-permdock-*` extensions; the experimental `--overlay 1.2` emitting the pinned Overlay 1.2 reusable-actions draft) with the experimental `--target 3.3` emitting the pinned [OpenAPI 3.3](/docs/standards/openapi-3-3) Security Profile draft — shipped (`permdock openapi emit`; Spectral / Redocly / vacuum ruleset file; `import` still later). Register the `permdock` namespace in the [OpenAPI registries](/docs/standards/openapi-registry) remains.
 - `permdock/react-native` (Expo Router) — shipped (persisted `storage`, `snapshotUrl` revalidate, `clear()`).
-- `express`, `fastify`, `elysia`, `nest`, `node`; `trpc`, `orpc`; `vue`, `svelte`, `solid`.
+- `express` — shipped (Fetch kernel over IncomingMessage, `protect`, `errorHandler`, WWW-Authenticate). Remaining HTTP: `fastify`, `elysia`, `nest`, `node`; then `trpc`, `orpc`; `vue`, `svelte`, `solid`.
 - `permdock/terminal` for consumers' own CLIs (device flow login, `filterCommands`, `--json` Problem Details, agent-run mode).
 - `permdock/webmcp`, `permdock/a2a`, `permdock/otel`.
 - CLI: `collect` (with the `createPermDockPlugin` Next build hook and `createPermDockUnplugin`, an [unplugin](https://unplugin.unjs.io)-based hook for Vite, Rollup, webpack, Rspack and esbuild so TanStack Start, React Router, SvelteKit, Nuxt, Astro and Solid projects get build-time `collect` before their adapters land; collect only, never runtime wiring), `catalog`, `usage`, `doctor`.
