@@ -95,7 +95,9 @@ Verification tells you a token is genuine. It does not tell you which claims ins
 flowchart LR
   IdP["Identity provider<br/>Google Workspace, Entra ID, Okta<br/>(OIDC or SAML)"] --> Auth["Auth layer<br/>Better Auth SSO, Clerk Enterprise SSO,<br/>WorkOS AuthKit, Auth.js, Supabase SAML"]
   Auth --> Token["Session or JWT<br/>verified claims"] --> Map["subjectFrom*<br/>principal, tenant, roles"] --> Core["PermDock decide"]
-  IdP -.->|"Directory Sync, SCIM"| Dir["Your database<br/>groups, role assignments"] -.-> Map
+  IdP -.->|"Directory Sync (auth layer)"| Dir["Your database<br/>groups, role assignments"] -.-> Map
+  IdP -.->|"SCIM 2.0"| Scim["permdock/scim<br/>scimHandler"] --> Store["DirectoryStore you own"] --> Src["directoryMembershipSource"] --> Core
+  IdP -.->|"SCIM 2.0"| Relay["PermDock Cloud relay<br/>mapping UI, sync log"] -.->|"replay, RFC 7523 bearer"| Scim
 ```
 
 SSO nevertheless touches PermDock in three places, and each has a trap worth naming.
@@ -130,11 +132,11 @@ export const policy = definePolicy(permissions, {
 })
 ```
 
-Group ids rather than display names, because names are editable by any group owner and are not unique across tenants. Directory Sync and SCIM are the third path: the IdP provisions users and groups into your database, and roles come from a row you control; [IPSIE AL1](/docs/standards/watch-list) tracks the SCIM profile, and PermDock does not read SCIM itself.
+Group ids rather than display names, because names are editable by any group owner and are not unique across tenants. Directory Sync and SCIM are the third path: the IdP provisions users and groups into your database, and roles come from a row you control. Two ways to get there: an auth layer's Directory Sync (WorkOS, Better Auth's provisioning hook) writing rows your `context` or `MembershipSource` reads, or [`permdock/scim`](/docs/adapters/scim) (Phase 2), an RFC 7644 receiver you mount that writes to a `DirectoryStore` you own and exposes it as `directoryMembershipSource`; group-to-role mapping is a `groupRoles` map or the `roles` attribute of the PermDock SCIM extension, set by the IdP or by the PermDock Cloud relay's mapping UI. The Cloud relays; it never resolves memberships (invariant 15). [IPSIE AL1](/docs/standards/watch-list) is the checklist for the receiver's authentication.
 
 With [scoped roles](/docs/concepts/tenancy) the same lookup produces memberships instead of flat roles, which keeps the team visible to audit and to team-scoped roles: `groups` become `{ tenant: claims.tid, team: id, roles: rolesByGroupId[id] ?? [], via: 'group:' + id }` entries, and `subjectFromJwt` does this by default for the RFC 9068 `groups` claim with a `groupRoles` option holding the id-to-roles map ([JWT authorization claims](/docs/standards/jwt-authorization-claims)).
 
-**Lifecycle.** Deprovisioning a user in Google Workspace or Entra ID must reach cached snapshots. Entra, Okta and Auth0 transmit CAEP `session-revoked` and `credential-change` events today, which the [SSF receiver](/docs/adapters/ssf) turns into snapshot invalidation; for IdPs without a transmitter, the bound is `exp` and `session_expiry` as described under [staleness](#staleness-and-revocation), and SCIM deprovisioning into your database takes effect on the next `context` lookup. "We disabled the account and they can still see the page" is answered by whichever of these three you wired, so the SSO section of your runbook should name it.
+**Lifecycle.** Deprovisioning a user in Google Workspace or Entra ID must reach cached snapshots. Entra, Okta and Auth0 transmit CAEP `session-revoked` and `credential-change` events today, which the [SSF receiver](/docs/adapters/ssf) turns into snapshot invalidation; for IdPs without a transmitter, the bound is `exp` and `session_expiry` as described under [staleness](#staleness-and-revocation), and SCIM deprovisioning (`active: false` or `DELETE` received by `scimHandler`, or a Directory Sync row) takes effect on the next `directoryMembershipSource` or `context` lookup, which is the next request when memberships are read per request and the next refetch when a snapshot is cached; `scimHandler`'s `onChange` callback is where to invalidate the cache. "We disabled the account and they can still see the page" is answered by whichever of these three you wired, so the SSO section of your runbook should name it.
 
 ## JWT validation checklist
 
@@ -243,6 +245,7 @@ const decision = permdock.decide(permissions.post.update, post)
 - [Supabase provider](/docs/adapters/supabase): asymmetric signing keys, `getClaims()`, the Custom Access Token Hook.
 - [Delegation](/docs/security/delegation): the attenuation invariants that the `delegation` mapping feeds.
 - [SSF adapter](/docs/adapters/ssf): CAEP events from Entra, Okta and Auth0 that invalidate snapshots after SSO deprovisioning.
+- [SCIM adapter](/docs/adapters/scim): the RFC 7644 receiver that provisions users and groups into a `DirectoryStore` you own and exposes them as memberships.
 - [doctor](/docs/cli/doctor): `PD010` and `PD011`, the checks for role and tenant claims sourced from unverified or optional claims.
 - [Threat model](/docs/security/threat-model): token-handling threats and their mitigations.
 - [ADR 0018: Authentication is upstream](/docs/decisions/0018-authentication-is-upstream).

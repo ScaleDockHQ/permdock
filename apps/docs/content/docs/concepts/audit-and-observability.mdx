@@ -56,7 +56,6 @@ For agent traffic the event distinguishes the human (`principal`) from the agent
 
 ```ts
 permdock.on('decision', (event) => {
-  if (event.outcome === 'granted' && Math.random() > 0.1) return // sample routine grants
   queue.push({
     at: event.at,
     outcome: event.outcome,
@@ -97,7 +96,9 @@ Implementations that ship or are documented:
 | `permdock/cloud` | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud)) |
 | Your own | a few lines | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface |
 
-A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A failing sink is reported to `on('error')` and never changes an outcome.
+A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A sink passed to [`scimHandler`](/docs/adapters/scim) also receives `directory` events (`type: 'directory'`, `source: 'scim'`: the provisioning operation, tenant, resource type and id, and the credential kind), which join to later decisions on `via: 'group:<id>'`. A failing sink is reported to `on('error')` and never changes an outcome.
+
+**Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was *allowed* to do, so a log that drops grants cannot answer it ([ADR 0027](/docs/decisions/0027-governance-first-cloud)). Cost is controlled by retention, not by omission.
 
 **Signed batch export.** A sink that hands events to a party who must be able to prove where they came from (a SIEM in another trust domain, an auditor, a compliance tool reading an export file) can sign each batch. The batch becomes one compact JWS with `typ: permdock-decisions+jwt`, registered claims `iss`, `iat`, `exp`, `jti`, and the CloudEvents-enveloped events under the `events` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)); the consumer verifies it with any JOSE library against the signer's JWK Set. In this package it is a `TokenSigner` handed to a sink, not a new sink: `permdock/cloud`'s sink takes `signer` and its export endpoint serves signed batches, and the recipe for your own sink is `signer.sign({ events }, { typ: 'permdock-decisions+jwt' })` before `write` posts the batch. Events inside the JWS are the same objects a plain sink receives, so a consumer verifies, unwraps and applies the OCSF projection below unchanged. Signing is evidence for the reader; nothing in PermDock reads a batch back.
 
@@ -121,6 +122,44 @@ Both are documented now, before the Cloud repository fixes its ingest format, be
 ### What is not logged
 
 The event never includes the resource object itself, the parsed schema output, the closure source, or any token or secret from `authInfo`. Add fields in your handler if you need them; `resource.id` is there so you can join.
+
+## Evidence and governance
+
+"Audit" names the mechanism above. What the log is *for*, and what PermDock Cloud sells it as, is compliance evidence and agent governance ([ADR 0027](/docs/decisions/0027-governance-first-cloud)): the decision event already carries the fields an access review or an agent-governance review asks for (`subject.principal`, `subject.actor`, `delegation`, `tenant`, `permission`, `outcome`, `matched`, `via`), so the work is queries and exports, not new data. The list below is the contract for any sink table and for the Cloud UI; a self-hoster's Postgres sink and the Cloud answer the same questions.
+
+### Questions the log must answer
+
+| Review | Query over the events | Fields |
+| --- | --- | --- |
+| Access review: what could this person do, and what did they do, in this window | `subject.principal.id` and `tenant` over a time range, grouped by `permission` and `outcome`; joined with the roles and memberships in `matched` and `membership` | `principal`, `tenant`, `permission`, `outcome`, `matched.role`, `via` |
+| Agent activity: what did this agent do, for whom, under which authority | `subject.actor.id` over a time range, grouped by `subject.principal.id` and `permission`; `delegation.scopes` and `authorizationDetails` for the authority it used | `actor`, `principal`, `delegation`, `permission`, `outcome` |
+| Approval chain: who approved this action and what exactly was approved | The `approval` events (`phase: requested`, `phase: resolved`) and the resumed `decision` event sharing `token`; `resolvedBy` on the request record | `token`, `resolvedBy`, `permission`, `resource.id` |
+| Denials and drift: what is being refused, and did a policy change move outcomes | `outcome: denied` grouped by `denials[].reason` and `permission`; the catalog version in `adapter` metadata before and after a publish | `denials`, `permission`, `adapter` |
+| Tenant scope: everything that happened inside one customer's tenant | Filter on `tenant`; `membership` and `via` explain each grant | `tenant`, `membership`, `via` |
+| Provisioning: who gave this person that role | The `directory` events from [`permdock/scim`](/docs/adapters/scim) (group added, user deactivated) joined to later decisions on `via: 'group:<id>'` | `directory` event, `via` |
+
+### Exports
+
+Evidence leaves the log in three forms, all documented here so a reader in another trust domain can verify and ingest without PermDock code:
+
+- **Signed batches** (`permdock-decisions+jwt`, above): provenance for an auditor or a compliance tool; the Cloud's export endpoint serves them and a self-hosted sink can sign its own. Phase 2, so the Cloud alpha ships evidence with provenance.
+- **OCSF**: the projection below for SIEMs and security lakes.
+- **CSV** with one row per event and the review columns above, for compliance platforms (Vanta, Drata, Secureframe) that collect access-review evidence from connected systems and for spreadsheets in an audit.
+
+Retention is the cost lever: the Cloud offers retention tiers; a self-hosted sink keeps what its table keeps. Sampling is never the lever (see above).
+
+### Governance actions, and what they are not
+
+Governance means acting on what the log shows. The actions PermDock Cloud (or an application over its own sink) may take are exactly two, and neither is a decision:
+
+- **Reject pending approvals** for an actor, a principal or a tenant through `ApprovalStore.resolve(token, 'rejected')`. This stops in-flight approval-gated actions.
+- **Invalidate snapshots** through `SnapshotSource`, so cached clients refetch and a revoked membership or role takes effect at the edge.
+
+A "freeze this agent" button in the Cloud is those two operations plus a recommendation: the application's own `RoleSource` or `context` reads a kill-switch table the application owns, so the next `decide` denies. The Cloud cannot deny a future check, because nothing the Cloud stores is consulted on the decision path (invariant 15). This is the same reason the log is trustworthy as evidence: it records decisions it could not have influenced.
+
+### OpenTelemetry is not the evidence path
+
+`permdock/otel` (below) emits spans and metrics from the same events, and an OTLP export from the Cloud does the same for backends that want a copy next to their traces. Both are observability: collectors sample, tail-sample and drop; retention is short; a span is not signed. The evidence is the sink's log and its signed export. Do not point an auditor at a tracing backend, and do not send OTel spans to a `DecisionSink` ([Cloud adapter](/docs/adapters/cloud) open questions).
 
 ## permdock/otel
 
@@ -202,7 +241,9 @@ Model-readable text: the `detail` strings are written for an LLM as much as for 
 | --- | --- |
 | Was this specific request denied and why? | The Problem Details body, or the `decision` on the thrown `PermDockDeniedError` |
 | Which agent did what for which user last week? | Your `DecisionSink` (or the PermDock Cloud decision log), filtered on `subject.actor` |
+| What could this person do in this tenant during the review window, and did they? | The access-review query above over your sink or the Cloud export; signed batch or CSV for the compliance platform |
 | Who approved that deletion, and when? | The `approval` events sharing the decision's `token`, with `resolvedBy` on the request record |
+| Who gave this person the editor role? | The `directory` event from `permdock/scim` that added them to the group, joined on `via: 'group:<id>'` |
 | How often is `post.delete` denied per adapter? | The `permdock.checks` counter |
 | Why is this page slow? | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint |
 | What changed in who can do what? | `permdock usage` and the policy matrix snapshot in `@permdock/testing`, in review |
@@ -213,4 +254,4 @@ Model-readable text: the `detail` strings are written for an LLM as much as for 
 - The `permdock/otel` entry point shape (`withOtel` above is a placeholder) and the `on('error')` event for failing handlers; the plan only fixes "span per check".
 - Whether `on('decision')` should also fire for client-side snapshot evaluations (useful for UX analytics, noisy for audit); the current design emits only on the server and on the endpoint.
 - Whether `permdock/otel` should emit a log record per denial in addition to the span, for backends that index logs but not spans.
-- Sampling: whether `granted` events should be sampled by default under high load while `denied` and `approval-required` are always emitted.
+- The CSV export's exact column set and whether it follows an existing access-review template (Vanta's and Drata's importers differ); decided when the Cloud export ships.

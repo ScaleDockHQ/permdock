@@ -158,7 +158,16 @@ Emitted by `on('decision')`. See [audit and observability](/docs/concepts/audit-
 Two documented projections leave the event unchanged and exist so `DecisionSink` implementations agree with each other ([audit and observability](/docs/concepts/audit-and-observability)):
 
 - **OCSF.** `toOcsf(event)` maps a decision event onto the [OCSF](https://schema.ocsf.io/) Authorization activity class: `outcome` to `status`, `denials[].reason` to `status_detail`, `permission` and `scope` to the resource and privilege fields, `subject.principal` to `actor.user`, `subject.actor` to the acting application, `adapter` and `source` to `metadata.product`. The exact class and field names are pinned to one OCSF version when the function ships and recorded here.
-- **CloudEvents 1.0 envelope.** On the wire, each event is `{ specversion: '1.0', type: 'dev.permdock.decision' | 'dev.permdock.approval', source: '<service>', subject: '<permission key>', id, time, datacontenttype: 'application/json', data: <event> }`. The PermDock Cloud sink and any queue or HTTP sink use it.
+- **CloudEvents 1.0 envelope.** On the wire, each event is `{ specversion: '1.0', type: '<type>', source: '<service>', subject: '<permission key or resource id>', id, time, datacontenttype: 'application/json', data: <event> }`. The PermDock Cloud sink, its webhooks and any queue or HTTP sink use it. `source` is the emitting service (the application's `source` on the event, or the Cloud environment URL); `subject` is the permission key for decision and approval events, the SCIM resource id for directory events and the catalog version for catalog events.
+
+The CloudEvents `type` values are a closed list; adding one is a wire-format change:
+
+| `type` | `data` | Emitted by |
+| --- | --- | --- |
+| `dev.permdock.decision` | A decision event (above) | Every `DecisionSink` |
+| `dev.permdock.approval` | An approval event (`phase: requested` or `phase: resolved`) with the `ApprovalRequest` below | Every `DecisionSink`; the Cloud webhook and paging connectors |
+| `dev.permdock.directory` | A `directory` event: the SCIM operation (`User` or `Group`, method, tenant, the affected `id`s, `active` after the change) with no attribute values beyond identifiers | `scimHandler` through its `sink`; the Cloud relay's sync log ([SCIM adapter](/docs/adapters/scim)) |
+| `dev.permdock.catalog` | A policy publish (catalog version before and after) or a drift finding (the `permdock collect --check` diff) | The Cloud on `permdock cloud push` and on scheduled drift checks ([Cloud integrations](/docs/adapters/cloud-integrations)) |
 
 Changing either projection is a wire-format change and follows the versioning rule below.
 

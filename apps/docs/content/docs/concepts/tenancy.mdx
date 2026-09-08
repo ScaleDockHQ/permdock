@@ -253,7 +253,7 @@ Scope matching is data, so it compiles like any other condition ([ADR 0010](/doc
 | Feature | Where it lives | Recipe |
 | --- | --- | --- |
 | Invitations, default role per tenant, role priority, seat counting, tenant creation | Upstream: the auth provider or your tables | PermDock reads the resulting membership |
-| SSO and SCIM group-to-role | Upstream: IdP, auth layer or Directory Sync | Group ids arrive as `groups` claims or synced rows and become team memberships ([authentication](/docs/concepts/authentication)) |
+| SSO and SCIM group-to-role | Upstream: IdP, auth layer or Directory Sync; or [`permdock/scim`](/docs/adapters/scim) writing a `DirectoryStore` you own (the PermDock Cloud relay feeds the same handler) | Group ids arrive as `groups` claims, synced rows or SCIM `Group` resources and become team memberships `{ tenant, team: group.id, roles, via: 'group:<id>' }` through `subjectFromJwt` or `directoryMembershipSource` ([authentication](/docs/concepts/authentication)) |
 | Impersonation and support access | Recipe | The customer is the `principal`, the support engineer the `actor` with a time-bound `delegation` naming the allowed scopes; every decision records both; the UI shows a banner from `useSubject()` |
 | Tenant-scoped service accounts and API keys | Recipe | A `kind: 'service'` principal with one tenant membership; the key store is yours ([subject](/docs/concepts/subject) service principals) |
 | Platform super-admin | Recipe | A global role; document the blast radius, pair it with `deny` rows for destructive actions and `approval: 'human'` for the rest |

@@ -74,6 +74,9 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `store`, `sink`, `snapshots` | The three options every adapter's `createPermDock` accepts for an `ApprovalStore`, a `DecisionSink` and a `SnapshotSource` | Anything else; `store` is never a database handle |
 | `memberships`, `customRoles`, `tenant` | The three tenancy options every adapter's `createPermDock` accepts: a `MembershipSource`, a `RoleSource`, and how the active tenant is resolved from the request | Reading a tenant from an unsigned header or a model argument |
 | `cloud` | `cloud({ url, key })` from `permdock/cloud`, returning `approvals`, `sink` and `snapshots` for PermDock Cloud | A factory for a `PermDock`; there is no `decide` on it |
+| `scimHandler` | The RFC 7644 Fetch handler from `permdock/scim` serving `/Users` and `/Groups` into a `DirectoryStore`; options `store`, `tenant`, `token` or `verifier`, `groupRoles`, `sink`, `onChange` | A `PermDock`; it decides nothing and reads no tenant from a body |
+| `DirectoryStore`, `memoryDirectoryStore` | The repository interface SCIM provisioning writes to (users, groups, `groupsFor`), every method tenant-first, and its in-process default | A `MembershipSource`; the store is the write side, the source below is the read side |
+| `directoryMembershipSource` | `directoryMembershipSource(store)`: the `MembershipSource` that turns synced groups into `{ tenant, team: group.id, roles, via: 'group:<id>' }` and yields nothing for an inactive user | Reading display names; group ids only |
 | `PermDock-Approval` | The HTTP request header carrying an approval `token` on a retried request | Anything else on the wire |
 
 Strings appear only as `.key` and `.scope` on the wire, in audit events and in catalogs. The public API takes references.
@@ -113,6 +116,7 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/openai` | `{ needsApproval, guardTools, resolveInterruptions, permdock }` | Options: `subject`, `actor`, `tools`, `store` |
 | `permdock/authzen` | `{ handler }` | Serves evaluation, evaluations, search and `.well-known` |
 | `permdock/ssf` | `{ receiver }` | RFC 8935 push and RFC 8936 poll receiver for CAEP events; `receiver.logout` for OIDC Back-Channel Logout |
+| `permdock/scim` | no `createPermDock`; exports `scimHandler`, `memoryDirectoryStore`, `directoryMembershipSource` and the `DirectoryStore` type | The handler is a Fetch handler you mount; the source is a value you pass as `memberships` to a factory |
 | `permdock/a2a` | `{ agentCard, extendedAgentCard }` | Options: `skills` |
 
 Two entries deliberately do not export `createPermDock`:
@@ -143,6 +147,10 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 | `acr`, `amr`, `auth_time` | OIDC Core, RFC 8176 | `principal.assurance.acr`, `.amr`, `.authTime` (new fields) | Provider `aal` maps into `acr` |
 | `sid` | OIDC Front- and Back-Channel Logout | `subject.session` (new) | The join key for `logout_token` and CAEP events |
 | `roles`, `groups`, `entitlements` | RFC 9068 | `principal.roles`; `principal.memberships` (`team` from `groups`) | SCIM `value` only |
+| `userName`, `externalId`, `active`, `displayName` (SCIM `User`) | RFC 7643 | `DirectoryUser.userName`, `.externalId`, `.active`, `.displayName` verbatim | `externalId` is the IdP's identifier and `id` is the store's; `active: false` yields no memberships; `displayName` is never an identifier |
+| `members[].value`, `displayName` (SCIM `Group`) | RFC 7643 | `DirectoryGroup.members[].value` verbatim; `team: group.id` on the membership | Group `id` is the team identifier; `display` and `displayName` are labels only |
+| `urn:permdock:scim:schemas:extension:roles:1.0` (`roles`) | RFC 7643 section 3.3 extension | The `Group` extension carrying the declared role names for a group; read by `directoryMembershipSource` | Unknown or non-`assignable` role names are dropped, never invented |
+| `type`, `source`, `subject` (CloudEvents) | CloudEvents 1.0 | `dev.permdock.decision`, `dev.permdock.approval`, `dev.permdock.directory`, `dev.permdock.catalog`; the emitting service; the permission key or resource id | The envelope for every webhook and queue sink ([wire formats](/docs/concepts/wire-formats)) |
 | `jwks_uri`, `issuer` (Discovery) | OIDC Discovery, RFC 8414 | `discovery` option; `jwks` and `issuer` options | Discovery supplies both |
 | `typ` (`at+jwt`, `JWT`, `logout+jwt`, `secevent+jwt`) | RFC 9068, RFC 7519, OIDC, RFC 8417 | `accept` option; `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt` on outputs | Explicit typing, RFC 8725 section 3.11 |
 | `invalid_token`, `insufficient_scope`, `insufficient_user_authentication` | RFC 6750, RFC 9470 | `on('auth')` reason `invalid-token` (renamed); Decision reasons `not-delegated` / `no-delegation` and `insufficient-user-authentication` (new) | Hyphenated in PermDock, underscored on the wire; the HTTP adapter renders without a second table |
