@@ -50,6 +50,10 @@
       "types": "./dist/express/index.d.ts",
       "default": "./dist/express/index.js"
     },
+    "./fastify": {
+      "types": "./dist/fastify/index.d.ts",
+      "default": "./dist/fastify/index.js"
+    },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
@@ -98,6 +102,7 @@
     "@vitest/coverage-v8": "catalog:",
     "arktype": "catalog:",
     "express": "catalog:",
+    "fastify": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
@@ -116,6 +121,7 @@
     "ai": "catalog:",
     "eve": "catalog:",
     "express": "catalog:",
+    "fastify": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
@@ -135,6 +141,9 @@
       "optional": true
     },
     "express": {
+      "optional": true
+    },
+    "fastify": {
       "optional": true
     },
     "hono": {

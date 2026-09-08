@@ -12,6 +12,7 @@ export default defineConfig({
     'src/server/index.ts',
     'src/hono/index.ts',
     'src/express/index.ts',
+    'src/fastify/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',

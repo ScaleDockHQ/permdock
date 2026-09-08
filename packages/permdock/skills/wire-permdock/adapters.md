@@ -201,6 +201,29 @@ app.use(errorHandler());
 
 Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
 
+## Fastify — `permdock/fastify`
+
+```ts
+import { createPermDock } from 'permdock/fastify';
+
+export const { permdock, protect } = createPermDock(policy, {
+  subject: (request) => request.user ?? null,
+});
+
+await app.register(permdock);
+app.delete(
+  '/posts/:id',
+  {
+    preHandler: protect(permissions.post.delete, (request) =>
+      loadPost(request.params.id),
+    ),
+  },
+  handler,
+);
+```
+
+Registers a `fastify-plugin`-style root plugin (`skip-override`) that decorates `request.permdock`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
+
 ## Planned adapters
 
-Fastify, Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

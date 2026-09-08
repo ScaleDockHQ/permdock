@@ -17,6 +17,7 @@ export const ENTRIES = {
   './server': 'server/index.js',
   './hono': 'hono/index.js',
   './express': 'express/index.js',
+  './fastify': 'fastify/index.js',
   './ai-sdk': 'ai-sdk/index.js',
   './claude-agent': 'claude-agent/index.js',
   './eve': 'eve/index.js',
@@ -88,7 +89,7 @@ export function wintertcViolations(
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   return files.filter((file) =>
-    /[/\\](?:jwt|next|hono|express|server|approvals|mcp|authzen|openapi)[/\\]/u.test(
+    /[/\\](?:jwt|next|hono|express|fastify|server|approvals|mcp|authzen|openapi)[/\\]/u.test(
       file,
     ),
   );
