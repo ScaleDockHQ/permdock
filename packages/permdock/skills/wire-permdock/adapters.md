@@ -224,6 +224,24 @@ app.delete(
 
 Registers a `fastify-plugin`-style root plugin (`skip-override`) that decorates `request.permdock`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
 
+## Elysia — `permdock/elysia`
+
+```ts
+import { createPermDock } from 'permdock/elysia';
+
+export const { permdock, protect } = createPermDock(policy, {
+  subject: ({ store }) => store.user ?? null,
+});
+
+const app = new Elysia().use(permdock()).delete('/posts/:id', handler, {
+  beforeHandle: protect(permissions.post.delete, ({ params }) =>
+    loadPost(params.id),
+  ),
+});
+```
+
+Fetch-native plugin via `derive`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
+
 ## Planned adapters
 
-Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Nest, Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

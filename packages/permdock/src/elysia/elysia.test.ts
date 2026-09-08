@@ -1,0 +1,84 @@
+import { Elysia } from 'elysia';
+import { describe, expect, it } from 'vitest';
+
+import {
+  memberUser,
+  otherPost,
+  ownPost,
+  permissions,
+  policy,
+} from '../fixtures/quick-start.ts';
+import { createPermDock, type ElysiaContext } from './index.ts';
+
+describe('permdock/elysia', () => {
+  it('sets a request-scoped instance and protects routes', async () => {
+    const { permdock, protect } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = new Elysia().use(permdock()).delete(
+      '/posts/:id',
+      (ctx) => ({
+        ok: true,
+        via: (ctx as ElysiaContext).permdock.subject.principal?.id,
+      }),
+      {
+        beforeHandle: protect(permissions.post.update, ({ params }) =>
+          params.id === 'p1' ? ownPost : otherPost,
+        ),
+      },
+    );
+
+    const allowed = await app.handle(
+      new Request('http://localhost/posts/p1', { method: 'DELETE' }),
+    );
+    expect(allowed.status).toBe(200);
+    expect(await allowed.json()).toEqual({ ok: true, via: 'u1' });
+
+    const denied = await app.handle(
+      new Request('http://localhost/posts/p2', { method: 'DELETE' }),
+    );
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+  });
+
+  it('answers 401 invalid_token for an anonymous caller', async () => {
+    const { protect } = createPermDock(policy, {
+      subject: () => null,
+    });
+    const app = new Elysia().get('/posts/:id', () => ({ ok: true }), {
+      beforeHandle: protect(permissions.post.read, () => ownPost),
+    });
+    const denied = await app.handle(new Request('http://localhost/posts/p1'));
+    expect(denied.status).toBe(401);
+    expect(denied.headers.get('www-authenticate')).toContain('invalid_token');
+  });
+
+  it('mounts the AuthZEN evaluations handler', async () => {
+    const { permdockHandler } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = new Elysia().group('/api/permdock', (group) =>
+      group.use(permdockHandler()),
+    );
+    const response = await app.handle(
+      new Request('http://localhost/api/permdock', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          evaluations: [
+            {
+              resource: { type: 'post', properties: ownPost },
+              action: { name: 'update' },
+            },
+          ],
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      readonly evaluations: readonly { readonly decision: boolean }[];
+    };
+    expect(body.evaluations[0]?.decision).toBe(true);
+  });
+});

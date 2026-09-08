@@ -13,6 +13,7 @@ export default defineConfig({
     'src/hono/index.ts',
     'src/express/index.ts',
     'src/fastify/index.ts',
+    'src/elysia/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',

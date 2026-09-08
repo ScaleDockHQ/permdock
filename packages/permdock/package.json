@@ -54,6 +54,10 @@
       "types": "./dist/fastify/index.d.ts",
       "default": "./dist/fastify/index.js"
     },
+    "./elysia": {
+      "types": "./dist/elysia/index.d.ts",
+      "default": "./dist/elysia/index.js"
+    },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
@@ -101,6 +105,7 @@
     "@types/react-dom": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "arktype": "catalog:",
+    "elysia": "catalog:",
     "express": "catalog:",
     "fastify": "catalog:",
     "hono": "catalog:",
@@ -119,6 +124,7 @@
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@openai/agents": "catalog:",
     "ai": "catalog:",
+    "elysia": "catalog:",
     "eve": "catalog:",
     "express": "catalog:",
     "fastify": "catalog:",
@@ -135,6 +141,9 @@
       "optional": true
     },
     "ai": {
+      "optional": true
+    },
+    "elysia": {
       "optional": true
     },
     "eve": {
