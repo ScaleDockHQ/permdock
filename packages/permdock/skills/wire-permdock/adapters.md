@@ -270,6 +270,24 @@ export const { permdock, protect, send, permdockHandler } = createPermDock(
 
 Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Express and Nest reuse `toRequest` / `fromResponse`.
 
+## tRPC — `permdock/trpc`
+
+```ts
+import { createPermDock } from 'permdock/trpc';
+
+export const { permdock, protect, permdockHandler } = createPermDock(policy, {
+  subject: (opts) => opts.ctx.user ?? null,
+});
+
+const procedure = t.procedure.use(permdock());
+procedure
+  .input(z.object({ id: z.string() }))
+  .use(protect(permissions.post.delete, ({ input }) => loadPost(input.id)))
+  .mutation(({ ctx }) => deletePost(ctx.permdockData));
+```
+
+`protect` throws `TRPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `cause`. `openapi.security(permission)` is the `trpc-to-openapi` meta fragment.
+
 ## Planned adapters
 
-tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

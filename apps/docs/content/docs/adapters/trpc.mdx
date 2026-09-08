@@ -3,7 +3,7 @@ title: tRPC
 description: permdock/trpc adds a request-scoped PermDock to tRPC context and a protect middleware that loads the resource from procedure input, with a trpc-to-openapi hook for OpenAPI security.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 ## Purpose
@@ -67,7 +67,7 @@ export const postsRouter = router({
 
 ## Example app
 
-`apps/examples/trpc`: tRPC v11 with the Fetch adapter on Hono, a posts router using `permdock()` and `protect`, `trpc-to-openapi` generating a 3.2 document with `securitySchemes` from the hook, a React client using `permdock/react` against the shared decision endpoint, and Vitest tests calling procedures through `createCaller` and asserting `TRPCError` codes and `cause` bodies.
+`apps/examples/trpc`: tRPC v11 with the Fetch adapter, a posts router using `permdock()` and `protect` on `posts.update` (granted) and `posts.publish` (denied for `member`). Unit tests call procedures through `createCaller` and assert `TRPCError` codes and Problem Details `cause` bodies.
 
 ## Related standards
 

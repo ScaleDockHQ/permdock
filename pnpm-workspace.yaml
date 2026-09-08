@@ -18,6 +18,7 @@ catalog:
   '@commitlint/config-conventional': 21.2.2
   '@commitlint/types': 21.2.0
   '@standard-schema/spec': 1.1.0
+  '@trpc/server': 11.18.0
   '@tailwindcss/postcss': 4.3.3
   '@types/express': 5.0.6
   '@types/mdx': 2.0.14

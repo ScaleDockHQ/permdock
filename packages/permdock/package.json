@@ -66,6 +66,10 @@
       "types": "./dist/node/index.d.ts",
       "default": "./dist/node/index.js"
     },
+    "./trpc": {
+      "types": "./dist/trpc/index.d.ts",
+      "default": "./dist/trpc/index.js"
+    },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"
@@ -110,6 +114,7 @@
     "@nestjs/core": "catalog:",
     "@nestjs/platform-express": "catalog:",
     "@permdock/typescript-config": "workspace:*",
+    "@trpc/server": "catalog:",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -139,6 +144,7 @@
     "@nestjs/core": "catalog:",
     "@nestjs/platform-express": "catalog:",
     "@openai/agents": "catalog:",
+    "@trpc/server": "catalog:",
     "ai": "catalog:",
     "elysia": "catalog:",
     "eve": "catalog:",
@@ -156,6 +162,9 @@
       "optional": true
     },
     "@openai/agents": {
+      "optional": true
+    },
+    "@trpc/server": {
       "optional": true
     },
     "ai": {

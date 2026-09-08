@@ -115,7 +115,8 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect }` | Same shape as Hono over the shared kernel |
 | `permdock/nest` | `{ PermDockModule, PermDockGuard, Protect, InjectPermDock }` | Register `PermDockGuard` as `APP_GUARD` with `useExisting` |
 | `permdock/terminal` | `{ permdock, protect, filterCommands, format }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not `@permdock/cli` |
-| `permdock/trpc`, `permdock/orpc` | `{ permdock, protect }` | `protect` is a procedure middleware |
+| `permdock/trpc` | `{ permdock, protect, permdockHandler }` | `protect` is procedure middleware; denials throw `TRPCError` |
+| `permdock/orpc` | `{ permdock, protect }` | `protect` is a procedure middleware |
 | `permdock/mcp` | `{ protectServer }` | `protectServer(server).registerTool(name, { permission, ... }, handler)` |
 | `permdock/ai-sdk` | `{ toolApproval, capabilityMiddleware, needsApproval }` | Options: `subject`, `actor`, `tools` |
 | `permdock/claude-agent` | `{ canUseTool, permissionRequestHook }` | Options: `subject`, `tools` |
