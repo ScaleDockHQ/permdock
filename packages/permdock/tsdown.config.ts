@@ -44,6 +44,7 @@ export default defineConfig({
     'src/orpc/index.ts',
     'src/vue/index.ts',
     'src/svelte/index.ts',
+    'src/solid/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',
     'src/eve/index.ts',

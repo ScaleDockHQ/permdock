@@ -1,0 +1,64 @@
+import { createMemo, type Accessor } from 'solid-js';
+
+import type { Decision } from '../core/decision.ts';
+import type { Permission } from '../core/permissions.ts';
+import type { SolidChild } from './types.ts';
+import type { ClientStatus, ProtectedProps } from './types.ts';
+
+import { usePermission, usePermDock } from './hooks.ts';
+
+type DecideDock = {
+  readonly decide: (permission: Permission, data?: unknown) => Decision;
+};
+
+type ScopedView = {
+  readonly allowed: boolean;
+  readonly status: ClientStatus;
+  readonly decision: Decision;
+};
+
+export function Protected(props: ProtectedProps): Accessor<SolidChild> {
+  const root = usePermDock();
+  const local = usePermission(props.permission, () => props.data);
+  const view = createMemo((): ScopedView => {
+    if (props.tenant === undefined) {
+      return local();
+    }
+    return tenantView(
+      root.tenant(props.tenant) as DecideDock,
+      props.permission,
+      props.data,
+    );
+  });
+  return () => {
+    const scoped = view();
+    if (scoped.status === 'pending') {
+      return props.pending ?? null;
+    }
+    if (!scoped.allowed || scoped.decision.outcome !== 'granted') {
+      if (typeof props.fallback === 'function') {
+        return props.fallback(scoped.decision);
+      }
+      return props.fallback ?? null;
+    }
+    if (typeof props.children === 'function') {
+      return props.children(
+        scoped.decision as Extract<Decision, { readonly outcome: 'granted' }>,
+      );
+    }
+    return props.children;
+  };
+}
+
+function tenantView(
+  dock: DecideDock,
+  permission: Permission,
+  data: unknown,
+): ScopedView {
+  const decision = dock.decide(permission, data);
+  return {
+    allowed: decision.outcome === 'granted',
+    status: 'ready',
+    decision,
+  };
+}

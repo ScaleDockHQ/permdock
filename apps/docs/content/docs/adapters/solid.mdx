@@ -3,7 +3,7 @@ title: Solid
 description: permdock/solid maps the snapshot-backed provider, hook and guard onto Solid context, signal accessors and a component.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 ## Purpose
@@ -69,7 +69,7 @@ For SSR with `renderToStream`, the provider serialises nothing extra: the snapsh
 
 ## Example app
 
-`apps/examples/solid`: Vite plus Solid with a Hono API from `apps/examples/hono`. Shows a portable ownership check, a closure grant through the endpoint, `invalidate` after a mutation, and a Vitest browser test asserting first-render correctness.
+`apps/examples/solid`: Solid with a server-built Snapshot v2, `PermDockProvider`, and `<Protected>` on a portable ownership check. Unit tests render through `renderToString` so the first paint already shows grant or deny.
 
 ## Related standards
 

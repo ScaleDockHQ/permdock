@@ -48,7 +48,8 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - `trpc` — shipped (`permdock` / `protect` middleware, `TRPCError` with Problem Details as `cause`).
 - `orpc` — shipped (`permdock` / `protect` middleware, `ORPCError` with Problem Details as `data`).
 - `vue` — shipped (plugin, composables, `<Protected>`).
-- `svelte` — shipped (`setPermDock` / `getPermDock`, readable stores, `<Protected>`). Remaining: `solid`.
+- `svelte` — shipped (`setPermDock` / `getPermDock`, readable stores, `<Protected>`).
+- `solid` — shipped (`PermDockProvider`, accessor hooks, `<Protected>`).
 - `permdock/terminal` for consumers' own CLIs (device flow login, `filterCommands`, `--json` Problem Details, agent-run mode).
 - `permdock/webmcp`, `permdock/a2a`, `permdock/otel`.
 - CLI: `collect` (with the `createPermDockPlugin` Next build hook and `createPermDockUnplugin`, an [unplugin](https://unplugin.unjs.io)-based hook for Vite, Rollup, webpack, Rspack and esbuild so TanStack Start, React Router, SvelteKit, Nuxt, Astro and Solid projects get build-time `collect` before their adapters land; collect only, never runtime wiring), `catalog`, `usage`, `doctor`.

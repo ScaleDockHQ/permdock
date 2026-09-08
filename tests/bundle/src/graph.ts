@@ -25,6 +25,7 @@ export const ENTRIES = {
   './orpc': 'orpc/index.js',
   './vue': 'vue/index.js',
   './svelte': 'svelte/index.js',
+  './solid': 'solid/index.js',
   './ai-sdk': 'ai-sdk/index.js',
   './claude-agent': 'claude-agent/index.js',
   './eve': 'eve/index.js',
@@ -42,6 +43,7 @@ export const CLIENT_ENTRIES = [
   './react-native',
   './vue',
   './svelte',
+  './solid',
 ] as const;
 
 const RELATIVE_IMPORT =

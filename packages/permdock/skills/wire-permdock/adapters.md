@@ -327,6 +327,18 @@ const canEdit = permission(permissions.post.update, () => post);
 
 Stores are readable (`$canEdit.allowed`). Do not import `policy.ts` on the client.
 
+## Solid — `permdock/solid`
+
+```ts
+import { PermDockProvider, Protected, usePermission } from 'permdock/solid';
+
+<PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
+  <App />
+</PermDockProvider>
+```
+
+`usePermission` takes an accessor for instance data (`() => post`). Do not import `policy.ts` on the client.
+
 ## Planned adapters
 
-Solid follows the same snapshot-backed client store. Read the adapter page under `/docs/adapters/solid` before inventing identifiers.
+Remaining Phase 2 server and agent adapters (`terminal`, `webmcp`, `a2a`, `otel`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
