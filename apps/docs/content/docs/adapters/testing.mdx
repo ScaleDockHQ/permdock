@@ -77,7 +77,7 @@ Test failures print the `Decision`: outcome, matched grant, `denials` with role 
 
 ## Example app
 
-— (no dedicated example). Every example under `apps/examples` carries a `describePolicy` suite; `apps/examples/supabase-rls` runs `rlsParity` against testcontainers in `tests/integration`; `apps/examples/next` uses `instant` in `tests/e2e`.
+— (no dedicated example). Every example under `apps/examples` carries a `describePolicy` suite; `tests/e2e` smokes `apps/examples/hono` with Playwright. `apps/examples/supabase-rls` runs `rlsParity` against testcontainers in `tests/integration` (Phase 3); `apps/examples/next` uses `instant` once it is a bootable Next.js 16.3 app.
 
 ## Related standards
 

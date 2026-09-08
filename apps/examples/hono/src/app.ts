@@ -12,8 +12,16 @@ const { protect } = createPermDock(policy as Policy, {
 
 export const app = new Hono();
 
+app.get('/health', (c) => c.json({ ok: true }));
+
 app.patch(
   '/posts/:id',
   protect(permissions.post.update, () => ownPost),
+  (c) => c.json({ ok: true }),
+);
+
+app.post(
+  '/posts/:id/publish',
+  protect(permissions.post.publish, () => ownPost),
   (c) => c.json({ ok: true }),
 );

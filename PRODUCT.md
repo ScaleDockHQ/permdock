@@ -2,7 +2,7 @@
 
 This document is the product overview: what PermDock is, who it is for, what it must do, how it is built and in what order. Detail lives in the documentation tree under [`apps/docs/content/docs`](./apps/docs/content/docs) (Fumadocs-ready MDX) and is linked from each section. When the two disagree, the docs tree wins and this file gets fixed.
 
-Version: Phase 1 in progress (September 2026). `permdock` core, `@permdock/testing`, Phase 1 adapters, skills, examples, the TS matrix and `@permdock/cli` exist. Remaining Phase 1 work is `tests/e2e`. The Fumadocs app is the first Vercel Service at `/docs`. Nothing is published to npm yet.
+Version: Phase 1 in progress (September 2026). `permdock` core, `@permdock/testing`, Phase 1 adapters, skills, examples, the TS matrix, `@permdock/cli` and `tests/e2e` (Playwright smoke of the Hono example) exist. Remaining Phase 1 work is a bootable Next example so `@next/playwright` `instant()` can run. The Fumadocs app is the first Vercel Service at `/docs`. Nothing is published to npm yet.
 
 ## 1. Vision and positioning
 
@@ -96,11 +96,12 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 - `permdock/approvals` (`ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, `PermDock-Approval` resume header) and `DecisionSink` with `memorySink`.
 - Skills, `AGENTS.md`, `llms.txt`; examples `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`; `tests/types` TS matrix. The docs app was scaffolded in Phase 0.
 - `@permdock/cli`: `collect`, `catalog`, `usage`, `doctor`, `skills`; `createPermDockPlugin` (`permdock/next/plugin`) and `createPermDockUnplugin` (`@permdock/cli/unplugin`) as collect-only build hooks.
+- `tests/e2e`: Playwright smoke of the Hono example (granted `PATCH /posts/:id`, denied `POST /posts/:id/publish` as Problem Details). `@next/playwright` `instant()` waits for a bootable Next example.
 
 **Should (v0.2–0.9, Phases 2–3)**
 
 - `permdock/mcp` (scopeChallenge, EMA, elicitation), `permdock/authzen` full endpoint set + certification run, `permdock/openapi` (3.2 document and Overlay, `--overlay 1.2` with the pinned Overlay 1.2 draft, `--target 3.3` with the pinned Security Profile draft, `x-permdock-` namespace registration), `permdock/react-native`, Express / Fastify / Elysia / Nest / Node, `permdock/terminal`, tRPC / oRPC, Vue / Svelte / Solid, `permdock/webmcp`, `permdock/a2a`, `permdock/otel`.
-- CLI `openapi --format overlay --check` plus a Spectral / Redocly / vacuum ruleset file; example per adapter plus `monorepo` and `terminal`; `tests/e2e`.
+- CLI `openapi --format overlay --check` plus a Spectral / Redocly / vacuum ruleset file; example per adapter plus `monorepo` and `terminal`; Playwright `instant()` once the Next example is a bootable Next.js 16.3 app.
 - `permdock/scim` (`scimHandler` over the Fetch kernel, `DirectoryStore` with `memoryDirectoryStore`, `directoryMembershipSource`, static bearer or RFC 7523 `verifier`, the `urn:permdock:scim:schemas:extension:roles:1.0` group extension; `testDirectoryStore`); signed decision-batch export (`permdock-decisions+jwt`) as a `DecisionSink` `signer` option; example `scim`.
 - `permdock/cloud` (optional client: `ApprovalStore`, `DecisionSink`, `SnapshotSource` over HTTP); PermDock Cloud alpha in the separate `PermDock-Cloud` repo, in order: decision log with access-review queries and signed / OCSF / CSV evidence exports, hosted AuthZEN ADS, approval inbox, hosted SCIM relay replaying into the application's `scimHandler`, integrations catalog (trusted issuers, CAEP transmitters, OTLP, OCSF, CloudEvents webhooks, compliance platforms, Chat SDK delivery, read-only MCP server); Vercel Marketplace listing with `eve-agent` as the template.
 - `permdock.where` compilers for Drizzle, Prisma, Kysely (including `memberOf`); `permdock rls generate | import | verify` with membership-table mappings; `permdock/supabase` (tenant and memberships claims); async `context`; schema-aware field-level grants; `permdock/ssf` (CAEP receiver plus OIDC Back-Channel Logout `logout_token`); `tests/integration` parity suite; examples `supabase-rls`, `drizzle`, `prisma`.

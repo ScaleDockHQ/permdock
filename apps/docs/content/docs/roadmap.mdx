@@ -13,7 +13,7 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 ### Phase 1: v0.1 "core + agents" (in progress)
 
-The first milestone shipped `packages/permdock` (root entry: definitions, policy, portable conditions, two-principal subject with tenancy, `createPermDock`, snapshot v2, decision events), `packages/testing` (`@permdock/testing`), the Phase 1 adapters, consumer skills, the seven example apps, and `@permdock/cli` (`collect`, `catalog`, `usage`, `doctor`, `skills`, plus collect-only Next and unplugin hooks).
+The first milestone shipped `packages/permdock` (root entry: definitions, policy, portable conditions, two-principal subject with tenancy, `createPermDock`, snapshot v2, decision events), `packages/testing` (`@permdock/testing`), the Phase 1 adapters, consumer skills, the seven example apps, `@permdock/cli` (`collect`, `catalog`, `usage`, `doctor`, `skills`, plus collect-only Next and unplugin hooks), and `tests/e2e` (Playwright smoke of the Hono example; `@next/playwright` `instant()` waits for a bootable Next example).
 
 - Definitions: `definePermissions`, `resource`, typed references, nested groups, `mergePermissions`, `listPermissions`, `findPermission`.
 - Policy: `definePolicy`, `role`, `allow`, `deny`, `subject`; role fragments merged by name; `approval: 'human'` grants; `allow` / `deny` over arrays of references.

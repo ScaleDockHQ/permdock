@@ -110,6 +110,8 @@ export default defineConfig({
         'typescript/explicit-function-return-type': 'off',
         'typescript/explicit-module-boundary-types': 'off',
         'import/no-relative-parent-imports': 'off',
+        'node/no-process-env': 'off',
+        'import/no-default-export': 'off',
       },
     },
     {
@@ -158,6 +160,8 @@ export default defineConfig({
         // Adapter factories take Policy (TUser = unknown); typed policies need a cast.
         'typescript/no-unsafe-type-assertion': 'off',
         'typescript/no-unsafe-return': 'off',
+        // Example servers read PORT from the environment.
+        'node/no-process-env': 'off',
       },
     },
     {

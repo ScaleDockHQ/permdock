@@ -1,19 +1,16 @@
 {
-  "name": "@permdock/example-hono",
+  "name": "@permdock/e2e",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types src/serve.ts",
+    "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "hono": "catalog:",
-    "permdock": "workspace:*",
-    "zod": "catalog:"
-  },
   "devDependencies": {
+    "@permdock/example-hono": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:"
   }
