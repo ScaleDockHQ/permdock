@@ -45,6 +45,7 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `resource` | One resource node: schema, `id` field, `actions`, `collection`, optional `parent` (the field and resource a resource role derives through) | Anything without a schema-or-actions shape |
 | `actions` | Instance-level actions (`can(permissions.post.update, post)`) | Type-level checks |
 | `collection` | Type-level actions (`can(permissions.post.create)`) | Instance checks |
+| `crud`, `readable`, `writable` | Option factories for `resource()`: conventional instance/collection split and default `meta` | Constructors; grants; a default of `resource()` |
 | `mergePermissions`, `listPermissions`, `findPermission` | Registry helpers; functions so they never collide with resource names | Methods on the tree |
 | `definePolicy` | Bind roles, `scopes`, `subject`, `context`, `validate` to a definition | Defining permissions |
 | `role` | A named array of grants with an optional scope (`{ on: 'tenant' \| 'team' \| resource reference, assignable }`); same-named roles merge | Postgres roles |

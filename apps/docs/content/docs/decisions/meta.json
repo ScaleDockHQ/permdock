@@ -31,6 +31,7 @@
     "0028-synchronous-evaluation",
     "0029-check-on-collection-actions",
     "0030-parent-typing",
-    "0031-snapshot-contents"
+    "0031-snapshot-contents",
+    "0032-action-presets"
   ]
 }

@@ -82,7 +82,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 
 **Must (v0.1, Phase 1)**
 
-- `definePermissions` / `resource` / nested groups / `id` field / action metadata; `mergePermissions`, `listPermissions`, `findPermission`.
+- `definePermissions` / `resource` / `crud` / `readable` / `writable` / nested groups / `id` field / action metadata; `mergePermissions`, `listPermissions`, `findPermission`.
 - `definePolicy` / `role` / `allow` / `deny` / `subject` / `context` / `validate`; role fragments merged by name; `approval: 'human'`; `allow` / `deny` over arrays of references.
 - Multi-tenant roles ([ADR 0024](./apps/docs/content/docs/decisions/0024-scoped-roles-and-memberships.mdx), [tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)): `principal.memberships` and the active `principal.tenant`; scoped roles (`role(name, grants, { on: 'tenant' | 'team' | resource, assignable })`), `definePolicy({ scopes })`, `resource({ parent })` for resource-role derivation; tenant-defined custom roles as data through `RoleSource` and `MembershipSource` (in-process defaults shipped); the `memberOf` condition node; reasons `tenant-mismatch`, `no-membership`, `scope`, `expired-membership`; `tenant()` / `team()` derived instances and `memberships()`, `tenants()`, `roles()`, `assignable()` introspection.
 - Portable condition AST with in-memory evaluator; closures as branded non-portable grants.

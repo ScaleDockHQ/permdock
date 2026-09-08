@@ -56,6 +56,31 @@ Collection `check` is [0029](/docs/decisions/0029-check-on-collection-actions).
 
 An action name may appear in both lists when both readings are meaningful (`read` on an instance and `read` on the collection would be two different leaves: `post.read` and, for example, `post.list`). Prefer distinct names so `.key` values stay unambiguous.
 
+### Presets
+
+`crud`, `readable` and `writable` are option factories. They return the same `actions` / `collection` records you can write by hand, including default `meta`. Pass the result into `resource()`; they are not constructors and they do not grant anything.
+
+```ts
+import { definePermissions, resource, crud, readable, writable } from 'permdock'
+
+export const permissions = definePermissions({
+  post: resource(Post, crud({
+    id: 'id',
+    actions: { publish: { title: 'Publish post' } },
+  })),
+  report: resource(Report, readable({ id: 'id' })),
+  setting: resource(Setting, writable({ id: 'id' })),
+})
+```
+
+| Helper | Instance | Collection | Default meta |
+| --- | --- | --- | --- |
+| `crud()` | `read`, `update`, `delete` | `create`, `list` | `read` and `list` carry `readOnly: true`; `delete` carries `tags: ['destructive']` |
+| `readable()` | `read` | `list` | both `readOnly: true` |
+| `writable()` | `read`, `update` | none | `read` carries `readOnly: true` |
+
+The name is `readable`, not `readOnly`: `readOnly` is already `ActionMeta.readOnly`. Extra names merge into the preset records; overlapping meta fields on the extra win. There is no `omit`: write the lists by hand when the preset is the wrong shape. See [0032](/docs/decisions/0032-action-presets).
+
 ### Nested groups
 
 Groups nest arbitrarily: feature, then resource, then action is the common shape (`billing.invoice.pay`). A group is any plain object whose values are resources or further groups. Nesting is capped at 10; a deeper tree throws at `definePermissions`. Groups are the namespace mechanism for [larger apps](/docs/getting-started/larger-apps): a shared package owns one top-level group and the app merges it.

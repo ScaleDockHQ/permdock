@@ -58,6 +58,7 @@ export {
   mergePermissions,
   resource,
 } from './core/permissions.ts';
+export { crud, readable, writable } from './core/presets.ts';
 export type {
   ActionMeta,
   Permission,

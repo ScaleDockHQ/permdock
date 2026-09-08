@@ -38,15 +38,14 @@ Three files and one check. Import paths and identifiers follow the [naming conve
 
 ```ts
 // src/permissions.ts — importable everywhere; no rules, no secrets
-import { definePermissions, resource } from 'permdock'
+import { definePermissions, resource, crud } from 'permdock'
 import { Post } from './schemas' // any Standard Schema validator
 
 export const permissions = definePermissions({
-  post: resource(Post, {
+  post: resource(Post, crud({
     id: 'id',
-    actions: ['read', 'update', 'delete'],
-    collection: ['create', 'list'],
-  }),
+    actions: { publish: { title: 'Publish post' } },
+  })),
 })
 ```
 
@@ -61,6 +60,7 @@ const member = role('member', [
   allow(permissions.post.create),
   allow(permissions.post.update, { where: { authorId: subject.id } }),
   allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),
+  allow(permissions.post.publish, { approval: 'human' }),
 ])
 
 export const policy = definePolicy(permissions, {

@@ -1,0 +1,54 @@
+---
+title: "0032: Action presets"
+description: Why crud, readable and writable are opt-in option factories for resource, not a default CRUD set, a closed action union, or manage aliases.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Almost every resource in the docs, the quick start and the example policies repeats the same instance and collection split: `read`, `update`, `delete` on the row; `create` and `list` on the type. That split is [0004](/docs/decisions/0004-actions-vs-collection) and the names are the ones [RLS](/docs/adapters/rls) already maps (`read` to `SELECT`, `create` to `INSERT`). Repeating the lists is correct but noisy, and agents copy slightly different spellings (`index`, `destroy`, `manage`) that do not compile to SQL.
+
+A default of `resource(Post)` that implied CRUD would hide arity: a report that is only listed would still grow `update` and `delete` leaves. CASL's `manage` / `all` aliases expand at check time and are a source of surprise grants. Possession in the name (`createOwn`) belongs in a `where`, not in the action.
+
+The missing piece is sugar that expands to the same `actions` / `collection` records an author can write by hand, so `resource()` stays the only constructor and a handwritten resource remains a valid, typed equivalent.
+
+## Decision
+
+Core exports three **option factories**: `crud`, `readable` and `writable`. Each returns `ResourceOptions` with the conventional lists and default `meta`. They are passed into `resource()`, never instead of it.
+
+| Helper | Instance | Collection | Default meta |
+| --- | --- | --- | --- |
+| `crud()` | `read`, `update`, `delete` | `create`, `list` | `read` and `list` carry `readOnly: true`; `delete` carries `tags: ['destructive']` |
+| `readable()` | `read` | `list` | both `readOnly: true` |
+| `writable()` | `read`, `update` | none | `read` carries `readOnly: true` |
+
+The name is `readable`, not `readOnly`: `readOnly` is already `ActionMeta.readOnly`. Extra `actions` / `collection` merge into the preset records (arrays become empty-meta records; overlapping names keep preset meta unless the extra sets the field). `id` and `parent` pass through. There is no `omit` / `except`; write the lists by hand when the preset is the wrong shape.
+
+There is no default CRUD on `resource()`, no closed action union, no `manage` alias, and no possession in action names.
+
+## Consequences
+
+- `resource(Post, crud({ id: 'id', actions: { publish: { title: 'Publish post' } } }))` produces the same leaves as the handwritten records, including default meta.
+- Catalog, WebMCP `readOnlyHint` and RLS emitters keep keying off `read` / `create` / `update` / `delete` / `list`; presets do not change evaluation.
+- `permdock collect` (Phase 2) must treat `crud`, `readable` and `writable` as known callees that expand to these records. A static scan that only sees `resource(` and array or record literals will miss preset leaves until the definition module is executed.
+- Schema-less `resource(readable())` is valid.
+
+## Alternatives considered
+
+- **Default CRUD on `resource(schema)`.** Rejected: a read-only resource would ship write leaves; arity would be implicit.
+- **Closed action union (`'read' \| 'create' \| …`).** Rejected: `publish`, `pay` and domain verbs are first-class; a closed union fights [0003](/docs/decisions/0003-reference-based-permissions).
+- **`manage` / alias expansion at check time** (CASL). Rejected: a grant of `manage` would silently cover actions the author did not list.
+- **Possession in the name (`createOwn`).** Rejected: ownership is a `where`; the action name stays the verb RLS maps.
+- **A wrapper that replaces `resource()`.** Rejected: two constructors; presets would have to re-implement schema and parent typing.
+- **A new package.** Rejected: three functions, no extra dependency; they belong next to `resource`.
+
+## Related
+
+- [0004: Instance actions vs collection actions](/docs/decisions/0004-actions-vs-collection)
+- [Permissions](/docs/concepts/permissions)
+- [Naming](/docs/getting-started/naming)
+- [RLS adapter](/docs/adapters/rls)
+- [collect](/docs/cli/collect)

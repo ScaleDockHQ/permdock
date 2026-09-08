@@ -11,7 +11,7 @@ The definition is importable everywhere (server, client, React Native, MCP, test
 
 ```ts
 // src/permissions.ts
-import { definePermissions, resource } from 'permdock'
+import { definePermissions, resource, crud } from 'permdock'
 import { z } from 'zod' // or valibot / arktype: any Standard Schema
 
 const Post = z.object({
@@ -22,11 +22,10 @@ const Post = z.object({
 })
 
 export const permissions = definePermissions({
-  post: resource(Post, {
-    id: 'id',                                         // identity field: cache keys, filter, RLS
-    actions: ['read', 'update', 'delete', 'publish'], // take an instance
-    collection: ['create', 'list'],                    // do not
-  }),
+  post: resource(Post, crud({
+    id: 'id', // identity field: cache keys, filter, RLS
+    actions: { publish: { title: 'Publish post' } },
+  })),
 })
 ```
 
