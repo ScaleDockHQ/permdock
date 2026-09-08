@@ -7,6 +7,7 @@ import type { Actor } from '../core/subject.ts';
 import type {
   AgentKernelOptions,
   DecideToolOptions,
+  ToolBinding,
   ToolVerdict,
 } from './types.ts';
 
@@ -201,6 +202,13 @@ export function createAgentKernel<TContext>(
     context: TContext,
     decideOptions?: DecideToolOptions,
   ) => Promise<ToolVerdict>;
+  readonly evaluate: (
+    binding: ToolBinding,
+    toolName: string,
+    args: unknown,
+    context: TContext,
+    decideOptions?: DecideToolOptions,
+  ) => Promise<ToolVerdict>;
   readonly allowedToolNames: (
     context: TContext,
   ) => Promise<ReadonlySet<string>>;
@@ -248,21 +256,13 @@ export function createAgentKernel<TContext>(
     return built;
   };
 
-  const decideTool = async (
+  const evaluate = async (
+    binding: ToolBinding,
     toolName: string,
     args: unknown,
     context: TContext,
     decideOptions: DecideToolOptions = {},
   ): Promise<ToolVerdict> => {
-    const binding = options.tools[toolName];
-    if (binding === undefined) {
-      return {
-        outcome: 'denied',
-        decision: null,
-        permission: undefined,
-        reason: unmappedReason(toolName),
-      };
-    }
     try {
       const dock = await instance(context);
       let data: unknown;
@@ -338,6 +338,24 @@ export function createAgentKernel<TContext>(
     }
   };
 
+  const decideTool = (
+    toolName: string,
+    args: unknown,
+    context: TContext,
+    decideOptions: DecideToolOptions = {},
+  ): Promise<ToolVerdict> => {
+    const binding = options.tools[toolName];
+    if (binding === undefined) {
+      return Promise.resolve({
+        outcome: 'denied',
+        decision: null,
+        permission: undefined,
+        reason: unmappedReason(toolName),
+      });
+    }
+    return evaluate(binding, toolName, args, context, decideOptions);
+  };
+
   const allowedToolNames = async (
     context: TContext,
   ): Promise<ReadonlySet<string>> => {
@@ -351,5 +369,5 @@ export function createAgentKernel<TContext>(
     return allowed;
   };
 
-  return { instance, decideTool, allowedToolNames };
+  return { instance, decideTool, evaluate, allowedToolNames };
 }

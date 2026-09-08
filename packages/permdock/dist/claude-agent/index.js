@@ -1,5 +1,5 @@
 import { t as compact } from "../compact-CxCColYy.js";
-import { t as createAgentKernel } from "../kernel-viUSolRh.js";
+import { t as createAgentKernel } from "../kernel-BVziu7k-.js";
 //#region src/claude-agent/create.ts
 function resumeTokenOf(context) {
 	if (context === void 0) return;

@@ -23,6 +23,7 @@ export default defineConfig({
         'src/hono/**',
         'src/ai-sdk/**',
         'src/claude-agent/**',
+        'src/eve/**',
         'src/agent/**',
         'src/core/from-snapshot.ts',
       ],

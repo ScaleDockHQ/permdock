@@ -138,14 +138,7 @@ function createAgentKernel(policy, options) {
 		if (typeof context === "object" && context !== null) cache.set(context, built);
 		return built;
 	};
-	const decideTool = async (toolName, args, context, decideOptions = {}) => {
-		const binding = options.tools[toolName];
-		if (binding === void 0) return {
-			outcome: "denied",
-			decision: null,
-			permission: void 0,
-			reason: unmappedReason(toolName)
-		};
+	const evaluate = async (binding, toolName, args, context, decideOptions = {}) => {
 		try {
 			const dock = await instance(context);
 			let data;
@@ -198,6 +191,16 @@ function createAgentKernel(policy, options) {
 			};
 		}
 	};
+	const decideTool = (toolName, args, context, decideOptions = {}) => {
+		const binding = options.tools[toolName];
+		if (binding === void 0) return Promise.resolve({
+			outcome: "denied",
+			decision: null,
+			permission: void 0,
+			reason: unmappedReason(toolName)
+		});
+		return evaluate(binding, toolName, args, context, decideOptions);
+	};
 	const allowedToolNames = async (context) => {
 		const dock = await instance(context);
 		const allowed = /* @__PURE__ */ new Set();
@@ -207,6 +210,7 @@ function createAgentKernel(policy, options) {
 	return {
 		instance,
 		decideTool,
+		evaluate,
 		allowedToolNames
 	};
 }

@@ -3,7 +3,7 @@ title: Eve
 description: permdock/eve turns PermDock decisions into Eve tool approval policies and approval response policies, takes principal and actor from the durable session's auth, and stores pending approvals in a pluggable ApprovalStore.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 `permdock/eve` connects the [Decision](/docs/concepts/decisions) model to Eve's `approval` hook on `defineTool`. Eve already pauses a session durably and renders the approval on every channel; what it asks the application for is the policy that decides whether a call may run, must wait for a person, or is refused, and a second policy that decides who may press Approve. Both come out of one `createPermDock` call, typed against your permissions, fail-closed.

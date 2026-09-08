@@ -44,6 +44,10 @@
     "./claude-agent": {
       "types": "./dist/claude-agent/index.d.ts",
       "default": "./dist/claude-agent/index.js"
+    },
+    "./eve": {
+      "types": "./dist/eve/index.d.ts",
+      "default": "./dist/eve/index.js"
     }
   },
   "scripts": {
@@ -78,6 +82,7 @@
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "ai": "catalog:",
+    "eve": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
@@ -88,6 +93,9 @@
       "optional": true
     },
     "ai": {
+      "optional": true
+    },
+    "eve": {
       "optional": true
     },
     "hono": {
