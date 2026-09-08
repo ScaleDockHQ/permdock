@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {
   allow,
   definePermissions,
@@ -9,6 +10,7 @@ import {
 } from 'permdock';
 import { memoryRoleSource, memorySink } from 'permdock';
 import { memoryApprovalStore } from 'permdock/approvals';
+import { joseTokenSigner, joseTokenVerifier } from 'permdock/jwt';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -19,9 +21,12 @@ import {
   testRoleSource,
   testSnapshotSource,
   testSubjectResolver,
+  testTokenSigner,
+  testTokenVerifier,
   testWhereCompiler,
 } from './conformance.ts';
 import { describePolicy } from './describe-policy.ts';
+import { jwtFixtureJwks } from './jwt-fixtures.ts';
 import { snapshotFixture } from './snapshot-fixture.ts';
 
 const Post = z.object({
@@ -223,4 +228,49 @@ describe('conformance runners', () => {
   testWhereCompiler(() => false, { target: {} });
 
   testApprovalStore(memoryApprovalStore());
+
+  testTokenVerifier(
+    joseTokenVerifier({
+      jwks: jwtFixtureJwks,
+      issuer: 'https://login.example.com',
+      audience: 'https://api.example.com',
+      algorithms: ['Ed25519'],
+    }),
+  );
+
+  it('ships one signed-output fixture per typ', () => {
+    const fixtures = JSON.parse(
+      readFileSync(
+        new URL('../fixtures/jwt/signed-outputs.json', import.meta.url),
+        'utf8',
+      ),
+    ) as Record<string, string>;
+    expect(Object.keys(fixtures).toSorted()).toEqual([
+      'permdock-approval+jwt',
+      'permdock-decisions+jwt',
+      'permdock-snapshot+jwt',
+    ]);
+  });
+
+  testTokenSigner(
+    joseTokenSigner({
+      key: {
+        crv: 'Ed25519',
+        d: 'qco_Uh5slpzay2a-eC3woOxpC4DlS6aEzLtBRjrdtd4',
+        x: '79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ',
+        kty: 'OKP',
+        kid: '2026-09',
+        alg: 'Ed25519',
+      },
+      alg: 'Ed25519',
+      kid: '2026-09',
+      issuer: 'https://app.example.com',
+    }),
+    {
+      verifier: joseTokenVerifier({
+        jwks: jwtFixtureJwks,
+        typ: 'permdock-snapshot+jwt',
+      }),
+    },
+  );
 });

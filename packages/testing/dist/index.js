@@ -61,6 +61,29 @@ async function snapshotFixture(policy, subject, options = {}) {
 	return snapshot;
 }
 //#endregion
+//#region src/jwt-fixtures.ts
+const jwtFixtureJwks = { keys: [{
+	crv: "Ed25519",
+	x: "79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ",
+	kty: "OKP",
+	kid: "2026-09",
+	alg: "Ed25519",
+	use: "sig"
+}] };
+const jwtFixtureIssuer = "https://login.example.com";
+const jwtFixtureAudience = "https://api.example.com";
+const jwtFixtureTokens = {
+	valid: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiMjAyNi0wOSIsInR5cCI6ImF0K2p3dCJ9.eyJzdWIiOiJ1XzEiLCJjbGllbnRfaWQiOiJhcHAiLCJyb2xlcyI6WyJtZW1iZXIiXSwianRpIjoianRpLXZhbGlkIiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5leGFtcGxlLmNvbSIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUuY29tIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMDB9.ENFMmLSyVde-2s4Gdz4iP7srZvU0Xuy_ZLz-OJGHD_-W1lEayEBeSPTnab0L_TBdj8p5BmkFrT-7VE7o20GbAw",
+	expired: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiMjAyNi0wOSIsInR5cCI6ImF0K2p3dCJ9.eyJzdWIiOiJ1XzEiLCJpc3MiOiJodHRwczovL2xvZ2luLmV4YW1wbGUuY29tIiwiYXVkIjoiaHR0cHM6Ly9hcGkuZXhhbXBsZS5jb20iLCJpYXQiOjEwMDAwMDAwMDAsImV4cCI6MTEwMDAwMDAwMH0.9X3d6kH3_2nmrbqMxuoxzFW-wsWJVCe-lR-aQ-MmsGGXlEUBMgQ-4MtAq1UR9lLE0h2b5JrE_GfjzuC04h5xCg",
+	wrongAud: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiMjAyNi0wOSIsInR5cCI6ImF0K2p3dCJ9.eyJzdWIiOiJ1XzEiLCJpc3MiOiJodHRwczovL2xvZ2luLmV4YW1wbGUuY29tIiwiYXVkIjoiaHR0cHM6Ly9vdGhlci5leGFtcGxlLmNvbSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDAwMDAwMDAwfQ.PgWdzi56J31OwoMqH4ysHzVKSKUDhi-AtHFUp1ewFzi-qGE-tknzrNKnKhDOncVzj0okb_flyy3vQgfzJwG5AQ",
+	wrongIss: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiMjAyNi0wOSIsInR5cCI6ImF0K2p3dCJ9.eyJzdWIiOiJ1XzEiLCJpc3MiOiJodHRwczovL2V2aWwuZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FwaS5leGFtcGxlLmNvbSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDAwMDAwMDAwfQ.tIcLHLa9JLtKz1gqjRGdr5DFbUzRDs5KsoPsJCxspvbBcsFfRFG2G0XJnd1h4QHyZ_5B4OhY3W_jIIsnOPD9Bg",
+	unknownKid: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoibm9wZSIsInR5cCI6ImF0K2p3dCJ9.eyJzdWIiOiJ1XzEiLCJpc3MiOiJodHRwczovL2xvZ2luLmV4YW1wbGUuY29tIiwiYXVkIjoiaHR0cHM6Ly9hcGkuZXhhbXBsZS5jb20iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.walgG5GvpCVBnkMtkdw-epi5c93JqfvAM_N4EWR9Tqhiw_cnzITnlQyoVfihECmV1fqtFrhwM1RCIRJvd38zAQ",
+	none: "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1XzEiLCJpc3MiOiJodHRwczovL2xvZ2luLmV4YW1wbGUuY29tIiwiYXVkIjoiaHR0cHM6Ly9hcGkuZXhhbXBsZS5jb20iLCJleHAiOjIwMDAwMDAwMDAsImlhdCI6MTcwMDAwMDAwMH0.",
+	snapshot: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiMjAyNi0wOSIsInR5cCI6InBlcm1kb2NrLXNuYXBzaG90K2p3dCJ9.eyJzbmFwc2hvdCI6eyJ2IjoyLCJpc3N1ZWRBdCI6MTcwMDAwMDAwMCwic3ViamVjdCI6eyJwcmluY2lwYWwiOnsiaWQiOiJ1XzEiLCJyb2xlcyI6WyJtZW1iZXIiXX0sImNvbnRleHQiOnt9fSwicm9sZXMiOlsibWVtYmVyIl0sImdyYW50cyI6W10sInRlbmFudHMiOltdfSwic3ViIjoidV8xIiwiaXNzIjoiaHR0cHM6Ly9hcHAuZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FwcC5leGFtcGxlLmNvbSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDAwMDAwMDAwLCJqdGkiOiJzbmFwX2ZpeHR1cmUifQ.4itaYctluoCwU-syytUxArtS_FRyNAti2SZxuSH-nKIMr7-Sb3h1Q3xugn_vPR1eupV4fVNIe6dH27_EiyDvCA",
+	approval: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiMjAyNi0wOSIsInR5cCI6InBlcm1kb2NrLWFwcHJvdmFsK2p3dCJ9.eyJhcHByb3ZhbCI6eyJ0b2tlbiI6InBkMS5hYmMiLCJwZXJtaXNzaW9uIjoicG9zdC5kZWxldGUiLCJyZXNvdXJjZSI6eyJ0eXBlIjoicG9zdCIsImlkIjoiNDIifSwic3RhdHVzIjoiYXBwcm92ZWQifSwic3ViIjoidV8xIiwiaXNzIjoiaHR0cHM6Ly9hcHAuZXhhbXBsZS5jb20iLCJhdWQiOiJodHRwczovL2FwcC5leGFtcGxlLmNvbSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDAwMDAwMDAwLCJqdGkiOiJhcHJfZml4dHVyZSJ9.UHsoSzQCo68G7ee-EFqdzMLvmqaKlFIMdQKFuqZEM4yUQnJsJJTXbld_aCXcyfN-IdjF9cj2F5EHzsV4nLKbBg",
+	decisions: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiMjAyNi0wOSIsInR5cCI6InBlcm1kb2NrLWRlY2lzaW9ucytqd3QifQ.eyJldmVudHMiOltdLCJpc3MiOiJodHRwczovL2FwcC5leGFtcGxlLmNvbSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDAwMDAwMDAwLCJqdGkiOiJkZWNfZml4dHVyZSJ9.UZhJd72yFGxHOdjYbzcGYUPgYjvLwOPCtHKxEbLu56SdKSKUDCREXmEBI9WaCPKWjlTBnnIKMYwjG8I8RATJCg"
+};
+//#endregion
 //#region src/conformance.ts
 function testSubjectResolver(resolver, options) {
 	it("never throws and fails closed to anonymous", async () => {
@@ -179,6 +202,100 @@ function testApprovalStore(store) {
 		expect(expired).toBeGreaterThanOrEqual(1);
 	});
 }
+function decodeHeader(token) {
+	const [encoded] = token.split(".");
+	if (encoded === void 0) return {};
+	const padded = encoded.replaceAll("-", "+").replaceAll("_", "/");
+	const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - padded.length % 4);
+	return JSON.parse(atob(`${padded}${pad}`));
+}
+function testTokenVerifier(verifier, options) {
+	const audience = options?.audience ?? "https://api.example.com";
+	const issuer = options?.issuer ?? "https://login.example.com";
+	it("never throws and maps the JWT behaviour table", async () => {
+		const valid = await verifier.verify(jwtFixtureTokens.valid, {
+			audience,
+			issuer
+		});
+		expect(valid.ok).toBe(true);
+		if (valid.ok) {
+			expect(valid.claims.sub).toBe("u_1");
+			expect(valid.header.alg).toBe("Ed25519");
+		}
+		const rows = [
+			{
+				token: jwtFixtureTokens.none,
+				cause: "alg-none"
+			},
+			{
+				token: jwtFixtureTokens.expired,
+				cause: "expired"
+			},
+			{
+				token: jwtFixtureTokens.wrongAud,
+				cause: "wrong-audience"
+			},
+			{
+				token: jwtFixtureTokens.wrongIss,
+				cause: "wrong-issuer"
+			},
+			{
+				token: jwtFixtureTokens.unknownKid,
+				cause: "unknown-kid"
+			},
+			{
+				token: "not-a-jwt",
+				cause: "malformed"
+			},
+			{
+				token: "a.b.c.d.e",
+				cause: "encrypted-token"
+			}
+		];
+		for (const row of rows) {
+			let result;
+			try {
+				result = await verifier.verify(row.token, {
+					audience,
+					issuer
+				});
+			} catch {
+				throw new Error("TokenVerifier must not throw");
+			}
+			expect(result.ok).toBe(false);
+			if (!result.ok) expect(result.cause).toBe(row.cause);
+		}
+	});
+}
+function testTokenSigner(signer, options) {
+	it("emits compact JWS with only alg, kid and typ", async () => {
+		const token = await signer.sign({
+			snapshot: { v: 2 },
+			sub: "u_1"
+		}, {
+			typ: "permdock-snapshot+jwt",
+			audience: "https://app.example.com"
+		});
+		const header = decodeHeader(token);
+		expect(Object.keys(header).toSorted()).toEqual([
+			"alg",
+			"kid",
+			"typ"
+		]);
+		expect(header.typ).toBe("permdock-snapshot+jwt");
+		expect(header.alg).not.toBe("none");
+		const verified = await options.verifier.verify(token, {
+			typ: "permdock-snapshot+jwt",
+			audience: "https://app.example.com"
+		});
+		expect(verified.ok).toBe(true);
+		if (signer.jwks !== void 0) {
+			const jwks = await signer.jwks();
+			expect(jwks.keys.length).toBeGreaterThan(0);
+			expect(jwks.keys[0]).not.toHaveProperty("d");
+		}
+	});
+}
 function testWhereCompiler(compiler, options) {
 	it("fails closed on an empty allow set", () => {
 		const compiled = compiler({
@@ -189,4 +306,4 @@ function testWhereCompiler(compiler, options) {
 	});
 }
 //#endregion
-export { describePolicy, expectTypeOf, snapshotFixture, testApprovalStore, testDecisionSink, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testWhereCompiler };
+export { describePolicy, expectTypeOf, jwtFixtureAudience, jwtFixtureIssuer, jwtFixtureJwks, jwtFixtureTokens, snapshotFixture, testApprovalStore, testDecisionSink, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testTokenSigner, testTokenVerifier, testWhereCompiler };

@@ -6,11 +6,19 @@ import type {
   SnapshotSource,
   Subject,
   SubjectResolver,
+  TokenSigner,
+  TokenVerifier,
   WhereCompiler,
 } from 'permdock';
 import type { ApprovalRequest, ApprovalStore } from 'permdock/approvals';
 
 import { expect, it } from 'vitest';
+
+import {
+  jwtFixtureAudience,
+  jwtFixtureIssuer,
+  jwtFixtureTokens,
+} from './jwt-fixtures.ts';
 
 export function testSubjectResolver<TInput>(
   resolver: SubjectResolver<TInput>,
@@ -153,6 +161,86 @@ export function testApprovalStore(store: ApprovalStore): void {
       new Date(Date.now() + 2 * 60 * 60 * 1000),
     );
     expect(expired).toBeGreaterThanOrEqual(1);
+  });
+}
+
+function decodeHeader(token: string): Record<string, unknown> {
+  const [encoded] = token.split('.');
+  if (encoded === undefined) {
+    return {};
+  }
+  const padded = encoded.replaceAll('-', '+').replaceAll('_', '/');
+  const pad =
+    padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
+  return JSON.parse(atob(`${padded}${pad}`)) as Record<string, unknown>;
+}
+
+export function testTokenVerifier(
+  verifier: TokenVerifier,
+  options?: { readonly audience?: string; readonly issuer?: string },
+): void {
+  const audience = options?.audience ?? jwtFixtureAudience;
+  const issuer = options?.issuer ?? jwtFixtureIssuer;
+  it('never throws and maps the JWT behaviour table', async () => {
+    const valid = await verifier.verify(jwtFixtureTokens.valid, {
+      audience,
+      issuer,
+    });
+    expect(valid.ok).toBe(true);
+    if (valid.ok) {
+      expect(valid.claims.sub).toBe('u_1');
+      expect(valid.header.alg).toBe('Ed25519');
+    }
+    const rows: readonly {
+      readonly token: string;
+      readonly cause: string;
+    }[] = [
+      { token: jwtFixtureTokens.none, cause: 'alg-none' },
+      { token: jwtFixtureTokens.expired, cause: 'expired' },
+      { token: jwtFixtureTokens.wrongAud, cause: 'wrong-audience' },
+      { token: jwtFixtureTokens.wrongIss, cause: 'wrong-issuer' },
+      { token: jwtFixtureTokens.unknownKid, cause: 'unknown-kid' },
+      { token: 'not-a-jwt', cause: 'malformed' },
+      { token: 'a.b.c.d.e', cause: 'encrypted-token' },
+    ];
+    for (const row of rows) {
+      let result: Awaited<ReturnType<TokenVerifier['verify']>>;
+      try {
+        result = await verifier.verify(row.token, { audience, issuer });
+      } catch {
+        throw new Error('TokenVerifier must not throw');
+      }
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.cause).toBe(row.cause);
+      }
+    }
+  });
+}
+
+export function testTokenSigner(
+  signer: TokenSigner,
+  options: { readonly verifier: TokenVerifier },
+): void {
+  it('emits compact JWS with only alg, kid and typ', async () => {
+    const token = await signer.sign(
+      { snapshot: { v: 2 }, sub: 'u_1' },
+      { typ: 'permdock-snapshot+jwt', audience: 'https://app.example.com' },
+    );
+    const header = decodeHeader(token);
+    expect(Object.keys(header).toSorted()).toEqual(['alg', 'kid', 'typ']);
+    expect(header.typ).toBe('permdock-snapshot+jwt');
+    expect(header.alg).not.toBe('none');
+    const verified = await options.verifier.verify(token, {
+      typ: 'permdock-snapshot+jwt',
+      audience: 'https://app.example.com',
+    });
+    expect(verified.ok).toBe(true);
+    if (signer.jwks !== undefined) {
+      const jwks = await signer.jwks();
+      expect(jwks.keys.length).toBeGreaterThan(0);
+      expect(jwks.keys[0]).not.toHaveProperty('d');
+    }
   });
 }
 

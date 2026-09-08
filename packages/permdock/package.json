@@ -16,6 +16,10 @@
     "./approvals": {
       "types": "./dist/approvals/index.d.ts",
       "default": "./dist/approvals/index.js"
+    },
+    "./jwt": {
+      "types": "./dist/jwt/index.d.ts",
+      "default": "./dist/jwt/index.js"
     }
   },
   "scripts": {
@@ -33,12 +37,21 @@
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "arktype": "catalog:",
+    "jose": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "valibot": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "jose": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "jose": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=24"

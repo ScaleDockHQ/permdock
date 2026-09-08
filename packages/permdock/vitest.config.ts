@@ -15,6 +15,7 @@ export default defineConfig({
         'src/**/*.test-d.ts',
         'src/**/index.ts',
         'src/fixtures/**',
+        'src/jwt/**',
       ],
       thresholds: {
         statements: 95,

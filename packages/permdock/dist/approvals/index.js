@@ -1,4 +1,5 @@
-import { n as describe, r as freezeDeep, t as compact } from "../compact-7xK8QV2z.js";
+import { n as freezeDeep, t as compact } from "../compact-CxCColYy.js";
+import { t as describe } from "../describe-BnKr1Gwo.js";
 //#region src/approvals/errors.ts
 var ApprovalError = class extends Error {
 	name = "ApprovalError";
@@ -107,8 +108,8 @@ function json(status, body) {
 }
 function parseRoute(url, method) {
 	const parts = url.pathname.replace(/\/+$/u, "").split("/").filter(Boolean);
-	const last = parts[parts.length - 1];
-	const prev = parts[parts.length - 2];
+	const last = parts.at(-1);
+	const prev = parts.at(-2);
 	if (last === void 0) return;
 	if (method === "GET" && last === "pending") return { kind: "pending" };
 	if (method === "GET" && last === "mine") return { kind: "mine" };
@@ -169,8 +170,8 @@ function inboxTenant(url, subject) {
 	};
 	return { ok: true };
 }
-async function signedApproval(request, signer, audience) {
-	if (signer === void 0 || request.status !== "approved") return;
+function signedApproval(request, signer, audience) {
+	if (signer === void 0 || request.status !== "approved") return Promise.resolve(void 0);
 	const payload = { approval: {
 		token: request.token,
 		permission: request.permission,
@@ -197,14 +198,10 @@ async function readNote(request) {
 }
 function mapError(error) {
 	if (!isApprovalError(error)) return problem(500, "Internal error", "approval store failed", "internal");
-	switch (error.code) {
-		case "approval-not-found": return problem(404, "Not found", error.message, "not-found");
-		case "approval-not-pending": return problem(409, "Conflict", error.message, "conflict");
-		case "approval-expired": return problem(409, "Conflict", error.message, "conflict");
-		case "approver-unauthenticated": return problem(401, "Unauthenticated", error.message, "unauthenticated");
-		case "approver-is-actor":
-		case "approver-is-principal": return problem(403, "Permission denied", error.message, "denied");
-	}
+	if (error.code === "approval-not-found") return problem(404, "Not found", error.message, "not-found");
+	if (error.code === "approval-not-pending" || error.code === "approval-expired") return problem(409, "Conflict", error.message, "conflict");
+	if (error.code === "approver-unauthenticated") return problem(401, "Unauthenticated", error.message, "unauthenticated");
+	return problem(403, "Permission denied", error.message, "denied");
 }
 function approvalsHandler(store, options) {
 	const requireDistinct = options.requireDistinctApprover === true;
@@ -216,39 +213,34 @@ function approvalsHandler(store, options) {
 		const subject = await resolveSubject(request, options.subject);
 		if (subject === null || subject.principal === null) return problem(401, "Unauthenticated", "approver must be authenticated", "unauthenticated");
 		try {
-			switch (route.kind) {
-				case "pending": {
-					const scoped = inboxTenant(url, subject);
-					if (!scoped.ok) return problem(403, "Permission denied", "approver does not belong to that tenant", "denied");
-					return json(200, await store.list(compact({
-						status: "pending",
-						tenant: scoped.tenant
-					})));
-				}
-				case "mine": return json(200, await store.list({ principalId: subject.principal.id }));
-				case "get": {
-					const current = await store.get(route.token);
-					if (current === null || !canView(current, subject)) return problem(404, "Not found", "approval was not found", "not-found");
-					return json(200, current);
-				}
-				case "approve":
-				case "reject": {
-					const current = await store.get(route.token);
-					if (current === null) return problem(404, "Not found", "approval was not found", "not-found");
-					assertApprover(current, subject, requireDistinct);
-					const note = await readNote(request);
-					const resolved = await store.resolve(route.token, compact({
-						status: route.kind === "approve" ? "approved" : "rejected",
-						by: subject,
-						note
-					}));
-					const signed = await signedApproval(resolved, options.signer, options.audience);
-					return json(200, compact({
-						...resolved,
-						signed
-					}));
-				}
+			if (route.kind === "pending") {
+				const scoped = inboxTenant(url, subject);
+				if (!scoped.ok) return problem(403, "Permission denied", "approver does not belong to that tenant", "denied");
+				return json(200, await store.list(compact({
+					status: "pending",
+					tenant: scoped.tenant
+				})));
 			}
+			if (route.kind === "mine") return json(200, await store.list({ principalId: subject.principal.id }));
+			if (route.kind === "get") {
+				const current = await store.get(route.token);
+				if (current === null || !canView(current, subject)) return problem(404, "Not found", "approval was not found", "not-found");
+				return json(200, current);
+			}
+			const current = await store.get(route.token);
+			if (current === null) return problem(404, "Not found", "approval was not found", "not-found");
+			assertApprover(current, subject, requireDistinct);
+			const note = await readNote(request);
+			const resolved = await store.resolve(route.token, compact({
+				status: route.kind === "approve" ? "approved" : "rejected",
+				by: subject,
+				note
+			}));
+			const signed = await signedApproval(resolved, options.signer, options.audience);
+			return json(200, compact({
+				...resolved,
+				signed
+			}));
 		} catch (error) {
 			return mapError(error);
 		}
@@ -337,12 +329,12 @@ function readApprovalHeader(headers) {
 	if (value === null || value.trim() === "") return;
 	return value.trim();
 }
-async function resumeFromHeader(store, headers, now) {
+function resumeFromHeader(store, headers, now) {
 	const token = readApprovalHeader(headers);
-	if (token === void 0) return {
+	if (token === void 0) return Promise.resolve({
 		ok: false,
 		detail: "approval-not-found"
-	};
+	});
 	return inspectApproval(store, token, now);
 }
 //#endregion

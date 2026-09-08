@@ -30,15 +30,25 @@ export type JwtClaims = {
 };
 
 export type TokenFailureCause =
+  | 'invalid-signature'
   | 'expired'
   | 'not-yet-valid'
-  | 'invalid-signature'
-  | 'invalid-typ'
-  | 'invalid-issuer'
-  | 'invalid-audience'
-  | 'algorithm-not-allowed'
-  | 'missing-key'
-  | 'malformed';
+  | 'wrong-audience'
+  | 'wrong-issuer'
+  | 'wrong-token-type'
+  | 'alg-not-allowed'
+  | 'alg-none'
+  | 'unknown-kid'
+  | 'malformed'
+  | 'encrypted-token'
+  | 'dpop-proof-invalid'
+  | 'mtls-binding-mismatch'
+  | 'sender-constraint-required'
+  | 'token-in-query'
+  | 'invalid-claims'
+  | 'jwks-unavailable'
+  | 'discovery-unavailable'
+  | 'discovery-mismatch';
 
 export type VerifiedToken<TClaims extends JwtClaims = JwtClaims> = {
   readonly ok: true;
@@ -209,6 +219,11 @@ export type AuthEvent = {
     | 'source-threw';
   readonly cause?: string;
   readonly source: string;
+  readonly kid?: string;
+  readonly alg?: string;
+  readonly typ?: string;
+  readonly issuer?: string;
+  readonly requestId?: string;
 };
 
 export function memoryRoleSource(

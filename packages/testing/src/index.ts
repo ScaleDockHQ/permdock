@@ -13,5 +13,13 @@ export {
   testRoleSource,
   testSnapshotSource,
   testSubjectResolver,
+  testTokenSigner,
+  testTokenVerifier,
   testWhereCompiler,
 } from './conformance.ts';
+export {
+  jwtFixtureAudience,
+  jwtFixtureIssuer,
+  jwtFixtureJwks,
+  jwtFixtureTokens,
+} from './jwt-fixtures.ts';

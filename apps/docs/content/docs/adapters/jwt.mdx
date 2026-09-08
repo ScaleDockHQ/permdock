@@ -3,7 +3,7 @@ title: JWT
 description: "permdock/jwt verifies bearer JWTs against a JWKS, an OpenID Connect Discovery document or a secret with jose as an optional peer and returns a PermDock subject: principal from iss and sub, delegation from scope, authorization_details and access, actor from act, sender binding from cnf. Verification failure yields the anonymous subject, never an exception, and every failure has an RFC 6750 rendering."
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 `permdock/jwt` is the one place in the `permdock` package that verifies a token. It exists because core cannot: core has no runtime dependency other than `@standard-schema/spec` ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)), and signature verification needs a crypto library. `permdock/jwt` takes `jose` as an optional peer dependency, applies the RFC 8725 checklist from [JOSE](/docs/standards/jose), and maps the verified claims to a [subject](/docs/concepts/subject) following [OpenID Connect](/docs/standards/openid-connect). It is used by HTTP adapters that receive bearer tokens directly and by the MCP adapter when the SDK exposes the raw token. It also holds the package's `TokenVerifier` and `TokenSigner` implementations, so it is where JWS-signed snapshots are produced.

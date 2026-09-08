@@ -3,7 +3,7 @@ title: JOSE (JWT, JWS, JWE, JWK, JWA)
 description: "The JSON Object Signing and Encryption family as PermDock consumes it (bearer JWTs, JWKS, cnf bindings) and produces it (JWS-signed snapshots, approval tokens, decision exports), with the RFC 8725 / rfc8725bis checklist permdock/jwt follows and the interoperability contract that lets any language verify what PermDock signs."
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 Phase 1 ships the consuming half in [`permdock/jwt`](/docs/adapters/jwt) (`joseTokenVerifier`, the algorithm allow-list, JWKS and Discovery caching, the JWE posture) and the producing half (`joseTokenSigner`, `permdock.snapshot({ signer })`). Phase 3 uses the same verifier for SET-style events in [`permdock/ssf`](/docs/adapters/ssf); Phase 4 adds `subjectFromIntrospection`. Adapter phases: `permdock/jwt` 1, `permdock/approvals` 1 (optional signed token), `permdock/cloud` 1 (signed snapshot distribution), `permdock/ssf` 3.
