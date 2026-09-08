@@ -1,0 +1,51 @@
+import { v as Permission } from "../policy-Dvre0Da9.js";
+import { n as Decision } from "../decision-BvyrBh2L.js";
+import { m as TokenVerifier, u as SnapshotV2 } from "../interfaces-DMSVa7et.js";
+import { d as describe } from "../permdock-ChXNJ7qn.js";
+import { C as approvalHeaders, S as TenantView, a as useMemberships, b as ProtectedProps, c as usePermissions, d as useTenant, f as ApprovalHandle, g as FilterResult, h as ClientStatus, i as useFilter, l as useRoles, m as ClientPermDock, n as useApproval, o as usePermDock, p as ApprovalState, r as useAssignableRoles, s as usePermission, t as Protected, u as useSubject, v as PermissionSet, x as SubjectView, y as PermissionState } from "../protected-CMg8dQg0.js";
+import { ReactElement, ReactNode } from "react";
+//#region src/react-native/types.d.ts
+type PermDockStorage = {
+  getItem(key: string): string | null | Promise<string | null>;
+  setItem(key: string, value: string): void | Promise<void>;
+  removeItem(key: string): void | Promise<void>;
+};
+type NativeRevalidate = "launch" | "focus" | number;
+type NativePermDockProviderProps = {
+  readonly storage: PermDockStorage;
+  readonly snapshot?: SnapshotV2 | string;
+  readonly snapshotUrl?: string;
+  readonly endpoint?: string;
+  readonly approvals?: string;
+  readonly tenant?: string;
+  readonly subjectId?: string;
+  readonly revalidate?: NativeRevalidate;
+  readonly subscribeForeground?: (listener: () => void) => () => void;
+  readonly fetch?: typeof fetch;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly maxAge?: number;
+  readonly verifier?: TokenVerifier;
+  readonly children: ReactNode;
+};
+//#endregion
+//#region src/react-native/provider.d.ts
+export declare function PermDockProvider(props: NativePermDockProviderProps): ReactElement;
+//#endregion
+//#region src/react-native/storage.d.ts
+export declare function memoryStorage(initial?: Readonly<Record<string, string>>): PermDockStorage;
+//#endregion
+//#region src/react/store.d.ts
+type ClientStore = {
+  get(): ClientPermDock;
+  subscribe(listener: () => void): () => void;
+  permissionState(permission: Permission, data?: unknown): PermissionState;
+  requestApproval(decision: Decision, note?: string): Promise<void>;
+  replace(value: unknown): void;
+  snapshot(): SnapshotV2;
+};
+//#endregion
+//#region src/react-native/store.d.ts
+type NativeStoreOptions = Omit<NativePermDockProviderProps, "children">;
+export declare function createNativeStore(options: NativeStoreOptions): ClientStore;
+//#endregion
+export { type ApprovalHandle, type ApprovalState, type ClientPermDock, type ClientStatus, type FilterResult, type NativePermDockProviderProps, type NativeRevalidate, type PermDockStorage, type PermissionSet, type PermissionState, Protected, type ProtectedProps, type SubjectView, type TenantView, approvalHeaders, describe, useApproval, useAssignableRoles, useFilter, useMemberships, usePermDock, usePermission, usePermissions, useRoles, useSubject, useTenant };

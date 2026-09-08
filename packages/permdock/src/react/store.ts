@@ -12,12 +12,18 @@ import { nowSeconds } from '../core/tenancy.ts';
 export type ClientStoreOptions = {
   readonly snapshot: SnapshotV2 | string;
   readonly endpoint?: string;
+  readonly snapshotUrl?: string;
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;
   readonly headers?: Readonly<Record<string, string>>;
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
+  readonly onSnapshot?: (
+    snapshot: SnapshotV2,
+    tenant: string | undefined,
+  ) => void;
+  readonly onClear?: () => void;
 };
 
 type CacheEntry = {
@@ -56,6 +62,8 @@ export type ClientStore = {
   subscribe(listener: () => void): () => void;
   permissionState(permission: Permission, data?: unknown): PermissionState;
   requestApproval(decision: Decision, note?: string): Promise<void>;
+  replace(value: unknown): void;
+  snapshot(): SnapshotV2;
 };
 
 function needsEndpoint(decision: Decision): boolean {
@@ -94,6 +102,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     snapshot = next;
     instance = fromSnapshot(snapshot, compact({ tenant }));
     storeStatus = isStale() ? 'stale' : 'ready';
+    options.onSnapshot?.(next, tenant);
     emit();
   };
 
@@ -304,35 +313,35 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           tenant = query.tenant;
           if (
             snapshot.tenants.includes(query.tenant) ||
-            options.endpoint === undefined
+            (options.snapshotUrl === undefined &&
+              options.endpoint === undefined)
           ) {
             instance = fromSnapshot(snapshot, compact({ tenant }));
             storeStatus = 'ready';
+            options.onSnapshot?.(snapshot, tenant);
             emit();
             return;
           }
         }
-        if (options.endpoint === undefined) {
+        const source = options.snapshotUrl ?? options.endpoint;
+        if (source === undefined) {
           return;
         }
         storeStatus = 'stale';
         emit();
         try {
-          const href = new URL(options.endpoint, 'https://permdock.local');
+          const href = new URL(source, 'https://permdock.local');
           if (query?.tenant !== undefined) {
             href.searchParams.set('tenant', query.tenant);
           }
-          const response = await fetchImpl(
-            `${options.endpoint}${href.search}`,
-            {
-              method: 'GET',
-              credentials: 'include',
-              headers: {
-                accept: 'application/json',
-                ...options.headers,
-              },
+          const response = await fetchImpl(`${source}${href.search}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              accept: 'application/json',
+              ...options.headers,
             },
-          );
+          });
           if (!response.ok) {
             throw new Error('refresh failed');
           }
@@ -341,6 +350,17 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           storeStatus = 'stale';
           emit();
         }
+      },
+      clear(): void {
+        answers.clear();
+        inflight.clear();
+        queued = [];
+        tenant = options.tenant;
+        snapshot = emptySnapshot();
+        instance = fromSnapshot(snapshot, compact({ tenant }));
+        storeStatus = 'server-only';
+        options.onClear?.();
+        emit();
       },
       subscribe(listener: () => void): () => void {
         listeners.add(listener);
@@ -371,6 +391,12 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       };
     },
     permissionState,
+    replace(value: unknown): void {
+      applyParsed(value);
+    },
+    snapshot(): SnapshotV2 {
+      return snapshot;
+    },
     async requestApproval(decision: Decision, note?: string): Promise<void> {
       if (
         decision.outcome !== 'approval-required' ||

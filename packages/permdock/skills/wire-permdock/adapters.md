@@ -171,6 +171,16 @@ const { describe, securitySchemes, overlay } = createPermDock(policy, {
 
 `describe(permission)` returns `security` plus `x-permdock-permissions`. `overlay({ version: '1.2' })` emits the pinned Overlay 1.2 draft. `target: '3.3'` emits the pinned Security Profile draft next to `x-permdock-securityProfile`. `scheme.type: 'gnap'` throws and emits nothing. CLI: `permdock openapi emit --doc openapi.json`.
 
+## React Native — `permdock/react-native`
+
+No factory. Same hooks and `<Protected>` as `permdock/react`, plus `storage` so Expo Router `Stack.Protected` can answer on the first frame:
+
+```ts
+import { PermDockProvider, usePermission } from 'permdock/react-native';
+```
+
+`storage` is `{ getItem, setItem, removeItem }` (MMKV, SecureStore, AsyncStorage). `snapshotUrl` revalidates in the background. `permdock.clear()` drops the persisted snapshot on sign-out. Do not import `policy.ts` on the client.
+
 ## Planned adapters
 
-Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte, Solid, and React Native follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, Vue, Svelte and Solid follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

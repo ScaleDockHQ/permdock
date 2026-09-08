@@ -3,7 +3,7 @@ title: React Native
 description: permdock/react-native adds a persisted snapshot so Expo Router Stack.Protected and Tabs.Protected guards answer synchronously on the first frame and revalidate in the background.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 ## Purpose
@@ -34,7 +34,8 @@ import { permissions } from '@/permissions'
 | `storage` | Any object with `getItem`, `setItem`, `removeItem` (MMKV, `expo-secure-store`, AsyncStorage). Synchronous stores answer on the first frame; asynchronous stores answer on the second frame with `status: 'pending'` in between. |
 | `snapshotUrl` | Where to fetch a fresh snapshot after launch and on `refresh()`. The request carries the app's session token through the `headers` or `fetch` option. |
 | `endpoint` | Same batched decision endpoint as React, for closure grants. |
-| `revalidate` | `'launch'` (default), `'focus'` (also on app foreground) or a number of seconds. |
+| `revalidate` | `'launch'` (default), `'focus'` (also on app foreground when `subscribeForeground` is set) or a number of seconds. |
+| `subscribeForeground` | Optional `(listener) => unsubscribe` for `revalidate: 'focus'`. Pass `AppState.addEventListener('change', ...)` from `react-native` so the snapshot refreshes when the app returns to the foreground. |
 | `usePermission`, `usePermDock`, `Protected` | Identical to `permdock/react`; `status` gains no new values, `stale` covers the persisted-but-revalidating case. |
 | `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject` | Identical to `permdock/react` ([UI](/docs/concepts/ui)). `useTenant().switchTo` persists the chosen tenant next to the snapshot so the app reopens in the same organisation; with `tenants: 'all'` in the persisted snapshot the switch works offline, otherwise it queues a `refresh({ tenant })` for the next connection and reports `status: 'pending'`. |
 

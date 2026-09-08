@@ -411,6 +411,28 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  apps/examples/expo:
+    dependencies:
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.18
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   apps/examples/hono:
     dependencies:
       hono:

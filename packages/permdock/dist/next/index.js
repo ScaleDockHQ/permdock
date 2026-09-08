@@ -1,6 +1,6 @@
 import { t as compact } from "../compact-CxCColYy.js";
 import { t as createPermDock$1 } from "../permdock-D6_3ggIk.js";
-import { t as PermDockProvider } from "../provider-CT6XmCZL.js";
+import { t as PermDockProvider } from "../provider-RV3vPPzB.js";
 import { n as createEvaluationsHandler } from "../evaluations-DrCAt2dS.js";
 import { cache } from "react";
 import { jsx } from "react/jsx-runtime";

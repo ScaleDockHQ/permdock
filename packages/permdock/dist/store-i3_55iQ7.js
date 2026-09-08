@@ -1,8 +1,7 @@
 import { n as parseSnapshot, s as nowSeconds } from "./snapshot-CEl3OGkJ.js";
 import { t as compact } from "./compact-CxCColYy.js";
 import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-DkXlqQII.js";
-import { createContext, useMemo } from "react";
-import { jsx } from "react/jsx-runtime";
+import { createContext } from "react";
 //#region src/react/context.ts
 const PermDockStoreContext = createContext(null);
 //#endregion
@@ -52,6 +51,7 @@ function createClientStore(options) {
 		snapshot = next;
 		instance = fromSnapshot(snapshot, compact({ tenant }));
 		storeStatus = isStale() ? "stale" : "ready";
+		options.onSnapshot?.(next, tenant);
 		emit();
 	};
 	const isStale = () => {
@@ -222,20 +222,22 @@ function createClientStore(options) {
 			async refresh(query) {
 				if (query?.tenant !== void 0) {
 					tenant = query.tenant;
-					if (snapshot.tenants.includes(query.tenant) || options.endpoint === void 0) {
+					if (snapshot.tenants.includes(query.tenant) || options.snapshotUrl === void 0 && options.endpoint === void 0) {
 						instance = fromSnapshot(snapshot, compact({ tenant }));
 						storeStatus = "ready";
+						options.onSnapshot?.(snapshot, tenant);
 						emit();
 						return;
 					}
 				}
-				if (options.endpoint === void 0) return;
+				const source = options.snapshotUrl ?? options.endpoint;
+				if (source === void 0) return;
 				storeStatus = "stale";
 				emit();
 				try {
-					const href = new URL(options.endpoint, "https://permdock.local");
+					const href = new URL(source, "https://permdock.local");
 					if (query?.tenant !== void 0) href.searchParams.set("tenant", query.tenant);
-					const response = await fetchImpl(`${options.endpoint}${href.search}`, {
+					const response = await fetchImpl(`${source}${href.search}`, {
 						method: "GET",
 						credentials: "include",
 						headers: {
@@ -249,6 +251,17 @@ function createClientStore(options) {
 					storeStatus = "stale";
 					emit();
 				}
+			},
+			clear() {
+				answers.clear();
+				inflight.clear();
+				queued = [];
+				tenant = options.tenant;
+				snapshot = emptySnapshot();
+				instance = fromSnapshot(snapshot, compact({ tenant }));
+				storeStatus = "server-only";
+				options.onClear?.();
+				emit();
 			},
 			subscribe(listener) {
 				listeners.add(listener);
@@ -276,6 +289,12 @@ function createClientStore(options) {
 			};
 		},
 		permissionState,
+		replace(value) {
+			applyParsed(value);
+		},
+		snapshot() {
+			return snapshot;
+		},
 		async requestApproval(decision, note) {
 			if (decision.outcome !== "approval-required" || snapshot.simulated === true) return;
 			const href = options.approvals ?? options.endpoint;
@@ -298,31 +317,4 @@ function createClientStore(options) {
 	};
 }
 //#endregion
-//#region src/react/provider.tsx
-function PermDockProvider(props) {
-	const store = useMemo(() => createClientStore(compact({
-		snapshot: props.snapshot,
-		endpoint: props.endpoint,
-		approvals: props.approvals,
-		tenant: props.tenant,
-		fetch: props.fetch,
-		headers: props.headers,
-		maxAge: props.maxAge,
-		verifier: props.verifier
-	})), [
-		props.snapshot,
-		props.endpoint,
-		props.approvals,
-		props.tenant,
-		props.fetch,
-		props.headers,
-		props.maxAge,
-		props.verifier
-	]);
-	return /* @__PURE__ */ jsx(PermDockStoreContext, {
-		value: store,
-		children: props.children
-	});
-}
-//#endregion
-export { PermDockStoreContext as n, PermDockProvider as t };
+export { PermDockStoreContext as n, createClientStore as t };

@@ -23,6 +23,7 @@ export type ClientPermDock = PermDock & {
   status(permission?: Permission, data?: unknown): ClientStatus;
   invalidate(ref: Permission | { readonly [key: string]: unknown }): void;
   refresh(options?: { readonly tenant?: string }): Promise<void>;
+  clear(): void;
   subscribe(listener: () => void): () => void;
 };
 

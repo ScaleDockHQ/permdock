@@ -6,6 +6,7 @@ export default defineConfig({
     'src/approvals/index.ts',
     'src/jwt/index.ts',
     'src/react/index.ts',
+    'src/react-native/index.ts',
     'src/next/index.ts',
     'src/next/plugin.ts',
     'src/server/index.ts',

@@ -12,6 +12,7 @@ export const ENTRIES = {
   './approvals': 'approvals/index.js',
   './jwt': 'jwt/index.js',
   './react': 'react/index.js',
+  './react-native': 'react-native/index.js',
   './next': 'next/index.js',
   './server': 'server/index.js',
   './hono': 'hono/index.js',
@@ -27,7 +28,7 @@ export const ENTRIES = {
 export type Entry = keyof typeof ENTRIES;
 
 export const WINTERTC_ENTRIES = ['.', './server', './react'] as const;
-export const CLIENT_ENTRIES = ['./react'] as const;
+export const CLIENT_ENTRIES = ['./react', './react-native'] as const;
 
 const RELATIVE_IMPORT =
   /(?:from|import)\s*['"](\.\.?\/[^'"]+)['"]|import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/gu;
