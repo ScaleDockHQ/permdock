@@ -3,22 +3,22 @@ title: skills
 description: Install the wire-permdock and audit-permissions Agent Skills from the permdock package or from skills.sh.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 PermDock ships two Agent Skills so a coding agent can wire and audit permissions without reading library source. Skills follow the `SKILL.md` format governed by the Agentic AI Foundation, are published on [skills.sh](https://skills.sh), and are bundled in the `permdock` npm package under `skills/` so the version an agent reads always matches the version the app runs. See [Agent docs standards](/docs/standards/agent-docs-standards).
 
-## Install
+`permdock skills install` lands with `@permdock/cli`. Until then, install from skills.sh or copy `node_modules/permdock/skills/` into the folders your agent reads.
 
-Either path works; both write the same files.
+## Install
 
 ```bash
 # from skills.sh (no PermDock install required)
 npx skills add ScaleDockHQ/PermDock
 
-# from the installed permdock package
+# after @permdock/cli ships
 pnpm exec permdock skills install
-pnpm exec permdock skills install --agent cursor --agent claude   # choose target folders
+pnpm exec permdock skills install --agent cursor --agent claude
 pnpm exec permdock skills list
 pnpm exec permdock skills update
 ```

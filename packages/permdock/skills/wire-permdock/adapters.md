@@ -1,0 +1,129 @@
+# Adapter factories
+
+Every server and agent adapter exports `createPermDock`. The import path names the framework. React has no factory: it exports hooks and `<Protected>` from `permdock/react`.
+
+## Next.js — `permdock/next`
+
+File: `src/permdock/server.ts`
+
+```ts
+import { createPermDock } from 'permdock/next';
+import { policy } from '../policy';
+
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
+  createPermDock(policy, {
+    subject: async () => getUser(),
+  });
+```
+
+Guard with `getPermission(permissions.post.update, post)` or `assert`. Client components use `permdock/react` inside the server `PermDockProvider`.
+
+## Hono — `permdock/hono`
+
+```ts
+import { createPermDock } from 'permdock/hono';
+
+export const { permdock, protect, permdockHandler } = createPermDock(policy, {
+  subject: (c) => c.get('user'),
+});
+
+app.use('*', permdock());
+app.delete(
+  '/posts/:id',
+  protect(permissions.post.delete, (c) => loadPost(c)),
+  handler,
+);
+```
+
+## React (Vite) — `permdock/react`
+
+No factory. The server builds a snapshot (`permdock.snapshot()` or `fromSnapshot` on a Snapshot v2 JSON) and the client wraps the tree:
+
+```ts
+import { PermDockProvider, Protected, usePermission } from 'permdock/react';
+```
+
+`permissions.ts` may be imported on the client. `policy.ts` may not.
+
+## AI SDK — `permdock/ai-sdk`
+
+```ts
+import { createPermDock } from 'permdock/ai-sdk';
+
+export const { toolApproval, capabilityMiddleware, needsApproval } =
+  createPermDock(policy, {
+    subject: ({ runtimeContext }) => runtimeContext.user,
+    actor: ({ runtimeContext }) => ({
+      id: runtimeContext.agentId,
+      kind: 'ai-sdk',
+    }),
+    tools: {
+      delete_post: {
+        permission: permissions.post.delete,
+        data: (args) => loadPost(args.id),
+      },
+    },
+  });
+```
+
+Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `capabilityMiddleware`. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`.
+
+## Claude Agent SDK — `permdock/claude-agent`
+
+```ts
+import { createPermDock } from 'permdock/claude-agent';
+
+export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
+  subject: () => user,
+  actor: () => ({ id: 'claude', kind: 'claude-agent' }),
+  tools: {
+    delete_post: {
+      permission: permissions.post.delete,
+      data: (args) => loadPost(args),
+    },
+  },
+});
+```
+
+`canUseTool` returns `{ behavior: 'allow', updatedInput }`, `{ behavior: 'deny', message }`, or `null` while approval is pending. Resume with `token` / `approval` on the context.
+
+## Eve — `permdock/eve`
+
+```ts
+import { createPermDock } from 'permdock/eve';
+
+export const { approval, approvalFor, permdock } = createPermDock(policy, {
+  tools: {
+    delete_post: {
+      permission: permissions.post.delete,
+      data: (args) => loadPost(args),
+    },
+  },
+});
+```
+
+Default subject/actor read `session.auth.initiator` / `current`. `approval.request` maps granted to Eve's `not-applicable` (continue), approval-required to `user-approval`, denied to `{ type: 'denied', reason }`.
+
+## OpenAI Agents SDK — `permdock/openai`
+
+```ts
+import { createPermDock } from 'permdock/openai';
+
+export const { needsApproval, guardTools, resolveInterruptions, permdock } =
+  createPermDock(policy, {
+    subject: (ctx) => ctx.user,
+    actor: (ctx) => ({ id: ctx.agentId, kind: 'openai' }),
+    tools: {
+      delete_post: {
+        permission: permissions.post.delete,
+        data: (args) => loadPost(args),
+      },
+    },
+  });
+```
+
+`needsApproval` is true unless the decision is granted. `guardTools` drops tools with no grant. `resolveInterruptions` approves or rejects each pause.
+
+## Planned adapters
+
+Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, MCP, Vue, Svelte, Solid, and React Native follow the same factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

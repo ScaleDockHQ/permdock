@@ -4,7 +4,8 @@
   "description": "Typed permissions for TypeScript apps, APIs, databases, and AI agents.",
   "license": "MIT",
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "type": "module",
   "sideEffects": false,
