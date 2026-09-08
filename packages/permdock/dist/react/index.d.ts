@@ -1,6 +1,6 @@
-import { D as Principal, E as Membership, m as TokenVerifier, u as SnapshotV2, w as Delegation, y as Actor } from "../interfaces-D45oN5-b.js";
-import { T as Permission, n as Decision } from "../decision-JylG_mtz.js";
-import { d as describe, r as PermDock } from "../permdock-DQYQWaf9.js";
+import { M as Principal, j as Membership, k as Delegation, m as TokenVerifier, u as SnapshotV2, w as Actor } from "../interfaces-CnUn1fRe.js";
+import { T as Permission, n as Decision } from "../decision-B2jL7xrt.js";
+import { d as describe, r as PermDock } from "../permdock-DN6lGjHN.js";
 import { ReactElement, ReactNode } from "react";
 //#region src/react/headers.d.ts
 export declare function approvalHeaders(token: string): {

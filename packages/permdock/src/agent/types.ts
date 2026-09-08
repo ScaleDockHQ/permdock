@@ -1,0 +1,63 @@
+import type { ApprovalStore } from '../approvals/types.ts';
+import type { Decision } from '../core/decision.ts';
+import type {
+  DecisionSink,
+  MembershipSource,
+  RoleSource,
+  SnapshotSource,
+} from '../core/interfaces.ts';
+import type { Permission } from '../core/permissions.ts';
+
+export type ToolBinding = {
+  readonly permission: Permission;
+  readonly data?: (args: unknown) => unknown;
+};
+
+export type ToolMap = Readonly<Record<string, ToolBinding>>;
+
+export type AgentKernelOptions<TContext> = {
+  readonly subject: (context: TContext) => unknown;
+  readonly actor?: (context: TContext) => unknown;
+  readonly tenant?:
+    | string
+    | ((context: TContext) => string | undefined | Promise<string | undefined>);
+  readonly tools: ToolMap;
+  readonly memberships?: MembershipSource;
+  readonly customRoles?: RoleSource;
+  readonly store?: ApprovalStore;
+  readonly sink?: DecisionSink;
+  readonly snapshots?: SnapshotSource;
+  readonly adapter: string;
+};
+
+export type ToolVerdict =
+  | {
+      readonly outcome: 'granted';
+      readonly decision: Extract<Decision, { readonly outcome: 'granted' }>;
+      readonly permission: Permission;
+      readonly data: unknown;
+    }
+  | {
+      readonly outcome: 'denied';
+      readonly decision: Extract<
+        Decision,
+        { readonly outcome: 'denied' }
+      > | null;
+      readonly permission: Permission | undefined;
+      readonly reason: string;
+    }
+  | {
+      readonly outcome: 'approval-required';
+      readonly decision: Extract<
+        Decision,
+        { readonly outcome: 'approval-required' }
+      >;
+      readonly permission: Permission;
+      readonly data: unknown;
+      readonly token: string;
+      readonly summary: string;
+    };
+
+export type DecideToolOptions = {
+  readonly resumeToken?: string;
+};

@@ -36,6 +36,10 @@
     "./hono": {
       "types": "./dist/hono/index.d.ts",
       "default": "./dist/hono/index.js"
+    },
+    "./ai-sdk": {
+      "types": "./dist/ai-sdk/index.d.ts",
+      "default": "./dist/ai-sdk/index.js"
     }
   },
   "scripts": {
@@ -68,12 +72,16 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
+    "ai": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
     "next": "catalog:",
     "react": "catalog:"
   },
   "peerDependenciesMeta": {
+    "ai": {
+      "optional": true
+    },
     "hono": {
       "optional": true
     },

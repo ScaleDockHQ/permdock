@@ -1,4 +1,4 @@
-import { D as Principal, O as Subject, k as Condition, w as Delegation, y as Actor } from "./interfaces-D45oN5-b.js";
+import { M as Principal, N as Subject, k as Delegation, w as Actor, y as Condition } from "./interfaces-CnUn1fRe.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/core/permissions.d.ts
 declare const RESOURCE_BRAND: unique symbol;

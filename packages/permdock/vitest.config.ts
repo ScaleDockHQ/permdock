@@ -21,6 +21,8 @@ export default defineConfig({
         'src/next/**',
         'src/server/**',
         'src/hono/**',
+        'src/ai-sdk/**',
+        'src/agent/**',
         'src/core/from-snapshot.ts',
       ],
       thresholds: {

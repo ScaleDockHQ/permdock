@@ -1,4 +1,4 @@
-import { D as Principal, O as Subject, f as TokenFailureCause, i as JwtClaims, m as TokenVerifier, o as MembershipSource, p as TokenSigner, t as AuthEvent, y as Actor } from "../interfaces-D45oN5-b.js";
+import { M as Principal, N as Subject, f as TokenFailureCause, i as JwtClaims, m as TokenVerifier, o as MembershipSource, p as TokenSigner, t as AuthEvent, w as Actor } from "../interfaces-CnUn1fRe.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/jwt/types.d.ts
 type JwtAlgorithm = "ES256" | "PS256" | "Ed25519" | "RS256" | "HS256" | "EdDSA";

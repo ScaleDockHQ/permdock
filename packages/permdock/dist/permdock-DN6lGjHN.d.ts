@@ -1,5 +1,5 @@
-import { E as Membership, O as Subject, k as Condition, n as DecisionEvent, o as MembershipSource, p as TokenSigner, r as DecisionSink, s as RoleSource, u as SnapshotV2, w as Delegation, y as Actor } from "./interfaces-D45oN5-b.js";
-import { T as Permission, n as Decision, p as Policy } from "./decision-JylG_mtz.js";
+import { N as Subject, j as Membership, k as Delegation, n as DecisionEvent, o as MembershipSource, p as TokenSigner, r as DecisionSink, s as RoleSource, u as SnapshotV2, w as Actor, y as Condition } from "./interfaces-CnUn1fRe.js";
+import { T as Permission, n as Decision, p as Policy } from "./decision-B2jL7xrt.js";
 //#region src/core/describe.d.ts
 type DecisionDescription = {
   readonly kind: "granted" | "denied" | "approval" | "tenant" | "delegation" | "server-only";

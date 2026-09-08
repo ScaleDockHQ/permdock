@@ -1,54 +1,3 @@
-//#region src/conditions/ast.d.ts
-type ConditionRef = {
-  readonly ref: string;
-};
-type ConditionDate = {
-  readonly date: string;
-};
-type ConditionValue = string | number | boolean | null | readonly ConditionValue[] | ConditionRef | ConditionDate;
-type ComparisonOp = "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains";
-type ComparisonCondition = {
-  readonly op: ComparisonOp;
-  readonly field: string;
-  readonly value: ConditionValue;
-};
-type InCondition = {
-  readonly op: "in" | "notIn";
-  readonly field: string;
-  readonly value: readonly ConditionValue[] | ConditionRef;
-};
-type IsNullCondition = {
-  readonly op: "isNull";
-  readonly field: string;
-  readonly value: boolean;
-};
-type AndCondition = {
-  readonly op: "and";
-  readonly conditions: readonly Condition[];
-};
-type OrCondition = {
-  readonly op: "or";
-  readonly conditions: readonly Condition[];
-};
-type NotCondition = {
-  readonly op: "not";
-  readonly condition: Condition;
-};
-type MemberOfCondition = {
-  readonly op: "memberOf";
-  readonly scope: "tenant" | "team" | "resource";
-  readonly field: string;
-  readonly roles: readonly string[];
-  readonly resource?: string;
-  readonly parents?: readonly string[];
-};
-type OpaqueCondition = {
-  readonly op: "opaque";
-  readonly sql: string;
-  readonly fingerprint: string;
-};
-type Condition = ComparisonCondition | InCondition | IsNullCondition | AndCondition | OrCondition | NotCondition | MemberOfCondition | OpaqueCondition;
-//#endregion
 //#region src/core/subject.d.ts
 type JsonWebKeyLike = {
   readonly kty?: string;
@@ -119,6 +68,57 @@ type Subject<TPrincipal extends Principal = Principal> = {
   readonly session?: string;
   readonly expiresAt?: number;
 };
+//#endregion
+//#region src/conditions/ast.d.ts
+type ConditionRef = {
+  readonly ref: string;
+};
+type ConditionDate = {
+  readonly date: string;
+};
+type ConditionValue = string | number | boolean | null | readonly ConditionValue[] | ConditionRef | ConditionDate;
+type ComparisonOp = "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains";
+type ComparisonCondition = {
+  readonly op: ComparisonOp;
+  readonly field: string;
+  readonly value: ConditionValue;
+};
+type InCondition = {
+  readonly op: "in" | "notIn";
+  readonly field: string;
+  readonly value: readonly ConditionValue[] | ConditionRef;
+};
+type IsNullCondition = {
+  readonly op: "isNull";
+  readonly field: string;
+  readonly value: boolean;
+};
+type AndCondition = {
+  readonly op: "and";
+  readonly conditions: readonly Condition[];
+};
+type OrCondition = {
+  readonly op: "or";
+  readonly conditions: readonly Condition[];
+};
+type NotCondition = {
+  readonly op: "not";
+  readonly condition: Condition;
+};
+type MemberOfCondition = {
+  readonly op: "memberOf";
+  readonly scope: "tenant" | "team" | "resource";
+  readonly field: string;
+  readonly roles: readonly string[];
+  readonly resource?: string;
+  readonly parents?: readonly string[];
+};
+type OpaqueCondition = {
+  readonly op: "opaque";
+  readonly sql: string;
+  readonly fingerprint: string;
+};
+type Condition = ComparisonCondition | InCondition | IsNullCondition | AndCondition | OrCondition | NotCondition | MemberOfCondition | OpaqueCondition;
 //#endregion
 //#region src/core/interfaces.d.ts
 type RoleSource = {
@@ -294,4 +294,4 @@ type AuthEvent = {
 };
 declare function memoryRoleSource(customRoles: readonly CustomRole[]): RoleSource;
 //#endregion
-export { ConditionRef as A, CustomRole as C, Principal as D, Membership as E, MemberOfCondition as M, OpaqueCondition as N, Subject as O, Binding as S, GnapAccess as T, WhereCompiler as _, LimitStore as a, Assurance as b, SnapshotGrant as c, SubjectResolver as d, TokenFailureCause as f, VerifiedToken as g, VerificationFailure as h, JwtClaims as i, ConditionValue as j, Condition as k, SnapshotSource as l, TokenVerifier as m, DecisionEvent as n, MembershipSource as o, TokenSigner as p, DecisionSink as r, RoleSource as s, AuthEvent as t, SnapshotV2 as u, memoryRoleSource as v, Delegation as w, AuthorizationDetail as x, Actor as y };
+export { GnapAccess as A, OpaqueCondition as C, Binding as D, AuthorizationDetail as E, Principal as M, Subject as N, CustomRole as O, MemberOfCondition as S, Assurance as T, WhereCompiler as _, LimitStore as a, ConditionRef as b, SnapshotGrant as c, SubjectResolver as d, TokenFailureCause as f, VerifiedToken as g, VerificationFailure as h, JwtClaims as i, Membership as j, Delegation as k, SnapshotSource as l, TokenVerifier as m, DecisionEvent as n, MembershipSource as o, TokenSigner as p, DecisionSink as r, RoleSource as s, AuthEvent as t, SnapshotV2 as u, memoryRoleSource as v, Actor as w, ConditionValue as x, Condition as y };

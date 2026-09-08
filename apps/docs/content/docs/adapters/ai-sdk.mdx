@@ -3,7 +3,7 @@ title: AI SDK
 description: permdock/ai-sdk turns PermDock decisions into Vercel AI SDK 7 tool approvals, capability middleware and WorkflowAgent suspensions, fail-closed by construction.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 `permdock/ai-sdk` connects the [Decision](/docs/concepts/decisions) model to the approval vocabulary of the Vercel AI SDK 7: `toolApproval` on `generateText`, `streamText` and `ToolLoopAgent`, a language-model middleware that narrows the tool list before the model sees it, and `needsApproval` for `WorkflowAgent`, the one place where that option is not deprecated.

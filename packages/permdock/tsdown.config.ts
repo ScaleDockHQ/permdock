@@ -9,6 +9,7 @@ export default defineConfig({
     'src/next/index.ts',
     'src/server/index.ts',
     'src/hono/index.ts',
+    'src/ai-sdk/index.ts',
   ],
   platform: 'neutral',
   dts: true,
