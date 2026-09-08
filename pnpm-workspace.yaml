@@ -32,6 +32,7 @@ catalog:
   lefthook: 2.1.12
   lucide-react: 1.41.0
   next: 16.3.4
+  oxc-parser: 0.143.0
   oxfmt: 0.66.0
   oxlint: 1.81.0
   oxlint-tsgolint: 7.0.2001
@@ -43,6 +44,7 @@ catalog:
   tsdown: 0.23.0
   turbo: 2.10.12
   typescript: 7.0.2
+  unplugin: 2.3.10
   valibot: 1.4.2
   vitest: 5.0.0
   zod: 4.5.4

@@ -1,0 +1,56 @@
+{
+  "name": "@permdock/cli",
+  "version": "0.0.0",
+  "description": "Collect, catalog, usage, doctor and skills for PermDock. Collect-only build hooks for Next.js and unplugin bundlers.",
+  "license": "MIT",
+  "bin": {
+    "permdock": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "schemas"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./unplugin": {
+      "types": "./dist/unplugin.d.ts",
+      "default": "./dist/unplugin.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check:publish": "publint && pnpm pack --out pack.tgz && attw --profile esm-only pack.tgz && rm -f pack.tgz",
+    "test": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "oxc-parser": "catalog:",
+    "unplugin": "catalog:"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "catalog:",
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "permdock": "workspace:*",
+    "publint": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "permdock": "workspace:*"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

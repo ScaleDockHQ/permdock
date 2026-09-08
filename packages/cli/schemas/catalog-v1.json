@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.dev/schemas/catalog-v1.json",
+  "type": "object",
+  "required": ["$schema", "version", "permissions", "resources"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "generatedAt": { "type": "string" },
+    "generator": { "type": "string" },
+    "resources": { "type": "object" },
+    "permissions": { "type": "array" }
+  }
+}

@@ -1,0 +1,149 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { run } from './run.ts';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const FIXTURE = join(HERE, '../fixtures/mini-app');
+const TMP = join(HERE, '../tmp');
+const temps: string[] = [];
+
+function appCopy(): string {
+  mkdirSync(TMP, { recursive: true });
+  const dir = mkdtempSync(join(TMP, 'doctor-'));
+  temps.push(dir);
+  cpSync(FIXTURE, dir, { recursive: true });
+  return dir;
+}
+
+afterEach(() => {
+  for (const dir of temps.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function codes(stdout: string): readonly string[] {
+  const report = JSON.parse(stdout) as {
+    readonly findings: readonly { readonly code: string }[];
+  };
+  return report.findings.map((item) => item.code);
+}
+
+describe('doctor checks', () => {
+  it('PD001 reports a client file importing a server entry', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/leak.client.ts'),
+      `'use client'\nimport { createPermDock } from 'permdock/next'\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'imports'], {
+      cwd,
+    });
+    expect(result.code).toBe(1);
+    expect(codes(result.stdout)).toContain('PD001');
+  });
+
+  it('PD005 warns when skills are missing', async () => {
+    const cwd = appCopy();
+    const result = await run(['doctor', '--json', '--only', 'skills'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).toContain('PD005');
+  });
+
+  it('PD006 accepts the workspace TypeScript version', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'package.json'),
+      JSON.stringify({ name: 'mini', type: 'module' }),
+    );
+    const result = await run(['doctor', '--json', '--only', 'typescript'], {
+      cwd,
+    });
+    expect(result.stdout).not.toContain('PD006');
+  });
+
+  it('PD007 warns on validate never with an adapter import', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/never.ts'),
+      `import { createPermDock } from 'permdock/hono'\nexport const opts = { validate: 'never' }\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'validation'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).toContain('PD007');
+  });
+
+  it('PD008 warns on reserved export names', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/names.ts'),
+      `import { definePermissions } from 'permdock'\nexport const dock = definePermissions({})\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'naming'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).toContain('PD008');
+  });
+
+  it('PD013 warns on EdDSA and errors on none', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/jwt.ts'),
+      `export const opts = { algorithms: ['EdDSA', 'none'] }\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'algorithms'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).toContain('PD013');
+  });
+
+  it('PD014 errors on http discovery', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/disco.ts'),
+      `export const opts = { discovery: 'http://issuer.example' }\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'discovery'], {
+      cwd,
+    });
+    expect(result.code).toBe(1);
+    expect(codes(result.stdout)).toContain('PD014');
+  });
+
+  it('PD015 warns on accept id-token', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/accept.ts'),
+      `export const opts = { accept: 'id-token' }\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'typ'], { cwd });
+    expect(codes(result.stdout)).toContain('PD015');
+  });
+
+  it('PD010 errors on roles from user_metadata', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/claims.ts'),
+      `export const roles = claims.user_metadata.roles\nexport const tenant = claims.user_metadata.tenant\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'claims'], {
+      cwd,
+    });
+    expect(result.code).toBe(1);
+    expect(codes(result.stdout)).toContain('PD010');
+  });
+
+  it('human doctor output uses warn when --no-color', async () => {
+    const cwd = appCopy();
+    const result = await run(['doctor', '--no-color', '--only', 'skills'], {
+      cwd,
+    });
+    expect(result.stdout).toContain('warn');
+    expect(result.stdout).toContain('PD005');
+  });
+});

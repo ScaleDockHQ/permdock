@@ -8,7 +8,7 @@ Phase: 1
 
 PermDock ships two Agent Skills so a coding agent can wire and audit permissions without reading library source. Skills follow the `SKILL.md` format governed by the Agentic AI Foundation, are published on [skills.sh](https://skills.sh), and are bundled in the `permdock` npm package under `skills/` so the version an agent reads always matches the version the app runs. See [Agent docs standards](/docs/standards/agent-docs-standards).
 
-`permdock skills install` lands with `@permdock/cli`. Until then, install from skills.sh or copy `node_modules/permdock/skills/` into the folders your agent reads.
+`permdock skills install` copies the bundled skills from `node_modules/permdock/skills/` into the folders your agent reads. You can still install from skills.sh.
 
 ## Install
 

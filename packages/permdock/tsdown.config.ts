@@ -7,6 +7,7 @@ export default defineConfig({
     'src/jwt/index.ts',
     'src/react/index.ts',
     'src/next/index.ts',
+    'src/next/plugin.ts',
     'src/server/index.ts',
     'src/hono/index.ts',
     'src/ai-sdk/index.ts',

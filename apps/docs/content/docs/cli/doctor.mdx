@@ -3,8 +3,8 @@ title: doctor
 description: "Diagnose a PermDock installation: server-only imports in client entries, unknown references, ungranted permissions, stale catalogs, roles or tenants read from unverified claims, missing skills and the TypeScript version."
 ---
 
-Status: planned
-Phase: 2
+Status: shipped
+Phase: 1
 
 `permdock doctor` runs every check PermDock knows how to make about a repository and prints a report with a fix for each finding. It is the first command an agent runs after wiring PermDock and the last one before opening a pull request. Findings have stable codes so skills and CI can reference them.
 

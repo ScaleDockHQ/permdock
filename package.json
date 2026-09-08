@@ -11,6 +11,7 @@
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
     "lint": "oxlint .",
+    "permdock": "permdock",
     "prepare": "node -e \"process.env.VERCEL ? process.exit(0) : require('node:child_process').execSync('lefthook install', { stdio: 'inherit' })\"",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
@@ -20,6 +21,7 @@
     "@commitlint/cli": "catalog:",
     "@commitlint/config-conventional": "catalog:",
     "@commitlint/types": "catalog:",
+    "@permdock/cli": "workspace:*",
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",

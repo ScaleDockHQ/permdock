@@ -3,8 +3,8 @@ title: Next.js plugin
 description: createPermDockPlugin runs permdock collect during next dev and next build; it is a build hook only and never wires the PermDock API.
 ---
 
-Status: planned
-Phase: 2
+Status: shipped
+Phase: 1
 
 `createPermDockPlugin` is exported from `permdock/next/plugin` and wraps `next.config.ts`. Its only job is to run [collect](/docs/cli/collect) while Next.js runs, the way next-intl's loader keeps extracted message catalogs in sync during development. It does not alias modules, does not augment types and does not create a `PermDock` instance. API wiring is the explicit factory file described in [0006: Explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin).
 

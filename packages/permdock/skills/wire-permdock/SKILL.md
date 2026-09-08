@@ -83,6 +83,6 @@ Done when that path cannot run without a `granted` decision, and a deny or appro
 
 Run `permdock collect`, `permdock usage`, and `permdock doctor` when `@permdock/cli` is installed. Add `permdock collect --check` to CI.
 
-Until the CLI is in the repo, typecheck the three files and add a policy-matrix test with `@permdock/testing` when that package is a dependency.
+If the CLI is not installed, typecheck the three files and add a policy-matrix test with `@permdock/testing`.
 
 Done when collect/doctor findings are fixed, or the typecheck and one matrix test pass.

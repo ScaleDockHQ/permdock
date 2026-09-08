@@ -3,8 +3,8 @@ title: usage
 description: Report permissions that are defined but never used, used but never granted, or granted by no role.
 ---
 
-Status: planned
-Phase: 2
+Status: shipped
+Phase: 1
 
 `permdock usage` cross-references three sets: the permissions the definition declares, the permissions the code checks, and the permissions the policy grants. Gaps between them are either dead code or security bugs, and both are cheap to catch in CI.
 

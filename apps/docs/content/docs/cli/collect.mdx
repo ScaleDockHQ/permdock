@@ -3,8 +3,8 @@ title: collect
 description: Scan source paths for definePermissions() calls and permission usages, write the catalog and generated barrel, and fail CI on drift.
 ---
 
-Status: planned
-Phase: 2
+Status: shipped
+Phase: 1
 
 `permdock collect` is the build step that turns colocated permission definitions into a central catalog. It is modelled on next-intl's `useExtracted` extraction: the source of truth is the code where permissions are declared and used, and the catalog is a compile output that is checked in and kept fresh by tooling. See [next-intl extraction model](/docs/research/next-intl-extraction-model) and [Larger apps](/docs/getting-started/larger-apps).
 
