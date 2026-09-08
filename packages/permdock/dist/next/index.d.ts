@@ -3,6 +3,7 @@ import { s as ApprovalStore } from "../types-DwRNNTg4.js";
 import { n as Decision } from "../decision-Cjr-7xoX.js";
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
 import { r as PermDock } from "../permdock-CSDl61mA.js";
+import { a as OtelOptions } from "../types-BLf_FU5J.js";
 import { ReactElement, ReactNode } from "react";
 //#region src/next/types.d.ts
 type NextSubjectInput = unknown;
@@ -16,6 +17,7 @@ type NextPermDockOptions<TUser = NextSubjectInput> = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
+  readonly otel?: OtelOptions;
   readonly endpoint?: string;
 };
 type GetPermDockQuery = {

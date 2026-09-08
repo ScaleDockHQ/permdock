@@ -14,6 +14,7 @@ import type {
 
 import { compact } from '../core/compact.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
+import { applyOtel } from '../otel/instrument.ts';
 import { createHandler } from './handler.ts';
 import { renderClientProvider } from './provider.tsx';
 
@@ -97,15 +98,18 @@ export function createPermDock(
   const instantiate = cache(async (tenantKey: string): Promise<PermDock> => {
     const tenant = tenantKey === '' ? undefined : tenantKey;
     const user = await resolveSubject();
-    const instance = await createCorePermDock(
-      policy,
-      user,
-      compact({
-        tenant,
-        memberships: options.memberships,
-        customRoles: options.customRoles,
-        sink: options.sink,
-      }),
+    const instance = applyOtel(
+      await createCorePermDock(
+        policy,
+        user,
+        compact({
+          tenant,
+          memberships: options.memberships,
+          customRoles: options.customRoles,
+          sink: options.sink,
+        }),
+      ),
+      options.otel,
     );
     return wrapInstance(instance, options.onDenied);
   });

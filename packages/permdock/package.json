@@ -126,6 +126,10 @@
     "./a2a": {
       "types": "./dist/a2a/index.d.ts",
       "default": "./dist/a2a/index.js"
+    },
+    "./otel": {
+      "types": "./dist/otel/index.d.ts",
+      "default": "./dist/otel/index.js"
     }
   },
   "scripts": {

@@ -1,5 +1,6 @@
-import { t as compact } from "../compact-CxCColYy.js";
-import { t as createPermDock$1 } from "../create-W1iLgnQz.js";
+import { t as compact } from "../compact-CxSqQNw0.js";
+import { t as applyOtel } from "../instrument-C8d4LNIv.js";
+import { t as createPermDock$1 } from "../create-BPNB9OJt.js";
 import { Hono } from "hono";
 //#region src/hono/create.ts
 function createPermDock(policy, options) {
@@ -18,7 +19,8 @@ function createPermDock(policy, options) {
 		customRoles: options.customRoles,
 		store: options.store,
 		sink: options.sink,
-		snapshots: options.snapshots
+		snapshots: options.snapshots,
+		wrap: (dock) => applyOtel(dock, options.otel)
 	}));
 	const bind = (c) => {
 		const raw = c.req.raw;

@@ -1,7 +1,8 @@
 import { o as Policy, v as Permission } from "../policy-CL40bNGn.js";
 import { s as ApprovalStore } from "../types-DwRNNTg4.js";
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
-import { n as OpenApiHooks } from "../create-Bq_Kb-Em.js";
+import { a as OtelOptions } from "../types-BLf_FU5J.js";
+import { n as OpenApiHooks } from "../create-YivrumEU.js";
 import { Context, Hono, MiddlewareHandler } from "hono";
 //#region src/hono/create.d.ts
 type HonoPermDockOptions = {
@@ -12,6 +13,7 @@ type HonoPermDockOptions = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
+  readonly otel?: OtelOptions;
 };
 type HonoPermDock = {
   readonly permdock: () => MiddlewareHandler;

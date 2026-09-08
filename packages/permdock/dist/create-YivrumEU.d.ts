@@ -59,6 +59,8 @@ type ServerPermDock = {
   readonly openapi: OpenApiHooks;
   readonly handler: () => ReturnType<typeof createEvaluationsHandler>;
 };
-declare function createPermDock(policy: Policy, options: ServerPermDockOptions): ServerPermDock;
+declare function createPermDock(policy: Policy, options: ServerPermDockOptions & {
+  readonly wrap?: (dock: PermDock) => PermDock;
+}): ServerPermDock;
 //#endregion
 export { createPermDock as a, ServerPermDockOptions as i, OpenApiHooks as n, createEvaluationsHandler as o, ServerPermDock as r, Guard as t };

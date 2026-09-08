@@ -7,11 +7,14 @@ import type {
   RoleSource,
   SnapshotSource,
 } from '../core/interfaces.ts';
+import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 
 import { compact } from '../core/compact.ts';
+import { applyOtel } from '../otel/instrument.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
 
 export type HonoPermDockOptions = {
@@ -24,6 +27,7 @@ export type HonoPermDockOptions = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
+  readonly otel?: OtelOptions;
 };
 
 export type HonoPermDock = {
@@ -63,6 +67,7 @@ export function createPermDock(
       store: options.store,
       sink: options.sink,
       snapshots: options.snapshots,
+      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),
   );
 

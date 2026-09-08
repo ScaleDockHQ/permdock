@@ -400,6 +400,18 @@ export const { agentCard, extendedAgentCard, protectSkill } = createPermDock(
 
 Identity comes from transport auth, never the task body.
 
+## OpenTelemetry — `permdock/otel`
+
+```ts
+import { instrument } from 'permdock/otel';
+
+instrument(permdock, {
+  logger: { info: console.info, warn: console.warn },
+});
+```
+
+HTTP adapters accept the same options as `otel`. `@opentelemetry/api` is optional; without it the adapter writes only through `logger`.
+
 ## Planned adapters
 
-Remaining Phase 2 adapters (`otel`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Remaining Phase 2 adapters (`scim`, `cloud`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

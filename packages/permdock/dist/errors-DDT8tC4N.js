@@ -1,4 +1,4 @@
-import { t as compact } from "./compact-CxCColYy.js";
+import { t as compact } from "./compact-CxSqQNw0.js";
 //#region src/core/errors.ts
 const PROBLEM_BASE = "https://permdock.dev/problems";
 var PermDockDeniedError = class extends Error {

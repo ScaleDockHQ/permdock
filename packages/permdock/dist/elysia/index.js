@@ -1,7 +1,8 @@
-import { t as compact } from "../compact-CxCColYy.js";
-import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-Q-hDyBns.js";
-import { a as problemResponse } from "../evaluations-DSadx8RS.js";
-import { t as createPermDock$1 } from "../create-W1iLgnQz.js";
+import { t as compact } from "../compact-CxSqQNw0.js";
+import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
+import { t as applyOtel } from "../instrument-C8d4LNIv.js";
+import { a as problemResponse } from "../evaluations-BMhJ7c5n.js";
+import { t as createPermDock$1 } from "../create-BPNB9OJt.js";
 import { Elysia } from "elysia";
 //#region src/elysia/create.ts
 function createPermDock(policy, options) {
@@ -21,7 +22,8 @@ function createPermDock(policy, options) {
 		customRoles: options.customRoles,
 		store: options.store,
 		sink: options.sink,
-		snapshots: options.snapshots
+		snapshots: options.snapshots,
+		wrap: (dock) => applyOtel(dock, options.otel)
 	}));
 	const bind = (ctx) => {
 		const hit = bound.get(ctx);

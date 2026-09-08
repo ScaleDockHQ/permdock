@@ -3,8 +3,9 @@ title: OpenTelemetry
 description: permdock/otel records a span and a counter per permission check with decision attributes, behind a structural logger interface, with @opentelemetry/api as an optional dependency that is never required.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
+Draft posture: build (OpenTelemetry GenAI semantic conventions 1.37.0; copies `gen_ai.tool.name` and `gen_ai.tool.call.id` only)
 
 `permdock/otel` subscribes to `permdock.on('decision')` and emits one span per check plus a decision counter, carrying the outcome, permission key, resource id and actor as attributes. It depends on `@opentelemetry/api` only if the host app already has it installed; without it, the adapter degrades to the structural logger interface and nothing else changes.
 
@@ -72,7 +73,7 @@ The adapter never awaits: recording is synchronous and cannot delay a decision.
 
 ## Example app
 
-None. The Hono example (`apps/examples/hono`) and the MCP example (`apps/examples/mcp-server`) enable `otel` and ship a console exporter configuration so traces are visible locally.
+None. The Hono example (`apps/examples/hono`) and the MCP example (`apps/examples/mcp-server`) enable `otel` with a structural logger so decision lines are recorded locally without requiring `@opentelemetry/api`.
 
 ## Related standards
 

@@ -10,6 +10,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
+import type { OtelOptions } from '../otel/types.ts';
 
 export type NextSubjectInput = unknown;
 
@@ -25,6 +26,7 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
+  readonly otel?: OtelOptions;
   readonly endpoint?: string;
 };
 

@@ -1,5 +1,5 @@
 import { i as ownKeys, n as isForbiddenKey, t as assertSafeKey } from "./paths-AH4M6YYV.js";
-import { n as freezeDeep } from "./compact-CxCColYy.js";
+import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 //#region src/core/permissions.ts
 const RESOURCE_BRAND = Symbol.for("permdock.resource");
 const TREE_REGISTRY = Symbol.for("permdock.registry");

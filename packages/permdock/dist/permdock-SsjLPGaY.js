@@ -1,7 +1,8 @@
-import { c as resolveActiveTenant, i as decisionToken, l as tenantsOf, o as matchScopedMembership, r as signSnapshot, s as nowSeconds, t as buildSnapshot, u as evaluateCondition } from "./snapshot-N9NikhGh.js";
-import { n as freezeDeep, t as compact } from "./compact-CxCColYy.js";
-import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-Q-hDyBns.js";
-import { i as getResource, o as listPermissions } from "./permissions-HC1OYNNj.js";
+import { c as resolveActiveTenant, i as decisionToken, l as tenantsOf, o as matchScopedMembership, r as signSnapshot, s as nowSeconds, t as buildSnapshot, u as evaluateCondition } from "./snapshot-BU5LeJK_.js";
+import { t as freezeDeep } from "./freeze-BF4IK5al.js";
+import { t as compact } from "./compact-CxSqQNw0.js";
+import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
+import { i as getResource, o as listPermissions } from "./permissions-WEkUHQtZ.js";
 import { n as isPrincipal, r as isSubject, t as anonymousSubject } from "./subject-Dz8DcVLC.js";
 //#region src/core/validation.ts
 function isThenable$1(value) {

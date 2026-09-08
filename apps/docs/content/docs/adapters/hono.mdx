@@ -83,7 +83,7 @@ const route = createRoute({
 
 ## Example app
 
-`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts` for `pnpm start`. `tests/e2e` smokes both routes over Playwright's request fixture. OpenAPI hooks and the decision endpoint land with later Phase 2 examples.
+`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts` for `pnpm start`. The factory enables `otel` with a structural logger so decision lines are recorded locally. `tests/e2e` smokes both routes over Playwright's request fixture. OpenAPI hooks and the decision endpoint land with later Phase 2 examples.
 
 ## Related standards
 

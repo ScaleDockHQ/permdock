@@ -1,5 +1,6 @@
 import { a as readPath, n as isForbiddenKey, r as ownGet } from "./paths-AH4M6YYV.js";
-import { n as freezeDeep, t as compact } from "./compact-CxCColYy.js";
+import { t as freezeDeep } from "./freeze-BF4IK5al.js";
+import { t as compact } from "./compact-CxSqQNw0.js";
 import { n as sha256, t as bytesToBase64Url } from "./sha256-CeSpVRME.js";
 //#region src/conditions/ast.ts
 function isConditionRef(value) {

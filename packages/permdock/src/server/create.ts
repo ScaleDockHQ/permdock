@@ -82,7 +82,9 @@ async function resolveTenant(
 
 export function createPermDock(
   policy: Policy,
-  options: ServerPermDockOptions,
+  options: ServerPermDockOptions & {
+    readonly wrap?: (dock: PermDock) => PermDock;
+  },
 ): ServerPermDock {
   const cache = new WeakMap<Request, Promise<PermDock>>();
 
@@ -99,7 +101,7 @@ export function createPermDock(
         user = null;
       }
       const tenant = await resolveTenant(options.tenant, request);
-      return createCorePermDock(
+      const dock = await createCorePermDock(
         policy,
         user,
         compact({
@@ -109,6 +111,7 @@ export function createPermDock(
           sink: options.sink,
         }),
       );
+      return options.wrap === undefined ? dock : options.wrap(dock);
     })();
     cache.set(request, built);
     return built;

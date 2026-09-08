@@ -1,7 +1,7 @@
-import { t as compact } from "../compact-CxCColYy.js";
 import { t as describe } from "../describe-BnKr1Gwo.js";
-import { r as PermDockValidationError } from "../errors-Q-hDyBns.js";
-import { a as isRegistryTree, o as listPermissions, r as getRegistry } from "../permissions-HC1OYNNj.js";
+import { t as compact } from "../compact-CxSqQNw0.js";
+import { r as PermDockValidationError } from "../errors-DDT8tC4N.js";
+import { a as isRegistryTree, o as listPermissions, r as getRegistry } from "../permissions-WEkUHQtZ.js";
 //#region src/webmcp/register.ts
 const MISSING_CONTEXT = "permdock/webmcp: document.modelContext is absent; registerTools is a no-op.";
 function isRecord(value) {

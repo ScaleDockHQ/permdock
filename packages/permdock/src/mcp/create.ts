@@ -22,6 +22,7 @@ import { compact } from '../core/compact.ts';
 import { describe } from '../core/describe.ts';
 import { PermDockValidationError } from '../core/errors.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
+import { applyOtel } from '../otel/instrument.ts';
 import { InsufficientScopeError } from './errors.ts';
 
 type RegisteredTool = {
@@ -343,17 +344,20 @@ export function createPermDock(
       typeof authInfo.clientId === 'string' && authInfo.clientId !== ''
         ? { id: authInfo.clientId, kind: 'mcp-client' as const }
         : undefined;
-    return createCorePermDock(
-      policy,
-      user,
-      compact({
-        tenant,
-        actor,
-        delegation: delegationOf(authInfo),
-        memberships: options.memberships,
-        customRoles: options.customRoles,
-        sink: options.sink,
-      }),
+    return applyOtel(
+      await createCorePermDock(
+        policy,
+        user,
+        compact({
+          tenant,
+          actor,
+          delegation: delegationOf(authInfo),
+          memberships: options.memberships,
+          customRoles: options.customRoles,
+          sink: options.sink,
+        }),
+      ),
+      options.otel,
     );
   };
 

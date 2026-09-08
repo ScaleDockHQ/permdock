@@ -1,7 +1,8 @@
-import { t as compact } from "../compact-CxCColYy.js";
-import { t as createPermDock$1 } from "../permdock-DkpVpMh3.js";
-import { t as PermDockProvider } from "../provider-iIRny3Uh.js";
-import { n as createEvaluationsHandler } from "../evaluations-DSadx8RS.js";
+import { t as compact } from "../compact-CxSqQNw0.js";
+import { t as createPermDock$1 } from "../permdock-SsjLPGaY.js";
+import { t as PermDockProvider } from "../provider-Cpzsl1NJ.js";
+import { t as applyOtel } from "../instrument-C8d4LNIv.js";
+import { n as createEvaluationsHandler } from "../evaluations-BMhJ7c5n.js";
 import { cache } from "react";
 import { jsx } from "react/jsx-runtime";
 //#region src/next/provider.tsx
@@ -60,12 +61,12 @@ function createPermDock(policy, options) {
 	const instantiate = cache(async (tenantKey) => {
 		const tenant = tenantKey === "" ? void 0 : tenantKey;
 		const user = await resolveSubject();
-		return wrapInstance(await createPermDock$1(policy, user, compact({
+		return wrapInstance(applyOtel(await createPermDock$1(policy, user, compact({
 			tenant,
 			memberships: options.memberships,
 			customRoles: options.customRoles,
 			sink: options.sink
-		})), options.onDenied);
+		})), options.otel), options.onDenied);
 	});
 	const getPermDock = async (query) => {
 		const tenant = query?.tenant ?? await resolveFallbackTenant();

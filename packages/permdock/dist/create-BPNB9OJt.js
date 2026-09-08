@@ -1,7 +1,7 @@
-import { t as compact } from "./compact-CxCColYy.js";
-import { o as listPermissions } from "./permissions-HC1OYNNj.js";
-import { t as createPermDock$1 } from "./permdock-DkpVpMh3.js";
-import { a as problemResponse, i as problemFromDecision, n as createEvaluationsHandler, t as applyApprovalResume } from "./evaluations-DSadx8RS.js";
+import { t as compact } from "./compact-CxSqQNw0.js";
+import { o as listPermissions } from "./permissions-WEkUHQtZ.js";
+import { t as createPermDock$1 } from "./permdock-SsjLPGaY.js";
+import { a as problemResponse, i as problemFromDecision, n as createEvaluationsHandler, t as applyApprovalResume } from "./evaluations-BMhJ7c5n.js";
 //#region src/server/create.ts
 async function resolveTenant(tenant, request) {
 	if (tenant === void 0 || typeof tenant === "string") return tenant;
@@ -24,12 +24,13 @@ function createPermDock(policy, options) {
 				user = null;
 			}
 			const tenant = await resolveTenant(options.tenant, request);
-			return createPermDock$1(policy, user, compact({
+			const dock = await createPermDock$1(policy, user, compact({
 				tenant,
 				memberships: options.memberships,
 				customRoles: options.customRoles,
 				sink: options.sink
 			}));
+			return options.wrap === void 0 ? dock : options.wrap(dock);
 		})();
 		cache.set(request, built);
 		return built;

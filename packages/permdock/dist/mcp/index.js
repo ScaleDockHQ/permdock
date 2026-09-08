@@ -1,8 +1,9 @@
-import { t as compact } from "../compact-CxCColYy.js";
 import { t as describe } from "../describe-BnKr1Gwo.js";
-import { r as PermDockValidationError } from "../errors-Q-hDyBns.js";
-import { t as createPermDock$1 } from "../permdock-DkpVpMh3.js";
-import { r as requestApproval, t as inspectApproval } from "../helpers-BHqWg20R.js";
+import { t as compact } from "../compact-CxSqQNw0.js";
+import { r as PermDockValidationError } from "../errors-DDT8tC4N.js";
+import { t as createPermDock$1 } from "../permdock-SsjLPGaY.js";
+import { r as requestApproval, t as inspectApproval } from "../helpers-uYfiESeW.js";
+import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 //#region src/mcp/errors.ts
 var InsufficientScopeError = class extends Error {
 	name = "InsufficientScopeError";
@@ -239,14 +240,14 @@ function createPermDock(policy, options) {
 			id: authInfo.clientId,
 			kind: "mcp-client"
 		} : void 0;
-		return createPermDock$1(policy, user, compact({
+		return applyOtel(await createPermDock$1(policy, user, compact({
 			tenant,
 			actor,
 			delegation: delegationOf(authInfo),
 			memberships: options.memberships,
 			customRoles: options.customRoles,
 			sink: options.sink
-		}));
+		})), options.otel);
 	};
 	const protectServer = (server) => {
 		const registered = [];

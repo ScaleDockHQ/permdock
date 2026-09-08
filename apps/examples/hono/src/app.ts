@@ -6,8 +6,23 @@ import { createPermDock } from 'permdock/hono';
 import { ownPost, permissions } from './permissions.ts';
 import { memberUser, policy } from './policy.ts';
 
+export const otelLog: {
+  readonly message: string;
+  readonly attributes?: Record<string, unknown>;
+}[] = [];
+
 const { protect } = createPermDock(policy as Policy, {
   subject: () => memberUser,
+  otel: {
+    logger: {
+      info(message: string, attributes?: Record<string, unknown>) {
+        otelLog.push({ message, attributes });
+      },
+      warn(message: string, attributes?: Record<string, unknown>) {
+        otelLog.push({ message, attributes });
+      },
+    },
+  },
 });
 
 export const app = new Hono();

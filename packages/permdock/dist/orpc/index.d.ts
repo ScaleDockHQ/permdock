@@ -1,7 +1,7 @@
 import { o as Policy, v as Permission } from "../policy-CL40bNGn.js";
 import { s as ApprovalStore } from "../types-DwRNNTg4.js";
 import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
-import { n as OpenApiHooks } from "../create-Bq_Kb-Em.js";
+import { n as OpenApiHooks } from "../create-YivrumEU.js";
 import { AnyMiddleware } from "@orpc/server";
 //#region src/orpc/create.d.ts
 type OrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {

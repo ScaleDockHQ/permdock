@@ -1,5 +1,6 @@
-import { n as freezeDeep, t as compact } from "./compact-CxCColYy.js";
+import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as describe } from "./describe-BnKr1Gwo.js";
+import { t as compact } from "./compact-CxSqQNw0.js";
 //#region src/approvals/errors.ts
 var ApprovalError = class extends Error {
 	name = "ApprovalError";

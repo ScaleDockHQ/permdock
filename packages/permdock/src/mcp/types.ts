@@ -9,6 +9,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { AuthorizationDetail } from '../core/subject.ts';
+import type { OtelOptions } from '../otel/types.ts';
 
 export type McpAuthInfo = {
   readonly token?: string;
@@ -71,6 +72,7 @@ export type McpPermDockOptions = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
+  readonly otel?: OtelOptions;
 };
 
 export type McpPermDock = {

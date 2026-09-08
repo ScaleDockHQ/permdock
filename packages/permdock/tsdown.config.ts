@@ -55,6 +55,7 @@ export default defineConfig({
     'src/terminal/index.ts',
     'src/webmcp/index.ts',
     'src/a2a/index.ts',
+    'src/otel/index.ts',
   ],
   platform: 'neutral',
   dts: true,
