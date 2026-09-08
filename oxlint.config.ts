@@ -152,6 +152,25 @@ export default defineConfig({
     },
     {
       files: [
+        'packages/permdock/src/terminal/**/*.{ts,tsx}',
+        'apps/examples/terminal/**/*.{ts,tsx}',
+      ],
+      rules: {
+        'node/no-process-env': 'off',
+        'unicorn/no-process-exit': 'off',
+        'eslint/no-await-in-loop': 'off',
+        'eslint/max-depth': 'off',
+        'unicorn/prefer-top-level-await': 'off',
+        'eslint/require-await': 'off',
+        'typescript/require-await': 'off',
+        'typescript/no-unsafe-assignment': 'off',
+        'typescript/no-unsafe-call': 'off',
+        'typescript/no-unsafe-member-access': 'off',
+        'typescript/no-unsafe-argument': 'off',
+      },
+    },
+    {
+      files: [
         'packages/permdock/src/nest/**/*.{ts,tsx}',
         'apps/examples/nest/**/*.{ts,tsx}',
       ],

@@ -114,7 +114,7 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/hono` | `{ permdock, protect }` | `permdock()` is middleware; `protect(permission, load?)` guards a route |
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect }` | Same shape as Hono over the shared kernel |
 | `permdock/nest` | `{ PermDockModule, PermDockGuard, Protect, InjectPermDock }` | Register `PermDockGuard` as `APP_GUARD` with `useExisting` |
-| `permdock/terminal` | `{ permdock, protect, filterCommands, format }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not `@permdock/cli` |
+| `permdock/terminal` | `{ permdock, protect, filterCommands, format, exitCode }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not `@permdock/cli` |
 | `permdock/trpc` | `{ permdock, protect, permdockHandler }` | `protect` is procedure middleware; denials throw `TRPCError` |
 | `permdock/orpc` | `{ permdock, protect, permdockHandler }` | `protect` is procedure middleware; denials throw `ORPCError` |
 | `permdock/mcp` | `{ protectServer }` | `protectServer(server).registerTool(name, { permission, ... }, handler)` |

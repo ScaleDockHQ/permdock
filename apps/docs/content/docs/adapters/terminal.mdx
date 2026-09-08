@@ -3,7 +3,7 @@ title: Terminal (your own CLI)
 description: permdock/terminal puts permission checks inside command-line tools you build with commander, citty, oclif, yargs, clack or Ink, with verified subjects from device flow, keychain, env or CI tokens, sysexits exit codes and Problem Details on --json.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 Not to be confused with `@permdock/cli`. That package is PermDock's own developer tool (`permdock collect`, `permdock doctor`); this page is about the library entry you import when the command-line tool is yours and its commands need to be authorised.
@@ -242,7 +242,7 @@ Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, p
 
 ## Example app
 
-`apps/examples/terminal`: a small deploy CLI built with commander and clack with `login` (device flow against a fake authorization server), `logout` (keychain or file removal plus revocation), `status` / `deploy` / `rollback` guarded by `protect`, `--help` built through `filterCommands` in both modes, `--json` output, an approval-gated production deploy, and an agent-run mode that reads `PERMDOCK_ACTOR_TOKEN` and shows the narrowed help and audit events. Tests in `tests/e2e` drive the binary under a pseudo-TTY to cover the confirm prompt, then re-run the same commands with `CI=true` and a pipe to assert exit `75` and the `approval` extension.
+`apps/examples/terminal`: a deploy CLI with `status` / `deploy` / `rollback` guarded by `protect`, `--help` built through `filterCommands`, `--json` Problem Details, an approval-gated production deploy, and an agent-run mode that reads `PERMDOCK_ACTOR_TOKEN`.
 
 ## Related
 

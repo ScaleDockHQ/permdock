@@ -23,5 +23,6 @@
   "./openai": 20837,
   "./mcp": 20436,
   "./authzen": 24535,
-  "./openapi": 5721
+  "./openapi": 5721,
+  "./terminal": 21258
 }

@@ -339,6 +339,22 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/solid';
 
 `usePermission` takes an accessor for instance data (`() => post`). Do not import `policy.ts` on the client.
 
+## Terminal — `permdock/terminal`
+
+```ts
+import { createPermDock } from 'permdock/terminal';
+
+export const { permdock, protect, filterCommands, format, exitCode } =
+  createPermDock(policy, {
+    subject: async ({ token }) => {
+      const jwt = await token(['env', 'keychain', 'ci-oidc', 'device']);
+      return jwt ? subjectFromJwt(jwt, { issuer, audience: 'acme-cli' }) : null;
+    },
+  });
+```
+
+Not `@permdock/cli`. Never accept `--user` or `--actor` as identity.
+
 ## Planned adapters
 
-Remaining Phase 2 server and agent adapters (`terminal`, `webmcp`, `a2a`, `otel`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Remaining Phase 2 adapters (`webmcp`, `a2a`, `otel`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

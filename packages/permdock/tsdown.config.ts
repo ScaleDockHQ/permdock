@@ -52,6 +52,7 @@ export default defineConfig({
     'src/mcp/index.ts',
     'src/authzen/index.ts',
     'src/openapi/index.ts',
+    'src/terminal/index.ts',
   ],
   platform: 'neutral',
   dts: true,

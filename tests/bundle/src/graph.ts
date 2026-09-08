@@ -33,6 +33,7 @@ export const ENTRIES = {
   './mcp': 'mcp/index.js',
   './authzen': 'authzen/index.js',
   './openapi': 'openapi/index.js',
+  './terminal': 'terminal/index.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
