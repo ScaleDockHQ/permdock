@@ -11,7 +11,9 @@ import type {
   WhereCompiler,
 } from 'permdock';
 import type { ApprovalRequest, ApprovalStore } from 'permdock/approvals';
+import type { DirectoryStore } from 'permdock/scim';
 
+import { directoryMembershipSource } from 'permdock/scim';
 import { expect, it } from 'vitest';
 
 import {
@@ -136,6 +138,76 @@ const approver: Subject = {
   principal: { id: 'u_9', roles: ['admin'] },
   context: {},
 };
+
+export function testDirectoryStore(
+  store: DirectoryStore,
+  options: { readonly tenants: readonly [string, string] },
+): void {
+  const [home, other] = options.tenants;
+  it('round-trips users and groups, isolates tenants, and drops inactive memberships', async () => {
+    const created = await store.putUser(home, {
+      id: '',
+      userName: 'ada',
+      externalId: '00u1',
+      active: true,
+      meta: { created: '', lastModified: '' },
+    });
+    expect(created.id).not.toBe('');
+    expect(await store.getUser(home, created.id)).toMatchObject({
+      userName: 'ada',
+      externalId: '00u1',
+    });
+    expect(await store.getUser(other, created.id)).toBeNull();
+    await expect(
+      store.putUser(home, {
+        id: '',
+        userName: 'ada',
+        active: true,
+        meta: { created: '', lastModified: '' },
+      }),
+    ).rejects.toThrow(/userName/);
+    const group = await store.putGroup(home, {
+      id: 'g_editors',
+      displayName: 'Editors',
+      members: [{ value: created.id }],
+      roles: ['editor'],
+      meta: { created: '', lastModified: '' },
+    });
+    expect(await store.groupsFor(home, created.id)).toEqual([
+      expect.objectContaining({ id: group.id, displayName: 'Editors' }),
+    ]);
+    expect(await store.groupsFor(other, created.id)).toEqual([]);
+    const patched = await store.patchUser(home, created.id, [
+      { op: 'replace', path: 'active', value: false },
+    ]);
+    expect(patched.active).toBe(false);
+    const source = directoryMembershipSource(store, { assignable: ['editor'] });
+    expect(
+      await source.membershipsFor({ id: '00u1' }, { tenant: home }),
+    ).toEqual([]);
+    await store.patchUser(home, created.id, [
+      { op: 'replace', path: 'active', value: true },
+    ]);
+    expect(
+      await source.membershipsFor({ id: '00u1' }, { tenant: home }),
+    ).toEqual([
+      {
+        tenant: home,
+        team: group.id,
+        roles: ['editor'],
+        via: `group:${group.id}`,
+      },
+    ]);
+    await store.patchGroup(home, group.id, [
+      {
+        op: 'remove',
+        path: 'members',
+        value: [{ value: created.id }],
+      },
+    ]);
+    expect(await store.groupsFor(home, created.id)).toEqual([]);
+  });
+}
 
 export function testApprovalStore(store: ApprovalStore): void {
   it('creates, gets, lists, resolves and expires', async () => {

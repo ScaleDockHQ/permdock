@@ -130,6 +130,10 @@
     "./otel": {
       "types": "./dist/otel/index.d.ts",
       "default": "./dist/otel/index.js"
+    },
+    "./scim": {
+      "types": "./dist/scim/index.d.ts",
+      "default": "./dist/scim/index.js"
     }
   },
   "scripts": {

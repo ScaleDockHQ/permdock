@@ -158,9 +158,27 @@ export type LimitStore = {
 };
 
 export type DecisionSink = {
-  write(events: readonly DecisionEvent[]): Promise<void> | void;
+  write(events: readonly SinkEvent[]): Promise<void> | void;
   flush?(): Promise<void>;
 };
+
+export type DirectoryEvent = {
+  readonly type: 'directory';
+  readonly at: string;
+  readonly source: 'scim';
+  readonly operation: 'create' | 'replace' | 'patch' | 'delete';
+  readonly tenant: string;
+  readonly resource: {
+    readonly type: 'User' | 'Group';
+    readonly id: string;
+  };
+  readonly credential:
+    | { readonly kind: 'token' }
+    | { readonly kind: 'jwt'; readonly iss?: string };
+  readonly active?: boolean;
+};
+
+export type SinkEvent = DecisionEvent | DirectoryEvent;
 
 export type DecisionEvent = {
   readonly type: 'decision';

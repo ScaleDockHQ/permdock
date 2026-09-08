@@ -3,7 +3,7 @@ title: SCIM
 description: permdock/scim is an RFC 7644 receiver for Users and Groups provisioned by Okta, Entra ID or Google Workspace; it writes to a DirectoryStore you own and exposes the synced groups as a MembershipSource, so deprovisioning and group-to-role changes reach decisions without a token refresh and without the Cloud on the decision path.
 ---
 
-Status: planned
+Status: shipped
 Phase: 2
 
 `permdock/scim` receives SCIM 2.0 provisioning (RFC 7643, RFC 7644) from an identity provider and writes users, groups and group membership into a `DirectoryStore` the application owns. `directoryMembershipSource(store)` reads that store back as a `MembershipSource`, so a group becomes a team membership carrying the roles the application mapped to it, and a deactivated user loses every membership on the next request. PermDock Cloud hosts the same endpoint as a relay with an IdP setup wizard and a mapping UI, and replays each operation to your `scimHandler`; the store in your database stays authoritative ([ADR 0027](/docs/decisions/0027-governance-first-cloud)).

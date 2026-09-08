@@ -9,6 +9,7 @@ export { snapshotFixture } from './snapshot-fixture.ts';
 export {
   testApprovalStore,
   testDecisionSink,
+  testDirectoryStore,
   testMembershipSource,
   testRoleSource,
   testSnapshotSource,

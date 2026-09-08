@@ -412,6 +412,28 @@ instrument(permdock, {
 
 HTTP adapters accept the same options as `otel`. `@opentelemetry/api` is optional; without it the adapter writes only through `logger`.
 
+## SCIM — `permdock/scim`
+
+No factory. Mount `scimHandler` and pass `directoryMembershipSource(store)` as `memberships`:
+
+```ts
+import {
+  scimHandler,
+  memoryDirectoryStore,
+  directoryMembershipSource,
+  tenantFromPath,
+} from 'permdock/scim';
+
+const directory = memoryDirectoryStore();
+export const scim = scimHandler({
+  store: directory,
+  tenant: (request) => tenantFromPath(request),
+  token: { hash: 'sha256', lookup: (tenant) => hashFor(tenant) },
+});
+```
+
+The handler writes users and groups. It never decides. Unknown or non-assignable role names are stored and dropped when memberships are read.
+
 ## Planned adapters
 
-Remaining Phase 2 adapters (`scim`, `cloud`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.
+Remaining Phase 2 adapters (`cloud`) follow the factory name from `permdock/<framework>`. Read the adapter page under `/docs/adapters/<name>` before inventing identifiers.

@@ -1,18 +1,18 @@
-import type { DecisionEvent, DecisionSink } from './interfaces.ts';
+import type { DecisionSink, SinkEvent } from './interfaces.ts';
 
 export function memorySink(
   options: { readonly capacity?: number } = {},
-): DecisionSink & { readonly events: () => readonly DecisionEvent[] } {
+): DecisionSink & { readonly events: () => readonly SinkEvent[] } {
   const capacity = options.capacity ?? 10_000;
-  const buffer: DecisionEvent[] = [];
+  const buffer: SinkEvent[] = [];
   return {
-    write(events: readonly DecisionEvent[]): void {
+    write(events: readonly SinkEvent[]): void {
       buffer.push(...events);
       if (buffer.length > capacity) {
         buffer.splice(0, buffer.length - capacity);
       }
     },
-    events(): readonly DecisionEvent[] {
+    events(): readonly SinkEvent[] {
       return [...buffer];
     },
   };

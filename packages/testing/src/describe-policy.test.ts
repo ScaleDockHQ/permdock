@@ -11,12 +11,14 @@ import {
 import { memoryRoleSource, memorySink } from 'permdock';
 import { memoryApprovalStore } from 'permdock/approvals';
 import { joseTokenSigner, joseTokenVerifier } from 'permdock/jwt';
+import { memoryDirectoryStore } from 'permdock/scim';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import {
   testApprovalStore,
   testDecisionSink,
+  testDirectoryStore,
   testMembershipSource,
   testRoleSource,
   testSnapshotSource,
@@ -228,6 +230,10 @@ describe('conformance runners', () => {
   testWhereCompiler(() => false, { target: {} });
 
   testApprovalStore(memoryApprovalStore());
+
+  testDirectoryStore(memoryDirectoryStore(), {
+    tenants: ['o_acme', 'o_globex'],
+  });
 
   testTokenVerifier(
     joseTokenVerifier({

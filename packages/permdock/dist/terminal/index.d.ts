@@ -3,8 +3,8 @@ import { o as Policy, v as Permission } from "../policy-CL40bNGn.js";
 import { s as ApprovalStore } from "../types-DwRNNTg4.js";
 import { n as Decision } from "../decision-Cjr-7xoX.js";
 import { i as ProblemDetails } from "../errors-DZNvOxVD.js";
-import { o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
-import { r as PermDock } from "../permdock-CSDl61mA.js";
+import { c as RoleSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BuUjSMjB.js";
+import { r as PermDock } from "../permdock-CKANy_yd.js";
 //#region src/terminal/types.d.ts
 type TokenSourceName = "device" | "keychain" | "env" | "ci-oidc";
 type TokenSource = TokenSourceName | {

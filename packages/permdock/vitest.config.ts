@@ -26,6 +26,7 @@ export default defineConfig({
         'src/eve/**',
         'src/openai/**',
         'src/agent/**',
+        'src/scim/**',
         'src/core/from-snapshot.ts',
       ],
       thresholds: {

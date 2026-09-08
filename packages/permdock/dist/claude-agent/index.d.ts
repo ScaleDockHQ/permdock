@@ -1,6 +1,6 @@
 import { o as Policy } from "../policy-CL40bNGn.js";
 import { s as ApprovalStore } from "../types-DwRNNTg4.js";
-import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
+import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BuUjSMjB.js";
 import { t as ToolMap } from "../types-TiEQoW1J.js";
 //#region src/claude-agent/create.d.ts
 type ClaudeAgentContext = {

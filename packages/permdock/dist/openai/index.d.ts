@@ -1,8 +1,8 @@
 import { o as Policy, v as Permission } from "../policy-CL40bNGn.js";
 import { i as ApprovalRequest, s as ApprovalStore } from "../types-DwRNNTg4.js";
-import { l as SnapshotSource, o as MembershipSource, r as DecisionSink, s as RoleSource } from "../interfaces-DMSVa7et.js";
+import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BuUjSMjB.js";
 import { t as ToolMap } from "../types-TiEQoW1J.js";
-import { r as PermDock } from "../permdock-CSDl61mA.js";
+import { r as PermDock } from "../permdock-CKANy_yd.js";
 //#region src/openai/create.d.ts
 type OpenAiContext = {
   readonly user?: unknown;

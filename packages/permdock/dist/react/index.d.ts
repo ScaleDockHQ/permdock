@@ -1,6 +1,6 @@
-import { d as describe } from "../permdock-CSDl61mA.js";
-import { a as FilterResult, c as PermissionState, d as TenantView, i as ClientStatus, l as ProtectedProps, n as ApprovalState, o as PermDockProviderProps, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-BCXRAyFb.js";
-import { a as useMemberships, c as usePermissions, d as useTenant, i as useFilter, l as useRoles, n as useApproval, o as usePermDock, r as useAssignableRoles, s as usePermission, t as Protected, u as useSubject } from "../protected-BqjtN4Rp.js";
+import { d as describe } from "../permdock-CKANy_yd.js";
+import { a as FilterResult, c as PermissionState, d as TenantView, i as ClientStatus, l as ProtectedProps, n as ApprovalState, o as PermDockProviderProps, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-CyfFrnpu.js";
+import { a as useMemberships, c as usePermissions, d as useTenant, i as useFilter, l as useRoles, n as useApproval, o as usePermDock, r as useAssignableRoles, s as usePermission, t as Protected, u as useSubject } from "../protected-BLDe5wuO.js";
 import { ReactElement } from "react";
 //#region src/react/provider.d.ts
 export declare function PermDockProvider(props: PermDockProviderProps): ReactElement;

@@ -1,9 +1,9 @@
 import { m as Membership } from "../ast-BtUySn6K.js";
 import { v as Permission } from "../policy-CL40bNGn.js";
 import { n as Decision } from "../decision-Cjr-7xoX.js";
-import { m as TokenVerifier, u as SnapshotV2 } from "../interfaces-DMSVa7et.js";
-import { d as describe } from "../permdock-CSDl61mA.js";
-import { a as FilterResult, c as PermissionState, d as TenantView, f as UseRolesOptions, i as ClientStatus, n as ApprovalState, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-BCXRAyFb.js";
+import { f as SnapshotV2, g as TokenVerifier } from "../interfaces-BuUjSMjB.js";
+import { d as describe } from "../permdock-CKANy_yd.js";
+import { a as FilterResult, c as PermissionState, d as TenantView, f as UseRolesOptions, i as ClientStatus, n as ApprovalState, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-CyfFrnpu.js";
 import { Accessor } from "solid-js";
 //#region src/solid/types.d.ts
 type SolidChild = string | number | boolean | null | undefined;

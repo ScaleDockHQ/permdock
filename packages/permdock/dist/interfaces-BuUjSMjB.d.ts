@@ -110,9 +110,28 @@ type LimitStore = {
   };
 };
 type DecisionSink = {
-  write(events: readonly DecisionEvent[]): Promise<void> | void;
+  write(events: readonly SinkEvent[]): Promise<void> | void;
   flush?(): Promise<void>;
 };
+type DirectoryEvent = {
+  readonly type: "directory";
+  readonly at: string;
+  readonly source: "scim";
+  readonly operation: "create" | "replace" | "patch" | "delete";
+  readonly tenant: string;
+  readonly resource: {
+    readonly type: "User" | "Group";
+    readonly id: string;
+  };
+  readonly credential: {
+    readonly kind: "token";
+  } | {
+    readonly kind: "jwt";
+    readonly iss?: string;
+  };
+  readonly active?: boolean;
+};
+type SinkEvent = DecisionEvent | DirectoryEvent;
 type DecisionEvent = {
   readonly type: "decision";
   readonly at: string;
@@ -173,4 +192,4 @@ type AuthEvent = {
 };
 declare function memoryRoleSource(customRoles: readonly CustomRole[]): RoleSource;
 //#endregion
-export { WhereCompiler as _, LimitStore as a, SnapshotGrant as c, SubjectResolver as d, TokenFailureCause as f, VerifiedToken as g, VerificationFailure as h, JwtClaims as i, SnapshotSource as l, TokenVerifier as m, DecisionEvent as n, MembershipSource as o, TokenSigner as p, DecisionSink as r, RoleSource as s, AuthEvent as t, SnapshotV2 as u, memoryRoleSource as v };
+export { VerificationFailure as _, JwtClaims as a, memoryRoleSource as b, RoleSource as c, SnapshotSource as d, SnapshotV2 as f, TokenVerifier as g, TokenSigner as h, DirectoryEvent as i, SinkEvent as l, TokenFailureCause as m, DecisionEvent as n, LimitStore as o, SubjectResolver as p, DecisionSink as r, MembershipSource as s, AuthEvent as t, SnapshotGrant as u, VerifiedToken as v, WhereCompiler as y };
