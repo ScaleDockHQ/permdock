@@ -1,5 +1,5 @@
 import { expectTypeOf } from "vitest";
-import { DecisionSink, Membership, MembershipSource, Permission, Policy, RoleSource, SnapshotSource, SnapshotV2, SubjectResolver, TokenSigner, TokenVerifier, WhereCompiler } from "permdock";
+import { CreatePermDockOptions, DecisionSink, LimitStore, Membership, MembershipSource, Permission, Policy, RoleSource, SnapshotSource, SnapshotV2, SubjectResolver, TokenSigner, TokenVerifier, WhereCompiler } from "permdock";
 import { DirectoryStore } from "permdock/scim";
 import { ApprovalStore } from "permdock/approvals";
 //#region src/describe-policy.d.ts
@@ -17,6 +17,7 @@ type DescribePolicyConfig<TSubject> = {
   readonly fixtures?: Record<string, unknown>;
   readonly matrix: Record<string, Record<string, MatrixCell | Record<string, MatrixCell>>>;
   readonly exhaustive?: boolean;
+  readonly options?: CreatePermDockOptions;
 };
 export declare function describePolicy<TSubject>(policy: Policy, config: DescribePolicyConfig<TSubject>): void;
 //#endregion
@@ -90,6 +91,7 @@ export declare function testRoleSource(source: RoleSource, options: {
   readonly tenant: string;
   readonly declared: readonly string[];
 }): void;
+export declare function testLimitStore(store: LimitStore): void;
 export declare function testDecisionSink(sink: DecisionSink): void;
 export declare function testSnapshotSource(source: SnapshotSource): void;
 export declare function testDirectoryStore(store: DirectoryStore, options: {

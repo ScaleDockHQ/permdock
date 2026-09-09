@@ -162,13 +162,21 @@ export type WhereCompiler<TTarget, TOptions = unknown> = (
   options?: TOptions,
 ) => unknown;
 
+export type LimitConsumeInput = {
+  readonly key: string;
+  readonly subjectId: string;
+  readonly count: number;
+  readonly per: string;
+  readonly now?: number;
+};
+
+export type LimitRemaining = {
+  readonly remaining: number;
+};
+
 export type LimitStore = {
-  consume(input: {
-    readonly key: string;
-    readonly subjectId: string;
-    readonly count: number;
-    readonly per: string;
-  }): Promise<{ readonly remaining: number }> | { readonly remaining: number };
+  consume(input: LimitConsumeInput): Promise<LimitRemaining> | LimitRemaining;
+  remaining(input: LimitConsumeInput): LimitRemaining | undefined;
 };
 
 export type DecisionSink = {

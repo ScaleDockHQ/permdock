@@ -16,4 +16,6 @@ describePolicy(policy, {
 })
 ```
 
+Conformance runners include `testLimitStore(memoryLimitStore())` for quota stores.
+
 Peer dependencies: `permdock`, `vitest`.

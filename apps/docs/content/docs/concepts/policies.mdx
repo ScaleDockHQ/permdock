@@ -90,7 +90,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `{ where, check }` | Both, for `update` |
 | `(data, ctx) => boolean` | Closure: runtime only, branded non-portable |
 | `{ ..., approval: 'human' }` | Grant is valid but the decision is `approval-required` until a human approves |
-| `{ ..., limit: { count, per } }` | Quota grant (Later): non-portable, needs a `LimitStore` |
+| `{ ..., limit: { count, per } }` | Quota grant: non-portable, needs a `LimitStore` ([0034](/docs/decisions/0034-quota-grants)) |
 | `{ ..., fields: ['title', 'body'] }` | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches ([0033](/docs/decisions/0033-field-level-grants)) |
 
 Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` (there is no current row). They may carry `check` on the proposed body; without a body a `check` grant does not match ([0029](/docs/decisions/0029-check-on-collection-actions)). Closures over `ctx` only remain valid on collection grants.
@@ -152,7 +152,7 @@ Three reasons to keep the split. The policy stays the single statement of who ma
 
 ## Limits
 
-`limit: { count, per }` is a quota grant scheduled for Phase 4. It is non-portable (it cannot appear in a snapshot or an RLS policy), it needs a pluggable `LimitStore` to count usage, and when the quota is exhausted the decision is `denied` with reason `limit`. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case.
+`limit: { count, per }` is a quota grant. It is non-portable (it cannot appear as an evaluable snapshot grant or an RLS policy). Pass `limits: memoryLimitStore()` (or your store) to `createPermDock`. `can`, `filter` and `simulate` never consume; they peek `remaining`. `decide` and `assert` consume, except when the matched grant is `approval: 'human'`. Exhausted remaining is `denied` with reason `limit`. A missing store, a throw, or a thenable from `consume` / `remaining` is `limit-unavailable`. A Promise is never treated as granted. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case. See [0034](/docs/decisions/0034-quota-grants).
 
 ## definePolicy options
 

@@ -9,6 +9,7 @@ import type {
   AuthEvent,
   DecisionEvent,
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotV2,
@@ -29,6 +30,7 @@ import {
 } from './errors.ts';
 import { grantCoversField, pickVisible, sanitizeContext } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
+import { applyQuota } from './limits.ts';
 import { getResource, listPermissions } from './permissions.ts';
 import { buildSnapshot, parseSnapshot, signSnapshot } from './snapshot.ts';
 import {
@@ -158,6 +160,7 @@ export type CreatePermDockOptions = {
   readonly actor?: Actor;
   readonly delegation?: Delegation;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
   readonly session?: string;
   readonly expiresAt?: number;
 };
@@ -394,8 +397,36 @@ type EvalEnv = {
   readonly customRoles: readonly CustomRole[];
   readonly listeners: ListenerMap;
   readonly sink: DecisionSink | undefined;
+  readonly limits: LimitStore | undefined;
+  readonly limitCache: Map<string, number>;
   readonly team: string | undefined;
 };
+
+function shouldConsumeQuota(
+  source: DecisionEvent['source'] | undefined,
+  simulated: boolean,
+): boolean {
+  if (simulated) {
+    return false;
+  }
+  switch (source) {
+    case 'can':
+    case 'filter':
+    case 'simulate':
+      return false;
+    case 'decide':
+    case 'assert':
+    case 'endpoint':
+    case 'adapter':
+    case 'approval':
+    case undefined:
+      return true;
+    default: {
+      const exhaustive: never = source;
+      return exhaustive;
+    }
+  }
+}
 
 function isDelegatedPermission(
   policy: Policy,
@@ -675,12 +706,56 @@ function evaluate(
     return decision;
   }
 
-  const matchedAllow = allows[0]!;
   const delegationMiss = coveredByDelegation(permission, subject.delegation);
   if (delegationMiss !== undefined) {
     const decision: Decision = freezeDeep({
       outcome: 'denied',
       denials: [{ role: null, reason: delegationMiss }],
+      alternatives: env.skipAlternatives
+        ? []
+        : alternativesFor(policy, permission, subject, env),
+    });
+    finish(
+      policy,
+      subject,
+      permission,
+      current,
+      decision,
+      options,
+      env,
+      trusted,
+    );
+    return decision;
+  }
+
+  const quotaDenials: Denial[] = [];
+  let matchedAllow: (typeof allows)[number] | undefined;
+  for (const candidate of allows) {
+    const consume =
+      candidate.grant.approval !== 'human' &&
+      shouldConsumeQuota(options.source, env.simulated);
+    const quota = applyQuota({
+      store: env.limits,
+      cache: env.limitCache,
+      grant: candidate.grant,
+      permissionKey: permission.key,
+      subjectId: subject.principal.id,
+      now,
+      consume,
+    });
+    if (quota.ok) {
+      matchedAllow = candidate;
+      break;
+    }
+    quotaDenials.push({
+      role: candidate.grant.role,
+      reason: quota.reason,
+    });
+  }
+  if (matchedAllow === undefined) {
+    const decision: Decision = freezeDeep({
+      outcome: 'denied',
+      denials: quotaDenials.length > 0 ? quotaDenials : denials,
       alternatives: env.skipAlternatives
         ? []
         : alternativesFor(policy, permission, subject, env),
@@ -946,6 +1021,8 @@ function buildInstance(
   envBase: {
     readonly customRoles: readonly CustomRole[];
     readonly sink: DecisionSink | undefined;
+    readonly limits: LimitStore | undefined;
+    readonly limitCache: Map<string, number>;
     readonly simulated: boolean;
     readonly roleSource: RoleSource | undefined;
     readonly queuedAuth: readonly AuthEvent[];
@@ -961,6 +1038,8 @@ function buildInstance(
     customRoles: envBase.customRoles,
     listeners,
     sink: envBase.sink,
+    limits: envBase.limits,
+    limitCache: envBase.limitCache,
     team,
   });
 
@@ -1478,6 +1557,8 @@ function instantiate(
     buildInstance(policy, subject, {
       customRoles: roles,
       sink: options.sink,
+      limits: options.limits,
+      limitCache: new Map<string, number>(),
       simulated: false,
       roleSource: options.customRoles,
       queuedAuth: auth,

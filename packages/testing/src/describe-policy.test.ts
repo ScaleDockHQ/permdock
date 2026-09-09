@@ -8,7 +8,7 @@ import {
   role,
   subject,
 } from 'permdock';
-import { memoryRoleSource, memorySink } from 'permdock';
+import { memoryLimitStore, memoryRoleSource, memorySink } from 'permdock';
 import { memoryApprovalStore } from 'permdock/approvals';
 import { joseTokenSigner, joseTokenVerifier } from 'permdock/jwt';
 import { memoryDirectoryStore } from 'permdock/scim';
@@ -18,6 +18,7 @@ import { z } from 'zod';
 import {
   testApprovalStore,
   testDecisionSink,
+  testLimitStore,
   testDirectoryStore,
   testMembershipSource,
   testRoleSource,
@@ -161,7 +162,56 @@ describePolicy(policy, {
   },
 });
 
+const quotaPermissions = definePermissions({
+  report: resource(z.object({ id: z.string() }), {
+    id: 'id',
+    actions: ['export'],
+  }),
+});
+
+const quotaPolicy = definePolicy(quotaPermissions, {
+  roles: [
+    role('member', [
+      allow(quotaPermissions.report.export, {
+        limit: { count: 10, per: 'hour' },
+      }),
+    ]),
+  ],
+  subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>
+    user,
+});
+
+describePolicy(quotaPolicy, {
+  exhaustive: false,
+  options: { limits: memoryLimitStore() },
+  subjects: { member: { id: 'u1', roles: ['member'] } },
+  fixtures: { report: { id: 'r1' } },
+  matrix: {
+    [quotaPermissions.report.export.key]: {
+      report: { member: 'granted' },
+    },
+  },
+});
+
+describePolicy(quotaPolicy, {
+  exhaustive: false,
+  subjects: { member: { id: 'u1', roles: ['member'] } },
+  fixtures: { report: { id: 'r1' } },
+  matrix: {
+    [quotaPermissions.report.export.key]: {
+      report: {
+        member: {
+          outcome: 'denied',
+          denials: [{ reason: 'limit-unavailable' }],
+        },
+      },
+    },
+  },
+});
+
 describe('conformance runners', () => {
+  testLimitStore(memoryLimitStore());
+
   testSubjectResolver(
     (input: unknown) => {
       if (input === null) {

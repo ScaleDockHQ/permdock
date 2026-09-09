@@ -86,6 +86,7 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'opaque-condition':
       case 'insufficient-user-authentication':
       case 'limit':
+      case 'limit-unavailable':
       case 'tenant-mismatch':
       case 'no-membership':
       case 'scope':

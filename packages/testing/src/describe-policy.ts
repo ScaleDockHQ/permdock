@@ -1,6 +1,7 @@
 import {
   createPermDock,
   listPermissions,
+  type CreatePermDockOptions,
   type Decision,
   type Policy,
 } from 'permdock';
@@ -27,6 +28,7 @@ export type DescribePolicyConfig<TSubject> = {
     Record<string, MatrixCell | Record<string, MatrixCell>>
   >;
   readonly exhaustive?: boolean;
+  readonly options?: CreatePermDockOptions;
 };
 
 function isOutcomeCell(value: unknown): value is MatrixCell {
@@ -82,7 +84,7 @@ export function describePolicy<TSubject>(
 
     beforeAll(async () => {
       for (const [name, user] of Object.entries(config.subjects)) {
-        docks.set(name, await createPermDock(policy, user));
+        docks.set(name, await createPermDock(policy, user, config.options));
       }
     });
 
@@ -115,7 +117,11 @@ export function describePolicy<TSubject>(
             it(`${subjectName}`, async () => {
               const instance =
                 docks.get(subjectName) ??
-                (await createPermDock(policy, config.subjects[subjectName]));
+                (await createPermDock(
+                  policy,
+                  config.subjects[subjectName],
+                  config.options,
+                ));
               const data =
                 permission.kind === 'instance'
                   ? Object.values(config.fixtures ?? {})[0]
@@ -136,7 +142,11 @@ export function describePolicy<TSubject>(
             it(`${fixtureName} / ${subjectName}`, async () => {
               const instance =
                 docks.get(subjectName) ??
-                (await createPermDock(policy, config.subjects[subjectName]));
+                (await createPermDock(
+                  policy,
+                  config.subjects[subjectName],
+                  config.options,
+                ));
               const fixture = config.fixtures?.[fixtureName];
               assertCell(
                 instance.decide(permission as never, fixture as never),

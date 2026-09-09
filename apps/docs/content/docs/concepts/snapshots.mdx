@@ -194,7 +194,7 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 - Closures and opaque conditions: only their existence (`portable: false`).
 - Grants of roles the subject does not have, and grants of tenants outside `tenants` (the active one by default).
 - Tenant-defined custom role names: they are resolved to declared roles before serialisation, so a snapshot never carries a name RLS could not.
-- Quota state for `limit` grants (Later); those are always `server-only`.
+- Quota state for `limit` grants; those are always `server-only` (`portable: false`).
 - Anything from the actor beyond what appears in `delegation`.
 
 ## Open questions

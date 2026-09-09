@@ -52,7 +52,7 @@ flowchart LR
 10. **Server-only imports never reach client entries.** `definePolicy`, `createPermDock` and adapters live in server entry points; `permdock/react` exports only snapshot consumers. Bundle tests enforce it.
 11. **Snapshots reveal grants, scoped snapshots limit it.** A snapshot tells the client what its subject may do, including conditions. It never contains other subjects' grants, role definitions beyond names, closures (they serialise as `{ portable: false }`) or opaque SQL. `snapshot({ include: [...] })` limits a route to the features it renders.
 12. **Approval tokens are replay-safe.** `Decision.token` is a hash of permission key, resource id, subject and actor. An approval for one call cannot be replayed on another. See [approvals](/docs/security/approvals).
-13. **Quotas are server-side.** `limit` grants (Phase 4) are enforced by a `LimitStore` the server owns, never by the client snapshot.
+13. **Quotas are server-side.** `limit` grants are enforced by a `LimitStore` the server owns, never by the client snapshot. `can` never consumes.
 14. **Immutable, request-scoped instances.** `createPermDock` returns a frozen object per request; nothing mutates shared state between requests.
 15. **No network call to decide.** `can`, `decide`, `assert`, `filter`, `where`, `simulate` and `snapshot` run in-process; the `pdp` provider is the only opt-in exception. Approval stores, decision sinks and snapshot sources are interfaces with in-process defaults; PermDock Cloud is one implementation and is never required ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)). The Cloud may relay directory provisioning into a `DirectoryStore` the application owns; it still implements neither `MembershipSource` nor `RoleSource` and holds no authoritative copy ([ADR 0027](/docs/decisions/0027-governance-first-cloud)).
 
@@ -78,7 +78,7 @@ flowchart LR
 | Generated RLS widens access | Never emits `service_role`; `deny` becomes RESTRICTIVE; `verify` parity tests | [Postgres RLS](/docs/standards/postgres-rls) |
 | RLS import executes attacker SQL | Import parses to AST; opaque SQL is stored, never run app-side | [Postgres RLS](/docs/standards/postgres-rls) |
 | Denial body leaks other users' grants | Problem Details bounded to the subject's own view | [Problem Details](/docs/standards/problem-details) |
-| Agent floods a paid action | `limit` grants with server-side `LimitStore` (Phase 4) | [Policies](/docs/concepts/policies) |
+| Agent floods a paid action | `limit` grants with server-side `LimitStore` | [Policies](/docs/concepts/policies) |
 | Unsigned bot impersonates an agent | Web Bot Auth verification fails closed; unsigned requests have no `actor` | [Web Bot Auth](/docs/standards/web-bot-auth) |
 | Decisions not auditable | `on('decision')` carries outcome, reasons, actor, delegation; `permdock/otel` | [Audit and observability](/docs/concepts/audit-and-observability) |
 | Token with `alg: none`, or an RSA public key replayed as an HMAC secret (key confusion) | Explicit `algorithms` allow-list, `none` never accepted, keys only from the configured JWKS, `jku` / `x5u` / `jwk` headers ignored | [JWT adapter](/docs/adapters/jwt), [Authentication](/docs/concepts/authentication) |
@@ -128,6 +128,6 @@ flowchart LR
 ## Open questions
 
 - Whether `denials` and `alternatives` in 403 bodies should be off by default in production (see [Problem Details](/docs/standards/problem-details)).
-- The `LimitStore` interface and whether quotas belong in core at all.
+- Resolved: quotas belong in core behind `LimitStore`; store failure denies ([0034](/docs/decisions/0034-quota-grants)).
 - Whether to verify delegation chains in core or trust the token layer (see [delegation](/docs/security/delegation)).
 - Whether approvals answered through a signed link (email, Slack action) without an approver session are acceptable, and how the link binds to an identity (see [approvals](/docs/security/approvals)).

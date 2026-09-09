@@ -2,8 +2,8 @@ import { t as decisionToken } from "../token-DOBVfZ_i.js";
 import { t as freezeDeep } from "../freeze-BF4IK5al.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
+import { t as createPermDock$1 } from "../permdock-C-YFXzhV.js";
 import { i as getResource, o as listPermissions } from "../permissions-WEkUHQtZ.js";
-import { t as createPermDock$1 } from "../permdock-DR74dJsu.js";
 import { o as isRecord } from "../map-BA2lzIVj.js";
 //#region src/pdp/create.ts
 function withoutProviders(policy) {
@@ -46,6 +46,7 @@ function isLocalShortCircuit(decision) {
 			case "opaque-condition":
 			case "insufficient-user-authentication":
 			case "limit":
+			case "limit-unavailable":
 			case "tenant-mismatch":
 			case "no-membership":
 			case "scope":

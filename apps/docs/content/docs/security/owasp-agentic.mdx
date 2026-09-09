@@ -22,7 +22,7 @@ The project sources quote the OWASP document for ASI02, ASI03 and its cross-cutt
 | ASI07 | Name not in project sources | Provisional: A2A extended card filtered per caller; `actor` and `delegation` required for agent-to-agent calls |
 | ASI08 | Name not in project sources | Provisional: CAEP receiver invalidates on `session-revoked`; `simulate()` bounds a plan before execution |
 | ASI09 | Name not in project sources | Provisional: model-readable `denied` reasons and `alternatives` so the model self-corrects rather than escalating |
-| ASI10 | Name not in project sources | Provisional: `limit` grants with server-side `LimitStore` (Phase 4); quotas per actor |
+| ASI10 | Name not in project sources | `limit` grants with a server-side `LimitStore`; quotas per subject |
 
 ## ASI02 Tool Misuse
 
@@ -46,7 +46,7 @@ const member = role('member', [
 ```
 
 - **Scopes**: `permission.scope` (`post:delete`) is the OAuth scope, emitted as the MCP `scopeChallenge`, the OpenAPI scope and the A2A `securityRequirements` entry.
-- **Maximum rate**: `limit` grants (Phase 4) bound how often a subject or actor may exercise a permission, enforced by a server-owned `LimitStore`.
+- **Maximum rate**: `limit` grants bound how often a subject may exercise a permission, enforced by a server-owned `LimitStore`. `can` never consumes.
 - **Egress allow-lists**: not a PermDock feature; PermDock records this as out of scope and points at the runtime's network policy. A permission may still carry `meta` describing the egress a tool needs, so the catalog documents it.
 
 ### Deterministic argument validation

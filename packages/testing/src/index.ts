@@ -20,6 +20,7 @@ export { snapshotFixture } from './snapshot-fixture.ts';
 export {
   testApprovalStore,
   testDecisionSink,
+  testLimitStore,
   testDirectoryStore,
   testMembershipSource,
   testRoleSource,

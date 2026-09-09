@@ -1,5 +1,5 @@
 import { d as Subject, l as Membership, o as Delegation, t as Actor } from "./subject-BcgWbogX.js";
-import { C as MembershipSource, K as Permission, O as SnapshotV2, R as Decision, _ as DecisionEvent, at as Condition, j as TokenSigner, o as Policy, w as RoleSource, y as DecisionSink } from "./policy-DdqgAkJT.js";
+import { A as SnapshotV2, B as Decision, E as RoleSource, J as Permission, N as TokenSigner, T as MembershipSource, _ as DecisionEvent, o as Policy, st as Condition, w as LimitStore, y as DecisionSink } from "./policy-CrXDbTAD.js";
 //#region src/core/describe.d.ts
 type DecisionDescription = {
   readonly kind: "granted" | "denied" | "approval" | "tenant" | "delegation" | "server-only";
@@ -97,6 +97,7 @@ type CreatePermDockOptions = {
   readonly actor?: Actor;
   readonly delegation?: Delegation;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
   readonly session?: string;
   readonly expiresAt?: number;
 };

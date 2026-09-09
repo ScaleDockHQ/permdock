@@ -38,6 +38,12 @@ Flag `where` closures (`portable: false` or a function body) that only compare f
 
 Done when every closure is either marked portable-false with a reason or rewritten.
 
+## Quotas
+
+A `limit: { count, per }` grant without `limits` on `createPermDock` always denies with `limit-unavailable`. `can` never consumes; a mutation that should spend a unit must call `decide` or `assert`.
+
+Done when every quota grant has a `LimitStore` and no tool uses only `can` to enforce a rate.
+
 ## Validation and identity
 
 - `validate: 'never'` on a policy that sees HTTP bodies, MCP args, or model output is a finding. Boundary data uses the resource schema; trusted server rows may skip it.

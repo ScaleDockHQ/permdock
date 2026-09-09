@@ -18,7 +18,7 @@ function describePolicy(policy, config) {
 		const permissions = listPermissions(policy.permissions);
 		const docks = /* @__PURE__ */ new Map();
 		beforeAll(async () => {
-			for (const [name, user] of Object.entries(config.subjects)) docks.set(name, await createPermDock(policy, user));
+			for (const [name, user] of Object.entries(config.subjects)) docks.set(name, await createPermDock(policy, user, config.options));
 		});
 		it("covers every permission", () => {
 			if (config.exhaustive === false) return;
@@ -30,7 +30,7 @@ function describePolicy(policy, config) {
 			describe(permission.key, () => {
 				if (!Object.values(spec).some((value) => !isOutcomeCell(value))) {
 					for (const [subjectName, cell] of Object.entries(spec)) it(`${subjectName}`, async () => {
-						const instance = docks.get(subjectName) ?? await createPermDock(policy, config.subjects[subjectName]);
+						const instance = docks.get(subjectName) ?? await createPermDock(policy, config.subjects[subjectName], config.options);
 						const data = permission.kind === "instance" ? Object.values(config.fixtures ?? {})[0] : void 0;
 						assertCell(instance.decide(permission, data), cell);
 					});
@@ -39,7 +39,7 @@ function describePolicy(policy, config) {
 				for (const [fixtureName, row] of Object.entries(spec)) {
 					if (isOutcomeCell(row)) continue;
 					for (const [subjectName, cell] of Object.entries(row)) it(`${fixtureName} / ${subjectName}`, async () => {
-						const instance = docks.get(subjectName) ?? await createPermDock(policy, config.subjects[subjectName]);
+						const instance = docks.get(subjectName) ?? await createPermDock(policy, config.subjects[subjectName], config.options);
 						const fixture = config.fixtures?.[fixtureName];
 						assertCell(instance.decide(permission, fixture), cell);
 					});
@@ -229,6 +229,27 @@ function testRoleSource(source, options) {
 			const assignable = await source.assignable(options.tenant);
 			for (const name of assignable) expect(options.declared).toContain(name);
 		}
+	});
+}
+function testLimitStore(store) {
+	it("counts down synchronously and fails closed when exhausted", async () => {
+		const input = {
+			key: "report.export",
+			subjectId: "u_1",
+			count: 2,
+			per: "hour",
+			now: 17e8
+		};
+		const first = await store.consume(input);
+		expect(first.remaining).toBeGreaterThanOrEqual(0);
+		const peeked = store.remaining(input);
+		if (peeked !== void 0) {
+			expect(typeof peeked.remaining).toBe("number");
+			expect(peeked !== null && typeof peeked === "object" && "then" in peeked && typeof peeked.then === "function").toBe(false);
+		}
+		await store.consume(input);
+		const exhausted = await store.consume(input);
+		expect(exhausted.remaining).toBeLessThan(0);
 	});
 }
 function testDecisionSink(sink) {
@@ -479,4 +500,4 @@ function testWhereCompiler(compiler, options) {
 	});
 }
 //#endregion
-export { describePolicy, expectTypeOf, jwtFixtureAudience, jwtFixtureIssuer, jwtFixtureJwks, jwtFixtureTokens, rlsParity, snapshotFixture, testApprovalStore, testDecisionSink, testDirectoryStore, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testTokenSigner, testTokenVerifier, testWhereCompiler };
+export { describePolicy, expectTypeOf, jwtFixtureAudience, jwtFixtureIssuer, jwtFixtureJwks, jwtFixtureTokens, rlsParity, snapshotFixture, testApprovalStore, testDecisionSink, testDirectoryStore, testLimitStore, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testTokenSigner, testTokenVerifier, testWhereCompiler };

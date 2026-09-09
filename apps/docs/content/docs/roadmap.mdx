@@ -73,7 +73,7 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 ### Phase 4: v1.0 "ecosystem"
 
 - Providers: `better-auth` (organization and team memberships, `betterAuthRoleSource` over dynamic roles), `clerk` (active organization as tenant, `memberships: 'all'`, custom roles and role sets as a `RoleSource`), `convex`, `pdp` (AuthZEN client).
-- Quota grants with a pluggable `LimitStore`.
+- Quota grants with a pluggable `LimitStore` — shipped (`memoryLimitStore()`, `can` never consumes, [0034](/docs/decisions/0034-quota-grants)).
 - Web Bot Auth verification in HTTP adapters; delegation-chain verification in `permdock/jwt`; `subjectFromIntrospection` (RFC 7662 and RFC 9767 introspection responses as a `Subject` source) and evaluation of GNAP `delegation.access`.
 - `permdock simulate` over [Arazzo](/docs/standards/arazzo) workflows; `permdock arazzo check`.
 - Tracked, not built: [GNAP](/docs/standards/gnap) `access` as a delegation input; a GNAP OpenAPI scheme has its name reserved (`scheme.type: 'gnap'`) and no output. Every unfinished specification PermDock follows carries a build / name / track posture on the [standards watch list](/docs/standards/watch-list) ([0025](/docs/decisions/0025-draft-protocol-posture)).
@@ -115,7 +115,7 @@ These are the questions the plan leaves open. Each is resolved in the phase wher
 6. **`collect` output.** Whether `permdock collect` emits the `mergePermissions` barrel or only the catalog. Phase 2. See [collect](/docs/cli/collect).
 7. **Field-level API shape.** Resolved: `fields` on `allow` / `deny` (keys of the resource type) and `permdock.pick`; no globs ([0033](/docs/decisions/0033-field-level-grants)).
 8. **Decision-endpoint authentication.** Resolved: the in-app endpoint sits behind the application's session or bearer authentication via the `subject` option; the hosted ADS accepts Vercel OIDC tokens or OAuth client credentials verified with `permdock/jwt`; there is no shared-secret mode ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads), [Cloud adapter](/docs/adapters/cloud)).
-9. **`LimitStore` and quotas.** The `LimitStore` interface for `limit` grants, and whether quotas belong in core or in an adapter. Phase 4. See [Policies](/docs/concepts/policies).
+9. **`LimitStore` and quotas.** Resolved: quotas belong in core behind `limits` / `memoryLimitStore()`; `can` never consumes; store failure is `limit-unavailable` ([0034](/docs/decisions/0034-quota-grants), [Policies](/docs/concepts/policies)).
 10. **`approval-required` over plain HTTP.** Resolved: the client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record in the `ApprovalStore` and re-runs `decide` ([0022](/docs/decisions/0022-approvals-are-pluggable), [Approvals](/docs/security/approvals)).
 11. **Terminal token storage.** Which OS keychain binding `permdock/terminal` uses as its optional peer, and whether the mode-0600 file fallback is acceptable in CI images. Phase 2. See [Terminal](/docs/adapters/terminal).
 12. **`parent` typing on `resource`.** Resolved: `parent.resource` is a resource name string; a resource has exactly one parent, validated at `definePolicy` after `mergePermissions` ([0030](/docs/decisions/0030-parent-typing), [Permissions](/docs/concepts/permissions), [Tenancy](/docs/concepts/tenancy)).

@@ -61,7 +61,8 @@ if (decision.outcome === 'granted') {
 | `anonymous` | No principal |
 | `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
 | `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)) |
-| `limit` | Quota exhausted (Later) |
+| `limit` | Quota exhausted |
+| `limit-unavailable` | No `LimitStore`, the store threw, or `consume` / `remaining` returned a thenable ([0034](/docs/decisions/0034-quota-grants)) |
 | `validation` | Boundary validation failed ([validation](/docs/concepts/validation)) |
 | `unknown-role` | A role name on the principal or a membership is not declared |
 | `pdp-denied` | The remote PDP answered `decision: false` |

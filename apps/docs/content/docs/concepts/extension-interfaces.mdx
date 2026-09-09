@@ -21,7 +21,7 @@ PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-
 | `ApprovalStore` | Hold pending `approval-required` decisions until a human answers | Operational: never influences an outcome | `memoryApprovalStore()` | Postgres, Redis, Durable Objects, PermDock Cloud ([approvals](/docs/adapters/approvals)) |
 | `DecisionSink` | Receive decision events after the fact | Operational | `memorySink()` | OpenTelemetry, SIEMs, a table, PermDock Cloud ([audit](/docs/concepts/audit-and-observability)) |
 | `SnapshotSource` | Distribute and invalidate snapshots | Operational | In-process `snapshot()` | PermDock Cloud, your cache ([snapshots](/docs/concepts/snapshots)) |
-| `LimitStore` | Count usage for `limit` grants (Phase 4) | Operational with one exception: an exhausted quota denies | In-memory counter | Redis, Upstash, Postgres |
+| `LimitStore` | Count usage for `limit` grants | Operational with one exception: an exhausted or unavailable quota denies | `memoryLimitStore()` | Redis, Upstash, Postgres |
 | `DecisionProvider` | Answer `decide` for delegated permissions via a remote AuthZEN PDP | Decision path, opt-in, fail-closed | None; local evaluation only | `remotePdp` in `permdock/pdp` |
 | `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/local-first-sync)) |
 | `on(event, handler)` | Observe `decision`, `denied`, `approval`, `auth` events | Observational: cannot change a `Decision` | No-op | Logging, metrics, tests |
@@ -145,7 +145,28 @@ interface DirectoryStore {
 
 ## Operational interfaces
 
-`ApprovalStore`, `DecisionSink` and `SnapshotSource` are defined on their own pages ([approvals](/docs/adapters/approvals), [audit and observability](/docs/concepts/audit-and-observability), [snapshots](/docs/concepts/snapshots)) and summarised here for the trust rule only. `LimitStore` is Phase 4 and its shape is an open question on [policies](/docs/concepts/policies); it is the one operational interface whose answer (quota exhausted) produces a `denied`, which is why it is listed separately and why a store failure is treated as exhausted.
+`ApprovalStore`, `DecisionSink` and `SnapshotSource` are defined on their own pages ([approvals](/docs/adapters/approvals), [audit and observability](/docs/concepts/audit-and-observability), [snapshots](/docs/concepts/snapshots)) and summarised here for the trust rule only. `LimitStore` is the one operational interface whose answer produces a `denied`: exhausted remaining is reason `limit`, and a missing store, a throw, or a thenable from `consume` or `remaining` is `limit-unavailable`. `can` never consumes. See [0034](/docs/decisions/0034-quota-grants).
+
+```ts
+interface LimitStore {
+  consume(input: {
+    key: string
+    subjectId: string
+    count: number
+    per: string
+    now?: number
+  }): { remaining: number } | Promise<{ remaining: number }>
+  remaining(input: {
+    key: string
+    subjectId: string
+    count: number
+    per: string
+    now?: number
+  }): { remaining: number } | undefined
+}
+```
+
+`remaining` must be synchronous. A Promise from either method is denied, never awaited. Pass `limits: memoryLimitStore()` to `createPermDock`; omitting it fails closed on every quota grant.
 
 ```ts
 interface WhereCompiler<TTarget, TOptions = unknown> {
@@ -173,7 +194,7 @@ Handlers cannot change a `Decision`; they receive a frozen copy after the outcom
 `@permdock/testing` ships one runner per interface so an implementation can prove it honours the contract before it is used:
 
 ```ts
-import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testWhereCompiler } from '@permdock/testing'
+import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testLimitStore, testWhereCompiler } from '@permdock/testing'
 
 testSubjectResolver((claims) => subjectFromSupabase(claims, { schema }), { valid: [okClaims], invalid: [null, { role: 'anon' }] })
 testTokenVerifier(myVerifier, { jwks: fixtureJwks })          // runs the JWT adapter behaviour table against the fixture tokens
@@ -182,6 +203,7 @@ testMembershipSource(documentMembers, { principals: [alice], expect: { alice: [{
 testRoleSource(betterAuthRoles, { tenants: ['o_acme'], declared: policy.assignable })
 testDirectoryStore(drizzleDirectory, { tenants: ['o_acme', 'o_globex'] })   // replays the recorded Okta and Entra ID requests
 testApprovalStore(postgresStore)
+testLimitStore(memoryLimitStore())
 testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 ```
 
@@ -196,6 +218,7 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; the token is opaque to the store |
 | `testDecisionSink` | Accepts batches; `flush` is idempotent; a throw never propagates to the caller |
 | `testSnapshotSource` | Round-trips snapshot v2 through the format schema; invalidation is observed by a subscriber |
+| `testLimitStore` | `consume` counts down; remaining after the cap is less than zero; `remaining` when present is not a thenable |
 | `testWhereCompiler` | The empty allow set compiles to a fail-closed value (`false` / `null` / `undefined`, or `options.isFailClosed`); adapters pass constant-false SQL, `{ OR: [] }` or `eb.lit(false)` |
 
 The runners are what the provider adapters run in this repository's CI and what a community implementation runs in its own.
@@ -203,6 +226,6 @@ The runners are what the provider adapters run in this repository's CI and what 
 ## Open questions
 
 - Whether `SubjectResolver` should receive the request itself (for DPoP or mTLS binding checks) or keep those in the adapter kernel that already has the request (the current design).
-- `LimitStore`'s shape and whether a store failure should deny (proposed) or fall back to unlimited (rejected on fail-closed grounds, recorded for completeness).
+- Resolved: `LimitStore` lives in core; store failure denies with `limit-unavailable` ([0034](/docs/decisions/0034-quota-grants)).
 - Whether `WhereCompiler` should be a formal export of `permdock` or stay a type the query adapters share internally until a community compiler exists.
 - Whether `TokenVerifier` should expose a `jwks()` or `keys()` accessor so `permdock doctor` can report the key set a deployment verifies against, or whether that stays specific to `joseTokenVerifier`.

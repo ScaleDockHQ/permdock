@@ -6,6 +6,127 @@ import { n as pickVisible, r as sanitizeContext, t as grantCoversField } from ".
 import { a as matchScopedMembership, c as tenantsOf, o as nowSeconds, r as signSnapshot, s as resolveActiveTenant, t as buildSnapshot } from "./snapshot-BiwEN_W3.js";
 import { i as getResource, o as listPermissions } from "./permissions-WEkUHQtZ.js";
 import { n as isPrincipal, r as isSubject, t as anonymousSubject } from "./subject-Dz8DcVLC.js";
+//#region src/core/limits.ts
+const UNIT_SECONDS = {
+	s: 1,
+	sec: 1,
+	secs: 1,
+	second: 1,
+	seconds: 1,
+	m: 60,
+	min: 60,
+	mins: 60,
+	minute: 60,
+	minutes: 60,
+	h: 3600,
+	hr: 3600,
+	hrs: 3600,
+	hour: 3600,
+	hours: 3600,
+	d: 86400,
+	day: 86400,
+	days: 86400
+};
+function isThenable$2(value) {
+	return value !== null && typeof value === "object" && "then" in value && typeof value.then === "function";
+}
+function limitWindowId(per, now) {
+	const trimmed = per.trim().toLowerCase();
+	const named = UNIT_SECONDS[trimmed];
+	if (named !== void 0) return String(Math.floor(now / named));
+	const match = /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/.exec(trimmed);
+	if (match !== null) {
+		const amount = Number(match[1]);
+		const unit = UNIT_SECONDS[match[2] ?? ""];
+		if (unit !== void 0 && Number.isFinite(amount) && amount > 0) return String(Math.floor(now / (amount * unit)));
+	}
+	return "0";
+}
+function limitCacheKey(subjectId, key, per, now) {
+	return `${subjectId}:${key}:${per}:${limitWindowId(per, now)}`;
+}
+function memoryLimitStore() {
+	const used = /* @__PURE__ */ new Map();
+	const bucket = (input) => limitCacheKey(input.subjectId, input.key, input.per, input.now ?? Date.now() / 1e3);
+	return {
+		remaining(input) {
+			const cap = input.count;
+			if (!Number.isFinite(cap) || cap <= 0) return { remaining: -1 };
+			return { remaining: cap - (used.get(bucket(input)) ?? 0) };
+		},
+		consume(input) {
+			const cap = input.count;
+			if (!Number.isFinite(cap) || cap <= 0) return { remaining: -1 };
+			const id = bucket(input);
+			const seen = used.get(id) ?? 0;
+			if (seen >= cap) return { remaining: -1 };
+			used.set(id, seen + 1);
+			return { remaining: cap - seen - 1 };
+		}
+	};
+}
+function applyQuota(input) {
+	const limit = input.grant.limit;
+	if (limit === void 0) return { ok: true };
+	if (input.store === void 0) return {
+		ok: false,
+		reason: "limit-unavailable"
+	};
+	const payload = {
+		key: input.permissionKey,
+		subjectId: input.subjectId,
+		count: limit.count,
+		per: limit.per,
+		now: input.now
+	};
+	const cacheKey = limitCacheKey(input.subjectId, input.permissionKey, limit.per, input.now);
+	if (!input.consume) {
+		try {
+			const peeked = input.store.remaining(payload);
+			if (isThenable$2(peeked)) return {
+				ok: false,
+				reason: "limit-unavailable"
+			};
+			if (peeked !== void 0) return peeked.remaining > 0 ? { ok: true } : {
+				ok: false,
+				reason: "limit"
+			};
+		} catch {
+			return {
+				ok: false,
+				reason: "limit-unavailable"
+			};
+		}
+		const cached = input.cache.get(cacheKey);
+		if (cached === void 0) return {
+			ok: false,
+			reason: "limit-unavailable"
+		};
+		return cached > 0 ? { ok: true } : {
+			ok: false,
+			reason: "limit"
+		};
+	}
+	try {
+		const consumed = input.store.consume(payload);
+		if (isThenable$2(consumed)) return {
+			ok: false,
+			reason: "limit-unavailable"
+		};
+		input.cache.set(cacheKey, consumed.remaining);
+		if (consumed.remaining < 0) return {
+			ok: false,
+			reason: "limit"
+		};
+		return { ok: true };
+	} catch {
+		return {
+			ok: false,
+			reason: "limit-unavailable"
+		};
+	}
+}
+//#endregion
 //#region src/core/validation.ts
 function isThenable$1(value) {
 	return value !== null && typeof value === "object" && "then" in value && typeof value.then === "function";
@@ -197,6 +318,21 @@ function evaluateGrantCondition(grant, permission, current, next, subject, now) 
 	}
 	return { matched: true };
 }
+function shouldConsumeQuota(source, simulated) {
+	if (simulated) return false;
+	switch (source) {
+		case "can":
+		case "filter":
+		case "simulate": return false;
+		case "decide":
+		case "assert":
+		case "endpoint":
+		case "adapter":
+		case "approval":
+		case void 0: return true;
+		default: return source;
+	}
+}
 function isDelegatedPermission(policy, permission) {
 	const providers = policy.providers;
 	if (providers === void 0 || providers.length === 0) return false;
@@ -345,7 +481,6 @@ function evaluate(policy, subject, permission, data, options, env) {
 		finish(policy, subject, permission, current, decision, options, env, trusted);
 		return decision;
 	}
-	const matchedAllow = allows[0];
 	const delegationMiss = coveredByDelegation(permission, subject.delegation);
 	if (delegationMiss !== void 0) {
 		const decision = freezeDeep({
@@ -354,6 +489,37 @@ function evaluate(policy, subject, permission, data, options, env) {
 				role: null,
 				reason: delegationMiss
 			}],
+			alternatives: env.skipAlternatives ? [] : alternativesFor(policy, permission, subject, env)
+		});
+		finish(policy, subject, permission, current, decision, options, env, trusted);
+		return decision;
+	}
+	const quotaDenials = [];
+	let matchedAllow;
+	for (const candidate of allows) {
+		const consume = candidate.grant.approval !== "human" && shouldConsumeQuota(options.source, env.simulated);
+		const quota = applyQuota({
+			store: env.limits,
+			cache: env.limitCache,
+			grant: candidate.grant,
+			permissionKey: permission.key,
+			subjectId: subject.principal.id,
+			now,
+			consume
+		});
+		if (quota.ok) {
+			matchedAllow = candidate;
+			break;
+		}
+		quotaDenials.push({
+			role: candidate.grant.role,
+			reason: quota.reason
+		});
+	}
+	if (matchedAllow === void 0) {
+		const decision = freezeDeep({
+			outcome: "denied",
+			denials: quotaDenials.length > 0 ? quotaDenials : denials,
 			alternatives: env.skipAlternatives ? [] : alternativesFor(policy, permission, subject, env)
 		});
 		finish(policy, subject, permission, current, decision, options, env, trusted);
@@ -495,6 +661,8 @@ function buildInstance(policy, subject, envBase, team) {
 		customRoles: envBase.customRoles,
 		listeners,
 		sink: envBase.sink,
+		limits: envBase.limits,
+		limitCache: envBase.limitCache,
 		team
 	});
 	const decideImpl = (permission, data, options) => evaluate(policy, subject, permission, data, options ?? {}, envFor(options?.source !== "simulate"));
@@ -819,6 +987,8 @@ function instantiate(policy, subject, options, auth) {
 	const build = (roles) => buildInstance(policy, subject, {
 		customRoles: roles,
 		sink: options.sink,
+		limits: options.limits,
+		limitCache: /* @__PURE__ */ new Map(),
 		simulated: false,
 		roleSource: options.customRoles,
 		queuedAuth: auth
@@ -833,4 +1003,4 @@ function createPermDock(policy, user, options = {}) {
 	return instantiate(policy, subject, options, auth);
 }
 //#endregion
-export { createPermDock as t };
+export { memoryLimitStore as n, createPermDock as t };

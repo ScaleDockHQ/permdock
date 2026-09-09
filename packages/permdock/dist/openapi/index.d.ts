@@ -1,4 +1,4 @@
-import { K as Permission, o as Policy } from "../policy-DdqgAkJT.js";
+import { J as Permission, o as Policy } from "../policy-CrXDbTAD.js";
 //#region src/openapi/types.d.ts
 type OpenApiTarget = "3.1" | "3.2" | "3.3";
 type OverlayVersion = "1.1" | "1.2";

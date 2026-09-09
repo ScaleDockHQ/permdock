@@ -24,12 +24,15 @@ export {
 } from './core/errors.ts';
 export type { ProblemDetails } from './core/errors.ts';
 export { memoryRoleSource } from './core/interfaces.ts';
+export { memoryLimitStore } from './core/limits.ts';
 export type {
   AuthEvent,
   DecisionEvent,
   DecisionProvider,
   DecisionSink,
   DirectoryEvent,
+  LimitConsumeInput,
+  LimitRemaining,
   LimitStore,
   SinkEvent,
   MembershipSource,

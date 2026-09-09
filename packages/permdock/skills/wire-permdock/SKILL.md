@@ -36,7 +36,7 @@ Done when every resource the first guard needs has a leaf, and instance actions 
 
 ## 3. Policy
 
-Create `src/policy.ts`. Server-only. Roles as `allow` / `deny` arrays. Portable `where` first; closures only when a portable operator cannot express the rule. Destructive agent-reachable actions take `approval: 'human'`.
+Create `src/policy.ts`. Server-only. Roles as `allow` / `deny` arrays. Portable `where` first; closures only when a portable operator cannot express the rule. Destructive agent-reachable actions take `approval: 'human'`. A `limit: { count, per }` grant needs `limits: memoryLimitStore()` (or your store) on `createPermDock`; `can` never consumes.
 
 ```ts
 import { definePolicy, role, allow, subject } from 'permdock';

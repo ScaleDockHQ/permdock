@@ -1,5 +1,5 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
-import { t as createPermDock$1 } from "../permdock-DR74dJsu.js";
+import { t as createPermDock$1 } from "../permdock-C-YFXzhV.js";
 import { t as PermDockProvider } from "../provider-CykRM-0W.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 import { n as createEvaluationsHandler } from "../evaluations-cJeur3Fn.js";

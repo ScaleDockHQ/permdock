@@ -13,6 +13,7 @@ export type DenialReason =
   | 'no-delegation'
   | 'insufficient-user-authentication'
   | 'limit'
+  | 'limit-unavailable'
   | 'validation'
   | 'tenant-mismatch'
   | 'no-membership'

@@ -1,0 +1,47 @@
+---
+title: "0034: Quota grants"
+description: LimitStore in core, can never consumes, a thenable consume is denied, store failure is limit-unavailable.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+`allow(..., { limit: { count, per } })` was specified as a Phase 4 quota grant: non-portable, counted by a pluggable `LimitStore`, exhausted as `denied` with reason `limit`. The interface shape and whether quotas belong in core were still open.
+
+Core `can`, `decide` and `assert` are synchronous ([0028](/docs/decisions/0028-synchronous-evaluation)). `LimitStore.consume` may return a Promise. A Promise is truthy, so treating the return as a remaining count would fail open. The same trap already exists for closures and for `permdock/pdp`.
+
+UI paths call `can` on every render. Consuming there would burn quota on a hover. Mutations call `decide` or `assert`.
+
+## Decision
+
+Quotas live in core. `createPermDock` accepts `limits` (`LimitStore`). `memoryLimitStore()` is the in-process default callers pass explicitly. A quota grant without a store is `denied` with reason `limit-unavailable`.
+
+`LimitStore.consume` decrements. `LimitStore.remaining` is a synchronous peek and must not return a thenable. `can`, `filter`, `simulate` and `approval-required` never consume; they peek. `decide` and `assert` consume, except when the matched grant is `approval: 'human'`.
+
+A thenable from `consume` or `remaining`, a thrown store, or a missing store is `limit-unavailable`. Exhausted remaining (`remaining` less than or equal to zero on peek, less than zero after consume) is `limit`. Neither path awaits.
+
+Allows still OR: if the first matching allow is over quota, the next allow is tried. Quota grants stay `portable: false` and never appear as evaluable snapshot grants.
+
+Async stores cannot sit on sync `decide`. They may implement a sync `remaining` for UI peeks; a Promise `consume` still denies. Redis-style I/O belongs behind a sync cache or a future adapter wrapper, not in core.
+
+## Consequences
+
+- `can` stays safe in render. `assert` is the mutation that spends the unit.
+- Operators can tell exhausted (`limit`) from store-down (`limit-unavailable`).
+- `testLimitStore` in `@permdock/testing` checks countdown and exhausted remaining.
+
+## Alternatives considered
+
+- **Make `decide` async when a store is present.** Rejected: two evaluation paths that can disagree, and a Promise from `can` would fail open ([0028](/docs/decisions/0028-synchronous-evaluation)).
+- **Sync-only `LimitStore` with no peek.** Rejected: `can` would always deny a quota grant until `decide` had run once.
+- **Auto-install `memoryLimitStore` when `limits` is omitted.** Rejected: a forgotten production store would silently count in process memory.
+- **Fall back to unlimited on store failure.** Rejected: fail-closed.
+
+## Related
+
+- [0028: Synchronous evaluation](/docs/decisions/0028-synchronous-evaluation)
+- [Policies](/docs/concepts/policies)
+- [Extension interfaces](/docs/concepts/extension-interfaces)

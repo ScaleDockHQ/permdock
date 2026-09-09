@@ -115,7 +115,7 @@ declare function findPermission(tree: PermissionTree, keyOrScope: string): Permi
 declare function mergePermissions<const Trees extends readonly PermissionTree[]>(...trees: Trees): PermissionTree & RegistryTree;
 //#endregion
 //#region src/core/decision.d.ts
-type DenialReason = "no-grant" | "condition" | "deny" | "closure-error" | "opaque-condition" | "anonymous" | "not-delegated" | "no-delegation" | "insufficient-user-authentication" | "limit" | "validation" | "tenant-mismatch" | "no-membership" | "scope" | "expired-membership" | "unknown-role" | "approval" | "pdp-denied" | "pdp-unavailable" | "pdp-invalid-response";
+type DenialReason = "no-grant" | "condition" | "deny" | "closure-error" | "opaque-condition" | "anonymous" | "not-delegated" | "no-delegation" | "insufficient-user-authentication" | "limit" | "limit-unavailable" | "validation" | "tenant-mismatch" | "no-membership" | "scope" | "expired-membership" | "unknown-role" | "approval" | "pdp-denied" | "pdp-unavailable" | "pdp-invalid-response";
 type Denial = {
   readonly role: string | null;
   readonly reason: DenialReason;
@@ -259,17 +259,19 @@ type SnapshotSource = {
 };
 type PortableCondition = Condition;
 type WhereCompiler<TTarget, TOptions = unknown> = (condition: PortableCondition, target: TTarget, options?: TOptions) => unknown;
+type LimitConsumeInput = {
+  readonly key: string;
+  readonly subjectId: string;
+  readonly count: number;
+  readonly per: string;
+  readonly now?: number;
+};
+type LimitRemaining = {
+  readonly remaining: number;
+};
 type LimitStore = {
-  consume(input: {
-    readonly key: string;
-    readonly subjectId: string;
-    readonly count: number;
-    readonly per: string;
-  }): Promise<{
-    readonly remaining: number;
-  }> | {
-    readonly remaining: number;
-  };
+  consume(input: LimitConsumeInput): Promise<LimitRemaining> | LimitRemaining;
+  remaining(input: LimitConsumeInput): LimitRemaining | undefined;
 };
 type DecisionSink = {
   write(events: readonly SinkEvent[]): Promise<void> | void;
@@ -473,4 +475,4 @@ type SubjectOf<P> = {
   readonly expiresAt?: number;
 };
 //#endregion
-export { definePermissions as $, TokenFailureCause as A, DenialReason as B, MembershipSource as C, SnapshotSource as D, SnapshotGrant as E, WhereCompiler as F, ActionMeta as G, GrantedDecision as H, memoryRoleSource as I, PermissionTree as J, Permission as K, ApprovalRequiredDecision as L, TokenVerifier as M, VerificationFailure as N, SnapshotV2 as O, VerifiedToken as P, ResourceParent as Q, Decision as R, LimitStore as S, SinkEvent as T, MatchedGrant as U, DeniedDecision as V, ActionList as W, ResourceNode as X, ResourceInit as Y, ResourceOptions as Z, DecisionEvent as _, GrantOptions as a, Condition as at, DirectoryEvent as b, Role as c, MemberOfCondition as ct, ValidateMode as d, findPermission as et, allow as f, AuthEvent as g, role as h, GrantCondition as i, resource as it, TokenSigner as j, SubjectResolver as k, RoleOptions as l, OpaqueCondition as lt, deny as m, ClosureGrantFn as n, listPermissions as nt, Policy as o, ConditionRef as ot, definePolicy as p, PermissionKind as q, Grant as r, mergePermissions as rt, PrincipalOf as s, ConditionValue as st, ClosureContext as t, getResource as tt, SubjectOf as u, DecisionProvider as v, RoleSource as w, JwtClaims as x, DecisionSink as y, Denial as z };
+export { ResourceOptions as $, SnapshotV2 as A, Decision as B, LimitRemaining as C, SinkEvent as D, RoleSource as E, VerificationFailure as F, MatchedGrant as G, DenialReason as H, VerifiedToken as I, Permission as J, ActionList as K, WhereCompiler as L, TokenFailureCause as M, TokenSigner as N, SnapshotGrant as O, TokenVerifier as P, ResourceNode as Q, memoryRoleSource as R, LimitConsumeInput as S, MembershipSource as T, DeniedDecision as U, Denial as V, GrantedDecision as W, PermissionTree as X, PermissionKind as Y, ResourceInit as Z, DecisionEvent as _, GrantOptions as a, mergePermissions as at, DirectoryEvent as b, Role as c, ConditionRef as ct, ValidateMode as d, OpaqueCondition as dt, ResourceParent as et, allow as f, AuthEvent as g, role as h, GrantCondition as i, listPermissions as it, SubjectResolver as j, SnapshotSource as k, RoleOptions as l, ConditionValue as lt, deny as m, ClosureGrantFn as n, findPermission as nt, Policy as o, resource as ot, definePolicy as p, ActionMeta as q, Grant as r, getResource as rt, PrincipalOf as s, Condition as st, ClosureContext as t, definePermissions as tt, SubjectOf as u, MemberOfCondition as ut, DecisionProvider as v, LimitStore as w, JwtClaims as x, DecisionSink as y, ApprovalRequiredDecision as z };

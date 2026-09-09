@@ -1,5 +1,6 @@
 import type {
   DecisionSink,
+  LimitStore,
   Membership,
   MembershipSource,
   RoleSource,
@@ -89,6 +90,33 @@ export function testRoleSource(
         expect(options.declared).toContain(name);
       }
     }
+  });
+}
+
+export function testLimitStore(store: LimitStore): void {
+  it('counts down synchronously and fails closed when exhausted', async () => {
+    const input = {
+      key: 'report.export',
+      subjectId: 'u_1',
+      count: 2,
+      per: 'hour',
+      now: 1_700_000_000,
+    };
+    const first = await store.consume(input);
+    expect(first.remaining).toBeGreaterThanOrEqual(0);
+    const peeked = store.remaining(input);
+    if (peeked !== undefined) {
+      expect(typeof peeked.remaining).toBe('number');
+      expect(
+        peeked !== null &&
+          typeof peeked === 'object' &&
+          'then' in peeked &&
+          typeof (peeked as { readonly then?: unknown }).then === 'function',
+      ).toBe(false);
+    }
+    await store.consume(input);
+    const exhausted = await store.consume(input);
+    expect(exhausted.remaining).toBeLessThan(0);
   });
 }
 

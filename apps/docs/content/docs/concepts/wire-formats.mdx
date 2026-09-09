@@ -123,7 +123,7 @@ The return value of `decide`, and the payload inside AuthZEN `context` and Probl
   "reason": "human", "token": "pd1.…" }
 ```
 
-In JSON, `alternatives` is an array of permission keys; in memory it is an array of leaves. Remote PDP denials use `pdp-denied`, `pdp-unavailable` or `pdp-invalid-response`. A remote grant sets `matched.provider` to `pdp`.
+In JSON, `alternatives` is an array of permission keys; in memory it is an array of leaves. Remote PDP denials use `pdp-denied`, `pdp-unavailable` or `pdp-invalid-response`. A remote grant sets `matched.provider` to `pdp`. Quota denials use `limit` (exhausted) or `limit-unavailable` (no store, throw, or thenable).
 
 ## Decision event
 
