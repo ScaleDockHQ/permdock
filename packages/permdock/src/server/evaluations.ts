@@ -15,6 +15,7 @@ import {
 import { compact } from '../core/compact.ts';
 import { findPermission, listPermissions } from '../core/permissions.ts';
 import { validationProblem } from './problem.ts';
+import { InvalidSignatureError } from './web-bot-auth.ts';
 
 const DENIED: Decision = {
   outcome: 'denied',
@@ -348,7 +349,15 @@ export function createEvaluationsHandler(options: {
       header === undefined || options.store === undefined
         ? undefined
         : await resumeFromHeader(options.store, request.headers);
-    const dock = await resolveDock(options, request);
+    let dock: PermDock;
+    try {
+      dock = await resolveDock(options, request);
+    } catch (error) {
+      if (error instanceof InvalidSignatureError) {
+        return error.response;
+      }
+      throw error;
+    }
     const rows = await Promise.all(
       evaluations.map(async (item) => {
         const entry =
@@ -382,7 +391,15 @@ export function createEvaluationsHandler(options: {
       });
     }
     const tenant = url.searchParams.get('tenant') ?? undefined;
-    const dock = await resolveDock(options, request, tenant);
+    let dock: PermDock;
+    try {
+      dock = await resolveDock(options, request, tenant);
+    } catch (error) {
+      if (error instanceof InvalidSignatureError) {
+        return error.response;
+      }
+      throw error;
+    }
     const snapshot = dock.snapshot();
     return Response.json(await Promise.resolve(snapshot));
   };

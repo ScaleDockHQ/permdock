@@ -56,6 +56,8 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `SubjectResolver` | The generic type of every `subjectFrom*` function: verified input in, `Subject` out, never throws | A class hierarchy |
 | `memoryRoleSource` | The in-process `RoleSource` over a static `CustomRole[]` | Production storage |
 | `LimitStore`, `memoryLimitStore`, `limits` | The quota counter for `limit` grants, its in-process default, and the `createPermDock` option | Auto-installing a store; a thenable `consume` as granted |
+| `webBotAuth`, `discoverViaSignatureAgent` | Kernel option that verifies RFC 9421 signatures when `verify` is true, and the `Signature-Agent` directory lookup with an `allow` host list | A `permdock/web-bot-auth` package; trusting a host that is not on `allow` |
+| `InvalidSignatureError` | Thrown by `permdock(request)` when a claimed Web Bot Auth signature fails; `protect` returns the Problem Details `response` instead | Downgrading a failed signature to an anonymous actor |
 | `allow`, `deny` | The two grant constructors; both accept one reference or an array | Checking |
 | `subject` | Both the reference object used in conditions (`subject.id`) and the `definePolicy` option that maps a user to principal values | The agent (that is `actor`) |
 | `principal`, `actor`, `delegation` | The three parts of a subject | Synonyms for user or role |
@@ -155,6 +157,7 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 | `iat`, `nbf`, `jti` | RFC 7519 | none on the subject; `iat`, `jti` on signed outputs | Verified, then dropped |
 | `act` | RFC 8693 | `actor` (ADR 0012) | Innermost `act.sub` is `actor.id`; the nesting is `delegation.chain` |
 | `client_id`, `azp` | RFC 9068, OIDC Core | `actor.id` when the client acts under a delegation; verified otherwise | `actor.kind` `'oauth-client'` or `'mcp-client'` |
+| `Signature-Agent` `keyid` | Web Bot Auth / RFC 9421 | `actor.id` when `webBotAuth.verify` is on | `actor.kind` `'web-bot-auth'` |
 | `scope` | RFC 6749, RFC 9068 | `delegation.scopes`; `permission.scope` | Space-separated string on the wire, array in TypeScript |
 | `authorization_details` | RFC 9396 | `delegation.authorizationDetails`; `permission.authorizationDetails` | One RAR `type` per permission |
 | `access` | RFC 9635, RFC 9767 | `delegation.access` | Objects and reference strings kept verbatim |

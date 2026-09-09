@@ -67,4 +67,28 @@ describe('permdock/hono', () => {
     };
     expect(body.evaluations[0]?.decision).toBe(true);
   });
+
+  it('rejects a claimed Web Bot Auth signature before the handler', async () => {
+    const { permdock } = createPermDock(policy, {
+      subject: () => memberUser,
+      webBotAuth: {
+        verify: true,
+        keys: { lookup: () => undefined },
+      },
+    });
+    const app = new Hono();
+    app.use(permdock());
+    app.get('/posts', (c) => c.json({ ok: true }));
+    const response = await app.request('http://localhost/posts', {
+      headers: {
+        'Signature-Input':
+          'sig1=("@method");created=1700000000;keyid="bot-1";alg="ed25519"',
+        Signature: 'sig1=:AAAA:',
+        'Signature-Agent': '"https://agents.example.com"',
+      },
+    });
+    expect(response.status).toBe(403);
+    const body = (await response.json()) as { readonly type: string };
+    expect(body.type).toBe('https://permdock.dev/problems/invalid-signature');
+  });
 });

@@ -2,7 +2,7 @@ import { E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotS
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
 import { r as PermDock } from "../permdock-DlRpl_Uu.js";
 import { a as OtelOptions } from "../types-B6Kl8wqK.js";
-import { n as OpenApiHooks } from "../create-CpRLW1im.js";
+import { c as InvalidSignatureError, f as WebBotAuthOptions, n as OpenApiHooks, p as discoverViaSignatureAgent } from "../create-DOYrE6Dq.js";
 import { a as toRequest, i as sendResponse, t as NodeRequest } from "../http-DQtjxCmn.js";
 import { CanActivate, ExceptionFilter, Type } from "@nestjs/common";
 //#region src/nest/create.d.ts
@@ -20,6 +20,7 @@ type NestPermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 type NestProtect = (permission: Permission, loadData?: (req: NestRequest) => unknown) => ClassDecorator & MethodDecorator;
 type NestPermDock = {
@@ -33,4 +34,4 @@ type NestPermDock = {
 };
 export declare function createPermDock(policy: Policy, options: NestPermDockOptions): NestPermDock;
 //#endregion
-export { type NestPermDock, type NestPermDockOptions, type NestProtect, type NestRequest, sendResponse, toRequest };
+export { InvalidSignatureError, type NestPermDock, type NestPermDockOptions, type NestProtect, type NestRequest, discoverViaSignatureAgent, sendResponse, toRequest };

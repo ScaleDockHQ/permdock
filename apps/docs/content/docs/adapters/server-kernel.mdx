@@ -15,13 +15,17 @@ This is the design permix reached in a rejected PR (`createRequestKernel`) after
 ## API
 
 ```ts
-import { createPermDock } from 'permdock/server'
+import { createPermDock, discoverViaSignatureAgent } from 'permdock/server'
 import { policy } from './policy'
 
 export const { permdock, protect, problem, openapi } = createPermDock(policy, {
   subject: async (request) => userFromSession(request.headers.get('cookie')),
   actor: async (request) => agentFrom(request),          // optional; Web Bot Auth fills this automatically when enabled
-  webBotAuth: { directory: fetchSignatureAgentDirectory }, // optional RFC 9421 verification (Phase 4)
+  webBotAuth: {                                         // optional RFC 9421 verification
+    verify: true,
+    keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }),
+    required: false,
+  },
   problem: { base: 'https://api.example.com/problems' },  // Problem Details `type` prefix
 })
 
@@ -37,7 +41,7 @@ export default async function handler(request: Request): Promise<Response> {
 
 | Export | Role |
 |---|---|
-| `permdock(request)` | Resolves subject, actor and delegation once per `Request` (memoised in a `WeakMap`), builds the immutable `PermDock`, returns it. Never throws for anonymous callers; `subject` returning `null` yields an anonymous instance. |
+| `permdock(request)` | Resolves subject, actor and delegation once per `Request` (memoised in a `WeakMap`), builds the immutable `PermDock`, returns it. Never throws for anonymous callers; `subject` returning `null` yields an anonymous instance. A request that claims a Web Bot Auth signature and fails verification throws `InvalidSignatureError` with a ready Problem Details `response`. |
 | `protect(permission, loadData?)` | Returns `(request) => Promise<Guard>`. Loads data when the permission is an instance action, validates it at the boundary, calls `decide`, and returns either `ok: true` with `permdock`, `decision` and `data`, or `ok: false` with a ready `Response`. |
 | `problem(decision, init?)` | Builds the RFC 9457 `Response` for a `denied` or `approval-required` decision. Adapters call it when they need to emit the body through their own response object. |
 | `openapi` | The hook contract: `openapi.security(permission)` returns the per-operation `security` requirement and `x-permdock-permissions` extension; `openapi.securitySchemes()` returns the scheme with all scopes from `listPermissions`. Framework hooks (`describeRoute`, `createRoute`, `oo.spec`, `trpc-to-openapi`) call these. |
@@ -119,5 +123,4 @@ No dedicated example; the kernel is exercised by every HTTP example (`apps/examp
 - Whether `permdock(request)` should also accept a framework context object directly (so adapters can memoise on their own request type) or always require a `Request`.
 - Default for a `null` loader result: `404` hides existence, `403` is more honest; the plan does not decide.
 - How `approval-required` should surface over plain HTTP beyond the 403 body (listed in the roadmap open questions): a `Retry-After` hint, a `Location` to an approval page, or nothing.
-- Whether Web Bot Auth verification belongs in the kernel (Phase 4) or in a separate `permdock/web-bot-auth` entry that the kernel calls.
 - Whether the kernel should expose a streaming-friendly `protect` variant for Server-Sent Events handlers.

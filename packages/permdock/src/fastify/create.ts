@@ -17,6 +17,7 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
+import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import {
@@ -27,6 +28,7 @@ import {
 import { applyOtel } from '../otel/instrument.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
 import { problemResponse } from '../server/problem.ts';
+import { InvalidSignatureError } from '../server/web-bot-auth.ts';
 import { sendReply, toRequest } from './http.ts';
 
 const SKIP_OVERRIDE = Symbol.for('skip-override');
@@ -44,6 +46,7 @@ export type FastifyPermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 
 export type PermDockRequest<
@@ -100,6 +103,7 @@ export function createPermDock(
       store: options.store,
       sink: options.sink,
       snapshots: options.snapshots,
+      webBotAuth: options.webBotAuth,
       wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),
   );
@@ -134,6 +138,10 @@ export function createPermDock(
       decorate(request, await kernel.permdock(bind(request)));
     });
     app.setErrorHandler(async (err, _request, reply) => {
+      if (err instanceof InvalidSignatureError) {
+        await sendReply(reply, err.response);
+        return;
+      }
       if (err instanceof PermDockDeniedError) {
         await sendReply(
           reply,

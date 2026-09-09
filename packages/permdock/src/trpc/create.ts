@@ -11,9 +11,11 @@ import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { OpenApiHooks } from '../server/create.ts';
+import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
+import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
 
 export type TrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
   readonly ctx: TCtx;
@@ -37,6 +39,7 @@ export type TrpcPermDockOptions<TCtx = object> = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 
 export type TrpcOpenApiHooks = {
@@ -156,6 +159,7 @@ export function createPermDock<TCtx = object>(
       store: options.store,
       sink: options.sink,
       snapshots: options.snapshots,
+      webBotAuth: options.webBotAuth,
     }),
   );
 
@@ -188,11 +192,20 @@ export function createPermDock<TCtx = object>(
         built = kernel.permdock(request);
         instances.set(ctx, built);
       }
-      return built.then((instance) => {
-        const nextCtx = { ...opts.ctx, permdock: instance };
-        attach(nextCtx, request);
-        return opts.next({ ctx: nextCtx });
-      });
+      return built.then(
+        (instance) => {
+          const nextCtx = { ...opts.ctx, permdock: instance };
+          attach(nextCtx, request);
+          return opts.next({ ctx: nextCtx });
+        },
+        (error: unknown) => {
+          const response = invalidSignatureResponse(error);
+          if (response !== undefined) {
+            return throwTrpcError(response);
+          }
+          throw error;
+        },
+      );
     }) as TrpcMiddleware;
 
   const protect = (

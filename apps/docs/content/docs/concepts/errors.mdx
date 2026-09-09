@@ -15,6 +15,8 @@ PermDock's evaluation path never throws: `can`, `decide`, `filter`, `where`, `si
 
 All three extend `Error`, set `name` to the class name, and are exported from `permdock`. They are ordinary subclasses with no prototype tricks, so `instanceof` works across the package's own entry points; across bundle copies, check `error.name`.
 
+HTTP adapters add one kernel rejection that is not an evaluation class: `InvalidSignatureError` from `permdock/server` when `webBotAuth.verify` is on and a claimed RFC 9421 signature fails. `protect` returns the Problem Details `response` (`type` `.../invalid-signature`); it is never downgraded to an anonymous actor.
+
 ## PermDockDeniedError
 
 ```ts

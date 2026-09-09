@@ -9,19 +9,24 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Actor } from '../core/subject.ts';
+import type { WebBotAuthOptions } from './web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { listPermissions } from '../core/permissions.ts';
+import { isActor } from '../core/subject.ts';
 import {
   applyApprovalResume,
   createEvaluationsHandler,
 } from './evaluations.ts';
 import { problemFromDecision, problemResponse } from './problem.ts';
+import { InvalidSignatureError, verifyWebBotAuth } from './web-bot-auth.ts';
 
 export type ServerPermDockOptions = {
   readonly subject: (request: Request) => unknown;
   readonly actor?: (request: Request) => unknown;
+  readonly webBotAuth?: WebBotAuthOptions;
   readonly tenant?:
     | string
     | ((request: Request) => string | undefined | Promise<string | undefined>);
@@ -66,6 +71,29 @@ export type ServerPermDock = {
   readonly handler: () => ReturnType<typeof createEvaluationsHandler>;
 };
 
+async function resolveActor(
+  request: Request,
+  options: ServerPermDockOptions,
+): Promise<Actor | undefined> {
+  const verified = await verifyWebBotAuth(
+    request,
+    options.webBotAuth,
+    options.problem?.base,
+  );
+  if (verified !== undefined) {
+    return verified;
+  }
+  if (options.actor === undefined) {
+    return undefined;
+  }
+  try {
+    const resolved = await options.actor(request);
+    return isActor(resolved) ? resolved : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function resolveTenant(
   tenant: ServerPermDockOptions['tenant'],
   request: Request,
@@ -94,6 +122,7 @@ export function createPermDock(
       return hit;
     }
     const built = (async (): Promise<PermDock> => {
+      const actor = await resolveActor(request, options);
       let user: unknown = null;
       try {
         user = await options.subject(request);
@@ -109,6 +138,7 @@ export function createPermDock(
           memberships: options.memberships,
           customRoles: options.customRoles,
           sink: options.sink,
+          actor,
         }),
       );
       return options.wrap === undefined ? dock : options.wrap(dock);
@@ -125,7 +155,15 @@ export function createPermDock(
       ) => T | null | undefined | Promise<T | null | undefined>,
     ) =>
     async (request: Request): Promise<Guard<T>> => {
-      const instance = await permdock(request);
+      let instance: PermDock;
+      try {
+        instance = await permdock(request);
+      } catch (error) {
+        if (error instanceof InvalidSignatureError) {
+          return { ok: false, response: error.response };
+        }
+        throw error;
+      }
       let data: T | undefined;
       if (loadData !== undefined) {
         const loaded = await loadData(request);

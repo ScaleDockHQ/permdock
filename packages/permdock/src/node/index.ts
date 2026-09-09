@@ -7,3 +7,7 @@ export {
   toRequest,
 } from './http.ts';
 export type { NodeRequest } from './http.ts';
+export {
+  discoverViaSignatureAgent,
+  InvalidSignatureError,
+} from '../server/web-bot-auth.ts';

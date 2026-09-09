@@ -1,8 +1,20 @@
 import { t as compact } from "./compact-CxSqQNw0.js";
-import { t as createPermDock$1 } from "./permdock-C-YFXzhV.js";
+import { t as createPermDock$1 } from "./permdock-DT_a99MP.js";
 import { o as listPermissions } from "./permissions-WEkUHQtZ.js";
-import { a as problemResponse, i as problemFromDecision, n as createEvaluationsHandler, t as applyApprovalResume } from "./evaluations-cJeur3Fn.js";
+import { n as isActor } from "./subject-DgYVJ_Q0.js";
+import { l as problemFromDecision, n as createEvaluationsHandler, r as InvalidSignatureError, s as verifyWebBotAuth, t as applyApprovalResume, u as problemResponse } from "./evaluations-04mKRGwn.js";
 //#region src/server/create.ts
+async function resolveActor(request, options) {
+	const verified = await verifyWebBotAuth(request, options.webBotAuth, options.problem?.base);
+	if (verified !== void 0) return verified;
+	if (options.actor === void 0) return;
+	try {
+		const resolved = await options.actor(request);
+		return isActor(resolved) ? resolved : void 0;
+	} catch {
+		return;
+	}
+}
 async function resolveTenant(tenant, request) {
 	if (tenant === void 0 || typeof tenant === "string") return tenant;
 	try {
@@ -17,6 +29,7 @@ function createPermDock(policy, options) {
 		const hit = cache.get(request);
 		if (hit !== void 0) return hit;
 		const built = (async () => {
+			const actor = await resolveActor(request, options);
 			let user = null;
 			try {
 				user = await options.subject(request);
@@ -28,7 +41,8 @@ function createPermDock(policy, options) {
 				tenant,
 				memberships: options.memberships,
 				customRoles: options.customRoles,
-				sink: options.sink
+				sink: options.sink,
+				actor
 			}));
 			return options.wrap === void 0 ? dock : options.wrap(dock);
 		})();
@@ -36,7 +50,16 @@ function createPermDock(policy, options) {
 		return built;
 	};
 	const protect = (permission, loadData) => async (request) => {
-		const instance = await permdock(request);
+		let instance;
+		try {
+			instance = await permdock(request);
+		} catch (error) {
+			if (error instanceof InvalidSignatureError) return {
+				ok: false,
+				response: error.response
+			};
+			throw error;
+		}
 		let data;
 		if (loadData !== void 0) {
 			const loaded = await loadData(request);

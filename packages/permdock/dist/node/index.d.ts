@@ -2,7 +2,7 @@ import { E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotS
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
 import { r as PermDock } from "../permdock-DlRpl_Uu.js";
 import { a as OtelOptions } from "../types-B6Kl8wqK.js";
-import { n as OpenApiHooks, t as Guard } from "../create-CpRLW1im.js";
+import { c as InvalidSignatureError, f as WebBotAuthOptions, n as OpenApiHooks, p as discoverViaSignatureAgent, t as Guard } from "../create-DOYrE6Dq.js";
 import { a as toRequest, i as sendResponse, n as fromResponse, r as isServerResponse, t as NodeRequest } from "../http-DQtjxCmn.js";
 import { IncomingMessage, ServerResponse } from "node:http";
 //#region src/node/create.d.ts
@@ -15,6 +15,7 @@ type NodePermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 type NodePermDock = {
   readonly permdock: (req: IncomingMessage) => Promise<PermDock>;
@@ -27,4 +28,4 @@ type NodePermDock = {
 };
 export declare function createPermDock(policy: Policy, options: NodePermDockOptions): NodePermDock;
 //#endregion
-export { type NodePermDock, type NodePermDockOptions, type NodeRequest, fromResponse, isServerResponse, sendResponse, toRequest };
+export { InvalidSignatureError, type NodePermDock, type NodePermDockOptions, type NodeRequest, discoverViaSignatureAgent, fromResponse, isServerResponse, sendResponse, toRequest };

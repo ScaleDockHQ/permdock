@@ -2,7 +2,7 @@ import { a as readPath } from "../paths-AH4M6YYV.js";
 import { t as freezeDeep } from "../freeze-BF4IK5al.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as sha256, t as bytesToBase64Url } from "../sha256-CeSpVRME.js";
-import { t as anonymousSubject } from "../subject-Dz8DcVLC.js";
+import { t as anonymousSubject } from "../subject-DgYVJ_Q0.js";
 import { a as decodeHeader, i as loadJose, n as assertSubjectConfig, r as issuerFromDiscovery, t as joseTokenVerifier } from "../verifier-B6XyETqk.js";
 //#region src/jwt/dpop.ts
 const DPOP_WINDOW_SECONDS = 60;

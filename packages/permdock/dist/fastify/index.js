@@ -1,8 +1,8 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
-import { a as problemResponse } from "../evaluations-cJeur3Fn.js";
-import { t as createPermDock$1 } from "../create-n0IUeh1b.js";
+import { i as discoverViaSignatureAgent, r as InvalidSignatureError, u as problemResponse } from "../evaluations-04mKRGwn.js";
+import { t as createPermDock$1 } from "../create-D_4aH9ul.js";
 //#region src/fastify/http.ts
 function toRequest(request) {
 	const host = headerValue(request.headers.host) ?? "localhost";
@@ -71,6 +71,7 @@ function createPermDock(policy, options) {
 		store: options.store,
 		sink: options.sink,
 		snapshots: options.snapshots,
+		webBotAuth: options.webBotAuth,
 		wrap: (dock) => applyOtel(dock, options.otel)
 	}));
 	const bind = (request) => {
@@ -93,6 +94,10 @@ function createPermDock(policy, options) {
 			decorate(request, await kernel.permdock(bind(request)));
 		});
 		app.setErrorHandler(async (err, _request, reply) => {
+			if (err instanceof InvalidSignatureError) {
+				await sendReply(reply, err.response);
+				return;
+			}
 			if (err instanceof PermDockDeniedError) {
 				await sendReply(reply, problemResponse(err.toProblemDetails(), void 0, err.decision));
 				return;
@@ -135,4 +140,4 @@ function createPermDock(policy, options) {
 	};
 }
 //#endregion
-export { createPermDock, sendReply, toRequest };
+export { InvalidSignatureError, createPermDock, discoverViaSignatureAgent, sendReply, toRequest };

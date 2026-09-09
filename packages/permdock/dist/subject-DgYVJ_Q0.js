@@ -9,6 +9,11 @@ function isPrincipal(value) {
 function isSubject(value) {
 	return value !== null && typeof value === "object" && "principal" in value && "context" in value && typeof value.context === "object";
 }
+function isActor(value) {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+	const record = value;
+	return typeof record.id === "string" && typeof record.kind === "string";
+}
 function anonymousSubject(context = {}) {
 	return Object.freeze({
 		principal: null,
@@ -16,4 +21,4 @@ function anonymousSubject(context = {}) {
 	});
 }
 //#endregion
-export { isPrincipal as n, isSubject as r, anonymousSubject as t };
+export { isSubject as i, isActor as n, isPrincipal as r, anonymousSubject as t };

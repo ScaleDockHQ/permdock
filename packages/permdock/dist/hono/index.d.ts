@@ -1,7 +1,7 @@
 import { E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotSource, o as Policy, y as DecisionSink } from "../policy-CrXDbTAD.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
 import { a as OtelOptions } from "../types-B6Kl8wqK.js";
-import { n as OpenApiHooks } from "../create-CpRLW1im.js";
+import { c as InvalidSignatureError, f as WebBotAuthOptions, n as OpenApiHooks, p as discoverViaSignatureAgent } from "../create-DOYrE6Dq.js";
 import { Context, Hono, MiddlewareHandler } from "hono";
 //#region src/hono/create.d.ts
 type HonoPermDockOptions = {
@@ -13,6 +13,7 @@ type HonoPermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 type HonoPermDock = {
   readonly permdock: () => MiddlewareHandler;
@@ -22,4 +23,4 @@ type HonoPermDock = {
 };
 export declare function createPermDock(policy: Policy, options: HonoPermDockOptions): HonoPermDock;
 //#endregion
-export type { HonoPermDock, HonoPermDockOptions };
+export { type HonoPermDock, type HonoPermDockOptions, InvalidSignatureError, discoverViaSignatureAgent };

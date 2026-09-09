@@ -12,10 +12,12 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
+import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
+import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
 
 export type HonoPermDockOptions = {
   readonly subject: (c: Context) => unknown;
@@ -28,6 +30,7 @@ export type HonoPermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 
 export type HonoPermDock = {
@@ -67,6 +70,7 @@ export function createPermDock(
       store: options.store,
       sink: options.sink,
       snapshots: options.snapshots,
+      webBotAuth: options.webBotAuth,
       wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),
   );
@@ -78,8 +82,17 @@ export function createPermDock(
   };
 
   const permdock = (): MiddlewareHandler => async (c, next: Next) => {
-    c.set('permdock', await kernel.permdock(bind(c)));
+    try {
+      c.set('permdock', await kernel.permdock(bind(c)));
+    } catch (error) {
+      const response = invalidSignatureResponse(error);
+      if (response !== undefined) {
+        return response;
+      }
+      throw error;
+    }
     await next();
+    return undefined;
   };
 
   const protect =

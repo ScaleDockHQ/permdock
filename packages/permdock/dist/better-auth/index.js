@@ -2,7 +2,7 @@ import { t as freezeDeep } from "../freeze-BF4IK5al.js";
 import { i as role, t as allow } from "../policy-BPjhRGPn.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { o as listPermissions } from "../permissions-WEkUHQtZ.js";
-import { t as anonymousSubject } from "../subject-Dz8DcVLC.js";
+import { t as anonymousSubject } from "../subject-DgYVJ_Q0.js";
 //#region src/better-auth/parse.ts
 function isRecord(value) {
 	return value !== null && typeof value === "object" && !Array.isArray(value);

@@ -6,3 +6,7 @@ export type {
   ElysiaPermDockOptions,
   ElysiaProtect,
 } from './create.ts';
+export {
+  discoverViaSignatureAgent,
+  InvalidSignatureError,
+} from '../server/web-bot-auth.ts';

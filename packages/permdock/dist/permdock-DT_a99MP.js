@@ -5,7 +5,7 @@ import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r a
 import { n as pickVisible, r as sanitizeContext, t as grantCoversField } from "./fields-BXlUUepW.js";
 import { a as matchScopedMembership, c as tenantsOf, o as nowSeconds, r as signSnapshot, s as resolveActiveTenant, t as buildSnapshot } from "./snapshot-BiwEN_W3.js";
 import { i as getResource, o as listPermissions } from "./permissions-WEkUHQtZ.js";
-import { n as isPrincipal, r as isSubject, t as anonymousSubject } from "./subject-Dz8DcVLC.js";
+import { i as isSubject, r as isPrincipal, t as anonymousSubject } from "./subject-DgYVJ_Q0.js";
 //#region src/core/limits.ts
 const UNIT_SECONDS = {
 	s: 1,
@@ -34,7 +34,7 @@ function limitWindowId(per, now) {
 	const trimmed = per.trim().toLowerCase();
 	const named = UNIT_SECONDS[trimmed];
 	if (named !== void 0) return String(Math.floor(now / named));
-	const match = /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/.exec(trimmed);
+	const match = /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/u.exec(trimmed);
 	if (match !== null) {
 		const amount = Number(match[1]);
 		const unit = UNIT_SECONDS[match[2] ?? ""];

@@ -1,5 +1,6 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
-import { t as createPermDock$1 } from "../create-n0IUeh1b.js";
+import { o as invalidSignatureResponse } from "../evaluations-04mKRGwn.js";
+import { t as createPermDock$1 } from "../create-D_4aH9ul.js";
 import { TRPCError } from "@trpc/server";
 //#region src/trpc/create.ts
 function requestFromCtx(ctx) {
@@ -59,7 +60,8 @@ function createPermDock(policy, options) {
 		customRoles: options.customRoles,
 		store: options.store,
 		sink: options.sink,
-		snapshots: options.snapshots
+		snapshots: options.snapshots,
+		webBotAuth: options.webBotAuth
 	}));
 	const bind = (opts) => {
 		const ctx = opts.ctx;
@@ -91,6 +93,10 @@ function createPermDock(policy, options) {
 			};
 			attach(nextCtx, request);
 			return opts.next({ ctx: nextCtx });
+		}, (error) => {
+			const response = invalidSignatureResponse(error);
+			if (response !== void 0) return throwTrpcError(response);
+			throw error;
 		});
 	});
 	const protect = (permission, loadData) => (async (opts) => {

@@ -1,6 +1,6 @@
 import { E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotSource, o as Policy, y as DecisionSink } from "../policy-CrXDbTAD.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
-import { n as OpenApiHooks } from "../create-CpRLW1im.js";
+import { f as WebBotAuthOptions, n as OpenApiHooks } from "../create-DOYrE6Dq.js";
 import { AnyMiddleware } from "@orpc/server";
 //#region src/orpc/create.d.ts
 type OrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
@@ -20,6 +20,7 @@ type OrpcPermDockOptions<TCtx = object> = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 type OrpcOpenApiHooks<TCtx = object> = {
   readonly protect: (permission: Permission, loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown) => OrpcMiddleware;

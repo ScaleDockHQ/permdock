@@ -1,5 +1,5 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
-import { t as createAgentKernel } from "../kernel-CJn1KMIG.js";
+import { t as createAgentKernel } from "../kernel-DFQs_97k.js";
 //#region src/ai-sdk/create.ts
 function contextOf(call) {
 	const runtime = call.runtimeContext !== null && typeof call.runtimeContext === "object" ? call.runtimeContext : {};

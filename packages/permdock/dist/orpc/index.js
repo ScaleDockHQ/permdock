@@ -1,5 +1,6 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
-import { t as createPermDock$1 } from "../create-n0IUeh1b.js";
+import { o as invalidSignatureResponse } from "../evaluations-04mKRGwn.js";
+import { t as createPermDock$1 } from "../create-D_4aH9ul.js";
 import { ORPCError } from "@orpc/server";
 //#region src/orpc/create.ts
 function requestFromCtx(ctx) {
@@ -55,7 +56,8 @@ function createPermDock(policy, options) {
 		customRoles: options.customRoles,
 		store: options.store,
 		sink: options.sink,
-		snapshots: options.snapshots
+		snapshots: options.snapshots,
+		webBotAuth: options.webBotAuth
 	}));
 	const bind = (opts) => {
 		const ctx = opts.context;
@@ -90,6 +92,10 @@ function createPermDock(policy, options) {
 			};
 			attach(nextCtx, request);
 			return mwOptions.next({ context: nextCtx });
+		}, (error) => {
+			const response = invalidSignatureResponse(error);
+			if (response !== void 0) return throwOrpcError(response);
+			throw error;
 		});
 	});
 	const protect = (permission, loadData) => (async (mwOptions, input) => {

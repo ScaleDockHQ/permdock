@@ -1,6 +1,6 @@
 import { E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotSource, o as Policy, y as DecisionSink } from "../policy-CrXDbTAD.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
-import { n as OpenApiHooks } from "../create-CpRLW1im.js";
+import { f as WebBotAuthOptions, n as OpenApiHooks } from "../create-DOYrE6Dq.js";
 import { AnyTRPCMiddlewareFunction } from "@trpc/server";
 //#region src/trpc/create.d.ts
 type TrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
@@ -21,6 +21,7 @@ type TrpcPermDockOptions<TCtx = object> = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 type TrpcOpenApiHooks = {
   readonly security: (permission: Permission) => {

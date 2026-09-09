@@ -3,10 +3,10 @@ title: Web Bot Auth
 description: How Web Bot Auth (RFC 9421 HTTP Message Signatures with Signature-Agent discovery) gives PermDock's HTTP adapters a verified agent identity to fill the actor half of the subject.
 ---
 
-Status: planned
+Status: shipped
 Phase: 4
-Draft posture: build (the IETF draft revision is pinned on this page when Phase 4 starts; `actor` and the registered `x-agent-trust` extension are the stable twins, per [ADR 0025](/docs/decisions/0025-draft-protocol-posture))
-Adapter phases: Web Bot Auth verification in the HTTP adapters (`permdock/server`, `permdock/hono` and the adapters built on the kernel) 4; the `actor` field itself exists in core from Phase 1 but is not filled from Web Bot Auth before Phase 4.
+Draft posture: build (`draft-meunier-webbotauth-httpsig-protocol-02`; `actor.kind: 'web-bot-auth'` and the registered `x-agent-trust` OpenAPI hint are the stable twins, per [ADR 0025](/docs/decisions/0025-draft-protocol-posture))
+Adapter phases: Web Bot Auth verification in the HTTP adapters (`permdock/server`, `permdock/hono` and the adapters built on the kernel) 4. The `actor` field itself exists in core from Phase 1.
 
 ## What it is
 
@@ -25,7 +25,7 @@ Two things Web Bot Auth does not provide, and PermDock does not infer from it: t
 ## How PermDock uses it
 
 ```ts
-import { createPermDock } from 'permdock/hono'
+import { createPermDock, discoverViaSignatureAgent } from 'permdock/hono'
 
 export const { permdock, protect } = createPermDock(policy, {
   subject: (c) => c.get('user'),
@@ -42,7 +42,7 @@ app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.
 
 Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 
-- **Verification is optional and off by default** until Phase 4. When enabled, a request with `Signature-Input` is verified against keys discovered through `Signature-Agent`, subject to an allow-list of key directories.
+- **Verification is optional and off by default.** When `webBotAuth.verify` is true, a request with `Signature-Input` is verified against keys discovered through `Signature-Agent`, subject to an allow-list of key directories.
 - **Invalid signature fails closed.** A request that claims a signature but fails verification is rejected before any permission check, with a Problem Details body of type `.../invalid-signature`. It is never downgraded to an anonymous actor.
 - **Verified signer becomes `actor`.** `actor.id` is the signer's key identifier and `actor.kind` is `'web-bot-auth'`. Policies may reference `subject.actor` in conditions (for example, denying `post.publish` when any actor is present), and `on('decision')` events include it for audit.
 - **Delegation still comes from the token.** If the same request carries a bearer token with scopes, those fill `delegation` exactly as they do for non-signed requests. If it carries none, the actor has no delegated authority and every check is denied, which is the intended outcome for an unknown bot.
@@ -85,13 +85,12 @@ The `actor`-aware condition shape is illustrative; see the open questions on [su
 
 ## Sources
 
-- [Web Bot Auth: HTTP Message Signatures for automated traffic, IETF 126 slides](https://datatracker.ietf.org/meeting/126/materials/slides-126-webbotauth-http-message-signatures-for-automated-traffic-00).
+- [draft-meunier-webbotauth-httpsig-protocol-02](https://datatracker.ietf.org/doc/draft-meunier-webbotauth-httpsig-protocol/) (HTTP Message Signatures for automated traffic).
+- [draft-meunier-http-message-signatures-directory-05](https://datatracker.ietf.org/doc/draft-meunier-http-message-signatures-directory/) (Signature-Agent key directory).
 - RFC 9421 (HTTP Message Signatures), referenced by number.
 - Product plan, HTTP adapter section ("Optional Web Bot Auth verification (RFC 9421) fills `actor` for agent callers") and Phase 4 roadmap.
 
 ## Open questions
 
-- The adapter option names (`webBotAuth`, `keys`, `required`) are illustrative; the shape will be fixed when Phase 4 starts and the draft has stabilised.
-- Whether PermDock should implement RFC 9421 verification itself or depend on a small verified library, given the zero-runtime-dependency rule for core (the HTTP adapters are not core, so a dependency is permitted but should be weighed).
-- How to represent the signature requirement in OpenAPI 3.2 output.
+- How to represent the signature requirement in OpenAPI 3.2 output beyond the `x-agent-trust` hint on an `apiKey` scheme named `Signature-Agent`.
 - Whether a verified actor should be able to map to a *service principal* (an agent acting on its own behalf, with its own role) rather than always requiring a human principal; this is the same question raised in [OAuth for agent delegation](/docs/standards/oauth-agent-delegation).

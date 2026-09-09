@@ -21,10 +21,14 @@ Guard with `getPermission(permissions.post.update, post)` or `assert`. Client co
 ## Hono — `permdock/hono`
 
 ```ts
-import { createPermDock } from 'permdock/hono';
+import { createPermDock, discoverViaSignatureAgent } from 'permdock/hono';
 
 export const { permdock, protect, permdockHandler } = createPermDock(policy, {
   subject: (c) => c.get('user'),
+  webBotAuth: {
+    verify: true,
+    keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }),
+  },
 });
 
 app.use('*', permdock());

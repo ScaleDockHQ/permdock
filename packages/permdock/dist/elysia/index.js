@@ -1,8 +1,8 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
-import { a as problemResponse } from "../evaluations-cJeur3Fn.js";
-import { t as createPermDock$1 } from "../create-n0IUeh1b.js";
+import { i as discoverViaSignatureAgent, r as InvalidSignatureError, u as problemResponse } from "../evaluations-04mKRGwn.js";
+import { t as createPermDock$1 } from "../create-D_4aH9ul.js";
 import { Elysia } from "elysia";
 //#region src/elysia/create.ts
 function createPermDock(policy, options) {
@@ -23,6 +23,7 @@ function createPermDock(policy, options) {
 		store: options.store,
 		sink: options.sink,
 		snapshots: options.snapshots,
+		webBotAuth: options.webBotAuth,
 		wrap: (dock) => applyOtel(dock, options.otel)
 	}));
 	const bind = (ctx) => {
@@ -43,6 +44,7 @@ function createPermDock(policy, options) {
 		decorate(ctx, instance);
 		return { permdock: instance };
 	}).onError(({ error }) => {
+		if (error instanceof InvalidSignatureError) return error.response;
 		if (error instanceof PermDockDeniedError) return problemResponse(error.toProblemDetails(), void 0, error.decision);
 		if (error instanceof PermDockApprovalRequiredError) return problemResponse(error.toProblemDetails(), void 0, error.decision);
 		if (error instanceof PermDockValidationError) return problemResponse(error.toProblemDetails());
@@ -76,4 +78,4 @@ function toRequest(ctx) {
 	});
 }
 //#endregion
-export { createPermDock };
+export { InvalidSignatureError, createPermDock, discoverViaSignatureAgent };

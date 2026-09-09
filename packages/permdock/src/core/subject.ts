@@ -112,6 +112,14 @@ export function isSubject(value: unknown): value is Subject {
   );
 }
 
+export function isActor(value: unknown): value is Actor {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as { readonly id?: unknown; readonly kind?: unknown };
+  return typeof record.id === 'string' && typeof record.kind === 'string';
+}
+
 export function anonymousSubject(
   context: Readonly<Record<string, unknown>> = {},
 ): Subject {

@@ -2,7 +2,7 @@ import { E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotS
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
 import { r as PermDock } from "../permdock-DlRpl_Uu.js";
 import { a as OtelOptions } from "../types-B6Kl8wqK.js";
-import { n as OpenApiHooks } from "../create-CpRLW1im.js";
+import { c as InvalidSignatureError, f as WebBotAuthOptions, n as OpenApiHooks, p as discoverViaSignatureAgent } from "../create-DOYrE6Dq.js";
 import { a as toRequest, i as sendResponse } from "../http-DQtjxCmn.js";
 import { ErrorRequestHandler, Request, RequestHandler, Response, Router } from "express";
 //#region src/express/create.d.ts
@@ -15,6 +15,7 @@ type ExpressPermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 type PermDockRequest<T = unknown> = Request & {
   permdock: PermDock;
@@ -30,4 +31,4 @@ type ExpressPermDock = {
 };
 export declare function createPermDock(policy: Policy, options: ExpressPermDockOptions): ExpressPermDock;
 //#endregion
-export { type ExpressPermDock, type ExpressPermDockOptions, type PermDockRequest, sendResponse, toRequest };
+export { type ExpressPermDock, type ExpressPermDockOptions, InvalidSignatureError, type PermDockRequest, discoverViaSignatureAgent, sendResponse, toRequest };

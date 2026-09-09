@@ -2,7 +2,7 @@ import { E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotS
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
 import { r as PermDock } from "../permdock-DlRpl_Uu.js";
 import { a as OtelOptions } from "../types-B6Kl8wqK.js";
-import { n as OpenApiHooks } from "../create-CpRLW1im.js";
+import { c as InvalidSignatureError, f as WebBotAuthOptions, n as OpenApiHooks, p as discoverViaSignatureAgent } from "../create-DOYrE6Dq.js";
 import { Elysia } from "elysia";
 //#region src/elysia/create.d.ts
 type ElysiaCtx = {
@@ -19,6 +19,7 @@ type ElysiaPermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 type ElysiaContext = ElysiaCtx & {
   permdock: PermDock;
@@ -33,4 +34,4 @@ type ElysiaPermDock = {
 };
 export declare function createPermDock(policy: Policy, options: ElysiaPermDockOptions): ElysiaPermDock;
 //#endregion
-export type { ElysiaContext, ElysiaCtx, ElysiaPermDock, ElysiaPermDockOptions, ElysiaProtect };
+export { type ElysiaContext, type ElysiaCtx, type ElysiaPermDock, type ElysiaPermDockOptions, type ElysiaProtect, InvalidSignatureError, discoverViaSignatureAgent };

@@ -12,6 +12,7 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { Guard, OpenApiHooks } from '../server/create.ts';
+import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { applyOtel } from '../otel/instrument.ts';
@@ -34,6 +35,7 @@ export type NodePermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 
 export type NodePermDock = {
@@ -80,6 +82,7 @@ export function createPermDock(
       store: options.store,
       sink: options.sink,
       snapshots: options.snapshots,
+      webBotAuth: options.webBotAuth,
       wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),
   );

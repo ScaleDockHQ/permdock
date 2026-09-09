@@ -33,6 +33,7 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
+import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import {
@@ -43,6 +44,7 @@ import {
 import { applyOtel } from '../otel/instrument.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
 import { problemResponse } from '../server/problem.ts';
+import { InvalidSignatureError } from '../server/web-bot-auth.ts';
 import {
   isServerResponse,
   sendResponse,
@@ -69,6 +71,7 @@ export type NestPermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 
 export type NestProtect = (
@@ -174,6 +177,7 @@ export function createPermDock(
       store: options.store,
       sink: options.sink,
       snapshots: options.snapshots,
+      webBotAuth: options.webBotAuth,
       wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),
   );
@@ -255,6 +259,10 @@ export function createPermDock(
       if (!isServerResponse(response)) {
         throw new TypeError('unsupported Nest response');
       }
+      if (exception instanceof InvalidSignatureError) {
+        await this.send(response, exception.response);
+        return;
+      }
       if (exception instanceof PermDockHttpError) {
         await this.send(response, exception.response);
         return;
@@ -293,6 +301,7 @@ export function createPermDock(
   }
   Catch(
     PermDockHttpError,
+    InvalidSignatureError,
     PermDockDeniedError,
     PermDockApprovalRequiredError,
     PermDockValidationError,

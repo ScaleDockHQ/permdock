@@ -2,7 +2,7 @@ import { E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotS
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
 import { r as PermDock } from "../permdock-DlRpl_Uu.js";
 import { a as OtelOptions } from "../types-B6Kl8wqK.js";
-import { n as OpenApiHooks } from "../create-CpRLW1im.js";
+import { c as InvalidSignatureError, f as WebBotAuthOptions, n as OpenApiHooks, p as discoverViaSignatureAgent } from "../create-DOYrE6Dq.js";
 import { FastifyPluginAsync, FastifyReply, FastifyRequest, RouteGenericInterface } from "fastify";
 //#region src/fastify/create.d.ts
 type FastifyPermDockOptions = {
@@ -14,6 +14,7 @@ type FastifyPermDockOptions = {
   readonly sink?: DecisionSink;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
+  readonly webBotAuth?: WebBotAuthOptions;
 };
 type PermDockRequest<Route extends RouteGenericInterface = RouteGenericInterface> = FastifyRequest<Route> & {
   permdock: PermDock;
@@ -32,4 +33,4 @@ export declare function createPermDock(policy: Policy, options: FastifyPermDockO
 export declare function toRequest(request: FastifyRequest): Request;
 export declare function sendReply(reply: FastifyReply, response: Response): Promise<void>;
 //#endregion
-export type { FastifyPermDock, FastifyPermDockOptions, FastifyProtect, PermDockRequest };
+export { type FastifyPermDock, type FastifyPermDockOptions, type FastifyProtect, InvalidSignatureError, type PermDockRequest, discoverViaSignatureAgent };

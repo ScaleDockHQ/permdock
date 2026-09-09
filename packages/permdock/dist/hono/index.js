@@ -1,6 +1,7 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
-import { t as createPermDock$1 } from "../create-n0IUeh1b.js";
+import { i as discoverViaSignatureAgent, o as invalidSignatureResponse, r as InvalidSignatureError } from "../evaluations-04mKRGwn.js";
+import { t as createPermDock$1 } from "../create-D_4aH9ul.js";
 import { Hono } from "hono";
 //#region src/hono/create.ts
 function createPermDock(policy, options) {
@@ -20,6 +21,7 @@ function createPermDock(policy, options) {
 		store: options.store,
 		sink: options.sink,
 		snapshots: options.snapshots,
+		webBotAuth: options.webBotAuth,
 		wrap: (dock) => applyOtel(dock, options.otel)
 	}));
 	const bind = (c) => {
@@ -28,7 +30,13 @@ function createPermDock(policy, options) {
 		return raw;
 	};
 	const permdock = () => async (c, next) => {
-		c.set("permdock", await kernel.permdock(bind(c)));
+		try {
+			c.set("permdock", await kernel.permdock(bind(c)));
+		} catch (error) {
+			const response = invalidSignatureResponse(error);
+			if (response !== void 0) return response;
+			throw error;
+		}
 		await next();
 	};
 	const protect = (permission, loadData) => async (c, next) => {
@@ -53,4 +61,4 @@ function createPermDock(policy, options) {
 	};
 }
 //#endregion
-export { createPermDock };
+export { InvalidSignatureError, createPermDock, discoverViaSignatureAgent };

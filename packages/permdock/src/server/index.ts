@@ -18,3 +18,16 @@ export {
   PermDockDeniedError,
   PermDockValidationError,
 } from '../core/errors.ts';
+export {
+  InvalidSignatureError,
+  discoverViaSignatureAgent,
+  invalidSignatureProblem,
+  invalidSignatureResponse,
+} from './web-bot-auth.ts';
+export type {
+  DiscoverViaSignatureAgentOptions,
+  WebBotAuthJwk,
+  WebBotAuthKeyLookup,
+  WebBotAuthKeys,
+  WebBotAuthOptions,
+} from './web-bot-auth.ts';

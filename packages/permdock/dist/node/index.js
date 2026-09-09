@@ -1,6 +1,7 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
-import { t as createPermDock$1 } from "../create-n0IUeh1b.js";
+import { i as discoverViaSignatureAgent, r as InvalidSignatureError } from "../evaluations-04mKRGwn.js";
+import { t as createPermDock$1 } from "../create-D_4aH9ul.js";
 import { i as toRequest, n as isServerResponse, r as sendResponse, t as fromResponse } from "../http-kYphIx9F.js";
 //#region src/node/create.ts
 function createPermDock(policy, options) {
@@ -21,6 +22,7 @@ function createPermDock(policy, options) {
 		store: options.store,
 		sink: options.sink,
 		snapshots: options.snapshots,
+		webBotAuth: options.webBotAuth,
 		wrap: (dock) => applyOtel(dock, options.otel)
 	}));
 	const bind = (req) => {
@@ -56,4 +58,4 @@ function createPermDock(policy, options) {
 	};
 }
 //#endregion
-export { createPermDock, fromResponse, isServerResponse, sendResponse, toRequest };
+export { InvalidSignatureError, createPermDock, discoverViaSignatureAgent, fromResponse, isServerResponse, sendResponse, toRequest };

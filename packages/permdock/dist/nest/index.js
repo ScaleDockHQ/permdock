@@ -1,8 +1,8 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
-import { a as problemResponse } from "../evaluations-cJeur3Fn.js";
-import { t as createPermDock$1 } from "../create-n0IUeh1b.js";
+import { i as discoverViaSignatureAgent, r as InvalidSignatureError, u as problemResponse } from "../evaluations-04mKRGwn.js";
+import { t as createPermDock$1 } from "../create-D_4aH9ul.js";
 import { i as toRequest, n as isServerResponse, r as sendResponse } from "../http-kYphIx9F.js";
 import { Catch, Controller, Get, Inject, Injectable, Module, Post, Req, Res, createParamDecorator } from "@nestjs/common";
 import { APP_FILTER, Reflector } from "@nestjs/core";
@@ -52,6 +52,7 @@ function createPermDock(policy, options) {
 		store: options.store,
 		sink: options.sink,
 		snapshots: options.snapshots,
+		webBotAuth: options.webBotAuth,
 		wrap: (dock) => applyOtel(dock, options.otel)
 	}));
 	const applyProtect = async (remaining, req, request) => {
@@ -96,6 +97,10 @@ function createPermDock(policy, options) {
 		async catch(exception, host) {
 			const response = host.switchToHttp().getResponse();
 			if (!isServerResponse(response)) throw new TypeError("unsupported Nest response");
+			if (exception instanceof InvalidSignatureError) {
+				await this.send(response, exception.response);
+				return;
+			}
 			if (exception instanceof PermDockHttpError) {
 				await this.send(response, exception.response);
 				return;
@@ -115,7 +120,7 @@ function createPermDock(policy, options) {
 			throw new TypeError("unhandled permdock exception");
 		}
 	}
-	Catch(PermDockHttpError, PermDockDeniedError, PermDockApprovalRequiredError, PermDockValidationError)(PermDockExceptionFilter);
+	Catch(PermDockHttpError, InvalidSignatureError, PermDockDeniedError, PermDockApprovalRequiredError, PermDockValidationError)(PermDockExceptionFilter);
 	Injectable()(PermDockExceptionFilter);
 	class PermDockRoot {
 		static adapter = "nest";
@@ -186,4 +191,4 @@ function createPermDock(policy, options) {
 	};
 }
 //#endregion
-export { createPermDock, sendResponse, toRequest };
+export { InvalidSignatureError, createPermDock, discoverViaSignatureAgent, sendResponse, toRequest };
