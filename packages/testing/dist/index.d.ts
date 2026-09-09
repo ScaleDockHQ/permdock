@@ -20,6 +20,51 @@ type DescribePolicyConfig<TSubject> = {
 };
 export declare function describePolicy<TSubject>(policy: Policy, config: DescribePolicyConfig<TSubject>): void;
 //#endregion
+//#region src/rls-parity.d.ts
+type RlsDbOutcome = "allowed" | "filtered" | "rejected";
+type RlsParitySubject = {
+  readonly id: string;
+  readonly roles?: readonly string[];
+  readonly tenant?: string;
+  readonly memberships?: readonly {
+    readonly tenant?: string;
+    readonly team?: string;
+    readonly roles: readonly string[];
+  }[];
+};
+type RlsParityFixture = {
+  readonly name: string;
+  readonly subject: RlsParitySubject;
+  readonly permission: Permission;
+  readonly row: Readonly<Record<string, unknown>>;
+  readonly table: string;
+};
+type RlsQueryResult = {
+  readonly rows: readonly Record<string, unknown>[];
+  readonly rowCount?: number;
+  readonly code?: string;
+};
+type RlsQueryFn = (sql: string, values?: readonly unknown[]) => Promise<RlsQueryResult>;
+type RlsParityOptions = {
+  readonly query: RlsQueryFn;
+  readonly fixtures: readonly RlsParityFixture[];
+  readonly dialect?: "supabase" | "guc";
+  readonly gucPrefix?: string;
+  readonly tenantClaim?: string;
+  readonly role?: "authenticated" | "anon";
+};
+type RlsParityCase = {
+  readonly name: string;
+  readonly granted: boolean;
+  readonly database: RlsDbOutcome;
+  readonly ok: boolean;
+};
+type RlsParityReport = {
+  readonly ok: boolean;
+  readonly results: readonly RlsParityCase[];
+};
+export declare function rlsParity(policy: Policy, options: RlsParityOptions): Promise<RlsParityReport>;
+//#endregion
 //#region src/snapshot-fixture.d.ts
 export declare function snapshotFixture(policy: Policy, subject: unknown, options?: {
   readonly include?: readonly (Permission | {
@@ -88,4 +133,4 @@ export declare const jwtFixtureTokens: {
   readonly decisions: "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiMjAyNi0wOSIsInR5cCI6InBlcm1kb2NrLWRlY2lzaW9ucytqd3QifQ.eyJldmVudHMiOltdLCJpc3MiOiJodHRwczovL2FwcC5leGFtcGxlLmNvbSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDAwMDAwMDAwLCJqdGkiOiJkZWNfZml4dHVyZSJ9.UZhJd72yFGxHOdjYbzcGYUPgYjvLwOPCtHKxEbLu56SdKSKUDCREXmEBI9WaCPKWjlTBnnIKMYwjG8I8RATJCg";
 };
 //#endregion
-export { type DescribePolicyConfig, type MatrixCell, type MatrixOutcome, expectTypeOf };
+export { type DescribePolicyConfig, type MatrixCell, type MatrixOutcome, type RlsDbOutcome, type RlsParityCase, type RlsParityFixture, type RlsParityOptions, type RlsParityReport, type RlsParitySubject, type RlsQueryFn, type RlsQueryResult, expectTypeOf };

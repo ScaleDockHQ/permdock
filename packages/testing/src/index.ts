@@ -1,5 +1,16 @@
 export { expectTypeOf } from 'vitest';
 export { describePolicy } from './describe-policy.ts';
+export { rlsParity } from './rls-parity.ts';
+export type {
+  RlsDbOutcome,
+  RlsParityCase,
+  RlsParityFixture,
+  RlsParityOptions,
+  RlsParityReport,
+  RlsParitySubject,
+  RlsQueryFn,
+  RlsQueryResult,
+} from './rls-parity.ts';
 export type {
   DescribePolicyConfig,
   MatrixCell,

@@ -15,6 +15,7 @@
     "prepare": "node -e \"process.env.VERCEL ? process.exit(0) : require('node:child_process').execSync('lefthook install', { stdio: 'inherit' })\"",
     "test": "turbo run test",
     "test:e2e": "pnpm --filter @permdock/e2e test:e2e",
+    "test:integration": "pnpm --filter @permdock/integration test:integration",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {

@@ -49,6 +49,107 @@ function describePolicy(policy, config) {
 	});
 }
 //#endregion
+//#region src/rls-parity.ts
+const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+function quoteIdent(name) {
+	if (!IDENT.test(name)) throw new Error(`PermDock: unsafe SQL identifier '${name}'`);
+	return `"${name}"`;
+}
+function toSubject(input) {
+	return {
+		principal: {
+			id: input.id,
+			roles: input.roles ?? [],
+			...input.tenant === void 0 ? {} : { tenant: input.tenant },
+			memberships: input.memberships ?? []
+		},
+		context: {}
+	};
+}
+function rowId(row) {
+	return row.id;
+}
+function claimSql(dialect, subject, gucPrefix, tenantClaim) {
+	if (dialect === "supabase") {
+		const claims = {
+			sub: subject.id,
+			user_role: subject.roles?.[0],
+			[tenantClaim]: subject.tenant,
+			memberships: subject.memberships
+		};
+		return {
+			sql: "select set_config($1, $2, true)",
+			values: ["request.jwt.claims", JSON.stringify(claims)]
+		};
+	}
+	return {
+		sql: "select set_config($1, $2, true)",
+		values: [`${gucPrefix}.user_id`, subject.id]
+	};
+}
+function tenantSql(dialect, subject, gucPrefix, tenantClaim) {
+	if (dialect !== "guc" || subject.tenant === void 0) return;
+	return {
+		sql: "select set_config($1, $2, true)",
+		values: [`${gucPrefix}.${tenantClaim}`, subject.tenant]
+	};
+}
+function statementSql(action, table) {
+	const quoted = quoteIdent(table);
+	const id = quoteIdent("id");
+	switch (action) {
+		case "read":
+		case "list":
+		case "get": return `select * from ${quoted} where ${id} = $1`;
+		case "update": return `update ${quoted} set ${id} = ${id} where ${id} = $1 returning *`;
+		case "create": return `insert into ${quoted} (${id}) values ($1) returning *`;
+		case "delete": return `delete from ${quoted} where ${id} = $1 returning *`;
+		default: return `select * from ${quoted} where ${id} = $1`;
+	}
+}
+function dbOutcome(result) {
+	if (result.code === "42501") return "rejected";
+	return (result.rowCount ?? result.rows.length) > 0 ? "allowed" : "filtered";
+}
+async function rlsParity(policy, options) {
+	const dialect = options.dialect ?? "guc";
+	const gucPrefix = options.gucPrefix ?? "app";
+	const tenantClaim = options.tenantClaim ?? "tenant_id";
+	const role = options.role ?? "authenticated";
+	async function runCase(fixture) {
+		const dock = await createPermDock(policy, toSubject(fixture.subject));
+		const granted = fixture.permission.kind === "collection" ? dock.can(fixture.permission, fixture.row) : dock.can(fixture.permission, fixture.row);
+		await options.query("begin");
+		try {
+			await options.query(`set local role ${quoteIdent(role)}`);
+			const claims = claimSql(dialect, fixture.subject, gucPrefix, tenantClaim);
+			await options.query(claims.sql, claims.values);
+			const tenant = tenantSql(dialect, fixture.subject, gucPrefix, tenantClaim);
+			if (tenant !== void 0) await options.query(tenant.sql, tenant.values);
+			const database = dbOutcome(await options.query(statementSql(fixture.permission.action, fixture.table), [rowId(fixture.row)]));
+			const ok = granted ? database === "allowed" : database === "filtered" || database === "rejected";
+			return {
+				name: fixture.name,
+				granted,
+				database,
+				ok
+			};
+		} finally {
+			await options.query("rollback");
+		}
+	}
+	async function runAll(remaining, acc) {
+		const [head, ...tail] = remaining;
+		if (head === void 0) return acc;
+		return runAll(tail, [...acc, await runCase(head)]);
+	}
+	const results = await runAll(options.fixtures, []);
+	return {
+		ok: results.every((item) => item.ok),
+		results
+	};
+}
+//#endregion
 //#region src/snapshot-fixture.ts
 async function snapshotFixture(policy, subject, options = {}) {
 	const instance = await createPermDock(policy, subject, options.tenant === void 0 ? {} : { tenant: options.tenant });
@@ -378,4 +479,4 @@ function testWhereCompiler(compiler, options) {
 	});
 }
 //#endregion
-export { describePolicy, expectTypeOf, jwtFixtureAudience, jwtFixtureIssuer, jwtFixtureJwks, jwtFixtureTokens, snapshotFixture, testApprovalStore, testDecisionSink, testDirectoryStore, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testTokenSigner, testTokenVerifier, testWhereCompiler };
+export { describePolicy, expectTypeOf, jwtFixtureAudience, jwtFixtureIssuer, jwtFixtureJwks, jwtFixtureTokens, rlsParity, snapshotFixture, testApprovalStore, testDecisionSink, testDirectoryStore, testMembershipSource, testRoleSource, testSnapshotSource, testSubjectResolver, testTokenSigner, testTokenVerifier, testWhereCompiler };

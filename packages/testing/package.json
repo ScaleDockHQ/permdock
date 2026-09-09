@@ -1,7 +1,7 @@
 {
   "name": "@permdock/testing",
   "version": "0.0.0",
-  "description": "Policy matrix tests, snapshot fixtures and extension-interface conformance runners for PermDock.",
+  "description": "Policy matrix tests, snapshot fixtures, RLS parity and extension-interface conformance runners for PermDock.",
   "license": "MIT",
   "files": [
     "dist"
