@@ -1,0 +1,12 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.scaledockhq/permdock-docs",
+  "description": "Public PermDock documentation. Search and fetch pages as Markdown. Read-only; no subject, token or policy.",
+  "version": "0.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://permdock.dev/mcp"
+    }
+  ]
+}

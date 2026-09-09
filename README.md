@@ -267,7 +267,7 @@ npx skills add ScaleDockHQ/PermDock   # installs the `wire-permdock` and `audit-
 ```
 
 - [`AGENTS.md`](./AGENTS.md) (with `CLAUDE.md` as a symlink) describes the repo, invariants and update rules.
-- Every docs page is served as `.md`, plus `llms.txt` and `llms-full.txt`; a docs MCP server follows in Phase 4.
+- Every docs page is served as `.md`, plus `llms.txt` and `llms-full.txt`. The public docs MCP is `POST /mcp` (`search_docs`, `get_page`; no subject).
 - Denials are written for models: every `denied` decision carries reasons and permitted `alternatives`; every `approval-required` decision carries a replay-safe `token`.
 - `permdock doctor` and `permdock collect --check` give deterministic feedback in CI.
 

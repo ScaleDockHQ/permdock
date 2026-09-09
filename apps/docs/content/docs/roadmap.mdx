@@ -80,7 +80,8 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - Tracked, not built: [GNAP](/docs/standards/gnap) `access` as a new delegation input; a GNAP OpenAPI scheme has its name reserved (`scheme.type: 'gnap'`) and no output. Every unfinished specification PermDock follows carries a build / name / track posture on the [standards watch list](/docs/standards/watch-list) ([0025](/docs/decisions/0025-draft-protocol-posture)).
 - Nuxt, Astro, React Router, TanStack Start; Effect — shipped as collect-only [unplugin](/docs/cli/unplugin) recipes (no per-vendor package, [0023](/docs/decisions/0023-compose-openapi-ecosystem)).
 - Candidates evaluated at Phase 3 planning, not scheduled: MongoDB and local-first sync engines (Zero, ElectricSQL, PowerSync, InstantDB) as `where` targets ([local-first sync](/docs/research/local-first-sync)); LangGraph.js as an agent adapter ([agent frameworks](/docs/research/agent-frameworks)); Vercel Chat SDK `requestApproval` as the reference approval-delivery recipe for self-hosters and the surface the Cloud inbox uses for Slack and Teams (a recipe and an example, not an entry; [approvals adapter](/docs/adapters/approvals)). Considered and not scheduled: a Cedar compile target for AgentCore Policy and Amazon Verified Permissions, and a first-party GitHub Action ([commercial landscape](/docs/research/commercial-landscape)). The SCIM receiver left this list in [0027](/docs/decisions/0027-governance-first-cloud) and ships in Phase 2 as `permdock/scim`.
-- Docs MCP server; devtools panel.
+- Docs MCP server — shipped (`POST /mcp`, `search_docs` and `get_page`; `server.json` at the repository root).
+- Devtools panel.
 
 ## Versioning policy
 

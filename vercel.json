@@ -32,6 +32,10 @@
       "destination": { "service": "docs" }
     },
     {
+      "source": "/mcp",
+      "destination": { "service": "docs" }
+    },
+    {
       "source": "/llms.txt",
       "destination": { "service": "docs" }
     },

@@ -82,7 +82,7 @@ Notes on the shape:
 
 - [openapi](/docs/cli/openapi) reads the catalog to emit `securitySchemes` scopes and `x-permdock-permissions`.
 - The MCP adapter uses `meta` for tool descriptions and `arity` to decide whether a `data` loader is required.
-- The docs MCP server and `llms.txt` expose the Markdown output so agents can ask "which permissions exist?".
+- The docs MCP server (`search_docs` / `get_page` at `/mcp`) and `llms.txt` expose the Markdown output so agents can ask "which permissions exist?".
 - `@permdock/testing` compares a policy matrix against the catalog to find permissions with no test.
 
 ## Related
