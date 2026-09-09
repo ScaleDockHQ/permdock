@@ -1,4 +1,5 @@
-import { g as Subject, h as Principal, m as Membership, p as JsonWebKeyLike, t as Condition, u as CustomRole } from "./ast-BtUySn6K.js";
+import { a as CustomRole, c as JsonWebKeyLike, d as Subject, l as Membership, u as Principal } from "./subject-BcgWbogX.js";
+import { t as Condition } from "./ast-CBlbaSg1.js";
 //#region src/core/interfaces.d.ts
 type RoleSource = {
   rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>;

@@ -150,6 +150,10 @@
     "./kysely": {
       "types": "./dist/kysely/index.d.ts",
       "default": "./dist/kysely/index.js"
+    },
+    "./supabase": {
+      "types": "./dist/supabase/index.d.ts",
+      "default": "./dist/supabase/index.js"
     }
   },
   "scripts": {

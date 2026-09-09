@@ -1,4 +1,4 @@
-import { g as Subject, m as Membership } from "./ast-BtUySn6K.js";
+import { d as Subject, l as Membership } from "./subject-BcgWbogX.js";
 //#region src/approvals/types.d.ts
 type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 type ApprovalSubjectSummary = {

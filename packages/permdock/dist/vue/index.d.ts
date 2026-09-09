@@ -1,9 +1,9 @@
-import { m as Membership } from "../ast-BtUySn6K.js";
-import { v as Permission } from "../policy-CL40bNGn.js";
-import { n as Decision } from "../decision-Cjr-7xoX.js";
-import { f as SnapshotV2, g as TokenVerifier } from "../interfaces-BuUjSMjB.js";
-import { d as describe } from "../permdock-CKANy_yd.js";
-import { a as FilterResult, c as PermissionState, d as TenantView, f as UseRolesOptions, i as ClientStatus, n as ApprovalState, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-CyfFrnpu.js";
+import { l as Membership } from "../subject-BcgWbogX.js";
+import { v as Permission } from "../policy-DsqYfECx.js";
+import { n as Decision } from "../decision-C6A-71_M.js";
+import { f as SnapshotV2, g as TokenVerifier } from "../interfaces-B19qT0zU.js";
+import { d as describe } from "../permdock-BFyP-l5_.js";
+import { a as FilterResult, c as PermissionState, d as TenantView, f as UseRolesOptions, i as ClientStatus, n as ApprovalState, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-DN9PS-Hn.js";
 import { ComputedRef, DefineComponent, MaybeRefOrGetter, Plugin } from "vue";
 //#region src/vue/types.d.ts
 type PermDockPluginOptions = {

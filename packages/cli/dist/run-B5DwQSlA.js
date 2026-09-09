@@ -264,6 +264,7 @@ const SERVER_SPECIFIERS = [
 	"permdock/mcp",
 	"permdock/approvals",
 	"permdock/jwt",
+	"permdock/supabase",
 	"permdock/ai-sdk",
 	"permdock/claude-agent",
 	"permdock/eve",

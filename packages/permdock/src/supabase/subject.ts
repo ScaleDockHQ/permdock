@@ -1,0 +1,209 @@
+import type { StandardSchemaV1 } from '@standard-schema/spec';
+
+import type { Membership, Subject } from '../core/subject.ts';
+import type { SupabasePrincipal, SupabaseSubjectOptions } from './types.ts';
+
+import { compact } from '../core/compact.ts';
+import { freezeDeep } from '../core/freeze.ts';
+import { anonymousSubject } from '../core/subject.ts';
+
+const REGISTERED = new Set([
+  'sub',
+  'role',
+  'iss',
+  'aud',
+  'exp',
+  'iat',
+  'nbf',
+  'aal',
+  'amr',
+  'acr',
+  'session_id',
+  'email',
+  'phone',
+  'is_anonymous',
+  'app_metadata',
+  'user_metadata',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readClaim(claims: Record<string, unknown>, name: string): unknown {
+  if (Object.hasOwn(claims, name) && claims[name] !== undefined) {
+    return claims[name];
+  }
+  const meta = claims.app_metadata;
+  if (isRecord(meta) && Object.hasOwn(meta, name)) {
+    return meta[name];
+  }
+  return undefined;
+}
+
+function asRoles(
+  value: unknown,
+  declared: readonly string[] | undefined,
+): readonly string[] {
+  const raw =
+    typeof value === 'string'
+      ? value === ''
+        ? []
+        : [value]
+      : Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : [];
+  if (declared === undefined) {
+    return raw;
+  }
+  const allowed = new Set(declared);
+  return raw.filter((role) => allowed.has(role));
+}
+
+function asMemberships(value: unknown): readonly Membership[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: Membership[] = [];
+  for (const item of value) {
+    if (!isRecord(item) || !Array.isArray(item.roles)) {
+      continue;
+    }
+    const roles = item.roles.filter(
+      (role): role is string => typeof role === 'string',
+    );
+    if (roles.length === 0) {
+      continue;
+    }
+    const tenant = typeof item.tenant === 'string' ? item.tenant : undefined;
+    const team = typeof item.team === 'string' ? item.team : undefined;
+    const onRecord = isRecord(item.on) ? item.on : undefined;
+    const on =
+      onRecord !== undefined &&
+      typeof onRecord.resource === 'string' &&
+      typeof onRecord.id === 'string'
+        ? { resource: onRecord.resource, id: onRecord.id }
+        : undefined;
+    if (tenant === undefined && team === undefined && on === undefined) {
+      continue;
+    }
+    out.push(
+      compact<Membership>({
+        roles,
+        tenant,
+        team,
+        on,
+      }),
+    );
+  }
+  return out;
+}
+
+function validateClaims(
+  extra: Record<string, unknown>,
+  schema: StandardSchemaV1,
+): Record<string, unknown> | undefined {
+  const result = schema['~standard'].validate(extra);
+  if (result instanceof Promise) {
+    return undefined;
+  }
+  if ('issues' in result && result.issues !== undefined) {
+    return undefined;
+  }
+  const value = (result as { readonly value: unknown }).value;
+  return isRecord(value) ? value : undefined;
+}
+
+function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
+  const extra: Record<string, unknown> = {};
+  const meta = claims.app_metadata;
+  if (isRecord(meta)) {
+    for (const [key, value] of Object.entries(meta)) {
+      extra[key] = value;
+    }
+  }
+  for (const [key, value] of Object.entries(claims)) {
+    if (REGISTERED.has(key) || key === 'user_metadata') {
+      continue;
+    }
+    extra[key] = value;
+  }
+  return extra;
+}
+
+function mapClaims(
+  claims: Record<string, unknown>,
+  options: SupabaseSubjectOptions,
+): Subject<SupabasePrincipal> {
+  const role = claims.role;
+  if (role === 'anon' || role === 'service_role') {
+    return anonymousSubject();
+  }
+  const id = claims.sub;
+  if (typeof id !== 'string' || id === '') {
+    return anonymousSubject();
+  }
+  const roleClaim = options.roles ?? 'user_role';
+  const tenantClaim = options.tenant ?? 'tenant_id';
+  const membershipsClaim = options.memberships ?? 'memberships';
+  let extra = extraClaims(claims);
+  if (options.schema !== undefined) {
+    extra = validateClaims(extra, options.schema) ?? {};
+  }
+  const include = new Set(options.include ?? []);
+  const tenantValue = readClaim(claims, tenantClaim);
+  const principal = compact<SupabasePrincipal>({
+    id,
+    kind: 'user',
+    roles: asRoles(readClaim(claims, roleClaim), options.declared),
+    tenant: typeof tenantValue === 'string' ? tenantValue : undefined,
+    memberships: asMemberships(readClaim(claims, membershipsClaim)),
+    issuer: typeof claims.iss === 'string' ? claims.iss : undefined,
+    assurance: typeof claims.aal === 'string' ? { acr: claims.aal } : undefined,
+    claims: Object.keys(extra).length === 0 ? undefined : extra,
+    email:
+      include.has('email') && typeof claims.email === 'string'
+        ? claims.email
+        : undefined,
+    phone:
+      include.has('phone') && typeof claims.phone === 'string'
+        ? claims.phone
+        : undefined,
+    is_anonymous:
+      include.has('is_anonymous') && typeof claims.is_anonymous === 'boolean'
+        ? claims.is_anonymous
+        : undefined,
+  });
+  const session =
+    typeof claims.session_id === 'string' ? claims.session_id : undefined;
+  const expiresAt = typeof claims.exp === 'number' ? claims.exp : undefined;
+  return freezeDeep(
+    compact<Subject<SupabasePrincipal>>({
+      principal,
+      context: {},
+      session,
+      expiresAt,
+    }),
+  );
+}
+
+export function subjectFromSupabase(
+  claims: unknown,
+  options: SupabaseSubjectOptions = {},
+): Subject<SupabasePrincipal> {
+  try {
+    if (!isRecord(claims)) {
+      return anonymousSubject();
+    }
+    const rest: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(claims)) {
+      if (key === 'user_metadata') {
+        continue;
+      }
+      rest[key] = value;
+    }
+    return mapClaims(rest, options);
+  } catch {
+    return anonymousSubject();
+  }
+}

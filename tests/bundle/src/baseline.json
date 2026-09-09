@@ -32,5 +32,6 @@
   "./cloud": 4997,
   "./drizzle": 5216,
   "./prisma": 4987,
-  "./kysely": 5288
+  "./kysely": 5288,
+  "./supabase": 2670
 }

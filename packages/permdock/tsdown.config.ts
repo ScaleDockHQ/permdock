@@ -61,6 +61,7 @@ export default defineConfig({
     'src/drizzle/index.ts',
     'src/prisma/index.ts',
     'src/kysely/index.ts',
+    'src/supabase/index.ts',
   ],
   platform: 'neutral',
   dts: true,

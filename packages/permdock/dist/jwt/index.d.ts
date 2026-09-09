@@ -1,5 +1,5 @@
-import { g as Subject, h as Principal, o as Actor } from "../ast-BtUySn6K.js";
-import { a as JwtClaims, g as TokenVerifier, h as TokenSigner, m as TokenFailureCause, s as MembershipSource, t as AuthEvent } from "../interfaces-BuUjSMjB.js";
+import { d as Subject, t as Actor, u as Principal } from "../subject-BcgWbogX.js";
+import { a as JwtClaims, g as TokenVerifier, h as TokenSigner, m as TokenFailureCause, s as MembershipSource, t as AuthEvent } from "../interfaces-B19qT0zU.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/jwt/types.d.ts
 type JwtAlgorithm = "ES256" | "PS256" | "Ed25519" | "RS256" | "HS256" | "EdDSA";

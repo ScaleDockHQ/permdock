@@ -3,7 +3,7 @@ title: Supabase
 description: The permdock/supabase provider maps Supabase JWT claims to a PermDock subject, scaffolds the authorize() RBAC tables and hook, and compiles named permissions to authorize('perm') calls in RLS policies.
 ---
 
-Status: planned
+Status: shipped
 Phase: 3
 
 `permdock/supabase` is a provider: it does not check permissions itself, it produces the subject PermDock checks against, from a Supabase session or access token. It also owns the Supabase-specific half of [RLS generation](/docs/adapters/rls): the `user_roles` / `role_permissions` / `authorize()` scaffold from Supabase's RBAC guide and the compilation of named permissions to `authorize('perm')`.
@@ -16,6 +16,7 @@ Supabase apps have two enforcement points, the application and Postgres RLS, and
 
 ```ts
 import { createPermDock } from 'permdock'
+import { defineConfig } from '@permdock/cli'
 import { subjectFromSupabase, supabaseRls } from 'permdock/supabase'
 
 // server: from claims the Supabase client verified (JWKS locally with asymmetric keys, Auth server with the legacy secret)
@@ -26,10 +27,9 @@ const permdock = await createPermDock(policy, subjectFromSupabase(error ? null :
   memberships: 'memberships',            // hook-injected [{ tenant, team?, roles }] from your tables, optional
 }))
 
-// policy: tenant roles are scoped, RLS reads the same claims
-export const policy = definePolicy(permissions, {
-  roles: [member, admin],
-  scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+// permdock.config.ts: RLS compile hints (not on definePolicy)
+export default defineConfig({
+  policy: './src/policy.ts',
   rls: supabaseRls({
     roleClaim: 'user_role',
     tenantClaim: 'tenant_id',
@@ -40,8 +40,9 @@ export const policy = definePolicy(permissions, {
 
 - `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from the configured role claim (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from the configured tenant claim (default `tenant_id`, hook-injected or under `app_metadata`); `memberships` comes from a hook-injected claim of `{ tenant, team?, roles }` entries when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
 - `options.schema` (any Standard Schema, for example a Zod object) validates and types the custom claims before they reach `principal.claims`; an invalid claim set drops `claims` with a development warning, never the subject.
-- `supabaseRls(options)` tells `permdock rls` how `subject.id` (`(select auth.uid())`), `subject.claim(...)` (`(select auth.jwt()) ->> 'claim'`), `subject.roles` (`authorize()`) and `memberOf` nodes (a claim comparison for the active tenant, a membership-table `exists` otherwise) compile ([tenancy](/docs/concepts/tenancy), portable compilation).
-- `permdock rls generate --rbac supabase` emits: enums `app_role` and `app_permission` (from `listPermissions`), tables `user_roles(user_id, role)` and `role_permissions(role, permission)`, seed rows for every role and grant in the policy, the `custom_access_token_hook(event jsonb)` PL/pgSQL function, and the `security definer stable` function `authorize(requested_permission app_permission) returns boolean`.
+- `supabaseRls(options)` is the `rls` value in `permdock.config.ts`. It tells `permdock rls` how `subject.id` (`(select auth.uid())`), `subject.claim(...)` (`(select auth.jwt()) ->> 'claim'`), `subject.roles` (`authorize()`) and `memberOf` nodes (a claim comparison for the active tenant, a membership-table `exists` otherwise) compile ([tenancy](/docs/concepts/tenancy), portable compilation).
+- `authorizeSql({ tenant })` is the `authorize()` function SQL with an optional `requested_tenant uuid` parameter. `permdock rls generate --rbac-scaffold` emits the same function next to the hook.
+- `permdock rls generate --rbac-scaffold` (or `--rbac supabase`) emits: enums `app_role` and `app_permission` (from `listPermissions`), tables `user_roles(user_id, role)` and `role_permissions(role, permission)`, seed rows for every role and grant in the policy, the `custom_access_token_hook(event jsonb)` PL/pgSQL function, and the `security definer stable` function `authorize(requested_permission app_permission, requested_tenant uuid default null) returns boolean`.
 - Named permissions without conditions compile to `using ((select authorize('post.delete')))`; conditional grants compile to `authorize(...) and (cond)`.
 
 Claim mapping used by both the in-process subject and the RLS compiler:
@@ -130,7 +131,7 @@ create policy "Allow auth admin to read user roles" on public.user_roles
 
 The grants matter as much as the function: the hook runs as `supabase_auth_admin`, which needs `usage` on the schema, `execute` on the function and read access to `user_roles`; everyone else must lose `execute` so a client cannot call the hook through PostgREST. The hook is enabled in the dashboard under Authentication, then Hooks, or in `config.toml` for local development.
 
-HTTP form: an endpoint (typically an Edge Function) that receives a JSON body with `user_id`, `claims` and `authentication_method`, signed with a standard-webhooks secret (`v1,whsec_...`) that the function must verify before trusting the body, and returns a JSON object with the modified `claims`. Use it when roles live outside Postgres (an external HR system, a billing provider). `permdock rls generate --rbac supabase --hook http` emits the Edge Function skeleton with the signature check and the same `user_role` lookup against a configurable source.
+HTTP form: an endpoint (typically an Edge Function) that receives a JSON body with `user_id`, `claims` and `authentication_method`, signed with a standard-webhooks secret (`v1,whsec_...`) that the function must verify before trusting the body, and returns a JSON object with the modified `claims`. Use it when roles live outside Postgres (an external HR system, a billing provider). The SQL hook above is what `permdock rls generate --rbac-scaffold` emits; an HTTP hook is yours to host.
 
 Either form can also strip claims to shrink the token; the scaffold keeps `iss`, `aud`, `exp`, `iat`, `sub`, `role`, `aal`, `session_id`, `email`, `phone` and `is_anonymous`, which is the set Supabase clients and `subjectFromSupabase` need.
 
@@ -172,9 +173,8 @@ Because the scaffold emits the hook next to `authorize()`, the Postgres policy `
 
 ## Open questions
 
-- The plan names the provider's job (JWT claims to subject, `authorize()` scaffold, compile to `authorize('perm')`); `subjectFromSupabase` and `supabaseRls` are proposed names for the two exports and may change.
 - Whether `role_permissions` should be seeded from the policy at migration time (drift risk when roles change in code) or read back at runtime through `import`.
-- Multiple roles per user and per organization: resolved by [ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships). `user_role` may be a string or an array and holds global roles; per-organization roles travel in a hook-injected `memberships` claim or are read from a membership table, and the generated `authorize()` gains an optional `tenant_id uuid` parameter that checks the membership table when it is configured. Whether the scaffold should emit that membership table by default is still open.
-- Token size: a `memberships` claim for a user in many organizations grows the JWT; when to prefer the `MembershipSource` (a query per request) over the claim is a recipe, not a rule, and `permdock doctor` warns above a configurable claim size.
+- Whether the RBAC scaffold should emit a membership table by default, or keep `--memberships` / `supabaseRls({ memberships })` as the opt-in.
+- Token size: a `memberships` claim for a user in many organizations grows the JWT; when to prefer a `MembershipSource` (a query per request) over the claim is a recipe, not a rule.
 - Whether to support the deprecated `auth.role()` on import for older projects or map it to the `TO` clause only.
 - Client-side: whether the browser Supabase client should receive a PermDock snapshot from the server or derive a coarse one from the JWT roles when offline.

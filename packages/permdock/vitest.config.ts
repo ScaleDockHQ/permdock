@@ -31,6 +31,7 @@ export default defineConfig({
         'src/drizzle/**',
         'src/prisma/**',
         'src/kysely/**',
+        'src/supabase/**',
         'src/react-native/**',
         'src/express/**',
         'src/fastify/**',

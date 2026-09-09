@@ -1,6 +1,6 @@
-import { b as PermissionTree, v as Permission } from "../policy-CL40bNGn.js";
-import { n as Decision } from "../decision-Cjr-7xoX.js";
-import { f as SnapshotV2 } from "../interfaces-BuUjSMjB.js";
+import { b as PermissionTree, v as Permission } from "../policy-DsqYfECx.js";
+import { n as Decision } from "../decision-C6A-71_M.js";
+import { f as SnapshotV2 } from "../interfaces-B19qT0zU.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/webmcp/types.d.ts
 type WebMcpClientStatus = "ready" | "pending" | "stale" | "server-only";

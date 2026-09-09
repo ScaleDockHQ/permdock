@@ -1,4 +1,4 @@
-import { g as TokenVerifier, r as DecisionSink, s as MembershipSource } from "../interfaces-BuUjSMjB.js";
+import { g as TokenVerifier, r as DecisionSink, s as MembershipSource } from "../interfaces-B19qT0zU.js";
 //#region src/scim/types.d.ts
 export declare const SCIM_CONTENT_TYPE = "application/scim+json";
 export declare const USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User";

@@ -1,7 +1,8 @@
-import { d as Delegation, g as Subject, m as Membership, o as Actor, t as Condition } from "./ast-BtUySn6K.js";
-import { o as Policy, v as Permission } from "./policy-CL40bNGn.js";
-import { n as Decision } from "./decision-Cjr-7xoX.js";
-import { c as RoleSource, f as SnapshotV2, h as TokenSigner, n as DecisionEvent, r as DecisionSink, s as MembershipSource } from "./interfaces-BuUjSMjB.js";
+import { d as Subject, l as Membership, o as Delegation, t as Actor } from "./subject-BcgWbogX.js";
+import { t as Condition } from "./ast-CBlbaSg1.js";
+import { o as Policy, v as Permission } from "./policy-DsqYfECx.js";
+import { n as Decision } from "./decision-C6A-71_M.js";
+import { c as RoleSource, f as SnapshotV2, h as TokenSigner, n as DecisionEvent, r as DecisionSink, s as MembershipSource } from "./interfaces-B19qT0zU.js";
 //#region src/core/describe.d.ts
 type DecisionDescription = {
   readonly kind: "granted" | "denied" | "approval" | "tenant" | "delegation" | "server-only";

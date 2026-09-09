@@ -85,12 +85,13 @@ import { z } from 'zod'
 
 const claims = z.object({ tenant_id: z.string().uuid(), user_role: z.enum(['viewer', 'admin']), plan: z.enum(['free', 'pro']) })
 
-export const subject = subjectFromSupabase(supabase, {
-  schema: claims,                                   // validated once per request; typed from InferOutput
-  tenant: (c) => c.tenant_id,
-  roles: (c) => [c.user_role, ...(c.plan === 'pro' ? ['pro'] : [])],
+const { data, error } = await supabase.auth.getClaims()
+export const subject = subjectFromSupabase(error ? null : data.claims, {
+  schema: claims,                    // invalid claims drop `principal.claims`, never the subject
+  roles: 'user_role',
+  tenant: 'tenant_id',
 })
-// typeof subject: SubjectResolver<SupabaseClient, SupabasePrincipal & z.output<typeof claims>>
+// subject.principal is SupabasePrincipal; custom fields live on principal.claims
 ```
 
 | Entry | Base type | What it fixes | What `schema` adds |
@@ -173,7 +174,7 @@ Handlers cannot change a `Decision`; they receive a frozen copy after the outcom
 ```ts
 import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testWhereCompiler } from '@permdock/testing'
 
-testSubjectResolver(subjectFromSupabase(client, { schema }), { valid: [session], invalid: [expiredSession, tamperedSession] })
+testSubjectResolver((claims) => subjectFromSupabase(claims, { schema }), { valid: [okClaims], invalid: [null, { role: 'anon' }] })
 testTokenVerifier(myVerifier, { jwks: fixtureJwks })          // runs the JWT adapter behaviour table against the fixture tokens
 testTokenSigner(kmsSigner, { verifier: joseTokenVerifier({ jwks: await kmsSigner.jwks() }) })
 testMembershipSource(documentMembers, { principals: [alice], expect: { alice: [{ on: { resource: 'document', id: 'd_1' }, roles: ['editor'] }] } })

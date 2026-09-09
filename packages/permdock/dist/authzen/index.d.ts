@@ -1,6 +1,6 @@
-import { o as Policy } from "../policy-CL40bNGn.js";
-import { s as ApprovalStore } from "../types-DwRNNTg4.js";
-import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BuUjSMjB.js";
+import { o as Policy } from "../policy-DsqYfECx.js";
+import { s as ApprovalStore } from "../types-D19MSDwi.js";
+import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-B19qT0zU.js";
 //#region src/authzen/types.d.ts
 type AuthzenResourceAdapter = {
   readonly load?: (id: string) => unknown;
