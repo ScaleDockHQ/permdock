@@ -456,9 +456,26 @@ export const { getPermDock } = createPermDock(policy, {
 
 `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are server-only. A Cloud outage leaves directory memberships at their last synced state.
 
+## Better Auth — `permdock/better-auth`
+
+```ts
+import {
+  subjectFromBetterAuth,
+  betterAuthRoleSource,
+} from 'permdock/better-auth';
+
+const session = await auth.api.getSession({ headers });
+const subject = await subjectFromBetterAuth(auth, session);
+const permdock = await createPermDock(policy, subject, {
+  customRoles: betterAuthRoleSource(auth),
+});
+```
+
+Pass the server `getSession` result only. A null session is anonymous. Never call `hasPermission` on the request path.
+
 ## Planned adapters
 
-Phase 3 `toWhere` compilers, `permdock rls`, `permdock/supabase`, and `permdock/ssf` (`receiver.push`, `receiver.poll`, `receiver.logout`) ship. Remaining Phase 3 work (`tests/integration`, examples `supabase-rls`, `drizzle`, `prisma`) follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+Phase 3 data adapters and `permdock/ssf` ship. Phase 4 starts with `permdock/better-auth`; remaining providers (`clerk`, `convex`, `pdp`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
 
 ```bash
 pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql

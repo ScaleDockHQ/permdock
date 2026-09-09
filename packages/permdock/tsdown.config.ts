@@ -63,6 +63,7 @@ export default defineConfig({
     'src/kysely/index.ts',
     'src/supabase/index.ts',
     'src/ssf/index.ts',
+    'src/better-auth/index.ts',
   ],
   platform: 'neutral',
   dts: true,

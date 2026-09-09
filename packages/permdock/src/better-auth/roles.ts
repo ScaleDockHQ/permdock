@@ -1,0 +1,110 @@
+import type { RoleSource } from '../core/interfaces.ts';
+import type { PermissionTree } from '../core/permissions.ts';
+import type { Role } from '../core/policy.ts';
+import type { CustomRole } from '../core/subject.ts';
+import type {
+  BetterAuthAccessControl,
+  BetterAuthLike,
+  BetterAuthRoleChangeEvent,
+  BetterAuthRoleSourceOptions,
+  BetterAuthStatements,
+  BetterAuthUnmatchedStatement,
+} from './types.ts';
+
+import { compact } from '../core/compact.ts';
+import { freezeDeep } from '../core/freeze.ts';
+import { listPermissions } from '../core/permissions.ts';
+import { allow, role } from '../core/policy.ts';
+import {
+  asStatements,
+  parseOrganizationRoles,
+  statementsCover,
+} from './parse.ts';
+
+export type SeededRoles = Role[] & {
+  readonly unmatched: readonly BetterAuthUnmatchedStatement[];
+};
+
+function statementsOf(
+  accessRole: BetterAuthAccessControl['roles'][string],
+): BetterAuthStatements {
+  return asStatements(accessRole.statements ?? accessRole.permissions);
+}
+
+export function rolesFromAccessControl(
+  access: BetterAuthAccessControl,
+  permissions: PermissionTree,
+  options: { readonly on?: 'tenant' | 'global' } = {},
+): SeededRoles {
+  const leaves = listPermissions(permissions);
+  const unmatched: BetterAuthUnmatchedStatement[] = [];
+  const roles: Role[] = [];
+  for (const [name, accessRole] of Object.entries(access.roles)) {
+    const statements = statementsOf(accessRole);
+    const grants = [];
+    for (const [resource, actions] of Object.entries(statements)) {
+      for (const action of actions) {
+        const leaf = leaves.find(
+          (item) => item.resource === resource && item.action === action,
+        );
+        if (leaf === undefined) {
+          unmatched.push({ role: name, resource, action });
+          continue;
+        }
+        grants.push(allow(leaf));
+      }
+    }
+    roles.push(
+      role(
+        name,
+        grants,
+        options.on === 'tenant' ? { on: 'tenant' } : undefined,
+      ),
+    );
+  }
+  return Object.assign(roles, { unmatched });
+}
+
+export function betterAuthRoleSource(
+  auth: BetterAuthLike,
+  options: BetterAuthRoleSourceOptions = {},
+): RoleSource {
+  const assignableRoles = options.assignable ?? [];
+  return {
+    async rolesFor(tenant: string): Promise<CustomRole[]> {
+      try {
+        const raw = await auth.api?.listOrganizationRoles?.({
+          query: { organizationId: tenant },
+          headers: options.headers,
+        });
+        const dynamic = parseOrganizationRoles(raw);
+        return dynamic.map((item) =>
+          freezeDeep(
+            compact<CustomRole>({
+              tenant,
+              name: item.name,
+              includes: assignableRoles
+                .filter((declared) =>
+                  statementsCover(item.statements, declared.statements),
+                )
+                .map((declared) => declared.name),
+            }),
+          ),
+        );
+      } catch {
+        return [];
+      }
+    },
+    assignable(): string[] {
+      return assignableRoles.map((item) => item.name);
+    },
+  };
+}
+
+export function onRoleChange(
+  refresh: (event: BetterAuthRoleChangeEvent) => void | Promise<void>,
+): (event: BetterAuthRoleChangeEvent) => Promise<void> {
+  return async (event: BetterAuthRoleChangeEvent): Promise<void> => {
+    await refresh(event);
+  };
+}

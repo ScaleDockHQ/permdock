@@ -1,6 +1,5 @@
 import { n as isConditionDate, r as isConditionRef } from "./ast-BMo2MvmN.js";
-import { a as readPath, i as ownKeys, n as isForbiddenKey, r as ownGet } from "./paths-AH4M6YYV.js";
-import { t as freezeDeep } from "./freeze-BF4IK5al.js";
+import { a as readPath, r as ownGet } from "./paths-AH4M6YYV.js";
 import { n as sha256, t as bytesToBase64Url } from "./sha256-CeSpVRME.js";
 //#region src/conditions/evaluate.ts
 function isExpired(membership, now) {
@@ -133,29 +132,6 @@ function evaluateCondition(condition, data, subject, now = Date.now() / 1e3) {
 	}
 }
 //#endregion
-//#region src/core/fields.ts
-function sanitizeFields(fields) {
-	if (fields === void 0) return;
-	return fields.filter((field) => field.length > 0 && !isForbiddenKey(field));
-}
-function grantCoversField(fields, field, effect) {
-	if (fields === void 0) return true;
-	if (fields.length === 0) return false;
-	if (field === void 0) return effect === "allow";
-	return fields.includes(field);
-}
-function pickVisible(row, canField) {
-	const out = {};
-	for (const key of ownKeys(row)) if (canField(key)) out[key] = ownGet(row, key);
-	return freezeDeep(out);
-}
-function sanitizeContext(value) {
-	if (value === null || typeof value !== "object" || Array.isArray(value)) return {};
-	const out = {};
-	for (const key of ownKeys(value)) out[key] = ownGet(value, key);
-	return out;
-}
-//#endregion
 //#region src/core/token.ts
 function canonical(value) {
 	if (value === null || typeof value !== "object") return value;
@@ -180,4 +156,4 @@ function decisionToken(input) {
 	return `pd1.${bytesToBase64Url(sha256(payload))}`;
 }
 //#endregion
-export { sanitizeFields as a, sanitizeContext as i, grantCoversField as n, evaluateCondition as o, pickVisible as r, decisionToken as t };
+export { evaluateCondition as n, decisionToken as t };

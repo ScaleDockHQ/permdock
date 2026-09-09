@@ -158,6 +158,10 @@
     "./ssf": {
       "types": "./dist/ssf/index.d.ts",
       "default": "./dist/ssf/index.js"
+    },
+    "./better-auth": {
+      "types": "./dist/better-auth/index.d.ts",
+      "default": "./dist/better-auth/index.js"
     }
   },
   "scripts": {

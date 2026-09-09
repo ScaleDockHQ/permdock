@@ -3,7 +3,7 @@ title: Better Auth
 description: The permdock/better-auth provider builds a PermDock subject from Better Auth sessions and organization roles, including dynamic database roles, so PermDock's conditions, snapshots and adapters layer on top of Better Auth access control.
 ---
 
-Status: planned
+Status: shipped
 Phase: 4
 
 `permdock/better-auth` is a provider. Better Auth already answers "which roles does this user hold in this organization"; PermDock answers "may this subject perform this action on this resource", with conditions, three-outcome decisions, snapshots for the client, and every server, agent and data adapter. The provider connects the two by turning a Better Auth session into a PermDock subject and, optionally, by deriving PermDock role fragments from Better Auth `createAccessControl` statements.

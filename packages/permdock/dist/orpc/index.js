@@ -1,5 +1,5 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
-import { t as createPermDock$1 } from "../create-BJO3Y2Tr.js";
+import { t as createPermDock$1 } from "../create-sRTbkeoq.js";
 import { ORPCError } from "@orpc/server";
 //#region src/orpc/create.ts
 function requestFromCtx(ctx) {

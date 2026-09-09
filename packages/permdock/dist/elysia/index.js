@@ -2,7 +2,7 @@ import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 import { a as problemResponse } from "../evaluations-cJeur3Fn.js";
-import { t as createPermDock$1 } from "../create-BJO3Y2Tr.js";
+import { t as createPermDock$1 } from "../create-sRTbkeoq.js";
 import { Elysia } from "elysia";
 //#region src/elysia/create.ts
 function createPermDock(policy, options) {
