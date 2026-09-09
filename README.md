@@ -240,6 +240,8 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 
 Full matrix with status, phases and related standards: [Adapters](./apps/docs/content/docs/adapters/index.mdx).
 
+Nuxt, Astro, React Router, TanStack Start and Effect stay on the shipped adapters plus `@permdock/cli/unplugin` ([unplugin recipes](./apps/docs/content/docs/cli/unplugin.mdx)); there is no `permdock/nuxt` or other per-vendor package ([0023](./apps/docs/content/docs/decisions/0023-compose-openapi-ecosystem.mdx)).
+
 Around the OpenAPI output, PermDock composes with the tools you already run rather than wrapping them: next-openapi-gen (Next.js, TanStack Start, React Router, SvelteKit, Nuxt, Astro), Redocly CLI, Bump.sh and Speakeasy apply the Overlay; Hey API, Orval, Kubb, Scalar, Mintlify, Fern and OpenAPI-to-MCP bridges read the result as standard `security`; Schemathesis and oasdiff turn it into CI checks. The same rule covers MCP hosting (`mcp-handler`), approval delivery (Vercel Chat SDK to Slack and Teams), identity providers and observability sinks. Recipes on the [OpenAPI adapter](./apps/docs/content/docs/adapters/openapi.mdx) and [approvals](./apps/docs/content/docs/adapters/approvals.mdx) pages; every named tool in the [ecosystem index](./apps/docs/content/docs/research/ecosystem-index.mdx); the rule in [decision 0023](./apps/docs/content/docs/decisions/0023-compose-openapi-ecosystem.mdx).
 
 ## Comparison

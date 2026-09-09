@@ -527,6 +527,10 @@ await permdock.can(permissions.post.read, post);
 
 Use `createPermDock` from `permdock/pdp` when `providers` is set. Core `can` / `decide` stay synchronous and deny delegated permissions with `pdp-unavailable`.
 
+## Collect-only frameworks (no package)
+
+Nuxt, Astro, React Router, TanStack Start and Effect have no `permdock/<name>` entry. Add `createPermDockUnplugin.vite()` from `@permdock/cli/unplugin` (or `.webpack` / `.esbuild`). Runtime is `permdock/server` or the matching HTTP adapter, plus `permdock/vue`, `permdock/react` or `permdock/svelte` on the client. Effect Schema is a Standard Schema; Effect HttpApi uses Overlay, not a hook.
+
 ## Planned adapters
 
 Phase 3 data adapters and `permdock/ssf` ship. Phase 4 `better-auth`, `clerk`, `convex` and `pdp` ship. Remaining Phase 4 work follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.

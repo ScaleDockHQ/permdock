@@ -11,7 +11,7 @@ Permissions are **references** (`permissions.post.update`). Outcomes are `grante
 
 ## 1. Detect
 
-Find the framework (Next.js, Vite + React, Hono, MCP, AuthZEN PDP, AI SDK, Claude Agent SDK, Eve, OpenAI Agents SDK) and the Standard Schema validator already in the repo (Zod, Valibot, ArkType, Effect Schema).
+Find the framework (Next.js, Vite + React, Hono, Nuxt, Astro, React Router, TanStack Start, MCP, AuthZEN PDP, AI SDK, Claude Agent SDK, Eve, OpenAI Agents SDK, Effect) and the Standard Schema validator already in the repo (Zod, Valibot, ArkType, Effect Schema). Nuxt, Astro, React Router, TanStack Start and Effect use `@permdock/cli/unplugin` for collect only; do not add a per-vendor package.
 
 Done when the adapter import path (`permdock/<framework>`) and the validator import are named.
 
@@ -63,7 +63,7 @@ Done when at least one role grants the first guard's permission, and `policy.ts`
 
 ## 4. Factory
 
-Create `src/permdock/server.ts` (or the adapter's documented factory file). Export `createPermDock` from `permdock/<framework>`. Copy the exact return names from [adapters.md](adapters.md).
+Create `src/permdock/server.ts` (or the adapter's documented factory file). Export `createPermDock` from `permdock/<framework>`. Copy the exact return names from [adapters.md](adapters.md). For Nuxt, Astro, React Router, TanStack Start or Effect there is no `permdock/<framework>`: add `createPermDockUnplugin.vite()` (or the matching bundler adapter) from `@permdock/cli/unplugin`, then `permdock/server` (or the HTTP adapter that matches the listener) plus `permdock/vue` / `permdock/react` / `permdock/svelte` on the client.
 
 When the app already verifies OAuth or OIDC access tokens, resolve the subject with `subjectFromJwt` from `permdock/jwt`: `discovery: '<issuer>'`, `audience` set to the resource identifier, algorithms written as `Ed25519` / `ES256` / `PS256`. A claimed `act` that does not nest is anonymous with cause `invalid-chain`. When the app already called RFC 7662 or RFC 9767 introspection, pass the JSON to `subjectFromIntrospection`; `active` other than `true` is anonymous and the HTTP call stays yours. HTTP adapters accept `webBotAuth: { verify: true, keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }) }` to fill `actor` from RFC 9421; a failed signature is `InvalidSignatureError`, never an anonymous actor.
 

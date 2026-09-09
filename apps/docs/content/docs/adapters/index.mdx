@@ -20,6 +20,8 @@ PermDock ships as one npm package (`permdock`) with subpath exports. Every subpa
 
 Phases come from the [roadmap](/docs/roadmap). Adapter pages carry their own `Status` line. Example apps live under `apps/examples/<name>`.
 
+Nuxt, Astro, React Router, TanStack Start and Effect are not rows on this matrix. They collect through [`createPermDockUnplugin`](/docs/cli/unplugin) and run on the shipped UI / HTTP adapters ([0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+
 | Adapter | Import path | What `createPermDock` (or the entry) returns | Example app | Phase | Related standards |
 |---|---|---|---|---|---|
 | [react](/docs/adapters/react) | `permdock/react` | Direct exports, no factory: `PermDockProvider`, `usePermDock`, `usePermission`, `Protected` | `apps/examples/react-vite` | 1 | [AuthZEN](/docs/standards/authzen), [Problem Details](/docs/standards/problem-details) |

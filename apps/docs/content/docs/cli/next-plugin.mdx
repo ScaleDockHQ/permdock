@@ -70,10 +70,11 @@ Next.js 16.3 builds with Turbopack by default. The plugin does not register a lo
 ## Open questions
 
 - Whether the plugin should write the catalog into `.next/` during `next dev` and only commit on demand, avoiding a modified file in the working tree during development.
-- Equivalent build hooks for Vite (`vite-plugin-permdock`) and Expo (Metro) are planned once `collect` is stable; they will be thin wrappers over the same CLI call.
+- Expo (Metro) has no unplugin target yet; Vite apps use [`createPermDockUnplugin`](/docs/cli/unplugin).
 
 ## Related
 
+- [unplugin](/docs/cli/unplugin)
 - [collect](/docs/cli/collect)
 - [Next.js adapter](/docs/adapters/next)
 - [Larger apps](/docs/getting-started/larger-apps)

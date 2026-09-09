@@ -224,6 +224,17 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | MCP Registry | Discovery of MCP servers | Tracking | [agent docs standards](/docs/standards/agent-docs-standards) |
 | AWS Marketplace | Later channel for the hosted ADS | Not before the Cloud alpha | [commercial landscape](/docs/research/commercial-landscape) |
 
+## App frameworks (collect-only)
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Nuxt | Vue meta-framework on Nitro and Vite | Recipe (`createPermDockUnplugin.vite`, `permdock/vue`, `permdock/server`) | [unplugin](/docs/cli/unplugin), [Vue](/docs/adapters/vue) |
+| Astro | Content-first framework with Vite and islands | Recipe (`createPermDockUnplugin.vite`, island UI adapter, `permdock/server`) | [unplugin](/docs/cli/unplugin) |
+| React Router 7 | Vite-based router / framework | Recipe (`createPermDockUnplugin.vite`, `permdock/react`) | [unplugin](/docs/cli/unplugin), [UI](/docs/concepts/ui) |
+| TanStack Start | Full-stack Vite framework | Recipe (`createPermDockUnplugin.vite`, `permdock/react`) | [unplugin](/docs/cli/unplugin), [UI](/docs/concepts/ui) |
+| Effect | Typed-effects runtime; Effect Schema and HttpApi | Recipe (Standard Schema adapter; Overlay on HttpApi output; unplugin when the bundler is Vite) | [unplugin](/docs/cli/unplugin), [Standard Schema](/docs/standards/standard-schema), [OpenAPI](/docs/adapters/openapi) |
+| unplugin | Unified bundler plugin helper | Hook (`createPermDockUnplugin`) | [unplugin](/docs/cli/unplugin) |
+
 ## Adopt / adapt / avoid
 
 The verdicts live on the pages in the last column; this page only fixes the rule that produced them. Adopt: standard fields, the Overlay, `subjectFromJwt`, the three hosted-capability interfaces, MCP and AuthZEN as the six mechanisms through which every row is reached. Adapt: a recipe on the owning page whenever a tool needs more than a standard field, and a consumer-side overlay when a tool wants a derived value in its own namespace. Avoid: a package entry for any row on this page that is not already on the [adapters](/docs/adapters) matrix, and naming a tool anywhere in the docs without a row here.

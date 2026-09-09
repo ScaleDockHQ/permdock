@@ -10,6 +10,7 @@
     "rls",
     "doctor",
     "skills",
-    "next-plugin"
+    "next-plugin",
+    "unplugin"
   ]
 }

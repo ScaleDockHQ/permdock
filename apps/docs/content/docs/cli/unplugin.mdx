@@ -1,0 +1,111 @@
+---
+title: Unplugin
+description: createPermDockUnplugin runs permdock collect in Vite, Rollup, webpack, Rspack and esbuild so Nuxt, Astro, React Router, TanStack Start and Effect apps stay catalog-fresh without a per-vendor package.
+---
+
+Status: shipped
+Phase: 4
+
+`createPermDockUnplugin` is exported from `@permdock/cli/unplugin`. It is the same collect-only hook as [`createPermDockPlugin`](/docs/cli/next-plugin), built with [unplugin](https://unplugin.unjs.io) so one implementation covers Vite, Rollup, webpack, Rspack and esbuild. It never aliases modules, never creates a `PermDock`, and never belongs on a request path ([0006](/docs/decisions/0006-explicit-factory-not-plugin), [0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+
+There is no `permdock/nuxt`, `permdock/astro`, `permdock/react-router`, `permdock/tanstack-start` or `permdock/effect`. Runtime wiring uses the shipped UI and HTTP adapters; this hook only keeps the catalog honest.
+
+## Usage
+
+```ts
+import { createPermDockUnplugin } from '@permdock/cli/unplugin'
+
+export default {
+  plugins: [
+    createPermDockUnplugin.vite({
+      collect: { srcPath: ['./src', '../ui/src'] },
+    }),
+  ],
+}
+```
+
+Adapters on the factory: `createPermDockUnplugin.vite()`, `.rollup()`, `.webpack()`, `.rspack()`, `.esbuild()`. Options match the Next plugin (`collect.srcPath`, `collect.out`, `collect.barrel`, `onDrift`). `permdock.config.ts` is read when options are omitted.
+
+## Recipes
+
+### TanStack Start
+
+Vite plugin. UI is `permdock/react`. Server functions use `permdock/server` or `permdock/node`. Load the snapshot in a server function or loader and pass it to `PermDockProvider` ([UI](/docs/concepts/ui)).
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import { createPermDockUnplugin } from '@permdock/cli/unplugin'
+
+export default defineConfig({
+  plugins: [createPermDockUnplugin.vite(), tanstackStart()],
+})
+```
+
+### React Router 7
+
+Vite plugin. Same runtime as TanStack Start: `permdock/react` plus a Fetch or Node factory. Snapshot in the route `loader`.
+
+```ts
+// vite.config.ts
+import { reactRouter } from '@react-router/dev/vite'
+import { createPermDockUnplugin } from '@permdock/cli/unplugin'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [createPermDockUnplugin.vite(), reactRouter()],
+})
+```
+
+### Nuxt
+
+Vite plugin under `vite.plugins`. Client UI is `permdock/vue`. A server route (Nitro) builds the snapshot with `permdock/server`. Do not put the policy in a Nuxt plugin that ships to the browser.
+
+```ts
+// nuxt.config.ts
+import { createPermDockUnplugin } from '@permdock/cli/unplugin'
+
+export default defineNuxtConfig({
+  vite: {
+    plugins: [createPermDockUnplugin.vite()],
+  },
+})
+```
+
+### Astro
+
+Vite plugin on `astro.config`. Islands use `permdock/react`, `permdock/vue` or `permdock/svelte`. Endpoints use `permdock/server`.
+
+```ts
+// astro.config.ts
+import { defineConfig } from 'astro/config'
+import { createPermDockUnplugin } from '@permdock/cli/unplugin'
+
+export default defineConfig({
+  vite: {
+    plugins: [createPermDockUnplugin.vite()],
+  },
+})
+```
+
+### Effect
+
+Effect is not a bundler. Three existing paths cover it:
+
+1. **Schema.** Effect Schema 3.13+ via its Standard Schema adapter is a resource schema, same as Zod ([Standard Schema](/docs/standards/standard-schema)). Boundary validation stays synchronous.
+2. **HttpApi.** Effect HttpApi has no per-route PermDock hook. Emit OpenAPI, then `permdock openapi emit --format overlay` and apply it ([OpenAPI](/docs/adapters/openapi)).
+3. **Collect.** When the app is built with Vite (or webpack / esbuild), add `createPermDockUnplugin` as above. Runtime guards stay `permdock/server` or the HTTP adapter that matches the listener.
+
+## What it does not do
+
+- It does not export `getPermDock`, `usePermission` or `Protected`.
+- It does not install a Nuxt module, an Astro integration, or a TanStack / React Router middleware.
+- It does not run `usage`, `doctor`, `openapi` or `arazzo check`.
+- It does not evaluate a subject.
+
+## Related
+
+- [Next.js plugin](/docs/cli/next-plugin)
+- [collect](/docs/cli/collect)
+- [Vue](/docs/adapters/vue), [React](/docs/adapters/react), [server kernel](/docs/adapters/server-kernel)

@@ -66,7 +66,7 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 | `permdock/react` | `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>` | 1 |
 | `permdock/next` | `createPermDock` returning `getPermDock`, `getPermission`, `PermDockProvider`, `permdockHandler` | 1 |
 | `permdock/next/plugin` | `createPermDockPlugin` (build-time `collect` hook only) | 1 |
-| `@permdock/cli/unplugin` | `createPermDockUnplugin` (the same `collect` hook for Vite, Rollup, webpack, Rspack and esbuild; TanStack Start, React Router, SvelteKit, Nuxt, Astro, Solid) | 1 |
+| `@permdock/cli/unplugin` | `createPermDockUnplugin` (the same `collect` hook for Vite, Rollup, webpack, Rspack and esbuild; recipes for TanStack Start, React Router, Nuxt, Astro, Effect) | 4 |
 | `permdock/server` | Fetch-first kernel shared by the HTTP adapters | 1 |
 | `permdock/hono` | `createPermDock` returning `permdock` middleware and `protect` | 1 |
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | Same shape as `permdock/hono` | 2 |
