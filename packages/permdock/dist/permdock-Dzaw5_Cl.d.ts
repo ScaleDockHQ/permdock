@@ -1,5 +1,34 @@
 import { d as Subject, l as Membership, o as Delegation, t as Actor } from "./subject-BcgWbogX.js";
-import { A as SnapshotV2, B as Decision, E as RoleSource, J as Permission, N as TokenSigner, T as MembershipSource, _ as DecisionEvent, o as Policy, st as Condition, w as LimitStore, y as DecisionSink } from "./policy-btMlTuxm.js";
+import { A as SnapshotV2, B as Decision, E as RoleSource, J as Permission, N as TokenSigner, T as MembershipSource, X as PermissionTree, _ as DecisionEvent, o as Policy, st as Condition, w as LimitStore, y as DecisionSink } from "./policy-B9ZJilUm.js";
+//#region src/core/arazzo.d.ts
+type ArazzoSimulateInput = {
+  readonly arazzo: unknown;
+  readonly openapi: unknown;
+  readonly workflowId?: string;
+  readonly permissions?: PermissionTree;
+  readonly inputs?: Readonly<Record<string, unknown>>;
+};
+type ArazzoStepResult = {
+  readonly stepId: string;
+  readonly operationId?: string;
+  readonly permissions: readonly Permission[];
+  readonly decision: Decision;
+  readonly provisional?: true;
+};
+type ArazzoPlan = {
+  readonly workflowId: string;
+  readonly outcome: Decision["outcome"];
+  readonly steps: readonly ArazzoStepResult[];
+};
+type ArazzoFinding = {
+  readonly stepId: string;
+  readonly workflowId: string;
+  readonly reason: "undocumented" | "unsupported" | "validation" | "unknown-key";
+  readonly detail: string;
+};
+declare function arazzoFindings(input: ArazzoSimulateInput, tree: PermissionTree | undefined): readonly ArazzoFinding[];
+declare function simulateArazzo(input: ArazzoSimulateInput, tree: PermissionTree | undefined, decide: (permission: Permission, data: unknown) => Decision): ArazzoPlan;
+//#endregion
 //#region src/core/describe.d.ts
 type DecisionDescription = {
   readonly kind: "granted" | "denied" | "approval" | "tenant" | "delegation" | "server-only";
@@ -70,6 +99,7 @@ type PermDock = {
       readonly memberships?: readonly Membership[];
       readonly tenant?: string;
     }): PermDock;
+    (plan: ArazzoSimulateInput): ArazzoPlan;
   };
   readonly snapshot: (options?: {
     readonly include?: readonly (Permission | {
@@ -103,4 +133,4 @@ type CreatePermDockOptions = {
 };
 declare function createPermDock(policy: Policy, user: unknown, options?: CreatePermDockOptions): PermDock | Promise<PermDock>;
 //#endregion
-export { WhereResult as a, fromSnapshot as c, describe as d, RowPair as i, parseSnapshot as l, DecideOptions as n, createPermDock as o, PermDock as r, emptySnapshot as s, CreatePermDockOptions as t, DecisionDescription as u };
+export { simulateArazzo as _, WhereResult as a, fromSnapshot as c, describe as d, ArazzoFinding as f, arazzoFindings as g, ArazzoStepResult as h, RowPair as i, parseSnapshot as l, ArazzoSimulateInput as m, DecideOptions as n, createPermDock as o, ArazzoPlan as p, PermDock as r, emptySnapshot as s, CreatePermDockOptions as t, DecisionDescription as u };

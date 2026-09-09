@@ -1,7 +1,7 @@
 import { t as describe } from "../describe-BnKr1Gwo.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { r as PermDockValidationError } from "../errors-DDT8tC4N.js";
-import { t as createPermDock$1 } from "../permdock-BPNx0tvD.js";
+import { t as createPermDock$1 } from "../permdock-Kp60ds1F.js";
 import { r as requestApproval, t as inspectApproval } from "../helpers-Ce24VOuf.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 //#region src/mcp/errors.ts

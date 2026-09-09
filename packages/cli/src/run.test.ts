@@ -155,6 +155,42 @@ describe('run', () => {
     expect(result.stdout).toContain('PD004');
   });
 
+  it('arazzo check exits 0 when every step is documented', async () => {
+    const cwd = appCopy();
+    const result = await run(
+      [
+        'arazzo',
+        'check',
+        '--doc',
+        'arazzo.json',
+        '--openapi',
+        'openapi.json',
+        '--from',
+        'src/permissions.ts',
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('documented');
+  });
+
+  it('arazzo check exits 1 on an undocumented step', async () => {
+    const cwd = appCopy();
+    const result = await run(
+      [
+        'arazzo',
+        'check',
+        '--doc',
+        'arazzo-hole.json',
+        '--openapi',
+        'openapi.json',
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain('undocumented');
+  });
+
   it('doctor is clean for catalog after collect', async () => {
     const cwd = appCopy();
     await run(['collect'], { cwd });

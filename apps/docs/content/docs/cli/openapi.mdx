@@ -178,7 +178,7 @@ jobs:
 - Whether `emit` should also write per-operation `x-permdock-arity` and the resource id parameter name so an agent can build the `data` loader from the document alone.
 - Decided by [ADR 0025](/docs/decisions/0025-draft-protocol-posture): `--target 3.3` emits the pinned Security Profile draft now and switches to the released construct at 3.3.0. Open: whether a document whose `openapi` field already says `3.3.x` should select the target automatically ([OpenAPI 3.3](/docs/standards/openapi-3-3)).
 - Decided by [ADR 0025](/docs/decisions/0025-draft-protocol-posture): `--overlay 1.2` emits the pinned Overlay 1.2 draft with `1.1` as the default. Open: the release after which `1.2` becomes the default, which waits on the appliers in the table above accepting `components.actions`.
-- Per-step permissions from Arazzo workflows are a Phase 4 item (`permdock arazzo check`, [Arazzo workflows](/docs/standards/arazzo)), not part of `permdock openapi`.
+- Per-step permissions from Arazzo workflows are `permdock arazzo check` ([Arazzo workflows](/docs/standards/arazzo)), not part of `permdock openapi`.
 
 ## Related
 

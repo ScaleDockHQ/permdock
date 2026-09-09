@@ -1,6 +1,6 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { o as invalidSignatureResponse } from "../evaluations-04mKRGwn.js";
-import { t as createPermDock$1 } from "../create-q024YbJD.js";
+import { t as createPermDock$1 } from "../create-31pjGiR3.js";
 import { ORPCError } from "@orpc/server";
 //#region src/orpc/create.ts
 function requestFromCtx(ctx) {

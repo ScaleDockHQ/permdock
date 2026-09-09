@@ -11,6 +11,7 @@ import type { Permission } from './permissions.ts';
 import type { Membership, Principal, Subject } from './subject.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
+import { isArazzoSimulateInput, simulateArazzo } from './arazzo.ts';
 import { compact } from './compact.ts';
 import { coveredByDelegation, resourceIdOf } from './delegation.ts';
 import {
@@ -477,6 +478,11 @@ export function fromSnapshot(
       if (Array.isArray(input)) {
         return (input as readonly (readonly [Permission, unknown?])[]).map(
           ([permission, data]) => run(permission, data),
+        );
+      }
+      if (isArazzoSimulateInput(input)) {
+        return simulateArazzo(input, input.permissions, (permission, data) =>
+          run(permission, data),
         );
       }
       const preview = input as {

@@ -1,0 +1,40 @@
+---
+title: arazzo
+description: Resolve every step of an Arazzo workflow to an operation's x-permdock-permissions and report steps that call undocumented operations.
+---
+
+Status: shipped
+Phase: 4
+
+`permdock arazzo check` is the workflow counterpart of `permdock openapi --check`. It runs the resolution half of `permdock.simulate({ arazzo, openapi })` and never evaluates a subject. See [Arazzo workflows](/docs/standards/arazzo) and [0036](/docs/decisions/0036-arazzo-simulate).
+
+```bash
+permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
+permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json --workflow publishPost --from src/permissions.ts
+```
+
+## Flags
+
+| Flag | Values | Default | Purpose |
+| --- | --- | --- | --- |
+| `--doc <path>` | file path | required | The Arazzo 1.0.x or 1.1.0 document |
+| `--openapi <path>` | file path | required | The applied OpenAPI description (Overlay already merged). Several sources: pass one document, or a JSON object keyed by source `name` |
+| `--workflow <id>` | workflow id | first workflow | Which `workflowId` to expand |
+| `--from <module>` | definition module | `permissions` in config | Catalog used to reject unknown permission keys |
+
+`--cwd`, `--config` and `--json` are shared ([CLI](/docs/cli)). Exit codes: `0` every step documented, `1` findings, `2` usage (missing flags, unreadable JSON).
+
+## What it reports
+
+A finding is one of:
+
+| Reason | When |
+| --- | --- |
+| `validation` | The document is not Arazzo `1.0.x` / `1.1.0`, the `workflowId` is missing, or a `workflowId` step cycles |
+| `undocumented` | The `operationId` / `operationPath` does not resolve, or the operation has no `x-permdock-permissions` |
+| `unsupported` | The source is `type: asyncapi` |
+| `unknown-key` | `--from` (or config `permissions`) is set and a key is not in the catalog |
+
+The command does not call `decide`, does not load a policy, and does not accept a subject. Pre-flighting grants is `permdock.simulate({ arazzo, openapi })` on an instance.
+
+`--json` prints `{ "$schema": "permdock-arazzo-check", findings }`.

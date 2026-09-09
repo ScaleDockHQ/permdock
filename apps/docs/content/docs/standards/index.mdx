@@ -39,7 +39,7 @@ The `Phase` column is the first phase in which PermDock uses the standard; adapt
 | [OpenAPI 3.2](/docs/standards/openapi-3-2) | 3.2, Sept 2025 (3.1 via registered `x-oai-*` and `x-permdock-oauth2MetadataUrl`) | released | [openapi adapter](/docs/adapters/openapi), [CLI openapi](/docs/cli/openapi) | 2 |
 | [OpenAPI 3.3](/docs/standards/openapi-3-3) | 3.3, `v3.3-dev`; Security Profiles per Discussion #5304 | in development, built from a pinned draft | `--target 3.3` emits the pinned Security Profile draft (`type: profile`, `securityProfileRequirements`) next to `x-permdock-securityProfile`; switches to the released construct at 3.3.0 | 2 |
 | [OpenAPI Overlay](/docs/standards/openapi-overlay) | 1.1.0, Jan 2026; 1.2 in development | released; 1.2 draft, built behind `--overlay 1.2` | `permdock openapi` applies its security additions as an Overlay; `--overlay 1.2` emits the pinned reusable-actions draft | 2 |
-| [Arazzo](/docs/standards/arazzo) | 1.1.0, May 2026 | released | Permissions a multi-step workflow needs, step by step | 2 |
+| [Arazzo](/docs/standards/arazzo) | 1.1.0, May 2026 | released | `simulate({ arazzo, openapi })` and `permdock arazzo check` | 4 |
 | [OpenAPI registries](/docs/standards/openapi-registry) | Extension and Namespace registries | living registries | Registering the `x-permdock-` namespace and the extensions PermDock emits | 2 |
 | [WebMCP](/docs/standards/webmcp) | W3C WebML CG, Chrome docs | incubation | [webmcp adapter](/docs/adapters/webmcp) | 2 |
 | [A2A](/docs/standards/a2a) | 1.0, Linux Foundation | 1.0 | [a2a adapter](/docs/adapters/a2a) | 2 |

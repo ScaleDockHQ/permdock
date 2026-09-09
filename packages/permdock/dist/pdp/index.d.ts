@@ -1,6 +1,6 @@
-import { d as Subject } from "../subject-BcgWbogX.js";
-import { B as Decision, J as Permission, X as PermissionTree, o as Policy, v as DecisionProvider } from "../policy-btMlTuxm.js";
-import { n as DecideOptions, r as PermDock, t as CreatePermDockOptions } from "../permdock-hQcUhnDS.js";
+import { d as Subject, l as Membership } from "../subject-BcgWbogX.js";
+import { B as Decision, J as Permission, X as PermissionTree, o as Policy, v as DecisionProvider } from "../policy-B9ZJilUm.js";
+import { m as ArazzoSimulateInput, n as DecideOptions, p as ArazzoPlan, r as PermDock, t as CreatePermDockOptions } from "../permdock-Dzaw5_Cl.js";
 //#region src/pdp/types.d.ts
 type RemotePdpAuth = {
   readonly bearer: string | (() => string | Promise<string>);
@@ -47,7 +47,12 @@ type PdpPermDock = Omit<PermDock, "can" | "decide" | "assert" | "filter" | "simu
   readonly filter: <T>(permission: Permission<string, T, "instance">, rows: readonly T[], options?: DecideOptions) => Promise<T[]>;
   readonly simulate: {
     (checks: readonly (readonly [Permission, unknown?])[]): Promise<readonly Decision[]>;
-    (preview: Parameters<PermDock["simulate"]>[0] & object): PdpPermDock;
+    (plan: ArazzoSimulateInput): ArazzoPlan;
+    (preview: {
+      readonly roles?: readonly string[];
+      readonly memberships?: readonly Membership[];
+      readonly tenant?: string;
+    }): PdpPermDock;
   };
   readonly tenant: (id: string) => PdpPermDock;
   readonly team: (id: string) => PdpPermDock;

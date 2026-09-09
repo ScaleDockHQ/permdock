@@ -1,4 +1,4 @@
-import { i as evaluateCondition, n as coveredByDelegation, r as resourceIdOf, t as decisionToken } from "./token-4yF-MI7Q.js";
+import { a as isArazzoSimulateInput, n as coveredByDelegation, o as simulateArazzo, r as resourceIdOf, s as evaluateCondition, t as decisionToken } from "./token-BBVlukCW.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
@@ -325,6 +325,7 @@ function fromSnapshot(snapshot, options = {}) {
 		},
 		simulate: ((input) => {
 			if (Array.isArray(input)) return input.map(([permission, data]) => run(permission, data));
+			if (isArazzoSimulateInput(input)) return simulateArazzo(input, input.permissions, (permission, data) => run(permission, data));
 			const preview = input;
 			return fromSnapshot(freezeDeep({
 				...snapshot,

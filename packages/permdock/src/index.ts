@@ -48,6 +48,13 @@ export type {
   VerifiedToken,
   WhereCompiler,
 } from './core/interfaces.ts';
+export { arazzoFindings, simulateArazzo } from './core/arazzo.ts';
+export type {
+  ArazzoFinding,
+  ArazzoPlan,
+  ArazzoSimulateInput,
+  ArazzoStepResult,
+} from './core/arazzo.ts';
 export { emptySnapshot, fromSnapshot } from './core/from-snapshot.ts';
 export { createPermDock, parseSnapshot } from './core/permdock.ts';
 export type {

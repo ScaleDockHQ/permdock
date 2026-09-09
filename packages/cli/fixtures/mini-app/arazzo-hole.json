@@ -1,0 +1,9 @@
+{
+  "arazzo": "1.1.0",
+  "workflows": [
+    {
+      "workflowId": "ghost",
+      "steps": [{ "stepId": "x", "operationId": "noSuchOp" }]
+    }
+  ]
+}

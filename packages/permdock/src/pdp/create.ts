@@ -7,9 +7,10 @@ import type {
 } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Subject } from '../core/subject.ts';
+import type { Membership, Subject } from '../core/subject.ts';
 import type { PdpPermDock } from './types.ts';
 
+import { isArazzoSimulateInput } from '../core/arazzo.ts';
 import { compact } from '../core/compact.ts';
 import {
   PermDockApprovalRequiredError,
@@ -93,6 +94,8 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'expired-membership':
       case 'unknown-role':
       case 'approval':
+      case 'undocumented':
+      case 'unsupported':
         return true;
       default: {
         const exhaustive: never = denial.reason;
@@ -218,8 +221,17 @@ function wrap(
         ),
       );
     }
+    if (isArazzoSimulateInput(input)) {
+      return dock.simulate(input);
+    }
     return wrap(
-      dock.simulate(input as Parameters<PermDock['simulate']>[0]),
+      dock.simulate(
+        input as {
+          readonly roles?: readonly string[];
+          readonly memberships?: readonly Membership[];
+          readonly tenant?: string;
+        },
+      ),
       policy,
       subject,
       providers,

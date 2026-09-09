@@ -1,5 +1,5 @@
 import { t as freezeDeep } from "../freeze-BF4IK5al.js";
-import { i as role, t as allow } from "../policy-BPjhRGPn.js";
+import { i as role, t as allow } from "../policy-DVtOWwkG.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { o as listPermissions } from "../permissions-WEkUHQtZ.js";
 import { t as anonymousSubject } from "../subject-DgYVJ_Q0.js";

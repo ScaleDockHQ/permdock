@@ -125,7 +125,7 @@ PermDock assumes the reader of a denial may be a language model deciding what to
 - HTTP adapters emit RFC 9457 `application/problem+json` with `type`, `title`, `permission`, `denials` and `alternatives`; see [Errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
 - `PermDockValidationError` names the resource and the schema issues; `PermDockDeniedError` and `PermDockApprovalRequiredError` carry the `Decision`.
 - CLI reports use stable codes (`PD001`...) with a one-line fix each, and `--json` output carries a `$schema`.
-- `simulate([[permission, data], ...])` lets an agent pre-flight a whole plan and read every decision before acting; it is the in-process form of AuthZEN `evaluations`.
+- `simulate([[permission, data], ...])` lets an agent pre-flight a whole plan and read every decision before acting; it is the in-process form of AuthZEN `evaluations`. `simulate({ arazzo, openapi })` does the same from an Arazzo workflow; a `provisional: true` step is not a final grant.
 
 ## Reading the docs
 

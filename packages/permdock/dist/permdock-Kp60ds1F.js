@@ -1,10 +1,10 @@
-import { i as evaluateCondition, n as coveredByDelegation, r as resourceIdOf, t as decisionToken } from "./token-4yF-MI7Q.js";
+import { a as isArazzoSimulateInput, n as coveredByDelegation, o as simulateArazzo, r as resourceIdOf, s as evaluateCondition, t as decisionToken } from "./token-BBVlukCW.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
+import { i as getResource, o as listPermissions } from "./permissions-WEkUHQtZ.js";
 import { n as pickVisible, r as sanitizeContext, t as grantCoversField } from "./fields-BXlUUepW.js";
 import { a as matchScopedMembership, c as tenantsOf, o as nowSeconds, r as signSnapshot, s as resolveActiveTenant, t as buildSnapshot } from "./snapshot-BiwEN_W3.js";
-import { i as getResource, o as listPermissions } from "./permissions-WEkUHQtZ.js";
 import { i as isSubject, r as isPrincipal, t as anonymousSubject } from "./subject-DgYVJ_Q0.js";
 //#region src/core/limits.ts
 const UNIT_SECONDS = {
@@ -793,6 +793,10 @@ function buildInstance(policy, subject, envBase, team) {
 		},
 		simulate: ((input) => {
 			if (Array.isArray(input)) return input.map(([permission, data]) => evaluate(policy, subject, permission, data, {
+				source: "simulate",
+				trusted: true
+			}, envFor(false)));
+			if (isArazzoSimulateInput(input)) return simulateArazzo(input, input.permissions ?? policy.permissions, (permission, data) => evaluate(policy, subject, permission, data, {
 				source: "simulate",
 				trusted: true
 			}, envFor(false)));

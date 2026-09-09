@@ -1,6 +1,6 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
-import { t as createPermDock$1 } from "../permdock-BPNx0tvD.js";
+import { t as createPermDock$1 } from "../permdock-Kp60ds1F.js";
 import { i as isSubject } from "../subject-DgYVJ_Q0.js";
 import { createInterface } from "node:readline";
 import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";

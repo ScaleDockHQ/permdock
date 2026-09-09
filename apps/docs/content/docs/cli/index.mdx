@@ -42,17 +42,12 @@ export default defineConfig({
 | `permdock catalog` | Export the catalog as JSON, JSON Schema or Markdown | 1 | [catalog](/docs/cli/catalog) |
 | `permdock usage` | Report defined-but-unused, used-but-ungranted and granted-by-no-role permissions | 1 | [usage](/docs/cli/usage) |
 | `permdock openapi` | Emit `security` and `securitySchemes` into an OpenAPI document, or import one into a generated definition; `--target 3.1\|3.2\|3.3` (`3.3` experimental: pinned Security Profile draft), `--format document\|overlay`, `--overlay 1.1\|1.2` (`1.2` experimental: pinned reusable-actions draft), `--profile fapi2`, `--profile-scheme`, `--check` | 2 | [openapi](/docs/cli/openapi) |
+| `permdock arazzo check` | Resolve every Arazzo step to `x-permdock-permissions`; never evaluates a subject | 4 | [arazzo](/docs/cli/arazzo) |
 | `permdock rls` | `generate`, `import` and `verify` Postgres RLS policies | 3 | [rls](/docs/cli/rls) |
 | `permdock doctor` | Check wiring, imports, references, catalog freshness, skills and the TypeScript version | 1 | [doctor](/docs/cli/doctor) |
 | `permdock skills` | Install or update the `wire-permdock` and `audit-permissions` Agent Skills | 1 | [skills](/docs/cli/skills) |
 
 The Next.js build hook `createPermDockPlugin` is documented on its own page: [Next.js plugin](/docs/cli/next-plugin).
-
-### Later
-
-Planned commands that are not part of the table yet:
-
-- `permdock arazzo check` (Phase 4): resolve every step of an Arazzo workflow to an operation's `x-permdock-permissions` and report steps that call undocumented operations; see [Arazzo workflows](/docs/standards/arazzo).
 
 ## Exit codes
 
@@ -78,6 +73,7 @@ Every command prints a human-readable report by default and supports `--json` fo
 - run: pnpm exec permdock usage --strict         # no ungranted or unused permissions
 - run: pnpm exec permdock doctor                 # wiring, imports, TS version
 - run: pnpm exec permdock openapi --check --doc openapi.json
+- run: pnpm exec permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
 ```
 
 `permdock rls verify --db $DATABASE_URL` runs in the integration job that has a Postgres service; see [rls](/docs/cli/rls).

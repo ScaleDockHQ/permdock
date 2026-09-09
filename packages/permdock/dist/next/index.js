@@ -1,6 +1,6 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
-import { t as createPermDock$1 } from "../permdock-BPNx0tvD.js";
-import { t as PermDockProvider } from "../provider-vymwOuul.js";
+import { t as createPermDock$1 } from "../permdock-Kp60ds1F.js";
+import { t as PermDockProvider } from "../provider-y6ri4D84.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 import { n as createEvaluationsHandler } from "../evaluations-04mKRGwn.js";
 import { cache } from "react";

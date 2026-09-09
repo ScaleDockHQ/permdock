@@ -1,4 +1,4 @@
-import "./permdock-hQcUhnDS.js";
+import "./permdock-Dzaw5_Cl.js";
 //#region src/conditions/compile.d.ts
 type MembershipTable = {
   readonly table: string;

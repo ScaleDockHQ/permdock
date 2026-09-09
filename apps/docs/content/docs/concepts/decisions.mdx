@@ -134,6 +134,8 @@ const results = permdock.simulate([
 
 `simulate` evaluates a batch without side effects: no `on('decision')` events for the individual checks (one `simulate` event instead), no approval tokens issued, no quota consumed. It is the pre-flight an agent runs over its plan before executing, and it is the same shape as an AuthZEN `evaluations` boxcar request, so the decision endpoint and the `pdp` provider expose it over HTTP unchanged ([AuthZEN](/docs/standards/authzen)).
 
+A third overload reads an [Arazzo](/docs/standards/arazzo) workflow and the applied OpenAPI description. Each step's `operationId` resolves to `x-permdock-permissions`; a hole is `denied` with reason `undocumented` or `unsupported` ([0036](/docs/decisions/0036-arazzo-simulate)). The subject is the instance's. `permdock arazzo check` runs only the resolution half and never decides.
+
 ## Mapping decisions to other vocabularies
 
 | PermDock | AI SDK `toolApproval` | MCP tool result | HTTP | AuthZEN |

@@ -1,7 +1,7 @@
 import { d as Subject } from "../subject-BcgWbogX.js";
-import { B as Decision, J as Permission } from "../policy-btMlTuxm.js";
-import { i as ProblemDetails, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-BQ3WJ6qi.js";
-import { a as createPermDock, c as InvalidSignatureError, d as WebBotAuthKeys, f as WebBotAuthOptions, h as invalidSignatureResponse, i as ServerPermDockOptions, l as WebBotAuthJwk, m as invalidSignatureProblem, n as OpenApiHooks, o as createEvaluationsHandler, p as discoverViaSignatureAgent, r as ServerPermDock, s as DiscoverViaSignatureAgentOptions, t as Guard, u as WebBotAuthKeyLookup } from "../create-0pHTFWwI.js";
+import { B as Decision, J as Permission } from "../policy-B9ZJilUm.js";
+import { i as ProblemDetails, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-ojKVwrw-.js";
+import { a as createPermDock, c as InvalidSignatureError, d as WebBotAuthKeys, f as WebBotAuthOptions, h as invalidSignatureResponse, i as ServerPermDockOptions, l as WebBotAuthJwk, m as invalidSignatureProblem, n as OpenApiHooks, o as createEvaluationsHandler, p as discoverViaSignatureAgent, r as ServerPermDock, s as DiscoverViaSignatureAgentOptions, t as Guard, u as WebBotAuthKeyLookup } from "../create-UsvhcOpB.js";
 //#region src/server/problem.d.ts
 export declare const PROBLEM_BASE = "https://permdock.dev/problems";
 export declare function wwwAuthenticate(decision: Decision, permission: Permission | undefined): string | undefined;

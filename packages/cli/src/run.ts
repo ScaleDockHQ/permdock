@@ -1,5 +1,6 @@
 import type { CliIo, RunResult } from './types.ts';
 
+import { runArazzo } from './arazzo.ts';
 import { flagBool, flagList, flagString, parseArgs } from './args.ts';
 import { runCatalog } from './catalog.ts';
 import { runCollect } from './collect.ts';
@@ -20,6 +21,7 @@ Commands:
   skills [install|list|update] [--agent <name>]
   openapi emit --doc <path> [--target 3.1|3.2|3.3] [--format document|overlay]
   rls generate|import|verify [--target sql|drizzle|prisma] [--dialect supabase|neon|guc]
+  arazzo check --doc <arazzo.json> --openapi <doc.json> [--workflow <id>] [--from <module>]
 
 Global:
   --cwd <dir>   --config <file>   --json   --no-color
@@ -201,6 +203,20 @@ export async function run(
         writeOut(result.output);
         return finish(result.code, stdoutChunks, stderrChunks);
       }
+      case 'arazzo': {
+        const result = await runArazzo({
+          cwd,
+          config,
+          rest: args.rest,
+          doc: flagString(args.flags, 'doc') ?? flagList(args.flags, 'doc')[0],
+          openapi: flagString(args.flags, 'openapi'),
+          workflow: flagString(args.flags, 'workflow'),
+          from: flagString(args.flags, 'from'),
+          json,
+        });
+        writeOut(result.output);
+        return finish(result.code, stdoutChunks, stderrChunks);
+      }
       case 'rls': {
         const rbacFlag = flagString(args.flags, 'rbac');
         const result = await runRls({
@@ -230,7 +246,7 @@ export async function run(
       }
       default:
         writeErr(
-          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills, openapi or rls.`,
+          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills, openapi, rls or arazzo.`,
         );
         return finish(2, stdoutChunks, stderrChunks);
     }

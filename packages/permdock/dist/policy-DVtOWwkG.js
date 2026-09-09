@@ -2,9 +2,9 @@ import { n as isConditionDate, r as isConditionRef, t as isCondition } from "./a
 import { i as ownKeys, o as splitPath, t as assertSafeKey } from "./paths-AH4M6YYV.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
+import { o as listPermissions, r as getRegistry } from "./permissions-WEkUHQtZ.js";
 import { i as sanitizeFields } from "./fields-BXlUUepW.js";
 import { n as sha256, t as bytesToBase64Url } from "./sha256-CeSpVRME.js";
-import { o as listPermissions, r as getRegistry } from "./permissions-WEkUHQtZ.js";
 //#region src/conditions/opaque.ts
 function opaque(input) {
 	return freezeDeep({

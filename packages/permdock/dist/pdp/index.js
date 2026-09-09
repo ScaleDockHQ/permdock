@@ -1,8 +1,8 @@
-import { t as decisionToken } from "../token-4yF-MI7Q.js";
+import { a as isArazzoSimulateInput, t as decisionToken } from "../token-BBVlukCW.js";
 import { t as freezeDeep } from "../freeze-BF4IK5al.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
-import { t as createPermDock$1 } from "../permdock-BPNx0tvD.js";
+import { t as createPermDock$1 } from "../permdock-Kp60ds1F.js";
 import { i as getResource, o as listPermissions } from "../permissions-WEkUHQtZ.js";
 import { o as isRecord } from "../map-BA2lzIVj.js";
 //#region src/pdp/create.ts
@@ -52,7 +52,9 @@ function isLocalShortCircuit(decision) {
 			case "scope":
 			case "expired-membership":
 			case "unknown-role":
-			case "approval": return true;
+			case "approval":
+			case "undocumented":
+			case "unsupported": return true;
 			default: return denial.reason;
 		}
 	});
@@ -113,6 +115,7 @@ function wrap(dock, policy, subject, providers) {
 	};
 	const simulate = ((input) => {
 		if (Array.isArray(input)) return Promise.all(input.map(([permission, data]) => decide(permission, data, { source: "simulate" })));
+		if (isArazzoSimulateInput(input)) return dock.simulate(input);
 		return wrap(dock.simulate(input), policy, subject, providers);
 	});
 	return {

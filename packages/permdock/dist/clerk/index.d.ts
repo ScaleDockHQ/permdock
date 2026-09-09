@@ -1,5 +1,5 @@
 import { d as Subject, u as Principal } from "../subject-BcgWbogX.js";
-import { E as RoleSource, J as Permission } from "../policy-btMlTuxm.js";
+import { E as RoleSource, J as Permission } from "../policy-B9ZJilUm.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/clerk/types.d.ts
 type ClerkPrincipal = Principal & {

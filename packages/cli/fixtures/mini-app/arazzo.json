@@ -1,0 +1,16 @@
+{
+  "arazzo": "1.1.0",
+  "sourceDescriptions": [{ "name": "api", "type": "openapi" }],
+  "workflows": [
+    {
+      "workflowId": "deletePost",
+      "steps": [
+        {
+          "stepId": "remove",
+          "operationId": "deletePost",
+          "parameters": [{ "name": "id", "value": "p1" }]
+        }
+      ]
+    }
+  ]
+}

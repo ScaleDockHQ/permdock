@@ -19,6 +19,12 @@ import type { Permission } from './permissions.ts';
 import type { Grant, Policy } from './policy.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
+import {
+  type ArazzoPlan,
+  type ArazzoSimulateInput,
+  isArazzoSimulateInput,
+  simulateArazzo,
+} from './arazzo.ts';
 import { compact } from './compact.ts';
 import { coveredByDelegation, resourceIdOf } from './delegation.ts';
 import { describe } from './describe.ts';
@@ -131,6 +137,7 @@ export type PermDock = {
       readonly memberships?: readonly Membership[];
       readonly tenant?: string;
     }): PermDock;
+    (plan: ArazzoSimulateInput): ArazzoPlan;
   };
   readonly snapshot: (options?: {
     readonly include?: readonly (
@@ -1244,8 +1251,9 @@ function buildInstance(
             readonly roles?: readonly string[];
             readonly memberships?: readonly Membership[];
             readonly tenant?: string;
-          },
-    ): Decision[] | PermDock => {
+          }
+        | ArazzoSimulateInput,
+    ): Decision[] | PermDock | ArazzoPlan => {
       if (Array.isArray(input)) {
         return input.map(([permission, data]) =>
           evaluate(
@@ -1256,6 +1264,21 @@ function buildInstance(
             { source: 'simulate', trusted: true },
             envFor(false),
           ),
+        );
+      }
+      if (isArazzoSimulateInput(input)) {
+        return simulateArazzo(
+          input,
+          input.permissions ?? policy.permissions,
+          (permission, data) =>
+            evaluate(
+              policy,
+              subject,
+              permission,
+              data,
+              { source: 'simulate', trusted: true },
+              envFor(false),
+            ),
         );
       }
       const preview = input as {

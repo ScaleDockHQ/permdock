@@ -1,7 +1,7 @@
 import { c as JsonWebKeyLike } from "./subject-BcgWbogX.js";
-import { B as Decision, E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotSource, o as Policy, y as DecisionSink } from "./policy-btMlTuxm.js";
+import { B as Decision, E as RoleSource, J as Permission, T as MembershipSource, k as SnapshotSource, o as Policy, y as DecisionSink } from "./policy-B9ZJilUm.js";
 import { s as ApprovalStore } from "./types-D19MSDwi.js";
-import { r as PermDock } from "./permdock-hQcUhnDS.js";
+import { r as PermDock } from "./permdock-Dzaw5_Cl.js";
 //#region src/server/web-bot-auth.d.ts
 type WebBotAuthJwk = JsonWebKeyLike & {
   readonly kid?: string;

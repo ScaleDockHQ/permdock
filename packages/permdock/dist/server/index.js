@@ -1,4 +1,4 @@
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
 import { a as invalidSignatureProblem, c as PROBLEM_BASE, d as validationProblem, f as wwwAuthenticate, i as discoverViaSignatureAgent, l as problemFromDecision, n as createEvaluationsHandler, o as invalidSignatureResponse, r as InvalidSignatureError, u as problemResponse } from "../evaluations-04mKRGwn.js";
-import { t as createPermDock } from "../create-q024YbJD.js";
+import { t as createPermDock } from "../create-31pjGiR3.js";
 export { InvalidSignatureError, PROBLEM_BASE, PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, createEvaluationsHandler, createEvaluationsHandler as createHandler, createPermDock, discoverViaSignatureAgent, invalidSignatureProblem, invalidSignatureResponse, problemFromDecision, problemResponse, validationProblem, wwwAuthenticate };

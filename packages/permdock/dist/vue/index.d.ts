@@ -1,7 +1,7 @@
 import { l as Membership } from "../subject-BcgWbogX.js";
-import { A as SnapshotV2, B as Decision, J as Permission, P as TokenVerifier } from "../policy-btMlTuxm.js";
-import { d as describe } from "../permdock-hQcUhnDS.js";
-import { a as FilterResult, c as PermissionState, d as TenantView, f as UseRolesOptions, i as ClientStatus, n as ApprovalState, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-D4Vi3oam.js";
+import { A as SnapshotV2, B as Decision, J as Permission, P as TokenVerifier } from "../policy-B9ZJilUm.js";
+import { d as describe } from "../permdock-Dzaw5_Cl.js";
+import { a as FilterResult, c as PermissionState, d as TenantView, f as UseRolesOptions, i as ClientStatus, n as ApprovalState, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-BkASnC6E.js";
 import { ComputedRef, DefineComponent, MaybeRefOrGetter, Plugin } from "vue";
 //#region src/vue/types.d.ts
 type PermDockPluginOptions = {

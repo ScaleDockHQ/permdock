@@ -23,7 +23,9 @@ export type DenialReason =
   | 'approval'
   | 'pdp-denied'
   | 'pdp-unavailable'
-  | 'pdp-invalid-response';
+  | 'pdp-invalid-response'
+  | 'undocumented'
+  | 'unsupported';
 
 export type Denial = {
   readonly role: string | null;

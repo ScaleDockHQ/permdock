@@ -1,7 +1,7 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 import { i as discoverViaSignatureAgent, o as invalidSignatureResponse, r as InvalidSignatureError } from "../evaluations-04mKRGwn.js";
-import { t as createPermDock$1 } from "../create-q024YbJD.js";
+import { t as createPermDock$1 } from "../create-31pjGiR3.js";
 import { Hono } from "hono";
 //#region src/hono/create.ts
 function createPermDock(policy, options) {

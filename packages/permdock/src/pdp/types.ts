@@ -1,3 +1,4 @@
+import type { ArazzoPlan, ArazzoSimulateInput } from '../core/arazzo.ts';
 import type { Decision } from '../core/decision.ts';
 import type { DecisionProvider } from '../core/interfaces.ts';
 import type {
@@ -7,7 +8,7 @@ import type {
 } from '../core/permdock.ts';
 import type { Permission, PermissionTree } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Subject } from '../core/subject.ts';
+import type { Membership, Subject } from '../core/subject.ts';
 
 export type RemotePdpAuth = {
   readonly bearer: string | (() => string | Promise<string>);
@@ -79,7 +80,12 @@ export type PdpPermDock = Omit<
     (
       checks: readonly (readonly [Permission, unknown?])[],
     ): Promise<readonly Decision[]>;
-    (preview: Parameters<PermDock['simulate']>[0] & object): PdpPermDock;
+    (plan: ArazzoSimulateInput): ArazzoPlan;
+    (preview: {
+      readonly roles?: readonly string[];
+      readonly memberships?: readonly Membership[];
+      readonly tenant?: string;
+    }): PdpPermDock;
   };
   readonly tenant: (id: string) => PdpPermDock;
   readonly team: (id: string) => PdpPermDock;

@@ -1,4 +1,4 @@
-import { J as Permission } from "./policy-btMlTuxm.js";
+import { J as Permission } from "./policy-B9ZJilUm.js";
 //#region src/agent/types.d.ts
 type ToolBinding = {
   readonly permission: Permission;

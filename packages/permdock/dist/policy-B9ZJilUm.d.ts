@@ -115,7 +115,7 @@ declare function findPermission(tree: PermissionTree, keyOrScope: string): Permi
 declare function mergePermissions<const Trees extends readonly PermissionTree[]>(...trees: Trees): PermissionTree & RegistryTree;
 //#endregion
 //#region src/core/decision.d.ts
-type DenialReason = "no-grant" | "condition" | "deny" | "closure-error" | "opaque-condition" | "anonymous" | "not-delegated" | "no-delegation" | "insufficient-user-authentication" | "limit" | "limit-unavailable" | "validation" | "tenant-mismatch" | "no-membership" | "scope" | "expired-membership" | "unknown-role" | "approval" | "pdp-denied" | "pdp-unavailable" | "pdp-invalid-response";
+type DenialReason = "no-grant" | "condition" | "deny" | "closure-error" | "opaque-condition" | "anonymous" | "not-delegated" | "no-delegation" | "insufficient-user-authentication" | "limit" | "limit-unavailable" | "validation" | "tenant-mismatch" | "no-membership" | "scope" | "expired-membership" | "unknown-role" | "approval" | "pdp-denied" | "pdp-unavailable" | "pdp-invalid-response" | "undocumented" | "unsupported";
 type Denial = {
   readonly role: string | null;
   readonly reason: DenialReason;

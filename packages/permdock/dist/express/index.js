@@ -2,7 +2,7 @@ import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 import { i as discoverViaSignatureAgent, r as InvalidSignatureError, u as problemResponse } from "../evaluations-04mKRGwn.js";
-import { t as createPermDock$1 } from "../create-q024YbJD.js";
+import { t as createPermDock$1 } from "../create-31pjGiR3.js";
 import { i as toRequest, r as sendResponse } from "../http-kYphIx9F.js";
 import express from "express";
 //#region src/express/create.ts

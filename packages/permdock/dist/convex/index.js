@@ -1,6 +1,6 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
-import { t as createPermDock$1 } from "../permdock-BPNx0tvD.js";
+import { t as createPermDock$1 } from "../permdock-Kp60ds1F.js";
 //#region src/convex/create.ts
 var ConvexError = class extends Error {
 	name = "ConvexError";

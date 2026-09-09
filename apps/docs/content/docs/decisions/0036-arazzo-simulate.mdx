@@ -1,0 +1,43 @@
+---
+title: "0036: Simulate Arazzo workflows on the instance"
+description: simulate accepts an Arazzo document on the existing PermDock; undocumented and unsupported are Decision reasons; arazzo check never evaluates a subject.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+[Arazzo 1.1.0](/docs/standards/arazzo) is a plan: ordered operations with `operationId` (or `operationPath`) that join the applied OpenAPI description's `x-permdock-permissions`. `simulate` already pre-flights a hand-built `[permission, data]` batch. An Arazzo document assembles that batch, but the overload, the fail-closed reasons for holes, and whether the CLI may decide were open.
+
+A separate `permdock/arazzo` package would violate [0023](/docs/decisions/0023-compose-openapi-ecosystem). Passing a subject on the call would invent a second identity path. Evaluating a real subject in the CLI would break the CLI contract (no secrets, no live grants).
+
+## Decision
+
+`permdock.simulate` gains a third overload: `{ arazzo, openapi, workflowId?, permissions?, inputs? }`. The subject is the instance's. There is no `permdock/arazzo` entry.
+
+Resolution is fail-closed. A missing operation or an operation without `x-permdock-permissions` is `denied` with reason `undocumented`. An AsyncAPI source is `denied` with reason `unsupported`. An unknown catalog key is `undocumented` at decide time. A cycle or a document that is not Arazzo `1.0.x` / `1.1.0` is `validation`. Worst step outcome wins (`denied` then `approval-required` then `granted`). Parameters whose values start with `$` mark the step `provisional: true` and are omitted from the resource. No per-step `on('decision')`, no approval token, no quota consume (`source: 'simulate'`).
+
+`permdock arazzo check` is its own command. It runs `arazzoFindings` only (resolution, never `decide`). Exit `1` on findings, `2` on usage. Optional `--from` loads the catalog so unknown keys are findings; without it, only document holes are reported.
+
+## Consequences
+
+- Agents pre-flight a standard workflow without assembling permission pairs.
+- A hole in the Overlay cannot be cleared by simulate.
+- The CLI stays subject-free.
+- Plan-level approval tokens stay open on [approvals](/docs/security/approvals).
+
+## Alternatives considered
+
+- **`permdock/arazzo` package.** Rejected: [0023](/docs/decisions/0023-compose-openapi-ecosystem); the join key is already on the OpenAPI operation.
+- **Pass `subject` on the call.** Rejected: identity stays on the instance ([0018](/docs/decisions/0018-authentication-is-upstream)). Preview another principal with the existing `simulate({ roles, tenant })` instance, then call the Arazzo overload on that preview.
+- **`permdock openapi arazzo`.** Rejected: openapi mutates or checks a description; this command checks a workflow against one.
+- **Treat a missing `x-permdock-permissions` as granted.** Rejected: fail-closed.
+
+## Related
+
+- [Arazzo](/docs/standards/arazzo)
+- [0023: Compose the OpenAPI ecosystem](/docs/decisions/0023-compose-openapi-ecosystem)
+- [0018: Authentication is upstream](/docs/decisions/0018-authentication-is-upstream)
+- [Decisions](/docs/concepts/decisions)

@@ -1,12 +1,13 @@
+import { i as arazzoFindings, o as simulateArazzo } from "./token-BBVlukCW.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
-import { a as subject, i as role, n as definePolicy, o as opaque, r as deny, t as allow } from "./policy-BPjhRGPn.js";
+import { a as subject, i as role, n as definePolicy, o as opaque, r as deny, t as allow } from "./policy-DVtOWwkG.js";
 import { t as describe } from "./describe-BnKr1Gwo.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
-import { n as memoryLimitStore, t as createPermDock } from "./permdock-BPNx0tvD.js";
-import { n as parseSnapshot } from "./snapshot-BiwEN_W3.js";
-import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-CCji1zvS.js";
+import { n as memoryLimitStore, t as createPermDock } from "./permdock-Kp60ds1F.js";
 import { c as resource, i as getResource, n as findPermission, o as listPermissions, s as mergePermissions, t as definePermissions } from "./permissions-WEkUHQtZ.js";
+import { n as parseSnapshot } from "./snapshot-BiwEN_W3.js";
+import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-DOibNHhf.js";
 import { n as signDecisionBatch, r as toCloudEvent, t as memorySink } from "./sink-CSxZb96b.js";
 //#region src/core/interfaces.ts
 function memoryRoleSource(customRoles) {
@@ -91,4 +92,4 @@ function writable(options) {
 	return finishPreset(WRITABLE_ACTIONS, WRITABLE_COLLECTION, options);
 }
 //#endregion
-export { PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, allow, createPermDock, crud, definePermissions, definePolicy, deny, describe, emptySnapshot, findPermission, fromSnapshot, getResource, listPermissions, memoryLimitStore, memoryRoleSource, memorySink, mergePermissions, opaque, parseSnapshot, readable, resource, role, signDecisionBatch, subject, toCloudEvent, writable };
+export { PermDockApprovalRequiredError, PermDockDeniedError, PermDockValidationError, allow, arazzoFindings, createPermDock, crud, definePermissions, definePolicy, deny, describe, emptySnapshot, findPermission, fromSnapshot, getResource, listPermissions, memoryLimitStore, memoryRoleSource, memorySink, mergePermissions, opaque, parseSnapshot, readable, resource, role, signDecisionBatch, simulateArazzo, subject, toCloudEvent, writable };

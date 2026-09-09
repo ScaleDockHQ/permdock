@@ -56,6 +56,7 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `SubjectResolver` | The generic type of every `subjectFrom*` function: verified input in, `Subject` out, never throws | A class hierarchy |
 | `memoryRoleSource` | The in-process `RoleSource` over a static `CustomRole[]` | Production storage |
 | `LimitStore`, `memoryLimitStore`, `limits` | The quota counter for `limit` grants, its in-process default, and the `createPermDock` option | Auto-installing a store; a thenable `consume` as granted |
+| `ArazzoSimulateInput`, `ArazzoPlan`, `arazzoFindings` | The `simulate({ arazzo, openapi })` argument and result, and the resolution-only helper the CLI uses | A `permdock/arazzo` package; a subject on the call |
 | `webBotAuth`, `discoverViaSignatureAgent` | Kernel option that verifies RFC 9421 signatures when `verify` is true, and the `Signature-Agent` directory lookup with an `allow` host list | A `permdock/web-bot-auth` package; trusting a host that is not on `allow` |
 | `InvalidSignatureError` | Thrown by `permdock(request)` when a claimed Web Bot Auth signature fails; `protect` returns the Problem Details `response` instead | Downgrading a failed signature to an anonymous actor |
 | `allow`, `deny` | The two grant constructors; both accept one reference or an array | Checking |

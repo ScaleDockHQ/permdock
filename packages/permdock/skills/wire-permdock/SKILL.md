@@ -81,7 +81,7 @@ Done when that path cannot run without a `granted` decision, and a deny or appro
 
 ## 6. Check
 
-Run `permdock collect`, `permdock usage`, and `permdock doctor` when `@permdock/cli` is installed. Add `permdock collect --check` to CI.
+Run `permdock collect`, `permdock usage`, and `permdock doctor` when `@permdock/cli` is installed. Add `permdock collect --check` to CI. When the repo has Arazzo workflows, also run `permdock arazzo check --doc <arazzo> --openapi <doc>`.
 
 If the CLI is not installed, typecheck the three files and add a policy-matrix test with `@permdock/testing`.
 

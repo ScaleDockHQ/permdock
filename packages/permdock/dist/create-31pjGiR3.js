@@ -1,5 +1,5 @@
 import { t as compact } from "./compact-CxSqQNw0.js";
-import { t as createPermDock$1 } from "./permdock-BPNx0tvD.js";
+import { t as createPermDock$1 } from "./permdock-Kp60ds1F.js";
 import { o as listPermissions } from "./permissions-WEkUHQtZ.js";
 import { n as isActor } from "./subject-DgYVJ_Q0.js";
 import { l as problemFromDecision, n as createEvaluationsHandler, r as InvalidSignatureError, s as verifyWebBotAuth, t as applyApprovalResume, u as problemResponse } from "./evaluations-04mKRGwn.js";

@@ -3,7 +3,7 @@ title: Arazzo workflows
 description: "How an Arazzo 1.1.0 workflow is an agent plan, and how permdock simulate pre-flights every step by resolving its operationId to the operation's x-permdock-permissions and returning one Decision per step before anything executes."
 ---
 
-Status: planned
+Status: shipped
 Phase: 4
 
 ## What it is
@@ -39,9 +39,9 @@ import { policy } from './policy'
 const arazzo = JSON.parse(await readFile('./workflows/publish-post.arazzo.json', 'utf8'))
 const openapi = JSON.parse(await readFile('./openapi.json', 'utf8'))          // after the Overlay is applied
 
-const permdock = createPermDock(policy, { subject })                          // subject: the principal (and actor) the plan runs for
+const permdock = await createPermDock(policy, user)
 
-const plan = await permdock.simulate({ arazzo, openapi, subject, workflowId: 'publishPost' })   // subject shape: see open questions
+const plan = permdock.simulate({ arazzo, openapi, workflowId: 'publishPost' })
 // {
 //   workflowId: 'publishPost',
 //   outcome: 'approval-required',            // worst outcome across steps: denied > approval-required > granted
@@ -57,7 +57,7 @@ if (blocked.some((s) => s.decision.outcome === 'denied')) throw new PermDockDeni
 for (const step of blocked) await requestApproval(step)                      // approval-required steps, before step one runs
 ```
 
-What `simulate({ arazzo, openapi, subject })` does, step by step:
+What `simulate({ arazzo, openapi })` does, step by step (subject is the instance's, [0036](/docs/decisions/0036-arazzo-simulate)):
 
 1. Validates the Arazzo document (`arazzo: 1.1.0` or `1.0.x`) and finds the `sourceDescriptions` of `type: openapi`. The `openapi` argument supplies the resolved description for those sources; a workflow with several OpenAPI sources takes a map keyed by source `name`.
 2. For each step of the selected workflow, resolves `operationId` (or `operationPath`) to an operation in the description and reads its `x-permdock-permissions`. Steps that reference a `workflowId` are expanded recursively; cycles are an error.
@@ -79,9 +79,9 @@ PermDock composes with these rather than wrapping them ([ADR 0023](/docs/decisio
 
 An `approval-required` step tells the caller that executing it will stop for a human (or a policy-defined approver) unless approval is obtained first. Because `simulate` issues no tokens, the caller uses the step list to request approval before running the workflow; the approval flow and the binding of an approval token to permission key, resource id, subject and actor are described on [approvals](/docs/security/approvals). Whether one approval can cover a whole plan is an open question on that page; until it is decided, each `approval-required` step needs its own approval and the step's `decision` carries what to ask for.
 
-### `permdock arazzo check` (later)
+### `permdock arazzo check`
 
-A CLI command, planned for Phase 4 and not yet listed in the [CLI command table](/docs/cli), that runs the resolution half of `simulate` without a subject:
+A CLI command that runs the resolution half of `simulate` without a subject ([CLI: arazzo](/docs/cli/arazzo)):
 
 ```bash
 permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
@@ -99,7 +99,7 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 
 | Arazzo concept | PermDock concept |
 | --- | --- |
-| Workflow | A plan passed to `simulate({ arazzo, openapi, subject })` |
+| Workflow | A plan passed to `simulate({ arazzo, openapi })` on the instance |
 | Step with `operationId` / `operationPath` | One `[permission, data]` entry per key in the operation's `x-permdock-permissions` |
 | Step with `workflowId` | Expanded into that workflow's steps |
 | `sourceDescriptions[type=openapi]` | The `openapi` argument (one description or a map by source `name`) |
@@ -127,9 +127,8 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 - [AuthZEN](/docs/standards/authzen): the boxcar wire form `simulate` already uses.
 - [For AI agents](/docs/for-ai-agents).
 
+A `provisional: true` step is not a final grant. The agent must not treat it as cleared; `protect` decides again with the real row.
+
 ## Open questions
 
-- The exact `simulate` overload: an object argument on the instance as shown, or a separate `permdock/arazzo` entry, and whether `subject` is taken from the instance or passed explicitly for pre-flighting on behalf of another principal.
-- How `provisional` decisions should be presented so an agent does not treat them as final grants.
-- Whether `permdock arazzo check` belongs under `permdock openapi` as a subcommand, since it reads the same description.
 - Whether a plan-level approval token (one approval for all `approval-required` steps) is acceptable; tracked on [approvals](/docs/security/approvals).
