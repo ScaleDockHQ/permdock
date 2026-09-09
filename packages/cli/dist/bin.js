@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { t as run } from "./run-D32RM766.js";
+import { t as run } from "./run-eKf4UXu7.js";
 //#region src/bin.ts
 const result = await run(process.argv.slice(2), { io: {
 	stdout: (text) => {

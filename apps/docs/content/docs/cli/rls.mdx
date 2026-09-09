@@ -3,7 +3,7 @@ title: rls
 description: Generate Postgres row-level security policies from a PermDock policy, import existing policies into a generated definition, and verify that both agree.
 ---
 
-Status: planned
+Status: shipped
 Phase: 3
 
 `permdock rls` is the round-trip between PermDock's policy and Postgres row-level security. `generate` compiles roles and grants to policies, `import` reads `pg_policies` back into a `definePermissions()` module, and `verify` proves that `can()` in-process and the database agree. The runtime side (`permdock.where()` and the `toWhere` compilers) is documented on the [RLS adapter](/docs/adapters/rls) page; the semantics and the portable subset come from the [Postgres RLS research](/docs/research/postgres-rls).

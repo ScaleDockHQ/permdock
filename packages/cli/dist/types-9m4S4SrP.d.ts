@@ -7,6 +7,31 @@ type CollectConfig = {
 type CatalogConfig = {
   readonly out?: string;
 };
+type RlsDialect = "supabase" | "neon" | "guc";
+type RlsTarget = "sql" | "drizzle" | "prisma";
+type RlsMembershipTable = {
+  readonly table: string;
+  readonly user: string;
+  readonly role: string;
+  readonly tenant?: string;
+  readonly team?: string;
+  readonly id?: string;
+  readonly expiresAt?: string;
+};
+type RlsMemberships = {
+  readonly tenant?: RlsMembershipTable;
+  readonly team?: RlsMembershipTable;
+  readonly resource?: Readonly<Record<string, RlsMembershipTable>>;
+};
+type RlsConfig = {
+  readonly tables?: Readonly<Record<string, string>>;
+  readonly dialect?: RlsDialect;
+  readonly memberships?: RlsMemberships;
+  readonly tenantClaim?: string;
+  readonly roleClaim?: string;
+  readonly gucPrefix?: string;
+  readonly out?: string;
+};
 type PermDockConfig = {
   readonly permissions?: string;
   readonly policy?: string;
@@ -15,6 +40,7 @@ type PermDockConfig = {
   readonly openapi?: {
     readonly doc?: readonly string[];
   };
+  readonly rls?: RlsConfig;
 };
 type CatalogUsage = {
   readonly file: string;
@@ -58,4 +84,4 @@ type CreatePermDockPluginOptions = {
   readonly onDrift?: "error" | "warn";
 };
 //#endregion
-export { CreatePermDockPluginOptions as a, CollectConfig as i, CatalogDocument as n, PermDockConfig as o, CliIo as r, RunResult as s, CatalogConfig as t };
+export { CreatePermDockPluginOptions as a, RlsDialect as c, RlsTarget as d, RunResult as f, CollectConfig as i, RlsMembershipTable as l, CatalogDocument as n, PermDockConfig as o, CliIo as r, RlsConfig as s, CatalogConfig as t, RlsMemberships as u };

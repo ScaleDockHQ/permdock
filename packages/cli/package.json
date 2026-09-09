@@ -1,7 +1,7 @@
 {
   "name": "@permdock/cli",
   "version": "0.0.0",
-  "description": "Collect, catalog, usage, doctor and skills for PermDock. Collect-only build hooks for Next.js and unplugin bundlers.",
+  "description": "Collect, catalog, usage, openapi, rls, doctor and skills for PermDock. Collect-only build hooks for Next.js and unplugin bundlers.",
   "license": "MIT",
   "bin": {
     "permdock": "./dist/bin.js"

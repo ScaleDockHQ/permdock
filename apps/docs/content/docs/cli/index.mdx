@@ -29,6 +29,7 @@ export default defineConfig({
   policy: './src/policy.ts',                // server-only; used by usage, rls, doctor
   collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
   catalog: { out: './permissions.catalog.json' },
+  rls: { tables: { post: 'posts' }, dialect: 'supabase' },
 })
 ```
 

@@ -6,6 +6,7 @@ import { runCollect } from './collect.ts';
 import { loadConfig, resolveCwd } from './config.ts';
 import { runDoctor } from './doctor.ts';
 import { runOpenapi } from './openapi.ts';
+import { runRls } from './rls.ts';
 import { runSkills } from './skills.ts';
 import { runUsage } from './usage.ts';
 
@@ -18,6 +19,7 @@ Commands:
   doctor [--json] [--only <codes>] [--fix]
   skills [install|list|update] [--agent <name>]
   openapi emit --doc <path> [--target 3.1|3.2|3.3] [--format document|overlay]
+  rls generate|import|verify [--target sql|drizzle|prisma] [--dialect supabase|neon|guc]
 
 Global:
   --cwd <dir>   --config <file>   --json   --no-color
@@ -199,14 +201,36 @@ export async function run(
         writeOut(result.output);
         return finish(result.code, stdoutChunks, stderrChunks);
       }
-      case 'rls':
-        writeErr(
-          `'${args.command}' is not in this Phase 1 CLI. Use collect, catalog, usage, doctor, skills or openapi.`,
-        );
-        return finish(2, stdoutChunks, stderrChunks);
+      case 'rls': {
+        const rbacFlag = flagString(args.flags, 'rbac');
+        const result = await runRls({
+          cwd,
+          config,
+          rest: args.rest,
+          target: flagString(args.flags, 'target'),
+          dialect: flagString(args.flags, 'dialect'),
+          out: flagString(args.flags, 'out'),
+          from: flagString(args.flags, 'from'),
+          sql: flagString(args.flags, 'sql'),
+          db: flagString(args.flags, 'db'),
+          fixtures: flagString(args.flags, 'fixtures'),
+          schema: flagString(args.flags, 'schema'),
+          memberships: flagString(args.flags, 'memberships'),
+          format:
+            flagString(args.flags, 'format') ?? flagString(args.flags, 'emit'),
+          rbac:
+            flagBool(args.flags, 'rbac-scaffold') || rbacFlag === 'supabase',
+          check: flagBool(args.flags, 'check'),
+          skipClosures: flagBool(args.flags, 'skip-closures'),
+          gucPrefix: flagString(args.flags, 'guc-prefix'),
+          io,
+        });
+        writeOut(result.output);
+        return finish(result.code, stdoutChunks, stderrChunks);
+      }
       default:
         writeErr(
-          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills or openapi.`,
+          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills, openapi or rls.`,
         );
         return finish(2, stdoutChunks, stderrChunks);
     }

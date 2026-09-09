@@ -40,9 +40,10 @@ describe('run', () => {
     expect(result.stderr).toContain("unknown command 'nope'");
   });
 
-  it('returns exit 2 for rls in this phase', async () => {
+  it('returns exit 2 and rls help when rls has no subcommand', async () => {
     const rls = await run(['rls']);
     expect(rls.code).toBe(2);
+    expect(rls.stdout).toContain('generate');
   });
 
   it('emits security onto an OpenAPI document', async () => {

@@ -458,4 +458,13 @@ export const { getPermDock } = createPermDock(policy, {
 
 ## Planned adapters
 
-Phase 3 `toWhere` compilers (`permdock/drizzle`, `permdock/prisma`, `permdock/kysely`) ship with `memberOf`. Remaining Phase 3 adapters (`rls`, `supabase`, `ssf`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+Phase 3 `toWhere` compilers (`permdock/drizzle`, `permdock/prisma`, `permdock/kysely`) and `permdock rls generate | import | verify` ship with `memberOf`. Remaining Phase 3 adapters (`supabase`, `ssf`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+
+```bash
+pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql
+pnpm exec permdock rls generate --target sql --dialect supabase --rbac-scaffold --memberships organization_members:organization_id,user_id,role
+pnpm exec permdock rls import --sql migrations/rls.sql --out src/permissions.generated.ts
+pnpm exec permdock rls verify --fixtures rls.fixtures.json
+```
+
+Never emit `service_role`. Fixtures may carry `memberships` and `tenant`.

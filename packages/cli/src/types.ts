@@ -8,6 +8,36 @@ export type CatalogConfig = {
   readonly out?: string;
 };
 
+export type RlsDialect = 'supabase' | 'neon' | 'guc';
+
+export type RlsTarget = 'sql' | 'drizzle' | 'prisma';
+
+export type RlsMembershipTable = {
+  readonly table: string;
+  readonly user: string;
+  readonly role: string;
+  readonly tenant?: string;
+  readonly team?: string;
+  readonly id?: string;
+  readonly expiresAt?: string;
+};
+
+export type RlsMemberships = {
+  readonly tenant?: RlsMembershipTable;
+  readonly team?: RlsMembershipTable;
+  readonly resource?: Readonly<Record<string, RlsMembershipTable>>;
+};
+
+export type RlsConfig = {
+  readonly tables?: Readonly<Record<string, string>>;
+  readonly dialect?: RlsDialect;
+  readonly memberships?: RlsMemberships;
+  readonly tenantClaim?: string;
+  readonly roleClaim?: string;
+  readonly gucPrefix?: string;
+  readonly out?: string;
+};
+
 export type PermDockConfig = {
   readonly permissions?: string;
   readonly policy?: string;
@@ -16,6 +46,7 @@ export type PermDockConfig = {
   readonly openapi?: {
     readonly doc?: readonly string[];
   };
+  readonly rls?: RlsConfig;
 };
 
 export type CatalogUsage = {

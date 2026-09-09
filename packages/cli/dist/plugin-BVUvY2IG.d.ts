@@ -1,4 +1,4 @@
-import { a as CreatePermDockPluginOptions } from "./types-Cbwy1cVw.js";
+import { a as CreatePermDockPluginOptions } from "./types-9m4S4SrP.js";
 //#region src/plugin.d.ts
 type NextConfigLike = {
   readonly [key: string]: unknown;
