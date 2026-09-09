@@ -139,7 +139,7 @@ This is a recipe, not a package: PermDock composes with the bridge through the e
 
 ## Example app
 
-`apps/examples/mcp-server`: `src/permissions.ts`, `src/policy.ts`, and `src/server.ts` wrapping a duck-typed `McpServer` with `protectServer`. `list_posts`, `update_post` and `delete_post` register typed permissions (`delete` is `approval: 'human'`). Mount the same `registerTool` calls through `mcp-handler` and `withMcpAuth` when you add a transport; the Next example can reuse them at `app/api/mcp/route.ts`.
+`apps/examples/mcp-server`: stdio start script that loads `protectServer` and the `list_posts`, `update_post` and `delete_post` tools. Playwright imports the guarded handlers; `update_post` is granted and `delete_post` is `approval-required`. No MCP SDK and no HTTP port.
 
 ## Related standards
 

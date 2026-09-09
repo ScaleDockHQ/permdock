@@ -68,7 +68,7 @@ Because the on-device answer is a UI hint, an API request made while offline and
 
 ## Example app
 
-`apps/examples/expo`: an Expo Router app with `Stack.Protected` for an admin group and `Tabs.Protected` for a billing tab, MMKV storage, a Hono API from `apps/examples/hono` serving the snapshot and decision endpoint, and a Maestro or Detox flow asserting that the admin route is available on the first frame after a cold start for an admin user and never renders for a member.
+`apps/examples/expo`: an Expo Router web app with an inline Snapshot v2, `memoryStorage`, and `Protected` / `usePermission`. `http://127.0.0.1:3486/` shows `edit` for a granted update and `locked` for a denied publish. Web smoke via Playwright; native via Maestro is optional.
 
 ## Related standards
 

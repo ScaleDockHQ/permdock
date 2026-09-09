@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { Decision } from '../core/decision.ts';
-import type { SnapshotV2 } from '../core/interfaces.ts';
+import type { Snapshot } from '../core/interfaces.ts';
 import type { Permission, PermissionTree } from '../core/permissions.ts';
 
 export type WebMcpClientStatus = 'ready' | 'pending' | 'stale' | 'server-only';
@@ -9,7 +9,7 @@ export type WebMcpClientStatus = 'ready' | 'pending' | 'stale' | 'server-only';
 export type WebMcpPermDock = {
   can(permission: Permission, data?: unknown): boolean;
   decide(permission: Permission, data?: unknown): Decision;
-  snapshot(): SnapshotV2 | string | Promise<SnapshotV2 | string>;
+  snapshot(): Snapshot | string | Promise<Snapshot | string>;
   tenant?(id: string): WebMcpPermDock;
   subscribe?(listener: () => void): () => void;
   status?(permission?: Permission, data?: unknown): WebMcpClientStatus;

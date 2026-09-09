@@ -9,7 +9,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Actor } from '../core/subject.ts';
+import type { Actor, Principal } from '../core/subject.ts';
 import type { WebBotAuthOptions } from './web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
@@ -23,8 +23,8 @@ import {
 import { problemFromDecision, problemResponse } from './problem.ts';
 import { InvalidSignatureError, verifyWebBotAuth } from './web-bot-auth.ts';
 
-export type ServerPermDockOptions = {
-  readonly subject: (request: Request) => unknown;
+export type ServerPermDockOptions<TUser = unknown> = {
+  readonly subject: (request: Request) => TUser | Promise<TUser>;
   readonly actor?: (request: Request) => unknown;
   readonly webBotAuth?: WebBotAuthOptions;
   readonly tenant?:
@@ -108,9 +108,9 @@ async function resolveTenant(
   }
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: ServerPermDockOptions & {
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: ServerPermDockOptions<TUser> & {
     readonly wrap?: (dock: PermDock) => PermDock;
   },
 ): ServerPermDock {
@@ -123,7 +123,7 @@ export function createPermDock(
     }
     const built = (async (): Promise<PermDock> => {
       const actor = await resolveActor(request, options);
-      let user: unknown = null;
+      let user: TUser | null = null;
       try {
         user = await options.subject(request);
       } catch {

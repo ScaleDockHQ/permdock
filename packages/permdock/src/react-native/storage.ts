@@ -1,4 +1,4 @@
-import type { SnapshotV2 } from '../core/interfaces.ts';
+import type { Snapshot } from '../core/interfaces.ts';
 import type { PermDockStorage } from './types.ts';
 
 import { parseSnapshot } from '../core/snapshot.ts';
@@ -35,7 +35,7 @@ function isThenable(value: unknown): value is Promise<unknown> {
 export function acceptSnapshot(
   raw: string | null,
   subjectId: string | undefined,
-): SnapshotV2 | undefined {
+): Snapshot | undefined {
   if (raw === null || raw.length === 0) {
     return undefined;
   }
@@ -55,7 +55,7 @@ export async function readStored(
   storage: PermDockStorage,
   subjectId: string | undefined,
 ): Promise<{
-  readonly snapshot: SnapshotV2 | undefined;
+  readonly snapshot: Snapshot | undefined;
   readonly tenant: string | undefined;
 }> {
   const raw = await Promise.resolve(storage.getItem(SNAPSHOT_KEY));
@@ -72,7 +72,7 @@ export function readStoredSync(
   subjectId: string | undefined,
 ):
   | {
-      readonly snapshot: SnapshotV2 | undefined;
+      readonly snapshot: Snapshot | undefined;
       readonly tenant: string | undefined;
     }
   | undefined {
@@ -90,7 +90,7 @@ export function readStoredSync(
 
 export function persistSnapshot(
   storage: PermDockStorage,
-  snapshot: SnapshotV2,
+  snapshot: Snapshot,
   tenant: string | undefined,
 ): void {
   const write = storage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));

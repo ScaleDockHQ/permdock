@@ -7,6 +7,7 @@ import type {
   SnapshotSource,
 } from '../core/interfaces.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 
 import { createAgentKernel } from '../agent/kernel.ts';
 import { compact } from '../core/compact.ts';
@@ -17,8 +18,8 @@ export type ClaudeAgentContext = {
   readonly [key: string]: unknown;
 };
 
-export type ClaudeAgentPermDockOptions = {
-  readonly subject: (context: ClaudeAgentContext) => unknown;
+export type ClaudeAgentPermDockOptions<TUser = unknown> = {
+  readonly subject: (context: ClaudeAgentContext) => TUser | Promise<TUser>;
   readonly actor?: (context: ClaudeAgentContext) => unknown;
   readonly tenant?:
     | string
@@ -89,9 +90,9 @@ function asInput(input: unknown): Record<string, unknown> {
   return {};
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: ClaudeAgentPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: ClaudeAgentPermDockOptions<TUser>,
 ): ClaudeAgentPermDock {
   const kernel = createAgentKernel(policy, {
     ...compact({

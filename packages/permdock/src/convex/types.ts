@@ -13,7 +13,9 @@ export type ConvexPermDockCtx<TCtx> = TCtx & {
   readonly permdock: PermDock;
 };
 
-export type ConvexSubject<TCtx> = (ctx: TCtx) => unknown;
+export type ConvexSubject<TCtx, TUser = unknown> = (
+  ctx: TCtx,
+) => TUser | Promise<TUser>;
 
 export type ConvexQueryBuilder = (definition: {
   readonly args: Record<string, never>;
@@ -23,8 +25,8 @@ export type ConvexQueryBuilder = (definition: {
   ) => unknown;
 }) => unknown;
 
-export type ConvexPermDockOptions<TCtx> = {
-  readonly subject: ConvexSubject<TCtx>;
+export type ConvexPermDockOptions<TCtx, TUser = unknown> = {
+  readonly subject: ConvexSubject<TCtx, TUser>;
   readonly query?: ConvexQueryBuilder;
 };
 

@@ -10,7 +10,7 @@ Phase: 2
 
 ## Purpose
 
-The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (final January 2026) standardises how a PEP asks a PDP "may this subject perform this action on this resource in this context". It defines `/access/v1/evaluation`, batched `/access/v1/evaluations` (boxcar), `/access/v1/search/subject`, `/search/resource`, `/search/action`, and a `.well-known/authzen-configuration` metadata document, plus a [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels. Keycloak and the NLgov profile implement it. PermDock adopts it instead of a bespoke format ([decision 0011](/docs/decisions/0011-authzen-wire-format)) and aims for certification at all four levels.
+The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (final January 2026) standardises how a PEP asks a PDP "may this subject perform this action on this resource in this context". It defines `/access/v1/evaluation`, batched `/access/v1/evaluations` (boxcar), `/access/v1/search/subject`, `/search/resource`, `/search/action`, and a `.well-known/authzen-configuration` metadata document, plus a [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels. Keycloak and the NLgov profile implement it. PermDock adopts it instead of a bespoke format ([decision 0011](/docs/decisions/0011-authzen-wire-format)). In-repo tests cover all four shapes; **external certification is the remaining 1.0 gate**.
 
 ## API
 
@@ -75,7 +75,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 
 ## Example app
 
-`apps/examples/authzen-pdp`: `src/permissions.ts`, `src/policy.ts` and `src/server.ts` exporting a Fetch `handler` for the `post` policy. In-repo tests cover Basic, Batch, Search and Discovery request shapes. The [pdp provider](/docs/adapters/pdp) as a PEP is Phase 4.
+`apps/examples/authzen-pdp`: `node:http` wrapper around the Fetch `handler` on `127.0.0.1:3470`. `GET /health`. `POST /access/v1/evaluation` with `Authorization: Bearer test` grants `post.update` on the member's own post and denies `post.publish`.
 
 ## Related standards
 

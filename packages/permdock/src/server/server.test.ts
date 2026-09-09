@@ -245,7 +245,7 @@ describe('permdock/server webBotAuth', () => {
       method: good.method,
       headers: {
         'Signature-Input': good.headers.get('Signature-Input') ?? '',
-        Signature: (good.headers.get('Signature') ?? '').replace('A', 'B'),
+        Signature: tamperSignature(good.headers.get('Signature') ?? ''),
         'Signature-Agent': good.headers.get('Signature-Agent') ?? '',
       },
     });
@@ -337,6 +337,23 @@ describe('permdock/server webBotAuth', () => {
     expect(dock.subject.actor?.id).toBe('bot-1');
   });
 });
+
+function tamperSignature(header: string): string {
+  const match = /:(.+):/.exec(header);
+  if (match === null || match[1] === undefined) {
+    return `${header}x`;
+  }
+  const bytes = Uint8Array.from(
+    atob(match[1]),
+    (char) => char.codePointAt(0) ?? 0,
+  );
+  bytes[0] = (bytes[0] ?? 0) ^ 0xff;
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCodePoint(byte);
+  }
+  return header.replace(match[1], btoa(binary));
+}
 
 async function ed25519Pair(): Promise<{
   readonly publicJwk: JsonWebKey;

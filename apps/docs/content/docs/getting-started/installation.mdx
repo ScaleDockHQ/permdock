@@ -3,7 +3,7 @@ title: Installation
 description: Install the permdock package, pick a Standard Schema validator, and learn which subpath exports exist.
 ---
 
-PermDock is in Phase 0. Nothing is published to npm yet; the commands below describe the intended install experience so that the docs, README and skills agree before the first release. See the [roadmap](/docs/roadmap) for what ships in which phase.
+PermDock is in Phase 4. Install from npm once `0.1.0` is published; until then use the workspace packages. See the [roadmap](/docs/roadmap) for what ships in which phase.
 
 ## Packages
 
@@ -11,7 +11,7 @@ PermDock is in Phase 0. Nothing is published to npm yet; the commands below desc
 | --- | --- | --- |
 | `permdock` | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...) | Yes |
 | `@permdock/cli` | `permdock collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills` | Optional, dev only |
-| `@permdock/testing` | Policy matrix tests, snapshot fixtures, RLS parity runner, `instant()` helpers | Optional, dev only |
+| `@permdock/testing` | Policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners | Optional, dev only |
 
 ```bash
 pnpm add permdock

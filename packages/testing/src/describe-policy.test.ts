@@ -12,6 +12,7 @@ import { memoryLimitStore, memoryRoleSource, memorySink } from 'permdock';
 import { memoryApprovalStore } from 'permdock/approvals';
 import { joseTokenSigner, joseTokenVerifier } from 'permdock/jwt';
 import { memoryDirectoryStore } from 'permdock/scim';
+import { memoryReplayStore } from 'permdock/ssf';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -20,6 +21,7 @@ import {
   testDecisionSink,
   testLimitStore,
   testDirectoryStore,
+  testReplayStore,
   testMembershipSource,
   testRoleSource,
   testSnapshotSource,
@@ -303,6 +305,8 @@ describe('conformance runners', () => {
   testDirectoryStore(memoryDirectoryStore(), {
     tenants: ['o_acme', 'o_globex'],
   });
+
+  testReplayStore(memoryReplayStore());
 
   testTokenVerifier(
     joseTokenVerifier({

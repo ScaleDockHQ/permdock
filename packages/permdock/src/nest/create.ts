@@ -31,6 +31,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
@@ -60,8 +61,8 @@ export type NestRequest = NestHttpRequest & {
   permdockData?: unknown;
 };
 
-export type NestPermDockOptions = {
-  readonly subject: (req: NestRequest) => unknown;
+export type NestPermDockOptions<TUser = unknown> = {
+  readonly subject: (req: NestRequest) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((req: NestRequest) => string | undefined | Promise<string | undefined>);
@@ -149,9 +150,9 @@ function rulesOf(target: object): readonly ProtectRule[] {
   return found as ProtectRule[];
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: NestPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: NestPermDockOptions<TUser>,
 ): NestPermDock {
   const contexts = new WeakMap<globalThis.Request, NestRequest>();
   const bound = new WeakMap<IncomingMessage, globalThis.Request>();

@@ -9,6 +9,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 
 import { createAgentKernel } from '../agent/kernel.ts';
 import { isApprovalError } from '../approvals/errors.ts';
@@ -49,8 +50,8 @@ export type EveApprovers =
   | { readonly roles: readonly string[] }
   | ((responder: EveResponder, request: ApprovalRequest) => boolean);
 
-export type EvePermDockOptions = {
-  readonly subject?: (context: EveContext) => unknown;
+export type EvePermDockOptions<TUser = unknown> = {
+  readonly subject?: (context: EveContext) => TUser | Promise<TUser>;
   readonly actor?: (context: EveContext) => unknown;
   readonly tenant?:
     | string
@@ -155,9 +156,9 @@ function mayApprove(
   return approvers.roles.some((role) => held.has(role));
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: EvePermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: EvePermDockOptions<TUser>,
 ): EvePermDock {
   const store = options.store ?? memoryApprovalStore();
   const tokensByCall = new Map<string, string>();

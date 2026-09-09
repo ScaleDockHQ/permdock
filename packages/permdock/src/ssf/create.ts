@@ -1,4 +1,5 @@
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { SsfAdapter, SsfOptions } from './types.ts';
 
 import { compact } from '../core/compact.ts';
@@ -6,8 +7,8 @@ import { joseTokenVerifier } from '../jwt/verifier.ts';
 import { createReceiver } from './receiver.ts';
 import { memoryReplayStore } from './replay.ts';
 
-export function createPermDock(
-  policy: Policy,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
   options: SsfOptions,
 ): SsfAdapter {
   void policy;

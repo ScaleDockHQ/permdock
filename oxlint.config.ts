@@ -3,7 +3,13 @@ import { defineConfig } from 'oxlint';
 
 export default defineConfig({
   extends: [base],
-  ignorePatterns: [...ignorePatterns, '.agents/**', '.cursor/**', '.claude/**'],
+  ignorePatterns: [
+    ...ignorePatterns,
+    '.agents/**',
+    '.cursor/**',
+    '.claude/**',
+    '**/.expo/**',
+  ],
   options: {
     typeAware: true,
   },
@@ -41,6 +47,17 @@ export default defineConfig({
         'eslint/no-bitwise': 'off',
         'unicorn/prefer-math-trunc': 'off',
         'eslint/max-classes-per-file': 'off',
+      },
+    },
+    {
+      files: ['**/*.cjs'],
+      rules: {
+        'import/unambiguous': 'off',
+        'import/no-commonjs': 'off',
+        'typescript/no-require-imports': 'off',
+        'typescript/no-var-requires': 'off',
+        'typescript/no-unsafe-call': 'off',
+        'typescript/no-unsafe-member-access': 'off',
       },
     },
     {
@@ -99,6 +116,8 @@ export default defineConfig({
       files: ['tests/**/*.{ts,tsx}'],
       rules: {
         'oxc/no-async-await': 'off',
+        'oxc/no-optional-chaining': 'off',
+        'oxc/no-rest-spread-properties': 'off',
         'eslint/no-undefined': 'off',
         'unicorn/import-style': 'off',
         'unicorn/prefer-import-meta-properties': 'off',

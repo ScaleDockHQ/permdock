@@ -1,5 +1,5 @@
 import type { Decision } from '../core/decision.ts';
-import type { SnapshotV2, TokenVerifier } from '../core/interfaces.ts';
+import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { ClientPermDock, ClientStatus, PermissionState } from './types.ts';
@@ -10,7 +10,7 @@ import { parseSnapshot } from '../core/snapshot.ts';
 import { nowSeconds } from '../core/tenancy.ts';
 
 export type ClientStoreOptions = {
-  readonly snapshot: SnapshotV2 | string;
+  readonly snapshot: Snapshot | string;
   readonly endpoint?: string;
   readonly snapshotUrl?: string;
   readonly approvals?: string;
@@ -20,7 +20,7 @@ export type ClientStoreOptions = {
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
   readonly onSnapshot?: (
-    snapshot: SnapshotV2,
+    snapshot: Snapshot,
     tenant: string | undefined,
   ) => void;
   readonly onClear?: () => void;
@@ -63,7 +63,7 @@ export type ClientStore = {
   permissionState(permission: Permission, data?: unknown): PermissionState;
   requestApproval(decision: Decision, note?: string): Promise<void>;
   replace(value: unknown): void;
-  snapshot(): SnapshotV2;
+  snapshot(): Snapshot;
 };
 
 function needsEndpoint(decision: Decision): boolean {
@@ -98,7 +98,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     }
   };
 
-  const hydrate = (next: SnapshotV2): void => {
+  const hydrate = (next: Snapshot): void => {
     snapshot = next;
     instance = fromSnapshot(snapshot, compact({ tenant }));
     storeStatus = isStale() ? 'stale' : 'ready';
@@ -394,7 +394,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     replace(value: unknown): void {
       applyParsed(value);
     },
-    snapshot(): SnapshotV2 {
+    snapshot(): Snapshot {
       return snapshot;
     },
     async requestApproval(decision: Decision, note?: string): Promise<void> {

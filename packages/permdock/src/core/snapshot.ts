@@ -1,4 +1,4 @@
-import type { SnapshotGrant, SnapshotV2, TokenSigner } from './interfaces.ts';
+import type { Snapshot, SnapshotGrant, TokenSigner } from './interfaces.ts';
 import type { Grant } from './policy.ts';
 import type { Membership, Subject } from './subject.ts';
 
@@ -43,7 +43,7 @@ export function buildSnapshot(input: {
   readonly tenants?: 'all' | undefined;
   readonly simulated?: boolean;
   readonly now?: number;
-}): SnapshotV2 {
+}): Snapshot {
   const now = input.now ?? Math.floor(Date.now() / 1000);
   const principal = input.subject.principal;
   const allTenants = tenantsOf(principal);
@@ -68,14 +68,14 @@ export function buildSnapshot(input: {
     })
     .map((item) => snapshotGrant(item.grant, item.membership));
   const snapshot = freezeDeep(
-    compact<SnapshotV2>({
+    compact<Snapshot>({
       v: 2 as const,
       issuedAt: now,
-      subject: compact<SnapshotV2['subject']>({
+      subject: compact<Snapshot['subject']>({
         principal:
           principal === null
             ? null
-            : compact<NonNullable<SnapshotV2['subject']['principal']>>({
+            : compact<NonNullable<Snapshot['subject']['principal']>>({
                 id: principal.id,
                 roles: principal.roles ?? [],
                 tenant: principal.tenant,
@@ -96,7 +96,7 @@ export function buildSnapshot(input: {
 }
 
 export async function signSnapshot(
-  snapshot: SnapshotV2,
+  snapshot: Snapshot,
   signer: TokenSigner,
   audience?: string | readonly string[],
 ): Promise<string> {
@@ -135,7 +135,7 @@ function rejectUnsafe(value: unknown, path: string): void {
   }
 }
 
-export function parseSnapshot(json: unknown): SnapshotV2 {
+export function parseSnapshot(json: unknown): Snapshot {
   const value = typeof json === 'string' ? (JSON.parse(json) as unknown) : json;
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('PermDock: snapshot must be an object');
@@ -148,5 +148,5 @@ export function parseSnapshot(json: unknown): SnapshotV2 {
       `PermDock: unsupported snapshot version '${String(version)}'`,
     );
   }
-  return freezeDeep(value) as SnapshotV2;
+  return freezeDeep(value) as Snapshot;
 }

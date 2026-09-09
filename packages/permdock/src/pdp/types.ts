@@ -8,6 +8,7 @@ import type {
 } from '../core/permdock.ts';
 import type { Permission, PermissionTree } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { Membership, Subject } from '../core/subject.ts';
 
 export type RemotePdpAuth = {
@@ -91,9 +92,9 @@ export type PdpPermDock = Omit<
   readonly team: (id: string) => PdpPermDock;
 };
 
-export type PdpFactory = (
-  policy: Policy,
-  user: unknown,
+export type PdpFactory = <TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  user: TUser | null,
   options?: CreatePermDockOptions,
 ) => Promise<PdpPermDock>;
 

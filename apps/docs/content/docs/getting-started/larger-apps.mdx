@@ -139,9 +139,9 @@ Permissions outside the included groups report `status: 'server-only'` on the cl
 3. Role fragments live next to the permissions they grant; the app spreads them into `roles`.
 4. `permdock collect --check` runs in CI; the committed `permissions.catalog.json` is the review surface for permission changes.
 5. Generated definitions are regenerated, never edited; `permdock rls verify` runs against a database in integration tests.
-6. Routes call `snapshot({ include })` so clients only receive the grants they can use.
+6. Routes call `snapshot` with an `include` option so clients only receive the grants they can use.
 
-The `monorepo` example app under `apps/examples/monorepo` exercises all six.
+The `monorepo` example app under `apps/examples/monorepo` covers steps 1 to 4: colocated `definePermissions` in `packages/posts` and `packages/billing`, `mergePermissions` at the app root, role fragments spread into `definePolicy`, and `permdock collect --check` against a committed catalog.
 
 ## Open questions
 

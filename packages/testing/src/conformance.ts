@@ -13,6 +13,7 @@ import type {
 } from 'permdock';
 import type { ApprovalRequest, ApprovalStore } from 'permdock/approvals';
 import type { DirectoryStore } from 'permdock/scim';
+import type { ReplayStore } from 'permdock/ssf';
 
 import { directoryMembershipSource } from 'permdock/scim';
 import { expect, it } from 'vitest';
@@ -166,6 +167,16 @@ const approver: Subject = {
   principal: { id: 'u_9', roles: ['admin'] },
   context: {},
 };
+
+export function testReplayStore(store: ReplayStore): void {
+  it('records a jti after remember and reports it as seen', async () => {
+    const jti = 'jti-1';
+    expect(await store.seen(jti)).toBe(false);
+    await store.remember(jti);
+    expect(await store.seen(jti)).toBe(true);
+    expect(await store.seen('jti-2')).toBe(false);
+  });
+}
 
 export function testDirectoryStore(
   store: DirectoryStore,

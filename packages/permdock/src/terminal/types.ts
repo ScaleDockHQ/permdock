@@ -79,8 +79,8 @@ export type ApprovalHint = {
   readonly hint?: string;
 };
 
-export type TerminalPermDockOptions = {
-  readonly subject: (context: TokenContext) => unknown;
+export type TerminalPermDockOptions<TUser = unknown> = {
+  readonly subject: (context: TokenContext) => TUser | Promise<TUser>;
   readonly actor?: (context: TokenContext) => unknown;
   readonly tenant?: string;
   readonly memberships?: MembershipSource;

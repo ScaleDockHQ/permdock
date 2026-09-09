@@ -9,6 +9,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 
 import { createAgentKernel } from '../agent/kernel.ts';
 import { inspectApproval } from '../approvals/helpers.ts';
@@ -23,8 +24,8 @@ export type OpenAiContext = {
   readonly [key: string]: unknown;
 };
 
-export type OpenAiPermDockOptions = {
-  readonly subject: (context: OpenAiContext) => unknown;
+export type OpenAiPermDockOptions<TUser = unknown> = {
+  readonly subject: (context: OpenAiContext) => TUser | Promise<TUser>;
   readonly actor?: (context: OpenAiContext) => unknown;
   readonly tenant?:
     | string
@@ -85,9 +86,9 @@ function resumeTokenOf(context: OpenAiContext): string | undefined {
   return undefined;
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: OpenAiPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: OpenAiPermDockOptions<TUser>,
 ): OpenAiPermDock {
   const store = options.store ?? memoryApprovalStore();
   const tokensByCall = new Map<string, string>();

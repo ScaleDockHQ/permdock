@@ -191,9 +191,9 @@ export function hasAnyGrant(
   return false;
 }
 
-export function createAgentKernel<TContext>(
-  policy: Policy,
-  options: AgentKernelOptions<TContext>,
+export function createAgentKernel<TContext, TUser = unknown>(
+  policy: Policy<TUser>,
+  options: AgentKernelOptions<TContext, TUser>,
 ): {
   readonly instance: (context: TContext) => Promise<PermDock>;
   readonly decideTool: (
@@ -223,7 +223,7 @@ export function createAgentKernel<TContext>(
       }
     }
     const built = (async (): Promise<PermDock> => {
-      let user: unknown = null;
+      let user: TUser | null = null;
       try {
         user = await options.subject(context);
       } catch {

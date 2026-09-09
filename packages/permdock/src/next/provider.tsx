@@ -1,12 +1,12 @@
 import type { ReactElement, ReactNode } from 'react';
 
-import type { SnapshotV2 } from '../core/interfaces.ts';
+import type { Snapshot } from '../core/interfaces.ts';
 
 import { compact } from '../core/compact.ts';
 import { PermDockProvider as ClientProvider } from '../react/provider.tsx';
 
 export function renderClientProvider(options: {
-  readonly snapshot: SnapshotV2 | string;
+  readonly snapshot: Snapshot | string;
   readonly endpoint: string;
   readonly tenant?: string;
   readonly children: ReactNode;

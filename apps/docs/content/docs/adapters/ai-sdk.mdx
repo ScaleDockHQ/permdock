@@ -76,7 +76,7 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 
 ## Example app
 
-`apps/examples/ai-sdk-agent`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/ai-sdk`, and one `toolApproval` guard on `delete_post`. `ToolLoopAgent`, `WorkflowAgent`, and replay tests land with `tests/e2e`.
+`apps/examples/ai-sdk-agent`: HTTP harness on `127.0.0.1:3472` with `GET /health`. `GET /list_posts` calls `toolApproval` and returns `approved`. `GET /delete_post` returns `user-approval`. No model API key.
 
 ## Related standards
 

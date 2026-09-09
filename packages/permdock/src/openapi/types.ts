@@ -1,5 +1,6 @@
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 
 export type OpenApiTarget = '3.1' | '3.2' | '3.3';
 export type OverlayVersion = '1.1' | '1.2';
@@ -78,7 +79,7 @@ export type OpenApiPermDock = {
   readonly catalog: () => Record<string, unknown>;
 };
 
-export type OpenApiFactory = (
-  policy: Policy,
+export type OpenApiFactory = <TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
   options: OpenApiPermDockOptions,
 ) => OpenApiPermDock;

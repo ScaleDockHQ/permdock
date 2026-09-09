@@ -2,7 +2,7 @@ import {
   createPermDock,
   type Policy,
   type Permission,
-  type SnapshotV2,
+  type Snapshot,
 } from 'permdock';
 
 export async function snapshotFixture(
@@ -17,7 +17,7 @@ export async function snapshotFixture(
     readonly tenant?: string;
     readonly simulated?: boolean;
   } = {},
-): Promise<SnapshotV2> {
+): Promise<Snapshot> {
   const instance = await createPermDock(
     policy,
     subject,
@@ -39,7 +39,7 @@ export async function snapshotFixture(
             : { tenants: options.tenants }),
         });
   if (typeof snapshot === 'string' || snapshot instanceof Promise) {
-    throw new Error('PermDock: snapshotFixture expected JSON snapshot v2');
+    throw new Error('PermDock: snapshotFixture expected a JSON snapshot');
   }
   return snapshot;
 }

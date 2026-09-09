@@ -12,6 +12,12 @@ catalog:
   '@nestjs/core': 11.1.29
   '@nestjs/platform-express': 11.1.29
   '@arethetypeswrong/cli': 0.18.5
+  '@expo/log-box': 57.0.4
+  '@expo/metro-runtime': 57.0.15
+  '@react-native/metro-config': 0.86.2
+  '@sveltejs/vite-plugin-svelte': 7.3.0
+  '@vitejs/plugin-react': 6.1.1
+  '@vitejs/plugin-vue': 6.0.8
   ai: 7.0.93
   '@changesets/cli': 3.0.2
   '@commitlint/cli': 21.2.2
@@ -33,9 +39,15 @@ catalog:
   '@types/react-dom': 19.2.7
   '@vitest/coverage-v8': 5.0.0
   arktype: 2.2.3
+  babel-preset-expo: 57.0.10
   elysia: 1.4.30
   drizzle-orm: 0.45.2
   eve: 0.52.2
+  expo: 57.0.16
+  expo-constants: 57.0.17
+  expo-linking: 57.0.7
+  expo-modules-core: 57.0.16
+  expo-router: 57.0.16
   express: 5.2.1
   kysely: 0.28.8
   fastify: 5.12.1
@@ -60,6 +72,11 @@ catalog:
   rxjs: 7.8.2
   react: 19.2.8
   react-dom: 19.2.8
+  react-native: 0.86.2
+  react-native-safe-area-context: 5.7.0
+  react-native-screens: 4.26.2
+  react-native-web: 0.21.2
+  react-native-worklets: 0.10.4
   tailwindcss: 4.3.3
   testcontainers: 12.1.0
   tsdown: 0.23.0
@@ -67,6 +84,8 @@ catalog:
   typescript: 7.0.2
   unplugin: 2.3.10
   valibot: 1.4.2
+  vite: 8.2.2
+  vite-plugin-solid: 2.11.14
   vitest: 5.0.0
   zod: 4.5.4
 
@@ -75,6 +94,33 @@ catalogs:
     typescript: 5.9.3
   ts6:
     typescript: 6.0.3
+  peers:
+    '@anthropic-ai/claude-agent-sdk': '>=0.2'
+    '@nestjs/common': '>=10'
+    '@nestjs/core': '>=10'
+    '@nestjs/platform-express': '>=10'
+    '@openai/agents': '>=0.1'
+    '@opentelemetry/api': '>=1'
+    '@orpc/server': '>=1'
+    '@trpc/server': '>=11'
+    ai: '>=5'
+    drizzle-orm: '>=0.40'
+    elysia: '>=1'
+    eve: '>=0.40'
+    express: '>=4'
+    fastify: '>=5'
+    hono: '>=4'
+    jose: '^6'
+    kysely: '>=0.27'
+    next: '>=15'
+    permdock: '>=0.1.0'
+    react: '^19'
+    reflect-metadata: '>=0.1'
+    rxjs: '>=7'
+    'solid-js': '>=1.9'
+    svelte: '>=5'
+    vitest: '>=3'
+    vue: '>=3'
 
 catalogMode: strict
 engineStrict: false
@@ -83,6 +129,13 @@ savePrefix: ''
 strictDepBuilds: true
 strictPeerDependencies: true
 trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 43200
+trustPolicyExclude:
+  - ua-parser-js
+
+overrides:
+  '@react-native/metro-config': 'catalog:'
+  react-native-worklets: 'catalog:'
 
 allowBuilds:
   cpu-features: true

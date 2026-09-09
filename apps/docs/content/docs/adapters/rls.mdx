@@ -104,7 +104,7 @@ The in-process side answers with a [Decision](/docs/concepts/decisions), so a `d
 
 ## Example app
 
-`apps/examples/supabase-rls`: a Supabase project with `posts`, `organization_members` and `team_members`, a PermDock policy with ownership grants, tenant- and team-scoped roles compiled to `memberOf`, generated Drizzle `pgPolicy` entries and an SQL migration, the `authorize()` RBAC scaffold, an `import` run against the same database that reproduces the definitions, and `verify` output in both pgTAP and Node form.
+`apps/examples/supabase-rls`: a Hono server on `127.0.0.1:3469` that boots without a database. `GET /rls/authorize` checks that generated SQL never contains `service_role`; `PATCH /posts/:id` uses `subjectFromSupabase` with fixed claims.
 
 ## Related standards
 

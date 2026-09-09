@@ -62,7 +62,7 @@ app.post('/a2a/tasks', protectSkill((task) => task.skillId), handleTask)
 
 ## Example app
 
-`apps/examples/a2a-agent`: a Hono server exposing two skills, a public and an extended card, a fake authorization server with two clients (one scoped to `post:read`, one to both scopes), and tests showing the extended card differs per caller, a task denial with alternatives, and signed card verification.
+`apps/examples/a2a-agent`: Hono on `127.0.0.1:3471` with `GET /health`, public `/.well-known/agent-card.json`, and `POST /a2a/tasks`. Summarise is granted for a member; publish is denied.
 
 ## Related standards
 

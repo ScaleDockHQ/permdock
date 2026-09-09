@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { Decision } from '../core/decision.ts';
-import type { SnapshotV2 } from '../core/interfaces.ts';
+import type { Snapshot } from '../core/interfaces.ts';
 import type { Permission } from '../core/permissions.ts';
 import type {
   ModelContext,
@@ -28,7 +28,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function snapshotOf(permdock: WebMcpPermDock): SnapshotV2 | undefined {
+function snapshotOf(permdock: WebMcpPermDock): Snapshot | undefined {
   const value = permdock.snapshot();
   if (value instanceof Promise || typeof value === 'string') {
     return undefined;
@@ -264,10 +264,7 @@ function wrapResult(value: unknown): WebMcpToolResult {
   };
 }
 
-function instanceAllowed(
-  snapshot: SnapshotV2,
-  permission: Permission,
-): boolean {
+function instanceAllowed(snapshot: Snapshot, permission: Permission): boolean {
   return snapshot.grants.some(
     (grant) =>
       grant.permission === permission.key &&
@@ -278,7 +275,7 @@ function instanceAllowed(
 
 function shouldRegister(
   dock: WebMcpPermDock,
-  snapshot: SnapshotV2,
+  snapshot: Snapshot,
   permission: Permission,
 ): boolean {
   if (snapshot.simulated === true) {

@@ -36,7 +36,7 @@ export const policy = definePolicy(permissions, {
 });
 
 export async function check(): Promise<boolean> {
-  const dock = await createPermDock(policy as never, {
+  const dock = await createPermDock(policy, {
     id: 'u1',
     roles: ['member'],
   });

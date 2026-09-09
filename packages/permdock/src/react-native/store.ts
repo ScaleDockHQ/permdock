@@ -1,4 +1,4 @@
-import type { SnapshotV2 } from '../core/interfaces.ts';
+import type { Snapshot } from '../core/interfaces.ts';
 import type { ClientStore } from '../react/store.ts';
 import type { NativePermDockProviderProps } from './types.ts';
 
@@ -36,7 +36,7 @@ export function createNativeStore(options: NativeStoreOptions): ClientStore {
       headers: options.headers,
       maxAge: options.maxAge,
       verifier: options.verifier,
-      onSnapshot: (next: SnapshotV2, nextTenant: string | undefined) => {
+      onSnapshot: (next: Snapshot, nextTenant: string | undefined) => {
         persistSnapshot(options.storage, next, nextTenant);
       },
       onClear: () => {

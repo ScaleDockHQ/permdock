@@ -22,13 +22,13 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
     "typecheck": {
-      "dependsOn": ["transit"]
+      "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build", "^build"]
     },
     "check:publish": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build", "^build"]
     },
     "dev": {
       "cache": false,

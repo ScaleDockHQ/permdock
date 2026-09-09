@@ -153,7 +153,7 @@ The adapter emits metadata; enforcement and denials belong to the server adapter
 
 ## Example app
 
-No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-openapi`, `apps/examples/orpc` uses `oo.spec`, `apps/examples/trpc` uses `trpc-to-openapi` `protect`, `apps/examples/next` runs next-openapi-gen with `overlay.apply` and serves the result in Scalar, and `apps/examples/monorepo` runs `permdock openapi import` on a third-party document, merges the generated permissions, and generates a client with `@hey-api/openapi-ts` from the applied description.
+No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-openapi`, `apps/examples/orpc` uses `oo.spec`, `apps/examples/trpc` uses `trpc-to-openapi` `protect`, and `apps/examples/next` runs next-openapi-gen with `overlay.apply` and serves the result in Scalar. `apps/examples/monorepo` is the collect example: two feature packages, `mergePermissions` at the app root, and `permdock collect --check`.
 
 ## Related standards
 

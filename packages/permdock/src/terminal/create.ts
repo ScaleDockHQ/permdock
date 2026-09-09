@@ -4,7 +4,7 @@ import type { Decision } from '../core/decision.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Actor, Delegation } from '../core/subject.ts';
+import type { Actor, Delegation, Principal } from '../core/subject.ts';
 import type {
   CommandEntry,
   FilterCommandsOptions,
@@ -136,9 +136,9 @@ function defaultConfirm(input: {
   });
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: TerminalPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: TerminalPermDockOptions<TUser>,
 ): TerminalPermDock {
   const write = writeOf(options);
   const exit = options.runtime?.exit ?? defaultExit;
@@ -177,7 +177,7 @@ export function createPermDock(
       token: tokenFor(profile, resolveOptions.source),
       profile,
     };
-    let user: unknown = null;
+    let user: TUser | null = null;
     try {
       user = await options.subject(context);
     } catch {

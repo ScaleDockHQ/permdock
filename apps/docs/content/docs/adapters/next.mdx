@@ -164,7 +164,7 @@ Three rules. The subject comes from the verified bearer token, never from the ap
 
 ## Example app
 
-`apps/examples/next`: `src/permissions.ts`, `src/policy.ts`, `src/permdock/server.ts` exporting `getPermDock` / `getPermission` / `PermDockProvider` / `permdockHandler`, and one page that guards `permissions.post.update`. Cache Components, Scalar, and Playwright `instant()` land once this example is a bootable Next.js 16.3 app; `tests/e2e` currently smokes the Hono example.
+`apps/examples/next`: `src/permissions.ts`, `src/policy.ts`, `src/permdock/server.ts` calling `createPermDock` from `permdock/next` and exporting `getPermDock` / `getPermission` / `PermDockProvider` / `permdockHandler`. `/` shows `edit`; `/denied` shows `locked`. `tests/e2e` smokes it with Playwright (`pnpm --filter @permdock/example-next dev` on port 3485). `@next/playwright` `instant()` is not in the pinned Next.js.
 
 ## Related standards
 

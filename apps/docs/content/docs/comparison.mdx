@@ -92,7 +92,7 @@ Legend: yes, partial (with a note), no, planned (PermDock, not implemented). Hos
 | MCP tool authorization | planned (`scopeChallenge`, filtered `list_tools`) | no | no | no | no | no | partial (Permit gateway proxy, OpenFGA guide) | no | no |
 | AI SDK approvals | planned (`toolApproval`, capability middleware, `needsApproval`) | no | no | no | no | no | no | no | yes (fails open on unknown) |
 | OpenAPI `security` emission | planned (3.2 with 3.1 fallbacks) | no | no | no | no | no | no | no | no |
-| AuthZEN | planned (endpoint and client, certification target) | no | no | no | no | no | partial (Cerbos) | no | no |
+| AuthZEN | shipped (in-repo Basic / Batch / Search / Discovery; external certification is the 1.0 gate) | no | no | no | no | no | partial (Cerbos) | no | no |
 | RLS import into app permissions | planned | no | no | no | no | no | no | no | no |
 | `llms.txt` / skills | yes (both, plus docs MCP at `/mcp`) | yes (both) | no | no | `llms.txt` | `llms.txt` | `llms.txt` (Cerbos, OpenFGA, SpiceDB, Oso) | no | n/a |
 | Core size | budget about 3 kB gzip | 2.64 kB gzip | about 6.17 kB min+gzip | not measured | about 2.8 kB min | part of Better Auth | SDKs 2.6–5.6 MB unpacked (Permit, SpiceDB) | ORM-sized | WASM or HTTP |

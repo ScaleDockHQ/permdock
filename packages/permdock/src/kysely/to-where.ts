@@ -1,5 +1,5 @@
 import type { Condition } from '../conditions/ast.ts';
-import type { SnapshotV2 } from '../core/interfaces.ts';
+import type { Snapshot } from '../core/interfaces.ts';
 import type { WhereResult } from '../core/permdock.ts';
 import type {
   KyselyExpressionBuilder,
@@ -145,7 +145,7 @@ type KyselyLike = {
 };
 
 type SnapshotHolder = {
-  snapshot(): SnapshotV2 | string | Promise<SnapshotV2 | string>;
+  snapshot(): Snapshot | string | Promise<Snapshot | string>;
 };
 
 export async function withSubject<T>(

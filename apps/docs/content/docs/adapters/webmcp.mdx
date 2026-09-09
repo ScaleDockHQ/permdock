@@ -71,7 +71,7 @@ function PostTools() {
 
 ## Example app
 
-`apps/examples/webmcp`: a Vite React app with `post` tools, a role switcher that changes the snapshot, the `tools` Permissions-Policy set in the dev server headers, `@mcp-b/webmcp-polyfill` for browsers without native support, and Puppeteer tests using `page.webmcp` to assert the registered tool list per role and a denied call after a role downgrade.
+`apps/examples/webmcp`: a Vite React app at `http://127.0.0.1:3484/` with `post` tools registered from a Snapshot v2. The in-memory tool list includes snapshot-allowed tools and excludes `post_publish`. `tests/e2e` smokes it with Playwright. Serve the page with a `Permissions-Policy: tools=*` header when using a native or polyfill `document.modelContext`.
 
 ## Related standards
 

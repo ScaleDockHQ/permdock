@@ -1,4 +1,4 @@
-import type { SnapshotV2, TokenVerifier } from '../core/interfaces.ts';
+import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -13,7 +13,7 @@ import type {
 } from '../react/types.ts';
 
 export type PermDockPluginOptions = {
-  readonly snapshot: SnapshotV2 | string;
+  readonly snapshot: Snapshot | string;
   readonly endpoint?: string;
   readonly approvals?: string;
   readonly tenant?: string;

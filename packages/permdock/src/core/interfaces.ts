@@ -116,7 +116,7 @@ export type SubjectResolver<
   options?: { readonly tenant?: string },
 ) => Subject<TPrincipal> | Promise<Subject<TPrincipal>>;
 
-export type SnapshotV2 = {
+export type Snapshot = {
   readonly v: 1 | 2;
   readonly issuedAt: number;
   readonly subject: {
@@ -151,7 +151,7 @@ export type SnapshotGrant = {
 };
 
 export type SnapshotSource = {
-  get(): Promise<SnapshotV2 | string> | SnapshotV2 | string;
+  get(): Promise<Snapshot | string> | Snapshot | string;
   subscribe?(listener: () => void): () => void;
 };
 

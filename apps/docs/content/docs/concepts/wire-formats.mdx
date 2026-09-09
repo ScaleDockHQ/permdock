@@ -50,7 +50,7 @@ Literals are JSON literals. Single-child compounds are collapsed and nested same
 
 ## Snapshot v2
 
-Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). Version 2 adds `subject.principal.memberships`, `subject.principal.tenant`, per-grant `scope` and `membership`, and the top-level `tenants` and `simulated` fields ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships)); readers still accept v1.
+Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). The TypeScript type is `Snapshot`; `v` is the format major. Version 2 adds `subject.principal.memberships`, `subject.principal.tenant`, per-grant `scope` and `membership`, and the top-level `tenants` and `simulated` fields ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships)); readers still accept v1.
 
 ```json
 {

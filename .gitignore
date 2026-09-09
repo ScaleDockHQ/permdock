@@ -11,6 +11,9 @@ node_modules/
 # turbo
 .turbo/
 
+# build output
+dist/
+
 # testing
 coverage/
 packages/cli/tmp/
@@ -22,6 +25,12 @@ blob-report/
 # next.js
 .next/
 out/
+# rewritten by `next dev` in example apps
+apps/examples/next/AGENTS.md
+apps/examples/next/CLAUDE.md
+
+# expo
+.expo/
 
 # fumadocs-mdx
 .source/

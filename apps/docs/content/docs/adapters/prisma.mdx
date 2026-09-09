@@ -86,7 +86,7 @@ policy_update post_update_member {
 
 ## Example app
 
-`apps/examples/prisma`: a Next.js route handler API with `toWhere` on list routes, `permdockExtension` installed, a Prisma 8 schema with generated `policy_*` blocks, and a parity test running `filter` in-process against `findMany` with `toWhere` and against RLS via `set local role`.
+`apps/examples/prisma`: a Hono server on `127.0.0.1:3468`. `GET /health` plus `GET /posts` and `PATCH /posts/:id` return `toWhere` for list and update grants. No Prisma Client, no database, and no Next.js route handlers.
 
 ## Related standards
 

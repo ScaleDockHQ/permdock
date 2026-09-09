@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { SnapshotV2, TokenVerifier } from '../core/interfaces.ts';
+import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
 
 export type PermDockStorage = {
   getItem(key: string): string | null | Promise<string | null>;
@@ -12,7 +12,7 @@ export type NativeRevalidate = 'launch' | 'focus' | number;
 
 export type NativePermDockProviderProps = {
   readonly storage: PermDockStorage;
-  readonly snapshot?: SnapshotV2 | string;
+  readonly snapshot?: Snapshot | string;
   readonly snapshotUrl?: string;
   readonly endpoint?: string;
   readonly approvals?: string;

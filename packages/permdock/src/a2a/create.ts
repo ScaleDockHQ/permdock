@@ -3,7 +3,7 @@ import type { ProblemDetails } from '../core/errors.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Actor, Delegation } from '../core/subject.ts';
+import type { Actor, Delegation, Principal } from '../core/subject.ts';
 import type {
   A2AAgentCard,
   A2AAuth,
@@ -201,12 +201,12 @@ function missingScope(permission: Permission, auth: A2AAuth): A2ATaskOutcome {
   };
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: A2APermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: A2APermDockOptions<TUser>,
 ): A2APermDock {
   const instanceFor = async (auth: A2AAuth): Promise<PermDock> => {
-    let user: unknown = null;
+    let user: TUser | null = null;
     try {
       user = await options.subject(auth);
     } catch {

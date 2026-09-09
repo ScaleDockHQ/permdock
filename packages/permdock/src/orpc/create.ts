@@ -10,6 +10,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
@@ -26,8 +27,8 @@ export type OrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
 
 export type OrpcMiddleware = AnyMiddleware;
 
-export type OrpcPermDockOptions<TCtx = object> = {
-  readonly subject: (opts: OrpcMiddlewareOpts<TCtx>) => unknown;
+export type OrpcPermDockOptions<TCtx = object, TUser = unknown> = {
+  readonly subject: (opts: OrpcMiddlewareOpts<TCtx>) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((
@@ -124,9 +125,13 @@ async function throwOrpcError(response: Response): Promise<never> {
   });
 }
 
-export function createPermDock<TCtx = object>(
-  policy: Policy,
-  options: OrpcPermDockOptions<TCtx>,
+export function createPermDock<
+  TCtx = object,
+  TUser = unknown,
+  TPrincipal extends Principal = Principal,
+>(
+  policy: Policy<TUser, TPrincipal>,
+  options: OrpcPermDockOptions<TCtx, TUser>,
 ): OrpcPermDock<TCtx> {
   const optsByRequest = new WeakMap<Request, OrpcMiddlewareOpts<TCtx>>();
   const requestByCtx = new WeakMap<object, Request>();

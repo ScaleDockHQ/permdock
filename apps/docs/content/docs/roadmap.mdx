@@ -13,7 +13,7 @@ PermDock is specified before it is implemented. This page lists what each phase 
 
 ### Phase 1: v0.1 "core + agents"
 
-The first milestone shipped `packages/permdock` (root entry: definitions, policy, portable conditions, two-principal subject with tenancy, `createPermDock`, snapshot v2, decision events), `packages/testing` (`@permdock/testing`), the Phase 1 adapters, consumer skills, the seven example apps, `@permdock/cli` (`collect`, `catalog`, `usage`, `doctor`, `skills`, plus collect-only Next and unplugin hooks), and `tests/e2e` (Playwright smoke of the Hono example; `@next/playwright` `instant()` waits for a bootable Next example).
+The first milestone shipped `packages/permdock` (root entry: definitions, policy, portable conditions, two-principal subject with tenancy, `createPermDock`, snapshot v2, decision events), `packages/testing` (`@permdock/testing`), the Phase 1 adapters, consumer skills, the seven example apps, `@permdock/cli` (`collect`, `catalog`, `usage`, `doctor`, `skills`, plus collect-only Next and unplugin hooks), and `tests/e2e` (Playwright smoke of the Hono example; Next uses plain Playwright because `@next/playwright` `instant()` is not in the pinned Next.js).
 
 - Definitions: `definePermissions`, `resource`, typed references, nested groups, `mergePermissions`, `listPermissions`, `findPermission`.
 - Policy: `definePolicy`, `role`, `allow`, `deny`, `subject`; role fragments merged by name; `approval: 'human'` grants; `allow` / `deny` over arrays of references.
@@ -34,7 +34,7 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - `tests/types` matrix for TypeScript 5.9, 6 and 7.
 - `tests/bundle` runtime conformance: core, `permdock/server` and every client entry load in a bare WinterTC Minimum Common API global (no Node built-ins), alongside the per-entry gzip measurements ([installation](/docs/getting-started/installation), runtimes).
 
-### Phase 2: v0.2–0.5 "surfaces" (in progress)
+### Phase 2: v0.2–0.5 "surfaces"
 
 - `permdock/mcp` (`scopeChallenge`, Enterprise-Managed Authorization, elicitation for approvals) — shipped.
 - `permdock/authzen` full endpoint set and a certification run — shipped (in-repo Basic / Batch / Search / Discovery shapes).
@@ -58,7 +58,7 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - `permdock/scim` — shipped (`scimHandler` over the Fetch kernel, `DirectoryStore` with `memoryDirectoryStore`, `directoryMembershipSource`, static bearer or RFC 7523 `verifier`, `urn:permdock:scim:schemas:extension:roles:1.0`, `testDirectoryStore`).
 - Signed decision-batch export (`typ: permdock-decisions+jwt`) as a `DecisionSink` `signer` option — shipped (`memorySink({ signer })`, `signDecisionBatch`). `permdock/cloud` serves it from its export endpoint together with OCSF and CSV.
 - `permdock/cloud` — shipped (`cloud({ url, key })` returning `approvals`, `sink`, `snapshots`; env `PERMDOCK_CLOUD_URL` / `PERMDOCK_CLOUD_KEY`; never `MembershipSource` / `RoleSource`). PermDock Cloud alpha remains in the separate `PermDock-Cloud` repository, in this order: the decision log with access-review queries and evidence exports, the hosted AuthZEN ADS, the approval inbox, the hosted SCIM relay replaying provisioning into your `scimHandler`, and the [integrations catalog](/docs/adapters/cloud-integrations) (trusted issuers, CAEP transmitters, OTLP, OCSF, CloudEvents webhooks, compliance platforms, Chat SDK delivery, a read-only MCP server); the Vercel Marketplace listing with `eve-agent` as its template. See [0021](/docs/decisions/0021-embedded-pdp-hosted-ads) and [0027](/docs/decisions/0027-governance-first-cloud).
-- One example per adapter plus `monorepo`, `terminal` and `scim`; `tests/e2e` with Playwright including `instant()`.
+- One example per adapter plus `monorepo`, `terminal` and `scim`; `tests/e2e` with Playwright per example.
 
 ### Phase 3: v0.6–0.9 "data"
 
@@ -70,9 +70,9 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - `tests/integration` parity suite on Postgres via testcontainers — shipped (`rlsParity` in `@permdock/testing`, `pnpm test:integration`; never `service_role`).
 - Examples: `supabase-rls`, `drizzle`, `prisma` — shipped.
 
-### Phase 4: v1.0 "ecosystem"
+### Phase 4: v1.0 "ecosystem" (in progress)
 
-- Providers: `better-auth` (organization and team memberships, `betterAuthRoleSource` over dynamic roles), `clerk` (active organization as tenant, `memberships: 'all'`, custom roles and role sets as a `RoleSource`), `convex`, `pdp` (AuthZEN client).
+- Providers: `better-auth`, `clerk`, `convex`, `pdp` (AuthZEN client) — shipped.
 - Quota grants with a pluggable `LimitStore` — shipped (`memoryLimitStore()`, `can` never consumes, [0034](/docs/decisions/0034-quota-grants)).
 - Web Bot Auth verification in HTTP adapters — shipped.
 - Delegation-chain verification and `subjectFromIntrospection` (RFC 7662 and RFC 9767) in `permdock/jwt`; GNAP `delegation.access` is intersected with grants ([0035](/docs/decisions/0035-gnap-access-and-chain)) — shipped.
@@ -82,13 +82,14 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - Candidates evaluated at Phase 3 planning, not scheduled: MongoDB and local-first sync engines (Zero, ElectricSQL, PowerSync, InstantDB) as `where` targets ([local-first sync](/docs/research/local-first-sync)); LangGraph.js as an agent adapter ([agent frameworks](/docs/research/agent-frameworks)); Vercel Chat SDK `requestApproval` as the reference approval-delivery recipe for self-hosters and the surface the Cloud inbox uses for Slack and Teams (a recipe and an example, not an entry; [approvals adapter](/docs/adapters/approvals)). Considered and not scheduled: a Cedar compile target for AgentCore Policy and Amazon Verified Permissions, and a first-party GitHub Action ([commercial landscape](/docs/research/commercial-landscape)). The SCIM receiver left this list in [0027](/docs/decisions/0027-governance-first-cloud) and ships in Phase 2 as `permdock/scim`.
 - Docs MCP server — shipped (`POST /mcp`, `search_docs` and `get_page`; `server.json` at the repository root).
 - Devtools panel — shipped as the docs-site [explorer](/devtools) (not a `permdock/react` component; [devtools](/docs/getting-started/devtools)).
+- **1.0 gate:** external AuthZEN certification. In-repo tests cover Basic, Batch, Search and Discovery today.
 
 ## Versioning policy
 
 - Releases follow semver. During `0.x`, minor versions may change the public API; patch versions never do.
 - Any change to a public identifier, wire format (permission leaf, condition JSON, snapshot, catalog, AuthZEN mapping) or default behaviour goes through an RFC-lite: a short pull request against the relevant docs page and decision record, open for comment before code lands. New decision records are numbered in order.
 - Adapters version with core; there is no independent adapter versioning ([0002](/docs/decisions/0002-umbrella-package)).
-- `1.0.0` is cut when Phase 4 lands. From then on, breaking changes require a major version and a migration note per adapter page.
+- `1.0.0` is cut when Phase 4 lands **and** AuthZEN is externally certified. From then on, breaking changes require a major version and a migration note per adapter page.
 - `@permdock/cli` and `@permdock/testing` follow the same major version as `permdock` and declare the compatible `permdock` range as a peer dependency.
 - Deprecations are announced one minor version before removal during `0.x`, one major version after `1.0`.
 
@@ -110,20 +111,20 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 These are the questions the plan leaves open. Each is resolved in the phase where the affected code is written, by updating the linked page and, where a decision changes, adding a decision record.
 
 1. **`decide` vs an `explain` alias.** Resolved: `explain` is not exported. Call `decide` for the structured result and `describe` for prose ([0028](/docs/decisions/0028-synchronous-evaluation), [0007](/docs/decisions/0007-decide-not-explain)).
-2. **`Protected` vs a second inline component.** Whether `permdock/react` also ships a `Can`-style render-prop component alongside `Protected`, or `Protected` grows a render-prop form. Phase 1. See [React adapter](/docs/adapters/react).
+2. **`Protected` vs a second inline component.** Resolved: there is no `Can`. `<Protected>` is the only UI component ([0005](/docs/decisions/0005-naming-convention), [React adapter](/docs/adapters/react)).
 3. **`subject.*` reference ergonomics vs closures.** Resolved: `subject` is a typed reference builder (`subject.id`, `subject.context.teamIds`) producing `{ ref: 'subject.<path>' }`. Closures stay the branded escape hatch ([conditions](/docs/concepts/conditions), [0028](/docs/decisions/0028-synchronous-evaluation)).
 4. **Snapshot contents for large policies.** Resolved: snapshots ship full grants with normalised conditions; `include` is the size lever ([0031](/docs/decisions/0031-snapshot-contents), [Snapshots](/docs/concepts/snapshots)).
-5. **Protected-query helper.** Whether to add `permdock.protect(queryFn, { before, after })` for co-located authorization and redaction around a data fetch, Kilpi-style. Phase 2 or later. See [Kilpi v1](/docs/research/kilpi-v1).
-6. **`collect` output.** Whether `permdock collect` emits the `mergePermissions` barrel or only the catalog. Phase 2. See [collect](/docs/cli/collect).
+5. **Protected-query helper.** Post-1.0: whether to add `permdock.protect(queryFn, { before, after })` for co-located authorization and redaction around a data fetch, Kilpi-style. See [Kilpi v1](/docs/research/kilpi-v1).
+6. **`collect` output.** Resolved: catalog only by default; the generated `mergePermissions` barrel is opt-in via `collect.barrel` ([collect](/docs/cli/collect), `apps/examples/monorepo`).
 7. **Field-level API shape.** Resolved: `fields` on `allow` / `deny` (keys of the resource type) and `permdock.pick`; no globs ([0033](/docs/decisions/0033-field-level-grants)).
 8. **Decision-endpoint authentication.** Resolved: the in-app endpoint sits behind the application's session or bearer authentication via the `subject` option; the hosted ADS accepts Vercel OIDC tokens or OAuth client credentials verified with `permdock/jwt`; there is no shared-secret mode ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads), [Cloud adapter](/docs/adapters/cloud)).
 9. **`LimitStore` and quotas.** Resolved: quotas belong in core behind `limits` / `memoryLimitStore()`; `can` never consumes; store failure is `limit-unavailable` ([0034](/docs/decisions/0034-quota-grants), [Policies](/docs/concepts/policies)).
 10. **`approval-required` over plain HTTP.** Resolved: the client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record in the `ApprovalStore` and re-runs `decide` ([0022](/docs/decisions/0022-approvals-are-pluggable), [Approvals](/docs/security/approvals)).
-11. **Terminal token storage.** Which OS keychain binding `permdock/terminal` uses as its optional peer, and whether the mode-0600 file fallback is acceptable in CI images. Phase 2. See [Terminal](/docs/adapters/terminal).
+11. **Terminal token storage.** Resolved: optional OS keychain via a structurally typed peer; mode-0600 file fallback is the default in CI images ([Terminal](/docs/adapters/terminal)).
 12. **`parent` typing on `resource`.** Resolved: `parent.resource` is a resource name string; a resource has exactly one parent, validated at `definePolicy` after `mergePermissions` ([0030](/docs/decisions/0030-parent-typing), [Permissions](/docs/concepts/permissions), [Tenancy](/docs/concepts/tenancy)).
-13. **Separation of duty (`exclusiveWith`).** Deferred to Phase 2: a `permdock doctor` lint over memberships, not an evaluation rule. See [Tenancy](/docs/concepts/tenancy).
+13. **Separation of duty (`exclusiveWith`).** Post-1.0: a `permdock doctor` lint over memberships, not an evaluation rule. See [Tenancy](/docs/concepts/tenancy).
 14. **Snapshot scope across tenants.** Resolved: `snapshot({ tenants: 'all' })` stays opt-in; there is no membership-count threshold ([0031](/docs/decisions/0031-snapshot-contents), [Snapshots](/docs/concepts/snapshots)).
-15. **`useApproval` transport.** Poll the `approvalsHandler` route (default) or subscribe through a configured `SnapshotSource`. Phase 1 ships polling. See [UI](/docs/concepts/ui).
+15. **`useApproval` transport.** Resolved: Phase 1 ships polling of the `approvalsHandler` route; a `SnapshotSource` subscription is optional later ([UI](/docs/concepts/ui)).
 
 Resolved since Phase 0 started: multi-tenant roles, teams, resource roles and tenant-defined custom roles are memberships on the principal plus scoped role declarations, with `RoleSource` and `MembershipSource` as the only new inputs ([0024](/docs/decisions/0024-scoped-roles-and-memberships)); provider principal types extend through generics and Standard Schema, never module augmentation ([extension interfaces](/docs/concepts/extension-interfaces)); the multi-organization snapshot question on the Clerk page, the global-versus-organization roles question on the Better Auth page, the multiple-roles question on the Supabase page and the `memberOf` node question on the RLS page are closed by the same decision.
 

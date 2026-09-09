@@ -64,9 +64,14 @@ describe('identity by key', () => {
   });
 });
 
-describe('policy subject', () => {
-  it('accepts the quick-start policy', () => {
-    expectTypeOf(policy).toHaveProperty('fingerprint');
-    expectTypeOf(role).parameter(0).toEqualTypeOf<string>();
+describe('policy generics', () => {
+  it('accepts a typed policy without a cast', async () => {
+    const permdock = await createPermDock(policy, memberUser);
+    expectTypeOf(permdock.can).toBeCallableWith(permissions.post.create);
+    expectTypeOf<Parameters<(typeof policy)['subject']>[0]>().toEqualTypeOf<{
+      readonly id: string;
+      readonly orgId: string;
+      readonly roles: readonly string[];
+    } | null>();
   });
 });

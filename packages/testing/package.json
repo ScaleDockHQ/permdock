@@ -1,10 +1,26 @@
 {
   "name": "@permdock/testing",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Policy matrix tests, snapshot fixtures, RLS parity and extension-interface conformance runners for PermDock.",
+  "keywords": [
+    "permdock",
+    "rls",
+    "testing",
+    "vitest"
+  ],
+  "homepage": "https://permdock.dev",
+  "bugs": {
+    "url": "https://github.com/ScaleDockHQ/PermDock/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ScaleDockHQ/PermDock.git",
+    "directory": "packages/testing"
+  },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "type": "module",
   "sideEffects": false,
@@ -13,6 +29,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsdown",
@@ -34,8 +54,8 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
-    "permdock": "workspace:*",
-    "vitest": "catalog:"
+    "permdock": "catalog:peers",
+    "vitest": "catalog:peers"
   },
   "engines": {
     "node": ">=24"

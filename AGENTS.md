@@ -24,7 +24,7 @@ packages/
                       also exports `permdock/next/plugin` (createPermDockPlugin) and `@permdock/cli/unplugin`
                       (createPermDockUnplugin for Vite / Rollup / webpack / Rspack / esbuild): both build-time collect only;
                       ships the Spectral / Redocly / vacuum ruleset file for `permdock openapi` invariants
-  testing/            npm `@permdock/testing` — policy matrix tests, snapshot fixtures, RLS parity runner, instant() helpers
+  testing/            npm `@permdock/testing` — policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners
   typescript-config/  private `@permdock/typescript-config` — tsconfig presets every workspace extends:
                       base.json, library.json (tsdown packages), react-library.json, next.json
   ox-config/          private `@permdock/ox-config` — `oxlint` (`base`, `ignorePatterns`) and `oxfmt` (`oxfmt()` factory);
@@ -37,7 +37,7 @@ apps/
                       clerk, convex, monorepo
                       (eve-agent doubles as the PermDock Cloud template on the Vercel Marketplace)
 tests/
-  e2e/                Playwright across examples, including @next/playwright instant()
+  e2e/                Playwright across examples (web smoke; Next uses Playwright, not `@next/playwright` `instant()`)
   types/              TS 5.9 / 6 / 7 matrix
   integration/        Postgres via testcontainers: RLS parity, providers
   bundle/             per-entry gzip measurements; baseline set after core ships
@@ -57,7 +57,9 @@ pnpm check                 # fmt:check + lint + typecheck; what CI and the pre-p
 pnpm check:publish         # publint + arethetypeswrong on every package
 pnpm size                  # per-entry gzip measurements
 pnpm docs:dev              # apps/docs
-pnpm permdock collect --check   # catalog drift (also run in CI)
+pnpm exec permdock collect --check --cwd tests/integration/fixtures/posts
+pnpm exec permdock collect --check --cwd apps/examples/monorepo
+# catalog drift (CI); the repo root has no permdock.config.ts.
 pnpm changeset             # every user-visible change
 ```
 
@@ -85,12 +87,14 @@ pnpm changeset             # every user-visible change
 - Every server and agent adapter exports `createPermDock`; the import path names the framework (`permdock/next`, `permdock/hono`). Never `NextDock`, `HonoDock`, `dock`, `ability`, `can` as a definer, or `$`-prefixed members.
 - React: `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>` are direct exports of `permdock/react`.
 - Servers: `getPermDock` / `getPermission` are the async counterparts of `usePermDock` / `usePermission` (next-intl `use*` / `get*` duality).
+- Svelte: `setPermDock` / `getPermDock` and readable stores (`permission`, `permissions`, …), not React `use*` hooks. Vue uses composables with the `use*` names; Solid uses accessors. See [naming](apps/docs/content/docs/getting-started/naming.mdx).
+- `webBotAuth` is an option on HTTP `createPermDock`, not a named export.
 - Subject providers: `subjectFrom<Source>` (`subjectFromJwt`, `subjectFromIntrospection`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromMcp`) return a `Subject` and never throw. `permdock/jwt` also exports `createJwtSubjectResolver`, `verifyDpopProof`, `joseTokenVerifier` and `joseTokenSigner`.
 - JOSE and OpenID Connect (ADR 0026): core declares `TokenVerifier` (`verify(token, expectations)` returning `{ ok: true, claims, header }` or `{ ok: false, reason: 'invalid-token', cause }`) and `TokenSigner` (`sign(payload, { typ })` returning compact JWS) as types only; `permdock/jwt` implements both over the optional `jose` peer. Option names are `verifier` and `signer`; `permdock/jwt` options are `discovery` (OIDC Discovery, RFC 8414 fallback; mutually exclusive with `jwks` + `issuer`), `accept` (`'access-token'` default, `'id-token'`), `algorithms` (default `ES256`, `PS256`, `Ed25519`, plus `RS256` outside `profile: 'fapi2'`; `Ed25519` per RFC 9864, `EdDSA` accepted for `crv: Ed25519` only, never `none` or `RSA1_5`), `decryptionKeys` (JWE accepted only when set; nested JWS-in-JWE with `cty: JWT`), `sender`, `profile`. Subject fields from the specs: `principal.issuer` (`iss`), `principal.assurance.{acr, amr, authTime}`, `subject.session` (`sid`), `binding` with RFC 7800 `cnf` member names (`jkt`, `x5t#S256`, `jwk`, `kid`); `actor.kind` for `act`-derived actors is `'oauth-client'`, for MCP clients always `'mcp-client'`. Token failures are `on('auth')` events with `reason: 'invalid-token'` and a `cause` from the closed list on `adapters/jwt.mdx`; the Decision reason for a failed `subject.assurance` condition is `insufficient-user-authentication` (RFC 9470); `not-delegated` / `no-delegation` render as RFC 6750 `insufficient_scope`. Signed outputs are compact JWS with header `alg`, `kid`, `typ` only and `typ` values `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`; the payload sits under one private claim (`snapshot`, `approval`, `events`) next to registered claims; Snapshot v2 is unchanged inside. `permdock/cloud` publishes `/.well-known/jwks.json`. Every spec-to-PermDock name mapping lives in the "Spec names" table on `getting-started/naming.mdx`; add a row before adding a field that a specification already names.
 - Terminal: `permdock/terminal` (consumers' own CLIs) returns `permdock`, `protect`, `filterCommands`, `format`, `exitCode`. It is not `@permdock/cli`.
 - Agent runtimes: `permdock/eve` returns `approval`, `approvalFor`, `permdock`; `permdock/openai` returns `needsApproval`, `guardTools`, `resolveInterruptions`, `permdock`. Every agent and HTTP adapter accepts `store` (an `ApprovalStore`), `sink` (a `DecisionSink`) and `snapshots` (a `SnapshotSource`).
 - Approvals: `permdock/approvals` exports `ApprovalStore`, `ApprovalRequest`, `memoryApprovalStore`, `approvalsHandler`. The HTTP resume header is `PermDock-Approval`. Core exports `DecisionSink`, `memorySink` (`signer` option) and `signDecisionBatch`.
-- Snapshots: `parseSnapshot(json)` reads snapshot v2; it rejects unknown majors and forbidden keys. `fromSnapshot(snapshot)` builds the client `PermDock`. `permdock.snapshot()` ships full grants; `tenants: 'all'` is opt-in ([0031](apps/docs/content/docs/decisions/0031-snapshot-contents.mdx)).
+- Snapshots: type `Snapshot`; format major is the `v` field. `parseSnapshot(json)` reads it and rejects unknown majors and forbidden keys. `fromSnapshot(snapshot)` builds the client `PermDock`. `permdock.snapshot()` ships full grants; `tenants: 'all'` is opt-in ([0031](apps/docs/content/docs/decisions/0031-snapshot-contents.mdx)). Never `SnapshotV2`.
 - SSF: `permdock/ssf` exports `createPermDock` returning `{ receiver }` (`push`, `poll`, `logout`, `on('event')`), plus `ReplayStore` and `memoryReplayStore`. CAEP SETs and OIDC Back-Channel Logout `logout_token` share one `TokenVerifier`; logout joins on `subject.session` (`sid`). Neither is a decision input.
 - Denial reasons: an undeclared role is `unknown-role`; a boundary failure is `validation` (not `invalid-resource`); an exhausted quota is `limit`; a missing, throwing or thenable `LimitStore` is `limit-unavailable`; an Arazzo hole is `undocumented` or `unsupported` ([0036](apps/docs/content/docs/decisions/0036-arazzo-simulate.mdx)).
 - Directory (ADR 0027): `permdock/scim` has no `createPermDock`; it exports `scimHandler({ store, tenant, token | verifier, groupRoles, sink, onChange })` (RFC 7644 `/Users` and `/Groups`, RFC 9865 cursor pagination), the `DirectoryStore` interface with `memoryDirectoryStore()`, and `directoryMembershipSource(store)` (a `MembershipSource`; `team` is the group `id`, `via: 'group:<id>'`, no memberships for `active: false`). The group-to-role extension is `urn:permdock:scim:schemas:extension:roles:1.0`; unknown or non-`assignable` role names are dropped. The tenant is bound to the credential, never read from a body. Directory events are `directory` events on the sink; the CloudEvents types are `dev.permdock.decision`, `dev.permdock.approval`, `dev.permdock.directory`, `dev.permdock.catalog`. Cloud integrations are documented on `adapters/cloud-integrations.mdx`, never as packages.
@@ -114,7 +118,7 @@ Details and rationale: `apps/docs/content/docs/getting-started/naming.mdx`, `dec
 - Every folder has `meta.json` with `title` and an explicit `pages` order (`---Section---` separators allowed); root `meta.json` has `root: true`. Adding a page means adding it to `meta.json`.
 - Links between pages are `/docs/<path>` URLs, never `.mdx` file paths. `README.md` and `PRODUCT.md`, which render on GitHub, link to the `.mdx` files directly.
 - One page per adapter (`adapters/<name>.mdx`) and per standard (`standards/<name>.mdx`), each with `Status: planned | in progress | shipped` and `Phase: n` lines directly under the frontmatter. Standards pages PermDock follows but has no adapter for yet use `Status: tracking`. A standards page for an unfinished text adds `Draft posture: build | name | track` as a third line (ADR 0025): `build` names the pinned revision in the same line and means PermDock implements that revision with a stable twin; `name` means only identifiers are reserved; `track` means no code and no names. The watch list carries the same value in its Posture column; finished specifications carry none. A standards page's `Phase` is the first phase PermDock uses the standard; adapter phases are listed in-page. Update `Status` in the same PR that ships the code.
-- Decisions are ADRs in `decisions/NNNN-slug.mdx` (Status, Context, Decision, Consequences, Alternatives considered, Related). Append-only; supersede, do not delete. Next number: 0037.
+- Decisions are ADRs in `decisions/NNNN-slug.mdx` (Status, Context, Decision, Consequences, Alternatives considered, Related). Append-only; supersede, do not delete. Next number: 0038.
 - Research pages end with Adopt / adapt / avoid and Decisions informed.
 - No `{`, `}` or bare `<` in prose (MDX parses them); use backticks.
 

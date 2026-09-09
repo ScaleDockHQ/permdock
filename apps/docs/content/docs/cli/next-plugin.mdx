@@ -65,7 +65,7 @@ Next.js 16.3 builds with Turbopack by default. The plugin does not register a lo
 
 ## Example
 
-`apps/examples/next` and `apps/examples/monorepo` in the repository use the plugin; `monorepo` collects from two sibling feature packages and fails its CI on drift.
+`apps/examples/next` uses the plugin. `apps/examples/monorepo` collects from two sibling feature packages with `permdock collect --check` and fails CI on catalog drift.
 
 ## Open questions
 

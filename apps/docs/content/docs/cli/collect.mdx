@@ -42,7 +42,8 @@ Generated files carry a header with the CLI version and the list of inputs, and 
 `--check` computes the outputs in memory and compares them with the files on disk. Any difference exits `1` and prints a unified diff. This is the permissions equivalent of next-intl checking that target locale files are in sync with the extracted source messages: adding a permission, renaming a resource or changing action metadata without re-running `collect` fails the build.
 
 ```yaml
-- run: pnpm exec permdock collect --check
+- run: pnpm exec permdock collect --check --cwd tests/integration/fixtures/posts
+- run: pnpm exec permdock collect --check --cwd apps/examples/monorepo
 ```
 
 The [Next.js plugin](/docs/cli/next-plugin) runs `collect` during `next dev` and `next build`, so in a Next.js app the check mostly catches commits made without running the dev server.
@@ -68,7 +69,6 @@ The plugin is a build hook only; it never wires the API. See [Next.js plugin](/d
 
 ## Open questions
 
-- **Barrel or catalog only.** Emitting `src/permissions.generated.ts` with a ready-made `mergePermissions()` call means a feature only has to export `definePermissions()` and it is part of the app registry, which matches how next-intl collects messages nobody imports by hand. The cost is a generated module in the import graph of the app, the client and React Native, and a second place where the merge is defined. The alternative is catalog only, with the app writing `mergePermissions(...)` explicitly. The plan leans towards emitting the barrel behind `collect.barrel: true` and defaulting to catalog only; this is decided in Phase 2 with the `monorepo` example app.
 - Whether usage scanning should also cover role fragments (`allow(permissions.x.y)`) in policy files so `usage` can compute granted-by-no-role without loading the policy module.
 
 ## Related

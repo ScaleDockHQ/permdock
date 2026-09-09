@@ -3,8 +3,9 @@ title: OAuth for agent delegation
 description: How RFC 9396 Rich Authorization Requests, RFC 8693 token exchange, DPoP, CIBA and the IETF agent-delegation drafts shape PermDock's two-principal subject and the rule that an agent can never exceed its user.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
+Draft posture: build (RFC 8693, RFC 9396, RFC 9449; remaining IETF agent-delegation drafts tracked on the watch list)
 Adapter phases: `permdock/jwt` 1, `permdock/ai-sdk` 1, `permdock/claude-agent` 1, `permdock/mcp` 2, `permdock/a2a` 2; delegation itself is in core from Phase 1.
 
 Phase 1 ships the two-principal subject (`principal`, `actor`, `delegation`) and the `authorizationDetails` type on every permission. Phase 4 ships delegation-chain verification and Web Bot Auth actor derivation.

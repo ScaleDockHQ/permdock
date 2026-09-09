@@ -99,7 +99,7 @@ Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`
 
 ## Example app
 
-`apps/examples/clerk`: a Next.js 16.3 app with Clerk organizations, `subjectFromClerk` in `src/permdock/server.ts`, a PermDock policy that maps `org:admin` / `org:member` and one Clerk custom permission, `Protected` in the UI, and an `instant()` test proving guards resolve from the prefetched shell.
+`apps/examples/clerk`: a Hono server that boots with `pnpm start` on `127.0.0.1:3464`. `GET /health` is the liveness probe. `PATCH /posts/:id` calls `subjectFromClerk` with a fixed Clerk auth object (`org:member` plus `org:invoices:create`), then `createPermDock` and `can(permissions.post.update)`. No Clerk secret and no Next.js app.
 
 ## Related standards
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ApprovalRequest } from '../approvals/types.ts';
-import type { SinkEvent, SnapshotV2 } from '../core/interfaces.ts';
+import type { SinkEvent, Snapshot } from '../core/interfaces.ts';
 import type { Subject } from '../core/subject.ts';
 
 import { isApprovalError } from '../approvals/errors.ts';
@@ -10,7 +10,7 @@ import { cloud } from './create.ts';
 
 const CLOUD_URL = 'https://cloud.permdock.test';
 const KEY = 'env-key';
-const SNAPSHOT: SnapshotV2 = {
+const SNAPSHOT: Snapshot = {
   v: 2,
   issuedAt: 1,
   subject: { principal: { id: 'u_1', roles: ['member'] }, context: {} },
@@ -26,7 +26,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function fakeCloud(options: { readonly snapshot?: SnapshotV2 | string } = {}): {
+function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
   readonly fetch: typeof fetch;
   readonly decisions: SinkEvent[][];
 } {

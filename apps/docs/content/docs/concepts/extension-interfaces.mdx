@@ -21,7 +21,7 @@ PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-
 | `ApprovalStore` | Hold pending `approval-required` decisions until a human answers | Operational: never influences an outcome | `memoryApprovalStore()` | Postgres, Redis, Durable Objects, PermDock Cloud ([approvals](/docs/adapters/approvals)) |
 | `DecisionSink` | Receive decision events after the fact | Operational | `memorySink()` | OpenTelemetry, SIEMs, a table, PermDock Cloud ([audit](/docs/concepts/audit-and-observability)) |
 | `SnapshotSource` | Distribute and invalidate snapshots | Operational | In-process `snapshot()` | PermDock Cloud, your cache ([snapshots](/docs/concepts/snapshots)) |
-| `LimitStore` | Count usage for `limit` grants | Operational with one exception: an exhausted or unavailable quota denies | `memoryLimitStore()` | Redis, Upstash, Postgres |
+| `ReplayStore` | Remember SET / `logout_token` `jti` values so a replay is dropped | Operational: never a decision input | `memoryReplayStore()` in `permdock/ssf` | Your Redis / KV; `testReplayStore` in `@permdock/testing` |
 | `DecisionProvider` | Answer `decide` for delegated permissions via a remote AuthZEN PDP | Decision path, opt-in, fail-closed | None; local evaluation only | `remotePdp` in `permdock/pdp` |
 | `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/local-first-sync)) |
 | `on(event, handler)` | Observe `decision`, `denied`, `approval`, `auth` events | Observational: cannot change a `Decision` | No-op | Logging, metrics, tests |

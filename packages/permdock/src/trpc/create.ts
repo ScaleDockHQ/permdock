@@ -10,6 +10,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
@@ -27,8 +28,8 @@ export type TrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
 
 export type TrpcMiddleware = AnyTRPCMiddlewareFunction;
 
-export type TrpcPermDockOptions<TCtx = object> = {
-  readonly subject: (opts: TrpcMiddlewareOpts<TCtx>) => unknown;
+export type TrpcPermDockOptions<TCtx = object, TUser = unknown> = {
+  readonly subject: (opts: TrpcMiddlewareOpts<TCtx>) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((
@@ -130,9 +131,13 @@ export function errorFormatter<TShape extends { readonly data: object }>(opts: {
   };
 }
 
-export function createPermDock<TCtx = object>(
-  policy: Policy,
-  options: TrpcPermDockOptions<TCtx>,
+export function createPermDock<
+  TCtx = object,
+  TUser = unknown,
+  TPrincipal extends Principal = Principal,
+>(
+  policy: Policy<TUser, TPrincipal>,
+  options: TrpcPermDockOptions<TCtx, TUser>,
 ): TrpcPermDock<TCtx> {
   const optsByRequest = new WeakMap<Request, TrpcMiddlewareOpts<TCtx>>();
   const requestByCtx = new WeakMap<object, Request>();

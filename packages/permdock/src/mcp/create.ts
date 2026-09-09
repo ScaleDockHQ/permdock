@@ -5,7 +5,11 @@ import type { Decision } from '../core/decision.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { AuthorizationDetail, Delegation } from '../core/subject.ts';
+import type {
+  AuthorizationDetail,
+  Delegation,
+  Principal,
+} from '../core/subject.ts';
 import type {
   GuardedMcpServer,
   McpAuthInfo,
@@ -328,12 +332,12 @@ function snapshotAllows(dock: PermDock, permission: Permission): boolean {
   );
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: McpPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: McpPermDockOptions<TUser>,
 ): McpPermDock {
   const instanceFor = async (authInfo: McpAuthInfo): Promise<PermDock> => {
-    let user: unknown = null;
+    let user: TUser | null = null;
     try {
       user = await options.subject(authInfo);
     } catch {

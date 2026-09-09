@@ -1,11 +1,31 @@
 {
   "name": "permdock",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Typed permissions for TypeScript apps, APIs, databases, and AI agents.",
+  "keywords": [
+    "ai-agents",
+    "authorization",
+    "authzen",
+    "mcp",
+    "permissions",
+    "rbac",
+    "rls",
+    "typescript"
+  ],
+  "homepage": "https://permdock.dev",
+  "bugs": {
+    "url": "https://github.com/ScaleDockHQ/PermDock/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ScaleDockHQ/PermDock.git",
+    "directory": "packages/permdock"
+  },
   "files": [
     "dist",
-    "skills"
+    "skills",
+    "LICENSE"
   ],
   "type": "module",
   "sideEffects": false,
@@ -176,6 +196,10 @@
       "default": "./dist/pdp/index.js"
     }
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsdown",
     "check:publish": "publint && pnpm pack --out pack.tgz && attw --profile esm-only pack.tgz && rm -f pack.tgz",
@@ -220,29 +244,30 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
-    "@anthropic-ai/claude-agent-sdk": "catalog:",
-    "@nestjs/common": "catalog:",
-    "@nestjs/core": "catalog:",
-    "@nestjs/platform-express": "catalog:",
-    "@openai/agents": "catalog:",
-    "@orpc/server": "catalog:",
-    "@trpc/server": "catalog:",
-    "ai": "catalog:",
-    "drizzle-orm": "catalog:",
-    "elysia": "catalog:",
-    "eve": "catalog:",
-    "express": "catalog:",
-    "fastify": "catalog:",
-    "hono": "catalog:",
-    "jose": "catalog:",
-    "kysely": "catalog:",
-    "next": "catalog:",
-    "react": "catalog:",
-    "reflect-metadata": "catalog:",
-    "rxjs": "catalog:",
-    "solid-js": "catalog:",
-    "svelte": "catalog:",
-    "vue": "catalog:"
+    "@anthropic-ai/claude-agent-sdk": "catalog:peers",
+    "@nestjs/common": "catalog:peers",
+    "@nestjs/core": "catalog:peers",
+    "@nestjs/platform-express": "catalog:peers",
+    "@openai/agents": "catalog:peers",
+    "@opentelemetry/api": "catalog:peers",
+    "@orpc/server": "catalog:peers",
+    "@trpc/server": "catalog:peers",
+    "ai": "catalog:peers",
+    "drizzle-orm": "catalog:peers",
+    "elysia": "catalog:peers",
+    "eve": "catalog:peers",
+    "express": "catalog:peers",
+    "fastify": "catalog:peers",
+    "hono": "catalog:peers",
+    "jose": "catalog:peers",
+    "kysely": "catalog:peers",
+    "next": "catalog:peers",
+    "react": "catalog:peers",
+    "reflect-metadata": "catalog:peers",
+    "rxjs": "catalog:peers",
+    "solid-js": "catalog:peers",
+    "svelte": "catalog:peers",
+    "vue": "catalog:peers"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
@@ -312,6 +337,9 @@
       "optional": true
     },
     "vue": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
       "optional": true
     }
   },

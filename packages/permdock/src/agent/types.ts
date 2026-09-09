@@ -15,8 +15,8 @@ export type ToolBinding = {
 
 export type ToolMap = Readonly<Record<string, ToolBinding>>;
 
-export type AgentKernelOptions<TContext> = {
-  readonly subject: (context: TContext) => unknown;
+export type AgentKernelOptions<TContext, TUser = unknown> = {
+  readonly subject: (context: TContext) => TUser | Promise<TUser>;
   readonly actor?: (context: TContext) => unknown;
   readonly tenant?:
     | string

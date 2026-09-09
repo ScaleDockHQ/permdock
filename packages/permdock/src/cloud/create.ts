@@ -7,8 +7,8 @@ import type {
 import type {
   DecisionSink,
   SinkEvent,
+  Snapshot,
   SnapshotSource,
-  SnapshotV2,
 } from '../core/interfaces.ts';
 import type { CloudClient, CloudOptions } from './types.ts';
 
@@ -227,7 +227,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
   };
 
   const snapshots: SnapshotSource = {
-    async get(): Promise<SnapshotV2 | string> {
+    async get(): Promise<Snapshot | string> {
       const response = await request('/snapshot');
       if (!response.ok) {
         throw new Error('PermDock Cloud snapshot request failed');

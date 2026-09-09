@@ -161,7 +161,7 @@ Because the scaffold emits the hook next to `authorize()`, the Postgres policy `
 
 ## Example app
 
-`apps/examples/supabase-rls`: shared with the [RLS adapter](/docs/adapters/rls): a Next.js app using `@supabase/ssr`, `subjectFromSupabase` in `src/permdock/server.ts`, the generated RBAC scaffold as a Supabase migration, `authorize()`-based policies, and `supabase test db` pgTAP files produced by `permdock rls verify --format pgtap`.
+`apps/examples/supabase-rls`: a Hono server on `127.0.0.1:3469`. `GET /health`, `GET /rls/authorize` checks that generated SQL never contains `service_role`, and `PATCH /posts/:id` uses `subjectFromSupabase` with fixed JWT-shaped claims. No live Supabase project.
 
 ## Related standards
 

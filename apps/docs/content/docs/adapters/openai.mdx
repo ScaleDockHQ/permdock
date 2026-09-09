@@ -97,7 +97,7 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 
 ## Example app
 
-`apps/examples/openai-agent`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/openai`, and one `needsApproval` guard on `delete_post`. File-backed `RunState`, `approvalsHandler`, and replay tests land with `tests/e2e`.
+`apps/examples/openai-agent`: HTTP harness on `127.0.0.1:3475` with `GET /health`. `GET /list_posts` calls `needsApproval` and returns `false` (run). `GET /delete_post` returns `true` (pause for approval). No OpenAI API key.
 
 ## Related standards
 

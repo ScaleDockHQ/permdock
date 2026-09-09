@@ -99,10 +99,10 @@ export type Policy<
   readonly roles: readonly Role[];
   readonly rolesByName: ReadonlyMap<string, Role>;
   readonly scopes: PolicyScopes;
-  readonly subject: (user: TUser) => TPrincipal | null;
-  readonly context?: (
+  subject(user: TUser): TPrincipal | null;
+  context?(
     user: TUser,
-  ) =>
+  ):
     | Readonly<Record<string, unknown>>
     | Promise<Readonly<Record<string, unknown>>>;
   readonly validate: ValidateMode;

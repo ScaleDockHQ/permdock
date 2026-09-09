@@ -1,7 +1,7 @@
 import type { Accessor } from 'solid-js';
 
 import type { Decision } from '../core/decision.ts';
-import type { SnapshotV2, TokenVerifier } from '../core/interfaces.ts';
+import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
 import type { Permission } from '../core/permissions.ts';
 import type {
   ApprovalHandle,
@@ -19,7 +19,7 @@ import type {
 export type SolidChild = string | number | boolean | null | undefined;
 
 export type PermDockProviderProps = {
-  readonly snapshot: SnapshotV2 | string;
+  readonly snapshot: Snapshot | string;
   readonly endpoint?: string;
   readonly approvals?: string;
   readonly tenant?: string;

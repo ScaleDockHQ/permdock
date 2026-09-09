@@ -4,10 +4,12 @@ import type { Decision } from '../core/decision.ts';
 import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type {
   GetPermDockQuery,
   NextPermDock,
   NextPermDockOptions,
+  NextSubjectInput,
   ServerPermissionState,
   ServerPermDockProviderProps,
 } from './types.ts';
@@ -77,13 +79,16 @@ function wrapInstance(
   return { ...dock, assert };
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: NextPermDockOptions,
+export function createPermDock<
+  TUser = NextSubjectInput,
+  TPrincipal extends Principal = Principal,
+>(
+  policy: Policy<TUser, TPrincipal>,
+  options: NextPermDockOptions<TUser>,
 ): NextPermDock {
   assertServerOnly();
 
-  const resolveSubject = cache(async (): Promise<unknown> => {
+  const resolveSubject = cache(async (): Promise<TUser | null> => {
     try {
       return await options.subject();
     } catch {

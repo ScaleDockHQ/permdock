@@ -149,8 +149,8 @@ function dbOutcome(result: RlsQueryResult): RlsDbOutcome {
   return count > 0 ? 'allowed' : 'filtered';
 }
 
-export async function rlsParity(
-  policy: Policy,
+export async function rlsParity<TUser>(
+  policy: Policy<TUser>,
   options: RlsParityOptions,
 ): Promise<RlsParityReport> {
   const dialect = options.dialect ?? 'guc';
@@ -159,7 +159,10 @@ export async function rlsParity(
   const role = options.role ?? 'authenticated';
 
   async function runCase(fixture: RlsParityFixture): Promise<RlsParityCase> {
-    const dock = await createPermDock(policy, toSubject(fixture.subject));
+    const dock = await createPermDock(
+      policy,
+      toSubject(fixture.subject) as TUser,
+    );
     const granted =
       fixture.permission.kind === 'collection'
         ? dock.can(

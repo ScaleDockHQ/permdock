@@ -15,6 +15,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
@@ -33,8 +34,8 @@ import { sendReply, toRequest } from './http.ts';
 
 const SKIP_OVERRIDE = Symbol.for('skip-override');
 
-export type FastifyPermDockOptions = {
-  readonly subject: (request: FastifyRequest) => unknown;
+export type FastifyPermDockOptions<TUser = unknown> = {
+  readonly subject: (request: FastifyRequest) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((
@@ -75,9 +76,9 @@ function breakEncapsulation(plugin: FastifyPluginAsync): FastifyPluginAsync {
   return plugin;
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: FastifyPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: FastifyPermDockOptions<TUser>,
 ): FastifyPermDock {
   const contexts = new WeakMap<Request, FastifyRequest>();
   const bound = new WeakMap<FastifyRequest, Request>();

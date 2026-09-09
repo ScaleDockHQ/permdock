@@ -3,7 +3,7 @@ title: OpenID Connect
 description: "Where PermDock sits in an OpenID Connect deployment: the relying party or resource server runs Discovery and verifies the token, permdock/jwt maps the verified claims to a Subject, and every OIDC claim that reaches the principal has one documented home."
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 Phase 1 ships the `discovery` option, the `accept` option and the claim-to-Subject mapping below in [`permdock/jwt`](/docs/adapters/jwt). Phase 3 adds Back-Channel Logout as a revocation input to [`permdock/ssf`](/docs/adapters/ssf). Adapter phases: `permdock/jwt` 1, `permdock/ssf` 3, provider adapters (`supabase`, `clerk`, `better-auth`) 1 for the claims they already expose. Federation, the Enterprise Extensions, IPSIE and Identity Assurance stay on the [watch list](/docs/standards/watch-list).

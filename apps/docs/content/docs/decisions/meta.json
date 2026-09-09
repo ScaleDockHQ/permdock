@@ -36,6 +36,7 @@
     "0033-field-level-grants",
     "0034-quota-grants",
     "0035-gnap-access-and-chain",
-    "0036-arazzo-simulate"
+    "0036-arazzo-simulate",
+    "0037-policy-generics"
   ]
 }

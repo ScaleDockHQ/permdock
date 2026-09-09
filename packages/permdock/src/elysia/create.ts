@@ -10,6 +10,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
@@ -31,8 +32,8 @@ export type ElysiaCtx = {
   readonly params?: Readonly<Record<string, string | undefined>>;
 };
 
-export type ElysiaPermDockOptions = {
-  readonly subject: (ctx: ElysiaCtx) => unknown;
+export type ElysiaPermDockOptions<TUser = unknown> = {
+  readonly subject: (ctx: ElysiaCtx) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((ctx: ElysiaCtx) => string | undefined | Promise<string | undefined>);
@@ -62,9 +63,9 @@ export type ElysiaPermDock = {
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock(
-  policy: Policy,
-  options: ElysiaPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: ElysiaPermDockOptions<TUser>,
 ): ElysiaPermDock {
   const contexts = new WeakMap<Request, ElysiaCtx>();
   const bound = new WeakMap<ElysiaCtx, Request>();

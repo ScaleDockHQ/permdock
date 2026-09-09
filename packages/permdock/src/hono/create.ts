@@ -10,6 +10,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
@@ -19,8 +20,8 @@ import { applyOtel } from '../otel/instrument.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
 import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
 
-export type HonoPermDockOptions = {
-  readonly subject: (c: Context) => unknown;
+export type HonoPermDockOptions<TUser = unknown> = {
+  readonly subject: (c: Context) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((c: Context) => string | undefined | Promise<string | undefined>);
@@ -43,9 +44,9 @@ export type HonoPermDock = {
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock(
-  policy: Policy,
-  options: HonoPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: HonoPermDockOptions<TUser>,
 ): HonoPermDock {
   const contexts = new WeakMap<Request, Context>();
   const tenantOption = options.tenant;

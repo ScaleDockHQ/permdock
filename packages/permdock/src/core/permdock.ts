@@ -12,7 +12,7 @@ import type {
   LimitStore,
   MembershipSource,
   RoleSource,
-  SnapshotV2,
+  Snapshot,
   TokenSigner,
 } from './interfaces.ts';
 import type { Permission } from './permissions.ts';
@@ -147,7 +147,7 @@ export type PermDock = {
     readonly tenants?: 'all';
     readonly signer?: TokenSigner;
     readonly audience?: string | readonly string[];
-  }) => SnapshotV2 | Promise<string>;
+  }) => Snapshot | Promise<string>;
   readonly on: (
     event: 'decision' | 'denied' | 'approval' | 'auth' | 'error',
     handler: (payload: unknown) => void,
@@ -1565,9 +1565,9 @@ function instantiate(
   return build(customRoles);
 }
 
-export function createPermDock(
-  policy: Policy,
-  user: unknown,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  user: TUser | null,
   options: CreatePermDockOptions = {},
 ): PermDock | Promise<PermDock> {
   const auth: AuthEvent[] = [];

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { Decision } from '../core/decision.ts';
-import type { SnapshotV2, TokenVerifier } from '../core/interfaces.ts';
+import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Actor, Delegation, Principal } from '../core/subject.ts';
@@ -59,7 +59,7 @@ export type TenantView = {
 export type FilterResult<T> = readonly T[] & { readonly partial: boolean };
 
 export type PermDockProviderProps = {
-  readonly snapshot: SnapshotV2 | string;
+  readonly snapshot: Snapshot | string;
   readonly endpoint?: string;
   readonly approvals?: string;
   readonly tenant?: string;

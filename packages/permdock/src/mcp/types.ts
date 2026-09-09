@@ -60,8 +60,8 @@ export type GuardedMcpServer<S extends McpServerLike> = S & {
   ) => Promise<readonly { readonly name: string }[]>;
 };
 
-export type McpPermDockOptions = {
-  readonly subject: (authInfo: McpAuthInfo) => unknown;
+export type McpPermDockOptions<TUser = unknown> = {
+  readonly subject: (authInfo: McpAuthInfo) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((

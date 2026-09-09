@@ -10,7 +10,7 @@
 
 Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
 
-> **Status: Phase 1 in progress.** `permdock` core and `@permdock/testing` exist. Adapters, example apps and the TS matrix are remaining Phase 1 work. The packages are not published to npm yet. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
+> **Status: Phase 4 in progress.** Phase 1–3 OSS has shipped (core, surface adapters, CLI, data compilers, providers). Packages version toward `0.1.0`. External AuthZEN certification remains the remaining `1.0` gate. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
 ## Why PermDock
 
@@ -229,7 +229,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 | --- | --- |
 | UI | `permdock/react` `react-vite` [1] · `permdock/react-native` `expo` [2] · `permdock/vue` `vue` [2] · `permdock/svelte` `svelte` [2] · `permdock/solid` `solid` [2] |
 | Full-stack | `permdock/next` `next` [1] |
-| HTTP | `permdock/server` kernel [1] · `permdock/hono` `hono` [1] · `permdock/express` [2] · `permdock/fastify` [2] · `permdock/elysia` [2] · `permdock/nest` [2] · `permdock/node` [2] |
+| HTTP | `permdock/server` kernel [1] · `permdock/hono` `hono` [1] · `permdock/express` `express` [2] · `permdock/fastify` `fastify` [2] · `permdock/elysia` `elysia` [2] · `permdock/nest` `nest` [2] · `permdock/node` [2] |
 | Terminal | `permdock/terminal` `terminal` [2] for your own commander / citty / oclif / yargs / Ink CLI (not `@permdock/cli`) |
 | RPC | `permdock/trpc` `trpc` [2] · `permdock/orpc` `orpc` [2] |
 | Agents | `permdock/mcp` `mcp-server` [2] · `permdock/ai-sdk` `ai-sdk-agent` [1] · `permdock/claude-agent` `claude-agent` [1] · `permdock/eve` `eve-agent` [1] · `permdock/openai` `openai-agent` [1] · `permdock/webmcp` `webmcp` [2] · `permdock/a2a` `a2a-agent` [2] |

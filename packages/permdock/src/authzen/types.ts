@@ -6,6 +6,7 @@ import type {
   SnapshotSource,
 } from '../core/interfaces.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 
 export type AuthzenResourceAdapter = {
   readonly load?: (id: string) => unknown;
@@ -19,8 +20,8 @@ export type AuthzenSubjectRecord = {
   readonly [key: string]: unknown;
 };
 
-export type AuthzenPermDockOptions = {
-  readonly subject: (request: Request) => unknown;
+export type AuthzenPermDockOptions<TUser = unknown> = {
+  readonly subject: (request: Request) => TUser | Promise<TUser>;
   readonly anonymous?: boolean;
   readonly trustedPep?: boolean;
   readonly resources?: Readonly<Record<string, AuthzenResourceAdapter>>;
@@ -41,7 +42,7 @@ export type AuthzenPermDock = {
   readonly handler: (request: Request) => Promise<Response>;
 };
 
-export type AuthzenFactory = (
-  policy: Policy,
-  options: AuthzenPermDockOptions,
+export type AuthzenFactory = <TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: AuthzenPermDockOptions<TUser>,
 ) => AuthzenPermDock;

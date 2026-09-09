@@ -30,6 +30,8 @@ const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).sna
 
 ## Wire format v2
 
+The TypeScript type is `Snapshot`; `v` is the format major.
+
 ```json
 {
   "v": 2,
@@ -148,7 +150,7 @@ A snapshot is a point-in-time view. Three things refresh it:
 
 ## Next.js and Instant Navigations
 
-Next.js 16.3 puts session-derived output in the prefetched App Shell only when it is produced inside `'use cache: private'` with a stale time of at least five minutes ([guide](https://nextjs.org/docs/app/guides/instant-navigation)). The Next.js adapter's `PermDockProvider` reads the snapshot through a resolver you wrap that way, so guards resolve from the shell without blocking, and `tag` gives `updateTag` a handle for invalidation. Anything the snapshot cannot answer streams under Suspense with `status: 'pending'`. The `next` example app ships `@next/playwright` `instant()` tests proving guards never block navigation. See the [Next.js adapter](/docs/adapters/next).
+Next.js 16.3 puts session-derived output in the prefetched App Shell only when it is produced inside `'use cache: private'` with a stale time of at least five minutes ([guide](https://nextjs.org/docs/app/guides/instant-navigation)). The Next.js adapter's `PermDockProvider` reads the snapshot through a resolver you wrap that way, so guards resolve from the shell without blocking, and `tag` gives `updateTag` a handle for invalidation. Anything the snapshot cannot answer streams under Suspense with `status: 'pending'`. The `next` example app smokes granted and denied UI with Playwright. See the [Next.js adapter](/docs/adapters/next).
 
 ## React Native and Expo Router
 

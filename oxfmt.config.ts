@@ -5,6 +5,7 @@ export default oxfmt({
     '**/.agents/**',
     '**/.cursor/**',
     '**/.claude/**',
+    '**/permissions.catalog.json',
     'AGENTS.md',
     'CLAUDE.md',
     'PRODUCT.md',

@@ -22,6 +22,7 @@ export {
   testDecisionSink,
   testLimitStore,
   testDirectoryStore,
+  testReplayStore,
   testMembershipSource,
   testRoleSource,
   testSnapshotSource,

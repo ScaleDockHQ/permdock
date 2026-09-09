@@ -66,8 +66,8 @@ export type A2ATaskOutcome =
       readonly wwwAuthenticate?: string;
     };
 
-export type A2APermDockOptions = {
-  readonly subject: (auth: A2AAuth) => unknown;
+export type A2APermDockOptions<TUser = unknown> = {
+  readonly subject: (auth: A2AAuth) => TUser | Promise<TUser>;
   readonly card: A2ACardInfo;
   readonly securitySchemes: Readonly<Record<string, A2ASecurityScheme>>;
   readonly skills: Readonly<Record<string, A2ASkillConfig>>;

@@ -8,6 +8,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 
 import { createAgentKernel } from '../agent/kernel.ts';
 import { compact } from '../core/compact.ts';
@@ -19,8 +20,8 @@ export type AiSdkContext = {
   readonly [key: string]: unknown;
 };
 
-export type AiSdkPermDockOptions = {
-  readonly subject: (context: AiSdkContext) => unknown;
+export type AiSdkPermDockOptions<TUser = unknown> = {
+  readonly subject: (context: AiSdkContext) => TUser | Promise<TUser>;
   readonly actor?: (context: AiSdkContext) => unknown;
   readonly tenant?:
     | string
@@ -107,9 +108,9 @@ function isToolList(
   return Array.isArray(tools);
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: AiSdkPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: AiSdkPermDockOptions<TUser>,
 ): AiSdkPermDock {
   const kernel = createAgentKernel(policy, {
     ...compact({

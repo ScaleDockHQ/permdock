@@ -1,5 +1,3 @@
-import type { Policy } from 'permdock';
-
 import { run } from '@permdock/cli';
 import { rlsParity } from '@permdock/testing';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
@@ -89,7 +87,7 @@ describe('RLS parity', () => {
       throw new Error('PermDock: tester client was not started');
     }
     const client = tester;
-    const report = await rlsParity(policy as Policy, {
+    const report = await rlsParity(policy, {
       dialect: 'guc',
       fixtures: [
         {

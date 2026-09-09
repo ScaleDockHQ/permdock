@@ -2,7 +2,7 @@
 
 This document is the product overview: what PermDock is, who it is for, what it must do, how it is built and in what order. Detail lives in the documentation tree under [`apps/docs/content/docs`](./apps/docs/content/docs) (Fumadocs-ready MDX) and is linked from each section. When the two disagree, the docs tree wins and this file gets fixed.
 
-Version: Phase 2 in progress (September 2026). Phase 1 shipped core, adapters, skills, examples, the TS matrix, `@permdock/cli` and `tests/e2e` (Hono smoke; `instant()` waits for a bootable Next example). Phase 2 has started with `permdock/mcp`, `permdock/authzen`, `permdock/openapi`, `permdock/react-native`, `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node`, `permdock/trpc`, `permdock/orpc`, `permdock/vue`, `permdock/svelte`, `permdock/solid`, `permdock/terminal`, `permdock/webmcp`, `permdock/a2a`, `permdock/otel` and `permdock/scim`. The Fumadocs app is the first Vercel Service at `/docs`. Nothing is published to npm yet.
+Version: Phase 4 in progress (September 2026). Phase 1–3 OSS has shipped (core, surface adapters, `@permdock/cli`, data compilers, SSF, providers). In-repo AuthZEN conformance covers Basic, Batch, Search and Discovery shapes; **external AuthZEN certification is the remaining 1.0 gate**. The Fumadocs app is the first Vercel Service at `/docs`. Packages version toward `0.1.0`.
 
 ## 1. Vision and positioning
 
@@ -96,19 +96,19 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 - `permdock/approvals` (`ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, `PermDock-Approval` resume header) and `DecisionSink` with `memorySink`.
 - Skills, `AGENTS.md`, `llms.txt`; examples `next`, `react-vite`, `hono`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`; `tests/types` TS matrix. The docs app was scaffolded in Phase 0.
 - `@permdock/cli`: `collect`, `catalog`, `usage`, `doctor`, `skills`; `createPermDockPlugin` (`permdock/next/plugin`) and `createPermDockUnplugin` (`@permdock/cli/unplugin`) as collect-only build hooks.
-- `tests/e2e`: Playwright smoke of the Hono example (granted `PATCH /posts/:id`, denied `POST /posts/:id/publish` as Problem Details). `@next/playwright` `instant()` waits for a bootable Next example.
+- `tests/e2e`: Playwright smoke of every example (granted and denied paths). Plain Playwright; `@next/playwright` `instant()` is not in the pinned Next.js.
 
 **Should (v0.2–0.9, Phases 2–3)**
 
 - `permdock/mcp` (scopeChallenge, EMA, elicitation), `permdock/authzen` full endpoint set + certification run, `permdock/openapi` (3.2 document and Overlay, `--overlay 1.2` with the pinned Overlay 1.2 draft, `--target 3.3` with the pinned Security Profile draft, `x-permdock-` namespace registration), `permdock/react-native`, `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node`, `permdock/trpc`, `permdock/orpc`, `permdock/vue`, `permdock/svelte`, `permdock/solid`, `permdock/terminal`, `permdock/webmcp`, `permdock/a2a`, `permdock/otel`, `permdock/scim` — shipped.
-- CLI `openapi --format overlay --check` plus a Spectral / Redocly / vacuum ruleset file; example per adapter plus `monorepo` and `terminal`; Playwright `instant()` once the Next example is a bootable Next.js 16.3 app.
+- CLI `openapi --format overlay --check` plus a Spectral / Redocly / vacuum ruleset file; example per adapter plus `monorepo` and `terminal`; Playwright e2e per example.
 - Signed decision-batch export (`permdock-decisions+jwt`) as a `DecisionSink` `signer` option (`memorySink({ signer })`, `signDecisionBatch`) — shipped.
 - `permdock/cloud` (shipped optional client: `cloud({ url, key })` → `approvals`, `sink`, `snapshots` over HTTP; never `MembershipSource` / `RoleSource`); PermDock Cloud alpha in the separate `PermDock-Cloud` repo, in order: decision log with access-review queries and signed / OCSF / CSV evidence exports, hosted AuthZEN ADS, approval inbox, hosted SCIM relay replaying into the application's `scimHandler`, integrations catalog (trusted issuers, CAEP transmitters, OTLP, OCSF, CloudEvents webhooks, compliance platforms, Chat SDK delivery, read-only MCP server); Vercel Marketplace listing with `eve-agent` as the template.
 - `permdock.where` compilers for Drizzle, Prisma, Kysely (including `memberOf`) — shipped; `permdock rls generate | import | verify` with membership-table mappings — shipped; `permdock/supabase` (`subjectFromSupabase` with tenant and memberships claims, `authorize()` scaffold) — shipped; async `context` and schema-aware field-level grants (`fields`, `pick`) — shipped; `permdock/ssf` (CAEP receiver plus OIDC Back-Channel Logout `logout_token`) — shipped; `tests/integration` RLS parity suite on Postgres via testcontainers — shipped; examples `supabase-rls`, `drizzle`, `prisma` — shipped.
 
-**Later (v1.0, Phase 4)**
+**Later (v1.0 gate)**
 
-- `permdock/better-auth` (organization and team memberships, `betterAuthRoleSource`), `permdock/clerk` (active organization as tenant, `memberships: 'all'`, custom roles and role sets), `permdock/convex`, `permdock/pdp` (AuthZEN client); quota grants with pluggable `LimitStore`; Web Bot Auth verification; delegation-chain verification and `subjectFromIntrospection` (RFC 7662 / RFC 9767) in `permdock/jwt` (GNAP `access` is evaluated on existing `delegation`, [0035](./apps/docs/content/docs/decisions/0035-gnap-access-and-chain.mdx)); `simulate()` over Arazzo workflows and `permdock arazzo check` ([0036](./apps/docs/content/docs/decisions/0036-arazzo-simulate.mdx)); Nuxt, Astro, React Router, TanStack Start and Effect as collect-only unplugin recipes ([0023](./apps/docs/content/docs/decisions/0023-compose-openapi-ecosystem.mdx)); docs MCP server (`POST /mcp`); docs-site devtools panel. Tracked, not built: GNAP `access` as a new delegation input and a GNAP OpenAPI scheme (name reserved). Every other draft PermDock follows carries a build / name / track posture on the [watch list](./apps/docs/content/docs/standards/watch-list.mdx) ([ADR 0025](./apps/docs/content/docs/decisions/0025-draft-protocol-posture.mdx)).
+Phase 4 OSS (providers, quotas, Web Bot Auth, introspection, Arazzo `simulate`, docs MCP, unplugin recipes) has shipped. `1.0.0` waits on **external AuthZEN certification**; in-repo tests already cover Basic, Batch, Search and Discovery request shapes. Tracked, not built: GNAP `access` as a new delegation input and a GNAP OpenAPI scheme (name reserved). Every other draft PermDock follows carries a build / name / track posture on the [watch list](./apps/docs/content/docs/standards/watch-list.mdx) ([ADR 0025](./apps/docs/content/docs/decisions/0025-draft-protocol-posture.mdx)).
 
 **Non-goals**
 
@@ -142,7 +142,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 | Cloud client | `permdock/cloud` | `eve-agent` | 2 |
 | SCIM receiver (`DirectoryStore`, `directoryMembershipSource`) | `permdock/scim` | `scim` | 2 |
 | SSF / CAEP | `permdock/ssf` | — | 3 |
-| OpenAPI 3.2 (document / Overlay) | `permdock/openapi` | (via `hono`, `orpc`, `trpc`; `next` via next-openapi-gen + Overlay; `monorepo` runs Hey API on the applied doc) | 2 |
+| OpenAPI 3.2 (document / Overlay) | `permdock/openapi` | (via `hono`, `orpc`, `trpc`; `next` via next-openapi-gen + Overlay) | 2 |
 | OpenTelemetry | `permdock/otel` | — | 2 |
 | Drizzle / Prisma / Kysely | `permdock/drizzle` `permdock/prisma` `permdock/kysely` | `drizzle` `prisma` | 3 |
 | RLS | `permdock rls` (CLI) | `supabase-rls` | 3 |
@@ -179,7 +179,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 
 **RLS strategy.** A small portable condition subset round-trips between the app and Postgres (`eq(row.user_id, subject.id)` ↔ `(select auth.uid()) = user_id`); everything else becomes `opaque({ sql, fingerprint })`. Semantics mirror Postgres exactly (read → `SELECT USING`, create → `INSERT WITH CHECK`, update → `USING` + `WITH CHECK`, delete → `DELETE USING`; allow → PERMISSIVE, deny → RESTRICTIVE). Parity is verified per role in a real database. Details: [RLS adapter](./apps/docs/content/docs/adapters/rls.mdx), [RLS research](./apps/docs/content/docs/research/postgres-rls.mdx).
 
-**Next.js 16.3 strategy.** The snapshot resolves from `"use cache: private"` so guards answer from the prefetched App Shell; anything data-dependent streams under Suspense; `updateTag` refreshes prefetches on role change; the example app proves with `@next/playwright` `instant()` that guards never block navigation. Details: [next adapter](./apps/docs/content/docs/adapters/next.mdx), [research](./apps/docs/content/docs/research/nextjs-16-3-instant-navigation.mdx).
+**Next.js 16.3 strategy.** The snapshot resolves from `"use cache: private"` so guards answer from the prefetched App Shell; anything data-dependent streams under Suspense; `updateTag` refreshes prefetches on role change. The example app smokes granted and denied UI with Playwright. Details: [next adapter](./apps/docs/content/docs/adapters/next.mdx), [research](./apps/docs/content/docs/research/nextjs-16-3-instant-navigation.mdx).
 
 **AI-agent strategy.** One `Decision` type is translated into each runtime's approval vocabulary; never `not-applicable`; `approval-required` becomes AI SDK `user-approval`, `WorkflowAgent` `needsApproval`, Eve `"user-approval"`, an OpenAI Agents SDK interruption, MCP elicitation or an HTTP 403 resumed with `PermDock-Approval`; the pending approval lives in a pluggable `ApprovalStore`; `simulate()` pre-flights an agent's plan; denials carry `alternatives`; OWASP ASI02 / ASI03 mitigations are documented feature by feature. Details: [ai-sdk](./apps/docs/content/docs/adapters/ai-sdk.mdx), [claude-agent](./apps/docs/content/docs/adapters/claude-agent.mdx), [eve](./apps/docs/content/docs/adapters/eve.mdx), [openai](./apps/docs/content/docs/adapters/openai.mdx), [approvals](./apps/docs/content/docs/security/approvals.mdx), [owasp-agentic](./apps/docs/content/docs/security/owasp-agentic.mdx).
 
@@ -188,7 +188,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 - **Packages.** `permdock` (umbrella, subpath exports, zero runtime deps except `@standard-schema/spec`), `@permdock/cli` (`oxc-parser`, `pgsql-parser`), `@permdock/testing`.
 - **Language.** TypeScript 5.9 / 6 / 7 in CI; `isolatedDeclarations`, `erasableSyntaxOnly`, `exactOptionalPropertyTypes`; ESM-only; no JSX in shipped `.mjs` (compiled).
 - **Build and lint.** tsdown, Oxlint, Oxfmt; `publint` and `arethetypeswrong` on every package.
-- **Tests.** Vitest unit + type tests (95% coverage on core), Playwright e2e across examples (including `instant()`), testcontainers Postgres for RLS parity and providers, per-entry gzip measurements (`tests/bundle`; baseline set after core ships).
+- **Tests.** Vitest unit + type tests, Playwright e2e across examples, testcontainers Postgres for RLS parity and providers, per-entry gzip measurements (`tests/bundle`; baseline set after core ships).
 - **Repo.** pnpm workspaces + catalogs, Turborepo; `/packages`, `/apps` (docs + examples), `/tests`.
 - **Releases.** Changesets (or Release Please) with conventional commits; every adapter entry has its own changelog section.
 - **Security.** Fail-closed by construction; prototype-safe paths; no `eval` / `new Function`; server-only entries marked and tested against client bundling; `service_role` never emitted; decision endpoint behind real auth. See [threat model](./apps/docs/content/docs/security/threat-model.mdx).
@@ -217,7 +217,7 @@ Detail: [roadmap](./apps/docs/content/docs/roadmap.mdx).
 ## 11. Versioning
 
 - `0.x`: minor versions may change public API only through the RFC-lite process with a migration note; patch versions never do.
-- `1.0`: when Phase 4 lands and AuthZEN certification is achieved; from then on semver strictly, wire formats versioned separately (`snapshot v1`, catalog `$schema` URL).
+- `1.0`: when Phase 4 lands **and** AuthZEN is **externally certified** (in-repo conformance already covers Basic, Batch, Search and Discovery); from then on semver strictly, wire formats versioned separately (`snapshot v1`, catalog `$schema` URL).
 - Subpath entries share the package version; an adapter marked `experimental` in its docs page may change in minors.
 - TypeScript support window: current stable and the two previous majors that the matrix covers (5.9, 6, 7 today).
 

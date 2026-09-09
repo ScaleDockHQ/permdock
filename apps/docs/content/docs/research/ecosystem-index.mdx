@@ -212,6 +212,13 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Payload CMS | CMS with access-control functions returning `Where` | Tracking | [landscape](/docs/research/landscape) |
 | Cloudflare D1, Turso, SQLite | SQLite-family stores | Drizzle `sqlite` dialect; `ApprovalStore` recipe | [approvals adapter](/docs/adapters/approvals) |
 
+## Testing and CI
+
+| Tool | What it is | Mechanism | Owning page |
+| --- | --- | --- | --- |
+| Playwright | Browser and API e2e runner | Recipe (`tests/e2e`, one spec per example) | [Testing adapter](/docs/adapters/testing) |
+| testcontainers | Docker-backed Postgres for RLS parity | Recipe (`pnpm test:integration`) | [Testing adapter](/docs/adapters/testing), [RLS adapter](/docs/adapters/rls) |
+
 ## Distribution channels
 
 | Channel | What it is | Mechanism | Owning page |

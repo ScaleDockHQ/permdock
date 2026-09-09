@@ -1,6 +1,7 @@
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type {
   ConvexCtxLike,
   ConvexHandler,
@@ -38,21 +39,25 @@ function toConvexError(error: unknown): unknown {
   return error;
 }
 
-export function createPermDock<TCtx, TUser>(
-  policy: Policy<TUser>,
-  options: ConvexPermDockOptions<TCtx>,
+export function createPermDock<
+  TCtx,
+  TUser,
+  TPrincipal extends Principal = Principal,
+>(
+  policy: Policy<TUser, TPrincipal>,
+  options: ConvexPermDockOptions<TCtx, TUser>,
 ): ConvexPermDock<TCtx> {
   const withPermDock = <TArgs, TResult>(
     handler: ConvexHandler<TCtx, TArgs, TResult>,
   ): ((ctx: TCtx, args: TArgs) => Promise<TResult>) => {
     return async (ctx: TCtx, args: TArgs): Promise<TResult> => {
-      let user: unknown = null;
+      let user: TUser | null = null;
       try {
         user = await options.subject(ctx);
       } catch {
         user = null;
       }
-      const dock = await createCore(policy as Policy, user);
+      const dock = await createCore(policy, user);
       const next = { ...ctx, permdock: dock } as ConvexPermDockCtx<TCtx> & {
         readonly permdock: PermDock;
       };

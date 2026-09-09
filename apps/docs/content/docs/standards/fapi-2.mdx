@@ -3,7 +3,7 @@ title: FAPI 2.0 Security Profile
 description: "What the FAPI 2.0 Security Profile requires of a resource server and how permdock/jwt with profile: 'fapi2' and the OpenAPI emitter enforce those requirements before a permission check runs."
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 Phase 1 ships `subjectFromJwt(token, { profile: 'fapi2' })` in `permdock/jwt`. Phase 2 ships the `x-permdock-securityProfile` extension in `permdock openapi`. Adapter phases: `permdock/jwt` 1, `permdock/openapi` 2. Grant Management is tracking only.

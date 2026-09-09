@@ -18,6 +18,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
@@ -34,8 +35,8 @@ import { problemResponse } from '../server/problem.ts';
 import { InvalidSignatureError } from '../server/web-bot-auth.ts';
 import { sendResponse, toRequest } from './http.ts';
 
-export type ExpressPermDockOptions = {
-  readonly subject: (req: Request) => unknown;
+export type ExpressPermDockOptions<TUser = unknown> = {
+  readonly subject: (req: Request) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((req: Request) => string | undefined | Promise<string | undefined>);
@@ -71,9 +72,9 @@ function run(work: () => Promise<void>, next: (err?: unknown) => void): void {
   work().catch(next);
 }
 
-export function createPermDock(
-  policy: Policy,
-  options: ExpressPermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: ExpressPermDockOptions<TUser>,
 ): ExpressPermDock {
   const contexts = new WeakMap<globalThis.Request, Request>();
   const bound = new WeakMap<Request, globalThis.Request>();

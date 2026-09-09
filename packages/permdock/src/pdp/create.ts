@@ -7,7 +7,7 @@ import type {
 } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Membership, Subject } from '../core/subject.ts';
+import type { Membership, Principal, Subject } from '../core/subject.ts';
 import type { PdpPermDock } from './types.ts';
 
 import { isArazzoSimulateInput } from '../core/arazzo.ts';
@@ -23,18 +23,24 @@ import { freezeDeep } from '../core/freeze.ts';
 import { createPermDock as createCore } from '../core/permdock.ts';
 import { getResource } from '../core/permissions.ts';
 
-function withoutProviders(policy: Policy): Policy {
+function withoutProviders<TUser, TPrincipal extends Principal>(
+  policy: Policy<TUser, TPrincipal>,
+): Policy<TUser, TPrincipal> {
   if (policy.providers === undefined || policy.providers.length === 0) {
     return policy;
   }
   return freezeDeep(
-    compact<Policy>({
+    compact<Policy<TUser, TPrincipal>>({
       permissions: policy.permissions,
       roles: policy.roles,
       rolesByName: policy.rolesByName,
       scopes: policy.scopes,
-      subject: policy.subject,
-      context: policy.context,
+      subject(user) {
+        return policy.subject(user);
+      },
+      context(user) {
+        return policy.context?.(user);
+      },
       validate: policy.validate,
       onDenied: policy.onDenied,
       fingerprint: policy.fingerprint,
@@ -275,9 +281,12 @@ function wrap(
   };
 }
 
-export async function createPermDock(
-  policy: Policy,
-  user: unknown,
+export async function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+>(
+  policy: Policy<TUser, TPrincipal>,
+  user: TUser | null,
   options: CreatePermDockOptions = {},
 ): Promise<PdpPermDock> {
   const localPolicy = withoutProviders(policy);

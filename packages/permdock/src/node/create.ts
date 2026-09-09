@@ -10,6 +10,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { Guard, OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
@@ -24,8 +25,8 @@ import {
   type NodeRequest,
 } from './http.ts';
 
-export type NodePermDockOptions = {
-  readonly subject: (req: NodeRequest) => unknown;
+export type NodePermDockOptions<TUser = unknown> = {
+  readonly subject: (req: NodeRequest) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | ((req: NodeRequest) => string | undefined | Promise<string | undefined>);
@@ -54,9 +55,9 @@ export type NodePermDock = {
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock(
-  policy: Policy,
-  options: NodePermDockOptions,
+export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
+  policy: Policy<TUser, TPrincipal>,
+  options: NodePermDockOptions<TUser>,
 ): NodePermDock {
   const contexts = new WeakMap<globalThis.Request, NodeRequest>();
   const bound = new WeakMap<IncomingMessage, globalThis.Request>();

@@ -41,7 +41,7 @@ app.delete(
 
 ## React (Vite) — `permdock/react`
 
-No factory. The server builds a snapshot (`permdock.snapshot()` or `fromSnapshot` on a Snapshot v2 JSON) and the client wraps the tree:
+No factory. The server builds a snapshot (`permdock.snapshot()` or `fromSnapshot` on snapshot JSON) and the client wraps the tree:
 
 ```ts
 import { PermDockProvider, Protected, usePermission } from 'permdock/react';
@@ -489,8 +489,6 @@ export const { getPermDock } = createPermDock(policy, {
 
 Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API.
 
-## Planned adapters
-
 ## Convex — `permdock/convex`
 
 ```ts
@@ -506,7 +504,57 @@ export const { withPermDock, snapshotQuery } = createPermDock(policy, {
 
 Identity comes from `ctx` only. Function arguments never influence the subject. `assert` becomes a ConvexError with RFC 9457 Problem Details.
 
-## Planned adapters
+## Approvals — `permdock/approvals`
+
+```ts
+import { approvalsHandler, memoryApprovalStore } from 'permdock/approvals';
+
+const store = memoryApprovalStore();
+export const { GET, POST } = approvalsHandler({
+  store,
+  decide,
+  subject: fromSession,
+});
+```
+
+Pass `store` into every adapter `createPermDock`. Resume HTTP with `PermDock-Approval`.
+
+## JWT — `permdock/jwt`
+
+```ts
+import { subjectFromJwt } from 'permdock/jwt';
+
+const subject = await subjectFromJwt(token, {
+  discovery: 'https://issuer.example.com',
+  audience: 'https://api.example.com',
+});
+```
+
+`jose` is an optional peer. Failures become the anonymous subject, never a throw.
+
+## Drizzle / Prisma / Kysely
+
+```ts
+import { toWhere } from 'permdock/drizzle'; // or permdock/prisma, permdock/kysely
+const where = toWhere(dock.where(permissions.post.list), posts);
+```
+
+Prisma also exports `permdockExtension`. Kysely also exports `withSubject`. Prisma is structurally typed (no peer).
+
+## Supabase — `permdock/supabase`
+
+```ts
+import { subjectFromSupabase, authorizeSql } from 'permdock/supabase';
+
+const subject = subjectFromSupabase(claims, {
+  roles: 'user_role',
+  tenant: 'tenant_id',
+  memberships: 'memberships',
+  declared: ['member', 'admin'],
+});
+```
+
+No `@supabase/supabase-js` peer. Pair with `permdock rls generate`.
 
 ## Remote PDP — `permdock/pdp`
 
@@ -531,9 +579,7 @@ Use `createPermDock` from `permdock/pdp` when `providers` is set. Core `can` / `
 
 Nuxt, Astro, React Router, TanStack Start and Effect have no `permdock/<name>` entry. Add `createPermDockUnplugin.vite()` from `@permdock/cli/unplugin` (or `.webpack` / `.esbuild`). Runtime is `permdock/server` or the matching HTTP adapter, plus `permdock/vue`, `permdock/react` or `permdock/svelte` on the client. Effect Schema is a Standard Schema; Effect HttpApi uses Overlay, not a hook.
 
-## Planned adapters
-
-Phase 3 data adapters and `permdock/ssf` ship. Phase 4 `better-auth`, `clerk`, `convex` and `pdp` ship. Remaining Phase 4 work follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+Remaining work follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
 
 ```bash
 pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql

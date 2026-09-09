@@ -5,7 +5,7 @@ import type {
   DenialReason,
   MatchedGrant,
 } from './decision.ts';
-import type { SnapshotGrant, SnapshotV2 } from './interfaces.ts';
+import type { Snapshot, SnapshotGrant } from './interfaces.ts';
 import type { DecideOptions, PermDock, WhereResult } from './permdock.ts';
 import type { Permission } from './permissions.ts';
 import type { Membership, Principal, Subject } from './subject.ts';
@@ -40,10 +40,7 @@ function isRowPair(
   );
 }
 
-function coveredByInclude(
-  snapshot: SnapshotV2,
-  permission: Permission,
-): boolean {
+function coveredByInclude(snapshot: Snapshot, permission: Permission): boolean {
   const include = snapshot.include;
   if (include === undefined || include.length === 0) {
     return true;
@@ -65,7 +62,7 @@ function rowId(data: unknown): string {
 }
 
 function subjectFromSnapshot(
-  snapshot: SnapshotV2,
+  snapshot: Snapshot,
   tenant: string | undefined,
 ): Subject {
   const principal = snapshot.subject.principal;
@@ -193,7 +190,7 @@ function conditionOk(
 }
 
 function evaluateSnapshot(
-  snapshot: SnapshotV2,
+  snapshot: Snapshot,
   subject: Subject,
   permission: Permission,
   data: unknown,
@@ -341,7 +338,7 @@ function heldRoles(subject: Subject, tenant: string | undefined): string[] {
 }
 
 function whereFromSnapshot(
-  snapshot: SnapshotV2,
+  snapshot: Snapshot,
   permission: Permission,
 ): WhereResult {
   const grants = snapshot.grants.filter(
@@ -380,7 +377,7 @@ function whereFromSnapshot(
 }
 
 export function fromSnapshot(
-  snapshot: SnapshotV2,
+  snapshot: Snapshot,
   options: { readonly tenant?: string; readonly team?: string } = {},
 ): PermDock {
   const subject = subjectFromSnapshot(snapshot, options.tenant);
@@ -490,7 +487,7 @@ export function fromSnapshot(
         readonly memberships?: readonly Membership[];
         readonly tenant?: string;
       };
-      const next: SnapshotV2 = freezeDeep({
+      const next: Snapshot = freezeDeep({
         ...snapshot,
         simulated: true as const,
         subject: {
@@ -498,7 +495,7 @@ export function fromSnapshot(
           principal:
             snapshot.subject.principal === null
               ? null
-              : compact<NonNullable<SnapshotV2['subject']['principal']>>({
+              : compact<NonNullable<Snapshot['subject']['principal']>>({
                   ...snapshot.subject.principal,
                   roles: preview.roles ?? snapshot.subject.principal.roles,
                   memberships:
@@ -542,7 +539,7 @@ export function fromSnapshot(
   return Object.freeze(instance);
 }
 
-export function emptySnapshot(): SnapshotV2 {
+export function emptySnapshot(): Snapshot {
   return freezeDeep({
     v: 2 as const,
     issuedAt: 0,

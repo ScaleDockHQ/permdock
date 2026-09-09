@@ -74,7 +74,7 @@ query({
 
 ## Example app
 
-`apps/examples/claude-agent`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/claude-agent`, and one `canUseTool` guard on `delete_post`. Hosted `query` with Bash/Read/Write and replay tests land with `tests/e2e`.
+`apps/examples/claude-agent`: HTTP harness on `127.0.0.1:3473` with `GET /health`. `GET /list_posts` calls `canUseTool` and returns `behavior: 'allow'`. `GET /delete_post` returns `null` so the SDK `PermissionRequest` hook can ask a human. No Anthropic API key.
 
 ## Related standards
 
