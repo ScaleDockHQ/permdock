@@ -13,7 +13,7 @@ const claims = {
 };
 
 async function dockForMember() {
-  return  createPermDock(
+  const dock = await createPermDock(
     policy,
     subjectFromSupabase(claims, {
       roles: 'user_role',
@@ -22,6 +22,7 @@ async function dockForMember() {
       declared: ['member', 'admin'],
     }),
   );
+  return dock;
 }
 
 export const app = new Hono();

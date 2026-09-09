@@ -35,10 +35,10 @@ function withoutProviders<TUser, TPrincipal extends Principal>(
       roles: policy.roles,
       rolesByName: policy.rolesByName,
       scopes: policy.scopes,
-      subject(user) {
+      subject(user: TUser) {
         return policy.subject(user);
       },
-      context(user) {
+      context(user: TUser) {
         return policy.context?.(user);
       },
       validate: policy.validate,

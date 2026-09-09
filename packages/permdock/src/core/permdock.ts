@@ -1567,7 +1567,7 @@ function instantiate(
 
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
-  user: TUser | null,
+  user: TUser | Subject | null,
   options: CreatePermDockOptions = {},
 ): PermDock | Promise<PermDock> {
   const auth: AuthEvent[] = [];

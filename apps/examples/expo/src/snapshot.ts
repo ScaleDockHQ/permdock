@@ -8,7 +8,7 @@ function memberSnapshotValue(): Snapshot {
     throw new TypeError('expected sync createPermDock');
   }
   const snapshot = dock.snapshot();
-  if (typeof snapshot === 'string') {
+  if (snapshot instanceof Promise || typeof snapshot === 'string') {
     throw new TypeError('expected JSON snapshot');
   }
   return snapshot;
