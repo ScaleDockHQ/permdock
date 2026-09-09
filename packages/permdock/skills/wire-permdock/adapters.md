@@ -504,7 +504,28 @@ Identity comes from `ctx` only. Function arguments never influence the subject. 
 
 ## Planned adapters
 
-Phase 3 data adapters and `permdock/ssf` ship. Phase 4 `better-auth`, `clerk` and `convex` ship; `pdp` follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+## Remote PDP — `permdock/pdp`
+
+```ts
+import { createPermDock, remotePdp } from 'permdock/pdp';
+
+const policy = definePolicy(permissions, {
+  roles: [member],
+  subject: (user) => user && { id: user.id, roles: user.roles },
+  providers: [
+    remotePdp({ url: process.env.PDP_URL, auth: { bearer: () => token } }),
+  ],
+});
+
+const permdock = await createPermDock(policy, user);
+await permdock.can(permissions.post.read, post);
+```
+
+Use `createPermDock` from `permdock/pdp` when `providers` is set. Core `can` / `decide` stay synchronous and deny delegated permissions with `pdp-unavailable`.
+
+## Planned adapters
+
+Phase 3 data adapters and `permdock/ssf` ship. Phase 4 `better-auth`, `clerk`, `convex` and `pdp` ship. Remaining Phase 4 work follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
 
 ```bash
 pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql

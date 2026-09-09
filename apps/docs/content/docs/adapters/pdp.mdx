@@ -3,7 +3,7 @@ title: Remote PDP
 description: The permdock/pdp provider is an AuthZEN policy enforcement point client that asks a remote decision point such as Cerbos, Topaz, Keycloak, Axiomatics, PlainID or OPA, maps requests and responses to PermDock decisions, fails closed on anything unknown, and bridges to OpenFGA or SpiceDB relation graphs.
 ---
 
-Status: planned
+Status: shipped
 Phase: 4
 
 `permdock/pdp` lets a PermDock instance defer some or all decisions to a remote Policy Decision Point that speaks the OpenID AuthZEN Authorization API. The same typed references, `Decision` outcomes, adapters and audit apply; only the source of truth moves. It is the mirror image of [permdock/authzen](/docs/adapters/authzen), which makes PermDock the PDP.
@@ -15,8 +15,7 @@ Organisations that already run a central PDP (Cerbos, Topaz, Keycloak, Axiomatic
 ## API
 
 ```ts
-import { createPermDock } from 'permdock'
-import { remotePdp } from 'permdock/pdp'
+import { createPermDock, remotePdp } from 'permdock/pdp'
 
 export const policy = definePolicy(permissions, {
   roles: [member, admin],                       // local grants still apply
@@ -87,8 +86,6 @@ None. The [authzen-pdp example](/docs/adapters/authzen) runs a second process th
 
 ## Open questions
 
-- `remotePdp` and the `providers` option on `definePolicy` are proposed shapes; the plan names the provider and its AuthZEN client role only.
-- Cache semantics: whether a positive decision may be cached at all, and how SSF events should purge the cache per subject.
-- Intersection rule: whether a local unconditional `allow` should be able to skip the remote call for a delegated permission (current: no).
+- Cache semantics: whether SSF events should purge the cache per subject. Successful decisions may be cached for `cache.ttl`; unavailability is never cached.
 - OpenFGA and SpiceDB presets need a tuple mapping DSL or a callback per permission; the callback is the minimal choice.
 - Whether PermDock should verify AuthZEN certification of the remote PDP at startup or only rely on discovery.

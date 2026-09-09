@@ -197,6 +197,12 @@ function evaluateGrantCondition(grant, permission, current, next, subject, now) 
 	}
 	return { matched: true };
 }
+function isDelegatedPermission(policy, permission) {
+	const providers = policy.providers;
+	if (providers === void 0 || providers.length === 0) return false;
+	for (const provider of providers) if (provider.handles(permission)) return true;
+	return false;
+}
 function evaluate(policy, subject, permission, data, options, env) {
 	const now = options.now ?? nowSeconds();
 	const trusted = options.trusted ?? true;
@@ -237,6 +243,19 @@ function evaluate(policy, subject, permission, data, options, env) {
 			return decision;
 		}
 		throw error;
+	}
+	if (isDelegatedPermission(policy, permission)) {
+		const decision = freezeDeep({
+			outcome: "denied",
+			denials: [{
+				role: null,
+				reason: "pdp-unavailable",
+				detail: "use permdock/pdp createPermDock"
+			}],
+			alternatives: []
+		});
+		finish(policy, subject, permission, current, decision, options, env, trusted);
+		return decision;
 	}
 	if (subject.principal === null) {
 		const decision = freezeDeep({

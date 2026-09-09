@@ -66,6 +66,7 @@ export default defineConfig({
     'src/better-auth/index.ts',
     'src/clerk/index.ts',
     'src/convex/index.ts',
+    'src/pdp/index.ts',
   ],
   platform: 'neutral',
   dts: true,

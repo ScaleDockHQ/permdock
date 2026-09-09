@@ -1,9 +1,7 @@
 import { r as AuthorizationDetail } from "../subject-BcgWbogX.js";
-import { o as Policy } from "../policy-CIG-jCsG.js";
-import { r as Permission } from "../permissions-CkmCCiYs.js";
+import { C as MembershipSource, D as SnapshotSource, K as Permission, o as Policy, w as RoleSource, y as DecisionSink } from "../policy-DdqgAkJT.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
-import { i as ProblemDetails } from "../errors-DqNnUqxw.js";
-import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BPpihPRB.js";
+import { i as ProblemDetails } from "../errors-CmNELVVa.js";
 //#region src/a2a/types.d.ts
 type A2AAuth = {
   readonly clientId?: string;

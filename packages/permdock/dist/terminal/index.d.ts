@@ -1,11 +1,8 @@
 import { d as Subject } from "../subject-BcgWbogX.js";
-import { o as Policy } from "../policy-CIG-jCsG.js";
-import { r as Permission } from "../permissions-CkmCCiYs.js";
+import { C as MembershipSource, K as Permission, R as Decision, o as Policy, w as RoleSource, y as DecisionSink } from "../policy-DdqgAkJT.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
-import { n as Decision } from "../decision-CH_azeep.js";
-import { i as ProblemDetails } from "../errors-DqNnUqxw.js";
-import { c as RoleSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BPpihPRB.js";
-import { r as PermDock } from "../permdock-BHYt07KR.js";
+import { i as ProblemDetails } from "../errors-CmNELVVa.js";
+import { r as PermDock } from "../permdock-CaK4qAlv.js";
 //#region src/terminal/types.d.ts
 type TokenSourceName = "device" | "keychain" | "env" | "ci-oidc";
 type TokenSource = TokenSourceName | {

@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
+import type { DecisionProvider } from './interfaces.ts';
 import type { Principal } from './subject.ts';
 
 import {
@@ -108,6 +109,7 @@ export type Policy<
   readonly onDenied?: (decision: unknown) => never | void;
   readonly fingerprint: string;
   readonly resources: ReadonlyMap<string, ResourceNode>;
+  readonly providers?: readonly DecisionProvider[];
 };
 
 function isClosure(value: unknown): value is ClosureGrantFn {
@@ -339,6 +341,7 @@ export function definePolicy<TUser, TPrincipal extends Principal>(
       | Promise<Readonly<Record<string, unknown>>>;
     readonly validate?: ValidateMode;
     readonly onDenied?: (decision: unknown) => never | void;
+    readonly providers?: readonly DecisionProvider[];
   },
 ): Policy<TUser, TPrincipal> {
   const resources = getRegistry(permissions);
@@ -377,6 +380,7 @@ export function definePolicy<TUser, TPrincipal extends Principal>(
     onDenied: options.onDenied,
     fingerprint,
     resources,
+    providers: options.providers,
   }) as Policy<TUser, TPrincipal>;
 }
 

@@ -1,5 +1,4 @@
-import { r as Permission } from "./permissions-CkmCCiYs.js";
-import "./decision-CH_azeep.js";
+import { K as Permission } from "./policy-DdqgAkJT.js";
 //#region src/agent/types.d.ts
 type ToolBinding = {
   readonly permission: Permission;

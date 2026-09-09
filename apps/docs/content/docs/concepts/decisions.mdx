@@ -64,6 +64,9 @@ if (decision.outcome === 'granted') {
 | `limit` | Quota exhausted (Later) |
 | `validation` | Boundary validation failed ([validation](/docs/concepts/validation)) |
 | `unknown-role` | A role name on the principal or a membership is not declared |
+| `pdp-denied` | The remote PDP answered `decision: false` |
+| `pdp-unavailable` | The remote PDP timed out, returned a non-2xx, or `createPermDock` from core was used for a delegated permission |
+| `pdp-invalid-response` | The remote body was not an AuthZEN evaluation response |
 | `tenant-mismatch`, `no-membership`, `scope`, `expired-membership` | Tenancy misses ([tenancy](/docs/concepts/tenancy)) |
 
 This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant.

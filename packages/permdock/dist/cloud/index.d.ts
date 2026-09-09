@@ -1,5 +1,5 @@
+import { D as SnapshotSource, y as DecisionSink } from "../policy-DdqgAkJT.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
-import { d as SnapshotSource, r as DecisionSink } from "../interfaces-BPpihPRB.js";
 //#region src/cloud/types.d.ts
 type CloudOptions = {
   readonly url?: string;

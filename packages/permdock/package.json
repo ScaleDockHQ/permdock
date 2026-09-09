@@ -170,6 +170,10 @@
     "./convex": {
       "types": "./dist/convex/index.d.ts",
       "default": "./dist/convex/index.js"
+    },
+    "./pdp": {
+      "types": "./dist/pdp/index.d.ts",
+      "default": "./dist/pdp/index.js"
     }
   },
   "scripts": {

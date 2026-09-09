@@ -19,7 +19,10 @@ export type DenialReason =
   | 'scope'
   | 'expired-membership'
   | 'unknown-role'
-  | 'approval';
+  | 'approval'
+  | 'pdp-denied'
+  | 'pdp-unavailable'
+  | 'pdp-invalid-response';
 
 export type Denial = {
   readonly role: string | null;
@@ -33,6 +36,7 @@ export type MatchedGrant = {
   readonly where?: Grant['where'];
   readonly check?: Grant['check'];
   readonly approval?: 'human';
+  readonly provider?: string;
 };
 
 export type GrantedDecision = {

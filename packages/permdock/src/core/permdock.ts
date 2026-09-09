@@ -397,6 +397,22 @@ type EvalEnv = {
   readonly team: string | undefined;
 };
 
+function isDelegatedPermission(
+  policy: Policy,
+  permission: Permission,
+): boolean {
+  const providers = policy.providers;
+  if (providers === undefined || providers.length === 0) {
+    return false;
+  }
+  for (const provider of providers) {
+    if (provider.handles(permission)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function evaluate(
   policy: Policy,
   subject: Subject,
@@ -468,6 +484,31 @@ function evaluate(
       return decision;
     }
     throw error;
+  }
+
+  if (isDelegatedPermission(policy, permission)) {
+    const decision: Decision = freezeDeep({
+      outcome: 'denied',
+      denials: [
+        {
+          role: null,
+          reason: 'pdp-unavailable',
+          detail: 'use permdock/pdp createPermDock',
+        },
+      ],
+      alternatives: [],
+    });
+    finish(
+      policy,
+      subject,
+      permission,
+      current,
+      decision,
+      options,
+      env,
+      trusted,
+    );
+    return decision;
   }
 
   if (subject.principal === null) {

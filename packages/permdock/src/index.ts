@@ -27,6 +27,7 @@ export { memoryRoleSource } from './core/interfaces.ts';
 export type {
   AuthEvent,
   DecisionEvent,
+  DecisionProvider,
   DecisionSink,
   DirectoryEvent,
   LimitStore,

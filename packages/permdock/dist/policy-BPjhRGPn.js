@@ -303,7 +303,8 @@ function definePolicy(permissions, options) {
 		validate: options.validate ?? "boundary",
 		onDenied: options.onDenied,
 		fingerprint,
-		resources
+		resources,
+		providers: options.providers
 	});
 }
 //#endregion

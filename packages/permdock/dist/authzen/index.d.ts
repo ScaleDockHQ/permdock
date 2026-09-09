@@ -1,6 +1,5 @@
-import { o as Policy } from "../policy-CIG-jCsG.js";
+import { C as MembershipSource, D as SnapshotSource, o as Policy, w as RoleSource, y as DecisionSink } from "../policy-DdqgAkJT.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
-import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BPpihPRB.js";
 //#region src/authzen/types.d.ts
 type AuthzenResourceAdapter = {
   readonly load?: (id: string) => unknown;

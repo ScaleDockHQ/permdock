@@ -1,4 +1,6 @@
 import type { Condition } from '../conditions/ast.ts';
+import type { Decision } from './decision.ts';
+import type { Permission } from './permissions.ts';
 import type {
   CustomRole,
   JsonWebKeyLike,
@@ -6,6 +8,17 @@ import type {
   Principal,
   Subject,
 } from './subject.ts';
+
+export type DecisionProvider = {
+  readonly name: string;
+  handles(permission: Permission): boolean;
+  decide(request: {
+    readonly permission: Permission;
+    readonly data?: unknown;
+    readonly subject: Subject;
+    readonly local: Decision;
+  }): Promise<Decision>;
+};
 
 export type RoleSource = {
   rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>;

@@ -1,9 +1,5 @@
 import { d as Subject, l as Membership, o as Delegation, t as Actor } from "./subject-BcgWbogX.js";
-import { t as Condition } from "./ast-CBlbaSg1.js";
-import { o as Policy } from "./policy-CIG-jCsG.js";
-import { r as Permission } from "./permissions-CkmCCiYs.js";
-import { n as Decision } from "./decision-CH_azeep.js";
-import { c as RoleSource, f as SnapshotV2, h as TokenSigner, n as DecisionEvent, r as DecisionSink, s as MembershipSource } from "./interfaces-BPpihPRB.js";
+import { C as MembershipSource, K as Permission, O as SnapshotV2, R as Decision, _ as DecisionEvent, at as Condition, j as TokenSigner, o as Policy, w as RoleSource, y as DecisionSink } from "./policy-DdqgAkJT.js";
 //#region src/core/describe.d.ts
 type DecisionDescription = {
   readonly kind: "granted" | "denied" | "approval" | "tenant" | "delegation" | "server-only";

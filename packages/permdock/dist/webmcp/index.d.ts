@@ -1,6 +1,4 @@
-import { a as PermissionTree, r as Permission } from "../permissions-CkmCCiYs.js";
-import { n as Decision } from "../decision-CH_azeep.js";
-import { f as SnapshotV2 } from "../interfaces-BPpihPRB.js";
+import { J as PermissionTree, K as Permission, O as SnapshotV2, R as Decision } from "../policy-DdqgAkJT.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/webmcp/types.d.ts
 type WebMcpClientStatus = "ready" | "pending" | "stale" | "server-only";

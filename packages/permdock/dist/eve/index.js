@@ -1,7 +1,7 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as isApprovalError } from "../errors-BQyxzFvZ.js";
 import { c as memoryApprovalStore, i as resolveApproval } from "../helpers-Ce24VOuf.js";
-import { t as createAgentKernel } from "../kernel-DGng0YWC.js";
+import { t as createAgentKernel } from "../kernel-BohQsLsL.js";
 //#region src/eve/create.ts
 function serverRoles(attributes) {
 	const roles = attributes?.roles;
