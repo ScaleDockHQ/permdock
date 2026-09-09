@@ -1,6 +1,6 @@
 import { l as Membership } from "./subject-BcgWbogX.js";
-import { B as Decision, J as Permission } from "./policy-CrXDbTAD.js";
-import { a as FilterResult, c as PermissionState, d as TenantView, f as UseRolesOptions, l as ProtectedProps, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "./types-CU2jqoe7.js";
+import { B as Decision, J as Permission } from "./policy-btMlTuxm.js";
+import { a as FilterResult, c as PermissionState, d as TenantView, f as UseRolesOptions, l as ProtectedProps, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "./types-D4Vi3oam.js";
 import { ReactNode } from "react";
 //#region src/react/hooks.d.ts
 declare function usePermDock(): ClientPermDock;

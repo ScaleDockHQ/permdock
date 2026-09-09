@@ -1,6 +1,6 @@
-import { J as Permission, o as Policy } from "../policy-CrXDbTAD.js";
-import { i as ProblemDetails, n as PermDockDeniedError } from "../errors-VFloA7GW.js";
-import { r as PermDock } from "../permdock-DlRpl_Uu.js";
+import { J as Permission, o as Policy } from "../policy-btMlTuxm.js";
+import { i as ProblemDetails, n as PermDockDeniedError } from "../errors-BQ3WJ6qi.js";
+import { r as PermDock } from "../permdock-hQcUhnDS.js";
 //#region src/convex/types.d.ts
 type ConvexCtxLike = {
   readonly auth?: {

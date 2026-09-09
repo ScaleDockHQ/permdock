@@ -150,6 +150,54 @@ describe('createPermDock', () => {
     expect(await signed).toBe('signed.jws');
   });
 
+  it('intersects GNAP access with principal grants', async () => {
+    const covered = await createPermDock(policy, {
+      principal: { id: 'u1', roles: ['admin'] },
+      context: {},
+      delegation: {
+        access: [
+          {
+            type: 'https://api.example.com/resources/post',
+            actions: ['read', 'publish'],
+            identifier: 'p1',
+          },
+        ],
+      },
+    });
+    expect(covered.can(permissions.post.read, ownPost)).toBe(true);
+    expect(covered.can(permissions.post.publish, ownPost)).toBe(true);
+    const update = covered.decide(permissions.post.update, ownPost);
+    expect(update.outcome).toBe('denied');
+    if (update.outcome === 'denied') {
+      expect(update.denials[0]?.reason).toBe('not-delegated');
+    }
+    const other = covered.decide(permissions.post.read, {
+      ...ownPost,
+      id: 'p9',
+    });
+    expect(other.outcome).toBe('denied');
+    if (other.outcome === 'denied') {
+      expect(other.denials[0]?.reason).toBe('not-delegated');
+    }
+    const stringRef = await createPermDock(policy, {
+      principal: { id: 'u1', roles: ['admin'] },
+      context: {},
+      delegation: { access: ['post:read'] },
+    });
+    expect(stringRef.can(permissions.post.read, ownPost)).toBe(true);
+    expect(stringRef.can(permissions.post.publish, ownPost)).toBe(false);
+    const emptyAccess = await createPermDock(policy, {
+      principal: { id: 'u1', roles: ['admin'] },
+      context: {},
+      delegation: { access: [] },
+    });
+    const denied = emptyAccess.decide(permissions.post.read, ownPost);
+    expect(denied.outcome).toBe('denied');
+    if (denied.outcome === 'denied') {
+      expect(denied.denials[0]?.reason).toBe('no-delegation');
+    }
+  });
+
   it('intersects delegation scopes', async () => {
     const permdock = await createPermDock(policy, {
       principal: { id: 'u1', roles: ['admin'] },

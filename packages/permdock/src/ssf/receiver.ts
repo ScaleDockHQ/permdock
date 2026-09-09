@@ -79,6 +79,7 @@ function errForCause(cause: TokenFailureCause): string {
     case 'sender-constraint-required':
     case 'token-in-query':
     case 'invalid-claims':
+    case 'invalid-chain':
     case 'jwks-unavailable':
     case 'discovery-unavailable':
     case 'discovery-mismatch':

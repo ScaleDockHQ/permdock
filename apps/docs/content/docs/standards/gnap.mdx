@@ -7,7 +7,7 @@ Status: tracking
 Phase: 4
 Draft posture: name (RFC 9635 itself is final; the OpenAPI security scheme for GNAP has no Initiative text, so `permdock/openapi` reserves the `gnap` scheme kind and emits nothing, per [ADR 0025](/docs/decisions/0025-draft-protocol-posture))
 
-PermDock follows GNAP but ships no GNAP-specific adapter. The `access` rights format is accepted as a third delegation input (`delegation.access`); evaluating it in the delegation intersection lands in Phase 4 alongside delegation-chain verification. Adapter phases: [`permdock/jwt`](/docs/adapters/jwt) maps an `access` claim (the JWT mapping defined by RFC 9767) onto `delegation.access` from Phase 1, and until Phase 4 those entries contribute nothing (fail closed); `subjectFromIntrospection`, reading the same array from an RFC 9767 introspection response, is Phase 4. See the [watch list](/docs/standards/watch-list).
+PermDock follows GNAP but ships no GNAP-specific adapter. The `access` rights format is a third field on existing `delegation` (`delegation.access`), intersected with principal grants ([0035](/docs/decisions/0035-gnap-access-and-chain)); it is not a new unsigned input path. Adapter phases: [`permdock/jwt`](/docs/adapters/jwt) maps an `access` claim (the JWT mapping defined by RFC 9767) onto `delegation.access` and `subjectFromIntrospection` maps the same array from an RFC 7662 or RFC 9767 introspection response. `scheme.type: 'gnap'` stays reserved and emits nothing. See the [watch list](/docs/standards/watch-list).
 
 ## What it is
 
@@ -44,7 +44,7 @@ RFC 9635 makes "no assumptions or demands on the format or contents of the acces
 
 | RFC 9767 element | What it carries | PermDock reading |
 | --- | --- | --- |
-| Token introspection (section 3.3): the RS POSTs `access_token`, optional `proof`, optional `access` (the minimum rights the request needs) to the AS, signed with the RS's own key | Response with `active`, and when active: `access` (REQUIRED; section 8 format, possibly filtered for this RS, possibly empty), `key` (REQUIRED when the token is bound, absent for bearer tokens), `flags`, `exp`, `iat`, `nbf`, `aud`, `sub`, `iss` (the grant endpoint URL), `instance_id` | `subjectFromIntrospection` (Phase 4): `sub` becomes `principal.id`, `iss` becomes `principal.issuer`, `instance_id` becomes `actor.id`, `access` becomes `delegation.access`, `key` becomes `binding`. An AS that cannot process part of the request MUST NOT report the token as active, so an inactive answer is the anonymous subject |
+| Token introspection (section 3.3): the RS POSTs `access_token`, optional `proof`, optional `access` (the minimum rights the request needs) to the AS, signed with the RS's own key | Response with `active`, and when active: `access` (REQUIRED; section 8 format, possibly filtered for this RS, possibly empty), `key` (REQUIRED when the token is bound, absent for bearer tokens), `flags`, `exp`, `iat`, `nbf`, `aud`, `sub`, `iss` (the grant endpoint URL), `instance_id` | `subjectFromIntrospection`: `sub` becomes `principal.id`, `iss` becomes `principal.issuer`, `instance_id` becomes `actor.id`, `access` becomes `delegation.access`, `key` becomes `binding`. An AS that cannot process part of the request MUST NOT report the token as active, so an inactive answer is the anonymous subject |
 | JWT-formatted access tokens (the general-purpose token model, section 2.1, and formats, section 2.2) | RFC 9767 gives a JWT mapping for each item of its token model: the AS as `iss`, the audience as `aud`, the bound key as `cnf` (RFC 7800), the rights as an `access` claim, the client instance as `client_id`, the resource owner as `sub`, plus `exp`, `iat`, `nbf`, `jti` | `subjectFromJwt(token, { delegation: { access: 'access' } })` today; the `cnf` reading is the same one `sender: 'dpop'` and `'mtls'` already perform |
 | Token format negotiation (`token_formats_supported` in the RS-facing discovery document, section 3.1) | Which token formats the AS can issue for this RS; the registry (section 5.3) lists `jwt-signed`, `jwt-encrypted`, `macaroon`, `biscuit` and `zcap` | PermDock consumes `jwt-signed`; `jwt-encrypted` follows the JWE posture on the [JWT adapter](/docs/adapters/jwt); the other formats are out of scope and yield `malformed` |
 | Registering a resource set (section 3.4) | The RS tells the AS which `access` objects it serves and receives a reference string for the set | The catalog's stable resource `type` URIs are what an RS would register; see the open questions |
@@ -67,7 +67,7 @@ The contingent one is that if GNAP is adopted, tokens carrying `access` arrays w
 | `actions` | Action keys on that resource (`update` in `post.update`); an action not defined on the resource contributes nothing |
 | `identifier` | A resource-id condition, intersected with the grant's `where`; a decision on a different id is `denied` with reason `not-delegated` |
 | `locations` | Ignored by policy (PermDock does not know its own public URL) but recorded on the `on('decision')` event for audit |
-| `datatypes` | Field allow-list on the delegated permission, same as grant `fields` ([0033](/docs/decisions/0033-field-level-grants)); ignored until GNAP `access` is evaluated |
+| `datatypes` | Field allow-list on the delegated permission, same as grant `fields` ([0033](/docs/decisions/0033-field-level-grants)); recorded and ignored until the mapping is decided |
 | `privileges` | A hint that the AS may have mapped the right to a role; recorded in audit, never used to add roles to the principal |
 | Reference string | Matched against `permission.scope`, exactly like `delegation.scopes` |
 | Union across the array | Union of delegated permissions, before intersection with the principal's grants |
@@ -80,7 +80,7 @@ The contingent one is that if GNAP is adopted, tokens carrying `access` arrays w
 | Continuation (section 5) | Retrying the check with the approval `token`; polling maps to the client re-asking `decide` |
 | Token rotation and revocation (section 6) | A CAEP `session-revoked` or `token-claims-change` event through [`permdock/ssf`](/docs/adapters/ssf) invalidates the snapshot |
 | Subject information (section 3.4) | Input to the policy's `subject` function; never read from the token body without verification |
-| Introspection response `access`, `key`, `sub`, `iss`, `instance_id` (RFC 9767 section 3.3) | `subjectFromIntrospection` in `permdock/jwt` (Phase 4): the same subject shape as a verified JWT (`instance_id` plays the role of the JWT `client_id`), with `active: false` producing the anonymous subject |
+| Introspection response `access`, `key`, `sub`, `iss`, `instance_id` (RFC 9767 section 3.3) | `subjectFromIntrospection` in `permdock/jwt`: the same subject shape as a verified JWT (`instance_id` plays the role of the JWT `client_id`), with `active` other than `true` producing the anonymous subject |
 
 ### `delegation.access`
 
@@ -108,7 +108,7 @@ GNAP makes the human-in-the-loop step a first-class protocol state: the AS tells
 ## Why tracking
 
 - None of the identity vendors PermDock has provider adapters for ships a GNAP authorization server. The production GNAP deployment that exists is the Interledger Foundation's [Open Payments API](https://openpayments.dev/), which the OpenAPI Initiative's June 2026 newsletter features; OAuth 2.0 with RAR, DPoP and token exchange covers the same ground everywhere else and is what MCP, the AI SDK providers and the identity vendors implement.
-- The `access` format is close enough to RAR that supporting it is a small addition to the delegation intersection, not an adapter; it lands with delegation-chain verification in Phase 4.
+- The `access` format is close enough to RAR that supporting it is a small addition to the delegation intersection, not an adapter ([0035](/docs/decisions/0035-gnap-access-and-chain)).
 - PermDock will not ship a GNAP client. Negotiating grants, managing continuation handles and rotating tokens is client and AS work; PermDock consumes the resulting token's `access` array and nothing else, exactly as it consumes OAuth tokens without running OAuth flows.
 
 The row on the [watch list](/docs/standards/watch-list) is reviewed each release. Triggers for promoting GNAP from tracking to planned are a major identity vendor shipping a GNAP AS, or MCP or A2A adopting GNAP as an alternative authorization mechanism. A separate trigger applies to the OpenAPI posture below: the Interledger Foundation SDK Grant programme is funding Henry Andrews to add GNAP as a Security Scheme to the OpenAPI Specification, with a TypeScript implementation for Microsoft's Kiota generator alongside it, so a `v3.3-dev` pull request with a concrete scheme shape is expected rather than hypothetical.
@@ -145,5 +145,5 @@ GNAP's draft posture in OpenAPI is **name** ([ADR 0025](/docs/decisions/0025-dra
 ## Open questions
 
 - Whether PermDock's catalog should publish its resource `type` URIs in a discoverable document so an AS can validate `access` requests against them, or whether the OpenAPI document is that document. RFC 9767 section 3.4 (registering the resource set an RS serves) is the protocol slot such a document would feed.
-- How `datatypes` maps onto grant `fields` when GNAP `access` is evaluated (Phase 4).
+- How `datatypes` maps onto grant `fields`. `type`, `actions` and `identifier` are already intersected ([0035](/docs/decisions/0035-gnap-access-and-chain)).
 - Whether `privileges` should ever influence a decision (for example, as an extra constraint that the principal must hold the named role) or stay audit-only.

@@ -71,57 +71,6 @@ async function verify(request, claims, accessToken) {
 	}
 }
 //#endregion
-//#region src/jwt/signer.ts
-const SIGNING_ALGS = /* @__PURE__ */ new Set([
-	"ES256",
-	"PS256",
-	"Ed25519",
-	"RS256"
-]);
-function isRecord(value) {
-	return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-function publicJwk(key) {
-	const { d: _d, p: _p, q: _q, dp: _dp, dq: _dq, qi: _qi, k: _k, ...pub } = key;
-	return pub;
-}
-function joseTokenSigner(options) {
-	if (options.alg === "HS256" || options.alg === "EdDSA") throw new Error("PermDock: joseTokenSigner refuses HS* and polymorphic EdDSA on outputs.");
-	if (!SIGNING_ALGS.has(options.alg)) throw new Error(`PermDock: unsupported signing alg '${options.alg}'.`);
-	if (options.kid.length === 0) throw new Error("PermDock: joseTokenSigner requires kid.");
-	const importKey = async () => {
-		if (options.key instanceof Uint8Array) throw new TypeError("PermDock: HMAC keys cannot sign PermDock outputs.");
-		return (await loadJose()).importJWK(options.key, options.alg);
-	};
-	return {
-		kid: options.kid,
-		sign(payload, signOptions) {
-			return signJwt(payload, signOptions);
-		},
-		jwks() {
-			if (isRecord(options.key)) return Promise.resolve({ keys: [publicJwk(options.key)] });
-			return Promise.resolve({ keys: [] });
-		}
-	};
-	async function signJwt(payload, signOptions) {
-		const jose = await loadJose();
-		const key = await importKey();
-		const now = Math.floor(Date.now() / 1e3);
-		const jwt = new jose.SignJWT({ ...payload });
-		jwt.setProtectedHeader({
-			alg: options.alg,
-			kid: options.kid,
-			typ: signOptions.typ
-		});
-		jwt.setIssuedAt(now);
-		jwt.setJti(globalThis.crypto.randomUUID());
-		if (options.issuer !== void 0) jwt.setIssuer(options.issuer);
-		if (signOptions.audience !== void 0) jwt.setAudience(signOptions.audience);
-		jwt.setExpirationTime(signOptions.expiresAt ?? now + 3600);
-		return jwt.sign(key);
-	}
-}
-//#endregion
 //#region src/jwt/map-claims.ts
 const DEFAULT_CLAIMS = {
 	id: "sub",
@@ -214,26 +163,33 @@ function membershipsFromClaim(value) {
 	}
 	return out;
 }
+function isActObject(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 function actorFromAct(claims, options) {
 	const configured = options.actor;
 	if (typeof configured === "function") {
 		const actor = configured(claims);
-		return actor === void 0 ? void 0 : {
+		return actor === void 0 ? { status: "absent" } : {
+			status: "ok",
 			actor,
 			chain: claims.act
 		};
 	}
-	if (configured !== void 0 && configured.from !== "act") return;
+	if (configured !== void 0 && configured.from !== "act") return { status: "absent" };
+	if (!Object.hasOwn(claims, "act") || claims.act === void 0) return { status: "absent" };
 	const act = claims.act;
-	if (act === null || typeof act !== "object" || Array.isArray(act)) return;
+	if (!isActObject(act)) return { status: "invalid" };
 	let current = act;
 	let innermost = act;
-	while (current !== null && typeof current === "object" && !Array.isArray(current) && "act" in current) {
+	while (isActObject(current) && Object.hasOwn(current, "act")) {
 		current = current.act;
-		if (current !== null && typeof current === "object" && !Array.isArray(current)) innermost = current;
+		if (!isActObject(current)) return { status: "invalid" };
+		innermost = current;
 	}
-	if (typeof innermost.sub !== "string") return;
+	if (typeof innermost.sub !== "string" || innermost.sub.length === 0) return { status: "invalid" };
 	return {
+		status: "ok",
 		actor: compact({
 			id: innermost.sub,
 			kind: configured?.kind ?? "oauth-client"
@@ -279,7 +235,8 @@ function mapClaimsToSubject(claims, options) {
 	const id = readPath(claims, idPath);
 	if (typeof id !== "string" || id.length === 0) return {
 		subject: anonymousSubject(),
-		invalidClaims: false
+		invalidClaims: false,
+		invalidChain: false
 	};
 	const tenantPath = paths?.tenant;
 	const tenant = tenantPath === void 0 ? void 0 : readPath(claims, tenantPath);
@@ -322,6 +279,11 @@ function mapClaimsToSubject(claims, options) {
 	}
 	const binding = bindingOf(claims);
 	const act = actorFromAct(claims, options);
+	if (act.status === "invalid") return {
+		subject: anonymousSubject(),
+		invalidClaims: false,
+		invalidChain: true
+	};
 	const principal = freezeDeep(compact({
 		id,
 		issuer: typeof claims.iss === "string" ? claims.iss : options.issuer,
@@ -330,10 +292,10 @@ function mapClaimsToSubject(claims, options) {
 		memberships: memberships.length > 0 ? memberships : void 0,
 		tenant: activeTenant,
 		assurance: assuranceOf(claims, paths),
-		binding: act === void 0 ? binding : void 0,
+		binding: act.status === "absent" ? binding : void 0,
 		claims: Object.keys(extra).length === 0 ? void 0 : extra
 	}));
-	const actor = act === void 0 ? void 0 : freezeDeep(compact({
+	const actor = act.status === "absent" ? void 0 : freezeDeep(compact({
 		...act.actor,
 		binding
 	}));
@@ -346,12 +308,13 @@ function mapClaimsToSubject(claims, options) {
 		subject: freezeDeep(compact({
 			principal,
 			actor,
-			delegation: options.accept === "id-token" ? void 0 : delegationOf(claims, options, act?.chain),
+			delegation: options.accept === "id-token" ? void 0 : delegationOf(claims, options, act.status === "ok" ? act.chain : void 0),
 			context: {},
 			session: typeof sessionValue === "string" ? sessionValue : void 0,
 			expiresAt
 		})),
-		invalidClaims
+		invalidClaims,
+		invalidChain: false
 	};
 }
 function acceptMismatch(claims, headerTyp, options, audience) {
@@ -370,6 +333,142 @@ function acceptMismatch(claims, headerTyp, options, audience) {
 		if (claims.aud !== expected && typ !== "at+jwt") return true;
 	}
 	return false;
+}
+//#endregion
+//#region src/jwt/introspection.ts
+function emitAuth$1(options, cause) {
+	if (options.onAuth === void 0) return;
+	options.onAuth(compact({
+		reason: "invalid-token",
+		cause,
+		source: "jwt",
+		issuer: options.issuer,
+		requestId: options.requestId
+	}));
+}
+function isRecord$1(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function keyToCnf(key) {
+	if (!isRecord$1(key)) return;
+	if (isRecord$1(key.jwk)) return { jwk: key.jwk };
+	return { jwk: key };
+}
+function introspectionToClaims(body) {
+	const cnf = keyToCnf(body.key);
+	return compact({
+		sub: typeof body.sub === "string" ? body.sub : void 0,
+		iss: typeof body.iss === "string" ? body.iss : void 0,
+		aud: body.aud,
+		exp: typeof body.exp === "number" ? body.exp : void 0,
+		iat: typeof body.iat === "number" ? body.iat : void 0,
+		nbf: typeof body.nbf === "number" ? body.nbf : void 0,
+		jti: typeof body.jti === "string" ? body.jti : void 0,
+		scope: typeof body.scope === "string" ? body.scope : void 0,
+		authorization_details: body.authorization_details,
+		access: body.access,
+		client_id: typeof body.client_id === "string" ? body.client_id : void 0,
+		roles: body.roles,
+		groups: body.groups,
+		entitlements: body.entitlements,
+		sid: typeof body.sid === "string" ? body.sid : void 0,
+		acr: typeof body.acr === "string" ? body.acr : void 0,
+		amr: body.amr,
+		auth_time: body.auth_time,
+		act: body.act,
+		cnf
+	});
+}
+function instanceActor(body) {
+	const id = typeof body.instance_id === "string" ? body.instance_id : typeof body.client_id === "string" ? body.client_id : void 0;
+	if (id === void 0) return;
+	return {
+		id,
+		kind: "oauth-client"
+	};
+}
+function attachActor(subject, body, binding) {
+	if (subject.actor !== void 0) return subject;
+	const actor = instanceActor(body);
+	if (actor === void 0) return subject;
+	const principal = subject.principal;
+	if (principal === null) return subject;
+	return freezeDeep({
+		...subject,
+		principal: freezeDeep(compact({
+			...principal,
+			binding: void 0
+		})),
+		actor: freezeDeep(compact({
+			...actor,
+			binding
+		}))
+	});
+}
+function subjectFromIntrospection(response, options = {}) {
+	try {
+		if (!isRecord$1(response) || response.active !== true) return anonymousSubject();
+		const mapped = mapClaimsToSubject(introspectionToClaims(response), options);
+		if (mapped.invalidChain) {
+			emitAuth$1(options, "invalid-chain");
+			return anonymousSubject();
+		}
+		if (mapped.subject.principal === null) return anonymousSubject();
+		return attachActor(mapped.subject, response, mapped.subject.principal.binding);
+	} catch {
+		return anonymousSubject();
+	}
+}
+//#endregion
+//#region src/jwt/signer.ts
+const SIGNING_ALGS = /* @__PURE__ */ new Set([
+	"ES256",
+	"PS256",
+	"Ed25519",
+	"RS256"
+]);
+function isRecord(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function publicJwk(key) {
+	const { d: _d, p: _p, q: _q, dp: _dp, dq: _dq, qi: _qi, k: _k, ...pub } = key;
+	return pub;
+}
+function joseTokenSigner(options) {
+	if (options.alg === "HS256" || options.alg === "EdDSA") throw new Error("PermDock: joseTokenSigner refuses HS* and polymorphic EdDSA on outputs.");
+	if (!SIGNING_ALGS.has(options.alg)) throw new Error(`PermDock: unsupported signing alg '${options.alg}'.`);
+	if (options.kid.length === 0) throw new Error("PermDock: joseTokenSigner requires kid.");
+	const importKey = async () => {
+		if (options.key instanceof Uint8Array) throw new TypeError("PermDock: HMAC keys cannot sign PermDock outputs.");
+		return (await loadJose()).importJWK(options.key, options.alg);
+	};
+	return {
+		kid: options.kid,
+		sign(payload, signOptions) {
+			return signJwt(payload, signOptions);
+		},
+		jwks() {
+			if (isRecord(options.key)) return Promise.resolve({ keys: [publicJwk(options.key)] });
+			return Promise.resolve({ keys: [] });
+		}
+	};
+	async function signJwt(payload, signOptions) {
+		const jose = await loadJose();
+		const key = await importKey();
+		const now = Math.floor(Date.now() / 1e3);
+		const jwt = new jose.SignJWT({ ...payload });
+		jwt.setProtectedHeader({
+			alg: options.alg,
+			kid: options.kid,
+			typ: signOptions.typ
+		});
+		jwt.setIssuedAt(now);
+		jwt.setJti(globalThis.crypto.randomUUID());
+		if (options.issuer !== void 0) jwt.setIssuer(options.issuer);
+		if (signOptions.audience !== void 0) jwt.setAudience(signOptions.audience);
+		jwt.setExpirationTime(signOptions.expiresAt ?? now + 3600);
+		return jwt.sign(key);
+	}
 }
 //#endregion
 //#region src/jwt/subject.ts
@@ -474,6 +573,10 @@ async function resolveSubject(token, options, request) {
 		}
 	}
 	const mapped = mapClaimsToSubject(verified.claims, options);
+	if (mapped.invalidChain) {
+		emitAuth(options, "invalid-chain", token);
+		return anonymousSubject();
+	}
 	if (mapped.subject.principal === null) {
 		emitAuth(options, "invalid-claims", token);
 		return anonymousSubject();
@@ -482,4 +585,4 @@ async function resolveSubject(token, options, request) {
 	return extraMemberships(options, mapped.subject, mapped.subject.principal.tenant);
 }
 //#endregion
-export { createJwtSubjectResolver, joseTokenSigner, joseTokenVerifier, subjectFromJwt, verifyDpopProof };
+export { createJwtSubjectResolver, joseTokenSigner, joseTokenVerifier, subjectFromIntrospection, subjectFromJwt, verifyDpopProof };

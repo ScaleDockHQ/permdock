@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { memberUser, policy } from '../fixtures/quick-start.ts';
 import { createPermDock } from '../index.ts';
 import { verifyDpopProof } from './dpop.ts';
+import { subjectFromIntrospection } from './introspection.ts';
 import { joseTokenSigner } from './signer.ts';
 import { createJwtSubjectResolver, subjectFromJwt } from './subject.ts';
 import { joseTokenVerifier } from './verifier.ts';
@@ -644,6 +645,98 @@ describe('configuration and remaining causes', () => {
       { tenant: 'o_1', roles: ['owner'] },
       { tenant: 'o_2', roles: ['guest'] },
     ]);
+  });
+
+  it('rejects a claimed act chain that does not nest', async () => {
+    const events: { readonly cause?: string }[] = [];
+    const token = await accessToken({ act: { iss: 'https://as.example' } });
+    const subject = await subjectFromJwt(token, {
+      jwks: PUBLIC_JWKS,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      sender: 'none',
+      onAuth: (event) => {
+        events.push(event);
+      },
+    });
+    expect(subject.principal).toBeNull();
+    expect(events[0]?.cause).toBe('invalid-chain');
+  });
+
+  it('maps a nested act chain to the innermost actor', async () => {
+    const token = await accessToken({
+      act: { sub: 'edge', act: { sub: 'inner-agent' } },
+    });
+    const subject = await subjectFromJwt(token, {
+      jwks: PUBLIC_JWKS,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      sender: 'none',
+    });
+    expect(subject.actor).toMatchObject({
+      id: 'inner-agent',
+      kind: 'oauth-client',
+    });
+    expect(subject.delegation?.chain).toEqual({
+      sub: 'edge',
+      act: { sub: 'inner-agent' },
+    });
+  });
+
+  it('maps JWT access onto delegation.access', async () => {
+    const token = await accessToken({
+      access: [{ type: 'post', actions: ['read'] }],
+    });
+    const subject = await subjectFromJwt(token, {
+      jwks: PUBLIC_JWKS,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      sender: 'none',
+    });
+    expect(subject.delegation?.access).toEqual([
+      { type: 'post', actions: ['read'] },
+    ]);
+  });
+});
+
+describe('subjectFromIntrospection', () => {
+  it('maps RFC 9767 active responses and never throws', () => {
+    const subject = subjectFromIntrospection({
+      active: true,
+      sub: 'u_1',
+      iss: ISSUER,
+      instance_id: 'inst_9',
+      access: [{ type: 'post', actions: ['read'] }],
+      key: { proof: 'httpsig', jwk: { kty: 'OKP', crv: 'Ed25519' } },
+    });
+    expect(subject.principal?.id).toBe('u_1');
+    expect(subject.principal?.issuer).toBe(ISSUER);
+    expect(subject.actor).toMatchObject({
+      id: 'inst_9',
+      kind: 'oauth-client',
+    });
+    expect(subject.actor?.binding).toEqual({
+      jwk: { kty: 'OKP', crv: 'Ed25519' },
+    });
+    expect(subject.delegation?.access).toEqual([
+      { type: 'post', actions: ['read'] },
+    ]);
+    expect(
+      subjectFromIntrospection({ active: false, sub: 'u_1' }).principal,
+    ).toBeNull();
+    expect(subjectFromIntrospection('nope').principal).toBeNull();
+  });
+
+  it('maps RFC 7662 scope and client_id', () => {
+    const subject = subjectFromIntrospection({
+      active: true,
+      sub: 'u_1',
+      iss: ISSUER,
+      scope: 'post:read post:update',
+      client_id: 'app',
+    });
+    expect(subject.delegation?.scopes).toEqual(['post:read', 'post:update']);
+    expect(subject.actor).toEqual({ id: 'app', kind: 'oauth-client' });
   });
 });
 

@@ -1,5 +1,5 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
-import { t as createPermDock$1 } from "../permdock-DT_a99MP.js";
+import { t as createPermDock$1 } from "../permdock-BPNx0tvD.js";
 import { o as listPermissions } from "../permissions-WEkUHQtZ.js";
 import { c as PROBLEM_BASE, d as validationProblem, t as applyApprovalResume, u as problemResponse } from "../evaluations-04mKRGwn.js";
 import { a as evaluationRow, c as pageOf, d as permissionOf, f as resourceData, h as userFromEntity, i as endsWithPath, l as paged, m as tenantOf, n as actorOf, o as isRecord, p as resourceIdOf, r as delegationOf, s as mergeItem, t as UNKNOWN, u as pathnameOf } from "../map-BA2lzIVj.js";

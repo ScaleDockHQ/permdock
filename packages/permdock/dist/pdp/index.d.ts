@@ -1,6 +1,6 @@
 import { d as Subject } from "../subject-BcgWbogX.js";
-import { B as Decision, J as Permission, X as PermissionTree, o as Policy, v as DecisionProvider } from "../policy-CrXDbTAD.js";
-import { n as DecideOptions, r as PermDock, t as CreatePermDockOptions } from "../permdock-DlRpl_Uu.js";
+import { B as Decision, J as Permission, X as PermissionTree, o as Policy, v as DecisionProvider } from "../policy-btMlTuxm.js";
+import { n as DecideOptions, r as PermDock, t as CreatePermDockOptions } from "../permdock-hQcUhnDS.js";
 //#region src/pdp/types.d.ts
 type RemotePdpAuth = {
   readonly bearer: string | (() => string | Promise<string>);

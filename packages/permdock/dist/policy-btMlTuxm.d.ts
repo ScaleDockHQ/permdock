@@ -182,7 +182,7 @@ type JwtClaims = {
   readonly iat?: number;
   readonly [key: string]: unknown;
 };
-type TokenFailureCause = "invalid-signature" | "expired" | "not-yet-valid" | "wrong-audience" | "wrong-issuer" | "wrong-token-type" | "alg-not-allowed" | "alg-none" | "unknown-kid" | "malformed" | "encrypted-token" | "dpop-proof-invalid" | "mtls-binding-mismatch" | "sender-constraint-required" | "token-in-query" | "invalid-claims" | "jwks-unavailable" | "discovery-unavailable" | "discovery-mismatch";
+type TokenFailureCause = "invalid-signature" | "expired" | "not-yet-valid" | "wrong-audience" | "wrong-issuer" | "wrong-token-type" | "alg-not-allowed" | "alg-none" | "unknown-kid" | "malformed" | "encrypted-token" | "dpop-proof-invalid" | "mtls-binding-mismatch" | "sender-constraint-required" | "token-in-query" | "invalid-claims" | "invalid-chain" | "jwks-unavailable" | "discovery-unavailable" | "discovery-mismatch";
 type VerifiedToken<TClaims extends JwtClaims = JwtClaims> = {
   readonly ok: true;
   readonly claims: TClaims;

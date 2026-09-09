@@ -1,4 +1,4 @@
-import { A as SnapshotV2, B as Decision, J as Permission, X as PermissionTree } from "../policy-CrXDbTAD.js";
+import { A as SnapshotV2, B as Decision, J as Permission, X as PermissionTree } from "../policy-btMlTuxm.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/webmcp/types.d.ts
 type WebMcpClientStatus = "ready" | "pending" | "stale" | "server-only";

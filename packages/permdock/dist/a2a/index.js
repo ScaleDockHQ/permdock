@@ -1,6 +1,6 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
-import { t as createPermDock$1 } from "../permdock-DT_a99MP.js";
+import { t as createPermDock$1 } from "../permdock-BPNx0tvD.js";
 //#region src/a2a/create.ts
 function isRecord(value) {
 	return value !== null && typeof value === "object" && !Array.isArray(value);

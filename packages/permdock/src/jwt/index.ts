@@ -1,4 +1,5 @@
 export { verifyDpopProof } from './dpop.ts';
+export { subjectFromIntrospection } from './introspection.ts';
 export { joseTokenSigner } from './signer.ts';
 export { createJwtSubjectResolver, subjectFromJwt } from './subject.ts';
 export type {

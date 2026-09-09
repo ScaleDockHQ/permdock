@@ -59,6 +59,7 @@ export type TokenFailureCause =
   | 'sender-constraint-required'
   | 'token-in-query'
   | 'invalid-claims'
+  | 'invalid-chain'
   | 'jwks-unavailable'
   | 'discovery-unavailable'
   | 'discovery-mismatch';

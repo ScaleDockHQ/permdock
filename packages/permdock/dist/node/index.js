@@ -1,7 +1,7 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 import { i as discoverViaSignatureAgent, r as InvalidSignatureError } from "../evaluations-04mKRGwn.js";
-import { t as createPermDock$1 } from "../create-D_4aH9ul.js";
+import { t as createPermDock$1 } from "../create-q024YbJD.js";
 import { i as toRequest, n as isServerResponse, r as sendResponse, t as fromResponse } from "../http-kYphIx9F.js";
 //#region src/node/create.ts
 function createPermDock(policy, options) {

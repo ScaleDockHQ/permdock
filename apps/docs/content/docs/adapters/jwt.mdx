@@ -69,7 +69,7 @@ const subject = await subjectFromJwt(token, {
 | `verifyDpopProof(request, claims)` | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: proof signature, `htm` / `htu` match, `iat` window, `ath` hash of the access token. Returns `{ ok: true }` or `{ ok: false, cause }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere. |
 | `joseTokenVerifier(options)` | The built-in `TokenVerifier`: `jwks` or `discovery`, `algorithms`, `typ`, `audience`, `clockTolerance`, `decryptionKeys`. Exported so `permdock/ssf`, `permdock/cloud` and your own code verify PermDock's signed outputs and SETs with the same rules ([extension interfaces](/docs/concepts/extension-interfaces)). |
 | `joseTokenSigner({ key, alg, kid })` | The built-in `TokenSigner`: signs a payload as compact JWS with a registered `typ`. Used by `permdock.snapshot({ signer })`, `approvalsHandler({ signer })` and `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)). |
-| `subjectFromIntrospection(response, options)` | Phase 4. Maps an RFC 9767 introspection response (`active`, `access`, `key`, `sub`, `iss`, `instance_id`) to the same `Subject` shape; `active: false` is anonymous. The HTTP call to the introspection endpoint is yours ([GNAP](/docs/standards/gnap)). |
+| `subjectFromIntrospection(response, options)` | Maps an RFC 7662 or RFC 9767 introspection response (`active`, `access` / `scope`, `key`, `sub`, `iss`, `instance_id` / `client_id`) to the same `Subject` shape; `active` other than `true` is anonymous. The HTTP call to the introspection endpoint is yours ([GNAP](/docs/standards/gnap), [0035](/docs/decisions/0035-gnap-access-and-chain)). |
 
 Option notes:
 
@@ -85,7 +85,7 @@ Option notes:
 - `claims.session` fills `subject.session` from `sid` so a later Back-Channel Logout `logout_token` or CAEP `session-revoked` event can be matched to the snapshot ([SSF adapter](/docs/adapters/ssf)).
 - `schema` (any Standard Schema) validates the claims that are not covered by `claims.*` before they become `principal.claims`; an invalid claim set drops `claims`, never the subject, and reports cause `invalid-claims` on `on('auth')`.
 - `memberships` (a `MembershipSource`) supplements the token with memberships from your tables for issuers that carry none; it runs after verification with the verified `sub`.
-- `actor.from: 'act'` takes the innermost `act.sub` as `actor.id` and stores the full nesting as `delegation.chain`. `actor.kind` is `'oauth-client'` by default and `'mcp-client'` when the resolver runs inside `permdock/mcp`, the one value the MCP adapter uses for its own actors; there is no other `kind` for `act`-derived actors. A function receives the verified claims and returns an `Actor` or `undefined`.
+- `actor.from: 'act'` takes the innermost `act.sub` as `actor.id` and stores the full nesting as `delegation.chain`. A claimed `act` that is not an object, or whose nested `act` lacks a string `sub`, is anonymous with cause `invalid-chain` ([0035](/docs/decisions/0035-gnap-access-and-chain)). `actor.kind` is `'oauth-client'` by default and `'mcp-client'` when the resolver runs inside `permdock/mcp`, the one value the MCP adapter uses for its own actors; there is no other `kind` for `act`-derived actors. A function receives the verified claims and returns an `Actor` or `undefined`.
 - `delegation.access` reads the GNAP `access` claim as RFC 9767 section 2.1 defines it for JWT-formatted tokens (objects and reference strings, RFC 9635 section 8). Entries are stored on `delegation.access` from Phase 1 and evaluated from Phase 4; until then they add nothing.
 - `sender: 'dpop'` attaches `binding: { jkt: cnf.jkt }` and, when a `request` is available, runs `verifyDpopProof`. `sender: 'mtls'` attaches `binding: { 'x5t#S256': cnf['x5t#S256'] }` and compares it to the certificate thumbprint the adapter passes in. `Binding` carries the RFC 7800 `cnf` members verbatim (`jkt`, `x5t#S256`, `jwk`, `kid`) so it round-trips into anything PermDock signs. The binding goes on `actor` when an `act` chain is present, otherwise on `principal`.
 - `expiresAt` on the returned subject is `exp`, or `min(exp, session_expiry)` when the IPSIE / Enterprise Extensions claim is present; `snapshot()` copies it.
@@ -125,6 +125,7 @@ Every failure produces the same outcome: the anonymous subject (`principal: null
 | `profile: 'fapi2'` and no `cnf` claim | anonymous | `sender-constraint-required` |
 | `profile: 'fapi2'` and the token arrived in a query parameter | anonymous | `token-in-query` |
 | `schema` rejects the custom claims | principal without `claims` | `invalid-claims` |
+| Claimed `act` is not a nestable object with a string `sub` | anonymous | `invalid-chain` |
 | JWKS could not be fetched and no cached set remains | anonymous | `jwks-unavailable` |
 | Discovery document could not be fetched and none is cached | anonymous | `discovery-unavailable` |
 | Discovery document `issuer` differs from the configured issuer | anonymous | `discovery-mismatch` |
@@ -274,7 +275,7 @@ No example of its own. `permdock/jwt` is exercised inside `apps/examples/hono` (
 - [JOSE](/docs/standards/jose): the RFC 8725 checklist row by row, RFC 9864, the interoperability contract for signed outputs.
 - [FAPI 2.0 Security Profile](/docs/standards/fapi-2): sections 5.3.4 and 5.4.1, enforced by `profile: 'fapi2'`.
 - [JWT authorization claims](/docs/standards/jwt-authorization-claims): RFC 9068 `roles`, `groups`, `entitlements`, SCIM encoding, vendor tenant claims.
-- [GNAP](/docs/standards/gnap): the `access` claim (RFC 9767) mapped to `delegation.access`; introspection in Phase 4.
+- [GNAP](/docs/standards/gnap): the `access` claim (RFC 9767) mapped to `delegation.access` and intersected with grants ([0035](/docs/decisions/0035-gnap-access-and-chain)); `subjectFromIntrospection` for RFC 7662 and RFC 9767 responses.
 - [OAuth agent delegation](/docs/standards/oauth-agent-delegation): RFC 9396 `authorization_details`, RFC 8693 `act` chains.
 - [Shared Signals (SSF / CAEP)](/docs/standards/shared-signals-caep): revocation before `exp`.
 

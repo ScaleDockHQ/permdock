@@ -122,4 +122,21 @@ describe('fromSnapshot', () => {
     const other = client.tenant('missing');
     expect(other.subject.principal?.tenant).toBeUndefined();
   });
+
+  it('intersects GNAP access on the snapshot subject', async () => {
+    const server = await createPermDock(policy, {
+      principal: { id: 'u1', roles: ['admin'] },
+      context: {},
+      delegation: {
+        access: [{ type: 'post', actions: ['read'], identifier: 'p1' }],
+      },
+    });
+    const snapshot = server.snapshot();
+    if (snapshot instanceof Promise) {
+      throw new Error('expected JSON snapshot');
+    }
+    const client = fromSnapshot(snapshot);
+    expect(client.can(permissions.post.read, ownPost)).toBe(true);
+    expect(client.can(permissions.post.publish, ownPost)).toBe(false);
+  });
 });

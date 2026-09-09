@@ -51,6 +51,7 @@ function errForCause(cause) {
 		case "sender-constraint-required":
 		case "token-in-query":
 		case "invalid-claims":
+		case "invalid-chain":
 		case "jwks-unavailable":
 		case "discovery-unavailable":
 		case "discovery-mismatch": return "invalid_request";

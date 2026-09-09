@@ -65,7 +65,7 @@ Done when at least one role grants the first guard's permission, and `policy.ts`
 
 Create `src/permdock/server.ts` (or the adapter's documented factory file). Export `createPermDock` from `permdock/<framework>`. Copy the exact return names from [adapters.md](adapters.md).
 
-When the app already verifies OAuth or OIDC access tokens, resolve the subject with `subjectFromJwt` from `permdock/jwt`: `discovery: '<issuer>'`, `audience` set to the resource identifier, algorithms written as `Ed25519` / `ES256` / `PS256`. HTTP adapters accept `webBotAuth: { verify: true, keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }) }` to fill `actor` from RFC 9421; a failed signature is `InvalidSignatureError`, never an anonymous actor.
+When the app already verifies OAuth or OIDC access tokens, resolve the subject with `subjectFromJwt` from `permdock/jwt`: `discovery: '<issuer>'`, `audience` set to the resource identifier, algorithms written as `Ed25519` / `ES256` / `PS256`. A claimed `act` that does not nest is anonymous with cause `invalid-chain`. When the app already called RFC 7662 or RFC 9767 introspection, pass the JSON to `subjectFromIntrospection`; `active` other than `true` is anonymous and the HTTP call stays yours. HTTP adapters accept `webBotAuth: { verify: true, keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }) }` to fill `actor` from RFC 9421; a failed signature is `InvalidSignatureError`, never an anonymous actor.
 
 Done when the factory file compiles and exports the adapter's public members.
 

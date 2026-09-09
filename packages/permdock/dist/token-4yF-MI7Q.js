@@ -132,6 +132,52 @@ function evaluateCondition(condition, data, subject, now = Date.now() / 1e3) {
 	}
 }
 //#endregion
+//#region src/core/delegation.ts
+function coveredByDelegation(permission, delegation, resourceId) {
+	if (delegation === void 0) return;
+	const hasScopes = delegation.scopes !== void 0;
+	const hasDetails = delegation.authorizationDetails !== void 0;
+	const hasAccess = delegation.access !== void 0;
+	if (!hasScopes && !hasDetails && !hasAccess) return;
+	const emptyScopes = hasScopes && (delegation.scopes?.length ?? 0) === 0;
+	const emptyAccess = hasAccess && (delegation.access?.length ?? 0) === 0;
+	if (emptyScopes && !hasDetails && !hasAccess) return "no-delegation";
+	if (emptyAccess && !hasScopes && !hasDetails) return "no-delegation";
+	if (emptyScopes && emptyAccess && !hasDetails) return "no-delegation";
+	const scopeOk = delegation.scopes?.includes(permission.scope) ?? false;
+	const detailOk = delegation.authorizationDetails?.some((detail) => {
+		if (detail.type !== permission.resource) return false;
+		if (detail.actions === void 0) return true;
+		return detail.actions.includes(permission.action);
+	}) ?? false;
+	const accessOk = accessCovers(permission, delegation.access, resourceId);
+	if (scopeOk || detailOk || accessOk) return;
+	return "not-delegated";
+}
+function accessCovers(permission, access, resourceId) {
+	if (access === void 0) return false;
+	return access.some((entry) => {
+		if (typeof entry === "string") return entry === permission.scope;
+		if (entry === null || typeof entry !== "object") return false;
+		const type = entry.type;
+		if (typeof type !== "string" || !typeMatches(type, permission.resource)) return false;
+		const actions = entry.actions;
+		if (Array.isArray(actions) && !actions.includes(permission.action)) return false;
+		const identifier = entry.identifier;
+		if (typeof identifier === "string" && identifier !== resourceId) return false;
+		return true;
+	});
+}
+function typeMatches(type, resource) {
+	if (type === resource) return true;
+	return type.endsWith(`/${resource}`);
+}
+function resourceIdOf(data) {
+	if (data === null || typeof data !== "object" || !("id" in data)) return;
+	const id = data.id;
+	return typeof id === "string" || typeof id === "number" ? String(id) : void 0;
+}
+//#endregion
 //#region src/core/token.ts
 function canonical(value) {
 	if (value === null || typeof value !== "object") return value;
@@ -156,4 +202,4 @@ function decisionToken(input) {
 	return `pd1.${bytesToBase64Url(sha256(payload))}`;
 }
 //#endregion
-export { evaluateCondition as n, decisionToken as t };
+export { evaluateCondition as i, coveredByDelegation as n, resourceIdOf as r, decisionToken as t };

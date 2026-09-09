@@ -20,6 +20,7 @@ import type { Grant, Policy } from './policy.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
 import { compact } from './compact.ts';
+import { coveredByDelegation, resourceIdOf } from './delegation.ts';
 import { describe } from './describe.ts';
 import {
   PermDockApprovalRequiredError,
@@ -298,38 +299,6 @@ function emptyListeners(): ListenerMap {
     auth: new Set(),
     error: new Set(),
   };
-}
-
-function coveredByDelegation(
-  permission: Permission,
-  delegation: Delegation | undefined,
-): DenialReason | undefined {
-  if (delegation === undefined) {
-    return undefined;
-  }
-  const hasScopes = delegation.scopes !== undefined;
-  const hasDetails = delegation.authorizationDetails !== undefined;
-  if (!hasScopes && !hasDetails) {
-    return undefined;
-  }
-  if (hasScopes && (delegation.scopes?.length ?? 0) === 0 && !hasDetails) {
-    return 'no-delegation';
-  }
-  const scopeOk = delegation.scopes?.includes(permission.scope) ?? false;
-  const detailOk =
-    delegation.authorizationDetails?.some((detail) => {
-      if (detail.type !== permission.resource) {
-        return false;
-      }
-      if (detail.actions === undefined) {
-        return true;
-      }
-      return detail.actions.includes(permission.action);
-    }) ?? false;
-  if (scopeOk || detailOk) {
-    return undefined;
-  }
-  return 'not-delegated';
 }
 
 function evaluateGrantCondition(
@@ -706,7 +675,11 @@ function evaluate(
     return decision;
   }
 
-  const delegationMiss = coveredByDelegation(permission, subject.delegation);
+  const delegationMiss = coveredByDelegation(
+    permission,
+    subject.delegation,
+    resourceIdOf(current),
+  );
   if (delegationMiss !== undefined) {
     const decision: Decision = freezeDeep({
       outcome: 'denied',

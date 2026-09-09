@@ -171,43 +171,52 @@ function membershipsFromClaim(value: unknown): Membership[] {
   return out;
 }
 
+type ActorFromAct =
+  | { readonly status: 'ok'; readonly actor: Actor; readonly chain: unknown }
+  | { readonly status: 'invalid' }
+  | { readonly status: 'absent' };
+
+function isActObject(
+  value: unknown,
+): value is { readonly sub?: unknown; readonly act?: unknown } {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 function actorFromAct(
   claims: JwtClaims,
   options: JwtSubjectOptions,
-): { readonly actor: Actor; readonly chain: unknown } | undefined {
+): ActorFromAct {
   const configured = options.actor;
   if (typeof configured === 'function') {
     const actor = configured(claims);
-    return actor === undefined ? undefined : { actor, chain: claims.act };
+    return actor === undefined
+      ? { status: 'absent' }
+      : { status: 'ok', actor, chain: claims.act };
   }
   if (configured !== undefined && configured.from !== 'act') {
-    return undefined;
+    return { status: 'absent' };
+  }
+  if (!Object.hasOwn(claims, 'act') || claims.act === undefined) {
+    return { status: 'absent' };
   }
   const act = claims.act;
-  if (act === null || typeof act !== 'object' || Array.isArray(act)) {
-    return undefined;
+  if (!isActObject(act)) {
+    return { status: 'invalid' };
   }
   let current: unknown = act;
-  let innermost = act as { readonly sub?: unknown };
-  while (
-    current !== null &&
-    typeof current === 'object' &&
-    !Array.isArray(current) &&
-    'act' in current
-  ) {
-    current = (current as { readonly act: unknown }).act;
-    if (
-      current !== null &&
-      typeof current === 'object' &&
-      !Array.isArray(current)
-    ) {
-      innermost = current as { readonly sub?: unknown };
+  let innermost = act;
+  while (isActObject(current) && Object.hasOwn(current, 'act')) {
+    current = current.act;
+    if (!isActObject(current)) {
+      return { status: 'invalid' };
     }
+    innermost = current;
   }
-  if (typeof innermost.sub !== 'string') {
-    return undefined;
+  if (typeof innermost.sub !== 'string' || innermost.sub.length === 0) {
+    return { status: 'invalid' };
   }
   return {
+    status: 'ok',
     actor: compact<Actor>({
       id: innermost.sub,
       kind: configured?.kind ?? 'oauth-client',
@@ -291,12 +300,17 @@ export function mapClaimsToSubject(
         readonly expiresAt?: number;
       };
   readonly invalidClaims: boolean;
+  readonly invalidChain: boolean;
 } {
   const paths = options.claims;
   const idPath = paths?.id ?? DEFAULT_CLAIMS.id;
   const id = readPath(claims, idPath);
   if (typeof id !== 'string' || id.length === 0) {
-    return { subject: anonymousSubject(), invalidClaims: false };
+    return {
+      subject: anonymousSubject(),
+      invalidClaims: false,
+      invalidChain: false,
+    };
   }
   const tenantPath = paths?.tenant;
   const tenant =
@@ -357,6 +371,13 @@ export function mapClaimsToSubject(
   }
   const binding = bindingOf(claims);
   const act = actorFromAct(claims, options);
+  if (act.status === 'invalid') {
+    return {
+      subject: anonymousSubject(),
+      invalidClaims: false,
+      invalidChain: true,
+    };
+  }
   const principal = freezeDeep(
     compact<JwtPrincipal>({
       id,
@@ -366,12 +387,12 @@ export function mapClaimsToSubject(
       memberships: memberships.length > 0 ? memberships : undefined,
       tenant: activeTenant,
       assurance: assuranceOf(claims, paths),
-      binding: act === undefined ? binding : undefined,
+      binding: act.status === 'absent' ? binding : undefined,
       claims: Object.keys(extra).length === 0 ? undefined : extra,
     }),
   );
   const actor =
-    act === undefined
+    act.status === 'absent'
       ? undefined
       : freezeDeep(compact<Actor>({ ...act.actor, binding }));
   const sessionPath = paths?.session ?? DEFAULT_CLAIMS.session;
@@ -390,13 +411,18 @@ export function mapClaimsToSubject(
         delegation:
           options.accept === 'id-token'
             ? undefined
-            : delegationOf(claims, options, act?.chain),
+            : delegationOf(
+                claims,
+                options,
+                act.status === 'ok' ? act.chain : undefined,
+              ),
         context: {},
         session: typeof sessionValue === 'string' ? sessionValue : undefined,
         expiresAt,
       }),
     ),
     invalidClaims,
+    invalidChain: false,
   };
 }
 

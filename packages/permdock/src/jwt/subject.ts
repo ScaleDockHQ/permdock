@@ -174,6 +174,10 @@ async function resolveSubject(
     }
   }
   const mapped = mapClaimsToSubject(verified.claims, options);
+  if (mapped.invalidChain) {
+    emitAuth(options, 'invalid-chain', token);
+    return anonymousSubject();
+  }
   if (mapped.subject.principal === null) {
     emitAuth(options, 'invalid-claims', token);
     return anonymousSubject();

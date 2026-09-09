@@ -1,7 +1,10 @@
-import { N as TokenSigner, P as TokenVerifier, x as JwtClaims } from "../policy-CrXDbTAD.js";
-import { a as JsonWebKeySet, c as JwtJwks, d as MappedSubject, i as JoseTokenVerifierOptions, l as JwtPrincipal, n as DpopProofResult, o as JwtAlgorithm, r as JoseTokenSignerOptions, s as JwtClaimPaths, t as DiscoveryInput, u as JwtSubjectOptions } from "../types-B3eTFmar.js";
+import { N as TokenSigner, P as TokenVerifier, x as JwtClaims } from "../policy-btMlTuxm.js";
+import { a as JsonWebKeySet, c as JwtJwks, d as MappedSubject, i as JoseTokenVerifierOptions, l as JwtPrincipal, n as DpopProofResult, o as JwtAlgorithm, r as JoseTokenSignerOptions, s as JwtClaimPaths, t as DiscoveryInput, u as JwtSubjectOptions } from "../types-DCGm4-_E.js";
 //#region src/jwt/dpop.d.ts
 export declare function verifyDpopProof(request: Request, claims: JwtClaims, accessToken?: string): Promise<DpopProofResult>;
+//#endregion
+//#region src/jwt/introspection.d.ts
+export declare function subjectFromIntrospection(response: unknown, options?: JwtSubjectOptions): MappedSubject;
 //#endregion
 //#region src/jwt/signer.d.ts
 export declare function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner;

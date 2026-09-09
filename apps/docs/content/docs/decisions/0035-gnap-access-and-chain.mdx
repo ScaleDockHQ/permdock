@@ -1,0 +1,43 @@
+---
+title: "0035: Evaluate GNAP access and verify act chains"
+description: delegation.access is intersected with grants; a claimed act that does not nest is anonymous with cause invalid-chain, verified only in permdock/jwt.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+`delegation.access` has been a first-class field since Phase 1 so JWT-formatted GNAP tokens (RFC 9767) can carry RFC 9635 section 8 rights. Until this decision those entries contributed nothing, which is fail-closed for an access-only token but left the documented intersection unenforced. `identifier` also needs the current resource id, which `coveredByDelegation` did not receive.
+
+A claimed `act` (RFC 8693) that is not an object, or whose nested `act` is not an object with a string `sub`, was dropped and the principal still received grants. That is fail-open for a token that asserts a delegation chain. [0018](/docs/decisions/0018-authentication-is-upstream) keeps signature verification out of core.
+
+GNAP `access` as a *new* delegation input path (unsigned body, model argument, CLI flag) stays unbuilt. `scheme.type: 'gnap'` stays reserved and emits nothing.
+
+## Decision
+
+`coveredByDelegation` treats `scopes`, `authorizationDetails` and `access` as a union, then intersects that set with the principal's grants. String `access` elements match `permission.scope`. Object elements match when `type` equals the resource name or ends with `/` plus that name, `actions` (when present) includes the action, and `identifier` (when present) equals the current row id. An empty `access` array with no other delegation field is `no-delegation`. A present array that covers nothing is `not-delegated`. `datatypes`, `privileges` and `locations` are recorded and ignored.
+
+A claimed `act` is verified only in `permdock/jwt`. Malformed nesting yields the anonymous subject and `on('auth')` with `cause: 'invalid-chain'`. Core never walks or signs a chain. `subjectFromIntrospection` maps RFC 7662 and RFC 9767 responses through the same claim mapper; `active` other than `true` is anonymous. The HTTP call stays the caller's.
+
+## Consequences
+
+- An access-only token can grant, but only permissions the principal already holds and the rights array names.
+- Snapshot evaluation uses the same helper, so a client cannot widen what the server intersected.
+- Chain verification does not pull JOSE into core.
+- Field-level `datatypes` mapping stays open.
+
+## Alternatives considered
+
+- **Leave `access` inert.** Rejected: RFC 9767 tokens would never exercise the rights they carry.
+- **Verify chains in core.** Rejected: [0018](/docs/decisions/0018-authentication-is-upstream); core has no verifier.
+- **Accept unsigned GNAP `access` as a createPermDock input besides `delegation`.** Rejected: that is a new delegation input. Callers already pass verified `delegation.access`.
+- **Treat a claimed but malformed `act` as no actor.** Rejected: the token asserted a chain.
+
+## Related
+
+- [0018: Authentication is upstream](/docs/decisions/0018-authentication-is-upstream)
+- [GNAP](/docs/standards/gnap)
+- [Delegation](/docs/security/delegation)
+- [JWT](/docs/adapters/jwt)

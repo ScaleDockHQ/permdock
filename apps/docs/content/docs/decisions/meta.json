@@ -34,6 +34,7 @@
     "0031-snapshot-contents",
     "0032-action-presets",
     "0033-field-level-grants",
-    "0034-quota-grants"
+    "0034-quota-grants",
+    "0035-gnap-access-and-chain"
   ]
 }

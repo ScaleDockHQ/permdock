@@ -1,4 +1,4 @@
-import { n as evaluateCondition, t as decisionToken } from "./token-DOBVfZ_i.js";
+import { i as evaluateCondition, n as coveredByDelegation, r as resourceIdOf, t as decisionToken } from "./token-4yF-MI7Q.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
@@ -120,21 +120,6 @@ function conditionOk(grant, permission, current, next, subject, now) {
 	}
 	return { matched: true };
 }
-function coveredByDelegation(permission, subject) {
-	const delegation = subject.delegation;
-	if (delegation === void 0) return;
-	const hasScopes = delegation.scopes !== void 0;
-	const hasDetails = delegation.authorizationDetails !== void 0;
-	if (!hasScopes && !hasDetails) return;
-	if (hasScopes && (delegation.scopes?.length ?? 0) === 0 && !hasDetails) return "no-delegation";
-	const scopeAllowed = delegation.scopes?.includes(permission.scope) ?? false;
-	const detailOk = delegation.authorizationDetails?.some((detail) => {
-		if (detail.type !== permission.resource) return false;
-		return detail.actions === void 0 || detail.actions.includes(permission.action);
-	}) ?? false;
-	if (scopeAllowed || detailOk) return;
-	return "not-delegated";
-}
 function evaluateSnapshot(snapshot, subject, permission, data, team, options) {
 	const now = options.now ?? nowSeconds();
 	if (subject.principal === null) return freezeDeep({
@@ -202,7 +187,7 @@ function evaluateSnapshot(snapshot, subject, permission, data, team, options) {
 		}],
 		alternatives: []
 	});
-	const miss = coveredByDelegation(permission, subject);
+	const miss = coveredByDelegation(permission, subject.delegation, resourceIdOf(current));
 	if (miss !== void 0) return freezeDeep({
 		outcome: "denied",
 		denials: [{

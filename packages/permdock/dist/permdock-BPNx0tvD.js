@@ -1,4 +1,4 @@
-import { n as evaluateCondition, t as decisionToken } from "./token-DOBVfZ_i.js";
+import { i as evaluateCondition, n as coveredByDelegation, r as resourceIdOf, t as decisionToken } from "./token-4yF-MI7Q.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
@@ -247,21 +247,6 @@ function emptyListeners() {
 		error: /* @__PURE__ */ new Set()
 	};
 }
-function coveredByDelegation(permission, delegation) {
-	if (delegation === void 0) return;
-	const hasScopes = delegation.scopes !== void 0;
-	const hasDetails = delegation.authorizationDetails !== void 0;
-	if (!hasScopes && !hasDetails) return;
-	if (hasScopes && (delegation.scopes?.length ?? 0) === 0 && !hasDetails) return "no-delegation";
-	const scopeOk = delegation.scopes?.includes(permission.scope) ?? false;
-	const detailOk = delegation.authorizationDetails?.some((detail) => {
-		if (detail.type !== permission.resource) return false;
-		if (detail.actions === void 0) return true;
-		return detail.actions.includes(permission.action);
-	}) ?? false;
-	if (scopeOk || detailOk) return;
-	return "not-delegated";
-}
 function evaluateGrantCondition(grant, permission, current, next, subject, now) {
 	if (!grant.portable && grant.closure !== void 0) try {
 		const result = grant.closure(next ?? current, {
@@ -481,7 +466,7 @@ function evaluate(policy, subject, permission, data, options, env) {
 		finish(policy, subject, permission, current, decision, options, env, trusted);
 		return decision;
 	}
-	const delegationMiss = coveredByDelegation(permission, subject.delegation);
+	const delegationMiss = coveredByDelegation(permission, subject.delegation, resourceIdOf(current));
 	if (delegationMiss !== void 0) {
 		const decision = freezeDeep({
 			outcome: "denied",

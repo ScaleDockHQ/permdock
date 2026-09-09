@@ -3,9 +3,9 @@ import { a as subject, i as role, n as definePolicy, o as opaque, r as deny, t a
 import { t as describe } from "./describe-BnKr1Gwo.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
-import { n as memoryLimitStore, t as createPermDock } from "./permdock-DT_a99MP.js";
+import { n as memoryLimitStore, t as createPermDock } from "./permdock-BPNx0tvD.js";
 import { n as parseSnapshot } from "./snapshot-BiwEN_W3.js";
-import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-CwTCy5gQ.js";
+import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-CCji1zvS.js";
 import { c as resource, i as getResource, n as findPermission, o as listPermissions, s as mergePermissions, t as definePermissions } from "./permissions-WEkUHQtZ.js";
 import { n as signDecisionBatch, r as toCloudEvent, t as memorySink } from "./sink-CSxZb96b.js";
 //#region src/core/interfaces.ts

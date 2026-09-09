@@ -12,6 +12,7 @@ import type { Membership, Principal, Subject } from './subject.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
 import { compact } from './compact.ts';
+import { coveredByDelegation, resourceIdOf } from './delegation.ts';
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -190,39 +191,6 @@ function conditionOk(
   return { matched: true };
 }
 
-function coveredByDelegation(
-  permission: Permission,
-  subject: Subject,
-): DenialReason | undefined {
-  const delegation = subject.delegation;
-  if (delegation === undefined) {
-    return undefined;
-  }
-  const hasScopes = delegation.scopes !== undefined;
-  const hasDetails = delegation.authorizationDetails !== undefined;
-  if (!hasScopes && !hasDetails) {
-    return undefined;
-  }
-  if (hasScopes && (delegation.scopes?.length ?? 0) === 0 && !hasDetails) {
-    return 'no-delegation';
-  }
-  const scopeAllowed = delegation.scopes?.includes(permission.scope) ?? false;
-  const detailOk =
-    delegation.authorizationDetails?.some((detail) => {
-      if (detail.type !== permission.resource) {
-        return false;
-      }
-      return (
-        detail.actions === undefined ||
-        detail.actions.includes(permission.action)
-      );
-    }) ?? false;
-  if (scopeAllowed || detailOk) {
-    return undefined;
-  }
-  return 'not-delegated';
-}
-
 function evaluateSnapshot(
   snapshot: SnapshotV2,
   subject: Subject,
@@ -302,7 +270,11 @@ function evaluateSnapshot(
       alternatives: [],
     });
   }
-  const miss = coveredByDelegation(permission, subject);
+  const miss = coveredByDelegation(
+    permission,
+    subject.delegation,
+    resourceIdOf(current),
+  );
   if (miss !== undefined) {
     return freezeDeep({
       outcome: 'denied',

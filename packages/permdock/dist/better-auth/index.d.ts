@@ -1,5 +1,5 @@
 import { d as Subject, u as Principal } from "../subject-BcgWbogX.js";
-import { E as RoleSource, X as PermissionTree, c as Role } from "../policy-CrXDbTAD.js";
+import { E as RoleSource, X as PermissionTree, c as Role } from "../policy-btMlTuxm.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/better-auth/types.d.ts
 type BetterAuthPrincipal = Principal & {

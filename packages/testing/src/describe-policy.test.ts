@@ -209,6 +209,25 @@ describePolicy(quotaPolicy, {
   },
 });
 
+describePolicy(policy, {
+  exhaustive: false,
+  options: {
+    delegation: { access: [{ type: 'post', actions: ['read'] }] },
+  },
+  subjects: { admin: { id: 'u2', orgId: 'o1', roles: ['admin'] } },
+  fixtures: { ownPost },
+  matrix: {
+    [permissions.post.read.key]: {
+      ownPost: { admin: 'granted' },
+    },
+    [permissions.post.publish.key]: {
+      ownPost: {
+        admin: { outcome: 'denied', denials: [{ reason: 'not-delegated' }] },
+      },
+    },
+  },
+});
+
 describe('conformance runners', () => {
   testLimitStore(memoryLimitStore());
 
