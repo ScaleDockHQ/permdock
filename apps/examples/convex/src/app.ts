@@ -30,6 +30,14 @@ const list = withPermDock((ctx) =>
   ]),
 );
 
+const destroy = withPermDock((ctx, args: { readonly id: string }) => {
+  const allowed = ctx.permdock.can(permissions.post.delete, {
+    id: args.id,
+    authorId: 'user-1',
+  });
+  return { allowed };
+});
+
 const snapshot = snapshotQuery() as {
   readonly handler: (
     ctx: { readonly user?: { readonly id: string } },
@@ -44,6 +52,17 @@ app.get('/health', (c) => c.json({ ok: true }));
 app.get('/posts', async (c) => {
   const rows = await list({ user: { id: 'user-1' } }, {});
   return c.json({ rows });
+});
+
+app.post('/posts/:id/delete', async (c) => {
+  const result = await destroy(
+    { user: { id: 'user-1' } },
+    { id: c.req.param('id') },
+  );
+  if (!result.allowed) {
+    return c.json({ ok: false }, 403);
+  }
+  return c.json({ ok: true });
 });
 
 app.get('/snapshot', async (c) => {

@@ -1,42 +1,41 @@
-import type { Policy } from 'permdock';
-
 import { Hono } from 'hono';
 import { createPermDock } from 'permdock/a2a';
 
 import { ownPost, permissions } from './permissions.ts';
 import { adminUser, memberUser, policy } from './policy.ts';
 
-const { agentCard, extendedAgentCard, protectSkill } = createPermDock(
-  policy as Policy,
-  {
-    subject: (auth) => (auth.clientId === 'admin' ? adminUser : memberUser),
-    card: {
-      name: 'Posts agent',
-      url: 'https://agent.example.com/a2a',
-      version: '1.0.0',
+const { agentCard, extendedAgentCard, protectSkill } = createPermDock(policy, {
+  subject: (auth) => (auth.clientId === 'admin' ? adminUser : memberUser),
+  card: {
+    name: 'Posts agent',
+    url: 'https://agent.example.com/a2a',
+    version: '1.0.0',
+  },
+  securitySchemes: {
+    oauth: {
+      type: 'oauth2',
+      oauth2MetadataUrl:
+        'https://auth.example.com/.well-known/oauth-authorization-server',
     },
-    securitySchemes: {
-      oauth: {
-        type: 'oauth2',
-        oauth2MetadataUrl:
-          'https://auth.example.com/.well-known/oauth-authorization-server',
+  },
+  skills: {
+    summarise: {
+      permission: permissions.post.read,
+      description: 'Summarise a post',
+      data: async () => {
+        const row = await Promise.resolve(ownPost);
+        return row;
       },
     },
-    skills: {
-      summarise: {
-        permission: permissions.post.read,
-        description: 'Summarise a post',
-      },
-      publish: {
-        permission: permissions.post.publish,
-        data: async () => {
-          const row = await Promise.resolve(ownPost);
-          return row;
-        },
+    publish: {
+      permission: permissions.post.publish,
+      data: async () => {
+        const row = await Promise.resolve(ownPost);
+        return row;
       },
     },
   },
-);
+});
 
 const run = protectSkill((task) => {
   if (
@@ -60,10 +59,18 @@ function authFrom(header: string | undefined): {
       scopes: [permissions.post.read.scope, permissions.post.publish.scope],
     };
   }
+  if (header === 'member') {
+    return {
+      clientId: 'member',
+      scopes: [permissions.post.read.scope, permissions.post.publish.scope],
+    };
+  }
   return { clientId: 'reader', scopes: [permissions.post.read.scope] };
 }
 
 export const app = new Hono();
+
+app.get('/health', (c) => c.json({ ok: true }));
 
 app.get('/.well-known/agent-card.json', (c) => c.json(agentCard()));
 
@@ -82,7 +89,9 @@ app.post('/a2a/tasks', async (c) => {
     ) {
       c.header('WWW-Authenticate', result.wwwAuthenticate);
     }
-    return c.json(result.problem, result.status);
+    return c.body(JSON.stringify(result.problem), result.status, {
+      'content-type': 'application/problem+json',
+    });
   }
   return c.json({ ok: true });
 });

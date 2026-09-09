@@ -1,4 +1,4 @@
-import type { PermDock, Policy } from 'permdock';
+import type { PermDock } from 'permdock';
 
 import { Hono } from 'hono';
 import { createPermDock } from 'permdock';
@@ -32,7 +32,7 @@ const scim = scimHandler({
 
 export function permdockFor(userId: string): PermDock | Promise<PermDock> {
   return createPermDock(
-    policy as Policy,
+    policy,
     { id: userId },
     {
       tenant: TENANT,

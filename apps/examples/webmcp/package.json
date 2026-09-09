@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview --host 127.0.0.1 --port 3484",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -16,6 +19,8 @@
     "@permdock/typescript-config": "workspace:*",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "typescript": "catalog:"
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
   }
 }

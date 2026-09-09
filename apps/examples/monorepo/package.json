@@ -1,0 +1,19 @@
+{
+  "name": "@permdock/example-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "permdock collect --check",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "permdock": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/cli": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

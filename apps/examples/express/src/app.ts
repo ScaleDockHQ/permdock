@@ -1,12 +1,10 @@
-import type { Policy } from 'permdock';
-
 import express from 'express';
 import { createPermDock } from 'permdock/express';
 
 import { ownPost, permissions } from './permissions.ts';
 import { memberUser, policy } from './policy.ts';
 
-const { protect } = createPermDock(policy as Policy, {
+const { protect } = createPermDock(policy, {
   subject: () => memberUser,
 });
 

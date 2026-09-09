@@ -1,6 +1,9 @@
 # `@permdock/example-authzen-pdp`
 
-Minimal `permdock/authzen` wiring: one Fetch `handler` for evaluation, evaluations, search and `.well-known/authzen-configuration`. Mount it on Hono, Next.js or `node:http` at `/access/v1/*` and `/.well-known/authzen-configuration`.
+`node:http` wrapper around the AuthZEN Fetch `handler`. `pnpm start` listens on `127.0.0.1:3470`.
+
+- `GET /health`
+- `POST /access/v1/evaluation` with `Authorization: Bearer test` — grants `post.update`, denies `post.publish`
 
 ```ts
 import { createPermDock } from 'permdock/authzen'

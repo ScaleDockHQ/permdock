@@ -2,7 +2,9 @@
   "extends": "@permdock/typescript-config/base.json",
   "compilerOptions": {
     "types": ["node"],
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false
   },
   "include": ["src", "playwright.config.ts"]
 }

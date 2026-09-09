@@ -1,6 +1,9 @@
 # `@permdock/example-mcp-server`
 
-Minimal `permdock/mcp` wiring: `protectServer` around a duck-typed MCP server, `list_posts` / `update_post` / `delete_post` with typed permissions. Host the same `registerTool` calls through `mcp-handler` when you add a transport.
+`protectServer` around a duck-typed MCP server. `pnpm start` loads the tools over stdio (no HTTP port). Playwright imports the guarded handlers.
+
+- `update_post` — granted for a member on their own post
+- `delete_post` — `approval-required`
 
 ```ts
 import { createPermDock } from 'permdock/mcp'

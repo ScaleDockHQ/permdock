@@ -1,5 +1,3 @@
-import type { Policy } from 'permdock';
-
 import { Hono } from 'hono';
 import { createPermDock } from 'permdock/hono';
 
@@ -11,7 +9,7 @@ export const otelLog: {
   readonly attributes?: Record<string, unknown>;
 }[] = [];
 
-const { protect } = createPermDock(policy as Policy, {
+const { protect } = createPermDock(policy, {
   subject: () => memberUser,
   otel: {
     logger: {

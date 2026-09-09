@@ -1,5 +1,3 @@
-import type { Policy } from 'permdock';
-
 import { initTRPC } from '@trpc/server';
 import { createPermDock } from 'permdock/trpc';
 import { z } from 'zod';
@@ -10,7 +8,7 @@ import { policy, type User } from './policy.ts';
 type Ctx = { readonly user: User };
 
 const t = initTRPC.context<Ctx>().create();
-const { permdock, protect } = createPermDock<Ctx>(policy as Policy, {
+const { permdock, protect } = createPermDock<Ctx>(policy, {
   subject: (opts) => opts.ctx.user,
 });
 

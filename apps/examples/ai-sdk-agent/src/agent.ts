@@ -1,15 +1,16 @@
-import type { Policy } from 'permdock';
-
 import { createPermDock } from 'permdock/ai-sdk';
 
 import { ownPost, permissions } from './permissions.ts';
 import { memberUser, policy } from './policy.ts';
 
 export const { toolApproval, capabilityMiddleware, needsApproval } =
-  createPermDock(policy as Policy, {
+  createPermDock(policy, {
     subject: () => memberUser,
     actor: () => ({ id: 'agent-1', kind: 'ai-sdk' }),
     tools: {
+      list_posts: {
+        permission: permissions.post.list,
+      },
       delete_post: {
         permission: permissions.post.delete,
         data: () => ownPost,

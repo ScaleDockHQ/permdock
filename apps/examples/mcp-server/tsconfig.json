@@ -4,7 +4,8 @@
     "allowImportingTsExtensions": true,
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false,
-    "lib": ["ES2024", "DOM"]
+    "lib": ["ES2024"],
+    "types": ["node"]
   },
   "include": ["src"]
 }

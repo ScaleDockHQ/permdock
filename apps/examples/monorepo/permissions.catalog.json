@@ -1,0 +1,227 @@
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-09-09T08:13:07.247Z",
+  "generator": "@permdock/cli@0.0.0",
+  "resources": {
+    "post": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          },
+          "published": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "authorId",
+          "orgId",
+          "published"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "invoice": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "customerId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "plan": {
+      "id": "id",
+      "schema": null
+    }
+  },
+  "permissions": [
+    {
+      "key": "billing.invoice.pay",
+      "scope": "billing:invoice:pay",
+      "resource": "invoice",
+      "action": "pay",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/billing/src/policy.ts",
+          "line": 11,
+          "call": "allow"
+        }
+      ]
+    },
+    {
+      "key": "billing.invoice.read",
+      "scope": "billing:invoice:read",
+      "resource": "invoice",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/billing/src/policy.ts",
+          "line": 7,
+          "call": "allow"
+        }
+      ]
+    },
+    {
+      "key": "billing.plan.change",
+      "scope": "billing:plan:change",
+      "resource": "plan",
+      "action": "change",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/billing/src/policy.ts",
+          "line": 12,
+          "call": "allow"
+        }
+      ]
+    },
+    {
+      "key": "billing.plan.view",
+      "scope": "billing:plan:view",
+      "resource": "plan",
+      "action": "view",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/billing/src/policy.ts",
+          "line": 8,
+          "call": "allow"
+        }
+      ]
+    },
+    {
+      "key": "post.create",
+      "scope": "post:create",
+      "resource": "post",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 9,
+          "call": "allow"
+        }
+      ]
+    },
+    {
+      "key": "post.delete",
+      "scope": "post:delete",
+      "resource": "post",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 11,
+          "call": "allow"
+        },
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 18,
+          "call": "allow"
+        }
+      ]
+    },
+    {
+      "key": "post.list",
+      "scope": "post:list",
+      "resource": "post",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 8,
+          "call": "allow"
+        }
+      ]
+    },
+    {
+      "key": "post.publish",
+      "scope": "post:publish",
+      "resource": "post",
+      "action": "publish",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 19,
+          "call": "allow"
+        },
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 20,
+          "call": "deny"
+        }
+      ]
+    },
+    {
+      "key": "post.read",
+      "scope": "post:read",
+      "resource": "post",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 7,
+          "call": "allow"
+        }
+      ]
+    },
+    {
+      "key": "post.update",
+      "scope": "post:update",
+      "resource": "post",
+      "action": "update",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 10,
+          "call": "allow"
+        },
+        {
+          "file": "packages/posts/src/policy.ts",
+          "line": 17,
+          "call": "allow"
+        }
+      ]
+    }
+  ]
+}

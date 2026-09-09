@@ -1,4 +1,4 @@
-import type { SnapshotV2 } from 'permdock';
+import type { Snapshot } from 'permdock';
 
 import { PermDockProvider, usePermDock } from 'permdock/react';
 import { registerTools } from 'permdock/webmcp';
@@ -78,7 +78,7 @@ function PostTools() {
   );
 }
 
-export function App(props: { readonly snapshot: SnapshotV2 }) {
+export function App(props: { readonly snapshot: Snapshot }) {
   return (
     <PermDockProvider snapshot={props.snapshot}>
       <PostTools />

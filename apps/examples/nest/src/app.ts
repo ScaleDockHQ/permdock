@@ -1,6 +1,4 @@
 import 'reflect-metadata';
-import type { Policy } from 'permdock';
-
 import { Controller, Get, Module, Patch, Post } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { createPermDock } from 'permdock/nest';
@@ -9,36 +7,59 @@ import { ownPost, permissions } from './permissions.ts';
 import { memberUser, policy } from './policy.ts';
 
 export const { PermDockModule, PermDockGuard, Protect, permdockHandler } =
-  createPermDock(policy as Policy, {
+  createPermDock(policy, {
     subject: () => memberUser,
   });
 
-@Controller()
+function applyMethod(
+  cls: new () => unknown,
+  key: string,
+  decorator: MethodDecorator,
+): void {
+  const proto: object = cls.prototype as object;
+  const descriptor = Object.getOwnPropertyDescriptor(proto, key);
+  if (!descriptor) {
+    throw new TypeError(`missing ${key}`);
+  }
+  decorator(proto, key, descriptor);
+}
+
 class HealthController {
-  @Get('health')
   health() {
     return { ok: true };
   }
 }
+Controller()(HealthController);
+applyMethod(HealthController, 'health', Get('health'));
 
-@Controller('posts')
 class PostsController {
-  @Patch(':id')
-  @Protect(permissions.post.update, () => ownPost)
   update() {
     return { ok: true };
   }
 
-  @Post(':id/publish')
-  @Protect(permissions.post.publish, () => ownPost)
   publish() {
     return { ok: true };
   }
 }
+Controller('posts')(PostsController);
+applyMethod(PostsController, 'update', Patch(':id'));
+applyMethod(
+  PostsController,
+  'update',
+  Protect(permissions.post.update, () => ownPost),
+);
+applyMethod(PostsController, 'publish', Post(':id/publish'));
+applyMethod(
+  PostsController,
+  'publish',
+  Protect(permissions.post.publish, () => ownPost),
+);
 
-@Module({
+class AppModule {}
+Module({
   imports: [PermDockModule],
   controllers: [HealthController, PostsController, permdockHandler()],
   providers: [{ provide: APP_GUARD, useExisting: PermDockGuard }],
-})
-export class AppModule {}
+})(AppModule);
+
+export { AppModule };

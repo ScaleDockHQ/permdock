@@ -25,11 +25,7 @@ const auth = {
   },
 };
 
-export const app = new Hono();
-
-app.get('/health', (c) => c.json({ ok: true }));
-
-app.patch('/posts/:id', async (c) => {
+async function dockForSession() {
   const resolved = await subjectFromBetterAuth(auth, session);
   const dock = await createPermDock(policy, resolved, {
     customRoles: betterAuthRoleSource(auth, {
@@ -38,8 +34,25 @@ app.patch('/posts/:id', async (c) => {
       ],
     }),
   });
+  return { dock, resolved };
+}
+
+export const app = new Hono();
+
+app.get('/health', (c) => c.json({ ok: true }));
+
+app.patch('/posts/:id', async (c) => {
+  const { dock, resolved } = await dockForSession();
   if (!dock.can(permissions.post.update, ownPost)) {
     return c.json({ ok: false }, 403);
   }
   return c.json({ ok: true, tenant: resolved.principal?.tenant });
+});
+
+app.post('/posts/:id/delete', async (c) => {
+  const { dock } = await dockForSession();
+  if (!dock.can(permissions.post.delete, ownPost)) {
+    return c.json({ ok: false }, 403);
+  }
+  return c.json({ ok: true });
 });

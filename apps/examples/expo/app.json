@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "PermDock Expo example",
+    "slug": "permdock-example-expo",
+    "version": "0.0.0",
+    "scheme": "permdock-example-expo",
+    "platforms": ["ios", "android", "web"],
+    "plugins": ["expo-router"],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
+  }
+}

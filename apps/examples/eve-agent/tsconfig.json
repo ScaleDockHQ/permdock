@@ -3,7 +3,9 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false
+    "noUncheckedIndexedAccess": false,
+    "lib": ["ES2024", "DOM"],
+    "types": ["node"]
   },
   "include": ["src"]
 }

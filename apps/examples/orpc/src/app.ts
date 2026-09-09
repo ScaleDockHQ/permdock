@@ -1,5 +1,3 @@
-import type { Policy } from 'permdock';
-
 import { os } from '@orpc/server';
 import { createPermDock } from 'permdock/orpc';
 import { z } from 'zod';
@@ -9,7 +7,7 @@ import { policy, type User } from './policy.ts';
 
 type Ctx = { readonly user: User };
 
-const { permdock, protect } = createPermDock<Ctx>(policy as Policy, {
+const { permdock, protect } = createPermDock<Ctx>(policy, {
   subject: (opts) => opts.context.user,
 });
 

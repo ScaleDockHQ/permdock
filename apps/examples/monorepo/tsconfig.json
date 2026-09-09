@@ -1,0 +1,14 @@
+{
+  "extends": "@permdock/typescript-config/base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "include": [
+    "src",
+    "permdock.config.ts",
+    "packages/posts/src",
+    "packages/billing/src"
+  ]
+}

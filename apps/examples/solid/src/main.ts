@@ -1,10 +1,10 @@
-import { createPermDock, type Policy } from 'permdock';
+import { createPermDock } from 'permdock';
 import { render } from 'solid-js/web';
 
 import { App } from './app.ts';
 import { memberUser, policy } from './policy.ts';
 
-const dock = await createPermDock(policy as Policy, memberUser);
+const dock = await createPermDock(policy, memberUser);
 const snapshot = await Promise.resolve(dock.snapshot());
 if (typeof snapshot === 'string') {
   throw new TypeError('expected JSON snapshot');

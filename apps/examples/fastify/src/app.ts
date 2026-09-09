@@ -1,12 +1,10 @@
-import type { Policy } from 'permdock';
-
 import Fastify from 'fastify';
 import { createPermDock } from 'permdock/fastify';
 
 import { ownPost, permissions } from './permissions.ts';
 import { memberUser, policy } from './policy.ts';
 
-const { permdock, protect } = createPermDock(policy as Policy, {
+const { permdock, protect } = createPermDock(policy, {
   subject: () => memberUser,
 });
 

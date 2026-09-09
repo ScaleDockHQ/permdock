@@ -7,7 +7,23 @@ import { memberUser } from './policy.ts';
 
 const port = Number(process.env.PORT ?? 3461);
 
+function isHealth(req: {
+  readonly method?: string;
+  readonly url?: string;
+}): boolean {
+  if (req.method !== 'GET') {
+    return false;
+  }
+  const path = req.url ?? '';
+  return path === '/health' || path.startsWith('/health?');
+}
+
 createServer((req, res) => {
+  if (isHealth(req)) {
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
   const handle = async (): Promise<void> => {
     try {
       const response = await fetchRequestHandler({

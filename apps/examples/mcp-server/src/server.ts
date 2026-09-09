@@ -1,5 +1,3 @@
-import type { Policy } from 'permdock';
-
 import { createPermDock } from 'permdock/mcp';
 
 import { ownPost, permissions } from './permissions.ts';
@@ -10,7 +8,7 @@ export const otelLog: {
   readonly attributes?: Record<string, unknown>;
 }[] = [];
 
-const { protectServer } = createPermDock(policy as Policy, {
+const { protectServer } = createPermDock(policy, {
   subject: () => memberUser,
   otel: {
     logger: {

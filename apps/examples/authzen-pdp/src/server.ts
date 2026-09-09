@@ -1,5 +1,3 @@
-import type { Policy } from 'permdock';
-
 import { createPermDock } from 'permdock/authzen';
 
 import { otherPost, ownPost } from './permissions.ts';
@@ -10,7 +8,7 @@ const posts = new Map<string, typeof ownPost>([
   [otherPost.id, otherPost],
 ]);
 
-export const { handler } = createPermDock(policy as Policy, {
+export const { handler } = createPermDock(policy, {
   subject: (request) => {
     const authorization = request.headers.get('authorization');
     return authorization === 'Bearer test' ? memberUser : null;

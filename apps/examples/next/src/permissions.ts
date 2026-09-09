@@ -22,3 +22,10 @@ export const ownPost = {
   orgId: 'o1',
   published: false,
 };
+
+export const otherPost = {
+  id: 'p2',
+  authorId: 'u2',
+  orgId: 'o1',
+  published: false,
+};
