@@ -154,6 +154,10 @@
     "./supabase": {
       "types": "./dist/supabase/index.d.ts",
       "default": "./dist/supabase/index.js"
+    },
+    "./ssf": {
+      "types": "./dist/ssf/index.d.ts",
+      "default": "./dist/ssf/index.js"
     }
   },
   "scripts": {

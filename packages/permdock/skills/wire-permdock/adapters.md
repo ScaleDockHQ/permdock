@@ -458,7 +458,7 @@ export const { getPermDock } = createPermDock(policy, {
 
 ## Planned adapters
 
-Phase 3 `toWhere` compilers, `permdock rls`, and `permdock/supabase` (`subjectFromSupabase`, `supabaseRls`, `authorizeSql`) ship. Remaining Phase 3 adapters (`ssf`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+Phase 3 `toWhere` compilers, `permdock rls`, `permdock/supabase`, and `permdock/ssf` (`receiver.push`, `receiver.poll`, `receiver.logout`) ship. Remaining Phase 3 work (`tests/integration`, examples `supabase-rls`, `drizzle`, `prisma`) follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
 
 ```bash
 pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql

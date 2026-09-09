@@ -3,7 +3,7 @@ title: Shared Signals (SSF / CAEP)
 description: permdock/ssf receives Shared Signals Framework security event tokens (push and poll) and maps CAEP events to snapshot and cache invalidation so permissions go stale when the IdP says so, not on a timer.
 ---
 
-Status: planned
+Status: shipped
 Phase: 3
 
 `permdock/ssf` is a receiver for Security Event Tokens delivered under the Shared Signals Framework. It verifies incoming CAEP events such as `session-revoked`, `credential-change` and `assurance-level-change`, resolves the affected subject, and calls the app's `onEvent` handlers, which typically invalidate the Next.js cache tag and client snapshots for that user.
@@ -39,6 +39,7 @@ receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) 
 - `onEvent` is keyed by CAEP event type. Handlers receive the resolved `subject`, the raw `event` claims, `event_timestamp` and the `jti`.
 - `subject` maps the SET `sub_id` (formats `iss_sub`, `email`, `opaque`, and others defined by the Subject Identifiers RFC) to the id PermDock uses in `tag` and snapshots.
 - `verifier` (optional, a `TokenVerifier` from [extension interfaces](/docs/concepts/extension-interfaces)) replaces the built-in `joseTokenVerifier` over `jwks`; `discovery: '<issuer>'` may stand in for `issuer` plus `jwks` exactly as in [`permdock/jwt`](/docs/adapters/jwt).
+- `replay` (optional, a `ReplayStore`) replaces the in-memory `jti` store. `memoryReplayStore()` is the default.
 
 ### OpenID Connect Back-Channel Logout
 

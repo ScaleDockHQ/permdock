@@ -43,6 +43,7 @@ export const ENTRIES = {
   './prisma': 'prisma/index.js',
   './kysely': 'kysely/index.js',
   './supabase': 'supabase/index.js',
+  './ssf': 'ssf/index.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -114,7 +115,7 @@ export function wintertcViolations(
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   return files.filter((file) =>
-    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud|drizzle|prisma|kysely|supabase)[/\\]/u.test(
+    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud|drizzle|prisma|kysely|supabase|ssf)[/\\]/u.test(
       file,
     ),
   );

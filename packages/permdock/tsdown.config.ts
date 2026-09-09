@@ -62,6 +62,7 @@ export default defineConfig({
     'src/prisma/index.ts',
     'src/kysely/index.ts',
     'src/supabase/index.ts',
+    'src/ssf/index.ts',
   ],
   platform: 'neutral',
   dts: true,

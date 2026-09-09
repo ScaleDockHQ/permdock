@@ -1,0 +1,29 @@
+import type { CaepEventName } from './types.ts';
+
+export const BACKCHANNEL_LOGOUT_EVENT =
+  'http://schemas.openid.net/event/backchannel-logout';
+
+const CAEP_PREFIX = 'https://schemas.openid.net/secevent/caep/event-type/';
+
+const CAEP_NAMES: ReadonlySet<CaepEventName> = new Set([
+  'session-revoked',
+  'credential-change',
+  'assurance-level-change',
+  'token-claims-change',
+  'device-compliance-change',
+]);
+
+export function caepName(uri: string): CaepEventName | undefined {
+  if (!uri.startsWith(CAEP_PREFIX)) {
+    return undefined;
+  }
+  const name = uri.slice(CAEP_PREFIX.length);
+  if (CAEP_NAMES.has(name as CaepEventName)) {
+    return name as CaepEventName;
+  }
+  return undefined;
+}
+
+export function isCaepName(value: string): value is CaepEventName {
+  return CAEP_NAMES.has(value as CaepEventName);
+}

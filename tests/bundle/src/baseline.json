@@ -1,7 +1,7 @@
 {
   ".": 24953,
   "./approvals": 5036,
-  "./jwt": 11563,
+  "./jwt": 12350,
   "./react": 15965,
   "./react-native": 16993,
   "./next": 31246,
@@ -33,5 +33,6 @@
   "./drizzle": 5216,
   "./prisma": 4987,
   "./kysely": 5288,
-  "./supabase": 2731
+  "./supabase": 2731,
+  "./ssf": 9184
 }

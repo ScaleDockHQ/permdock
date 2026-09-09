@@ -87,6 +87,7 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `scimHandler` | The RFC 7644 Fetch handler from `permdock/scim` serving `/Users` and `/Groups` into a `DirectoryStore`; options `store`, `tenant`, `token` or `verifier`, `groupRoles`, `sink`, `onChange` | A `PermDock`; it decides nothing and reads no tenant from a body |
 | `DirectoryStore`, `memoryDirectoryStore` | The repository interface SCIM provisioning writes to (users, groups, `groupsFor`), every method tenant-first, and its in-process default | A `MembershipSource`; the store is the write side, the source below is the read side |
 | `directoryMembershipSource` | `directoryMembershipSource(store)`: the `MembershipSource` that turns synced groups into `{ tenant, team: group.id, roles, via: 'group:<id>' }` and yields nothing for an inactive user | Reading display names; group ids only |
+| `ReplayStore`, `memoryReplayStore` | The pluggable `jti` replay store for `permdock/ssf` and its in-process default | A decision input; SETs and `logout_token`s never reach `decide` |
 | `PermDock-Approval` | The HTTP request header carrying an approval `token` on a retried request | Anything else on the wire |
 
 Strings appear only as `.key` and `.scope` on the wire, in audit events and in catalogs. The public API takes references.
