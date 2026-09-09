@@ -17,6 +17,7 @@
     "fumadocs-ui": "catalog:",
     "lucide-react": "catalog:",
     "next": "catalog:",
+    "permdock": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

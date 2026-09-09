@@ -36,6 +36,10 @@
       "destination": { "service": "docs" }
     },
     {
+      "source": "/devtools",
+      "destination": { "service": "docs" }
+    },
+    {
       "source": "/llms.txt",
       "destination": { "service": "docs" }
     },
