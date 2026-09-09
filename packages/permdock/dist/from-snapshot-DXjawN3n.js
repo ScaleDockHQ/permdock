@@ -1,8 +1,8 @@
-import { n as evaluateCondition, t as decisionToken } from "./token-DOBVfZ_i.js";
+import { n as grantCoversField, o as evaluateCondition, r as pickVisible, t as decisionToken } from "./token-Cq2P5nm1.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
-import { i as isMembershipExpired, o as nowSeconds, s as resolveActiveTenant } from "./snapshot-BD9YMLyb.js";
+import { i as isMembershipExpired, o as nowSeconds, s as resolveActiveTenant } from "./snapshot-BiwEN_W3.js";
 //#region src/core/from-snapshot.ts
 function isRowPair(value) {
 	return value !== null && typeof value === "object" && "current" in value && "next" in value;
@@ -182,6 +182,7 @@ function evaluateSnapshot(snapshot, subject, permission, data, team, options) {
 			});
 			continue;
 		}
+		if (!grantCoversField(grant.fields, options.field, grant.effect)) continue;
 		if (grant.effect === "deny") return freezeDeep({
 			outcome: "denied",
 			denials: [{
@@ -321,6 +322,17 @@ function fromSnapshot(snapshot, options = {}) {
 		assert,
 		filter(permission, rows, decideOptions) {
 			return rows.filter((row) => can(permission, row, decideOptions) === true);
+		},
+		pick(permission, row, decideOptions) {
+			if (row === null || typeof row !== "object") return {};
+			if (can(permission, row, decideOptions) !== true) return {};
+			return pickVisible(row, (field) => {
+				const next = compact({
+					...decideOptions,
+					field
+				});
+				return can(permission, row, next) === true;
+			});
 		},
 		where(permission) {
 			return whereFromSnapshot(snapshot, permission);

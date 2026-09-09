@@ -27,6 +27,7 @@ function snapshotGrant(
     scope,
     membership,
     portable: grant.portable ? undefined : false,
+    fields: grant.fields,
   });
   return freezeDeep(entry);
 }

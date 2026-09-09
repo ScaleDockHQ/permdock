@@ -2,7 +2,7 @@ import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "../errors-DDT8tC4N.js";
 import { t as applyOtel } from "../instrument-C8d4LNIv.js";
 import { a as problemResponse } from "../evaluations-cJeur3Fn.js";
-import { t as createPermDock$1 } from "../create-C4iJwn1N.js";
+import { t as createPermDock$1 } from "../create-BJO3Y2Tr.js";
 import { i as toRequest, n as isServerResponse, r as sendResponse } from "../http-kYphIx9F.js";
 import { Catch, Controller, Get, Inject, Injectable, Module, Post, Req, Res, createParamDecorator } from "@nestjs/common";
 import { APP_FILTER, Reflector } from "@nestjs/core";

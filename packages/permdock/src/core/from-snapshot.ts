@@ -18,6 +18,7 @@ import {
   approvalMessage,
   deniedMessage,
 } from './errors.ts';
+import { grantCoversField, pickVisible } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import {
   isMembershipExpired,
@@ -281,6 +282,9 @@ function evaluateSnapshot(
       });
       continue;
     }
+    if (!grantCoversField(grant.fields, options.field, grant.effect)) {
+      continue;
+    }
     if (grant.effect === 'deny') {
       return freezeDeep({
         outcome: 'denied',
@@ -477,6 +481,22 @@ export function fromSnapshot(
       decideOptions?: DecideOptions,
     ): T[] {
       return rows.filter((row) => can(permission, row, decideOptions) === true);
+    },
+    pick<T>(
+      permission: Permission<string, T, 'instance'>,
+      row: T,
+      decideOptions?: DecideOptions,
+    ): Partial<T> {
+      if (row === null || typeof row !== 'object') {
+        return {};
+      }
+      if (can(permission, row, decideOptions) !== true) {
+        return {};
+      }
+      return pickVisible(row, (field) => {
+        const next = compact<DecideOptions>({ ...decideOptions, field });
+        return can(permission, row, next) === true;
+      });
     },
     where(permission) {
       return whereFromSnapshot(snapshot, permission);

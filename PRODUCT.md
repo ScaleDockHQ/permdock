@@ -104,7 +104,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 - CLI `openapi --format overlay --check` plus a Spectral / Redocly / vacuum ruleset file; example per adapter plus `monorepo` and `terminal`; Playwright `instant()` once the Next example is a bootable Next.js 16.3 app.
 - Signed decision-batch export (`permdock-decisions+jwt`) as a `DecisionSink` `signer` option (`memorySink({ signer })`, `signDecisionBatch`) — shipped.
 - `permdock/cloud` (shipped optional client: `cloud({ url, key })` → `approvals`, `sink`, `snapshots` over HTTP; never `MembershipSource` / `RoleSource`); PermDock Cloud alpha in the separate `PermDock-Cloud` repo, in order: decision log with access-review queries and signed / OCSF / CSV evidence exports, hosted AuthZEN ADS, approval inbox, hosted SCIM relay replaying into the application's `scimHandler`, integrations catalog (trusted issuers, CAEP transmitters, OTLP, OCSF, CloudEvents webhooks, compliance platforms, Chat SDK delivery, read-only MCP server); Vercel Marketplace listing with `eve-agent` as the template.
-- `permdock.where` compilers for Drizzle, Prisma, Kysely (including `memberOf`) — shipped; `permdock rls generate | import | verify` with membership-table mappings — shipped; `permdock/supabase` (`subjectFromSupabase` with tenant and memberships claims, `authorize()` scaffold) — shipped; async `context`; schema-aware field-level grants; `permdock/ssf` (CAEP receiver plus OIDC Back-Channel Logout `logout_token`); `tests/integration` parity suite; examples `supabase-rls`, `drizzle`, `prisma`.
+- `permdock.where` compilers for Drizzle, Prisma, Kysely (including `memberOf`) — shipped; `permdock rls generate | import | verify` with membership-table mappings — shipped; `permdock/supabase` (`subjectFromSupabase` with tenant and memberships claims, `authorize()` scaffold) — shipped; async `context` and schema-aware field-level grants (`fields`, `pick`) — shipped; `permdock/ssf` (CAEP receiver plus OIDC Back-Channel Logout `logout_token`); `tests/integration` parity suite; examples `supabase-rls`, `drizzle`, `prisma`.
 
 **Later (v1.0, Phase 4)**
 
@@ -209,7 +209,7 @@ Full ADR: [0016 repo layout and toolchain](./apps/docs/content/docs/decisions/00
 | 0 | — | Plan and docs | README, PRODUCT, AGENTS, MIT LICENSE, full MDX docs tree (concepts, adapters, standards, security, research, decisions), Fumadocs app as the first Vercel Service at `/docs` |
 | 1 | v0.1 | Core + agents | Definitions, policies, portable conditions, two-principal subject with memberships and scoped roles (`RoleSource`, `MembershipSource`, snapshot v2), `createPermDock`, boundary validation, AuthZEN-shaped endpoint, `react`, `next`, kernel + `hono`, `jwt`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `approvals` (+ `DecisionSink`), `@permdock/testing`, `@permdock/cli` (`collect`, `catalog`, `usage`, `doctor`, `skills`, collect-only plugins), skills, seven examples, TS matrix |
 | 2 | v0.2–0.5 | Surfaces | `mcp`, `authzen` (+ certification), `openapi` (document + Overlay, `--overlay 1.2` pinned Overlay draft, `--target 3.3` pinned Security Profile draft), `react-native`, remaining HTTP / RPC / UI adapters, `terminal`, `webmcp`, `a2a`, `otel`, `scim`, `cloud` client, signed decision-batch export, CLI `openapi`, example per adapter + `monorepo` + `terminal` + `scim`, e2e; PermDock Cloud alpha (separate repo: decision log and evidence exports, hosted ADS, inbox, SCIM relay, integrations catalog) and Vercel Marketplace listing |
-| 3 | v0.6–0.9 | Data | `where` compilers (with `memberOf`), `permdock rls` with membership-table mappings, `supabase`, async `context`, field-level grants, `ssf`, integration parity suite, data examples |
+| 3 | v0.6–0.9 | Data | `where` compilers (with `memberOf`), `permdock rls` with membership-table mappings, `supabase`, async `context` and field-level grants (`fields`, `pick`), `ssf`, integration parity suite, data examples |
 | 4 | v1.0 | Ecosystem | `better-auth` and `clerk` (memberships, `RoleSource` implementations), `convex`, `pdp`, quotas, Web Bot Auth, delegation-chain verification, Arazzo `simulate`, more frameworks, docs MCP server, devtools |
 
 Detail: [roadmap](./apps/docs/content/docs/roadmap.mdx).
@@ -240,7 +240,7 @@ Tracked in [roadmap](./apps/docs/content/docs/roadmap.mdx); resolved items becom
 4. Resolved: snapshots ship full grants with normalised conditions; `include` is the size lever ([ADR 0031](./apps/docs/content/docs/decisions/0031-snapshot-contents.mdx)).
 5. A protected-query helper (`permdock.protect(queryFn, { before, after })`) for co-located redaction (Kilpi's idea).
 6. Whether `collect` should also emit the `mergePermissions` barrel or only the catalog.
-7. Field-level API shape (schema-aware `permittedFields`).
+7. Field-level API shape — resolved: `fields` on the grant and `permdock.pick` ([0033](apps/docs/content/docs/decisions/0033-field-level-grants.mdx)).
 8. Resolved, see below.
 9. `LimitStore` interface and whether quotas belong in core or a subpath.
 10. Resolved, see below.

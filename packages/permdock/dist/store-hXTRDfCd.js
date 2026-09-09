@@ -1,6 +1,6 @@
 import { t as compact } from "./compact-CxSqQNw0.js";
-import { n as parseSnapshot, o as nowSeconds } from "./snapshot-BD9YMLyb.js";
-import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-DouP-ROU.js";
+import { n as parseSnapshot, o as nowSeconds } from "./snapshot-BiwEN_W3.js";
+import { n as fromSnapshot, t as emptySnapshot } from "./from-snapshot-DXjawN3n.js";
 //#region src/react/store.ts
 function cacheKey(permission, data) {
 	if (data === null || typeof data !== "object") return `${permission.key}:*`;

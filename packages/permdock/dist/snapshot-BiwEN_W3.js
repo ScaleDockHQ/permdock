@@ -132,7 +132,8 @@ function snapshotGrant(grant, membership) {
 		approval: grant.approval,
 		scope,
 		membership,
-		portable: grant.portable ? void 0 : false
+		portable: grant.portable ? void 0 : false,
+		fields: grant.fields
 	});
 	return freezeDeep(entry);
 }

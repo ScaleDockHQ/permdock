@@ -83,7 +83,7 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
 }
 ```
 
-A grant entry has `permission`, `effect` (`allow` or `deny`), `role`, optional `where`, `check`, `approval`, `scope` (`"tenant"`, `"team"` or `{ "resource": string }`) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
+A grant entry has `permission`, `effect` (`allow` or `deny`), `role`, optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (`"tenant"`, `"team"` or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
 
 ## Membership and custom role
 

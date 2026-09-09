@@ -1,8 +1,8 @@
-import { n as evaluateCondition, t as decisionToken } from "./token-DOBVfZ_i.js";
+import { i as sanitizeContext, n as grantCoversField, o as evaluateCondition, r as pickVisible, t as decisionToken } from "./token-Cq2P5nm1.js";
 import { t as freezeDeep } from "./freeze-BF4IK5al.js";
 import { t as compact } from "./compact-CxSqQNw0.js";
 import { a as deniedMessage, i as approvalMessage, n as PermDockDeniedError, r as PermDockValidationError, t as PermDockApprovalRequiredError } from "./errors-DDT8tC4N.js";
-import { a as matchScopedMembership, c as tenantsOf, o as nowSeconds, r as signSnapshot, s as resolveActiveTenant, t as buildSnapshot } from "./snapshot-BD9YMLyb.js";
+import { a as matchScopedMembership, c as tenantsOf, o as nowSeconds, r as signSnapshot, s as resolveActiveTenant, t as buildSnapshot } from "./snapshot-BiwEN_W3.js";
 import { i as getResource, o as listPermissions } from "./permissions-WEkUHQtZ.js";
 import { n as isPrincipal, r as isSubject, t as anonymousSubject } from "./subject-Dz8DcVLC.js";
 //#region src/core/validation.ts
@@ -293,6 +293,7 @@ function evaluate(policy, subject, permission, data, options, env) {
 				});
 				continue;
 			}
+			if (!grantCoversField(grant.fields, options.field, grant.effect)) continue;
 			if (grant.effect === "deny") {
 				const decision = freezeDeep({
 					outcome: "denied",
@@ -571,6 +572,17 @@ function buildInstance(policy, subject, envBase, team) {
 			});
 			return allowed;
 		},
+		pick(permission, row, options) {
+			if (row === null || typeof row !== "object") return {};
+			if (canImpl(permission, row, options) !== true) return {};
+			return pickVisible(row, (field) => {
+				const next = compact({
+					...options,
+					field
+				});
+				return canImpl(permission, row, next) === true;
+			});
+		},
 		where(permission) {
 			const grants = collectSnapshotGrants(policy, subject, envBase.customRoles).filter((item) => item.grant.permission.key === permission.key);
 			const allows = grants.filter((item) => item.grant.effect === "allow" && item.grant.portable);
@@ -701,7 +713,7 @@ function assemblePrincipal(policy, user, options, auth) {
 	} catch {
 		principal = null;
 	}
-	const contextResult = policy.context === void 0 ? context : policy.context(user);
+	const contextResult = resolveContext(policy, user, context, auth);
 	let memberships = principal?.memberships ?? [];
 	if (principal !== null && options.memberships !== void 0) try {
 		memberships = options.memberships.membershipsFor(compact({
@@ -749,6 +761,26 @@ function finishSubject(assembled, context, memberships, options) {
 		session: assembled.session,
 		expiresAt: assembled.expiresAt
 	}));
+}
+function resolveContext(policy, user, fallback, auth) {
+	if (policy.context === void 0) return sanitizeContext(fallback);
+	try {
+		const loaded = policy.context(user);
+		if (isThenable(loaded)) return loaded.then((value) => sanitizeContext(value), () => {
+			auth.push({
+				reason: "source-threw",
+				source: "context"
+			});
+			return {};
+		});
+		return sanitizeContext(loaded);
+	} catch {
+		auth.push({
+			reason: "source-threw",
+			source: "context"
+		});
+		return {};
+	}
 }
 function resolveSubject(policy, user, options, auth) {
 	const assembled = assemblePrincipal(policy, user, options, auth);

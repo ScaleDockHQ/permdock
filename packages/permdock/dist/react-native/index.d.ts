@@ -1,8 +1,8 @@
-import { f as SnapshotV2, g as TokenVerifier } from "../interfaces-B19qT0zU.js";
-import { d as describe } from "../permdock-BFyP-l5_.js";
-import { a as FilterResult, c as PermissionState, d as TenantView, i as ClientStatus, l as ProtectedProps, n as ApprovalState, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-DN9PS-Hn.js";
-import { a as useMemberships, c as usePermissions, d as useTenant, i as useFilter, l as useRoles, n as useApproval, o as usePermDock, r as useAssignableRoles, s as usePermission, t as Protected, u as useSubject } from "../protected-nO-Pt7hh.js";
-import { t as ClientStore } from "../store-CMuVRAjj.js";
+import { f as SnapshotV2, g as TokenVerifier } from "../interfaces-BPpihPRB.js";
+import { d as describe } from "../permdock-CIIsAPlk.js";
+import { a as FilterResult, c as PermissionState, d as TenantView, i as ClientStatus, l as ProtectedProps, n as ApprovalState, p as approvalHeaders, r as ClientPermDock, s as PermissionSet, t as ApprovalHandle, u as SubjectView } from "../types-DIMCGXJs.js";
+import { a as useMemberships, c as usePermissions, d as useTenant, i as useFilter, l as useRoles, n as useApproval, o as usePermDock, r as useAssignableRoles, s as usePermission, t as Protected, u as useSubject } from "../protected-mz1qFyee.js";
+import { t as ClientStore } from "../store-77qmTePf.js";
 import { ReactElement, ReactNode } from "react";
 //#region src/react-native/types.d.ts
 type PermDockStorage = {

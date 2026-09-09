@@ -65,7 +65,7 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 - `permdock.where` compilers for Drizzle, Prisma and Kysely, including the `memberOf` node (active-tenant equality, `inArray` over held tenants, membership-table joins, declared-parent derivation) — shipped (`permdock/drizzle`, `permdock/prisma`, `permdock/kysely`; `testWhereCompiler` accepts `isFailClosed`).
 - `permdock rls generate | import | verify` — shipped (`import` emits `permissions.generated.ts`; `memberOf` compiles through the dialect's `memberships` table mapping; `verify` fixtures carry `memberships` and `tenant`; never emits `service_role`).
 - `supabase` provider (`subjectFromSupabase` with `tenant` and `memberships` claims, custom access token hook emitted by `rls generate --rbac-scaffold`, `authorize()` scaffold with an optional tenant parameter) — shipped.
-- Async `context` for relations; schema-aware field-level grants.
+- Async `context` for relations; schema-aware field-level grants (`fields` on a grant, `permdock.pick`) — shipped.
 - `permdock/ssf` CAEP receiver; OpenID Connect Back-Channel Logout `logout_token` accepted as a second SET-style revocation input through the same `TokenVerifier`, joined on `subject.session` ([OpenID Connect](/docs/standards/openid-connect)).
 - `tests/integration` parity suite on Postgres via testcontainers.
 - Examples: `supabase-rls`, `drizzle`, `prisma`.
@@ -113,7 +113,7 @@ These are the questions the plan leaves open. Each is resolved in the phase wher
 4. **Snapshot contents for large policies.** Resolved: snapshots ship full grants with normalised conditions; `include` is the size lever ([0031](/docs/decisions/0031-snapshot-contents), [Snapshots](/docs/concepts/snapshots)).
 5. **Protected-query helper.** Whether to add `permdock.protect(queryFn, { before, after })` for co-located authorization and redaction around a data fetch, Kilpi-style. Phase 2 or later. See [Kilpi v1](/docs/research/kilpi-v1).
 6. **`collect` output.** Whether `permdock collect` emits the `mergePermissions` barrel or only the catalog. Phase 2. See [collect](/docs/cli/collect).
-7. **Field-level API shape.** How schema-aware field-level grants are declared (`fields` on a grant, a separate permission per field, or `*` / `**` patterns as in CASL). Phase 3. See [Policies](/docs/concepts/policies).
+7. **Field-level API shape.** Resolved: `fields` on `allow` / `deny` (keys of the resource type) and `permdock.pick`; no globs ([0033](/docs/decisions/0033-field-level-grants)).
 8. **Decision-endpoint authentication.** Resolved: the in-app endpoint sits behind the application's session or bearer authentication via the `subject` option; the hosted ADS accepts Vercel OIDC tokens or OAuth client credentials verified with `permdock/jwt`; there is no shared-secret mode ([0021](/docs/decisions/0021-embedded-pdp-hosted-ads), [Cloud adapter](/docs/adapters/cloud)).
 9. **`LimitStore` and quotas.** The `LimitStore` interface for `limit` grants, and whether quotas belong in core or in an adapter. Phase 4. See [Policies](/docs/concepts/policies).
 10. **`approval-required` over plain HTTP.** Resolved: the client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record in the `ApprovalStore` and re-runs `decide` ([0022](/docs/decisions/0022-approvals-are-pluggable), [Approvals](/docs/security/approvals)).

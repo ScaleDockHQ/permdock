@@ -1,8 +1,8 @@
 import { r as AuthorizationDetail } from "../subject-BcgWbogX.js";
-import { o as Policy, v as Permission } from "../policy-DsqYfECx.js";
+import { o as Policy, v as Permission } from "../policy-Ypk6zTSJ.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
-import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-B19qT0zU.js";
-import { a as OtelOptions } from "../types-DnMGsJ22.js";
+import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BPpihPRB.js";
+import { a as OtelOptions } from "../types-AyNP587R.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/mcp/types.d.ts
 type McpAuthInfo = {

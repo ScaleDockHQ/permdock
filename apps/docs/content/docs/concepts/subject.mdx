@@ -87,7 +87,7 @@ definePolicy(permissions, {
 allow(permissions.post.read, { where: { teamId: { in: subject.context.teamIds } } })
 ```
 
-Context values must be JSON so they can travel in the snapshot and compile to SQL (`team_id IN (select team_id from team_user where user_id = (select auth.uid()))` on the RLS side; the compiler maps `subject.context.teamIds` to that subselect through a per-key mapping declared on the RLS adapter). This is PermDock's answer to the "no real ReBAC" complaint against permix ([permix #25](https://github.com/letstri/permix/issues/25)): relations are resolved up front and become ordinary data, so checks stay synchronous and portable.
+Context values must be JSON so they can travel in the snapshot and compile to SQL (`team_id IN (select team_id from team_user where user_id = (select auth.uid()))` on the RLS side; the compiler maps `subject.context.teamIds` to that subselect through a per-key mapping declared on the RLS adapter). A thrown or rejected `context` function is fail-closed: the instance still builds, `subject.context` is empty, and `on('auth')` reports `reason: 'source-threw'`. This is PermDock's answer to the "no real ReBAC" complaint against permix ([permix #25](https://github.com/letstri/permix/issues/25)): relations are resolved up front and become ordinary data, so checks stay synchronous and portable.
 
 When the relation is a role held somewhere (a team the user leads, a document shared with them), prefer `memberships` over a `context` array: a membership carries roles, is understood by scoped role declarations and the `memberOf` condition node, and reaches RLS through the membership table mapping instead of a per-key subselect. `context` remains right for settings, flags and values that are not memberships.
 

@@ -67,7 +67,7 @@ The contingent one is that if GNAP is adopted, tokens carrying `access` arrays w
 | `actions` | Action keys on that resource (`update` in `post.update`); an action not defined on the resource contributes nothing |
 | `identifier` | A resource-id condition, intersected with the grant's `where`; a decision on a different id is `denied` with reason `not-delegated` |
 | `locations` | Ignored by policy (PermDock does not know its own public URL) but recorded on the `on('decision')` event for audit |
-| `datatypes` | Reserved for field-level grants (Phase 3); ignored until then |
+| `datatypes` | Field allow-list on the delegated permission, same as grant `fields` ([0033](/docs/decisions/0033-field-level-grants)); ignored until GNAP `access` is evaluated |
 | `privileges` | A hint that the AS may have mapped the right to a role; recorded in audit, never used to add roles to the principal |
 | Reference string | Matched against `permission.scope`, exactly like `delegation.scopes` |
 | Union across the array | Union of delegated permissions, before intersection with the principal's grants |
@@ -145,5 +145,5 @@ GNAP's draft posture in OpenAPI is **name** ([ADR 0025](/docs/decisions/0025-dra
 ## Open questions
 
 - Whether PermDock's catalog should publish its resource `type` URIs in a discoverable document so an AS can validate `access` requests against them, or whether the OpenAPI document is that document. RFC 9767 section 3.4 (registering the resource set an RS serves) is the protocol slot such a document would feed.
-- How `datatypes` maps once schema-aware field-level grants exist (Phase 3): as a field allow-list on the delegated permission, or ignored.
+- How `datatypes` maps onto grant `fields` when GNAP `access` is evaluated (Phase 4).
 - Whether `privileges` should ever influence a decision (for example, as an extra constraint that the principal must hold the named role) or stay audit-only.

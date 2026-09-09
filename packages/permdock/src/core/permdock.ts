@@ -27,6 +27,7 @@ import {
   approvalMessage,
   deniedMessage,
 } from './errors.ts';
+import { grantCoversField, pickVisible, sanitizeContext } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { getResource, listPermissions } from './permissions.ts';
 import { buildSnapshot, parseSnapshot, signSnapshot } from './snapshot.ts';
@@ -57,6 +58,7 @@ export type DecideOptions = {
   readonly source?: DecisionEvent['source'];
   readonly adapter?: string;
   readonly onDenied?: (decision: Decision) => never | void;
+  readonly field?: string;
 };
 
 export type RowPair<T> = {
@@ -113,6 +115,11 @@ export type PermDock = {
     rows: readonly T[],
     options?: DecideOptions,
   ) => T[];
+  readonly pick: <T>(
+    permission: Permission<string, T, 'instance'>,
+    row: T,
+    options?: DecideOptions,
+  ) => Partial<T>;
   readonly where: (permission: Permission) => WhereResult;
   readonly simulate: {
     (checks: readonly (readonly [Permission, unknown?])[]): Decision[];
@@ -568,6 +575,9 @@ function evaluate(
           reason: condition.reason ?? 'condition',
           detail: condition.cause,
         });
+        continue;
+      }
+      if (!grantCoversField(grant.fields, options.field, grant.effect)) {
         continue;
       }
       if (grant.effect === 'deny') {
@@ -1074,6 +1084,22 @@ function buildInstance(
       );
       return allowed;
     },
+    pick<T>(
+      permission: Permission<string, T, 'instance'>,
+      row: T,
+      options?: DecideOptions,
+    ): Partial<T> {
+      if (row === null || typeof row !== 'object') {
+        return {};
+      }
+      if (canImpl(permission, row, options) !== true) {
+        return {};
+      }
+      return pickVisible(row, (field) => {
+        const next = compact<DecideOptions>({ ...options, field });
+        return canImpl(permission, row, next) === true;
+      });
+    },
     where(permission: Permission): WhereResult {
       const grants = collectSnapshotGrants(
         policy,
@@ -1280,8 +1306,7 @@ function assemblePrincipal(
   } catch {
     principal = null;
   }
-  const contextResult =
-    policy.context === undefined ? context : policy.context(user as never);
+  const contextResult = resolveContext(policy, user, context, auth);
   let memberships: readonly Membership[] | Promise<readonly Membership[]> =
     principal?.memberships ?? [];
   if (principal !== null && options.memberships !== undefined) {
@@ -1343,6 +1368,35 @@ function finishSubject(
       expiresAt: assembled.expiresAt,
     }),
   );
+}
+
+function resolveContext(
+  policy: Policy,
+  user: unknown,
+  fallback: Readonly<Record<string, unknown>>,
+  auth: AuthEvent[],
+):
+  | Readonly<Record<string, unknown>>
+  | Promise<Readonly<Record<string, unknown>>> {
+  if (policy.context === undefined) {
+    return sanitizeContext(fallback);
+  }
+  try {
+    const loaded = policy.context(user as never);
+    if (isThenable(loaded)) {
+      return loaded.then(
+        (value) => sanitizeContext(value),
+        () => {
+          auth.push({ reason: 'source-threw', source: 'context' });
+          return {};
+        },
+      );
+    }
+    return sanitizeContext(loaded);
+  } catch {
+    auth.push({ reason: 'source-threw', source: 'context' });
+    return {};
+  }
 }
 
 function resolveSubject(

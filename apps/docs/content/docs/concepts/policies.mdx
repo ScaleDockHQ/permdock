@@ -91,6 +91,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `(data, ctx) => boolean` | Closure: runtime only, branded non-portable |
 | `{ ..., approval: 'human' }` | Grant is valid but the decision is `approval-required` until a human approves |
 | `{ ..., limit: { count, per } }` | Quota grant (Later): non-portable, needs a `LimitStore` |
+| `{ ..., fields: ['title', 'body'] }` | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches ([0033](/docs/decisions/0033-field-level-grants)) |
 
 Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` (there is no current row). They may carry `check` on the proposed body; without a body a `check` grant does not match ([0029](/docs/decisions/0029-check-on-collection-actions)). Closures over `ctx` only remain valid on collection grants.
 
@@ -160,7 +161,7 @@ Three reasons to keep the split. The policy stays the single statement of who ma
 | `roles` | `Role[]` | Required. Fragments with the same name merge. Scoped roles (`on`) and global roles mix freely. |
 | `scopes` | `{ tenant?: { key }, team?: { key } }` | Required when any role is scoped to `'tenant'` or `'team'`. Names the field on every scoped resource that holds the tenant or team id; checked against each resource schema ([tenancy](/docs/concepts/tenancy)). |
 | `subject` | `(user) => Principal \| null` | Required. Returns the values referenced as `subject.<field>` in conditions, plus `roles`, `memberships` and `tenant`. `null` means anonymous. Any `subjectFrom*` provider satisfies it. |
-| `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `subject.context.<key>`. Declaring it makes `createPermDock` async. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them. |
+| `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `subject.context.<key>`. Declaring it makes `createPermDock` async. A thrown or rejected loader is fail-closed: empty context and an `on('auth')` event with `reason: 'source-threw'`. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them. |
 | `validate` | `'boundary'`, `'always'` or `'never'` | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation). |
 | `onDenied` | `(decision) => never \| void` | Optional default unauthorized handler for `assert`; runs last in the layered chain. |
 
@@ -189,6 +190,8 @@ test('policy matrix', () => {
 ```
 
 A change in the matrix is a change in who can do what, and shows up in review as a snapshot diff.
+
+Field-level grants use `fields` on `allow` / `deny` and `permdock.pick(permission, row)` for redaction. A field-restricted allow still grants the row so `filter` keeps it; `can(permission, row, { field: 'title' })` checks one key. There are no glob patterns ([0033](/docs/decisions/0033-field-level-grants)).
 
 ## Open questions
 

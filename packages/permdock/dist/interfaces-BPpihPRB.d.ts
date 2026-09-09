@@ -91,6 +91,7 @@ type SnapshotGrant = {
   };
   readonly membership?: Membership;
   readonly portable?: false;
+  readonly fields?: readonly string[];
 };
 type SnapshotSource = {
   get(): Promise<SnapshotV2 | string> | SnapshotV2 | string;

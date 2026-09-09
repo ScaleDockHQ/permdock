@@ -8,6 +8,7 @@ import {
   normalizeWhere,
 } from '../conditions/index.ts';
 import { compact } from './compact.ts';
+import { sanitizeFields } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import {
   type Permission,
@@ -46,6 +47,7 @@ export type GrantOptions<T = Record<string, unknown>> = {
   readonly approval?: 'human';
   readonly limit?: { readonly count: number; readonly per: string };
   readonly reason?: string;
+  readonly fields?: readonly (keyof T & string)[];
 };
 
 export type RoleScope =
@@ -70,6 +72,7 @@ export type Grant = {
   readonly portable: boolean;
   readonly closure?: ClosureGrantFn;
   readonly limit?: { readonly count: number; readonly per: string };
+  readonly fields?: readonly string[];
   readonly scope: 'global' | 'tenant' | 'team' | { readonly resource: string };
 };
 
@@ -185,11 +188,12 @@ function makeGrant(
     approval: condition?.approval,
     portable,
     limit: condition?.limit,
+    fields: sanitizeFields(condition?.fields),
   });
 }
 
 export type GrantCondition<T, K extends PermissionKind> = K extends 'collection'
-  ? Omit<GrantOptions<T>, 'where'> | ClosureGrantFn<T>
+  ? Omit<GrantOptions<T>, 'where' | 'fields'> | ClosureGrantFn<T>
   : GrantOptions<T> | ClosureGrantFn<T>;
 
 export function allow<T, K extends PermissionKind = PermissionKind>(
@@ -278,6 +282,7 @@ function canonicalGrants(roles: readonly Role[]): string {
       check: grant.check,
       approval: grant.approval,
       portable: grant.portable,
+      fields: grant.fields,
       scope: grant.scope,
     })),
   }));

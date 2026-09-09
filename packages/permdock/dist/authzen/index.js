@@ -1,6 +1,6 @@
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { n as findPermission, o as listPermissions } from "../permissions-WEkUHQtZ.js";
-import { t as createPermDock$1 } from "../permdock-CwKJL-qM.js";
+import { t as createPermDock$1 } from "../permdock-DJYNs84n.js";
 import { a as problemResponse, o as validationProblem, r as PROBLEM_BASE, t as applyApprovalResume } from "../evaluations-cJeur3Fn.js";
 //#region src/authzen/map.ts
 const UNKNOWN = {

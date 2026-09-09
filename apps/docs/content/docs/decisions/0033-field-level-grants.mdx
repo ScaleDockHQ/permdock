@@ -1,0 +1,47 @@
+---
+title: "0033: Field-level grants"
+description: Schema-aware fields on a grant, pick for redaction, no glob patterns.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Row-level `can` and `filter` answer whether a subject may act on a record. Many APIs also need column-level rules: a member may read `title` and `body` but not `secret`. CASL puts `fields` on a rule and matches `*` / `**` globs. Directus stores `fields: string[]` on a permission. A separate permission per field (`post.read.title`) would explode the catalog and break RLS mapping.
+
+Phase 3 asked how PermDock declares this. Permissions are already typed from a Standard Schema, so field names can be keys of that output instead of free strings.
+
+## Decision
+
+`allow` and `deny` accept optional `fields`, a list of keys of the permission's resource type (`readonly (keyof T and string)[]`). An omitted list means every field. An empty list never matches (fail closed). Forbidden keys (`__proto__`, `constructor`, `prototype`) are dropped; if that empties the list the grant never matches.
+
+Evaluation:
+
+- A field-restricted allow still grants the row (`can` without `field`), so `filter` keeps the record.
+- `can(permission, row, { field })` matches an allow with no list or a list that includes `field`, and a deny the same way. A field-only deny does not deny the row.
+- `permdock.pick(permission, row)` returns the own keys the subject may read. A denied row yields an empty object.
+- Collection grants do not take `fields`. There are no `*` / `**` patterns.
+
+`fields` is portable JSON on the grant and on Snapshot v2. Deny still overrides allow per field.
+
+## Consequences
+
+- `allow(permissions.post.read, { fields: ['title', 'body'] })` is a type error when `title` is not on the schema.
+- Callers redact with `pick` after `filter`, not with a second permission tree.
+- RLS and `where` stay row-level; field lists do not compile to column privileges in this phase.
+- GNAP `datatypes` can map onto the same list later.
+
+## Alternatives considered
+
+- **A permission per field.** Rejected: catalog and RLS key explosion; `post.read` would no longer mean the row.
+- **CASL globs (`*`, `!password`).** Rejected: string keys and surprise grants; the schema already names the fields.
+- **`pick` as the only API, no `fields` on the grant.** Rejected: the client snapshot could not redact without the server.
+
+## Related
+
+- [0010: Policy as data](/docs/decisions/0010-policy-as-data-portable-conditions)
+- [Policies](/docs/concepts/policies)
+- [Wire formats](/docs/concepts/wire-formats)
+- [GNAP](/docs/standards/gnap)

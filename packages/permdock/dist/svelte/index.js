@@ -1,7 +1,7 @@
 import { t as describe } from "../describe-BnKr1Gwo.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
 import { t as approvalHeaders } from "../headers-B5RRv3Xm.js";
-import { t as createClientStore } from "../store-CTduNoYr.js";
+import { t as createClientStore } from "../store-hXTRDfCd.js";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 import { getContext, onDestroy, setContext } from "svelte";

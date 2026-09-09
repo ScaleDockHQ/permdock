@@ -107,6 +107,7 @@ type GrantOptions<T = Record<string, unknown>> = {
     readonly per: string;
   };
   readonly reason?: string;
+  readonly fields?: readonly (keyof T & string)[];
 };
 type RoleScope = "tenant" | "team" | Permission | PermissionTree | readonly (Permission | PermissionTree)[];
 type RoleOptions = {
@@ -126,6 +127,7 @@ type Grant = {
     readonly count: number;
     readonly per: string;
   };
+  readonly fields?: readonly string[];
   readonly scope: "global" | "tenant" | "team" | {
     readonly resource: string;
   };
@@ -157,7 +159,7 @@ type Policy<TUser = unknown, TPrincipal extends Principal = Principal> = {
   readonly fingerprint: string;
   readonly resources: ReadonlyMap<string, ResourceNode>;
 };
-type GrantCondition<T, K extends PermissionKind> = K extends "collection" ? Omit<GrantOptions<T>, "where"> | ClosureGrantFn<T> : GrantOptions<T> | ClosureGrantFn<T>;
+type GrantCondition<T, K extends PermissionKind> = K extends "collection" ? Omit<GrantOptions<T>, "where" | "fields"> | ClosureGrantFn<T> : GrantOptions<T> | ClosureGrantFn<T>;
 declare function allow<T, K extends PermissionKind = PermissionKind>(permission: Permission<string, T, K> | readonly Permission<string, T, K>[], condition?: GrantCondition<T, K>): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];
 declare function deny<T, K extends PermissionKind = PermissionKind>(permission: Permission<string, T, K> | readonly Permission<string, T, K>[], condition?: GrantCondition<T, K>): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];
 declare function role(name: string, grants: readonly (Omit<Grant, "role" | "scope"> | readonly Omit<Grant, "role" | "scope">[])[], options?: RoleOptions): Role;

@@ -133,6 +133,7 @@ export type SnapshotGrant = {
   readonly scope?: 'tenant' | 'team' | { readonly resource: string };
   readonly membership?: Membership;
   readonly portable?: false;
+  readonly fields?: readonly string[];
 };
 
 export type SnapshotSource = {

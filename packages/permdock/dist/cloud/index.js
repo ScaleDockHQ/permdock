@@ -1,6 +1,6 @@
 import { t as freezeDeep } from "../freeze-BF4IK5al.js";
 import { t as compact } from "../compact-CxSqQNw0.js";
-import { n as parseSnapshot } from "../snapshot-BD9YMLyb.js";
+import { n as parseSnapshot } from "../snapshot-BiwEN_W3.js";
 import { t as ApprovalError } from "../errors-BQyxzFvZ.js";
 //#region src/cloud/create.ts
 function readEnv(name) {
