@@ -46,6 +46,7 @@ export const ENTRIES = {
   './ssf': 'ssf/index.js',
   './better-auth': 'better-auth/index.js',
   './clerk': 'clerk/index.js',
+  './convex': 'convex/index.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -117,7 +118,7 @@ export function wintertcViolations(
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   return files.filter((file) =>
-    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud|drizzle|prisma|kysely|supabase|ssf|better-auth|clerk)[/\\]/u.test(
+    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud|drizzle|prisma|kysely|supabase|ssf|better-auth|clerk|convex)[/\\]/u.test(
       file,
     ),
   );

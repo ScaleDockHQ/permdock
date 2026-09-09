@@ -487,7 +487,24 @@ Pass `auth()` or a verified session payload only. A plain `{ userId }` object is
 
 ## Planned adapters
 
-Phase 3 data adapters and `permdock/ssf` ship. Phase 4 `better-auth` and `clerk` ship; remaining providers (`convex`, `pdp`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+## Convex — `permdock/convex`
+
+```ts
+import { createPermDock } from 'permdock/convex';
+
+export const { withPermDock, snapshotQuery } = createPermDock(policy, {
+  subject: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    return identity && { id: identity.subject, roles: ['member'] };
+  },
+});
+```
+
+Identity comes from `ctx` only. Function arguments never influence the subject. `assert` becomes a ConvexError with RFC 9457 Problem Details.
+
+## Planned adapters
+
+Phase 3 data adapters and `permdock/ssf` ship. Phase 4 `better-auth`, `clerk` and `convex` ship; `pdp` follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
 
 ```bash
 pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql

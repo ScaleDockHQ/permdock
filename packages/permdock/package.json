@@ -166,6 +166,10 @@
     "./clerk": {
       "types": "./dist/clerk/index.d.ts",
       "default": "./dist/clerk/index.js"
+    },
+    "./convex": {
+      "types": "./dist/convex/index.d.ts",
+      "default": "./dist/convex/index.js"
     }
   },
   "scripts": {

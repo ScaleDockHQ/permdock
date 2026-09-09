@@ -37,6 +37,7 @@ const SERVER_SPECIFIERS = [
   'permdock/ssf',
   'permdock/better-auth',
   'permdock/clerk',
+  'permdock/convex',
   'permdock/ai-sdk',
   'permdock/claude-agent',
   'permdock/eve',

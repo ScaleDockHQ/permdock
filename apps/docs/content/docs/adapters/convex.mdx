@@ -3,7 +3,7 @@ title: Convex
 description: The permdock/convex provider builds a PermDock subject from ctx.auth inside Convex queries, mutations and actions, and ships the snapshot to the client through a Convex query.
 ---
 
-Status: planned
+Status: shipped
 Phase: 4
 
 `permdock/convex` is a provider for Convex functions. Inside a query, mutation or action it turns `ctx.auth.getUserIdentity()` (plus any roles stored in Convex tables) into a PermDock subject and a request-scoped `PermDock`, so function bodies call `assert`, `can` and `filter` with typed permissions. A companion query returns the snapshot so the Convex React client can drive `PermDockProvider`.

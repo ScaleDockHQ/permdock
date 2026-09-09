@@ -36,5 +36,6 @@
   "./supabase": 2731,
   "./ssf": 9184,
   "./better-auth": 11383,
-  "./clerk": 2889
+  "./clerk": 2889,
+  "./convex": 17635
 }
