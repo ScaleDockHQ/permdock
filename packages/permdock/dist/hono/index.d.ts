@@ -1,8 +1,9 @@
-import { o as Policy, v as Permission } from "../policy-Ypk6zTSJ.js";
+import { o as Policy } from "../policy-CIG-jCsG.js";
+import { r as Permission } from "../permissions-CkmCCiYs.js";
 import { s as ApprovalStore } from "../types-D19MSDwi.js";
 import { c as RoleSource, d as SnapshotSource, r as DecisionSink, s as MembershipSource } from "../interfaces-BPpihPRB.js";
 import { a as OtelOptions } from "../types-AyNP587R.js";
-import { n as OpenApiHooks } from "../create-Blrfo0ym.js";
+import { n as OpenApiHooks } from "../create-BJhgSpGs.js";
 import { Context, Hono, MiddlewareHandler } from "hono";
 //#region src/hono/create.d.ts
 type HonoPermDockOptions = {

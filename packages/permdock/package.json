@@ -162,6 +162,10 @@
     "./better-auth": {
       "types": "./dist/better-auth/index.d.ts",
       "default": "./dist/better-auth/index.js"
+    },
+    "./clerk": {
+      "types": "./dist/clerk/index.d.ts",
+      "default": "./dist/clerk/index.js"
     }
   },
   "scripts": {

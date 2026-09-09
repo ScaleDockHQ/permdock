@@ -1,7 +1,7 @@
-import { v as Permission } from "./policy-Ypk6zTSJ.js";
-import { n as Decision } from "./decision-BD0W6Opj.js";
+import { r as Permission } from "./permissions-CkmCCiYs.js";
+import { n as Decision } from "./decision-CH_azeep.js";
 import { f as SnapshotV2 } from "./interfaces-BPpihPRB.js";
-import { c as PermissionState, r as ClientPermDock } from "./types-DIMCGXJs.js";
+import { c as PermissionState, r as ClientPermDock } from "./types-CkGVMhxm.js";
 //#region src/react/store.d.ts
 type ClientStore = {
   get(): ClientPermDock;

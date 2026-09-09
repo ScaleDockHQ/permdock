@@ -35,5 +35,6 @@
   "./kysely": 5288,
   "./supabase": 2731,
   "./ssf": 9184,
-  "./better-auth": 11383
+  "./better-auth": 11383,
+  "./clerk": 2889
 }

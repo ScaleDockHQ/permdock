@@ -1,7 +1,7 @@
 import { d as Subject, l as Membership } from "../subject-BcgWbogX.js";
-import { v as Permission } from "../policy-Ypk6zTSJ.js";
+import { r as Permission } from "../permissions-CkmCCiYs.js";
 import { a as ApprovalResumeFailure, c as ApprovalSubjectSummary, i as ApprovalRequest, l as ApprovalVerdict, n as ApprovalInspectResult, o as ApprovalStatus, r as ApprovalListFilter, s as ApprovalStore, t as APPROVAL_HEADER, u as DEFAULT_APPROVAL_TTL_MS } from "../types-D19MSDwi.js";
-import { n as Decision } from "../decision-BD0W6Opj.js";
+import { n as Decision } from "../decision-CH_azeep.js";
 import { h as TokenSigner } from "../interfaces-BPpihPRB.js";
 //#region src/approvals/handler.d.ts
 type ApprovalsHandlerOptions = {

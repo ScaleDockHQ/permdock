@@ -1,5 +1,6 @@
 import { d as Subject, u as Principal } from "../subject-BcgWbogX.js";
-import { b as PermissionTree, c as Role } from "../policy-Ypk6zTSJ.js";
+import { c as Role } from "../policy-CIG-jCsG.js";
+import { a as PermissionTree } from "../permissions-CkmCCiYs.js";
 import { c as RoleSource } from "../interfaces-BPpihPRB.js";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 //#region src/better-auth/types.d.ts

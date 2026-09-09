@@ -64,6 +64,7 @@ export default defineConfig({
     'src/supabase/index.ts',
     'src/ssf/index.ts',
     'src/better-auth/index.ts',
+    'src/clerk/index.ts',
   ],
   platform: 'neutral',
   dts: true,

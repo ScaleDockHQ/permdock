@@ -3,7 +3,7 @@ title: Clerk
 description: The permdock/clerk provider maps Clerk session claims, organization roles and permissions to a PermDock subject so PermDock conditions, snapshots and adapters run on top of Clerk authentication.
 ---
 
-Status: planned
+Status: shipped
 Phase: 4
 
 `permdock/clerk` is a provider. Clerk supplies the authenticated user, the active organization, its role and Clerk-defined permissions; PermDock supplies conditions, decisions, snapshots and adapters. The provider reads Clerk's session claims (server) or the `useAuth` / `useOrganization` state (client) and returns the subject PermDock expects.

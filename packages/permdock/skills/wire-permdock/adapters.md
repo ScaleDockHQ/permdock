@@ -473,9 +473,21 @@ const permdock = await createPermDock(policy, subject, {
 
 Pass the server `getSession` result only. A null session is anonymous. Never call `hasPermission` on the request path.
 
+## Clerk — `permdock/clerk`
+
+```ts
+import { subjectFromClerk } from 'permdock/clerk';
+
+export const { getPermDock } = createPermDock(policy, {
+  subject: async () => subjectFromClerk(await auth()),
+});
+```
+
+Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API.
+
 ## Planned adapters
 
-Phase 3 data adapters and `permdock/ssf` ship. Phase 4 starts with `permdock/better-auth`; remaining providers (`clerk`, `convex`, `pdp`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
+Phase 3 data adapters and `permdock/ssf` ship. Phase 4 `better-auth` and `clerk` ship; remaining providers (`convex`, `pdp`) follow the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
 
 ```bash
 pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql

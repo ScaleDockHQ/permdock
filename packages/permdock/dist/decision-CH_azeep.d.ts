@@ -1,5 +1,6 @@
 import { d as Subject } from "./subject-BcgWbogX.js";
-import { r as Grant, v as Permission } from "./policy-Ypk6zTSJ.js";
+import { r as Grant } from "./policy-CIG-jCsG.js";
+import { r as Permission } from "./permissions-CkmCCiYs.js";
 //#region src/core/decision.d.ts
 type DenialReason = "no-grant" | "condition" | "deny" | "closure-error" | "opaque-condition" | "anonymous" | "not-delegated" | "no-delegation" | "insufficient-user-authentication" | "limit" | "validation" | "tenant-mismatch" | "no-membership" | "scope" | "expired-membership" | "unknown-role" | "approval";
 type Denial = {
