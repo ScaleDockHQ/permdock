@@ -477,6 +477,31 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  apps/examples/drizzle:
+    dependencies:
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@types/pg@8.23.1)(kysely@0.28.8)(pg@8.23.0)
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.7
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   apps/examples/elysia:
     dependencies:
       elysia:
@@ -725,6 +750,28 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  apps/examples/prisma:
+    dependencies:
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.7
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   apps/examples/react-vite:
     dependencies:
       permdock:
@@ -790,6 +837,31 @@ importers:
       '@permdock/typescript-config':
         specifier: workspace:*
         version: link:../../../packages/typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  apps/examples/supabase-rls:
+    dependencies:
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.7
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/cli':
+        specifier: workspace:*
+        version: link:../../../packages/cli
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -10220,7 +10292,8 @@ snapshots:
 
   jsonc-parser@3.3.1: {}
 
-  kysely@0.28.8: {}
+  kysely@0.28.8:
+    optional: true
 
   launch-editor@2.14.1:
     dependencies:
