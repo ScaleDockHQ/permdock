@@ -7,7 +7,7 @@ description: Add PermDock authorization to a TypeScript app. Use when installing
 
 Three files and one guard. Import paths and identifiers follow the [naming convention](https://permdock.dev/docs/getting-started/naming). Adapter factory shapes live in [adapters.md](adapters.md).
 
-Permissions are **references** (`permissions.post.update`). Outcomes are `granted`, `denied`, or `approval-required`. The subject comes from a trusted resolver (`subjectFrom*` or your session). Client entries load snapshots and hooks only.
+Permissions are **references** (`permissions.post.update`). Roles and plans are typed leaves too (`roles.owner`, `plans.pro`). Outcomes are `granted`, `denied`, or `approval-required`. The subject comes from a trusted resolver (`subjectFrom*` or your session). Client entries load snapshots and hooks only.
 
 ## 1. Detect
 
@@ -20,43 +20,58 @@ Done when the adapter import path (`permdock/<framework>`) and the validator imp
 Create `src/permissions.ts`. Importable everywhere. No rules, no secrets.
 
 ```ts
-import { definePermissions, resource } from 'permdock';
+import {
+  definePermissions,
+  defineRoles,
+  definePlans,
+  resource,
+  crud,
+} from 'permdock';
 import { Post } from './schemas';
 
 export const permissions = definePermissions({
-  post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete', 'publish'],
-    collection: ['create', 'list'],
-  }),
+  post: resource(
+    Post,
+    crud({
+      relations: { author: 'authorId' },
+    }),
+  ),
 });
+export const roles = defineRoles({
+  member: {},
+  admin: {},
+});
+export const plans = definePlans({ pro: {} });
 ```
 
 Done when every resource the first guard needs has a leaf, and instance actions sit in `actions` while list/create sit in `collection`.
 
 ## 3. Policy
 
-Create `src/policy.ts`. Server-only. Roles as `allow` / `deny` arrays. Portable `where` first; closures only when a portable operator cannot express the rule. Destructive agent-reachable actions take `approval: 'human'`. A `limit: { count, per }` grant needs `limits: memoryLimitStore()` (or your store) on `createPermDock`; `can` never consumes.
+Create `src/policy.ts`. Server-only. Prefer `grants` with `to:` selectors (`anyone()`, `authenticated()`, `relation()`, a `Role` or `Plan` leaf, `actor()`, `assurance()`). `role(roles.member, …)` sugar still works. Portable `where` first; closures only when a portable operator cannot express the rule. Destructive agent-reachable actions take `approval: 'human'`. A `limit: { count, per }` grant needs `limits: memoryLimitStore()` (or your store) on `createPermDock`; `can` never consumes.
 
 ```ts
-import { definePolicy, role, allow, subject } from 'permdock';
-import { permissions } from './permissions';
+import { definePolicy, role, allow, principal, relation } from 'permdock';
+import { permissions, roles } from './permissions';
 
-const member = role('member', [
+const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.update, { to: relation(permissions.post, 'author') }),
   allow(permissions.post.delete, {
-    where: { authorId: subject.id },
+    where: { authorId: principal.id },
     approval: 'human',
   }),
 ]);
 
-export const policy = definePolicy(permissions, {
-  roles: [member],
-  subject: (user) => user && { id: user.id, roles: user.roles },
-});
+export const policy = definePolicy(
+  { permissions, roles },
+  {
+    roles: [member],
+    principal: (user) => user && { id: user.id, roles: user.roles },
+  },
+);
 ```
 
 Done when at least one role grants the first guard's permission, and `policy.ts` is not imported from a client entry.

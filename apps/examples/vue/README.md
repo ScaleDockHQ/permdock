@@ -1,6 +1,6 @@
 # `@permdock/example-vue`
 
-Minimal Vue wiring for `permdock/vue`: a Snapshot v2 built in the app, `permdockPlugin`, and `<Protected>` guards. Vite serves the page.
+Minimal Vue wiring for `permdock/vue`: a Snapshot v3 built in the app, `permdockPlugin`, and `<Protected>` guards. Vite serves the page.
 
 ```bash
 pnpm --filter @permdock/example-vue dev

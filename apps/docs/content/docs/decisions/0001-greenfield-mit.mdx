@@ -1,6 +1,6 @@
 ---
 title: "0001: Greenfield clean-room design under MIT"
-description: Why PermDock is a new library rather than a permix fork, and why the licence changed from GPL-3 to MIT.
+description: Why PermDock is a new library rather than a fork of an existing one, and why the licence changed from GPL-3 to MIT.
 ---
 
 ## Status
@@ -9,33 +9,33 @@ Accepted, September 2026.
 
 ## Context
 
-PermDock started from a specific history. Its author submitted 25 pull requests to permix: 2 were merged, 17 were closed as "changes the public API", 6 remain open. Together they describe a v5 that permix's maintainer did not want: immutable request-scoped instances, Standard Schema entity inference, `explain()` and denial reasons, a runtime catalog with CI freshness checks, a shared server kernel, request-scoped Next.js resolution, auth providers, a TS 5.9/6/7 matrix, shipped skills and `llms.txt`. The full list is in [permix lessons](/docs/research/permix-lessons).
+No TypeScript permissions library combined typed references, portable conditions, structured decisions and a request-scoped core. permix is the closest in adapter breadth; CASL, Kilpi and `@zap-studio/permit` each cover a different slice. The [landscape survey](/docs/research/landscape) and the deep-dives ([permix](/docs/research/permix-lessons), [CASL v7](/docs/research/casl-v7), [Kilpi v1](/docs/research/kilpi-v1), [zap-studio/permit](/docs/research/zap-studio-permit)) are the requirements list.
 
 Two options were on the table when the repository was created:
 
-1. Fork permix (MIT), land the 25 PRs on the fork, and rename.
-2. Design a new library from scratch, using the PRs and the landscape survey as requirements rather than as code.
+1. Fork an existing library and rename.
+2. Design a new library from scratch, using the landscape as adopt / adapt / avoid lists rather than as code.
 
 The repository also carried a GPL-3 `LICENSE` file, inherited from a template. permix, CASL, Kilpi, `@zap-studio/permit`, Better Auth and ZenStack are all MIT; Cerbos, OpenFGA and SpiceDB are Apache-2.0. A copyleft licence on a library that is imported into client bundles and edge functions would be a real adoption barrier and would complicate embedding PermDock in commercial products.
 
 ## Decision
 
-PermDock is a greenfield, clean-room design. Nothing is copied from permix, CASL or Kilpi: not the code, not the identifiers, not the wire formats. The permix PR stack is treated as a requirements document, and the landscape and deep-dive reports are treated as adopt / adapt / avoid lists.
+PermDock is a greenfield, clean-room design. Nothing is copied from permix, CASL or Kilpi: not the code, not the identifiers, not the wire formats. The landscape and deep-dive reports are treated as adopt / adapt / avoid lists.
 
 The licence is MIT, copyright ScaleDockHQ, 2026. The GPL-3 text is replaced in Phase 0.
 
 ## Consequences
 
-- The public API can be optimised for the things permix could not change: typed references instead of string keys, a three-outcome `Decision`, a two-principal subject, AuthZEN wire formats, MCP and AI SDK adapters, Next.js 16.3 Cache Components.
-- There is no migration path from permix; a comparison page and the research pages explain the differences instead.
+- The public API can be designed for typed references instead of string keys, a three-outcome `Decision`, a two-principal subject, AuthZEN wire formats, MCP and AI SDK adapters, and Next.js 16.3 Cache Components.
+- There is no migration path from permix, CASL or Kilpi; a comparison page and the research pages explain the differences instead.
 - Every design borrowed from another library is documented as a conscious "adopt" with a source link, so the clean-room claim can be audited.
 - MIT keeps PermDock compatible with every library it integrates with and with the Standard Schema, MCP and AuthZEN ecosystems.
 - The name PermDock, the npm names `permdock`, `@permdock/cli` and `@permdock/testing`, and the GitHub organisation ScaleDockHQ are fixed.
 
 ## Alternatives considered
 
-- **Fork permix and apply the PRs.** Fastest path to an adapter matrix, but it would inherit the mutable global `setup()` core, boolean-only hydration, template-literal keys and the same-named check and define APIs. Each PR was written to fit permix's constraints, not to fix them.
-- **Contribute upstream again.** The maintainer had already rejected API evolution 17 times; the remaining open PRs are bug fixes, not the redesign.
+- **Fork permix.** Fastest path to an adapter matrix, but it would inherit the mutable global `setup()` core, boolean-only hydration, template-literal keys and the same-named check and define APIs.
+- **Change permix in place.** permix's public API is the product of a different set of constraints (string keys, mutable `setup()`, boolean hydration). The gaps PermDock fills are a redesign, not a patch.
 - **Apache-2.0.** Also permissive and adds an explicit patent grant, but MIT matches the immediate ecosystem (permix, CASL, Kilpi, Better Auth, Standard Schema) and is the licence most TypeScript consumers expect to see.
 - **Keep GPL-3.** Rejected: incompatible with client bundles in proprietary apps and with the goal of being embedded by agent runtimes and MCP servers.
 

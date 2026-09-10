@@ -1,0 +1,169 @@
+---
+title: API surface 2026
+description: Where the 0.1 PermDock API inherited prior-art structure, what the field converged on, and the 0.2 surface of typed vocabulary, grantee selectors, resource relations, and a Cloud identity gateway.
+---
+
+Source: `naming.mdx`, `policies.mdx`, ADRs 0003–0013, 0018, 0023–0028, 0031–0037; `permix-lessons.mdx`, `commercial-landscape.mdx`; Cedar, Clerk `has()`, Oso Polar, OpenFGA, WorkOS FGA, Cerbos, Better Auth access control, and the Better Auth Agent Auth Protocol (Vercel acquisition, July 2026). Core survey of `packages/permdock/src/core` in September 2026.
+
+The noun stays `PermDock`. `dock` remains reserved. Call sites read `permdock.roles.admin`, never `dock.roles.admin`.
+
+## 1. Where the prior-art debt actually is
+
+The nouns are clean-room (no `ability`, no `can`-as-definer, no `$`), but three structural choices were inherited rather than derived:
+
+| Layer | 0.1 shape | Lineage | Verdict |
+| --- | --- | --- | --- |
+| Definition | `resource(Schema, crud({...}))` producing typed leaves | `@zap-studio/permit`, permix type-only definitions | Keep. Reference-typed leaves that are plain JSON is the one thing nobody else has. |
+| Policy | `role(name, [allow(p, { where })])` | CASL rule lists grouped by role; Better Auth `ac.newRole` | The debt. The **role is the only grantee**, so plans, flags, assurance, relations and agent-versus-human all have to be smuggled in as roles ("entitlements are roles") or as `subject.*` conditions. |
+| Instance | `can` / `decide` / `assert` / `filter` / `pick` / `where` / `simulate` / `snapshot` / `on` plus six tenancy methods | Union of CASL, Kilpi, Cerbos verbs | Too many verbs; two question shapes missing (`actions` on a row, `who` on a row). |
+| Packaging | Many subpath adapters, each returning a framework shape | permix, scaled up | HTTP adapters already share `permdock` / `protect` / `permdockHandler` / `openapi`. Fetch-native frameworks stay thin wrappers; no new entries. |
+| Subject | `principal` / `actor` / `delegation` / `assurance` / `binding` / `session` | RFC 8693, OIDC, RFC 7800 | Own, and richer than every vendor. This is the asset Cloud identity builds on. |
+
+Two corrections from the 0.1 code, against an earlier sketch of this page:
+
+- `permdock.subject` already exists on the instance. `Subject` is the RFC 8693 name ([0026](/docs/decisions/0026-spec-aligned-naming)). There is no `identity` rename. The fix is narrower: the `definePolicy` option that returns a `Principal` is `principal`, and the condition builder `subject.id` is `principal.id`.
+- HTTP adapters already return the same triple. The de-permixing move is a rule, not a deletion: no new Fetch-native entries, and Hono / Elysia stay one-file wrappers ([0041](/docs/decisions/0041-fetch-native-frameworks-are-recipes)).
+
+## 2. What the field converged on
+
+- **Cedar** is the only model with a proof of semantics: `permit(principal, action, resource) when { ... }` / `forbid`, deny-overrides, schema validated at authoring. Its four-tuple is AuthZEN's four-tuple. PermDock already adopted Cedar's combining rule; 0.2 adopts the typed-grantee half.
+- **Clerk `has({ role | permission | feature | plan })`** and **WorkOS** show that product teams think in several grantee dimensions, not one.
+- **Oso Polar** (`"update" if "author"`) and **OpenFGA** show that relations are the readable form of ownership; 0.1 expressed the same thing as `where: { authorId: subject.id }` on every grant.
+- **Question-shaped verbs** (WorkOS FGA): one permission on one row, many permissions on one row, one permission over many rows, who has a permission on a row. PermDock had the first and the third. `actions(permissions.post, post)` is the second. `who` waits on a directory and ships later on Cloud.
+- **Unified request object** (Clerk `auth()`, Better Auth `auth.api.hasPermission`, Ory): one request-scoped object that knows who you are and what you may do. PermDock already has the "who" half as `Subject` on the instance.
+- **Agent identity**: Vercel bought Better Auth for the Agent Auth Protocol (capability grants, device flow, Ed25519 agent JWTs). A capability there is a PermDock permission reference.
+
+## 3. Typed vocabulary on the instance
+
+0.1 materialises one typed tree, `permissions.post.read`. Roles stay strings: `role('admin', ...)`, `principal.roles: ['admin']`, `permdock.roles()` returning `string[]`. Plans and entitlements are stuffed into that same string bucket.
+
+0.2 materialises three client-safe trees, all plain frozen JSON, identity by `key`:
+
+```ts
+export const permissions = definePermissions({
+  post: resource(Post, crud({
+    relations: { author: 'authorId' },
+  })),
+})
+export const roles = defineRoles({
+  owner: { on: 'tenant', meta: { title: 'Owner' } },
+  member: { on: 'tenant' },
+  support: {},
+})
+export const plans = definePlans({
+  pro: { meta: { title: 'Pro' } },
+})
+
+const permdock = await createPermDock(policy, user)
+permdock.permissions.post.update
+permdock.roles.owner
+permdock.plans.pro
+permdock.heldRoles({ tenant })
+permdock.assignableRoles()
+```
+
+`Role` and `Plan` leaves survive `JSON.stringify`, RSC props and postMessage, the same way permission leaves do ([0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)). `role('member', ...)` still works and expands to `to: { kind: 'role', role: 'member' }`. String-only names from a `RoleSource` or a JWT become synthesised `Role` leaves with `assignable: false`.
+
+The old `roles()` / `assignable()` methods cannot sit next to a `roles` tree, so they rename to `heldRoles` / `assignableRoles` and return `Role[]`. UI hooks follow.
+
+Recorded in [0038](/docs/decisions/0038-typed-vocabulary).
+
+## 4. Grantee selectors and relations
+
+`role('member', [...])` becomes sugar over statements whose grantee is any typed selector:
+
+```ts
+export const policy = definePolicy({ permissions, roles, plans }, {
+  principal: (user) => ({
+    id: user.id,
+    roles: user.roles,
+    memberships: user.memberships,
+    plans: user.plans,
+  }),
+  grants: [
+    allow(permissions.post.read, { to: anyone() }),
+    allow(permissions.post.update, { to: relation(permissions.post, 'author') }),
+    allow(permissions.post.delete, { to: roles.owner }),
+    allow(permissions.report.export, { to: [roles.member, plans.pro] }),
+    allow(permissions.billing.change, {
+      to: [roles.owner, assurance({ acr: ['mfa'] })],
+    }),
+    allow(permissions.post.delete, {
+      to: actor('mcp-client'),
+      approval: 'human',
+    }),
+    deny(permissions.post.publish, {
+      to: anyone(),
+      where: { published: true },
+    }),
+  ],
+})
+```
+
+Selectors: `anyone` (includes anonymous; resolves the anonymous open question on [policies](/docs/concepts/policies)), `authenticated`, `relation`, `plan`, `assurance`, `actor`, and a `Role` / `Plan` leaf. An array is an intersection. Allows still OR together as separate grants; any matching deny wins.
+
+`anyone()` is the one grant that evaluates for `principal: null`. Every other selector fails closed without a principal.
+
+A relation on the resource node is portable sugar:
+
+```ts
+post: resource(Post, crud({
+  relations: {
+    author: 'authorId',
+    org: { field: 'orgId', memberOf: 'tenant' },
+  },
+}))
+```
+
+`relation(permissions.post, 'author')` compiles to `{ authorId: principal.id }` (or a `memberOf` node). `where()`, Drizzle / Prisma / Kysely and RLS keep working. This closes permix #25 (ReBAC) without a graph store.
+
+`Principal.plans` is a first-class field. `subjectFromJwt` maps `entitlements` there; Clerk `pla` maps there; Clerk `fea` still maps to roles.
+
+Recorded in [0039](/docs/decisions/0039-grantee-selectors-and-relations).
+
+## 5. `principal` refs and question-shaped verbs
+
+`subject` was three things: a `definePolicy` option, a condition ref object, and the `Subject` type. `subject.id` actually meant `principal.id`.
+
+| Question | 0.1 | 0.2 |
+| --- | --- | --- |
+| May I do X to this row? | `can`, `decide`, `assert` | Unchanged |
+| Which actions may I do to this row? | None | `actions(permissions.post, post)` |
+| Which rows may I X? | `filter`, `where` | Unchanged |
+| Who may X this row? | None | Deferred: needs a directory; Cloud answers from the log |
+| Redact | `pick` | Unchanged (folding into `decide(...).fields` is not this cycle) |
+| Tenancy | `tenant()`, `team()`, `memberships()`, `tenants()`, `roles()`, `assignable()` | `heldRoles` / `assignableRoles`; `scope({ tenant, team })` stays an open question |
+
+Condition refs: `principal.id`, `principal.tenant`, `context.teamIds`. `subject` remains a deprecated alias that still produces `{ ref: 'subject.<path>' }`; evaluators accept `principal.*`, `context.*` and `subject.*`.
+
+The `definePolicy` option is `principal`. `subject` is accepted with the same signature.
+
+Recorded in [0040](/docs/decisions/0040-principal-refs-and-question-verbs).
+
+## 6. Scaling to authentication in PermDock Cloud
+
+[0027](/docs/decisions/0027-governance-first-cloud) rejected an authentication product. The new evidence is not "become Clerk". It is that the Cloud already publishes JWKS, already verifies inbound tokens for the ADS, and already needs an issuer for signed snapshots, approvals and decision batches. Agents need a device flow whose capability grants are permission references. Applications already call `subjectFromJwt({ discovery })`.
+
+[0042](/docs/decisions/0042-cloud-identity-gateway) therefore supersedes the authentication paragraph of 0027:
+
+- PermDock Cloud is an **identity gateway**: it federates upstream IdPs and offers its own OIDC endpoints per environment.
+- Own issuer: `/.well-known/openid-configuration` next to the existing JWKS; authorization code plus PKCE for humans; device flow for agents with Agent Auth capability grants mapped to permission references.
+- Claims follow [JWT authorization claims](/docs/standards/jwt-authorization-claims).
+- The only open-source integration is `subjectFromJwt({ discovery: PERMDOCK_CLOUD_URL })`. No `permdock/cloud-auth` package ([0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+- Invariant 13 is unchanged: core never verifies a token. Invariant 15 is unchanged: Cloud stays off the decision path. [0018](/docs/decisions/0018-authentication-is-upstream) still holds for the library.
+
+## Adopt / adapt / avoid
+
+Adopt: Cedar's typed grantee model as policy semantics; WorkOS's four question shapes (three now, `who` later); Clerk's several grantee dimensions without Clerk's stringly `has()`; Agent Auth capabilities as the agent-side spelling of a permission reference; permission-shaped typed trees extended to roles and plans.
+
+Adapt: `role()` becomes sugar over `to: role`; Polar relations become `relations` on the resource compiled to portable conditions; ADR 0023 applied to Fetch-native adapters as a "no new entries" rule; 0027's governance-first Cloud kept, with identity added as a gateway not a competitor to Clerk.
+
+Avoid: a fluent builder; a policy DSL file; a role-only grantee; renaming the brand; a new npm entry for Cloud identity; putting Cloud on the decision path; `dock` as the instance name; `who()` before a directory exists.
+
+## Decisions informed
+
+- [0038: Typed vocabulary](/docs/decisions/0038-typed-vocabulary)
+- [0039: Grantee selectors and relations](/docs/decisions/0039-grantee-selectors-and-relations)
+- [0040: Principal refs and question-shaped verbs](/docs/decisions/0040-principal-refs-and-question-verbs)
+- [0041: Fetch-native frameworks are recipes](/docs/decisions/0041-fetch-native-frameworks-are-recipes)
+- [0042: PermDock Cloud identity gateway](/docs/decisions/0042-cloud-identity-gateway)

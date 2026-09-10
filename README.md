@@ -47,7 +47,7 @@ ESM-only. TypeScript 5.9, 6 and 7 are tested. Core has no runtime dependencies o
 
 ```ts
 // src/permissions.ts
-import { definePermissions, resource } from 'permdock'
+import { definePermissions, defineRoles, resource } from 'permdock'
 import { z } from 'zod' // or valibot / arktype / effect
 
 const Post = z.object({ id: z.string(), authorId: z.string(), orgId: z.string(), published: z.boolean() })
@@ -68,28 +68,35 @@ permissions.post.update.key                // 'post.update'
 permissions.billing.invoice.pay.scope      // 'billing:invoice:pay' (OAuth / MCP scope)
 ```
 
+```ts
+export const roles = defineRoles({
+  member: {},
+  admin: { on: 'tenant' },
+})
+```
+
 ### 2. Write the policy (server-only; roles are data, conditions are portable)
 
 ```ts
 // src/policy.ts
-import { definePolicy, role, allow, deny, subject } from 'permdock'
-import { permissions } from './permissions'
+import { definePolicy, role, allow, deny, principal, relation } from 'permdock'
+import { permissions, roles } from './permissions'
 
-const member = role('member', [
+const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, { where: { authorId: subject.id } }),                       // portable
+  allow(permissions.post.update, { to: relation(permissions.post, 'author') }),                       // portable
   allow(permissions.post.publish, (post, ctx) => post.authorId === ctx.subject.id),           // closure: server-only
-  allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),     // → 'approval-required'
+  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),     // → 'approval-required'
 ])
 
-const admin = role('admin', [...member.grants, allow(permissions.post.delete)], { on: 'tenant' })  // held per tenant
+const admin = role(roles.admin, [...member.grants, allow(permissions.post.delete)], { on: 'tenant' })  // held per tenant
 
-export const policy = definePolicy(permissions, {
+export const policy = definePolicy({ permissions, roles }, {
   roles: [member, admin],
   scopes: { tenant: { key: 'orgId' } },   // the field a tenant-scoped grant compares against the membership
-  subject: (user: User | null) => user && { id: user.id, roles: user.roles, tenant: user.activeOrgId, memberships: user.memberships },
+  principal: (user: User | null) => user && { id: user.id, roles: user.roles, tenant: user.activeOrgId, memberships: user.memberships },
   validate: 'boundary', // validate data that crossed a trust boundary, skip trusted server rows
 })
 ```
@@ -104,6 +111,8 @@ import { createPermDock } from 'permdock'
 const permdock = await createPermDock(policy, user)      // frozen, request-scoped, never throws
 permdock.can(permissions.post.update, post)              // boolean
 permdock.can(permissions.post.create)                    // collection action: arity is in the type
+permdock.actions(permissions.post, post)                 // Permission[] this subject may perform on the row
+permdock.heldRoles()                                     // Role[]
 permdock.decide(permissions.post.delete, post)           // { outcome: 'granted' | 'denied' | 'approval-required', ... }
 permdock.assert(permissions.post.delete, post)           // narrows subject or throws PermDockDeniedError
 permdock.filter(permissions.post.read, posts)            // Post[]
@@ -246,7 +255,7 @@ Around the OpenAPI output, PermDock composes with the tools you already run rath
 
 ## Comparison
 
-- **permix**: closest in adapter breadth, but a mutable global core, boolean-only hydration, no explain, and closed to API change. PermDock is the clean-room successor to the permix v5 PR stack.
+- **permix**: closest in adapter breadth, but a mutable global core, boolean-only hydration and no explain.
 - **CASL v7**: mature conditions → Prisma / Mongoose `where` and field rules; declared string tuples, no Standard Schema, no SSR / RN / MCP / OpenAPI story.
 - **Kilpi v1**: server-first async policies, `Grant` / `Deny`, RSC `<Access>`; zod + superjson in core, no Standard Schema, RN, MCP or OpenAPI.
 - **`@zap-studio/permit`**: the only other Standard-Schema authz library; boolean results, sync-only rules, no adapters, hydration, OpenAPI or MCP.

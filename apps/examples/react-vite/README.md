@@ -1,6 +1,6 @@
 # `@permdock/example-react-vite`
 
-Minimal React wiring for `permdock/react`: a Snapshot v2 built in the app, `PermDockProvider`, and `<Protected>` guards. Vite serves the page.
+Minimal React wiring for `permdock/react`: a Snapshot v3 built in the app, `PermDockProvider`, and `<Protected>` guards. Vite serves the page.
 
 ```bash
 pnpm --filter @permdock/example-react-vite dev

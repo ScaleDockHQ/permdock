@@ -1,6 +1,6 @@
 import type { RoleSource } from '../core/interfaces.ts';
 import type { PermissionTree } from '../core/permissions.ts';
-import type { Role } from '../core/policy.ts';
+import type { RoleBinding } from '../core/policy.ts';
 import type { CustomRole } from '../core/subject.ts';
 import type {
   BetterAuthAccessControl,
@@ -21,7 +21,7 @@ import {
   statementsCover,
 } from './parse.ts';
 
-export type SeededRoles = Role[] & {
+export type SeededRoles = RoleBinding[] & {
   readonly unmatched: readonly BetterAuthUnmatchedStatement[];
 };
 
@@ -38,7 +38,7 @@ export function rolesFromAccessControl(
 ): SeededRoles {
   const leaves = listPermissions(permissions);
   const unmatched: BetterAuthUnmatchedStatement[] = [];
-  const roles: Role[] = [];
+  const roles: RoleBinding[] = [];
   for (const [name, accessRole] of Object.entries(access.roles)) {
     const statements = statementsOf(accessRole);
     const grants = [];

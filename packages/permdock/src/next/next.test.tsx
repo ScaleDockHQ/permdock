@@ -208,7 +208,7 @@ describe('permdock/next', () => {
       readonly v: number;
       readonly grants: readonly { readonly permission: string }[];
     };
-    expect(payload.v).toBe(2);
+    expect(payload.v).toBe(3);
     expect(
       payload.grants.some((grant) => grant.permission === 'post.update'),
     ).toBe(true);

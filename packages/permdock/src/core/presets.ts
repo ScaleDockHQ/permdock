@@ -1,4 +1,9 @@
-import type { ActionList, ActionMeta, ResourceParent } from './permissions.ts';
+import type {
+  ActionList,
+  ActionMeta,
+  ResourceParent,
+  ResourceRelationInput,
+} from './permissions.ts';
 
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
@@ -89,6 +94,7 @@ type PresetOptions<
 > = {
   readonly id?: string;
   readonly parent?: ResourceParent;
+  readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   readonly actions?: A;
   readonly collection?: C;
 };
@@ -101,6 +107,7 @@ type PresetResult<
 > = {
   readonly id?: string;
   readonly parent?: ResourceParent;
+  readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   readonly actions: MergeActionRecords<BaseA, ToActionRecord<A>>;
   readonly collection?: MergeActionRecords<BaseC, ToActionRecord<C>>;
 };
@@ -173,6 +180,7 @@ function finishPreset<
   return compact({
     id: options?.id,
     parent: options?.parent,
+    relations: options?.relations,
     actions,
     collection: Object.keys(collection).length === 0 ? undefined : collection,
   });

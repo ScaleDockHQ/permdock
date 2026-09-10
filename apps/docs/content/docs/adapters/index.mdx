@@ -12,7 +12,7 @@ PermDock ships as one npm package (`permdock`) with subpath exports. Every subpa
 
 - One evaluation path. `can`, `decide`, `assert`, `filter`, `where`, `simulate` and `snapshot` live on the core instance; adapters only add framework glue. Fixes and semantics (deny overrides allow, fail-closed, boundary validation) apply everywhere at once.
 - One name everywhere. Every server and agent adapter exports `createPermDock`; the import path names the framework (`permdock/hono`, `permdock/next`), the identifier never does. See [naming](/docs/getting-started/naming).
-- A Fetch-first kernel. `permdock/server` speaks `Request` / `Response`. Hono, Express, Fastify, Elysia, Nest and Node adapters wrap the kernel with a few lines of typed glue instead of five separate implementations (the pattern permix reached only in a rejected PR; see [permix lessons](/docs/research/permix-lessons)).
+- A Fetch-first kernel. `permdock/server` speaks `Request` / `Response`. Hono, Express, Fastify, Elysia, Nest and Node adapters wrap the kernel with a few lines of typed glue instead of five separate implementations (permix adapters each copy request isolation; see [permix lessons](/docs/research/permix-lessons)).
 - Client entries are server-free. `permdock/react`, `permdock/react-native`, `permdock/vue`, `permdock/svelte`, `permdock/solid` and `permdock/webmcp` import only the definition and a snapshot. Policies and subject resolvers never enter a client bundle.
 - Size stays small by construction: ESM-only, zero runtime dependencies in core, one types-only spec package. Each entry's gzip size is measured in `tests/bundle`; a regression baseline is recorded after core ships, not guessed in advance ([0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)).
 

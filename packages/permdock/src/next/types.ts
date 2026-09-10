@@ -10,6 +10,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
+import type { PolicyVocabulary } from '../core/policy.ts';
 import type { OtelOptions } from '../otel/types.ts';
 
 export type NextSubjectInput = unknown;
@@ -56,8 +57,8 @@ export type PermDockHandler = {
   readonly GET: (request: Request) => Promise<Response>;
 };
 
-export type NextPermDock = {
-  readonly getPermDock: (query?: GetPermDockQuery) => Promise<PermDock>;
+export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly getPermDock: (query?: GetPermDockQuery) => Promise<PermDock<V>>;
   readonly getPermission: (
     permission: Permission,
     data?: unknown,

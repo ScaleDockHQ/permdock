@@ -2,7 +2,9 @@ import { use, useMemo, useSyncExternalStore } from 'react';
 
 import type { Decision } from '../core/decision.ts';
 import type { Permission } from '../core/permissions.ts';
+import type { PolicyVocabulary } from '../core/policy.ts';
 import type { Membership } from '../core/subject.ts';
+import type { Role } from '../core/vocabulary.ts';
 import type { ClientStore } from './store.ts';
 import type {
   ApprovalHandle,
@@ -26,13 +28,15 @@ function useStore(): ClientStore {
   return store;
 }
 
-export function usePermDock(): ClientPermDock {
+export function usePermDock<
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(): ClientPermDock<V> {
   const store = useStore();
   return useSyncExternalStore(
     (listener) => store.subscribe(listener),
     () => store.get(),
     () => store.get(),
-  );
+  ) as ClientPermDock<V>;
 }
 
 export function usePermission(
@@ -116,19 +120,19 @@ export function useMemberships(): readonly Membership[] {
 }
 
 export function useRoles(options: UseRolesOptions = {}): {
-  readonly roles: readonly string[];
+  readonly roles: readonly Role[];
 } {
   const dock = usePermDock();
   const scoped = options.team === undefined ? dock : dock.team(options.team);
   return {
-    roles: scoped.roles(
+    roles: scoped.heldRoles(
       options.tenant === undefined ? undefined : { tenant: options.tenant },
     ),
   };
 }
 
-export function useAssignableRoles(): readonly string[] {
-  return usePermDock().assignable();
+export function useAssignableRoles(): readonly Role[] {
+  return usePermDock().assignableRoles();
 }
 
 export function useSubject(): SubjectView {

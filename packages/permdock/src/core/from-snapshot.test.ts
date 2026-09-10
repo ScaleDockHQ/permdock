@@ -117,8 +117,8 @@ describe('fromSnapshot', () => {
     expect(client.memberships()).toEqual(
       snapshot.subject.principal?.memberships ?? [],
     );
-    expect(client.roles().includes('member')).toBe(true);
-    expect(client.assignable()).toEqual([]);
+    expect(client.heldRoles().some((item) => item.key === 'member')).toBe(true);
+    expect(client.assignableRoles()).toEqual([]);
     const other = client.tenant('missing');
     expect(other.subject.principal?.tenant).toBeUndefined();
   });

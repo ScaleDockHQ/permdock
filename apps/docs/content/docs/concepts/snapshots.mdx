@@ -28,9 +28,9 @@ const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).sna
 
 `include` limits the snapshot to the listed groups or leaves. Anything outside reports `status: 'server-only'` on the client and is resolved through the endpoint. This is how a large policy ships only the grants a route needs, the equivalent of passing one message namespace to the client in next-intl. See [larger apps](/docs/getting-started/larger-apps).
 
-## Wire format v2
+## Wire format v3
 
-The TypeScript type is `Snapshot`; `v` is the format major.
+The TypeScript type is `Snapshot`; `v` is the format major. Version 3 adds `grants[].to` and `vocabulary`. `parseSnapshot` still accepts v1 and v2.
 
 ```json
 {

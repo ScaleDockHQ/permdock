@@ -39,6 +39,13 @@ export type ResourceParent = {
   readonly resource: string;
 };
 
+export type ResourceRelation = {
+  readonly field: string;
+  readonly memberOf?: 'tenant' | 'team';
+};
+
+export type ResourceRelationInput = string | ResourceRelation;
+
 export type ActionList = readonly string[] | Record<string, ActionMeta>;
 
 export type ResourceOptions<
@@ -49,6 +56,7 @@ export type ResourceOptions<
   readonly actions?: A;
   readonly collection?: C;
   readonly parent?: ResourceParent;
+  readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
 };
 
 export type ResourceInit<
@@ -67,6 +75,7 @@ export type ResourceNode<T = unknown> = {
   readonly schema: StandardSchemaV1<unknown, T> | undefined;
   readonly id: string;
   readonly parent: ResourceParent | undefined;
+  readonly relations: Readonly<Record<string, ResourceRelation>>;
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
 };
@@ -308,12 +317,23 @@ function materialiseResource(
       throw new Error(`PermDock: resource '${name}' cannot parent itself`);
     }
   }
+  const relations: Record<string, ResourceRelation> = {};
+  for (const [relationName, spec] of Object.entries(
+    init.options.relations ?? {},
+  )) {
+    assertSafeKey(relationName, 'relation');
+    const normalised: ResourceRelation =
+      typeof spec === 'string' ? { field: spec } : { ...spec };
+    assertSafeKey(normalised.field, 'relation field');
+    relations[relationName] = freezeDeep(normalised);
+  }
   const resourceNode: ResourceNode = Object.freeze({
     name,
     path: prefix,
     schema: init.schema,
     id: init.options.id ?? 'id',
     parent: parent === undefined ? undefined : freezeDeep({ ...parent }),
+    relations: freezeDeep(relations),
     instanceActions: instanceSet,
     collectionActions: collectionSet,
   });

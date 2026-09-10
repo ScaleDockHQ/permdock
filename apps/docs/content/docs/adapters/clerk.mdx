@@ -60,9 +60,10 @@ Field mapping:
 | `orgPermissions` | `clerkPermissions`, turned into tenant-scoped grants through `options.permissions` |
 | Backend API organization memberships (`options.memberships: 'all'`) | One `{ tenant, roles }` membership per organization |
 | `sessionClaims.*` | `claims.*` (custom claims configured in the Clerk session token template; typed through `options.schema`) |
-| `sessionClaims.pla`, `sessionClaims.fea` (Clerk Billing plan and features) | `roles` entries through `options.features` (below); never grants on their own |
+| `sessionClaims.pla` | `principal.plans` (Clerk Billing plan slugs, `o:` / `u:` prefix stripped) |
+| `sessionClaims.fea` | `roles` entries through `options.features` (below); never grants on their own |
 
-Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`) and the enabled features (`fea`, for example `o:reporting,u:api_access`) in the session token, and Clerk's own `has({ feature })` and `has({ plan })` read them. Under the "entitlements are roles" rule ([policies](/docs/concepts/policies)) a billing feature is a role fragment, not a permission: `options.features: { reporting: 'reporting' }` adds the `reporting` role to subjects whose `fea` claim carries that feature, and the policy grants under `role('reporting', [...])`. A feature the plan does not include therefore has no grants, which is the same outcome Clerk's `has({ permission })` produces when a plan lacks the feature, expressed once in the policy instead of in every guard.
+Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`) and the enabled features (`fea`, for example `o:reporting,u:api_access`) in the session token, and Clerk's own `has({ feature })` and `has({ plan })` read them. Plan slugs land on `principal.plans` and match `to: plans.pro`. Features stay role fragments: `options.features: { reporting: 'reporting' }` adds the `reporting` role to subjects whose `fea` claim carries that feature, and the policy grants under `role('reporting', [...])`. A feature the plan does not include therefore has no grants, which is the same outcome Clerk's `has({ permission })` produces when a plan lacks the feature, expressed once in the policy instead of in every guard.
 
 ## Verified material
 

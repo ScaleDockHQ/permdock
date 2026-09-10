@@ -1,8 +1,8 @@
 {
-  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
-  "version": 1,
-  "generatedAt": "2026-09-09T08:13:07.247Z",
-  "generator": "@permdock/cli@0.0.0",
+  "$schema": "https://permdock.dev/schemas/catalog-v2.json",
+  "version": 2,
+  "generatedAt": "2026-09-09T19:40:16.756Z",
+  "generator": "@permdock/cli@0.1.0",
   "resources": {
     "post": {
       "id": "id",
@@ -30,6 +30,11 @@
           "published"
         ],
         "additionalProperties": false
+      },
+      "relations": {
+        "author": {
+          "field": "authorId"
+        }
       }
     },
     "invoice": {
@@ -143,12 +148,12 @@
       "usages": [
         {
           "file": "packages/posts/src/policy.ts",
-          "line": 11,
+          "line": 13,
           "call": "allow"
         },
         {
           "file": "packages/posts/src/policy.ts",
-          "line": 18,
+          "line": 20,
           "call": "allow"
         }
       ]
@@ -178,12 +183,12 @@
       "usages": [
         {
           "file": "packages/posts/src/policy.ts",
-          "line": 19,
+          "line": 21,
           "call": "allow"
         },
         {
           "file": "packages/posts/src/policy.ts",
-          "line": 20,
+          "line": 22,
           "call": "deny"
         }
       ]
@@ -218,10 +223,18 @@
         },
         {
           "file": "packages/posts/src/policy.ts",
-          "line": 17,
+          "line": 19,
           "call": "allow"
         }
       ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin"
+    },
+    {
+      "key": "member"
     }
   ]
 }

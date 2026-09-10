@@ -251,7 +251,7 @@ async function pd003(input: {
     code: 'PD003',
     severity: 'warning' as const,
     message: `${item.key} is used but never granted (${item.detail})`,
-    fix: 'add an allow() for this permission to a role passed to definePolicy',
+    fix: 'add an allow() with a to: selector, or a role() binding, in definePolicy',
   }));
 }
 

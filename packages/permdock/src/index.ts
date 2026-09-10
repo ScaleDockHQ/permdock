@@ -1,4 +1,4 @@
-export { subject } from './conditions/index.ts';
+export { context, principal, subject } from './conditions/index.ts';
 export { opaque } from './conditions/opaque.ts';
 export type {
   Condition,
@@ -82,6 +82,8 @@ export type {
   ResourceNode,
   ResourceOptions,
   ResourceParent,
+  ResourceRelation,
+  ResourceRelationInput,
 } from './core/permissions.ts';
 export { allow, definePolicy, deny, role } from './core/policy.ts';
 export type {
@@ -92,11 +94,36 @@ export type {
   GrantOptions,
   Policy,
   PrincipalOf,
-  Role,
+  RoleBinding,
   RoleOptions,
   SubjectOf,
   ValidateMode,
 } from './core/policy.ts';
+export {
+  actor,
+  anyone,
+  assurance,
+  authenticated,
+  plan,
+  relation,
+} from './core/grantee.ts';
+export type { Grantee, GranteeInput } from './core/grantee.ts';
+export {
+  definePlans,
+  defineRoles,
+  findRole,
+  isPlan,
+  isRole,
+  listPlans,
+  listRoles,
+} from './core/vocabulary.ts';
+export type {
+  Plan,
+  PlanTree,
+  Role,
+  RoleTree,
+  Vocabulary,
+} from './core/vocabulary.ts';
 export { memorySink, signDecisionBatch, toCloudEvent } from './core/sink.ts';
 export type {
   CloudEvent,

@@ -74,7 +74,7 @@ interface TokenSigner {
 }
 ```
 
-`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iat` and `jti` itself and copies `iss` from its configuration, so the caller only supplies the format-specific claim (`snapshot`, `approval`, `events`) and optional `aud` / `exp`. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer })`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` is the plain Snapshot v2 JSON it always was ([wire formats](/docs/concepts/wire-formats)).
+`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iat` and `jti` itself and copies `iss` from its configuration, so the caller only supplies the format-specific claim (`snapshot`, `approval`, `events`) and optional `aud` / `exp`. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer })`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` is the plain Snapshot v3 JSON it always was ([wire formats](/docs/concepts/wire-formats)).
 
 ### Typed provider principals
 

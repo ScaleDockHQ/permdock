@@ -294,7 +294,8 @@ describe('subjectFromJwt', () => {
     });
     expect(subject.principal?.id).toBe('u_1');
     expect(subject.principal?.issuer).toBe(ISSUER);
-    expect(subject.principal?.roles).toEqual(['member', 'billing']);
+    expect(subject.principal?.roles).toEqual(['member']);
+    expect(subject.principal?.plans).toEqual(['billing']);
     expect(subject.principal?.tenant).toBe('o_1');
     expect(subject.principal?.memberships).toEqual([
       { tenant: 'o_1', team: '9f2c', roles: ['lead'], via: 'group:9f2c' },
@@ -764,7 +765,7 @@ describe('signed snapshot', () => {
     });
     expect(checked.ok).toBe(true);
     if (checked.ok) {
-      expect(checked.claims.snapshot).toMatchObject({ v: 2 });
+      expect(checked.claims.snapshot).toMatchObject({ v: 3 });
     }
   });
 });

@@ -76,7 +76,7 @@ async function Editor({ params }) {
 }
 ```
 
-`getPermDock()` is memoised per request with `React.cache`, so a layout and a page in the same request share one instance, which is the race permix PR #57 had to fix by hand ([permix lessons](/docs/research/permix-lessons)).
+`getPermDock()` is memoised per request with `React.cache`, so a layout and a page in the same request share one instance. permix's Next adapter had a layout/page race on a shared helper ([permix lessons](/docs/research/permix-lessons)).
 
 ### The client hook never suspends
 
@@ -88,7 +88,7 @@ The `tag` option exists so role changes can call `updateTag('permdock:<user>')` 
 
 ### Tests prove the guards are instant
 
-The example app ships `@next/playwright` `instant()` tests asserting that navigating to a guarded route completes from the prefetched shell, and that a role change followed by `updateTag` changes what the next navigation shows. `@permdock/testing` exposes helpers for those assertions so every adapter example can reuse them. permix's own Next.js PR ran a Playwright matrix across Next 15.5, 16.0 and 16.3 with PPR; PermDock inherits the matrix idea for the `next` example.
+The example app ships `@next/playwright` `instant()` tests asserting that navigating to a guarded route completes from the prefetched shell, and that a role change followed by `updateTag` changes what the next navigation shows. `@permdock/testing` exposes helpers for those assertions so every adapter example can reuse them. The `next` example runs a Playwright matrix across Next 15.5, 16.0 and 16.3 with PPR.
 
 ### `instant = false` is documented, not needed
 

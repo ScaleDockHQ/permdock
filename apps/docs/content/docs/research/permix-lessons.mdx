@@ -1,71 +1,9 @@
 ---
 title: Lessons from permix
-description: What 25 rejected pull requests against permix and its issue tracker taught us about what a TypeScript permissions library must get right from day one.
+description: Source study of permix 4.1.2 and its issue tracker, and what PermDock adopts, adapts and avoids from the closest TypeScript permissions library in adapter breadth.
 ---
 
-Source: study of `letstri/permix` v4.1.2 (617 stars, MIT, single npm package with subpath adapters), the 25 pull requests authored by `martijn00` between 2026-08-27 and 2026-08-28, and the 28 issues in the tracker. Data gathered with the GitHub CLI on 2026-09-06. permix is the closest existing library to PermDock in adapter breadth, which is why its history is the most concrete list of requirements we have.
-
-## Why this matters
-
-The PR stack is, in effect, a permix v5 specification that the maintainer declined. Two PRs were merged (tooling only). On 2026-09-06 between 06:42 and 06:43 UTC the maintainer bulk-closed 17 of them in about thirty seconds using three canned reasons. Six remain open and unreviewed. No PR received an inline review.
-
-The three closing reasons were:
-
-- "this changes the public API, which is not something we're taking from external PRs right now."
-- "toolchain/CI churn that we don't want to take on, and it's stacked on PRs that are being closed."
-- "we're not adopting Release Please / commitlint / reconstructed changelog." (and a variant: "documents the provider/extractor API stack that's being closed.")
-
-The maintainer accepts small, scoped contributions (Solid and Fastify adapters, an oRPC `contextKey` option, an Elysia type fix, lint tooling) but rejects any external change to the public API or the toolchain. He merged a Better Auth plugin (#31, #32) and then removed it in v4 (#35), later opening [#36](https://github.com/letstri/permix/issues/36) to ask the community how it should look. That contribution model is itself a finding: PermDock is greenfield ([ADR 0001](/docs/decisions/0001-greenfield-mit)) partly because the alternative was a fork of a project whose maintainer will not evolve the API.
-
-## The 25 pull requests
-
-The stack was meant to merge in order: `#54 → #56 → #57`, then `#63 → #64 → #66/#76`, then `#67 → #70 → #71 → #72 → #73 → #74 → #75 → #76`. Because the PRs were stacked, later diffs show the whole stack (+20k/-3k lines).
-
-### Merged
-
-| PR | What it did |
-|---|---|
-| [#52](https://github.com/letstri/permix/pull/52) | Replaced Antfu ESLint with type-aware Oxlint + Oxfmt at the repo root; pointed VS Code, Zed and CI at the Oxc toolchain. |
-| [#53](https://github.com/letstri/permix/pull/53) | Added five maintainer-facing agent skills (`vercel-react-best-practices`, turborepo, vitest, pnpm, tsdown) under `.agents/skills/`. |
-
-### Closed as "changes the public API"
-
-| PR | What it asked for | Carried into PermDock as |
-|---|---|---|
-| [#56](https://github.com/letstri/permix/pull/56) | `createPermix()` factory in `permix/react` returning an isolated instance with bound `PermixProvider` / `usePermix` / `Check` / `PermixHydrate`, so two policies coexist without sharing context; React 18 and 19 support. | Superseded: PermDock React hooks are direct exports because types flow through the permission reference, not a factory ([naming](/docs/getting-started/naming), [react adapter](/docs/adapters/react)). |
-| [#57](https://github.com/letstri/permix/pull/57) | Rewrite of `permix/next`: `createPermix` takes a sync or async rules resolver; React `cache()` memoises one fully-initialised instance per RSC request (fixes layout and page racing `setup()` on a shared helper); Playwright matrix Next 15.5 / 16.0 / 16.3 (PPR). | `createPermDock` in `permdock/next` with a request-scoped `getPermDock()` ([next adapter](/docs/adapters/next)). |
-| [#63](https://github.com/letstri/permix/pull/63) | Infer entity types from Standard Schema validators (`action('edit', postSchema)`), a Drizzle-shaped `permix/standard-schema` factory, opt-in `validate: 'deny' \| 'throw'` parsing `check()` data before the rule runs, `PermixValidationError` with `path` / `issues`, `PermixAsyncValidationError` for async schemas; vendored `~standard` types. | `resource(Schema, ...)`, `validate: 'boundary' \| 'always' \| 'never'`, `PermDockValidationError` ([validation](/docs/concepts/validation)). |
-| [#64](https://github.com/letstri/permix/pull/64) | Permission usage as source of truth: `permission('projects.read')` marker with static metadata, a `permix extract` CLI (oxc-parser) producing deterministic TS definitions and JSON catalogs with atomic writes, conflict diagnostics, watch mode, CI freshness checks, `withPermix` for `next.config.ts`; rejects dynamic keys. | `permdock collect`, `permdock catalog`, `--check`, `createPermDockPlugin` as a build hook only ([collect](/docs/cli/collect)). Reference-based definitions mean the runtime definition already is the catalog; the CLI scans usages for coverage. |
-| [#66](https://github.com/letstri/permix/pull/66) / [#76](https://github.com/letstri/permix/pull/76) | Shared request-isolated adapter kernel plus a fetch-standard HTTP PDP (`createPdpHandler` / `createPdpClient`) with OpenAPI metadata; Supabase (with RLS recipes), Better Auth, Clerk, Convex integrations; catalog coverage validation. Claimed to close #18, #26, #36. #76 rebased #66 onto the immutable core. | `permdock/server` kernel, the `pdp` provider speaking AuthZEN, and the `supabase`, `better-auth`, `clerk`, `convex` providers ([adapters](/docs/adapters)). |
-| [#73](https://github.com/letstri/permix/pull/73) | `check()` stays boolean; new `explain()` returns `{ allowed, path, reasons }`; rule functions may return `{ allow, reason }`; `~all` aggregates denial reasons; `onForbidden` / `PermixForbiddenError` carry the payload; ~800 B core growth. Addresses issue #22. | `decide()` returning a discriminated `Decision` with denials and reasons ([ADR 0007](/docs/decisions/0007-decide-not-explain), [decisions](/docs/concepts/decisions)). |
-| [#74](https://github.com/letstri/permix/pull/74) | Immutable core: `setup()` / `hydrate()` return a new frozen instance and never mutate the factory; overlapping `setup()` calls are isolated; HTTP adapters stash the returned instance; adds `migration-v4-to-v5.mdx`. | `createPermDock(policy, user)` returns a frozen, request-scoped `PermDock`; there is no mutable global at all. |
-| [#75](https://github.com/letstri/permix/pull/75) | `createRequestKernel` in `permix/server` so Express / Hono / Node / Fetch adapters become thin glue; factory-only UI for Vue / Solid / Svelte; `hydrate()` no longer fires `setup`; catalog-first getting started. | Fetch-first server kernel with thin adapters ([server kernel](/docs/adapters/server-kernel)). Factory-only UI was dropped in favour of direct exports, see above. |
-
-### Closed as toolchain or CI churn
-
-| PR | What it asked for | Carried into PermDock as |
-|---|---|---|
-| [#54](https://github.com/letstri/permix/pull/54) | Develop on TypeScript 7.0.2 while publishing types for consumers on TS 5.9 to 7 (peer `>=5.9 <8`, CI matrix 5.9.3 / 6.0.2 / 7.0.2); strict pnpm catalogs; Turborepo 2.10; a resolve hook loading TS 6 for tsdown, svelte-check and vue-tsc because TS 7 has no compiler API. | `tests/types` matrix on TS 5.9 / 6 / 7, pnpm catalogs, Turborepo ([ADR 0016](/docs/decisions/0016-repo-layout-and-toolchain)). |
-| [#58](https://github.com/letstri/permix/pull/58) | Reconstructed `CHANGELOG.md` for all 72 npm versions; Release Please and commitlint with npm provenance; CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue and PR templates, Dependabot. | Changesets or Release Please for publishing, OSS conventions from the first release. |
-| [#65](https://github.com/letstri/permix/pull/65) | Catalog bumps (`@types/node` 26, React 19.2.8, Vite 8.2, Vitest 4.1, oxlint 1.80), drizzle pinned to `1.0.0-rc.4`, tRPC held at 11.17 because 11.18 makes `checkMiddleware` invariant, Actions `checkout@v7`, Node 24. | Dependency hygiene as a routine, peer floors chosen deliberately. |
-| [#67](https://github.com/letstri/permix/pull/67) | Consumer-style minified and gzipped budgets per entry point in CI; unbundled module graph with side-effect boundaries; React `Check` subscribes to its derived boolean only. | `tests/bundle` per-entry gzip measurement; a regression baseline is set after core ships, not a 3 kB guess ([ADR 0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)). |
-| [#68](https://github.com/letstri/permix/pull/68) | Rewrote README, maintainer `AGENTS.md`, consumer skills (one always-loaded `SKILL.md` plus short per-adapter references), a conceptual layer (concepts, security, adapter chooser, cookbook). | Docs-first in MDX ([ADR 0017](/docs/decisions/0017-docs-first-in-mdx)), `AGENTS.md`, shipped skills ([for AI agents](/docs/for-ai-agents)). |
-| [#69](https://github.com/letstri/permix/pull/69) | Vitest V8 coverage with a 95% gate on statements, lines, functions and branches; `test.yml` CI; pre-publish coverage check; reached 98.8% statements / 95.05% branches. | 95% coverage gate. |
-| [#72](https://github.com/letstri/permix/pull/72) | `chokidar` / `oxc-parser` / `tinyglobby` as optional peers so UI-only installs do not pull native extractor deps; per-file mtime parse cache with `--force`; TS-compat CI builds `dist` once. | Extractor dependencies live in `@permdock/cli`, never in `permdock` ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)). |
-
-### Still open
-
-| PR | What it does |
-|---|---|
-| [#55](https://github.com/letstri/permix/pull/55) | Solid, Svelte and Vue subscribed to `setup` / `ready` inside an effect, so the first paint after `hydrate()` could miss rules. Subscribes during render instead (Solid `createRenderEffect`, Svelte `onDestroy` instead of `$effect`). |
-| [#59](https://github.com/letstri/permix/pull/59) | NestJS adapter: `APP_GUARD` setting up a per-request instance plus a `@Check` decorator (Express and Fastify). Closes #11. |
-| [#60](https://github.com/letstri/permix/pull/60) | Nuxt adapter: per-request instance on Nitro `event.context`, client hydration via `permix/vue`. |
-| [#61](https://github.com/letstri/permix/pull/61) | Astro adapter: `setupMiddleware` / `checkMiddleware` on `context.locals`. |
-| [#62](https://github.com/letstri/permix/pull/62) | React Router adapter (also Remix): middleware context `context.set` / `get`, SSR checks in loaders and actions. |
-| [#70](https://github.com/letstri/permix/pull/70) | Security hardening: reject inherited `Object.prototype` names and `__proto__` hydrate keys so `check()` cannot authorise via the prototype chain; freeze a null-prototype copy of rules on `setup()` / `hydrate()`; Fastify and Elysia fail closed after deny; Express 4 and Node async rejections forwarded to `next(err)`; empty-subtree `~all` treated as deny; unit tests in CI (there was no unit-test workflow before). |
-| [#71](https://github.com/letstri/permix/pull/71) | UI `check()` goes through `instance.check()` once ready so hooks and validation run; Svelte `PermixHydrate` re-hydrates on state change; documents that core `setup()` is not request-safe and that overlapping `setup()` is last-write-wins. |
-
-The prototype-safety and fail-closed work in #70 is carried into PermDock's [threat model](/docs/security/threat-model) as a default, not a patch. Nest, Nuxt, Astro and React Router are on the [roadmap](/docs/roadmap) (Nest in Phase 2, the others in Phase 4).
+Source: study of `letstri/permix` v4.1.2 (617 stars, MIT, single npm package with subpath adapters) and the 28 issues in the tracker. Data gathered with the GitHub CLI on 2026-09-06. permix is the closest existing library to PermDock in adapter breadth, which is why its shipped design and issue tracker are a concrete list of requirements.
 
 ## The permix core, briefly
 
@@ -85,9 +23,9 @@ Adapters shipped today: `react`, `vue`, `solid`, `svelte`, `next`, `tanstack-sta
 | Issue | What happened | Meaning for PermDock |
 |---|---|---|
 | [#27](https://github.com/letstri/permix/issues/27) | Global `setup()` leaked permissions between concurrent requests; the answer was "use the Hono adapter". The reporter also hit that `setupMiddleware` returns an untyped `MiddlewareHandler`. [#4](https://github.com/letstri/permix/issues/4) reported the same in 2025. | Instances are immutable and request-scoped by construction; adapter middleware is typed. |
-| [#22](https://github.com/letstri/permix/issues/22) | Denied-permission reason requested; closed by pointing at `onForbidden`. PR #73 tried to add it and was closed. | `decide()` returns denials with `role` and `reason` ([decisions](/docs/concepts/decisions)). |
-| [#25](https://github.com/letstri/permix/issues/25) | Real ReBAC (Zanzibar-style relations, graph traversal, ORM-inferred relations) closed by pointing at a docs page showing closures. | Async `context` on `definePolicy` for relation lookups, `subject.context.<key>` references in portable conditions, and a bridge to OpenFGA / SpiceDB via a provider rather than a relation graph in core. |
-| [#36](https://github.com/letstri/permix/issues/36) | Better Auth integration, maintainer-opened after removing the merged plugin; "many ways to do it". | `permdock/better-auth` layers on `createAccessControl` roles ([better-auth adapter](/docs/adapters/better-auth)). |
+| [#22](https://github.com/letstri/permix/issues/22) | Denied-permission reason requested; closed by pointing at `onForbidden`. | `decide()` returns denials with `role` and `reason` ([decisions](/docs/concepts/decisions)). |
+| [#25](https://github.com/letstri/permix/issues/25) | Real ReBAC (Zanzibar-style relations, graph traversal, ORM-inferred relations) closed by pointing at a docs page showing closures. | Async `context` on `definePolicy` for relation lookups, `subject.context` keys in portable conditions, and a bridge to OpenFGA / SpiceDB via a provider rather than a relation graph in core. |
+| [#36](https://github.com/letstri/permix/issues/36) | Better Auth integration, opened after a plugin was merged and later removed; "many ways to do it". | `permdock/better-auth` layers on `createAccessControl` roles ([better-auth adapter](/docs/adapters/better-auth)). |
 | [#38](https://github.com/letstri/permix/issues/38) | Audit callback on every check; the result was wanted but only `{ path, data }` was added. | `on('decision')` carries outcome, reasons, actor and delegation ([audit and observability](/docs/concepts/audit-and-observability)). |
 | [#39](https://github.com/letstri/permix/issues/39) | Published `.mjs` contained raw JSX (`jsx: preserve`), breaking Vite consumers. | `publint` and `arethetypeswrong` in CI, `tests/bundle` importing each entry in a consumer-style build. |
 | [#49](https://github.com/letstri/permix/issues/49) | TanStack Start: server-only imports inside the `setupMiddleware` callback leaked into the client bundle (Prisma, Better Auth in the browser); `createSetupHandler` was added as an escape hatch. | The definition module has no rules and no secrets so it is safe everywhere; the policy is server-only; explicit factory files keep server imports out of client entries ([ADR 0006](/docs/decisions/0006-explicit-factory-not-plugin)). |
@@ -99,18 +37,17 @@ Adapters shipped today: `react`, `vue`, `solid`, `svelte`, `next`, `tanstack-sta
 | [#46](https://github.com/letstri/permix/issues/46), [#41](https://github.com/letstri/permix/issues/41), [#40](https://github.com/letstri/permix/issues/40) | TanStack Start: instance unavailable in `beforeLoad` / `loader`, symbol context keys stripped, docs wrong; led to a two-instance design. | Snapshots are plain JSON and travel through any router context. |
 | [#47](https://github.com/letstri/permix/issues/47) | `llms.txt` returned 404; users expect LLM-oriented docs. | `llms.txt`, `llms-full.txt`, `.md` per page from the first docs deploy. |
 | [#16](https://github.com/letstri/permix/issues/16), [#15](https://github.com/letstri/permix/issues/15) | RPC adapters initially exposed only `check`, no `dehydrate` or `template`. | Every adapter exposes the full `PermDock` instance. |
-| [#11](https://github.com/letstri/permix/issues/11) | NestJS integration, maintainer-opened June 2025, still open; #59 provides it. | `permdock/nest` (Phase 2). |
+| [#11](https://github.com/letstri/permix/issues/11) | NestJS integration, opened June 2025, still open. | `permdock/nest` (Phase 2). |
 
 ## Pain points to design against
 
-- Hydration collapsed function rules to booleans and forced a duplicated client `setup()`; every SSR page in the permix docs carries a warning box about it, and Solid, Svelte and Vue had first-render bugs (#55). PermDock snapshots carry portable conditions, so the client evaluates ownership checks itself ([snapshots](/docs/concepts/snapshots)).
+- Hydration collapsed function rules to booleans and forced a duplicated client `setup()`; every SSR page in the permix docs carries a warning box about it, and Solid, Svelte and Vue had first-render bugs. PermDock snapshots carry portable conditions, so the client evaluates ownership checks itself ([snapshots](/docs/concepts/snapshots)).
 - The audit hook lacked the result (#38).
 - No real ReBAC or async relation resolution (#25).
 - Server-only imports leaking into client bundles (#49).
 - Untyped middleware generics (#27, #33).
 - Raw JSX shipped in `.mjs` (#39).
-- Schema exists only at the type level, so there is no runtime catalog, no admin UI listing, and no validation of `check()` payloads (#63 and #64 tried to add both).
-- A maintainer who rejects API evolution from outside.
+- Schema exists only at the type level, so there is no runtime catalog, no admin UI listing, and no validation of `check()` payloads.
 
 ## Adopt / adapt / avoid
 
@@ -120,16 +57,16 @@ Adopt:
 - Zero runtime dependencies in core. Per-entry gzip size is measured; a regression budget is set from the Phase 1 baseline ([ADR 0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)).
 - Agent skills shipped inside the npm package, `llms.txt` and `llms-full.txt` on the docs site.
 - Per-request instances stashed on the framework's request context in HTTP adapters.
-- Type-aware Oxlint and Oxfmt, tsdown, pnpm catalogs, Turborepo (the two merged PRs).
+- Type-aware Oxlint and Oxfmt, tsdown, pnpm catalogs, Turborepo.
 
 Adapt:
 
-- The request-scoped Next.js resolver from #57 becomes `createPermDock` in `permdock/next` with `getPermDock()` memoised through `React.cache`.
-- Standard Schema inference from #63 becomes `resource(Schema, ...)` with boundary validation instead of per-call `validate: 'deny' | 'throw'`.
-- The extractor from #64 becomes `permdock collect`; but because permissions are typed references the definition is already the catalog, so the scan is for coverage, not for building definitions.
-- `explain()` from #73 becomes `decide()`; there is no separate boolean-plus-explain pair.
-- The shared kernel from #75 stays; the factory-only UI does not, because reference-typed hooks need no factory.
-- Provider adapters from #66 / #76 stay, with the HTTP PDP replaced by AuthZEN.
+- permix's Next.js adapter memoises a per-request instance with React `cache()`. PermDock keeps that as `createPermDock` in `permdock/next` with `getPermDock()` memoised the same way.
+- Type-only definitions become `resource(Schema, ...)` with boundary validation instead of per-call parse options.
+- A separate catalog extractor is unnecessary: because permissions are typed references the definition is already the catalog, and `permdock collect` scans usages for coverage.
+- Boolean `check()` plus a later `explain()` becomes a single `decide()`; there is no separate boolean-plus-explain pair.
+- Each adapter copying request isolation becomes a Fetch-first server kernel with thin adapters. Factory-only UI hooks are dropped, because reference-typed hooks need no factory.
+- Auth provider adapters stay, with the HTTP PDP replaced by AuthZEN.
 
 Avoid:
 
@@ -138,7 +75,6 @@ Avoid:
 - Boolean-only hydration that requires the client to re-declare rules.
 - Template-literal string paths (`'post.edit'`, `'post.~all'`) as the public API.
 - Audit hooks without the outcome.
-- A contribution model that closes API proposals unreviewed.
 
 ## Decisions informed
 

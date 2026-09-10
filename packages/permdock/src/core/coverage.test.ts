@@ -155,8 +155,8 @@ describe('coverage edges', () => {
     }
     expect(json.expiresAt).toBe(9_999_999_999);
     expect(permdock.memberships()).toEqual([]);
-    expect(permdock.roles()).toEqual(['member']);
-    expect(permdock.assignable()).toEqual([]);
+    expect(permdock.heldRoles().map((item) => item.key)).toEqual(['member']);
+    expect(permdock.assignableRoles()).toEqual([]);
     expect(
       permdock
         .team('t1')
@@ -224,7 +224,7 @@ describe('coverage edges', () => {
     expect(
       permdock.can(tree.post.read, { id: 'p1', orgId: 'o1', teamId: 't1' }),
     ).toBe(true);
-    expect(permdock.roles({ tenant: 'missing' })).toEqual([]);
+    expect(permdock.heldRoles({ tenant: 'missing' })).toEqual([]);
     expect(
       permdock
         .team('t9')
@@ -352,7 +352,7 @@ describe('coverage edges', () => {
     expect(anonymous.tenant('o1').can(tree.post.read, { id: 'p1' })).toBe(
       false,
     );
-    expect(anonymous.roles()).toEqual([]);
+    expect(anonymous.heldRoles()).toEqual([]);
     expect(anonymous.memberships()).toEqual([]);
     expect(
       anonymous

@@ -22,6 +22,10 @@ import {
   type RlsSqlContext,
 } from './rls-sql.ts';
 
+function grantRoleName(grant: Grant): string {
+  return grant.role ?? 'grant';
+}
+
 export type GenerateOutcome = {
   readonly code: 0 | 1 | 2;
   readonly output: string;
@@ -98,7 +102,7 @@ function scopeCondition(grant: Grant, policy: Policy): Condition | undefined {
       op: 'memberOf',
       scope: 'tenant',
       field,
-      roles: [grant.role],
+      roles: grant.role === null ? [] : [grant.role],
     };
   }
   if (grant.scope === 'team') {
@@ -108,7 +112,12 @@ function scopeCondition(grant: Grant, policy: Policy): Condition | undefined {
         'PermDock CLI: team-scoped grant needs definePolicy({ scopes.team })',
       );
     }
-    return { op: 'memberOf', scope: 'team', field, roles: [grant.role] };
+    return {
+      op: 'memberOf',
+      scope: 'team',
+      field,
+      roles: grant.role === null ? [] : [grant.role],
+    };
   }
   const resourceName = grant.scope.resource;
   const node = policy.resources.get(resourceName);
@@ -116,7 +125,7 @@ function scopeCondition(grant: Grant, policy: Policy): Condition | undefined {
     op: 'memberOf',
     scope: 'resource',
     field: node?.id ?? 'id',
-    roles: [grant.role],
+    roles: grant.role === null ? [] : [grant.role],
     resource: resourceName,
     parents: parentFields(policy, resourceName),
   };
@@ -154,17 +163,17 @@ function compileGrant(
   if (grant.closure !== undefined || grant.portable === false) {
     if (skipClosures) {
       warnings.push(
-        `skipped non-portable grant ${grant.role}/${grant.permission.key}`,
+        `skipped non-portable grant ${grantRoleName(grant)}/${grant.permission.key}`,
       );
       return undefined;
     }
     throw new Error(
-      `PermDock CLI: closure grant ${grant.role}/${grant.permission.key} is not portable; rewrite it or pass --skip-closures`,
+      `PermDock CLI: closure grant ${grantRoleName(grant)}/${grant.permission.key} is not portable; rewrite it or pass --skip-closures`,
     );
   }
   if (grant.approval === 'human') {
     warnings.push(
-      `skipped approval:human grant ${grant.role}/${grant.permission.key}`,
+      `skipped approval:human grant ${grantRoleName(grant)}/${grant.permission.key}`,
     );
     return undefined;
   }
@@ -213,7 +222,7 @@ function compileGrant(
   }
   return {
     name: policyName(
-      grant.role,
+      grantRoleName(grant),
       grant.permission.resource,
       grant.permission.action,
       grant.effect,
@@ -221,7 +230,7 @@ function compileGrant(
     table: tableFor(grant.permission.resource, tables),
     command,
     effect: grant.effect,
-    roles: policyRoles(grant.role),
+    roles: policyRoles(grantRoleName(grant)),
     ...(using === undefined ? {} : { using }),
     ...(withCheck === undefined ? {} : { check: withCheck }),
     permissionKey: grant.permission.key,

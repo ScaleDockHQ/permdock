@@ -64,6 +64,7 @@ describe('subjectFromClerk', () => {
       'org:unknown',
     ]);
     expect(subject.principal?.roles).toEqual(['reporting', 'api']);
+    expect(subject.principal?.plans).toEqual(['pro']);
     expect(subject.principal?.featureSources).toEqual({
       reporting: 'o',
       api: 'u',

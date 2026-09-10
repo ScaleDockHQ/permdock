@@ -102,6 +102,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Tool | What it is | Mechanism | Owning page |
 | --- | --- | --- | --- |
 | Kong, Envoy `ext_authz`, Tyk, Zuplo, WSO2 | Gateways with AuthZEN enforcement points | AuthZEN (in-app handler or PermDock Cloud ADS) | [AuthZEN adapter](/docs/adapters/authzen) |
+| WorkOS FGA | Relationship-based authorization API (check, list objects, list users, list actions) | Positioning; question-shaped verbs; `actions()` in core, `who()` deferred | [API surface 2026](/docs/research/api-surface-2026), [comparison](/docs/comparison) |
 | Cerbos, Permit.io, AuthZed (SpiceDB), Oso, OpenFGA, Topaz, Keycloak | Authorization products and engines | AuthZEN through `permdock/pdp`; positioning | [comparison](/docs/comparison), [commercial landscape](/docs/research/commercial-landscape) |
 | Cedar, Amazon Verified Permissions, AgentCore Policy | Policy language and its hosted engines | Compile target considered, not scheduled | [comparison](/docs/comparison), [commercial landscape](/docs/research/commercial-landscape) |
 | Gateway import namespaces (`x-amazon-apigateway-*`, `x-google-*`, `x-kong-*`, `x-zuplo-*`, `x-ms-*`) | Vendor extensions in descriptions | Never written | [OpenAPI registries](/docs/standards/openapi-registry) |
@@ -111,7 +112,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Tool | What it is | Mechanism | Owning page |
 | --- | --- | --- | --- |
 | Supabase Auth, Clerk, Better Auth, Convex | Providers with an in-process verification hook | Adapter (`subjectFrom*`) | [authentication](/docs/concepts/authentication), provider pages |
-| Clerk Billing | Plans and features as `pla` and `fea` claims | Roles under "entitlements are roles" | [Clerk provider](/docs/adapters/clerk) |
+| Clerk Billing | Plans and features as `pla` and `fea` claims | `pla` maps to `principal.plans`; `fea` still maps to roles | [Clerk provider](/docs/adapters/clerk), [0039](/docs/decisions/0039-grantee-selectors-and-relations) |
 | Auth.js (NextAuth) | Framework session | Session resolver | [authentication](/docs/concepts/authentication) |
 | WorkOS AuthKit and Connect, Auth0, Logto, Kinde, Neon Auth, Stack Auth, Firebase Auth, Amazon Cognito, Keycloak, Ory | JWKS-publishing providers | `subjectFromJwt` | [authentication](/docs/concepts/authentication) |
 | Stytch Connected Apps, Descope, Scalekit, Auth0 Token Vault, Supabase OAuth 2.1 server | OAuth 2.1 authorization servers for MCP servers | `subjectFromJwt`, `authInfo` | [authentication](/docs/concepts/authentication), [MCP authorization](/docs/standards/mcp-authorization) |
@@ -126,7 +127,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Pushary, Rills, intrupt, Sesame, AxonFlow | Approval-as-a-service APIs and SDKs (durable approval request, audit log, notifications) | Positioning only: the inbox is a feature, the token rule is the product; a self-hoster may back an `ApprovalStore` with any of them | [commercial landscape](/docs/research/commercial-landscape) section 10, [approvals adapter](/docs/adapters/approvals) |
 | Pomerium, Cloudflare Access | Identity-aware proxies (zero-trust access in front of internal apps) | Positioning only; a proxy forwards the verified identity as a header or JWT that `subjectFromJwt` reads, and never decides for PermDock | [commercial landscape](/docs/research/commercial-landscape) section 10 |
 | Keycard, Natoma, TrueFoundry, Kong AI Gateway, Cloudflare AI Gateway, Solo agentgateway, Aembit, Snowflake MCP gateway, NewCore | MCP and agent-identity gateways | Positioning only; tokens they mint reach `permdock/mcp` as `authInfo`, tool calls they forward reach `protectServer` | [commercial landscape](/docs/research/commercial-landscape) section 10, [MCP adapter](/docs/adapters/mcp) |
-| Vercel Agent Auth (Better Auth) | Delegated agent identities via RFC 8693 | `actor` and `delegation` mapper when published | [commercial landscape](/docs/research/commercial-landscape) |
+| Vercel Agent Auth (Better Auth) | Delegated agent identities via RFC 8693; capability grants | `actor` and `delegation` mapper when published; capability grants are permission references; Cloud device flow ([0042](/docs/decisions/0042-cloud-identity-gateway)) | [commercial landscape](/docs/research/commercial-landscape), [API surface 2026](/docs/research/api-surface-2026) |
 | Web Bot Auth, SPIFFE | Workload and bot identity | `actor` from signature or SVID | [Web Bot Auth](/docs/standards/web-bot-auth), [threat model](/docs/security/threat-model) |
 | `jose` (panva) | JOSE library for JavaScript runtimes: JWS / JWE / JWK / JWT, remote JWK Sets, `EmbeddedJWK`, `typ` and `requiredClaims` checks | Optional peer of `permdock/jwt` and `permdock/ssf`; `joseTokenVerifier` and `joseTokenSigner` wrap it, and any other library plugs in through `TokenVerifier` / `TokenSigner` | [JWT adapter](/docs/adapters/jwt), [JOSE](/docs/standards/jose) |
 | OpenID Connect providers publishing Discovery (`/.well-known/openid-configuration`) | Source of `issuer` and `jwks_uri` for verification | `subjectFromJwt({ discovery })`; RFC 8414 fallback | [OpenID Connect](/docs/standards/openid-connect), [JWT adapter](/docs/adapters/jwt) |
@@ -196,7 +197,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | --- | --- | --- | --- |
 | OpenFeature | CNCF vendor-neutral flag API | `subject` or `context` input | [policies](/docs/concepts/policies) |
 | Vercel Flags SDK, PostHog, LaunchDarkly, Statsig, Unleash, Flagsmith, GrowthBook | Flag vendors | Through OpenFeature or directly as `context`; never grants | [policies](/docs/concepts/policies) |
-| Stripe Entitlements, Clerk Billing, Frontegg entitlements, Kinde `feature_flags` | Billing and plan entitlements | Roles under "entitlements are roles" | [policies](/docs/concepts/policies), [Clerk provider](/docs/adapters/clerk) |
+| Stripe Entitlements, Clerk Billing, Frontegg entitlements, Kinde `feature_flags` | Billing and plan entitlements | `principal.plans` and `to: plan(...)`; Clerk `fea` stays on roles | [policies](/docs/concepts/policies), [Clerk provider](/docs/adapters/clerk) |
 | Stigg, Schematic | Entitlement and plan-management platforms (features per plan, per-customer overrides, usage limits) | Plan features become roles through `context` or a `RoleSource.assignable(tenant)` subset; usage limits map to `limit` grants with a `LimitStore`; never grants on their own | [SaaS tenancy and roles](/docs/research/saas-tenancy-and-roles), [policies](/docs/concepts/policies) |
 | Nile | Postgres built around a tenants table with per-tenant isolation and a tenant-aware connection | `scopes.tenant.key` on rows; the `memberOf` node compiles to the tenant column; a `MembershipSource` over Nile's `users.tenant_users` | [SaaS tenancy and roles](/docs/research/saas-tenancy-and-roles), [RLS adapter](/docs/adapters/rls) |
 

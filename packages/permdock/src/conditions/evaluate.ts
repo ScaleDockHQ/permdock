@@ -1,39 +1,20 @@
 import type { Membership, Subject } from '../core/subject.ts';
 
-import { ownGet, readPath } from '../core/paths.ts';
+import { ownGet } from '../core/paths.ts';
 import {
   type Condition,
   type ConditionValue,
   isConditionDate,
   isConditionRef,
 } from './ast.ts';
+import { resolveConditionRef } from './refs.ts';
 
 function isExpired(membership: Membership, now: number): boolean {
   return membership.expiresAt !== undefined && membership.expiresAt <= now;
 }
 
 function resolveRef(ref: string, subject: Subject): unknown {
-  if (!ref.startsWith('subject')) {
-    return undefined;
-  }
-  const rest = ref.slice('subject'.length);
-  if (rest === '') {
-    return subject;
-  }
-  if (!rest.startsWith('.')) {
-    return undefined;
-  }
-  const path = rest.slice(1);
-  if (path === 'id') {
-    return subject.principal?.id;
-  }
-  if (path.startsWith('context.')) {
-    return readPath(subject.context, path.slice('context.'.length));
-  }
-  if (subject.principal === null) {
-    return undefined;
-  }
-  return readPath(subject.principal, path);
+  return resolveConditionRef(ref, subject);
 }
 
 function unwrap(value: ConditionValue, subject: Subject): unknown {
@@ -164,7 +145,7 @@ function evaluateMemberOf(
     if (isExpired(membership, now)) {
       continue;
     }
-    if (!membership.roles.some((role) => wanted.has(role))) {
+    if (wanted.size > 0 && !membership.roles.some((role) => wanted.has(role))) {
       continue;
     }
     if (condition.scope === 'tenant') {

@@ -23,11 +23,13 @@ export function buildCatalog(
         ? {
             id: node?.id ?? 'id',
             schema: node === undefined ? null : jsonSchemaOf(node),
+            relations: node?.relations,
           }
         : {
             id: node?.id ?? 'id',
             schema: node === undefined ? null : jsonSchemaOf(node),
             definedIn,
+            relations: node?.relations,
           },
     );
   }
@@ -44,11 +46,17 @@ export function buildCatalog(
     .toSorted((a, b) => a.key.localeCompare(b.key));
   return {
     $schema: CATALOG_SCHEMA,
-    version: 1,
+    version: 2,
     generatedAt,
     generator: generatorBanner(),
     resources,
     permissions,
+    ...(scan.roleNames.length === 0
+      ? {}
+      : { roles: scan.roleNames.map((key) => ({ key })) }),
+    ...(scan.planNames.length === 0
+      ? {}
+      : { plans: scan.planNames.map((key) => ({ key })) }),
   };
 }
 
@@ -56,11 +64,30 @@ function compactResource(resource: {
   readonly id: string;
   readonly schema: unknown;
   readonly definedIn?: string;
+  readonly relations?: CatalogDocument['resources'][string]['relations'];
 }): CatalogDocument['resources'][string] {
+  const relations =
+    resource.relations !== undefined &&
+    Object.keys(resource.relations).length > 0
+      ? resource.relations
+      : undefined;
   if (resource.definedIn === undefined) {
-    return { id: resource.id, schema: resource.schema };
+    return relations === undefined
+      ? { id: resource.id, schema: resource.schema }
+      : { id: resource.id, schema: resource.schema, relations };
   }
-  return resource;
+  return relations === undefined
+    ? {
+        id: resource.id,
+        schema: resource.schema,
+        definedIn: resource.definedIn,
+      }
+    : {
+        id: resource.id,
+        schema: resource.schema,
+        definedIn: resource.definedIn,
+        relations,
+      };
 }
 
 function metaRecord(meta: ActionMeta): Readonly<Record<string, unknown>> {
@@ -136,10 +163,12 @@ export function catalogSchemaDocument(): unknown {
     required: ['$schema', 'version', 'permissions', 'resources'],
     properties: {
       $schema: { type: 'string' },
-      version: { const: 1 },
+      version: { const: 2 },
       generatedAt: { type: 'string' },
       generator: { type: 'string' },
       resources: { type: 'object' },
+      roles: { type: 'array' },
+      plans: { type: 'array' },
       permissions: {
         type: 'array',
         items: {

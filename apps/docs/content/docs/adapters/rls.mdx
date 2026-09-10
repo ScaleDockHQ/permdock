@@ -10,7 +10,7 @@ Phase: 3
 
 ## Purpose
 
-A permission such as `allow(permissions.post.update, { where: { authorId: subject.id } })` should be true in the UI, in the API and in the database. Today teams hand-write the RLS twin of every app rule and the two drift. No existing tool goes from RLS to application permissions, and the only dual-mode prior art (Kysera `@kysera/rls`) generates one way from raw SQL ([RLS research](/docs/research/postgres-rls)). `permdock rls` makes the [portable condition](/docs/concepts/conditions) the single source: `generate` emits policies, `import` reads them back (portable where possible, `opaque` otherwise), and `verify` proves parity with fixtures.
+A permission such as `allow(permissions.post.update, { to: relation(permissions.post, 'author') })` (or `{ where: { authorId: principal.id } }`) should be true in the UI, in the API and in the database. Today teams hand-write the RLS twin of every app rule and the two drift. No existing tool goes from RLS to application permissions, and the only dual-mode prior art (Kysera `@kysera/rls`) generates one way from raw SQL ([RLS research](/docs/research/postgres-rls)). `permdock rls` makes the [portable condition](/docs/concepts/conditions) the single source: `generate` emits policies, `import` reads them back (portable where possible, `opaque` otherwise), and `verify` proves parity with fixtures.
 
 ## API
 
@@ -40,7 +40,7 @@ Portable subset compiled by `generate` and recognised by `import`:
 
 | Portable node | `supabase` | `neon` | `guc` |
 |---|---|---|---|
-| `eq(row.user_id, subject.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` | `current_setting('app.user_id', true)::uuid = user_id` |
+| `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` | `current_setting('app.user_id', true)::uuid = user_id` |
 | `eq(row.tenant_id, subject.claim('tenant_id'))` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = tenant_id` |
 | `eq(subject.claim('user_role'), 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | claim function | GUC read |
 | membership (`in(row.id, subject.context.teamIds)`) | `id in (select team_id from team_user where user_id = (select auth.uid()))` | same | same |

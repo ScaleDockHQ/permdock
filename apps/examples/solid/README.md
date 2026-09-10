@@ -1,6 +1,6 @@
 # `@permdock/example-solid`
 
-Minimal Solid wiring for `permdock/solid`: a Snapshot v2 built in the app, `PermDockProvider`, and `<Protected>` guards. Vite serves the page.
+Minimal Solid wiring for `permdock/solid`: a Snapshot v3 built in the app, `PermDockProvider`, and `<Protected>` guards. Vite serves the page.
 
 ```bash
 pnpm --filter @permdock/example-solid dev

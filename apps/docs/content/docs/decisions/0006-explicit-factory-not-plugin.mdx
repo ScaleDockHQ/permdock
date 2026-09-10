@@ -45,8 +45,8 @@ Client hooks (`usePermDock`, `usePermission`, `Protected`) are still direct impo
 ## Alternatives considered
 
 - **next-intl-style plugin with module augmentation.** Rejected as Next-only, global, and implicit; kept as the model for the `use*` / `get*` vocabulary and for the `collect` build hook.
-- **Per-app generic factory for React hooks** (permix PR #56, `createPermix`). Superseded: reference-based typing makes it unnecessary, and direct exports match how `useTranslations` is imported.
-- **Global singleton** (permix `setup()`). Rejected; it is the request-leak bug that started the project (permix issue #27).
+- **Per-app generic factory for React hooks** (permix `createPermix`). Superseded: reference-based typing makes it unnecessary, and direct exports match how `useTranslations` is imported.
+- **Global singleton** (permix `setup()`). Rejected; concurrent requests can leak grants across instances ([permix #27](https://github.com/letstri/permix/issues/27)).
 
 ## Related
 

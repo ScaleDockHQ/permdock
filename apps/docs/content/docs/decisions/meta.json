@@ -37,6 +37,11 @@
     "0034-quota-grants",
     "0035-gnap-access-and-chain",
     "0036-arazzo-simulate",
-    "0037-policy-generics"
+    "0037-policy-generics",
+    "0038-typed-vocabulary",
+    "0039-grantee-selectors-and-relations",
+    "0040-principal-refs-and-question-verbs",
+    "0041-fetch-native-frameworks-are-recipes",
+    "0042-cloud-identity-gateway"
   ]
 }

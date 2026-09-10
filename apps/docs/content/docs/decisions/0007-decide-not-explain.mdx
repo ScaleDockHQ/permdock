@@ -9,7 +9,7 @@ Accepted, September 2026. The `explain` alias was rejected in [0028](/docs/decis
 
 ## Context
 
-Denial reasons were one of the most requested features in the permix PR stack (#73, permix issue #22) and are weak everywhere in the landscape: CASL has `reason` on rules and `relevantRuleFor`, Kilpi's `Deny()` carries `message`, `reason` and `metadata`, `@zap-studio/permit` has structured errors, PDPs rely on audit logs. Nobody returns a structured decision by default.
+Denial reasons are a gap in permix ([issue #22](https://github.com/letstri/permix/issues/22)) and are weak everywhere in the landscape: CASL has `reason` on rules and `relevantRuleFor`, Kilpi's `Deny()` carries `message`, `reason` and `metadata`, `@zap-studio/permit` has structured errors, PDPs rely on audit logs. Nobody returns a structured decision by default.
 
 Early PermDock drafts had three methods: `can()` for a boolean, `explain()` for a human-readable reason, and `assert()` to throw. Two things changed that shape. First, the result is consumed by machines more often than by people: an MCP refusal, an AI SDK `toolApproval` callback, an RFC 9457 problem body and an audit event all need the same structured payload. Second, the three-outcome model ([0013](/docs/decisions/0013-three-outcome-decision)) means the result is a discriminated union, not an annotated boolean. "Explain" describes a string; "decide" describes a value that drives control flow.
 

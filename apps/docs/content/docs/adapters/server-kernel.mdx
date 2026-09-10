@@ -10,7 +10,7 @@ Phase: 1
 
 `permdock/server` implements the shared behaviour of every server adapter once, in terms of the Fetch API (`Request`, `Response`, `Headers`). Frameworks that already speak Fetch (Hono, Elysia, SvelteKit, Next.js Route Handlers, Bun, Deno, Cloudflare Workers) can use it directly. Frameworks with their own request types (Express, Fastify, Nest, Node `http`) wrap it with a few lines of typed glue. The kernel owns four things: subject resolution, request-scoped instance creation, `protect` semantics, and the denial-to-response mapping. Adapters add only naming, storage of the instance on the framework context, and OpenAPI hooks.
 
-This is the design permix reached in a rejected PR (`createRequestKernel`) after each adapter had grown its own copy of the request-isolation workaround; see [permix lessons](/docs/research/permix-lessons).
+permix adapters each copy request isolation onto the framework context; PermDock does it once in the kernel. See [permix lessons](/docs/research/permix-lessons).
 
 ## API
 

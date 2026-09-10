@@ -1,39 +1,37 @@
 ---
 title: Policies
-description: Roles are arrays of allow and deny grants over permission references; definePolicy binds them to a subject, context and validation mode.
+description: Grants name a grantee with to selectors; definePolicy binds typed vocabulary, a principal mapper, and portable conditions.
 ---
 
-A policy answers "who may do what, under which conditions". In PermDock it is data: roles are arrays of grants, grants are `allow` or `deny` of a permission reference with optional conditions and options, and `definePolicy` binds the roles to a definition and to the function that turns your user into a subject. Because the policy is data, it can be snapshotted to the client, compiled to SQL, printed as a matrix in tests, and diffed in review.
+A policy answers "who may do what, under which conditions". In PermDock it is data: typed roles and plans sit next to permissions, grants are `allow` or `deny` of a permission reference with a `to:` selector, and `definePolicy` binds the vocabulary to the function that turns your user into a principal. Because the policy is data, it can be snapshotted to the client, compiled to SQL, printed as a matrix in tests, and diffed in review.
 
 The policy is server-only. It is the one file in a PermDock app that must never reach a client bundle; `permdock doctor` checks for it.
 
 ## Shape
 
 ```ts
-import { definePolicy, role, allow, deny, subject } from 'permdock'
+import { definePolicy, defineRoles, role, allow, deny, principal, relation, anyone } from 'permdock'
 import { permissions } from './permissions'
 
-const member = role('member', [
+export const roles = defineRoles({ member: {}, admin: {} })
+
+const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, { where: { authorId: subject.id } }),
-  allow(permissions.post.publish, (post, ctx) => post.authorId === ctx.subject.id),
-  allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),
-  allow(permissions.billing.invoice.pay, { limit: { count: 10, per: '1h' } }),
-  allow(permissions.billing.plan.view),
+  allow(permissions.post.update, { to: relation(permissions.post, 'author') }),
+  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
 ])
 
-const admin = role('admin', [
+const admin = role(roles.admin, [
   ...member.grants,
   allow(permissions.post.delete),
-  allow(permissions.billing.plan.change),
-  deny(permissions.post.publish, { where: { published: true } }),
+  deny(permissions.post.publish, { to: anyone(), where: { published: true } }),
 ])
 
-export const policy = definePolicy(permissions, {
+export const policy = definePolicy({ permissions, roles }, {
   roles: [member, admin],
-  subject: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
+  principal: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
   context: async (user) => ({ teamIds: await loadTeamIds(user.id) }),
   validate: 'boundary',
 })
@@ -84,7 +82,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 
 | Second argument | Meaning |
 | --- | --- |
-| omitted | Unconditional |
+| `{ to }` | Grantee selector: `anyone()`, `authenticated()`, `relation(resource, name)`, a `Role` or `Plan` leaf, `actor(kind)`, `assurance({ acr })`, or an array (intersection). Required on top-level `grants`. `role()` bindings fill a role selector. |
 | `{ where }` | Portable condition on the current row (RLS `USING`) |
 | `{ check }` | Portable condition on the next row (RLS `WITH CHECK`) for `create` and `update` |
 | `{ where, check }` | Both, for `update` |
@@ -99,7 +97,7 @@ Conditions are covered on their own page: [conditions](/docs/concepts/conditions
 
 The rules are short and they are the whole story ([ADR 0010](/docs/decisions/0010-policy-as-data-portable-conditions)):
 
-1. Collect the grants of every global role in `subject.roles`, of every scoped role held by one of the subject's memberships, and of the declared roles that tenant-defined custom roles resolve to, for the requested permission key.
+1. Collect every grant from top-level `grants` and from role bindings whose name the subject holds, then keep those whose `to:` selector matches (`anyone()`, `authenticated()`, a role, a plan, a relation, an actor, an assurance check, or an intersection). A relation selector also contributes a portable `where`.
 2. Drop a scoped grant whose scope does not match the request: the row's tenant key must equal the membership's tenant and that tenant must be the active one; the row's team key must equal the membership's team; a resource role must be held on that row or an ancestor through a declared `parent`. Expired memberships contribute nothing. Global grants skip this step ([tenancy](/docs/concepts/tenancy)).
 3. If any `deny` matches, the outcome is `denied`. Deny overrides allow, regardless of role, scope or declaration order.
 4. Otherwise, if any `allow` matches, the outcome is `granted` (or `approval-required` if the matched allow carries `approval`). Allows OR together, across scopes.
@@ -158,14 +156,15 @@ Three reasons to keep the split. The policy stays the single statement of who ma
 
 | Option | Type | Notes |
 | --- | --- | --- |
-| `roles` | `Role[]` | Required. Fragments with the same name merge. Scoped roles (`on`) and global roles mix freely. |
+| `roles` | `RoleBinding[]` | Optional when `grants` is set. Fragments with the same name merge. Scoped roles (`on`) and global roles mix freely. |
+| `grants` | `Grant[]` | Top-level grants. Each entry needs a real `to:` selector. |
 | `scopes` | `{ tenant?: { key }, team?: { key } }` | Required when any role is scoped to `'tenant'` or `'team'`. Names the field on every scoped resource that holds the tenant or team id; checked against each resource schema ([tenancy](/docs/concepts/tenancy)). |
-| `subject` | `(user) => Principal \| null` | Required. Returns the values referenced as `subject.<field>` in conditions, plus `roles`, `memberships` and `tenant`. `null` means anonymous. Any `subjectFrom*` provider satisfies it. |
+| `principal` | `(user) => Principal \| null` | Required (alias `subject`, deprecated). Returns the values referenced as `principal.<field>` in conditions, plus `roles`, `plans`, `memberships` and `tenant`. `null` means anonymous. Any `subjectFrom*` provider satisfies it. |
 | `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `subject.context.<key>`. Declaring it makes `createPermDock` async. A thrown or rejected loader is fail-closed: empty context and an `on('auth')` event with `reason: 'source-threw'`. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them. |
 | `validate` | `'boundary'`, `'always'` or `'never'` | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation). |
 | `onDenied` | `(decision) => never \| void` | Optional default unauthorized handler for `assert`; runs last in the layered chain. |
 
-The `subject` function is the only place PermDock touches your user object. It is called once per `createPermDock` and its return value is frozen. Anything not returned from it is invisible to conditions, which is deliberate: conditions can only reference values that also exist in the snapshot and in the SQL session.
+The `principal` function is the only place PermDock touches your user object. It is called once per `createPermDock` and its return value is frozen. Anything not returned from it is invisible to conditions, which is deliberate: conditions can only reference values that also exist in the snapshot and in the SQL session.
 
 ## Closures
 
@@ -197,5 +196,5 @@ Field-level grants use `fields` on `allow` / `deny` and `permdock.pick(permissio
 
 - The `LimitStore` interface, and whether quotas belong in core or in a separate entry.
 - Whether same-named role fragments should be allowed to both `allow` and `deny` the same permission or whether that should be a lint error.
-- Anonymous grants: whether `role('anonymous', ...)` is applied automatically when `subject` returns `null`, or whether anonymous is always fully denied.
+- Anonymous grants: resolved. There is no magic `anonymous` role. `to: anyone()` matches `principal: null`; every other selector fails closed without a principal ([0039](/docs/decisions/0039-grantee-selectors-and-relations)).
 - Whether a fluent policy builder should exist outside core for teams that prefer it; core stays data ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships) alternatives).

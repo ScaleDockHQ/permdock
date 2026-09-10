@@ -1,5 +1,6 @@
 import type { Condition } from '../conditions/ast.ts';
 import type { Decision } from './decision.ts';
+import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
 import type {
   CustomRole,
@@ -8,6 +9,7 @@ import type {
   Principal,
   Subject,
 } from './subject.ts';
+import type { Plan, Role } from './vocabulary.ts';
 
 export type DecisionProvider = {
   readonly name: string;
@@ -117,12 +119,13 @@ export type SubjectResolver<
 ) => Subject<TPrincipal> | Promise<Subject<TPrincipal>>;
 
 export type Snapshot = {
-  readonly v: 1 | 2;
+  readonly v: 1 | 2 | 3;
   readonly issuedAt: number;
   readonly subject: {
     readonly principal: {
       readonly id: string;
       readonly roles: readonly string[];
+      readonly plans?: readonly string[];
       readonly tenant?: string;
       readonly memberships?: readonly Membership[];
     } | null;
@@ -135,12 +138,17 @@ export type Snapshot = {
   readonly include?: readonly string[];
   readonly simulated?: true;
   readonly expiresAt?: number;
+  readonly vocabulary?: {
+    readonly roles?: Readonly<Record<string, Role>>;
+    readonly plans?: Readonly<Record<string, Plan>>;
+  };
 };
 
 export type SnapshotGrant = {
   readonly permission: string;
   readonly effect: 'allow' | 'deny';
-  readonly role: string;
+  readonly role: string | null;
+  readonly to?: Grantee | readonly Grantee[];
   readonly where?: Condition;
   readonly check?: Condition;
   readonly approval?: 'human';
@@ -225,7 +233,11 @@ export type DecisionEvent = {
   readonly tenant?: string;
   readonly membership?: Membership;
   readonly via?: string | null;
-  readonly matched?: { readonly role: string; readonly permission: string };
+  readonly matched?: {
+    readonly role: string | null;
+    readonly permission: string;
+    readonly to?: Grantee | readonly Grantee[];
+  };
   readonly denials?: readonly {
     readonly role: string | null;
     readonly reason: string;

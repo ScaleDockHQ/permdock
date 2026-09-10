@@ -12,12 +12,19 @@ const CHECK_CALLS = new Set([
   'filter',
   'where',
   'simulate',
+  'actions',
   'usePermission',
   'getPermission',
   'protect',
   'allow',
   'deny',
   'registerTool',
+  'anyone',
+  'authenticated',
+  'relation',
+  'plan',
+  'actor',
+  'assurance',
 ]);
 
 type Estree = {
@@ -39,6 +46,8 @@ type Estree = {
   readonly declaration?: Estree;
   readonly declarations?: readonly Estree[];
   readonly body?: Estree | readonly Estree[];
+  readonly properties?: readonly Estree[];
+  readonly key?: Estree;
 };
 
 export function scanSources(
@@ -52,6 +61,7 @@ export function scanSources(
   const unknown: CatalogUsage[] = [];
   const dynamic: DynamicUsage[] = [];
   const roleNames = new Set<string>();
+  const planNames = new Set<string>();
   const allowKeys = new Set<string>();
 
   for (const file of files) {
@@ -77,6 +87,7 @@ export function scanSources(
           unknown,
           dynamic,
           roleNames,
+          planNames,
           allowKeys,
           knownKeys,
         );
@@ -111,6 +122,7 @@ export function scanSources(
     unknown,
     dynamic,
     roleNames: [...roleNames].toSorted(),
+    planNames: [...planNames].toSorted(),
     allowKeys: [...allowKeys].toSorted(),
   };
 }
@@ -136,16 +148,27 @@ function recordCall(
   unknown: CatalogUsage[],
   dynamic: DynamicUsage[],
   roleNames: Set<string>,
+  planNames: Set<string>,
   _allowKeys: Set<string>,
   knownKeys: ReadonlySet<string>,
 ): void {
   const callee = calleeName(node.callee);
   const line = lineAt(source, node.start ?? 0);
-  if (callee === 'definePermissions') {
+  if (
+    callee === 'definePermissions' ||
+    callee === 'defineRoles' ||
+    callee === 'definePlans'
+  ) {
     const name = declaredName(parent);
     if (name !== undefined) {
       roots.add(name);
       definitionFiles[name] = fileRel;
+    }
+    if (callee === 'defineRoles') {
+      collectObjectKeys(node.arguments?.[0], roleNames);
+    }
+    if (callee === 'definePlans') {
+      collectObjectKeys(node.arguments?.[0], planNames);
     }
     return;
   }
@@ -153,6 +176,11 @@ function recordCall(
     const first = node.arguments?.[0];
     if (typeof first?.value === 'string') {
       roleNames.add(first.value);
+    } else if (
+      first?.type === 'MemberExpression' &&
+      typeof first.property?.name === 'string'
+    ) {
+      roleNames.add(first.property.name);
     }
     return;
   }
@@ -309,6 +337,22 @@ function lineAt(source: string, index: number): number {
     }
   }
   return line;
+}
+
+function collectObjectKeys(node: Estree | undefined, into: Set<string>): void {
+  if (node?.type !== 'ObjectExpression' || node.properties === undefined) {
+    return;
+  }
+  for (const property of node.properties) {
+    const key = property.key;
+    if (typeof key?.name === 'string') {
+      into.add(key.name);
+      continue;
+    }
+    if (typeof key?.value === 'string') {
+      into.add(key.value);
+    }
+  }
 }
 
 function walk(

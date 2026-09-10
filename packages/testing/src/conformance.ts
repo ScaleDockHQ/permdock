@@ -3,6 +3,7 @@ import type {
   LimitStore,
   Membership,
   MembershipSource,
+  Role,
   RoleSource,
   SnapshotSource,
   Subject,
@@ -76,19 +77,25 @@ export function testMembershipSource(
 
 export function testRoleSource(
   source: RoleSource,
-  options: { readonly tenant: string; readonly declared: readonly string[] },
+  options: {
+    readonly tenant: string;
+    readonly declared: readonly (string | Role)[];
+  },
 ): void {
   it('only resolves declared role names', async () => {
+    const declared = options.declared.map((item) =>
+      typeof item === 'string' ? item : item.key,
+    );
     const roles = await source.rolesFor(options.tenant);
     for (const role of roles) {
       for (const included of role.includes) {
-        expect(options.declared).toContain(included);
+        expect(declared).toContain(included);
       }
     }
     if (source.assignable !== undefined) {
       const assignable = await source.assignable(options.tenant);
       for (const name of assignable) {
-        expect(options.declared).toContain(name);
+        expect(declared).toContain(name);
       }
     }
   });
@@ -136,7 +143,9 @@ export function testSnapshotSource(source: SnapshotSource): void {
     const snapshot = await source.get();
     expect(snapshot === null || snapshot === undefined).toBe(false);
     if (typeof snapshot === 'object' && snapshot !== null && 'v' in snapshot) {
-      expect(snapshot.v === 1 || snapshot.v === 2).toBe(true);
+      expect(snapshot.v === 1 || snapshot.v === 2 || snapshot.v === 3).toBe(
+        true,
+      );
     }
     if (source.subscribe !== undefined) {
       const unsubscribe = source.subscribe(() => undefined);

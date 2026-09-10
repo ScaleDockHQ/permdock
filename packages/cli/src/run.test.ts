@@ -110,7 +110,7 @@ describe('run', () => {
   it('catalog --format schema emits a JSON Schema document', async () => {
     const result = await run(['catalog', '--format', 'schema']);
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain('catalog-v1.json');
+    expect(result.stdout).toContain('catalog-v2.json');
   });
 
   it('catalog --format markdown has a post section', async () => {

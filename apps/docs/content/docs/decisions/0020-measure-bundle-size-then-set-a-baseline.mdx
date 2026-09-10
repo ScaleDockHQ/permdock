@@ -28,7 +28,7 @@ ADR 0015 set "core under about 3 kB gzip" because permix is 2.64 kB gzip and `@z
 ## Alternatives considered
 
 - **Keep the 3 kB cap as a stretch goal.** Rejected: a stretch goal that fails CI is a cap. The number was never measured.
-- **No size tracking at all.** Rejected: permix [#67](https://github.com/letstri/permix/pull/67) showed that per-entry measurement catches accidental client-bundle growth. Measure first, cap later.
+- **No size tracking at all.** Rejected: per-entry measurement catches accidental client-bundle growth. Measure first, cap later.
 
 ## Related
 

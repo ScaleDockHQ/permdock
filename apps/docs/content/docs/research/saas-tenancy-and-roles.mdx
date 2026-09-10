@@ -98,7 +98,7 @@ Adopt:
 
 Adapt:
 
-- Better Auth's "cannot grant a role you do not hold" rule becomes `permdock.assignable()` on the instance and `useAssignableRoles` on the client.
+- Better Auth's "cannot grant a role you do not hold" rule becomes `permdock.assignableRoles()` on the instance and `useAssignableRoles` on the client.
 - Nile's session-variable tenant becomes one more RLS compilation target for the active tenant, next to `auth.jwt()` claims.
 - Zanzibar tuples as the `pdp` interchange for resource memberships; the object form stays on PermDock's wire.
 - INCITS 359 vocabulary in the docs (session, activated roles, limited hierarchy) so auditors can map the model; separation of duty recorded as a possible lint, not a feature.

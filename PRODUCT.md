@@ -12,7 +12,7 @@ Version: Phase 4 in progress (September 2026). Phase 1–3 OSS has shipped (core
 
 **Why now.** Three things changed in 2025–2026: TypeScript 7 made template-literal-union permission keys expensive and brittle; Next.js 16.3 Instant Navigations made blocking permission checks a visible UX regression; and AI agents started calling tools on users' behalf, with the MCP authorization spec, AuthZEN 1.0, OAuth agent-delegation drafts, Shared Signals / CAEP and the OWASP Agentic Top 10 all landing within twelve months. No TypeScript permissions library was designed for any of the three. PermDock is.
 
-**Origin.** PermDock is the clean-room successor to a 25-PR stack against permix that the maintainer closed as "changes the public API" ([permix lessons](./apps/docs/content/docs/research/permix-lessons.mdx)). It copies none of permix's, CASL's or Kilpi's naming or API surface ([landscape](./apps/docs/content/docs/research/landscape.mdx)).
+**Origin.** PermDock is a greenfield, clean-room library. permix, CASL, Kilpi and the rest of the TypeScript permissions landscape are why it exists: closest in adapter breadth, but none of them combine typed references, portable conditions, structured decisions and a request-scoped core. It copies none of their naming or API surface ([landscape](./apps/docs/content/docs/research/landscape.mdx), [permix lessons](./apps/docs/content/docs/research/permix-lessons.mdx)).
 
 ## 2. Target users
 
@@ -65,7 +65,7 @@ Version: Phase 4 in progress (September 2026). Phase 1–3 OSS has shipped (core
 | Library | Strength | Gap PermDock fills | Research |
 | --- | --- | --- | --- |
 | CASL v7 | Conditions → Prisma / Mongoose `where`, field rules, ~1.4M weekly downloads | String tuples, no Standard Schema, no SSR / RN / MCP / OpenAPI | [casl-v7](./apps/docs/content/docs/research/casl-v7.mdx) |
-| permix v4 | Adapter breadth | Mutable global core, boolean hydration, no explain, closed to API change | [permix-lessons](./apps/docs/content/docs/research/permix-lessons.mdx) |
+| permix v4 | Adapter breadth | Mutable global core, boolean hydration, no explain | [permix-lessons](./apps/docs/content/docs/research/permix-lessons.mdx) |
 | Kilpi v1 | Server-first async policies, `Grant` / `Deny`, RSC `<Access>` | zod + superjson in core, no Standard Schema / RN / MCP / OpenAPI, single maintainer | [kilpi-v1](./apps/docs/content/docs/research/kilpi-v1.mdx) |
 | `@zap-studio/permit` v2 | Standard Schema resources, ~2.8 kB, fail-closed | Boolean-only, sync-only rules, no adapters | [zap-studio-permit](./apps/docs/content/docs/research/zap-studio-permit.mdx) |
 | Better Auth AC | RBAC bound to Better Auth sessions | No conditions / snapshots / adapters; PermDock layers on top | [landscape](./apps/docs/content/docs/research/landscape.mdx) |
@@ -84,7 +84,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 
 - `definePermissions` / `resource` / `crud` / `readable` / `writable` / nested groups / `id` field / action metadata; `mergePermissions`, `listPermissions`, `findPermission`.
 - `definePolicy` / `role` / `allow` / `deny` / `subject` / `context` / `validate`; role fragments merged by name; `approval: 'human'`; `allow` / `deny` over arrays of references.
-- Multi-tenant roles ([ADR 0024](./apps/docs/content/docs/decisions/0024-scoped-roles-and-memberships.mdx), [tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)): `principal.memberships` and the active `principal.tenant`; scoped roles (`role(name, grants, { on: 'tenant' | 'team' | resource, assignable })`), `definePolicy({ scopes })`, `resource({ parent })` for resource-role derivation; tenant-defined custom roles as data through `RoleSource` and `MembershipSource` (in-process defaults shipped); the `memberOf` condition node; reasons `tenant-mismatch`, `no-membership`, `scope`, `expired-membership`; `tenant()` / `team()` derived instances and `memberships()`, `tenants()`, `roles()`, `assignable()` introspection.
+- Multi-tenant roles ([ADR 0024](./apps/docs/content/docs/decisions/0024-scoped-roles-and-memberships.mdx), [tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)): `principal.memberships` and the active `principal.tenant`; scoped roles (`role(name, grants, { on: 'tenant' | 'team' | resource, assignable })`), `definePolicy({ scopes })`, `resource({ parent })` for resource-role derivation; tenant-defined custom roles as data through `RoleSource` and `MembershipSource` (in-process defaults shipped); the `memberOf` condition node; reasons `tenant-mismatch`, `no-membership`, `scope`, `expired-membership`; `tenant()` / `team()` derived instances and `memberships()`, `tenants()`, `heldRoles()`, `assignableRoles()` introspection.
 - Portable condition AST with in-memory evaluator; closures as branded non-portable grants.
 - Two-principal subject (`principal`, `actor`, `delegation`); every `subjectFrom*` typed as a `SubjectResolver` with a Standard Schema `schema` option for custom claims; RFC 9068 `roles` / `groups` / `entitlements` mapping in `permdock/jwt` ([extension interfaces](./apps/docs/content/docs/concepts/extension-interfaces.mdx), [JWT authorization claims](./apps/docs/content/docs/standards/jwt-authorization-claims.mdx)).
 - `createPermDock` with `can`, `decide` (three outcomes), `assert`, `filter`, `simulate` (with `{ roles, memberships, tenant }` previews), `snapshot` (v2: memberships, tenant, `tenants`, `simulated`), `on`; `describe(decision)`.
@@ -236,7 +236,7 @@ Tracked in [roadmap](./apps/docs/content/docs/roadmap.mdx); resolved items becom
 
 1. Resolved: `explain` is not an alias of `decide`; call `decide` then `describe` ([ADR 0028](./apps/docs/content/docs/decisions/0028-synchronous-evaluation.mdx)).
 2. `<Protected>` vs a second `<Can>`-style inline render-prop component.
-3. Resolved: `subject` is a typed reference builder (`subject.id`, `subject.context.teamIds`) that produces `{ ref: 'subject.<path>' }` ([ADR 0028](./apps/docs/content/docs/decisions/0028-synchronous-evaluation.mdx), [conditions](./apps/docs/content/docs/concepts/conditions.mdx)).
+3. Resolved: `principal` is a typed reference builder (`principal.id`, `context.teamIds`) that produces `{ ref: 'principal.<path>' }`; `subject` remains a deprecated alias ([ADR 0040](./apps/docs/content/docs/decisions/0040-principal-refs-and-question-verbs.mdx), [conditions](./apps/docs/content/docs/concepts/conditions.mdx)).
 4. Resolved: snapshots ship full grants with normalised conditions; `include` is the size lever ([ADR 0031](./apps/docs/content/docs/decisions/0031-snapshot-contents.mdx)).
 5. A protected-query helper (`permdock.protect(queryFn, { before, after })`) for co-located redaction (Kilpi's idea).
 6. Whether `collect` should also emit the `mergePermissions` barrel or only the catalog.

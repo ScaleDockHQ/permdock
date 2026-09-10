@@ -3,6 +3,7 @@ import { createMemo, createSignal, onCleanup, type Accessor } from 'solid-js';
 import type { Decision } from '../core/decision.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Membership } from '../core/subject.ts';
+import type { Role } from '../core/vocabulary.ts';
 import type { ClientStore } from '../react/store.ts';
 import type {
   ApprovalHandle,
@@ -114,22 +115,22 @@ export function useMemberships(): Accessor<readonly Membership[]> {
 
 export function useRoles(
   options: Accessor<UseRolesOptions> = () => ({}),
-): Accessor<{ readonly roles: readonly string[] }> {
+): Accessor<{ readonly roles: readonly Role[] }> {
   const dock = usePermDock();
   return createMemo(() => {
     const next = options();
     const scoped = next.team === undefined ? dock : dock.team(next.team);
     return {
-      roles: scoped.roles(
+      roles: scoped.heldRoles(
         next.tenant === undefined ? undefined : { tenant: next.tenant },
       ),
     };
   });
 }
 
-export function useAssignableRoles(): Accessor<readonly string[]> {
+export function useAssignableRoles(): Accessor<readonly Role[]> {
   const dock = usePermDock();
-  return createMemo(() => dock.assignable());
+  return createMemo(() => dock.assignableRoles());
 }
 
 export function useSubject(): Accessor<SubjectView> {

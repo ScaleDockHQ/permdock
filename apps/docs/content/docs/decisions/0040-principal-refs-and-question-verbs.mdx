@@ -1,0 +1,45 @@
+---
+title: "0040: Principal refs and question-shaped verbs"
+description: Condition refs and the definePolicy mapper use principal; actions() answers which permissions a subject holds on a row; who() is deferred.
+---
+
+## Status
+
+Proposed, September 2026. Amends the condition-ref spelling in [0028](/docs/decisions/0028-synchronous-evaluation) and the `subject` option documented in [0012](/docs/decisions/0012-two-principal-subject). The `Subject` type name is unchanged ([0026](/docs/decisions/0026-spec-aligned-naming)).
+
+## Context
+
+`subject` was three public identifiers: the `definePolicy` option that returns a `Principal`, the condition ref builder (`subject.id` producing `{ ref: 'subject.id' }`), and the RFC 8693 `Subject` type. `subject.id` resolved to `principal.id`. Cedar, AuthZEN and ADR 0026 all name that field `principal`.
+
+WorkOS FGA's four questions are: may I do X to this row; which actions may I do to this row; which rows may I X; who may X this row. PermDock had the first and the third (`can` / `decide`, `filter` / `where`). Detail pages and MCP tool lists need the second. The fourth needs a directory.
+
+`permdock.subject` already exists on the instance. Renaming it to `identity` would fight RFC 8693.
+
+## Decision
+
+1. **Condition refs.** Export `principal` (`{ ref: 'principal.<path>' }`) and `context` (`{ ref: 'context.<path>' }`). `subject` remains a deprecated alias that still produces `{ ref: 'subject.<path>' }`. Evaluators, compilers and RLS accept all three prefixes. `principal.id` is `subject.principal.id`; `context.x` is `subject.context.x`.
+2. **`definePolicy` option `principal`.** Same signature as today's `subject`. `subject` is still accepted. Internally both write the same mapper.
+3. **`actions(resourceTree, row)`** returns the `Permission[]` the current subject may perform on that row (instance actions of that resource whose `decide` is `granted`). Collection actions are not included; call `can` on those without a row.
+4. **`who(permission, row)` is deferred.** It needs a `DirectoryStore` or the Cloud decision log. Recorded here so the verb is reserved and not invented later as `listUsers`.
+
+`pick` stays. Folding it into `decide(...).fields` is not this cycle. `scope({ tenant, team })` stays the open question on [naming](/docs/getting-started/naming).
+
+## Consequences
+
+- Docs, skills and examples write `principal.id` in `where` clauses.
+- Open question 3 on the roadmap is superseded: the ref builder is `principal`, not `subject`.
+- MCP adapters can list tools from `actions()` instead of probing each `can`.
+
+## Alternatives considered
+
+- **Rename `Subject` to `Identity`.** Rejected: RFC 8693 and ADR 0026.
+- **Ship `who()` against `MembershipSource` only.** Rejected: a membership source answers "which roles does this principal have", not "which principals have this permission on this row".
+- **An `explain` alias.** Already rejected ([0007](/docs/decisions/0007-decide-not-explain)).
+
+## Related
+
+- [0012: Two-principal subject](/docs/decisions/0012-two-principal-subject)
+- [0026: Spec-aligned naming](/docs/decisions/0026-spec-aligned-naming)
+- [0028: Synchronous evaluation](/docs/decisions/0028-synchronous-evaluation)
+- [0039: Grantee selectors and relations](/docs/decisions/0039-grantee-selectors-and-relations)
+- [API surface 2026](/docs/research/api-surface-2026)

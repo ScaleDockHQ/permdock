@@ -1,19 +1,21 @@
-import { allow, deny, role, subject } from 'permdock';
+import { allow, deny, principal, relation, role } from 'permdock';
 
-import { postPermissions } from './permissions.ts';
+import { postPermissions, postRoleVocab } from './permissions.ts';
 
 export const postRoles = [
-  role('member', [
+  role(postRoleVocab.member, [
     allow(postPermissions.post.read),
     allow(postPermissions.post.list),
     allow(postPermissions.post.create),
-    allow(postPermissions.post.update, { where: { authorId: subject.id } }),
+    allow(postPermissions.post.update, {
+      to: relation(postPermissions.post, 'author'),
+    }),
     allow(postPermissions.post.delete, {
-      where: { authorId: subject.id },
+      where: { authorId: principal.id },
       approval: 'human',
     }),
   ]),
-  role('admin', [
+  role(postRoleVocab.admin, [
     allow(postPermissions.post.update),
     allow(postPermissions.post.delete),
     allow(postPermissions.post.publish),

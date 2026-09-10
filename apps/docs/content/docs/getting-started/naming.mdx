@@ -9,7 +9,7 @@ PermDock has one naming rule: the brand is the noun. The decision object is a `P
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
-| `PermDock` | type | The immutable, request-scoped decision object returned by `createPermDock`. Methods: `can`, `decide`, `assert`, `filter`, `pick`, `where`, `simulate`, `snapshot`, `on`; tenancy: `tenant`, `team` (derived instances), `memberships`, `tenants`, `roles`, `assignable` (read-only). |
+| `PermDock` | type | The immutable, request-scoped decision object returned by `createPermDock`. Methods: `can`, `decide`, `assert`, `filter`, `pick`, `where`, `simulate`, `snapshot`, `on`, `actions`; tenancy: `tenant`, `team` (derived instances), `memberships`, `tenants`, `heldRoles`, `assignableRoles` (read-only). Vocabulary trees: `permissions`, `roles`, `plans`. |
 | `permdock` | variable | The conventional name for a `PermDock` instance, and the npm package name. Also the CLI binary (`permdock collect`). |
 | `createPermDock` | function | Exported by core and by every server and agent adapter. Core returns a `PermDock`; adapters return a framework-shaped object. |
 
@@ -31,7 +31,7 @@ React reads permissions synchronously from a snapshot; servers resolve them asyn
 | `usePermDock()` | `await getPermDock()` | A `PermDock` (snapshot-backed on the client, full policy on the server) |
 | `usePermission(permission, data?)` | `await getPermission(permission, data?)` | `{ allowed, status }` on the client; the same shape awaited on the server |
 | `usePermissions([...], data?)`, `useFilter(permission, rows)` | `(await getPermDock()).decide` per reference, `.filter` | One entry per reference; the rows the subject may act on |
-| `useTenant()`, `useMemberships()`, `useRoles()`, `useAssignableRoles()` | `(await getPermDock()).tenants()`, `.memberships()`, `.roles()`, `.assignable()` | The active tenant with `switchTo`; the membership list; roles held in a tenant; roles the subject may hand out |
+| `useTenant()`, `useMemberships()`, `useRoles()`, `useAssignableRoles()` | `(await getPermDock()).tenants()`, `.memberships()`, `.heldRoles()`, `.assignableRoles()` | The active tenant with `switchTo`; the membership list; `Role[]` held in a tenant; `Role[]` the subject may hand out |
 | `useApproval(decision)`, `useSubject()` | the [`ApprovalStore`](/docs/adapters/approvals) and the subject on the server | Client-side request-access flow; the snapshot's principal, actor and delegation |
 | `<PermDockProvider snapshot endpoint tenant>` | `<PermDockProvider>` from the factory result | Client context; the server variant loads the snapshot once per request and serialises it |
 
@@ -42,13 +42,16 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | Word | Used for | Never used for |
 | --- | --- | --- |
 | `definePermissions` | Build the reference tree from resources and groups | Rules |
-| `resource` | One resource node: schema, `id` field, `actions`, `collection`, optional `parent` (the field and resource a resource role derives through) | Anything without a schema-or-actions shape |
+| `defineRoles`, `definePlans` | Build the typed `Role` and `Plan` trees (`permdock.roles.admin`, `permdock.plans.pro`) | Grants; Postgres roles |
+| `Role`, `Plan` | Frozen vocabulary leaves `{ key, on?, assignable, meta }` and `{ key, meta }` | The previous grant-list type; that is `RoleBinding` |
+| `resource` | One resource node: schema, `id` field, `actions`, `collection`, optional `parent`, optional `relations` | Anything without a schema-or-actions shape |
 | `actions` | Instance-level actions (`can(permissions.post.update, post)`) | Type-level checks |
 | `collection` | Type-level actions (`can(permissions.post.create)`) | Instance checks |
 | `crud`, `readable`, `writable` | Option factories for `resource()`: conventional instance/collection split and default `meta` | Constructors; grants; a default of `resource()` |
 | `mergePermissions`, `listPermissions`, `findPermission` | Registry helpers; functions so they never collide with resource names | Methods on the tree |
-| `definePolicy` | Bind roles, `scopes`, `subject`, `context`, `validate` to a definition | Defining permissions |
-| `role` | A named array of grants with an optional scope (`{ on: 'tenant' \| 'team' \| resource reference, assignable }`); same-named roles merge | Postgres roles |
+| `definePolicy` | Bind vocabulary, `scopes`, `grants`, `principal`, `context`, `validate` to a definition | Defining permissions |
+| `role` | A `RoleBinding`: named array of grants with an optional scope (`{ on: 'tenant' \| 'team' \| resource reference, assignable }`); same-named bindings merge; first argument may be a `Role` leaf | Postgres roles; the only grantee |
+| `to`, `anyone`, `authenticated`, `relation`, `plan`, `actor`, `assurance` | Grantee selectors on `allow` / `deny` ([0039](/docs/decisions/0039-grantee-selectors-and-relations)) | A second permission check; `hasRole` |
 | `scopes` | The `definePolicy` option naming the tenant and team key fields on rows (`{ tenant: { key: 'orgId' }, team: { key: 'teamId' } }`) | Permission scopes (`.scope` is the colon string form) |
 | `tenant`, `team`, `on` | The three shapes of a `Membership` (tenant role, team role, resource role) and the `on` option of `role` | `org`, `organization`, `workspace`, `group` as identifiers; those are provider vocabulary the mapper translates |
 | `Membership`, `CustomRole` | The wire types for a scoped role assignment and a tenant-defined role composed of declared `assignable` roles | Classes; both are plain JSON |
@@ -59,8 +62,9 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `ArazzoSimulateInput`, `ArazzoPlan`, `arazzoFindings` | The `simulate({ arazzo, openapi })` argument and result, and the resolution-only helper the CLI uses | A `permdock/arazzo` package; a subject on the call |
 | `webBotAuth`, `discoverViaSignatureAgent` | Option on HTTP `createPermDock` that verifies RFC 9421 signatures when `verify` is true, and the `Signature-Agent` directory lookup with an `allow` host list. Not a named export. | A `permdock/web-bot-auth` package; trusting a host that is not on `allow` |
 | `InvalidSignatureError` | Thrown by `permdock(request)` when a claimed Web Bot Auth signature fails; `protect` returns the Problem Details `response` instead | Downgrading a failed signature to an anonymous actor |
-| `allow`, `deny` | The two grant constructors; both accept one reference or an array | Checking |
-| `subject` | Both the reference object used in conditions (`subject.id`) and the `definePolicy` option that maps a user to principal values | The agent (that is `actor`) |
+| `allow`, `deny` | The two grant constructors; both accept one reference or an array and a `to` grantee | Checking |
+| `principal` | The condition ref builder (`principal.id`) and the `definePolicy` option that maps a user to principal values | The RFC 8693 `Subject` (that stays `subject` on the instance) |
+| `subject` | Deprecated alias of the condition ref builder and of the `definePolicy` mapper; still accepted | The agent (that is `actor`) |
 | `principal`, `actor`, `delegation` | The three parts of a subject | Synonyms for user or role |
 | `granted`, `denied`, `approval-required` | The three `Decision.outcome` values | `not-applicable`, `allow`, `deny` |
 | `where`, `check` | Conditions on the current row and on the next row | Query building outside conditions |
@@ -115,6 +119,7 @@ These never appear as public identifiers, for the reasons given:
 | `org`, `organization`, `workspace`, `account`, `group` as PermDock identifiers | Every provider picks a different noun for the same thing. PermDock uses `tenant` and `team` in its own API and lets the `subjectFrom*` mapper translate (Clerk organization to `tenant`, SCIM group to `team`). |
 | `useOrganization`, `useTeam`, `TenantProvider` | The tenant is a property of the one snapshot, not a second provider; `useTenant` and `useMemberships` read it. |
 | `hasRole`, `isAdmin`, `roleGuard` | Role checks in application code bypass the permission model; check a permission, and read roles only for display (`useRoles`) or assignment (`useAssignableRoles`). |
+| `who` | Reserved for a later directory-backed "who may X this row" verb ([0040](/docs/decisions/0040-principal-refs-and-question-verbs)); not exported. |
 | `SnapshotV2` | The format major lives in `v`; the type is `Snapshot`. |
 
 ## What each adapter's createPermDock returns

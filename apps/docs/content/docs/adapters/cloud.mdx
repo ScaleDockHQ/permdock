@@ -10,6 +10,10 @@ Phase: 2
 
 PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud` repository (URL to follow once the repository is public). This page defines what the client speaks; that repository implements it.
 
+## Identity gateway
+
+From 0.2 the Cloud is also an identity gateway ([0042](/docs/decisions/0042-cloud-identity-gateway)): each environment publishes `/.well-known/openid-configuration` next to the existing JWKS, runs authorization code plus PKCE, and offers the device flow for agents. It federates upstream IdPs and maps Agent Auth capability grants onto permission references. The only OSS integration is `subjectFromJwt({ discovery: PERMDOCK_CLOUD_URL })`. There is no `cloud().identity` helper in this cycle, and the Cloud still never sits on the decision path.
+
 ## Purpose
 
 Four things are worth paying for around an embedded decision engine, in the order PermDock Cloud leads with them ([ADR 0027](/docs/decisions/0027-governance-first-cloud)): a place where decisions accumulate as evidence, so an access review, an agent-activity review or "which agent did what for whom" is a query with a signed export rather than a log grep; a way for services that do not run TypeScript, and for API gateways, to enforce the same policy; a place where pending approvals wait for a person with a UI and notifications; and a hosted SCIM endpoint that relays directory provisioning into a store your application owns. PermDock Cloud provides all four as an Authorization Decision Service plus control plane, and `permdock/cloud` is the client for the first three (the fourth targets [`permdock/scim`](/docs/adapters/scim) in your app). The Supabase model applies: every capability has an interface in the open-source package with an in-process default, the Cloud is the managed implementation, and the interfaces are documented well enough to implement yourself ([approvals adapter](/docs/adapters/approvals), [audit](/docs/concepts/audit-and-observability)).
@@ -37,7 +41,7 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 - `cloud()` returns a frozen object; `approvals`, `sink` and `snapshots` are the three interfaces. There is no `decide` on it.
 - `sink` batches events in memory and flushes on an interval, on size, and at the end of a request when the runtime exposes `waitUntil`. Every event is written; sampling is opt-in and never applies to the evidence log. Delivery failure never affects a decision and is reported through `on('error')`. The Cloud's export endpoint serves the same events back as signed batches (`permdock-decisions+jwt`), OCSF or CSV.
 - `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store; the inbox UI, Slack, Teams and email delivery, and approver groups are Cloud features layered on the same records. Slack and Teams delivery is the Vercel Chat SDK recipe from the [approvals adapter](/docs/adapters/approvals) "Delivery" section, run by the Cloud instead of by your application; a self-hoster who copies that recipe gets identical cards and the same signature-verified responder.
-- `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)). Everything the Cloud serves is signed: a compact JWS with `typ: permdock-snapshot+jwt` and the unchanged Snapshot v2 object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats)).
+- `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)). Everything the Cloud serves is signed: a compact JWS with `typ: permdock-snapshot+jwt` and the unchanged Snapshot object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats)).
 
 ### Keys
 
@@ -56,7 +60,7 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. `:env` is `environment
 | `POST` | `/v1/environments/:env/approvals/:token/resolve` | `approvals.resolve` (`409` not pending, `410` expired, `404` missing) |
 | `GET` | `/v1/environments/:env/approvals` | `approvals.list` |
 | `POST` | `/v1/environments/:env/approvals/expire` | `approvals.expire` |
-| `GET` | `/v1/environments/:env/snapshot` | `snapshots.get` (Snapshot v2 JSON or `permdock-snapshot+jwt`) |
+| `GET` | `/v1/environments/:env/snapshot` | `snapshots.get` (Snapshot v3 JSON or `permdock-snapshot+jwt`) |
 
 ### Environment variables
 
@@ -135,7 +139,7 @@ The Cloud has an Integrations page; what each connector speaks is fixed here and
 - [AuthZEN](/docs/standards/authzen): the hosted ADS wire format.
 - [Shared Signals and CAEP](/docs/standards/shared-signals-caep): snapshot invalidation.
 - [SCIM 2.0](/docs/standards/scim): the hosted relay's protocol and the RFC 7523 bearer it presents to `scimHandler`.
-- [Wire formats](/docs/concepts/wire-formats): `ApprovalRequest`, `DecisionEvent`, Snapshot v2 and the signed-output envelope.
+- [Wire formats](/docs/concepts/wire-formats): `ApprovalRequest`, `DecisionEvent`, Snapshot v3 and the signed-output envelope.
 - [JOSE](/docs/standards/jose) and the [JWT adapter](/docs/adapters/jwt): the `TokenSigner` and `TokenVerifier` the Cloud signs and clients verify with.
 - [Approvals adapter](/docs/adapters/approvals) and [Audit and observability](/docs/concepts/audit-and-observability): the interfaces this entry implements.
 - [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable), [ADR 0027](/docs/decisions/0027-governance-first-cloud).

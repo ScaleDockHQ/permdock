@@ -83,7 +83,7 @@ export type PdpPermDock = Omit<
     ): Promise<readonly Decision[]>;
     (plan: ArazzoSimulateInput): ArazzoPlan;
     (preview: {
-      readonly roles?: readonly string[];
+      readonly roles?: readonly (string | { readonly key: string })[];
       readonly memberships?: readonly Membership[];
       readonly tenant?: string;
     }): PdpPermDock;

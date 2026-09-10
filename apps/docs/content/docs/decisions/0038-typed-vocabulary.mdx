@@ -1,0 +1,47 @@
+---
+title: "0038: Typed vocabulary"
+description: Roles and plans become typed frozen leaves like permissions, exposed as trees on the PermDock instance; heldRoles and assignableRoles replace the string-returning roles and assignable methods.
+---
+
+## Status
+
+Proposed, September 2026.
+
+## Context
+
+[0003](/docs/decisions/0003-reference-based-permissions) fixed permissions as typed references (`permissions.post.update`) so the public API never takes string keys. Roles stayed strings: `role('admin', ...)`, `principal.roles: ['admin']`, `permdock.roles()` returning `string[]`. Plans and entitlements were folded into that same bucket ("entitlements are roles").
+
+That split is visible at every call site. `useRoles` cannot autocomplete. `permdock.roles.admin` cannot exist next to `permdock.roles()` as a method. Catalogs list permissions but not roles. A JWT `entitlements` claim and a Clerk `pla` claim have nowhere typed to land.
+
+The permission tree already proves the shape: `definePermissions` walks a nested object, materialises frozen JSON leaves, identity by `key`, schema on the node. Roles and plans need the same treatment and must stay client-safe (no policy, no closures).
+
+## Decision
+
+1. **`defineRoles` and `definePlans`** produce typed trees of frozen leaves. A `Role` leaf is `{ key, on?, assignable, meta }`. A `Plan` leaf is `{ key, meta }`. Identity is by `key`. Leaves survive `JSON.stringify`, RSC props and postMessage.
+2. **`definePolicy` accepts a vocabulary object** as its first argument: `{ permissions, roles?, plans? }`. The existing `definePolicy(permissions, options)` overload remains. `role(nameOrRef, grants, options?)` accepts a `Role` leaf or a string; options on the leaf (`on`, `assignable`) are the defaults.
+3. **The instance exposes the trees**: `permdock.permissions`, `permdock.roles`, `permdock.plans`. The generic is `PermDock<V extends Vocabulary = Vocabulary>` so adapters that do not care still type-check.
+4. **`heldRoles({ tenant? })` and `assignableRoles()`** replace `roles()` and `assignable()`. They return `Role[]`. String-only names from a `RoleSource` or a JWT become synthesised leaves with `assignable: false`. The snapshot client no longer returns an empty assignable list: snapshot v3 ships the vocabulary.
+5. **The previous `Role` type** (a named array of grants) is renamed `RoleBinding`. `Policy.roles` remains the list of bindings.
+
+`dock` stays reserved. The instance variable is `permdock`.
+
+## Consequences
+
+- UI hooks `useRoles` / `useAssignableRoles` (and Vue / Svelte / Solid equivalents) return `Role[]`.
+- `permdock collect` catalogs roles and plans (catalog v2).
+- `simulate` preview accepts `Role | string`.
+- Breaking pre-1.0: `Role` → `RoleBinding`; `roles()` / `assignable()` renamed and retyped.
+
+## Alternatives considered
+
+- **Keep roles as strings and only type permissions.** Rejected: the user's request was specifically `permdock.roles.admin` next to `permdock.permissions.post.read`.
+- **A Proxy over `principal.roles`.** Rejected: Proxies do not serialise ([0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)).
+- **Keep `roles()` as a method and name the tree `roleTree`.** Rejected: the tree is the vocabulary, matching `permissions`.
+- **A `features` vocabulary distinct from plans.** Deferred.
+
+## Related
+
+- [0003: Reference-based permissions](/docs/decisions/0003-reference-based-permissions)
+- [0008: Plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key)
+- [0039: Grantee selectors and relations](/docs/decisions/0039-grantee-selectors-and-relations)
+- [API surface 2026](/docs/research/api-surface-2026)

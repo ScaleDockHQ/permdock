@@ -1,11 +1,12 @@
 import type { Snapshot, SnapshotGrant, TokenSigner } from './interfaces.ts';
-import type { Grant } from './policy.ts';
+import type { Grant, PolicyVocabulary } from './policy.ts';
 import type { Membership, Subject } from './subject.ts';
 
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { isForbiddenKey } from './paths.ts';
 import { tenantsOf } from './tenancy.ts';
+import { listPlans, listRoles } from './vocabulary.ts';
 
 function snapshotGrant(
   grant: Grant,
@@ -21,6 +22,7 @@ function snapshotGrant(
     permission: grant.permission.key,
     effect: grant.effect,
     role: grant.role,
+    to: grant.to,
     where: grant.portable ? grant.where : undefined,
     check: grant.portable ? grant.check : undefined,
     approval: grant.approval,
@@ -43,6 +45,7 @@ export function buildSnapshot(input: {
   readonly tenants?: 'all' | undefined;
   readonly simulated?: boolean;
   readonly now?: number;
+  readonly vocabulary?: PolicyVocabulary;
 }): Snapshot {
   const now = input.now ?? Math.floor(Date.now() / 1000);
   const principal = input.subject.principal;
@@ -69,7 +72,7 @@ export function buildSnapshot(input: {
     .map((item) => snapshotGrant(item.grant, item.membership));
   const snapshot = freezeDeep(
     compact<Snapshot>({
-      v: 2 as const,
+      v: 3 as const,
       issuedAt: now,
       subject: compact<Snapshot['subject']>({
         principal:
@@ -78,6 +81,7 @@ export function buildSnapshot(input: {
             : compact<NonNullable<Snapshot['subject']['principal']>>({
                 id: principal.id,
                 roles: principal.roles ?? [],
+                plans: principal.plans,
                 tenant: principal.tenant,
                 memberships: principal.memberships,
               }),
@@ -90,6 +94,29 @@ export function buildSnapshot(input: {
       include,
       simulated: input.simulated === true ? true : undefined,
       expiresAt: input.subject.expiresAt,
+      vocabulary:
+        input.vocabulary === undefined
+          ? undefined
+          : compact<NonNullable<Snapshot['vocabulary']>>({
+              roles:
+                listRoles(input.vocabulary.roles).length === 0
+                  ? undefined
+                  : Object.fromEntries(
+                      listRoles(input.vocabulary.roles).map((leaf) => [
+                        leaf.key,
+                        leaf,
+                      ]),
+                    ),
+              plans:
+                listPlans(input.vocabulary.plans).length === 0
+                  ? undefined
+                  : Object.fromEntries(
+                      listPlans(input.vocabulary.plans).map((leaf) => [
+                        leaf.key,
+                        leaf,
+                      ]),
+                    ),
+            }),
     }),
   );
   return snapshot;
@@ -143,7 +170,7 @@ export function parseSnapshot(json: unknown): Snapshot {
   rejectUnsafe(value, '$');
   const record = value as Record<string, unknown>;
   const version = record.v;
-  if (version !== 1 && version !== 2) {
+  if (version !== 1 && version !== 2 && version !== 3) {
     throw new Error(
       `PermDock: unsupported snapshot version '${String(version)}'`,
     );

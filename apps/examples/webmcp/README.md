@@ -1,6 +1,6 @@
 # `@permdock/example-webmcp`
 
-Minimal React wiring for `permdock/webmcp`: a Snapshot v2 built in the app, `usePermDock()`, and `registerTools` against an in-memory `document.modelContext`. Vite serves the page.
+Minimal React wiring for `permdock/webmcp`: a Snapshot v3 built in the app, `usePermDock()`, and `registerTools` against an in-memory `document.modelContext`. Vite serves the page.
 
 ```bash
 pnpm --filter @permdock/example-webmcp dev

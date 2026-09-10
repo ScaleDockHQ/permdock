@@ -34,7 +34,12 @@ function withoutProviders<TUser, TPrincipal extends Principal>(
       permissions: policy.permissions,
       roles: policy.roles,
       rolesByName: policy.rolesByName,
+      grants: policy.grants,
+      vocabulary: policy.vocabulary,
       scopes: policy.scopes,
+      principal(user: TUser) {
+        return policy.principal(user);
+      },
       subject(user: TUser) {
         return policy.subject(user);
       },
@@ -262,6 +267,7 @@ function wrap(
     },
     pick: dock.pick.bind(dock),
     where: dock.where.bind(dock),
+    actions: dock.actions.bind(dock),
     simulate,
     snapshot: dock.snapshot.bind(dock),
     on: dock.on.bind(dock),
@@ -275,8 +281,11 @@ function wrap(
     },
     memberships: dock.memberships.bind(dock),
     tenants: dock.tenants.bind(dock),
-    roles: dock.roles.bind(dock),
-    assignable: dock.assignable.bind(dock),
+    heldRoles: dock.heldRoles.bind(dock),
+    assignableRoles: dock.assignableRoles.bind(dock),
+    permissions: dock.permissions,
+    roles: dock.roles,
+    plans: dock.plans,
     subject,
   };
 }

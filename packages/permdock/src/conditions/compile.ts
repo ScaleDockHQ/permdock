@@ -10,6 +10,7 @@ import {
   isConditionDate,
   isConditionRef,
 } from './ast.ts';
+import { resolveConditionRef } from './refs.ts';
 
 export type MembershipTable = {
   readonly table: string;
@@ -81,52 +82,7 @@ function isExpired(membership: Membership, now: number): boolean {
 }
 
 function resolveRef(ref: string, subject: Subject | undefined): unknown {
-  if (subject === undefined || !ref.startsWith('subject')) {
-    return undefined;
-  }
-  const rest = ref.slice('subject'.length);
-  if (rest === '') {
-    return subject;
-  }
-  if (!rest.startsWith('.')) {
-    return undefined;
-  }
-  const path = rest.slice(1);
-  if (path === 'id') {
-    return subject.principal?.id;
-  }
-  if (path.startsWith('context.')) {
-    const key = path.slice('context.'.length);
-    assertSafeKey(key.split('.')[0] ?? key, 'subject path');
-    let current: unknown = subject.context;
-    for (const segment of key.split('.')) {
-      if (
-        current === null ||
-        typeof current !== 'object' ||
-        !Object.hasOwn(current, segment)
-      ) {
-        return undefined;
-      }
-      current = (current as Record<string, unknown>)[segment];
-    }
-    return current;
-  }
-  if (subject.principal === null) {
-    return undefined;
-  }
-  let current: unknown = subject.principal;
-  for (const segment of path.split('.')) {
-    assertSafeKey(segment, 'subject path');
-    if (
-      current === null ||
-      typeof current !== 'object' ||
-      !Object.hasOwn(current, segment)
-    ) {
-      return undefined;
-    }
-    current = (current as Record<string, unknown>)[segment];
-  }
-  return current;
+  return resolveConditionRef(ref, subject);
 }
 
 function unwrap(value: ConditionValue, subject: Subject | undefined): unknown {
@@ -172,6 +128,9 @@ function matchingMemberships(
   return memberships.filter((membership) => {
     if (isExpired(membership, now)) {
       return false;
+    }
+    if (wanted.size === 0) {
+      return true;
     }
     return membership.roles.some((role) => wanted.has(role));
   });

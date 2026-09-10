@@ -3,6 +3,7 @@ import { readable, type Readable } from 'svelte/store';
 import type { Decision } from '../core/decision.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Membership } from '../core/subject.ts';
+import type { Role } from '../core/vocabulary.ts';
 import type { ClientStore } from '../react/store.ts';
 import type {
   ApprovalHandle,
@@ -145,32 +146,32 @@ export function membershipsFor(
 
 export function roles(
   options: () => UseRolesOptions = () => ({}),
-): Readable<{ readonly roles: readonly string[] }> {
+): Readable<{ readonly roles: readonly Role[] }> {
   return rolesFor(getStore(), options);
 }
 
 export function rolesFor(
   store: ClientStore,
   options: () => UseRolesOptions = () => ({}),
-): Readable<{ readonly roles: readonly string[] }> {
+): Readable<{ readonly roles: readonly Role[] }> {
   return fromStore(store, () => {
     const next = options();
     const dock = store.get();
     const scoped = next.team === undefined ? dock : dock.team(next.team);
     return {
-      roles: scoped.roles(
+      roles: scoped.heldRoles(
         next.tenant === undefined ? undefined : { tenant: next.tenant },
       ),
     };
   });
 }
 
-export function assignable(): Readable<readonly string[]> {
+export function assignable(): Readable<readonly Role[]> {
   return assignableFor(getStore());
 }
 
-export function assignableFor(store: ClientStore): Readable<readonly string[]> {
-  return fromStore(store, () => store.get().assignable());
+export function assignableFor(store: ClientStore): Readable<readonly Role[]> {
+  return fromStore(store, () => store.get().assignableRoles());
 }
 
 export function subject(): Readable<SubjectView> {

@@ -1,6 +1,6 @@
 # `@permdock/example-expo`
 
-Minimal Expo Router wiring for `permdock/react-native`: an inline Snapshot v2, `memoryStorage`, and `Protected` / `usePermission`. Web is served by Expo.
+Minimal Expo Router wiring for `permdock/react-native`: an inline Snapshot v3, `memoryStorage`, and `Protected` / `usePermission`. Web is served by Expo.
 
 ```bash
 pnpm --filter @permdock/example-expo dev

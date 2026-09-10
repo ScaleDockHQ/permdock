@@ -72,9 +72,9 @@ describe('permdock/svelte', () => {
     const subject = get(subjectFor(store));
     const canEdit = get(permissionFor(store, defs.post.update, () => ownPost));
     expect(
-      `${canEdit.allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.roles.join(',')}:${subject.simulated}:${dock.status()}`,
+      `${canEdit.allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.roles.map((item) => item.key).join(',')}:${subject.simulated}:${dock.status()}`,
     ).toContain('true:1:1:false');
-    expect(roles.roles).toContain('member');
+    expect(roles.roles.map((item) => item.key)).toContain('member');
     expect(subject.simulated).toBe(false);
     expect(dock.status()).toBe('ready');
     expect(get(assignableFor(store))).toEqual([]);

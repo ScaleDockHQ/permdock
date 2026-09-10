@@ -1,6 +1,6 @@
 # `@permdock/example-svelte`
 
-Minimal Svelte wiring for `permdock/svelte`: a Snapshot v2 built in the app, `setPermDock`, and `<Protected>` guards. Vite serves the page.
+Minimal Svelte wiring for `permdock/svelte`: a Snapshot v3 built in the app, `setPermDock`, and `<Protected>` guards. Vite serves the page.
 
 ```bash
 pnpm --filter @permdock/example-svelte dev

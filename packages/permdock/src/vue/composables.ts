@@ -11,6 +11,7 @@ import {
 import type { Decision } from '../core/decision.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Membership } from '../core/subject.ts';
+import type { Role } from '../core/vocabulary.ts';
 import type { ClientStore } from '../react/store.ts';
 import type {
   ApprovalHandle,
@@ -142,23 +143,23 @@ export function useMemberships(): ComputedRef<readonly Membership[]> {
 
 export function useRoles(
   options: MaybeRefOrGetter<UseRolesOptions> = {},
-): ComputedRef<{ readonly roles: readonly string[] }> {
+): ComputedRef<{ readonly roles: readonly Role[] }> {
   const dock = useTick(useStore());
   return computed(() => {
     const next = toValue(options);
     const scoped =
       next.team === undefined ? dock.value : dock.value.team(next.team);
     return {
-      roles: scoped.roles(
+      roles: scoped.heldRoles(
         next.tenant === undefined ? undefined : { tenant: next.tenant },
       ),
     };
   });
 }
 
-export function useAssignableRoles(): ComputedRef<readonly string[]> {
+export function useAssignableRoles(): ComputedRef<readonly Role[]> {
   const dock = useTick(useStore());
-  return computed(() => dock.value.assignable());
+  return computed(() => dock.value.assignableRoles());
 }
 
 export function useSubject(): ComputedRef<SubjectView> {

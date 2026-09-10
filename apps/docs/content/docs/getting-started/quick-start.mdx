@@ -11,7 +11,7 @@ The definition is importable everywhere (server, client, React Native, MCP, test
 
 ```ts
 // src/permissions.ts
-import { definePermissions, resource, crud } from 'permdock'
+import { definePermissions, defineRoles, resource, crud } from 'permdock'
 import { z } from 'zod' // or valibot / arktype: any Standard Schema
 
 const Post = z.object({
@@ -23,9 +23,15 @@ const Post = z.object({
 
 export const permissions = definePermissions({
   post: resource(Post, crud({
-    id: 'id', // identity field: cache keys, filter, RLS
+    id: 'id',
     actions: { publish: { title: 'Publish post' } },
+    relations: { author: 'authorId' },
   })),
+})
+
+export const roles = defineRoles({
+  member: {},
+  admin: {},
 })
 ```
 
@@ -37,32 +43,32 @@ The policy is server-only. Roles are arrays of grants; conditions are data.
 
 ```ts
 // src/policy.ts (server-only)
-import { definePolicy, role, allow, deny, subject } from 'permdock'
-import { permissions } from './permissions'
+import { definePolicy, role, allow, deny, principal, relation } from 'permdock'
+import { permissions, roles } from './permissions'
 
-const member = role('member', [
+const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, { where: { authorId: subject.id } }),
-  allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),
+  allow(permissions.post.update, { to: relation(permissions.post, 'author') }),
+  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
 ])
 
-const admin = role('admin', [
+const admin = role(roles.admin, [
   ...member.grants,
   allow(permissions.post.delete),
   allow(permissions.post.publish),
   deny(permissions.post.publish, { where: { published: true } }),
 ])
 
-export const policy = definePolicy(permissions, {
+export const policy = definePolicy({ permissions, roles }, {
   roles: [member, admin],
-  subject: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
+  principal: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
   validate: 'boundary',
 })
 ```
 
-`subject.id` is a reference to a principal field, not the value; it is what lets the same grant run in the browser, filter an array, compile to a SQL `where` and become an RLS `USING` clause. Deny overrides allow, allows OR together, and anything not granted is denied. See [policies](/docs/concepts/policies) and [conditions](/docs/concepts/conditions).
+`principal.id` is a reference to a principal field, not the value; it is what lets the same grant run in the browser, filter an array, compile to a SQL `where` and become an RLS `USING` clause. Deny overrides allow, allows OR together, and anything not granted is denied. See [policies](/docs/concepts/policies) and [conditions](/docs/concepts/conditions).
 
 ## 3. Create a PermDock and check
 
@@ -75,6 +81,9 @@ const permdock = await createPermDock(policy, user) // sync when the policy decl
 
 permdock.can(permissions.post.update, post)  // boolean
 permdock.can(permissions.post.create)        // collection action: no instance, enforced by the type
+permdock.actions(permissions.post, post)     // Permission[] this subject may perform on the row
+permdock.heldRoles()                         // Role[]
+permdock.roles.admin                         // typed Role leaf
 
 const decision = permdock.decide(permissions.post.delete, post)
 switch (decision.outcome) {

@@ -69,15 +69,20 @@ export type CatalogResource = {
   readonly id: string;
   readonly schema: unknown;
   readonly definedIn?: string;
+  readonly relations?: Readonly<
+    Record<string, { readonly field: string; readonly memberOf?: string }>
+  >;
 };
 
 export type CatalogDocument = {
   readonly $schema: string;
-  readonly version: 1;
+  readonly version: 1 | 2;
   readonly generatedAt: string;
   readonly generator: string;
   readonly resources: Readonly<Record<string, CatalogResource>>;
   readonly permissions: readonly CatalogPermission[];
+  readonly roles?: readonly { readonly key: string }[];
+  readonly plans?: readonly { readonly key: string }[];
 };
 
 export type DynamicUsage = {
@@ -93,6 +98,7 @@ export type ScanResult = {
   readonly unknown: readonly CatalogUsage[];
   readonly dynamic: readonly DynamicUsage[];
   readonly roleNames: readonly string[];
+  readonly planNames: readonly string[];
   readonly allowKeys: readonly string[];
 };
 

@@ -81,6 +81,25 @@ function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
   return extra;
 }
 
+function planSlugs(pla: unknown): readonly string[] {
+  if (typeof pla !== 'string' || pla === '') {
+    return [];
+  }
+  const plans: string[] = [];
+  for (const raw of pla.split(',')) {
+    const token = raw.trim();
+    if (token === '') {
+      continue;
+    }
+    const prefixed = /^([ou]):(.+)$/u.exec(token);
+    const slug = prefixed?.[2] ?? token;
+    if (slug !== '') {
+      plans.push(slug);
+    }
+  }
+  return plans;
+}
+
 function featureRoles(
   fea: unknown,
   map: Readonly<Record<string, string>> | undefined,
@@ -317,6 +336,10 @@ export async function subjectFromClerk(
       kind: 'user',
       tenant: mapped.tenant,
       roles: global,
+      plans:
+        planSlugs(mapped.claims.pla).length === 0
+          ? undefined
+          : planSlugs(mapped.claims.pla),
       memberships,
       clerkPermissions: mapped.orgPermissions,
       claims: Object.keys(claims).length === 0 ? undefined : claims,

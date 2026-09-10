@@ -316,12 +316,15 @@ export function mapClaimsToSubject(
   const tenant =
     tenantPath === undefined ? undefined : readPath(claims, tenantPath);
   const activeTenant = typeof tenant === 'string' ? tenant : undefined;
-  const roles = [
-    ...asStringArray(readPath(claims, paths?.roles ?? DEFAULT_CLAIMS.roles)),
-    ...asStringArray(
-      readPath(claims, paths?.entitlements ?? DEFAULT_CLAIMS.entitlements),
+  const roles = asStringArray(
+    readPath(claims, paths?.roles ?? DEFAULT_CLAIMS.roles),
+  );
+  const plans = asStringArray(
+    readPath(
+      claims,
+      paths?.plans ?? paths?.entitlements ?? DEFAULT_CLAIMS.entitlements,
     ),
-  ];
+  );
   const groups = asStringArray(
     readPath(claims, paths?.groups ?? DEFAULT_CLAIMS.groups),
   );
@@ -384,6 +387,7 @@ export function mapClaimsToSubject(
       issuer: typeof claims.iss === 'string' ? claims.iss : options.issuer,
       kind: kindOf(claims, paths),
       roles: roles.length > 0 ? roles : undefined,
+      plans: plans.length > 0 ? plans : undefined,
       memberships: memberships.length > 0 ? memberships : undefined,
       tenant: activeTenant,
       assurance: assuranceOf(claims, paths),

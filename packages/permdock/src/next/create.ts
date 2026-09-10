@@ -3,7 +3,7 @@ import { cache, type ReactElement } from 'react';
 import type { Decision } from '../core/decision.ts';
 import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 import type {
   GetPermDockQuery,
@@ -50,10 +50,10 @@ async function readTenant(
   }
 }
 
-function wrapInstance(
-  dock: PermDock,
+function wrapInstance<V extends PolicyVocabulary>(
+  dock: PermDock<V>,
   onDenied: NextPermDockOptions['onDenied'],
-): PermDock {
+): PermDock<V> {
   if (onDenied === undefined) {
     return dock;
   }
@@ -67,7 +67,7 @@ function wrapInstance(
         next: Permission,
         row?: unknown,
         nextOptions?: DecideOptions,
-      ) => ReturnType<PermDock['assert']>
+      ) => ReturnType<PermDock<V>['assert']>
     )(
       permission,
       data,
@@ -75,17 +75,18 @@ function wrapInstance(
         ...options,
         onDenied: options?.onDenied ?? onDenied,
       }),
-    )) as PermDock['assert'];
+    )) as PermDock<V>['assert'];
   return { ...dock, assert };
 }
 
 export function createPermDock<
   TUser = NextSubjectInput,
   TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
 >(
-  policy: Policy<TUser, TPrincipal>,
+  policy: Policy<TUser, TPrincipal, V>,
   options: NextPermDockOptions<TUser>,
-): NextPermDock {
+): NextPermDock<V> {
   assertServerOnly();
 
   const resolveSubject = cache(async (): Promise<TUser | null> => {
@@ -100,7 +101,7 @@ export function createPermDock<
     readTenant(options.tenant),
   );
 
-  const instantiate = cache(async (tenantKey: string): Promise<PermDock> => {
+  const instantiate = cache(async (tenantKey: string): Promise<PermDock<V>> => {
     const tenant = tenantKey === '' ? undefined : tenantKey;
     const user = await resolveSubject();
     const instance = applyOtel(
@@ -115,11 +116,13 @@ export function createPermDock<
         }),
       ),
       options.otel,
-    );
+    ) as PermDock<V>;
     return wrapInstance(instance, options.onDenied);
   });
 
-  const getPermDock = async (query?: GetPermDockQuery): Promise<PermDock> => {
+  const getPermDock = async (
+    query?: GetPermDockQuery,
+  ): Promise<PermDock<V>> => {
     const tenant = query?.tenant ?? (await resolveFallbackTenant());
     return instantiate(tenant ?? '');
   };

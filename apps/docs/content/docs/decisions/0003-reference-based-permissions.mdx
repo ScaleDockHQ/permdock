@@ -16,7 +16,7 @@ Every in-process TypeScript authorization library identifies a permission with a
 - A permission has no place to carry metadata. Scope strings for OAuth, titles for MCP tool descriptions and RFC 9396 `authorization_details` types must live in a side table.
 - A catalog must be extracted from source or declared twice, because the type union does not exist at runtime.
 
-permix PR #64 asked for a runtime catalog with a CI freshness check; the answer was another extraction step over string markers.
+A runtime catalog with a CI freshness check still needs an extraction step when the public API is string markers; typed references make the definition itself the catalog.
 
 ## Decision
 

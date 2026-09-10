@@ -71,6 +71,7 @@ export type JwtClaimPaths = {
   readonly roles?: string;
   readonly groups?: string;
   readonly entitlements?: string;
+  readonly plans?: string;
   readonly tenant?: string;
   readonly memberships?: string;
   readonly kind?: string;

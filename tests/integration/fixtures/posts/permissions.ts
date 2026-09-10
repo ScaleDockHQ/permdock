@@ -1,4 +1,4 @@
-import { definePermissions, resource } from 'permdock';
+import { definePermissions, defineRoles, resource } from 'permdock';
 import { z } from 'zod';
 
 export const Post = z.object({
@@ -11,5 +11,10 @@ export const permissions = definePermissions({
     id: 'id',
     actions: ['read', 'update'],
     collection: ['list', 'create'],
+    relations: { author: 'authorId' },
   }),
+});
+
+export const roles = defineRoles({
+  member: {},
 });

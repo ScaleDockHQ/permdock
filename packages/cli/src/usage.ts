@@ -66,6 +66,11 @@ export async function runUsage(input: {
       }
     }
   }
+  for (const grant of policy.grants ?? []) {
+    if (grant.effect === 'allow') {
+      granted.add(grant.permission.key);
+    }
+  }
   const used = new Set<string>();
   const usedAt: Record<string, readonly CatalogUsage[]> = {};
   for (const permission of collected.document.permissions) {

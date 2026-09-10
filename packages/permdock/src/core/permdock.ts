@@ -16,7 +16,8 @@ import type {
   TokenSigner,
 } from './interfaces.ts';
 import type { Permission } from './permissions.ts';
-import type { Grant, Policy } from './policy.ts';
+import type { Grant, Policy, PolicyVocabulary } from './policy.ts';
+import type { PlanTree, Role, RoleTree } from './vocabulary.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
 import {
@@ -37,6 +38,7 @@ import {
 } from './errors.ts';
 import { grantCoversField, pickVisible, sanitizeContext } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
+import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
 import { applyQuota } from './limits.ts';
 import { getResource, listPermissions } from './permissions.ts';
 import { buildSnapshot, parseSnapshot, signSnapshot } from './snapshot.ts';
@@ -59,6 +61,7 @@ import {
 } from './tenancy.ts';
 import { decisionToken } from './token.ts';
 import { type Boundary, validateBoundary } from './validation.ts';
+import { findRole, listRoles, synthesiseRole } from './vocabulary.ts';
 
 export type DecideOptions = {
   readonly trusted?: boolean;
@@ -82,7 +85,7 @@ export type WhereResult = {
   readonly partial: boolean;
 };
 
-export type PermDock = {
+export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly can: {
     (
       permission: Permission<string, unknown, 'instance'>,
@@ -130,10 +133,15 @@ export type PermDock = {
     options?: DecideOptions,
   ) => Partial<T>;
   readonly where: (permission: Permission) => WhereResult;
+  readonly actions: (
+    resource: Permission | { readonly [key: string]: unknown },
+    data: unknown,
+    options?: DecideOptions,
+  ) => Permission[];
   readonly simulate: {
     (checks: readonly (readonly [Permission, unknown?])[]): Decision[];
     (preview: {
-      readonly roles?: readonly string[];
+      readonly roles?: readonly (string | Role)[];
       readonly memberships?: readonly Membership[];
       readonly tenant?: string;
     }): PermDock;
@@ -156,8 +164,15 @@ export type PermDock = {
   readonly team: (id: string) => PermDock;
   readonly memberships: () => readonly Membership[];
   readonly tenants: () => readonly string[];
-  readonly roles: (options?: { readonly tenant?: string }) => readonly string[];
-  readonly assignable: () => readonly string[];
+  readonly heldRoles: (options?: {
+    readonly tenant?: string;
+  }) => readonly Role[];
+  readonly assignableRoles: () => readonly Role[];
+  readonly roles: V['roles'] extends RoleTree ? V['roles'] : RoleTree;
+  readonly plans: V['plans'] extends PlanTree ? V['plans'] : PlanTree;
+  readonly permissions: V['permissions'] extends Policy['permissions']
+    ? V['permissions']
+    : Policy['permissions'];
   readonly subject: Subject;
 };
 
@@ -273,6 +288,21 @@ function expandRoleNames(
     }
   }
   return { roles: [...resolved], unknown };
+}
+
+function declaredRoleNames(policy: Policy): Set<string> {
+  const names = new Set(policy.roles.map((role) => role.name));
+  for (const leaf of listRoles(policy.vocabulary?.roles)) {
+    names.add(leaf.key);
+  }
+  return names;
+}
+
+function grantList(policy: Policy): readonly Grant[] {
+  if (policy.grants !== undefined && policy.grants.length > 0) {
+    return policy.grants;
+  }
+  return policy.roles.flatMap((role) => role.grants);
 }
 
 function alternativesFor(
@@ -518,32 +548,14 @@ function evaluate(
     return decision;
   }
 
-  if (subject.principal === null) {
-    const decision: Decision = freezeDeep({
-      outcome: 'denied',
-      denials: [{ role: null, reason: 'anonymous' }],
-      alternatives: [],
-    });
-    finish(
-      policy,
-      subject,
-      permission,
-      current,
-      decision,
-      options,
-      env,
-      trusted,
-    );
-    return decision;
-  }
-
-  const declared = new Set(policy.roles.map((role) => role.name));
+  const declared = declaredRoleNames(policy);
+  const principalRoles = subject.principal?.roles ?? [];
   const globalNames = expandRoleNames(
-    subject.principal.roles ?? [],
+    principalRoles,
     declared,
     env.customRoles,
   );
-  if (globalNames.unknown.length > 0) {
+  if (subject.principal !== null && globalNames.unknown.length > 0) {
     emitSafe(
       env.listeners.auth as unknown as Set<(payload: unknown) => void>,
       { reason: 'unknown-role', source: 'roles' } satisfies AuthEvent,
@@ -556,7 +568,7 @@ function evaluate(
     [];
   const matchingRoles = new Set<string>(globalNames.roles);
 
-  for (const membership of subject.principal.memberships ?? []) {
+  for (const membership of subject.principal?.memberships ?? []) {
     if (env.team !== undefined && membership.team !== env.team) {
       continue;
     }
@@ -573,95 +585,129 @@ function evaluate(
     }
   }
 
-  for (const role of policy.roles) {
-    if (!matchingRoles.has(role.name) && role.grants[0]?.scope === 'global') {
+  for (const grant of grantList(policy)) {
+    if (grant.permission.key !== permission.key) {
       continue;
     }
-    for (const grant of role.grants) {
-      if (grant.permission.key !== permission.key) {
+    const displayRole = grant.role;
+    const granteeMatch = matchGrantee(grant.to, subject, now, resource);
+    if (!granteeMatch.matched) {
+      denials.push({
+        role: displayRole,
+        reason: granteeMatch.reason ?? 'no-grant',
+      });
+      continue;
+    }
+    const roleItems = flattenGrantee(grant.to).filter(
+      (item) => item.kind === 'role',
+    );
+    let scopeMembership: Membership | undefined;
+    let roleOk = roleItems.length === 0;
+    if (roleItems.length > 0) {
+      if (subject.principal === null) {
+        denials.push({ role: displayRole, reason: 'anonymous' });
         continue;
       }
-      const scope = grant.scope;
-      if (scope !== 'global' && !matchingRoles.has(role.name)) {
-        continue;
+      let allHeld = true;
+      for (const roleItem of roleItems) {
+        const held =
+          roleItem.scope === 'global'
+            ? globalNames.roles.includes(roleItem.role)
+            : matchingRoles.has(roleItem.role);
+        if (!held) {
+          allHeld = false;
+          break;
+        }
+        const rowForScope =
+          permission.kind === 'instance' ? current : undefined;
+        const scopeMatch = matchScopedMembership(
+          subject,
+          roleItem.scope,
+          roleItem.role,
+          rowForScope,
+          policy.scopes,
+          resource,
+          now,
+        );
+        if (!scopeMatch.ok) {
+          denials.push({ role: roleItem.role, reason: scopeMatch.reason });
+          allHeld = false;
+          break;
+        }
+        scopeMembership = scopeMatch.membership ?? scopeMembership;
       }
-      if (scope === 'global' && !globalNames.roles.includes(role.name)) {
-        continue;
+      roleOk = allHeld;
+    }
+    if (!roleOk) {
+      continue;
+    }
+    const merged: Grant = freezeDeep(
+      compact({
+        ...grant,
+        where: combineWhere(grant.where, granteeMatch.where),
+      }),
+    );
+    const condition = evaluateGrantCondition(
+      merged,
+      permission,
+      current,
+      next,
+      subject,
+      now,
+    );
+    if (!condition.matched) {
+      if (condition.reason === 'closure-error') {
+        emitSafe(
+          env.listeners.error,
+          condition.cause ?? new Error('closure-error'),
+          env.listeners,
+        );
       }
-      const rowForScope = permission.kind === 'instance' ? current : undefined;
-      const scopeMatch = matchScopedMembership(
+      denials.push({
+        role: displayRole,
+        reason: condition.reason ?? 'condition',
+        detail: condition.cause,
+      });
+      continue;
+    }
+    if (!grantCoversField(grant.fields, options.field, grant.effect)) {
+      continue;
+    }
+    if (grant.effect === 'deny') {
+      const decision: Decision = freezeDeep({
+        outcome: 'denied',
+        denials: [{ role: displayRole, reason: 'deny' }],
+        alternatives: env.skipAlternatives
+          ? []
+          : alternativesFor(policy, permission, subject, env),
+      });
+      finish(
+        policy,
         subject,
-        scope,
-        role.name,
-        rowForScope,
-        policy.scopes,
-        resource,
-        now,
-      );
-      if (!scopeMatch.ok) {
-        denials.push({ role: role.name, reason: scopeMatch.reason });
-        continue;
-      }
-      const condition = evaluateGrantCondition(
-        grant,
         permission,
         current,
-        next,
-        subject,
-        now,
+        decision,
+        options,
+        env,
+        trusted,
       );
-      if (!condition.matched) {
-        if (condition.reason === 'closure-error') {
-          emitSafe(
-            env.listeners.error,
-            condition.cause ?? new Error('closure-error'),
-            env.listeners,
-          );
-        }
-        denials.push({
-          role: role.name,
-          reason: condition.reason ?? 'condition',
-          detail: condition.cause,
-        });
-        continue;
-      }
-      if (!grantCoversField(grant.fields, options.field, grant.effect)) {
-        continue;
-      }
-      if (grant.effect === 'deny') {
-        const decision: Decision = freezeDeep({
-          outcome: 'denied',
-          denials: [{ role: role.name, reason: 'deny' }],
-          alternatives: env.skipAlternatives
-            ? []
-            : alternativesFor(policy, permission, subject, env),
-        });
-        finish(
-          policy,
-          subject,
-          permission,
-          current,
-          decision,
-          options,
-          env,
-          trusted,
-        );
-        return decision;
-      }
-      allows.push(
-        scopeMatch.membership === undefined
-          ? { grant }
-          : { grant, membership: scopeMatch.membership },
-      );
+      return decision;
     }
+    allows.push(
+      scopeMembership === undefined
+        ? { grant: merged }
+        : { grant: merged, membership: scopeMembership },
+    );
   }
 
   if (allows.length === 0) {
     const reason: DenialReason =
       denials[0]?.reason ??
-      (globalNames.unknown.length > 0 && globalNames.roles.length === 0
-        ? 'unknown-role'
-        : 'no-grant');
+      (subject.principal === null
+        ? 'anonymous'
+        : globalNames.unknown.length > 0 && globalNames.roles.length === 0
+          ? 'unknown-role'
+          : 'no-grant');
     const decision: Decision = freezeDeep({
       outcome: 'denied',
       denials: denials.length > 0 ? denials : [{ role: null, reason }],
@@ -719,7 +765,7 @@ function evaluate(
       cache: env.limitCache,
       grant: candidate.grant,
       permissionKey: permission.key,
-      subjectId: subject.principal.id,
+      subjectId: subject.principal?.id ?? '',
       now,
       consume,
     });
@@ -773,6 +819,7 @@ function evaluate(
   const matched = compact<MatchedGrant>({
     role: matchedAllow.grant.role,
     permission: permission.key,
+    to: matchedAllow.grant.to,
     where: matchedAllow.grant.where,
     check: matchedAllow.grant.check,
     approval: matchedAllow.grant.approval,
@@ -787,7 +834,7 @@ function evaluate(
         })
       : freezeDeep({
           outcome: 'granted',
-          subject: subject as Subject & { readonly principal: Principal },
+          subject,
           matched,
           token,
         });
@@ -866,11 +913,18 @@ function finish(
       via: membership?.via ?? null,
       matched:
         decision.outcome === 'granted'
-          ? {
+          ? compact({
               role: decision.matched.role,
               permission: decision.matched.permission,
-            }
-          : undefined,
+              to: decision.matched.to,
+            })
+          : decision.outcome === 'approval-required'
+            ? compact({
+                role: decision.grant.role,
+                permission: decision.grant.permission,
+                to: decision.grant.to,
+              })
+            : undefined,
       denials: decision.outcome === 'denied' ? decision.denials : undefined,
       alternatives:
         decision.outcome === 'denied'
@@ -939,7 +993,7 @@ function includePrefixes(
   });
 }
 
-function heldRoles(subject: Subject, tenant?: string): readonly string[] {
+function heldRoleNames(subject: Subject, tenant?: string): readonly string[] {
   if (subject.principal === null) {
     return [];
   }
@@ -960,37 +1014,66 @@ function collectSnapshotGrants(
   subject: Subject,
   customRoles: readonly CustomRole[],
 ): readonly { readonly grant: Grant; readonly membership?: Membership }[] {
-  const declared = new Set(policy.roles.map((role) => role.name));
+  const declared = declaredRoleNames(policy);
   const global = expandRoleNames(
     subject.principal?.roles ?? [],
     declared,
     customRoles,
   );
-  const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
-  for (const role of policy.roles) {
-    if (
-      role.grants[0]?.scope === 'global' &&
-      global.roles.includes(role.name)
-    ) {
-      for (const grant of role.grants) {
-        out.push({ grant });
-      }
-    }
-  }
+  const matchingRoles = new Set<string>(global.roles);
   for (const membership of subject.principal?.memberships ?? []) {
     const expanded = expandRoleNames(membership.roles, declared, customRoles);
-    for (const roleName of expanded.roles) {
-      const role = policy.rolesByName.get(roleName);
-      if (role === undefined) {
+    for (const name of expanded.roles) {
+      matchingRoles.add(name);
+    }
+  }
+  const now = nowSeconds();
+  const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
+  for (const grant of grantList(policy)) {
+    const resource = getResource(policy.permissions, grant.permission.resource);
+    const match = matchGrantee(grant.to, subject, now, resource);
+    if (!match.matched) {
+      continue;
+    }
+    const roleItems = flattenGrantee(grant.to).filter(
+      (item) => item.kind === 'role',
+    );
+    let membership: Membership | undefined;
+    if (roleItems.length > 0) {
+      if (subject.principal === null) {
         continue;
       }
-      for (const grant of role.grants) {
-        if (grant.scope === 'global') {
-          continue;
+      let allHeld = true;
+      for (const roleItem of roleItems) {
+        const held =
+          roleItem.scope === 'global'
+            ? global.roles.includes(roleItem.role)
+            : matchingRoles.has(roleItem.role);
+        if (!held) {
+          allHeld = false;
+          break;
         }
-        out.push({ grant, membership });
+        if (roleItem.scope !== 'global') {
+          membership = (subject.principal.memberships ?? []).find((item) =>
+            item.roles.includes(roleItem.role),
+          );
+        }
+      }
+      if (!allHeld) {
+        continue;
       }
     }
+    const merged: Grant = freezeDeep(
+      compact({
+        ...grant,
+        where: combineWhere(grant.where, match.where),
+      }),
+    );
+    out.push(
+      membership === undefined
+        ? { grant: merged }
+        : { grant: merged, membership },
+    );
   }
   return out;
 }
@@ -1120,6 +1203,9 @@ function buildInstance(
     can: canImpl as PermDock['can'],
     decide: decideImpl as PermDock['decide'],
     assert: assertImpl as PermDock['assert'],
+    permissions: policy.permissions,
+    roles: policy.vocabulary?.roles ?? {},
+    plans: policy.vocabulary?.plans ?? {},
     filter<T>(
       permission: Permission<string, T, 'instance'>,
       rows: readonly T[],
@@ -1244,11 +1330,27 @@ function buildInstance(
         partial,
       };
     },
+    actions(
+      resource: Permission | { readonly [key: string]: unknown },
+      data: unknown,
+      options?: DecideOptions,
+    ): Permission[] {
+      const fromTree = listPermissions(resource as never);
+      const leaves =
+        fromTree.length > 0
+          ? fromTree
+          : 'resource' in resource && typeof resource.resource === 'string'
+            ? listPermissions(policy.permissions).filter(
+                (item) => item.resource === resource.resource,
+              )
+            : [];
+      return leaves.filter((item) => canImpl(item, data, options) === true);
+    },
     simulate: ((
       input:
         | readonly (readonly [Permission, unknown?])[]
         | {
-            readonly roles?: readonly string[];
+            readonly roles?: readonly (string | Role)[];
             readonly memberships?: readonly Membership[];
             readonly tenant?: string;
           }
@@ -1282,17 +1384,20 @@ function buildInstance(
         );
       }
       const preview = input as {
-        readonly roles?: readonly string[];
+        readonly roles?: readonly (string | Role)[];
         readonly memberships?: readonly Membership[];
         readonly tenant?: string;
       };
+      const previewRoles = preview.roles?.map((item) =>
+        typeof item === 'string' ? item : item.key,
+      );
       const previewPrincipal =
         subject.principal === null
           ? null
           : freezeDeep(
               compact<Principal>({
                 ...subject.principal,
-                roles: preview.roles ?? subject.principal.roles,
+                roles: previewRoles ?? subject.principal.roles,
                 memberships:
                   preview.memberships ?? subject.principal.memberships,
                 tenant: preview.tenant ?? subject.principal.tenant,
@@ -1313,11 +1418,12 @@ function buildInstance(
       const snapshot = buildSnapshot(
         compact<Parameters<typeof buildSnapshot>[0]>({
           subject,
-          roles: heldRoles(subject, subject.principal?.tenant),
+          roles: heldRoleNames(subject, subject.principal?.tenant),
           grants: collectSnapshotGrants(policy, subject, envBase.customRoles),
           include: includePrefixes(options?.include),
           tenants: options?.tenants,
           simulated: envBase.simulated,
+          vocabulary: policy.vocabulary,
         }),
       );
       if (options?.signer !== undefined) {
@@ -1365,17 +1471,41 @@ function buildInstance(
     tenants(): readonly string[] {
       return tenantsOf(subject.principal);
     },
-    roles(options?: { readonly tenant?: string }): readonly string[] {
-      return heldRoles(subject, options?.tenant ?? subject.principal?.tenant);
+    heldRoles(options?: { readonly tenant?: string }): readonly Role[] {
+      const names = heldRoleNames(
+        subject,
+        options?.tenant ?? subject.principal?.tenant,
+      );
+      return names.map(
+        (name) =>
+          findRole(policy.vocabulary?.roles, name) ?? synthesiseRole(name),
+      );
     },
-    assignable(): readonly string[] {
+    assignableRoles(): readonly Role[] {
       const tenant = subject.principal?.tenant;
-      const held = new Set(heldRoles(subject, tenant));
-      const declared = policy.roles
-        .filter((role) => role.assignable)
-        .map((role) => role.name);
-      const allowed = declared.filter((name) => held.has(name));
-      return allowed;
+      const held = new Set(heldRoleNames(subject, tenant));
+      const fromVocab = listRoles(policy.vocabulary?.roles).filter(
+        (leaf) => leaf.assignable && held.has(leaf.key),
+      );
+      const seen = new Set(fromVocab.map((leaf) => leaf.key));
+      const fromBindings = policy.roles
+        .filter((role) => role.assignable && held.has(role.name))
+        .flatMap((role) => {
+          if (seen.has(role.name)) {
+            return [];
+          }
+          seen.add(role.name);
+          return [
+            findRole(policy.vocabulary?.roles, role.name) ??
+              synthesiseRole(
+                role.name,
+                role.on === 'tenant' || role.on === 'team'
+                  ? { on: role.on, assignable: true }
+                  : { assignable: true },
+              ),
+          ];
+        });
+      return [...fromVocab, ...fromBindings];
     },
     subject,
   };
@@ -1565,19 +1695,23 @@ function instantiate(
   return build(customRoles);
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
   options: CreatePermDockOptions = {},
-): PermDock | Promise<PermDock> {
+): PermDock<V> | Promise<PermDock<V>> {
   const auth: AuthEvent[] = [];
   const subject = resolveSubject(policy, user, options, auth);
   if (isThenable(subject)) {
     return subject.then((resolved) =>
       instantiate(policy, resolved, options, auth),
-    );
+    ) as Promise<PermDock<V>>;
   }
-  return instantiate(policy, subject, options, auth);
+  return instantiate(policy, subject, options, auth) as PermDock<V>;
 }
 
 export { fromSnapshot } from './from-snapshot.ts';

@@ -1,3 +1,4 @@
+import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
 import type { Grant } from './policy.ts';
 import type { Subject } from './subject.ts';
@@ -31,11 +32,13 @@ export type Denial = {
   readonly role: string | null;
   readonly reason: DenialReason;
   readonly detail?: unknown;
+  readonly to?: Grantee | readonly Grantee[];
 };
 
 export type MatchedGrant = {
-  readonly role: string;
+  readonly role: string | null;
   readonly permission: string;
+  readonly to?: Grantee | readonly Grantee[];
   readonly where?: Grant['where'];
   readonly check?: Grant['check'];
   readonly approval?: 'human';
@@ -44,9 +47,7 @@ export type MatchedGrant = {
 
 export type GrantedDecision = {
   readonly outcome: 'granted';
-  readonly subject: Subject & {
-    readonly principal: NonNullable<Subject['principal']>;
-  };
+  readonly subject: Subject;
   readonly matched: MatchedGrant;
   readonly token: string;
 };

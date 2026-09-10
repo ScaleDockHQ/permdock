@@ -1,9 +1,16 @@
 import { readFileSync } from 'node:fs';
 import {
+  actor,
   allow,
+  anyone,
+  assurance,
+  authenticated,
   definePermissions,
+  definePlans,
   definePolicy,
+  defineRoles,
   deny,
+  relation,
   resource,
   role,
   subject,
@@ -127,13 +134,13 @@ describePolicy(policy, {
 });
 
 describe('snapshotFixture', () => {
-  it('returns snapshot v2 JSON', async () => {
+  it('returns snapshot v3 JSON', async () => {
     const snapshot = await snapshotFixture(policy, {
       id: 'u1',
       orgId: 'o1',
       roles: ['member'],
     });
-    expect(snapshot.v).toBe(2);
+    expect(snapshot.v).toBe(3);
     expect(snapshot.roles).toContain('member');
   });
 
@@ -148,7 +155,7 @@ describe('snapshotFixture', () => {
         tenant: 'o1',
       },
     );
-    expect(snapshot.v).toBe(2);
+    expect(snapshot.v).toBe(3);
     expect(snapshot.simulated).toBe(true);
   });
 });
@@ -352,4 +359,108 @@ describe('conformance runners', () => {
       }),
     },
   );
+});
+
+const selectorPermissions = definePermissions({
+  post: resource(Post, {
+    id: 'id',
+    actions: ['read', 'update', 'delete', 'publish'],
+    collection: ['list'],
+    relations: { author: 'authorId' },
+  }),
+});
+
+const selectorRoles = defineRoles({
+  owner: {},
+});
+
+const selectorPlans = definePlans({
+  pro: {},
+});
+
+const selectorPolicy = definePolicy(
+  {
+    permissions: selectorPermissions,
+    roles: selectorRoles,
+    plans: selectorPlans,
+  },
+  {
+    principal: (
+      user: {
+        readonly id: string;
+        readonly roles?: readonly string[];
+        readonly plans?: readonly string[];
+        readonly assurance?: { readonly acr?: string };
+      } | null,
+    ) =>
+      user === null
+        ? null
+        : {
+            id: user.id,
+            roles: user.roles ?? [],
+            plans: user.plans,
+            assurance: user.assurance,
+          },
+    grants: [
+      allow(selectorPermissions.post.read, { to: anyone() }),
+      allow(selectorPermissions.post.list, { to: authenticated() }),
+      allow(selectorPermissions.post.update, {
+        to: relation(selectorPermissions.post, 'author'),
+      }),
+      allow(selectorPermissions.post.delete, {
+        to: [selectorRoles.owner, selectorPlans.pro],
+      }),
+      allow(selectorPermissions.post.publish, {
+        to: [actor('mcp-client'), assurance({ acr: ['mfa'] })],
+      }),
+      deny(selectorPermissions.post.publish, {
+        to: anyone(),
+        where: { published: true },
+      }),
+    ],
+  },
+);
+
+describePolicy(selectorPolicy, {
+  exhaustive: false,
+  subjects: {
+    anonymous: null,
+    member: { id: 'u1' },
+    ownerPro: { id: 'u1', roles: ['owner'], plans: ['pro'] },
+    ownerFree: { id: 'u1', roles: ['owner'] },
+    agent: {
+      principal: { id: 'u1', assurance: { acr: 'mfa' } },
+      actor: { id: 'agent', kind: 'mcp-client' },
+      context: {},
+    },
+  },
+  fixtures: { ownPost, otherPost },
+  matrix: {
+    [selectorPermissions.post.read.key]: {
+      ownPost: {
+        anonymous: 'granted',
+        member: 'granted',
+        ownerPro: 'granted',
+      },
+    },
+    [selectorPermissions.post.list.key]: {
+      anonymous: 'denied',
+      member: 'granted',
+    },
+    [selectorPermissions.post.update.key]: {
+      ownPost: { anonymous: 'denied', member: 'granted' },
+      otherPost: { anonymous: 'denied', member: 'denied' },
+    },
+    [selectorPermissions.post.delete.key]: {
+      ownPost: {
+        ownerPro: 'granted',
+        ownerFree: 'denied',
+        member: 'denied',
+      },
+    },
+    [selectorPermissions.post.publish.key]: {
+      ownPost: { agent: 'granted', member: 'denied' },
+      otherPost: { agent: 'denied' },
+    },
+  },
 });

@@ -41,7 +41,7 @@ const subject = await subjectFromJwt(token, {
     id: 'sub',
     roles: 'roles',            // default; RFC 9068
     groups: 'groups',          // default; RFC 9068 -> team memberships
-    entitlements: 'entitlements', // default; RFC 9068 -> roles (entitlements are roles)
+    entitlements: 'entitlements', // default; RFC 9068 -> principal.plans
     tenant: 'org_id',          // no standard exists; vendor specific, see below
   },
 })
@@ -51,7 +51,7 @@ const subject = await subjectFromJwt(token, {
 | --- | --- | --- | --- |
 | `roles` | `string[]` or SCIM complex values | `principal.roles` (global) or, when the issuer scopes roles to the tenant it named, a membership `{ tenant, roles }` | Names the policy never declared are dropped and reported once by `on('auth')`; a custom role name resolves through the `RoleSource` |
 | `groups` | `string[]` or SCIM complex values | `principal.memberships[]` entries `{ tenant, team: value, roles: [] }`, with `via: 'group:<value>'`; roles come from the resolver's `groupRoles` option (`{ '9f2c': ['lead'] }`, ids never names) or a `MembershipSource` | The `value` sub-attribute is the identifier; `display` is never used for matching |
-| `entitlements` | `string[]` or SCIM complex values | Roles under the [entitlements-are-roles](/docs/concepts/policies) rule, selected by name | Same trust rule as `roles` |
+| `entitlements` | `string[]` or SCIM complex values | `principal.plans`, selected by name | Same trust rule as `roles`; grant with `to: plans.pro`, not by stuffing the name into `principal.roles` |
 
 Reading SCIM complex values: `{ "value": "9f2c", "display": "Design", "type": "direct" }` contributes `9f2c`; `type: "indirect"` (nested membership expanded by the issuer) is kept and recorded in `via` as `group:9f2c:indirect`. Entra's `_claim_names` and `_claim_sources` overflow (above roughly 200 groups) is not resolved by PermDock; the resolver reports `groups-overflow` through `on('auth')` and the recipe is app roles or a directory lookup in `context` ([authentication](/docs/concepts/authentication) single sign-on).
 

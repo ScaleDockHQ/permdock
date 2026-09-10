@@ -5,10 +5,12 @@ import type {
   DenialReason,
   MatchedGrant,
 } from './decision.ts';
+import type { Grantee } from './grantee.ts';
 import type { Snapshot, SnapshotGrant } from './interfaces.ts';
 import type { DecideOptions, PermDock, WhereResult } from './permdock.ts';
 import type { Permission } from './permissions.ts';
 import type { Membership, Principal, Subject } from './subject.ts';
+import type { Role } from './vocabulary.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
 import { isArazzoSimulateInput, simulateArazzo } from './arazzo.ts';
@@ -22,12 +24,15 @@ import {
 } from './errors.ts';
 import { grantCoversField, pickVisible } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
+import { matchGrantee } from './grantee.ts';
+import { listPermissions } from './permissions.ts';
 import {
   isMembershipExpired,
   nowSeconds,
   resolveActiveTenant,
 } from './tenancy.ts';
 import { decisionToken } from './token.ts';
+import { findRole, listRoles, synthesiseRole } from './vocabulary.ts';
 
 function isRowPair(
   value: unknown,
@@ -92,6 +97,23 @@ function subjectFromSnapshot(
       expiresAt: snapshot.expiresAt,
     }),
   );
+}
+
+function snapshotGrantee(grant: SnapshotGrant): Grantee | readonly Grantee[] {
+  if (grant.to !== undefined) {
+    return grant.to;
+  }
+  const scope =
+    grant.scope === undefined
+      ? 'global'
+      : grant.scope === 'tenant' || grant.scope === 'team'
+        ? grant.scope
+        : grant.scope;
+  return freezeDeep({
+    kind: 'role' as const,
+    role: grant.role ?? '',
+    scope,
+  });
 }
 
 function scopeOk(
@@ -198,13 +220,6 @@ function evaluateSnapshot(
   options: DecideOptions,
 ): Decision {
   const now = options.now ?? nowSeconds();
-  if (subject.principal === null) {
-    return freezeDeep({
-      outcome: 'denied',
-      denials: [{ role: null, reason: 'anonymous' }],
-      alternatives: [],
-    });
-  }
   if (!coveredByInclude(snapshot, permission)) {
     return freezeDeep({
       outcome: 'denied',
@@ -228,9 +243,22 @@ function evaluateSnapshot(
     if (grant.permission !== permission.key) {
       continue;
     }
+    const match = matchGrantee(snapshotGrantee(grant), subject, now, undefined);
+    if (!match.matched) {
+      denials.push(
+        compact({
+          role: grant.role,
+          reason: match.reason ?? 'no-grant',
+          to: grant.to,
+        }),
+      );
+      continue;
+    }
     const scoped = scopeOk(grant, subject, current, team, now);
     if (!scoped.ok) {
-      denials.push({ role: grant.role, reason: scoped.reason });
+      denials.push(
+        compact({ role: grant.role, reason: scoped.reason, to: grant.to }),
+      );
       continue;
     }
     const condition = conditionOk(
@@ -264,7 +292,14 @@ function evaluateSnapshot(
     return freezeDeep({
       outcome: 'denied',
       denials:
-        denials.length > 0 ? denials : [{ role: null, reason: 'no-grant' }],
+        denials.length > 0
+          ? denials
+          : [
+              {
+                role: null,
+                reason: subject.principal === null ? 'anonymous' : 'no-grant',
+              },
+            ],
       alternatives: [],
     });
   }
@@ -291,6 +326,7 @@ function evaluateSnapshot(
   const grant = compact<MatchedGrant>({
     role: matched.role,
     permission: permission.key,
+    to: matched.to ?? snapshotGrantee(matched),
     where: matched.where,
     check: matched.check,
     approval: matched.approval,
@@ -305,10 +341,7 @@ function evaluateSnapshot(
   }
   return freezeDeep({
     outcome: 'granted',
-    subject: {
-      ...subject,
-      principal: subject.principal,
-    },
+    subject,
     matched: grant,
     token,
   });
@@ -324,7 +357,7 @@ function resourceRef(
     : { type: permission.resource, id };
 }
 
-function heldRoles(subject: Subject, tenant: string | undefined): string[] {
+function heldRoleNames(subject: Subject, tenant: string | undefined): string[] {
   const names = new Set<string>(subject.principal?.roles ?? []);
   for (const membership of subject.principal?.memberships ?? []) {
     if (tenant !== undefined && membership.tenant !== tenant) {
@@ -445,6 +478,9 @@ export function fromSnapshot(
     can,
     decide,
     assert,
+    permissions: {},
+    roles: snapshot.vocabulary?.roles ?? {},
+    plans: snapshot.vocabulary?.plans ?? {},
     filter<T>(
       permission: Permission<string, T, 'instance'>,
       rows: readonly T[],
@@ -471,6 +507,18 @@ export function fromSnapshot(
     where(permission) {
       return whereFromSnapshot(snapshot, permission);
     },
+    actions(resource, data, decideOptions) {
+      const fromTree = listPermissions(resource as never);
+      const leaves =
+        fromTree.length > 0
+          ? fromTree
+          : 'resource' in resource && typeof resource.resource === 'string'
+            ? []
+            : [];
+      return leaves.filter(
+        (item) => run(item, data, decideOptions).outcome === 'granted',
+      );
+    },
     simulate: ((input: unknown) => {
       if (Array.isArray(input)) {
         return (input as readonly (readonly [Permission, unknown?])[]).map(
@@ -483,10 +531,13 @@ export function fromSnapshot(
         );
       }
       const preview = input as {
-        readonly roles?: readonly string[];
+        readonly roles?: readonly (string | Role)[];
         readonly memberships?: readonly Membership[];
         readonly tenant?: string;
       };
+      const previewRoles = preview.roles?.map((item) =>
+        typeof item === 'string' ? item : item.key,
+      );
       const next: Snapshot = freezeDeep({
         ...snapshot,
         simulated: true as const,
@@ -497,7 +548,7 @@ export function fromSnapshot(
               ? null
               : compact<NonNullable<Snapshot['subject']['principal']>>({
                   ...snapshot.subject.principal,
-                  roles: preview.roles ?? snapshot.subject.principal.roles,
+                  roles: previewRoles ?? snapshot.subject.principal.roles,
                   memberships:
                     preview.memberships ??
                     snapshot.subject.principal.memberships,
@@ -528,11 +579,19 @@ export function fromSnapshot(
     tenants() {
       return snapshot.tenants;
     },
-    roles(query?: { readonly tenant?: string }) {
-      return heldRoles(subject, query?.tenant ?? subject.principal?.tenant);
+    heldRoles(query?: { readonly tenant?: string }) {
+      const names = heldRoleNames(
+        subject,
+        query?.tenant ?? subject.principal?.tenant,
+      );
+      const tree = snapshot.vocabulary?.roles;
+      return names.map((name) => findRole(tree, name) ?? synthesiseRole(name));
     },
-    assignable() {
-      return [];
+    assignableRoles() {
+      const names = new Set(heldRoleNames(subject, subject.principal?.tenant));
+      return listRoles(snapshot.vocabulary?.roles).filter(
+        (leaf) => leaf.assignable && names.has(leaf.key),
+      );
     },
     subject,
   };
@@ -541,7 +600,7 @@ export function fromSnapshot(
 
 export function emptySnapshot(): Snapshot {
   return freezeDeep({
-    v: 2 as const,
+    v: 3 as const,
     issuedAt: 0,
     subject: { principal: null, context: {} },
     roles: [],

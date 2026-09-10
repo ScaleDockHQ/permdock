@@ -73,11 +73,11 @@ Provider hooks such as Clerk's `useOrganization`, Better Auth's `useActiveOrgani
 
 ```tsx
 const memberships = useMemberships()                       // Membership[] from the snapshot
-const roles = useRoles()                                   // roles held in the active tenant, custom roles resolved
+const roles = useRoles()                                   // Role[] held in the active tenant
 const { roles: teamRoles } = useRoles({ team: 't_design' })
 ```
 
-Render a "Your roles in Acme" chip list from `useRoles()`, an organisation list from `useMemberships()` filtered to `tenant` entries, and a shared-with-me list from `on` entries. The display label for a role is `catalog.roles[name].meta.title` from `permdock catalog`; the snapshot carries names only.
+Render a "Your roles in Acme" chip list from `useRoles()`, an organisation list from `useMemberships()` filtered to `tenant` entries, and a shared-with-me list from `on` entries. The display label for a role is `role.meta.title` on the `Role` leaf; snapshot v3 ships the vocabulary so the client no longer needs the catalog for titles.
 
 ## Request access
 
@@ -121,7 +121,7 @@ A tenant admin composes a custom role from assignable declared roles. The pieces
 
 1. `permdock catalog --format json` gives the assignable roles with `meta.title`, `meta.description` and the permissions each contains; render it as the palette.
 2. `useAssignableRoles()` returns the intersection of `RoleSource.assignable(activeTenant)` and the roles the current subject holds there, so a viewer cannot compose an admin.
-3. The form submits `{ tenant, name, includes }` to a server action that validates it against the published Standard JSON Schema for `CustomRole` (`includes` typed as `z.enum(policy.assignable)`), checks `permissions.member.assignRole` plus `permdock.assignable()` again on the server, and writes to the app's own `RoleSource` backing table.
+3. The form submits `{ tenant, name, includes }` to a server action that validates it against the published Standard JSON Schema for `CustomRole` (`includes` typed as `z.enum` of assignable role keys), checks `permissions.member.assignRole` plus `permdock.assignableRoles()` again on the server, and writes to the app's own `RoleSource` backing table.
 4. Assigning the role to a member is a write to the auth provider's membership (Better Auth `member.role`, Clerk organization membership, your table) followed by `refresh()` on the affected client, or a CAEP event when the provider emits one.
 
 A hosted editor over the same shape is a PermDock Cloud candidate; the open-source recipe is complete without it.

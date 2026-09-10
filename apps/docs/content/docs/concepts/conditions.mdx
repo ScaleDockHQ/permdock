@@ -8,14 +8,14 @@ A condition is the part of a grant that depends on data: "the author is the curr
 ## Writing conditions
 
 ```ts
-allow(permissions.post.update, { where: { authorId: subject.id } })
-allow(permissions.post.read,   { where: { or: [{ published: true }, { authorId: subject.id }] } })
-allow(permissions.invoice.pay, { where: { orgId: subject.orgId, amount: { lte: 10_000 } } })
-allow(permissions.post.read,   { where: { teamId: { in: subject.context.teamIds } } })
-allow(permissions.post.update, { where: { authorId: subject.id }, check: { authorId: subject.id } })
+allow(permissions.post.update, { where: { authorId: principal.id } })
+allow(permissions.post.read,   { where: { or: [{ published: true }, { authorId: principal.id }] } })
+allow(permissions.invoice.pay, { where: { orgId: principal.orgId, amount: { lte: 10_000 } } })
+allow(permissions.post.read,   { where: { teamId: { in: context.teamIds } } })
+allow(permissions.post.update, { where: { authorId: principal.id }, check: { authorId: principal.id } })
 ```
 
-An object literal is an implicit `and` over its fields. A field value is either a literal (`true`, `'published'`, `42`), a subject reference (`subject.id`), or an operator object (`{ lte: 10_000 }`). `and`, `or` and `not` nest. Field names and literal types are checked against `StandardSchemaV1.InferOutput` of the resource schema, so a typo or a string compared to a boolean is a compile error.
+An object literal is an implicit `and` over its fields. A field value is either a literal (`true`, `'published'`, `42`), a principal reference (`principal.id`; `subject.id` remains a deprecated alias), or an operator object (`{ lte: 10_000 }`). `and`, `or` and `not` nest. Field names and literal types are checked against `StandardSchemaV1.InferOutput` of the resource schema, so a typo or a string compared to a boolean is a compile error.
 
 ### Operators
 

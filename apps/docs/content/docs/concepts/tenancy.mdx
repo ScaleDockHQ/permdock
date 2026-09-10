@@ -165,7 +165,7 @@ type CustomRole = {
 - At evaluation time a membership role name that no `role()` declared is looked up through the `RoleSource` for that tenant and replaced by the declared roles it `includes`. Names that resolve to nothing are dropped (fewer grants, never more). A custom role therefore can never exceed the union of the tenant's assignable roles, and it can never carry a condition of its own; conditions live on declared grants that were reviewed in code.
 - Declared roles are the vocabulary. Small, composable, `assignable` roles (`billing-viewer`, `invoice-payer`, `member-inviter`) make good building blocks; a monolithic `admin` makes a poor one. `permdock catalog` lists assignable roles with their `meta.title` and the permissions each contains, which is what a role editor renders.
 - `RoleSource.assignable(tenant)` may return a subset of the declared assignable roles: a Starter plan without `billing-manager`, a regulated tenant without `data-exporter`. This is Clerk's role-set idea and the entitlements-are-roles rule applied to assignability; the plan is an input, PermDock never reads billing.
-- Who may hand out which role is itself a permission (`permissions.member.assignRole`) plus the rule that you cannot hand out what you do not hold: `permdock.assignable()` returns the intersection of `RoleSource.assignable(activeTenant)` and the roles the current subject holds there, and the app's server action checks both before writing.
+- Who may hand out which role is itself a permission (`permissions.member.assignRole`) plus the rule that you cannot hand out what you do not hold: `permdock.assignableRoles()` returns the intersection of `RoleSource.assignable(activeTenant)` and the roles the current subject holds there, and the app's server action checks both before writing.
 
 ### Interfaces
 
@@ -207,7 +207,8 @@ permdock.team('t_design').can(permissions.post.publish)                    // sc
 permdock.memberships()             // Membership[]           for org lists and role chips
 permdock.tenants()                 // string[]               tenants the subject belongs to
 permdock.roles({ tenant: 'o_acme' })  // string[]            roles held there, custom roles resolved
-permdock.assignable()              // string[]               roles the subject may hand out in the active tenant
+permdock.heldRoles({ tenant })     // Role[]                roles held in a tenant
+permdock.assignableRoles()         // Role[]                roles the subject may hand out in the active tenant
 ```
 
 `tenant()` and `team()` return new frozen instances (invariant 7); they never mutate the original and they re-run nothing, because memberships were loaded once. Switching a tenant the subject does not belong to yields an instance where every tenant-scoped check is `denied` with `no-membership`. On the client the same methods exist on the snapshot-backed instance and back `useTenant`, `useMemberships`, `useRoles` and `useAssignableRoles` ([UI](/docs/concepts/ui)).
@@ -234,7 +235,7 @@ Scope matching is data, so it compiles like any other condition ([ADR 0010](/doc
 
 ## Snapshots, decisions and the catalog
 
-- **Snapshot v2** adds `subject.memberships`, `subject.tenant` and, per grant, `scope` (`'tenant' | 'team' | { resource }`) and the membership it came from. A snapshot is scoped to the active tenant by default, so a member of ten organisations ships the grants of one; `snapshot({ tenants: 'all' })` opts into every membership for a local tenant switcher. `simulated: true` marks a snapshot produced by `simulate` so the decision endpoint refuses to act on its tokens ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
+- **Snapshot v3** carries `subject.memberships`, `subject.tenant`, `vocabulary.roles` / `vocabulary.plans`, and per grant `to` plus `scope` (`'tenant' | 'team' | { resource }`) and the membership it came from. A snapshot is scoped to the active tenant by default, so a member of ten organisations ships the grants of one; `snapshot({ tenants: 'all' })` opts into every membership for a local tenant switcher. `simulated: true` marks a snapshot produced by `simulate` so the decision endpoint refuses to act on its tokens ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
 - **Decision events** gain `tenant`, `membership` (the matching entry) and `via`, so a sink can answer "which team grant let this happen" and a tenant-scoped audit log is a filter on `tenant` ([audit](/docs/concepts/audit-and-observability)).
 - **Catalog** entries gain `scope` and `assignable`, and the catalog lists the scope kinds a policy uses. `permdock usage` reports a scoped role that no membership source could ever fill (a team role with no team source configured).
 - **AuthZEN**: memberships travel under `subject.properties.memberships`, the active tenant under `context.tenant`; the `authzen` adapter and the hosted ADS publish per-tenant metadata at `/.well-known/authzen-configuration/<tenant>` ([AuthZEN](/docs/standards/authzen)).
@@ -244,7 +245,7 @@ Scope matching is data, so it compiles like any other condition ([ADR 0010](/doc
 | Data | Class | Validation |
 | --- | --- | --- |
 | Memberships and custom roles returned by a provider, `subject`, `context`, `MembershipSource` or `RoleSource` | Trusted server data, like a database row | None; malformed entries are dropped and reported by `permdock doctor` |
-| A membership or custom-role edit arriving from a form, an API body or a model | Boundary data | Your validator, against the Standard JSON Schema PermDock publishes for `Membership` and `CustomRole`; `policy.assignable` is a readonly tuple type so `z.enum(policy.assignable)` types the `includes` array |
+| A membership or custom-role edit arriving from a form, an API body or a model | Boundary data | Your validator, against the Standard JSON Schema PermDock publishes for `Membership` and `CustomRole`; `permdock.assignableRoles()` is the live `Role[]` so `z.enum` of those keys types the `includes` array |
 | The requested active tenant (URL segment, header) | Boundary data | Resolved server-side to a membership before it becomes `principal.tenant`; an unmatched value is no tenant |
 | Custom claims on a provider token | Verified but shaped by the issuer | The provider's `schema` option validates and types them ([extension interfaces](/docs/concepts/extension-interfaces)) |
 

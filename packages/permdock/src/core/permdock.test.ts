@@ -123,17 +123,17 @@ describe('createPermDock', () => {
     expect(snapshot.simulated).toBe(true);
   });
 
-  it('builds snapshot v2 and parses it', async () => {
+  it('builds snapshot v3 and parses it', async () => {
     const permdock = await dock(memberUser);
     const snapshot = permdock.snapshot({ include: [permissions.post] });
     if (snapshot instanceof Promise) {
       throw new Error('expected json snapshot');
     }
-    expect(snapshot.v).toBe(2);
+    expect(snapshot.v).toBe(3);
     expect(
       snapshot.grants.every((grant) => grant.permission.startsWith('post')),
     ).toBe(true);
-    expect(parseSnapshot(JSON.stringify(snapshot)).v).toBe(2);
+    expect(parseSnapshot(JSON.stringify(snapshot)).v).toBe(3);
   });
 
   it('signs snapshots when a signer is passed', async () => {

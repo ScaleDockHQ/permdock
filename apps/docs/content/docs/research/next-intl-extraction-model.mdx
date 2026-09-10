@@ -49,7 +49,7 @@ export const postPermissions = definePermissions({
 })
 ```
 
-Because permissions are typed references rather than strings ([ADR 0003](/docs/decisions/0003-reference-based-permissions)), the runtime definition already is the catalog. This is where PermDock differs from both next-intl and from permix's catalog PR: there is no need to parse source to build the definition, because executing the module produces it. The scan exists for a different purpose, described next.
+Because permissions are typed references rather than strings ([ADR 0003](/docs/decisions/0003-reference-based-permissions)), the runtime definition already is the catalog. This is where PermDock differs from both next-intl and from permix's type-only definitions: there is no need to parse source to build the definition, because executing the module produces it. The scan exists for a different purpose, described next.
 
 ### `permdock collect` produces the catalog as a compile output
 

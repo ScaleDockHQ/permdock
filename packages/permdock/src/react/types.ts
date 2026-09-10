@@ -4,6 +4,7 @@ import type { Decision } from '../core/decision.ts';
 import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
+import type { PolicyVocabulary } from '../core/policy.ts';
 import type { Actor, Delegation, Principal } from '../core/subject.ts';
 
 export type ClientStatus = 'ready' | 'pending' | 'stale' | 'server-only';
@@ -19,13 +20,14 @@ export type PermissionSet = {
   get(permission: Permission): PermissionState | undefined;
 };
 
-export type ClientPermDock = PermDock & {
-  status(permission?: Permission, data?: unknown): ClientStatus;
-  invalidate(ref: Permission | { readonly [key: string]: unknown }): void;
-  refresh(options?: { readonly tenant?: string }): Promise<void>;
-  clear(): void;
-  subscribe(listener: () => void): () => void;
-};
+export type ClientPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
+  PermDock<V> & {
+    status(permission?: Permission, data?: unknown): ClientStatus;
+    invalidate(ref: Permission | { readonly [key: string]: unknown }): void;
+    refresh(options?: { readonly tenant?: string }): Promise<void>;
+    clear(): void;
+    subscribe(listener: () => void): () => void;
+  };
 
 export type ApprovalState =
   | 'not-needed'

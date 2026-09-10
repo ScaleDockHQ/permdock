@@ -11,9 +11,9 @@ Write the report as a Markdown checklist the user can turn into pull requests. E
 
 ## Inventory
 
-List every leaf from `definePermissions` and every grant from `definePolicy`. Note which adapter entries import the policy (server/agent) versus the snapshot (client).
+List every leaf from `definePermissions`, every role from `defineRoles` / `role()`, every plan from `definePlans`, and every grant from `definePolicy` (`grants` and role bindings). Note which adapter entries import the policy (server/agent) versus the snapshot (client).
 
-Done when every leaf and every role is in the report, including leaves with zero grants.
+Done when every leaf, role, plan and grant is in the report, including leaves with zero grants.
 
 ## Ungranted and unused
 
@@ -34,9 +34,9 @@ Done when every tool binding has the right arity and every destructive model-rea
 
 ## Portability
 
-Flag `where` closures (`portable: false` or a function body) that only compare fields the portable operators already cover (`eq`, `in`, `memberOf`, …). Those should be JSON conditions so RLS and snapshots stay aligned.
+Flag `where` closures (`portable: false` or a function body) that only compare fields the portable operators already cover (`eq`, `in`, `memberOf`, …). Those should be JSON conditions so RLS and snapshots stay aligned. Flag `where: { authorId: principal.id }` (or `subject.id`) when the resource already has a matching relation — prefer `to: relation(permissions.post, 'author')`.
 
-Done when every closure is either marked portable-false with a reason or rewritten.
+Done when every closure is either marked portable-false with a reason or rewritten, and every owner-equals-principal condition that has a relation uses the relation.
 
 ## Quotas
 

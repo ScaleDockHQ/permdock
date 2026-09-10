@@ -12,14 +12,30 @@ import { compact } from './compact.ts';
 import { sanitizeFields } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import {
+  type Grantee,
+  type GranteeInput,
+  asGrantee,
+  flattenGrantee,
+  roleNameOf,
+  roleScopeOf,
+} from './grantee.ts';
+import {
   type Permission,
   type PermissionKind,
   type PermissionTree,
   type ResourceNode,
   getRegistry,
+  isRegistryTree,
   listPermissions,
 } from './permissions.ts';
 import { sha256, bytesToBase64Url } from './sha256.ts';
+import {
+  type PlanTree,
+  type Role as RoleLeaf,
+  type RoleTree,
+  isRole,
+  listRoles,
+} from './vocabulary.ts';
 
 export const NON_PORTABLE: unique symbol = Symbol.for('permdock.non-portable');
 
@@ -43,6 +59,7 @@ export type ClosureGrantFn<T = unknown> = (
 export type NonPortable<T> = T & { readonly [NON_PORTABLE]: true };
 
 export type GrantOptions<T = Record<string, unknown>> = {
+  readonly to?: GranteeInput;
   readonly where?: WhereShorthand<T> | Condition;
   readonly check?: WhereShorthand<T> | Condition;
   readonly approval?: 'human';
@@ -66,7 +83,8 @@ export type RoleOptions = {
 export type Grant = {
   readonly permission: Permission;
   readonly effect: 'allow' | 'deny';
-  readonly role: string;
+  readonly to: Grantee | readonly Grantee[];
+  readonly role: string | null;
   readonly where?: Condition;
   readonly check?: Condition;
   readonly approval?: 'human';
@@ -77,12 +95,15 @@ export type Grant = {
   readonly scope: 'global' | 'tenant' | 'team' | { readonly resource: string };
 };
 
-export type Role = {
+export type RoleBinding = {
   readonly name: string;
   readonly grants: readonly Grant[];
   readonly on?: RoleScope;
   readonly assignable: boolean;
 };
+
+/** @deprecated Use `RoleBinding` for grant lists and `Role` from vocabulary for leaves. */
+export type Role = RoleBinding;
 
 export type ValidateMode = 'boundary' | 'always' | 'never';
 
@@ -91,14 +112,32 @@ export type PolicyScopes = {
   readonly team?: { readonly key: string };
 };
 
+export type PolicyVocabulary = {
+  readonly permissions: PermissionTree;
+  readonly roles?: RoleTree;
+  readonly plans?: PlanTree;
+};
+
+type VocabularyFromInput<Input> = Input extends PolicyVocabulary
+  ? Input
+  : {
+      readonly permissions: Input & PermissionTree;
+      readonly roles?: RoleTree;
+      readonly plans?: PlanTree;
+    };
+
 export type Policy<
   TUser = unknown,
   TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
 > = {
-  readonly permissions: PermissionTree;
-  readonly roles: readonly Role[];
-  readonly rolesByName: ReadonlyMap<string, Role>;
+  readonly permissions: V['permissions'];
+  readonly roles: readonly RoleBinding[];
+  readonly rolesByName: ReadonlyMap<string, RoleBinding>;
+  readonly grants: readonly Grant[];
+  readonly vocabulary: V;
   readonly scopes: PolicyScopes;
+  principal(user: TUser): TPrincipal | null;
   subject(user: TUser): TPrincipal | null;
   context?(
     user: TUser,
@@ -162,10 +201,20 @@ function makeGrant(
   effect: 'allow' | 'deny',
   condition: GrantOptions | ClosureGrantFn | undefined,
 ): Omit<Grant, 'role' | 'scope'> {
+  const toInput = isClosure(condition) ? undefined : condition?.to;
+  const to =
+    toInput === undefined
+      ? ({
+          kind: 'role',
+          role: '',
+          scope: 'global',
+        } satisfies Grantee)
+      : asGrantee(toInput);
   if (isClosure(condition)) {
     return {
       permission,
       effect,
+      to,
       portable: false,
       closure: condition,
     };
@@ -185,6 +234,7 @@ function makeGrant(
   return compact<Omit<Grant, 'role' | 'scope'>>({
     permission,
     effect,
+    to,
     where,
     check,
     approval: condition?.approval,
@@ -246,47 +296,61 @@ function flattenGrants(
 }
 
 export function role(
-  name: string,
+  name: string | RoleLeaf,
   grants: readonly (
     | Omit<Grant, 'role' | 'scope'>
     | readonly Omit<Grant, 'role' | 'scope'>[]
   )[],
   options?: RoleOptions,
-): Role {
-  const scope = resolveRoleScope(options?.on);
-  const assignable = options?.assignable ?? scope !== 'global';
-  const normalised = flattenGrants(grants).map((grant) =>
-    freezeDeep({
-      ...grant,
-      role: name,
-      scope,
-    }),
+): RoleBinding {
+  const leaf = isRole(name) ? name : undefined;
+  const roleName = leaf?.key ?? (name as string);
+  const scope = resolveRoleScope(options?.on ?? leaf?.on);
+  const assignable =
+    options?.assignable ?? leaf?.assignable ?? scope !== 'global';
+  const roleGrantee = asGrantee(
+    leaf ??
+      freezeDeep({
+        kind: 'role' as const,
+        role: roleName,
+        scope,
+      }),
   );
+  const normalised = flattenGrants(grants).map((grant) => {
+    const items = flattenGrantee(grant.to);
+    const first = items[0];
+    const roleTo =
+      items.length === 1 && first !== undefined && first.kind === 'role';
+    const to = roleTo ? roleGrantee : grant.to;
+    return freezeDeep({
+      ...grant,
+      to,
+      role: roleName,
+      scope: roleScopeOf(to, scope),
+    });
+  });
   return freezeDeep(
-    compact<Role>({
-      name,
+    compact<RoleBinding>({
+      name: roleName,
       grants: normalised,
-      on: options?.on,
+      on: options?.on ?? leaf?.on,
       assignable,
     }),
   );
 }
 
-function canonicalGrants(roles: readonly Role[]): string {
-  const payload = roles.map((item) => ({
-    name: item.name,
-    assignable: item.assignable,
-    scope: item.grants[0]?.scope ?? 'global',
-    grants: item.grants.map((grant) => ({
-      permission: grant.permission.key,
-      effect: grant.effect,
-      where: grant.where,
-      check: grant.check,
-      approval: grant.approval,
-      portable: grant.portable,
-      fields: grant.fields,
-      scope: grant.scope,
-    })),
+function canonicalGrants(grants: readonly Grant[]): string {
+  const payload = grants.map((grant) => ({
+    permission: grant.permission.key,
+    effect: grant.effect,
+    to: grant.to,
+    role: grant.role,
+    where: grant.where,
+    check: grant.check,
+    approval: grant.approval,
+    portable: grant.portable,
+    fields: grant.fields,
+    scope: grant.scope,
   }));
   return JSON.stringify(payload);
 }
@@ -305,16 +369,12 @@ function assertParentGraph(resources: ReadonlyMap<string, ResourceNode>): void {
 }
 
 function assertScopedResources(
-  roles: readonly Role[],
+  grants: readonly Grant[],
   scopes: PolicyScopes,
   resources: ReadonlyMap<string, ResourceNode>,
 ): void {
-  const needsTenant = roles.some((item) =>
-    item.grants.some((grant) => grant.scope === 'tenant'),
-  );
-  const needsTeam = roles.some((item) =>
-    item.grants.some((grant) => grant.scope === 'team'),
-  );
+  const needsTenant = grants.some((grant) => grant.scope === 'tenant');
+  const needsTeam = grants.some((grant) => grant.scope === 'team');
   if (needsTenant && scopes.tenant === undefined) {
     throw new Error(
       "PermDock: definePolicy({ scopes.tenant }) is required for on: 'tenant' roles",
@@ -328,26 +388,39 @@ function assertScopedResources(
   void resources;
 }
 
-export function definePolicy<TUser, TPrincipal extends Principal>(
-  permissions: PermissionTree,
-  options: {
-    readonly roles: readonly Role[];
-    readonly scopes?: PolicyScopes;
-    readonly subject: (user: TUser) => TPrincipal | null;
-    readonly context?: (
-      user: TUser,
-    ) =>
-      | Readonly<Record<string, unknown>>
-      | Promise<Readonly<Record<string, unknown>>>;
-    readonly validate?: ValidateMode;
-    readonly onDenied?: (decision: unknown) => never | void;
-    readonly providers?: readonly DecisionProvider[];
-  },
-): Policy<TUser, TPrincipal> {
-  const resources = getRegistry(permissions);
-  assertParentGraph(resources);
-  const merged = new Map<string, Role>();
-  for (const item of options.roles) {
+function isVocabularyInput(value: unknown): value is PolicyVocabulary {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'permissions' in value &&
+    isRegistryTree((value as PolicyVocabulary).permissions)
+  );
+}
+
+function completeGrant(grant: Omit<Grant, 'role' | 'scope'>): Grant {
+  const to = flattenGrantee(grant.to);
+  const first = to[0];
+  const placeholder =
+    to.length === 1 &&
+    first !== undefined &&
+    first.kind === 'role' &&
+    first.role === '';
+  if (placeholder) {
+    throw new Error('PermDock: grant is missing to');
+  }
+  return freezeDeep({
+    ...grant,
+    role: roleNameOf(grant.to),
+    scope: roleScopeOf(grant.to),
+  });
+}
+
+function mergeBindings(items: readonly RoleBinding[]): {
+  readonly roles: readonly RoleBinding[];
+  readonly rolesByName: Map<string, RoleBinding>;
+} {
+  const merged = new Map<string, RoleBinding>();
+  for (const item of items) {
     const existing = merged.get(item.name);
     if (existing === undefined) {
       merged.set(item.name, item);
@@ -356,7 +429,7 @@ export function definePolicy<TUser, TPrincipal extends Principal>(
     merged.set(
       item.name,
       freezeDeep(
-        compact<Role>({
+        compact<RoleBinding>({
           name: item.name,
           grants: [...existing.grants, ...item.grants],
           on: existing.on,
@@ -365,23 +438,81 @@ export function definePolicy<TUser, TPrincipal extends Principal>(
       ),
     );
   }
-  const roles = [...merged.values()];
+  return { roles: [...merged.values()], rolesByName: merged };
+}
+
+export type DefinePolicyOptions<TUser, TPrincipal extends Principal> = {
+  readonly roles?: readonly RoleBinding[];
+  readonly grants?: readonly (
+    | Omit<Grant, 'role' | 'scope'>
+    | readonly Omit<Grant, 'role' | 'scope'>[]
+    | Grant
+  )[];
+  readonly scopes?: PolicyScopes;
+  readonly principal?: (user: TUser) => TPrincipal | null;
+  readonly subject?: (user: TUser) => TPrincipal | null;
+  readonly context?: (
+    user: TUser,
+  ) =>
+    | Readonly<Record<string, unknown>>
+    | Promise<Readonly<Record<string, unknown>>>;
+  readonly validate?: ValidateMode;
+  readonly onDenied?: (decision: unknown) => never | void;
+  readonly providers?: readonly DecisionProvider[];
+};
+
+export function definePolicy<
+  TUser,
+  TPrincipal extends Principal,
+  const Input extends PermissionTree | PolicyVocabulary,
+>(
+  permissions: Input,
+  options: DefinePolicyOptions<TUser, TPrincipal>,
+): Policy<TUser, TPrincipal, VocabularyFromInput<Input>> {
+  const vocabulary = (
+    isVocabularyInput(permissions)
+      ? permissions
+      : { permissions: permissions as PermissionTree }
+  ) as VocabularyFromInput<Input>;
+  const tree = vocabulary.permissions;
+  const mapper = options.principal ?? options.subject;
+  if (mapper === undefined) {
+    throw new Error('PermDock: definePolicy requires principal or subject');
+  }
+  const resources = getRegistry(tree);
+  assertParentGraph(resources);
+  const { roles, rolesByName } = mergeBindings(options.roles ?? []);
+  const declared = new Set(roles.map((item) => item.name));
+  for (const leaf of listRoles(vocabulary.roles)) {
+    declared.add(leaf.key);
+  }
+  const fromBindings = roles.flatMap((item) => item.grants);
+  const fromGrants = flattenGrants(
+    (options.grants ?? []) as readonly (
+      | Omit<Grant, 'role' | 'scope'>
+      | readonly Omit<Grant, 'role' | 'scope'>[]
+    )[],
+  ).map(completeGrant);
+  const grants = [...fromBindings, ...fromGrants];
   const scopes = options.scopes ?? {};
-  assertScopedResources(roles, scopes, resources);
-  const fingerprint = bytesToBase64Url(sha256(canonicalGrants(roles)));
+  assertScopedResources(grants, scopes, resources);
+  const fingerprint = bytesToBase64Url(sha256(canonicalGrants(grants)));
   return freezeDeep({
-    permissions,
+    permissions: tree,
     roles,
-    rolesByName: merged,
+    rolesByName,
+    grants,
+    vocabulary,
     scopes,
-    subject: options.subject,
+    principal: mapper,
+    subject: mapper,
     context: options.context,
     validate: options.validate ?? 'boundary',
     onDenied: options.onDenied,
     fingerprint,
     resources,
     providers: options.providers,
-  }) as Policy<TUser, TPrincipal>;
+  }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }
 
 export type PrincipalOf<P> =

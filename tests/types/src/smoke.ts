@@ -1,11 +1,14 @@
 import {
   allow,
+  anyone,
   createPermDock,
   definePermissions,
+  definePlans,
   definePolicy,
+  defineRoles,
   resource,
   role,
-  subject,
+  principal,
 } from 'permdock';
 import { z } from 'zod';
 
@@ -22,23 +25,37 @@ export const permissions = definePermissions({
   }),
 });
 
-const member = role('member', [
+const roles = defineRoles({
+  member: {},
+});
+
+const plans = definePlans({
+  pro: {},
+});
+
+const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
-  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.update, { where: { authorId: principal.id } }),
 ]);
 
-export const policy = definePolicy(permissions, {
-  roles: [member],
-  subject: (
-    user: { readonly id: string; readonly roles: readonly string[] } | null,
-  ) => user,
-});
+export const policy = definePolicy(
+  { permissions, roles, plans },
+  {
+    roles: [member],
+    grants: [allow(permissions.post.read, { to: anyone() })],
+    principal: (
+      user: { readonly id: string; readonly roles: readonly string[] } | null,
+    ) => user,
+  },
+);
 
 export async function check(): Promise<boolean> {
   const dock = await createPermDock(policy, {
     id: 'u1',
     roles: ['member'],
   });
-  return dock.can(permissions.post.list);
+  const trees =
+    dock.roles.member.key === 'member' && dock.plans.pro.key === 'pro';
+  return dock.can(permissions.post.list) && trees;
 }

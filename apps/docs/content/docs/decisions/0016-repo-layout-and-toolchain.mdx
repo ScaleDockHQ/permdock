@@ -9,7 +9,7 @@ Accepted, September 2026.
 
 ## Context
 
-Several of the permix PRs that were merged or closed concerned tooling rather than API: a TS 5.9/6/7 matrix, tsdown, Oxlint/Oxfmt, per-entry size measurement, coverage thresholds, Release Please (#54, #58, #67–#69, #72). Those choices were validated on a real codebase and are carried forward. Numeric gzip budgets are set from a measured baseline after core ships, not guessed in advance ([0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)). Two platform facts constrain them further: TypeScript 7 ships as a native compiler with no stable programmatic API until 7.1, so codegen must not depend on the compiler API; and Node's type stripping plus Bun and Deno reward source that uses only erasable syntax.
+The toolchain is the same family permix already uses well: a TS 5.9/6/7 matrix, tsdown, Oxlint/Oxfmt, per-entry size measurement, coverage thresholds. Numeric gzip budgets are set from a measured baseline after core ships, not guessed in advance ([0020](/docs/decisions/0020-measure-bundle-size-then-set-a-baseline)). Two platform facts constrain them further: TypeScript 7 ships as a native compiler with no stable programmatic API until 7.1, so codegen must not depend on the compiler API; and Node's type stripping plus Bun and Deno reward source that uses only erasable syntax.
 
 The repository also hosts a docs app and one example app per adapter, which needs a layout that keeps publishable packages separate from apps and from cross-package test suites.
 

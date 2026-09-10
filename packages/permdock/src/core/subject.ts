@@ -37,6 +37,7 @@ export type Principal = {
   readonly issuer?: string;
   readonly kind?: 'user' | 'service' | 'workload';
   readonly roles?: readonly string[];
+  readonly plans?: readonly string[];
   readonly memberships?: readonly Membership[];
   readonly tenant?: string;
   readonly assurance?: Assurance;

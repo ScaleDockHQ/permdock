@@ -1,8 +1,10 @@
 import {
   allow,
+  anyone,
   definePermissions,
   definePolicy,
   resource,
+  relation,
   role,
   subject,
 } from 'permdock';
@@ -228,5 +230,66 @@ describe('rlsParity', () => {
       database: 'filtered',
       ok: false,
     });
+  });
+});
+
+const relationPermissions = definePermissions({
+  post: resource(Post, {
+    id: 'id',
+    actions: ['read', 'update'],
+    collection: ['list'],
+    relations: { author: 'authorId' },
+  }),
+});
+
+const relationPolicy = definePolicy(relationPermissions, {
+  principal: (user: {
+    readonly id: string;
+    readonly roles: readonly string[];
+  }) => user,
+  grants: [
+    allow(relationPermissions.post.read, { to: anyone() }),
+    allow(relationPermissions.post.update, {
+      to: relation(relationPermissions.post, 'author'),
+    }),
+  ],
+});
+
+describe('rlsParity relation grantee', () => {
+  it('agrees when a relation where filters another author', async () => {
+    const report = await rlsParity(relationPolicy, {
+      dialect: 'guc',
+      fixtures: [
+        {
+          name: 'update own',
+          subject: { id: 'u1', roles: ['member'] },
+          permission: relationPermissions.post.update,
+          row: own,
+          table: 'post',
+        },
+        {
+          name: 'update other',
+          subject: { id: 'u1', roles: ['member'] },
+          permission: relationPermissions.post.update,
+          row: other,
+          table: 'post',
+        },
+      ],
+      query: async (sql, values) => {
+        expect(sql).not.toMatch(/service_role/i);
+        if (sql.startsWith('update') && values?.[0] === 'p2') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('update') && values?.[0] === 'p1') {
+          return { rows: [own], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      },
+    });
+    expect(report.ok).toBe(true);
+    expect(report.results).toEqual([
+      { name: 'update own', granted: true, database: 'allowed', ok: true },
+      { name: 'update other', granted: false, database: 'filtered', ok: true },
+    ]);
   });
 });
