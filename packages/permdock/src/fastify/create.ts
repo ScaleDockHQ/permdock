@@ -21,15 +21,9 @@ import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
-import {
-  PermDockApprovalRequiredError,
-  PermDockDeniedError,
-  PermDockValidationError,
-} from '../core/errors.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
-import { problemResponse } from '../server/problem.ts';
-import { InvalidSignatureError } from '../server/web-bot-auth.ts';
+import { mapPermDockError } from '../server/map-error.ts';
 import { sendReply, toRequest } from './http.ts';
 
 const SKIP_OVERRIDE = Symbol.for('skip-override');
@@ -139,29 +133,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       decorate(request, await kernel.permdock(bind(request)));
     });
     app.setErrorHandler(async (err, _request, reply) => {
-      if (err instanceof InvalidSignatureError) {
-        await sendReply(reply, err.response);
+      const problem = mapPermDockError(err);
+      if (problem === undefined) {
+        await reply.send(err);
         return;
       }
-      if (err instanceof PermDockDeniedError) {
-        await sendReply(
-          reply,
-          problemResponse(err.toProblemDetails(), undefined, err.decision),
-        );
-        return;
-      }
-      if (err instanceof PermDockApprovalRequiredError) {
-        await sendReply(
-          reply,
-          problemResponse(err.toProblemDetails(), undefined, err.decision),
-        );
-        return;
-      }
-      if (err instanceof PermDockValidationError) {
-        await sendReply(reply, problemResponse(err.toProblemDetails()));
-        return;
-      }
-      await reply.send(err);
+      await sendReply(reply, problem);
     });
     return Promise.resolve();
   });

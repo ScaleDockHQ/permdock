@@ -16,15 +16,9 @@ import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
-import {
-  PermDockApprovalRequiredError,
-  PermDockDeniedError,
-  PermDockValidationError,
-} from '../core/errors.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
-import { problemResponse } from '../server/problem.ts';
-import { InvalidSignatureError } from '../server/web-bot-auth.ts';
+import { mapPermDockError } from '../server/map-error.ts';
 
 export type ElysiaCtx = {
   readonly request: Request;
@@ -126,29 +120,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         decorate(ctx, instance);
         return { permdock: instance };
       })
-      .onError(({ error }) => {
-        if (error instanceof InvalidSignatureError) {
-          return error.response;
-        }
-        if (error instanceof PermDockDeniedError) {
-          return problemResponse(
-            error.toProblemDetails(),
-            undefined,
-            error.decision,
-          );
-        }
-        if (error instanceof PermDockApprovalRequiredError) {
-          return problemResponse(
-            error.toProblemDetails(),
-            undefined,
-            error.decision,
-          );
-        }
-        if (error instanceof PermDockValidationError) {
-          return problemResponse(error.toProblemDetails());
-        }
-        return undefined;
-      }) as unknown as Elysia;
+      .onError(({ error }) => mapPermDockError(error)) as unknown as Elysia;
 
   const protect: ElysiaProtect = (permission, loadData) => async (ctx) => {
     const guard = await kernel.protect(

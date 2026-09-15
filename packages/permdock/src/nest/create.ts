@@ -44,7 +44,7 @@ import {
 } from '../core/errors.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
-import { problemResponse } from '../server/problem.ts';
+import { mapPermDockError } from '../server/map-error.ts';
 import { InvalidSignatureError } from '../server/web-bot-auth.ts';
 import {
   isServerResponse,
@@ -260,44 +260,15 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (!isServerResponse(response)) {
         throw new TypeError('unsupported Nest response');
       }
-      if (exception instanceof InvalidSignatureError) {
-        await this.send(response, exception.response);
-        return;
-      }
       if (exception instanceof PermDockHttpError) {
         await this.send(response, exception.response);
         return;
       }
-      if (exception instanceof PermDockDeniedError) {
-        await this.send(
-          response,
-          problemResponse(
-            exception.toProblemDetails(),
-            undefined,
-            exception.decision,
-          ),
-        );
-        return;
+      const problem = mapPermDockError(exception);
+      if (problem === undefined) {
+        throw new TypeError('unhandled permdock exception');
       }
-      if (exception instanceof PermDockApprovalRequiredError) {
-        await this.send(
-          response,
-          problemResponse(
-            exception.toProblemDetails(),
-            undefined,
-            exception.decision,
-          ),
-        );
-        return;
-      }
-      if (exception instanceof PermDockValidationError) {
-        await this.send(
-          response,
-          problemResponse(exception.toProblemDetails()),
-        );
-        return;
-      }
-      throw new TypeError('unhandled permdock exception');
+      await this.send(response, problem);
     }
   }
   Catch(

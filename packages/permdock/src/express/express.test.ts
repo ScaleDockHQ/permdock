@@ -95,6 +95,37 @@ describe('permdock/express', () => {
     expect(denied.headers.get('www-authenticate')).toContain('invalid_token');
   });
 
+  it('turns a thrown assert into a problem and passes other errors on', async () => {
+    const { permdock, errorHandler, handler } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = express();
+    app.use(permdock());
+    app.get(
+      '/posts/:id',
+      handler((req) => {
+        req.permdock.assert(permissions.post.update, otherPost);
+      }),
+    );
+    app.get(
+      '/boom',
+      handler(() => {
+        throw new Error('boom');
+      }),
+    );
+    app.use(errorHandler());
+    const request = await listen(app);
+
+    const denied = await request('/posts/p2');
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+
+    const other = await request('/boom');
+    expect(other.status).toBe(500);
+  });
+
   it('mounts the AuthZEN evaluations handler', async () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,

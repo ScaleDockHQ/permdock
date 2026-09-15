@@ -13,7 +13,8 @@ import {
   role,
 } from '../index.ts';
 import { sha256Hex } from './auth.ts';
-import { scimHandler, tenantFromPath } from './handler.ts';
+import { scimHandler } from './handler.ts';
+import { tenantFromPath } from './route.ts';
 import { directoryMembershipSource } from './source.ts';
 import { memoryDirectoryStore } from './store.ts';
 import {

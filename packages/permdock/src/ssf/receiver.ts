@@ -1,9 +1,4 @@
-import type {
-  JwtClaims,
-  TokenFailureCause,
-  TokenVerifier,
-  VerifiedToken,
-} from '../core/interfaces.ts';
+import type { TokenVerifier, VerifiedToken } from '../core/interfaces.ts';
 import type {
   PollHandle,
   PollOptions,
@@ -21,12 +16,28 @@ import type {
 } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import {
+  asSubject,
+  eventSession,
+  eventTimestamp,
+  setSubjectFromClaims,
+} from './claims.ts';
 import { BACKCHANNEL_LOGOUT_EVENT, caepName } from './events.ts';
-
-const SET_TYP = 'secevent+jwt';
-const LOGOUT_TYP = 'logout+jwt';
-const SET_CONTENT = 'application/secevent+jwt';
-const LOGOUT_CONTENT = 'application/x-www-form-urlencoded';
+import { pollOnce } from './poll.ts';
+import {
+  LOGOUT_CONTENT,
+  LOGOUT_TYP,
+  SET_CONTENT,
+  SET_TYP,
+  contentType,
+  errForCause,
+  isRecord,
+  jsonResponse,
+  parseEvery,
+  rfc8935,
+  type IngestFail,
+  type IngestResult,
+} from './wire.ts';
 
 type ReceiverConfig = {
   readonly verifier: TokenVerifier;
@@ -37,149 +48,6 @@ type ReceiverConfig = {
   readonly replay: ReplayStore;
   readonly clockTolerance?: number;
 };
-
-type IngestOk = { readonly ok: true };
-type IngestFail = {
-  readonly ok: false;
-  readonly err: string;
-  readonly description: string;
-  readonly cause?: TokenFailureCause;
-};
-type IngestResult = IngestOk | IngestFail;
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  });
-}
-
-function rfc8935(status: number, err: string, description: string): Response {
-  return jsonResponse(status, { err, description });
-}
-
-function errForCause(cause: TokenFailureCause): string {
-  switch (cause) {
-    case 'invalid-signature':
-    case 'unknown-kid':
-    case 'alg-not-allowed':
-    case 'alg-none':
-      return 'invalid_key';
-    case 'wrong-issuer':
-      return 'invalid_issuer';
-    case 'wrong-audience':
-      return 'invalid_audience';
-    case 'expired':
-    case 'not-yet-valid':
-    case 'wrong-token-type':
-    case 'malformed':
-    case 'encrypted-token':
-    case 'dpop-proof-invalid':
-    case 'mtls-binding-mismatch':
-    case 'sender-constraint-required':
-    case 'token-in-query':
-    case 'invalid-claims':
-    case 'invalid-chain':
-    case 'jwks-unavailable':
-    case 'discovery-unavailable':
-    case 'discovery-mismatch':
-      return 'invalid_request';
-    default: {
-      const exhaustive: never = cause;
-      return exhaustive;
-    }
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function contentType(request: Request): string {
-  const raw = request.headers.get('content-type') ?? '';
-  return raw.split(';', 1)[0]?.trim().toLowerCase() ?? '';
-}
-
-function parseEvery(every: number | string): number {
-  if (typeof every === 'number') {
-    if (!Number.isFinite(every) || every <= 0) {
-      throw new TypeError('PermDock: poll every must be a positive interval.');
-    }
-    return every;
-  }
-  const match = /^(\d+)(ms|s|m)$/u.exec(every);
-  if (match === null || match[2] === undefined) {
-    throw new TypeError(`PermDock: invalid poll interval '${every}'.`);
-  }
-  const n = Number(match[1]);
-  const unit = match[2];
-  if (unit !== 'ms' && unit !== 's' && unit !== 'm') {
-    throw new TypeError(`PermDock: invalid poll interval '${every}'.`);
-  }
-  switch (unit) {
-    case 'ms':
-      return n;
-    case 's':
-      return n * 1000;
-    case 'm':
-      return n * 60_000;
-    default: {
-      const exhaustive: never = unit;
-      return exhaustive;
-    }
-  }
-}
-
-function asSubject(
-  mapped: string | SsfSubject,
-  session: string | undefined,
-  issuer: string | undefined,
-): SsfSubject {
-  if (typeof mapped === 'string') {
-    return compact({ id: mapped, session, issuer });
-  }
-  return compact({
-    id: mapped.id,
-    session: mapped.session ?? session,
-    issuer: mapped.issuer ?? issuer,
-  });
-}
-
-function setSubjectFromClaims(claims: JwtClaims): SetSubject | undefined {
-  const subId = claims.sub_id;
-  if (isRecord(subId) && typeof subId.format === 'string') {
-    return subId as SetSubject;
-  }
-  if (typeof claims.sub === 'string' && claims.sub.length > 0) {
-    return compact({
-      format: 'iss_sub',
-      iss: typeof claims.iss === 'string' ? claims.iss : undefined,
-      sub: claims.sub,
-    });
-  }
-  return undefined;
-}
-
-function eventTimestamp(
-  payload: Readonly<Record<string, unknown>>,
-): number | undefined {
-  const value = payload.event_timestamp;
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-function eventSession(
-  payload: Readonly<Record<string, unknown>>,
-): string | undefined {
-  if (typeof payload.session === 'string' && payload.session.length > 0) {
-    return payload.session;
-  }
-  if (typeof payload.sid === 'string' && payload.sid.length > 0) {
-    return payload.sid;
-  }
-  return undefined;
-}
 
 export function createReceiver(config: ReceiverConfig): SsfReceiver {
   const listeners = new Set<SsfEventListener>();
@@ -483,67 +351,6 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     return { ok: true };
   }
 
-  async function pollOnce(
-    options: PollOptions,
-    acks: readonly string[],
-  ): Promise<readonly string[]> {
-    const fetchFn = options.fetch ?? globalThis.fetch;
-    const headers: Record<string, string> = {
-      'content-type': 'application/json',
-    };
-    if (options.token !== undefined) {
-      headers.authorization = `Bearer ${options.token}`;
-    }
-    const body: Record<string, unknown> = {
-      maxEvents: 100,
-      returnImmediately: true,
-    };
-    if (acks.length > 0) {
-      body.acks = acks;
-    }
-    const requestInit = compact<RequestInit>({
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: options.signal,
-    });
-    const response = await fetchFn(options.endpoint, requestInit);
-    if (!response.ok) {
-      emit({ type: 'poll-failed', err: 'connection_failed' });
-      return [];
-    }
-    const parsed: unknown = await response.json();
-    if (!isRecord(parsed) || !isRecord(parsed.sets)) {
-      return [];
-    }
-    const tokens = Object.entries(parsed.sets).flatMap(([jti, jwt]) =>
-      typeof jwt === 'string' ? [{ jti, jwt }] : [],
-    );
-    const outcomes = await Promise.all(
-      tokens.map(async ({ jti, jwt }) => ({
-        jti,
-        ok: (await ingestSet(jwt)).ok,
-      })),
-    );
-    const processed = outcomes.flatMap((row) => (row.ok ? [row.jti] : []));
-    if (processed.length > 0) {
-      await fetchFn(
-        options.endpoint,
-        compact<RequestInit>({
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            acks: processed,
-            maxEvents: 0,
-            returnImmediately: true,
-          }),
-          signal: options.signal,
-        }),
-      );
-    }
-    return processed;
-  }
-
   const receiver: SsfReceiver = {
     async push(request: Request): Promise<Response> {
       if (request.method !== 'POST') {
@@ -588,14 +395,18 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
 
     poll(options: PollOptions): Promise<PollResult> | PollHandle {
       if (options.every === undefined) {
-        return pollOnce(options, []).then((acked) => ({ acked }));
+        return pollOnce({ options, acks: [], ingest: ingestSet, emit }).then(
+          (acked) => ({ acked }),
+        );
       }
       const ms = parseEvery(options.every);
       let timer: ReturnType<typeof setInterval> | undefined;
       const tick = (): void => {
-        void pollOnce(options, []).catch(() => {
-          emit({ type: 'poll-failed', err: 'connection_failed' });
-        });
+        void pollOnce({ options, acks: [], ingest: ingestSet, emit }).catch(
+          () => {
+            emit({ type: 'poll-failed', err: 'connection_failed' });
+          },
+        );
       };
       tick();
       timer = setInterval(tick, ms);
