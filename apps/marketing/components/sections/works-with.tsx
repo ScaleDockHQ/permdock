@@ -4,6 +4,7 @@ import { Frame, FrameFooter, FramePanel } from '@/components/reui/frame';
 import { IconTile } from '@/components/reui/icon-tile';
 import { adapterGroups } from '@/lib/adapters';
 
+import { AdapterLogo } from './adapter-logos';
 import { Section } from './section';
 
 export function WorksWith() {
@@ -24,10 +25,8 @@ export function WorksWith() {
               {group.tiles.map((tile) => (
                 <Frame key={tile.name} variant="inverse">
                   <FramePanel className="px-3.5 py-6 text-center shadow-none!">
-                    <IconTile variant="elevated" className="mx-auto size-10">
-                      <span className="text-xs font-semibold">
-                        {tile.name.slice(0, 2)}
-                      </span>
+                    <IconTile variant="elevated" size="lg" className="mx-auto">
+                      <AdapterLogo name={tile.name} />
                     </IconTile>
                   </FramePanel>
                   <FrameFooter className="px-1.5! py-2.5! text-center">

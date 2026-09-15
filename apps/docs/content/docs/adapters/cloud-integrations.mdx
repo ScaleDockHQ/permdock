@@ -112,7 +112,7 @@ This is how "connect Supabase" reads on the data side: Supabase is a destination
 
 | Connector | Standard or interface | What it carries | Never |
 | --- | --- | --- | --- |
-| PermDock Cloud MCP server (connected from Claude, Cursor, ChatGPT or any MCP host) | MCP over streamable HTTP with OAuth 2.1 per [MCP authorization](/docs/standards/mcp-authorization); the Cloud is the resource server and its own identity is the authorization server | Read-only tools: query evidence (the review questions above), list pending approvals, read the published catalog and drift findings, all scoped to the token's subject and tenants | Resolve an approval, publish a policy or change a connector. Approver identity must come from the Cloud's own authentication, and an agent approving an agent's action defeats the human-in-the-loop guarantee ([approvals](/docs/security/approvals)) |
+| PermDock Cloud MCP server (connected from Claude, Cursor, ChatGPT or any MCP host at [mcp.permdock.com](https://mcp.permdock.com)) | MCP over streamable HTTP with OAuth 2.1 per [MCP authorization](/docs/standards/mcp-authorization); the Cloud is the resource server and its own identity is the authorization server | Read-only tools: query evidence (the review questions above), list pending approvals, read the published catalog and drift findings, all scoped to the token's subject and tenants | Resolve an approval, publish a policy or change a connector. Approver identity must come from the Cloud's own authentication, and an agent approving an agent's action defeats the human-in-the-loop guarantee ([approvals](/docs/security/approvals)) |
 
 ## What the page does not offer
 

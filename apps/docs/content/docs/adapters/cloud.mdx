@@ -8,7 +8,13 @@ Phase: 2
 
 `permdock/cloud` is one implementation of the interfaces the rest of the package defines. `cloud({ url, key })` returns a `DecisionSink` with a queryable decision log sold as compliance evidence and agent governance, an `ApprovalStore` with an inbox UI behind it, and a `SnapshotSource` that distributes signed snapshots and invalidates them on CAEP events. Nothing in this entry is consulted by `can`, `decide`, `filter`, `where` or `simulate`: every decision still runs in-process on the policy in your bundle ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)). Remove the entry and the application keeps working on the in-memory defaults.
 
-PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud` repository (URL to follow once the repository is public). This page defines what the client speaks; that repository implements it.
+PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud` repository. This page defines what the client speaks; that repository implements it. Production hosts:
+
+| Host | Service |
+| --- | --- |
+| [app.permdock.com](https://app.permdock.com) | Dashboard and inbox |
+| [api.permdock.com](https://api.permdock.com) | Machine API (`PERMDOCK_CLOUD_URL`) |
+| [mcp.permdock.com](https://mcp.permdock.com) | Read-only MCP server |
 
 ## Identity gateway
 
@@ -50,7 +56,7 @@ The Cloud signs with a per-environment key through the `TokenSigner` interface (
 
 ### HTTP API
 
-The client speaks these paths under `PERMDOCK_CLOUD_URL`. `:env` is `environment`, then `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`.
+The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL is `https://api.permdock.com`. `:env` is `environment`, then `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`.
 
 | Method | Path | Interface |
 | --- | --- | --- |
@@ -66,7 +72,7 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. `:env` is `environment
 
 | Variable | Set by | Used for |
 | --- | --- | --- |
-| `PERMDOCK_CLOUD_URL` | Marketplace provisioning or you | Base URL of the environment's API |
+| `PERMDOCK_CLOUD_URL` | Marketplace provisioning or you | Base URL of the environment's API. Production host is `https://api.permdock.com` |
 | `PERMDOCK_CLOUD_KEY` | Marketplace provisioning or you | Server-side key for the store, sink and snapshot endpoints; rotated from the dashboard |
 | `PERMDOCK_CLOUD_ENV` | Optional | Overrides the environment name when `VERCEL_ENV` is absent |
 

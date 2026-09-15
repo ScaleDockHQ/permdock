@@ -22,13 +22,13 @@ const tiers = [
     name: 'Cloud Free',
     price: 'To be announced',
     body: 'Hosted decision log and snapshots. Pricing to be announced.',
-    cta: { href: '/cloud', label: 'Join waitlist' },
+    cta: { href: site.cloud.app, label: 'Open Cloud' },
   },
   {
     name: 'Cloud Team',
     price: 'To be announced',
     body: 'Approval inbox and shared evidence export. Pricing to be announced.',
-    cta: { href: '/cloud', label: 'Join waitlist' },
+    cta: { href: site.cloud.app, label: 'Open Cloud' },
   },
   {
     name: 'Cloud Enterprise',

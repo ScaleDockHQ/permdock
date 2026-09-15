@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { Frame, FramePanel } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';
+import { site } from '@/lib/site';
 
 import { Section } from './section';
 
@@ -19,9 +20,18 @@ export function CloudBand() {
             Decision log as evidence, hosted AuthZEN ADS, approval inbox, SCIM
             relay. None of it sits on the decision path.
           </p>
-          <Button nativeButton={false} render={<Link href="/cloud" />}>
-            PermDock Cloud
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button nativeButton={false} render={<Link href="/cloud" />}>
+              PermDock Cloud
+            </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={site.cloud.app} />}
+            >
+              Open Cloud
+            </Button>
+          </div>
         </FramePanel>
       </Frame>
     </Section>

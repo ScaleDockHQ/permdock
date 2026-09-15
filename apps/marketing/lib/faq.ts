@@ -42,6 +42,6 @@ export const faqItems: readonly FaqItem[] = [
   {
     question: 'What is PermDock Cloud for?',
     answer:
-      'Governance, not decisions: a decision log sold as evidence, a hosted AuthZEN ADS, an approval inbox, and a SCIM relay into a DirectoryStore you own. Every hosted capability has an in-process default in the open-source package.',
+      'Governance, not decisions: a decision log sold as evidence, a hosted AuthZEN ADS, an approval inbox, and a SCIM relay into a DirectoryStore you own. Dashboard at app.permdock.com, API at api.permdock.com, read-only MCP at mcp.permdock.com. Every hosted capability has an in-process default in the open-source package.',
   },
 ];

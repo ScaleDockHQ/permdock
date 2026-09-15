@@ -2,7 +2,7 @@
   "extends": ["//"],
   "tasks": {
     "dev": {
-      "passThroughEnv": ["PORT", "DOCS_ORIGIN", "WAITLIST_WEBHOOK_URL"]
+      "passThroughEnv": ["PORT", "DOCS_ORIGIN"]
     },
     "test": {
       "dependsOn": []

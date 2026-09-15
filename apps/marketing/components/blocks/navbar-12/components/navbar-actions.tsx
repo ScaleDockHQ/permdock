@@ -18,6 +18,13 @@ export function NavbarActions() {
         GitHub
       </Button>
       <Button
+        variant="ghost"
+        nativeButton={false}
+        render={<Link href={site.cloud.app} />}
+      >
+        Sign in
+      </Button>
+      <Button
         className="group/sliding relative overflow-hidden px-6"
         nativeButton={false}
         render={<Link href={site.getStarted} />}

@@ -1,13 +1,4 @@
-export type AdapterTile = {
-  readonly name: string;
-  readonly href: string;
-  readonly group: string;
-};
-
-export const adapterGroups: readonly {
-  readonly title: string;
-  readonly tiles: readonly AdapterTile[];
-}[] = [
+export const adapterGroups = [
   {
     title: 'UI',
     tiles: [
@@ -74,8 +65,20 @@ export const adapterGroups: readonly {
       { name: 'Convex', href: '/docs/adapters/convex', group: 'Auth' },
     ],
   },
-];
+] as const;
 
-export const adapterTiles: readonly AdapterTile[] = adapterGroups.flatMap(
-  (group) => group.tiles,
-);
+type AdapterGroup = (typeof adapterGroups)[number];
+type TilesOf<Group> = Group extends { readonly tiles: readonly (infer Tile)[] }
+  ? Tile
+  : never;
+
+export type AdapterTile = TilesOf<AdapterGroup>;
+
+const tiles: AdapterTile[] = [];
+for (const group of adapterGroups) {
+  for (const tile of group.tiles) {
+    tiles.push(tile);
+  }
+}
+
+export const adapterTiles: readonly AdapterTile[] = tiles;

@@ -2,9 +2,10 @@ import { ClipboardListIcon, InboxIcon, ShieldIcon } from 'lucide-react';
 
 import { AgentActivity } from '@/components/blocks/agent-activity-1/components/agent-activity';
 import { AgentActivity as McpActivity } from '@/components/blocks/agent-activity-4/components/agent-activity';
+import { CloudCta } from '@/components/sections/cloud-cta';
 import { PageHero } from '@/components/sections/page-hero';
 import { Section } from '@/components/sections/section';
-import { WaitlistCta } from '@/components/sections/waitlist';
+import { site } from '@/lib/site';
 
 export const metadata = {
   title: 'Cloud',
@@ -20,7 +21,7 @@ export default function CloudPage() {
         badgeHref="/docs/adapters/cloud"
         title="Governance first. Decisions stay local."
         description="PermDock Cloud is a decision log sold as evidence, a hosted AuthZEN ADS, an approval inbox, and a SCIM relay into a DirectoryStore you own. Every hosted capability has an in-process default in the MIT package."
-        primary={{ href: '#waitlist', label: 'Join waitlist' }}
+        primary={{ href: site.cloud.app, label: 'Open Cloud' }}
         secondary={{ href: '/docs/adapters/cloud', label: 'Cloud adapter' }}
         features={[
           {
@@ -62,9 +63,7 @@ export default function CloudPage() {
           <McpActivity />
         </div>
       </Section>
-      <div id="waitlist">
-        <WaitlistCta />
-      </div>
+      <CloudCta />
     </>
   );
 }

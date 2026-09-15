@@ -458,7 +458,7 @@ export const { getPermDock } = createPermDock(policy, {
 });
 ```
 
-`PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are server-only. A Cloud outage leaves directory memberships at their last synced state.
+`PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are server-only. Production `PERMDOCK_CLOUD_URL` is `https://api.permdock.com`. The dashboard is `https://app.permdock.com`; the read-only MCP server is `https://mcp.permdock.com`. A Cloud outage leaves directory memberships at their last synced state.
 
 ## Better Auth — `permdock/better-auth`
 

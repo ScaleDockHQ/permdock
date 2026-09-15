@@ -170,7 +170,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Cloudflare Durable Objects, D1, Turso, SQLite, Redis, Upstash, Vercel KV, Postgres, Neon, Supabase | Backing stores | `ApprovalStore` recipe | [approvals adapter](/docs/adapters/approvals) |
 | Knock, Novu, Courier, Resend, Twilio | Notification channels | Recipe; link to `approvalsHandler` | [approvals adapter](/docs/adapters/approvals) |
 | Slack App Directory | Listing for an approval bot | Distribution | [commercial landscape](/docs/research/commercial-landscape) |
-| PermDock Cloud | Hosted store, inbox, delivery | `cloud().approvals` | [Cloud adapter](/docs/adapters/cloud) |
+| PermDock Cloud | Hosted store, inbox, delivery at [app.permdock.com](https://app.permdock.com); machine API at [api.permdock.com](https://api.permdock.com) | `cloud().approvals` | [Cloud adapter](/docs/adapters/cloud) |
 | PermDock Cloud SCIM relay | Hosted SCIM endpoint per tenant (IdP wizard, group-to-role mapping UI, sync log) replaying into your `scimHandler` | RFC 7523 JWT bearer verified by `scimHandler({ verifier })`; never a `MembershipSource` | [SCIM adapter](/docs/adapters/scim), [Cloud adapter](/docs/adapters/cloud) |
 
 ## Sinks, observability and compliance
@@ -187,7 +187,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Supabase Edge Functions, Supabase Postgres, Neon, your own Postgres (as evidence destinations) | Tables and functions you own that receive an evidence export | Scheduled signed-batch pull or a CloudEvents webhook into a function that inserts rows; the Cloud never reads your tables or RLS | [Cloud integrations](/docs/adapters/cloud-integrations) |
 | Slack, Microsoft Teams, Discord, email, PagerDuty, Opsgenie | Approval delivery and paging surfaces | Chat SDK `requestApproval` run by the Cloud (Slack, Teams, Discord); email links land on the authenticated inbox; PagerDuty and Opsgenie receive a CloudEvents webhook for `approval-required` and never resolve | [Cloud integrations](/docs/adapters/cloud-integrations), [approvals adapter](/docs/adapters/approvals) |
 | OpenTelemetry Collector | Vendor-neutral OTLP receiver in front of any backend | Destination of the Cloud's OTLP export and of `permdock/otel`; a convenience copy, never the evidence | [Cloud integrations](/docs/adapters/cloud-integrations), [OpenTelemetry adapter](/docs/adapters/otel) |
-| PermDock Cloud MCP server (connected from Claude, Cursor, ChatGPT or any MCP host) | The Cloud's own read-only MCP server (evidence queries, pending approvals, catalog and drift) | MCP over streamable HTTP with OAuth 2.1; approvals are never resolvable through it | [Cloud integrations](/docs/adapters/cloud-integrations), [MCP authorization](/docs/standards/mcp-authorization) |
+| PermDock Cloud MCP server (connected from Claude, Cursor, ChatGPT or any MCP host at [mcp.permdock.com](https://mcp.permdock.com)) | The Cloud's own read-only MCP server (evidence queries, pending approvals, catalog and drift) | MCP over streamable HTTP with OAuth 2.1; approvals are never resolvable through it | [Cloud integrations](/docs/adapters/cloud-integrations), [MCP authorization](/docs/standards/mcp-authorization) |
 | OCSF, CloudEvents | Schemas for the events on the wire | Projection and envelope | [wire formats](/docs/concepts/wire-formats) |
 | PermDock Cloud decision log | Hosted sink | `cloud().sink` | [Cloud adapter](/docs/adapters/cloud) |
 

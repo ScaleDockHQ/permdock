@@ -9,6 +9,11 @@ export const site = {
   install: 'pnpm add permdock',
   getStarted: '/docs/getting-started/quick-start',
   docs: '/docs',
+  cloud: {
+    app: 'https://app.permdock.com',
+    api: 'https://api.permdock.com',
+    mcp: 'https://mcp.permdock.com',
+  },
 } as const;
 
 export type NavLink = {
