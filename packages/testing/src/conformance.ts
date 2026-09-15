@@ -379,4 +379,19 @@ export function testWhereCompiler<TTarget>(
         : options.isFailClosed(compiled);
     expect(closed).toBe(true);
   });
+
+  it('compiles a sqlFunction through its twin', () => {
+    const twin = { op: 'eq' as const, field: 'authorId', value: 'u1' };
+    expect(() =>
+      compiler(
+        {
+          op: 'sqlFunction',
+          name: 'job_permitted',
+          args: [{ field: 'id' }],
+          twin,
+        },
+        options.target,
+      ),
+    ).not.toThrow();
+  });
 }

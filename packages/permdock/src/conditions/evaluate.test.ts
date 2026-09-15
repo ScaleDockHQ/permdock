@@ -6,6 +6,7 @@ import { evaluateCondition } from './evaluate.ts';
 import { normalizeWhere } from './normalize.ts';
 import { opaque } from './opaque.ts';
 import { subject } from './refs.ts';
+import { sqlFunction } from './sql-function.ts';
 
 const now = 1_700_000_000;
 
@@ -136,6 +137,23 @@ describe('evaluateCondition', () => {
       evaluateCondition(
         opaque({ sql: '1=1', fingerprint: 'x' }),
         data,
+        sub({}),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it('evaluates sqlFunction through its twin', () => {
+    const data = { scope: 'public', authorId: 'u1' };
+    const granted = sqlFunction('job_permitted', {
+      args: [{ field: 'id' }],
+      twin: { or: [{ scope: 'public' }, { authorId: subject.id }] },
+    });
+    expect(evaluateCondition(granted, data, sub({}), now)).toBe(true);
+    expect(
+      evaluateCondition(
+        granted,
+        { scope: 'private', authorId: 'u9' },
         sub({}),
         now,
       ),

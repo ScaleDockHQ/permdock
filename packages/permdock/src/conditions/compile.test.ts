@@ -6,6 +6,7 @@ import { PermDockValidationError } from '../core/errors.ts';
 import { compileWhere } from './compile.ts';
 import { opaque } from './opaque.ts';
 import { subject } from './refs.ts';
+import { sqlFunction } from './sql-function.ts';
 
 const now = 1_700_000_000;
 
@@ -48,6 +49,14 @@ describe('compileWhere', () => {
     expect(() =>
       compileWhere(opaque({ sql: 'select 1', fingerprint: 'x' })),
     ).toThrow(PermDockValidationError);
+    expect(
+      compileWhere(
+        sqlFunction('job_permitted', {
+          args: [{ field: 'id' }],
+          twin: { op: 'eq', field: 'authorId', value: 'u1' },
+        }),
+      ),
+    ).toEqual({ kind: 'compare', op: 'eq', field: 'authorId', value: 'u1' });
   });
 
   it('resolves subject refs and dates, and fails closed on empty in', () => {

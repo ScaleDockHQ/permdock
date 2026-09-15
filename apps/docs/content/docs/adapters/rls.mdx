@@ -8,6 +8,16 @@ Phase: 3
 
 `permdock rls` is the CLI surface (with a `permdock/rls` runtime for the parity runner) that compiles roles and grants to Postgres row-level security policies, imports existing policies back into generated definitions, and verifies that in-process decisions and database outcomes agree.
 
+## Database-first (SQL is the authority)
+
+TypeScript-first is the default: `generate` emits policies from `definePolicy`. Teams whose SQL catalog is authority (declarative `supabase/schemas`, helper functions, CI that must not `db push`) keep that catalog. They never have to run `generate`. They pin a policy with `sqlFunction` twins, map names in `rls.functions`, and run `permdock rls verify --db` so `can()` on the twin agrees with the live function. `--inline-functions` is for generate targets that cannot call a SQL function; it is not required for database-first CI.
+
+```bash
+pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
+```
+
+`verify` exits 1 on any mismatch. Opaque grants are reported as untestable app-side. `sqlFunction` grants are reported as verified through twin. Doctor `PD016` warns when an `rls` config still has opaque grants or `sqlFunction` grants with no fixtures.
+
 ## Purpose
 
 A permission such as `allow(permissions.post.update, { to: relation(permissions.post, 'author') })` (or `{ where: { authorId: principal.id } }`) should be true in the UI, in the API and in the database. Today teams hand-write the RLS twin of every app rule and the two drift. No existing tool goes from RLS to application permissions, and the only dual-mode prior art (Kysera `@kysera/rls`) generates one way from raw SQL ([RLS research](/docs/research/postgres-rls)). `permdock rls` makes the [portable condition](/docs/concepts/conditions) the single source: `generate` emits policies, `import` reads them back (portable where possible, `opaque` otherwise), and `verify` proves parity with fixtures.
@@ -44,6 +54,7 @@ Portable subset compiled by `generate` and recognised by `import`:
 | `eq(row.tenant_id, subject.claim('tenant_id'))` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = tenant_id` |
 | `eq(subject.claim('user_role'), 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | claim function | GUC read |
 | membership (`in(row.id, subject.context.teamIds)`) | `id in (select team_id from team_user where user_id = (select auth.uid()))` | same | same |
+| `sqlFunction('job_permitted', { args, twin })` | `job_permitted("id")` (`--inline-functions` emits the twin) | same | same |
 | `memberOf(tenant, row.org_id, roles)` from a tenant-scoped role, active tenant in a claim | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = org_id` |
 | `memberOf(tenant, row.org_id, roles)` with a membership table (`supabaseRls({ memberships })` or `--memberships <table>`) | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any('{admin,viewer}'))` | same | same, user from the GUC |
 | `memberOf(team, row.team_id, roles)` | `exists (select 1 from team_members m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = any(...))`, plus the active-tenant equality | same | same |
@@ -55,7 +66,7 @@ Portable subset compiled by `generate` and recognised by `import`:
 
 The same `memberOf` tree is what `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` compile at query time: active-tenant equality, `in` over held tenant or team ids, declared-parent `or`, or an `exists` join when `options.memberships` names the table. Prisma has no `EXISTS` in `WhereInput`, so it always uses the frozen membership ids. `permdock rls generate` emits the SQL twin of that subset.
 
-Anything else (`now()` arithmetic, `CASE`, multi-join subqueries, custom functions) becomes `opaque({ sql, fingerprint })`: kept verbatim for regeneration, flagged in the catalog, unusable for app-side `can`.
+Anything else (`now()` arithmetic, `CASE`, multi-join subqueries, unmapped custom functions) becomes `opaque({ sql, fingerprint })`: kept verbatim for regeneration, flagged in the catalog, unusable for app-side `can`. Named helpers listed in `rls.functions` become `sqlFunction` instead ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)).
 
 ## Request lifecycle
 
@@ -70,21 +81,21 @@ Anything else (`now()` arithmetic, `CASE`, multi-join subqueries, custom functio
 
 1. Read `pg_policies` (`schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check`) and `pg_class.relrowsecurity`, or parse a SQL dump.
 2. Parse `qual` and `with_check` with `pgsql-parser` (libpg_query in WASM) by wrapping each as `select 1 where <expr>` and taking the `whereClause`.
-3. Pattern-match to portable nodes (recognising both `IN (select ...)` and `EXISTS (select 1 ...)` membership forms); split `FOR ALL` into four entries; map `roles = {public}` to all subjects.
-4. Fingerprint by the deparsed AST, not the source text, because `pg_get_expr` normalises casts and parentheses.
+3. Pattern-match to portable nodes (recognising both `IN (select ...)` and `EXISTS (select 1 ...)` membership forms, and `FuncCall` names listed in `rls.functions` as `sqlFunction`); split `FOR ALL` into four entries; map `roles = {public}` to all subjects.
+4. Fingerprint by the deparsed AST, not the source text, because `pg_get_expr` normalises casts and parentheses. Unmapped function calls stay `opaque` and print `add rls.functions.<name>`.
 5. Write `src/permissions.generated.ts`: a deterministic `definePermissions()` with a `// @generated` header, resource schemas for the chosen validator or referencing Drizzle schemas via `drizzle-zod`, and a catalog of `table, cmd, permissive, roles, condition | opaque, fingerprint, sourceSql`.
 
 `verify`:
 
 1. For each fixture `{ subject, row, newRow?, action }` compute the in-process outcome with `can`. A fixture subject may carry `memberships` and `tenant`; the runner writes the memberships into the configured membership table inside the transaction so the `exists` join sees the same state the evaluator does.
 2. In a `BEGIN ... ROLLBACK` transaction run `set local role`, `set_config('request.jwt.claims', ..., true)` (including the tenant claim), `set_config('request.jwt.claim.sub', ..., true)` (or the GUC equivalents), execute the statement with `RETURNING`, and classify: `allowed` (rows returned), `filtered` (zero rows), `rejected` (SQLSTATE `42501`).
-3. Compare: `granted` must be `allowed`; `denied` must be `filtered` (for `USING`) or `rejected` (for `WITH CHECK` and missing grants). Emit as pgTAP files for `supabase test db` or run directly from Node with `pg`.
+3. Compare: `granted` must be `allowed`; `denied` must be `filtered` (for `USING`) or `rejected` (for `WITH CHECK` and missing grants). `sqlFunction` grants compare `can()` on the twin with the database executing the real function. Emit as pgTAP files for `supabase test db` or run directly from Node with the optional `pg` peer (`--db`).
 
 ## What it validates
 
 - `generate`: every `update` / `delete` grant has SELECT coverage; no table ends with zero permissive policies for a role and command it grants; no `service_role` policies; non-portable grants are reported with their role and grant so the author can choose `opaque` or a rewrite.
 - `import`: fingerprints of previously imported policies; a changed fingerprint is reported as drift rather than silently overwritten; Splinter-style findings (`auth_rls_initplan`, `multiple_permissive_policies`, `rls_enabled_no_policy`) are surfaced when the database exposes them.
-- `verify`: mismatches fail the run; opaque policies are reported as untestable app-side; SQL three-valued logic risks (`auth.uid()` NULL, nullable columns) are called out when a fixture row has nulls in filtered columns.
+- `verify`: mismatches fail the run; opaque policies are reported as untestable app-side; `sqlFunction` grants are reported as verified through twin; SQL three-valued logic risks (`auth.uid()` NULL, nullable columns) are called out when a fixture row has nulls in filtered columns.
 
 ## How denials surface
 

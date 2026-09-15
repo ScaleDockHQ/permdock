@@ -1,11 +1,15 @@
+import type { Policy } from 'permdock';
+
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
+import { hasConditionOp } from 'permdock';
 
 import type { CliIo, PermDockConfig } from './types.ts';
 
 import { runCollect } from './collect.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
+import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { runSkillsInstall } from './skills.ts';
 import { runUsage } from './usage.ts';
 import { DOCTOR_REPORT_SCHEMA } from './version.ts';
@@ -144,6 +148,9 @@ export async function runDoctor(input: {
   }
   if (include('typ') || include('PD015')) {
     findings.push(...pd015(sources));
+  }
+  if (include('rls') || include('PD016')) {
+    findings.push(...(await pd016(input)));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;
@@ -587,6 +594,65 @@ function pd015(
         severity: 'warning',
         message: `${source.file} accepts id-token on what looks like an API resolver`,
         fix: "leave accept as 'access-token' for API routes",
+      });
+    }
+  }
+  return findings;
+}
+
+async function pd016(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  let policy: Policy;
+  try {
+    policy = asPolicy(
+      pickNamed(await loadModule(resolve(input.cwd, input.config.policy)), [
+        'policy',
+      ]),
+    );
+  } catch {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  let opaque = false;
+  let sqlFunction = false;
+  for (const grant of policy.grants) {
+    if (
+      hasConditionOp(grant.where, 'opaque') ||
+      hasConditionOp(grant.check, 'opaque')
+    ) {
+      opaque = true;
+    }
+    if (
+      hasConditionOp(grant.where, 'sqlFunction') ||
+      hasConditionOp(grant.check, 'sqlFunction')
+    ) {
+      sqlFunction = true;
+    }
+  }
+  if (opaque) {
+    findings.push({
+      code: 'PD016',
+      severity: 'warning',
+      message: 'policy has opaque RLS conditions that deny in memory',
+      fix: 'add rls.functions.<name> with a portable twin, or rewrite as sqlFunction()',
+    });
+  }
+  if (sqlFunction) {
+    const fixtures = input.config.rls.fixtures ?? 'rls.fixtures.json';
+    if (
+      !existsSync(resolve(input.cwd, fixtures)) &&
+      !existsSync(resolve(input.cwd, 'rls.fixtures.ts'))
+    ) {
+      findings.push({
+        code: 'PD016',
+        severity: 'warning',
+        message: 'sqlFunction grants have no rls fixtures for verify --db',
+        fix: 'add rls.fixtures.json and run permdock rls verify --db',
       });
     }
   }

@@ -1,10 +1,20 @@
 export { context, principal, subject } from './conditions/index.ts';
 export { opaque } from './conditions/opaque.ts';
+export { sqlFunction } from './conditions/sql-function.ts';
 export type {
   Condition,
   ConditionRef,
   ConditionValue,
   MemberOfCondition,
+  SqlFunctionArg,
+  SqlFunctionCondition,
+} from './conditions/ast.ts';
+export {
+  hasConditionOp,
+  isCondition,
+  isConditionDate,
+  isConditionRef,
+  isSqlFunctionField,
 } from './conditions/ast.ts';
 export { describe } from './core/describe.ts';
 export type { DecisionDescription } from './core/describe.ts';

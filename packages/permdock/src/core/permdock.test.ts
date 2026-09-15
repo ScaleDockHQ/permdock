@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { opaque } from '../conditions/opaque.ts';
 import { subject } from '../conditions/refs.ts';
+import { sqlFunction } from '../conditions/sql-function.ts';
 import {
   adminUser,
   memberUser,
@@ -320,6 +321,38 @@ describe('createPermDock', () => {
     if (decision.outcome === 'denied') {
       expect(decision.denials[0]?.reason).toBe('opaque-condition');
     }
+  });
+
+  it('sqlFunction grants evaluate and snapshot through the twin', async () => {
+    const fnPolicy = definePolicy(permissions, {
+      roles: [
+        role('member', [
+          allow(permissions.post.read, {
+            where: sqlFunction('job_permitted', {
+              args: [{ field: 'id' }],
+              twin: { authorId: subject.id },
+            }),
+          }),
+        ]),
+      ],
+      subject: (user: { readonly id: string } | null) =>
+        user === null ? null : { id: user.id, roles: ['member'] },
+    });
+    const permdock = await createPermDock(fnPolicy, memberUser);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
+    expect(permdock.can(permissions.post.read, otherPost)).toBe(false);
+    const snapshot = permdock.snapshot();
+    if (snapshot instanceof Promise) {
+      throw new Error('expected JSON snapshot');
+    }
+    const grant = snapshot.grants.find(
+      (item) => item.permission === 'post.read',
+    );
+    expect(grant?.portable).not.toBe(false);
+    expect(grant?.where).toMatchObject({
+      op: 'sqlFunction',
+      name: 'job_permitted',
+    });
   });
 
   it('derives tenant and team instances', async () => {

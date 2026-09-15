@@ -251,6 +251,8 @@ export function evaluateCondition(
     }
     case 'memberOf':
       return evaluateMemberOf(condition, data, subject, now);
+    case 'sqlFunction':
+      return evaluateCondition(condition.twin, data, subject, now);
     case 'opaque':
       return false;
     default: {

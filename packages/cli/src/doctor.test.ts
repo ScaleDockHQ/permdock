@@ -146,4 +146,77 @@ describe('doctor checks', () => {
     expect(result.stdout).toContain('warn');
     expect(result.stdout).toContain('PD005');
   });
+
+  it('PD016 warns on opaque grants under an rls config', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/opaque-policy.ts'),
+      `import { allow, definePolicy, opaque, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read, {
+        where: opaque({ sql: 'job_permitted(id)', fingerprint: 'x' }),
+      }),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/opaque-policy.ts',
+  rls: { dialect: 'supabase' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD016'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).toContain('PD016');
+  });
+
+  it('PD016 warns on sqlFunction grants without fixtures', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/fn-policy.ts'),
+      `import { allow, definePolicy, role, sqlFunction, subject } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read, {
+        where: sqlFunction('job_permitted', {
+          args: [{ field: 'id' }],
+          twin: { authorId: subject.id },
+        }),
+      }),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/fn-policy.ts',
+  rls: { dialect: 'supabase' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD016'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).toContain('PD016');
+  });
 });

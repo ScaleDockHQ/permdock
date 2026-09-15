@@ -72,6 +72,19 @@ export type OpaqueCondition = {
   readonly fingerprint: string;
 };
 
+export type SqlFunctionField = {
+  readonly field: string;
+};
+
+export type SqlFunctionArg = ConditionValue | SqlFunctionField;
+
+export type SqlFunctionCondition = {
+  readonly op: 'sqlFunction';
+  readonly name: string;
+  readonly args: readonly SqlFunctionArg[];
+  readonly twin: Condition;
+};
+
 export type Condition =
   | ComparisonCondition
   | InCondition
@@ -80,7 +93,8 @@ export type Condition =
   | OrCondition
   | NotCondition
   | MemberOfCondition
-  | OpaqueCondition;
+  | OpaqueCondition
+  | SqlFunctionCondition;
 
 export function isConditionRef(value: unknown): value is ConditionRef {
   return (
@@ -108,4 +122,55 @@ export function isCondition(value: unknown): value is Condition {
     'op' in value &&
     typeof (value as { readonly op: unknown }).op === 'string'
   );
+}
+
+export function isSqlFunctionField(value: unknown): value is SqlFunctionField {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'field' in value &&
+    typeof (value as SqlFunctionField).field === 'string' &&
+    !('ref' in value) &&
+    !('date' in value) &&
+    !('op' in value)
+  );
+}
+
+export function hasConditionOp(
+  condition: Condition | undefined,
+  op: Condition['op'],
+): boolean {
+  if (condition === undefined) {
+    return false;
+  }
+  if (condition.op === op) {
+    return true;
+  }
+  switch (condition.op) {
+    case 'and':
+    case 'or':
+      return condition.conditions.some((child) => hasConditionOp(child, op));
+    case 'not':
+      return hasConditionOp(condition.condition, op);
+    case 'sqlFunction':
+      return hasConditionOp(condition.twin, op);
+    case 'eq':
+    case 'ne':
+    case 'gt':
+    case 'gte':
+    case 'lt':
+    case 'lte':
+    case 'contains':
+    case 'in':
+    case 'notIn':
+    case 'isNull':
+    case 'memberOf':
+    case 'opaque':
+      return false;
+    default: {
+      const exhaustive: never = condition;
+      /* v8 ignore next */
+      return exhaustive;
+    }
+  }
 }

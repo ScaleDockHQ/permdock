@@ -2,9 +2,9 @@ import type { PermDock, Permission, Policy, Subject } from 'permdock';
 
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createPermDock, findPermission } from 'permdock';
+import { createPermDock, findPermission, hasConditionOp } from 'permdock';
 
-import type { CliIo, PermDockConfig } from './types.ts';
+import type { CliIo, PermDockConfig, RlsDialect } from './types.ts';
 
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 
@@ -29,6 +29,8 @@ export type RlsFixture = {
   readonly action: string;
   readonly expected?: 'granted' | 'denied';
 };
+
+const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -110,6 +112,65 @@ function toSubject(fixture: RlsFixture['subject']): Subject {
   };
 }
 
+function grantKind(
+  policy: Policy,
+  key: string,
+): 'opaque' | 'sqlFunction' | 'portable' {
+  const grants = policy.grants.filter((grant) => grant.permission.key === key);
+  if (
+    grants.some(
+      (grant) =>
+        hasConditionOp(grant.where, 'opaque') ||
+        hasConditionOp(grant.check, 'opaque'),
+    )
+  ) {
+    return 'opaque';
+  }
+  if (
+    grants.some(
+      (grant) =>
+        hasConditionOp(grant.where, 'sqlFunction') ||
+        hasConditionOp(grant.check, 'sqlFunction'),
+    )
+  ) {
+    return 'sqlFunction';
+  }
+  return 'portable';
+}
+
+function quoteIdent(name: string): string {
+  if (!IDENT.test(name)) {
+    throw new Error(`PermDock CLI: unsafe SQL identifier '${name}'`);
+  }
+  return `"${name}"`;
+}
+
+function statementSql(action: string, table: string): string {
+  const quoted = quoteIdent(table);
+  const id = quoteIdent('id');
+  switch (action) {
+    case 'read':
+    case 'list':
+    case 'get':
+      return `select * from ${quoted} where ${id} = $1`;
+    case 'update':
+      return `update ${quoted} set ${id} = ${id} where ${id} = $1 returning *`;
+    case 'create':
+      return `insert into ${quoted} (${id}) values ($1) returning *`;
+    case 'delete':
+      return `delete from ${quoted} where ${id} = $1 returning *`;
+    default:
+      return `select * from ${quoted} where ${id} = $1`;
+  }
+}
+
+function rowId(row: unknown): unknown {
+  if (isRecord(row) && 'id' in row) {
+    return row.id;
+  }
+  return undefined;
+}
+
 function emitPgtap(fixtures: readonly RlsFixture[]): string {
   const lines = [
     'begin;',
@@ -134,6 +195,159 @@ function emitPgtap(fixtures: readonly RlsFixture[]): string {
   return `${lines.join('\n')}\n`;
 }
 
+async function loadPg(): Promise<typeof import('pg')> {
+  try {
+    // Optional peer: keep the specifier out of the static graph so
+    // `rls verify` without `--db` does not require `pg` to be installed.
+    return await import('pg');
+  } catch {
+    throw new Error(
+      'PermDock CLI: rls verify --db requires the optional pg peer',
+    );
+  }
+}
+
+type QueryFn = (
+  sql: string,
+  values?: readonly unknown[],
+) => Promise<{
+  readonly rows: readonly Record<string, unknown>[];
+  readonly rowCount?: number;
+  readonly code?: string;
+}>;
+
+async function bindSubject(
+  query: QueryFn,
+  fixture: RlsFixture,
+  dialect: RlsDialect,
+  gucPrefix: string,
+  tenantClaim: string,
+): Promise<void> {
+  await query('set local role "authenticated"');
+  if (dialect === 'guc') {
+    await query('select set_config($1, $2, true)', [
+      `${gucPrefix}.user_id`,
+      fixture.subject.id,
+    ]);
+    if (fixture.subject.tenant !== undefined) {
+      await query('select set_config($1, $2, true)', [
+        `${gucPrefix}.${tenantClaim}`,
+        fixture.subject.tenant,
+      ]);
+    }
+    return;
+  }
+  const claims = {
+    sub: fixture.subject.id,
+    role: 'authenticated',
+    [tenantClaim]: fixture.subject.tenant,
+    memberships: fixture.subject.memberships,
+  };
+  await query('select set_config($1, $2, true)', [
+    'request.jwt.claims',
+    JSON.stringify(claims),
+  ]);
+  await query('select set_config($1, $2, true)', [
+    'request.jwt.claim.sub',
+    fixture.subject.id,
+  ]);
+}
+
+async function verifyAgainstDatabase(input: {
+  readonly db: string;
+  readonly policy: Policy;
+  readonly fixtures: readonly RlsFixture[];
+  readonly config: PermDockConfig;
+  readonly inProcess: readonly {
+    readonly action: string;
+    readonly granted: boolean;
+    readonly kind: 'opaque' | 'sqlFunction' | 'portable';
+  }[];
+}): Promise<{ readonly mismatches: string[]; readonly notes: string[] }> {
+  const pg = await loadPg();
+  const client = new pg.Client({ connectionString: input.db });
+  try {
+    await client.connect();
+  } catch (cause) {
+    throw new Error('PermDock CLI: rls verify --db could not connect', {
+      cause,
+    });
+  }
+  const dialect = input.config.rls?.dialect ?? 'supabase';
+  const gucPrefix = input.config.rls?.gucPrefix ?? 'app';
+  const tenantClaim = input.config.rls?.tenantClaim ?? 'tenant_id';
+  const query: QueryFn = async (sql, values) => {
+    try {
+      const result = await client.query(
+        sql,
+        values === undefined ? [] : [...values],
+      );
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount ?? result.rows.length,
+      };
+    } catch (cause) {
+      const code =
+        cause !== null &&
+        typeof cause === 'object' &&
+        'code' in cause &&
+        typeof (cause as { readonly code: unknown }).code === 'string'
+          ? (cause as { readonly code: string }).code
+          : undefined;
+      return { rows: [], rowCount: 0, ...(code === undefined ? {} : { code }) };
+    }
+  };
+  const mismatches: string[] = [];
+  const notes: string[] = [];
+  try {
+    for (const [index, fixture] of input.fixtures.entries()) {
+      const permission = findPermission(
+        input.policy.permissions,
+        fixture.action,
+      );
+      const status = input.inProcess[index];
+      if (permission === undefined || status === undefined) {
+        continue;
+      }
+      if (status.kind === 'opaque') {
+        notes.push(`${fixture.action}: opaque grant untestable app-side`);
+        continue;
+      }
+      const table =
+        input.config.rls?.tables?.[permission.resource] ?? permission.resource;
+      await query('begin');
+      try {
+        await bindSubject(query, fixture, dialect, gucPrefix, tenantClaim);
+        const result = await query(statementSql(permission.action, table), [
+          rowId(fixture.row),
+        ]);
+        const count = result.rowCount ?? result.rows.length;
+        const database =
+          result.code === '42501'
+            ? 'rejected'
+            : count > 0
+              ? 'allowed'
+              : 'filtered';
+        const ok = status.granted
+          ? database === 'allowed'
+          : database === 'filtered' || database === 'rejected';
+        if (!ok) {
+          mismatches.push(
+            `${fixture.action}: in-process ${status.granted ? 'granted' : 'denied'}, database ${database}`,
+          );
+        } else if (status.kind === 'sqlFunction') {
+          notes.push(`${fixture.action}: verified through twin`);
+        }
+      } finally {
+        await query('rollback');
+      }
+    }
+  } finally {
+    await client.end();
+  }
+  return { mismatches, notes };
+}
+
 export async function runRlsVerify(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -153,18 +367,31 @@ export async function runRlsVerify(input: {
   const policy: Policy = asPolicy(
     pickNamed(await loadModule(resolve(input.cwd, policyPath)), ['policy']),
   );
-  const fixturesPath = input.fixtures ?? 'rls.fixtures.json';
+  const fixturesPath =
+    input.fixtures ?? input.config.rls?.fixtures ?? 'rls.fixtures.json';
   const fixtures = await loadFixtures(input.cwd, fixturesPath);
   if (input.format === 'pgtap') {
     return { code: 0, output: emitPgtap(fixtures) };
   }
   const mismatches: string[] = [];
+  const notes: string[] = [];
+  const inProcess: {
+    readonly action: string;
+    readonly granted: boolean;
+    readonly kind: 'opaque' | 'sqlFunction' | 'portable';
+  }[] = [];
   for (const fixture of fixtures) {
     const permission = findPermission(policy.permissions, fixture.action);
     if (permission === undefined) {
       mismatches.push(`${fixture.action}: unknown permission`);
+      inProcess.push({
+        action: fixture.action,
+        granted: false,
+        kind: 'portable',
+      });
       continue;
     }
+    const kind = grantKind(policy, fixture.action);
     const dock = await createPermDock(policy, toSubject(fixture.subject));
     const granted = canFixture(dock, permission, fixture.row);
     const outcome = granted ? 'granted' : 'denied';
@@ -173,17 +400,35 @@ export async function runRlsVerify(input: {
         `${fixture.action}: in-process ${outcome}, expected ${fixture.expected}`,
       );
     }
+    if (kind === 'opaque') {
+      notes.push(`${fixture.action}: opaque grant untestable app-side`);
+    }
+    inProcess.push({ action: fixture.action, granted, kind });
   }
   if (input.db !== undefined) {
-    mismatches.push(
-      'rls verify --db is reserved for tests/integration (testcontainers); in-process can() already ran',
-    );
+    try {
+      const database = await verifyAgainstDatabase({
+        db: input.db,
+        policy,
+        fixtures,
+        config: input.config,
+        inProcess,
+      });
+      mismatches.push(...database.mismatches);
+      notes.push(...database.notes);
+    } catch (cause) {
+      return {
+        code: 2,
+        output: cause instanceof Error ? cause.message : String(cause),
+      };
+    }
   }
   if (mismatches.length > 0) {
-    return { code: 1, output: mismatches.join('\n') };
+    return { code: 1, output: [...mismatches, ...notes].join('\n') };
   }
+  const verified = `verified ${fixtures.length} fixture(s) in-process`;
   return {
     code: 0,
-    output: `verified ${fixtures.length} fixture(s) in-process`,
+    output: notes.length === 0 ? verified : `${verified}\n${notes.join('\n')}`,
   };
 }

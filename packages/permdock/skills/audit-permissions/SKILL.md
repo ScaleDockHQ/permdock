@@ -34,7 +34,7 @@ Done when every tool binding has the right arity and every destructive model-rea
 
 ## Portability
 
-Flag `where` closures (`portable: false` or a function body) that only compare fields the portable operators already cover (`eq`, `in`, `memberOf`, …). Those should be JSON conditions so RLS and snapshots stay aligned. Flag `where: { authorId: principal.id }` (or `subject.id`) when the resource already has a matching relation — prefer `to: relation(permissions.post, 'author')`.
+Flag `where` closures (`portable: false` or a function body) that only compare fields the portable operators already cover (`eq`, `in`, `memberOf`, `sqlFunction`, …). Those should be JSON conditions so RLS and snapshots stay aligned. Flag `opaque` RLS grants that wrap a named helper (`job_permitted`, `authorize`) — rewrite as `sqlFunction` with a twin and map the name in `rls.functions`. Flag `where: { authorId: principal.id }` (or `subject.id`) when the resource already has a matching relation — prefer `to: relation(permissions.post, 'author')`.
 
 Done when every closure is either marked portable-false with a reason or rewritten, and every owner-equals-principal condition that has a relation uses the relation.
 

@@ -1,9 +1,13 @@
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-import type { CliIo, PermDockConfig, RlsMemberships } from './types.ts';
+import type { CliIo, PermDockConfig } from './types.ts';
 
+import {
+  canonicalDump,
+  conditionFromAst,
+  fingerprintSql,
+} from './rls-import-ast.ts';
 import { parseMembershipsFlag } from './rls-sql.ts';
 
 export type ImportOutcome = {
@@ -34,9 +38,25 @@ type CatalogEntry = {
 const POLICY_RE =
   /create\s+policy\s+"?([A-Za-z0-9_]+)"?\s+on\s+"?([A-Za-z0-9_]+)"?([\s\S]*?);/gi;
 
-function fingerprintOf(sql: string): string {
-  const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase();
-  return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
+function extractParenClause(sql: string, keyword: string): string | undefined {
+  const match = new RegExp(`\\b${keyword}\\s*\\(`, 'i').exec(sql);
+  if (match === null || match.index === undefined) {
+    return undefined;
+  }
+  const start = match.index + match[0].length;
+  let depth = 1;
+  for (let i = start; i < sql.length; i += 1) {
+    const ch = sql[i];
+    if (ch === '(') {
+      depth += 1;
+    } else if (ch === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        return sql.slice(start, i).trim();
+      }
+    }
+  }
+  return undefined;
 }
 
 function splitPolicies(sql: string): ImportedPolicy[] {
@@ -48,10 +68,8 @@ function splitPolicies(sql: string): ImportedPolicy[] {
     const asRestrictive = /\bas\s+restrictive\b/i.test(body);
     const cmdMatch = body.match(/\bfor\s+(all|select|insert|update|delete)\b/i);
     const toMatch = body.match(/\bto\s+([^\n]+)/i);
-    const usingMatch = body.match(
-      /\busing\s*\(([\s\S]*?)\)(?:\s+with\s+check|\s*$)/i,
-    );
-    const checkMatch = body.match(/\bwith\s+check\s*\(([\s\S]*?)\)\s*$/i);
+    const using = extractParenClause(body, 'using');
+    const check = extractParenClause(body, 'with\\s+check');
     const roles = (toMatch?.[1] ?? 'authenticated')
       .split(',')
       .map((item) => item.trim())
@@ -66,68 +84,12 @@ function splitPolicies(sql: string): ImportedPolicy[] {
         cmd: command,
         permissive: !asRestrictive,
         roles,
-        ...(usingMatch?.[1] === undefined
-          ? {}
-          : { using: usingMatch[1].trim() }),
-        ...(checkMatch?.[1] === undefined
-          ? {}
-          : { check: checkMatch[1].trim() }),
+        ...(using === undefined ? {} : { using }),
+        ...(check === undefined ? {} : { check }),
       });
     }
   }
   return out;
-}
-
-function fieldFromEq(sql: string): string | undefined {
-  const match = sql.match(/"([A-Za-z_][A-Za-z0-9_]*)"/);
-  return match?.[1];
-}
-
-function conditionFromSql(
-  sql: string | undefined,
-  memberships: RlsMemberships | undefined,
-): unknown {
-  if (sql === undefined || sql === 'true') {
-    return { op: 'eq', field: '_', value: true };
-  }
-  if (
-    /\(select\s+auth\.uid\(\)\)/i.test(sql) ||
-    /\(select\s+auth\.user_id\(\)\)/i.test(sql) ||
-    /current_setting\('app\.user_id'/i.test(sql)
-  ) {
-    const field = fieldFromEq(sql) ?? 'id';
-    return { op: 'eq', field, value: { ref: 'subject.id' } };
-  }
-  const exists = sql.match(
-    /exists\s*\(\s*select\s+1\s+from\s+"?([A-Za-z0-9_]+)"?/i,
-  );
-  if (exists?.[1] !== undefined) {
-    const table = exists[1];
-    const tenantTable = memberships?.tenant?.table;
-    const teamTable = memberships?.team?.table;
-    if (tenantTable === table) {
-      return {
-        op: 'memberOf',
-        scope: 'tenant',
-        field: memberships?.tenant?.tenant ?? 'tenant_id',
-        roles: [],
-      };
-    }
-    if (teamTable === table) {
-      return {
-        op: 'memberOf',
-        scope: 'team',
-        field: memberships?.team?.team ?? 'team_id',
-        roles: [],
-      };
-    }
-    return {
-      op: 'opaque',
-      sql,
-      fingerprint: fingerprintOf(sql),
-    };
-  }
-  return { op: 'opaque', sql, fingerprint: fingerprintOf(sql) };
 }
 
 function actionsFor(cmds: readonly string[]): {
@@ -214,7 +176,77 @@ function assertNoServiceRole(sql: string): void {
   }
 }
 
-export function runRlsImport(input: {
+async function loadPg(): Promise<typeof import('pg')> {
+  try {
+    // Optional peer: import `--db` is the only path that talks to Postgres.
+    return await import('pg');
+  } catch {
+    throw new Error(
+      'PermDock CLI: rls import --db requires the optional pg peer',
+    );
+  }
+}
+
+async function policiesFromDb(db: string): Promise<{
+  readonly policies: ImportedPolicy[];
+  readonly bodies: Map<string, string>;
+}> {
+  const pg = await loadPg();
+  const client = new pg.Client({ connectionString: db });
+  await client.connect();
+  try {
+    const result = await client.query<{
+      tablename: string;
+      policyname: string;
+      permissive: string;
+      roles: string[] | string;
+      cmd: string;
+      qual: string | null;
+      with_check: string | null;
+    }>(
+      `select tablename, policyname, permissive, roles, cmd, qual, with_check from pg_policies`,
+    );
+    const bodies = new Map<string, string>();
+    const procs = await client.query<{ proname: string; prosrc: string }>(
+      `select proname, prosrc from pg_proc`,
+    );
+    for (const row of procs.rows) {
+      bodies.set(row.proname, row.prosrc);
+    }
+    const policies: ImportedPolicy[] = [];
+    for (const row of result.rows) {
+      const roles = Array.isArray(row.roles)
+        ? row.roles
+        : row.roles
+            .replaceAll(/[{}]/g, '')
+            .split(',')
+            .map((item) => item.trim());
+      const cmd = (row.cmd ?? 'ALL').toUpperCase();
+      const commands =
+        cmd === 'ALL' ? ['SELECT', 'INSERT', 'UPDATE', 'DELETE'] : [cmd];
+      for (const command of commands) {
+        policies.push({
+          name: row.policyname,
+          table: row.tablename,
+          cmd: command,
+          permissive: row.permissive !== 'RESTRICTIVE',
+          roles,
+          ...(row.qual === null || row.qual === undefined
+            ? {}
+            : { using: row.qual }),
+          ...(row.with_check === null || row.with_check === undefined
+            ? {}
+            : { check: row.with_check }),
+        });
+      }
+    }
+    return { policies, bodies };
+  } finally {
+    await client.end();
+  }
+}
+
+export async function runRlsImport(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
   readonly sql?: string;
@@ -223,47 +255,93 @@ export function runRlsImport(input: {
   readonly schema: string;
   readonly memberships?: string;
   readonly io: CliIo;
-}): ImportOutcome {
-  if (input.db !== undefined && input.sql === undefined) {
-    return {
-      code: 2,
-      output:
-        'PermDock CLI: rls import --db needs a live catalog reader; pass --sql for a dump in this release',
-    };
-  }
-  if (input.sql === undefined) {
+}): Promise<ImportOutcome> {
+  let policies: ImportedPolicy[] = [];
+  let bodies = new Map<string, string>();
+  if (input.sql !== undefined) {
+    const sqlPath = resolve(input.cwd, input.sql);
+    if (!existsSync(sqlPath)) {
+      return {
+        code: 2,
+        output: `PermDock CLI: SQL dump not found: ${input.sql}`,
+      };
+    }
+    const sql = readFileSync(sqlPath, 'utf8');
+    assertNoServiceRole(sql);
+    const canonical = await canonicalDump(sql);
+    policies = splitPolicies(canonical ?? sql);
+    if (policies.length === 0) {
+      policies = splitPolicies(sql);
+    }
+  } else if (input.db !== undefined) {
+    try {
+      const fromDb = await policiesFromDb(input.db);
+      policies = fromDb.policies;
+      bodies = fromDb.bodies;
+    } catch (cause) {
+      return {
+        code: 2,
+        output: cause instanceof Error ? cause.message : String(cause),
+      };
+    }
+  } else {
     return {
       code: 2,
       output: 'PermDock CLI: rls import needs --sql <file> or --db <url>',
     };
   }
-  const sqlPath = resolve(input.cwd, input.sql);
-  if (!existsSync(sqlPath)) {
-    return {
-      code: 2,
-      output: `PermDock CLI: SQL dump not found: ${input.sql}`,
-    };
-  }
-  const sql = readFileSync(sqlPath, 'utf8');
-  assertNoServiceRole(sql);
   const memberships =
     parseMembershipsFlag(input.memberships) ?? input.config.rls?.memberships;
-  const policies = splitPolicies(sql);
-  const catalog: CatalogEntry[] = policies.map((item) => {
+  const functions = input.config.rls?.functions;
+  const unmapped: string[] = [];
+  const catalog: CatalogEntry[] = [];
+  for (const item of policies) {
     const sourceSql = item.using ?? item.check ?? 'true';
-    return {
+    const condition = await conditionFromAst(
+      item.using ?? item.check,
+      memberships,
+      functions,
+      unmapped,
+    );
+    catalog.push({
       table: item.table,
       cmd: item.cmd,
       permissive: item.permissive,
       roles: item.roles,
-      condition: conditionFromSql(item.using ?? item.check, memberships),
-      fingerprint: fingerprintOf(sourceSql),
+      condition,
+      fingerprint: await fingerprintSql(sourceSql),
       sourceSql,
-    };
-  });
+    });
+  }
   const outRel = input.out ?? 'src/permissions.generated.ts';
   const outPath = resolve(input.cwd, outRel);
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, emitGenerated(catalog, input.schema));
-  return { code: 0, output: `wrote ${outRel}` };
+  const unique = [...new Set(unmapped)];
+  const hints = uniqueHints(unique, bodies);
+  return {
+    code: 0,
+    output:
+      hints.length === 0
+        ? `wrote ${outRel}`
+        : `wrote ${outRel}\n${hints.join('\n')}`,
+  };
+}
+
+function uniqueHints(
+  names: readonly string[],
+  bodies: ReadonlyMap<string, string>,
+): readonly string[] {
+  const lines: string[] = [];
+  for (const name of names) {
+    const short = name.includes('.')
+      ? name.slice(name.lastIndexOf('.') + 1)
+      : name;
+    lines.push(`add rls.functions.${short} to make this grant portable`);
+    const body = bodies.get(short) ?? bodies.get(name);
+    if (body !== undefined) {
+      lines.push(`-- ${name}: ${body.trim().slice(0, 240)}`);
+    }
+  }
+  return lines;
 }

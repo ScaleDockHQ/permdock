@@ -76,6 +76,7 @@ flowchart LR
 | Remote PDP unreachable | Denied, never granted | [pdp provider](/docs/adapters/pdp), invariant 1 |
 | Stale snapshot after revocation | CAEP receiver invalidates by subject | [Shared Signals](/docs/standards/shared-signals-caep) |
 | Generated RLS widens access | Never emits `service_role`; `deny` becomes RESTRICTIVE; `verify` parity tests | [Postgres RLS](/docs/standards/postgres-rls) |
+| SQL function twin drifts from the live helper | `sqlFunction` twins are proven by `rls verify --db`; import fingerprints the deparsed AST; opaque SQL never runs app-side | [0043](/docs/decisions/0043-sql-functions-as-portable-conditions), [RLS](/docs/adapters/rls) |
 | RLS import executes attacker SQL | Import parses to AST; opaque SQL is stored, never run app-side | [Postgres RLS](/docs/standards/postgres-rls) |
 | Denial body leaks other users' grants | Problem Details bounded to the subject's own view | [Problem Details](/docs/standards/problem-details) |
 | Agent floods a paid action | `limit` grants with server-side `LimitStore` | [Policies](/docs/concepts/policies) |

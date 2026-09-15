@@ -29,8 +29,23 @@ An object literal is an implicit `and` over its fields. A field value is either 
 | `contains` | array column contains value, or string contains substring (typed by the field) | `@>` or `LIKE` |
 | `and`, `or`, `not` | compound | `AND`, `OR`, `NOT` |
 | `memberOf` | the row's scope field names a tenant, team or resource where the subject holds one of the listed roles; emitted by scoped role declarations, not written by hand | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)` |
+| `sqlFunction` | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run | `name(args)` (`--inline-functions` emits the twin instead) |
 
-That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/research/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition.
+That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/research/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition. `sqlFunction` is the node for SQL-authority policies whose database helper is the source of truth ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)):
+
+```ts
+allow(permissions.job.read, {
+  where: sqlFunction('job_permitted', {
+    args: [{ field: 'id' }],
+    twin: {
+      or: [
+        { scope: 'public' },
+        { and: [{ scope: 'team' }, { op: 'memberOf', scope: 'team', field: 'teamId', roles: [] }] },
+      ],
+    },
+  }),
+})
+```
 
 ### Subject references
 
@@ -132,13 +147,13 @@ Closures are the right tool for calls to another system or logic that is not a c
 
 ## Opaque conditions
 
-`permdock rls import` reads existing policies from `pg_policies`. Expressions in the portable subset become `where` / `check` data; anything else (`now()` arithmetic, `CASE`, multi-join subqueries, custom functions) becomes an opaque node:
+`permdock rls import` reads existing policies from `pg_policies`. Expressions in the portable subset become `where` / `check` data; named functions listed in `rls.functions` become `sqlFunction` nodes; anything else (`now()` arithmetic, `CASE`, multi-join subqueries, unmapped custom functions) becomes an opaque node:
 
 ```ts
 allow(permissions.post.read, { where: opaque({ sql: '(created_at > now() - interval \'30 days\')', fingerprint: 'sha256:...' }) })
 ```
 
-An opaque condition keeps the SQL verbatim so `rls generate` can emit it back unchanged and the fingerprint (from the deparsed AST, not raw text, since `pg_get_expr` rewrites formatting) detects drift on re-import. In memory an opaque condition evaluates to `false` and the decision explains why (`reason: 'opaque-condition'`), so the client falls back to the decision endpoint and the endpoint falls back to the database. `permdock rls verify` reports opaque grants as untestable app-side.
+An opaque condition keeps the SQL verbatim so `rls generate` can emit it back unchanged and the fingerprint (from the deparsed AST, not raw text, since `pg_get_expr` rewrites formatting) detects drift on re-import. In memory an opaque condition evaluates to `false` and the decision explains why (`reason: 'opaque-condition'`), so the client falls back to the decision endpoint and the endpoint falls back to the database. `permdock rls verify` reports opaque grants as untestable app-side. Prefer `sqlFunction` when the SQL is a named helper whose body you can twin.
 
 ## Type safety
 
@@ -159,5 +174,5 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 
 - Whether `contains` should be split into `arrayContains` and `stringContains` for clearer SQL mapping.
 - Nested field paths (`address.city`) and array-of-object fields: v1 excludes them; a later version may add a typed path helper.
-- How much of the Supabase `authorize('perm')` RBAC pattern should be recognised on import as a named-permission node rather than opaque SQL.
+- How much of the Supabase `authorize('perm')` RBAC pattern should be recognised on import as a named-permission node rather than opaque SQL. Follow-up: a `sqlFunction` preset over `authorize`, not a new op ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)).
 - Whether `memberOf` should be writable by hand in a `where` (for a grant that checks membership in a *different* scope than the role's) or stay generated from role declarations only.

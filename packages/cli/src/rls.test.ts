@@ -417,4 +417,238 @@ export const policy = definePolicy(permissions, {
       '@@rls',
     );
   });
+
+  it('emits sqlFunction calls and can inline the twin', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/fn-policy.ts'),
+      `import { allow, definePolicy, role, sqlFunction, subject } from 'permdock';
+import { permissions } from './permissions.ts';
+
+const member = role('member', [
+  allow(permissions.post.read, {
+    where: sqlFunction('job_permitted', {
+      args: [{ field: 'id' }],
+      twin: { authorId: subject.id },
+    }),
+  }),
+]);
+
+export const policy = definePolicy(permissions, {
+  roles: [member],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/fn-policy.ts',
+};
+`,
+    );
+    const generated = await run(
+      ['rls', 'generate', '--target', 'sql', '--out', 'rls.sql'],
+      { cwd },
+    );
+    expect(generated.code).toBe(0);
+    expect(generated.stdout).toContain('portable via twin');
+    const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
+    expect(sql).toContain('"job_permitted"("id")');
+    const inlined = await run(
+      [
+        'rls',
+        'generate',
+        '--target',
+        'sql',
+        '--inline-functions',
+        '--out',
+        'inline.sql',
+      ],
+      { cwd },
+    );
+    expect(inlined.code).toBe(0);
+    expect(readFileSync(join(cwd, 'inline.sql'), 'utf8')).toContain(
+      '"authorId" = (select auth.uid())',
+    );
+  });
+
+  it('import maps mapped functions to sqlFunction and hints on unmapped calls', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'schema.sql'),
+      `create policy "jobs_read" on job for select to authenticated using (job_permitted(id));
+create policy "posts_read" on post for select to authenticated using ((select auth.uid()) = "authorId");
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  rls: {
+    functions: {
+      job_permitted: {
+        twin: { op: 'eq', field: 'authorId', value: { ref: 'subject.id' } },
+        args: ['id'],
+      },
+    },
+  },
+};
+`,
+    );
+    const mapped = await run(
+      [
+        'rls',
+        'import',
+        '--sql',
+        'schema.sql',
+        '--out',
+        'src/permissions.generated.ts',
+      ],
+      { cwd },
+    );
+    expect(mapped.code).toBe(0);
+    const generated = readFileSync(
+      join(cwd, 'src/permissions.generated.ts'),
+      'utf8',
+    );
+    expect(generated).toContain('sqlFunction');
+    expect(generated).toContain('subject.id');
+  });
+
+  it('import hints when a function is not listed in rls.functions', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'opaque.sql'),
+      `create policy "jobs_read" on job for select to authenticated using (job_permitted(id));
+`,
+    );
+    const unmapped = await run(
+      [
+        'rls',
+        'import',
+        '--sql',
+        'opaque.sql',
+        '--out',
+        'src/opaque.generated.ts',
+      ],
+      { cwd },
+    );
+    expect(unmapped.code).toBe(0);
+    expect(unmapped.stdout).toContain('rls.functions.job_permitted');
+  });
+
+  it('import maps EXISTS and IN membership subqueries to memberOf', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'members.sql'),
+      `create policy "posts_read" on post for select to authenticated using (
+  exists (select 1 from organization_members m where m.organization_id = "orgId")
+);
+create policy "posts_list" on post for select to authenticated using (
+  "orgId" in (select organization_id from organization_members)
+);
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  rls: {
+    memberships: {
+      tenant: {
+        table: 'organization_members',
+        tenant: 'orgId',
+        user: 'user_id',
+        role: 'role',
+      },
+    },
+  },
+};
+`,
+    );
+    const result = await run(
+      [
+        'rls',
+        'import',
+        '--sql',
+        'members.sql',
+        '--out',
+        'src/permissions.generated.ts',
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const generated = readFileSync(
+      join(cwd, 'src/permissions.generated.ts'),
+      'utf8',
+    );
+    expect(generated).toContain('"op": "memberOf"');
+    expect(generated).toContain('"scope": "tenant"');
+  });
+
+  it('verify --db reports a connection failure and opaque grants as untestable', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/opaque-policy.ts'),
+      `import { allow, definePolicy, opaque, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read, {
+        where: opaque({ sql: 'job_permitted(id)', fingerprint: 'x' }),
+      }),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/opaque-policy.ts',
+};
+`,
+    );
+    writeFileSync(
+      join(cwd, 'rls.fixtures.json'),
+      `${JSON.stringify(
+        [
+          {
+            subject: { id: 'user-1', roles: ['member'] },
+            row: { id: 'p1', authorId: 'user-1' },
+            action: 'post.read',
+          },
+        ],
+        null,
+        2,
+      )}\n`,
+    );
+    const inProcess = await run(
+      ['rls', 'verify', '--fixtures', 'rls.fixtures.json'],
+      { cwd },
+    );
+    expect(inProcess.code).toBe(0);
+    expect(inProcess.stdout).toContain('untestable app-side');
+    const missing = await run(
+      [
+        'rls',
+        'verify',
+        '--db',
+        'postgres://permdock:permdock@127.0.0.1:1/missing',
+        '--fixtures',
+        'rls.fixtures.json',
+      ],
+      { cwd },
+    );
+    expect(missing.code).toBe(2);
+    expect(missing.stdout).toContain('could not connect');
+  });
 });

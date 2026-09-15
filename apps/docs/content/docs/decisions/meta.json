@@ -42,6 +42,7 @@
     "0039-grantee-selectors-and-relations",
     "0040-principal-refs-and-question-verbs",
     "0041-fetch-native-frameworks-are-recipes",
-    "0042-cloud-identity-gateway"
+    "0042-cloud-identity-gateway",
+    "0043-sql-functions-as-portable-conditions"
   ]
 }

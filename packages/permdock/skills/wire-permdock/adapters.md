@@ -554,7 +554,7 @@ const subject = subjectFromSupabase(claims, {
 });
 ```
 
-No `@supabase/supabase-js` peer. Pair with `permdock rls generate`.
+No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL as authority and run `permdock rls verify --db` against `sqlFunction` twins ([database-first](/docs/adapters/rls)).
 
 ## Remote PDP — `permdock/pdp`
 
@@ -586,6 +586,9 @@ pnpm exec permdock rls generate --target sql --dialect supabase --out migrations
 pnpm exec permdock rls generate --target sql --dialect supabase --rbac-scaffold --memberships organization_members:organization_id,user_id,role
 pnpm exec permdock rls import --sql migrations/rls.sql --out src/permissions.generated.ts
 pnpm exec permdock rls verify --fixtures rls.fixtures.json
+pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
 ```
+
+When SQL is the authority, skip `generate`. Map helpers in `rls.functions`, write `sqlFunction` twins, and fail CI on `verify --db`. `--inline-functions` inlines the twin for generate targets that cannot call a SQL function.
 
 Never emit `service_role`. Fixtures may carry `memberships` and `tenant`.

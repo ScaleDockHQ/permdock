@@ -28,10 +28,18 @@ export type RlsMemberships = {
   readonly resource?: Readonly<Record<string, RlsMembershipTable>>;
 };
 
+export type RlsFunctionMapping = {
+  readonly twin: unknown;
+  readonly args?: readonly string[];
+};
+
 export type RlsConfig = {
   readonly tables?: Readonly<Record<string, string>>;
   readonly dialect?: RlsDialect;
   readonly memberships?: RlsMemberships;
+  readonly functions?: Readonly<Record<string, RlsFunctionMapping>>;
+  readonly inlineFunctions?: boolean;
+  readonly fixtures?: string;
   readonly tenantClaim?: string;
   readonly roleClaim?: string;
   readonly gucPrefix?: string;

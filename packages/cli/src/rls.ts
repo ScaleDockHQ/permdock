@@ -8,7 +8,7 @@ export const RLS_HELP = `permdock rls generate | import | verify
 
   generate --target drizzle|sql|prisma --dialect supabase|neon|guc
            [--rbac supabase] [--rbac-scaffold] [--memberships <table>:tenant,user,role]
-           [--out <path>] [--check] [--skip-closures] [--guc-prefix app]
+           [--out <path>] [--check] [--skip-closures] [--inline-functions] [--guc-prefix app]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
   verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node]
@@ -33,6 +33,7 @@ export type RlsRunInput = {
   readonly rbac: boolean;
   readonly check: boolean;
   readonly skipClosures: boolean;
+  readonly inlineFunctions: boolean;
   readonly gucPrefix: string | undefined;
   readonly io: CliIo;
 };
@@ -92,6 +93,7 @@ export async function runRls(
         rbac: input.rbac,
         check: input.check,
         skipClosures: input.skipClosures,
+        inlineFunctions: input.inlineFunctions,
         io: input.io,
         ...(input.out === undefined ? {} : { out: input.out }),
         ...(input.from === undefined ? {} : { from: input.from }),

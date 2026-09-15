@@ -319,6 +319,8 @@ function compileNode(
       };
     case 'opaque':
       throw nonPortable('opaque SQL');
+    case 'sqlFunction':
+      return compileNode(condition.twin, options);
     case 'memberOf':
       return compileMemberOf(condition, options);
     case 'eq':

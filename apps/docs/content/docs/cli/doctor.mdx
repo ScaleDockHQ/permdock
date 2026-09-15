@@ -38,6 +38,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD013` | Polymorphic `EdDSA` in a JWT `algorithms` list instead of `Ed25519` | warning |
 | `PD014` | `discovery` issuer mismatch, plain-HTTP issuer, or `jwks` without `issuer` | error |
 | `PD015` | Token verification that does not check `typ`, or `accept: 'id-token'` on an API route | warning |
+| `PD016` | Opaque RLS grants, or `sqlFunction` grants with no verify fixtures, under an `rls` config | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -98,6 +99,10 @@ Errors when a `discovery` value is not an `https:` URL, when `discovery` and `jw
 ### PD015: token type
 
 Warns when a custom `TokenVerifier` passed as `verifier` does not declare `typ` handling (the conformance runner `testTokenVerifier` covers the runtime side; this is the static hint), and when `accept: 'id-token'` appears in a resolver used by an HTTP, MCP or agent adapter rather than a BFF session layer, because an ID token is not an access token and never carries `delegation` ([JWT adapter](/docs/adapters/jwt)). It also reports a resolver whose `profile: 'fapi2'` is paired with `algorithms` that include `RS256`, which the profile forbids.
+
+### PD016: RLS opaque grants and unverified twins
+
+Warns when `permdock.config.ts` has an `rls` block whose policy still contains `opaque` conditions (they deny in memory; map the helper through `rls.functions` or rewrite as `sqlFunction`) or `sqlFunction` grants with no `rls.fixtures.json` (or `rls.fixtures`) so `permdock rls verify --db` cannot prove the twin. See [0043](/docs/decisions/0043-sql-functions-as-portable-conditions) and [rls](/docs/cli/rls).
 
 ## Example report
 

@@ -9,6 +9,7 @@ export type {
   PermDockConfig,
   RlsConfig,
   RlsDialect,
+  RlsFunctionMapping,
   RlsMemberships,
   RlsMembershipTable,
   RlsTarget,

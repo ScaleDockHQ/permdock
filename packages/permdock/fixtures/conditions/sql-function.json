@@ -1,0 +1,23 @@
+{
+  "op": "sqlFunction",
+  "name": "job_permitted",
+  "args": [{ "field": "id" }],
+  "twin": {
+    "op": "or",
+    "conditions": [
+      { "op": "eq", "field": "scope", "value": "public" },
+      {
+        "op": "and",
+        "conditions": [
+          { "op": "eq", "field": "scope", "value": "team" },
+          {
+            "op": "memberOf",
+            "scope": "team",
+            "field": "teamId",
+            "roles": []
+          }
+        ]
+      }
+    ]
+  }
+}

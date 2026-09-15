@@ -33,7 +33,7 @@ None of these is scheduled. The [roadmap](/docs/roadmap) lists them as candidate
 
 1. **MongoDB** through `permdock/prisma` first (no new entry), then a `toFilter` for Mongoose or the native driver if demand shows.
 2. **Zero** as a `toZeroPermissions(policy)` generator, because its TypeScript permission definitions are the closest to PermDock's own shape and its users are the local-first audience most likely to also run React Native.
-3. **ElectricSQL shapes and PowerSync sync rules** as generator targets alongside `permdock rls generate`, sharing the portable subset.
+3. **ElectricSQL shapes and PowerSync sync rules** as generator targets alongside `permdock rls generate`, sharing the portable subset. Those engines have no SQL functions, so the generator inlines the `sqlFunction` twin the same way `--inline-functions` does for Postgres ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)).
 4. **InstantDB** rules as a generator target if the first three prove the approach.
 
 Each would be a `where`-style compiler or a generator in `@permdock/cli`, never a runtime dependency, and each must be added to the parity suite in `@permdock/testing` so the engine's filter agrees with the in-memory evaluator (the condition-operator rule in the maintainer guide: every operator has an evaluator, a JSON form and a compilation or an explicit non-portable marking).
@@ -60,5 +60,5 @@ Avoid:
 ## Decisions informed
 
 - [ADR 0023: compose with the OpenAPI toolchain](/docs/decisions/0023-compose-openapi-ecosystem), point 7 (compilers and generators, not adapters).
-- [ADR 0010: policy as data, portable conditions](/docs/decisions/0010-policy-as-data-portable-conditions) (the AST these targets compile).
+- [ADR 0043: SQL functions as portable conditions](/docs/decisions/0043-sql-functions-as-portable-conditions) (the twin a later generator inlines).
 - Pages shaped: [adapters/rls](/docs/adapters/rls) (databases without RLS), [React Native adapter](/docs/adapters/react-native), [roadmap](/docs/roadmap) Phase 4 candidates, [CASL v7 research](/docs/research/casl-v7) (the Mongo lineage).

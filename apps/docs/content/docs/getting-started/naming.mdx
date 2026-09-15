@@ -68,6 +68,8 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `principal`, `actor`, `delegation` | The three parts of a subject | Synonyms for user or role |
 | `granted`, `denied`, `approval-required` | The three `Decision.outcome` values | `not-applicable`, `allow`, `deny` |
 | `where`, `check` | Conditions on the current row and on the next row | Query building outside conditions |
+| `sqlFunction` | Named SQL function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run; `rls generate` emits the call | A runtime database round-trip; a closure; inlining the function body as the only representation |
+| `opaque` | Imported SQL with a fingerprint and no twin; evaluates to `false` | A portable grant |
 | `fields`, `pick` | Schema keys on a grant and the redaction helper `permdock.pick(permission, row)` | CASL globs; a permission per field |
 | `key`, `scope` | The dotted (`post.update`) and colon (`post:update`) string forms of a permission | Public API arguments |
 | `subjectFrom<Provider>` | Turning verified material into a `Subject` with `roles`, `tenant` and `memberships`: `subjectFromJwt`, `subjectFromIntrospection`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromMcp`; every one accepts a `schema` (Standard Schema) for custom claims | Verifying, logging in, or anything that can throw |

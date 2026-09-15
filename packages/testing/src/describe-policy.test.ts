@@ -13,6 +13,7 @@ import {
   relation,
   resource,
   role,
+  sqlFunction,
   subject,
 } from 'permdock';
 import { memoryLimitStore, memoryRoleSource, memorySink } from 'permdock';
@@ -129,6 +130,38 @@ describePolicy(policy, {
     [permissions.post.publish.key]: {
       ownPost: { anonymous: 'denied', member: 'denied', admin: 'granted' },
       otherPost: { anonymous: 'denied', member: 'denied', admin: 'denied' },
+    },
+  },
+});
+
+const sqlFunctionPolicy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read, {
+        where: sqlFunction('job_permitted', {
+          args: [{ field: 'id' }],
+          twin: { authorId: subject.id },
+        }),
+      }),
+    ]),
+  ],
+  subject: (user: User | null) =>
+    user === null
+      ? null
+      : { id: user.id, orgId: user.orgId, roles: user.roles },
+});
+
+describePolicy(sqlFunctionPolicy, {
+  exhaustive: false,
+  subjects: {
+    member: { id: 'u1', orgId: 'o1', roles: ['member'] },
+    other: { id: 'u9', orgId: 'o1', roles: ['member'] },
+  },
+  fixtures: { ownPost, otherPost },
+  matrix: {
+    [permissions.post.read.key]: {
+      ownPost: { member: 'granted', other: 'denied' },
+      otherPost: { member: 'denied', other: 'granted' },
     },
   },
 });

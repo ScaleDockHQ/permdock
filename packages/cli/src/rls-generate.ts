@@ -2,6 +2,7 @@ import type { Condition, Grant, Policy } from 'permdock';
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { hasConditionOp } from 'permdock';
 
 import type {
   CliIo,
@@ -19,6 +20,7 @@ import {
   quoteIdent,
   quoteLiteral,
   quoteTable,
+  sqlFunctionNames,
   type RlsSqlContext,
 } from './rls-sql.ts';
 
@@ -203,6 +205,20 @@ function compileGrant(
       : undefined;
   if (command === 'insert' && scoped !== undefined && check === undefined) {
     withCheck = compileConditionSql(scoped, ctx);
+  }
+  const functionNames = [
+    ...sqlFunctionNames(scoped),
+    ...sqlFunctionNames(check),
+  ];
+  if (functionNames.length > 0) {
+    warnings.push(
+      `sqlFunction ${[...new Set(functionNames)].join(', ')} on ${grantRoleName(grant)}/${grant.permission.key} is portable via twin`,
+    );
+  }
+  if (hasConditionOp(scoped, 'opaque') || hasConditionOp(check, 'opaque')) {
+    warnings.push(
+      `opaque SQL on ${grantRoleName(grant)}/${grant.permission.key} is untestable app-side`,
+    );
   }
   if (rbac) {
     const call = `(select authorize(${quoteLiteral(grant.permission.key)}))`;
@@ -537,6 +553,7 @@ export async function runRlsGenerate(input: {
   readonly rbac: boolean;
   readonly check: boolean;
   readonly skipClosures: boolean;
+  readonly inlineFunctions: boolean;
   readonly gucPrefix?: string;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
@@ -547,6 +564,8 @@ export async function runRlsGenerate(input: {
     dialect: input.dialect,
     tenantClaim: input.config.rls?.tenantClaim ?? 'tenant_id',
     gucPrefix: input.gucPrefix ?? input.config.rls?.gucPrefix ?? 'app',
+    inlineFunctions:
+      input.inlineFunctions || input.config.rls?.inlineFunctions === true,
     ...(memberships === undefined ? {} : { memberships }),
   };
   const warnings: string[] = [];

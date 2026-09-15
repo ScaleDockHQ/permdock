@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v2.json",
   "version": 2,
-  "generatedAt": "2026-09-09T19:41:00.421Z",
+  "generatedAt": "2026-09-15T19:38:41.075Z",
   "generator": "@permdock/cli@0.1.0",
   "resources": {
     "post": {
@@ -29,9 +29,61 @@
           "field": "authorId"
         }
       }
+    },
+    "job": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "permissions.ts"
     }
   },
   "permissions": [
+    {
+      "key": "job.list",
+      "scope": "job:list",
+      "resource": "job",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "job.read",
+      "scope": "job:read",
+      "resource": "job",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "policy.ts",
+          "line": 21,
+          "call": "allow"
+        }
+      ]
+    },
     {
       "key": "post.create",
       "scope": "post:create",

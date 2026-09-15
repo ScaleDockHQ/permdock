@@ -44,6 +44,7 @@ The normalised form of `{ where: { authorId: subject.id, teamId: { in: subject.c
 | Reference | `{ "ref": "subject.<field>" }` or `{ "ref": "subject.context.<key>" }` |
 | Date | `{ "date": "2026-09-06T10:15:00Z" }` |
 | Scope (from scoped roles) | `{ "op": "memberOf", "scope": "tenant" \| "team" \| "resource", "field": string, "roles": string[], "resource"?: string, "parents"?: string[] }` ([tenancy](/docs/concepts/tenancy)) |
+| SQL function | `{ "op": "sqlFunction", "name": string, "args": array, "twin": Condition }` ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)). Each arg is a value or `{ "field": "id" }`. |
 | Opaque (imported) | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }` |
 
 Literals are JSON literals. Single-child compounds are collapsed and nested same-operator compounds are flattened when the grant is defined, so consumers see a canonical tree. Field names `op`, `field`, `value`, `ref` and `date` are final.
@@ -435,7 +436,7 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 
 - `v` fields on the snapshot, approval request and catalog follow the format, not the package version. A breaking change to a shape bumps `v`; readers reject unknown majors.
 - The JWS envelope of a signed output is versioned by its `typ`: a change to the header set, the registered claims or the private claim name is a new `typ` (`permdock-snapshot.v2+jwt`), never a silent change, so a verifier configured for one `typ` keeps rejecting what it does not understand.
-- Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning.
+- Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning. New condition `op` values (such as `sqlFunction`) are additive; readers that do not know an op deny.
 - AuthZEN messages follow the 1.0 spec; PermDock-specific data lives only under `context.permdock`.
 
 ## Open questions

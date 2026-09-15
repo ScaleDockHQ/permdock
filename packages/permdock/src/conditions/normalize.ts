@@ -3,12 +3,18 @@ import { assertSafeKey, ownKeys } from '../core/paths.ts';
 import {
   type Condition,
   type ConditionValue,
+  type SqlFunctionArg,
   isCondition,
   isConditionDate,
   isConditionRef,
 } from './ast.ts';
 import { opaque } from './opaque.ts';
 import { isSubjectRef } from './refs.ts';
+import {
+  assertPortableTwin,
+  assertSqlFunctionArg,
+  assertSqlFunctionName,
+} from './sql-function-assert.ts';
 
 const FIELD_OPS = new Set([
   'eq',
@@ -97,13 +103,21 @@ function collapse(condition: Condition): Condition {
   if (condition.op === 'not') {
     return freezeDeep({ op: 'not', condition: collapse(condition.condition) });
   }
+  if (condition.op === 'sqlFunction') {
+    return freezeDeep({
+      op: 'sqlFunction',
+      name: condition.name,
+      args: condition.args,
+      twin: collapse(condition.twin),
+    });
+  }
   return freezeDeep(condition);
 }
 
 function fieldCondition(field: string, raw: unknown): Condition {
   assertSafeKey(field, 'condition field');
-  if (isCondition(raw) && raw.op === 'opaque') {
-    return raw;
+  if (isCondition(raw) && (raw.op === 'opaque' || raw.op === 'sqlFunction')) {
+    return raw.op === 'sqlFunction' ? normalizeSqlFunction(raw) : raw;
   }
   if (
     raw !== null &&
@@ -149,8 +163,36 @@ function fieldCondition(field: string, raw: unknown): Condition {
   return collapse({ op: 'eq', field, value: toValue(raw) });
 }
 
+function normalizeSqlFunction(input: {
+  readonly name: string;
+  readonly args?: readonly SqlFunctionArg[];
+  readonly twin: unknown;
+}): Condition {
+  assertSqlFunctionName(input.name);
+  const args = input.args ?? [];
+  for (const arg of args) {
+    assertSqlFunctionArg(arg);
+  }
+  if (isCondition(input.twin) && input.twin.op === 'sqlFunction') {
+    throw new Error('PermDock: sqlFunction twin must not nest sqlFunction');
+  }
+  const twin = isCondition(input.twin)
+    ? collapse(input.twin)
+    : normalizeWhere(input.twin);
+  assertPortableTwin(twin);
+  return freezeDeep({
+    op: 'sqlFunction' as const,
+    name: input.name,
+    args,
+    twin,
+  });
+}
+
 export function normalizeWhere(input: unknown): Condition {
   if (isCondition(input)) {
+    if (input.op === 'sqlFunction') {
+      return collapse(normalizeSqlFunction(input));
+    }
     return collapse(input);
   }
   if (

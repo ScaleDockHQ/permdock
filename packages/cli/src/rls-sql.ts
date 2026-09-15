@@ -1,5 +1,7 @@
 import type { Condition, ConditionValue } from 'permdock';
 
+import { isSqlFunctionField } from 'permdock';
+
 import type {
   RlsDialect,
   RlsMembershipTable,
@@ -14,6 +16,7 @@ export type RlsSqlContext = {
   readonly memberships?: RlsMemberships;
   readonly tenantClaim: string;
   readonly gucPrefix: string;
+  readonly inlineFunctions?: boolean;
 };
 
 export function quoteIdent(name: string): string {
@@ -267,6 +270,15 @@ export function compileConditionSql(
       return `not (${compileConditionSql(condition.condition, ctx)})`;
     case 'memberOf':
       return compileMemberOf(condition, ctx);
+    case 'sqlFunction':
+      if (ctx.inlineFunctions === true) {
+        return compileConditionSql(condition.twin, ctx);
+      }
+      return `${quoteTable(condition.name)}(${condition.args
+        .map((arg) =>
+          isSqlFunctionField(arg) ? quoteIdent(arg.field) : sqlValue(arg, ctx),
+        )
+        .join(', ')})`;
     case 'opaque':
       return condition.sql;
     default: {
@@ -309,4 +321,38 @@ export function andConditions(
     return left;
   }
   return { op: 'and', conditions: [left, right] };
+}
+
+export function sqlFunctionNames(
+  condition: Condition | undefined,
+): readonly string[] {
+  if (condition === undefined) {
+    return [];
+  }
+  switch (condition.op) {
+    case 'sqlFunction':
+      return [condition.name, ...sqlFunctionNames(condition.twin)];
+    case 'and':
+    case 'or':
+      return condition.conditions.flatMap((child) => sqlFunctionNames(child));
+    case 'not':
+      return sqlFunctionNames(condition.condition);
+    case 'eq':
+    case 'ne':
+    case 'gt':
+    case 'gte':
+    case 'lt':
+    case 'lte':
+    case 'contains':
+    case 'in':
+    case 'notIn':
+    case 'isNull':
+    case 'memberOf':
+    case 'opaque':
+      return [];
+    default: {
+      const exhaustive: never = condition;
+      return exhaustive;
+    }
+  }
 }

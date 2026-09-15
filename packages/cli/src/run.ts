@@ -238,6 +238,7 @@ export async function run(
             flagBool(args.flags, 'rbac-scaffold') || rbacFlag === 'supabase',
           check: flagBool(args.flags, 'check'),
           skipClosures: flagBool(args.flags, 'skip-closures'),
+          inlineFunctions: flagBool(args.flags, 'inline-functions'),
           gucPrefix: flagString(args.flags, 'guc-prefix'),
           io,
         });
