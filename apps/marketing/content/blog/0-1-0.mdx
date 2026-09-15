@@ -1,0 +1,21 @@
+---
+title: PermDock 0.1.0
+description: Typed permissions for TypeScript apps, APIs, databases, and AI agents. What shipped in the first public release.
+draft: true
+date: 2026-09-15
+---
+
+This post is a draft. Edit it before publishing.
+
+PermDock 0.1.0 is the first public cut of the MIT library: define permissions as typed references over the schema you already have, grant them with portable conditions, and check them in UI, HTTP, MCP, agent runtimes, SQL and Postgres RLS.
+
+The same `Decision` is `granted`, `denied` or `approval-required`. `can()` never throws. A matching deny wins. Authentication stays upstream. The Cloud is optional and never sits on the decision path.
+
+Highlights from the 0.1.0 changelog:
+
+- Core, snapshots, tenancy, field-level `pick`, quota grants and signed decision batches.
+- Surface adapters for React, Next.js, Hono, MCP, the Vercel AI SDK, Eve, OpenAI Agents, WebMCP and A2A.
+- Drizzle, Prisma, Kysely and `permdock rls` for portable conditions.
+- `@permdock/cli` collect, catalog, doctor, openapi and skills.
+
+Read the [quick start](/docs/getting-started/quick-start) and the [changelog](/changelog).

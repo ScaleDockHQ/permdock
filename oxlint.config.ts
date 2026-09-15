@@ -9,6 +9,9 @@ export default defineConfig({
     '.cursor/**',
     '.claude/**',
     '**/.expo/**',
+    'apps/marketing/components/ui/**',
+    'apps/marketing/components/reui/**',
+    'apps/marketing/components/blocks/**',
   ],
   options: {
     typeAware: true,
@@ -217,6 +220,27 @@ export default defineConfig({
       },
     },
     {
+      files: ['apps/marketing/**/*.{ts,tsx}'],
+      rules: {
+        'node/no-process-env': 'off',
+        'import/no-default-export': 'off',
+        'eslint/max-lines': 'off',
+        'eslint/max-lines-per-function': 'off',
+        'import/max-dependencies': 'off',
+        'oxc/no-async-await': 'off',
+        'eslint/no-undefined': 'off',
+        'unicorn/import-style': 'off',
+        'unicorn/prefer-import-meta-properties': 'off',
+        'typescript/no-unsafe-type-assertion': 'off',
+        'typescript/no-confusing-void-expression': 'off',
+        'typescript/strict-boolean-expressions': 'off',
+        'typescript/no-misused-promises': 'off',
+        'typescript/strict-void-return': 'off',
+        'typescript/consistent-return': 'off',
+        'typescript/no-deprecated': 'off',
+      },
+    },
+    {
       files: ['apps/**/*.{ts,tsx,mts,cts}'],
       rules: {
         // Next.js Server Components, route handlers and `next.config` redirects.
@@ -226,6 +250,7 @@ export default defineConfig({
         'oxc/no-optional-chaining': 'off',
         // Framework file conventions: pages, layouts, CSS entry, generated props.
         'typescript/explicit-function-return-type': 'off',
+        'import/no-default-export': 'off',
         'typescript/explicit-module-boundary-types': 'off',
         'typescript/prefer-readonly-parameter-types': 'off',
         'import/no-unassigned-import': 'off',

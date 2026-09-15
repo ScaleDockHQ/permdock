@@ -11,6 +11,7 @@
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
     "lint": "oxlint .",
+    "marketing:dev": "turbo run dev --filter=marketing --filter=docs",
     "permdock": "permdock",
     "prepare": "node -e \"process.env.VERCEL ? process.exit(0) : require('node:child_process').execSync('lefthook install', { stdio: 'inherit' })\"",
     "size": "pnpm --filter @permdock/bundle test",

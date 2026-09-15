@@ -11,5 +11,9 @@ export default oxfmt({
     'PRODUCT.md',
     'README.md',
     'CODE_OF_CONDUCT.md',
+    'apps/marketing/components/ui/**',
+    'apps/marketing/components/reui/**',
+    'apps/marketing/components/blocks/**',
+    'apps/marketing/components/examples/**',
   ],
 });

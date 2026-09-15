@@ -93,6 +93,7 @@ const uiProjectNames = new Set([
   'webmcp',
   'next',
   'expo',
+  'marketing',
 ]);
 
 function requestedProjects(): readonly string[] {
@@ -114,6 +115,15 @@ function requestedProjects(): readonly string[] {
 const requested = requestedProjects();
 const uiOnly =
   requested.length > 0 && requested.every((name) => uiProjectNames.has(name));
+const marketingOnly = requested.length === 1 && requested[0] === 'marketing';
+
+const marketingServer = {
+  ...uiServer('marketing', 3487),
+  env: envWith({
+    CI: '1',
+    PORT: '3487',
+  }),
+};
 
 export default defineConfig({
   testDir: './src',
@@ -121,18 +131,23 @@ export default defineConfig({
   forbidOnly: inCi,
   retries: inCi ? 2 : 0,
   reporter: inCi ? 'github' : 'list',
-  webServer: [
-    ...(uiOnly
-      ? []
-      : httpExamples.map((example) => httpServer(example.name, example.port))),
-    uiServer('@permdock/example-react-vite', 3480),
-    uiServer('@permdock/example-vue', 3481),
-    uiServer('@permdock/example-svelte', 3482),
-    uiServer('@permdock/example-solid', 3483),
-    uiServer('@permdock/example-webmcp', 3484),
-    uiServer('@permdock/example-next', 3485),
-    uiServer('@permdock/example-expo', 3486),
-  ],
+  webServer: marketingOnly
+    ? [marketingServer]
+    : [
+        ...(uiOnly
+          ? []
+          : httpExamples.map((example) =>
+              httpServer(example.name, example.port),
+            )),
+        uiServer('@permdock/example-react-vite', 3480),
+        uiServer('@permdock/example-vue', 3481),
+        uiServer('@permdock/example-svelte', 3482),
+        uiServer('@permdock/example-solid', 3483),
+        uiServer('@permdock/example-webmcp', 3484),
+        uiServer('@permdock/example-next', 3485),
+        uiServer('@permdock/example-expo', 3486),
+        marketingServer,
+      ],
   projects: [
     ...httpExamples.map((example) => ({
       name: example.name,
@@ -181,6 +196,11 @@ export default defineConfig({
       name: 'expo',
       testMatch: /expo\.spec\.ts$/u,
       use: { baseURL: 'http://127.0.0.1:3486' },
+    },
+    {
+      name: 'marketing',
+      testMatch: /marketing\.spec\.ts$/u,
+      use: { baseURL: 'http://127.0.0.1:3487' },
     },
   ],
 });

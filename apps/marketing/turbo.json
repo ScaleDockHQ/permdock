@@ -1,0 +1,14 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "passThroughEnv": ["PORT", "DOCS_ORIGIN", "WAITLIST_WEBHOOK_URL"]
+    },
+    "test": {
+      "dependsOn": []
+    },
+    "typecheck": {
+      "dependsOn": ["build", "^build"]
+    }
+  }
+}

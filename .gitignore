@@ -25,9 +25,13 @@ blob-report/
 # next.js
 .next/
 out/
-# rewritten by `next dev` in example apps
+# rewritten by `next dev` in Next.js apps
 apps/examples/next/AGENTS.md
 apps/examples/next/CLAUDE.md
+apps/docs/AGENTS.md
+apps/docs/CLAUDE.md
+apps/marketing/AGENTS.md
+apps/marketing/CLAUDE.md
 
 # expo
 .expo/
@@ -73,3 +77,4 @@ Thumbs.db
 *.swp
 *.swo
 .env*
+!.env.example

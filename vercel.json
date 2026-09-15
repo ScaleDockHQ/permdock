@@ -4,16 +4,21 @@
       "root": "apps/docs",
       "framework": "nextjs",
       "installCommand": "corepack enable && corepack prepare pnpm@12.3.1 --activate && corepack pnpm@12.3.1 install",
+      "buildCommand": "next build",
+      "rewrites": [
+        {
+          "source": "/docs/_next/:path*",
+          "destination": "/_next/:path*"
+        }
+      ]
+    },
+    "marketing": {
+      "root": "apps/marketing",
+      "framework": "nextjs",
+      "installCommand": "corepack enable && corepack prepare pnpm@12.3.1 --activate && corepack pnpm@12.3.1 install",
       "buildCommand": "next build"
     }
   },
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "/docs",
-      "permanent": false
-    }
-  ],
   "rewrites": [
     {
       "source": "/docs",
@@ -21,10 +26,6 @@
     },
     {
       "source": "/docs/(.*)",
-      "destination": { "service": "docs" }
-    },
-    {
-      "source": "/_next/(.*)",
       "destination": { "service": "docs" }
     },
     {
@@ -54,6 +55,14 @@
     {
       "source": "/og/(.*)",
       "destination": { "service": "docs" }
+    },
+    {
+      "source": "/_next/(.*)",
+      "destination": { "service": "marketing" }
+    },
+    {
+      "source": "/(.*)",
+      "destination": { "service": "marketing" }
     }
   ]
 }

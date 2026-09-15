@@ -2,7 +2,7 @@
 
 This document is the product overview: what PermDock is, who it is for, what it must do, how it is built and in what order. Detail lives in the documentation tree under [`apps/docs/content/docs`](./apps/docs/content/docs) (Fumadocs-ready MDX) and is linked from each section. When the two disagree, the docs tree wins and this file gets fixed.
 
-Version: Phase 4 in progress (September 2026). Phase 1–3 OSS has shipped (core, surface adapters, `@permdock/cli`, data compilers, SSF, providers). In-repo AuthZEN conformance covers Basic, Batch, Search and Discovery shapes; **external AuthZEN certification is the remaining 1.0 gate**. The Fumadocs app is the first Vercel Service at `/docs`. Packages version toward `0.1.0`.
+Version: Phase 4 in progress (September 2026). Phase 1–3 OSS has shipped (core, surface adapters, `@permdock/cli`, data compilers, SSF, providers). In-repo AuthZEN conformance covers Basic, Batch, Search and Discovery shapes; **external AuthZEN certification is the remaining 1.0 gate**. The marketing app is the Vercel Service at `/`; the Fumadocs app is the docs service at `/docs`. Packages version toward `0.1.0`.
 
 ## 1. Vision and positioning
 

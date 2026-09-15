@@ -284,7 +284,7 @@ Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
 
 ## Documentation
 
-Run `pnpm docs:dev` and open `/docs`. The source of truth is still the MDX tree at [`apps/docs/content/docs`](./apps/docs/content/docs): [getting started](./apps/docs/content/docs/getting-started), [concepts](./apps/docs/content/docs/concepts), [adapters](./apps/docs/content/docs/adapters), [CLI](./apps/docs/content/docs/cli), [standards](./apps/docs/content/docs/standards), [security](./apps/docs/content/docs/security), [research](./apps/docs/content/docs/research) and [decision records](./apps/docs/content/docs/decisions).
+The marketing site is `apps/marketing` at `/`. Run `pnpm marketing:dev` for the marketing origin on `:3000` with `/docs` proxied to the docs app on `:3001`. Docs alone: `pnpm docs:dev` and open `/docs`. The source of truth is still the MDX tree at [`apps/docs/content/docs`](./apps/docs/content/docs): [getting started](./apps/docs/content/docs/getting-started), [concepts](./apps/docs/content/docs/concepts), [adapters](./apps/docs/content/docs/adapters), [CLI](./apps/docs/content/docs/cli), [standards](./apps/docs/content/docs/standards), [security](./apps/docs/content/docs/security), [research](./apps/docs/content/docs/research) and [decision records](./apps/docs/content/docs/decisions).
 
 The product vision, roadmap and open questions live in [`PRODUCT.md`](./PRODUCT.md).
 

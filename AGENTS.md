@@ -8,7 +8,7 @@ The product plan and every design decision live in `PRODUCT.md` and `apps/docs/c
 
 Phase 4 in progress. Phase 1–3 OSS shipped (core, surface adapters, `@permdock/cli`, `permdock/scim`, signed decision batches, `permdock/cloud`, `toWhere` compilers, `permdock rls`, `permdock/supabase`, async `context` and field-level `fields` / `pick`, `permdock/ssf`, `tests/integration`, examples `supabase-rls`, `drizzle`, `prisma`). Anything you add must match the layout below so later milestones do not have to move it.
 
-The docs app is the first [Vercel Service](https://vercel.com/docs/services): root `vercel.json` sends `/docs`, `/_next`, `/api/search`, `/mcp`, `/devtools`, `/llms.txt`, `/llms-full.txt`, `/llms.mdx` and `/og` to `apps/docs`. Do **not** set Next.js `basePath: '/docs'` until a second Next.js service exists. MDX already links to `/docs/...`; `basePath` plus `loader({ baseUrl: '/docs' })` double-prefixes `next/link` (`/docs/docs/...`). Until then the docs service owns `/_next` and `/api/search`. A later Hono/Python/Vite service is a rewrite **above** those rules. The `/mcp` route is the public docs MCP server (search and page-fetch only; no subject).
+The marketing app (`apps/marketing`) is the second [Vercel Service](https://vercel.com/docs/services): it owns `/`, `/_next`, `robots.txt` and `sitemap.xml`. The docs app keeps `/docs`, `/api/search`, `/mcp`, `/devtools`, `/llms.txt`, `/llms-full.txt`, `/llms.mdx` and `/og`, with `assetPrefix: '/docs'` so its assets ride `/docs/_next` (never `basePath: '/docs'`, which double-prefixes `next/link`). See [ADR 0044](apps/docs/content/docs/decisions/0044-marketing-site-second-service.mdx). The `/mcp` route is the public docs MCP server (search and page-fetch only; no subject).
 
 ## Repo layout
 
@@ -30,7 +30,8 @@ packages/
   ox-config/          private `@permdock/ox-config` — `oxlint` (`base`, `ignorePatterns`) and `oxfmt` (`oxfmt()` factory);
                       the root oxlint.config.ts / oxfmt.config.ts only add repo-specific ignores, `typeAware` and the packages/** override
 apps/
-  docs/               Fumadocs v16 on Next.js 16.3 (scaffolded); content in apps/docs/content/docs; first Vercel Service at `/docs`
+  marketing/          Next.js 16.3 marketing site; Vercel Service at `/`
+  docs/               Fumadocs v16 on Next.js 16.3; content in apps/docs/content/docs; Vercel Service at `/docs`
   examples/<name>/    one app per adapter: next, react-vite, expo, vue, svelte, solid, hono, express, fastify,
                       elysia, nest, terminal, trpc, orpc, mcp-server, ai-sdk-agent, claude-agent, eve-agent,
                       openai-agent, webmcp, a2a-agent, authzen-pdp, scim, supabase-rls, drizzle, prisma, better-auth,
@@ -56,7 +57,8 @@ pnpm typecheck             # turbo run typecheck (tsc --noEmit per package, pres
 pnpm check                 # fmt:check + lint + typecheck; what CI and the pre-push hook run
 pnpm check:publish         # publint + arethetypeswrong on every package
 pnpm size                  # per-entry gzip measurements
-pnpm docs:dev              # apps/docs
+pnpm docs:dev              # apps/docs on :3001
+pnpm marketing:dev         # apps/marketing on :3000, proxies /docs to docs
 pnpm exec permdock collect --check --cwd tests/integration/fixtures/posts
 pnpm exec permdock collect --check --cwd apps/examples/monorepo
 # catalog drift (CI); the repo root has no permdock.config.ts.
@@ -118,7 +120,7 @@ Details and rationale: `apps/docs/content/docs/getting-started/naming.mdx`, `dec
 - Every folder has `meta.json` with `title` and an explicit `pages` order (`---Section---` separators allowed); root `meta.json` has `root: true`. Adding a page means adding it to `meta.json`.
 - Links between pages are `/docs/<path>` URLs, never `.mdx` file paths. `README.md` and `PRODUCT.md`, which render on GitHub, link to the `.mdx` files directly.
 - One page per adapter (`adapters/<name>.mdx`) and per standard (`standards/<name>.mdx`), each with `Status: planned | in progress | shipped` and `Phase: n` lines directly under the frontmatter. Standards pages PermDock follows but has no adapter for yet use `Status: tracking`. A standards page for an unfinished text adds `Draft posture: build | name | track` as a third line (ADR 0025): `build` names the pinned revision in the same line and means PermDock implements that revision with a stable twin; `name` means only identifiers are reserved; `track` means no code and no names. The watch list carries the same value in its Posture column; finished specifications carry none. A standards page's `Phase` is the first phase PermDock uses the standard; adapter phases are listed in-page. Update `Status` in the same PR that ships the code.
-- Decisions are ADRs in `decisions/NNNN-slug.mdx` (Status, Context, Decision, Consequences, Alternatives considered, Related). Append-only; supersede, do not delete. Next number: 0044.
+- Decisions are ADRs in `decisions/NNNN-slug.mdx` (Status, Context, Decision, Consequences, Alternatives considered, Related). Append-only; supersede, do not delete. Next number: 0045.
 - Research pages end with Adopt / adapt / avoid and Decisions informed.
 - No `{`, `}` or bare `<` in prose (MDX parses them); use backticks.
 

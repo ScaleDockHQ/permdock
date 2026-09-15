@@ -40,6 +40,7 @@
     "@permdock/typescript-config": "workspace:*",
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
+    "marketing": "workspace:*",
     "typescript": "catalog:"
   }
 }
