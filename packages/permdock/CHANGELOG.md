@@ -54,6 +54,14 @@
 - 1688b67: Verify Web Bot Auth (RFC 9421) in the Fetch kernel. A claimed signature that fails is rejected with `invalid-signature`; a verified signer becomes `actor.kind: 'web-bot-auth'`.
 - 2d53152: Add `permdock/webmcp` `registerTools` so a page exposes only the WebMCP tools the current snapshot allows.
 - 370c42d: Add `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` `toWhere` compilers, including `memberOf`.
+- Typed vocabulary (`defineRoles`, `definePlans`), `to:` grantee selectors, `principal` refs, `actions()`, and snapshot v3.
+
+  Breaking before 1.0: `Role` is now the vocabulary leaf (`RoleBinding` is the grant list); `roles()` / `assignable()` rename to `heldRoles()` / `assignableRoles()` and return `Role[]`; `Grant.role` becomes `Grant.to`; snapshots emit `v: 3`.
+
+- Add `sqlFunction` conditions with an in-memory twin so SQL-authority RLS helpers stay portable. `permdock rls` generates the call, imports mapped functions via `pgsql-parser`, and `verify --db` proves the twin. PermDock Cloud must accept the new node in snapshots and decision events.
+- Remove the `subject` condition-ref builder and the `subject.*` ref prefix. `principal` and `context` are the only condition refs, `permdock rls generate` compiles them and `permdock rls import` emits `principal.*`. `Role` is no longer an alias of `RoleBinding`.
+
+  Breaking before 1.0: rename `subject.id` to `principal.id` and `subject.context.<key>` to `context.<key>` in policies. The `definePolicy` `subject` option is unchanged (ADR 0045).
 
 ### Patch Changes
 
@@ -63,3 +71,5 @@
 - c63761a: Add the drizzle example that compiles list and update grants with toWhere.
 - 5e51bd4: Add the prisma example that compiles list and update grants with toWhere.
 - fab063b: Add the supabase-rls example that maps claims through subjectFromSupabase.
+- Docs treat permix as one landscape reason for PermDock, not a rejected PR stack.
+- Document PermDock Cloud production hosts: dashboard `https://app.permdock.com`, API `https://api.permdock.com`, read-only MCP `https://mcp.permdock.com`.

@@ -81,15 +81,15 @@ Model conditions as a small typed tree over `subject` (id, claims, roles, permis
 
 | Portable node | Supabase SQL | Neon or generic GUC |
 |---|---|---|
-| `eq(row.user_id, subject.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` or `current_setting('app.user_id', true)::uuid = user_id` |
-| `eq(row.tenant_id, subject.claim('tenant_id'))` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | `tenant_id = current_setting('app.tenant_id', true)::uuid` |
-| `eq(subject.claim('user_role'), 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | GUC variant |
+| `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` or `current_setting('app.user_id', true)::uuid = user_id` |
+| `eq(row.tenant_id, principal.claim.tenant_id)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | `tenant_id = current_setting('app.tenant_id', true)::uuid` |
+| `eq(principal.claim.user_role, 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | GUC variant |
 | `claimContains('app_metadata.teams', row.team_id)` | `team_id in (select jsonb_array_elements_text((select auth.jwt())->'app_metadata'->'teams'))::uuid` | none |
 | `memberOf(join_table, { resource_col, user_col, extra eq or in })` | `id in (select resource_id from memberships where user_id = (select auth.uid()) [and role in (...)])` | same |
 | `hasPermission('channels.delete')` | `(select authorize('channels.delete'))` | opaque unless a function is mapped |
 | `eq(row.is_public, true)`, `eq(row.status, 'published')`, `isNull`, `isNotNull`, `true`, `false`, `and`, `or`, `not` | literal SQL | literal SQL |
 
-Import recognises both `EXISTS (select 1 from m where m.res_id = t.id and m.user_id = auth.uid())` and the `IN (subselect)` form as `memberOf`; generate emits the `IN` form (Supabase's performance guidance) or a `security definer` helper for hot tables. Everything else (`now()` and interval arithmetic, `CASE`, multi-join subqueries, `current_user`, custom functions, claim checks beyond simple equality such as `aal`) becomes an `opaque({ sql, fingerprint })` node: kept verbatim for regeneration, unusable for app-side `can()`, and flagged in the catalog. In PermDock's public vocabulary these nodes are written with the operators on the [conditions](/docs/concepts/conditions) page (`eq`, `in`, `and`, `or`, `not`, `subject.<field>`, `subject.context.<key>`); the table above uses the research report's working names.
+Import recognises both `EXISTS (select 1 from m where m.res_id = t.id and m.user_id = auth.uid())` and the `IN (subselect)` form as `memberOf`; generate emits the `IN` form (Supabase's performance guidance) or a `security definer` helper for hot tables. Everything else (`now()` and interval arithmetic, `CASE`, multi-join subqueries, `current_user`, custom functions, claim checks beyond simple equality such as `aal`) becomes an `opaque({ sql, fingerprint })` node: kept verbatim for regeneration, unusable for app-side `can()`, and flagged in the catalog. In PermDock's public vocabulary these nodes are written with the operators on the [conditions](/docs/concepts/conditions) page (`eq`, `in`, `and`, `or`, `not`, `principal.<field>`, `context.<key>`); the table above uses the research report's working names.
 
 ## Semantic mapping rules
 

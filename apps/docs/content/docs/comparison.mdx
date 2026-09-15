@@ -3,7 +3,7 @@ title: Comparison
 description: How PermDock differs from permix, CASL, Kilpi, zap-studio/permit, Better Auth access control, Cedar and Amazon Verified Permissions, Open Policy Agent, the Zanzibar family (OpenFGA, Auth0 FGA, SpiceDB, WorkOS FGA), Casbin, accesscontrol, hosted PDPs, ZenStack and the AI SDK OPA adapter.
 ---
 
-PermDock is in Phase 0: every PermDock capability below is a design, not shipped code. The other libraries are described as they were in September 2026, based on the [landscape survey](/docs/research/landscape) and the deep-dive research pages. Where a fact could not be verified it is left out rather than guessed.
+PermDock is at `0.1.0`: every PermDock capability below is shipped code unless its own page says `Status: planned`. The other libraries are described as they were in September 2026, based on the [landscape survey](/docs/research/landscape) and the deep-dive research pages. Where a fact could not be verified it is left out rather than guessed.
 
 The short version: the TypeScript space splits into in-process libraries with good key inference but weak data-layer and agent stories (permix, CASL, Kilpi, permit, Better Auth, accesscontrol, Casbin) and external policy engines with strings in and booleans out (Cedar and Amazon Verified Permissions, Open Policy Agent, the Zanzibar family of OpenFGA, Auth0 FGA, SpiceDB and WorkOS FGA, plus Cerbos, Permit.io and Oso Cloud). PermDock tries to be an in-process library with typed references over Standard Schema resources, one condition format that reaches SQL and RLS, structured decisions, and first-class MCP, AI SDK and AuthZEN surfaces.
 
@@ -157,7 +157,7 @@ The same idea has a different name in each engine. The table maps PermDock's ter
 
 ## When not to use PermDock
 
-- You need shipped code today. PermDock is Phase 0; CASL, permix, accesscontrol, Casbin and every engine on this page are installable now.
+- You need a library with years of production mileage. PermDock is at its first release; CASL, permix, accesscontrol, Casbin and every engine on this page have been installable for far longer.
 - Policy is authored and deployed by people outside the application's release cycle. Cedar with AVP, OPA and Cerbos give you a policy store, a separate deploy pipeline and a language a security team can own; PermDock's policies are TypeScript that ships with the app.
 - Several backends in different languages must enforce one policy. PermDock is TypeScript only. OPA, Cedar, Casbin and the Zanzibar servers have Go, Java, Python and .NET clients.
 - Authorization is a relationship graph. Sharing trees, nested groups and inheritance over large object counts belong in OpenFGA, Auth0 FGA or SpiceDB; PermDock's `pdp` bridge covers only the enforcement half.

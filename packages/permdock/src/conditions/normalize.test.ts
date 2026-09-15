@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { hasConditionOp } from './ast.ts';
 import { normalizeWhere } from './normalize.ts';
 import { opaque } from './opaque.ts';
-import { subject } from './refs.ts';
+import { principal } from './refs.ts';
 import { sqlFunction } from './sql-function.ts';
 
 describe('normalizeWhere', () => {
   it('turns object shorthand into a tagged AST and flattens compounds', () => {
     const condition = normalizeWhere({
-      authorId: subject.id,
+      authorId: principal.id,
       published: { eq: false },
       and: [{ tags: { contains: 'x' } }],
     });
@@ -24,12 +24,12 @@ describe('normalizeWhere', () => {
     const tagged = normalizeWhere({
       op: 'eq',
       field: 'authorId',
-      value: { ref: 'subject.id' },
+      value: { ref: 'principal.id' },
     });
     expect(tagged).toEqual({
       op: 'eq',
       field: 'authorId',
-      value: { ref: 'subject.id' },
+      value: { ref: 'principal.id' },
     });
     expect(normalizeWhere({ published: { isNull: true } })).toEqual({
       op: 'isNull',
@@ -99,7 +99,7 @@ describe('normalizeWhere', () => {
     ).toBe('not');
     const node = sqlFunction('job_permitted', {
       args: [{ field: 'id' }],
-      twin: { or: [{ scope: 'public' }, { authorId: subject.id }] },
+      twin: { or: [{ scope: 'public' }, { authorId: principal.id }] },
     });
     expect(hasConditionOp(node, 'sqlFunction')).toBe(true);
     expect(hasConditionOp(node, 'or')).toBe(true);

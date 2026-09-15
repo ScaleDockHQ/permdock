@@ -116,6 +116,6 @@ None. The receiver is exercised in `tests/integration` against recorded SETs fro
 
 - Replay store: in-memory is fine for a single instance; multi-instance deployments need a shared store, and the interface for it is undecided.
 - Whether to ship a stream-management helper (creating the stream at the transmitter, `add_subject`) or leave transmitter configuration to the IdP console.
-- How `assurance-level-change` should influence decisions beyond invalidation, for example a `subject.context.aal` value that conditions can reference.
+- How `assurance-level-change` should influence decisions beyond invalidation, for example a `context.aal` value that conditions can reference.
 - Whether client push (WebSocket or SSE `invalidate`) belongs in this adapter or in the React adapters with `permdock/ssf` only invalidating server tags.
 - Keycloak's transmitter is experimental; event shapes may change before Phase 3.

@@ -35,7 +35,7 @@ describe('conditionFromAst', () => {
     ).toMatchObject({
       op: 'eq',
       field: 'authorId',
-      value: { ref: 'subject.id' },
+      value: { ref: 'principal.id' },
     });
     expect(
       await conditionFromAst(
@@ -58,7 +58,7 @@ describe('conditionFromAst', () => {
     ).toMatchObject({
       op: 'eq',
       field: 'orgId',
-      value: { ref: 'subject.claim.tenant_id' },
+      value: { ref: 'principal.claim.tenant_id' },
     });
     expect(
       await conditionFromAst(
@@ -70,7 +70,7 @@ describe('conditionFromAst', () => {
     ).toMatchObject({
       op: 'eq',
       field: 'authorId',
-      value: { ref: 'subject.id' },
+      value: { ref: 'principal.id' },
     });
     expect(
       await conditionFromAst(
@@ -110,7 +110,11 @@ describe('conditionFromAst', () => {
         undefined,
         {
           job_permitted: {
-            twin: { op: 'eq', field: 'authorId', value: { ref: 'subject.id' } },
+            twin: {
+              op: 'eq',
+              field: 'authorId',
+              value: { ref: 'principal.id' },
+            },
             args: ['id'],
           },
         },

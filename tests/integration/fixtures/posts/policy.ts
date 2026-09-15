@@ -1,4 +1,4 @@
-import { allow, definePolicy, role, sqlFunction, subject } from 'permdock';
+import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
 
 import { permissions, roles } from './permissions.ts';
 
@@ -16,7 +16,7 @@ export const policy = definePolicy(
         allow(permissions.post.list),
         allow(permissions.post.create),
         allow(permissions.post.update, {
-          where: { authorId: subject.id },
+          where: { authorId: principal.id },
         }),
         allow(permissions.job.read, {
           where: sqlFunction('job_permitted', {

@@ -23,7 +23,7 @@ Implementers listed on the site include Zod 3.24+, Valibot 1.0+, ArkType 2.0+ an
 A permissions library has to know the shape of the things it protects. CASL infers nothing from schemas; permix asked users to write parallel interfaces; Kilpi hand-types resource objects per policy. Only `@zap-studio/permit` builds on Standard Schema, and it has no adapters. PermDock takes the same foundation and uses it in four places:
 
 1. **Types.** `resource(Post, ...)` infers the instance type from `InferOutput` so `permissions.post.update` is a `Permission` over `Post` and `can(permissions.post.update, post)` type-checks the second argument.
-2. **Conditions.** Portable `where` / `check` conditions are typed against the schema output, so `{ where: { authorId: subject.id } }` fails to compile if `Post` has no `authorId`.
+2. **Conditions.** Portable `where` / `check` conditions are typed against the schema output, so `{ where: { authorId: principal.id } }` fails to compile if `Post` has no `authorId`.
 3. **Boundary validation.** Data that crossed a trust boundary (HTTP body, MCP tool arguments, client `refresh`) is validated with the resource schema before a rule runs. See [validation](/docs/concepts/validation) and [ADR 0009](/docs/decisions/0009-boundary-validation).
 4. **Export.** Standard JSON Schema turns the same resource schemas into JSON Schema for the catalog, `permdock catalog`, and OpenAPI `components`, without Zod-specific converters.
 

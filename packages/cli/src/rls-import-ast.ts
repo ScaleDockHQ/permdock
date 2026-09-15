@@ -245,7 +245,7 @@ function argFromNode(value: unknown): SqlFunctionArg | undefined {
     return { field };
   }
   if (isAuthUid(value) || isCurrentSettingUserId(value)) {
-    return { ref: 'subject.id' };
+    return { ref: 'principal.id' };
   }
   return constValue(value);
 }
@@ -431,7 +431,7 @@ function mapNode(
                 ? 'lt'
                 : 'lte';
     if (isAuthUid(other) || isCurrentSettingUserId(other)) {
-      return { op: comparison, field: left, value: { ref: 'subject.id' } };
+      return { op: comparison, field: left, value: { ref: 'principal.id' } };
     }
     const literal = constValue(other);
     if (literal === undefined) {
@@ -440,7 +440,7 @@ function mapNode(
         return {
           op: comparison,
           field: left,
-          value: { ref: `subject.claim.${claim}` },
+          value: { ref: `principal.claim.${claim}` },
         };
       }
       return undefined;

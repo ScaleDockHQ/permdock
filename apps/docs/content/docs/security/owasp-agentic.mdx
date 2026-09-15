@@ -40,7 +40,7 @@ guarded.registerTool(
 )
 
 const member = role('member', [
-  allow(permissions.post.delete, { where: { authorId: subject.id }, approval: 'human' }),
+  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
   allow(permissions.billing.invoice.pay, { limit: { count: 10, per: '1h' } }),
 ])
 ```

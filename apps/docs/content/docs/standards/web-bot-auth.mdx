@@ -61,7 +61,7 @@ Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 ```ts
 const member = role('member', [
   allow(permissions.post.read),
-  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.update, { where: { authorId: principal.id } }),
   deny(permissions.post.publish, { where: { actor: { present: true } } }), // agents may draft, humans publish
 ])
 ```

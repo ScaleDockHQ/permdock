@@ -74,7 +74,7 @@ There is no standard tenant claim. The `claims.tenant` path is configuration, an
 
 ### PermDock as a claim source
 
-`permdock/authzen` serves `/access/v1/search/resource`. Under the AuthZEN claims draft an authorization server binds `roles` to a resource type and action (for example type `role`, action `hold`) and asks the PDP which resources the subject may act on; the answer is the claim value list. PermDock answers from `permdock.roles({ tenant })` and `permdock.memberships()` for the authenticated subject. This is Phase 2 and depends on the draft's adoption; recorded on the watch list.
+`permdock/authzen` serves `/access/v1/search/resource`. Under the AuthZEN claims draft an authorization server binds `roles` to a resource type and action (for example type `role`, action `hold`) and asks the PDP which resources the subject may act on; the answer is the claim value list. PermDock answers from `permdock.heldRoles({ tenant })` and `permdock.memberships()` for the authenticated subject. This is Phase 2 and depends on the draft's adoption; recorded on the watch list.
 
 ## Mapping table
 

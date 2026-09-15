@@ -57,7 +57,7 @@ Until the registration lands, the extensions are still valid OpenAPI (any `x-` f
 | Extension | Appears on | JSON shape | Purpose |
 | --- | --- | --- | --- |
 | `x-permdock-permissions` | Operation | Array of permission keys: `["post.delete"]`; the matching `scope` of each key appears in the operation's `security` | The permissions `protect` enforces on the route, in catalog terms |
-| `x-permdock-conditions` | Operation | Object keyed by permission key whose values are portable condition JSON ([wire formats](/docs/concepts/wire-formats)) | What a scope allows beyond "the scope is present", e.g. `authorId = subject.id` |
+| `x-permdock-conditions` | Operation | Object keyed by permission key whose values are portable condition JSON ([wire formats](/docs/concepts/wire-formats)) | What a scope allows beyond "the scope is present", e.g. `authorId = principal.id` |
 | `x-permdock-securityProfile` | Security Scheme, Operation, root | String, currently `"fapi2"` | Declares that the resource server implements a named security profile ([FAPI 2.0](/docs/standards/fapi-2)); an operation-level value overrides the scheme's. On `--target 3.3` output it is the stable twin of the native `type: profile` scheme and `securityProfileRequirements` emitted from the pinned [OpenAPI 3.3](/docs/standards/openapi-3-3) draft, so consumers that ignore the draft still see the declaration |
 | `x-permdock-approval` | Operation | Object keyed by permission key: `{ "post.delete": { "reason": "human" } }` | The operation may answer `approval-required`; clients can plan for an approval step ([approvals](/docs/security/approvals)) |
 | `x-permdock-oauth2MetadataUrl` | Security Scheme (3.1 targets only) | URL string | Fallback for the 3.2 `oauth2MetadataUrl` field, for which no `x-oai-*` extension is registered |
@@ -74,7 +74,7 @@ Every value is plain JSON that survives the same round trips as a permission lea
         "security": [{ "permdockOAuth": ["post:delete"] }],
         "x-permdock-permissions": ["post.delete"],
         "x-permdock-conditions": {
-          "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } }
+          "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } }
         },
         "x-permdock-approval": { "post.delete": { "reason": "human" } },
         "x-permdock-securityProfile": "fapi2",

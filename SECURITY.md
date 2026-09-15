@@ -12,13 +12,13 @@ We acknowledge security reports within 48 hours.
 
 ## Supported versions
 
-PermDock is not published on npm yet (Phase 0). Once `0.x` ships, patch versions on the current minor are supported. There is no long-term support line until 1.0.
+PermDock is published on npm as `0.1.0`. Patch versions on the current minor are supported. There is no long-term support line until 1.0.
 
-| Version               | Supported             |
-| --------------------- | --------------------- |
-| Unpublished / Phase 0 | Yes (this repository) |
-| 0.x (once published)  | Current minor only    |
-| 1.x                   | When Phase 4 lands    |
+| Version                | Supported          |
+| ---------------------- | ------------------ |
+| 0.1.x                  | Yes                |
+| 0.x (an earlier minor) | No                 |
+| 1.x                    | When Phase 4 lands |
 
 ## What to include
 

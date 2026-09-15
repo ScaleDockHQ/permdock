@@ -41,7 +41,7 @@ const seeded = rolesFromAccessControl({ ac, roles: { owner, admin, member } }, p
 export const policy = definePolicy(permissions, {
   roles: [
     ...seeded,                                                                   // 'member' gets allow(post.read), allow(post.create), ... scoped to the organization
-    role('member', [allow(permissions.post.update, { where: { authorId: subject.id } })], { on: 'tenant' }),  // fragment merges by name
+    role('member', [allow(permissions.post.update, { where: { authorId: principal.id } })], { on: 'tenant' }),  // fragment merges by name
     role('support', [allow(permissions.post.read)]),                             // global: admin plugin role
   ],
   scopes: { tenant: { key: 'organizationId' }, team: { key: 'teamId' } },

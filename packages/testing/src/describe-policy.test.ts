@@ -10,11 +10,11 @@ import {
   definePolicy,
   defineRoles,
   deny,
+  principal,
   relation,
   resource,
   role,
   sqlFunction,
-  subject,
 } from 'permdock';
 import { memoryLimitStore, memoryRoleSource, memorySink } from 'permdock';
 import { memoryApprovalStore } from 'permdock/approvals';
@@ -67,9 +67,9 @@ const member = role('member', [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.update, { where: { authorId: principal.id } }),
   allow(permissions.post.delete, {
-    where: { authorId: subject.id },
+    where: { authorId: principal.id },
     approval: 'human',
   }),
 ]);
@@ -140,7 +140,7 @@ const sqlFunctionPolicy = definePolicy(permissions, {
       allow(permissions.post.read, {
         where: sqlFunction('job_permitted', {
           args: [{ field: 'id' }],
-          twin: { authorId: subject.id },
+          twin: { authorId: principal.id },
         }),
       }),
     ]),

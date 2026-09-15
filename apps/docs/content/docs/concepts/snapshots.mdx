@@ -34,7 +34,7 @@ The TypeScript type is `Snapshot`; `v` is the format major. Version 3 adds `gran
 
 ```json
 {
-  "v": 2,
+  "v": 3,
   "issuedAt": 1788999900,
   "subject": {
     "principal": {
@@ -49,14 +49,18 @@ The TypeScript type is `Snapshot`; `v` is the format major. Version 3 adds `gran
     "context": { "plan": "pro" }
   },
   "roles": ["support", "member", "lead", "editor"],
+  "vocabulary": {
+    "roles": { "member": { "key": "member", "assignable": true }, "lead": { "key": "lead", "on": "team", "assignable": true } }
+  },
   "grants": [
-    { "permission": "post.read",    "effect": "allow", "role": "member", "scope": "tenant" },
+    { "permission": "post.read",    "effect": "allow", "role": "member", "scope": "tenant",
+      "to": { "kind": "role", "role": "member", "scope": "tenant" } },
     { "permission": "post.update",  "effect": "allow", "role": "member", "scope": "tenant",
-      "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
+      "where": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } } },
     { "permission": "post.publish", "effect": "allow", "role": "lead", "scope": "team", "membership": { "tenant": "o_1", "team": "t_design" } },
     { "permission": "document.update", "effect": "allow", "role": "editor", "scope": { "resource": "document" }, "membership": { "on": { "resource": "document", "id": "d_9" } } },
     { "permission": "post.delete",  "effect": "allow", "role": "member", "scope": "tenant", "approval": "human",
-      "where": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } } },
+      "where": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } } },
     { "permission": "post.archive", "effect": "allow", "role": "member", "scope": "tenant", "portable": false }
   ],
   "tenants": ["o_1"],
@@ -66,7 +70,7 @@ The TypeScript type is `Snapshot`; `v` is the format major. Version 3 adds `gran
 
 | Field | Meaning |
 | --- | --- |
-| `v` | Format version. Readers reject unknown majors; the format is public and documented here and in [wire formats](/docs/concepts/wire-formats). v1 (no memberships, no `scope`) is still accepted by readers. |
+| `v` | Format version, currently `3`. Readers reject unknown majors; the format is public and documented here and in [wire formats](/docs/concepts/wire-formats). v1 (no memberships, no `scope`) and v2 (no `to`, no `vocabulary`) are still accepted by readers. |
 | `subject` | The frozen principal (including `memberships` and the active `tenant`), delegation and context the conditions reference. The actor's secrets are never included. |
 | `roles` | The role names that were applied, custom roles resolved to declared names. |
 | `grants` | One entry per grant, keyed by permission `key`; conditions in the [portable JSON form](/docs/concepts/conditions). |

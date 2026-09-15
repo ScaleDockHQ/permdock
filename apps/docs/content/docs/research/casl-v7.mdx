@@ -131,7 +131,7 @@ Conditions are Prisma `WhereInput` parsed by a ucast `PrismaQueryParser` ([Prism
 11. [#427](https://github.com/stalniy/casl/issues/427), [#621](https://github.com/stalniy/casl/issues/621), [#1231](https://github.com/stalniy/casl/issues/1231): ESM/CJS and Prisma output-path packaging breakages.
 12. [Discussion #1078](https://github.com/stalniy/casl/discussions/1078): no templating for `user.id` placeholders in database-stored rules; [#8](https://github.com/stalniy/casl/issues/8) (open since 2017, 68 comments): generic SQL support never landed.
 
-The last item is directly relevant: CASL rules hold concrete values (`authorId: user.id`), which is why they cannot be stored per role or compiled to RLS. PermDock conditions reference `subject.id` symbolically and bind values at evaluation or compile time ([conditions](/docs/concepts/conditions)).
+The last item is directly relevant: CASL rules hold concrete values (`authorId: user.id`), which is why they cannot be stored per role or compiled to RLS. PermDock conditions reference `principal.id` symbolically and bind values at evaluation or compile time ([conditions](/docs/concepts/conditions)).
 
 ## Adopt / adapt / avoid
 

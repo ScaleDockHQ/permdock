@@ -186,7 +186,7 @@ export const policy = definePolicy(permissions, {
     const cwd = appCopy();
     writeFileSync(
       join(cwd, 'src/fn-policy.ts'),
-      `import { allow, definePolicy, role, sqlFunction, subject } from 'permdock';
+      `import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
 import { permissions } from './permissions.ts';
 
 export const policy = definePolicy(permissions, {
@@ -195,7 +195,7 @@ export const policy = definePolicy(permissions, {
       allow(permissions.post.read, {
         where: sqlFunction('job_permitted', {
           args: [{ field: 'id' }],
-          twin: { authorId: subject.id },
+          twin: { authorId: principal.id },
         }),
       }),
     ]),

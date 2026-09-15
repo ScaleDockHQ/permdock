@@ -52,7 +52,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 | `subject.type`, `subject.id`, `subject.properties` | principal; `properties.actor` and `properties.delegation` (scopes / `authorization_details`) fill the agent half of the subject when present |
 | `action.name` | joined with `resource.type` to look up `findPermission(permissions, 'post.update')`; `action.properties.scope` accepted as an alternative |
 | `resource.type`, `resource.id`, `resource.properties` | the resource instance: `properties` used directly when complete, otherwise loaded via `resources.<type>.load` |
-| `context` | `subject.context` values available to conditions |
+| `context` | `context.<key>` values available to conditions |
 
 4. The decision runs; `evaluations` uses `simulate` so a plan is evaluated as one boxcar with shared subject resolution.
 5. The response is built: `decision: true|false` plus a `context` object carrying the PermDock Decision (`outcome`, `denials`, `alternatives`, `token` for `approval-required`).

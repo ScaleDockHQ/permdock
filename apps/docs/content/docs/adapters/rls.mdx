@@ -51,9 +51,9 @@ Portable subset compiled by `generate` and recognised by `import`:
 | Portable node | `supabase` | `neon` | `guc` |
 |---|---|---|---|
 | `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` | `current_setting('app.user_id', true)::uuid = user_id` |
-| `eq(row.tenant_id, subject.claim('tenant_id'))` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = tenant_id` |
-| `eq(subject.claim('user_role'), 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | claim function | GUC read |
-| membership (`in(row.id, subject.context.teamIds)`) | `id in (select team_id from team_user where user_id = (select auth.uid()))` | same | same |
+| `eq(row.tenant_id, principal.claim.tenant_id)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = tenant_id` |
+| `eq(principal.claim.user_role, 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | claim function | GUC read |
+| membership (`in(row.id, context.teamIds)`) | `id in (select team_id from team_user where user_id = (select auth.uid()))` | same | same |
 | `sqlFunction('job_permitted', { args, twin })` | `job_permitted("id")` (`--inline-functions` emits the twin) | same | same |
 | `memberOf(tenant, row.org_id, roles)` from a tenant-scoped role, active tenant in a claim | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = org_id` |
 | `memberOf(tenant, row.org_id, roles)` with a membership table (`supabaseRls({ memberships })` or `--memberships <table>`) | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any('{admin,viewer}'))` | same | same, user from the GUC |
@@ -127,7 +127,7 @@ The in-process side answers with a [Decision](/docs/concepts/decisions), so a `d
 
 ## Open questions
 
-- Membership conditions: resolved by [ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships). Scoped roles produce a dedicated `memberOf` node compiled through the dialect's `memberships` mapping; the older `in(row.id, subject.context.<key>)` form stays supported for hand-written grants. Still open: whether `import` should propose a `memberships` mapping when it finds an `exists` join over a table it does not know.
+- Membership conditions: resolved by [ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships). Scoped roles produce a dedicated `memberOf` node compiled through the dialect's `memberships` mapping; the older `in(row.id, context.<key>)` form stays supported for hand-written grants. Still open: whether `import` should propose a `memberships` mapping when it finds an `exists` join over a table it does not know.
 - `FORCE ROW LEVEL SECURITY` and `security_invoker` views: emit by default or behind flags.
 - How app roles that are claims (`user_role`) map when a project uses Postgres roles per tenant instead of Supabase's three roles.
 - Whether `import` should write into `definePolicy` role fragments as well as `definePermissions`, or leave grants to the author.

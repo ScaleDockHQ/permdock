@@ -25,8 +25,14 @@ jobs:
           cache: true
           require-lockfile: true
 
+      - name: Check
+        run: pnpm run check
+
       - name: Build
         run: pnpm run build
+
+      - name: Test
+        run: pnpm run test
 
       - name: Create release pull request or publish
         uses: changesets/action@v1

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { subject } from '../conditions/refs.ts';
+import { context, principal } from '../conditions/refs.ts';
 import { fromSnapshot } from './from-snapshot.ts';
 import { createPermDock } from './permdock.ts';
 import { definePermissions, resource } from './permissions.ts';
@@ -37,7 +37,7 @@ describe('async context', () => {
       roles: [
         role('member', [
           allow(permissions.post.read, {
-            where: { teamId: { in: subject.context.teamIds } },
+            where: { teamId: { in: context.teamIds } },
           }),
         ]),
       ],
@@ -59,7 +59,7 @@ describe('async context', () => {
       roles: [
         role('member', [
           allow(permissions.post.read, {
-            where: { teamId: { in: subject.context.teamIds } },
+            where: { teamId: { in: context.teamIds } },
           }),
         ]),
       ],
@@ -84,7 +84,7 @@ describe('async context', () => {
       roles: [
         role('member', [
           allow(permissions.post.read, {
-            where: { teamId: { in: subject.context.teamIds } },
+            where: { teamId: { in: context.teamIds } },
           }),
         ]),
       ],

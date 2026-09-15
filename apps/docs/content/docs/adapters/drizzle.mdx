@@ -10,7 +10,7 @@ Phase: 3
 
 ## Purpose
 
-A condition such as `where: { authorId: subject.id }` is evaluated in memory by `can`, serialised into snapshots for the client, and must also filter a list query in the database, or the UI and the API disagree about which rows exist. CASL proved that one condition AST can drive an in-memory interpreter and a `where` builder, and that priority must be respected when flattening allows and denies ([CASL research](/docs/research/casl-v7)). `permdock/drizzle` is the Drizzle interpreter for PermDock's [conditions](/docs/concepts/conditions), and Drizzle is the primary RLS compile target because `pgPolicy` and `drizzle-orm/supabase` already model policies as code ([RLS research](/docs/research/postgres-rls)).
+A condition such as `where: { authorId: principal.id }` is evaluated in memory by `can`, serialised into snapshots for the client, and must also filter a list query in the database, or the UI and the API disagree about which rows exist. CASL proved that one condition AST can drive an in-memory interpreter and a `where` builder, and that priority must be respected when flattening allows and denies ([CASL research](/docs/research/casl-v7)). `permdock/drizzle` is the Drizzle interpreter for PermDock's [conditions](/docs/concepts/conditions), and Drizzle is the primary RLS compile target because `pgPolicy` and `drizzle-orm/supabase` already model policies as code ([RLS research](/docs/research/postgres-rls)).
 
 ## API
 
@@ -32,7 +32,7 @@ toWhere(condition, posts, { columns: { authorId: posts.author_id } })
 
 - `toWhere(condition, table, options?)` maps each condition field to a column of `table` by name (or via `options.columns`), and each operator (`eq`, `ne`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `isNull`, `contains`, `and`, `or`, `not`) to the Drizzle operator of the same meaning. `drizzle-orm` is an optional peer; tests can inject `options.operators`.
 - `memberOf` compiles from the frozen subject when `options.memberships` is omitted: tenant scope with an active `principal.tenant` is equality on that id, otherwise `inArray` over held tenants; team scope is `inArray` of team ids (dropping memberships whose tenant is not the active one); resource scope is `inArray` on the row field plus `or` over `parents`. With `options.memberships`, it emits `exists (select 1 from <table> m ...)` including `expiresAt` and an active-tenant column on team scopes.
-- `subject.<field>` and `subject.context.<key>` references are resolved to bound parameters from the request-scoped `PermDock` before compilation; the result contains no user-controlled SQL.
+- `principal.<field>` and `context.<key>` references are resolved to bound parameters from the request-scoped `PermDock` before compilation; the result contains no user-controlled SQL.
 - When nothing is granted, `toWhere` returns a constant `false` SQL expression so the query yields no rows (fail closed).
 - Closure grants cannot compile; `permdock.where` reports them as `{ portable: false }` and `toWhere` throws `PermDockValidationError` with the offending grant.
 
@@ -57,7 +57,7 @@ export const posts = pgTable('posts', { /* columns */ }, (t) => [
 4. The app composes the expression with its own filters and runs the query.
 5. `on('decision')` fires once with `outcome` derived from whether anything was granted, plus `permdock.filter`-style metadata for observability.
 
-For RLS, the same tree is compiled by the CLI at build time instead of per request; `subject.id` becomes `(select auth.uid())` under the `supabase` dialect, a GUC read under `guc`, and `auth.user_id()` under `neon` (see [RLS](/docs/adapters/rls)).
+For RLS, the same tree is compiled by the CLI at build time instead of per request; `principal.id` becomes `(select auth.uid())` under the `supabase` dialect, a GUC read under `guc`, and `auth.user_id()` under `neon` (see [RLS](/docs/adapters/rls)).
 
 ## What it validates
 

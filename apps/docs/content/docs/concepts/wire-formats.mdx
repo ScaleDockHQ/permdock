@@ -1,6 +1,6 @@
 ---
 title: Wire formats
-description: The JSON shapes PermDock reads and writes, permission leaves, conditions, snapshot v2, memberships and custom roles, AuthZEN messages, the catalog, Decisions and Problem Details, with an example of each.
+description: The JSON shapes PermDock reads and writes, permission leaves, conditions, snapshot v3, memberships and custom roles, AuthZEN messages, the catalog, Decisions and Problem Details, with an example of each.
 ---
 
 Everything PermDock puts on a wire, in a file or in a log is plain JSON with a documented shape. No superjson, no class instances, no private compact encodings. This page is the reference for those shapes; the concept pages explain the semantics. Field names are final as of the Phase 1 core milestone.
@@ -23,14 +23,14 @@ Everything PermDock puts on a wire, in a file or in a log is plain JSON with a d
 
 ## Condition
 
-The normalised form of `{ where: { authorId: subject.id, teamId: { in: subject.context.teamIds } } }`. See [conditions](/docs/concepts/conditions).
+The normalised form of `{ where: { authorId: principal.id, teamId: { in: context.teamIds } } }`. See [conditions](/docs/concepts/conditions).
 
 ```json
 {
   "op": "and",
   "conditions": [
-    { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } },
-    { "op": "in", "field": "teamId", "value": { "ref": "subject.context.teamIds" } }
+    { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } },
+    { "op": "in", "field": "teamId", "value": { "ref": "context.teamIds" } }
   ]
 }
 ```
@@ -41,7 +41,7 @@ The normalised form of `{ where: { authorId: subject.id, teamId: { in: subject.c
 | Membership | `{ "op": "in" \| "notIn", "field": string, "value": Value[] \| Ref }` |
 | Null test | `{ "op": "isNull", "field": string, "value": boolean }` |
 | Compound | `{ "op": "and" \| "or", "conditions": Condition[] }`, `{ "op": "not", "condition": Condition }` |
-| Reference | `{ "ref": "subject.<field>" }` or `{ "ref": "subject.context.<key>" }` |
+| Reference | `{ "ref": "principal.<field>" }` or `{ "ref": "context.<key>" }`. No other prefix resolves ([0045](/docs/decisions/0045-drop-subject-ref-alias)). |
 | Date | `{ "date": "2026-09-06T10:15:00Z" }` |
 | Scope (from scoped roles) | `{ "op": "memberOf", "scope": "tenant" \| "team" \| "resource", "field": string, "roles": string[], "resource"?: string, "parents"?: string[] }` ([tenancy](/docs/concepts/tenancy)) |
 | SQL function | `{ "op": "sqlFunction", "name": string, "args": array, "twin": Condition }` ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)). Each arg is a value or `{ "field": "id" }`. |
@@ -70,8 +70,8 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
   },
   "roles": ["member", "lead"],
   "vocabulary": {
-    "roles": [{ "key": "member", "assignable": true }, { "key": "lead", "on": "team", "assignable": true }],
-    "plans": [{ "key": "pro" }]
+    "roles": { "member": { "key": "member", "assignable": true }, "lead": { "key": "lead", "on": "team", "assignable": true } },
+    "plans": { "pro": { "key": "pro" } }
   },
   "grants": [
     { "permission": "post.read", "effect": "allow", "role": "member", "scope": "tenant",
@@ -234,7 +234,7 @@ Signed snapshot, decoded:
   "iat": 1788999900,
   "exp": 1789000000,
   "jti": "snap_01J8…",
-  "snapshot": { "v": 2, "issuedAt": 1788999900, "expiresAt": 1789000000, "subject": { "…": "…" }, "roles": ["member"], "grants": ["…"], "tenants": ["o_1"], "include": ["post"] }
+  "snapshot": { "v": 3, "issuedAt": 1788999900, "expiresAt": 1789000000, "subject": { "…": "…" }, "roles": ["member"], "grants": ["…"], "tenants": ["o_1"], "include": ["post"] }
 }
 ```
 

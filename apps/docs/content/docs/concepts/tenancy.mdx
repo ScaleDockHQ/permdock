@@ -4,7 +4,7 @@ description: Memberships put roles in a scope (a tenant, a team, one resource); 
 ---
 
 Status: proposed ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships))
-Phase: 1 (evaluator, snapshot v2, interfaces), 3 (`memberOf` compilers, RLS), 4 (provider `RoleSource` implementations)
+Phase: 1 (evaluator, snapshot v3, interfaces), 3 (`memberOf` compilers, RLS), 4 (provider `RoleSource` implementations)
 
 A role in a real SaaS application is rarely global. Alice is an admin of Acme and a viewer of Globex; the design team edits everything in the design folder; Bob shared one document with Carol; Acme's admin invented a "Billing Manager" role nobody coded. PermDock models all four with one addition to the [subject](/docs/concepts/subject): a list of **memberships**, each naming a scope and the roles held there. Roles declared with `role()` say where they apply; grants stay exactly as they are; the tenant condition you used to repeat on every grant becomes part of the role. Authentication, tenant objects, invitations and membership storage stay with your auth provider ([ADR 0018](/docs/decisions/0018-authentication-is-upstream)); PermDock reads the result. The survey behind this page is [SaaS tenancy and roles](/docs/research/saas-tenancy-and-roles).
 
@@ -94,7 +94,7 @@ Two more options:
 
 `scopes.tenant.key` must be a field of `StandardSchemaV1.InferOutput` for every resource a tenant-scoped grant references; a missing field is a compile error on the grant, the same way `id` is checked today. A resource without the key is global by construction (a `plan` catalogue everyone reads), and `permdock doctor` warns when tenant roles exist and a resource that looks tenant-owned lacks the key. Collection actions (`post.create`, `post.list`) have no row, so they require the active tenant to be one of the subject's memberships holding the role; that is what stops "create in a tenant I can see but do not belong to".
 
-The `where: { orgId: subject.orgId }` convention still works and still compiles; scoped roles are the shorter, un-forgettable form of the same condition. A grant may carry both (a tenant admin may only publish unpublished posts: `allow(permissions.post.publish, { where: { published: false } })` on a tenant-scoped role).
+The `where: { orgId: principal.orgId }` convention still works and still compiles; scoped roles are the shorter, un-forgettable form of the same condition. A grant may carry both (a tenant admin may only publish unpublished posts: `allow(permissions.post.publish, { where: { published: false } })` on a tenant-scoped role).
 
 ### Resource roles and parents
 
@@ -119,7 +119,7 @@ An `editor` membership on folder `f_1` matches `document.update` for a document 
 ```ts
 allow([permissions.post.read, permissions.post.list, permissions.comment.read])
 allow(listPermissions(permissions.post))            // everything on one resource
-allow([permissions.post.update, permissions.post.delete], { where: { authorId: subject.id } })
+allow([permissions.post.update, permissions.post.delete], { where: { authorId: principal.id } })
 ```
 
 Each reference becomes its own grant in the normalised policy, the catalog and the snapshot; the array is declaration sugar only, and `permdock collect` sees the individual leaves. Strings never appear; `listPermissions` returns references.
@@ -206,7 +206,7 @@ permdock.team('t_design').can(permissions.post.publish)                    // sc
 
 permdock.memberships()             // Membership[]           for org lists and role chips
 permdock.tenants()                 // string[]               tenants the subject belongs to
-permdock.roles({ tenant: 'o_acme' })  // string[]            roles held there, custom roles resolved
+permdock.heldRoles({ tenant: 'o_acme' })  // Role[]        roles held there, custom roles resolved
 permdock.heldRoles({ tenant })     // Role[]                roles held in a tenant
 permdock.assignableRoles()         // Role[]                roles the subject may hand out in the active tenant
 ```

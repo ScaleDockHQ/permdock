@@ -93,25 +93,14 @@ function sqlValue(value: ConditionValue, ctx: RlsSqlContext): string {
 }
 
 function compileRef(ref: string, ctx: RlsSqlContext): string {
-  if (
-    ref === 'subject.id' ||
-    ref === 'principal.id' ||
-    ref === 'subject.principal.id'
-  ) {
+  if (ref === 'principal.id') {
     return subjectIdSql(ctx);
   }
-  if (
-    ref === 'subject.principal.tenant' ||
-    ref === 'subject.tenant' ||
-    ref === 'principal.tenant'
-  ) {
+  if (ref === 'principal.tenant') {
     return subjectClaimSql(ctx, ctx.tenantClaim);
   }
   const claim =
-    ref.startsWith('subject.claim.') ||
-    ref.startsWith('subject.claims.') ||
-    ref.startsWith('principal.claim.') ||
-    ref.startsWith('principal.claims.')
+    ref.startsWith('principal.claim.') || ref.startsWith('principal.claims.')
       ? ref.slice(ref.indexOf('.', ref.indexOf('.') + 1) + 1)
       : undefined;
   if (claim !== undefined) {

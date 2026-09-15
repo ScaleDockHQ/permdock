@@ -95,7 +95,7 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject` and 
 
 | AuthZEN 1.0 concept | PermDock concept |
 | --- | --- |
-| `subject.type`, `subject.id` | `principal` (`subject.id` in policy conditions) |
+| `subject.type`, `subject.id` | `principal` (`principal.id` in policy conditions) |
 | `subject.properties` | Principal fields returned by `definePolicy`'s `subject` function, plus `actor` |
 | `subject.properties.memberships` | `principal.memberships` (tenant, team and resource roles, [tenancy](/docs/concepts/tenancy)) |
 | `context.tenant` | `principal.tenant`, the active tenant for this request; absent means no tenant, never a default |
@@ -112,7 +112,7 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject` and 
 | `/search/action` | Granted keys from `listPermissions` for one resource (the catalog question) |
 | `/search/resource` | `filter` for arrays, `where` for query compilers |
 | `/search/subject` | Iterating known subjects; Phase 2, see open questions |
-| `/search/resource` as a claim source (AuthZEN claims draft) | `permdock.roles({ tenant })` and `memberships()` for the authenticated subject ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) |
+| `/search/resource` as a claim source (AuthZEN claims draft) | `permdock.heldRoles({ tenant })` and `memberships()` for the authenticated subject ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) |
 | `.well-known` metadata | `.well-known/authzen-configuration` served by `handler` |
 | Certification levels Basic / Batch / Search / Discovery | Phase 2 target for `permdock/authzen` |
 

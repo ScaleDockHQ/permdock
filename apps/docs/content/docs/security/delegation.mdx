@@ -29,7 +29,7 @@ A call with no `actor` is a human call and behaves exactly as `createPermDock(po
 
 1. **Agent ≤ user.** For every permission, `asAgent.can(p, x)` implies `asUser.can(p, x)`. Delegation can only remove or narrow grants. This is enforced by construction: `decide` evaluates the principal's grants first, then filters by delegation.
 2. **Chain hops only narrow.** In a multi-hop chain (user to orchestrator to sub-agent), each hop's authority is the intersection of the previous hop's authority with what it passes on. A hop that names a scope or `authorization_details` entry the previous hop lacked is rejected, and the decision is `denied` with a reason of kind `delegation` naming the offending hop.
-3. **Conditions intersect.** When a grant has `where: { authorId: subject.id }` and the delegation's `authorization_details` for the same permission has a further constraint, both must hold. A delegation cannot relax a grant condition.
+3. **Conditions intersect.** When a grant has `where: { authorId: principal.id }` and the delegation's `authorization_details` for the same permission has a further constraint, both must hold. A delegation cannot relax a grant condition.
 4. **Approval survives delegation.** A grant with `approval: 'human'` still requires approval when exercised through an agent; delegation cannot pre-approve. The approval `token` includes `actor`, so the approval is bound to the agent that asked.
 5. **Deny is not delegable away.** A `deny` grant applies regardless of delegation; an agent cannot be delegated around a deny.
 6. **Fail closed on unknowns.** An `authorization_details` type PermDock does not recognise, a scope that matches no permission, or a malformed chain contributes nothing; it never widens.

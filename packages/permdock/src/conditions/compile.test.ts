@@ -5,16 +5,16 @@ import type { Subject } from '../core/subject.ts';
 import { PermDockValidationError } from '../core/errors.ts';
 import { compileWhere } from './compile.ts';
 import { opaque } from './opaque.ts';
-import { subject } from './refs.ts';
+import { principal } from './refs.ts';
 import { sqlFunction } from './sql-function.ts';
 
 const now = 1_700_000_000;
 
 function sub(
-  principal: NonNullable<Subject['principal']>,
-  context: Subject['context'] = {},
+  who: NonNullable<Subject['principal']>,
+  ctx: Subject['context'] = {},
 ): Subject {
-  return { principal, context };
+  return { principal: who, context: ctx };
 }
 
 describe('compileWhere', () => {
@@ -63,7 +63,7 @@ describe('compileWhere', () => {
     const who = sub({ id: 'u1', orgId: 'o1' }, { teamIds: ['t1', 't2'] });
     expect(
       compileWhere(
-        { op: 'eq', field: 'authorId', value: subject.id },
+        { op: 'eq', field: 'authorId', value: principal.id },
         { subject: who },
       ),
     ).toEqual({ kind: 'compare', op: 'eq', field: 'authorId', value: 'u1' });
@@ -72,7 +72,7 @@ describe('compileWhere', () => {
         {
           op: 'in',
           field: 'teamId',
-          value: { ref: 'subject.context.teamIds' },
+          value: { ref: 'context.teamIds' },
         },
         { subject: who },
       ),
@@ -430,19 +430,19 @@ describe('compileWhere', () => {
     const who = sub({ id: 'u1', orgId: 'o9' }, { deep: { n: 1 } });
     expect(
       compileWhere(
-        { op: 'eq', field: 'orgId', value: { ref: 'subject.orgId' } },
+        { op: 'eq', field: 'orgId', value: { ref: 'principal.orgId' } },
         { subject: who },
       ),
     ).toEqual({ kind: 'compare', op: 'eq', field: 'orgId', value: 'o9' });
     expect(
       compileWhere(
-        { op: 'eq', field: 'n', value: { ref: 'subject.context.deep.n' } },
+        { op: 'eq', field: 'n', value: { ref: 'context.deep.n' } },
         { subject: who },
       ),
     ).toEqual({ kind: 'compare', op: 'eq', field: 'n', value: 1 });
     expect(
       compileWhere(
-        { op: 'in', field: 'id', value: { ref: 'subject.context.missing' } },
+        { op: 'in', field: 'id', value: { ref: 'context.missing' } },
         { subject: who },
       ),
     ).toEqual({ kind: 'never' });

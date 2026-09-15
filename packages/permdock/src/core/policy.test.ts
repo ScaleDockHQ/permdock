@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { subject } from '../conditions/refs.ts';
+import { principal } from '../conditions/refs.ts';
 import { definePermissions, resource } from './permissions.ts';
 import { allow, definePolicy, deny, inferOutput, role } from './policy.ts';
 
@@ -16,7 +16,7 @@ describe('policy', () => {
   it('normalises grants, merges role fragments and fingerprints', () => {
     const memberA = role('member', [allow(permissions.post.read)]);
     const memberB = role('member', [
-      allow(permissions.post.update, { where: { authorId: subject.id } }),
+      allow(permissions.post.update, { where: { authorId: principal.id } }),
     ]);
     const policy = definePolicy(permissions, {
       roles: [memberA, memberB],

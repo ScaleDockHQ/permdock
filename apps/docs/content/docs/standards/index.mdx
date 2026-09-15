@@ -3,7 +3,7 @@ title: Standards
 description: Why PermDock is standards-first and which specification each part of the library implements or targets.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 PermDock is an in-process library, not a hosted policy service. It still has to talk to the rest of an authorization stack: identity providers that issue tokens, policy decision points that already exist in an organisation, API gateways that read OpenAPI documents, database engines that enforce row-level security, and agent runtimes (MCP servers, the AI SDK, the Claude Agent SDK, A2A agents, browsers running WebMCP) that need a yes/no/ask answer for every tool call. Every one of those seams already has a specification. PermDock adopts the specification instead of inventing a wire format, a policy language or a token shape of its own.

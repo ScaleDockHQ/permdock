@@ -63,8 +63,8 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `webBotAuth`, `discoverViaSignatureAgent` | Option on HTTP `createPermDock` that verifies RFC 9421 signatures when `verify` is true, and the `Signature-Agent` directory lookup with an `allow` host list. Not a named export. | A `permdock/web-bot-auth` package; trusting a host that is not on `allow` |
 | `InvalidSignatureError` | Thrown by `permdock(request)` when a claimed Web Bot Auth signature fails; `protect` returns the Problem Details `response` instead | Downgrading a failed signature to an anonymous actor |
 | `allow`, `deny` | The two grant constructors; both accept one reference or an array and a `to` grantee | Checking |
-| `principal` | The condition ref builder (`principal.id`) and the `definePolicy` option that maps a user to principal values | The RFC 8693 `Subject` (that stays `subject` on the instance) |
-| `subject` | Deprecated alias of the condition ref builder and of the `definePolicy` mapper; still accepted | The agent (that is `actor`) |
+| `principal` | The condition ref builder (`principal.id`) and the `definePolicy` option that maps a user to principal values. There is no `subject` ref builder ([0045](/docs/decisions/0045-drop-subject-ref-alias)); `subject` stays accepted as the `definePolicy` option name | The RFC 8693 `Subject` (that stays `subject` on the instance) |
+| `context` | The condition ref builder for values loaded by the `definePolicy` `context` function (`context.teamIds`) | Request-scoped state; the `ctx` a closure receives |
 | `principal`, `actor`, `delegation` | The three parts of a subject | Synonyms for user or role |
 | `granted`, `denied`, `approval-required` | The three `Decision.outcome` values | `not-applicable`, `allow`, `deny` |
 | `where`, `check` | Conditions on the current row and on the next row | Query building outside conditions |

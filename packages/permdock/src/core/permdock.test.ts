@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { opaque } from '../conditions/opaque.ts';
-import { subject } from '../conditions/refs.ts';
+import { principal } from '../conditions/refs.ts';
 import { sqlFunction } from '../conditions/sql-function.ts';
 import {
   adminUser,
@@ -242,7 +242,7 @@ describe('createPermDock', () => {
     const checked = definePolicy(permissions, {
       roles: [
         role('member', [
-          allow(permissions.post.create, { check: { authorId: subject.id } }),
+          allow(permissions.post.create, { check: { authorId: principal.id } }),
         ]),
       ],
       subject: () => ({ id: 'u1', roles: ['member'] }),
@@ -330,7 +330,7 @@ describe('createPermDock', () => {
           allow(permissions.post.read, {
             where: sqlFunction('job_permitted', {
               args: [{ field: 'id' }],
-              twin: { authorId: subject.id },
+              twin: { authorId: principal.id },
             }),
           }),
         ]),

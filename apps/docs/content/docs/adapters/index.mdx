@@ -3,7 +3,7 @@ title: Adapters
 description: One core, one Fetch-first server kernel, and thin typed adapters for UI frameworks, HTTP servers, RPC layers, agent runtimes, the decision plane, databases and auth providers.
 ---
 
-Status: planned
+Status: shipped
 Phase: 1
 
 PermDock ships as one npm package (`permdock`) with subpath exports. Every subpath is a thin adapter over the same core: the typed permission definition, the policy, and the immutable, request-scoped `PermDock` instance created by `createPermDock`. Adapters never re-implement evaluation. They resolve the subject from the framework's request or session, build the instance once per request, and translate the resulting `Decision` into the framework's own vocabulary: an HTTP 403 Problem Details body, a Next.js `redirect()`, an MCP refusal, an AI SDK approval verdict, or a boolean for a router guard.

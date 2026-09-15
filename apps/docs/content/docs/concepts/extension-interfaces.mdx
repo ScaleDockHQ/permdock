@@ -217,7 +217,7 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user |
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; the token is opaque to the store |
 | `testDecisionSink` | Accepts batches; `flush` is idempotent; a throw never propagates to the caller |
-| `testSnapshotSource` | Round-trips snapshot v2 through the format schema; invalidation is observed by a subscriber |
+| `testSnapshotSource` | Round-trips snapshot v3 through the format schema; invalidation is observed by a subscriber |
 | `testLimitStore` | `consume` counts down; remaining after the cap is less than zero; `remaining` when present is not a thenable |
 | `testWhereCompiler` | The empty allow set compiles to a fail-closed value (`false` / `null` / `undefined`, or `options.isFailClosed`); adapters pass constant-false SQL, `{ OR: [] }` or `eb.lit(false)` |
 

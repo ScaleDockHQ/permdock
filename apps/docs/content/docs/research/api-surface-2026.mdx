@@ -28,7 +28,7 @@ Two corrections from the 0.1 code, against an earlier sketch of this page:
 
 - **Cedar** is the only model with a proof of semantics: `permit(principal, action, resource) when { ... }` / `forbid`, deny-overrides, schema validated at authoring. Its four-tuple is AuthZEN's four-tuple. PermDock already adopted Cedar's combining rule; 0.2 adopts the typed-grantee half.
 - **Clerk `has({ role | permission | feature | plan })`** and **WorkOS** show that product teams think in several grantee dimensions, not one.
-- **Oso Polar** (`"update" if "author"`) and **OpenFGA** show that relations are the readable form of ownership; 0.1 expressed the same thing as `where: { authorId: subject.id }` on every grant.
+- **Oso Polar** (`"update" if "author"`) and **OpenFGA** show that relations are the readable form of ownership; the pre-0.1 form expressed the same thing as `where: { authorId: principal.id }` on every grant.
 - **Question-shaped verbs** (WorkOS FGA): one permission on one row, many permissions on one row, one permission over many rows, who has a permission on a row. PermDock had the first and the third. `actions(permissions.post, post)` is the second. `who` waits on a directory and ships later on Cloud.
 - **Unified request object** (Clerk `auth()`, Better Auth `auth.api.hasPermission`, Ory): one request-scoped object that knows who you are and what you may do. PermDock already has the "who" half as `Subject` on the instance.
 - **Agent identity**: Vercel bought Better Auth for the Agent Auth Protocol (capability grants, device flow, Ed25519 agent JWTs). A capability there is a PermDock permission reference.
@@ -134,7 +134,7 @@ Recorded in [0039](/docs/decisions/0039-grantee-selectors-and-relations).
 | Redact | `pick` | Unchanged (folding into `decide(...).fields` is not this cycle) |
 | Tenancy | `tenant()`, `team()`, `memberships()`, `tenants()`, `roles()`, `assignable()` | `heldRoles` / `assignableRoles`; `scope({ tenant, team })` stays an open question |
 
-Condition refs: `principal.id`, `principal.tenant`, `context.teamIds`. `subject` remains a deprecated alias that still produces `{ ref: 'subject.<path>' }`; evaluators accept `principal.*`, `context.*` and `subject.*`.
+Condition refs: `principal.id`, `principal.tenant`, `context.teamIds`. Evaluators accept `principal.*` and `context.*` only; the `subject` alias 0040 kept was dropped before 0.1.0 ([0045](/docs/decisions/0045-drop-subject-ref-alias)).
 
 The `definePolicy` option is `principal`. `subject` is accepted with the same signature.
 

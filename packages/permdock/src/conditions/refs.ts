@@ -53,8 +53,6 @@ function createRef(path: string): SubjectRef {
 
 export const principal: SubjectRef = createRef('principal');
 export const context: SubjectRef = createRef('context');
-// Alias of `principal` for 0.1 policies. Prefer `principal`.
-export const subject: SubjectRef = createRef('subject');
 
 export function isSubjectRef(value: unknown): value is ConditionRef {
   if (
@@ -67,8 +65,6 @@ export function isSubjectRef(value: unknown): value is ConditionRef {
   }
   const ref = (value as ConditionRef).ref;
   return (
-    ref === 'subject' ||
-    ref.startsWith('subject.') ||
     ref === 'principal' ||
     ref.startsWith('principal.') ||
     ref === 'context' ||
@@ -99,22 +95,6 @@ export function resolveConditionRef(
       return resolved.context;
     }
     return readPath(resolved.context, path);
-  }
-  if (ref === 'subject' || ref.startsWith('subject.')) {
-    if (ref === 'subject') {
-      return resolved;
-    }
-    const path = ref.slice('subject.'.length);
-    if (path === 'id') {
-      return resolved.principal?.id;
-    }
-    if (path.startsWith('context.')) {
-      return readPath(resolved.context, path.slice('context.'.length));
-    }
-    if (resolved.principal === null) {
-      return undefined;
-    }
-    return readPath(resolved.principal, path);
   }
   return undefined;
 }

@@ -36,7 +36,7 @@ await withSubject(db, permdock, async (trx) => {
 - `toWhere(condition, table, options?)` returns `(eb) => Expression<SqlBool>`; fields map to `table.column` references, operators map to Kysely binary operators and `eb.and` / `eb.or` / `eb.not`, `in` / `notIn` to `in` / `not in`, `isNull` to `is null`, `contains` to `@>` for arrays and `like` for strings. `kysely` is an optional peer; the callback is typed structurally so tests need no install.
 - `memberOf` matches the Drizzle rules: frozen memberships become equality / `in`, and `options.memberships` becomes `eb.exists(eb.selectFrom('<table> as m')...)`. Without `eb.exists` / `eb.selectFrom` the join fails closed (`eb.lit(false)`).
 - No grant returns `(eb) => eb.lit(false)`, so the query yields no rows (fail closed).
-- `subject.<field>` and `subject.context.<key>` values become bound parameters via `eb.val`.
+- `principal.<field>` and `context.<key>` values become bound parameters via `eb.val`.
 - `withSubject(db, permdock, fn)` opens a transaction and runs `set local role` plus `set_config('request.jwt.claims', ..., true)` (Supabase dialect) or `set_config('app.user_id', ..., true)` (GUC dialect) before `fn`, so database-side RLS sees the same subject as the in-process check. Dialect follows the policy's `rls` configuration.
 
 Operator mapping:

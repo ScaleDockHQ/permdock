@@ -106,6 +106,6 @@ Only the three registered `x-oai-*` names are ever emitted; PermDock does not co
 ## Open questions
 
 - The exact shape of the `openapi` adapter options; the option names in the example above (`scheme`, `flows`, `schemeRef`) are illustrative and will be fixed when the `permdock/openapi` entry is implemented. `target` mirrors the CLI `--target` flag.
-- Whether a permission with a portable condition should be represented in the document at all (a scope cannot express `authorId = subject.id`); the current plan emits the scope and leaves the condition to `x-permdock-permissions` consumers.
+- Whether a permission with a portable condition should be represented in the document at all (a scope cannot express `authorId = principal.id`); the current plan emits the scope and leaves the condition to `x-permdock-permissions` consumers.
 - Whether import should also read `x-permdock-permissions` to round-trip keys exactly, or only derive keys from scopes.
 - Validating emitted documents against the official 3.2 JSON Schema in CI, and whether `permdock doctor` should do the same locally.

@@ -8,7 +8,7 @@ import {
 import { evaluateCondition } from '../conditions/evaluate.ts';
 import { normalizeWhere } from '../conditions/normalize.ts';
 import { opaque } from '../conditions/opaque.ts';
-import { subject } from '../conditions/refs.ts';
+import { context, principal } from '../conditions/refs.ts';
 import { compact } from './compact.ts';
 import { PermDockDeniedError, PermDockValidationError } from './errors.ts';
 import { freezeDeep } from './freeze.ts';
@@ -50,10 +50,10 @@ const policy = definePolicy(tree, {
       allow(tree.post.read),
       allow(tree.post.create),
       allow(tree.post.update, {
-        where: { authorId: subject.id },
-        check: { authorId: subject.id },
+        where: { authorId: principal.id },
+        check: { authorId: principal.id },
       }),
-      allow([tree.post.delete], { where: { authorId: subject.id } }),
+      allow([tree.post.delete], { where: { authorId: principal.id } }),
     ]),
     role('viewer', [allow(tree.post.read)], { on: 'tenant' }),
     role('lead', [allow(tree.post.read)], { on: 'team' }),
@@ -470,7 +470,7 @@ describe('coverage edges', () => {
       stamp: 1,
       bad: { nope: true },
     };
-    const principal = {
+    const lead = {
       id: 'u1',
       tenant: 'o1',
       memberships: [
@@ -478,7 +478,7 @@ describe('coverage edges', () => {
         { on: { resource: 'folder', id: 'f1' }, roles: ['editor'] },
       ],
     };
-    const sub = { principal, context: { teamIds: ['t1'] } };
+    const sub = { principal: lead, context: { teamIds: ['t1'] } };
     expect(
       evaluateCondition(normalizeWhere({ n: { ne: 1 } }), data, sub, now),
     ).toBe(true);
@@ -534,7 +534,7 @@ describe('coverage edges', () => {
     ).toBe(false);
     expect(
       evaluateCondition(
-        normalizeWhere({ n: { in: subject.context.teamIds } }),
+        normalizeWhere({ n: { in: context.teamIds } }),
         data,
         sub,
         now,
@@ -609,7 +609,7 @@ describe('coverage edges', () => {
       evaluateCondition(
         { op: 'memberOf', scope: 'team', field: 'teamId', roles: ['lead'] },
         { teamId: 't1' },
-        { principal: { ...principal, tenant: 'other' }, context: {} },
+        { principal: { ...lead, tenant: 'other' }, context: {} },
         now,
       ),
     ).toBe(false);
@@ -639,7 +639,7 @@ describe('coverage edges', () => {
     ).toBe(false);
     expect(
       evaluateCondition(
-        { op: 'eq', field: 'id', value: { ref: 'subject.id' } },
+        { op: 'eq', field: 'id', value: { ref: 'principal.id' } },
         { id: 'u1' },
         sub,
         now,
@@ -648,7 +648,7 @@ describe('coverage edges', () => {
 
     expect(isCondition({ op: 'eq', field: 'a', value: 1 })).toBe(true);
     expect(isConditionDate({ date: '2020-01-01T00:00:00.000Z' })).toBe(true);
-    expect(isConditionRef({ ref: 'subject.id' })).toBe(true);
+    expect(isConditionRef({ ref: 'principal.id' })).toBe(true);
     expect(normalizeWhere({ sql: '1=1', fingerprint: 'z' }).op).toBe('opaque');
     expect(() => normalizeWhere({ and: { a: 1 } })).toThrow(/and requires/);
     expect(() => normalizeWhere({ or: { a: 1 } })).toThrow(/or requires/);
@@ -656,14 +656,16 @@ describe('coverage edges', () => {
     expect(() => normalizeWhere({ a: { in: 'x' } })).toThrow(/array/);
     expect(() => normalizeWhere(1)).toThrow(/must be an object/);
     expect(() => normalizeWhere({ a: { nope: true } })).toThrow(/unsupported/);
-    expect(normalizeWhere({ a: { in: subject.id } }).op).toBe('in');
+    expect(normalizeWhere({ a: { in: principal.id } }).op).toBe('in');
     const nested = normalizeWhere({
       or: [{ a: 1 }, { or: [{ b: 2 }] }],
     });
     expect(nested.op).toBe('or');
-    expect(JSON.stringify(subject.id)).toContain('subject.id');
-    expect(Object.keys(subject.id)).toEqual(['ref']);
-    expect(subject.id[Symbol.toStringTag as unknown as string]).toBeUndefined();
+    expect(JSON.stringify(principal.id)).toContain('principal.id');
+    expect(Object.keys(principal.id)).toEqual(['ref']);
+    expect(
+      principal.id[Symbol.toStringTag as unknown as string],
+    ).toBeUndefined();
 
     const tenantSubject = {
       principal: {
@@ -805,7 +807,7 @@ describe('coverage edges', () => {
       }).op,
     ).toBe('and');
     expect(
-      Object.getOwnPropertyDescriptor(subject.id, 'missing'),
+      Object.getOwnPropertyDescriptor(principal.id, 'missing'),
     ).toBeUndefined();
     expect(
       evaluateCondition(
@@ -867,7 +869,7 @@ describe('coverage edges', () => {
     expect(() => role('empty-on', [allow(tree.post.read)], { on: [] })).toThrow(
       /exactly one resource/,
     );
-    expect(subject.id[Symbol.iterator as unknown as string]).toBeUndefined();
+    expect(principal.id[Symbol.iterator as unknown as string]).toBeUndefined();
     expect(parseSnapshot({ v: 1, grants: [] }).v).toBe(1);
     expect(
       matchScopedMembership(
@@ -1022,7 +1024,7 @@ describe('coverage edges', () => {
             roles: [
               role('member', [
                 allow(tree.post.delete, {
-                  where: { authorId: subject.id },
+                  where: { authorId: principal.id },
                   approval: 'human',
                 }),
               ]),

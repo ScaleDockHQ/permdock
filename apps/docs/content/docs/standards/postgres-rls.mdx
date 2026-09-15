@@ -71,8 +71,8 @@ permdock rls verify --db $DATABASE_URL
 | `create` action, `check` | `FOR INSERT WITH CHECK` (next row) |
 | `update` action, `where` + `check` | `FOR UPDATE USING (current) WITH CHECK (next)` |
 | `delete` action | `FOR DELETE USING` |
-| `eq(row.user_id, subject.id)` | `(select auth.uid()) = user_id` or `current_setting('app.user_id', true)::uuid = user_id` |
-| `eq(row.tenant_id, subject.claim)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` or a GUC |
+| `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` or `current_setting('app.user_id', true)::uuid = user_id` |
+| `eq(row.tenant_id, principal.claim.tenant_id)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` or a GUC |
 | Membership via join table | `id in (select resource_id from memberships where user_id = (select auth.uid()))`; `EXISTS` recognised on import |
 | Named permission | `(select authorize('post.delete'))` with `--rbac supabase` |
 | App roles | JWT claims, not Postgres roles; policies default `TO authenticated` |

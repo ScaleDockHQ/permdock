@@ -30,7 +30,7 @@ Targets:
 
 Dialects decide how the subject reaches SQL:
 
-| `--dialect` | `subject.id` | claims / tenant |
+| `--dialect` | `principal.id` | claims / tenant |
 | --- | --- | --- |
 | `supabase` | `(select auth.uid())` | `auth.jwt() ->> 'claim'` |
 | `neon` | `(select auth.user_id())` | JWT claims via `pg_session_jwt` |

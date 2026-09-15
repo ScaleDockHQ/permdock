@@ -102,9 +102,6 @@ export type RoleBinding = {
   readonly assignable: boolean;
 };
 
-/** @deprecated Use `RoleBinding` for grant lists and `Role` from vocabulary for leaves. */
-export type Role = RoleBinding;
-
 export type ValidateMode = 'boundary' | 'always' | 'never';
 
 export type PolicyScopes = {

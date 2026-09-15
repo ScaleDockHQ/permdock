@@ -47,7 +47,7 @@ describe('permdock rls', () => {
     expect(result.stdout).toContain('rls');
   });
 
-  it('generates SQL without service_role and compiles subject.id', async () => {
+  it('generates SQL without service_role and compiles principal.id', async () => {
     const cwd = appCopy();
     const result = await run(
       [
@@ -191,7 +191,7 @@ export const policy = definePolicy(permissions, {
     expect(generated).toContain('// @generated');
     expect(generated).toContain('definePermissions');
     expect(generated).toContain('export const catalog');
-    expect(generated).toContain('subject.id');
+    expect(generated).toContain('principal.id');
   });
 
   it('verify fixtures carry memberships and tenant and match can()', async () => {
@@ -422,14 +422,14 @@ export const policy = definePolicy(permissions, {
     const cwd = appCopy();
     writeFileSync(
       join(cwd, 'src/fn-policy.ts'),
-      `import { allow, definePolicy, role, sqlFunction, subject } from 'permdock';
+      `import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
 import { permissions } from './permissions.ts';
 
 const member = role('member', [
   allow(permissions.post.read, {
     where: sqlFunction('job_permitted', {
       args: [{ field: 'id' }],
-      twin: { authorId: subject.id },
+      twin: { authorId: principal.id },
     }),
   }),
 ]);
@@ -490,7 +490,7 @@ create policy "posts_read" on post for select to authenticated using ((select au
   rls: {
     functions: {
       job_permitted: {
-        twin: { op: 'eq', field: 'authorId', value: { ref: 'subject.id' } },
+        twin: { op: 'eq', field: 'authorId', value: { ref: 'principal.id' } },
         args: ['id'],
       },
     },
@@ -515,7 +515,7 @@ create policy "posts_read" on post for select to authenticated using ((select au
       'utf8',
     );
     expect(generated).toContain('sqlFunction');
-    expect(generated).toContain('subject.id');
+    expect(generated).toContain('principal.id');
   });
 
   it('import hints when a function is not listed in rls.functions', async () => {

@@ -14,7 +14,7 @@ Every B2B application ends up with the same four questions, usually in this orde
 3. "Bob shared this one document with Carol as an editor." A role held *on a resource*, sometimes flowing to children.
 4. "Acme wants a 'Billing Manager' role we never defined." A *tenant-defined* role composed from capabilities the code knows about.
 
-Today PermDock answers the first with a convention (`orgId` on the principal, `where: { orgId: subject.orgId }` on every grant), the second with `context.teamIds`, the third with "use OpenFGA through `permdock/pdp`" and the fourth not at all ([policies](/docs/concepts/policies), [subject](/docs/concepts/subject)). The convention works and is repetitive; the repetition is where tenant-isolation bugs come from (one grant forgets the `where`, the threat-model row on cross-tenant reads is the result).
+Today PermDock answers the first with a convention (`orgId` on the principal, `where: { orgId: principal.orgId }` on every grant), the second with `context.teamIds`, the third with "use OpenFGA through `permdock/pdp`" and the fourth not at all ([policies](/docs/concepts/policies), [subject](/docs/concepts/subject)). The convention works and is repetitive; the repetition is where tenant-isolation bugs come from (one grant forgets the `where`, the threat-model row on cross-tenant reads is the result).
 
 ## 2. What authorization engines do
 

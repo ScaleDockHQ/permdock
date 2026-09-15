@@ -57,7 +57,7 @@ export const policy = definePolicy(permissions, {
 })
 ```
 
-`scopes.tenant.key` names the field every tenant-owned resource carries; it replaces `where: { orgId: subject.orgId }` on each grant and is checked against every scoped resource's schema at compile time. `assignable` (default `true` for scoped roles) marks roles a tenant admin may hand out and compose into tenant-defined custom roles. The full model, memberships, evaluation rules, custom roles and the `RoleSource` and `MembershipSource` interfaces, is on [tenants, teams and scoped roles](/docs/concepts/tenancy).
+`scopes.tenant.key` names the field every tenant-owned resource carries; it replaces `where: { orgId: principal.orgId }` on each grant and is checked against every scoped resource's schema at compile time. `assignable` (default `true` for scoped roles) marks roles a tenant admin may hand out and compose into tenant-defined custom roles. The full model, memberships, evaluation rules, custom roles and the `RoleSource` and `MembershipSource` interfaces, is on [tenants, teams and scoped roles](/docs/concepts/tenancy).
 
 ### Spreading grants
 
@@ -115,7 +115,7 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 ### Type safety
 
 - `allow(permissions.post.archive)` fails to compile if `archive` was never defined.
-- `allow(permissions.post.update, { where: { autorId: subject.id } })` fails to compile: `autorId` is not a field of `Post`.
+- `allow(permissions.post.update, { where: { autorId: principal.id } })` fails to compile: `autorId` is not a field of `Post`.
 - `roles: user.roles` where `roles` contains a name no `role()` declared is a runtime deny for that role plus a `permdock doctor` warning, not a throw. On a membership, such a name is first resolved as a tenant-defined custom role through the `RoleSource` and dropped if that fails ([tenancy](/docs/concepts/tenancy)).
 - `role('viewer', [...], { on: 'tenant' })` with a grant on a resource whose schema lacks `scopes.tenant.key` fails to compile.
 
@@ -130,8 +130,8 @@ Adapters translate this outcome: the Vercel AI SDK gets `user-approval`, `Workfl
 Flags (Vercel Flags SDK, PostHog, LaunchDarkly) and billing entitlements (Stripe Entitlements, a `plan` column) answer "is this capability on for this subject", and it is tempting to make them grants. They are inputs to the subject instead. Resolve them in the policy's `subject` function (or `context` when they need a call) and let them select roles; the grants stay attached to roles:
 
 ```ts
-const pro = role('pro', [allow(permissions.report.export, { where: { ownerId: subject.id } })])
-const newCheckout = role('new-checkout', [allow(permissions.billing.invoice.pay, { where: { orgId: subject.orgId } })])
+const pro = role('pro', [allow(permissions.report.export, { where: { ownerId: principal.id } })])
+const newCheckout = role('new-checkout', [allow(permissions.billing.invoice.pay, { where: { orgId: principal.orgId } })])
 
 export const policy = definePolicy(permissions, {
   roles: [member, pro, newCheckout],
@@ -160,7 +160,7 @@ Three reasons to keep the split. The policy stays the single statement of who ma
 | `grants` | `Grant[]` | Top-level grants. Each entry needs a real `to:` selector. |
 | `scopes` | `{ tenant?: { key }, team?: { key } }` | Required when any role is scoped to `'tenant'` or `'team'`. Names the field on every scoped resource that holds the tenant or team id; checked against each resource schema ([tenancy](/docs/concepts/tenancy)). |
 | `principal` | `(user) => Principal \| null` | Required (alias `subject`, deprecated). Returns the values referenced as `principal.<field>` in conditions, plus `roles`, `plans`, `memberships` and `tenant`. `null` means anonymous. Any `subjectFrom*` provider satisfies it. |
-| `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `subject.context.<key>`. Declaring it makes `createPermDock` async. A thrown or rejected loader is fail-closed: empty context and an `on('auth')` event with `reason: 'source-threw'`. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them. |
+| `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `context.<key>`. Declaring it makes `createPermDock` async. A thrown or rejected loader is fail-closed: empty context and an `on('auth')` event with `reason: 'source-threw'`. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them. |
 | `validate` | `'boundary'`, `'always'` or `'never'` | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation). |
 | `onDenied` | `(decision) => never \| void` | Optional default unauthorized handler for `assert`; runs last in the layered chain. |
 

@@ -1,4 +1,4 @@
-export { context, principal, subject } from './conditions/index.ts';
+export { context, principal } from './conditions/index.ts';
 export { opaque } from './conditions/opaque.ts';
 export { sqlFunction } from './conditions/sql-function.ts';
 export type {

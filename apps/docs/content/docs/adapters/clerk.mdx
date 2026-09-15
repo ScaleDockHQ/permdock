@@ -37,7 +37,7 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 export const policy = definePolicy(permissions, {
   roles: [
     role('org:admin',  [allow(permissions.post.delete), allow(permissions.billing.plan.change)], { on: 'tenant' }),
-    role('org:member', [allow(permissions.post.read), allow(permissions.post.update, { where: { authorId: subject.id } })], { on: 'tenant' }),
+    role('org:member', [allow(permissions.post.read), allow(permissions.post.update, { where: { authorId: principal.id } })], { on: 'tenant' }),
   ],
   scopes: { tenant: { key: 'orgId' } },
 })

@@ -77,7 +77,7 @@ permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay
         "security": [{ "permdockOAuth": ["post:delete"] }],
         "x-permdock-permissions": ["post.delete"],
         "x-permdock-conditions": {
-          "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } }
+          "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } }
         },
         "x-permdock-approval": { "post.delete": { "reason": "human" } }
       }
@@ -127,7 +127,7 @@ The 1.2 form differs from the 1.1 form in exactly one way: every operation `upda
             "security": [{ "permdockOAuth": ["post:delete"] }],
             "x-permdock-permissions": ["post.delete"],
             "x-permdock-conditions": {
-              "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } }
+              "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } }
             },
             "x-permdock-approval": { "post.delete": { "reason": "human" } }
           }

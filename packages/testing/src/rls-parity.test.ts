@@ -3,10 +3,10 @@ import {
   anyone,
   definePermissions,
   definePolicy,
+  principal,
   resource,
   relation,
   role,
-  subject,
 } from 'permdock';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -32,9 +32,9 @@ const policy = definePolicy(permissions, {
       allow(permissions.post.read),
       allow(permissions.post.list),
       allow(permissions.post.create),
-      allow(permissions.post.update, { where: { authorId: subject.id } }),
-      allow(permissions.post.publish, { where: { authorId: subject.id } }),
-      allow(permissions.post.delete, { where: { authorId: subject.id } }),
+      allow(permissions.post.update, { where: { authorId: principal.id } }),
+      allow(permissions.post.publish, { where: { authorId: principal.id } }),
+      allow(permissions.post.delete, { where: { authorId: principal.id } }),
     ]),
   ],
   subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>

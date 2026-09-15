@@ -40,7 +40,7 @@ export default defineConfig({
 
 - `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from the configured role claim (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from the configured tenant claim (default `tenant_id`, hook-injected or under `app_metadata`); `memberships` comes from a hook-injected claim of `{ tenant, team?, roles }` entries when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
 - `options.schema` (any Standard Schema, for example a Zod object) validates and types the custom claims before they reach `principal.claims`; an invalid claim set drops `claims` with a development warning, never the subject.
-- `supabaseRls(options)` is the `rls` value in `permdock.config.ts`. It tells `permdock rls` how `subject.id` (`(select auth.uid())`), `subject.claim(...)` (`(select auth.jwt()) ->> 'claim'`), `subject.roles` (`authorize()`) and `memberOf` nodes (a claim comparison for the active tenant, a membership-table `exists` otherwise) compile ([tenancy](/docs/concepts/tenancy), portable compilation).
+- `supabaseRls(options)` is the `rls` value in `permdock.config.ts`. It tells `permdock rls` how `principal.id` (`(select auth.uid())`), `principal.claim.<name>` (`(select auth.jwt()) ->> 'claim'`), `principal.roles` (`authorize()`) and `memberOf` nodes (a claim comparison for the active tenant, a membership-table `exists` otherwise) compile ([tenancy](/docs/concepts/tenancy), portable compilation).
 - `authorizeSql({ tenant })` is the `authorize()` function SQL with an optional `requested_tenant uuid` parameter. `permdock rls generate --rbac-scaffold` emits the same function next to the hook.
 - `permdock rls generate --rbac-scaffold` (or `--rbac supabase`) emits: enums `app_role` and `app_permission` (from `listPermissions`), tables `user_roles(user_id, role)` and `role_permissions(role, permission)`, seed rows for every role and grant in the policy, the `custom_access_token_hook(event jsonb)` PL/pgSQL function, and the `security definer stable` function `authorize(requested_permission app_permission, requested_tenant uuid default null) returns boolean`.
 - Named permissions without conditions compile to `using ((select authorize('post.delete')))`; conditional grants compile to `authorize(...) and (cond)`.
@@ -49,11 +49,11 @@ Claim mapping used by both the in-process subject and the RLS compiler:
 
 | Subject field | Source in the JWT | In generated policies |
 |---|---|---|
-| `subject.id` | `sub` | `(select auth.uid())` |
+| `principal.id` | `sub` | `(select auth.uid())` |
 | `subject.roles` (global) | `user_role` (from the Auth Hook) | `authorize('perm')` via `role_permissions` |
 | `principal.tenant` (active tenant) | `tenant_id`: `app_metadata.tenant_id` or a top-level hook-injected claim | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` for tenant-scoped roles |
 | `principal.memberships` | A hook-injected `memberships` claim, or a `MembershipSource` over your tables | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any(...))` from `supabaseRls({ memberships })` |
-| `subject.claim('plan')` | `app_metadata.plan` or a top-level custom claim | `(select auth.jwt()) ->> 'plan'` |
+| `principal.claim.plan` | `app_metadata.plan` or a top-level custom claim | `(select auth.jwt()) ->> 'plan'` |
 | anonymous | no token, or `role = anon` | `auth.uid()` is NULL; `TO anon` grants only |
 
 A single-tenant-per-user app (the common Supabase case) needs only `tenant_id` in the hook; the active tenant is the claim, and tenant-scoped roles compile to one equality per policy. A multi-organization user needs a membership table the hook or a `MembershipSource` reads, and the compiled policy joins it; `permdock rls generate` emits the `exists` form when `supabaseRls` names the table and refuses tenant-scoped grants when neither a tenant claim nor a table is configured (fail closed, not a permissive policy).

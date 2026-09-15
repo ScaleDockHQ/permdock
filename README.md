@@ -10,7 +10,7 @@
 
 Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
 
-> **Status: Phase 4 in progress.** Phase 1–3 OSS has shipped (core, surface adapters, CLI, data compilers, providers). Packages version toward `0.1.0`. External AuthZEN certification remains the remaining `1.0` gate. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
+> **Status: Phase 4 in progress.** Phase 1–3 OSS has shipped (core, surface adapters, CLI, data compilers, providers). `permdock`, `@permdock/cli` and `@permdock/testing` are published as `0.1.0`. External AuthZEN certification remains the remaining `1.0` gate. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
 ## Why PermDock
 

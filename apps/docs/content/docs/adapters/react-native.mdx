@@ -50,7 +50,7 @@ If `storage` is empty (first launch) the store starts in `pending`; guards recei
 
 ### Offline behaviour
 
-A device with no connectivity keeps answering from the persisted snapshot. Portable grants (including ownership conditions such as `authorId` equals `subject.id`, and `sqlFunction` grants whose `twin` is portable) work fully offline because the condition and the resource are both on the device. Closure grants cannot be answered offline: the hook reports `server-only` and `allowed: false`, and `Protected` renders `fallback`. Apps that need a specific permission offline should express it with a portable condition rather than a closure; `permdock doctor` lists closure grants that are referenced from React Native code.
+A device with no connectivity keeps answering from the persisted snapshot. Portable grants (including ownership conditions such as `authorId` equals `principal.id`, and `sqlFunction` grants whose `twin` is portable) work fully offline because the condition and the resource are both on the device. Closure grants cannot be answered offline: the hook reports `server-only` and `allowed: false`, and `Protected` renders `fallback`. Apps that need a specific permission offline should express it with a portable condition rather than a closure; `permdock doctor` lists closure grants that are referenced from React Native code.
 
 Because the on-device answer is a UI hint, an API request made while offline and replayed later is still checked by the server with the current policy, so a stale local grant can never turn into a successful write.
 

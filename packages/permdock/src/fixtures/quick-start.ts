@@ -5,9 +5,9 @@ import {
   definePermissions,
   definePolicy,
   deny,
+  principal,
   resource,
   role,
-  subject,
 } from '../index.ts';
 
 export const Post = z.object({
@@ -35,9 +35,9 @@ const member = role('member', [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, { where: { authorId: subject.id } }),
+  allow(permissions.post.update, { where: { authorId: principal.id } }),
   allow(permissions.post.delete, {
-    where: { authorId: subject.id },
+    where: { authorId: principal.id },
     approval: 'human',
   }),
 ]);

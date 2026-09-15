@@ -59,7 +59,7 @@ Roles compose the same way. Each feature exports role fragments, `definePolicy` 
 ```ts
 // features/posts/policy.ts
 export const postRoles = [
-  role('member', [allow(postPermissions.post.read), allow(postPermissions.post.update, { where: { authorId: subject.id } })]),
+  role('member', [allow(postPermissions.post.read), allow(postPermissions.post.update, { where: { authorId: principal.id } })]),
   role('admin', [allow(postPermissions.post.delete)]),
 ]
 

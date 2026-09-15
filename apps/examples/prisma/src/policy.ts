@@ -1,4 +1,4 @@
-import { allow, definePolicy, role, subject } from 'permdock';
+import { allow, definePolicy, principal, role } from 'permdock';
 
 import { permissions } from './permissions.ts';
 
@@ -13,7 +13,7 @@ export const policy = definePolicy(permissions, {
     role('member', [
       allow(permissions.post.read),
       allow(permissions.post.list),
-      allow(permissions.post.update, { where: { authorId: subject.id } }),
+      allow(permissions.post.update, { where: { authorId: principal.id } }),
     ]),
   ],
   subject: (user: User | null) =>

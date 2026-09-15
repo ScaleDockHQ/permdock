@@ -15,7 +15,7 @@ allow(permissions.post.read,   { where: { teamId: { in: context.teamIds } } })
 allow(permissions.post.update, { where: { authorId: principal.id }, check: { authorId: principal.id } })
 ```
 
-An object literal is an implicit `and` over its fields. A field value is either a literal (`true`, `'published'`, `42`), a principal reference (`principal.id`; `subject.id` remains a deprecated alias), or an operator object (`{ lte: 10_000 }`). `and`, `or` and `not` nest. Field names and literal types are checked against `StandardSchemaV1.InferOutput` of the resource schema, so a typo or a string compared to a boolean is a compile error.
+An object literal is an implicit `and` over its fields. A field value is either a literal (`true`, `'published'`, `42`), a principal reference (`principal.id`), or an operator object (`{ lte: 10_000 }`). `and`, `or` and `not` nest. Field names and literal types are checked against `StandardSchemaV1.InferOutput` of the resource schema, so a typo or a string compared to a boolean is a compile error.
 
 ### Operators
 
@@ -23,7 +23,7 @@ An object literal is an implicit `and` over its fields. A field value is either 
 | --- | --- | --- |
 | `eq` (default for a bare value) | equals | `=` |
 | `ne` | not equals | `<>` |
-| `in`, `notIn` | membership in a literal array or a `subject.context` array | `IN`, `NOT IN` |
+| `in`, `notIn` | membership in a literal array or a `context` array | `IN`, `NOT IN` |
 | `gt`, `gte`, `lt`, `lte` | comparison on numbers, strings, dates | `>`, `>=`, `<`, `<=` |
 | `isNull` | `true` or `false` | `IS NULL`, `IS NOT NULL` |
 | `contains` | array column contains value, or string contains substring (typed by the field) | `@>` or `LIKE` |
@@ -49,10 +49,12 @@ allow(permissions.job.read, {
 
 ### Subject references
 
-`subject` (imported from `permdock`) is a typed reference builder, not the current user:
+`principal` and `context` (imported from `permdock`) are typed reference builders, not the current user:
 
-- `subject.<field>` refers to a field returned by the policy's `subject` function (`subject.id`, `subject.orgId`).
-- `subject.context.<key>` refers to a value loaded by the policy's `context` function (`subject.context.teamIds`).
+- `principal.<field>` refers to a field returned by the policy's `principal` function (`principal.id`, `principal.orgId`).
+- `context.<key>` refers to a value loaded by the policy's `context` function (`context.teamIds`).
+
+There is no `subject` builder: it was removed before 0.1.0 ([0045](/docs/decisions/0045-drop-subject-ref-alias)), and a ref whose path starts with `subject.` is not a reference at all, so it fails closed.
 
 References are what make a condition portable. In memory they read from the frozen subject; in a snapshot they read from the client's copy of the subject; in SQL they become `(select auth.uid())`, `(select auth.jwt()) ->> 'orgId'` or a `current_setting()` GUC depending on the dialect. The type of a reference is checked against the field it is compared to.
 
@@ -60,15 +62,15 @@ References are what make a condition portable. In memory they read from the froz
 
 | Intent | Condition | Supabase RLS output |
 | --- | --- | --- |
-| Ownership | `{ where: { authorId: subject.id } }` | `(select auth.uid()) = author_id` |
-| Tenancy | `{ where: { orgId: subject.orgId } }` | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid` |
+| Ownership | `{ where: { authorId: principal.id } }` | `(select auth.uid()) = author_id` |
+| Tenancy | `{ where: { orgId: principal.orgId } }` | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid` |
 | Public rows | `{ where: { published: true } }` | `published = true` |
-| Owner or public | `{ where: { or: [{ published: true }, { authorId: subject.id }] } }` | `(published = true OR (select auth.uid()) = author_id)` |
-| Membership (array in `context`) | `{ where: { teamId: { in: subject.context.teamIds } } }` | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))` |
+| Owner or public | `{ where: { or: [{ published: true }, { authorId: principal.id }] } }` | `(published = true OR (select auth.uid()) = author_id)` |
+| Membership (array in `context`) | `{ where: { teamId: { in: context.teamIds } } }` | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))` |
 | Tenancy (scoped role) | `role('viewer', [allow(permissions.post.read)], { on: 'tenant' })` | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` |
 | Team role (scoped role) | `role('lead', [allow(permissions.post.publish)], { on: 'team' })` | `exists (select 1 from team_member m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = 'lead')` |
 | Not archived | `{ where: { archivedAt: { isNull: true } } }` | `archived_at IS NULL` |
-| Cannot reassign owner | `{ where: { authorId: subject.id }, check: { authorId: subject.id } }` | `USING (...) WITH CHECK (...)` |
+| Cannot reassign owner | `{ where: { authorId: principal.id }, check: { authorId: principal.id } }` | `USING (...) WITH CHECK (...)` |
 
 The right-hand column assumes the Supabase dialect; Neon and generic Postgres substitute `auth.user_id()` or a GUC. Column naming follows the mapping the RLS adapter derives from your schema or Drizzle table.
 
@@ -83,7 +85,7 @@ The right-hand column assumes the Supabase dialect; Neon and generic Postgres su
 | `update` | current row | next row; defaults to `where` when omitted | `FOR UPDATE USING (where) WITH CHECK (check)` |
 | `delete` | current row | not allowed | `FOR DELETE USING (where)` |
 
-The classic hole this closes: a user who may update their own posts must not be able to reassign `authorId` to someone else. `allow(permissions.post.update, { where: { authorId: subject.id } })` alone lets Postgres reuse the `USING` clause as `WITH CHECK`, and PermDock does the same in memory: when `check` is omitted for `update`, the `where` condition is evaluated against the proposed row too. Pass `check` explicitly when the two differ.
+The classic hole this closes: a user who may update their own posts must not be able to reassign `authorId` to someone else. `allow(permissions.post.update, { where: { authorId: principal.id } })` alone lets Postgres reuse the `USING` clause as `WITH CHECK`, and PermDock does the same in memory: when `check` is omitted for `update`, the `where` condition is evaluated against the proposed row too. Pass `check` explicitly when the two differ.
 
 In memory, `update` and `create` checks receive the next row as `data`; `decide(permissions.post.update, { current, next })` is the two-row form used by adapters that have both.
 
@@ -95,15 +97,15 @@ Conditions are plain JSON. No superjson, no class instances, no functions. The l
 {
   "op": "and",
   "conditions": [
-    { "op": "eq", "field": "authorId", "value": { "ref": "subject.id" } },
-    { "op": "in", "field": "teamId", "value": { "ref": "subject.context.teamIds" } },
+    { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } },
+    { "op": "in", "field": "teamId", "value": { "ref": "context.teamIds" } },
     { "op": "lte", "field": "createdAt", "value": { "date": "2026-09-01T00:00:00Z" } }
   ]
 }
 ```
 
 - A literal value is a JSON literal.
-- A reference is `{ "ref": "subject.<path>" }`.
+- A reference is `{ "ref": "principal.<path>" }` or `{ "ref": "context.<path>" }`; no other prefix resolves.
 - A scope test is `{ "op": "memberOf", "scope": "tenant" | "team" | "resource", "field": "<row field>", "roles": [...] }`, with `resource` and `parents` when the scope is a resource ([tenancy](/docs/concepts/tenancy)).
 - A date is a tagged ISO string `{ "date": "..." }`, so it survives JSON without superjson and compares correctly in memory and in SQL.
 - Nested `and` / `or` are flattened and single-child compounds collapsed at definition time, the same normalisation CASL's ucast applies.
@@ -134,7 +136,7 @@ const rows = await db.select().from(posts).where(toWhere(permdock.where(permissi
 ## Closures
 
 ```ts
-allow(permissions.post.publish, (post, ctx) => post.authorId === ctx.subject.id && !post.published)
+allow(permissions.post.publish, (post, ctx) => post.authorId === ctx.principal.id && !post.published)
 ```
 
 A closure is any function passed as the condition. It runs on the server with `(data, ctx)` where `ctx` has `subject`, `actor`, `delegation` and `context`. It may be async. It is branded `NonPortable` at the type level, so:
@@ -157,7 +159,7 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 
 ## Type safety
 
-- Field names, literal types and reference types come from the resource schema output. `{ where: { authorId: subject.orgId } }` compiles only if both are strings; a mismatch is an error.
+- Field names, literal types and reference types come from the resource schema output. `{ where: { authorId: principal.orgId } }` compiles only if both are strings; a mismatch is an error.
 - `in` requires an array on the right-hand side and a scalar field on the left.
 - `check` on a `read` or `delete` grant is a type error, as is `where` on a collection action. Collection grants may carry `check` ([0029](/docs/decisions/0029-check-on-collection-actions)).
 - Closures require the exact `(data: Post, ctx) => boolean` signature; the `data` type is the schema output. A thenable from a closure is a `closure-error` denial ([0028](/docs/decisions/0028-synchronous-evaluation)).

@@ -5,7 +5,7 @@ import type { Subject } from '../core/subject.ts';
 import { evaluateCondition } from './evaluate.ts';
 import { normalizeWhere } from './normalize.ts';
 import { opaque } from './opaque.ts';
-import { subject } from './refs.ts';
+import { principal } from './refs.ts';
 import { sqlFunction } from './sql-function.ts';
 
 const now = 1_700_000_000;
@@ -26,7 +26,7 @@ describe('evaluateCondition', () => {
     const data = { authorId: 'u1', tags: ['a'], title: 'hello', gone: null };
     expect(
       evaluateCondition(
-        normalizeWhere({ authorId: subject.id }),
+        normalizeWhere({ authorId: principal.id }),
         data,
         sub({}),
         now,
@@ -147,7 +147,7 @@ describe('evaluateCondition', () => {
     const data = { scope: 'public', authorId: 'u1' };
     const granted = sqlFunction('job_permitted', {
       args: [{ field: 'id' }],
-      twin: { or: [{ scope: 'public' }, { authorId: subject.id }] },
+      twin: { or: [{ scope: 'public' }, { authorId: principal.id }] },
     });
     expect(evaluateCondition(granted, data, sub({}), now)).toBe(true);
     expect(

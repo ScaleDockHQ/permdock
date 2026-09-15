@@ -3,7 +3,7 @@ title: Installation
 description: Install the permdock package, pick a Standard Schema validator, and learn which subpath exports exist.
 ---
 
-PermDock is in Phase 4. Install from npm once `0.1.0` is published; until then use the workspace packages. See the [roadmap](/docs/roadmap) for what ships in which phase.
+PermDock is in Phase 4 and published as `0.1.0`. See the [roadmap](/docs/roadmap) for what ships in which phase.
 
 ## Packages
 
@@ -62,7 +62,7 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 
 | Import path | Contents | Phase |
 | --- | --- | --- |
-| `permdock` | `definePermissions`, `resource`, `mergePermissions`, `listPermissions`, `findPermission`, `definePolicy`, `role`, `allow`, `deny`, `subject`, `createPermDock`, errors | 1 |
+| `permdock` | `definePermissions`, `resource`, `mergePermissions`, `listPermissions`, `findPermission`, `definePolicy`, `defineRoles`, `definePlans`, `role`, `allow`, `deny`, `principal`, `context`, `createPermDock`, errors | 1 |
 | `permdock/react` | `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>` | 1 |
 | `permdock/next` | `createPermDock` returning `getPermDock`, `getPermission`, `PermDockProvider`, `permdockHandler` | 1 |
 | `permdock/next/plugin` | `createPermDockPlugin` (build-time `collect` hook only) | 1 |
@@ -84,6 +84,7 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 | `permdock/a2a` | `createPermDock` returning `agentCard`, `extendedAgentCard` | 2 |
 | `permdock/authzen` | `createPermDock` returning the AuthZEN `handler` | 2 |
 | `permdock/ssf` | `createPermDock` returning the CAEP `receiver` | 3 |
+| `permdock/scim` | `scimHandler`, the `DirectoryStore` interface, `memoryDirectoryStore`, `directoryMembershipSource` | 3 |
 | `permdock/openapi` | OpenAPI 3.2 emission (document or Overlay) and import | 2 |
 | `permdock/otel` | Span per check and a decision counter | 2 |
 | `permdock/react-native` | React adapter plus persisted `storage` | 2 |
@@ -101,8 +102,7 @@ Core has no runtime dependencies. A few entries verify material or talk to a ven
 | --- | --- | --- |
 | `permdock/jwt` | `jose` | JWS verification and JWKS fetching; see [JWT](/docs/adapters/jwt) |
 | `permdock/otel` | `@opentelemetry/api` | Span and metric emission |
-| `permdock/mcp` | `@modelcontextprotocol/server` 2.x (types only) | `protectServer` duck-types the `McpServer` at runtime; the peer supplies `AuthInfo` and `registerTool` option types. SDK 1.x is not supported ([MCP adapter](/docs/adapters/mcp), Hosting) |
-| `permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex` | The provider SDK | Session and claim verification stays with the provider; see [authentication](/docs/concepts/authentication) |
+| `permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex` | The provider SDK, at the call site | The adapters take the values the provider's own SDK returned and declare no peer themselves; session and claim verification stays with the provider; see [authentication](/docs/concepts/authentication) |
 | `permdock/terminal` | An OS keychain binding | Token storage; falls back to a mode-0600 file |
 
 ## TypeScript configuration
