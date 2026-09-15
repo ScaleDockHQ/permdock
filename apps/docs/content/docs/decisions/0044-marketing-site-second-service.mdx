@@ -20,7 +20,7 @@ Accepted, September 2026.
 
 ## Consequences
 
-- Marketing and docs deploy atomically as one Vercel project. Each service's `buildCommand` compiles `permdock` before `next build`; `dist/` is not in git.
+- Marketing and docs deploy atomically as one Vercel project. Each service's `buildCommand` compiles `permdock` with `node --run build` before `next build`; `dist/` is not in git, and Vercel's bundled pnpm is not 12.3.1.
 - A later Hono, Python or Vite service is a rewrite **above** the marketing catch-all.
 - Preview deployments share one host; host-based splits are not used.
 

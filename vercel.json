@@ -4,7 +4,7 @@
       "root": "apps/docs",
       "framework": "nextjs",
       "installCommand": "corepack enable && corepack prepare pnpm@12.3.1 --activate && corepack pnpm@12.3.1 install",
-      "buildCommand": "pnpm --filter permdock build && next build",
+      "buildCommand": "(cd ../../packages/permdock && node --run build) && next build",
       "rewrites": [
         {
           "source": "/docs/_next/:path*",
@@ -16,7 +16,7 @@
       "root": "apps/marketing",
       "framework": "nextjs",
       "installCommand": "corepack enable && corepack prepare pnpm@12.3.1 --activate && corepack pnpm@12.3.1 install",
-      "buildCommand": "pnpm --filter permdock build && next build"
+      "buildCommand": "(cd ../../packages/permdock && node --run build) && next build"
     }
   },
   "rewrites": [
