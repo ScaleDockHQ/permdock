@@ -45,6 +45,7 @@
     "0042-cloud-identity-gateway",
     "0043-sql-functions-as-portable-conditions",
     "0044-marketing-site-second-service",
-    "0045-drop-subject-ref-alias"
+    "0045-drop-subject-ref-alias",
+    "0046-supabase-middleware-entry"
   ]
 }

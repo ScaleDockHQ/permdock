@@ -34,6 +34,7 @@
   "./prisma": 5921,
   "./kysely": 6222,
   "./supabase": 2760,
+  "./supabase/middleware": 37425,
   "./ssf": 9353,
   "./better-auth": 15400,
   "./clerk": 2992,

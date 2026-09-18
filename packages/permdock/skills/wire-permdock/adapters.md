@@ -556,6 +556,51 @@ const subject = subjectFromSupabase(claims, {
 
 No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL as authority and run `permdock rls verify --db` against `sqlFunction` twins ([database-first](/docs/adapters/rls)).
 
+`claims` is whatever Supabase verified: `data.claims` from `supabase.auth.getClaims()` on an `@supabase/ssr` server client, or `jwtClaims` from `@supabase/server` (`ctx.jwtClaims` in `withSupabase`, `c.var.supabaseContext.jwtClaims` in its Hono adapter). Pass `null` for anonymous callers; never `getSession().access_token` (unverified). An API-key auth mode (`secret`, `publishable`) has `jwtClaims: null` and is the anonymous subject, not a user.
+
+## Supabase middleware pipeline — `permdock/supabase/middleware`
+
+```ts
+import { pipeline } from '@supabase/middleware';
+import { withClaims } from '@supabase/server/middleware/claims';
+import { subjectFromSupabase } from 'permdock/supabase';
+import { createPermDock } from 'permdock/supabase/middleware';
+
+const { withPermDock, permdockHandler } = createPermDock(policy, {
+  subject: (ctx) =>
+    subjectFromSupabase(ctx.jwtClaims, {
+      roles: 'user_role',
+      declared: ['member', 'admin'],
+    }),
+});
+
+// ctx.permdock inside the handler
+export default {
+  fetch: pipeline([withClaims(), withPermDock()], async (req, ctx) =>
+    ctx.permdock.can(permissions.post.update, await loadPost(req))
+      ? Response.json({ ok: true })
+      : Response.json({ ok: false }, { status: 403 }),
+  ),
+};
+
+// or a route guard with Problem Details
+pipeline(
+  [
+    withClaims(),
+    withPermDock({
+      protect: permissions.post.publish,
+      data: (_ctx, req) => loadPost(req),
+    }),
+  ],
+  handler,
+);
+
+// AuthZEN evaluations
+pipeline([withClaims()], permdockHandler());
+```
+
+`@supabase/middleware` is the optional peer (already installed with `@supabase/server`). `withPermDock` requires `jwtClaims` upstream: place it after `withClaims` or `withRequiredClaims`, never first. Run `ctx.supabaseAdmin` / `withPostgresAdminClient` only after `ctx.permdock.assert(...)`; they bypass RLS.
+
 ## Remote PDP — `permdock/pdp`
 
 ```ts

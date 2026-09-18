@@ -43,6 +43,7 @@ export const ENTRIES = {
   './prisma': 'prisma/index.js',
   './kysely': 'kysely/index.js',
   './supabase': 'supabase/index.js',
+  './supabase/middleware': 'supabase/middleware.js',
   './ssf': 'ssf/index.js',
   './better-auth': 'better-auth/index.js',
   './clerk': 'clerk/index.js',

@@ -175,6 +175,10 @@
       "types": "./dist/supabase/index.d.ts",
       "default": "./dist/supabase/index.js"
     },
+    "./supabase/middleware": {
+      "types": "./dist/supabase/middleware.d.ts",
+      "default": "./dist/supabase/middleware.js"
+    },
     "./ssf": {
       "types": "./dist/ssf/index.d.ts",
       "default": "./dist/ssf/index.js"
@@ -216,6 +220,7 @@
     "@nestjs/platform-express": "catalog:",
     "@orpc/server": "catalog:",
     "@permdock/typescript-config": "workspace:*",
+    "@supabase/middleware": "catalog:",
     "@trpc/server": "catalog:",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
@@ -251,6 +256,7 @@
     "@openai/agents": "catalog:peers",
     "@opentelemetry/api": "catalog:peers",
     "@orpc/server": "catalog:peers",
+    "@supabase/middleware": "catalog:peers",
     "@trpc/server": "catalog:peers",
     "ai": "catalog:peers",
     "drizzle-orm": "catalog:peers",
@@ -277,6 +283,9 @@
       "optional": true
     },
     "@orpc/server": {
+      "optional": true
+    },
+    "@supabase/middleware": {
       "optional": true
     },
     "@trpc/server": {

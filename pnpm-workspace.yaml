@@ -30,6 +30,9 @@ catalog:
   'solid-js': 1.9.15
   '@base-ui/react': 1.8.0
   '@standard-schema/spec': 1.1.0
+  '@supabase/middleware': 0.5.0
+  '@supabase/server': 1.6.1
+  '@supabase/supabase-js': 2.116.0
   '@testcontainers/postgresql': 12.1.0
   '@trpc/server': 11.18.0
   '@tailwindcss/postcss': 4.3.3
@@ -114,6 +117,7 @@ catalogs:
     '@openai/agents': '>=0.1'
     '@opentelemetry/api': '>=1'
     '@orpc/server': '>=1'
+    '@supabase/middleware': '>=0.5'
     '@trpc/server': '>=11'
     ai: '>=5'
     drizzle-orm: '>=0.40'

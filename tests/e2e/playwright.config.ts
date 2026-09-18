@@ -26,6 +26,7 @@ const httpExamples = [
   { name: 'eve-agent', port: 3474 },
   { name: 'openai-agent', port: 3475 },
   { name: 'scim', port: 3476 },
+  { name: 'supabase-middleware', port: 3477 },
 ] as const;
 
 function envWith(extra: { readonly [key: string]: string }): {

@@ -149,6 +149,15 @@ catalogs:
     '@standard-schema/spec':
       specifier: 1.1.0
       version: 1.1.0
+    '@supabase/middleware':
+      specifier: 0.5.0
+      version: 0.5.0
+    '@supabase/server':
+      specifier: 1.6.1
+      version: 1.6.1
+    '@supabase/supabase-js':
+      specifier: 2.116.0
+      version: 2.116.0
     '@sveltejs/vite-plugin-svelte':
       specifier: 7.3.0
       version: 7.3.0
@@ -1108,6 +1117,37 @@ importers:
         specifier: 'catalog:'
         version: 2.11.14(solid-js@1.9.15)(supports-color@8.1.1)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0))
 
+  apps/examples/supabase-middleware:
+    dependencies:
+      '@supabase/middleware':
+        specifier: 'catalog:'
+        version: 0.5.0(typescript@7.0.2)
+      '@supabase/server':
+        specifier: 'catalog:'
+        version: 1.6.1(@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@supabase/supabase-js@2.116.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.0.2(supports-color@8.1.1))(openapi-types@12.1.3)(typescript@7.0.2))(hono@4.13.7)(pg@8.23.0)(typescript@7.0.2)
+      '@supabase/supabase-js':
+        specifier: 'catalog:'
+        version: 2.116.0(@opentelemetry/api@1.9.1)
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
+      permdock:
+        specifier: workspace:*
+        version: link:../../../packages/permdock
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../packages/typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   apps/examples/supabase-rls:
     dependencies:
       hono:
@@ -1459,6 +1499,9 @@ importers:
       '@permdock/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@supabase/middleware':
+        specifier: 'catalog:'
+        version: 0.5.0(typescript@7.0.2)
       '@trpc/server':
         specifier: 'catalog:'
         version: 11.18.0(typescript@7.0.2)
@@ -1665,6 +1708,9 @@ importers:
       '@permdock/example-solid':
         specifier: workspace:*
         version: link:../../apps/examples/solid
+      '@permdock/example-supabase-middleware':
+        specifier: workspace:*
+        version: link:../../apps/examples/supabase-middleware
       '@permdock/example-supabase-rls':
         specifier: workspace:*
         version: link:../../apps/examples/supabase-rls
@@ -4409,6 +4455,69 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
+  '@supabase/auth-js@2.116.0':
+    resolution: {integrity: sha512-Cmosty12gyKGK9N3bQb+lMmuAFev5nmUzaR1AsmZHqKOAGzqX1VQzmp49CNPwOx/pw0H9Qqk4rs9yhwTlKpfDg==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/functions-js@2.116.0':
+    resolution: {integrity: sha512-E+VOc2QDcni/fySqkBFiZhnoB3SGydEdZgFI6/dEAGAHx6yEhB46TN9qb2wXs+E+RSzOBV0R6dasiSlw4xlZAA==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/middleware@0.5.0':
+    resolution: {integrity: sha512-OjukUo+5p14zxTuylf2zVg1hZCHWKLO6VrZhtVeQQw09yrVo3GAduvFJPiFDhTAz/Du1ZfEzAR+s6aRAWD5wzQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      typescript: '>=5.4'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  '@supabase/phoenix@0.4.5':
+    resolution: {integrity: sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw==}
+
+  '@supabase/postgrest-js@2.116.0':
+    resolution: {integrity: sha512-kGpVZTDHxFTJS3tu+rU0iTAZ+4U0bcLVjxwCk8f3gRhjw3qdCZjTBlgYvc4kGH2XccmAzbkKwXL/mrNHMGSc+A==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/realtime-js@2.116.0':
+    resolution: {integrity: sha512-MHAnlXxi2s6yiJsZsQMfs2B3RFxeVfQWxerqYhIMqcCQV/FuY3LIeouPEkXw/ah7wUWMLYwempF9MOCUScyddg==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/server@1.6.1':
+    resolution: {integrity: sha512-yNQTMa2F8pbgifbjbXLPGc9G9qOnRQnvg8B/fr0WK2HwsQozMqcSinS86mD/BWQJG8USyKSvBiPu/+EYlPH0wQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@nestjs/common': ^10.0.0 || ^11.0.0
+      '@supabase/supabase-js': ^2.0.0
+      elysia: ^1.4.0
+      h3: ^2.0.0
+      hono: ^4.0.0
+      pg: ^8.0.0
+    peerDependenciesMeta:
+      '@nestjs/common':
+        optional: true
+      elysia:
+        optional: true
+      h3:
+        optional: true
+      hono:
+        optional: true
+      pg:
+        optional: true
+
+  '@supabase/storage-js@2.116.0':
+    resolution: {integrity: sha512-6/3hR6vccBP6oGM5B6RfbwZcTCKmQOodd/ZWQdsw8yJsU5zO/a//oBL6yLnmgxcjnHSrelW8rsO7hL5DPybyUQ==}
+    engines: {node: '>=22.0.0'}
+
+  '@supabase/supabase-js@2.116.0':
+    resolution: {integrity: sha512-YyWmKXt2NspV9iO8FPnlswUFJIRnrLd3oTCb+3ZyYRuKZtBH0xCUDgnUqoyA0fGUxpM/UhfwDjYf/dht/9bp7g==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.0.0'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+
   '@sveltejs/acorn-typescript@1.0.13':
     resolution: {integrity: sha512-wgKggnhZVL9Bfx1OaKKTrYY9BFRk6C8UAkQNUcIv1+llzYrIqy+RZm5HPKzn0NpEBvTVhTqB4kQyllZywsRBRQ==}
     peerDependencies:
@@ -6934,6 +7043,10 @@ packages:
 
   hyphenate-style-name@1.1.0:
     resolution: {integrity: sha512-WDC/ui2VVRrz3jOVi+XtjqkDjiVjTtFaAGiW37k6b+ohyQ5wYDOGkvCZa8+H0nx3gyvv0+BST9xuOgIyGQ00gw==}
+
+  iceberg-js@0.8.1:
+    resolution: {integrity: sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==}
+    engines: {node: '>=20.0.0'}
 
   iconv-lite@0.7.3:
     resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
@@ -11726,6 +11839,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)':
+    dependencies:
+      file-type: 21.3.4(supports-color@8.1.1)
+      iterare: 1.2.1
+      load-esm: 1.0.3
+      reflect-metadata: 0.2.2
+      rxjs: 7.8.2
+      tslib: 2.8.1
+      uid: 2.0.2
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
+
   '@nestjs/core@11.1.29(@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/platform-express@11.1.29)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
       '@nestjs/common': 11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
@@ -12839,6 +12965,59 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
+  '@supabase/auth-js@2.116.0':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/functions-js@2.116.0':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/middleware@0.5.0(typescript@7.0.2)':
+    dependencies:
+      std-env: 4.2.0
+    optionalDependencies:
+      typescript: 7.0.2
+
+  '@supabase/phoenix@0.4.5': {}
+
+  '@supabase/postgrest-js@2.116.0':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/realtime-js@2.116.0':
+    dependencies:
+      '@supabase/phoenix': 0.4.5
+      tslib: 2.8.1
+
+  '@supabase/server@1.6.1(@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@supabase/supabase-js@2.116.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.0.2(supports-color@8.1.1))(openapi-types@12.1.3)(typescript@7.0.2))(hono@4.13.7)(pg@8.23.0)(typescript@7.0.2)':
+    dependencies:
+      '@supabase/middleware': 0.5.0(typescript@7.0.2)
+      '@supabase/supabase-js': 2.116.0(@opentelemetry/api@1.9.1)
+      jose: 6.2.12
+    optionalDependencies:
+      '@nestjs/common': 11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.0.2(supports-color@8.1.1))(openapi-types@12.1.3)(typescript@7.0.2)
+      hono: 4.13.7
+      pg: 8.23.0
+    transitivePeerDependencies:
+      - typescript
+
+  '@supabase/storage-js@2.116.0':
+    dependencies:
+      iceberg-js: 0.8.1
+      tslib: 2.8.1
+
+  '@supabase/supabase-js@2.116.0(@opentelemetry/api@1.9.1)':
+    dependencies:
+      '@supabase/auth-js': 2.116.0
+      '@supabase/functions-js': 2.116.0
+      '@supabase/postgrest-js': 2.116.0
+      '@supabase/realtime-js': 2.116.0
+      '@supabase/storage-js': 2.116.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+
   '@sveltejs/acorn-typescript@1.0.13(acorn@8.18.0)':
     dependencies:
       acorn: 8.18.0
@@ -12940,6 +13119,14 @@ snapshots:
       token-types: 6.1.2
     transitivePeerDependencies:
       - supports-color
+
+  '@tokenizer/inflate@0.4.1(supports-color@8.1.1)':
+    dependencies:
+      debug: 4.4.3(supports-color@8.1.1)
+      token-types: 6.1.2
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
 
   '@tokenizer/token@0.3.0': {}
 
@@ -14300,6 +14487,19 @@ snapshots:
     optionalDependencies:
       typescript: 7.0.2
 
+  elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.0.2(supports-color@8.1.1))(openapi-types@12.1.3)(typescript@7.0.2):
+    dependencies:
+      '@sinclair/typebox': 0.34.52
+      cookie: 1.1.1
+      exact-mirror: 1.2.6
+      fast-decode-uri-component: 1.0.1
+      file-type: 22.0.2(supports-color@8.1.1)
+      memoirist: 0.4.0
+      openapi-types: 12.1.3
+    optionalDependencies:
+      typescript: 7.0.2
+    optional: true
+
   emoji-regex@10.6.0: {}
 
   emoji-regex@8.0.0: {}
@@ -14893,6 +15093,16 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  file-type@21.3.4(supports-color@8.1.1):
+    dependencies:
+      '@tokenizer/inflate': 0.4.1(supports-color@8.1.1)
+      strtok3: 10.3.5
+      token-types: 6.1.2
+      uint8array-extras: 1.5.0
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
+
   file-type@22.0.2(supports-color@7.2.0):
     dependencies:
       '@tokenizer/inflate': 0.4.1(supports-color@7.2.0)
@@ -14901,6 +15111,16 @@ snapshots:
       uint8array-extras: 1.5.0
     transitivePeerDependencies:
       - supports-color
+
+  file-type@22.0.2(supports-color@8.1.1):
+    dependencies:
+      '@tokenizer/inflate': 0.4.1(supports-color@8.1.1)
+      strtok3: 10.3.5
+      token-types: 6.1.2
+      uint8array-extras: 1.5.0
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
 
   fill-range@7.1.1:
     dependencies:
@@ -15468,6 +15688,8 @@ snapshots:
   human-signals@8.0.1: {}
 
   hyphenate-style-name@1.1.0: {}
+
+  iceberg-js@0.8.1: {}
 
   iconv-lite@0.7.3:
     dependencies:

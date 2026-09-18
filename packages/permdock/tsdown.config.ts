@@ -62,6 +62,7 @@ export default defineConfig({
     'src/prisma/index.ts',
     'src/kysely/index.ts',
     'src/supabase/index.ts',
+    'src/supabase/middleware.ts',
     'src/ssf/index.ts',
     'src/better-auth/index.ts',
     'src/clerk/index.ts',

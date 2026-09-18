@@ -1,0 +1,24 @@
+{
+  "name": "@permdock/example-supabase-middleware",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types src/serve.ts",
+    "start": "node --experimental-strip-types src/serve.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/middleware": "catalog:",
+    "@supabase/server": "catalog:",
+    "@supabase/supabase-js": "catalog:",
+    "jose": "catalog:",
+    "permdock": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

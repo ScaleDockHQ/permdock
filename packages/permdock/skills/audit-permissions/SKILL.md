@@ -49,8 +49,9 @@ Done when every quota grant has a `LimitStore` and no tool uses only `can` to en
 - `validate: 'never'` on a policy that sees HTTP bodies, MCP args, or model output is a finding. Boundary data uses the resource schema; trusted server rows may skip it.
 - Client entries (`permdock/react` and the client half of a framework adapter) import permissions and snapshots only.
 - JWT verification, when present, uses `subjectFromJwt` with Discovery or an explicit `jwks` + `issuer`, and algorithms `Ed25519` / `ES256` / `PS256`.
+- Supabase: every `ctx.supabaseAdmin`, `withPostgresAdminClient` or `service_role` client use sits in a handler that called `permdock.assert(...)` (or ran behind `withPermDock({ protect })`) first; those clients bypass RLS. `subjectFromSupabase` receives `getClaims()` output or `ctx.jwtClaims`, never `getSession().access_token` or `user_metadata`.
 
-Done when each of those three checks has a pass or a file-level finding.
+Done when each of those four checks has a pass or a file-level finding.
 
 ## ASI02 and ASI03
 

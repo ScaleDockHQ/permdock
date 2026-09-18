@@ -108,7 +108,7 @@ Full matrix: [comparison](./apps/docs/content/docs/comparison.mdx).
 
 **Later (v1.0 gate)**
 
-Phase 4 OSS (providers, quotas, Web Bot Auth, introspection, Arazzo `simulate`, docs MCP, unplugin recipes) has shipped. `1.0.0` waits on **external AuthZEN certification**; in-repo tests already cover Basic, Batch, Search and Discovery request shapes. Tracked, not built: GNAP `access` as a new delegation input and a GNAP OpenAPI scheme (name reserved). Every other draft PermDock follows carries a build / name / track posture on the [watch list](./apps/docs/content/docs/standards/watch-list.mdx) ([ADR 0025](./apps/docs/content/docs/decisions/0025-draft-protocol-posture.mdx)).
+Phase 4 OSS (providers, quotas, Web Bot Auth, introspection, Arazzo `simulate`, docs MCP, unplugin recipes, `permdock/supabase/middleware` with `@supabase/server` / `@supabase/ssr` recipes) has shipped. `1.0.0` waits on **external AuthZEN certification**; in-repo tests already cover Basic, Batch, Search and Discovery request shapes. Tracked, not built: GNAP `access` as a new delegation input and a GNAP OpenAPI scheme (name reserved). Every other draft PermDock follows carries a build / name / track posture on the [watch list](./apps/docs/content/docs/standards/watch-list.mdx) ([ADR 0025](./apps/docs/content/docs/decisions/0025-draft-protocol-posture.mdx)).
 
 **Non-goals**
 
@@ -148,6 +148,7 @@ Phase 4 OSS (providers, quotas, Web Bot Auth, introspection, Arazzo `simulate`, 
 | RLS | `permdock rls` (CLI) | `supabase-rls` | 3 |
 | JWT / JWKS | `permdock/jwt` | (via `hono`, `mcp-server`) | 1 |
 | Supabase | `permdock/supabase` (`subjectFromSupabase`, tenant and memberships claims, `authorize()` scaffold) | `supabase-rls` | 3 |
+| Supabase middleware | `permdock/supabase/middleware` (`withPermDock` for the `@supabase/middleware` pipeline; `@supabase/server` and `@supabase/ssr` are recipes, [ADR 0046](./apps/docs/content/docs/decisions/0046-supabase-middleware-entry.mdx)) | `supabase-middleware` | 4 |
 | Better Auth / Clerk / Convex | `permdock/better-auth` (`betterAuthRoleSource`) `permdock/clerk` (`memberships: 'all'`, custom roles) `permdock/convex` | `better-auth` `clerk` `convex` | 4 |
 | PDP client | `permdock/pdp` | — | 4 |
 | Testing | `@permdock/testing` | — | 1 |

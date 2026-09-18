@@ -58,6 +58,90 @@ Claim mapping used by both the in-process subject and the RLS compiler:
 
 A single-tenant-per-user app (the common Supabase case) needs only `tenant_id` in the hook; the active tenant is the claim, and tenant-scoped roles compile to one equality per policy. A multi-organization user needs a membership table the hook or a `MembershipSource` reads, and the compiled policy joins it; `permdock rls generate` emits the `exists` form when `supabaseRls` names the table and refuses tenant-scoped grants when neither a tenant claim nor a table is configured (fail closed, not a permissive policy).
 
+## Middleware: `permdock/supabase/middleware`
+
+Status: shipped
+Phase: 4
+
+Supabase's server packages compose through [`@supabase/middleware`](https://github.com/supabase/middleware): `defineMiddleware` produces a `withFoo(config)` entry that contributes typed keys to a shared `ctx`, declares the upstream keys it needs, and `pipeline([...entries], handler)` runs them in order. `permdock/supabase/middleware` is PermDock's entry for that pipeline ([ADR 0046](/docs/decisions/0046-supabase-middleware-entry)). It is a separate subpath so `permdock/supabase` keeps zero peer dependencies; `@supabase/middleware` is the optional peer of the middleware entry only.
+
+```ts
+import { pipeline } from '@supabase/middleware'
+import { withClaims } from '@supabase/server/middleware/claims'
+import { subjectFromSupabase } from 'permdock/supabase'
+import { createPermDock } from 'permdock/supabase/middleware'
+
+const { withPermDock, permdockHandler, openapi } = createPermDock(policy, {
+  subject: (ctx) => subjectFromSupabase(ctx.jwtClaims, { roles: 'user_role', tenant: 'tenant_id' }),
+})
+
+// decide in the handler: ctx.permdock is the request-scoped instance
+export default {
+  fetch: pipeline([withClaims(), withPermDock()], async (req, ctx) => {
+    const post = await loadPost(req)
+    if (!ctx.permdock.can(permissions.post.update, post)) {
+      return Response.json({ ok: false }, { status: 403 })
+    }
+    return Response.json({ ok: true })
+  }),
+}
+
+// or guard the route: a denial short-circuits with RFC 9457 Problem Details
+const publish = pipeline(
+  [withClaims(), withPermDock({ protect: permissions.post.publish, data: (_ctx, req) => loadPost(req) })],
+  async () => Response.json({ ok: true }),
+)
+
+// AuthZEN evaluations for the caller's own claims
+const evaluations = pipeline([withClaims()], permdockHandler())
+```
+
+- `createPermDock(policy, options)` takes the same options as the HTTP adapters (`subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots`, `otel`, `webBotAuth`) and returns `withPermDock`, `permdockHandler` and `openapi`. `subject(ctx, request)` receives the pipeline context; the documented body is `subjectFromSupabase(ctx.jwtClaims, …)`. `tenant` may be a string or `(ctx, request) => string | undefined`; a requested tenant without a matching membership yields no tenant ([tenancy](/docs/concepts/tenancy)).
+- `withPermDock()` declares `jwtClaims` as its prerequisite and contributes `ctx.permdock`, a frozen request-scoped `PermDock`. A pipeline that places it without an upstream contributor of `jwtClaims` (`withClaims`, `withRequiredClaims`, or `withSupabase`'s context) is a type error, not a runtime surprise.
+- `withPermDock({ protect, data })` runs the kernel's `protect` before the handler: `data(ctx, request)` loads the row (a `null` is a `404`), a denial is a `403` Problem Details body with `permission`, `denials` and `alternatives`, an `approval-required` outcome is a `403` carrying `approval` and the `PermDock-Approval` resume header is honoured ([approvals](/docs/security/approvals)). A pass contributes `ctx.permdock` as above.
+- `permdockHandler()` returns a terminal handler for `POST` [AuthZEN evaluations](/docs/adapters/authzen) against the caller's own subject; the body's `subject` never overrides the verified claims.
+- `openapi` is the same hook set the HTTP adapters expose for [`permdock openapi`](/docs/cli/openapi).
+- `ctx.jwtClaims` is typed structurally as `SupabaseJwtClaims` (`sub`, `role`, `app_metadata`, index signature), so `@supabase/server`'s `JWTClaims` satisfies it without a peer dependency, and so does any other entry that contributes the same key. A `null` (no token, `publishable` or `secret` mode) reaches `subjectFromSupabase` and becomes the anonymous subject; an invalid token never reaches PermDock because `withClaims` answers `401` first.
+- `with*` is the pipeline's naming convention (`withClaims`, `withPostgresClient`), adopted here so the entry reads like its neighbours. No other PermDock entry uses it ([naming](/docs/getting-started/naming)).
+
+### With `@supabase/server`
+
+[`@supabase/server`](https://github.com/supabase/server) is Supabase's stateless server toolkit: header-based authentication for Edge Functions, Workers, Hono, Elysia, NestJS and H3, no cookies. Its core `withSupabase(config, handler)` verifies the bearer token against the project JWKS (asymmetric keys only; HS256 legacy tokens are rejected) and hands the handler a context with `jwtClaims` (the verified payload or `null`), `supabase` (an RLS-scoped client carrying the caller's token), `supabaseAdmin` (the bypass client, built lazily) and `authMode` (`user`, `publishable`, `secret`, `none`). The framework adapters (`@supabase/server/adapters/hono` and friends) store the same context on the framework's request. Every one of those shapes is an input to `subjectFromSupabase`:
+
+| Where the claims are | Pass to `subjectFromSupabase` | Notes |
+|---|---|---|
+| `withSupabase({ auth: 'user' }, (req, ctx) => …)` | `ctx.jwtClaims` | `auth: 'user'` rejects token-less requests with `401` before the handler runs |
+| Hono `c.var.supabaseContext`, Elysia / NestJS / H3 equivalents | `supabaseContext.jwtClaims` | Combine with [`permdock/hono`](/docs/adapters/hono) and the other server adapters; the `subject` callback reads the framework context |
+| A standalone `pipeline([withClaims()], …)` | `ctx.jwtClaims` | `withClaims` contributes `null` for anonymous callers; `withRequiredClaims` short-circuits them with `401` |
+| `authMode: 'secret'` or `'publishable'` | `null` | An API key is not a principal. The subject is anonymous; grant machine access through `actor`, never by trusting the key as a user |
+
+`ctx.supabase` and `ctx.postgres` (from `withPostgresClient`) are already RLS-scoped, so a PermDock decision in the handler and an `authorize()` policy in Postgres are two evaluations of one catalog. `ctx.supabaseAdmin` and `withPostgresAdminClient` bypass RLS: every use belongs behind an explicit `permdock.assert(...)` in the same handler, and the [`audit-permissions`](/docs/cli/skills) skill flags any that is not. `withPostgresClient` sets `request.jwt.claims` and `set local role` to `authenticated` or `anon` per transaction and refuses any other role in the token, including `service_role`; that is the same preamble `permdock rls verify` runs, so a policy that passes the harness behaves the same under the client ([RLS adapter](/docs/adapters/rls)). For MCP servers behind Supabase Auth as the OAuth 2.1 authorization server, see [`withOAuthProtectedResource` on the MCP page](/docs/adapters/mcp).
+
+### With `@supabase/ssr`
+
+[`@supabase/ssr`](https://github.com/supabase/ssr) handles cookie sessions for Next.js, SvelteKit, Remix, React Router and Astro; it replaces the `auth-helpers-*` packages. The server client it creates is the one to call `getClaims()` on, exactly as the API section above shows, and the result feeds `subjectFromSupabase` inside the framework adapter's `subject` callback:
+
+```ts
+// app/permdock.ts (Next.js, permdock/next)
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { createPermDock } from 'permdock/next'
+import { subjectFromSupabase } from 'permdock/supabase'
+
+export const { getPermDock, getPermission, protect } = createPermDock(policy, {
+  subject: async () => {
+    const store = await cookies()
+    const supabase = createServerClient(url, publishableKey, {
+      cookies: { getAll: () => store.getAll(), setAll: () => {} },
+    })
+    const { data, error } = await supabase.auth.getClaims()
+    return subjectFromSupabase(error ? null : data.claims, { roles: 'user_role', tenant: 'tenant_id' })
+  },
+})
+```
+
+Two rules carry over from the SSR package's own guidance. Use `getClaims()` (or `getUser()`), never `getSession()` alone: `getSession()` reads the cookie without contacting Auth or the JWKS, so its `access_token` is unverified material and must not become a subject. And keep the session refresh in the framework's middleware or `proxy` (the `updateSession` recipe from the SSR docs) separate from the PermDock factory: refreshing is authentication, upstream of PermDock ([authentication](/docs/concepts/authentication)). The browser client from `createBrowserClient` never builds a subject; the client `PermDock` comes from `permdock.snapshot()` through [`permdock/react`](/docs/adapters/react).
+
 ## Verified material
 
 The provider consumes claims that Supabase has already verified; it never parses a raw JWT itself ([Authentication and PermDock](/docs/concepts/authentication)).
@@ -140,7 +224,7 @@ Because the scaffold emits the hook next to `authorize()`, the Postgres policy `
 ## Request lifecycle
 
 1. The client signs in; Supabase Auth runs the `custom_access_token_hook`, which reads `user_roles` and adds `user_role` to the JWT.
-2. Server request: the adapter in use (`permdock/next`, `permdock/hono`) verifies the token through the Supabase server client, calls `subjectFromSupabase`, and creates the request-scoped `PermDock`.
+2. Server request: the adapter in use (`permdock/next` over `@supabase/ssr`, `permdock/hono` over `@supabase/server`'s Hono adapter, or `withPermDock` after `withClaims` in a pipeline) takes the claims Supabase verified, calls `subjectFromSupabase`, and creates the request-scoped `PermDock`.
 3. In-process checks (`can`, `assert`, `filter`, `where`) run with `principal.roles` and `principal.tenant` from the claims, `principal.memberships` from the claim or the membership source, and `subject.claims` for other conditions.
 4. Database access: with `toWhere` the filter travels in the query; with RLS the database evaluates `authorize()` and the compiled conditions under the `authenticated` role with `request.jwt.claims` set by PostgREST or by the app's transaction preamble.
 5. Snapshot: `permdock.snapshot()` is sent to the client; claims are stale until token refresh, so a role change should also trigger `updateTag` and a session refresh.
@@ -163,6 +247,8 @@ Because the scaffold emits the hook next to `authorize()`, the Postgres policy `
 
 `apps/examples/supabase-rls`: a Hono server on `127.0.0.1:3469`. `GET /health`, `GET /rls/authorize` checks that generated SQL never contains `service_role`, and `PATCH /posts/:id` uses `subjectFromSupabase` with fixed JWT-shaped claims. No live Supabase project.
 
+`apps/examples/supabase-middleware`: a `@supabase/middleware` pipeline on `127.0.0.1:3477`. `withClaims` from `@supabase/server` verifies a real ES256 bearer token against an in-process JWKS, `withPermDock()` contributes `ctx.permdock` for `PATCH /posts/:id`, `withPermDock({ protect })` guards `POST /posts/:id/publish` with Problem Details, and `POST /api/permdock` mounts `permdockHandler()`. `GET /dev/token/member` and `GET /dev/token/admin` mint development tokens; a deployment points `withClaims` at the project JWKS instead. No live Supabase project.
+
 ## Related standards
 
 - [Postgres RLS](/docs/standards/postgres-rls): `auth.uid()`, `auth.jwt()`, `authorize()`, roles `anon` / `authenticated` / `service_role`.
@@ -170,6 +256,8 @@ Because the scaffold emits the hook next to `authorize()`, the Postgres policy `
 - [RLS adapter](/docs/adapters/rls): `generate`, `import`, `verify`.
 - [Subject](/docs/concepts/subject): principal fields and `subject.context`.
 - [Tenants, teams and scoped roles](/docs/concepts/tenancy): memberships, the active tenant, `memberOf` compilation.
+- [ADR 0046](/docs/decisions/0046-supabase-middleware-entry): why the middleware entry is its own subpath and `@supabase/server` / `@supabase/ssr` are recipes.
+- [MCP adapter](/docs/adapters/mcp): `withOAuthProtectedResource` with Supabase Auth as the OAuth 2.1 authorization server.
 
 ## Open questions
 

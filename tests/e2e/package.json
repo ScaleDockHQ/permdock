@@ -31,6 +31,7 @@
     "@permdock/example-react-vite": "workspace:*",
     "@permdock/example-scim": "workspace:*",
     "@permdock/example-solid": "workspace:*",
+    "@permdock/example-supabase-middleware": "workspace:*",
     "@permdock/example-supabase-rls": "workspace:*",
     "@permdock/example-svelte": "workspace:*",
     "@permdock/example-terminal": "workspace:*",
