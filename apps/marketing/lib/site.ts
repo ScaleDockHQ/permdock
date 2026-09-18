@@ -5,7 +5,7 @@ export const site = {
   url: 'https://permdock.dev',
   github: 'https://github.com/ScaleDockHQ/PermDock',
   npm: 'https://www.npmjs.com/package/permdock',
-  email: 'hello@permdock.dev',
+  email: 'hello@permdock.com',
   install: 'pnpm add permdock',
   getStarted: '/docs/getting-started/quick-start',
   docs: '/docs',
