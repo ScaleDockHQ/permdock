@@ -1,6 +1,6 @@
 import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
-import type { Grant } from './policy.ts';
+import type { ApprovalRequirement, Grant } from './policy.ts';
 import type { Subject } from './subject.ts';
 
 export type DenialReason =
@@ -41,7 +41,7 @@ export type MatchedGrant = {
   readonly to?: Grantee | readonly Grantee[];
   readonly where?: Grant['where'];
   readonly check?: Grant['check'];
-  readonly approval?: 'human';
+  readonly approval?: 'human' | ApprovalRequirement;
   readonly provider?: string;
 };
 

@@ -130,6 +130,20 @@ export function testLimitStore(store: LimitStore): void {
 
 export function testDecisionSink(sink: DecisionSink): void {
   it('accepts batches and never propagates write errors', async () => {
+    await expect(
+      Promise.resolve(
+        sink.write([
+          {
+            type: 'membership',
+            at: new Date().toISOString(),
+            source: 'app',
+            operation: 'changed',
+            principal: { id: 'u_1' },
+            roles: { added: ['admin'], removed: ['member'] },
+          },
+        ]),
+      ),
+    ).resolves.toBeUndefined();
     await expect(Promise.resolve(sink.write([]))).resolves.toBeUndefined();
     if (sink.flush !== undefined) {
       await expect(Promise.resolve(sink.flush())).resolves.toBeUndefined();
@@ -156,7 +170,7 @@ export function testSnapshotSource(source: SnapshotSource): void {
 
 function sampleApproval(token: string): ApprovalRequest {
   return {
-    v: 1,
+    v: 2,
     token,
     permission: 'post.delete',
     scope: 'post:delete',
@@ -184,6 +198,11 @@ export function testReplayStore(store: ReplayStore): void {
     await store.remember(jti);
     expect(await store.seen(jti)).toBe(true);
     expect(await store.seen('jti-2')).toBe(false);
+  });
+
+  it('forgets a jti whose expiresAt has passed', async () => {
+    await store.remember('ttl-jti', Math.floor(Date.now() / 1000) - 1);
+    expect(await store.seen('ttl-jti')).toBe(false);
   });
 }
 
@@ -281,6 +300,25 @@ export function testApprovalStore(store: ApprovalStore): void {
       new Date(Date.now() + 2 * 60 * 60 * 1000),
     );
     expect(expired).toBeGreaterThanOrEqual(1);
+  });
+
+  it('refuses an approver who does not match request.approvers', async () => {
+    const request = {
+      ...sampleApproval('gated-token'),
+      approvers: {
+        by: { kind: 'role' as const, role: 'admin', scope: 'global' as const },
+      },
+    };
+    await store.create(request);
+    const member: Subject = {
+      principal: { id: 'u_2', roles: ['member'] },
+      context: {},
+    };
+    await expect(
+      Promise.resolve().then(() =>
+        store.resolve('gated-token', { status: 'approved', by: member }),
+      ),
+    ).rejects.toThrow(/eligible|not pending|not found/);
   });
 }
 

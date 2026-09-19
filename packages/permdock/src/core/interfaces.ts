@@ -2,6 +2,7 @@ import type { Condition } from '../conditions/ast.ts';
 import type { Decision } from './decision.ts';
 import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
+import type { ApprovalRequirement } from './policy.ts';
 import type {
   CustomRole,
   JsonWebKeyLike,
@@ -151,7 +152,7 @@ export type SnapshotGrant = {
   readonly to?: Grantee | readonly Grantee[];
   readonly where?: Condition;
   readonly check?: Condition;
-  readonly approval?: 'human';
+  readonly approval?: 'human' | ApprovalRequirement;
   readonly scope?: 'tenant' | 'team' | { readonly resource: string };
   readonly membership?: Membership;
   readonly portable?: false;
@@ -209,7 +210,23 @@ export type DirectoryEvent = {
   readonly active?: boolean;
 };
 
-export type SinkEvent = DecisionEvent | DirectoryEvent;
+export type MembershipEvent = {
+  readonly type: 'membership';
+  readonly at: string;
+  readonly source: string;
+  readonly operation: 'added' | 'removed' | 'changed';
+  readonly principal: { readonly id: string };
+  readonly tenant?: string;
+  readonly team?: string;
+  readonly via?: string;
+  readonly roles: {
+    readonly added: readonly string[];
+    readonly removed: readonly string[];
+  };
+  readonly by?: { readonly id: string; readonly kind: string };
+};
+
+export type SinkEvent = DecisionEvent | DirectoryEvent | MembershipEvent;
 
 export type DecisionEvent = {
   readonly type: 'decision';

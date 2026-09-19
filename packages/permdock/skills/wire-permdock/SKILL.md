@@ -48,7 +48,7 @@ Done when every resource the first guard needs has a leaf, and instance actions 
 
 ## 3. Policy
 
-Create `src/policy.ts`. Server-only. Prefer `grants` with `to:` selectors (`anyone()`, `authenticated()`, `relation()`, a `Role` or `Plan` leaf, `actor()`, `assurance()`). `role(roles.member, …)` sugar still works. Portable `where` first; closures only when a portable operator cannot express the rule. Destructive agent-reachable actions take `approval: 'human'`. A `limit: { count, per }` grant needs `limits: memoryLimitStore()` (or your store) on `createPermDock`; `can` never consumes.
+Create `src/policy.ts`. Server-only. Prefer `grants` with `to:` selectors (`anyone()`, `authenticated()`, `relation()`, a `Role` or `Plan` leaf, `actor()`, `assurance()`). `role(roles.member, …)` sugar still works. Portable `where` first; closures only when a portable operator cannot express the rule. Destructive agent-reachable actions take `approval: { by }` (or `'human'`). A `limit: { count, per }` grant needs `limits: memoryLimitStore()` (or your store) on `createPermDock`; `can` never consumes.
 
 ```ts
 import { definePolicy, role, allow, principal, relation } from 'permdock';
@@ -73,6 +73,8 @@ export const policy = definePolicy(
   },
 );
 ```
+
+Workflow verbs on money or filing resources (`prepare`, `approve`, `pay`, `settle`, `submit`) are separate leaves. Put `approval: { by }` on `approve` / `pay` (PD017 warns when those actions have neither approval nor a matching deny). Use `exclusiveWith` on `role()` so a preparer cannot also be the approver (PD018). Hardware-key step-up is `assurance({ amr: ['hwk'], maxAge: 300 })` and renders `/step-up-required`.
 
 Done when at least one role grants the first guard's permission, and `policy.ts` is not imported from a client entry.
 

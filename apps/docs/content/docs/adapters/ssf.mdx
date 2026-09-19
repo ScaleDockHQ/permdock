@@ -39,7 +39,20 @@ receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) 
 - `onEvent` is keyed by CAEP event type. Handlers receive the resolved `subject`, the raw `event` claims, `event_timestamp` and the `jti`.
 - `subject` maps the SET `sub_id` (formats `iss_sub`, `email`, `opaque`, and others defined by the Subject Identifiers RFC) to the id PermDock uses in `tag` and snapshots.
 - `verifier` (optional, a `TokenVerifier` from [extension interfaces](/docs/concepts/extension-interfaces)) replaces the built-in `joseTokenVerifier` over `jwks`; `discovery: '<issuer>'` may stand in for `issuer` plus `jwks` exactly as in [`permdock/jwt`](/docs/adapters/jwt).
-- `replay` (optional, a `ReplayStore`) replaces the in-memory `jti` store. `memoryReplayStore()` is the default.
+- `replay` (optional, a `ReplayStore`) replaces the in-memory `jti` store. `memoryReplayStore()` is the default. `remember(jti, expiresAt?)` is additive; the receiver passes the SET `exp` or `iat + clockTolerance`. The memory store evicts expired `jti`s on read.
+- `approvals` (optional, an `ApprovalStore`) lets `session-revoked` (CAEP and Back-Channel Logout) call `cancelApprovals` for the principal and `subject.session`. Pending requests are marked `rejected` with `resolvedBy: 'system:ssf'`. The receiver emits an `approvals-cancelled` audit event with the count.
+
+### Shared replay store
+
+```ts
+// Redis: SET NX EX, TTL from expiresAt
+remember(jti, expiresAt) {
+  const ttl = expiresAt === undefined ? 3600 : Math.max(1, expiresAt - Math.floor(Date.now() / 1000))
+  return redis.set(`ssf:jti:${jti}`, '1', { NX: true, EX: ttl })
+}
+
+// Postgres: insert with expires_at, delete where expires_at <= now() on seen
+```
 
 ### OpenID Connect Back-Channel Logout
 
@@ -112,10 +125,10 @@ None. The receiver is exercised in `tests/integration` against recorded SETs fro
 - [Next.js adapter](/docs/adapters/next): `tag` and `updateTag` integration.
 - [React adapter](/docs/adapters/react): client `invalidate` and `stale` status.
 
+`assurance-level-change` is invalidation only. The next `subjectFrom*` carries the new `acr` / `amr`; `assurance()` on the grant decides. The event never raises a policy.
+
 ## Open questions
 
-- Replay store: in-memory is fine for a single instance; multi-instance deployments need a shared store, and the interface for it is undecided.
 - Whether to ship a stream-management helper (creating the stream at the transmitter, `add_subject`) or leave transmitter configuration to the IdP console.
-- How `assurance-level-change` should influence decisions beyond invalidation, for example a `context.aal` value that conditions can reference.
 - Whether client push (WebSocket or SSE `invalidate`) belongs in this adapter or in the React adapters with `permdock/ssf` only invalidating server tags.
 - Keycloak's transmitter is experimental; event shapes may change before Phase 3.

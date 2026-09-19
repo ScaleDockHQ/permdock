@@ -162,7 +162,7 @@ Emitted by `on('decision')`. See [audit and observability](/docs/concepts/audit-
 Two documented projections leave the event unchanged and exist so `DecisionSink` implementations agree with each other ([audit and observability](/docs/concepts/audit-and-observability)):
 
 - **OCSF.** `toOcsf(event)` maps a decision event onto the [OCSF](https://schema.ocsf.io/) Authorization activity class: `outcome` to `status`, `denials[].reason` to `status_detail`, `permission` and `scope` to the resource and privilege fields, `subject.principal` to `actor.user`, `subject.actor` to the acting application, `adapter` and `source` to `metadata.product`. The exact class and field names are pinned to one OCSF version when the function ships and recorded here.
-- **CloudEvents 1.0 envelope.** On the wire, each event is `{ specversion: '1.0', type: '<type>', source: '<service>', subject: '<permission key or resource id>', id, time, datacontenttype: 'application/json', data: <event> }`. The PermDock Cloud sink, its webhooks and any queue or HTTP sink use it. `source` is the emitting service (the application's `source` on the event, or the Cloud environment URL); `subject` is the permission key for decision and approval events, the SCIM resource id for directory events and the catalog version for catalog events.
+- **CloudEvents 1.0 envelope.** On the wire, each event is `{ specversion: '1.0', type: '<type>', source: '<service>', subject: '<permission key or resource id>', id, time, datacontenttype: 'application/json', data: <event> }`. The PermDock Cloud sink, its webhooks and any queue or HTTP sink use it. `source` is the emitting service (the application's `source` on the event, or the Cloud environment URL); `subject` is the permission key for decision and approval events, the SCIM resource id for directory events, the principal id for membership events and the catalog version for catalog events.
 
 The CloudEvents `type` values are a closed list; adding one is a wire-format change:
 
@@ -171,27 +171,53 @@ The CloudEvents `type` values are a closed list; adding one is a wire-format cha
 | `dev.permdock.decision` | A decision event (above) | Every `DecisionSink` |
 | `dev.permdock.approval` | An approval event (`phase: requested` or `phase: resolved`) with the `ApprovalRequest` below | Every `DecisionSink`; the Cloud webhook and paging connectors |
 | `dev.permdock.directory` | A `directory` event: the SCIM operation (`User` or `Group`, method, tenant, the affected `id`s, `active` after the change) with no attribute values beyond identifiers | `scimHandler` through its `sink`; the Cloud relay's sync log ([SCIM adapter](/docs/adapters/scim)) |
+| `dev.permdock.membership` | A `membership` event: who gained or lost roles, from SCIM, Better Auth, Clerk or the app | `membershipEvent()`, `scimHandler` group changes, `onRoleChange({ sink })` ([0048](/docs/decisions/0048-membership-sink-event)) |
 | `dev.permdock.catalog` | A policy publish (catalog version before and after) or a drift finding (the `permdock collect --check` diff) | The Cloud on `permdock cloud push` and on scheduled drift checks ([Cloud integrations](/docs/adapters/cloud-integrations)) |
 
 Changing either projection is a wire-format change and follows the versioning rule below.
 
-## Approval request v1
+## Membership event
 
-Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See [approvals](/docs/security/approvals) and the [approvals adapter](/docs/adapters/approvals).
+A `membership` event records a role change that is not a SCIM resource write. Apps emit it with `membershipEvent()`; SCIM group membership changes and Better Auth `onRoleChange({ sink })` emit it automatically.
 
 ```json
 {
-  "v": 1,
+  "type": "membership",
+  "at": "2026-09-06T10:20:31Z",
+  "source": "better-auth",
+  "operation": "changed",
+  "principal": { "id": "u_1" },
+  "tenant": "o_1",
+  "team": "t_1",
+  "roles": { "added": ["admin"], "removed": ["member"] },
+  "by": { "id": "u_9", "kind": "user" }
+}
+```
+
+`source` is `scim`, `better-auth`, `clerk`, `app`, or another string. `via` is `group:<id>` when the change came from a group. See [ADR 0048](/docs/decisions/0048-membership-sink-event).
+
+## Approval request v2
+
+Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See [approvals](/docs/security/approvals), the [approvals adapter](/docs/adapters/approvals) and [ADR 0047](/docs/decisions/0047-approver-eligibility). New records set `v: 2`. A v1 record is still readable and has no `approvers` field.
+
+```json
+{
+  "v": 2,
   "token": "pd1.…",
-  "permission": "post.delete",
-  "scope": "post:delete",
-  "resource": { "type": "post", "id": "42" },
+  "permission": "filing.pay",
+  "scope": "filing:pay",
+  "resource": { "type": "filing", "id": "42" },
   "subject": {
-    "principal": { "id": "u_1", "roles": ["member"] },
+    "principal": { "id": "u_1", "roles": ["clerk"], "tenant": "o_1" },
     "actor": { "id": "eve:app", "kind": "eve" },
-    "delegation": { "scopes": ["post:delete"] }
+    "session": "sid-1",
+    "delegation": { "scopes": ["filing:pay"] }
   },
-  "detail": "post.delete requires human approval (human).",
+  "approvers": {
+    "by": [{ "kind": "role", "role": "admin", "scope": "tenant" }],
+    "distinct": true
+  },
+  "detail": "filing.pay requires approval from admin.",
   "adapter": "eve",
   "createdAt": "2026-09-06T10:15:00Z",
   "expiresAt": "2026-09-06T11:15:00Z",
@@ -202,7 +228,7 @@ Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See [approvals](
 }
 ```
 
-`status` is `pending`, `approved`, `rejected` or `expired`; `resolvedAt`, `resolvedBy` and `note` appear only once resolved. The record never carries the resource object, the policy, or tokens from `authInfo`. On the wire, the HTTP resume header is `PermDock-Approval: <token>`.
+`status` is `pending`, `approved`, `rejected` or `expired`; `resolvedAt`, `resolvedBy` and `note` appear only once resolved. `approvers` is copied from `grant.approval` when it is the object form. `subject.session` is the OIDC `sid` when the subject carried one. The record never carries the resource object, the policy, or tokens from `authInfo`. On the wire, the HTTP resume header is `PermDock-Approval: <token>`.
 
 ## Signed outputs
 

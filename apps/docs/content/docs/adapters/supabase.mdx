@@ -168,6 +168,7 @@ Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/d
 | `app_metadata.*` and hook-injected top-level claims (`user_role`, `tenant_id`, `memberships`) | Server-set, trusted | `principal.roles`, `principal.tenant`, `principal.memberships`, `principal.claims.*` |
 | `user_metadata.*` | User-writable through the client SDK | **Never read.** A user can set `user_metadata.role = 'admin'` on themselves; it must not become a grant |
 | `aal` (`aal1`, `aal2`) | Verified | `principal.assurance.acr` (Supabase's level takes the `acr` slot, [ADR 0026](/docs/decisions/0026-spec-aligned-naming)), for grants that require MFA (`where: { subject: { assurance: { acr: 'aal2' } } }`); a failed condition is `denied` with reason `insufficient-user-authentication` |
+| `amr` (array of `{ method, timestamp }`) | Verified | Not copied into `principal.assurance.amr` (those objects are not RFC 8176 strings). Use `aal` for MFA, or map `method` yourself in a wrapper |
 | `iss` | Verified | `principal.issuer`; the project's Auth URL |
 | `session_id` | Verified | Carried on audit events; the key a CAEP `session-revoked` event invalidates |
 | `exp` | Verified | `subject.expiresAt`, copied into snapshots |
@@ -228,6 +229,10 @@ Because the scaffold emits the hook next to `authorize()`, the Postgres policy `
 3. In-process checks (`can`, `assert`, `filter`, `where`) run with `principal.roles` and `principal.tenant` from the claims, `principal.memberships` from the claim or the membership source, and `subject.claims` for other conditions.
 4. Database access: with `toWhere` the filter travels in the query; with RLS the database evaluates `authorize()` and the compiled conditions under the `authenticated` role with `request.jwt.claims` set by PostgREST or by the app's transaction preamble.
 5. Snapshot: `permdock.snapshot()` is sent to the client; claims are stale until token refresh, so a role change should also trigger `updateTag` and a session refresh.
+
+## Sessions and devices
+
+List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSessions`, `auth.admin.signOut` / revoke). PermDock does not own a device list UI. Revocation reaches PermDock when the project emits Back-Channel Logout or a CAEP `session-revoked` SET into [`permdock/ssf`](/docs/adapters/ssf), joined on `subject.session` (`session_id`). With `approvals` set on the SSF factory, pending approval requests for that session are cancelled.
 
 ## What it validates
 

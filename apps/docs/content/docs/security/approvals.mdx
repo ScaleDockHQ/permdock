@@ -3,17 +3,19 @@ title: Approvals (human in the loop)
 description: "How approval: 'human' grants produce approval-required decisions, how the replay-safe token binds an approval to one call, and how each runtime surfaces and resumes the approval."
 ---
 
-Some actions should be permitted in principle but confirmed by a person each time: refunds, deletions, publishing, anything an agent might do a thousand times before anyone notices. PermDock models this as a third decision outcome rather than a denial with a note, so every adapter can translate it into the runtime's own approval vocabulary and resume safely once a human says yes. See [decisions](/docs/concepts/decisions) and [ADR 0013](/docs/decisions/0013-three-outcome-decision).
+Some actions should be permitted in principle but confirmed by a person each time: refunds, deletions, publishing, anything an agent might do a thousand times before anyone notices. PermDock models this as a third decision outcome rather than a denial with a note, so every adapter can translate it into the runtime's own approval vocabulary and resume safely once a human says yes. See [decisions](/docs/concepts/decisions) and [ADR 0013](/docs/decisions/0013-three-outcome-decision). Who may approve lives on the grant ([ADR 0047](/docs/decisions/0047-approver-eligibility)).
 
 ## The grant
 
 ```ts
-const member = role('member', [
-  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
+const clerk = role('clerk', [
+  allow(permissions.filing.pay, {
+    approval: { by: [roles.admin, assurance({ amr: ['mfa'] })], distinct: true },
+  }),
 ])
 ```
 
-`approval: 'human'` marks the grant. When the grant matches (role applies, condition holds), `decide` returns:
+`approval: 'human'` still marks a grant that any authenticated person who is not the actor may resolve. `{ by, distinct }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, an array as intersection) and, when `distinct` is true, excludes the principal as well as the actor. When the grant matches, `decide` returns:
 
 ```ts
 { outcome: 'approval-required', grant, reason, token }
@@ -92,7 +94,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 
 - It does not grant a permission the subject lacks. Approval sits on top of a matching grant.
 - It does not outlive its request. Each call needs its own approval; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step.
-- It does not decide who may approve beyond the actor rule. Approver eligibility (`approvers` on the agent adapters, `requireDistinctApprover`) is the application's policy; PermDock records the approver on the request and the resumed decision through `on('decision')` so the events can be joined.
+- It does not decide who may approve beyond the grant and the actor rule. `approval.by` and `approval.distinct` on the grant are stored on the v2 `ApprovalRequest` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is the application-wide default when the grant omits `distinct`.
 
 ## Sources
 

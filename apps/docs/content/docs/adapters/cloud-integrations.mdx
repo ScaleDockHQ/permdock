@@ -82,7 +82,7 @@ Webhooks are the generic escape hatch: anything not listed on this page receives
 
 | Connector | Standard or interface | What it carries | Never |
 | --- | --- | --- | --- |
-| HTTP webhook | CloudEvents 1.0 structured mode over HTTPS; batches optionally signed as a compact JWS with `typ: permdock-decisions+jwt` ([wire formats](/docs/concepts/wire-formats) "Signed outputs") | Events of type `dev.permdock.decision`, `dev.permdock.approval`, `dev.permdock.directory` (a SCIM operation replayed) and `dev.permdock.catalog` (a policy publish or a drift finding); `source` is the emitting service, `subject` the permission key or resource id | Deliver an approval resolution: a webhook tells a receiver that an approval is pending or resolved, and the receiver cannot answer it |
+| HTTP webhook | CloudEvents 1.0 structured mode over HTTPS; batches optionally signed as a compact JWS with `typ: permdock-decisions+jwt` ([wire formats](/docs/concepts/wire-formats) "Signed outputs") | Events of type `dev.permdock.decision`, `dev.permdock.approval`, `dev.permdock.directory` (a SCIM operation replayed), `dev.permdock.membership` (a role change) and `dev.permdock.catalog` (a policy publish or a drift finding); `source` is the emitting service, `subject` the permission key, resource id or principal id | Deliver an approval resolution: a webhook tells a receiver that an approval is pending or resolved, and the receiver cannot answer it |
 
 A receiver in another trust domain verifies the JWS against `<PERMDOCK_CLOUD_URL>/.well-known/jwks.json` with `aud` equal to itself and `exp`, or the CloudEvents HTTP signature when batches are unsigned; `id` and `time` make replay detectable. Retries use exponential backoff with the same `id`, so a receiver deduplicates on it.
 

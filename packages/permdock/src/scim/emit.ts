@@ -1,9 +1,14 @@
-import type { DirectoryEvent, SinkEvent } from '../core/interfaces.ts';
+import type {
+  DirectoryEvent,
+  MembershipEvent,
+  SinkEvent,
+} from '../core/interfaces.ts';
 import type { ScimCredential } from './auth.ts';
+import type { DirectoryGroup } from './types.ts';
 import type { ScimHandlerOptions } from './types.ts';
 
 import { compact } from '../core/compact.ts';
-import { memorySink } from '../core/sink.ts';
+import { membershipEvent, memorySink } from '../core/sink.ts';
 
 export function reportUnknownRoles(
   roles: readonly string[] | undefined,
@@ -20,14 +25,63 @@ export function reportUnknownRoles(
   }
 }
 
+export function membershipEventsForGroup(input: {
+  readonly tenant: string;
+  readonly groupId: string;
+  readonly roles: readonly string[];
+  readonly previous: DirectoryGroup | null;
+  readonly next: DirectoryGroup | null;
+}): readonly MembershipEvent[] {
+  const previousIds = new Set(
+    input.previous?.members.map((member) => member.value) ?? [],
+  );
+  const nextIds = new Set(
+    input.next?.members.map((member) => member.value) ?? [],
+  );
+  const roles = input.roles;
+  const events: MembershipEvent[] = [];
+  for (const id of nextIds) {
+    if (previousIds.has(id)) {
+      continue;
+    }
+    events.push(
+      membershipEvent({
+        source: 'scim',
+        operation: 'added',
+        principal: { id },
+        tenant: input.tenant,
+        via: `group:${input.groupId}`,
+        roles: { added: roles, removed: [] },
+      }),
+    );
+  }
+  for (const id of previousIds) {
+    if (nextIds.has(id)) {
+      continue;
+    }
+    events.push(
+      membershipEvent({
+        source: 'scim',
+        operation: 'removed',
+        principal: { id },
+        tenant: input.tenant,
+        via: `group:${input.groupId}`,
+        roles: { added: [], removed: roles },
+      }),
+    );
+  }
+  return events;
+}
+
 export async function emitDirectory(
   options: ScimHandlerOptions,
   event: DirectoryEvent,
   userIds: readonly string[],
+  extra: readonly SinkEvent[] = [],
 ): Promise<void> {
   const sink = options.sink ?? memorySink();
   try {
-    await sink.write([event] as readonly SinkEvent[]);
+    await sink.write([event, ...extra] as readonly SinkEvent[]);
   } catch {
     // A throwing sink must never fail the IdP write.
   }

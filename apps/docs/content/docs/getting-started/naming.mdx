@@ -90,7 +90,9 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `parseSnapshot` | Read snapshot JSON; rejects unknown majors and forbidden keys (`__proto__`, `constructor`, `prototype`) | Evaluating; it is a reader, not `createPermDock` |
 | `fromSnapshot` | Build a client `PermDock` from a `Snapshot` so portable grants evaluate locally | A second policy; closures stay on the server |
 | `approvalHeaders` | `{ 'PermDock-Approval': token }` for a retried mutation | Minting a token; it only wraps the one `decide` returned |
-| `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler` | The pluggable store behind `approval-required`, its in-process default, and the Fetch routes for approvers (`permdock/approvals`) | Deciding; a store never influences `decide` |
+| `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, `cancelApprovals` | The pluggable store behind `approval-required`, its in-process default, the Fetch routes for approvers, and the helper that rejects pending requests for a session (`permdock/approvals`) | Deciding; a store never influences `decide` |
+| `approval: 'human'` or `{ by, distinct }` | Grant option that yields `approval-required`; `by` is a grantee selector and `distinct` excludes the principal ([0047](/docs/decisions/0047-approver-eligibility)) | A fluent approver builder; `quorum` |
+| `exclusiveWith` | Role option listing roles that must not be held together; doctor PD018 and `separationConflicts` | An evaluation deny |
 | `DecisionSink`, `memorySink` | The pluggable destination for `on('decision')` events and its in-process default; `memorySink({ signer })` signs each write | Blocking a decision; sinks are fire-and-forget |
 | `signDecisionBatch` | Sign a `SinkEvent[]` as compact JWS with `typ: permdock-decisions+jwt` and CloudEvents under the `events` claim | Feeding a signed batch back into `decide`; evidence only |
 | `store`, `sink`, `snapshots` | The three options every adapter's `createPermDock` accepts for an `ApprovalStore`, a `DecisionSink` and a `SnapshotSource` | Anything else; `store` is never a database handle |
@@ -176,13 +178,17 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 | `authorization_details` | RFC 9396 | `delegation.authorizationDetails`; `permission.authorizationDetails` | One RAR `type` per permission |
 | `access` | RFC 9635, RFC 9767 | `delegation.access` | Objects and reference strings kept verbatim |
 | `cnf` (`jkt`, `x5t#S256`, `jwk`, `kid`) | RFC 7800, RFC 9449, RFC 8705 | `binding` with the same member names (reshaped) | FAPI's "sender-constrained" gives the field its name; the members are the `cnf` members so it round-trips |
-| `acr`, `amr`, `auth_time` | OIDC Core, RFC 8176 | `principal.assurance.acr`, `.amr`, `.authTime` (new fields) | Provider `aal` maps into `acr` |
+| `acr`, `amr`, `auth_time` | OIDC Core, RFC 8176 | `principal.assurance.acr`, `.amr`, `.authTime` (new fields) | Provider `aal` maps into `acr`; RFC 8176 `amr` values include `pwd`, `otp`, `swk`, `hwk`, `mfa` |
+| `aal` (`aal1`, `aal2`) | Supabase Auth JWT | `principal.assurance.acr` | Verified by `getClaims()`; `aal2` is MFA |
+| `fva` / `factorVerificationAge` | Clerk session token | Recipe into `principal.assurance`; not mapped by `subjectFromClerk` | Second element `>= 0` means a second factor was verified |
+| `twoFactorEnabled` | Better Auth user row | Recipe into `principal.assurance`; not mapped by `subjectFromBetterAuth` | A session exists only after the two-factor plugin verifies |
 | `sid` | OIDC Front- and Back-Channel Logout | `subject.session` (new) | The join key for `logout_token` and CAEP events |
 | `roles`, `groups`, `entitlements` | RFC 9068 | `principal.roles`; `principal.memberships` (`team` from `groups`) | SCIM `value` only |
 | `userName`, `externalId`, `active`, `displayName` (SCIM `User`) | RFC 7643 | `DirectoryUser.userName`, `.externalId`, `.active`, `.displayName` verbatim | `externalId` is the IdP's identifier and `id` is the store's; `active: false` yields no memberships; `displayName` is never an identifier |
 | `members[].value`, `displayName` (SCIM `Group`) | RFC 7643 | `DirectoryGroup.members[].value` verbatim; `team: group.id` on the membership | Group `id` is the team identifier; `display` and `displayName` are labels only |
 | `urn:permdock:scim:schemas:extension:roles:1.0` (`roles`) | RFC 7643 section 3.3 extension | The `Group` extension carrying the declared role names for a group; read by `directoryMembershipSource` | Unknown or non-`assignable` role names are dropped, never invented |
-| `type`, `source`, `subject` (CloudEvents) | CloudEvents 1.0 | `dev.permdock.decision`, `dev.permdock.approval`, `dev.permdock.directory`, `dev.permdock.catalog`; the emitting service; the permission key or resource id | The envelope for every webhook and queue sink ([wire formats](/docs/concepts/wire-formats)) |
+| `type`, `source`, `subject` (CloudEvents) | CloudEvents 1.0 | `dev.permdock.decision`, `dev.permdock.approval`, `dev.permdock.directory`, `dev.permdock.membership`, `dev.permdock.catalog`; the emitting service; the permission key, resource id or principal id | The envelope for every webhook and queue sink ([wire formats](/docs/concepts/wire-formats)) |
+| `membershipEvent` | Pure builder for a `membership` sink event | A `Decision`; it is audit only ([0048](/docs/decisions/0048-membership-sink-event)) |
 | `jwks_uri`, `issuer` (Discovery) | OIDC Discovery, RFC 8414 | `discovery` option; `jwks` and `issuer` options | Discovery supplies both |
 | `typ` (`at+jwt`, `JWT`, `logout+jwt`, `secevent+jwt`) | RFC 9068, RFC 7519, OIDC, RFC 8417 | `accept` option; `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt` on outputs | Explicit typing, RFC 8725 section 3.11 |
 | `invalid_token`, `insufficient_scope`, `insufficient_user_authentication` | RFC 6750, RFC 9470 | `on('auth')` reason `invalid-token` (renamed); Decision reasons `not-delegated` / `no-delegation` and `insufficient-user-authentication` (new) | Hyphenated in PermDock, underscored on the wire; the HTTP adapter renders without a second table |

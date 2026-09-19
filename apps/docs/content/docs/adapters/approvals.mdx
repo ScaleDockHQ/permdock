@@ -41,7 +41,9 @@ interface ApprovalStore {
 }
 ```
 
-- `create` is called by an adapter when `decide` returns `approval-required`; the record carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant` and the `membership` that supplied the matched role), the model-readable `detail`, `createdAt` and `expiresAt` ([wire formats](/docs/concepts/wire-formats)). The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another.
+- `create` is called by an adapter when `decide` returns `approval-required`; the record is [Approval request v2](/docs/concepts/wire-formats) and carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant`, `session` and the `membership` that supplied the matched role), `approvers` from `grant.approval` when present, the model-readable `detail`, `createdAt` and `expiresAt`. The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another.
+- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`. When `approvers` is set, the approver must belong to the request tenant and match `by`; `approvers.distinct` also refuses the principal. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
+- `cancel(filter, { by, note })` is optional. It marks matching pending requests `rejected` with `resolvedBy: 'system:<by>'` and does not run eligibility, because a rejection never grants. `cancelApprovals` in `permdock/approvals` calls it, or falls back to `list` plus a system `resolve`.
 - `list({ tenant })` scopes the approver inbox to one tenant, which is how a tenant admin sees only their organisation's pending requests; `approvalsHandler` applies it from the approver's active tenant and the approver must hold a membership there ([tenancy](/docs/concepts/tenancy)).
 - `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`; `approvalsHandler` enforces this before calling the store, and a custom store should too.
 - `list` powers the approver UI and the `permdock/terminal` interactive prompt.
@@ -55,7 +57,7 @@ interface ApprovalStore {
 | --- | --- | --- |
 | `GET /pending` | Requests the authenticated approver may resolve, in the approver's active tenant (`?tenant=` must be one of the approver's memberships) | `401` without a subject; `403` for a tenant the approver does not belong to |
 | `GET /mine` | The authenticated principal's own requests, for `useApproval` polling | `401` without a subject |
-| `POST /:token/approve` | Marks approved, records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, or the principal with `requireDistinctApprover` |
+| `POST /:token/approve` | Marks approved, records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, the principal when `distinct` or `requireDistinctApprover` is set, or when `approvers.by` does not match (`approver-not-eligible`) |
 | `POST /:token/reject` | Marks rejected with an optional `note` | Same |
 | `GET /:token` | One request, for a confirmation screen | `404` for unknown or foreign tokens |
 

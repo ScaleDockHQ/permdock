@@ -17,6 +17,7 @@ import { coveredByDelegation, resourceIdOf } from './delegation.ts';
 import { grantCoversField } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { matchGrantee } from './grantee.ts';
+import { requiresApproval } from './policy.ts';
 import { isMembershipExpired, nowSeconds } from './tenancy.ts';
 import { decisionToken } from './token.ts';
 
@@ -284,7 +285,7 @@ export function evaluateSnapshot(
     check: matched.check,
     approval: matched.approval,
   });
-  if (matched.approval === 'human') {
+  if (requiresApproval(matched.approval)) {
     return freezeDeep({
       outcome: 'approval-required',
       grant,

@@ -32,7 +32,7 @@ export const scim = scimHandler({
     audience: 'https://app.example.com/scim/v2',
   }),
   groupRoles: { 'g_9f2c…': ['editor'], 'g_0e6f…': ['admin'] },   // optional static map; the extension attribute wins when present
-  sink,                                               // a DecisionSink; receives one `directory` event per write (memorySink by default)
+  sink,                                               // a DecisionSink; receives one `directory` event per write, plus a `membership` event per affected group member
   onChange: ({ tenant, userIds }) => updateTag(`permdock:${tenant}`),   // optional; invalidate cached snapshots
 })
 
@@ -49,7 +49,7 @@ export const { permdock, protect } = createPermDock(policy, {
 - `tenant` resolves the tenant for a request from the mount path or from the credential. SCIM has no tenant attribute, so one endpoint (or one credential) per tenant is the model every IdP expects.
 - `token` and `verifier` are the two credential kinds; at least one is required and both may be set. `token` is a per-tenant static bearer compared in constant time against a stored hash (never stored plain). `verifier` is a `TokenVerifier` for an RFC 7523 JWT bearer whose `aud` must be this endpoint and whose tenant claim must equal the resolved tenant; this is what the Cloud relay presents and what the IPSIE AL1 profile prescribes.
 - `groupRoles` maps a group `id` to the role names its members hold. When a `Group` arrives with the PermDock extension attribute (`urn:permdock:scim:schemas:extension:roles:1.0` with a `roles` array), the attribute is stored on the group and takes precedence; the Cloud's mapping UI writes it, and an IdP that supports custom group attributes may too. Role names are offered to the tenant's `RoleSource` as custom roles first and then matched against declared `assignable` roles; anything else is dropped and reported in development.
-- `sink` is a `DecisionSink` ([audit and observability](/docs/concepts/audit-and-observability)); the handler writes one `directory` event per accepted operation so provisioning and the decisions it later explains share one log. `onChange` receives the tenant and the affected user ids after a write, for snapshot invalidation.
+- `sink` is a `DecisionSink` ([audit and observability](/docs/concepts/audit-and-observability)); the handler writes one `directory` event per accepted operation so provisioning and the decisions it later explains share one log. Group create, replace, patch and delete also write one `membership` event per affected user (`source: 'scim'`, `via: 'group:<id>'`, roles from the extension). `onChange` receives the tenant and the affected user ids after a write, for snapshot invalidation.
 - `directoryMembershipSource(store)` returns a `MembershipSource` whose `membershipsFor(principal, { tenant })` looks the principal up by `externalId` or `userName` (configurable `match`), returns nothing when the user is missing or `active: false`, and otherwise one membership per group: `{ tenant, team: group.id, roles: group.roles, via: 'group:' + group.id }`.
 
 ### DirectoryStore

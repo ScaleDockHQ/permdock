@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import { principal } from '../conditions/refs.ts';
+import { assurance } from './grantee.ts';
 import { definePermissions, resource } from './permissions.ts';
-import { allow, definePolicy, deny, inferOutput, role } from './policy.ts';
+import {
+  allow,
+  definePolicy,
+  deny,
+  inferOutput,
+  normalizeApproval,
+  requiresApproval,
+  role,
+  separationConflicts,
+} from './policy.ts';
 
 const permissions = definePermissions({
   post: resource({
@@ -78,6 +88,46 @@ describe('policy', () => {
       'allow',
       'deny',
     ]);
+  });
+
+  it('normalises approval.by and treats any defined approval as required', () => {
+    expect(normalizeApproval('human')).toBe('human');
+    expect(normalizeApproval({ distinct: true })).toEqual({
+      by: { kind: 'authenticated' },
+      distinct: true,
+    });
+    const grant = allow(permissions.org.delete, {
+      approval: { by: ['admin', assurance({ amr: 'mfa' })], distinct: true },
+    });
+    const single = Array.isArray(grant) ? grant[0] : grant;
+    expect(requiresApproval(single?.approval)).toBe(true);
+    expect(single?.approval).toEqual({
+      by: [
+        { kind: 'role', role: 'admin', scope: 'global' },
+        { kind: 'assurance', amr: ['mfa'] },
+      ],
+      distinct: true,
+    });
+  });
+
+  it('records exclusiveWith and reports membership conflicts', () => {
+    const policy = definePolicy(permissions, {
+      roles: [
+        role('preparer', [allow(permissions.post.read)], {
+          exclusiveWith: ['approver'],
+        }),
+        role('approver', [allow(permissions.post.update)]),
+      ],
+      subject: () => ({ id: 'u1' }),
+    });
+    expect(policy.rolesByName.get('preparer')?.exclusiveWith).toEqual([
+      'approver',
+    ]);
+    expect(
+      separationConflicts(policy, [
+        { principal: 'u1', roles: ['preparer', 'approver'] },
+      ]),
+    ).toEqual([{ principal: 'u1', roles: ['approver', 'preparer'] }]);
   });
 
   it('exposes inferOutput as a typing helper', () => {

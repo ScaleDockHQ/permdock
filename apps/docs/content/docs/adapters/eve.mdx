@@ -45,7 +45,7 @@ approval: approvalFor(permissions.charge.refund, (input) => loadCharge(input.cha
 - `approval` is an Eve `{ request, response }` pair. `request` looks the tool name up in `tools`, resolves the resource, calls `decide` and maps the outcome. `response` checks the responder against the approval record and the `approvers` rule.
 - `approvalFor(permission, data?)` builds the same pair for one tool inline.
 - `permdock(ctx)` returns a request-scoped `PermDock` from `ctx.session` for checks inside `execute` or in other Eve code.
-- `store` is the [ApprovalStore](/docs/adapters/approvals). `approvers` is either `{ roles }` (approver must hold one of these roles in the PermDock policy) or a function `(responder, request) => boolean`; the actor rule (an agent never approves its own call) is enforced regardless.
+- `store` is the [ApprovalStore](/docs/adapters/approvals). `approvers` is either `{ roles }` (approver must hold one of these roles in the PermDock policy) or a function `(responder, request) => boolean`. It is an extra restriction on top of `grant.approval.by`; both must pass. The actor rule (an agent never approves its own call) is enforced regardless.
 
 ### Subject from the session
 

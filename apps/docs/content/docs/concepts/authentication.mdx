@@ -89,6 +89,26 @@ Verification tells you a token is genuine. It does not tell you which claims ins
 - **Memberships are verified material too.** A team id, a resource share or a per-tenant role list comes from the provider's session, a server-set claim, a `MembershipSource` over your tables or the policy's own functions; never from a request body, a model argument, an unsigned header or a CLI flag. Team and group identifiers are ids (SCIM `value`, Entra object id), never display names.
 - **Unknown role names are dropped.** A claim naming a role the policy does not declare contributes nothing (fewer grants, never more) and is reported in development. On a membership the name is first offered to the tenant's `RoleSource` as a custom role; if it resolves, the declared roles it includes apply.
 
+## MFA and passkeys as policy input
+
+`assurance()` on a grant reads `principal.assurance`. Providers fill that object from verified claims; they never invent an `amr` value the token did not carry.
+
+| Source | Claim | Maps to | Notes |
+| --- | --- | --- | --- |
+| RFC 8176 | `amr` values `pwd`, `otp`, `swk`, `hwk`, `mfa` | `principal.assurance.amr` | `hwk` is a hardware key / passkey; `mfa` means more than one factor was used |
+| OIDC Core | `acr`, `auth_time` | `principal.assurance.acr`, `.authTime` | Compared as an opaque string and a NumericDate |
+| Supabase | `aal` (`aal1`, `aal2`) | `principal.assurance.acr` | `aal2` is MFA completed. Supabase `amr` is an array of `{ method, timestamp }` objects and is not copied into `assurance.amr` |
+| Clerk | session `fva` / `factorVerificationAge` | Recipe: second element `>= 0` means a second factor was verified | Clerk does not emit RFC 8176 `amr`. `subjectFromClerk` does not invent one |
+| Better Auth | `user.twoFactorEnabled` plus a completed session | Recipe: a session exists only after TOTP / OTP / backup-code verify | The two-factor plugin stores no `amr` on the session. `subjectFromBetterAuth` does not invent one |
+
+```ts
+allow(permissions.filing.pay, {
+  to: [roles.admin, assurance({ amr: ['hwk'], maxAge: 300 })],
+})
+```
+
+A subject that lacks `hwk` or whose `authTime` is older than 300 seconds is `denied` with reason `insufficient-user-authentication`. HTTP adapters render Problem Details `type` ending in `/step-up-required` and `WWW-Authenticate: Bearer error="insufficient_user_authentication"`.
+
 ## Single sign-on and directories
 
 "Log in with Google Workspace", "log in with Microsoft" and SAML SSO through Okta are authentication, and PermDock stays out of them. The auth layer (Better Auth's SSO plugin, Clerk Enterprise SSO, WorkOS AuthKit, Auth.js providers, Supabase SAML) terminates the SAML assertion or the IdP's ID token and issues its own session or JWT; that is what `subjectFrom*` reads. A SAML assertion never reaches PermDock, and a Google or Entra ID token only does when your API accepts it directly as a bearer (the Google and Entra rows above).
@@ -139,6 +159,10 @@ Group ids rather than display names, because names are editable by any group own
 With [scoped roles](/docs/concepts/tenancy) the same lookup produces memberships instead of flat roles, which keeps the team visible to audit and to team-scoped roles: `groups` become `{ tenant: claims.tid, team: id, roles: rolesByGroupId[id] ?? [], via: 'group:' + id }` entries, and `subjectFromJwt` does this by default for the RFC 9068 `groups` claim with a `groupRoles` option holding the id-to-roles map ([JWT authorization claims](/docs/standards/jwt-authorization-claims)).
 
 **Lifecycle.** Deprovisioning a user in Google Workspace or Entra ID must reach cached snapshots. Entra, Okta and Auth0 transmit CAEP `session-revoked` and `credential-change` events today, which the [SSF receiver](/docs/adapters/ssf) turns into snapshot invalidation; for IdPs without a transmitter, the bound is `exp` and `session_expiry` as described under [staleness](#staleness-and-revocation), and SCIM deprovisioning (`active: false` or `DELETE` received by `scimHandler`, or a Directory Sync row) takes effect on the next `directoryMembershipSource` or `context` lookup, which is the next request when memberships are read per request and the next refetch when a snapshot is cached; `scimHandler`'s `onChange` callback is where to invalidate the cache. "We disabled the account and they can still see the page" is answered by whichever of these three you wired, so the SSO section of your runbook should name it.
+
+### Enterprise SSO
+
+OIDC enterprise SSO is `subjectFromJwt({ discovery })` against the IdP or the auth layer's issuer. SAML is terminated upstream: Better Auth's SSO plugin, Clerk Enterprise SSO, WorkOS AuthKit, Auth.js, Supabase SAML, or the Cloud gateway of [ADR 0042](/docs/decisions/0042-cloud-identity-gateway). A SAML assertion is never a PermDock input, and there is no `permdock/saml` entry ([ecosystem index](/docs/research/ecosystem-index)).
 
 ## JWT validation checklist
 

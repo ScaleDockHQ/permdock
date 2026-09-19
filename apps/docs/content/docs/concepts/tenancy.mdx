@@ -88,7 +88,7 @@ export const policy = definePolicy(permissions, {
 Two more options:
 
 - `assignable` (default `true` for scoped roles, `false` for global roles) marks a role a tenant admin may hand out and compose into custom roles. `owner` above is held but never handed out.
-- `exclusiveWith: ['approver']` is deferred to Phase 2 as a `permdock doctor` lint over memberships (INCITS 359 static separation of duty), not an evaluation rule.
+- `exclusiveWith: ['approver']` is data on `role()` / `RoleBinding` (INCITS 359 static separation of duty). Evaluation does not change. `permdock doctor` check PD018 and `separationConflicts(policy, memberships)` report conflicts.
 
 ### Scope keys and typing
 
@@ -272,6 +272,6 @@ For teams that audit against INCITS 359-2012 (the NIST RBAC standard): a request
 ## Open questions
 
 - Cross-tenant guests: whether a principal has a home tenant that snapshots and RLS should know about.
-- `exclusiveWith` as a Phase 2 `permdock doctor` lint (static separation of duty). A dynamic variant (two roles not active in one session) is not planned.
+- Dynamic separation of duty (two roles not active in one session) is not planned. Static SoD is PD018.
 - Whether `delegation` without an `actor` is the right model for an API key attenuated below its owner's memberships.
 - The membership table mapping for RLS when a project has one table per scope versus one polymorphic table.

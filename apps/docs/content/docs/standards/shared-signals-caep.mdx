@@ -71,7 +71,7 @@ CAEP does not replace the TTL; it shortens the window. Snapshots still expire so
 | SET (Security Event Token) | Verified, then dispatched to `onEvent` by event type |
 | `session-revoked` | Invalidate the subject's snapshot and client caches |
 | `credential-change` | Invalidate the subject's snapshot (roles may depend on MFA state) |
-| `assurance-level-change` | Audit, and optionally invalidate when policy conditions read assurance level from context |
+| `assurance-level-change` | Invalidate only. The next `subjectFrom*` carries the new `acr` / `amr`; `assurance()` on the grant decides. The event never raises a policy. |
 | Subject identifier formats | Adapter option mapping to the application's `subject.id` |
 | Unverifiable SET | Dropped and logged; no invalidation, no grant change |
 
@@ -86,5 +86,5 @@ CAEP does not replace the TTL; it shortens the window. Snapshots still expire so
 
 - Whether the receiver should also support a generic "invalidate everything for this issuer" handler for stream-level events, or stay strictly per-subject.
 - How the client-side `invalidate()` channel is delivered in non-Next.js apps (server-sent events, WebSocket, or simply a short revalidation interval after a server-side invalidation).
-- Whether `assurance-level-change` should be able to *raise* the effective policy (for example, unlock `approval: 'human'` grants after step-up authentication) or only lower it; today the plan treats it as audit plus invalidation.
+- Closed: `assurance-level-change` is invalidation only; `assurance()` on the next subject decides.
 - Which transmitters to test against in `tests/integration`; Keycloak's transmitter is the only self-hostable option today and is experimental.

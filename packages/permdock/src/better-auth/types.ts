@@ -65,4 +65,8 @@ export type BetterAuthUnmatchedStatement = {
 export type BetterAuthRoleChangeEvent = {
   readonly userId?: string;
   readonly organizationId?: string;
+  readonly role?: string;
+  readonly previousRole?: string;
+  readonly teamId?: string;
+  readonly by?: { readonly id: string; readonly kind: string };
 };

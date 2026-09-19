@@ -1,9 +1,12 @@
+import type { Grantee } from '../core/grantee.ts';
 import type { Subject } from '../core/subject.ts';
 
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
+import { flattenGrantee, matchGrantee } from '../core/grantee.ts';
 import { ApprovalError } from './errors.ts';
 import {
+  type ApprovalCancelMeta,
   type ApprovalListFilter,
   type ApprovalRequest,
   type ApprovalStore,
@@ -13,6 +16,72 @@ import {
 
 function tenantOf(request: ApprovalRequest): string | undefined {
   return request.subject.principal?.tenant;
+}
+
+function membershipTenants(subject: Subject): readonly string[] {
+  const principal = subject.principal;
+  if (principal === null) {
+    return [];
+  }
+  const tenants = new Set<string>();
+  if (principal.tenant !== undefined) {
+    tenants.add(principal.tenant);
+  }
+  for (const membership of principal.memberships ?? []) {
+    if (membership.tenant !== undefined) {
+      tenants.add(membership.tenant);
+    }
+  }
+  return [...tenants];
+}
+
+export function belongsToTenant(subject: Subject, tenant: string): boolean {
+  return membershipTenants(subject).includes(tenant);
+}
+
+function holdsRole(subject: Subject, role: string, tenant?: string): boolean {
+  const principal = subject.principal;
+  if (principal === null) {
+    return false;
+  }
+  if ((principal.roles ?? []).includes(role)) {
+    return true;
+  }
+  for (const membership of principal.memberships ?? []) {
+    if (!membership.roles.includes(role)) {
+      continue;
+    }
+    if (tenant !== undefined && membership.tenant !== tenant) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+export function matchesApprovers(
+  by: Grantee | readonly Grantee[],
+  subject: Subject,
+  tenant: string | undefined,
+  now: number,
+): boolean {
+  const items = flattenGrantee(by);
+  if (items.length === 0) {
+    return false;
+  }
+  for (const item of items) {
+    if (item.kind === 'role') {
+      if (!holdsRole(subject, item.role, tenant)) {
+        return false;
+      }
+      continue;
+    }
+    const result = matchGrantee(item, subject, now, undefined);
+    if (!result.matched) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function matchesFilter(
@@ -35,6 +104,12 @@ function matchesFilter(
     return false;
   }
   if (filter.tenant !== undefined && tenantOf(request) !== filter.tenant) {
+    return false;
+  }
+  if (
+    filter.session !== undefined &&
+    request.subject.session !== filter.session
+  ) {
     return false;
   }
   return true;
@@ -61,8 +136,10 @@ export function assertApprover(
       'approver is the actor of this request',
     );
   }
+  const distinct =
+    requireDistinctApprover || request.approvers?.distinct === true;
   if (
-    requireDistinctApprover &&
+    distinct &&
     request.subject.principal !== null &&
     principal.id === request.subject.principal.id
   ) {
@@ -71,6 +148,26 @@ export function assertApprover(
       'approver is the principal of this request',
     );
   }
+  if (request.approvers === undefined) {
+    return;
+  }
+  const tenant = request.subject.principal?.tenant;
+  if (tenant !== undefined && !belongsToTenant(by, tenant)) {
+    throw new ApprovalError(
+      'approver-not-eligible',
+      'approver does not hold an eligible role',
+    );
+  }
+  if (!matchesApprovers(request.approvers.by, by, tenant, Date.now() / 1000)) {
+    throw new ApprovalError(
+      'approver-not-eligible',
+      'approver does not hold an eligible role',
+    );
+  }
+}
+
+function isSystemSubject(by: Subject): boolean {
+  return by.actor?.kind === 'system';
 }
 
 function applyVerdict(
@@ -91,7 +188,9 @@ function applyVerdict(
   if (Date.parse(request.expiresAt) <= now.getTime()) {
     throw new ApprovalError('approval-expired', 'approval has expired');
   }
-  assertApprover(request, verdict.by, false);
+  if (!(verdict.status === 'rejected' && isSystemSubject(verdict.by))) {
+    assertApprover(request, verdict.by, false);
+  }
   return freezeDeep(
     compact<ApprovalRequest>({
       ...request,
@@ -99,6 +198,22 @@ function applyVerdict(
       resolvedAt: now.toISOString(),
       resolvedBy: principal.id,
       note: verdict.note,
+    }),
+  );
+}
+
+function rejectPending(
+  request: ApprovalRequest,
+  meta: ApprovalCancelMeta,
+  now: Date,
+): ApprovalRequest {
+  return freezeDeep(
+    compact<ApprovalRequest>({
+      ...request,
+      status: 'rejected',
+      resolvedAt: now.toISOString(),
+      resolvedBy: `system:${meta.by}`,
+      note: meta.note,
     }),
   );
 }
@@ -155,6 +270,18 @@ export function memoryApprovalStore(
           );
           count += 1;
         }
+      }
+      return count;
+    },
+    cancel(filter: ApprovalListFilter, meta: ApprovalCancelMeta): number {
+      const now = new Date();
+      let count = 0;
+      for (const [token, request] of records) {
+        if (request.status !== 'pending' || !matchesFilter(request, filter)) {
+          continue;
+        }
+        records.set(token, rejectPending(request, meta, now));
+        count += 1;
       }
       return count;
     },

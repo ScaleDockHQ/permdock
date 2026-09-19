@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { definePermissions, resource } from '../core/permissions.ts';
+import { memorySink } from '../core/sink.ts';
 import {
   betterAuthRoleSource,
   onRoleChange,
@@ -235,5 +236,30 @@ describe('onRoleChange', () => {
     });
     await hook({ userId: 'user-1', organizationId: 'o_acme' });
     expect(seen).toEqual([{ userId: 'user-1', organizationId: 'o_acme' }]);
+  });
+
+  it('writes a membership event when a sink is given', async () => {
+    const sink = memorySink();
+    const hook = onRoleChange(() => undefined, { sink });
+    await hook({
+      userId: 'user-1',
+      organizationId: 'o_acme',
+      previousRole: 'member',
+      role: 'admin',
+      teamId: 't_1',
+      by: { id: 'admin-1', kind: 'user' },
+    });
+    expect(sink.events()).toEqual([
+      expect.objectContaining({
+        type: 'membership',
+        source: 'better-auth',
+        operation: 'changed',
+        principal: { id: 'user-1' },
+        tenant: 'o_acme',
+        team: 't_1',
+        roles: { added: ['admin'], removed: ['member'] },
+        by: { id: 'admin-1', kind: 'user' },
+      }),
+    ]);
   });
 });

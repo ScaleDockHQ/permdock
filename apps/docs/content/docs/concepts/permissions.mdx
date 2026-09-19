@@ -181,6 +181,42 @@ findPermission(permissions, scopeFromJwt)       // strings from a DB, JWT scope 
 
 This is the exact object you get from `JSON.stringify(permissions.post.update)`. The [wire formats](/docs/concepts/wire-formats) page lists it next to conditions, snapshots and AuthZEN messages.
 
+## Workflow verbs
+
+Sensitive money or filing work is usually a chain of leaves, not one `update`. Name each verb on the resource so `permdock doctor` PD017 can see it, and so `approval.by` and `exclusiveWith` attach to the right step.
+
+```ts
+const Filing = z.object({ id: z.string(), orgId: z.string(), amount: z.number() })
+const Invoice = z.object({ id: z.string(), orgId: z.string(), amount: z.number() })
+const Claim = z.object({ id: z.string(), orgId: z.string() })
+
+export const permissions = definePermissions({
+  filing: resource(Filing, {
+    actions: {
+      prepare: { title: 'Prepare filing' },
+      approve: { title: 'Approve filing' },
+      pay: { title: 'Pay filing' },
+      settle: { title: 'Settle filing' },
+    },
+  }),
+  billing: {
+    invoice: resource(Invoice, { actions: ['read', 'submit', 'pay'] }),
+  },
+  guarantee: {
+    claim: resource(Claim, { actions: ['prepare', 'approve', 'settle'] }),
+  },
+})
+```
+
+Typical policy:
+
+- `allow(permissions.filing.prepare)` for the clerk role.
+- `allow(permissions.filing.approve, { approval: { by: roles.admin, distinct: true } })` so the actor cannot also be the approver.
+- `allow(permissions.filing.pay, { to: [roles.admin, assurance({ amr: ['hwk'], maxAge: 300 })] })` so pay requires a hardware key within five minutes.
+- `role(roles.preparer, [allow(permissions.filing.prepare)], { exclusiveWith: ['approver'] })` so PD018 flags a custom role that includes both.
+
+Default PD017 verbs are `approve`, `pay`, `settle`, `submit`, `transfer`, `refund`, `disburse`. Override with `doctor.sensitiveActions` in `permdock.config.ts`. A matching `deny` on the same leaf silences the warning.
+
 ## What permissions are not
 
 - Not rules. Who may do what lives in the [policy](/docs/concepts/policies).

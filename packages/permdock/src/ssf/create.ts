@@ -52,6 +52,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         subject: options.subject,
         onEvent: options.onEvent ?? {},
         replay: options.replay ?? memoryReplayStore(),
+        approvals: options.approvals,
         clockTolerance: options.clockTolerance,
       }),
     ),

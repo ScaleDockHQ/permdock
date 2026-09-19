@@ -1,4 +1,9 @@
-import type { DecisionSink, SinkEvent, TokenSigner } from './interfaces.ts';
+import type {
+  DecisionSink,
+  MembershipEvent,
+  SinkEvent,
+  TokenSigner,
+} from './interfaces.ts';
 
 import { compact } from './compact.ts';
 
@@ -6,7 +11,8 @@ export type CloudEventType =
   | 'dev.permdock.decision'
   | 'dev.permdock.approval'
   | 'dev.permdock.directory'
-  | 'dev.permdock.catalog';
+  | 'dev.permdock.catalog'
+  | 'dev.permdock.membership';
 
 export type CloudEvent = {
   readonly specversion: '1.0';
@@ -40,6 +46,8 @@ function cloudEventType(event: SinkEvent): CloudEventType {
   switch (event.type) {
     case 'directory':
       return 'dev.permdock.directory';
+    case 'membership':
+      return 'dev.permdock.membership';
     case 'decision':
       if (event.phase === 'requested' || event.phase === 'resolved') {
         return 'dev.permdock.approval';
@@ -56,7 +64,35 @@ function cloudEventSubject(event: SinkEvent): string {
   if (event.type === 'directory') {
     return event.resource.id;
   }
+  if (event.type === 'membership') {
+    return event.principal.id;
+  }
   return event.permission;
+}
+
+export function membershipEvent(input: {
+  readonly source: string;
+  readonly operation: MembershipEvent['operation'];
+  readonly principal: MembershipEvent['principal'];
+  readonly tenant?: string;
+  readonly team?: string;
+  readonly via?: string;
+  readonly roles: MembershipEvent['roles'];
+  readonly by?: MembershipEvent['by'];
+  readonly at?: string;
+}): MembershipEvent {
+  return compact<MembershipEvent>({
+    type: 'membership',
+    at: input.at ?? new Date().toISOString(),
+    source: input.source,
+    operation: input.operation,
+    principal: input.principal,
+    tenant: input.tenant,
+    team: input.team,
+    via: input.via,
+    roles: input.roles,
+    by: input.by,
+  });
 }
 
 export function toCloudEvent(

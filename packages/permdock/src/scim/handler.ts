@@ -8,7 +8,12 @@ import {
   userFromBody,
 } from './body.ts';
 import { resourceTypes, schemas, serviceProviderConfig } from './discovery.ts';
-import { directoryEvent, emitDirectory, reportUnknownRoles } from './emit.ts';
+import {
+  directoryEvent,
+  emitDirectory,
+  membershipEventsForGroup,
+  reportUnknownRoles,
+} from './emit.ts';
 import { filterSupported, parseScimFilter } from './filter.ts';
 import { normalizePatchOps, readPatchOperations } from './patch.ts';
 import {
@@ -165,6 +170,13 @@ export function scimHandler(
             credential: auth.credential,
           }),
           existing?.members.map((member) => member.value) ?? [],
+          membershipEventsForGroup({
+            tenant,
+            groupId: route.id,
+            roles: existing?.roles ?? options.groupRoles?.[route.id] ?? [],
+            previous: existing,
+            next: null,
+          }),
         );
         return new Response(null, { status: 204 });
       }
@@ -225,6 +237,13 @@ export function scimHandler(
             credential: auth.credential,
           }),
           stored.members.map((member) => member.value),
+          membershipEventsForGroup({
+            tenant,
+            groupId: stored.id,
+            roles: stored.roles ?? options.groupRoles?.[stored.id] ?? [],
+            previous: null,
+            next: stored,
+          }),
         );
         return scimResponse(201, renderGroup(stored, location), { location });
       }
@@ -286,6 +305,13 @@ export function scimHandler(
             credential: auth.credential,
           }),
           stored.members.map((member) => member.value),
+          membershipEventsForGroup({
+            tenant,
+            groupId: stored.id,
+            roles: stored.roles ?? existing.roles ?? [],
+            previous: existing,
+            next: stored,
+          }),
         );
         return scimResponse(200, renderGroup(stored, location), { location });
       }
@@ -320,6 +346,7 @@ export function scimHandler(
           );
           return scimResponse(200, renderUser(stored, location), { location });
         }
+        const existing = await options.store.getGroup(tenant, route.id);
         const stored = await options.store.patchGroup(
           tenant,
           route.id,
@@ -336,6 +363,13 @@ export function scimHandler(
             credential: auth.credential,
           }),
           stored.members.map((member) => member.value),
+          membershipEventsForGroup({
+            tenant,
+            groupId: stored.id,
+            roles: stored.roles ?? existing?.roles ?? [],
+            previous: existing,
+            next: stored,
+          }),
         );
         return scimResponse(200, renderGroup(stored, location), { location });
       }

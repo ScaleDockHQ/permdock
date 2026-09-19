@@ -75,6 +75,7 @@ Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`
 - **Billing claims.** `pla` and `fea` are written by Clerk at token issuance from the subscription state and cannot be edited by the user, so they are eligible role sources. They describe the organisation's plan when the session has an active organisation (`o:` prefix) and the user's plan otherwise (`u:` prefix); `options.features` keys are matched against the unprefixed feature slug and the prefix is recorded on the subject so a policy can distinguish the two if it needs to.
 - **Memberships.** The session carries only the active organization, so the default subject holds one membership. With `memberships: 'all'` the provider calls the Backend API with the server secret; the list is server-fetched material and eligible for grants. Organization ids, never organization names or slugs, are the `tenant` values. A user with no active organization has `tenant` undefined and no memberships: tenant-scoped roles contribute nothing, global roles still apply.
 - **Signed-out and expired.** `userId` of `null`, a missing auth object or an expired session yields `principal: null`. Nothing throws; only anonymous grants apply.
+- **MFA.** Clerk's session token carries `fva` (factor verification age): a pair of minutes since first-factor and second-factor verification. A second element of `-1` means no second factor is registered. `subjectFromClerk` does not invent RFC 8176 `amr`; map `fva[1] >= 0` in a wrapper when a grant uses `assurance({ amr: ['mfa'] })`.
 - **Not read.** Clerk's client-side hooks (`useAuth`, `useOrganization`) are never a source for the server subject; they only trigger `invalidate()` on the client.
 
 ## Request lifecycle
@@ -82,7 +83,28 @@ Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`
 1. Clerk middleware authenticates the request and populates `auth()` with `userId`, `orgId`, `orgRole`, `orgPermissions` and session claims.
 2. `subjectFromClerk` maps these to the PermDock subject; the active organization defines `principal.tenant` and its membership.
 3. `createPermDock` builds the request-scoped instance; `getPermDock()` / `getPermission()` and the snapshot resolver use it.
-4. On organization switch or role change, Clerk emits a new session token; the app calls `updateTag` for the user (Clerk webhooks `organizationMembership.updated` are the server trigger) and the client `invalidate()` runs on `useOrganization` change.
+4. On organization switch or role change, Clerk emits a new session token; the app calls `updateTag` for the user (Clerk webhooks `organizationMembership.updated` are the server trigger) and the client `invalidate()` runs on `useOrganization` change. From those webhooks, emit `membershipEvent({ source: 'clerk', operation, principal: { id: data.public_user_id }, tenant: data.organization.id, roles: { added, removed } })` to the same sink used for decisions. There is no Clerk package entry for this.
+
+### Membership events
+
+```ts
+import { membershipEvent } from 'permdock'
+
+// inside organizationMembership.created | .updated | .deleted
+await sink.write([
+  membershipEvent({
+    source: 'clerk',
+    operation: event.type.endsWith('deleted') ? 'removed' : event.type.endsWith('created') ? 'added' : 'changed',
+    principal: { id: data.public_user_id },
+    tenant: data.organization.id,
+    roles: { added: data.role ? [data.role] : [], removed: [] },
+  }),
+])
+```
+
+## Sessions and devices
+
+List and revoke sessions through Clerk's Backend API (`Session` list / revoke). PermDock does not own a device list UI. Revocation reaches PermDock through Back-Channel Logout or CAEP into [`permdock/ssf`](/docs/adapters/ssf), joined on `subject.session` (`sid`). With `approvals` set on the SSF factory, pending approval requests for that session are cancelled.
 
 ## What it validates
 

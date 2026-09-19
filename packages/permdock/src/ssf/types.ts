@@ -1,3 +1,4 @@
+import type { ApprovalStore } from '../approvals/types.ts';
 import type { TokenFailureCause, TokenVerifier } from '../core/interfaces.ts';
 import type { DiscoveryInput, JwtJwks } from '../jwt/types.ts';
 
@@ -47,7 +48,7 @@ export type SsfOnEvent = {
 
 export type ReplayStore = {
   seen(jti: string): boolean | Promise<boolean>;
-  remember(jti: string): void | Promise<void>;
+  remember(jti: string, expiresAt?: number): void | Promise<void>;
 };
 
 export type SsfAuditEvent = {
@@ -56,6 +57,7 @@ export type SsfAuditEvent = {
   readonly transmitter?: string;
   readonly jti?: string;
   readonly replayed?: true;
+  readonly cancelled?: number;
   readonly unknown?: 'event' | 'subject';
   readonly err?: string;
   readonly cause?: TokenFailureCause;
@@ -88,6 +90,7 @@ export type SsfOptions = {
   readonly subject: SsfSubjectMapper;
   readonly onEvent?: SsfOnEvent;
   readonly replay?: ReplayStore;
+  readonly approvals?: ApprovalStore;
   readonly clockTolerance?: number;
 };
 

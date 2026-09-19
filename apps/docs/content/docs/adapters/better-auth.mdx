@@ -63,6 +63,7 @@ export const policy = definePolicy(permissions, {
 - **Roles and memberships.** Global roles come from `user.role` as managed by the `admin` plugin. Organization roles come from the `member` rows the `organization` plugin holds (one membership per organization), team roles from `teamMember` rows, and dynamic roles from `organizationRole` rows through `betterAuthRoleSource`. All are server-managed through Better Auth's server API; a user cannot edit them through the client API. Ids (`organizationId`, `teamId`) are the membership keys, never slugs or names. Profile fields the user can change (`name`, `image`) are never used for grants.
 - **Cookie cache staleness.** When Better Auth's cookie cache is enabled, `getSession` may answer from the signed cookie without hitting the database until the cache `maxAge` elapses. During that window `user.role` and the member record reflect the state at cache time: a demoted admin keeps the admin role until the cookie refreshes. If role changes must apply on the next request, disable the cookie cache for routes that use PermDock, call `getSession` with `disableCookieCache: true`, or pair the provider's `onRoleChange` hook with `updateTag` and a session refresh.
 - **No token parsing.** Better Auth's bearer and JWT plugins produce tokens for other consumers; if an API receives one of those, verify it with Better Auth's own endpoint or with [`permdock/jwt`](/docs/adapters/jwt) against the plugin's JWKS, then pass the verified result on. The provider does not verify tokens.
+- **MFA.** The two-factor plugin creates a session only after TOTP, OTP or a backup code verifies. `user.twoFactorEnabled` says the user enrolled; the plugin does not store RFC 8176 `amr` on the session. `subjectFromBetterAuth` does not invent one. Map `twoFactorEnabled` plus a completed session in a wrapper when a grant uses `assurance({ amr: ['mfa'] })`.
 
 ## Request lifecycle
 
@@ -70,7 +71,11 @@ export const policy = definePolicy(permissions, {
 2. The provider loads the user's `member` and `teamMember` rows, producing the subject with `tenant` and `memberships`.
 3. `createPermDock(policy, subject, { customRoles })` builds the request-scoped instance; declared roles resolve to grants, dynamic role names resolve through the `RoleSource` for the active organization.
 4. Checks run through whichever adapter the app uses; `snapshot()` carries roles and grants to the client so `usePermission` answers ownership checks offline.
-5. Role changes in Better Auth (`updateMemberRole`, dynamic role edits) should trigger `updateTag` for the affected users; the provider exposes an `onRoleChange` helper that wraps Better Auth's hooks for this.
+5. Role changes in Better Auth (`updateMemberRole`, dynamic role edits) should trigger `updateTag` for the affected users; the provider exposes an `onRoleChange` helper that wraps Better Auth's hooks for this. Pass `{ sink }` to write a `membership` event (`source: 'better-auth'`) with `role`, `previousRole`, `teamId` and `by`.
+
+## Sessions and devices
+
+List and revoke sessions through Better Auth's session API (`listSessions`, `revokeSession`). PermDock does not own a device list UI. Revocation reaches PermDock through Back-Channel Logout or CAEP into [`permdock/ssf`](/docs/adapters/ssf), joined on `subject.session`. With `approvals` set on the SSF factory, pending approval requests for that session are cancelled.
 
 ## What it validates
 

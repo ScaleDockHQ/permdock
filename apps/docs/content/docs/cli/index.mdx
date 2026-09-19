@@ -44,7 +44,7 @@ export default defineConfig({
 | `permdock openapi` | Emit `security` and `securitySchemes` into an OpenAPI document, or import one into a generated definition; `--target 3.1\|3.2\|3.3` (`3.3` experimental: pinned Security Profile draft), `--format document\|overlay`, `--overlay 1.1\|1.2` (`1.2` experimental: pinned reusable-actions draft), `--profile fapi2`, `--profile-scheme`, `--check` | 2 | [openapi](/docs/cli/openapi) |
 | `permdock arazzo check` | Resolve every Arazzo step to `x-permdock-permissions`; never evaluates a subject | 4 | [arazzo](/docs/cli/arazzo) |
 | `permdock rls` | `generate`, `import` and `verify` Postgres RLS policies | 3 | [rls](/docs/cli/rls) |
-| `permdock doctor` | Check wiring, imports, references, catalog freshness, skills and the TypeScript version | 1 | [doctor](/docs/cli/doctor) |
+| `permdock doctor` | Check wiring, imports, references, catalog freshness, skills, TypeScript version, sensitive verbs (PD017) and static separation of duty (PD018) | 1 | [doctor](/docs/cli/doctor) |
 | `permdock skills` | Install or update the `wire-permdock` and `audit-permissions` Agent Skills | 1 | [skills](/docs/cli/skills) |
 
 The Next.js build hook `createPermDockPlugin` is documented on [Next.js plugin](/docs/cli/next-plugin). The same collect hook for Vite, Rollup, webpack, Rspack and esbuild is `createPermDockUnplugin` ([unplugin](/docs/cli/unplugin)): Nuxt, Astro, React Router, TanStack Start and Effect apps use it; there is no per-vendor package.

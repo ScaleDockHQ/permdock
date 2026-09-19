@@ -18,7 +18,7 @@ type Decision =
 | --- | --- | --- | --- |
 | `granted` | At least one `allow` matched, no `deny` matched, delegation covers it | `true` | returns the decision |
 | `denied` | A `deny` matched, nothing matched, anonymous, validation failed, or delegation does not cover it | `false` | throws `PermDockDeniedError` |
-| `approval-required` | The matched `allow` carries `approval: 'human'` and no approval has been recorded for this token | `false` | throws `PermDockApprovalRequiredError` |
+| `approval-required` | The matched `allow` carries `approval` (`'human'` or `{ by, distinct }`) and no approval has been recorded for this token | `false` | throws `PermDockApprovalRequiredError` |
 
 There is no fourth outcome. `not-applicable`, which the Vercel AI SDK uses when no policy covers a tool, does not exist in PermDock: a permission with no grant is `denied`. That is the fail-closed default, and the reason `@ai-sdk/policy-opa`'s fail-open behaviour on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)) cannot happen through `permdock/ai-sdk`.
 

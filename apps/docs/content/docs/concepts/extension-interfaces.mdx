@@ -21,7 +21,7 @@ PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-
 | `ApprovalStore` | Hold pending `approval-required` decisions until a human answers | Operational: never influences an outcome | `memoryApprovalStore()` | Postgres, Redis, Durable Objects, PermDock Cloud ([approvals](/docs/adapters/approvals)) |
 | `DecisionSink` | Receive decision events after the fact | Operational | `memorySink()` | OpenTelemetry, SIEMs, a table, PermDock Cloud ([audit](/docs/concepts/audit-and-observability)) |
 | `SnapshotSource` | Distribute and invalidate snapshots | Operational | In-process `snapshot()` | PermDock Cloud, your cache ([snapshots](/docs/concepts/snapshots)) |
-| `ReplayStore` | Remember SET / `logout_token` `jti` values so a replay is dropped | Operational: never a decision input | `memoryReplayStore()` in `permdock/ssf` | Your Redis / KV; `testReplayStore` in `@permdock/testing` |
+| `ReplayStore` | Remember SET / `logout_token` `jti` values so a replay is dropped. `remember(jti, expiresAt?)` is additive | Operational: never a decision input | `memoryReplayStore()` in `permdock/ssf` (evicts on read) | Redis `SET NX EX` or a Postgres `expires_at` row; recipes on [SSF](/docs/adapters/ssf); `testReplayStore` in `@permdock/testing` |
 | `DecisionProvider` | Answer `decide` for delegated permissions via a remote AuthZEN PDP | Decision path, opt-in, fail-closed | None; local evaluation only | `remotePdp` in `permdock/pdp` |
 | `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/local-first-sync)) |
 | `on(event, handler)` | Observe `decision`, `denied`, `approval`, `auth` events | Observational: cannot change a `Decision` | No-op | Logging, metrics, tests |
@@ -185,6 +185,7 @@ interface WhereCompiler<TTarget, TOptions = unknown> {
 | `decision` | `DecisionEvent` (permission, outcome, subject summary, tenant, membership, via, actor, delegation) | Every `decide`, `assert`, `can` |
 | `denied` | The same, filtered | Outcome `denied` |
 | `approval` | `ApprovalRequest` | Outcome `approval-required`, and on resolve |
+| `decision` sink `membership` | `MembershipEvent` | A role change from SCIM, Better Auth, Clerk or `membershipEvent()`; written to the `DecisionSink`, not `on()` |
 | `auth` | `{ reason, cause?, source }` | A resolver, verifier, membership source or role source failed closed. `reason` is `invalid-token` (RFC 6750 vocabulary) for anything a `TokenVerifier` rejected, with the specific `cause`; `schema`, `unknown-role`, `groups-overflow` and `source-threw` for the others |
 
 Handlers cannot change a `Decision`; they receive a frozen copy after the outcome is computed. Throwing inside a handler is caught and reported once.
@@ -216,7 +217,7 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testRoleSource` | Every `includes` entry is a declared assignable role or is dropped; `assignable` is a subset of the declared assignable roles; unknown tenants yield an empty list |
 | `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user |
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; the token is opaque to the store |
-| `testDecisionSink` | Accepts batches; `flush` is idempotent; a throw never propagates to the caller |
+| `testDecisionSink` | Accepts batches including a `membership` event; `flush` is idempotent; a throw never propagates to the caller |
 | `testSnapshotSource` | Round-trips snapshot v3 through the format schema; invalidation is observed by a subscriber |
 | `testLimitStore` | `consume` counts down; remaining after the cap is less than zero; `remaining` when present is not a thenable |
 | `testWhereCompiler` | The empty allow set compiles to a fail-closed value (`false` / `null` / `undefined`, or `options.isFailClosed`); adapters pass constant-false SQL, `{ OR: [] }` or `eb.lit(false)` |

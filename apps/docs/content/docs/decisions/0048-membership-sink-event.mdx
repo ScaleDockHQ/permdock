@@ -1,0 +1,37 @@
+---
+title: "0048: Membership sink event"
+description: In-app role and membership changes emit a membership SinkEvent (CloudEvents type dev.permdock.membership) next to SCIM directory events so org admins can audit who granted a role.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+SCIM writes emit `directory` events. Role changes made inside the app (`updateMemberRole`, Clerk `organizationMembership.*` webhooks, a custom admin mutation) left no PermDock record. An org admin asking "who gave this person that role" could only answer it for the IdP path.
+
+## Decision
+
+1. **`MembershipEvent` is a fourth `SinkEvent`.** Fields: `type: 'membership'`, `at`, `source` (`scim`, `better-auth`, `clerk`, `app`, or a string), `operation` (`added`, `removed`, `changed`), `principal.id`, optional `tenant` / `team` / `via` (same keys as `Membership`), `roles.added` / `roles.removed`, optional `by` (the admin or system that made the change).
+2. **CloudEvents type is `dev.permdock.membership`.** `cloudEventSubject` is `principal.id`.
+3. **`membershipEvent(input)` is a root export.** Apps emit from their own admin code: `sink.write([membershipEvent({...})])`.
+4. **SCIM group membership changes emit one `membership` event per affected user** next to the existing `directory` event (`source: 'scim'`, `via: 'group:<id>'`, roles from the group extension or `groupRoles`).
+5. **`onRoleChange(refresh, { sink })` writes the event** when Better Auth reports a role change. Clerk stays a recipe on the Clerk adapter page using `organizationMembership.*` webhooks.
+
+## Consequences
+
+- A sink can answer "who granted this role" for every source, not only SCIM.
+- PermDock Cloud must accept `dev.permdock.membership` on the same webhook path as the other types.
+- `testDecisionSink` accepts a `membership` batch.
+
+## Alternatives considered
+
+- **Reuse `directory` with a `source` other than `scim`.** Rejected: `directory` is the RFC 7644 resource shape (`User` / `Group`, credential). A membership change is a subject-side grant, not a directory resource.
+- **Have `permdock/cloud` implement `MembershipSource`.** Rejected: invariant 15. Memberships stay an application-owned input.
+
+## Related
+
+- [0027: Governance-first Cloud](/docs/decisions/0027-governance-first-cloud)
+- [Wire formats](/docs/concepts/wire-formats)
+- [Audit and observability](/docs/concepts/audit-and-observability)

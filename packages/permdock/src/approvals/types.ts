@@ -1,6 +1,12 @@
+import type { Grantee } from '../core/grantee.ts';
 import type { Membership, Subject } from '../core/subject.ts';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+
+export type ApprovalApprovers = {
+  readonly by: Grantee | readonly Grantee[];
+  readonly distinct?: boolean;
+};
 
 export type ApprovalSubjectSummary = {
   readonly principal: {
@@ -9,6 +15,7 @@ export type ApprovalSubjectSummary = {
     readonly tenant?: string;
   } | null;
   readonly actor?: { readonly id: string; readonly kind: string };
+  readonly session?: string;
   readonly delegation?: {
     readonly scopes?: readonly string[];
     readonly authorizationDetails?: readonly unknown[];
@@ -16,13 +23,14 @@ export type ApprovalSubjectSummary = {
 };
 
 export type ApprovalRequest = {
-  readonly v: 1;
+  readonly v: 1 | 2;
   readonly token: string;
   readonly permission: string;
   readonly scope: string;
   readonly resource: { readonly type: string; readonly id?: string };
   readonly subject: ApprovalSubjectSummary;
   readonly membership?: Membership;
+  readonly approvers?: ApprovalApprovers;
   readonly detail: string;
   readonly adapter?: string;
   readonly createdAt: string;
@@ -44,6 +52,12 @@ export type ApprovalListFilter = {
   readonly principalId?: string;
   readonly actorId?: string;
   readonly tenant?: string;
+  readonly session?: string;
+};
+
+export type ApprovalCancelMeta = {
+  readonly by: string;
+  readonly note?: string;
 };
 
 export type ApprovalStore = {
@@ -57,6 +71,10 @@ export type ApprovalStore = {
     filter: ApprovalListFilter,
   ): Promise<ApprovalRequest[]> | ApprovalRequest[];
   expire(now?: Date): Promise<number> | number;
+  cancel?(
+    filter: ApprovalListFilter,
+    meta: ApprovalCancelMeta,
+  ): Promise<number> | number;
 };
 
 export type ApprovalResumeFailure =

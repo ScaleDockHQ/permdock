@@ -34,7 +34,7 @@ function subject(id: string, tenant?: string): Subject {
 
 function pending(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
   return {
-    v: 1,
+    v: 2,
     token: 'pd1.token-1',
     permission: 'post.delete',
     scope: 'post:delete',
@@ -145,7 +145,7 @@ describe('request and resume helpers', () => {
     );
     expect(recorded.status).toBe('pending');
     expect(recorded.token).toBe('pd1.abc');
-    expect(recorded.v).toBe(1);
+    expect(recorded.v).toBe(2);
 
     const pendingInspect = await inspectApproval(store, 'pd1.abc');
     expect(pendingInspect.ok).toBe(false);
@@ -252,6 +252,45 @@ describe('request and resume helpers', () => {
     expect(expired).toEqual({ ok: false, detail: 'approval-expired' });
   });
 
+  it('records grant approvers and the subject session on v2 requests', async () => {
+    const store = memoryApprovalStore();
+    const recorded = await requestApproval(
+      store,
+      {
+        outcome: 'approval-required',
+        grant: {
+          role: 'member',
+          permission: 'filing.pay',
+          approval: {
+            by: { kind: 'role', role: 'admin', scope: 'tenant' },
+            distinct: true,
+          },
+        },
+        reason: 'human',
+        token: 'pd1.pay',
+      },
+      {
+        permission: {
+          key: 'filing.pay',
+          scope: 'filing:pay',
+          resource: 'filing',
+        },
+        subject: {
+          principal: { id: 'u_1', roles: ['member'], tenant: 'o_1' },
+          session: 'sid-1',
+          context: {},
+        },
+      },
+    );
+    expect(recorded.v).toBe(2);
+    expect(recorded.approvers).toEqual({
+      by: { kind: 'role', role: 'admin', scope: 'tenant' },
+      distinct: true,
+    });
+    expect(recorded.subject.session).toBe('sid-1');
+    expect(recorded.detail).toBe('filing.pay requires approval from admin.');
+  });
+
   it('refuses a principal-as-approver when four-eyes is required', async () => {
     const store = memoryApprovalStore();
     store.create(pending());
@@ -263,6 +302,56 @@ describe('request and resume helpers', () => {
         { requireDistinctApprover: true },
       ),
     ).rejects.toThrow('approver is the principal of this request');
+  });
+
+  it('refuses an approver who does not match approval.by', async () => {
+    const store = memoryApprovalStore();
+    store.create(
+      pending({
+        approvers: {
+          by: { kind: 'role', role: 'admin', scope: 'tenant' },
+          distinct: true,
+        },
+      }),
+    );
+    await expect(
+      resolveApproval(store, 'pd1.token-1', {
+        status: 'approved',
+        by: {
+          principal: {
+            id: 'u_2',
+            roles: ['member'],
+            tenant: 'o_1',
+            memberships: [{ tenant: 'o_1', roles: ['member'] }],
+          },
+          context: {},
+        },
+      }),
+    ).rejects.toThrow('approver does not hold an eligible role');
+    const approved = await resolveApproval(store, 'pd1.token-1', {
+      status: 'approved',
+      by: subject('u_9', 'o_1'),
+    });
+    expect(approved.status).toBe('approved');
+  });
+
+  it('cancels pending requests for a session without checking eligibility', () => {
+    const store = memoryApprovalStore();
+    store.create(
+      pending({ subject: { ...pending().subject, session: 'sid-1' } }),
+    );
+    store.create(
+      pending({
+        token: 'pd1.other',
+        subject: { ...pending().subject, session: 'sid-2' },
+      }),
+    );
+    expect(
+      store.cancel?.({ session: 'sid-1' }, { by: 'ssf', note: 'jti-1' }),
+    ).toBe(1);
+    expect(store.get('pd1.token-1')?.status).toBe('rejected');
+    expect(store.get('pd1.token-1')?.resolvedBy).toBe('system:ssf');
+    expect(store.get('pd1.other')?.status).toBe('pending');
   });
 });
 

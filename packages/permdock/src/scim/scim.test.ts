@@ -296,6 +296,59 @@ describe('scimHandler', () => {
     ]);
   });
 
+  it('emits a membership event per affected group member', async () => {
+    const sink = memorySink();
+    const { handle } = handler({ sink });
+    const user = await json(
+      await handle(
+        request('/Users', {
+          method: 'POST',
+          body: JSON.stringify({
+            schemas: [USER_SCHEMA],
+            userName: 'ada',
+            externalId: '00u1',
+          }),
+        }),
+      ),
+    );
+    const group = await json(
+      await handle(
+        request('/Groups', {
+          method: 'POST',
+          body: JSON.stringify({
+            schemas: [GROUP_SCHEMA, ROLES_EXTENSION],
+            displayName: 'Editors',
+            members: [{ value: user.id }],
+            [ROLES_EXTENSION]: { roles: ['editor'] },
+          }),
+        }),
+      ),
+    );
+    const added = sink.events().filter((event) => event.type === 'membership');
+    expect(added).toEqual([
+      expect.objectContaining({
+        type: 'membership',
+        source: 'scim',
+        operation: 'added',
+        principal: { id: user.id },
+        tenant: TENANT,
+        via: `group:${String(group.id)}`,
+        roles: { added: ['editor'], removed: [] },
+      }),
+    ]);
+    await handle(request(`/Groups/${String(group.id)}`, { method: 'DELETE' }));
+    const removed = sink
+      .events()
+      .filter(
+        (event) => event.type === 'membership' && event.operation === 'removed',
+      );
+    expect(removed).toHaveLength(1);
+    expect(removed[0]).toMatchObject({
+      principal: { id: user.id },
+      roles: { added: [], removed: ['editor'] },
+    });
+  });
+
   it('normalises Okta, Entra and Google patch dialects', async () => {
     const { handle } = handler();
     const user = await json(

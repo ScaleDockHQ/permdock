@@ -96,7 +96,7 @@ Implementations that ship or are documented:
 | `permdock/cloud` | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud)) |
 | Your own | a few lines | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface |
 
-A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A sink passed to [`scimHandler`](/docs/adapters/scim) also receives `directory` events (`type: 'directory'`, `source: 'scim'`: the provisioning operation, tenant, resource type and id, and the credential kind), which join to later decisions on `via: 'group:<id>'`. A failing sink is reported to `on('error')` and never changes an outcome.
+A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A sink passed to [`scimHandler`](/docs/adapters/scim) also receives `directory` events (`type: 'directory'`, `source: 'scim'`: the provisioning operation, tenant, resource type and id, and the credential kind), which join to later decisions on `via: 'group:<id>'`. Group membership changes emit a `membership` event per affected user next to the directory event. `membershipEvent()` and `onRoleChange({ sink })` write the same shape for in-app role changes. A failing sink is reported to `on('error')` and never changes an outcome.
 
 **Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was *allowed* to do, so a log that drops grants cannot answer it ([ADR 0027](/docs/decisions/0027-governance-first-cloud)). Cost is controlled by retention, not by omission.
 
@@ -133,10 +133,10 @@ The event never includes the resource object itself, the parsed schema output, t
 | --- | --- | --- |
 | Access review: what could this person do, and what did they do, in this window | `subject.principal.id` and `tenant` over a time range, grouped by `permission` and `outcome`; joined with the roles and memberships in `matched` and `membership` | `principal`, `tenant`, `permission`, `outcome`, `matched.role`, `via` |
 | Agent activity: what did this agent do, for whom, under which authority | `subject.actor.id` over a time range, grouped by `subject.principal.id` and `permission`; `delegation.scopes` and `authorizationDetails` for the authority it used | `actor`, `principal`, `delegation`, `permission`, `outcome` |
-| Approval chain: who approved this action and what exactly was approved | The `approval` events (`phase: requested`, `phase: resolved`) and the resumed `decision` event sharing `token`; `resolvedBy` on the request record | `token`, `resolvedBy`, `permission`, `resource.id` |
+| Approval chain: who approved this action and what exactly was approved | The `approval` events (`phase: requested`, `phase: resolved`) and the resumed `decision` event sharing `token`; `resolvedBy` on the request record. Session revocation calls `cancelApprovals` and records `resolvedBy: 'system:ssf'` | `token`, `resolvedBy`, `permission`, `resource.id` |
 | Denials and drift: what is being refused, and did a policy change move outcomes | `outcome: denied` grouped by `denials[].reason` and `permission`; the catalog version in `adapter` metadata before and after a publish | `denials`, `permission`, `adapter` |
 | Tenant scope: everything that happened inside one customer's tenant | Filter on `tenant`; `membership` and `via` explain each grant | `tenant`, `membership`, `via` |
-| Provisioning: who gave this person that role | The `directory` events from [`permdock/scim`](/docs/adapters/scim) (group added, user deactivated) joined to later decisions on `via: 'group:<id>'` | `directory` event, `via` |
+| Provisioning: who gave this person that role | The `membership` events from SCIM, Better Auth, Clerk or `membershipEvent()` (roles added or removed, optional `by`) joined to later decisions on `via` | `membership` event, `via` |
 
 ### Exports
 
@@ -243,7 +243,7 @@ Model-readable text: the `detail` strings are written for an LLM as much as for 
 | Which agent did what for which user last week? | Your `DecisionSink` (or the PermDock Cloud decision log), filtered on `subject.actor` |
 | What could this person do in this tenant during the review window, and did they? | The access-review query above over your sink or the Cloud export; signed batch or CSV for the compliance platform |
 | Who approved that deletion, and when? | The `approval` events sharing the decision's `token`, with `resolvedBy` on the request record |
-| Who gave this person the editor role? | The `directory` event from `permdock/scim` that added them to the group, joined on `via: 'group:<id>'` |
+| Who gave this person the editor role? | The `membership` event whose `roles.added` includes `editor`, filtered by `tenant`, joined on `via` when the change came from a group |
 | How often is `post.delete` denied per adapter? | The `permdock.checks` counter |
 | Why is this page slow? | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint |
 | What changed in who can do what? | `permdock usage` and the policy matrix snapshot in `@permdock/testing`, in review |

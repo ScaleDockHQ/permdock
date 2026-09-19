@@ -219,4 +219,80 @@ export const policy = definePolicy(permissions, {
     });
     expect(codes(result.stdout)).toContain('PD016');
   });
+
+  it('PD017 warns on a sensitive verb without approval', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/pay-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [role('clerk', [allow(permissions.post.delete)])],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/pay-policy.ts',
+  doctor: { sensitiveActions: ['delete'] },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD017'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).toContain('PD017');
+  });
+
+  it('PD018 errors on undeclared exclusiveWith and warns on fixture conflicts', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/sod-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('preparer', [allow(permissions.post.read)], { exclusiveWith: ['approver', 'ghost'] }),
+    role('approver', [allow(permissions.post.update)]),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'memberships.json'),
+      JSON.stringify({
+        customRoles: [
+          {
+            tenant: 'o1',
+            name: 'staff',
+            includes: ['preparer', 'approver'],
+          },
+        ],
+        memberships: [{ principal: 'u1', roles: ['preparer', 'approver'] }],
+      }),
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/sod-policy.ts',
+  doctor: { memberships: './memberships.json' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD018'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).toContain('PD018');
+    expect(result.stdout).toContain('ghost');
+    expect(result.stdout).toContain('staff');
+  });
 });

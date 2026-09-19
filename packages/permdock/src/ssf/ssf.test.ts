@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import type { TokenVerifier } from '../core/interfaces.ts';
 
+import { memoryApprovalStore } from '../approvals/index.ts';
 import { definePermissions, resource } from '../core/permissions.ts';
 import { allow, definePolicy, role } from '../core/policy.ts';
 import { BACKCHANNEL_LOGOUT_EVENT } from './events.ts';
@@ -142,6 +143,52 @@ describe('receiver.push', () => {
     const response = await receiver.push(setRequest('set-ok'));
     expect(response.status).toBe(202);
     expect(seen).toEqual(['user-1:sess-1']);
+  });
+
+  it('cancels pending approvals for the revoked session', async () => {
+    const store = memoryApprovalStore();
+    store.create({
+      v: 2,
+      token: 'pd1.ssf',
+      permission: 'post.delete',
+      scope: 'post:delete',
+      resource: { type: 'post', id: '1' },
+      subject: {
+        principal: { id: 'user-1', roles: ['member'] },
+        session: 'sess-1',
+      },
+      detail: 'pending',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      status: 'pending',
+    });
+    const cancelled: number[] = [];
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        aud: AUDIENCE,
+        iat: 1_700_000_000,
+        jti: 'set-cancel',
+        sub_id: { format: 'iss_sub', iss: ISSUER, sub: 'user-1' },
+        events: {
+          [SESSION_REVOKED]: { event_timestamp: 1_700_000_100, sid: 'sess-1' },
+        },
+      })),
+      subject: (setSubject) =>
+        setSubject.format === 'iss_sub' ? String(setSubject.sub) : null,
+      approvals: store,
+    });
+    receiver.on('event', (event) => {
+      if (event.cancelled !== undefined) {
+        cancelled.push(event.cancelled);
+      }
+    });
+    expect((await receiver.push(setRequest('set-cancel'))).status).toBe(202);
+    expect(store.get('pd1.ssf')?.status).toBe('rejected');
+    expect(store.get('pd1.ssf')?.resolvedBy).toBe('system:ssf');
+    expect(cancelled).toEqual([1]);
   });
 
   it('acknowledges a replayed jti without dispatching', async () => {

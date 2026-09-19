@@ -39,7 +39,7 @@ export const policy = definePolicy({ permissions, roles }, {
 
 ## Roles
 
-`role(name, grants, options?)` returns `{ name, grants, on?, assignable }`. A role is looked up by name from `subject.roles` or from a membership, so role names are the only strings in a policy, and they are data you already store (in your users table, JWT claims or Better Auth roles). Roles are not Postgres roles; when RLS is generated, app roles become claims and every policy targets `TO authenticated` (see [RLS](/docs/adapters/rls)).
+`role(name, grants, options?)` returns `{ name, grants, on?, assignable, exclusiveWith? }`. `exclusiveWith` is a static-separation list for PD018; it does not change evaluation. A role is looked up by name from `subject.roles` or from a membership, so role names are the only strings in a policy, and they are data you already store (in your users table, JWT claims or Better Auth roles). Roles are not Postgres roles; when RLS is generated, app roles become claims and every policy targets `TO authenticated` (see [RLS](/docs/adapters/rls)).
 
 ### Scoped roles
 
@@ -87,7 +87,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `{ check }` | Portable condition on the next row (RLS `WITH CHECK`) for `create` and `update` |
 | `{ where, check }` | Both, for `update` |
 | `(data, ctx) => boolean` | Closure: runtime only, branded non-portable |
-| `{ ..., approval: 'human' }` | Grant is valid but the decision is `approval-required` until a human approves |
+| `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person who is not the actor approve. `{ by }` names eligible approvers with the same grantee selectors as `to`; `distinct: true` also excludes the principal ([0047](/docs/decisions/0047-approver-eligibility)) |
 | `{ ..., limit: { count, per } }` | Quota grant: non-portable, needs a `LimitStore` ([0034](/docs/decisions/0034-quota-grants)) |
 | `{ ..., fields: ['title', 'body'] }` | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches ([0033](/docs/decisions/0033-field-level-grants)) |
 

@@ -9,7 +9,10 @@ import { ApprovalError } from './errors.ts';
 import { assertApprover } from './store.ts';
 import {
   APPROVAL_HEADER,
+  type ApprovalApprovers,
+  type ApprovalCancelMeta,
   type ApprovalInspectResult,
+  type ApprovalListFilter,
   type ApprovalRequest,
   type ApprovalStore,
   type ApprovalVerdict,
@@ -51,6 +54,7 @@ export function summariseSubject(subject: Subject): ApprovalRequest['subject'] {
       subject.actor === undefined
         ? undefined
         : { id: subject.actor.id, kind: subject.actor.kind },
+    session: subject.session,
     delegation:
       subject.delegation === undefined
         ? undefined
@@ -84,9 +88,17 @@ export async function requestApproval(
   const now = meta.now ?? new Date();
   const ttl = meta.ttl ?? DEFAULT_APPROVAL_TTL_MS;
   const leaf = permissionMeta(meta.permission);
+  const approval = decision.grant.approval;
+  const approvers: ApprovalApprovers | undefined =
+    approval === undefined || approval === 'human'
+      ? undefined
+      : compact<ApprovalApprovers>({
+          by: approval.by,
+          distinct: approval.distinct,
+        });
   const request = freezeDeep(
     compact<ApprovalRequest>({
-      v: 1,
+      v: 2,
       token: decision.token,
       permission: leaf.key,
       scope: leaf.scope,
@@ -95,6 +107,7 @@ export async function requestApproval(
       },
       subject: summariseSubject(meta.subject),
       membership: meta.membership,
+      approvers,
       detail: meta.detail ?? describe(decision).detail,
       adapter: meta.adapter,
       createdAt: now.toISOString(),
@@ -143,6 +156,42 @@ export async function inspectApproval(
     return { ok: false, detail: 'approval-expired' };
   }
   return { ok: true, request };
+}
+
+const SYSTEM_KIND = 'system';
+
+export async function cancelApprovals(
+  store: ApprovalStore,
+  filter: ApprovalListFilter,
+  meta: ApprovalCancelMeta,
+): Promise<number> {
+  if (store.cancel !== undefined) {
+    return store.cancel(filter, meta);
+  }
+  const pending = await store.list({ ...filter, status: 'pending' });
+  const by: Subject = {
+    principal: { id: `system:${meta.by}`, kind: 'service', roles: [] },
+    actor: { id: `system:${meta.by}`, kind: SYSTEM_KIND },
+    context: {},
+  };
+  const outcomes = await Promise.all(
+    pending.map(async (request): Promise<boolean> => {
+      try {
+        await store.resolve(
+          request.token,
+          compact<ApprovalVerdict>({
+            status: 'rejected',
+            by,
+            note: meta.note,
+          }),
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  return outcomes.filter(Boolean).length;
 }
 
 export function readApprovalHeader(

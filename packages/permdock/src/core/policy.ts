@@ -15,6 +15,7 @@ import {
   type Grantee,
   type GranteeInput,
   asGrantee,
+  authenticated,
   flattenGrantee,
   roleNameOf,
   roleScopeOf,
@@ -58,11 +59,23 @@ export type ClosureGrantFn<T = unknown> = (
 
 export type NonPortable<T> = T & { readonly [NON_PORTABLE]: true };
 
+export type ApprovalRequirement = {
+  readonly by: Grantee | readonly Grantee[];
+  readonly distinct?: boolean;
+};
+
+export type ApprovalOption =
+  | 'human'
+  | {
+      readonly by?: GranteeInput;
+      readonly distinct?: boolean;
+    };
+
 export type GrantOptions<T = Record<string, unknown>> = {
   readonly to?: GranteeInput;
   readonly where?: WhereShorthand<T> | Condition;
   readonly check?: WhereShorthand<T> | Condition;
-  readonly approval?: 'human';
+  readonly approval?: ApprovalOption;
   readonly limit?: { readonly count: number; readonly per: string };
   readonly reason?: string;
   readonly fields?: readonly (keyof T & string)[];
@@ -78,6 +91,7 @@ export type RoleScope =
 export type RoleOptions = {
   readonly on?: RoleScope;
   readonly assignable?: boolean;
+  readonly exclusiveWith?: readonly string[];
 };
 
 export type Grant = {
@@ -87,7 +101,7 @@ export type Grant = {
   readonly role: string | null;
   readonly where?: Condition;
   readonly check?: Condition;
-  readonly approval?: 'human';
+  readonly approval?: 'human' | ApprovalRequirement;
   readonly portable: boolean;
   readonly closure?: ClosureGrantFn;
   readonly limit?: { readonly count: number; readonly per: string };
@@ -100,6 +114,7 @@ export type RoleBinding = {
   readonly grants: readonly Grant[];
   readonly on?: RoleScope;
   readonly assignable: boolean;
+  readonly exclusiveWith?: readonly string[];
 };
 
 export type ValidateMode = 'boundary' | 'always' | 'never';
@@ -147,6 +162,31 @@ export type Policy<
   readonly resources: ReadonlyMap<string, ResourceNode>;
   readonly providers?: readonly DecisionProvider[];
 };
+
+export function requiresApproval(
+  approval: Grant['approval'] | undefined,
+): boolean {
+  return approval !== undefined;
+}
+
+export function normalizeApproval(
+  approval: ApprovalOption | undefined,
+): Grant['approval'] {
+  if (approval === undefined) {
+    return undefined;
+  }
+  if (approval === 'human') {
+    return 'human';
+  }
+  const by = approval.by === undefined ? undefined : asGrantee(approval.by);
+  if (by === undefined && approval.distinct !== true) {
+    return 'human';
+  }
+  return compact<ApprovalRequirement>({
+    by: by ?? authenticated(),
+    distinct: approval.distinct === true ? true : undefined,
+  });
+}
 
 function isClosure(value: unknown): value is ClosureGrantFn {
   return typeof value === 'function';
@@ -234,7 +274,7 @@ function makeGrant(
     to,
     where,
     check,
-    approval: condition?.approval,
+    approval: normalizeApproval(condition?.approval),
     portable,
     limit: condition?.limit,
     fields: sanitizeFields(condition?.fields),
@@ -332,6 +372,7 @@ export function role(
       grants: normalised,
       on: options?.on ?? leaf?.on,
       assignable,
+      exclusiveWith: options?.exclusiveWith,
     }),
   );
 }
@@ -431,6 +472,7 @@ function mergeBindings(items: readonly RoleBinding[]): {
           grants: [...existing.grants, ...item.grants],
           on: existing.on,
           assignable: existing.assignable,
+          exclusiveWith: existing.exclusiveWith ?? item.exclusiveWith,
         }),
       ),
     );
@@ -510,6 +552,71 @@ export function definePolicy<
     resources,
     providers: options.providers,
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
+}
+
+export type MembershipFixture = {
+  readonly principal?: string;
+  readonly tenant?: string;
+  readonly roles: readonly string[];
+};
+
+export type SeparationConflict = {
+  readonly principal: string;
+  readonly tenant?: string;
+  readonly roles: readonly [string, string];
+};
+
+export function exclusivePairs(
+  policy: Policy,
+): ReadonlyMap<string, readonly string[]> {
+  const pairs = new Map<string, readonly string[]>();
+  for (const binding of policy.roles) {
+    if (binding.exclusiveWith !== undefined) {
+      pairs.set(binding.name, binding.exclusiveWith);
+    }
+  }
+  return pairs;
+}
+
+export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
+  const names = new Set(policy.roles.map((item) => item.name));
+  for (const leaf of listRoles(policy.vocabulary.roles)) {
+    names.add(leaf.key);
+  }
+  return names;
+}
+
+export function separationConflicts(
+  policy: Policy,
+  memberships: readonly MembershipFixture[],
+): readonly SeparationConflict[] {
+  const exclusive = exclusivePairs(policy);
+  const seen = new Set<string>();
+  const conflicts: SeparationConflict[] = [];
+  for (const membership of memberships) {
+    const held = new Set(membership.roles);
+    for (const name of held) {
+      for (const other of exclusive.get(name) ?? []) {
+        if (!held.has(other)) {
+          continue;
+        }
+        const pair = [name, other].toSorted() as [string, string];
+        const key = `${membership.principal ?? ''}:${membership.tenant ?? ''}:${pair.join('+')}`;
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        conflicts.push(
+          compact<SeparationConflict>({
+            principal: membership.principal ?? '',
+            tenant: membership.tenant,
+            roles: pair,
+          }),
+        );
+      }
+    }
+  }
+  return conflicts;
 }
 
 export type PrincipalOf<P> =

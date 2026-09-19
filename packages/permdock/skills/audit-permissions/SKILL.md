@@ -27,7 +27,8 @@ Done when every leaf is tagged granted+used, granted+unused, or ungranted.
 For every tool map (`tools` on `permdock/ai-sdk`, `permdock/claude-agent`, `permdock/eve`, `permdock/openai`, `permdock/mcp`):
 
 - Instance actions load a row through `data`. A collection permission (`list`, `create`) on a handler that reads `args.id` is a miss.
-- `delete`, `publish`, charge, and other destructive actions carry `approval: 'human'` when a model can invoke them.
+- `delete`, `publish`, charge, and other destructive actions carry `approval: { by }` (or `'human'`) when a model can invoke them. `by` names eligible approvers; adapter `approvers` is an extra restriction. `permdock doctor` PD017 warns on sensitive verbs (`pay`, `approve`, `settle`, `submit`, `transfer`, `refund`, `disburse`) without approval.
+- Roles that must not be held together use `exclusiveWith`; PD018 and `separationConflicts` report fixture and custom-role collisions.
 - `subject` and `actor` come from the host session or `subjectFrom*`, never from tool arguments or a model-supplied id.
 
 Done when every tool binding has the right arity and every destructive model-reachable action requires a human approval.

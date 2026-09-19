@@ -7,7 +7,6 @@ import type {
 import type { AuthEvent, DecisionEvent, RoleSource } from './interfaces.ts';
 import type { DecideOptions, RowPair } from './permdock.ts';
 import type { Permission } from './permissions.ts';
-import type { Grant, Policy } from './policy.ts';
 import type { CustomRole, Membership, Subject } from './subject.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
@@ -20,6 +19,7 @@ import { freezeDeep } from './freeze.ts';
 import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
 import { applyQuota } from './limits.ts';
 import { getResource, listPermissions } from './permissions.ts';
+import { requiresApproval, type Grant, type Policy } from './policy.ts';
 import { matchScopedMembership, nowSeconds } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
 import { decisionToken } from './token.ts';
@@ -537,7 +537,7 @@ export function evaluate(
   let matchedAllow: (typeof allows)[number] | undefined;
   for (const candidate of allows) {
     const consume =
-      candidate.grant.approval !== 'human' &&
+      !requiresApproval(candidate.grant.approval) &&
       shouldConsumeQuota(options.source, env.simulated);
     const quota = applyQuota({
       store: env.limits,
@@ -603,20 +603,19 @@ export function evaluate(
     check: matchedAllow.grant.check,
     approval: matchedAllow.grant.approval,
   });
-  const decision: Decision =
-    matchedAllow.grant.approval === 'human'
-      ? freezeDeep({
-          outcome: 'approval-required',
-          grant: matched,
-          reason: 'human',
-          token,
-        })
-      : freezeDeep({
-          outcome: 'granted',
-          subject,
-          matched,
-          token,
-        });
+  const decision: Decision = requiresApproval(matchedAllow.grant.approval)
+    ? freezeDeep({
+        outcome: 'approval-required',
+        grant: matched,
+        reason: 'human',
+        token,
+      })
+    : freezeDeep({
+        outcome: 'granted',
+        subject,
+        matched,
+        token,
+      });
   finish(
     policy,
     subject,

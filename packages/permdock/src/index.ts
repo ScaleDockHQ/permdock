@@ -41,6 +41,7 @@ export type {
   DecisionProvider,
   DecisionSink,
   DirectoryEvent,
+  MembershipEvent,
   LimitConsumeInput,
   LimitRemaining,
   LimitStore,
@@ -95,14 +96,26 @@ export type {
   ResourceRelation,
   ResourceRelationInput,
 } from './core/permissions.ts';
-export { allow, definePolicy, deny, role } from './core/policy.ts';
+export {
+  allow,
+  definePolicy,
+  deny,
+  normalizeApproval,
+  requiresApproval,
+  role,
+  separationConflicts,
+} from './core/policy.ts';
 export type {
+  ApprovalOption,
+  ApprovalRequirement,
   ClosureContext,
   ClosureGrantFn,
   Grant,
   GrantCondition,
   GrantOptions,
+  MembershipFixture,
   Policy,
+  SeparationConflict,
   PrincipalOf,
   RoleBinding,
   RoleOptions,
@@ -134,7 +147,12 @@ export type {
   RoleTree,
   Vocabulary,
 } from './core/vocabulary.ts';
-export { memorySink, signDecisionBatch, toCloudEvent } from './core/sink.ts';
+export {
+  membershipEvent,
+  memorySink,
+  signDecisionBatch,
+  toCloudEvent,
+} from './core/sink.ts';
 export type {
   CloudEvent,
   CloudEventType,

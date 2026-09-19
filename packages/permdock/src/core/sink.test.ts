@@ -6,7 +6,7 @@ import type {
   TokenSigner,
 } from './interfaces.ts';
 
-import { memorySink, signDecisionBatch } from './sink.ts';
+import { membershipEvent, memorySink, signDecisionBatch } from './sink.ts';
 
 const event = (id: string): DecisionEvent => ({
   type: 'decision',
@@ -100,6 +100,26 @@ describe('signDecisionBatch', () => {
     expect(captured).toMatchObject([
       { type: 'dev.permdock.directory', subject: 'u_1' },
       { type: 'dev.permdock.approval', subject: 'post.read' },
+    ]);
+  });
+
+  it('envelopes membership events with principal id as subject', async () => {
+    const membership = membershipEvent({
+      source: 'app',
+      operation: 'changed',
+      principal: { id: 'u_2' },
+      tenant: 'o_1',
+      roles: { added: ['admin'], removed: ['member'] },
+    });
+    let captured: readonly unknown[] = [];
+    await signDecisionBatch([membership], {
+      async sign(payload) {
+        captured = payload.events as readonly unknown[];
+        return 'jws';
+      },
+    });
+    expect(captured).toMatchObject([
+      { type: 'dev.permdock.membership', subject: 'u_2' },
     ]);
   });
 });

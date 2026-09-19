@@ -1,5 +1,8 @@
-import type { Decision } from './decision.ts';
+import type { Decision, MatchedGrant } from './decision.ts';
+import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
+
+import { flattenGrantee } from './grantee.ts';
 
 export type DecisionDescription = {
   readonly kind:
@@ -23,6 +26,48 @@ const TENANT_REASONS = new Set([
 
 const DELEGATION_REASONS = new Set(['not-delegated', 'no-delegation']);
 
+function labelGrantee(grantee: Grantee): string {
+  switch (grantee.kind) {
+    case 'role':
+      return grantee.role;
+    case 'plan':
+      return grantee.plan;
+    case 'actor':
+      return grantee.actor;
+    case 'authenticated':
+      return 'an authenticated user';
+    case 'anyone':
+      return 'anyone';
+    case 'relation':
+      return grantee.relation;
+    case 'assurance': {
+      const parts: string[] = [];
+      if (grantee.acr !== undefined && grantee.acr.length > 0) {
+        parts.push(`acr ${grantee.acr.join('/')}`);
+      }
+      if (grantee.amr !== undefined && grantee.amr.length > 0) {
+        parts.push(`amr ${grantee.amr.join('/')}`);
+      }
+      return parts.length > 0 ? parts.join(' ') : 'step-up';
+    }
+    default: {
+      const exhaustive: never = grantee;
+      return exhaustive;
+    }
+  }
+}
+
+function approvalDetail(
+  permission: string,
+  approval: MatchedGrant['approval'],
+): string {
+  if (approval === undefined || approval === 'human') {
+    return `${permission} requires human approval.`;
+  }
+  const labels = flattenGrantee(approval.by).map(labelGrantee);
+  return `${permission} requires approval from ${labels.join(' and ')}.`;
+}
+
 export function describe(decision: Decision): DecisionDescription {
   if (decision.outcome === 'granted') {
     return {
@@ -36,7 +81,10 @@ export function describe(decision: Decision): DecisionDescription {
     return {
       kind: 'approval',
       title: 'Approval required',
-      detail: `${decision.grant.permission} requires human approval.`,
+      detail: approvalDetail(
+        decision.grant.permission,
+        decision.grant.approval,
+      ),
       alternatives: [],
     };
   }

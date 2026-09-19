@@ -75,6 +75,32 @@ describe('createPermDock', () => {
     );
   });
 
+  it('returns approval-required when approval.by is set', async () => {
+    const filing = definePermissions({
+      filing: resource({ actions: ['pay'] }),
+    });
+    const payPolicy = definePolicy(filing, {
+      roles: [
+        role('clerk', [
+          allow(filing.filing.pay, {
+            approval: { by: 'admin', distinct: true },
+          }),
+        ]),
+      ],
+      subject: () => ({ id: 'u_1', roles: ['clerk'] }),
+    });
+    const permdock = await createPermDock(payPolicy, { id: 'u_1' });
+    const decision = permdock.decide(filing.filing.pay);
+    expect(decision.outcome).toBe('approval-required');
+    if (decision.outcome === 'approval-required') {
+      expect(decision.grant.approval).toEqual({
+        by: { kind: 'role', role: 'admin', scope: 'global' },
+        distinct: true,
+      });
+    }
+    expect(permdock.can(filing.filing.pay)).toBe(false);
+  });
+
   it('denies anonymous and unknown roles', async () => {
     const anonymous = await dock(null);
     expect(anonymous.can(permissions.post.read, ownPost)).toBe(false);

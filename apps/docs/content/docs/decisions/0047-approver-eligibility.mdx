@@ -1,0 +1,44 @@
+---
+title: "0047: Approver eligibility on grants"
+description: approval widens from the literal human to an optional by grantee selector and distinct flag; ApprovalRequest becomes v2 so the store and approvalsHandler enforce who may resolve a pending request.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+[0022](/docs/decisions/0022-approvals-are-pluggable) fixed the store, the replay-safe token, expiry and the actor-is-not-approver rule. Who may approve stayed an application option: `requireDistinctApprover` and the per-adapter `approvers` list. "Junior prepares, admin approves" therefore lived in each app, not in the grant.
+
+The grant already names the permission and the condition. The missing piece is a portable eligibility selector that `ApprovalStore.resolve`, `approvalsHandler` and the Cloud inbox can enforce from the same record.
+
+## Decision
+
+1. **`approval` accepts `'human'` or `{ by, distinct }`.** `allow(..., { approval: { by: [roles.admin, assurance({ amr: ['mfa'] })], distinct: true } })` is a grant. `by` reuses the existing grantee selectors. `'human'` keeps today's meaning: any authenticated person who is not the actor. `{ distinct: true }` without `by` normalises to `{ by: authenticated(), distinct: true }`.
+2. **Any defined `approval` is `approval-required`.** The evaluator and snapshot evaluator test `requiresApproval(grant.approval)`, not equality with `'human'`. `Decision.reason` stays `'human'`. `can` stays `false`. Snapshot `v` is unchanged; the object form is additive.
+3. **`ApprovalRequest` is v2.** New records set `v: 2` and may carry `approvers` (`by`, `distinct`) and `subject.session`. A v1-only store or Cloud inbox that rejects unknown majors will not approve a v2 record without checking eligibility. `requestApproval` copies `decision.grant.approval` and `subject.session` onto the record.
+4. **The store enforces eligibility.** `assertApprover` still refuses the actor and, when `distinct` or `requireDistinctApprover` is set, the principal. When `approvers` is present the approver must belong to the request tenant and match `by` (role held globally or on a membership in that tenant; other grantees through `matchGrantee`). Failure is `approver-not-eligible`, a `403` Problem Details body with the `denied` type. `memoryApprovalStore` repeats the check on `resolve`.
+5. **Adapter `approvers` stays additive.** Eve, OpenAI and Chat SDK `approvers` lists remain an extra restriction. Both must pass.
+6. **`ApprovalStore.cancel` is optional.** It marks matching pending requests `rejected` with `resolvedBy: 'system:<by>'` and does not run eligibility, because a rejection never grants. Used by session revocation ([SSF adapter](/docs/adapters/ssf)).
+7. **Quorum is deferred.** N distinct approvals per request is a later ADR.
+
+## Consequences
+
+- `describe(decision)` names the eligible approvers when `approval.by` is set.
+- `testApprovalStore` covers a refused ineligible approver.
+- Wire formats document Approval request v2. PermDock Cloud must accept `v: 2` and honour `approvers`.
+- [0034](/docs/decisions/0034-quota-grants) still peeks, never consumes, on any approval-required grant.
+
+## Alternatives considered
+
+- **Keep eligibility only on adapters.** Rejected: each runtime would reimplement tenant and role checks, and a custom store would have nothing to persist.
+- **Encode `by` in the token.** Rejected: the token stays a binding hash ([0022](/docs/decisions/0022-approvals-are-pluggable)); eligibility is store state.
+- **Include `quorum` in this change.** Rejected: a second token per request changes resume and the Cloud inbox. Ship `by` and `distinct` first.
+
+## Related
+
+- [0022: Approvals are pluggable](/docs/decisions/0022-approvals-are-pluggable)
+- [Approvals](/docs/security/approvals)
+- [Approvals adapter](/docs/adapters/approvals)
+- [Wire formats](/docs/concepts/wire-formats)

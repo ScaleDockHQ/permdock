@@ -46,6 +46,11 @@ export type RlsConfig = {
   readonly out?: string;
 };
 
+export type DoctorConfig = {
+  readonly sensitiveActions?: readonly string[];
+  readonly memberships?: string;
+};
+
 export type PermDockConfig = {
   readonly permissions?: string;
   readonly policy?: string;
@@ -55,6 +60,7 @@ export type PermDockConfig = {
     readonly doc?: readonly string[];
   };
   readonly rls?: RlsConfig;
+  readonly doctor?: DoctorConfig;
 };
 
 export type CatalogUsage = {

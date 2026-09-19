@@ -1,3 +1,4 @@
+import type { ApprovalStore } from '../approvals/types.ts';
 import type { TokenVerifier, VerifiedToken } from '../core/interfaces.ts';
 import type {
   PollHandle,
@@ -15,6 +16,7 @@ import type {
   SsfSubjectMapper,
 } from './types.ts';
 
+import { cancelApprovals } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import {
   asSubject,
@@ -46,8 +48,23 @@ type ReceiverConfig = {
   readonly subject: SsfSubjectMapper;
   readonly onEvent: SsfOnEvent;
   readonly replay: ReplayStore;
+  readonly approvals?: ApprovalStore;
   readonly clockTolerance?: number;
 };
+
+function replayExpiresAt(
+  claims: Readonly<Record<string, unknown>>,
+  clockTolerance = 0,
+): number | undefined {
+  if (typeof claims.exp === 'number') {
+    return claims.exp;
+  }
+  if (typeof claims.iat === 'number') {
+    const until = claims.iat + clockTolerance;
+    return until > Date.now() / 1000 ? until : undefined;
+  }
+  return undefined;
+}
 
 export function createReceiver(config: ReceiverConfig): SsfReceiver {
   const listeners = new Set<SsfEventListener>();
@@ -123,6 +140,36 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     return asSubject(mapped, session, issuer);
   }
 
+  async function rememberReplay(
+    jti: string,
+    claims: Readonly<Record<string, unknown>>,
+  ): Promise<void> {
+    await config.replay.remember(
+      jti,
+      replayExpiresAt(claims, config.clockTolerance),
+    );
+  }
+
+  async function cancelSessionApprovals(input: SsfEventInput): Promise<void> {
+    if (config.approvals === undefined || input.type !== 'session-revoked') {
+      return;
+    }
+    const count = await cancelApprovals(
+      config.approvals,
+      compact({
+        principalId: input.subject.id,
+        session: input.subject.session,
+      }),
+      { by: 'ssf', note: input.jti },
+    );
+    emit({
+      type: 'approvals-cancelled',
+      subject: input.subject,
+      jti: input.jti,
+      cancelled: count,
+    });
+  }
+
   async function dispatch(
     type: string,
     input: SsfEventInput,
@@ -138,6 +185,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         jti: input.jti,
         unknown: 'event',
       });
+      await cancelSessionApprovals(input);
       return { ok: true };
     }
     try {
@@ -155,6 +203,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       transmitter: input.subject.issuer,
       jti: input.jti,
     });
+    await cancelSessionApprovals(input);
     return { ok: true };
   }
 
@@ -255,7 +304,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     if (!dispatched.ok) {
       return dispatched;
     }
-    await config.replay.remember(jti);
+    await rememberReplay(jti, verified.claims);
     return { ok: true };
   }
 
@@ -328,7 +377,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         jti,
         unknown: 'subject',
       });
-      await config.replay.remember(jti);
+      await rememberReplay(jti, verified.claims);
       return { ok: true };
     }
     const payload = isRecord(events[BACKCHANNEL_LOGOUT_EVENT])
@@ -347,7 +396,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     if (!dispatched.ok) {
       return dispatched;
     }
-    await config.replay.remember(jti);
+    await rememberReplay(jti, verified.claims);
     return { ok: true };
   }
 

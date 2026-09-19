@@ -4,7 +4,8 @@ export type ApprovalErrorCode =
   | 'approval-expired'
   | 'approver-unauthenticated'
   | 'approver-is-actor'
-  | 'approver-is-principal';
+  | 'approver-is-principal'
+  | 'approver-not-eligible';
 
 export class ApprovalError extends Error {
   public override readonly name = 'ApprovalError' as const;

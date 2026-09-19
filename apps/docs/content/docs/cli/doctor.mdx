@@ -39,6 +39,8 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD014` | `discovery` issuer mismatch, plain-HTTP issuer, or `jwks` without `issuer` | error |
 | `PD015` | Token verification that does not check `typ`, or `accept: 'id-token'` on an API route | warning |
 | `PD016` | Opaque RLS grants, or `sqlFunction` grants with no verify fixtures, under an `rls` config | warning |
+| `PD017` | An `allow` on a sensitive verb (`approve`, `pay`, `settle`, `submit`, `transfer`, `refund`, `disburse`, or `doctor.sensitiveActions`) has no `approval` and no `deny` on the same leaf | warning |
+| `PD018` | `exclusiveWith` names an undeclared role (error), or a `doctor.memberships` fixture / custom role holds two exclusive roles (warning) | error / warning |
 
 ### PD001: server-only imports in client entries
 
@@ -120,6 +122,14 @@ permdock doctor
 ```
 
 The Unicode markers are replaced with `error` / `warn` under `--no-color` or when stdout is not a TTY.
+
+### PD017: sensitive verbs without approval
+
+Loads the policy and warns on each `allow` whose action is in the sensitive list and that carries neither `approval` nor a `deny` on the same leaf. Override the list with `doctor.sensitiveActions` in `permdock.config.ts`. The fix text points at `approval: { by }`.
+
+### PD018: static separation of duty
+
+`role(..., { exclusiveWith: ['approver'] })` is data only: evaluation does not change. Doctor errors when a named exclusive role is not declared. When `doctor.memberships` points at a JSON fixture (`customRoles` and `memberships` arrays), doctor warns if a custom role `includes` two exclusive roles or a membership holds both. Dynamic SoD (two roles not active in one session) is not planned.
 
 ## Open questions
 
