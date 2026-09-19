@@ -203,7 +203,7 @@ Keel: `@permission(expression, roles, actions)` on models and actions, expressio
 
 - `@hono/zod-openapi` 1.6.3: `app.openAPIRegistry.registerComponent('securitySchemes', ...)` and `createRoute({ security: [...] })`. [Repo](https://github.com/honojs/middleware/tree/main/packages/zod-openapi).
 - `hono-openapi` 1.3.1: `describeRoute({ security: [...] })` per route plus `components.securitySchemes` in generator options. [Repo](https://github.com/rhinobase/hono-openapi).
-- `@orpc/openapi` 1.15.0: `oo.spec(middleware, spec => ({ ...spec, security: [...] }))` extends operation objects from middleware, the cleanest hook for an authorization middleware. [Docs](https://orpc.unnoq.com/docs/openapi).
+- `@orpc/openapi` 2.x (beta): `.meta(openapi({ spec }))` attaches operation objects from procedure metadata, the cleanest hook for an authorization fragment. [Docs](https://orpc.dev/docs/openapi).
 - `trpc-to-openapi` 3.3.0: `.meta({ openapi: { protect: true } })` maps to global security schemes; no per-scope granularity. [Repo](https://github.com/mcampa/trpc-to-openapi).
 - `@asteasolutions/zod-to-openapi` 9.1.0: `registry.registerComponent('securitySchemes', ...)`, `registry.registerPath({ security })`. [Repo](https://github.com/asteasolutions/zod-to-openapi).
 - `next-openapi-gen`: no in-process hook; security comes from a JSDoc `@auth` tag and `authPresets`, or from Overlay files applied in `overlay.apply` before the spec is written. Scans Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono and Express route files; scaffolds Scalar; compiles Arazzo. [Repo](https://github.com/tazo90/next-openapi-gen).

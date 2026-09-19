@@ -1,4 +1,4 @@
-import { ORPCError, type AnyMiddleware } from '@orpc/server';
+import { ORPCError, type Middleware } from '@orpc/server';
 
 import type { ApprovalStore } from '../approvals/types.ts';
 import type {
@@ -18,16 +18,34 @@ import { compact } from '../core/compact.ts';
 import { createPermDock as createKernel } from '../server/create.ts';
 import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
 
-export type OrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
+export type OrpcMiddlewareOpts<
+  TCtx extends object = object,
+  TInput = unknown,
+> = {
   readonly context: TCtx;
   readonly input?: TInput;
   readonly path?: readonly string[];
   readonly next: (opts?: { readonly context: TCtx }) => Promise<unknown>;
 };
 
-export type OrpcMiddleware = AnyMiddleware;
+export type OrpcMiddleware<
+  TCtx extends object = object,
+  TInput = unknown,
+> = Middleware<
+  TCtx,
+  TCtx & {
+    readonly permdock: PermDock;
+    readonly permdockData?: unknown;
+  },
+  TInput,
+  unknown,
+  Record<never, never>
+>;
 
-export type OrpcPermDockOptions<TCtx = object, TUser = unknown> = {
+export type OrpcPermDockOptions<
+  TCtx extends object = object,
+  TUser = unknown,
+> = {
   readonly subject: (opts: OrpcMiddlewareOpts<TCtx>) => TUser | Promise<TUser>;
   readonly tenant?:
     | string
@@ -42,11 +60,11 @@ export type OrpcPermDockOptions<TCtx = object, TUser = unknown> = {
   readonly webBotAuth?: WebBotAuthOptions;
 };
 
-export type OrpcOpenApiHooks<TCtx = object> = {
+export type OrpcOpenApiHooks<TCtx extends object = object> = {
   readonly protect: (
     permission: Permission,
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
-  ) => OrpcMiddleware;
+  ) => OrpcMiddleware<TCtx>;
   readonly security: (permission: Permission) => {
     readonly security: readonly Record<string, readonly string[]>[];
     readonly 'x-permdock-permissions': readonly string[];
@@ -54,15 +72,24 @@ export type OrpcOpenApiHooks<TCtx = object> = {
   readonly securitySchemes: OpenApiHooks['securitySchemes'];
 };
 
-export type OrpcPermDock<TCtx = object> = {
-  readonly permdock: () => OrpcMiddleware;
+export type OrpcPermDock<TCtx extends object = object> = {
+  readonly permdock: () => OrpcMiddleware<TCtx>;
   readonly protect: (
     permission: Permission,
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
-  ) => OrpcMiddleware;
+  ) => OrpcMiddleware<TCtx>;
   readonly permdockHandler: (request: Request) => Promise<Response>;
   readonly openapi: OrpcOpenApiHooks<TCtx>;
 };
+
+function hasBoundPermDock(context: unknown): boolean {
+  return (
+    context !== null &&
+    typeof context === 'object' &&
+    'permdock' in context &&
+    (context as { readonly permdock?: unknown }).permdock !== undefined
+  );
+}
 
 function requestFromCtx(ctx: object): Request | undefined {
   if ('request' in ctx) {
@@ -80,7 +107,7 @@ function requestFromCtx(ctx: object): Request | undefined {
   return undefined;
 }
 
-function toOpts<TCtx>(
+function toOpts<TCtx extends object>(
   mw: { readonly context: TCtx; readonly path?: readonly string[] },
   input: unknown,
   next: (opts?: { readonly context: TCtx }) => Promise<unknown>,
@@ -126,7 +153,7 @@ async function throwOrpcError(response: Response): Promise<never> {
 }
 
 export function createPermDock<
-  TCtx = object,
+  TCtx extends object = object,
   TUser = unknown,
   TPrincipal extends Principal = Principal,
 >(
@@ -183,7 +210,7 @@ export function createPermDock<
     requestByCtx.set(ctx, request);
   };
 
-  const permdock = (): OrpcMiddleware =>
+  const permdock = (): OrpcMiddleware<TCtx> =>
     ((mwOptions, input) => {
       const opts = toOpts(
         mwOptions as {
@@ -195,6 +222,11 @@ export function createPermDock<
           readonly context: TCtx;
         }) => Promise<unknown>,
       );
+      if (hasBoundPermDock(opts.context)) {
+        return mwOptions.next({
+          context: opts.context as TCtx & { readonly permdock: PermDock },
+        });
+      }
       const request = bind(opts);
       const ctx = opts.context as object;
       let built = instances.get(ctx);
@@ -216,12 +248,12 @@ export function createPermDock<
           throw error;
         },
       );
-    }) as OrpcMiddleware;
+    }) as OrpcMiddleware<TCtx>;
 
   const protect = (
     permission: Permission,
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
-  ): OrpcMiddleware =>
+  ): OrpcMiddleware<TCtx> =>
     (async (mwOptions, input) => {
       const opts = toOpts(
         mwOptions as {
@@ -248,7 +280,7 @@ export function createPermDock<
         return mwOptions.next({ context: nextCtx });
       }
       return throwOrpcError(guard.response);
-    }) as OrpcMiddleware;
+    }) as OrpcMiddleware<TCtx>;
 
   const permdockHandler = (request: Request): Promise<Response> => {
     const opts = {

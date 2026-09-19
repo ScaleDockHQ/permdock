@@ -46,7 +46,7 @@ The join key across all four stages is `operationId`. Producers generate it, the
 | [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) | Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono, Express | JSDoc `@auth`, `authPresets`; `overlay.apply` | Overlay | Scans route files; targets 3.0 to 3.2; scaffolds Scalar; compiles Arazzo. The Next.js recipe |
 | [hono-openapi](https://github.com/rhinobase/hono-openapi) | Hono | `describeRoute({ security })` | In-process `describe()` | Already a hook on the [Hono adapter](/docs/adapters/hono) |
 | [@hono/zod-openapi](https://github.com/honojs/middleware/tree/main/packages/zod-openapi) | Hono | `createRoute({ security })` | In-process `security()` | Same |
-| [@orpc/openapi](https://orpc.unnoq.com/docs/openapi/getting-started) | oRPC | `oo.spec()` | In-process `spec()` | [oRPC adapter](/docs/adapters/orpc) |
+| [@orpc/openapi](https://orpc.dev/docs/openapi/getting-started) | oRPC | `openapi()` meta helper | In-process `spec` | [oRPC adapter](/docs/adapters/orpc) |
 | [trpc-to-openapi](https://github.com/mcampa/trpc-to-openapi) | tRPC | `meta.openapi.protect: true` | In-process `describe()`, Overlay for per-scope | Boolean `protect` only; the Overlay adds the scopes ([tRPC adapter](/docs/adapters/trpc)) |
 | [@elysia/openapi](https://elysiajs.com/plugins/openapi) | Elysia | `detail.security` | In-process | Scalar is the default UI ([Elysia adapter](/docs/adapters/elysia)) |
 | [@fastify/swagger](https://github.com/fastify/fastify-swagger), [@nestjs/swagger](https://docs.nestjs.com/openapi/introduction) | Fastify, Nest | Schema `security`, decorators | In-process | [Fastify](/docs/adapters/fastify), [Nest](/docs/adapters/nest) |

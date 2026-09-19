@@ -308,7 +308,7 @@ base
   .handler(({ context }) => deletePost(context.permdockData));
 ```
 
-`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`. `openapi.protect` is the same guard plus the kernel `security` fragment for `oo.spec`.
+`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`. `openapi.protect` is the same guard; pass `openapi.security(permission)` to oRPC 2's `openapi({ spec })` metadata helper.
 
 ## Vue — `permdock/vue`
 

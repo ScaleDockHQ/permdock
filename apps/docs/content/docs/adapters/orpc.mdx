@@ -1,21 +1,22 @@
 ---
 title: oRPC
-description: permdock/orpc adds a request-scoped PermDock to oRPC context, a protect middleware fed by procedure input, and an oo.spec hook that emits OpenAPI 3.2 security for the generated document.
+description: permdock/orpc adds a request-scoped PermDock to oRPC context, a protect middleware fed by procedure input, and an OpenAPI security fragment for oRPC 2 `openapi()` metadata.
 ---
 
 Status: shipped
 Phase: 2
+Requires: `@orpc/server` 2.x (beta)
 
 ## Purpose
 
-oRPC is contract-first and generates OpenAPI natively, which makes it the RPC framework where the [OpenAPI 3.2](/docs/standards/openapi-3-2) story is most direct. `permdock/orpc` mirrors the [tRPC adapter](/docs/adapters/trpc): `ctx.permdock` on every procedure, `protect(permission, load)` as a middleware after input validation, `ORPCError` denials carrying Problem Details, and an `oo.spec(middleware, ...)` hook so the `security` requirement is attached to the operation wherever the middleware is used.
+oRPC is contract-first and generates OpenAPI natively, which makes it the RPC framework where the [OpenAPI 3.2](/docs/standards/openapi-3-2) story is most direct. `permdock/orpc` mirrors the [tRPC adapter](/docs/adapters/trpc): `ctx.permdock` on every procedure, `protect(permission, load)` as a middleware after input validation, `ORPCError` denials carrying Problem Details, and `openapi.security(permission)` so the operation's `security` requirement can be attached with oRPC 2's `openapi()` metadata helper.
 
 ## API
 
 ```ts
 // server/permdock.ts
 import { os } from '@orpc/server'
-import { oo } from '@orpc/openapi'
+import { openapi as orpcOpenapi } from '@orpc/openapi'
 import { createPermDock } from 'permdock/orpc'
 import { policy } from './policy'
 import { permissions } from './permissions'
@@ -26,21 +27,21 @@ export const base = os.$context<Context>().use(permdock())          // context.p
 
 // server/routers/posts.ts
 export const remove = base
-  .route({ method: 'DELETE', path: '/posts/{id}' })
+  .meta(orpcOpenapi({ method: 'DELETE', path: '/posts/{id}', spec: openapi.security(permissions.post.delete) }))
   .input(z.object({ id: z.string() }))
-  .use(openapi.protect(permissions.post.delete, ({ input }) => loadPost(input.id)))   // protect + oo.spec in one
+  .use(protect(permissions.post.delete, ({ input }) => loadPost(input.id)))
   .handler(async ({ context }) => deletePost(context.permdockData))
 
 export const list = base
-  .route({ method: 'GET', path: '/posts' })
+  .meta(orpcOpenapi({ method: 'GET', path: '/posts' }))
   .handler(async ({ context }) => context.permdock.filter(permissions.post.read, await listPosts()))
 ```
 
 | Export | Role |
 |---|---|
-| `permdock()` | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. |
+| `permdock()` | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. Applied a second time on the same request, it is a no-op when `context.permdock` is already set (oRPC 2 no longer dedupes middleware). |
 | `protect(permission, load?)` | Middleware placed after `.input(...)`. Loads and boundary-validates the resource, decides, continues with `context.permdockData` or throws `ORPCError` with code `FORBIDDEN`. |
-| `openapi.protect(permission, load?)` | `protect` wrapped with `oo.spec(middleware, (spec) => ...)` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document automatically. |
+| `openapi.protect(permission, load?)` | Same as `protect`. Pair it with `openapi.security(permission)` in `.meta(orpcOpenapi({ spec }))` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document. |
 | `openapi.securitySchemes()` | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). |
 | `permdockHandler` | Procedure or Fetch handler for the AuthZEN-shaped decision endpoint. |
 
@@ -50,7 +51,7 @@ export const list = base
 2. `permdock()` resolves the subject once and adds the instance to the context.
 3. `protect` (or `openapi.protect`) runs after input validation: load, validate, decide, continue or throw.
 4. Handlers call `context.permdock.assert(...)`, `filter` or `where`; thrown PermDock errors are converted to `ORPCError` by an interceptor the adapter provides.
-5. When `OpenAPIGenerator` runs, `oo.spec` contributions from every `openapi.protect` usage appear on their operations.
+5. When `OpenAPIGenerator` runs, `openapi({ spec })` metadata from each procedure carries the `security` fragment from `openapi.security`.
 
 ## What it validates
 
@@ -60,7 +61,7 @@ export const list = base
 
 ## How denials surface
 
-- `denied`: `ORPCError` code `FORBIDDEN`, status `403`, `data` carrying the Problem Details object. Through the OpenAPI handler the response body is `application/problem+json`.
+- `denied`: `ORPCError` code `FORBIDDEN`, HTTP status `403`, `data` carrying the Problem Details object. Through the OpenAPI handler the response body is `application/problem+json`.
 - `approval-required`: `FORBIDDEN` with `data.type` ending in `/approval-required` and `data.token`.
 - Boundary validation failure: `BAD_REQUEST` with `issues`.
 - Anonymous subject: `UNAUTHORIZED`.

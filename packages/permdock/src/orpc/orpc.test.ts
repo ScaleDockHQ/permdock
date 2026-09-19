@@ -74,6 +74,29 @@ describe('permdock/orpc', () => {
     }
   });
 
+  it('runs the subject resolver once when permdock() is applied twice', async () => {
+    let resolved = 0;
+    const { permdock } = createPermDock<Ctx>(policy, {
+      subject: (opts) => {
+        resolved += 1;
+        return opts.context.user;
+      },
+    });
+    const ping = os
+      .$context<Ctx>()
+      .use(permdock())
+      .use(permdock())
+      .handler(({ context }) => ({
+        ok: true as const,
+        via: context.permdock.subject.principal?.id,
+      }));
+
+    await expect(
+      call(ping, undefined, { context: { user: memberUser } }),
+    ).resolves.toEqual({ ok: true, via: 'u1' });
+    expect(resolved).toBe(1);
+  });
+
   it('answers AuthZEN evaluations over Fetch', async () => {
     const { permdockHandler, openapi } = createPermDock(policy, {
       subject: () => memberUser,

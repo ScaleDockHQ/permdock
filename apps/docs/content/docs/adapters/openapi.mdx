@@ -54,8 +54,10 @@ const { securitySchemes, security, describe, spec, overlay } = createPermDock(po
 app.delete('/posts/:id', describeRoute({ ...describe(permissions.post.delete) }), protect(permissions.post.delete, loadPost), handler)
 // @hono/zod-openapi
 createRoute({ method: 'delete', path: '/posts/{id}', security: security(permissions.post.delete), ... })
-// oRPC: middleware-attached spec extension
-const protectedProc = os.use(protect(permissions.post.delete)).use(oo.spec(spec(permissions.post.delete)))
+// oRPC: OpenAPI metadata on the procedure
+const protectedProc = os
+  .meta(orpcOpenapi({ spec: spec(permissions.post.delete) }))
+  .use(protect(permissions.post.delete))
 // trpc-to-openapi: `protect: true` plus x-permdock-permissions in meta
 t.procedure.meta({ openapi: { method: 'DELETE', path: '/posts/{id}', protect: true, ...describe(permissions.post.delete) } })
 
@@ -66,7 +68,7 @@ generateSpecs(app, { components: { securitySchemes: securitySchemes() } })
 - `securitySchemes()` returns the scheme with every permission `scope` from `listPermissions(permissions)` listed under the configured flows, plus `description` from action metadata. Schemes can be referenced by URI in 3.2 (`$ref` to a shared security document) when `scheme.ref` is set.
 - `security(permission | permission[])` returns the per-operation `security` array: `[{ oauth: ['post:delete'] }]`; multiple permissions produce one requirement object (AND) unless `anyOf` is passed (OR across objects).
 - `describe(permission)` returns `security` plus `x-permdock-permissions: ['post.delete']` and, when the permission has conditions, `x-permdock-conditions` in the portable JSON format so clients can explain what a scope allows.
-- `spec(permission)` is the oRPC `oo.spec` callback form: it receives the operation object and returns it extended.
+- `spec(permission)` is the fragment passed as `spec` to oRPC 2's `openapi()` metadata helper: it extends the generated operation object.
 - `deprecated: true` on an action's metadata marks the scope `deprecated` in 3.2 and emits `x-oai-deprecated` for 3.1.
 - `securityProfile: 'fapi2'` in the adapter options writes `x-permdock-securityProfile: "fapi2"` on the scheme and on every described operation, so consumers know the resource server follows the [FAPI 2.0 Security Profile](/docs/standards/fapi-2) (bearer or DPoP tokens in the header only, sender-constrained tokens verified). The CLI equivalent is `--profile fapi2`.
 - `target: '3.3'` with `securityProfile` set additionally emits the pinned [OpenAPI 3.3](/docs/standards/openapi-3-3) Security Profile draft: `securitySchemes()` returns a second, `type: profile` scheme (`profileScheme`, default `permdockFapi2`) with `profileMetadata.name: fapi-20-security-profile`, `supportedParametersSchema` and `servers` from `scheme.oauth2MetadataUrl`; `describe()` and `spec()` are unchanged (operations keep `security` and the extension twin); `securityProfileRequirements()` returns the `components.securityProfileRequirements` map, one entry per distinct scope set, for generators that accept extra components; `overlay()` includes it. The root `x-permdock-catalog.drafts` records the pin. The target is experimental: the shape follows the pinned draft until 3.3.0 is released, then switches to the released construct ([ADR 0025](/docs/decisions/0025-draft-protocol-posture)).
@@ -123,7 +125,7 @@ There is no request path: this adapter runs at document generation time and at i
 
 Generation:
 
-1. The framework hook (`describeRoute`, `createRoute`, `oo.spec`, `meta.openapi`) receives the object returned by `describe` / `security` / `spec` next to the `protect` middleware for the same permission.
+1. The framework hook (`describeRoute`, `createRoute`, oRPC `openapi({ spec })`, `meta.openapi`) receives the object returned by `describe` / `security` / `spec` next to the `protect` middleware for the same permission.
 2. The document generator collects operations; `securitySchemes()` supplies the component with all scopes.
 3. `permdock openapi --check` (CLI) compares the generated document against the routes registered with `protect` and fails when a protected route has no security entry or a documented scope has no enforcing route.
 
@@ -153,7 +155,7 @@ The adapter emits metadata; enforcement and denials belong to the server adapter
 
 ## Example app
 
-No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-openapi`, `apps/examples/orpc` uses `oo.spec`, `apps/examples/trpc` uses `trpc-to-openapi` `protect`, and `apps/examples/next` runs next-openapi-gen with `overlay.apply` and serves the result in Scalar. `apps/examples/monorepo` is the collect example: two feature packages, `mergePermissions` at the app root, and `permdock collect --check`.
+No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-openapi`, `apps/examples/orpc` uses oRPC `openapi()` metadata, `apps/examples/trpc` uses `trpc-to-openapi` `protect`, and `apps/examples/next` runs next-openapi-gen with `overlay.apply` and serves the result in Scalar. `apps/examples/monorepo` is the collect example: two feature packages, `mergePermissions` at the app root, and `permdock collect --check`.
 
 ## Related standards
 

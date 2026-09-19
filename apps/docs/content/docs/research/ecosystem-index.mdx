@@ -30,7 +30,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | --- | --- | --- | --- |
 | next-openapi-gen | Route scanner for Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono, Express; applies Overlays | Overlay | [Next.js adapter](/docs/adapters/next), [OpenAPI ecosystem](/docs/research/openapi-ecosystem) |
 | hono-openapi, @hono/zod-openapi | Hono spec generators | Hook (`describe`, `security`) | [Hono adapter](/docs/adapters/hono) |
-| @orpc/openapi | oRPC spec generator | Hook (`spec`) | [oRPC adapter](/docs/adapters/orpc) |
+| @orpc/openapi | oRPC spec generator | `openapi()` meta helper | [oRPC adapter](/docs/adapters/orpc) |
 | trpc-to-openapi | tRPC spec generator | Hook plus Overlay for per-scope | [tRPC adapter](/docs/adapters/trpc) |
 | @elysia/openapi | Elysia spec generator | Hook | [Elysia adapter](/docs/adapters/elysia) |
 | @fastify/swagger, @nestjs/swagger | Fastify and Nest spec generators | Hook | [Fastify](/docs/adapters/fastify), [Nest](/docs/adapters/nest) |
