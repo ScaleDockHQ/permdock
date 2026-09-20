@@ -88,7 +88,7 @@ catalog:
   react-native-safe-area-context: 5.10.0
   react-native-screens: 4.28.0
   react-native-web: 0.21.2
-  react-native-worklets: 0.10.4
+  react-native-worklets: 0.12.2
   tailwindcss: 4.3.3
   testcontainers: 12.1.0
   tsdown: 0.23.0
