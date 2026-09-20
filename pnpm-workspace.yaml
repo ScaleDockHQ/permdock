@@ -18,7 +18,7 @@ catalog:
   '@sveltejs/vite-plugin-svelte': 7.3.0
   '@vitejs/plugin-react': 6.1.1
   '@vitejs/plugin-vue': 6.0.9
-  ai: 7.0.93
+  ai: 7.0.105
   '@changesets/cli': 3.0.3
   '@commitlint/cli': 21.2.2
   '@commitlint/config-conventional': 21.2.2
