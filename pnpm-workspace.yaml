@@ -50,7 +50,7 @@ catalog:
   babel-preset-expo: 57.0.12
   elysia: 1.4.30
   drizzle-orm: 0.45.2
-  eve: 0.52.2
+  eve: 0.58.1
   expo: 57.0.23
   expo-constants: 57.0.18
   expo-linking: 57.0.10
