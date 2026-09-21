@@ -18,6 +18,9 @@ updates:
       commitlint:
         patterns:
           - '@commitlint/*'
+      dependencies:
+        patterns:
+          - '*'
 
   - package-ecosystem: github-actions
     directory: /

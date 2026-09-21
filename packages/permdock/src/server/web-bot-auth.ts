@@ -428,7 +428,12 @@ async function verifyBytes(
         false,
         ['verify'],
       );
-      return await crypto.subtle.verify('Ed25519', cryptoKey, signature, data);
+      return await crypto.subtle.verify(
+        'Ed25519',
+        cryptoKey,
+        signature as Uint8Array<ArrayBuffer>,
+        data as Uint8Array<ArrayBuffer>,
+      );
     }
     if (alg === 'ecdsa-p256-sha256') {
       const cryptoKey = await crypto.subtle.importKey(
@@ -441,8 +446,8 @@ async function verifyBytes(
       return await crypto.subtle.verify(
         { name: 'ECDSA', hash: 'SHA-256' },
         cryptoKey,
-        signature,
-        data,
+        signature as Uint8Array<ArrayBuffer>,
+        data as Uint8Array<ArrayBuffer>,
       );
     }
     return false;

@@ -41,7 +41,7 @@
       "source": "clerk/skills",
       "sourceType": "github",
       "skillPath": "skills/features/clerk-orgs/SKILL.md",
-      "computedHash": "90df7421b5b2f8c07d32c5108b2554c2085cfb60b94eb5ae37487a3215ce6640"
+      "computedHash": "7badf55aa6bf49f6a604387148d68e00e25b85e1a5c113339c13ce2570195ae9"
     },
     "clerk-react-patterns": {
       "source": "clerk/skills",
@@ -53,7 +53,7 @@
       "source": "clerk/skills",
       "sourceType": "github",
       "skillPath": "skills/core/clerk-setup/SKILL.md",
-      "computedHash": "161777475468d50efca5565bd28950d62691669070d5eaf8611061410c793937"
+      "computedHash": "382732a11dee7ffe3d021cdb72ac8d71e173491c6bff59b3a2903d40d4520f21"
     },
     "clerk-tanstack-patterns": {
       "source": "clerk/skills",
@@ -89,7 +89,7 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/deploy-to-vercel/SKILL.md",
-      "computedHash": "03e0eaaa9bf13ba1e7ffa387f5893de6f324c0868c627001f179395a8feaa7c9"
+      "computedHash": "d2b5bcc7c09fdb649129ffc7dd7b647ec1b155736974b974292675afd588cb39"
     },
     "domain-modeling": {
       "source": "mattpocock/skills",
@@ -113,7 +113,7 @@
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-overview/SKILL.md",
-      "computedHash": "f4843905c02160176c2899515d3e924268349e9046cb1cecc159f841d38f2e62"
+      "computedHash": "ce82711ca5657c315f2403fa257a5df5fd9adda10d9ad9a6373e28a35862bf35"
     },
     "expo-project-structure": {
       "source": "expo/skills",
@@ -125,7 +125,7 @@
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-router/SKILL.md",
-      "computedHash": "b5baa66d0024536b1410136b05e83d749fb5a1c8b72326b5096193c03523361c"
+      "computedHash": "9dfdcd75e5f473b468aa3decc0ba1ac7af6641a0a777611ef7173cc4232ddb7c"
     },
     "find-skills": {
       "source": "vercel-labs/skills",
@@ -155,7 +155,7 @@
       "source": "neondatabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/neon-postgres/SKILL.md",
-      "computedHash": "64150370145c18f563fbc652c8d8bf273c4943d2a9f2039ddd51af9fd08d96f3"
+      "computedHash": "af41bab4ecbf2e659b7caa1f9ca62559af7841ad38ff556b5bebf8ae7de29677"
     },
     "next-best-practices": {
       "source": "vercel-labs/openreview",
@@ -173,25 +173,25 @@
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-cache-components-adoption/SKILL.md",
-      "computedHash": "5d7a281ee275b8a570f9857da42b66343aceb17b008408ac054f9a9447094f0f"
+      "computedHash": "00bb30ef1b6cdb3946213fa613d3b5a366c13ea243e91b814b61034a9154c0f4"
     },
     "next-cache-components-optimizer": {
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-cache-components-optimizer/SKILL.md",
-      "computedHash": "4b3ec1ad99551a98d2fefdaefdb398f88e1621e06fb250f7c06858d5371cb5aa"
+      "computedHash": "60f603cd578249e5bfc6e192032b20bf7e74764554bdd319fdc543be0b563052"
     },
     "next-dev-loop": {
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-dev-loop/SKILL.md",
-      "computedHash": "d2a697a0a0429cad0bb7264644115457f588d4ed1007eeb0bb7f965b1185fa6e"
+      "computedHash": "e76687a3348c55045964390be844925baf481d4751a39ea20b299c12ca5fba28"
     },
     "next-partial-prefetching-adoption": {
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-partial-prefetching-adoption/SKILL.md",
-      "computedHash": "0e8e6cfdc21684b7a359ffc5bbe1ba3b7ae7f26a068b9e7dc6b1d0f170c9e98d"
+      "computedHash": "ed8e8106385248d02a9da25f66e5434202b98ae131873abd0a70851e2ad061f5"
     },
     "organization-best-practices": {
       "source": "better-auth/skills",
@@ -209,7 +209,7 @@
       "source": "prisma/orm",
       "sourceType": "github",
       "skillPath": "skills/prisma-8/SKILL.md",
-      "computedHash": "2b28eb54de640c9f5f5c638a77dbc0ca30405f2aa3af84014dad69e10fde128b"
+      "computedHash": "b26f837cc89657aa158893e13af7b1294053f2edc6054657d0ae21fa351ec4f3"
     },
     "prisma-cli": {
       "source": "prisma/skills",
@@ -305,7 +305,7 @@
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
-      "computedHash": "4289866858fc5314e10ca21584d00c48ddb7e6bc353e262283958f8e4b9bec87"
+      "computedHash": "fb06bed05c194cc42f7292f996676254e25080aebaaed613ad3cb0591645e1b0"
     },
     "two-factor-authentication-best-practices": {
       "source": "better-auth/skills",

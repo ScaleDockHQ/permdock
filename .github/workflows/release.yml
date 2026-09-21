@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/setup@v2
+      - uses: pnpm/setup@v3
         with:
           runtime: node@24
           cache: true
@@ -35,12 +35,12 @@ jobs:
         run: pnpm run test
 
       - name: Create release pull request or publish
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          publish: pnpm exec changeset publish
-          title: 'chore: version packages'
-          commit: 'chore: version packages'
+          publish-script: pnpm exec changeset publish
+          pr-title: 'chore: version packages'
+          commit-message: 'chore: version packages'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
