@@ -275,7 +275,7 @@ Details and a feature matrix: [Comparison](./apps/docs/content/docs/comparison.m
 npx skills add ScaleDockHQ/PermDock   # installs the `wire-permdock` and `audit-permissions` skills
 ```
 
-- [`AGENTS.md`](./AGENTS.md) (with `CLAUDE.md` as a symlink) describes the repo, invariants and update rules.
+- [`AGENTS.md`](./AGENTS.md) (`CLAUDE.md` imports it) describes the repo, invariants and update rules.
 - Every docs page is served as `.md`, plus `llms.txt` and `llms-full.txt`. The public docs MCP is `POST /mcp` (`search_docs`, `get_page`; no subject). The Cloud MCP is [mcp.permdock.com](https://mcp.permdock.com) (read-only evidence and catalog; never resolves an approval). The decide explorer is `/devtools`.
 - Denials are written for models: every `denied` decision carries reasons and permitted `alternatives`; every `approval-required` decision carries a replay-safe `token`.
 - `permdock doctor` and `permdock collect --check` give deterministic feedback in CI.

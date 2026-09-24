@@ -1,6 +1,6 @@
 # AGENTS.md — maintainer guide for PermDock
 
-This file is for agents and humans changing the PermDock repository. It is not the consumer skill: consumers get `wire-permdock` and `audit-permissions` from the `permdock` package (`npx skills add ScaleDockHQ/PermDock`). `CLAUDE.md` is a symlink to this file; do not fork the two.
+This file is for agents and humans changing the PermDock repository. It is not the consumer skill: consumers get `wire-permdock` and `audit-permissions` from the `permdock` package (`npx skills add ScaleDockHQ/PermDock`). `CLAUDE.md` is the one line `@AGENTS.md` (a Claude Code import) so tools that read both names load this file once; put everything here, never in `CLAUDE.md`.
 
 The product plan and every design decision live in `PRODUCT.md` and `apps/docs/content/docs/`. Read `apps/docs/content/docs/index.mdx`, `getting-started/naming.mdx` and `security/threat-model.mdx` before touching code.
 

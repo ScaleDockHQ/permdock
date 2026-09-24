@@ -12,7 +12,7 @@ Phase 1 ships the skills, `AGENTS.md`, `llms.txt` and `.md` per docs page. The d
 
 Three conventions have converged into the way coding agents learn a codebase or a library:
 
-- **AGENTS.md** is a Markdown file at the repository root with instructions for agents working in the repo: layout, commands, invariants, conventions. Since December 2025 it is governed by the **Agentic AI Foundation** (AAIF) under the Linux Foundation, alongside Agent Skills ([overview](https://blog.agentailor.com/posts/top-ai-agent-standards-2026)). `CLAUDE.md` is the older Claude-specific name for the same idea; the recommended practice is to keep `CLAUDE.md` a symlink to `AGENTS.md` rather than maintain two files.
+- **AGENTS.md** is a Markdown file at the repository root with instructions for agents working in the repo: layout, commands, invariants, conventions. Since December 2025 it is governed by the **Agentic AI Foundation** (AAIF) under the Linux Foundation, alongside Agent Skills ([overview](https://blog.agentailor.com/posts/top-ai-agent-standards-2026)). `CLAUDE.md` is the older Claude-specific name for the same idea. PermDock keeps one source: `CLAUDE.md` is the single line `@AGENTS.md`, which Claude Code expands as an import. A symlink would work for Claude Code too, but tools that read both names (Cursor does) would load the full guide twice on every request.
 - **Agent Skills** are directories containing a `SKILL.md` with frontmatter (`name`, `description`) and a body of step-by-step instructions, optionally with supporting files. Agents load a skill when its description matches the task. Skills are distributed through **skills.sh** and installed with `npx skills add <source>`. Also under the AAIF.
 - **llms.txt** is a root-level Markdown file that gives language models a curated index of a site's documentation, with `llms-full.txt` as the concatenated full text. Docs sites also increasingly serve a `.md` version of every page so an agent can fetch exactly one page as plain text.
 
@@ -31,7 +31,7 @@ The same rule applies to the maintainer side: an agent contributing to PermDock 
 | `wire-permdock` skill | `packages/permdock/skills/wire-permdock/SKILL.md`, also on skills.sh | Agents adding PermDock to an app: define, policy, `createPermDock`, first adapter, first test |
 | `audit-permissions` skill | `packages/permdock/skills/audit-permissions/SKILL.md`, also on skills.sh | Agents finding unguarded routes and tools, unused or ungranted permissions (wraps `permdock usage`) |
 | `AGENTS.md` | Repository root | Agents contributing to PermDock: layout, commands, invariants, naming, docs conventions |
-| `CLAUDE.md` | Repository root, symlink to `AGENTS.md` | Claude Code and other tools that look for this name |
+| `CLAUDE.md` | Repository root, the one line `@AGENTS.md` | Claude Code and other tools that look for this name |
 | `llms.txt`, `llms-full.txt` | Docs site root | Models indexing the documentation |
 | `.md` per docs page | Docs site, same path with `.md` | Agents fetching one page as text |
 | Docs MCP server | `POST /mcp` on the docs site; `server.json` in this repository | Agents querying the docs through MCP tools |
