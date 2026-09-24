@@ -32,6 +32,8 @@ apps/docs/AGENTS.md
 apps/docs/CLAUDE.md
 apps/marketing/AGENTS.md
 apps/marketing/CLAUDE.md
+# local agent chat logs; searched and read like source when tracked
+/agent-transcripts/
 
 # expo
 .expo/
