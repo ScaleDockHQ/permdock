@@ -21,6 +21,15 @@ export type SupabaseMembershipTable = {
   readonly expiresAt?: string;
 };
 
+export type AuthorizeSqlOptions = {
+  /** Postgres schema of `authorize`, `user_roles`, `role_permissions` and `app_permission`. Default `public`. */
+  readonly schema?: string;
+  /** `database` (default) reads the tables on every call; `jwt` reads the hook-injected claims. */
+  readonly authorize?: 'database' | 'jwt';
+  /** Membership table for tenant requests in `database` mode; without one they deny. */
+  readonly tenant?: boolean | SupabaseMembershipTable;
+};
+
 export type SupabaseRlsOptions = {
   readonly roleClaim?: string;
   readonly tenantClaim?: string;

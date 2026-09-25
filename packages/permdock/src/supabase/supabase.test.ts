@@ -160,10 +160,32 @@ describe('supabaseRls and authorizeSql', () => {
     expect(config.memberships?.tenant?.table).toBe('organization_members');
   });
 
-  it('emits authorize() with an optional tenant parameter', () => {
+  it('emits authorize() that denies tenant requests without a memberships source', () => {
     const sql = authorizeSql({ tenant: true });
-    expect(sql).toContain('requested_tenant uuid default null');
+    expect(sql).toContain('requested_tenant text default null');
     expect(sql).toContain('security definer');
+    expect(sql).toContain("set search_path = ''");
+    expect(sql).toMatch(/if requested_tenant is not null then\s+return false;/);
+    expect(sql).not.toContain('perform requested_tenant');
     expect(sql).not.toMatch(/service_role/);
+  });
+
+  it('reads the memberships table or the hook claims for tenant requests', () => {
+    const database = authorizeSql({
+      schema: 'app',
+      tenant: {
+        table: 'organization_members',
+        tenant: 'organization_id',
+        user: 'user_id',
+        role: 'role',
+      },
+    });
+    expect(database).toContain('create or replace function "app"."authorize"(');
+    expect(database).toContain('m."organization_id"::text = requested_tenant');
+    const jwt = authorizeSql({ authorize: 'jwt' });
+    expect(jwt).toContain("claims -> 'memberships'");
+    expect(jwt).toContain("nullif(claims -> 'user_role', 'null'::jsonb)");
+    expect(jwt).not.toContain('user_roles');
+    expect(() => authorizeSql({ schema: 'app; drop' })).toThrow(TypeError);
   });
 });

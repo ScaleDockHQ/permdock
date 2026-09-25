@@ -44,6 +44,11 @@ export type RlsConfig = {
   readonly roleClaim?: string;
   readonly gucPrefix?: string;
   readonly out?: string;
+  /** `rls generate --rbac supabase` defaults; flags override. */
+  readonly rbac?: {
+    readonly schema?: string;
+    readonly authorize?: 'database' | 'jwt';
+  };
 };
 
 export type DoctorConfig = {

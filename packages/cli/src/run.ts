@@ -219,6 +219,10 @@ export async function run(
       }
       case 'rls': {
         const rbacFlag = flagString(args.flags, 'rbac');
+        if (rbacFlag !== undefined && rbacFlag !== 'supabase') {
+          writeErr(`rls generate --rbac must be supabase, got '${rbacFlag}'`);
+          return finish(2, stdoutChunks, stderrChunks);
+        }
         const result = await runRls({
           cwd,
           config,
@@ -236,6 +240,8 @@ export async function run(
             flagString(args.flags, 'format') ?? flagString(args.flags, 'emit'),
           rbac:
             flagBool(args.flags, 'rbac-scaffold') || rbacFlag === 'supabase',
+          rbacSchema: flagString(args.flags, 'rbac-schema'),
+          authorize: flagString(args.flags, 'authorize'),
           check: flagBool(args.flags, 'check'),
           skipClosures: flagBool(args.flags, 'skip-closures'),
           inlineFunctions: flagBool(args.flags, 'inline-functions'),

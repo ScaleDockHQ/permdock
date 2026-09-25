@@ -2,12 +2,14 @@ import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from './types.ts';
 
 import { runRlsGenerate } from './rls-generate.ts';
 import { runRlsImport } from './rls-import.ts';
+import { parseRbacAuthorize } from './rls-rbac.ts';
 import { runRlsVerify } from './rls-verify.ts';
 
 export const RLS_HELP = `permdock rls generate | import | verify
 
   generate --target drizzle|sql|prisma --dialect supabase|neon|guc
-           [--rbac supabase] [--rbac-scaffold] [--memberships <table>:tenant,user,role]
+           [--rbac supabase] [--rbac-schema public] [--authorize database|jwt]
+           [--memberships <table>:tenant,user,role]
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--guc-prefix app]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
@@ -31,6 +33,8 @@ export type RlsRunInput = {
   readonly memberships: string | undefined;
   readonly format: string | undefined;
   readonly rbac: boolean;
+  readonly rbacSchema: string | undefined;
+  readonly authorize: string | undefined;
   readonly check: boolean;
   readonly skipClosures: boolean;
   readonly inlineFunctions: boolean;
@@ -91,6 +95,12 @@ export async function runRls(
         target,
         dialect,
         rbac: input.rbac,
+        ...(input.rbacSchema === undefined
+          ? {}
+          : { rbacSchema: input.rbacSchema }),
+        ...(input.authorize === undefined
+          ? {}
+          : { authorize: parseRbacAuthorize(input.authorize) ?? 'database' }),
         check: input.check,
         skipClosures: input.skipClosures,
         inlineFunctions: input.inlineFunctions,

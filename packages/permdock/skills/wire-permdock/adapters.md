@@ -651,7 +651,7 @@ Remaining work follows the names on the adapter page under `/docs/adapters/<name
 
 ```bash
 pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql
-pnpm exec permdock rls generate --target sql --dialect supabase --rbac-scaffold --memberships organization_members:organization_id,user_id,role
+pnpm exec permdock rls generate --target sql --dialect supabase --rbac supabase --authorize database --memberships organization_members:organization_id,user_id,role
 pnpm exec permdock rls import --sql migrations/rls.sql --out src/permissions.generated.ts
 pnpm exec permdock rls verify --fixtures rls.fixtures.json
 pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
@@ -660,3 +660,5 @@ pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
 When SQL is the authority, skip `generate`. Map helpers in `rls.functions`, write `sqlFunction` twins, and fail CI on `verify --db`. `--inline-functions` inlines the twin for generate targets that cannot call a SQL function.
 
 Never emit `service_role`. Fixtures may carry `memberships` and `tenant`.
+
+`--authorize database` (default) makes `authorize()` read `user_roles` and the membership table per statement. `--authorize jwt` reads the hook's claims and stays stale until the token refreshes; keep `jwt_expiry` at 3600 or less (doctor PD019). Enable the printed `[auth.hook.custom_access_token]` stanza in `supabase/config.toml`.

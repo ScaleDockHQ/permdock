@@ -4,10 +4,10 @@ import { hasConditionOp } from 'permdock';
 
 import type { RlsSqlContext } from './rls-sql.ts';
 
+import { authorizeCall } from './rls-rbac.ts';
 import {
   andConditions,
   compileConditionSql,
-  quoteLiteral,
   sqlFunctionNames,
 } from './rls-sql.ts';
 
@@ -136,7 +136,7 @@ export function compileGrant(
   policy: Policy,
   ctx: RlsSqlContext,
   tables: Readonly<Record<string, string>> | undefined,
-  rbac: boolean,
+  rbac: { readonly schema: string } | undefined,
   warnings: string[],
   skipClosures: boolean,
 ): CompiledPolicy | undefined {
@@ -198,10 +198,18 @@ export function compileGrant(
       `opaque SQL on ${grantRoleName(grant)}/${grant.permission.key} is untestable app-side`,
     );
   }
-  if (rbac) {
-    const call = `(select authorize(${quoteLiteral(grant.permission.key)}))`;
-    using =
-      using === undefined || using === 'true' ? call : `${call} and (${using})`;
+  if (rbac !== undefined) {
+    const call = authorizeCall(
+      rbac.schema,
+      grant.permission.key,
+      grant.scope === 'tenant' ? policy.scopes.tenant?.key : undefined,
+    );
+    if (command !== 'insert') {
+      using =
+        using === undefined || using === 'true'
+          ? call
+          : `${call} and (${using})`;
+    }
     if (withCheck !== undefined) {
       withCheck = withCheck === 'true' ? call : `${call} and (${withCheck})`;
     }

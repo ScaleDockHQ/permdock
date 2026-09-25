@@ -15,13 +15,8 @@ import type {
 
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { compileGrant, ensureSelectCoverage, tableFor } from './rls-compile.ts';
-import {
-  defaultOut,
-  emitDrizzle,
-  emitPrisma,
-  emitSql,
-  rbacScaffold,
-} from './rls-emit.ts';
+import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
+import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
 import { parseMembershipsFlag } from './rls-sql.ts';
 
 export type GenerateOutcome = {
@@ -56,6 +51,8 @@ export async function runRlsGenerate(input: {
   readonly from?: string;
   readonly memberships?: string;
   readonly rbac: boolean;
+  readonly rbacSchema?: string;
+  readonly authorize?: RbacAuthorizeMode;
   readonly check: boolean;
   readonly skipClosures: boolean;
   readonly inlineFunctions: boolean;
@@ -74,6 +71,30 @@ export async function runRlsGenerate(input: {
     ...(memberships === undefined ? {} : { memberships }),
   };
   const warnings: string[] = [];
+  const rbacSchema =
+    input.rbacSchema ?? input.config.rls?.rbac?.schema ?? 'public';
+  const authorize =
+    input.authorize ?? input.config.rls?.rbac?.authorize ?? 'database';
+  if (input.rbac && input.dialect !== 'supabase') {
+    return {
+      code: 2,
+      output: `rls generate --rbac supabase needs --dialect supabase (got ${input.dialect})`,
+      text: '',
+    };
+  }
+  const rbacCall = input.rbac ? { schema: rbacSchema } : undefined;
+  if (
+    input.rbac &&
+    authorize === 'database' &&
+    memberships?.tenant === undefined &&
+    policy.roles.some((role) =>
+      role.grants.some((grant) => grant.scope === 'tenant'),
+    )
+  ) {
+    warnings.push(
+      'tenant-scoped grants call authorize(perm, tenant): database mode needs --memberships <table>:tenant,user,role, otherwise they deny',
+    );
+  }
   const compiled: CompiledPolicy[] = [];
   for (const role of policy.roles) {
     for (const grant of role.grants) {
@@ -82,7 +103,7 @@ export async function runRlsGenerate(input: {
         policy,
         ctx,
         input.config.rls?.tables,
-        input.rbac,
+        rbacCall,
         warnings,
         input.skipClosures,
       );
@@ -92,7 +113,20 @@ export async function runRlsGenerate(input: {
     }
   }
   const withSelect = ensureSelectCoverage(compiled, warnings);
-  const rbac = input.rbac ? rbacScaffold(policy) : '';
+  const rbac = input.rbac
+    ? rbacScaffold(policy, {
+        schema: rbacSchema,
+        authorize,
+        ...(memberships?.tenant === undefined
+          ? {}
+          : { memberships: memberships.tenant }),
+      })
+    : '';
+  if (input.rbac) {
+    warnings.push(
+      `enable the hook: [auth.hook.custom_access_token] enabled = true, uri = "${hookUri(rbacSchema)}"`,
+    );
+  }
   let text: string;
   switch (input.target) {
     case 'sql':

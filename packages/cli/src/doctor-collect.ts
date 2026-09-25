@@ -320,3 +320,65 @@ export async function pd018(input: {
   }
   return findings;
 }
+
+function supabaseJwtExpiry(cwd: string): number | undefined {
+  const file = resolve(cwd, 'supabase/config.toml');
+  if (!existsSync(file)) {
+    return undefined;
+  }
+  let section = '';
+  for (const raw of readFileSync(file, 'utf8').split('\n')) {
+    const line = raw.trim();
+    const header = /^\[([^\]]+)\]$/.exec(line);
+    if (header !== null) {
+      section = header[1] ?? '';
+      continue;
+    }
+    const match = /^jwt_expiry\s*=\s*(\d+)/.exec(line);
+    if (section === 'auth' && match !== null) {
+      return Number(match[1]);
+    }
+  }
+  return undefined;
+}
+
+export async function pd019(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.rls?.rbac?.authorize !== 'jwt') {
+    return [];
+  }
+  const expiry = supabaseJwtExpiry(input.cwd) ?? 3600;
+  if (expiry <= 3600 || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const sensitive = new Set(
+    input.config.doctor?.sensitiveActions ?? DEFAULT_SENSITIVE_ACTIONS,
+  );
+  const keys = [
+    ...new Set(
+      policy.grants
+        .filter(
+          (grant) =>
+            grant.effect === 'allow' && sensitive.has(grant.permission.action),
+        )
+        .map((grant) => grant.permission.key),
+    ),
+  ];
+  if (keys.length === 0) {
+    return [];
+  }
+  return [
+    {
+      code: 'PD019',
+      severity: 'warning',
+      message: `authorize() reads roles from the JWT and jwt_expiry is ${String(expiry)}s: a revoked role keeps ${keys.join(', ')} until the token expires`,
+      fix: "set rls.rbac.authorize: 'database', or lower [auth] jwt_expiry in supabase/config.toml to 3600 or less",
+    },
+  ];
+}

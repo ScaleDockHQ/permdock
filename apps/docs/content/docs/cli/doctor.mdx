@@ -41,6 +41,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD016` | Opaque RLS grants, or `sqlFunction` grants with no verify fixtures, under an `rls` config | warning |
 | `PD017` | An `allow` on a sensitive verb (`approve`, `pay`, `settle`, `submit`, `transfer`, `refund`, `disburse`, or `doctor.sensitiveActions`) has no `approval` and no `deny` on the same leaf | warning |
 | `PD018` | `exclusiveWith` names an undeclared role (error), or a `doctor.memberships` fixture / custom role holds two exclusive roles (warning) | error / warning |
+| `PD019` | `rls.rbac.authorize` is `jwt`, `[auth] jwt_expiry` in `supabase/config.toml` exceeds 3600 seconds, and the policy grants a sensitive verb | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -130,6 +131,10 @@ Loads the policy and warns on each `allow` whose action is in the sensitive list
 ### PD018: static separation of duty
 
 `role(..., { exclusiveWith: ['approver'] })` is data only: evaluation does not change. Doctor errors when a named exclusive role is not declared. When `doctor.memberships` points at a JSON fixture (`customRoles` and `memberships` arrays), doctor warns if a custom role `includes` two exclusive roles or a membership holds both. Dynamic SoD (two roles not active in one session) is not planned.
+
+### PD019: JWT-mode authorize() with long-lived tokens
+
+With `rls.rbac.authorize: 'jwt'`, Postgres reads roles from the access token, so a revoked role keeps working until the token expires. The check reads `[auth] jwt_expiry` from `supabase/config.toml` (default 3600) and warns when it exceeds an hour while the policy grants a verb from `doctor.sensitiveActions`. Fix it with `authorize: 'database'` or a shorter expiry.
 
 ## Open questions
 

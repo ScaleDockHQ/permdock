@@ -1,4 +1,9 @@
-import type { SupabaseRlsConfig, SupabaseRlsOptions } from './types.ts';
+import type {
+  AuthorizeSqlOptions,
+  SupabaseMembershipTable,
+  SupabaseRlsConfig,
+  SupabaseRlsOptions,
+} from './types.ts';
 
 import { compact } from '../core/compact.ts';
 
@@ -27,14 +32,118 @@ export function supabaseRls(
   });
 }
 
-export function authorizeSql(
-  options: { readonly tenant?: boolean } = {},
+const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+
+function ident(name: string): string {
+  if (!IDENT.test(name)) {
+    throw new TypeError(`PermDock: unsafe SQL identifier '${name}'`);
+  }
+  return `"${name}"`;
+}
+
+function table(name: string): string {
+  return name.split('.').map(ident).join('.');
+}
+
+function databaseBody(
+  q: (name: string) => string,
+  memberships: SupabaseMembershipTable | undefined,
 ): string {
-  const tenant = options.tenant === true;
-  const tenantArg = tenant ? ',\n  requested_tenant uuid default null' : '';
-  const tenantUse = tenant ? '\n  perform requested_tenant;' : '';
-  return `create or replace function public.authorize(
-  requested_permission public.app_permission${tenantArg}
+  const tenantColumn = memberships?.tenant;
+  const tenantBranch =
+    memberships === undefined || tenantColumn === undefined
+      ? `  if requested_tenant is not null then
+    return false; -- no memberships table configured
+  end if;`
+      : `  if requested_tenant is not null then
+    return exists (
+      select 1
+      from ${table(memberships.table)} m
+      join ${q('role_permissions')} rp on rp.role::text = m.${ident(memberships.role)}::text
+      where m.${ident(memberships.user)}::text = uid::text
+        and m.${ident(tenantColumn)}::text = requested_tenant
+        and rp.permission = requested_permission${
+          memberships.expiresAt === undefined
+            ? ''
+            : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
+        }
+    );
+  end if;`;
+  return `declare
+  uid uuid := (select auth.uid());
+begin
+  if uid is null then
+    return false;
+  end if;
+${tenantBranch}
+  return exists (
+    select 1
+    from ${q('user_roles')} ur
+    join ${q('role_permissions')} rp on rp.role = ur.role
+    where ur.user_id = uid
+      and rp.permission = requested_permission
+  );
+end;`;
+}
+
+function jwtBody(q: (name: string) => string): string {
+  return `declare
+  claims jsonb := (select auth.jwt());
+  role_claim jsonb;
+begin
+  if claims is null or (select auth.uid()) is null then
+    return false;
+  end if;
+  if requested_tenant is not null then
+    return exists (
+      select 1
+      from jsonb_array_elements(
+        case jsonb_typeof(coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships'))
+          when 'array' then coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships')
+          else '[]'::jsonb
+        end
+      ) m
+      cross join lateral jsonb_array_elements_text(
+        case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+      ) r(role)
+      join ${q('role_permissions')} rp on rp.role::text = r.role
+      where m ->> 'tenant' = requested_tenant
+        and rp.permission = requested_permission
+    );
+  end if;
+  -- a top-level null (no role row) falls back to app_metadata, like subjectFromSupabase
+  role_claim := coalesce(nullif(claims -> 'user_role', 'null'::jsonb), claims -> 'app_metadata' -> 'user_role');
+  return exists (
+    select 1
+    from jsonb_array_elements_text(
+      case jsonb_typeof(role_claim)
+        when 'array' then role_claim
+        when 'string' then jsonb_build_array(role_claim)
+        else '[]'::jsonb
+      end
+    ) r(role)
+    join ${q('role_permissions')} rp on rp.role::text = r.role
+    where rp.permission = requested_permission
+  );
+end;`;
+}
+
+/**
+ * `authorize(requested_permission, requested_tenant text default null)` for Supabase's RBAC
+ * scaffold. `database` reads `user_roles` (and the memberships table for a tenant) on every call;
+ * `jwt` reads the hook-injected `user_role` and `memberships` claims. A tenant request with no
+ * memberships source is denied, never answered from global roles.
+ */
+export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
+  const schema = options.schema ?? 'public';
+  const q = (name: string): string => table(`${schema}.${name}`);
+  const memberships =
+    typeof options.tenant === 'object' ? options.tenant : undefined;
+  const body =
+    options.authorize === 'jwt' ? jwtBody(q) : databaseBody(q, memberships);
+  return `create or replace function ${q('authorize')}(
+  requested_permission ${q('app_permission')},
+  requested_tenant text default null
 )
 returns boolean
 language plpgsql
@@ -42,22 +151,7 @@ stable
 security definer
 set search_path = ''
 as $$
-declare
-  binduid uuid;
-  user_role public.app_role;
-begin
-  select (select auth.uid()) into binduid;
-  select ur.role into user_role from public.user_roles ur where ur.user_id = binduid;
-  if user_role is null then
-    return false;
-  end if;${tenantUse}
-  return exists (
-    select 1
-    from public.role_permissions rp
-    where rp.role = user_role
-      and rp.permission = requested_permission
-  );
-end;
+${body}
 $$;
 `;
 }

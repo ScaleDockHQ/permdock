@@ -4,7 +4,15 @@ import type { DoctorFinding } from './doctor-types.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
 import { runCollect } from './collect.ts';
-import { pd002, pd003, pd004, pd016, pd017, pd018 } from './doctor-collect.ts';
+import {
+  pd002,
+  pd003,
+  pd004,
+  pd016,
+  pd017,
+  pd018,
+  pd019,
+} from './doctor-collect.ts';
 import { pd005, pd006, pd009, pd012 } from './doctor-project.ts';
 import {
   pd001,
@@ -119,6 +127,9 @@ export async function runDoctor(input: {
   }
   if (include('separation') || include('PD018')) {
     findings.push(...(await pd018(input)));
+  }
+  if (include('jwt-roles') || include('PD019')) {
+    findings.push(...(await pd019(input)));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

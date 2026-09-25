@@ -155,15 +155,112 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      'pg-functions://postgres/public/custom_access_token_hook',
+    );
     const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
     expect(sql).toContain('custom_access_token_hook');
-    expect(sql).toContain('create or replace function public.authorize(');
-    expect(sql).toContain('requested_tenant uuid default null');
-    expect(sql).toContain('user_roles');
-    expect(sql).toContain('role_permissions');
-    expect(sql).toContain("(select authorize('post.read'))");
+    expect(sql).toContain('create or replace function "public"."authorize"(');
+    expect(sql).toContain('requested_tenant text default null');
+    expect(sql).toContain(
+      'grant usage on schema "public" to supabase_auth_admin;',
+    );
+    expect(sql).toContain('(select "public".authorize(\'post.read\'))');
     expect(sql).not.toMatch(/service_role/i);
   });
+
+  it('rejects unknown --rbac values, bad --authorize and non-supabase dialects', async () => {
+    const cwd = appCopy();
+    const base = ['rls', 'generate', '--target', 'sql', '--out', 'rls.sql'];
+    expect((await run([...base, '--rbac', 'clerk'], { cwd })).code).toBe(2);
+    expect(
+      (
+        await run([...base, '--rbac', 'supabase', '--authorize', 'cookie'], {
+          cwd,
+        })
+      ).code,
+    ).toBe(2);
+    expect(
+      (await run([...base, '--rbac', 'supabase', '--dialect', 'neon'], { cwd }))
+        .code,
+    ).toBe(2);
+  });
+
+  for (const mode of ['database', 'jwt'] as const) {
+    it(`matches the ${mode}-mode RBAC golden file (2 roles, 7 permissions)`, async () => {
+      const cwd = appCopy();
+      writeFileSync(
+        join(cwd, 'src/rbac-policy.ts'),
+        `import { allow, definePolicy, principal, role } from 'permdock';
+
+import { permissions } from './permissions.ts';
+
+const { post } = permissions;
+
+const admin = role('admin', [
+  allow(post.read),
+  allow(post.update),
+  allow(post.delete),
+  allow(post.publish),
+  allow(post.archive),
+  allow(post.create),
+  allow(post.list),
+]);
+
+const member = role(
+  'member',
+  [
+    allow(post.read),
+    allow(post.list),
+    allow(post.create),
+    allow(post.update, { where: { authorId: principal.id } }),
+  ],
+  { on: 'tenant' },
+);
+
+export const policy = definePolicy(permissions, {
+  roles: [admin, member],
+  scopes: { tenant: { key: 'orgId' } },
+  subject: () => null,
+});
+`,
+      );
+      writeFileSync(
+        join(cwd, 'permdock.config.ts'),
+        `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/rbac-policy.ts',
+};
+`,
+      );
+      const result = await run(
+        [
+          'rls',
+          'generate',
+          '--target',
+          'sql',
+          '--dialect',
+          'supabase',
+          '--rbac',
+          'supabase',
+          '--authorize',
+          mode,
+          ...(mode === 'jwt' ? ['--rbac-schema', 'app'] : []),
+          '--memberships',
+          'organization_members:organization_id,user_id,role',
+          '--out',
+          'rls.sql',
+        ],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
+      expect(sql).not.toMatch(/service_role/i);
+      await expect(sql).toMatchFileSnapshot(
+        `../fixtures/golden/rbac-supabase-${mode}.sql`,
+      );
+    });
+  }
 
   it('import writes permissions.generated.ts from a SQL dump', async () => {
     const cwd = appCopy();

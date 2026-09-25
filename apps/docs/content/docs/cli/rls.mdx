@@ -42,6 +42,14 @@ Only portable conditions compile ([0010](/docs/decisions/0010-policy-as-data-por
 
 With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `user_roles`, `role_permissions` and `authorize('permission')` function, and policies call `authorize('post.delete')` instead of inlining role checks, so the named-permission catalog exists in the database too.
 
+| Flag | Values | Default | Effect |
+|---|---|---|---|
+| `--rbac` | `supabase` | off | Emit the RBAC scaffold (`--rbac-scaffold` is the older spelling). Any other value exits 2; so does a dialect other than `supabase`. |
+| `--rbac-schema` | a Postgres identifier | `public`, or `rls.rbac.schema` | Schema for the enums, tables, `authorize()` and the hook. Policies call `<schema>.authorize(...)`. |
+| `--authorize` | `database`, `jwt` | `database`, or `rls.rbac.authorize` | `database` reads `user_roles` and the `--memberships` table on every call. `jwt` reads the hook-injected `user_role` and `memberships` claims: no query, stale until the token refreshes (doctor PD019). |
+
+Tenant-scoped grants call `authorize('perm', "<tenant column>"::text)`. In `database` mode they need `--memberships`, otherwise they deny and the command warns. The command prints the `config.toml` stanza that enables the hook.
+
 ## import
 
 ```bash

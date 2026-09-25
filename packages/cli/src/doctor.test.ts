@@ -32,6 +32,40 @@ function codes(stdout: string): readonly string[] {
   return report.findings.map((item) => item.code);
 }
 
+async function runPd019(
+  authorize: 'jwt' | 'database',
+  expiry: number,
+): Promise<{ readonly stdout: string }> {
+  const cwd = appCopy();
+  writeFileSync(
+    join(cwd, 'src/pay-policy.ts'),
+    `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [role('clerk', [allow(permissions.post.delete)])],
+  subject: () => null,
+});
+`,
+  );
+  writeFileSync(
+    join(cwd, 'permdock.config.ts'),
+    `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/pay-policy.ts',
+  doctor: { sensitiveActions: ['delete'] },
+  rls: { rbac: { authorize: '${authorize}' } },
+};
+`,
+  );
+  mkdirSync(join(cwd, 'supabase'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'supabase/config.toml'),
+    `[api]\njwt_expiry = 60\n\n[auth]\nsite_url = "http://127.0.0.1:3000"\njwt_expiry = ${String(expiry)}\n`,
+  );
+  return run(['doctor', '--json', '--only', 'PD019'], { cwd });
+}
+
 describe('doctor checks', () => {
   it('PD001 reports a client file importing a server entry', async () => {
     const cwd = appCopy();
@@ -247,6 +281,15 @@ export const policy = definePolicy(permissions, {
       cwd,
     });
     expect(codes(result.stdout)).toContain('PD017');
+  });
+
+  it('PD019 warns when JWT-mode authorize() outlives an hour with sensitive grants', async () => {
+    const jwt = await runPd019('jwt', 86_400);
+    expect(codes(jwt.stdout)).toContain('PD019');
+    const database = await runPd019('database', 86_400);
+    expect(codes(database.stdout)).not.toContain('PD019');
+    const hour = await runPd019('jwt', 3600);
+    expect(codes(hour.stdout)).not.toContain('PD019');
   });
 
   it('PD018 errors on undeclared exclusiveWith and warns on fixture conflicts', async () => {
