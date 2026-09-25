@@ -284,7 +284,12 @@
   "./drizzle": ["toWhere"],
   "./prisma": ["permdockExtension", "toWhere"],
   "./kysely": ["toWhere", "withSubject"],
-  "./supabase": ["authorizeSql", "subjectFromSupabase", "supabaseRls"],
+  "./supabase": [
+    "authorizeSql",
+    "subjectFromSupabase",
+    "subjectFromSupabaseSession",
+    "supabaseRls"
+  ],
   "./supabase/middleware": ["createPermDock"],
   "./ssf": ["createPermDock", "memoryReplayStore"],
   "./better-auth": [

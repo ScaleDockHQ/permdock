@@ -1,7 +1,11 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { Membership, Subject } from '../core/subject.ts';
-import type { SupabasePrincipal, SupabaseSubjectOptions } from './types.ts';
+import type {
+  SupabasePrincipal,
+  SupabaseSessionLike,
+  SupabaseSubjectOptions,
+} from './types.ts';
 
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
@@ -30,13 +34,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/** Top-level first, then `app_metadata`. `null` counts as absent: the RBAC hook writes `null` for a user with no role row. */
 function readClaim(claims: Record<string, unknown>, name: string): unknown {
-  if (Object.hasOwn(claims, name) && claims[name] !== undefined) {
-    return claims[name];
+  const top = Object.hasOwn(claims, name) ? claims[name] : undefined;
+  if (top !== undefined && top !== null) {
+    return top;
   }
   const meta = claims.app_metadata;
   if (isRecord(meta) && Object.hasOwn(meta, name)) {
-    return meta[name];
+    return meta[name] ?? undefined;
   }
   return undefined;
 }
@@ -203,6 +209,24 @@ export function subjectFromSupabase(
       rest[key] = value;
     }
     return mapClaims(rest, options);
+  } catch {
+    return anonymousSubject();
+  }
+}
+
+/**
+ * A verified session object (for example better-supabase's `AuthSession`) in, `Subject` out.
+ * Only `kind: 'user'` sessions map; `anon`, `service`, `invalid` and anything else are anonymous.
+ */
+export function subjectFromSupabaseSession(
+  session: SupabaseSessionLike | null | undefined,
+  options: SupabaseSubjectOptions = {},
+): Subject<SupabasePrincipal> {
+  try {
+    if (session === null || session === undefined || session.kind !== 'user') {
+      return anonymousSubject();
+    }
+    return subjectFromSupabase(session.claims, options);
   } catch {
     return anonymousSubject();
   }

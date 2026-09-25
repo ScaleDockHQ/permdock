@@ -44,6 +44,15 @@ export type SupabaseRlsConfig = {
   };
 };
 
+/**
+ * The structural shape `subjectFromSupabaseSession` reads: a discriminant and the verified JWT claims.
+ * Matches better-supabase's `AuthSession` and similar session objects without importing them.
+ */
+export type SupabaseSessionLike = {
+  readonly kind: string;
+  readonly claims?: unknown;
+};
+
 export type SupabaseSubjectOptions = {
   readonly roles?: string;
   readonly tenant?: string;

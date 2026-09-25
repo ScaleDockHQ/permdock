@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { authorizeSql, subjectFromSupabase, supabaseRls } from './index.ts';
+import {
+  authorizeSql,
+  subjectFromSupabase,
+  subjectFromSupabaseSession,
+  supabaseRls,
+} from './index.ts';
 
 describe('subjectFromSupabase', () => {
   it('never throws and fails closed to anonymous', () => {
@@ -62,6 +67,43 @@ describe('subjectFromSupabase', () => {
     );
     expect(subject.principal?.roles).toEqual(['editor']);
     expect(subject.principal?.tenant).toBe('org-2');
+  });
+
+  it('treats a null top-level claim as absent and falls back to app_metadata', () => {
+    const subject = subjectFromSupabase({
+      sub: 'user-3',
+      role: 'authenticated',
+      user_role: null,
+      tenant_id: null,
+      app_metadata: { user_role: 'editor', tenant_id: 'org-3' },
+    });
+    expect(subject.principal?.roles).toEqual(['editor']);
+    expect(subject.principal?.tenant).toBe('org-3');
+    expect(
+      subjectFromSupabase({
+        sub: 'user-4',
+        role: 'authenticated',
+        app_metadata: { user_role: null },
+      }).principal?.roles,
+    ).toEqual([]);
+  });
+
+  it('maps only user sessions from a structural session object', () => {
+    const claims = {
+      sub: 'user-6',
+      role: 'authenticated',
+      user_role: 'editor',
+    };
+    expect(
+      subjectFromSupabaseSession({ kind: 'user', claims }).principal?.roles,
+    ).toEqual(['editor']);
+    expect(
+      subjectFromSupabaseSession({ kind: 'anon', claims }).principal,
+    ).toBeNull();
+    expect(
+      subjectFromSupabaseSession({ kind: 'service' }).principal,
+    ).toBeNull();
+    expect(subjectFromSupabaseSession(undefined).principal).toBeNull();
   });
 
   it('returns anonymous for missing, anon, and service_role claims', () => {

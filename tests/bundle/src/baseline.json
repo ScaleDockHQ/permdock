@@ -33,7 +33,7 @@
   "./drizzle": 6150,
   "./prisma": 5921,
   "./kysely": 6222,
-  "./supabase": 2760,
+  "./supabase": 3012,
   "./supabase/middleware": 42847,
   "./ssf": 18480,
   "./better-auth": 16853,

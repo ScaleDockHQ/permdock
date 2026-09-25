@@ -174,6 +174,21 @@ Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/d
 | `exp` | Verified | `subject.expiresAt`, copied into snapshots |
 | `email`, `phone`, `is_anonymous` | Verified | Exposed on `principal` only when `options.include` names them; not used for grants |
 
+A top-level claim set to `null` counts as absent. The RBAC hook writes `user_role: null` for a user with no row in `user_roles`, so the reader falls back to `app_metadata.user_role` instead of letting the `null` shadow it. `null` under `app_metadata` is also absent: no roles.
+
+### Session objects: `subjectFromSupabaseSession`
+
+`subjectFromSupabaseSession(session, options)` takes any verified session object shaped `{ kind, claims }` (`SupabaseSessionLike`), for example better-supabase's `AuthSession`. It maps `kind: 'user'` through `subjectFromSupabase(session.claims, options)` and returns the anonymous subject for every other `kind` (`anon`, `service`, `invalid`, or anything unknown). PermDock imports nothing from the library that produced the session; the shape is the contract.
+
+```ts
+const session = await getSession()          // verified locally against the project JWKS
+const subject = subjectFromSupabaseSession(session, { roles: 'user_role' })
+```
+
+### Claim size and membership mode
+
+Claims travel in the session cookie and on every request. Keep the hook's `memberships` claim under about 1 KB of JSON: about 15 UUID-keyed, single-role memberships. `@permdock/testing` exports this ceiling as `supabaseMembershipsBudget`, along with `supabaseClaimFixtures` in the hook's shape. Above the ceiling, or when a role change must apply before the next token refresh, switch to database mode. The hook writes no memberships, `authorize()` reads the membership table, and the app passes rows from its own query to `snapshotFor(policy, claims, { memberships })`. JWT mode costs a token refresh of staleness (`jwt_expiry`, 3600 s by default); database mode costs a query per snapshot.
+
 ### The Custom Access Token Hook
 
 The hook runs before Supabase Auth issues a token and may add or remove claims ([Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)). It is how `user_role` gets into the JWT so that both `authorize()` in RLS and `subjectFromSupabase` in the app read the same role from the same place.

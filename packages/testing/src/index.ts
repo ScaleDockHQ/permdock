@@ -37,3 +37,11 @@ export {
   jwtFixtureJwks,
   jwtFixtureTokens,
 } from './jwt-fixtures.ts';
+export {
+  supabaseClaimFixtures,
+  supabaseMembershipsBudget,
+} from './supabase-fixtures.ts';
+export type {
+  SupabaseClaimFixture,
+  SupabaseClaimFixtureName,
+} from './supabase-fixtures.ts';
