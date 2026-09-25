@@ -118,6 +118,86 @@ export function wintertcViolations(
   return found;
 }
 
+const USE_CLIENT = /^\s*['"]use client['"]/u;
+const REACT_NAMED_IMPORT = /import\s*\{([^}]*)\}\s*from\s*['"]react['"]/gu;
+const CLIENT_ONLY_REACT = new Set([
+  'createContext',
+  'use',
+  'useCallback',
+  'useContext',
+  'useEffect',
+  'useLayoutEffect',
+  'useMemo',
+  'useReducer',
+  'useRef',
+  'useState',
+  'useSyncExternalStore',
+  'useTransition',
+]);
+
+export function isClientBoundary(file: string): boolean {
+  return USE_CLIENT.test(readFileSync(file, 'utf8'));
+}
+
+/**
+ * Files reachable from a server entry, without crossing a "use client" module,
+ * that import a client-only React API. Under the `react-server` condition those
+ * exports do not exist, so the entry crashes when a Server Component imports it.
+ */
+export function clientApiLeaks(entryFile: string): readonly string[] {
+  const leaks: string[] = [];
+  const seen = new Set<string>();
+  const queue = [join(DIST, entryFile)];
+  while (queue.length > 0) {
+    const file = queue.pop();
+    if (file === undefined || seen.has(file)) {
+      continue;
+    }
+    seen.add(file);
+    const source = readFileSync(file, 'utf8');
+    if (USE_CLIENT.test(source)) {
+      continue;
+    }
+    for (const match of source.matchAll(REACT_NAMED_IMPORT)) {
+      const names = (match[1] ?? '')
+        .split(',')
+        .map((part) => part.trim().split(/\s+as\s+/u)[0] ?? '')
+        .filter((name) => CLIENT_ONLY_REACT.has(name));
+      if (names.length > 0) {
+        leaks.push(`${file}: ${names.join(', ')}`);
+      }
+    }
+    const dir = dirname(file);
+    for (const match of source.matchAll(RELATIVE_IMPORT)) {
+      const spec = match[1] ?? match[2];
+      if (spec !== undefined) {
+        queue.push(join(dir, spec));
+      }
+    }
+  }
+  return leaks;
+}
+
+const EXPORT_LIST = /export\s*\{([^}]*)\}/gu;
+
+/** Runtime export names of a built entry, from its `export { … }` statements. */
+export function exportNames(entryFile: string): readonly string[] {
+  const source = readFileSync(join(DIST, entryFile), 'utf8');
+  const names: string[] = [];
+  for (const match of source.matchAll(EXPORT_LIST)) {
+    for (const part of (match[1] ?? '').split(',')) {
+      const name = part
+        .trim()
+        .split(/\s+as\s+/u)
+        .at(-1);
+      if (name !== undefined && name !== '') {
+        names.push(name);
+      }
+    }
+  }
+  return names.toSorted();
+}
+
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   return files.filter((file) =>
     /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud|drizzle|prisma|kysely|supabase|ssf|better-auth|clerk|convex|pdp)[/\\]/u.test(

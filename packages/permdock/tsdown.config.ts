@@ -23,13 +23,37 @@ function sveltePlugin(): {
   };
 }
 
+function clientReferencePlugin(): {
+  readonly name: string;
+  resolveId(
+    source: string,
+    importer: string | undefined,
+  ): { readonly id: string; readonly external: true } | null;
+} {
+  return {
+    // The server entry imports the provider from the built
+    // `react/provider-client.js` entry, so it stays a "use client" reference.
+    name: 'react-provider-reference',
+    resolveId(source, importer) {
+      if (
+        source === '../react/provider-client.js' &&
+        importer?.endsWith('src/next/provider.tsx') === true
+      ) {
+        return { id: '../react/provider-client.js', external: true };
+      }
+      return null;
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [sveltePlugin()],
+  plugins: [sveltePlugin(), clientReferencePlugin()],
   entry: [
     'src/index.ts',
     'src/approvals/index.ts',
     'src/jwt/index.ts',
     'src/react/index.ts',
+    'src/react/provider-client.ts',
     'src/react-native/index.ts',
     'src/next/index.ts',
     'src/next/plugin.ts',

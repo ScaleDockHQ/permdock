@@ -10,7 +10,11 @@
   "devDependencies": {
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "next": "catalog:",
     "permdock": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { ENTRIES, gzipGraph, walk } from './graph.ts';
+import { measureSizes } from './write-baseline.ts';
 
 const baselinePath = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -16,10 +16,6 @@ describe('per-entry gzip', () => {
       string,
       number
     >;
-    const measured: Record<string, number> = {};
-    for (const [entry, file] of Object.entries(ENTRIES)) {
-      measured[entry] = gzipGraph(walk(file));
-    }
-    expect(measured).toEqual(baseline);
+    expect(measureSizes()).toEqual(baseline);
   });
 });

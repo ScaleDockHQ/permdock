@@ -134,6 +134,8 @@ export default defineConfig({
         'import/no-relative-parent-imports': 'off',
         'node/no-process-env': 'off',
         'import/no-default-export': 'off',
+        // Child-process scripts under tests run as ESM, never through require(esm).
+        'node/no-top-level-await': 'off',
       },
     },
     {
