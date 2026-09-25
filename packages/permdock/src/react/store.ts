@@ -116,19 +116,18 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     emit();
   };
 
+  // Reads the clock only when there is something to compare: Cache Components
+  // rejects `Date.now()` in a prerendered Client Component outside Suspense.
   const isStale = (): boolean => {
+    const maxAge = snapshot.issuedAt > 0 ? options.maxAge : undefined;
+    if (snapshot.expiresAt === undefined && maxAge === undefined) {
+      return false;
+    }
     const now = nowSeconds();
     if (snapshot.expiresAt !== undefined && snapshot.expiresAt <= now) {
       return true;
     }
-    if (
-      options.maxAge !== undefined &&
-      snapshot.issuedAt > 0 &&
-      now - snapshot.issuedAt > options.maxAge
-    ) {
-      return true;
-    }
-    return false;
+    return maxAge !== undefined && now - snapshot.issuedAt > maxAge;
   };
 
   const applyParsed = (value: unknown): void => {

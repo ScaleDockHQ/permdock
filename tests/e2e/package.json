@@ -8,6 +8,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@next/playwright": "catalog:",
+    "@permdock/e2e-next-saas": "workspace:*",
     "@permdock/example-a2a-agent": "workspace:*",
     "@permdock/example-ai-sdk-agent": "workspace:*",
     "@permdock/example-authzen-pdp": "workspace:*",

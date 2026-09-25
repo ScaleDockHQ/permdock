@@ -45,6 +45,11 @@ function table(name: string): string {
   return name.split('.').map(ident).join('.');
 }
 
+// `authorize()` runs with `search_path = ''`, so a bare table name must be qualified.
+function qualifiedTable(name: string): string {
+  return table(name.includes('.') ? name : `public.${name}`);
+}
+
 function databaseBody(
   q: (name: string) => string,
   memberships: SupabaseMembershipTable | undefined,
@@ -58,7 +63,7 @@ function databaseBody(
       : `  if requested_tenant is not null then
     return exists (
       select 1
-      from ${table(memberships.table)} m
+      from ${qualifiedTable(memberships.table)} m
       join ${q('role_permissions')} rp on rp.role::text = m.${ident(memberships.role)}::text
       where m.${ident(memberships.user)}::text = uid::text
         and m.${ident(tenantColumn)}::text = requested_tenant

@@ -143,6 +143,9 @@ catalogs:
     '@nestjs/platform-express':
       specifier: 12.0.3
       version: 12.0.3
+    '@next/playwright':
+      specifier: 16.3.5
+      version: 16.3.5
     '@openai/agents':
       specifier: 0.18.0
       version: 0.18.0
@@ -1651,6 +1654,12 @@ importers:
 
   tests/e2e:
     devDependencies:
+      '@next/playwright':
+        specifier: 'catalog:'
+        version: 16.3.5(@playwright/test@1.63.0)
+      '@permdock/e2e-next-saas':
+        specifier: workspace:*
+        version: link:fixtures/next-saas
       '@permdock/example-a2a-agent':
         specifier: workspace:*
         version: link:../../apps/examples/a2a-agent
@@ -1753,6 +1762,43 @@ importers:
       marketing:
         specifier: workspace:*
         version: link:../../apps/marketing
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  tests/e2e/fixtures/next-saas:
+    dependencies:
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
+      next:
+        specifier: 'catalog:'
+        version: 16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@26.6.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      permdock:
+        specifier: workspace:*
+        version: link:../../../../packages/permdock
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../../../../packages/typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.1
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -3252,6 +3298,14 @@ packages:
 
   '@next/env@16.3.5':
     resolution: {integrity: sha512-NWEXVDMqoEo0ktmU6u0sE2Vg0LOcsD7NnOTJNo3/fEaTfsg+F1bMIxuDmQbda4e3yTIQwVdUREF2yIuMOusKtg==}
+
+  '@next/playwright@16.3.5':
+    resolution: {integrity: sha512-R0gpYbyuTSBSid17ElLMiXCKLYEu3zcGEqkPZ5ne2lJyNB8NlWt3/5XIX7r5Wex1A5jwKhwe80d8Wsh6dPz+fg==}
+    peerDependencies:
+      '@playwright/test': '>=1.0.0'
+    peerDependenciesMeta:
+      '@playwright/test':
+        optional: true
 
   '@next/swc-darwin-arm64@16.3.5':
     resolution: {integrity: sha512-pMmGgETfKvElucLHtVaeiMRbp2zUbvKx7b1yGko0liBz3cw1mKSggWN/Rp/wPz8z+E1O82u3r4L1Co+ZS5hokQ==}
@@ -12053,6 +12107,10 @@ snapshots:
       - supports-color
 
   '@next/env@16.3.5': {}
+
+  '@next/playwright@16.3.5(@playwright/test@1.63.0)':
+    optionalDependencies:
+      '@playwright/test': 1.63.0
 
   '@next/swc-darwin-arm64@16.3.5':
     optional: true

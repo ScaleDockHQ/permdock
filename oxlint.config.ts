@@ -243,6 +243,15 @@ export default defineConfig({
       },
     },
     {
+      files: ['tests/e2e/fixtures/**/*.{ts,tsx}'],
+      rules: {
+        // Next.js app-router conventions, as for apps/** below.
+        'typescript/prefer-readonly-parameter-types': 'off',
+        'typescript/promise-function-async': 'off',
+        'unicorn/no-array-callback-reference': 'off',
+      },
+    },
+    {
       files: ['apps/**/*.{ts,tsx,mts,cts}'],
       rules: {
         // Next.js Server Components, route handlers and `next.config` redirects.

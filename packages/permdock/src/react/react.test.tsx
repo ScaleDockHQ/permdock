@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { renderToStaticMarkup, renderToString } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { emptySnapshot } from '../core/from-snapshot.ts';
 import { createPermDock } from '../core/permdock.ts';
@@ -171,6 +171,23 @@ describe('permdock/react', () => {
     expect(ready.status).toBe('ready');
     expect(ready.allowed).toBe(true);
     expect(calls).toHaveLength(1);
+  });
+
+  it('does not read the clock while a snapshotPromise is pending', () => {
+    const never = new Promise<string>(() => {
+      // never settles
+    });
+    const clock = vi.spyOn(Date, 'now');
+    try {
+      renderToString(
+        <PermDockProvider snapshotPromise={never}>
+          <nav>static nav</nav>
+        </PermDockProvider>,
+      );
+      expect(clock).not.toHaveBeenCalled();
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it('suspends only the readers of a snapshotPromise', async () => {

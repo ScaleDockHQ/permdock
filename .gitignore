@@ -80,3 +80,6 @@ Thumbs.db
 *.swo
 .env*
 !.env.example
+
+# next-saas e2e fixture build log
+.e2e/

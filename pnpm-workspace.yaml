@@ -3,6 +3,7 @@ packages:
   - apps/*
   - apps/examples/*
   - tests/*
+  - tests/e2e/fixtures/*
   - tests/types/*
 
 catalog:
@@ -73,6 +74,7 @@ catalog:
   oxfmt: 0.68.0
   oxlint: 1.83.0
   oxlint-tsgolint: 7.0.2002
+  '@next/playwright': 16.3.5
   '@playwright/test': 1.63.0
   pgsql-parser: 18.2.8
   pg: 8.23.0

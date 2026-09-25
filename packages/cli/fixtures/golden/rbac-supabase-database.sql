@@ -62,7 +62,7 @@ begin
   if requested_tenant is not null then
     return exists (
       select 1
-      from "organization_members" m
+      from "public"."organization_members" m
       join "public"."role_permissions" rp on rp.role::text = m."role"::text
       where m."user_id"::text = uid::text
         and m."organization_id"::text = requested_tenant

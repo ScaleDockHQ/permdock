@@ -117,6 +117,18 @@ const requested = requestedProjects();
 const uiOnly =
   requested.length > 0 && requested.every((name) => uiProjectNames.has(name));
 const marketingOnly = requested.length === 1 && requested[0] === 'marketing';
+const saasOnly = requested.length === 1 && requested[0] === 'next-saas';
+
+// Builds once, then serves JWT mode on 3490, database mode on 3491 and the
+// no-private-cache negative variant on 3492.
+const saasServer = {
+  command: 'pnpm --filter @permdock/e2e-next-saas serve',
+  cwd: root,
+  url: 'http://127.0.0.1:3492/api/health',
+  reuseExistingServer: !inCi,
+  timeout: 600_000,
+  env: envWith({ CI: '1' }),
+};
 
 const marketingServer = {
   ...uiServer('marketing', 3487),
@@ -134,21 +146,24 @@ export default defineConfig({
   reporter: inCi ? 'github' : 'list',
   webServer: marketingOnly
     ? [marketingServer]
-    : [
-        ...(uiOnly
-          ? []
-          : httpExamples.map((example) =>
-              httpServer(example.name, example.port),
-            )),
-        uiServer('@permdock/example-react-vite', 3480),
-        uiServer('@permdock/example-vue', 3481),
-        uiServer('@permdock/example-svelte', 3482),
-        uiServer('@permdock/example-solid', 3483),
-        uiServer('@permdock/example-webmcp', 3484),
-        uiServer('@permdock/example-next', 3485),
-        uiServer('@permdock/example-expo', 3486),
-        marketingServer,
-      ],
+    : saasOnly
+      ? [saasServer]
+      : [
+          ...(uiOnly
+            ? []
+            : httpExamples.map((example) =>
+                httpServer(example.name, example.port),
+              )),
+          uiServer('@permdock/example-react-vite', 3480),
+          uiServer('@permdock/example-vue', 3481),
+          uiServer('@permdock/example-svelte', 3482),
+          uiServer('@permdock/example-solid', 3483),
+          uiServer('@permdock/example-webmcp', 3484),
+          uiServer('@permdock/example-next', 3485),
+          uiServer('@permdock/example-expo', 3486),
+          marketingServer,
+          ...(uiOnly ? [] : [saasServer]),
+        ],
   projects: [
     ...httpExamples.map((example) => ({
       name: example.name,
@@ -202,6 +217,11 @@ export default defineConfig({
       name: 'marketing',
       testMatch: /marketing\.spec\.ts$/u,
       use: { baseURL: 'http://127.0.0.1:3487' },
+    },
+    {
+      name: 'next-saas',
+      testMatch: /next-saas\.spec\.ts$/u,
+      use: { baseURL: 'http://127.0.0.1:3490' },
     },
   ],
 });
