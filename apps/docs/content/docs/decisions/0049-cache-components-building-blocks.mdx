@@ -34,6 +34,9 @@ The Next adapter got in the way in four places:
 - An app can cache `snapshotFor` per session and tag it (`permdock:<userId>`), then drop it with `updateTag` from a Server Action or `revalidateTag` from a webhook.
 - `mayAccess` can let a user through who is then denied by the page. That is intended: it only saves a render for users who can never pass.
 - The unused `tag` option on `permdock/next` is removed.
+- Build-phase behaviour is settled: there is no `NEXT_PHASE` anonymous-subject switch. The layout stays synchronous and the snapshot loader reads `cookies()` only inside the app's `'use cache: private'` function, so `next build` never touches the request. The `PermDockProvider` in `permdock/react` reads the clock only once a snapshot has resolved, because Cache Components rejects `Date.now()` in a prerendered Client Component outside `Suspense`.
+- `updateTag` and `revalidateTag` reach server caches and the acting browser only. Other members' prefetched App Shells stay until `stale` passes or the app's own signal calls `router.refresh()`. PermDock ships no signal: the change feed belongs to the app (Supabase Realtime, a poll, SSE).
+- `tests/e2e` uses `@next/playwright` `instant()` directly. `@permdock/testing` ships no wrapper around it, which replaces the `instant()` helpers mentioned in [ADR 0002](/docs/decisions/0002-umbrella-package).
 
 ## Alternatives considered
 
@@ -46,3 +49,4 @@ The Next adapter got in the way in four places:
 - [0031: Snapshot contents](/docs/decisions/0031-snapshot-contents)
 - [Snapshots](/docs/concepts/snapshots)
 - [Next.js](/docs/adapters/next)
+- [Next.js Cache Components guide](/docs/guides/next-cache-components)

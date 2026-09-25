@@ -8,7 +8,7 @@ Phase: 1
 
 ## Purpose
 
-`@permdock/testing` is a separate package (it depends on Vitest; Playwright helpers and a Postgres client do not belong in `permdock`). It ships `describePolicy`, `snapshotFixture`, `rlsParity`, the core-backed conformance runners (`testSubjectResolver`, `testMembershipSource`, `testRoleSource`, `testApprovalStore`, `testDecisionSink`, `testSnapshotSource`, `testWhereCompiler`, `testTokenVerifier`, `testTokenSigner`, `testLimitStore`, `testDirectoryStore`, `testReplayStore`) and Vitest type fixtures, plus one signed-output fixture per `typ` (`permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`). `mockEndpoint` and `mswHandlers` follow with their adapters. There is no `instant()` helper: `@next/playwright` is not in the pinned Next.js, so `tests/e2e` uses plain Playwright.
+`@permdock/testing` is a separate package (it depends on Vitest; Playwright helpers and a Postgres client do not belong in `permdock`). It ships `describePolicy`, `snapshotFixture`, `rlsParity`, the core-backed conformance runners (`testSubjectResolver`, `testMembershipSource`, `testRoleSource`, `testApprovalStore`, `testDecisionSink`, `testSnapshotSource`, `testWhereCompiler`, `testTokenVerifier`, `testTokenSigner`, `testLimitStore`, `testDirectoryStore`, `testReplayStore`) and Vitest type fixtures, plus one signed-output fixture per `typ` (`permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`). `mockEndpoint` and `mswHandlers` follow with their adapters. There is no `instant()` wrapper: `tests/e2e` calls `@next/playwright` `instant()` directly against the `next-saas` fixture ([Next.js Cache Components guide](/docs/guides/next-cache-components)).
 
 ## API
 

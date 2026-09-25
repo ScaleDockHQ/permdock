@@ -248,7 +248,7 @@ The two `--authorize` modes trade freshness for a query:
 | `database` (default) | `user_roles` and the membership table | On the next statement | On the next token refresh, unless the app loads memberships itself (`snapshotFor(policy, claims, { memberships })`) |
 | `jwt` | The hook-injected claims | On the next token refresh | On the next token refresh |
 
-In `jwt` mode the policy and PermDock read one claim written by one function. Keep `jwt_expiry` at 3600 seconds or less when the policy grants sensitive verbs; `permdock doctor` flags it as PD019. A [Shared Signals receiver](/docs/adapters/ssf) or an app-level `updateTag` shortens the window for the app, not for RLS.
+In `jwt` mode the policy and PermDock read one claim written by one function. Keep `jwt_expiry` at 3600 seconds or less when the policy grants sensitive verbs; `permdock doctor` flags it as PD019. A [Shared Signals receiver](/docs/adapters/ssf) can reject a revoked session for the app, not for RLS. `updateTag` and `router.refresh()` do not help in `jwt` mode: they re-render from the same stale claims. The per-layer staleness table for a Next.js app, including other members' browsers, is in the [Next.js Cache Components guide](/docs/guides/next-cache-components).
 
 ## Request lifecycle
 

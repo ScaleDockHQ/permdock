@@ -88,7 +88,7 @@ async function main(mode: string | undefined): Promise<object> {
     const { PermDockProvider } = createPermDock(policy, {
       subject: () => user,
     });
-    const element: ReactElement = await PermDockProvider({
+    const element: ReactElement = PermDockProvider({
       children: 'children',
     });
     const tree = element as unknown as { readonly type: ClientReference };

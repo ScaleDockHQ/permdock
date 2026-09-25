@@ -115,6 +115,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | `@supabase/middleware` | Supabase's Web-Fetch middleware engine (`defineMiddleware`, `pipeline`, typed `ctx` contributions and prerequisites) | Adapter: `permdock/supabase/middleware` (`withPermDock`), optional peer | [Supabase provider](/docs/adapters/supabase), [0046](/docs/decisions/0046-supabase-middleware-entry) |
 | `@supabase/server` (`withSupabase`, `withClaims`, `withRequiredClaims`, `withPostgresClient`, `withPostgresAdminClient`, `withOAuthProtectedResource`, Hono / Elysia / NestJS / H3 adapters) | Stateless header-based Supabase auth for Edge Functions, Workers and Fetch frameworks; JWKS-verified `jwtClaims`, RLS-scoped clients, RFC 9728 metadata | Recipe: `subjectFromSupabase(ctx.jwtClaims)`; `withOAuthProtectedResource` with `permdock/jwt`; `withPostgresClient` as the runtime twin of `permdock rls verify` | [Supabase provider](/docs/adapters/supabase), [MCP adapter](/docs/adapters/mcp), [RLS adapter](/docs/adapters/rls) |
 | `@supabase/ssr` | Cookie-session Supabase client for Next.js, SvelteKit, Remix, React Router and Astro (replaces `auth-helpers-*`) | Recipe: `getClaims()` on the server client feeding `subjectFromSupabase` inside the framework adapter's `subject` | [Supabase provider](/docs/adapters/supabase) |
+| better-supabase | Next.js Supabase session library with a `kind`-tagged `AuthSession` union | Recipe: `subjectFromSupabaseSession(session)` inside the app's `'use cache: private'` loader; no import, peer or copied type | [Next.js Cache Components guide](/docs/guides/next-cache-components), [0049](/docs/decisions/0049-cache-components-building-blocks) |
 | Clerk Billing | Plans and features as `pla` and `fea` claims | `pla` maps to `principal.plans`; `fea` still maps to roles | [Clerk provider](/docs/adapters/clerk), [0039](/docs/decisions/0039-grantee-selectors-and-relations) |
 | Auth.js (NextAuth) | Framework session | Session resolver | [authentication](/docs/concepts/authentication) |
 | WorkOS AuthKit and Connect, Auth0, Logto, Kinde, Neon Auth, Stack Auth, Firebase Auth, Amazon Cognito, Keycloak, Ory | JWKS-publishing providers | `subjectFromJwt` | [authentication](/docs/concepts/authentication) |
@@ -221,6 +222,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Tool | What it is | Mechanism | Owning page |
 | --- | --- | --- | --- |
 | Playwright | Browser and API e2e runner | Recipe (`tests/e2e`, one spec per example) | [Testing adapter](/docs/adapters/testing) |
+| `@next/playwright` | Next.js Playwright helper; `instant()` asserts a navigation completed from prefetched UI | Recipe (`tests/e2e/src/next-saas.spec.ts`, no wrapper in `@permdock/testing`) | [Next.js Cache Components guide](/docs/guides/next-cache-components), [0049](/docs/decisions/0049-cache-components-building-blocks) |
 | testcontainers | Docker-backed Postgres for RLS parity | Recipe (`pnpm test:integration`) | [Testing adapter](/docs/adapters/testing), [RLS adapter](/docs/adapters/rls) |
 
 ## Distribution channels

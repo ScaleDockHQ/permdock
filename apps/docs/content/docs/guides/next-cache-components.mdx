@@ -1,0 +1,189 @@
+---
+title: Next.js Cache Components
+description: How a multi-org SaaS keeps permission UI in the prefetched App Shell with Next.js 16.3 Cache Components, Partial Prefetching and instant navigation, how fresh each layer is after a role or plan change, and how Supabase claims plug in.
+---
+
+This guide builds permission UI for a multi-org SaaS on Next.js 16.3 with `cacheComponents`, `partialPrefetching` and instant navigation. Routes live under `/[org]/...`. Users hold roles per organization (owner, admin, member, viewer, plus custom roles), and organizations are on a free or pro plan.
+
+The approach is proven end to end by `tests/e2e/fixtures/next-saas` and `tests/e2e/src/next-saas.spec.ts`, which run `@next/playwright` `instant()` against `next start`. Every claim on this page is one of that spec's scenarios.
+
+PermDock adds no cache directives and never calls `cookies()` or `headers()`. The app owns every `'use cache'`, `cacheLife` and `cacheTag`; PermDock supplies pure functions to call inside them ([ADR 0049](/docs/decisions/0049-cache-components-building-blocks)).
+
+## The four layers
+
+| Layer | What lives there | Directive | Invalidated by |
+| --- | --- | --- | --- |
+| Static shell | Layouts, headings, nav structure, skeletons | none; layouts stay synchronous | a deploy |
+| Shared cache | Per-org data every member sees: plan, custom roles, lists | `'use cache'` + `cacheTag('org:<id>')` | `updateTag` in a Server Action, `revalidateTag(tag, { expire: 0 })` in a Route Handler |
+| Private cache | The access snapshot for this session and org | `'use cache: private'` + `cacheLife(cacheLifeFor(snapshot))` | the refresh signal, sign-in and sign-out, `stale` expiry |
+| Enforcement | Server Actions, Route Handlers, Postgres RLS | none; never cached | nothing to invalidate |
+
+The first three layers make navigation instant. The fourth decides. A stale snapshot can show a button for a moment too long; it can never make a write succeed.
+
+### Private cache: the snapshot loader
+
+```ts
+// src/lib/access.ts
+import { cacheLife, cacheTag } from 'next/cache'
+import { snapshotFor } from 'permdock'
+import { cacheLifeFor } from 'permdock/next'
+
+export async function getOrg(id: string) {
+  'use cache'
+  cacheTag(`org:${id}`)
+  cacheLife('hours')
+  return db.orgs.find(id)                       // plan, customRoles
+}
+
+export async function loadSnapshot(org: string) {
+  'use cache: private'
+  const claims = await getClaims()              // cookies() + local JWKS verification
+  const view = await getOrg(org)
+  const snapshot = snapshotFor(policy, subjectOf(claims), {
+    tenant: org,
+    memberships: mode === 'database' ? await db.memberships(claims.sub) : undefined,
+    customRoles: view.customRoles,
+    plans: [view.plan],
+  })
+  cacheLife(cacheLifeFor(snapshot))             // 30 s floor for per-link prefetch, 300 s ceiling
+  cacheTag(`permdock:${claims?.sub ?? 'anon'}`, `org:${org}`)
+  return snapshot
+}
+```
+
+`snapshotFor` is synchronous and makes no network call. `cacheLifeFor` returns `{ stale }`: 300 seconds when the token lives longer, the remaining lifetime when it is shorter, and less than 30 seconds only when the token is about to expire. A `stale` of at least 30 seconds lets a `<Link prefetch>` carry the snapshot; at least 300 seconds puts it in the route's App Shell.
+
+### Static shell: a synchronous layout
+
+```tsx
+// src/app/[org]/layout.tsx
+import { PermDockProvider } from 'permdock/react'
+
+export default function OrgLayout({ children, params }) {
+  const snapshot = params.then(({ org }) => loadSnapshot(org))
+  const org = params.then(({ org }) => getOrg(org))
+  return (
+    <PermDockProvider snapshotPromise={snapshot}>
+      <Suspense fallback={<NavSkeleton />}>
+        <Nav org={org} />
+      </Suspense>
+      <main>{children}</main>
+    </PermDockProvider>
+  )
+}
+```
+
+The layout never awaits. `PermDockProvider` renders its children at once; only components that read a permission suspend, and they sit inside a boundary. `<Protected pending>` is that boundary for a single gate. Nav links use `prefetch` so the per-link prefetch resolves `params` and the private snapshot before the click.
+
+### Rows: portable conditions answer on the client
+
+`usePermission(permissions.project.delete, project)` evaluates the snapshot's portable conditions (`ownerId`, `archived`, the tenant key) in the browser, so row actions render without a request. A grant whose condition is a closure cannot travel in a snapshot. For those, annotate rows on the server (`permdock.can(p, row)` per row inside the cached list) or let `usePermission` ask the endpoint.
+
+## Membership modes
+
+| | JWT mode | Database mode |
+| --- | --- | --- |
+| Memberships come from | a `memberships` claim written by the access-token hook | the app's membership table, read per snapshot and per action |
+| Snapshot cost | none beyond verifying the token | one query per private-cache miss |
+| Claim size | keep under 1 KB, about 15 orgs (`supabaseMembershipsBudget` in `@permdock/testing`) | unbounded |
+| After a role change | stale until the token is re-issued | fresh on the next render or action |
+| Proxy redirects | precise: `mayAccess` sees the roles | optimistic: the token carries no memberships, so `mayAccess` answers `true` for tenant-scoped pages |
+
+The fixture runs both modes from one build (`MEMBERSHIP_MODE=jwt|database`). A good default is mixed: JWT mode for UI hints, and `permdock rls generate --rbac supabase --authorize database` so Postgres reads memberships per statement ([rls](/docs/cli/rls)).
+
+## Staleness
+
+How long each change takes to reach each place. "Signal" means the app's own realtime or poll channel calling `router.refresh()` (the fixture polls `/api/version` and compares the last change against the snapshot's `issuedAt`).
+
+| Change | Acting browser | Other members' UI | Their Server Actions | Postgres RLS |
+| --- | --- | --- | --- | --- |
+| Plan change by billing webhook | no browser acts | signal, else up to `stale` (300 s max) | immediate (org read per action) | not represented; plan gates are app-side |
+| Custom role redefined | immediate (`updateTag('org:<id>')`) | signal, else up to `stale` | immediate | database mode: immediate |
+| Role change, database mode | immediate | signal, else up to `stale` | immediate | `--authorize database`: immediate |
+| Role change, JWT mode | stale until its own token refreshes | until the member's token is re-issued; `refresh()` does not help | until token refresh | `--authorize jwt`: until token refresh; `--authorize database`: immediate |
+| Removed from the org | as the role change for the mode | as the role change for the mode | database mode: immediate; JWT mode: until token refresh | as the role change for the mode |
+| Sign-out, then another user signs in | immediate: the cookie change in a Server Action clears the client router cache | not applicable | not applicable | not applicable |
+| Session revoked by an admin | not applicable | the access token stays valid until `exp` | until `exp` unless an SSF receiver or `logout_token` handler rejects the session | until `exp` |
+
+Two limits follow from the platform, not from PermDock. `updateTag` and `revalidateTag` change server caches and the acting browser's router; other browsers keep their prefetched App Shell until `stale` passes or something calls `router.refresh()`. And Supabase cannot re-issue another user's access token, so in JWT mode a demotion is bounded by `jwt_expiry` (3600 seconds by default) whatever the app calls. `permdock doctor` PD019 warns when JWT-mode `authorize()` meets a longer expiry and sensitive grants.
+
+## Supabase claims
+
+The only contract between PermDock and a Supabase session library is plain data: verified JWT claims and serializable snapshots. There is no import, peer dependency or shared type.
+
+```ts
+import { subjectFromSupabase, subjectFromSupabaseSession } from 'permdock/supabase'
+
+subjectFromSupabase(claims, { memberships: 'memberships' })       // verified claims
+subjectFromSupabaseSession(session, { memberships: 'memberships' }) // any { kind, claims } session
+```
+
+`subjectFromSupabaseSession` maps only `kind: 'user'`. `anon`, `service`, `invalid` or an unknown `kind` become the anonymous subject whatever `claims` holds. A top-level `user_role: null` (what the RBAC hook writes for a user without a role row) falls back to `app_metadata.user_role`.
+
+better-supabase is one such session source; its `AuthSession` union already has the `{ kind, claims }` shape, so the glue is one call:
+
+```ts
+// features/user/user-access.ts
+import 'server-only'
+import { cacheLife } from 'next/cache'
+import { snapshotFor } from 'permdock'
+import { cacheLifeFor } from 'permdock/next'
+import { subjectFromSupabaseSession } from 'permdock/supabase'
+import { next } from '@/lib/supabase.server'
+import { policy } from '@/features/user/policy'
+
+export async function getAccess(org: string) {
+  'use cache: private'
+  const session = await next.session()            // verified locally against the project JWKS
+  const subject = subjectFromSupabaseSession(session, { memberships: 'memberships' })
+  const snapshot = snapshotFor(policy, subject, { tenant: org })
+  cacheLife(cacheLifeFor(snapshot))
+  return snapshot
+}
+```
+
+The nav passes `getAccess(org)` as `snapshotPromise` inside its existing `Suspense` and calls `usePermDock().can(item.requires)`, where `requires` is a permission reference. Server Actions call `(await createPermDock(policy, subjectFromSupabaseSession(session))).assert(permission)`.
+
+### Why asymmetric signing keys
+
+The private cache and the proxy both verify the session on every prefetch. With asymmetric keys (ES256 or RS256, published at the project's JWKS endpoint) that verification is local: a public key, no secret on the server, no request to Supabase Auth. With the legacy shared HS256 secret, every verifier holds the key that can mint tokens, and supabase-js `getClaims()` falls back to a network call to Auth. A network call inside `'use cache: private'` runs on every prefetch of every link, so enable asymmetric JWT signing keys before adopting this pattern.
+
+## The proxy is a hint
+
+`mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy renders the page's forbidden state (`<Protected fallback>`) and gets a denied Server Action, never data. `forbidden()` from `next/navigation` is the alternative when `experimental.authInterrupts` is on.
+
+## Testing it
+
+```ts
+import { instant } from '@next/playwright'
+
+test('entering an org is instant with gates resolved', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForLoadState('networkidle')          // let the prefetches land
+  await instant(page, async () => {
+    await page.locator('[data-org-link="acme"]').click()
+    await page.waitForURL('/acme')
+    await expect(page.locator('[data-nav="members"]:visible')).toBeVisible({ timeout: 3000 })
+  })
+})
+```
+
+Run against `next build && next start` with `experimental.exposeTestingApiInProductionBuild` gated by an env flag. Keep a negative control: the fixture serves the same build with `PERMDOCK_E2E_NO_PRIVATE_CACHE=1`, which drops `'use cache: private'`. The test above must fail there, which shows it measures the prefetch and not the network. Scope locators to `:visible`, because Next keeps the previous org's layout mounted but hidden after a switch. The fixture also fails if `next build` prints a `blocking-prerender-*` or `instant-*` message.
+
+## Pitfalls
+
+- A synchronous layout must not read `cookies()` or `headers()`; pass promises down and read them inside the private cache.
+- `'use cache'` without `: private` must never read the session. Per-org data goes there; per-user data does not.
+- `updateTag` works only in Server Actions. Webhooks and other Route Handlers call `revalidateTag(tag, { expire: 0 })`.
+- `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
+- A `stale` below 30 seconds silently drops the snapshot from per-link prefetches, and below 300 seconds from the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
+- Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.
+
+## Related
+
+- [Next.js adapter](/docs/adapters/next)
+- [Snapshots](/docs/concepts/snapshots)
+- [Supabase provider](/docs/adapters/supabase)
+- [rls](/docs/cli/rls)
+- [Next.js 16.3 instant navigation research](/docs/research/nextjs-16-3-instant-navigation)
+- [ADR 0049](/docs/decisions/0049-cache-components-building-blocks)

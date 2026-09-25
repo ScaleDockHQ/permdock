@@ -8,7 +8,7 @@ Phase: 1
 
 ## Purpose
 
-`permdock/next` is the full-stack adapter. One `createPermDock` call in a server-only file returns the async server API (`getPermDock`, `getPermission`), a Server Component provider that serialises the snapshot for `permdock/react`, and a Route Handler for the batched decision endpoint. The design goals come from [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation): permission-gated UI must land in the prefetched App Shell, never block a navigation, and refresh when roles change.
+`permdock/next` is the full-stack adapter. One `createPermDock` call in a server-only file returns the async server API (`getPermDock`, `getPermission`), a Server Component provider that serialises the snapshot for `permdock/react`, and a Route Handler for the batched decision endpoint. The design goals come from [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation): permission-gated UI must land in the prefetched App Shell, never block a navigation, and refresh when roles change. The end-to-end pattern for a multi-org app is the [Next.js Cache Components guide](/docs/guides/next-cache-components).
 
 ## API
 
@@ -177,7 +177,9 @@ Three rules. The subject comes from the verified bearer token, never from the ap
 
 ## Example app
 
-`apps/examples/next`: `src/permissions.ts`, `src/policy.ts`, `src/permdock/server.ts` exporting `getPermDock` / `getPermission` from core `createPermDock` (`permdock/next` still pulls the client provider into Server Components). `/` shows `edit`; `/denied` shows `locked`. `tests/e2e` smokes it with Playwright (`pnpm --filter @permdock/example-next dev` on port 3485). `@next/playwright` `instant()` is not in the pinned Next.js.
+`apps/examples/next`: `src/permissions.ts`, `src/policy.ts`, `src/permdock/server.ts` exporting `getPermDock` / `getPermission` from core `createPermDock`. `/` shows `edit`; `/denied` shows `locked`. `tests/e2e` smokes it with Playwright (`pnpm --filter @permdock/example-next dev` on port 3485).
+
+The multi-org Cache Components pattern (synchronous `[org]` layout, private-cached `snapshotFor`, a refresh signal, JWT and database membership modes) is proven by `tests/e2e/fixtures/next-saas` with `@next/playwright` `instant()` against `next start`, including a negative control without the private cache. The walkthrough and staleness table are in the [Next.js Cache Components guide](/docs/guides/next-cache-components).
 
 ## Related standards
 
@@ -189,7 +191,6 @@ Three rules. The subject comes from the verified bearer token, never from the ap
 
 ## Open questions
 
-- Build-phase behaviour: returning an anonymous subject during `next build` (Kilpi's `NEXT_PHASE` workaround) versus requiring the snapshot loader to be private-cached, which already avoids `cookies()` at build time.
 - Whether `getPermDock` should accept a `subject` override for Route Handlers authenticated with a bearer token instead of cookies.
 - Whether the `tenant` option should read `params` automatically for a conventional `[org]` or `[tenant]` segment, or stay explicit (`getPermDock({ tenant })` and the `tenant` prop on `PermDockProvider`) as documented here.
 - `notFound()` versus `redirect()` as the default denial for pages.

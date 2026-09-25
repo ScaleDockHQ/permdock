@@ -39,7 +39,7 @@ export async function loadSnapshot(org: string) {
 <PermDockProvider snapshotPromise={params.then(({ org }) => loadSnapshot(org))}>
 ```
 
-After a role change: `updateTag('permdock:<user>')` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision).
+After a role change: `updateTag('permdock:<user>')` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. Guide: https://permdock.com/docs/guides/next-cache-components.
 
 ## Hono — `permdock/hono`
 
