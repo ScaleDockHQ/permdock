@@ -142,12 +142,11 @@ import { policy } from '@/policy'
 
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
   subject: async () => getUser(await cookies()),
-  tag: (user) => `permdock:${user.id}`, // updateTag() on role change refreshes prefetches
 })
 ```
 
 ```tsx
-// app/layout.tsx: loads the snapshot once per request and serialises it to the client
+// app/layout.tsx: never awaits; permission hooks under it suspend until the snapshot streams in
 import { PermDockProvider } from '@/permdock/server'
 
 export default function RootLayout({ children }) {

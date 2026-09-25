@@ -114,6 +114,7 @@ The UI entries expose the same surface under each framework's idiom. A hook that
 | Surface | react, react-native | next (client half) | vue | svelte | solid | webmcp |
 |---|---|---|---|---|---|---|
 | `PermDockProvider` / snapshot install | `PermDockProvider` | `PermDockProvider` from the factory | plugin install | context setter | `PermDockProvider` | `registerTools({ snapshot })` |
+| `snapshotPromise` (hooks suspend until it resolves) | react only; React Native boots from storage | yes (the server `PermDockProvider` streams one) | — | — | — | — |
 | `usePermDock` | yes | yes | composable | context getter | yes | internal |
 | `usePermission`, `usePermissions` | yes | yes (`getPermission` on the server) | composables | `permission`, `permissions` stores | signal accessors | tool filter |
 | `useFilter` | yes | yes | composable | derived store | signal accessor | — |
@@ -122,7 +123,7 @@ The UI entries expose the same surface under each framework's idiom. A hook that
 | `useSubject` | yes | yes | composable | store | signal accessor | — |
 | `Protected` (with `fallback`, `tenant`) | yes | yes | component | component | component | — |
 | `describe(decision)` | core export, framework-free | same | same | same | same | same |
-| `invalidate()` / `refresh()` | yes | yes (`updateTag` on the server) | yes | yes | yes | re-register |
+| `invalidate()` / `refresh()` | yes | yes (`updateTag` on the app's snapshot tag) | yes | yes | yes | re-register |
 
 ### Naming rules
 

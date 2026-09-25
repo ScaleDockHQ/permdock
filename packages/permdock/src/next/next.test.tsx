@@ -1,4 +1,5 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToString } from 'react-dom/server';
+import { prerender } from 'react-dom/static';
 import { describe, expect, it } from 'vitest';
 
 import { memoryApprovalStore, resolveApproval } from '../approvals/index.ts';
@@ -12,7 +13,7 @@ import {
   policy,
 } from '../fixtures/quick-start.ts';
 import { Protected } from '../react/protected.tsx';
-import { createPermDock } from './index.ts';
+import { cacheLifeFor, createPermDock } from './index.ts';
 
 function subjectState(user: typeof memberUser | null = memberUser) {
   let current: typeof memberUser | null = user;
@@ -299,21 +300,77 @@ describe('permdock/next', () => {
     );
   });
 
-  it('serialises a snapshot through the server PermDockProvider', async () => {
+  it('serialises a snapshot through the server PermDockProvider without blocking', async () => {
     const { PermDockProvider } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const tree = await PermDockProvider({
-      children: (
-        <Protected
-          permission={permissions.post.update}
-          data={ownPost}
-          fallback={<span>locked</span>}
-        >
-          <span>edit</span>
-        </Protected>
-      ),
+    const guard = (
+      <Protected
+        permission={permissions.post.update}
+        data={ownPost}
+        pending={<span>loading</span>}
+        fallback={<span>locked</span>}
+      >
+        <span>edit</span>
+      </Protected>
+    );
+    const shell = renderToString(
+      PermDockProvider({ children: [<nav key="nav">nav</nav>, guard] }),
+    );
+    expect(shell).toContain('nav');
+    expect(shell).toContain('loading');
+    const { prelude } = await prerender(PermDockProvider({ children: guard }));
+    expect(await new Response(prelude).text()).toContain('edit');
+  });
+
+  it('fails closed when the subject cannot be resolved', async () => {
+    const { PermDockProvider } = createPermDock(policy, {
+      subject: () => {
+        throw new Error('no session');
+      },
     });
-    expect(renderToStaticMarkup(tree)).toContain('edit');
+    const { prelude } = await prerender(
+      PermDockProvider({
+        children: (
+          <Protected
+            permission={permissions.post.update}
+            data={ownPost}
+            pending={<span>loading</span>}
+            fallback={<span>locked</span>}
+          >
+            <span>edit</span>
+          </Protected>
+        ),
+      }),
+    );
+    expect(await new Response(prelude).text()).toContain('locked');
+  });
+});
+
+describe('cacheLifeFor', () => {
+  it('uses max for values that never expire', () => {
+    expect(cacheLifeFor(null)).toEqual({ stale: 300 });
+    expect(cacheLifeFor({ issuedAt: 100 })).toEqual({ stale: 300 });
+    expect(cacheLifeFor({ expiresAt: null }, { max: 600 })).toEqual({
+      stale: 600,
+    });
+  });
+
+  it('never serves past expiresAt and reads the clock from issuedAt', () => {
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1120 })).toEqual({
+      stale: 120,
+    });
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 5000 })).toEqual({
+      stale: 300,
+    });
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1010 })).toEqual({
+      stale: 10,
+    });
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 900 })).toEqual({
+      stale: 0,
+    });
+    expect(cacheLifeFor({ expiresAt: 1100 }, { now: 1000, min: 60 })).toEqual({
+      stale: 100,
+    });
   });
 });

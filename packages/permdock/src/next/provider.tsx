@@ -8,7 +8,7 @@ import { compact } from '../core/compact.ts';
 import { PermDockProvider as ClientProvider } from '../react/provider-client.js';
 
 export function renderClientProvider(options: {
-  readonly snapshot: Snapshot | string;
+  readonly snapshotPromise: PromiseLike<Snapshot | string>;
   readonly endpoint: string;
   readonly tenant?: string;
   readonly children: ReactNode;
@@ -16,7 +16,7 @@ export function renderClientProvider(options: {
   return (
     <ClientProvider
       {...compact({
-        snapshot: options.snapshot,
+        snapshotPromise: options.snapshotPromise,
         endpoint: options.endpoint,
         tenant: options.tenant,
       })}

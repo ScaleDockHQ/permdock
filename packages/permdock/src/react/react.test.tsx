@@ -1,6 +1,9 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+import { Suspense } from 'react';
+import { renderToStaticMarkup, renderToString } from 'react-dom/server';
+import { prerender } from 'react-dom/static';
 import { describe, expect, it } from 'vitest';
 
+import { emptySnapshot } from '../core/from-snapshot.ts';
 import { createPermDock } from '../core/permdock.ts';
 import {
   memberUser,
@@ -168,6 +171,84 @@ describe('permdock/react', () => {
     expect(ready.status).toBe('ready');
     expect(ready.allowed).toBe(true);
     expect(calls).toHaveLength(1);
+  });
+
+  it('suspends only the readers of a snapshotPromise', async () => {
+    const snapshot = await memberSnapshot();
+    const never = new Promise<typeof snapshot>(() => {
+      // never settles
+    });
+    const shell = renderToString(
+      <PermDockProvider snapshotPromise={never}>
+        <nav>static nav</nav>
+        <Protected
+          permission={permissions.post.update}
+          data={ownPost}
+          pending={<span>loading</span>}
+        >
+          <span>edit</span>
+        </Protected>
+      </PermDockProvider>,
+    );
+    expect(shell).toContain('static nav');
+    expect(shell).toContain('loading');
+    expect(shell).not.toContain('edit');
+
+    const { prelude } = await prerender(
+      <PermDockProvider snapshotPromise={Promise.resolve(snapshot)}>
+        <Protected
+          permission={permissions.post.update}
+          data={ownPost}
+          pending={<span>loading</span>}
+          fallback={<span>locked</span>}
+        >
+          <span>edit</span>
+        </Protected>
+        <Protected
+          permission={permissions.post.update}
+          data={otherPost}
+          pending={<span>loading</span>}
+          fallback={<span>locked</span>}
+        >
+          <span>edit</span>
+        </Protected>
+      </PermDockProvider>,
+    );
+    const html = await new Response(prelude).text();
+    expect(html).toContain('edit');
+    expect(html).toContain('locked');
+    expect(html).not.toContain('loading');
+  });
+
+  it('fails closed for an unverifiable JWS from a snapshotPromise', async () => {
+    const { prelude } = await prerender(
+      <PermDockProvider snapshotPromise={Promise.resolve('a.b.c')}>
+        <Suspense fallback="loading">
+          <Protected
+            permission={permissions.post.read}
+            data={ownPost}
+            fallback={<span>locked</span>}
+          >
+            <span>read</span>
+          </Protected>
+        </Suspense>
+      </PermDockProvider>,
+    );
+    const html = await new Response(prelude).text();
+    expect(html).toContain('locked');
+  });
+
+  it('adopts each snapshotPromise once', async () => {
+    const snapshot = await memberSnapshot();
+    const store = createClientStore({ snapshot: emptySnapshot() });
+    const first = Promise.resolve(snapshot);
+    store.adopt(snapshot, first);
+    const dock = store.get();
+    expect(dock.can(permissions.post.update, ownPost)).toBe(true);
+    store.adopt(emptySnapshot(), first);
+    expect(store.get()).toBe(dock);
+    store.adopt(emptySnapshot(), Promise.resolve(emptySnapshot()));
+    expect(store.get().can(permissions.post.update, ownPost)).toBe(false);
   });
 
   it('builds the approval resume header', () => {

@@ -22,7 +22,6 @@ import { policy } from '@/policy'
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
   subject: async () => getUser(await cookies()),
   tenant: async () => (await cookies()).get('org')?.value,   // active tenant; accepted only when a membership matches
-  tag: (user, tenant) => `permdock:${user.id}:${tenant ?? '-'}`,  // updateTag() on role or membership change
   onDenied: () => redirect('/forbidden'),   // default assert handler; per-call handlers still run first
 })
 ```
@@ -30,11 +29,10 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 The active tenant usually comes from the URL (`app/[org]/...`); a Server Component or Route Handler passes it explicitly with `getPermDock({ tenant: params.org })`, and the resolver above is the fallback for requests without a segment. Either way the value is a request, not a fact: core keeps it only when `principal.memberships` holds that tenant, otherwise tenant-scoped checks are `denied` with `no-membership` ([tenancy](/docs/concepts/tenancy)).
 
 ```tsx
-// app/[org]/layout.tsx: loads the snapshot once per request and serialises it to the client
+// app/[org]/layout.tsx: never awaits; hooks under it suspend until the snapshot streams in
 import { PermDockProvider } from '@/permdock/server'
-export default async function Layout({ children, params }) {
-  const { org } = await params
-  return <PermDockProvider tenant={org} include={[permissions.post, permissions.billing]}>{children}</PermDockProvider>
+export default function Layout({ children }) {
+  return <PermDockProvider include={[permissions.post, permissions.billing]}>{children}</PermDockProvider>
 }
 
 // app/posts/[id]/page.tsx (RSC), a Server Action or a Route Handler
@@ -55,9 +53,9 @@ import { usePermission, useTenant, useFilter, Protected } from 'permdock/react'
 |---|---|
 | `getPermDock` | Async. Resolves the subject once per request through `React.cache`, builds the request-scoped `PermDock`, returns it. Accepts `{ tenant }` to set the active tenant from a route segment; `(await getPermDock()).tenant(id)` derives another instance without re-resolving. Safe to call from layouts, pages, Server Actions and Route Handlers; concurrent calls in one render share the same instance. |
 | `getPermission` | Async counterpart of `usePermission`: returns `allowed`, `status: 'ready'` and the `Decision`. The server counterparts of the other hooks are methods on the instance: `.tenants()`, `.memberships()`, `.heldRoles()`, `.assignableRoles()`, `.filter()`, `.actions()`. |
-| `PermDockProvider` | Server Component. Awaits the snapshot (optionally scoped with `include`, with `tenant` for the active tenant and `tenants: 'all'` to ship every membership's grants) and renders the client `PermDockProvider` from `permdock/react` with `snapshot`, `endpoint` and `tenant` filled in. |
+| `PermDockProvider` | Server Component that never awaits. It starts the snapshot (optionally scoped with `include`, with `tenant` for the active tenant and `tenants: 'all'` to ship every membership's grants) and renders the client `PermDockProvider` from `permdock/react` with `snapshotPromise`, `endpoint` and `tenant`. The static shell renders around it; only hooks and `<Protected>` under it suspend. A subject that cannot be resolved yields an empty snapshot, so everything renders denied. The snapshot is not cached: for prefetchable permission UI, use the private-cache pattern below. |
+| `cacheLifeFor` | `cacheLifeFor(snapshot, { min, max, now })` returns `{ stale }` for `cacheLife()`: `max` (300) when the snapshot never expires, otherwise the seconds until `expiresAt` clamped to `min` (30). Below `min` it returns the real remainder, so Next.js leaves a nearly expired snapshot out of prefetches. It reads `issuedAt` from the snapshot, not the clock. |
 | `permdockHandler` | Returns `POST` (and `GET` for `.well-known` discovery) implementing the AuthZEN-shaped decision endpoint on top of the same subject resolver; also serves `refresh({ tenant })` snapshot requests, answering from the subject's memberships. |
-| `tag` | Builds the cache tag for the subject's snapshot; receives the active tenant as its second argument. Call `updateTag(tag(user, tenant))` in the Server Action that changes roles or memberships so prefetched shells are refreshed. |
 | `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots` | The shared adapter options: how the active tenant is resolved, a `MembershipSource`, a `RoleSource`, and the three hosted-capability interfaces ([adapters](/docs/adapters), [extension interfaces](/docs/concepts/extension-interfaces)). |
 
 ### Why an explicit factory file and not a Next plugin
@@ -71,16 +69,31 @@ The `next.config.ts` plugin (`createPermDockPlugin`) exists only as a build hook
 ## Request lifecycle
 
 1. A request or RSC render starts. The first call to `getPermDock`, `getPermission` or `PermDockProvider` runs the `subject` resolver inside `React.cache`; the result is memoised for the rest of the render. Server Actions and Route Handlers get their own instance per invocation.
-2. Snapshot. `PermDockProvider` calls the snapshot resolver. The documented pattern wraps it in a function the app author owns:
+2. Snapshot. For permission UI that should be prefetched, the app owns the cache. PermDock never adds `'use cache'` and never reads `headers()` or `cookies()`; `snapshotFor` is a pure function you call inside your own private cache ([0049](/docs/decisions/0049-cache-components-building-blocks)):
 
-```ts
+```tsx
 // src/permdock/snapshot.ts
-import { cacheLife } from 'next/cache'
-export async function loadSnapshot(tenant?: string) {
+import { cacheLife, cacheTag } from 'next/cache'
+import { snapshotFor } from 'permdock'
+import { cacheLifeFor } from 'permdock/next'
+
+export async function loadSnapshot(org: string) {
   'use cache: private'
-  cacheLife({ stale: 300 })           // at least 5 minutes so the App Shell may include it
-  const permdock = await getPermDock({ tenant })
-  return permdock.snapshot({ include: [permissions.post] })
+  const claims = await getClaims()                 // verified locally (JWKS); reads cookies inside the private cache
+  const snapshot = snapshotFor(policy, claims, { tenant: org, include: [permissions.post] })
+  cacheLife(cacheLifeFor(snapshot))                // 30 s minimum for per-link prefetch, 300 s for the App Shell
+  cacheTag(`permdock:${claims?.sub ?? 'anon'}`)
+  return snapshot
+}
+
+// app/[org]/layout.tsx: synchronous, so the layout itself is static
+import { PermDockProvider } from 'permdock/react'
+export default function Layout({ children, params }) {
+  return (
+    <PermDockProvider snapshotPromise={params.then(({ org }) => loadSnapshot(org))}>
+      {children}
+    </PermDockProvider>
+  )
 }
 ```
 
@@ -88,7 +101,7 @@ export async function loadSnapshot(tenant?: string) {
 
    `'use cache: private'` caches per browser session, so session-derived output is allowed into the prefetched App Shell. Anything that reads `cookies()` without it must render behind a `Suspense` boundary or the navigation blocks.
 3. Guards resolve from the shell. Client `Protected` and `usePermission` answer from the prefetched snapshot, so a link to an admin page paints on click. Data-dependent checks (`getPermission(permissions.post.update, post)` where `post` comes from the database) sit under `Suspense` and stream.
-4. Mutations. A Server Action calls `permdock.assert(...)`, performs the write, then `updateTag(tag(user, tenant))` if the write changed roles, memberships or custom roles, which invalidates the private cache and the client refetches. A role-assignment action additionally checks `permissions.member.assignRole` and that the new role is in `permdock.assignableRoles()` before writing ([tenancy](/docs/concepts/tenancy)).
+4. Mutations. A Server Action calls `permdock.assert(...)`, performs the write, then `updateTag('permdock:<user>')` (the tag your loader set) if the write changed roles, memberships or custom roles, which invalidates the private cache and the client refetches. A Route Handler, such as a billing webhook, uses `revalidateTag(tag, { expire: 0 })` instead, because `updateTag` works only in Server Actions. A role-assignment action additionally checks `permissions.member.assignRole` and that the new role is in `permdock.assignableRoles()` before writing ([tenancy](/docs/concepts/tenancy)).
 5. Closure grants. `usePermission` posts batched `evaluations` to `app/api/permdock/route.ts`; `permdockHandler` resolves the same subject, validates the posted data at the boundary and answers.
 6. Segments that must not be prefetched with permission UI export `instant = false`.
 
@@ -176,7 +189,6 @@ Three rules. The subject comes from the verified bearer token, never from the ap
 
 ## Open questions
 
-- Whether a library entry can carry `'use cache: private'` itself or whether the directive must live in app code. The docs assume app code until verified; the adapter may ship a `defineSnapshotLoader` helper that documents the `cacheLife` floor.
 - Build-phase behaviour: returning an anonymous subject during `next build` (Kilpi's `NEXT_PHASE` workaround) versus requiring the snapshot loader to be private-cached, which already avoids `cookies()` at build time.
 - Whether `getPermDock` should accept a `subject` override for Route Handlers authenticated with a bearer token instead of cookies.
 - Whether the `tenant` option should read `params` automatically for a conventional `[org]` or `[tenant]` segment, or stay explicit (`getPermDock({ tenant })` and the `tenant` prop on `PermDockProvider`) as documented here.

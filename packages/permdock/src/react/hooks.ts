@@ -18,12 +18,19 @@ import type {
   UseRolesOptions,
 } from './types.ts';
 
-import { PermDockStoreContext } from './context.ts';
+import {
+  PermDockSnapshotPromiseContext,
+  PermDockStoreContext,
+} from './context.ts';
 
 function useStore(): ClientStore {
   const store = use(PermDockStoreContext);
   if (store === null) {
     throw new Error('PermDock: hooks require <PermDockProvider>.');
+  }
+  const pending = use(PermDockSnapshotPromiseContext);
+  if (pending !== null) {
+    store.adopt(use(pending), pending);
   }
   return store;
 }

@@ -147,7 +147,6 @@ Also `usePermissions`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useA
 import { createPermDock } from 'permdock/next'
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
   subject: async () => getUser(await cookies()),
-  tag: (user) => `permdock:${user.id}`,
 })
 
 // app/posts/[id]/page.tsx

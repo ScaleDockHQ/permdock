@@ -60,8 +60,17 @@ export type TenantView = {
 
 export type FilterResult<T> = readonly T[] & { readonly partial: boolean };
 
-export type PermDockProviderProps = {
-  readonly snapshot: Snapshot | string;
+export type PermDockProviderProps = (
+  | { readonly snapshot: Snapshot | string; readonly snapshotPromise?: never }
+  | {
+      /**
+       * An unawaited snapshot from a Server Component. Hooks suspend until it resolves, so only
+       * the components that read permissions wait. A rejection reaches the nearest error boundary.
+       */
+      readonly snapshotPromise: PromiseLike<Snapshot | string>;
+      readonly snapshot?: never;
+    }
+) & {
   readonly endpoint?: string;
   readonly approvals?: string;
   readonly tenant?: string;

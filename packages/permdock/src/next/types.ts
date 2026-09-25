@@ -20,7 +20,6 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = {
   readonly tenant?:
     | string
     | (() => string | undefined | Promise<string | undefined>);
-  readonly tag?: (user: TUser, tenant: string | undefined) => string;
   readonly onDenied?: (decision: Decision) => never | void;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
@@ -63,8 +62,9 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     permission: Permission,
     data?: unknown,
   ) => Promise<ServerPermissionState>;
+  /** Never awaits: passes an unawaited snapshot to the client provider, whose hooks suspend. */
   readonly PermDockProvider: (
     props: ServerPermDockProviderProps,
-  ) => Promise<ReactElement>;
+  ) => ReactElement;
   readonly permdockHandler: () => PermDockHandler;
 };

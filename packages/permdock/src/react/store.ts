@@ -63,6 +63,11 @@ export type ClientStore = {
   permissionState(permission: Permission, data?: unknown): PermissionState;
   requestApproval(decision: Decision, note?: string): Promise<void>;
   replace(value: unknown): void;
+  /**
+   * Hydrate from a resolved `snapshotPromise` during render. Idempotent per `source`;
+   * subscribers are notified in a microtask, never synchronously inside render.
+   */
+  adopt(value: Snapshot | string, source: object): void;
   snapshot(): Snapshot;
 };
 
@@ -90,9 +95,14 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   let instance: PermDock = fromSnapshot(snapshot, compact({ tenant }));
   let cached: ClientPermDock;
   let verifying = false;
+  let silent = false;
+  let adopted: object | undefined;
 
   const emit = (): void => {
     cached = wrap(instance);
+    if (silent) {
+      return;
+    }
     for (const listener of listeners) {
       listener();
     }
@@ -372,13 +382,17 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     return client;
   };
 
-  if (typeof options.snapshot === 'string' && isJws(options.snapshot)) {
-    cached = wrap(instance);
-    void bootJws(options.snapshot);
-  } else {
-    applyParsed(options.snapshot);
-    cached = wrap(instance);
-  }
+  const boot = (value: Snapshot | string): void => {
+    if (typeof value === 'string' && isJws(value)) {
+      cached = wrap(instance);
+      void bootJws(value);
+    } else {
+      applyParsed(value);
+      cached = wrap(instance);
+    }
+  };
+
+  boot(options.snapshot);
 
   return {
     get(): ClientPermDock {
@@ -393,6 +407,22 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     permissionState,
     replace(value: unknown): void {
       applyParsed(value);
+    },
+    adopt(value: Snapshot | string, source: object): void {
+      if (adopted === source) {
+        return;
+      }
+      adopted = source;
+      answers.clear();
+      inflight.clear();
+      queued = [];
+      silent = true;
+      try {
+        boot(value);
+      } finally {
+        silent = false;
+      }
+      queueMicrotask(emit);
     },
     snapshot(): Snapshot {
       return snapshot;

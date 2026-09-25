@@ -112,7 +112,7 @@
     "useSubject",
     "useTenant"
   ],
-  "./next": ["createPermDock"],
+  "./next": ["cacheLifeFor", "createPermDock"],
   "./server": [
     "InvalidSignatureError",
     "PROBLEM_BASE",

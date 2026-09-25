@@ -1,6 +1,7 @@
 import { cache, type ReactElement } from 'react';
 
 import type { Decision } from '../core/decision.ts';
+import type { Snapshot } from '../core/interfaces.ts';
 import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy, PolicyVocabulary } from '../core/policy.ts';
@@ -15,6 +16,7 @@ import type {
 } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { emptySnapshot } from '../core/from-snapshot.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createHandler } from './handler.ts';
@@ -146,23 +148,24 @@ export function createPermDock<
     }
   };
 
-  const PermDockProvider = async (
+  const PermDockProvider = (
     props: ServerPermDockProviderProps,
-  ): Promise<ReactElement> => {
-    const dock = await getPermDock(
+  ): ReactElement => {
+    const snapshotPromise = getPermDock(
       props.tenant === undefined ? undefined : { tenant: props.tenant },
-    );
-    const snapshot = await Promise.resolve(
-      dock.snapshot(
-        compact({
-          include: props.include,
-          tenants: props.tenants,
-        }),
-      ),
-    );
+    )
+      .then((dock): Snapshot | string | Promise<string> =>
+        dock.snapshot(
+          compact({
+            include: props.include,
+            tenants: props.tenants,
+          }),
+        ),
+      )
+      .catch((): Snapshot => emptySnapshot());
     return renderClientProvider(
       compact({
-        snapshot,
+        snapshotPromise,
         endpoint: props.endpoint ?? options.endpoint ?? '/api/permdock',
         tenant: props.tenant,
         children: props.children,

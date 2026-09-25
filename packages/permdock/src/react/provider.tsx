@@ -3,15 +3,20 @@ import { type ReactElement, useMemo } from 'react';
 import type { PermDockProviderProps } from './types.ts';
 
 import { compact } from '../core/compact.ts';
-import { PermDockStoreContext } from './context.ts';
+import { emptySnapshot } from '../core/from-snapshot.ts';
+import {
+  PermDockSnapshotPromiseContext,
+  PermDockStoreContext,
+} from './context.ts';
 import { createClientStore } from './store.ts';
 
 export function PermDockProvider(props: PermDockProviderProps): ReactElement {
+  const promise = props.snapshotPromise ?? null;
   const store = useMemo(
     () =>
       createClientStore(
         compact({
-          snapshot: props.snapshot,
+          snapshot: props.snapshot ?? emptySnapshot(),
           endpoint: props.endpoint,
           approvals: props.approvals,
           tenant: props.tenant,
@@ -33,6 +38,10 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
     ],
   );
   return (
-    <PermDockStoreContext value={store}>{props.children}</PermDockStoreContext>
+    <PermDockStoreContext value={store}>
+      <PermDockSnapshotPromiseContext value={promise}>
+        {props.children}
+      </PermDockSnapshotPromiseContext>
+    </PermDockStoreContext>
   );
 }

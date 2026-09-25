@@ -16,7 +16,30 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
   });
 ```
 
-Guard with `getPermission(permissions.post.update, post)` or `assert`. Client components use `permdock/react` inside the server `PermDockProvider`.
+Guard with `getPermission(permissions.post.update, post)` or `assert`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise` and only permission hooks suspend.
+
+With `cacheComponents`, when permission UI (nav items, row actions) must be prefetched, the app owns the cache. Never put `'use cache'` inside PermDock calls, and never read `headers()` / `cookies()` in a function you mean to cache outside `'use cache: private'`:
+
+```tsx
+// src/permdock/snapshot.ts
+import { cacheLife, cacheTag } from 'next/cache';
+import { snapshotFor } from 'permdock';
+import { cacheLifeFor } from 'permdock/next';
+
+export async function loadSnapshot(org: string) {
+  'use cache: private';
+  const claims = await getClaims(); // verified locally against JWKS
+  const snapshot = snapshotFor(policy, claims, { tenant: org });
+  cacheLife(cacheLifeFor(snapshot));
+  cacheTag(`permdock:${claims?.sub ?? 'anon'}`);
+  return snapshot;
+}
+
+// app/[org]/layout.tsx: keep it synchronous
+<PermDockProvider snapshotPromise={params.then(({ org }) => loadSnapshot(org))}>
+```
+
+After a role change: `updateTag('permdock:<user>')` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision).
 
 ## Hono — `permdock/hono`
 

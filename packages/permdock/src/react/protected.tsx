@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, Suspense } from 'react';
 
 import type { Decision } from '../core/decision.ts';
 import type { Permission } from '../core/permissions.ts';
@@ -7,6 +7,17 @@ import type { ClientStatus, ProtectedProps } from './types.ts';
 import { usePermission, usePermDock } from './hooks.ts';
 
 export function Protected(props: ProtectedProps): ReactNode {
+  if (props.pending === undefined) {
+    return <Guard {...props} />;
+  }
+  return (
+    <Suspense fallback={props.pending}>
+      <Guard {...props} />
+    </Suspense>
+  );
+}
+
+function Guard(props: ProtectedProps): ReactNode {
   const root = usePermDock();
   const local = usePermission(props.permission, props.data);
   const run = (dock: {

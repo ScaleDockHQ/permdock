@@ -167,7 +167,7 @@ A snapshot is a point-in-time view. Three things refresh it:
 
 | Trigger | Mechanism |
 | --- | --- |
-| Role or grant change on the server (Next.js) | `updateTag(tag(user))` where `tag` is the function you gave `createPermDock` from `permdock/next`; the App Shell prefetch is refreshed and the client receives a new snapshot on the next navigation |
+| Role or grant change on the server (Next.js) | `updateTag('permdock:<user>')` in a Server Action (or `revalidateTag(tag, { expire: 0 })` in a Route Handler), where the tag is the one your `'use cache: private'` loader set with `cacheTag`; the App Shell prefetch is refreshed and the client receives a new snapshot on the next navigation |
 | Identity provider signal | `permdock/ssf` receives a CAEP `session-revoked`, `credential-change` or `assurance-level-change` event and calls the same tag update, so staleness is bounded by the IdP, not by a TTL ([Shared Signals](/docs/standards/shared-signals-caep)) |
 | Client-side knowledge | `permdock.invalidate(permissions.post)` drops endpoint answers under `post.*` and marks snapshot-derived answers `'stale'` until the provider refreshes |
 
@@ -175,7 +175,7 @@ A snapshot is a point-in-time view. Three things refresh it:
 
 ## Next.js and Instant Navigations
 
-Next.js 16.3 puts session-derived output in the prefetched App Shell only when it is produced inside `'use cache: private'` with a stale time of at least five minutes ([guide](https://nextjs.org/docs/app/guides/instant-navigation)). The Next.js adapter's `PermDockProvider` reads the snapshot through a resolver you wrap that way, so guards resolve from the shell without blocking, and `tag` gives `updateTag` a handle for invalidation. Anything the snapshot cannot answer streams under Suspense with `status: 'pending'`. The `next` example app smokes granted and denied UI with Playwright. See the [Next.js adapter](/docs/adapters/next).
+Next.js 16.3 puts session-derived output in the prefetched App Shell only when it is produced inside `'use cache: private'` with a stale time of at least five minutes ([guide](https://nextjs.org/docs/app/guides/instant-navigation)). Wrap `snapshotFor` in a function you mark that way, size its lifetime with `cacheLife(cacheLifeFor(snapshot))`, tag it with `cacheTag`, and pass the unawaited result to `PermDockProvider` from `permdock/react` as `snapshotPromise`. Guards then resolve from the shell without blocking, and only the components that read permissions suspend on a cold navigation. The server `PermDockProvider` from `permdock/next` also streams a `snapshotPromise` but does not cache it. Anything the snapshot cannot answer streams under Suspense with `status: 'pending'`. The `next` example app smokes granted and denied UI with Playwright. See the [Next.js adapter](/docs/adapters/next).
 
 ## React Native and Expo Router
 

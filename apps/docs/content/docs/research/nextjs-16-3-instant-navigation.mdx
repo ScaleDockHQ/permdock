@@ -35,7 +35,7 @@ The resolution is the split PermDock already has for other reasons: the policy i
 
 ### The snapshot resolver is the privately cached unit
 
-`createPermDock` from `permdock/next` takes an async `subject` resolver that reads the session and a `tag` function that derives a cache tag from the user:
+`createPermDock` from `permdock/next` takes an async `subject` resolver that reads the session:
 
 ```ts
 // src/permdock/server.ts (server-only)
@@ -43,11 +43,10 @@ import { createPermDock } from 'permdock/next'
 
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
   subject: async () => getUser(await cookies()),
-  tag: (user) => `permdock:${user.id}`,
 })
 ```
 
-The snapshot computation is documented as the function the app wraps in `"use cache: private"` with a `cacheLife` profile of at least five minutes, so that `PermDockProvider` in the root layout can serialise a snapshot that is already in the App Shell. Guards that only need roles and portable conditions (`usePermission(permissions.admin.access)`, `Protected` around a navigation item) then resolve from the prefetched shell without any server work on click.
+The snapshot computation is documented as the function the app wraps in `"use cache: private"`, calling the pure `snapshotFor` and `cacheLife(cacheLifeFor(snapshot))` (30 seconds minimum for per-link prefetch, five minutes for the App Shell), then passing the unawaited result to the client provider as `snapshotPromise` ([0049](/docs/decisions/0049-cache-components-building-blocks)). Guards that only need roles and portable conditions (`usePermission(permissions.admin.access)`, `Protected` around a navigation item) then resolve from the prefetched shell without any server work on click.
 
 Open question recorded during research: whether a library can emit the `"use cache"` directive on behalf of the consuming app. The directive is compiler-level and tied to the app's own source, and it was not established whether Next.js processes directives inside `node_modules`. The safe design is for the app author to write the wrapper and for PermDock to document the exact shape and the `cacheLife` floor. This stays an open question on the [next adapter](/docs/adapters/next) page until the adapter is implemented.
 
@@ -84,7 +83,7 @@ async function Editor({ params }) {
 
 ### Invalidation uses tags, not TTLs
 
-The `tag` option exists so role changes can call `updateTag('permdock:<user>')` and refresh that user's prefetched shells. The same hook is what the [ssf adapter](/docs/adapters/ssf) calls when an identity provider sends a CAEP `session-revoked` or `credential-change` event, which turns "stale for five minutes" into "stale until the IdP says so" ([agent standards](/docs/research/agent-standards-2026)).
+The app's loader calls `cacheTag('permdock:<user>')`, so role changes can call `updateTag('permdock:<user>')` and refresh that user's prefetched shells. An earlier draft put a `tag` option on `createPermDock`; it was never read and was removed in favour of the app-owned tag. The same hook is what the [ssf adapter](/docs/adapters/ssf) calls when an identity provider sends a CAEP `session-revoked` or `credential-change` event, which turns "stale for five minutes" into "stale until the IdP says so" ([agent standards](/docs/research/agent-standards-2026)).
 
 ### Tests prove the guards are instant
 
