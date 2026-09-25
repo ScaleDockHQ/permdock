@@ -1,7 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { parseSnapshot } from 'permdock';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -15,6 +18,15 @@ import {
 } from './graph.ts';
 
 const RSC = fileURLToPath(new URL('./fixtures/rsc/', import.meta.url));
+
+const { createFromNodeStream } = createRequire(import.meta.url)(
+  'next/dist/compiled/react-server-dom-webpack/client.node',
+) as {
+  readonly createFromNodeStream: (
+    stream: Readable,
+    manifest: Readonly<Record<string, unknown>>,
+  ) => PromiseLike<unknown>;
+};
 
 function contextChunks(files: readonly string[]): readonly string[] {
   return files.filter((file) => /[/\\]context-[^/\\]+\.js$/u.test(file));
@@ -87,6 +99,23 @@ describe('react-server build', () => {
       }
     }
     expect(leaks).toEqual([]);
+  });
+
+  it('round-trips a snapshotFor() snapshot through React Flight', async () => {
+    const result = renderFlight('snapshot');
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    const decoded = (await createFromNodeStream(
+      Readable.from([result.flight]),
+      {
+        moduleMap: {},
+        serverModuleMap: null,
+        moduleLoading: null,
+      },
+    )) as { readonly snapshot: unknown };
+    expect(decoded.snapshot).toEqual(result.snapshot);
+    expect(parseSnapshot(decoded.snapshot)).toEqual(result.snapshot);
   });
 
   it('marks every React client entry with "use client"', () => {

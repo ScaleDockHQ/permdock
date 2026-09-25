@@ -48,6 +48,7 @@
     "0045-drop-subject-ref-alias",
     "0046-supabase-middleware-entry",
     "0047-approver-eligibility",
-    "0048-membership-sink-event"
+    "0048-membership-sink-event",
+    "0049-cache-components-building-blocks"
   ]
 }

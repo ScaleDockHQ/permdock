@@ -1,0 +1,48 @@
+---
+title: "0049: Cache Components building blocks"
+description: PermDock ships pure, cacheable pieces (snapshotFor, mayAccess, a promise-based provider, cacheLifeFor, subjectFromSupabaseSession) and leaves every cache directive to the app.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+Next.js 16.3 Cache Components prerender a static shell, stream dynamic holes and prefetch per-link runtime data from `'use cache: private'` entries (`cacheLife({ stale })` of at least 30 seconds). A multi-org SaaS wants its nav, row actions and upsells to render from permissions without blocking that shell.
+
+The Next adapter got in the way in four places:
+
+- The server `PermDockProvider` imported the React context chunk directly, so any Server Component that rendered it crashed under the `react-server` condition (`createContext` is not exported there).
+- The only way to get a snapshot was `createPermDock(...).snapshot()`, which reads the clock and may await sources. That makes it awkward inside a cached function.
+- The provider needed a resolved snapshot, so the layout that rendered it blocked its subtree.
+- The documented proxy check ran a full decision, which a proxy cannot do without the row.
+
+## Decision
+
+1. **PermDock never adds `'use cache'`, and never calls `headers()` or `cookies()`.** The app writes the directive, its `cacheLife` and `cacheTag`. PermDock only ships pure functions of their arguments.
+2. **`snapshotFor(policy, user, options)` is a root export.** It is synchronous and deterministic: the same inputs and `now` give the same `Snapshot`. It shares its builder with `permdock.snapshot()`. Its options are `tenant`, `memberships` (database mode: replaces claim memberships), `customRoles`, `plans`, `include`, `tenants` and `now`. It throws a `TypeError` when the policy's `subject` or `context` is async, because a promise cannot be cached as a snapshot.
+3. **`mayAccess(policy, user, permission, { tenant })` is the optimistic proxy check.** It returns `false` only when the declared roles provably lack the permission in that tenant: no allow grant matches, or an unconditional portable deny matches. Row conditions, plans, custom roles and database-mode memberships (no memberships in the claims) all count as "may". It never throws. The page still decides.
+4. **`permdock/react` accepts `snapshotPromise`,** a `Promise<Snapshot>` passed from a Server Component without awaiting. Hooks suspend through `use()`, so only the components that read permissions wait. `<Protected pending>` becomes the Suspense fallback.
+5. **`cacheLifeFor(snapshot, { min, max, now })` in `permdock/next`** returns `{ stale }` for `cacheLife()`, clamped between 30 and 300 seconds by default and never past `expiresAt`.
+6. **`subjectFromSupabaseSession(session, options)` in `permdock/supabase`** reads a structural `{ kind, claims }` shape, for example better-supabase's `AuthSession`. PermDock imports nothing from it.
+7. **The server provider is a client reference.** `permdock/next` imports `PermDockProvider` from a separate `"use client"` entry (`permdock/react/provider-client`) that tsdown keeps external. `tests/bundle` renders it to React Flight under `react-server`.
+
+## Consequences
+
+- One snapshot shape crosses RSC props, `'use cache: private'` entries, `structuredClone` and `postMessage`. `tests/bundle` round-trips it through Flight.
+- An app can cache `snapshotFor` per session and tag it (`permdock:<userId>`), then drop it with `updateTag` from a Server Action or `revalidateTag` from a webhook.
+- `mayAccess` can let a user through who is then denied by the page. That is intended: it only saves a render for users who can never pass.
+- The unused `tag` option on `permdock/next` is removed.
+
+## Alternatives considered
+
+- **Ship a `getPermDockSnapshot()` that calls `'use cache: private'` internally.** Rejected: the directive belongs to the app, and a library cannot know the right `cacheLife` or tag.
+- **Make the proxy check exact.** Rejected: a proxy has no row, no fresh memberships and no plan lookup. An exact answer there would be wrong in both directions.
+- **Depend on better-supabase for its session type.** Rejected: the contract between the two is JWT claims and snapshots, both plain data.
+
+## Related
+
+- [0031: Snapshot contents](/docs/decisions/0031-snapshot-contents)
+- [Snapshots](/docs/concepts/snapshots)
+- [Next.js](/docs/adapters/next)

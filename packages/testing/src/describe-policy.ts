@@ -1,5 +1,6 @@
 import {
   createPermDock,
+  fromSnapshot,
   listPermissions,
   type CreatePermDockOptions,
   type Decision,
@@ -29,6 +30,11 @@ export type DescribePolicyConfig<TSubject> = {
   >;
   readonly exhaustive?: boolean;
   readonly options?: CreatePermDockOptions;
+  /**
+   * Also assert every granted or denied cell against `fromSnapshot(permdock.snapshot())`,
+   * the client a Server Component hands down. Closures cannot cross a snapshot and deny on the client.
+   */
+  readonly snapshot?: boolean;
 };
 
 function isOutcomeCell(value: unknown): value is MatrixCell {
@@ -72,6 +78,25 @@ function assertCell(decision: Decision, cell: MatrixCell): void {
       cell.alternatives,
     );
   }
+}
+
+function assertSnapshotCell(
+  instance: Awaited<ReturnType<typeof createPermDock>>,
+  permission: unknown,
+  data: unknown,
+  cell: MatrixCell,
+): void {
+  const outcome = expectedOutcome(cell);
+  if (outcome === 'approval-required') {
+    return;
+  }
+  const client = fromSnapshot(
+    JSON.parse(JSON.stringify(instance.snapshot())) as never,
+  );
+  expect(
+    client.can(permission as never, data as never),
+    'snapshot client disagrees with the server',
+  ).toBe(outcome === 'granted');
 }
 
 export function describePolicy<TSubject>(
@@ -130,6 +155,9 @@ export function describePolicy<TSubject>(
                 instance.decide(permission as never, data as never),
                 cell,
               );
+              if (config.snapshot === true) {
+                assertSnapshotCell(instance, permission, data, cell);
+              }
             });
           }
           return;
@@ -152,6 +180,14 @@ export function describePolicy<TSubject>(
                 instance.decide(permission as never, fixture as never),
                 cell as MatrixCell,
               );
+              if (config.snapshot === true) {
+                assertSnapshotCell(
+                  instance,
+                  permission,
+                  fixture,
+                  cell as MatrixCell,
+                );
+              }
             });
           }
         }

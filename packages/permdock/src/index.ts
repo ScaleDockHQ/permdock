@@ -68,6 +68,9 @@ export type {
 } from './core/arazzo.ts';
 export { emptySnapshot, fromSnapshot } from './core/from-snapshot.ts';
 export { createPermDock, parseSnapshot } from './core/permdock.ts';
+export { mayAccess } from './core/may-access.ts';
+export { snapshotFor } from './core/snapshot-for.ts';
+export type { SnapshotForOptions } from './core/snapshot-for.ts';
 export type {
   CreatePermDockOptions,
   DecideOptions,

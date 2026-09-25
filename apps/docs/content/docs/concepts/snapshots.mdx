@@ -20,6 +20,27 @@ const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).sna
 
 `snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([0031](/docs/decisions/0031-snapshot-contents), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `parseSnapshot(json)` is the public reader.
 
+### Without an instance: `snapshotFor`
+
+`snapshotFor(policy, user, options)` builds the same snapshot without creating an instance. It is synchronous and deterministic: pass `now` and the same inputs always give the same JSON, which makes it safe to call inside a function the app marks `'use cache: private'`. PermDock never adds that directive itself ([0049](/docs/decisions/0049-cache-components-building-blocks)).
+
+```ts
+import { snapshotFor } from 'permdock'
+
+const snapshot = snapshotFor(policy, claims, {
+  tenant: org,                    // the org in the URL; ignored without a matching membership
+  plans: [orgPlan],               // plans are per tenant; pass the active org's plan
+  customRoles: orgRoles,          // CustomRole[] loaded by the app, filtered to the subject's orgs
+  memberships: rowsFromDatabase,  // database mode: replaces the memberships in the claims
+})
+```
+
+It throws a `TypeError` when the policy's `subject` or `context` mapper is async, because a cached function must return the snapshot, not a promise. Load async inputs first and pass them as options.
+
+### Optimistic checks: `mayAccess`
+
+`mayAccess(policy, user, permission, { tenant })` answers "could this user ever pass?" from the claims alone, for a proxy or middleware that has no row. It returns `false` only when no declared role the subject holds in that tenant grants the permission, or when an unconditional deny matches. Row conditions, plan gates, custom roles and claims without memberships all return `true`, and the page makes the real decision.
+
 ### Simulated snapshots
 
 `simulate({ roles, memberships, tenant }).snapshot()` produces a snapshot for a hypothetical subject ("view as a Globex viewer"). It carries `simulated: true`; the decision endpoint and `approvalsHandler` refuse requests whose snapshot is simulated, so a preview can render every guard but can never produce a real token or mutation. Producing one is itself a permission you declare (for example `permissions.admin.previewAs`).

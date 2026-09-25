@@ -5,6 +5,7 @@ import type {
   DecisionSink,
   LimitStore,
   RoleSource,
+  Snapshot,
 } from './interfaces.ts';
 import type { DecideOptions, PermDock, WhereResult } from './permdock.ts';
 import type { Permission } from './permissions.ts';
@@ -80,10 +81,11 @@ function heldRoleNames(subject: Subject, tenant?: string): readonly string[] {
   return [...names];
 }
 
-function collectSnapshotGrants(
+export function collectSnapshotGrants(
   policy: Policy,
   subject: Subject,
   customRoles: readonly CustomRole[],
+  now: number = nowSeconds(),
 ): readonly { readonly grant: Grant; readonly membership?: Membership }[] {
   const declared = declaredRoleNames(policy);
   const global = expandRoleNames(
@@ -98,7 +100,6 @@ function collectSnapshotGrants(
       matchingRoles.add(name);
     }
   }
-  const now = nowSeconds();
   const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
   for (const grant of grantList(policy)) {
     const resource = getResource(policy.permissions, grant.permission.resource);
@@ -147,6 +148,38 @@ function collectSnapshotGrants(
     );
   }
   return out;
+}
+
+export type SnapshotInclude = readonly (
+  | Permission
+  | { readonly [key: string]: unknown }
+)[];
+
+/** The one path from a resolved subject to a `Snapshot`; pure apart from the default clock. */
+export function snapshotOf(
+  policy: Policy,
+  subject: Subject,
+  options: {
+    readonly customRoles: readonly CustomRole[];
+    readonly include?: SnapshotInclude;
+    readonly tenants?: 'all';
+    readonly simulated?: boolean;
+    readonly now?: number;
+  },
+): Snapshot {
+  const now = options.now ?? nowSeconds();
+  return buildSnapshot(
+    compact<Parameters<typeof buildSnapshot>[0]>({
+      subject,
+      roles: heldRoleNames(subject, subject.principal?.tenant),
+      grants: collectSnapshotGrants(policy, subject, options.customRoles, now),
+      include: includePrefixes(options.include),
+      tenants: options.tenants,
+      simulated: options.simulated,
+      now: Math.floor(now),
+      vocabulary: policy.vocabulary,
+    }),
+  );
 }
 
 export function buildInstance(
@@ -486,15 +519,14 @@ export function buildInstance(
       );
     }) as PermDock['simulate'],
     snapshot(options) {
-      const snapshot = buildSnapshot(
-        compact<Parameters<typeof buildSnapshot>[0]>({
-          subject,
-          roles: heldRoleNames(subject, subject.principal?.tenant),
-          grants: collectSnapshotGrants(policy, subject, envBase.customRoles),
-          include: includePrefixes(options?.include),
+      const snapshot = snapshotOf(
+        policy,
+        subject,
+        compact<Parameters<typeof snapshotOf>[2]>({
+          customRoles: envBase.customRoles,
+          include: options?.include,
           tenants: options?.tenants,
           simulated: envBase.simulated,
-          vocabulary: policy.vocabulary,
         }),
       );
       if (options?.signer !== undefined) {

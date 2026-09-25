@@ -94,6 +94,7 @@ const ownPost = { id: 'p1', authorId: 'u1', orgId: 'o1', published: false };
 const otherPost = { id: 'p2', authorId: 'u9', orgId: 'o1', published: true };
 
 describePolicy(policy, {
+  snapshot: true,
   subjects: {
     anonymous: null,
     member: { id: 'u1', orgId: 'o1', roles: ['member'] },
@@ -162,6 +163,87 @@ describePolicy(sqlFunctionPolicy, {
     [permissions.post.read.key]: {
       ownPost: { member: 'granted', other: 'denied' },
       otherPost: { member: 'denied', other: 'granted' },
+    },
+  },
+});
+
+type OrgUser = {
+  readonly id: string;
+  readonly plans: readonly string[];
+  readonly memberships: readonly {
+    readonly tenant: string;
+    readonly roles: readonly string[];
+  }[];
+};
+
+const orgRoles = defineRoles({
+  member: { on: 'tenant' },
+  admin: { on: 'tenant' },
+});
+const orgPlans = definePlans({ free: {}, pro: {} });
+const orgPolicy = definePolicy(
+  { permissions, roles: orgRoles, plans: orgPlans },
+  {
+    scopes: { tenant: { key: 'orgId' } },
+    subject: (user: OrgUser | null) => user,
+    grants: [
+      allow(permissions.post.update, {
+        to: orgRoles.member,
+        where: { authorId: principal.id },
+      }),
+      allow(permissions.post.update, { to: orgRoles.admin }),
+      allow(permissions.post.publish, { to: [orgRoles.admin, orgPlans.pro] }),
+    ],
+  },
+);
+
+describePolicy(orgPolicy, {
+  exhaustive: false,
+  snapshot: true,
+  options: { tenant: 'o1' },
+  subjects: {
+    adminHere: {
+      id: 'u2',
+      plans: ['pro'],
+      memberships: [
+        { tenant: 'o1', roles: ['admin'] },
+        { tenant: 'o2', roles: ['member'] },
+      ],
+    },
+    adminElsewhere: {
+      id: 'u3',
+      plans: ['pro'],
+      memberships: [
+        { tenant: 'o1', roles: ['member'] },
+        { tenant: 'o2', roles: ['admin'] },
+      ],
+    },
+    stranger: {
+      id: 'u4',
+      plans: ['pro'],
+      memberships: [{ tenant: 'o2', roles: ['admin'] }],
+    },
+  },
+  fixtures: { ownPost: { ...ownPost, authorId: 'u3' }, otherPost },
+  matrix: {
+    [permissions.post.update.key]: {
+      ownPost: {
+        adminHere: 'granted',
+        adminElsewhere: 'granted',
+        stranger: 'denied',
+      },
+      otherPost: {
+        adminHere: 'granted',
+        adminElsewhere: 'denied',
+        stranger: 'denied',
+      },
+    },
+    [permissions.post.publish.key]: {
+      otherPost: {
+        adminHere: 'granted',
+        adminElsewhere: 'denied',
+        stranger: 'denied',
+      },
     },
   },
 });

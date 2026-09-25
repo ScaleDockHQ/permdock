@@ -99,9 +99,8 @@ async function main(mode: string | undefined): Promise<object> {
     };
   }
   if (mode === 'snapshot') {
-    const { createPermDock } = await import('permdock');
-    const dock = await createPermDock(policy, user);
-    const snapshot = dock.snapshot();
+    const { snapshotFor } = await import('permdock');
+    const snapshot = snapshotFor(policy, user);
     return { snapshot, flight: await flight({ snapshot }) };
   }
   throw new Error(`unknown mode ${String(mode)}`);

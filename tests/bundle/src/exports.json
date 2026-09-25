@@ -33,6 +33,7 @@
     "listPermissions",
     "listPlans",
     "listRoles",
+    "mayAccess",
     "membershipEvent",
     "memoryLimitStore",
     "memoryRoleSource",
@@ -51,6 +52,7 @@
     "separationConflicts",
     "signDecisionBatch",
     "simulateArazzo",
+    "snapshotFor",
     "sqlFunction",
     "toCloudEvent",
     "writable"
