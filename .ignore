@@ -1,0 +1,6 @@
+# Search-only exclusions (ripgrep and tools built on it); git still tracks these.
+# Vendored agent skills: .cursor/skills and .claude/skills symlink into .agents/skills,
+# so every match would otherwise appear three times. Skills load by path, not by search.
+.agents/skills/
+.cursor/skills/
+.claude/skills/
