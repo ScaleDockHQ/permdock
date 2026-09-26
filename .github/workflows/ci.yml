@@ -31,11 +31,12 @@ jobs:
           cache: true
           require-lockfile: true
 
-      - name: Check
-        run: pnpm run check
-
+      # Type-aware lint resolves workspace packages through their dist/ declarations.
       - name: Build
         run: pnpm run build
+
+      - name: Check
+        run: pnpm run check
 
       - name: Typecheck matrix
         run: |
