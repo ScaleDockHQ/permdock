@@ -1,8 +1,8 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v2.json",
   "version": 2,
-  "generatedAt": "2026-09-26T00:37:04.404Z",
-  "generator": "@permdock/cli@0.1.0",
+  "generatedAt": "2026-09-26T11:14:22.739Z",
+  "generator": "@permdock/cli@0.2.0",
   "resources": {
     "project": {
       "id": "id",
