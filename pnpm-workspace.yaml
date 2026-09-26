@@ -9,22 +9,22 @@ packages:
   - tests/types/*
 
 catalog:
-  '@ai-sdk/react': 4.0.108
-  '@anthropic-ai/claude-agent-sdk': 0.3.274
+  '@ai-sdk/react': 4.0.115
+  '@anthropic-ai/claude-agent-sdk': 0.3.280
   '@modelcontextprotocol/client': 2.1.0
   '@modelcontextprotocol/server': 2.1.0
   '@openai/agents': 0.18.0
-  '@nestjs/common': 12.0.3
-  '@nestjs/core': 12.0.3
-  '@nestjs/platform-express': 12.0.3
-  '@nestjs/platform-fastify': 12.0.3
+  '@nestjs/common': 12.1.0
+  '@nestjs/core': 12.1.0
+  '@nestjs/platform-express': 12.1.0
+  '@nestjs/platform-fastify': 12.1.0
   '@fastify/multipart': 10.1.2
   '@hono/node-server': 2.1.1
   '@arethetypeswrong/cli': 0.18.5
   '@expo/log-box': 57.0.4
-  '@expo/metro-runtime': 57.0.15
+  '@expo/metro-runtime': 57.0.16
   '@react-native/metro-config': 0.87.1
-  '@sveltejs/vite-plugin-svelte': 7.3.0
+  '@sveltejs/vite-plugin-svelte': 7.3.1
   '@sveltejs/kit': 2.70.3
   '@sveltejs/adapter-node': 5.5.7
   nuxt: 4.5.2
@@ -36,22 +36,22 @@ catalog:
   '@react-native-async-storage/async-storage': 3.1.1
   '@vitejs/plugin-react': 6.1.1
   '@vitejs/plugin-vue': 6.0.9
-  ai: 7.0.105
+  ai: 7.0.112
   '@changesets/cli': 3.0.3
   '@commitlint/cli': 21.2.3
   '@commitlint/config-conventional': 21.2.3
   '@commitlint/types': 21.2.3
-  '@orpc/server': 2.0.0-beta.36
-  '@orpc/client': 2.0.0-beta.36
+  '@orpc/server': 2.0.0-beta.39
+  '@orpc/client': 2.0.0-beta.39
   vue: 3.5.43
-  svelte: 5.57.0
+  svelte: 5.57.1
   tailwind-merge: 3.7.0
   'solid-js': 1.9.15
   '@base-ui/react': 1.8.0
   '@standard-schema/spec': 1.1.0
-  '@supabase/middleware': 0.5.0
-  '@supabase/server': 1.7.0
-  '@supabase/supabase-js': 2.116.0
+  '@supabase/middleware': 0.6.0
+  '@supabase/server': 1.8.0
+  '@supabase/supabase-js': 2.117.1
   '@testcontainers/postgresql': 12.1.0
   '@trpc/server': 11.19.0
   '@trpc/client': 11.19.0
@@ -59,7 +59,7 @@ catalog:
   '@types/express': 5.0.6
   '@types/multer': 2.2.0
   '@types/mdx': 2.0.14
-  '@types/node': 26.6.1
+  '@types/node': 26.6.2
   '@types/pg': 8.23.1
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
@@ -68,22 +68,22 @@ catalog:
   arktype: 2.2.3
   class-variance-authority: 0.7.1
   clsx: 2.1.1
-  cn: 0.3.0
-  babel-preset-expo: 57.0.12
+  cn: 0.4.0
+  babel-preset-expo: 57.0.13
   deno: 2.9.6
   elysia: 1.4.30
   esbuild: 0.28.2
-  drizzle-orm: 0.45.2
+  drizzle-orm: 0.45.3
   '@electric-sql/pglite': 0.5.8
   '@electric-sql/pglite-socket': 0.2.11
   '@prisma/adapter-pg': 7.10.0
   '@prisma/client': 7.10.0
   prisma: 7.10.0
-  eve: 0.58.1
-  expo: 57.0.23
-  expo-constants: 57.0.18
+  eve: 0.64.1
+  expo: 57.0.24
+  expo-constants: 57.0.19
   expo-linking: 57.0.10
-  expo-modules-core: 57.0.18
+  expo-modules-core: 57.0.19
   expo-router: 57.0.21
   express: 5.2.1
   kysely: 0.29.6
@@ -91,20 +91,20 @@ catalog:
   fastify: 5.12.5
   beautiful-mermaid: 1.1.3
   fumadocs-core: 16.15.11
-  fumadocs-mdx: 15.4.1
+  fumadocs-mdx: 15.4.3
   fumadocs-ui: 16.15.11
   hono: 4.13.8
   jose: 6.2.12
   lefthook: 2.1.14
   lucide-react: 1.47.0
   miniflare: 4.20260730.0
-  next: 16.3.5
+  next: 16.3.6
   next-themes: 0.4.6
-  oxc-parser: 0.150.0
+  oxc-parser: 0.151.0
   oxfmt: 0.70.0
   oxlint: 1.85.0
   oxlint-tsgolint: 7.0.2002
-  '@next/playwright': 16.3.5
+  '@next/playwright': 16.3.6
   '@playwright/test': 1.63.0
   pgsql-parser: 18.2.8
   pg: 8.23.0
@@ -117,11 +117,11 @@ catalog:
   shiki: 4.4.3
   happy-dom: 20.14.5
   react-dom: 19.3.0
-  react-native: 0.86.2
+  react-native: 0.86.3
   react-native-safe-area-context: 5.10.0
   react-native-screens: 4.28.0
   react-native-web: 0.21.2
-  react-native-worklets: 0.12.2
+  react-native-worklets: 0.13.0
   tailwindcss: 4.3.3
   testcontainers: 12.1.0
   tsdown: 0.23.0
@@ -135,7 +135,7 @@ catalog:
   vitest: 5.0.1
   ws: 8.21.3
   zod: 4.6.5
-  motion: 13.4.0
+  motion: 13.4.1
   sonner: 2.0.8
 
 catalogs:
