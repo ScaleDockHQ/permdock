@@ -6,7 +6,6 @@ import { Suspense } from 'react';
 
 import { getOrg, loadSnapshot } from '../../lib/access.ts';
 import { orgs } from '../../nav.ts';
-import { signOut } from '../actions.ts';
 import { Nav, NavSkeleton } from './nav.tsx';
 import { RefreshSignal } from './refresh-signal.tsx';
 
@@ -31,7 +30,7 @@ export default function OrgLayout(props: {
             </Link>
           ))}
         </nav>
-        <form action={signOut}>
+        <form method="post" action="/api/logout">
           <button type="submit">Sign out</button>
         </form>
       </header>

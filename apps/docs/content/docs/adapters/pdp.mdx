@@ -41,12 +41,17 @@ export const policy = definePolicy(permissions, {
 - `mapping` defaults to `type = permission.resource`, `id = data[resource.id]`, `action.name = permission.action`, `subject.type = 'user'`; override for PDPs with their own naming.
 - `simulate` sends one `evaluations` boxcar request; `filter` sends `evaluations` with one item per row unless the PDP advertises `search/resource`, in which case `filter` and `where` call resource search and the provider returns the permitted ids (`where` compiles to `in(row.id, ids)`).
 - Discovery reads `.well-known/authzen-configuration` to learn endpoints and supported features; a static `endpoints` object can be supplied when discovery is unavailable.
+- `where` on a delegated permission returns `{ condition: { op: 'or', conditions: [] }, partial: true }`: no row matches locally, and `partial` tells the caller the provider decides. Filter the rows through `decide` instead.
+
+### In an HTTP adapter
+
+Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `pdp: createPermDock` from `permdock/pdp`. With it, `protect` decides delegated permissions through the provider and a provider failure denies with `pdp-unavailable`. The request-scoped instance on the context stays the synchronous one, so `can` there keeps denying delegated permissions with `pdp-unavailable` instead of returning a Promise that would read as truthy.
 
 ## Request lifecycle
 
 1. `decide(permission, data)` runs local evaluation first. A local `denied` (explicit deny or no local grant for a non-delegated permission) short-circuits without a network call.
 2. For delegated permissions, the provider builds the AuthZEN evaluation request from `mapping` and adds `subject.properties.actor` and `subject.properties.delegation` when the PermDock subject has an actor.
-3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache (key: subject id, actor id, permission key, resource id).
+3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache. The key is the mapped request plus the permission key, the principal's issuer, the tenant and the actor id and kind, so a changed row, another tenant or another agent is a new request. The cache holds at most 1000 entries, drops the oldest first and deletes an expired entry when it is read. A `mapping` function that throws is `pdp-invalid-response` and nothing is sent.
 4. The response is mapped:
 
 | Remote response | PermDock Decision |

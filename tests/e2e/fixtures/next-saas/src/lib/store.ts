@@ -1,8 +1,11 @@
+import type { SaasPlan } from '@permdock/testing/saas';
 import type { CustomRole, Membership } from 'permdock';
+
+import { saasSeed } from '@permdock/testing/saas';
 
 import type { Project } from '../permissions.ts';
 
-export type Plan = 'free' | 'pro';
+export type Plan = SaasPlan;
 
 export type Org = {
   readonly id: string;
@@ -14,6 +17,7 @@ export type Org = {
 type MemberRow = {
   readonly user: string;
   readonly tenant: string;
+  readonly expiresAt?: number;
   roles: string[];
 };
 
@@ -24,69 +28,44 @@ type Store = {
   versions: Map<string, number>;
 };
 
+const ORGS: ReadonlySet<string> = new Set(['acme', 'globex']);
+const USERS: ReadonlySet<string> = new Set([
+  'alice',
+  'bob',
+  'carol',
+  'dave',
+  'erin',
+  'frank',
+  'mallory',
+]);
+
+// The shared SaaS seed, narrowed to what this app's spec numbers rely on.
 function seed(): Store {
   return {
-    orgs: new Map<string, Org>([
-      [
-        'acme',
-        {
-          id: 'acme',
-          name: 'Acme',
-          plan: 'free',
-          customRoles: [
-            { tenant: 'acme', name: 'contractor', includes: ['member'] },
-          ],
-        },
-      ],
-      [
-        'globex',
-        { id: 'globex', name: 'Globex', plan: 'pro', customRoles: [] },
-      ],
-    ]),
-    members: [
-      { user: 'alice', tenant: 'acme', roles: ['admin'] },
-      { user: 'alice', tenant: 'globex', roles: ['viewer'] },
-      { user: 'bob', tenant: 'acme', roles: ['member'] },
-      { user: 'carol', tenant: 'acme', roles: ['owner'] },
-      { user: 'dave', tenant: 'acme', roles: ['contractor'] },
-    ],
-    projects: [
-      {
-        id: 'p1',
-        orgId: 'acme',
-        ownerId: 'bob',
-        name: 'Rocket',
-        archived: false,
-      },
-      {
-        id: 'p2',
-        orgId: 'acme',
-        ownerId: 'alice',
-        name: 'Anvil',
-        archived: false,
-      },
-      {
-        id: 'p3',
-        orgId: 'acme',
-        ownerId: 'bob',
-        name: 'Magnet',
-        archived: false,
-      },
-      {
-        id: 'p4',
-        orgId: 'acme',
-        ownerId: 'bob',
-        name: 'Old tunnel',
-        archived: true,
-      },
-      {
-        id: 'g1',
-        orgId: 'globex',
-        ownerId: 'alice',
-        name: 'Hammock',
-        archived: false,
-      },
-    ],
+    orgs: new Map(
+      saasSeed.orgs
+        .filter((org) => ORGS.has(org.id))
+        .map((org) => [org.id, org]),
+    ),
+    members: saasSeed.members.flatMap((row) =>
+      row.tenant !== undefined &&
+      ORGS.has(row.tenant) &&
+      USERS.has(row.user) &&
+      row.team === undefined &&
+      row.on === undefined
+        ? [
+            {
+              user: row.user,
+              tenant: row.tenant,
+              roles: [...row.roles],
+              ...(row.expiresAt === undefined
+                ? {}
+                : { expiresAt: row.expiresAt }),
+            },
+          ]
+        : [],
+    ),
+    projects: saasSeed.projects.filter((project) => ORGS.has(project.orgId)),
     versions: new Map(),
   };
 }
@@ -125,7 +104,11 @@ export function setPlan(id: string, plan: Plan): boolean {
 export function membershipsOf(user: string): Membership[] {
   return store()
     .members.filter((row) => row.user === user)
-    .map((row) => ({ tenant: row.tenant, roles: [...row.roles] }));
+    .map((row) => ({
+      tenant: row.tenant,
+      roles: [...row.roles],
+      ...(row.expiresAt === undefined ? {} : { expiresAt: row.expiresAt }),
+    }));
 }
 
 export function membersOf(tenant: string): { user: string; role: string }[] {

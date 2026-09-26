@@ -1,4 +1,3 @@
-import type { Condition } from '../conditions/ast.ts';
 import type {
   Decision,
   Denial,
@@ -12,14 +11,15 @@ import type { Permission } from './permissions.ts';
 import type { Subject } from './subject.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
+import { requiresApproval } from './approval-required.ts';
 import { compact } from './compact.ts';
 import { coveredByDelegation, resourceIdOf } from './delegation.ts';
 import { grantCoversField } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { matchGrantee } from './grantee.ts';
-import { requiresApproval } from './policy.ts';
 import { isMembershipExpired, nowSeconds } from './tenancy.ts';
 import { decisionToken } from './token.ts';
+import { whereFromGrants } from './where-scope.ts';
 
 function isRowPair(
   value: unknown,
@@ -70,8 +70,39 @@ function snapshotGrantee(grant: SnapshotGrant): Grantee | readonly Grantee[] {
   });
 }
 
+function rowField(data: unknown, key: string | undefined): unknown {
+  if (key === undefined || data === null || typeof data !== 'object') {
+    return undefined;
+  }
+  return Object.hasOwn(data, key)
+    ? (data as Record<string, unknown>)[key]
+    : undefined;
+}
+
+function rowOutsideScope(
+  snapshot: Snapshot,
+  permission: Permission,
+  data: unknown,
+  kind: 'tenant' | 'team',
+  expected: string | undefined,
+): boolean {
+  if (
+    permission.kind !== 'instance' &&
+    (data === null || typeof data !== 'object')
+  ) {
+    return false;
+  }
+  const value = rowField(data, snapshot.scopes?.[kind]?.key);
+  const partitioned =
+    value !== undefined ||
+    snapshot.scopes?.partitioned?.[permission.resource]?.[kind] === true;
+  return partitioned && value !== expected;
+}
+
 function scopeOk(
+  snapshot: Snapshot,
   grant: SnapshotGrant,
+  permission: Permission,
   subject: Subject,
   data: unknown,
   team: string | undefined,
@@ -84,42 +115,44 @@ function scopeOk(
     return { ok: true };
   }
   const principal = subject.principal;
-  if (principal === null) {
+  const membership = grant.membership;
+  if (principal === null || membership === undefined) {
     return { ok: false, reason: 'no-membership' };
   }
-  const membership = grant.membership;
-  if (membership !== undefined && isMembershipExpired(membership, now)) {
+  if (isMembershipExpired(membership, now)) {
     return { ok: false, reason: 'expired-membership' };
   }
-  if (scope === 'tenant') {
+  if (scope === 'tenant' || scope === 'team') {
     if (principal.tenant === undefined) {
       return { ok: false, reason: 'no-membership' };
     }
+    if (membership.tenant !== principal.tenant) {
+      return { ok: false, reason: 'tenant-mismatch' };
+    }
     if (
-      membership?.tenant !== undefined &&
-      membership.tenant !== principal.tenant
+      rowOutsideScope(snapshot, permission, data, 'tenant', membership.tenant)
     ) {
       return { ok: false, reason: 'tenant-mismatch' };
     }
-    return { ok: true };
-  }
-  if (scope === 'team') {
-    if (principal.tenant === undefined) {
-      return { ok: false, reason: 'no-membership' };
+    if (scope === 'tenant') {
+      return { ok: true };
     }
-    if (team !== undefined && membership?.team !== team) {
+    if (team !== undefined && membership.team !== team) {
       return { ok: false, reason: 'scope' };
     }
-    if (
-      membership?.tenant !== undefined &&
-      membership.tenant !== principal.tenant
-    ) {
-      return { ok: false, reason: 'tenant-mismatch' };
+    if (rowOutsideScope(snapshot, permission, data, 'team', membership.team)) {
+      return { ok: false, reason: 'scope' };
     }
     return { ok: true };
   }
-  const on = membership?.on;
-  if (on === undefined || on.resource !== scope.resource) {
+  const on = membership.on;
+  // A snapshot carries no parent graph: only a row of the membership's own
+  // resource matches, by id; a descendant row fails closed.
+  if (
+    on === undefined ||
+    on.resource !== scope.resource ||
+    on.resource !== permission.resource
+  ) {
     return { ok: false, reason: 'scope' };
   }
   if (on.id !== rowId(data)) {
@@ -208,12 +241,33 @@ export function evaluateSnapshot(
       );
       continue;
     }
-    const scoped = scopeOk(grant, subject, current, team, now);
+    let scoped = scopeOk(
+      snapshot,
+      grant,
+      permission,
+      subject,
+      permission.kind === 'instance' ? current : next,
+      team,
+      now,
+    );
+    if (scoped.ok && permission.kind === 'instance' && next !== current) {
+      scoped = scopeOk(snapshot, grant, permission, subject, next, team, now);
+    }
     if (!scoped.ok) {
       denials.push(
         compact({ role: grant.role, reason: scoped.reason, to: grant.to }),
       );
       continue;
+    }
+    if (grant.effect === 'deny' && grant.portable === false) {
+      if (!grantCoversField(grant.fields, options.field, grant.effect)) {
+        continue;
+      }
+      return freezeDeep({
+        outcome: 'denied',
+        denials: [{ role: grant.role, reason: 'opaque-condition' }],
+        alternatives: [],
+      });
     }
     const condition = conditionOk(
       grant,
@@ -303,39 +357,19 @@ export function evaluateSnapshot(
 
 export function whereFromSnapshot(
   snapshot: Snapshot,
+  subject: Subject,
   permission: Permission,
+  team?: string,
 ): WhereResult {
-  const grants = snapshot.grants.filter(
-    (grant) => grant.permission === permission.key,
+  return whereFromGrants(
+    snapshot.grants.filter((grant) => grant.permission === permission.key),
+    {
+      resource: permission.resource,
+      scopes: snapshot.scopes,
+      tenant: subject.principal?.tenant,
+      team,
+      now: nowSeconds(),
+      subject,
+    },
   );
-  const allows = grants.filter(
-    (grant) => grant.effect === 'allow' && grant.portable !== false,
-  );
-  const denies = grants.filter(
-    (grant) => grant.effect === 'deny' && grant.portable !== false,
-  );
-  const partial = grants.some((grant) => grant.portable === false);
-  if (allows.length === 0) {
-    return { condition: { op: 'or', conditions: [] }, partial };
-  }
-  const parts: Condition[] = allows.map((grant) => {
-    let condition: Condition = grant.where ?? {
-      op: 'eq',
-      field: '_',
-      value: true,
-    };
-    for (const denyGrant of denies) {
-      if (denyGrant.where !== undefined) {
-        condition = {
-          op: 'and',
-          conditions: [condition, { op: 'not', condition: denyGrant.where }],
-        };
-      }
-    }
-    return condition;
-  });
-  return {
-    condition: parts.length === 1 ? parts[0]! : { op: 'or', conditions: parts },
-    partial,
-  };
 }

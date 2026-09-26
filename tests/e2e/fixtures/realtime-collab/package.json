@@ -1,0 +1,24 @@
+{
+  "name": "@permdock/e2e-realtime-collab",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node scripts/serve.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "catalog:",
+    "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/testing": "workspace:*",
+    "hono": "catalog:",
+    "permdock": "workspace:*",
+    "ws": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/ws": "catalog:",
+    "typescript": "catalog:"
+  }
+}

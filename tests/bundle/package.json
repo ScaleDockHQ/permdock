@@ -9,13 +9,18 @@
   },
   "devDependencies": {
     "@permdock/typescript-config": "workspace:*",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "next": "catalog:",
     "permdock": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "solid-js": "catalog:",
+    "svelte": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "vue": "catalog:"
   }
 }

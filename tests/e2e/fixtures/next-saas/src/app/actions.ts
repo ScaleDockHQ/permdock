@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { serverPermDock } from '../lib/access.ts';
-import { getClaims, mintSession } from '../lib/session.ts';
+import { mintSession } from '../lib/session.ts';
 import { findProject, removeProject, setRole } from '../lib/store.ts';
 import { SESSION_COOKIE, TOKEN_TTL_SECONDS } from '../lib/token.ts';
 import { users } from '../nav.ts';
@@ -50,16 +50,6 @@ export async function signIn(form: FormData): Promise<void> {
   });
   updateTag(`permdock:${user}`);
   redirect(typeof next === 'string' && next.startsWith('/') ? next : '/');
-}
-
-export async function signOut(): Promise<void> {
-  const claims = await getClaims();
-  const jar = await cookies();
-  jar.delete(SESSION_COOKIE);
-  if (claims !== null) {
-    updateTag(`permdock:${claims.sub}`);
-  }
-  redirect('/login');
 }
 
 export async function deleteProject(

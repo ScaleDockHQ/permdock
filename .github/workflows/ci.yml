@@ -5,12 +5,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Nightly flake hunt: every e2e test three times, no retries.
+    - cron: '17 3 * * *'
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check:
+    name: Check and unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -45,15 +53,152 @@ jobs:
         run: |
           pnpm exec permdock collect --check --cwd tests/integration/fixtures/posts
           pnpm exec permdock collect --check --cwd apps/examples/monorepo
+          pnpm exec permdock collect --check --cwd tests/e2e/fixtures/turborepo
 
       - name: Publish checks
         run: pnpm run check:publish
 
-      - name: Install Playwright
-        run: pnpm --filter @permdock/e2e exec playwright install --with-deps chromium
+  build:
+    name: Production builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
 
-      - name: E2E
-        run: pnpm run test:e2e
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
+      - name: Build
+        run: pnpm run build
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist
+          path: packages/*/dist
+          retention-days: 1
+          if-no-files-found: error
+
+  integration:
+    name: Integration (Postgres)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: packages
 
       - name: Integration
         run: pnpm run test:integration
+
+  runtimes:
+    name: Runtimes (Bun, Deno, workerd)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: packages
+
+      - name: Runtimes
+        run: pnpm run test:runtimes
+
+  e2e:
+    name: E2E (${{ matrix.shard.name }})
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: http-examples
+            projects: >-
+              --project=hono --project=express --project=fastify --project=elysia
+              --project=nest --project=trpc --project=orpc --project=better-auth
+              --project=clerk --project=convex --project=drizzle --project=prisma
+              --project=supabase-rls --project=authzen-pdp --project=scim
+              --project=supabase-middleware --project=mcp-server --project=terminal
+          - name: agent-examples
+            projects: >-
+              --project=a2a-agent --project=ai-sdk-agent --project=claude-agent
+              --project=eve-agent --project=openai-agent
+          - name: ui-examples
+            projects: >-
+              --project=react-vite --project=vue --project=svelte --project=solid
+              --project=webmcp --project=next --project=expo --project=marketing
+          - name: next-saas
+            projects: --project=next-saas
+          - name: vite-saas
+            projects: >-
+              --project=sveltekit-saas --project=nuxt-saas
+              --project=tanstack-start-saas --project=solidstart-saas
+          - name: expo-saas
+            projects: --project=expo-saas
+          - name: scenario-services
+            projects: >-
+              --project=mcp-oauth --project=ai-chat --project=realtime-collab
+              --project=b2b-scim
+          - name: turborepo
+            projects: --project=turborepo
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: packages
+
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @permdock/e2e exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v5
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter @permdock/e2e exec playwright install --with-deps chromium
+
+      - name: Install Playwright system dependencies
+        if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm --filter @permdock/e2e exec playwright install-deps chromium
+
+      - name: E2E
+        run: pnpm --filter @permdock/e2e exec playwright test ${{ matrix.shard.projects }} ${{ github.event_name == 'schedule' && '--repeat-each=3' || '' }}
+
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: playwright-${{ matrix.shard.name }}
+          path: tests/e2e/test-results
+          retention-days: 7

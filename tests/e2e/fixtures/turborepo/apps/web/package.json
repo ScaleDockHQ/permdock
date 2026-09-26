@@ -1,0 +1,26 @@
+{
+  "name": "@permdock/e2e-turbo-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/e2e-turbo-permissions": "workspace:*",
+    "next": "catalog:",
+    "permdock": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/cli": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
+  }
+}

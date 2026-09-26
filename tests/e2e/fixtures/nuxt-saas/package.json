@@ -1,0 +1,19 @@
+{
+  "name": "@permdock/e2e-nuxt-saas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "serve": "node scripts/serve.ts"
+  },
+  "devDependencies": {
+    "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/testing": "workspace:*",
+    "@types/node": "catalog:",
+    "nuxt": "catalog:",
+    "permdock": "workspace:*",
+    "typescript": "catalog:",
+    "vue": "catalog:"
+  }
+}

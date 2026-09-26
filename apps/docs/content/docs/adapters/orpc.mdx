@@ -40,17 +40,22 @@ export const list = base
 | Export | Role |
 |---|---|
 | `permdock()` | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. Applied a second time on the same request, it is a no-op when `context.permdock` is already set (oRPC 2 no longer dedupes middleware). |
-| `protect(permission, load?)` | Middleware placed after `.input(...)`. Loads and boundary-validates the resource, decides, continues with `context.permdockData` or throws `ORPCError` with code `FORBIDDEN`. |
+| `protect(permission, load?, options?)` | Middleware placed after `.input(...)`. The `tenant` option reads each procedure's own opts (`(opts) => opts.input?.org`), so procedures in one `BatchLinkPlugin` batch decide in their own tenant. Loads and boundary-validates the resource, decides, continues with `context.permdockData` or throws `ORPCError` with code `FORBIDDEN`. |
 | `openapi.protect(permission, load?)` | Same as `protect`. Pair it with `openapi.security(permission)` in `.meta(orpcOpenapi({ spec }))` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document. |
 | `openapi.securitySchemes()` | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). |
 | `permdockHandler` | Procedure or Fetch handler for the AuthZEN-shaped decision endpoint. |
+| `request` option | `(context) => Request \| null \| undefined`. The Web `Request` behind a context; defaults to `context.request` or `context.req`. |
+
+### Event iterators
+
+A procedure behind `protect(permission, load?, { items })` whose handler returns an event iterator is wrapped the same way as a [tRPC subscription](/docs/adapters/trpc#subscriptions) ([0052](/docs/decisions/0052-streams-and-sockets)): items the subscriber cannot read are dropped, and an abort ends the iterator with an `ORPCError` (`UNAUTHORIZED` or `FORBIDDEN`) whose `data` is the Problem Details body. Pass `revocations` to `createPermDock`; `connection(opts, options?)` opens a [`Connection`](/docs/adapters/server-kernel#connections) by hand.
 
 ## Request lifecycle
 
 1. The oRPC handler (Fetch, Node, Next.js) creates the initial context with the authenticated user.
 2. `permdock()` resolves the subject once and adds the instance to the context.
 3. `protect` (or `openapi.protect`) runs after input validation: load, validate, decide, continue or throw.
-4. Handlers call `context.permdock.assert(...)`, `filter` or `where`; thrown PermDock errors are converted to `ORPCError` by an interceptor the adapter provides.
+4. Handlers call `context.permdock.assert(...)`, `filter` or `where`; a PermDock error thrown in the handler propagates through `permdock()` and `protect()`, which rethrow it as the same `ORPCError` a guard denial produces, with the Problem Details body as `data`.
 5. When `OpenAPIGenerator` runs, `openapi({ spec })` metadata from each procedure carries the `security` fragment from `openapi.security`.
 
 ## What it validates
@@ -69,6 +74,8 @@ export const list = base
 ## Example app
 
 `apps/examples/orpc`: oRPC with `permdock()` and `protect` on `posts.update` (granted) and `posts.publish` (denied for `member`). Unit tests call procedures through `call()` and assert `ORPCError` codes and Problem Details `data`.
+
+`tests/integration/src/http/orpc.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios over `RPCHandler` with `BatchHandlerPlugin` on `@hono/node-server` and an `RPCLink` client with `BatchLinkPlugin`. Uploads are skipped: the mount takes JSON input.
 
 ## Related standards
 

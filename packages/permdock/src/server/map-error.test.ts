@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { PermDockValidationError } from '../core/errors.ts';
+import {
+  PermDockRevokedError,
+  PermDockValidationError,
+} from '../core/errors.ts';
 import { createPermDock } from '../core/permdock.ts';
 import {
   memberUser,
@@ -9,6 +12,7 @@ import {
   permissions,
   policy,
 } from '../fixtures/quick-start.ts';
+import { problemFromError } from './index.ts';
 import { mapPermDockError } from './map-error.ts';
 import { InvalidSignatureError } from './web-bot-auth.ts';
 
@@ -58,6 +62,17 @@ describe('mapPermDockError', () => {
     expect(response?.status).toBe(400);
   });
 
+  it('maps an ended connection to a 401 problem, or 403 when re-denied', async () => {
+    const expired = mapPermDockError(
+      new PermDockRevokedError({ code: 'expired' }),
+    );
+    expect(expired?.status).toBe(401);
+    expect(await expired?.json()).toMatchObject({ detail: 'expired' });
+    expect(
+      mapPermDockError(new PermDockRevokedError({ code: 'denied' }))?.status,
+    ).toBe(403);
+  });
+
   it('returns the response an InvalidSignatureError carries', () => {
     const carried = new Response(null, { status: 401 });
     expect(mapPermDockError(new InvalidSignatureError(carried))).toBe(carried);
@@ -66,5 +81,9 @@ describe('mapPermDockError', () => {
   it('leaves anything else to the framework', () => {
     expect(mapPermDockError(new Error('boom'))).toBeUndefined();
     expect(mapPermDockError('boom')).toBeUndefined();
+  });
+
+  it('is public as problemFromError on permdock/server', () => {
+    expect(problemFromError).toBe(mapPermDockError);
   });
 });

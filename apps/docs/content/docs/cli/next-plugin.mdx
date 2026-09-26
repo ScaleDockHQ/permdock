@@ -25,13 +25,19 @@ export default withPermDock({
 
 `srcPath` accepts first-party folders, sibling workspace packages and installed packages, so a monorepo where `@acme/ui` ships its own `permissions.ts` next to its components is collected into the app's catalog without any manual import.
 
+`withPermDock` accepts a config object or a config function and returns Next's config function `(phase, context) => Promise<config>`: the phase constant is how the plugin tells `next build` from `next dev`. Put it outermost when composing with plugins that only accept an object:
+
+```ts
+export default withPermDock(withOtherPlugin({ /* your Next.js config */ }))
+```
+
 ## What it does
 
 | Phase | Behaviour |
 | --- | --- |
-| `next dev` | Runs `collect` once at startup, then watches `srcPath` and re-runs on change. Writes `permissions.catalog.json` (and the barrel when `collect.barrel` is enabled). Failures are logged, never fatal. |
+| `next dev` | Runs `collect` once at startup, then starts one watcher per app root over `srcPath` and re-runs on change. Writes `permissions.catalog.json` (and the barrel when `collect.barrel` is enabled). Failures are logged, never fatal. |
 | `next build` | Runs `collect --check`. A stale catalog fails the build with the diff, so a deployment can never ship a catalog that disagrees with the code. `PERMDOCK_COLLECT=write` switches to writing instead of checking for build pipelines that commit generated files. |
-| `next start` | Nothing. |
+| `next start`, `next export` | Nothing. |
 
 The plugin resolves `@permdock/cli` from the app's `node_modules` and runs it in-process; the CLI package must be a dev dependency. When it is missing, the plugin logs one warning and does nothing, so `permdock/next/plugin` can be imported in a project that has not installed the CLI yet.
 
@@ -54,6 +60,7 @@ createPermDockPlugin({
     barrel?: boolean | string  // default false; true writes src/permissions.generated.ts
   },
   onDrift?: 'error' | 'warn'   // build behaviour on a stale catalog; default 'error'
+  check?: boolean              // unplugin only: check instead of write in buildStart; default false
 })
 ```
 

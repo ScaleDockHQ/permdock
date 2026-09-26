@@ -1,0 +1,23 @@
+{
+  "name": "@permdock/e2e-saas-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./nav": "./src/nav.ts",
+    "./serve": "./src/serve.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@permdock/testing": "workspace:*",
+    "permdock": "workspace:*"
+  },
+  "devDependencies": {
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

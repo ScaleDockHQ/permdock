@@ -3,6 +3,7 @@ import { type Middleware, defineMiddleware } from '@supabase/middleware';
 import type { ApprovalStore } from '../approvals/types.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -12,12 +13,13 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { Principal, Subject } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
+import type { PdpFactory } from '../pdp/types.ts';
 import type { OpenApiHooks } from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { applyOtel } from '../otel/instrument.ts';
-import { createPermDock as createKernel } from '../server/create.ts';
+import { createKernel } from '../server/create.ts';
 import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
 
 /**
@@ -63,6 +65,10 @@ export type SupabaseMiddlewareOptions<TUser = unknown> = {
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
+  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
+  readonly pdp?: PdpFactory;
+  /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
   readonly webBotAuth?: WebBotAuthOptions;
@@ -74,6 +80,8 @@ export type WithPermDockConfig = {
   readonly protect?: Permission;
   /** Load the row `protect` decides on; `null` or `undefined` yields 404. */
   readonly data?: (ctx: SupabaseMiddlewareContext, request: Request) => unknown;
+  /** `false` when `data` returns request input; it is validated before the check. */
+  readonly trusted?: boolean;
 };
 
 /**
@@ -123,9 +131,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       customRoles: options.customRoles,
       store: options.store,
       sink: options.sink,
-      snapshots: options.snapshots,
+      limits: options.limits,
+      pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       problem: options.problem,
+      adapter: 'supabase-middleware',
       wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),
   );
@@ -166,6 +176,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           loadData === undefined
             ? undefined
             : (): unknown => loadData(ctx, request),
+          compact({ trusted: config.trusted }),
         )(request);
         if (!guard.ok) {
           return guard.response;

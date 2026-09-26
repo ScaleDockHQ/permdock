@@ -136,4 +136,35 @@ describe('permdock/node', () => {
     } as IncomingMessage;
     expect(() => toRequest(req)).not.toThrow();
   });
+
+  it('leaves the body stream to a later parser until the Web body is read', async () => {
+    const received = await new Promise<string>((resolve, reject) => {
+      const server = createServer((req, res) => {
+        toRequest(req);
+        setTimeout(() => {
+          const chunks: Buffer[] = [];
+          req.on('data', (chunk: Buffer) => {
+            chunks.push(chunk);
+          });
+          req.on('end', () => {
+            res.end();
+            resolve(Buffer.concat(chunks).toString('utf8'));
+          });
+        }, 20);
+      });
+      servers.push(server);
+      server.listen(0, '127.0.0.1', () => {
+        const address = server.address();
+        if (address === null || typeof address === 'string') {
+          reject(new Error('no port'));
+          return;
+        }
+        fetch(`http://127.0.0.1:${address.port}/`, {
+          method: 'POST',
+          body: 'whole-body',
+        }).catch(reject);
+      });
+    });
+    expect(received).toBe('whole-body');
+  });
 });

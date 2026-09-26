@@ -1,0 +1,70 @@
+---
+title: "0050: Client parity and snapshot scopes"
+description: A snapshot client never grants what the server denies. Snapshots carry the policy's row keys, one grant entry per membership, and fail closed on closure denies; where() is scoped to the active tenant; custom roles and quotas are per tenant.
+---
+
+## Status
+
+Accepted, September 2026.
+
+## Context
+
+The shared SaaS scenario suite (`@permdock/testing/saas`) runs every scenario through both the server instance and `fromSnapshot(permdock.snapshot())`. It found the client more permissive than the server in several places, and the server wrong in a few others:
+
+- A snapshot grant was attached to the first membership that held its role. An admin of two orgs acting in the second got no admin grants on the client.
+- The client never read the row's tenant or team. An admin in `acme` could read a `globex` row, and a team lead could update another team's doc.
+- A closure deny was marked `portable: false` and then skipped, so the client granted rows the server denied.
+- `where()` combined every allow with no tenant filter, so a list query returned rows from every org the user belongs to. An unconditional deny was ignored.
+- A custom role expanded in every tenant, not only the one that defined it, and a custom role never satisfied a tenant-scoped grant.
+- A row without its tenant field passed tenant-scoped grants.
+- `heldRoles()` with no active tenant unioned the roles of every membership.
+- A quota counted per subject across tenants, accepted any `per` string, and never forgot an ended window.
+
+## Decision
+
+1. **The client is never more permissive than the server.** It may be stricter where it lacks an input (a closure, a quota, an approval). `testClientParity(policy, cases)` in `@permdock/testing` asserts it; a case marked `stricter` may deny what the server grants.
+2. **Snapshots carry `scopes`.** The field is additive, so the format major stays at 3: `scopes.tenant.key`, `scopes.team.key`, and `scopes.partitioned`, a map from resource name to the scopes its `memberOf` relations declare. The client compares the row's tenant and team with the grant's membership, as the server does.
+3. **One snapshot grant entry per membership that holds all of the grant's scoped roles.** A scoped role held only as a global role reaches nothing.
+4. **A closure deny fails closed on the client.** When a `portable: false` deny passes its grantee and scope checks, the client denies with reason `opaque-condition`.
+5. **A row of a partitioned resource must carry the partition field.** A row missing its tenant or team field, or carrying `null`, matches no membership. Resources without a `memberOf` relation keep passing without the field.
+6. **`where()` is scoped.** Each tenant or team grant is ANDed with the membership's tenant and team (for partitioned resources) and dropped when the membership is not in the active tenant. With no active tenant, tenant grants contribute nothing. A resource membership adds `id = on.id`. An unconditional portable deny that covers an allow removes it. The server and `fromSnapshot` share one implementation.
+7. **Custom roles are per tenant.** A `CustomRole` expands only for a membership in its tenant, or for global roles when that tenant is active.
+8. **`heldRoles()` without a tenant returns global roles and tenantless memberships only.**
+9. **Quotas count per subject and tenant.** `LimitConsumeInput` gains an optional `tenant`. `per` and `count` are validated when the grant is defined (`'hour'`, `'15 min'`, `'1 d'`, a positive integer count); an invalid window at runtime is `limit-unavailable`. `memoryLimitStore()` forgets ended windows.
+10. **The unconditional where sentinel** `{ op: 'eq', field: '_', value: true }` evaluates to `true` in memory, as every compiler already treats it.
+
+### ORM parity (`ormParity`)
+
+A second suite runs `filter()` in memory against `toWhere(where())` on Postgres for Drizzle, Kysely and Prisma 7. The in-memory evaluator is the oracle, and the compilers follow it:
+
+11. **NULL.** A comparison with a NULL row value or an unresolved reference never matches (`ne` included); `notIn` matches only a non-null value outside the list; `not` is boolean negation, so a negated comparison keeps NULL rows. The compilers push negation down to comparisons and add the NULL branch (`not (x = 1)` is `x <> 1 or x is null`). An empty `in` never matches; an empty `notIn` is `is not null`. Prisma cannot filter a required field by NULL, so `toWhere` takes `requiredFields`.
+12. **`where()` binds references** to the instance subject and carries that subject (non-enumerable) on the result, so `toWhere` compiles `memberOf` without a second argument.
+13. **Resource memberships are keyed by resource.** A membership on resource R matches a row of R by its id field, and a descendant row by the parent field of R on its declared chain, never by the row's own id. The membership must be on the role's resource or one of its ancestors. The core evaluator, `where()`, `permdock rls generate` and the compilers share the rule; a snapshot, which carries no parent graph, matches only rows of the membership's own resource. A `memberOf` `parents` entry may be keyed (`{ field, resource }`); a bare field name keeps its older any-resource meaning.
+14. **Tenant `memberOf` honours the active tenant** in memory and in SQL: with an active tenant, only that tenant's membership counts.
+15. **Membership expiry is Unix seconds.** An `exists` join binds `now` rounded up to whole seconds, so a mapped `bigint` column compares exactly and a membership expires up to a second early, never late.
+16. **`contains`** escapes `%`, `_` and `\` in string patterns (Prisma included); array columns match by element (`= any(...)` in Drizzle, `@>` for `listFields` in Kysely, `has` in Prisma).
+
+## Consequences
+
+- An older snapshot without `scopes` still parses; its client skips the row checks, which is the previous behaviour. Servers on this version always emit `scopes` when the policy declares them.
+- A team lead with a closure deny sees fewer actions in the UI than the server would allow. The server still decides; the UI only hides.
+- Apps that relied on a custom role working without an active tenant must pass `tenant`.
+- A `LimitStore` that ignores `tenant` keeps working but counts across tenants.
+- A resource role held on a folder no longer grants a child row whose id equals the folder id, which it wrongly did in memory, on snapshot clients and in generated RLS; it now grants the folder's children, which it wrongly did not.
+- A generated RLS resource policy ORs one `exists` per mapped resource on the chain; an ancestor without a mapped table contributes nothing.
+- `permdock rls generate` still compares a mapped `expires_at` column with `now()` (a timestamp); the ORM compilers bind Unix seconds. Aligning the RLS emitters is open.
+- The Prisma `memberships` option, which never took effect, is removed.
+
+## Alternatives considered
+
+- **Ship closures to the client.** Rejected: invariant 8 forbids policies and closures in client entries.
+- **Bump the snapshot to v4.** Rejected: the new field is optional and readers of v3 ignore unknown keys.
+- **Keep `where()` unscoped and document it.** Rejected: an unscoped list query is the cross-tenant leak multi-tenant apps fear most.
+
+## Related
+
+- [0024: Scoped roles and memberships](/docs/decisions/0024-scoped-roles-and-memberships)
+- [0031: Snapshot contents](/docs/decisions/0031-snapshot-contents)
+- [0034: Quota grants](/docs/decisions/0034-quota-grants)
+- [Wire formats](/docs/concepts/wire-formats)
+- [Testing](/docs/adapters/testing)

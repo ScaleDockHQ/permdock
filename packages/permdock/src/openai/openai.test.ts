@@ -30,7 +30,25 @@ function tools() {
   };
 }
 
-function state(): OpenAiRunState & {
+function item(callId: string, name: string, args: unknown): OpenAiInterruption {
+  return {
+    type: 'tool_approval_item',
+    name,
+    arguments: JSON.stringify(args),
+    rawItem: {
+      type: 'function_call',
+      callId,
+      name,
+      arguments: JSON.stringify(args),
+    },
+  };
+}
+
+function idOf(interruption: OpenAiInterruption): string {
+  return String(interruption.rawItem?.callId);
+}
+
+function state(): OpenAiRunState<OpenAiInterruption> & {
   readonly approved: string[];
   readonly rejected: { readonly id: string; readonly message?: string }[];
 } {
@@ -40,15 +58,19 @@ function state(): OpenAiRunState & {
     approved,
     rejected,
     approve(interruption: OpenAiInterruption): void {
-      approved.push(interruption.callId);
+      approved.push(idOf(interruption));
     },
     reject(
       interruption: OpenAiInterruption,
       options?: { readonly message?: string },
     ): void {
-      rejected.push({ id: interruption.callId, message: options?.message });
+      rejected.push({ id: idOf(interruption), message: options?.message });
     },
   };
+}
+
+function runContext<T>(context: T): { readonly context: T } {
+  return { context };
 }
 
 describe('permdock/openai', () => {
@@ -65,24 +87,25 @@ describe('permdock/openai', () => {
       },
     );
     const context = { user: memberUser, agentId: 'agent-1' };
-    expect(await needsApproval(permissions.post.list)(context, {})).toBe(false);
     expect(
-      await needsApproval(permissions.post.delete)(context, { id: 'p1' }),
+      await needsApproval(permissions.post.list)(runContext(context), {}),
+    ).toBe(false);
+    expect(
+      await needsApproval(permissions.post.delete)(runContext(context), {
+        id: 'p1',
+      }),
     ).toBe(true);
     expect(
-      await needsApproval(permissions.post.publish)(context, { id: 'p1' }),
+      await needsApproval(permissions.post.publish)(runContext(context), {
+        id: 'p1',
+      }),
     ).toBe(true);
     expect((await permdock(context)).subject.actor?.kind).toBe('openai-agent');
 
     const run = state();
     const pending = await resolveInterruptions(
       run,
-      [
-        {
-          callId: 'deny-1',
-          rawItem: { name: 'publish_post', arguments: { id: 'p1' } },
-        },
-      ],
+      [item('deny-1', 'publish_post', { id: 'p1' })],
       { context },
     );
     expect(pending).toEqual([]);
@@ -100,18 +123,15 @@ describe('permdock/openai', () => {
     });
     const context = { user: memberUser };
     expect(
-      await needsApproval(permissions.post.delete)(context, { id: 'p1' }),
+      await needsApproval(permissions.post.delete)(runContext(context), {
+        id: 'p1',
+      }),
     ).toBe(true);
 
     const run = state();
     const pending = await resolveInterruptions(
       run,
-      [
-        {
-          callId: 'c1',
-          rawItem: { name: 'delete_post', arguments: { id: 'p1' } },
-        },
-      ],
+      [item('c1', 'delete_post', { id: 'p1' })],
       { context },
     );
     expect(pending).toHaveLength(1);
@@ -128,12 +148,7 @@ describe('permdock/openai', () => {
     const resumed = state();
     await resolveInterruptions(
       resumed,
-      [
-        {
-          callId: 'c1',
-          rawItem: { name: 'delete_post', arguments: { id: 'p1' } },
-        },
-      ],
+      [item('c1', 'delete_post', { id: 'p1' })],
       { context },
     );
     expect(resumed.approved).toEqual(['c1']);
@@ -141,15 +156,99 @@ describe('permdock/openai', () => {
     const tampered = state();
     await resolveInterruptions(
       tampered,
+      [item('c1', 'delete_post', { id: 'p2' })],
+      { context },
+    );
+    expect(tampered.rejected[0]?.message).toMatch(/approval|denied/u);
+  });
+
+  it('resumes from the shared store in a fresh instance, once', async () => {
+    const store = memoryApprovalStore();
+    const options = {
+      subject: (context: { readonly user?: unknown }) => context.user,
+      actor: () => ({ id: 'agent-1', kind: 'openai-agent' }),
+      tools: tools(),
+      store,
+    };
+    const context = { user: memberUser };
+    const first = createPermDock(policy, options);
+    const [pending] = await first.resolveInterruptions(
+      state(),
+      [item('c1', 'delete_post', { id: 'p1' })],
+      { context },
+    );
+    if (pending === undefined) {
+      throw new Error('expected a pending approval');
+    }
+    await store.resolve(pending.token, {
+      status: 'approved',
+      by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+    });
+
+    const second = createPermDock(policy, options);
+    const resumed = state();
+    await second.resolveInterruptions(
+      resumed,
+      [item('c1', 'delete_post', { id: 'p1' })],
+      { context },
+    );
+    expect(resumed.approved).toEqual(['c1']);
+
+    const replayed = state();
+    await second.resolveInterruptions(
+      replayed,
+      [item('c1', 'delete_post', { id: 'p1' })],
+      { context },
+    );
+    expect(replayed.approved).toEqual([]);
+    expect(replayed.rejected[0]?.message).toMatch(/consumed|denied/u);
+  });
+
+  it('rejects a rejected approval and unparseable arguments', async () => {
+    const store = memoryApprovalStore();
+    const { resolveInterruptions } = createPermDock(policy, {
+      subject: (context) => context.user,
+      tools: tools(),
+      store,
+    });
+    const context = { user: memberUser };
+    const [pending] = await resolveInterruptions(
+      state(),
+      [item('c1', 'delete_post', { id: 'p1' })],
+      { context },
+    );
+    if (pending === undefined) {
+      throw new Error('expected a pending approval');
+    }
+    await store.resolve(pending.token, {
+      status: 'rejected',
+      by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+    });
+    const rejected = state();
+    await resolveInterruptions(
+      rejected,
+      [item('c1', 'delete_post', { id: 'p1' })],
+      { context },
+    );
+    expect(rejected.rejected[0]?.message).toMatch(/rejected|denied/u);
+
+    const garbled = state();
+    await resolveInterruptions(
+      garbled,
       [
         {
-          callId: 'c1',
-          rawItem: { name: 'delete_post', arguments: { id: 'p2' } },
+          type: 'tool_approval_item',
+          rawItem: {
+            type: 'function_call',
+            callId: 'c2',
+            name: 'delete_post',
+            arguments: '{not json',
+          },
         },
       ],
       { context },
     );
-    expect(tampered.rejected[0]?.message).toMatch(/approval|denied/u);
+    expect(garbled.rejected[0]?.id).toBe('c2');
   });
 
   it('hides tools with no grant and ignores a subject in arguments', async () => {
@@ -172,7 +271,7 @@ describe('permdock/openai', () => {
       'list_posts',
     ]);
     expect(
-      await needsApproval(permissions.post.publish)(context, {
+      await needsApproval(permissions.post.publish)(runContext(context), {
         id: 'p1',
         subject: adminUser,
       }),

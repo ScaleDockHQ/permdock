@@ -16,12 +16,15 @@ AI SDK 7 moved tool approval out of individual tools and into a single `toolAppr
 
 ```ts
 import { createPermDock } from 'permdock/ai-sdk'
+import { z } from 'zod'
+
+const PostArgs = z.object({ id: z.string() }) // tool input arrives as `unknown`
 
 const { toolApproval, capabilityMiddleware, needsApproval } = createPermDock(policy, {
   subject: ({ runtimeContext }) => runtimeContext.user,
   actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' }),
   tools: {
-    delete_post: { permission: permissions.post.delete, data: (args) => loadPost(args.id) },
+    delete_post: { permission: permissions.post.delete, data: (args) => loadPost(PostArgs.parse(args).id) },
     list_posts:  { permission: permissions.post.list },
   },
 })
@@ -29,7 +32,7 @@ const { toolApproval, capabilityMiddleware, needsApproval } = createPermDock(pol
 generateText({ model, tools, toolApproval })
 // granted → 'approved'; denied → 'denied' (reason + alternatives); approval-required → 'user-approval'
 
-wrapLanguageModel({ model, middleware: capabilityMiddleware })
+wrapLanguageModel({ model, middleware: capabilityMiddleware({ user, agentId }) })
 // narrows `tools` to what this subject may call before the model sees them
 
 tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
@@ -38,12 +41,12 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 
 - `tools` maps AI SDK tool names to a permission reference and, for instance-level actions, a `data` resolver that loads the resource from the tool arguments.
 - `subject` and `actor` read from `runtimeContext` (or any per-call context the caller provides), so one configuration serves many tenants when returned from `prepareCall`.
-- `toolApproval` is a plain function compatible with the AI SDK signature; `capabilityMiddleware` is a `LanguageModelMiddleware`; `needsApproval(permission)` returns the predicate `WorkflowAgent` expects.
+- `toolApproval` is a plain function compatible with the AI SDK signature; `capabilityMiddleware(context)` returns a `LanguageModelMiddleware` (specification `v4`) for that caller, because the middleware sees only the model parameters and no per-call context; `needsApproval(permission)` returns the predicate `WorkflowAgent` expects. A boolean cannot say "denied", so the predicate returns `false` only when granted, `true` for approval-required, and throws `PermDockDeniedError` for a denial or an unmapped call (the AI SDK rejects the run). On the re-check after an approval, it throws `PermDockApprovalRequiredError` unless the approval is recorded.
 - Tool names not present in `tools` are treated as unmapped and denied (see fail-closed rules below).
 
 ## Request lifecycle
 
-1. Before the model call, `capabilityMiddleware` builds a request-scoped `PermDock` from `runtimeContext` and removes tools whose permission has no grant for this subject. The model cannot plan with tools it may not use.
+1. Before the model call, the middleware from `capabilityMiddleware(context)` builds a request-scoped `PermDock` from that context and removes tools whose permission has no grant for this subject. The model cannot plan with tools it may not use.
 2. The model emits a tool call. AI SDK invokes `toolApproval` with the tool name and arguments.
 3. The adapter validates the arguments against the resource schema when `data` is declared (boundary validation), loads the resource, and calls `permdock.decide(permission, data)`.
 4. The Decision maps to the AI SDK vocabulary:
@@ -55,7 +58,7 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 | `approval-required` | `user-approval` | UI or workflow asks a human; `Decision.token` attached |
 | unmapped tool, validation error, thrown error | `denied` | fail closed |
 
-5. On `user-approval`, the human's answer returns as an approval response. The adapter re-runs `decide` and compares `Decision.token` (hash of permission key, resource id, subject, actor) with the token issued in step 4; a mismatch is denied. This is the problem `experimental_toolApprovalSecret` addresses by signing approval payloads; PermDock adds the check that the approved call is the same call.
+5. On `user-approval`, the human's answer returns as an approval response. AI SDK then calls `toolApproval` again for the same `toolCallId`; the adapter recognises this re-check from the `tool-approval-request` in `messages` and answers `denied` unless a matching approval is recorded in `store` (the SDK treats any other answer as approved). The adapter re-runs `decide` and compares `Decision.token` (hash of permission key, resource id, subject, actor) with the token issued in step 4; a mismatch is denied. This is the problem `experimental_toolApprovalSecret` addresses by signing approval payloads; PermDock adds the check that the approved call is the same call.
 6. Every step emits `on('decision')` so audit logging and `permdock/otel` see the same events as any other adapter.
 
 `WorkflowAgent` follows the same path but suspends the durable workflow at step 5 instead of returning to the caller; on resume, the token check runs before the tool executes.
@@ -64,7 +67,7 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 
 - Tool arguments against the resource's Standard Schema when a `data` resolver exists (`validate: 'boundary'`); invalid arguments are a denial with a validation reason, not an exception in the agent loop.
 - The subject comes from `runtimeContext`, never from model output or tool arguments.
-- Approval replays: token equality on resume; expired or foreign tokens are denied.
+- Approval replays: token equality on resume, with the token read from `permdockApproval` on the context. An approval resumes one call; a replay is denied with `approval-consumed`, and a token issued for another call is ignored.
 - Tool coverage: in development, the adapter warns when `tools` passed to `generateText` include names missing from the `tools` map, because those calls will be denied at runtime.
 
 ## How denials surface
@@ -76,7 +79,7 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 
 ## Example app
 
-`apps/examples/ai-sdk-agent`: HTTP harness on `127.0.0.1:3472` with `GET /health`. `GET /list_posts` calls `toolApproval` and returns `approved`. `GET /delete_post` returns `user-approval`. No model API key.
+`apps/examples/ai-sdk-agent`: HTTP harness on `127.0.0.1:3472` with `GET /health`. `GET /list_posts` calls `toolApproval` and returns `approved`. `GET /delete_post` returns `user-approval`. No model API key. `tests/integration` runs a multi-step `streamText` loop with a scripted model against a Postgres `ApprovalStore`: a granted step runs, a denied one is skipped, the owner's approval resumes the gated call once on a fresh instance, and replaying the approval response runs nothing.
 
 ## Related standards
 

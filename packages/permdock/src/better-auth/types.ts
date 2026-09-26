@@ -30,11 +30,18 @@ export type BetterAuthLike = {
       readonly headers?: unknown;
     }) => Promise<unknown>;
     readonly listMembers?: (args?: {
-      readonly query?: { readonly organizationId?: string };
+      readonly query?: {
+        readonly organizationId?: string;
+        readonly filterField?: string;
+        readonly filterOperator?: 'eq';
+        readonly filterValue?: string;
+      };
       readonly headers?: unknown;
     }) => Promise<unknown>;
-    readonly listTeams?: (args?: {
-      readonly query?: { readonly organizationId?: string };
+    readonly getActiveMember?: (args?: {
+      readonly headers?: unknown;
+    }) => Promise<unknown>;
+    readonly listUserTeams?: (args?: {
       readonly headers?: unknown;
     }) => Promise<unknown>;
     readonly listOrganizationRoles?: (args?: {

@@ -11,6 +11,17 @@ const fixture = JSON.parse(
 ) as unknown;
 
 describe('parseSnapshot', () => {
+  it('freezes a copy and leaves the caller’s object untouched', () => {
+    const input = JSON.parse(JSON.stringify(fixture)) as Record<
+      string,
+      unknown
+    >;
+    const parsed = parseSnapshot(input);
+    expect(Object.isFrozen(parsed)).toBe(true);
+    expect(Object.isFrozen(input)).toBe(false);
+    expect(Object.isFrozen(input.grants)).toBe(false);
+  });
+
   it('accepts snapshot v2 fixtures and rejects unknown majors and unsafe keys', () => {
     expect(parseSnapshot(fixture).v).toBe(2);
     expect(parseSnapshot(JSON.stringify(fixture)).v).toBe(2);

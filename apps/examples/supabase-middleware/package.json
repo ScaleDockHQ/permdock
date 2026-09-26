@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "catalog:",
     "@supabase/middleware": "catalog:",
     "@supabase/server": "catalog:",
     "@supabase/supabase-js": "catalog:",

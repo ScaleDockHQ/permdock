@@ -1,5 +1,6 @@
 import type { ApprovalStore } from '../approvals/types.ts';
 import type { TokenFailureCause, TokenVerifier } from '../core/interfaces.ts';
+import type { RevocationFeed } from '../core/revocations.ts';
 import type { DiscoveryInput, JwtJwks } from '../jwt/types.ts';
 
 export type CaepEventName =
@@ -46,9 +47,18 @@ export type SsfOnEvent = {
   readonly '*'?: SsfEventHandler;
 };
 
+/**
+ * Keys are opaque strings namespaced by issuer. A store that implements both
+ * `claim` and `release` makes concurrent deliveries of one SET dispatch once;
+ * one with only `seen` and `remember` is checked and recorded non-atomically.
+ */
 export type ReplayStore = {
-  seen(jti: string): boolean | Promise<boolean>;
-  remember(jti: string, expiresAt?: number): void | Promise<void>;
+  seen(key: string): boolean | Promise<boolean>;
+  remember(key: string, expiresAt?: number): void | Promise<void>;
+  /** Records `key` and returns `true` only if it was not already recorded. */
+  claim?(key: string, expiresAt?: number): boolean | Promise<boolean>;
+  /** Forgets a claimed `key` so a failed delivery can be retried. */
+  release?(key: string): void | Promise<void>;
 };
 
 export type SsfAuditEvent = {
@@ -91,6 +101,12 @@ export type SsfOptions = {
   readonly onEvent?: SsfOnEvent;
   readonly replay?: ReplayStore;
   readonly approvals?: ApprovalStore;
+  /**
+   * Publishes `session-revoked` for a revoked session and `changed` for
+   * credential, assurance and claims changes, so open connections end or
+   * revalidate (ADR 0052).
+   */
+  readonly revocations?: RevocationFeed;
   readonly clockTolerance?: number;
 };
 

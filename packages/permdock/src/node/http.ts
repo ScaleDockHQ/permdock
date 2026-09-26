@@ -8,7 +8,10 @@ export type NodeRequest = IncomingMessage & {
 
 type StreamRequestInit = RequestInit & { readonly duplex: 'half' };
 
-export function toRequest(req: NodeRequest): Request {
+export function toRequest(
+  req: NodeRequest,
+  stream: IncomingMessage | null = req,
+): Request {
   const host = headerValue(req.headers.host) ?? 'localhost';
   const protocol = req.protocol ?? 'http';
   const path = req.originalUrl ?? req.url ?? '/';
@@ -33,33 +36,77 @@ export function toRequest(req: NodeRequest): Request {
   if (parsed !== undefined) {
     return new Request(url, { method, headers, body: parsed });
   }
+  if (stream === null) {
+    return new Request(url, { method, headers });
+  }
   const init: StreamRequestInit = {
     method,
     headers,
-    body: incomingBody(req),
+    body: incomingBody(stream),
     duplex: 'half',
   };
   return new Request(url, init);
 }
 
+function chunkOf(chunk: string | Buffer): Uint8Array {
+  return typeof chunk === 'string' ? Buffer.from(chunk) : new Uint8Array(chunk);
+}
+
+/**
+ * Pull-based with `highWaterMark: 0`: nothing is read from `req` until the
+ * Web body is consumed, so a later body parser (multer, `express.json()`)
+ * still sees the whole stream.
+ */
 function incomingBody(req: IncomingMessage): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller): void {
-      req.on('data', (chunk: string | Buffer) => {
-        controller.enqueue(
-          typeof chunk === 'string'
-            ? Buffer.from(chunk)
-            : new Uint8Array(chunk),
-        );
-      });
-      req.on('end', () => {
-        controller.close();
-      });
-      req.on('error', (err: Error) => {
-        controller.error(err);
-      });
+  return new ReadableStream<Uint8Array>(
+    {
+      pull(controller): Promise<void> {
+        return new Promise<void>((resolve) => {
+          const drain = (): boolean => {
+            const chunk = req.read() as string | Buffer | null;
+            if (chunk !== null) {
+              controller.enqueue(chunkOf(chunk));
+              return true;
+            }
+            if (req.readableEnded) {
+              controller.close();
+              return true;
+            }
+            return false;
+          };
+          if (drain()) {
+            resolve();
+            return;
+          }
+          const cleanup = (): void => {
+            req.off('readable', onReadable);
+            req.off('end', onEnd);
+            req.off('error', onError);
+          };
+          const onReadable = (): void => {
+            if (drain()) {
+              cleanup();
+              resolve();
+            }
+          };
+          const onEnd = (): void => {
+            cleanup();
+            controller.close();
+            resolve();
+          };
+          const onError = (err: Error): void => {
+            cleanup();
+            controller.error(err);
+            resolve();
+          };
+          req.on('readable', onReadable);
+          req.once('end', onEnd);
+          req.once('error', onError);
+        });
+      },
     },
-  });
+    { highWaterMark: 0 },
+  );
 }
 
 function headerValue(value: string | string[] | undefined): string | undefined {

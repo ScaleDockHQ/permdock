@@ -8,6 +8,7 @@ import type {
 import type { ApprovalStore } from '../approvals/types.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -17,12 +18,18 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
-import type { OpenApiHooks } from '../server/create.ts';
+import type { PdpFactory } from '../pdp/types.ts';
+import type {
+  OpenApiHooks,
+  ProtectOptions,
+  TenantOption,
+  TenantScope,
+} from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { applyOtel } from '../otel/instrument.ts';
-import { createPermDock as createKernel } from '../server/create.ts';
+import { createKernel, tenantScope } from '../server/create.ts';
 import { mapPermDockError } from '../server/map-error.ts';
 import { sendReply, toRequest } from './http.ts';
 
@@ -30,15 +37,15 @@ const SKIP_OVERRIDE = Symbol.for('skip-override');
 
 export type FastifyPermDockOptions<TUser = unknown> = {
   readonly subject: (request: FastifyRequest) => TUser | Promise<TUser>;
-  readonly tenant?:
-    | string
-    | ((
-        request: FastifyRequest,
-      ) => string | undefined | Promise<string | undefined>);
+  readonly tenant?: TenantOption<FastifyRequest>;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
+  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
+  readonly pdp?: PdpFactory;
+  /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
   readonly webBotAuth?: WebBotAuthOptions;
@@ -56,6 +63,7 @@ export type FastifyProtect = <
 >(
   permission: Permission,
   loadData?: (request: FastifyRequest<Route>) => unknown,
+  protectOptions?: ProtectOptions,
 ) => (request: FastifyRequest<Route>, reply: FastifyReply) => Promise<void>;
 
 export type FastifyPermDock = {
@@ -76,7 +84,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 ): FastifyPermDock {
   const contexts = new WeakMap<Request, FastifyRequest>();
   const bound = new WeakMap<FastifyRequest, Request>();
-  const tenantOption = options.tenant;
   const kernel = createKernel(
     policy,
     compact({
@@ -84,21 +91,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         const req = contexts.get(request);
         return req === undefined ? null : options.subject(req);
       },
-      tenant:
-        typeof tenantOption === 'function'
-          ? (
-              request: Request,
-            ): string | undefined | Promise<string | undefined> => {
-              const req = contexts.get(request);
-              return req === undefined ? undefined : tenantOption(req);
-            }
-          : tenantOption,
       memberships: options.memberships,
       customRoles: options.customRoles,
       store: options.store,
       sink: options.sink,
-      snapshots: options.snapshots,
+      limits: options.limits,
+      pdp: options.pdp,
       webBotAuth: options.webBotAuth,
+      adapter: 'fastify',
       wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),
   );
@@ -113,6 +113,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     contexts.set(next, request);
     return next;
   };
+
+  const scopeOf = (request: FastifyRequest): Promise<TenantScope> =>
+    tenantScope(options.tenant, request);
 
   const decorate = (
     request: FastifyRequest,
@@ -130,25 +133,37 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     app.decorateRequest('permdock', null);
     app.decorateRequest('permdockData', null);
     app.addHook('onRequest', async (request) => {
-      decorate(request, await kernel.permdock(bind(request)));
+      decorate(
+        request,
+        await kernel.permdock(bind(request), await scopeOf(request)),
+      );
     });
-    app.setErrorHandler(async (err, _request, reply) => {
+    // A user error handler may be async; Fastify types it as `void`.
+    const previous: (
+      this: typeof app,
+      error: unknown,
+      request: FastifyRequest,
+      reply: FastifyReply,
+    ) => unknown = app.errorHandler;
+    app.setErrorHandler(async function permdockErrors(err, request, reply) {
       const problem = mapPermDockError(err);
       if (problem === undefined) {
-        await reply.send(err);
-        return;
+        await previous.call(this, err, request, reply);
+        return undefined;
       }
       await sendReply(reply, problem);
+      return undefined;
     });
     return Promise.resolve();
   });
 
   const protect: FastifyProtect =
-    (permission, loadData) => async (request, reply) => {
+    (permission, loadData, protectOptions) => async (request, reply) => {
       const guard = await kernel.protect(
         permission,
         loadData === undefined ? undefined : (): unknown => loadData(request),
-      )(bind(request));
+        protectOptions,
+      )(bind(request), await scopeOf(request));
       if (!guard.ok) {
         await sendReply(reply, guard.response);
         return;
@@ -157,9 +172,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     };
 
   const permdockHandler: FastifyPluginAsync = (app) => {
-    const { POST, GET } = kernel.handler();
+    const { POST, GET } = kernel.handler((request) => {
+      const req = contexts.get(request);
+      return req === undefined ? { tenant: undefined } : scopeOf(req);
+    });
     app.post('/', async (request, reply) => {
-      await sendReply(reply, await POST(bind(request)));
+      const parsed = toRequest(request);
+      contexts.set(parsed, request);
+      await sendReply(reply, await POST(parsed));
     });
     app.get('/', async (request, reply) => {
       await sendReply(reply, await GET(bind(request)));

@@ -31,70 +31,132 @@ function isThenable(value: unknown): value is Promise<unknown> {
   );
 }
 
-export function limitWindowId(per: string, now: number): string {
+const PER_PATTERN =
+  /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/u;
+
+/** The window length of `per` in seconds, or `undefined` when unrecognised. */
+export function limitWindowSeconds(per: string): number | undefined {
   const trimmed = per.trim().toLowerCase();
   const named = UNIT_SECONDS[trimmed];
   if (named !== undefined) {
-    return String(Math.floor(now / named));
+    return named;
   }
-  const match =
-    /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/u.exec(
-      trimmed,
+  const match = PER_PATTERN.exec(trimmed);
+  if (match === null) {
+    return undefined;
+  }
+  const amount = Number(match[1]);
+  const unit = UNIT_SECONDS[match[2] ?? ''];
+  return unit !== undefined && Number.isSafeInteger(amount) && amount > 0
+    ? amount * unit
+    : undefined;
+}
+
+/** Throws at definition time for a `limit` no store could count. */
+export function assertLimit(
+  limit: { readonly count: number; readonly per: string } | undefined,
+  permissionKey: string,
+): void {
+  if (limit === undefined) {
+    return;
+  }
+  if (!Number.isSafeInteger(limit.count) || limit.count <= 0) {
+    throw new Error(
+      `PermDock: limit count on '${permissionKey}' must be a positive integer`,
     );
-  if (match !== null) {
-    const amount = Number(match[1]);
-    const unit = UNIT_SECONDS[match[2] ?? ''];
-    if (unit !== undefined && Number.isFinite(amount) && amount > 0) {
-      return String(Math.floor(now / (amount * unit)));
-    }
   }
-  return '0';
+  if (limitWindowSeconds(limit.per) === undefined) {
+    throw new Error(
+      `PermDock: limit per '${limit.per}' on '${permissionKey}' is not a duration such as 'hour' or '15 min'`,
+    );
+  }
+}
+
+export function limitWindowId(per: string, now: number): string | undefined {
+  const seconds = limitWindowSeconds(per);
+  return seconds === undefined ? undefined : String(Math.floor(now / seconds));
 }
 
 export function limitCacheKey(
-  subjectId: string,
-  key: string,
-  per: string,
+  input: {
+    readonly subjectId: string;
+    readonly key: string;
+    readonly per: string;
+    readonly tenant?: string;
+  },
   now: number,
-): string {
-  return `${subjectId}:${key}:${per}:${limitWindowId(per, now)}`;
+): string | undefined {
+  const window = limitWindowId(input.per, now);
+  return window === undefined
+    ? undefined
+    : JSON.stringify([
+        input.tenant ?? null,
+        input.subjectId,
+        input.key,
+        input.per,
+        window,
+      ]);
 }
 
-export function memoryLimitStore(): LimitStore {
-  const used = new Map<string, number>();
-  const bucket = (input: {
-    readonly key: string;
-    readonly subjectId: string;
-    readonly per: string;
-    readonly now?: number;
-  }): string =>
-    limitCacheKey(
-      input.subjectId,
-      input.key,
-      input.per,
-      input.now ?? Date.now() / 1000,
-    );
+export function memoryLimitStore(): LimitStore & {
+  /** Live counters, for tests and diagnostics. */
+  size(): number;
+} {
+  const used = new Map<string, { count: number; until: number }>();
+  let earliest = Number.POSITIVE_INFINITY;
+  const sweep = (now: number): void => {
+    if (now < earliest) {
+      return;
+    }
+    earliest = Number.POSITIVE_INFINITY;
+    for (const [id, entry] of used) {
+      if (entry.until <= now) {
+        used.delete(id);
+      } else {
+        earliest = Math.min(earliest, entry.until);
+      }
+    }
+  };
+  const locate = (
+    input: Parameters<LimitStore['consume']>[0],
+  ):
+    | { readonly id: string; readonly until: number; readonly now: number }
+    | undefined => {
+    const now = input.now ?? Date.now() / 1000;
+    const seconds = limitWindowSeconds(input.per);
+    const id = limitCacheKey(input, now);
+    if (seconds === undefined || id === undefined) {
+      return undefined;
+    }
+    return { id, until: (Math.floor(now / seconds) + 1) * seconds, now };
+  };
   return {
     remaining(input) {
       const cap = input.count;
-      if (!Number.isFinite(cap) || cap <= 0) {
+      const slot = locate(input);
+      if (!Number.isFinite(cap) || cap <= 0 || slot === undefined) {
         return { remaining: -1 };
       }
-      const seen = used.get(bucket(input)) ?? 0;
+      const seen = used.get(slot.id)?.count ?? 0;
       return { remaining: cap - seen };
     },
     consume(input) {
       const cap = input.count;
-      if (!Number.isFinite(cap) || cap <= 0) {
+      const slot = locate(input);
+      if (!Number.isFinite(cap) || cap <= 0 || slot === undefined) {
         return { remaining: -1 };
       }
-      const id = bucket(input);
-      const seen = used.get(id) ?? 0;
+      sweep(slot.now);
+      const seen = used.get(slot.id)?.count ?? 0;
       if (seen >= cap) {
         return { remaining: -1 };
       }
-      used.set(id, seen + 1);
+      used.set(slot.id, { count: seen + 1, until: slot.until });
+      earliest = Math.min(earliest, slot.until);
       return { remaining: cap - seen - 1 };
+    },
+    size() {
+      return used.size;
     },
   };
 }
@@ -109,6 +171,7 @@ export function applyQuota(input: {
   readonly grant: Grant;
   readonly permissionKey: string;
   readonly subjectId: string;
+  readonly tenant: string | undefined;
   readonly now: number;
   readonly consume: boolean;
 }): QuotaVerdict {
@@ -125,13 +188,12 @@ export function applyQuota(input: {
     count: limit.count,
     per: limit.per,
     now: input.now,
+    ...(input.tenant === undefined ? {} : { tenant: input.tenant }),
   };
-  const cacheKey = limitCacheKey(
-    input.subjectId,
-    input.permissionKey,
-    limit.per,
-    input.now,
-  );
+  const cacheKey = limitCacheKey(payload, input.now);
+  if (cacheKey === undefined) {
+    return { ok: false, reason: 'limit-unavailable' };
+  }
   if (!input.consume) {
     try {
       const peeked = input.store.remaining(payload);

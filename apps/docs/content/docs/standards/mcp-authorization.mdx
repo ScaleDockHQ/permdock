@@ -44,7 +44,7 @@ What `protectServer` does with each MCP concept:
 - **`scopeChallenge`.** `permission.scope` (`post:delete`) becomes the tool's `scopeChallenge`. A caller whose token lacks it receives the SDK's `403 insufficient_scope` step-up challenge before the handler runs. Because SEP-2350 says the client accumulates scopes, PermDock lists only the missing scope in the challenge.
 - **Handler-level check.** When the scope is present, `protectServer` builds a request-scoped `PermDock` from `authInfo`, loads the instance with `data(args)`, validates `args` against the resource schema (`validate: 'boundary'`), and calls `decide(permission, instance)`. `denied` returns `isError: true` with the `Decision` reasons and `alternatives` as `structuredContent`, so the model can self-correct instead of retrying.
 - **`list_tools` filtering.** The tool list is filtered per caller using `can` on the collection or a representative check, so a model never sees tools it cannot use (the same idea as `capabilityMiddleware` in [ai-sdk](/docs/adapters/ai-sdk)).
-- **Elicitation for approvals.** `approval-required` is surfaced as an elicitation request. Because the core is stateless, the approval is carried through the multi-round-trip request and re-checked against `Decision.token` on resume (see [approvals](/docs/security/approvals)).
+- **Approvals.** `approval-required` is returned as a structured tool result carrying `token` and an `elicitation: { mode: 'approval', token }` hint; the adapter does not send an `elicitation/create` request itself. Because the core is stateless, the client resumes on a later request and the approval is re-checked against `Decision.token` (see [approvals](/docs/security/approvals)).
 - **EMA and CIMD.** PermDock does not implement the token exchange; it consumes the resulting `authInfo`. An ID-JAG-derived token still yields `scopes` and a `clientId`, so `actor` and `delegation` are filled the same way. A CIMD client id is a URL and is recorded verbatim as `actor.id` for audit.
 - **RFC 9207.** Issuer validation is a client concern and is out of scope for the server adapter; the docs for the MCP example client note it.
 - **Two-principal subject.** `principal` comes from the token's user, `actor` from the client, `delegation` from the scopes and any `authorization_details`. The decision is the principal's grants intersected with the delegation, so an agent can never exceed its user (see [delegation](/docs/security/delegation)).
@@ -64,7 +64,7 @@ What `protectServer` does with each MCP concept:
 | `authInfo.clientId` | `actor.id` with `actor.kind: 'mcp-client'` |
 | Handler returning `isError: true` | `Decision` denied, with reasons and `alternatives` in `structuredContent` |
 | Tool `inputSchema` | Cross-checked against the resource's Standard JSON Schema; args validated at the boundary |
-| Stateless elicitation (MRTR) | `approval-required` outcome; approval re-checked against `Decision.token` |
+| Stateless elicitation (MRTR) | `approval-required` structured result with an elicitation hint, no `elicitation/create` request; approval re-checked against `Decision.token` |
 | Tasks extension | Long-running approvals; open question below |
 | CIMD client identity | Recorded as `actor.id`; no registration step in PermDock |
 | RFC 9207 `iss` validation | Client-side; documented in the example client, not enforced by the adapter |

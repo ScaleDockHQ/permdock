@@ -34,8 +34,8 @@ app.delete<{ Params: { id: string } }>('/posts/:id', {
 
 | Export | Role |
 |---|---|
-| `permdock` | Plugin (wrapped with `fastify-plugin` so decorators are visible to the parent scope). Adds `request.permdock` and registers an error handler mapping PermDock errors to Problem Details. |
-| `protect(permission, loadData?)` | `preHandler` hook. Typed against the route's `RouteGenericInterface`, so `request.params` and `request.body` keep their types inside `loadData` (permix's Elysia and Fastify guards lost route typing). |
+| `permdock` | Plugin (wrapped with `fastify-plugin` so decorators are visible to the parent scope). Adds `request.permdock` and registers an error handler mapping PermDock errors to Problem Details. Any other error goes to the error handler that was in place before, so an app's own `setErrorHandler` keeps working. |
+| `protect(permission, loadData?, options?)` | `preHandler` hook. The `tenant` option (`(request) => request.params.org`) is resolved for each `protect`. Typed against the route's `RouteGenericInterface`, so `request.params` and `request.body` keep their types inside `loadData` (permix's Elysia and Fastify guards lost route typing). |
 | `permdockHandler` | Plugin mounting the AuthZEN-shaped decision endpoint: `app.register(permdockHandler, { prefix: '/api/permdock' })`. |
 | `openapi` | Kernel hook contract; feeds `@fastify/swagger` route `schema.security` and the document-level `securitySchemes`. |
 
@@ -57,6 +57,8 @@ await app.register(async (admin) => {
 3. Handlers call `request.permdock.assert(...)`; thrown PermDock errors reach the plugin's `setErrorHandler` and become Problem Details.
 4. `on('decision')` events carry `request.method` and `request.routeOptions.url`.
 
+The decision endpoint builds its Web `Request` from the body Fastify already parsed. Multipart bodies stay with `@fastify/multipart`: `request.file()` works in a handler behind `protect`.
+
 ## What it validates
 
 - Untrusted `loadData` results and bodies under `validate: 'boundary'`. Fastify's own JSON Schema validation runs first; PermDock validates only the resource shape used by the policy.
@@ -70,6 +72,8 @@ await app.register(async (admin) => {
 ## Example app
 
 `apps/examples/fastify`: posts API with the plugin, `protect` on CRUD routes, `@fastify/swagger` emitting `securitySchemes` and per-route `security`, the decision endpoint, and `app.inject()` tests asserting exact denial bodies.
+
+`tests/integration/src/http/fastify.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios with `@fastify/multipart` and a prefixed admin plugin.
 
 ## Related standards
 

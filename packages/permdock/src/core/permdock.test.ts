@@ -52,11 +52,10 @@ describe('createPermDock', () => {
     expect(permdock.can(permissions.post.publish, ownPost)).toBe(true);
     expect(permdock.can(permissions.post.publish, otherPost)).toBe(false);
     const portable = permdock.where(permissions.post.publish);
-    expect(
-      portable.condition.op === 'and' ||
-        portable.condition.op === 'eq' ||
-        portable.condition.op === 'or',
-    ).toBe(true);
+    expect(portable.condition).toEqual({
+      op: 'not',
+      condition: { op: 'eq', field: 'published', value: true },
+    });
     expect(permdock.can(permissions.post.delete, otherPost)).toBe(true);
     expect(permdock.decide(permissions.post.delete, ownPost).outcome).toBe(
       'granted',
@@ -306,6 +305,7 @@ describe('createPermDock', () => {
         context: {},
       },
       {
+        tenant: 'o1',
         customRoles: memoryRoleSource([
           { tenant: 'o1', name: 'staff', includes: ['member'] },
         ]),

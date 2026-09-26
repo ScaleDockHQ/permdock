@@ -8,7 +8,7 @@ import { isForbiddenKey } from './paths.ts';
 import { tenantsOf } from './tenancy.ts';
 import { listPlans, listRoles } from './vocabulary.ts';
 
-function snapshotGrant(
+export function snapshotGrant(
   grant: Grant,
   membership: Membership | undefined,
 ): SnapshotGrant {
@@ -46,6 +46,7 @@ export function buildSnapshot(input: {
   readonly simulated?: boolean;
   readonly now?: number;
   readonly vocabulary?: PolicyVocabulary;
+  readonly scopes?: Snapshot['scopes'];
 }): Snapshot {
   const now = input.now ?? Math.floor(Date.now() / 1000);
   const principal = input.subject.principal;
@@ -94,6 +95,7 @@ export function buildSnapshot(input: {
       include,
       simulated: input.simulated === true ? true : undefined,
       expiresAt: input.subject.expiresAt,
+      scopes: input.scopes,
       vocabulary:
         input.vocabulary === undefined
           ? undefined
@@ -163,10 +165,16 @@ function rejectUnsafe(value: unknown, path: string): void {
 }
 
 export function parseSnapshot(json: unknown): Snapshot {
-  const value = typeof json === 'string' ? (JSON.parse(json) as unknown) : json;
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  const input = typeof json === 'string' ? (JSON.parse(json) as unknown) : json;
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error('PermDock: snapshot must be an object');
   }
+  // Freezing the caller's object in place would break a framework proxy
+  // around it (Vue `reactive`, Nuxt `useState`); freeze a plain copy instead.
+  const value =
+    typeof json === 'string' || Object.isFrozen(input)
+      ? input
+      : (JSON.parse(JSON.stringify(input)) as object);
   rejectUnsafe(value, '$');
   const record = value as Record<string, unknown>;
   const version = record.v;

@@ -1,10 +1,11 @@
 export {
   actorFromSession,
   createPermDock,
+  rolesOf,
   subjectFromSession,
 } from './create.ts';
 export type {
-  EveApprovalArgs,
+  EveApprovalContext,
   EveApprovalPair,
   EveApprovers,
   EveContext,
@@ -12,6 +13,6 @@ export type {
   EvePermDockOptions,
   EvePrincipal,
   EveRequestResult,
-  EveResponder,
+  EveResponseContext,
   EveResponseResult,
 } from './create.ts';

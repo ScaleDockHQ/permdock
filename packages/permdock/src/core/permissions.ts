@@ -421,7 +421,7 @@ export function getResource(
 
 export function definePermissions<const Input>(
   input: Input,
-): InferPermissionTree<Input> & RegistryTree {
+): InferPermissionTree<Input> {
   const registry = new Map<string, ResourceNode>();
   const leaves: Permission[] = [];
   const tree = walk(input, [], registry, leaves, 0);
@@ -435,7 +435,7 @@ export function definePermissions<const Input>(
   }
   return freezeDeep(
     attachRegistry(tree, registry, leaves),
-  ) as InferPermissionTree<Input> & RegistryTree;
+  ) as InferPermissionTree<Input>;
 }
 
 function collectLeaves(node: PermissionTree | Permission): Permission[] {
@@ -541,7 +541,7 @@ function mergeNodes(
 
 export function mergePermissions<const Trees extends readonly PermissionTree[]>(
   ...trees: Trees
-): PermissionTree & RegistryTree {
+): PermissionTree {
   if (trees.length === 0) {
     throw new Error('PermDock: mergePermissions() requires at least one tree');
   }

@@ -16,7 +16,12 @@ import {
   role,
   sqlFunction,
 } from 'permdock';
-import { memoryLimitStore, memoryRoleSource, memorySink } from 'permdock';
+import {
+  memoryLimitStore,
+  memoryRevocationFeed,
+  memoryRoleSource,
+  memorySink,
+} from 'permdock';
 import { memoryApprovalStore } from 'permdock/approvals';
 import { joseTokenSigner, joseTokenVerifier } from 'permdock/jwt';
 import { memoryDirectoryStore } from 'permdock/scim';
@@ -30,6 +35,7 @@ import {
   testLimitStore,
   testDirectoryStore,
   testReplayStore,
+  testRevocationFeed,
   testMembershipSource,
   testRoleSource,
   testSnapshotSource,
@@ -429,6 +435,8 @@ describe('conformance runners', () => {
   });
 
   testReplayStore(memoryReplayStore());
+
+  testRevocationFeed(memoryRevocationFeed());
 
   testTokenVerifier(
     joseTokenVerifier({

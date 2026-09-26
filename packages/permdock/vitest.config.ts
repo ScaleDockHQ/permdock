@@ -1,13 +1,39 @@
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    typecheck: {
-      enabled: true,
-      include: ['src/**/*.test-d.ts'],
-      ignoreSourceErrors: true,
-    },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+          exclude: ['src/**/*.browser.test.ts'],
+          typecheck: {
+            enabled: true,
+            include: ['src/**/*.test-d.ts'],
+            tsconfig: './tsconfig.typecheck.json',
+            ignoreSourceErrors: true,
+          },
+        },
+      },
+      {
+        // Svelte and Solid client builds: rune and signal reactivity only
+        // exists under the `browser` condition.
+        extends: true,
+        plugins: [svelte()],
+        resolve: { conditions: ['browser'] },
+        test: {
+          name: 'browser',
+          environment: 'happy-dom',
+          // One `solid-js` instance: `solid-js/web` must not reach the Node
+          // (server) build through an external import.
+          server: { deps: { inline: [/solid-js/u] } },
+          include: ['src/**/*.browser.test.ts'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

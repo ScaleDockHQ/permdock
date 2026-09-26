@@ -91,7 +91,7 @@ const approval = useApproval(decision)
 // approval.token                            the replay-safe token, for the retry header
 ```
 
-`request` posts to the `approvalsHandler` route ([approvals adapter](/docs/adapters/approvals)); `state` polls or subscribes for the verdict; when `approved`, the retry helper `approvalHeaders(token)` returns `{ 'PermDock-Approval': token }` for the mutation call ([security: approvals](/docs/security/approvals)). The approver never answers through this hook: approving happens in the inbox or a chat surface, authenticated as the approver. The hook never fabricates a token; it only carries the one the decision returned.
+`request` posts to the `approvals` URL ([approvals adapter](/docs/adapters/approvals)); while a component subscribes, `state` polls `GET <approvals>/<token>` on the `approvalsHandler` every two seconds until the request is `approved`, `rejected` or `expired` (a `404` reads as `expired`), and never during a server render or after logout; when `approved`, the retry helper `approvalHeaders(token)` returns `{ 'PermDock-Approval': token }` for the mutation call ([security: approvals](/docs/security/approvals)). The approver never answers through this hook: approving happens in the inbox or a chat surface, authenticated as the approver. The hook never fabricates a token; it only carries the one the decision returned.
 
 ## Impersonation banner
 

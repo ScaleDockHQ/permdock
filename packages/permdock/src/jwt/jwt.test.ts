@@ -121,6 +121,43 @@ describe('joseTokenSigner', () => {
 });
 
 describe('joseTokenVerifier', () => {
+  it('requires exp except on a Security Event Token (RFC 8417), which needs iat', async () => {
+    const key = await importJWK({ ...PRIVATE_JWK }, 'Ed25519');
+    const unexpiring = (typ: string, iat = true) => {
+      const jwt = new SignJWT({ jti: 'j1', sub: 'u_1', events: {} })
+        .setProtectedHeader({ alg: 'Ed25519', kid: '2026-09', typ })
+        .setIssuer(ISSUER)
+        .setAudience(AUDIENCE);
+      return (iat ? jwt.setIssuedAt() : jwt).sign(key);
+    };
+    const check = verifier();
+    const expectations = (typ: string) => ({
+      typ,
+      audience: AUDIENCE,
+      issuer: ISSUER,
+    });
+
+    const set = await check.verify(
+      await unexpiring('secevent+jwt'),
+      expectations('secevent+jwt'),
+    );
+    expect(set.ok).toBe(true);
+    const noIat = await check.verify(
+      await unexpiring('secevent+jwt', false),
+      expectations('secevent+jwt'),
+    );
+    expect(noIat).toMatchObject({ ok: false });
+    for (const typ of ['at+jwt', 'logout+jwt']) {
+      // oxlint-disable-next-line no-await-in-loop -- one token type at a time
+      const result = await check.verify(
+        // oxlint-disable-next-line no-await-in-loop -- one token type at a time
+        await unexpiring(typ),
+        expectations(typ),
+      );
+      expect(result).toMatchObject({ ok: false });
+    }
+  });
+
   it('never throws and maps the behaviour table', async () => {
     const check = verifier();
     const valid = await accessToken();

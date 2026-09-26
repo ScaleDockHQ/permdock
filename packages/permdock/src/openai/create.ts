@@ -2,6 +2,7 @@ import type { ToolMap } from '../agent/types.ts';
 import type { ApprovalRequest, ApprovalStore } from '../approvals/types.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -11,17 +12,21 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 
-import { createAgentKernel } from '../agent/kernel.ts';
-import { inspectApproval } from '../approvals/helpers.ts';
+import { approvalTokenOf, createAgentKernel } from '../agent/kernel.ts';
 import { memoryApprovalStore } from '../approvals/store.ts';
 import { compact } from '../core/compact.ts';
 
+/** The app context passed to `run(agent, input, { context })`. */
 export type OpenAiContext = {
   readonly user?: unknown;
   readonly agentId?: string;
-  readonly approval?: string;
-  readonly token?: string;
+  readonly permdockApproval?: string;
   readonly [key: string]: unknown;
+};
+
+/** Structural `RunContext` from `@openai/agents`: the app context sits under `context`. */
+export type OpenAiRunContext = {
+  readonly context?: unknown;
 };
 
 export type OpenAiPermDockOptions<TUser = unknown> = {
@@ -37,6 +42,7 @@ export type OpenAiPermDockOptions<TUser = unknown> = {
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
 };
 
@@ -44,46 +50,76 @@ export type OpenAiTool = {
   readonly name: string;
 };
 
+/** Structural `RunToolApprovalItem` from `@openai/agents`. */
 export type OpenAiInterruption = {
-  readonly callId: string;
+  readonly type?: string;
+  readonly name?: string | undefined;
+  readonly arguments?: string | undefined;
   readonly rawItem?: {
+    readonly type?: string;
+    readonly callId?: string;
     readonly name?: string;
     readonly arguments?: unknown;
   };
 };
 
-export type OpenAiRunState = {
-  approve(interruption: OpenAiInterruption): void | Promise<void>;
+/** Structural `RunState` from `@openai/agents`. */
+export type OpenAiRunState<TItem> = {
+  approve(item: TItem, options?: { alwaysApprove?: boolean }): unknown;
   reject(
-    interruption: OpenAiInterruption,
-    options?: { readonly message?: string },
-  ): void | Promise<void>;
+    item: TItem,
+    options?: { alwaysReject?: boolean; message?: string },
+  ): unknown;
 };
 
 export type OpenAiPermDock = {
+  /** A `ToolApprovalFunction`: pass it as a tool's `needsApproval`. */
   readonly needsApproval: (
     permission: Permission,
-  ) => (context: OpenAiContext, args: unknown) => Promise<boolean>;
+  ) => (
+    runContext: OpenAiRunContext | undefined,
+    input: unknown,
+    callId?: string,
+  ) => Promise<boolean>;
   readonly guardTools: <T extends OpenAiTool>(
     tools: readonly T[],
     context: OpenAiContext,
   ) => Promise<readonly T[]>;
-  readonly resolveInterruptions: (
-    state: OpenAiRunState,
-    interruptions: readonly OpenAiInterruption[],
+  readonly resolveInterruptions: <TItem extends OpenAiInterruption>(
+    state: OpenAiRunState<TItem>,
+    interruptions: readonly TItem[],
     options: { readonly context: OpenAiContext },
   ) => Promise<readonly ApprovalRequest[]>;
   readonly permdock: (context: OpenAiContext) => Promise<PermDock>;
 };
 
-function resumeTokenOf(context: OpenAiContext): string | undefined {
-  if (typeof context.approval === 'string' && context.approval !== '') {
-    return context.approval;
+function appContext(runContext: OpenAiRunContext | undefined): OpenAiContext {
+  const context = runContext?.context;
+  return typeof context === 'object' && context !== null
+    ? (context as OpenAiContext)
+    : {};
+}
+
+type ParsedCall =
+  | { readonly ok: true; readonly name: string; readonly args: unknown }
+  | { readonly ok: false };
+
+function parseCall(item: OpenAiInterruption): ParsedCall {
+  const name = item.name ?? item.rawItem?.name;
+  if (typeof name !== 'string') {
+    return { ok: false };
   }
-  if (typeof context.token === 'string' && context.token !== '') {
-    return context.token;
+  const raw = item.arguments ?? item.rawItem?.arguments;
+  if (typeof raw !== 'string') {
+    return typeof raw === 'object' && raw !== null
+      ? { ok: true, name, args: raw }
+      : { ok: false };
   }
-  return undefined;
+  try {
+    return { ok: true, name, args: JSON.parse(raw) as unknown };
+  } catch {
+    return { ok: false };
+  }
 }
 
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
@@ -91,7 +127,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   options: OpenAiPermDockOptions<TUser>,
 ): OpenAiPermDock {
   const store = options.store ?? memoryApprovalStore();
-  const tokensByCall = new Map<string, string>();
   const kernel = createAgentKernel(policy, {
     ...compact({
       actor: options.actor,
@@ -99,6 +134,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       memberships: options.memberships,
       customRoles: options.customRoles,
       sink: options.sink,
+      limits: options.limits,
       snapshots: options.snapshots,
     }),
     subject: options.subject,
@@ -112,20 +148,37 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     byPermission.set(binding.permission.key, name);
   }
 
+  // A denial also pauses the run: `resolveInterruptions` rejects it with the
+  // reason, so the model sees why instead of the tool running.
   const needsApproval =
     (permission: Permission) =>
-    async (context: OpenAiContext, args: unknown): Promise<boolean> => {
+    async (
+      runContext: OpenAiRunContext | undefined,
+      input: unknown,
+    ): Promise<boolean> => {
       const toolName = byPermission.get(permission.key);
       if (toolName === undefined) {
         return true;
       }
-      const verdict = await kernel.decideTool(
-        toolName,
-        args,
-        context,
-        compact({ resumeToken: resumeTokenOf(context) }),
-      );
-      return verdict.outcome !== 'granted';
+      const context = appContext(runContext);
+      const binding = options.tools[toolName];
+      if (binding === undefined) {
+        return true;
+      }
+      try {
+        const dock = await kernel.instance(context);
+        const can = dock.can as (next: Permission, row?: unknown) => boolean;
+        if (binding.data === undefined) {
+          return !can(permission);
+        }
+        const data: unknown = await binding.data(input);
+        if (data === null || data === undefined) {
+          return true;
+        }
+        return !can(permission, data);
+      } catch {
+        return true;
+      }
     };
 
   const guardTools = async <T extends OpenAiTool>(
@@ -136,69 +189,47 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     return tools.filter((tool) => allowed.has(tool.name));
   };
 
-  const resolveOne = async (
-    state: OpenAiRunState,
-    interruption: OpenAiInterruption,
+  const resolveOne = async <TItem extends OpenAiInterruption>(
+    state: OpenAiRunState<TItem>,
+    item: TItem,
     context: OpenAiContext,
   ): Promise<ApprovalRequest | null> => {
-    const toolName = interruption.rawItem?.name;
-    if (toolName === undefined) {
-      await state.reject(interruption, { message: 'approval-not-found' });
-      return null;
-    }
-    const storedToken = tokensByCall.get(interruption.callId);
-    const inspected =
-      storedToken === undefined
-        ? undefined
-        : await inspectApproval(store, storedToken);
-    if (inspected !== undefined && inspected.ok) {
-      const verdict = await kernel.decideTool(
-        toolName,
-        interruption.rawItem?.arguments,
-        context,
-        compact({ resumeToken: storedToken }),
-      );
-      if (verdict.outcome === 'granted') {
-        await state.approve(interruption);
-        return null;
-      }
-      await state.reject(interruption, {
-        message:
-          verdict.outcome === 'denied' ? verdict.reason : 'approval-mismatch',
-      });
-      return null;
-    }
-    if (inspected !== undefined && !inspected.ok) {
-      await state.reject(interruption, { message: inspected.detail });
+    const call = parseCall(item);
+    if (!call.ok) {
+      await state.reject(item, { message: 'Denied: unreadable tool call.' });
       return null;
     }
     const verdict = await kernel.decideTool(
-      toolName,
-      interruption.rawItem?.arguments,
+      call.name,
+      call.args,
       context,
+      compact({ resumeToken: approvalTokenOf(context) }),
     );
     if (verdict.outcome === 'granted') {
-      await state.approve(interruption);
+      await state.approve(item);
       return null;
     }
     if (verdict.outcome === 'denied') {
-      await state.reject(interruption, { message: verdict.reason });
+      await state.reject(item, { message: verdict.reason });
       return null;
     }
-    tokensByCall.set(interruption.callId, verdict.token);
-    return (await store.get(verdict.token)) ?? null;
+    try {
+      return await store.get(verdict.token);
+    } catch {
+      return null;
+    }
   };
 
-  const resolveInterruptions = async (
-    state: OpenAiRunState,
-    interruptions: readonly OpenAiInterruption[],
+  const resolveInterruptions = async <TItem extends OpenAiInterruption>(
+    state: OpenAiRunState<TItem>,
+    interruptions: readonly TItem[],
     resolveOptions: { readonly context: OpenAiContext },
   ): Promise<readonly ApprovalRequest[]> => {
-    const resolved = await Promise.all(
-      interruptions.map((interruption) =>
-        resolveOne(state, interruption, resolveOptions.context),
-      ),
-    );
+    const resolved = [];
+    for (const item of interruptions) {
+      // oxlint-disable-next-line no-await-in-loop -- approve / reject mutate the run state in interruption order
+      resolved.push(await resolveOne(state, item, resolveOptions.context));
+    }
     return resolved.filter((record) => record !== null);
   };
 

@@ -155,6 +155,8 @@ export function scimHandler(
               active: false,
             }),
             existing === null ? [] : [existing.id],
+            [],
+            existing === null ? [] : [existing],
           );
           return new Response(null, { status: 204 });
         }

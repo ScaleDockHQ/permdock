@@ -1,6 +1,7 @@
 import type { ApprovalStore } from '../approvals/types.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -23,7 +24,12 @@ export type AuthzenSubjectRecord = {
 export type AuthzenPermDockOptions<TUser = unknown> = {
   readonly subject: (request: Request) => TUser | Promise<TUser>;
   readonly anonymous?: boolean;
-  readonly trustedPep?: boolean;
+  /**
+   * Allow-list over the authenticated PEP. Only a PEP it returns `true` for
+   * may evaluate the body's `subject`, `actor` and `delegation`; every other
+   * caller is evaluated as itself. Off by default.
+   */
+  readonly trustedPep?: (pep: unknown) => boolean;
   readonly resources?: Readonly<Record<string, AuthzenResourceAdapter>>;
   readonly subjects?: {
     readonly list?: () =>
@@ -34,6 +40,7 @@ export type AuthzenPermDockOptions<TUser = unknown> = {
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
   readonly maxEvaluations?: number;
 };

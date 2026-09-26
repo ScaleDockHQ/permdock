@@ -1,3 +1,4 @@
+import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -6,6 +7,7 @@ import type { TokenVerifier } from '../core/interfaces.ts';
 import { memoryApprovalStore } from '../approvals/index.ts';
 import { definePermissions, resource } from '../core/permissions.ts';
 import { allow, definePolicy, role } from '../core/policy.ts';
+import { memoryRevocationFeed } from '../core/revocations.ts';
 import { BACKCHANNEL_LOGOUT_EVENT } from './events.ts';
 import { createPermDock, memoryReplayStore } from './index.ts';
 
@@ -117,6 +119,40 @@ describe('createPermDock', () => {
 });
 
 describe('receiver.push', () => {
+  it('accepts a signed SET without exp through jwks', async () => {
+    const keys = await generateKeyPair('ES256');
+    const publicJwk = {
+      ...(await exportJWK(keys.publicKey)),
+      kid: 'idp',
+      alg: 'ES256',
+    };
+    const seen: string[] = [];
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      jwks: { keys: [publicJwk] },
+      subject: (setSubject) => String(setSubject.sub),
+      onEvent: {
+        'session-revoked': ({ subject }) => {
+          seen.push(subject.id);
+        },
+      },
+    });
+    const set = await new SignJWT({
+      jti: 'set-no-exp',
+      sub_id: { format: 'iss_sub', iss: ISSUER, sub: 'user-1' },
+      events: { [SESSION_REVOKED]: {} },
+    })
+      .setProtectedHeader({ alg: 'ES256', kid: 'idp', typ: 'secevent+jwt' })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setIssuedAt()
+      .sign(keys.privateKey);
+    const response = await receiver.push(setRequest(set));
+    expect(response.status).toBe(202);
+    expect(seen).toEqual(['user-1']);
+  });
+
   it('verifies a SET and dispatches session-revoked', async () => {
     const seen: string[] = [];
     const { receiver } = createPermDock(policy, {
@@ -496,5 +532,207 @@ describe('receiver.on', () => {
     });
     await receiver.push(setRequest('set-audit'));
     expect(events).toEqual(['session-revoked']);
+  });
+});
+
+describe('replay claim', () => {
+  it('claims atomically in memoryReplayStore and releases on request', async () => {
+    const store = memoryReplayStore();
+    expect(await store.claim?.('k', Date.now() / 1000 + 60)).toBe(true);
+    expect(await store.claim?.('k', Date.now() / 1000 + 60)).toBe(false);
+    expect(await store.seen('k')).toBe(true);
+    await store.release?.('k');
+    expect(await store.claim?.('k', Date.now() / 1000 + 60)).toBe(true);
+  });
+
+  it('dispatches one of two concurrent deliveries of the same SET', async () => {
+    let calls = 0;
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        iat: 1,
+        jti: 'race-1',
+        sub_id: { format: 'opaque', id: 'user-1' },
+        events: { [SESSION_REVOKED]: {} },
+      })),
+      subject: () => 'user-1',
+      onEvent: {
+        'session-revoked': async () => {
+          calls += 1;
+          await new Promise((resolve) => {
+            setTimeout(resolve, 5);
+          });
+        },
+      },
+    });
+    const responses = await Promise.all([
+      receiver.push(setRequest('set-race')),
+      receiver.push(setRequest('set-race')),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([202, 202]);
+    expect(calls).toBe(1);
+  });
+
+  it('namespaces replay keys by issuer when receivers share a store', async () => {
+    const replay = memoryReplayStore();
+    const seen: string[] = [];
+    function receiverFor(issuer: string) {
+      return createPermDock(policy, {
+        issuer,
+        audience: AUDIENCE,
+        replay,
+        verifier: verifier(() => ({
+          iss: issuer,
+          iat: 1,
+          jti: 'shared-jti',
+          sub_id: { format: 'opaque', id: 'user-1' },
+          events: { [SESSION_REVOKED]: {} },
+        })),
+        subject: () => `user@${issuer}`,
+        onEvent: {
+          'session-revoked': ({ subject }) => {
+            seen.push(subject.id);
+          },
+        },
+      }).receiver;
+    }
+    const a = receiverFor('https://a.example.com');
+    const b = receiverFor('https://b.example.com');
+    expect((await a.push(setRequest('set-a'))).status).toBe(202);
+    expect((await b.push(setRequest('set-b'))).status).toBe(202);
+    expect(seen).toEqual([
+      'user@https://a.example.com',
+      'user@https://b.example.com',
+    ]);
+  });
+
+  it('re-dispatches only the events that failed when a SET is retried', async () => {
+    const calls: string[] = [];
+    let failCredential = true;
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        iat: 1,
+        jti: 'multi-1',
+        sub_id: { format: 'opaque', id: 'user-1' },
+        events: { [SESSION_REVOKED]: {}, [CREDENTIAL_CHANGE]: {} },
+      })),
+      subject: () => 'user-1',
+      onEvent: {
+        'session-revoked': () => {
+          calls.push('session-revoked');
+        },
+        'credential-change': () => {
+          calls.push('credential-change');
+          if (failCredential) {
+            failCredential = false;
+            throw new Error('transient');
+          }
+        },
+      },
+    });
+    expect((await receiver.push(setRequest('set-multi'))).status).toBe(400);
+    expect((await receiver.push(setRequest('set-multi'))).status).toBe(202);
+    expect((await receiver.push(setRequest('set-multi'))).status).toBe(202);
+    expect(calls).toEqual([
+      'session-revoked',
+      'credential-change',
+      'credential-change',
+    ]);
+  });
+
+  it('keeps working with a store that has only seen and remember', async () => {
+    const keys = new Set<string>();
+    let calls = 0;
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      replay: {
+        seen: (key) => keys.has(key),
+        remember: (key) => {
+          keys.add(key);
+        },
+      },
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        iat: 1,
+        jti: 'legacy-1',
+        sub_id: { format: 'opaque', id: 'user-1' },
+        events: { [SESSION_REVOKED]: {} },
+      })),
+      subject: () => 'user-1',
+      onEvent: {
+        'session-revoked': () => {
+          calls += 1;
+        },
+      },
+    });
+    expect((await receiver.push(setRequest('set-legacy'))).status).toBe(202);
+    expect((await receiver.push(setRequest('set-legacy'))).status).toBe(202);
+    expect(calls).toBe(1);
+  });
+});
+
+describe('revocations', () => {
+  function claimsFor(event: string, jti: string) {
+    return (): Record<string, unknown> => ({
+      iss: ISSUER,
+      aud: AUDIENCE,
+      iat: 1_700_000_000,
+      jti,
+      sub_id: { format: 'iss_sub', iss: ISSUER, sub: 'user-1' },
+      events: { [event]: { event_timestamp: 1_700_000_100, sid: 'sess-1' } },
+    });
+  }
+
+  it('publishes session-revoked and changed after a successful dispatch', async () => {
+    const feed = memoryRevocationFeed();
+    const seen: unknown[] = [];
+    feed.subscribe((event) => {
+      seen.push(event);
+    });
+    const receiverFor = (event: string, jti: string) =>
+      createPermDock(policy, {
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        verifier: verifier(claimsFor(event, jti)),
+        subject: (setSubject) =>
+          setSubject.format === 'iss_sub' ? String(setSubject.sub) : null,
+        revocations: feed,
+      }).receiver;
+    await receiverFor(SESSION_REVOKED, 'r-1').push(setRequest('set-a'));
+    await receiverFor(CREDENTIAL_CHANGE, 'r-2').push(setRequest('set-b'));
+    await receiverFor(UNKNOWN_EVENT, 'r-3').push(setRequest('set-c'));
+    expect(seen).toEqual([
+      { principal: 'user-1', session: 'sess-1', kind: 'session-revoked' },
+      { principal: 'user-1', kind: 'changed' },
+    ]);
+  });
+
+  it('publishes nothing when the handler fails', async () => {
+    const feed = memoryRevocationFeed();
+    const seen: unknown[] = [];
+    feed.subscribe((event) => {
+      seen.push(event);
+    });
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(claimsFor(SESSION_REVOKED, 'r-4')),
+      subject: () => 'user-1',
+      revocations: feed,
+      onEvent: {
+        'session-revoked': () => {
+          throw new Error('down');
+        },
+      },
+    });
+    const response = await receiver.push(setRequest('set-d'));
+    expect(response.status).toBe(400);
+    expect(seen).toEqual([]);
   });
 });

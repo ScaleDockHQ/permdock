@@ -8,7 +8,7 @@ import { type OxlintConfig, defineConfig } from 'oxlint';
  * must spread this constant in front of their own patterns.
  */
 export const ignorePatterns: readonly string[] = [
-  '**/{dist,.next,.source,coverage,.turbo,node_modules}/**',
+  '**/{dist,.next,.nuxt,.output,.svelte-kit,.source,coverage,.turbo,node_modules}/**',
 ];
 
 /**

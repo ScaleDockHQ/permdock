@@ -33,8 +33,8 @@ const app = new Elysia()
 
 | Export | Role |
 |---|---|
-| `permdock()` | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context. Uses `as('global')` scoping so routes registered after `.use` see it. |
-| `protect(permission, loadData?)` | `beforeHandle` hook. Loads data (`ctx.permdockData`), validates untrusted input, decides. On denial it returns a `Response` with Problem Details, which Elysia sends without running the handler. |
+| `permdock()` | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context. Uses `as: 'global'` scoping so routes registered after `.use` see it. Each `createPermDock` result gets its own plugin `seed`, so two factories in one app are not deduplicated into one, while `.use(permdock())` in a child app and its parent is. |
+| `protect(permission, loadData?, options?)` | `beforeHandle` hook. The `tenant` option (`(ctx) => ctx.params?.org`) is resolved for each `protect`. Loads data (`ctx.permdockData`), validates untrusted input, decides. On denial it returns a `Response` with Problem Details, which Elysia sends without running the handler. |
 | `permdockHandler()` | Plugin mounting the AuthZEN-shaped decision endpoint under a prefix. |
 | `openapi` | Kernel hook contract; `openapi.security(permission)` returns the `detail` fragment for `@elysiajs/openapi` and `openapi.securitySchemes()` the document-level components. |
 
@@ -53,12 +53,28 @@ app.group('/admin', (admin) =>
 
 Because hooks run in registration order, the group-level `protect` decides first and the route-level one only runs for callers that already hold `admin.access`.
 
+### WebSockets
+
+`connection(ws, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for an Elysia `.ws` socket (typed `ElysiaSocket`), memoised per socket, and closes the socket with `1008` and the Problem Details `type` when the connection aborts ([0052](/docs/decisions/0052-streams-and-sockets)). Pass `revocations` to `createPermDock`.
+
+```ts
+app.ws('/ws', {
+  async open(ws) { await connection(ws, { permission: permissions.project.read }) },
+  async message(ws, message) {
+    const conn = await connection(ws)
+    const decision = conn.check(permissions.post.update, message, { trusted: false })
+    if (decision.outcome !== 'granted') ws.send({ denied: decision.denials })
+  },
+  async close(ws) { (await connection(ws)).close() },
+})
+```
+
 ## Request lifecycle
 
 1. `derive` resolves the subject and builds the instance once per request.
 2. `protect` runs before the handler; the loaded, validated resource is available as `permdockData`.
-3. Handlers call `permdock.assert(...)` for checks with handler-local data; PermDock errors are mapped by the plugin's `onError` to Problem Details.
-4. Decisions are emitted with method and route path through `on('decision')`.
+3. Handlers call `permdock.assert(...)` for checks with handler-local data; PermDock errors are mapped by the plugin's global `onError` to Problem Details.
+4. Decisions are emitted through `on('decision')` and the `sink`. The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route; a sink that needs them reads its own request context.
 
 ## What it validates
 
@@ -73,6 +89,8 @@ Because hooks run in registration order, the group-level `protect` decides first
 ## Example app
 
 `apps/examples/elysia`: Bun runtime, posts API with the plugin and `protect`, `@elysiajs/openapi` emitting `securitySchemes`, the decision endpoint, and `bun test` cases using `app.handle(new Request(...))` asserting exact denial bodies.
+
+The example serves `app.fetch` with `@hono/node-server` under Node. `tests/integration/src/http/elysia.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios through `app.handle`, including a prefixed sub-app with its own `.use(permdock())`. Return `new Response(null, { status: 204 })` for an empty response: `set.status = 204` with an `undefined` return makes Elysia build an invalid 204 with a body.
 
 ## Related standards
 

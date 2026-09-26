@@ -1,12 +1,14 @@
-export { createPermDock } from './create.ts';
+export { APPROVAL_META_KEY, createPermDock } from './create.ts';
 export { InsufficientScopeError } from './errors.ts';
+export { subjectFromMcp } from './subject.ts';
+export type { McpSubjectOptions } from './subject.ts';
 export type {
   GuardedMcpServer,
   McpAuthInfo,
   McpPermDock,
   McpPermDockOptions,
-  McpServerLike,
+  McpPrincipal,
+  McpPromptConfig,
+  McpResourceConfig,
   McpToolConfig,
-  McpToolHandler,
-  McpToolResult,
 } from './types.ts';

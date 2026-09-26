@@ -9,7 +9,9 @@ import {
   permissions,
   policy,
 } from '../fixtures/quick-start.ts';
-import { createAgentKernel, hasAnyGrant, idOf, resourceRef } from './kernel.ts';
+import * as saas from '../fixtures/saas.ts';
+import { allow, anyone, createPermDock, definePolicy, deny } from '../index.ts';
+import { createAgentKernel, idOf, mayUse, resourceRef } from './kernel.ts';
 
 function tools() {
   return {
@@ -121,7 +123,7 @@ describe('createAgentKernel', () => {
     const dock = await kernel.instance({});
     expect(dock.subject.principal).toBeNull();
     expect(dock.subject.actor).toBeUndefined();
-    expect(hasAnyGrant(policy, dock, permissions.post.list)).toBe(false);
+    expect(mayUse(dock, permissions.post.list)).toBe(false);
 
     const denied = await kernel.decideTool('list_posts', {}, {});
     expect(denied.outcome).toBe('denied');
@@ -154,7 +156,7 @@ describe('createAgentKernel', () => {
     expect(adminTools.has('publish_post')).toBe(true);
   });
 
-  it('memoises one instance per context object', async () => {
+  it('shares one instance between concurrent calls on a context', async () => {
     let reads = 0;
     const kernel = createAgentKernel(policy, {
       adapter: 'test',
@@ -171,6 +173,129 @@ describe('createAgentKernel', () => {
     ]);
     expect(reads).toBe(1);
     expect(a).toBe(b);
+  });
+
+  it('re-reads the subject on a later call, so a revoked role takes effect', async () => {
+    let user: typeof memberUser = adminUser;
+    const kernel = createAgentKernel(policy, {
+      adapter: 'test',
+      subject: () => user,
+      tools: tools(),
+    });
+    const ctx = { session: 's1' };
+    expect(
+      (await kernel.decideTool('publish_post', { id: 'p1' }, ctx)).outcome,
+    ).toBe('granted');
+    user = memberUser;
+    expect(
+      (await kernel.decideTool('publish_post', { id: 'p1' }, ctx)).outcome,
+    ).toBe('denied');
+    expect((await kernel.allowedToolNames(ctx)).has('publish_post')).toBe(
+      false,
+    );
+  });
+
+  it('lists tools per active tenant membership, not every membership', async () => {
+    const kernel = createAgentKernel(saas.policy, {
+      adapter: 'test',
+      subject: () => saas.alice,
+      tenant: (ctx: { readonly tenant: string }) => ctx.tenant,
+      tools: {
+        delete_project: { permission: saas.permissions.project.delete },
+        read_project: { permission: saas.permissions.project.read },
+        manage_billing: { permission: saas.permissions.billing.manage },
+      },
+    });
+    const acme = await kernel.allowedToolNames({ tenant: 'acme' });
+    expect([...acme].toSorted()).toEqual(['delete_project', 'read_project']);
+    const globex = await kernel.allowedToolNames({ tenant: 'globex' });
+    expect([...globex]).toEqual(['read_project']);
+    const none = await kernel.allowedToolNames({ tenant: 'initech' });
+    expect([...none]).toEqual([]);
+  });
+
+  it('lists tools granted to anyone and hides unconditionally denied ones', async () => {
+    const open = definePolicy(permissions, {
+      roles: [],
+      grants: [
+        allow(permissions.post.read, { to: anyone() }),
+        allow(permissions.post.list, { to: anyone() }),
+        deny(permissions.post.list, { to: anyone() }),
+      ],
+      subject: (user: typeof memberUser | null) => user,
+    });
+    const kernel = createAgentKernel(open, {
+      adapter: 'test',
+      subject: () => null,
+      tools: {
+        read_post: { permission: permissions.post.read },
+        list_posts: { permission: permissions.post.list },
+      },
+    });
+    expect([...(await kernel.allowedToolNames({}))]).toEqual(['read_post']);
+  });
+
+  it('hides tools outside the delegated scopes', async () => {
+    const delegated = await createPermDock(policy, memberUser, {
+      delegation: { scopes: ['post:list'] },
+    });
+    expect(mayUse(delegated, permissions.post.list)).toBe(true);
+    expect(mayUse(delegated, permissions.post.delete)).toBe(false);
+  });
+
+  it('resumes a stored approval from the recomputed token, once', async () => {
+    const store = memoryApprovalStore();
+    const kernel = createAgentKernel(policy, {
+      adapter: 'test',
+      subject: () => memberUser,
+      store,
+      tools: tools(),
+    });
+    const asked = await kernel.decideTool('delete_post', { id: 'p1' }, {});
+    if (asked.outcome !== 'approval-required') {
+      throw new Error('expected approval-required');
+    }
+    expect(
+      (await kernel.decideTool('delete_post', { id: 'p1' }, {})).outcome,
+    ).toBe('approval-required');
+    await store.resolve(asked.token, {
+      status: 'approved',
+      by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+    });
+    expect(
+      (await kernel.decideTool('delete_post', { id: 'p2' }, {})).outcome,
+    ).toBe('denied');
+    expect(
+      (await kernel.decideTool('delete_post', { id: 'p1' }, {})).outcome,
+    ).toBe('granted');
+    const again = await kernel.decideTool('delete_post', { id: 'p1' }, {});
+    expect(again.outcome).toBe('denied');
+    if (again.outcome === 'denied') {
+      expect(again.decision?.denials[0]?.detail).toBe('approval-consumed');
+    }
+  });
+
+  it('reports a rejected approval instead of asking again', async () => {
+    const store = memoryApprovalStore();
+    const kernel = createAgentKernel(policy, {
+      adapter: 'test',
+      subject: () => memberUser,
+      store,
+      tools: tools(),
+    });
+    const asked = await kernel.decideTool('delete_post', { id: 'p1' }, {});
+    if (asked.outcome !== 'approval-required') {
+      throw new Error('expected approval-required');
+    }
+    await store.resolve(asked.token, {
+      status: 'rejected',
+      by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+    });
+    const rejected = await kernel.decideTool('delete_post', { id: 'p1' }, {});
+    expect(rejected.outcome).toBe('denied');
+    if (rejected.outcome === 'denied') {
+      expect(rejected.decision?.denials[0]?.detail).toBe('approval-rejected');
+    }
   });
 
   it('parks approval-required tools and grants on a matching resume', async () => {
@@ -215,16 +340,24 @@ describe('createAgentKernel', () => {
     );
     expect(resumed.outcome).toBe('granted');
 
-    const missing = await kernel.decideTool(
+    const replayed = await kernel.decideTool(
+      'delete_post',
+      { id: 'p1' },
+      {},
+      { resumeToken: asked.token },
+    );
+    expect(replayed.outcome).toBe('denied');
+    if (replayed.outcome === 'denied') {
+      expect(replayed.decision?.denials[0]?.detail).toBe('approval-consumed');
+    }
+
+    const foreign = await kernel.decideTool(
       'delete_post',
       { id: 'p1' },
       {},
       { resumeToken: 'not-a-token' },
     );
-    expect(missing.outcome).toBe('denied');
-    if (missing.outcome === 'denied') {
-      expect(missing.decision?.denials[0]?.detail).toBe('approval-not-found');
-    }
+    expect(foreign.outcome).toBe('approval-required');
   });
 
   it('denies a resume when no store is configured', async () => {

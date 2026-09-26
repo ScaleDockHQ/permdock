@@ -114,6 +114,70 @@ describe('subjectFromClerk', () => {
     ]);
   });
 
+  it('maps a session token v2 payload with the compact o claim', async () => {
+    const subject = await subjectFromClerk(
+      {
+        v: 2,
+        sub: 'user_3',
+        sid: 'sess_3',
+        exp: 1_800_000_000,
+        fea: 'o:invoices,u:api_access,o:reports',
+        o: {
+          id: 'org_7',
+          rol: 'admin',
+          slg: 'acme',
+          per: 'create,read,manage',
+          fpm: '3,6',
+        },
+      },
+      { permissions: { 'org:invoices:create': permissions.billing.create } },
+    );
+    expect(subject.principal?.tenant).toBe('org_7');
+    expect(subject.principal?.clerkPermissions).toEqual([
+      'org:invoices:create',
+      'org:invoices:read',
+      'org:reports:read',
+      'org:reports:manage',
+    ]);
+    expect(subject.principal?.memberships).toEqual([
+      { tenant: 'org_7', roles: ['org:admin', 'org:invoices:create'] },
+    ]);
+    expect(subject.principal?.claims).toBeUndefined();
+  });
+
+  it('pages through every Backend API membership for the user only', async () => {
+    const rows = Array.from({ length: 250 }, (_, index) => ({
+      organization: { id: `org_${index}` },
+      role: 'org:member',
+      publicUserData: { userId: index === 249 ? 'user_other' : 'user_1' },
+    }));
+    const pages: unknown[] = [];
+    const subject = await subjectFromClerk(authObject, {
+      memberships: 'all',
+      backend: {
+        users: {
+          getOrganizationMembershipList: async (args) => {
+            pages.push(args);
+            const offset = args.offset ?? 0;
+            const limit = args.limit ?? 10;
+            return {
+              data: rows.slice(offset, offset + limit),
+              totalCount: rows.length,
+            };
+          },
+        },
+      },
+    });
+    expect(pages).toEqual([
+      { userId: 'user_1', limit: 100, offset: 0 },
+      { userId: 'user_1', limit: 100, offset: 100 },
+      { userId: 'user_1', limit: 100, offset: 200 },
+    ]);
+    const tenants = subject.principal?.memberships?.map((item) => item.tenant);
+    expect(tenants).toHaveLength(249);
+    expect(tenants).not.toContain('org_249');
+  });
+
   it('returns anonymous when userId is null', async () => {
     const subject = await subjectFromClerk({
       userId: null,

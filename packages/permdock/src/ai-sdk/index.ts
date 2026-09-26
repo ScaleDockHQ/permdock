@@ -4,6 +4,7 @@ export type {
   AiSdkPermDock,
   AiSdkPermDockOptions,
   LanguageModelMiddleware,
+  NeedsApprovalOptions,
   ToolApprovalCall,
   ToolApprovalStatus,
 } from './create.ts';

@@ -34,6 +34,7 @@ export const scim = scimHandler({
   groupRoles: { 'g_9f2c…': ['editor'], 'g_0e6f…': ['admin'] },   // optional static map; the extension attribute wins when present
   sink,                                               // a DecisionSink; receives one `directory` event per write, plus a `membership` event per affected group member
   onChange: ({ tenant, userIds }) => updateTag(`permdock:${tenant}`),   // optional; invalidate cached snapshots
+  revocations,                                        // optional RevocationFeed; open streams and sockets revalidate
 })
 
 app.all('/scim/v2/:tenant/*', (c) => scim(c.req.raw))
@@ -50,6 +51,7 @@ export const { permdock, protect } = createPermDock(policy, {
 - `token` and `verifier` are the two credential kinds; at least one is required and both may be set. `token` is a per-tenant static bearer compared in constant time against a stored hash (never stored plain). `verifier` is a `TokenVerifier` for an RFC 7523 JWT bearer whose `aud` must be this endpoint and whose tenant claim must equal the resolved tenant; this is what the Cloud relay presents and what the IPSIE AL1 profile prescribes.
 - `groupRoles` maps a group `id` to the role names its members hold. When a `Group` arrives with the PermDock extension attribute (`urn:permdock:scim:schemas:extension:roles:1.0` with a `roles` array), the attribute is stored on the group and takes precedence; the Cloud's mapping UI writes it, and an IdP that supports custom group attributes may too. Role names are offered to the tenant's `RoleSource` as custom roles first and then matched against declared `assignable` roles; anything else is dropped and reported in development.
 - `sink` is a `DecisionSink` ([audit and observability](/docs/concepts/audit-and-observability)); the handler writes one `directory` event per accepted operation so provisioning and the decisions it later explains share one log. Group create, replace, patch and delete also write one `membership` event per affected user (`source: 'scim'`, `via: 'group:<id>'`, roles from the extension). `onChange` receives the tenant and the affected user ids after a write, for snapshot invalidation.
+- `revocations` is a `RevocationFeed` ([0052](/docs/decisions/0052-streams-and-sockets)). After a write, the handler publishes `changed` in the tenant for each affected user, once for each of the user's SCIM `id`, `userName` and `externalId`, because a principal id is whichever of them `directoryMembershipSource` matched on. Open connections then resolve their subject again, so a deprovisioned member's stream closes. A deleted user's record is read before the delete; a throwing feed never fails the IdP write.
 - `directoryMembershipSource(store)` returns a `MembershipSource` whose `membershipsFor(principal, { tenant })` looks the principal up by `externalId` or `userName` (configurable `match`), returns nothing when the user is missing or `active: false`, and otherwise one membership per group: `{ tenant, team: group.id, roles: group.roles, via: 'group:' + group.id }`.
 
 ### DirectoryStore

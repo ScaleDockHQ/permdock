@@ -11,7 +11,7 @@ const PROBLEM_BASE = 'https://permdock.dev/problems';
 export type ApprovalsHandlerOptions = {
   readonly subject: (
     request: Request,
-  ) => Subject | Promise<Subject> | null | undefined;
+  ) => Subject | null | undefined | Promise<Subject | null | undefined>;
   readonly requireDistinctApprover?: boolean;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];
@@ -117,6 +117,19 @@ function belongsToTenant(subject: Subject, tenant: string): boolean {
   return membershipTenants(subject).includes(tenant);
 }
 
+function mayResolve(
+  request: ApprovalRequest,
+  subject: Subject,
+  requireDistinct: boolean,
+): boolean {
+  try {
+    assertApprover(request, subject, requireDistinct);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function canView(request: ApprovalRequest, subject: Subject): boolean {
   const principal = subject.principal;
   if (principal === null) {
@@ -132,22 +145,33 @@ function canView(request: ApprovalRequest, subject: Subject): boolean {
   return true;
 }
 
-function inboxTenant(
+/**
+ * The tenants whose pending requests the approver may list: the requested one,
+ * else the active one, else every membership tenant. Requests without a tenant
+ * are listed only when no tenant was requested or active.
+ */
+function inboxScope(
   url: URL,
   subject: Subject,
-): { readonly ok: true; readonly tenant?: string } | { readonly ok: false } {
+):
+  | {
+      readonly ok: true;
+      readonly tenants: readonly string[];
+      readonly tenantless: boolean;
+    }
+  | { readonly ok: false } {
   const requested = url.searchParams.get('tenant');
   if (requested !== null && requested !== '') {
     if (!belongsToTenant(subject, requested)) {
       return { ok: false };
     }
-    return { ok: true, tenant: requested };
+    return { ok: true, tenants: [requested], tenantless: false };
   }
   const active = subject.principal?.tenant;
   if (active !== undefined) {
-    return { ok: true, tenant: active };
+    return { ok: true, tenants: [active], tenantless: false };
   }
-  return { ok: true };
+  return { ok: true, tenants: membershipTenants(subject), tenantless: true };
 }
 
 function signedApproval(
@@ -254,7 +278,7 @@ export function approvalsHandler(
 
     try {
       if (route.kind === 'pending') {
-        const scoped = inboxTenant(url, subject);
+        const scoped = inboxScope(url, subject);
         if (!scoped.ok) {
           return problem(
             403,
@@ -263,13 +287,17 @@ export function approvalsHandler(
             'denied',
           );
         }
-        const pending = await store.list(
-          compact<{
-            readonly status: 'pending';
-            readonly tenant?: string;
-          }>({ status: 'pending', tenant: scoped.tenant }),
+        const pending = await store.list({ status: 'pending' });
+        const tenants = new Set(scoped.tenants);
+        return json(
+          200,
+          pending.filter((item) => {
+            const tenant = item.subject.principal?.tenant;
+            const inScope =
+              tenant === undefined ? scoped.tenantless : tenants.has(tenant);
+            return inScope && mayResolve(item, subject, requireDistinct);
+          }),
         );
-        return json(200, pending);
       }
       if (route.kind === 'mine') {
         const mine = await store.list({

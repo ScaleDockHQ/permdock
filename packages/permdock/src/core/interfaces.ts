@@ -143,6 +143,15 @@ export type Snapshot = {
     readonly roles?: Readonly<Record<string, Role>>;
     readonly plans?: Readonly<Record<string, Plan>>;
   };
+  /** The policy's row keys, so a client checks the row's tenant and team. */
+  readonly scopes?: {
+    readonly tenant?: { readonly key: string };
+    readonly team?: { readonly key: string };
+    /** Row fields that partition each resource, from its `memberOf` relations. */
+    readonly partitioned?: Readonly<
+      Record<string, { readonly tenant?: true; readonly team?: true }>
+    >;
+  };
 };
 
 export type SnapshotGrant = {
@@ -178,6 +187,8 @@ export type LimitConsumeInput = {
   readonly count: number;
   readonly per: string;
   readonly now?: number;
+  /** The active tenant; a quota counts per subject and tenant. */
+  readonly tenant?: string;
 };
 
 export type LimitRemaining = {

@@ -102,4 +102,6 @@ Run `permdock collect`, `permdock catalog`, `permdock usage`, `permdock doctor` 
 
 If the CLI is not installed, typecheck the three files and add a policy-matrix test with `@permdock/testing`.
 
+With `@permdock/testing`, add `describePolicy` over the policy. When the app lists rows through an ORM or RLS, add `ormParity` or `rlsParity` so the query returns what `filter()` keeps. Run the matching `test<Interface>` runner (`testApprovalStore`, `testMembershipSource`, `testLimitStore`, …) on every custom store or source ([scenario testing](https://permdock.dev/docs/guides/scenario-testing)).
+
 Done when collect/doctor findings are fixed, or the typecheck and one matrix test pass.

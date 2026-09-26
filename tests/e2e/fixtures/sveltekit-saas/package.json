@@ -1,0 +1,23 @@
+{
+  "name": "@permdock/e2e-sveltekit-saas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "serve": "node scripts/serve.ts",
+    "typecheck": "svelte-kit sync && tsc --noEmit"
+  },
+  "devDependencies": {
+    "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/testing": "workspace:*",
+    "@sveltejs/adapter-node": "catalog:",
+    "@sveltejs/kit": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@types/node": "catalog:",
+    "permdock": "workspace:*",
+    "svelte": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

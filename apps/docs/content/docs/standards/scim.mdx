@@ -30,7 +30,7 @@ There is no tenant attribute in SCIM. Tenancy is per endpoint or per credential,
 | RFC 7644 feature | `permdock/scim` | Note |
 | --- | --- | --- |
 | `/Users`, `/Groups` `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | Implements | The operations Okta, Entra ID and Google Workspace send |
-| `filter` with `eq`, `ne`, `co`, `sw`, `pr`, `and`, `or` on `userName`, `externalId`, `active`, `displayName`, `members.value` | Implements | Enough for every IdP's lookup-before-create; other operators return `400 invalidFilter` |
+| `filter` with `eq`, `ne`, `co`, `sw`, `pr`, `and`, `or` on `userName`, `externalId`, `active`, `displayName`, `members.value` | Implements | Enough for every IdP's lookup-before-create; `pr` matches only a non-empty value (not null, not an empty string, not an empty array, RFC 7644 section 3.4.2.2); other operators return `400 invalidFilter` |
 | Index pagination (`startIndex`, `count`) | Implements | Required by RFC 7644 |
 | Cursor pagination (RFC 9865) | Implements | Advertised in `/ServiceProviderConfig`; used when the store returns a cursor |
 | `PATCH` path forms (`members[value eq "…"]`, `active`, `emails[type eq "work"].value`) | Implements, normalised | Each IdP's dialect is rewritten to one operation shape before the store sees it |

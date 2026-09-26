@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "catalog:",
     "permdock": "workspace:*",
     "zod": "catalog:"
   },

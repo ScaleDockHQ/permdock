@@ -1,0 +1,23 @@
+{
+  "name": "@permdock/e2e-turborepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node scripts/serve.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/e2e-turbo-api": "workspace:*",
+    "@permdock/e2e-turbo-permissions": "workspace:*",
+    "@permdock/e2e-turbo-web": "workspace:*",
+    "@permdock/e2e-turbo-worker": "workspace:*"
+  },
+  "devDependencies": {
+    "@permdock/cli": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

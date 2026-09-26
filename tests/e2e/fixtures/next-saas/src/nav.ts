@@ -86,4 +86,12 @@ export const orgs = [
   { id: 'globex', name: 'Globex' },
 ] as const;
 
-export const users = ['alice', 'bob', 'carol', 'dave'] as const;
+export const users = [
+  'alice',
+  'bob',
+  'carol',
+  'dave',
+  'erin',
+  'frank',
+  'mallory',
+] as const;

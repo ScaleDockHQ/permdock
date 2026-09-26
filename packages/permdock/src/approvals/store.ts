@@ -148,15 +148,15 @@ export function assertApprover(
       'approver is the principal of this request',
     );
   }
-  if (request.approvers === undefined) {
-    return;
-  }
   const tenant = request.subject.principal?.tenant;
   if (tenant !== undefined && !belongsToTenant(by, tenant)) {
     throw new ApprovalError(
       'approver-not-eligible',
-      'approver does not hold an eligible role',
+      'approver does not belong to the request tenant',
     );
+  }
+  if (request.approvers === undefined) {
+    return;
   }
   if (!matchesApprovers(request.approvers.by, by, tenant, Date.now() / 1000)) {
     throw new ApprovalError(
@@ -222,6 +222,14 @@ export type MemoryApprovalStore = ApprovalStore & {
   readonly ttl: number;
 };
 
+/** A request a new ask may replace: expired, or past its deadline. */
+function isStale(request: ApprovalRequest, now: Date): boolean {
+  return (
+    request.status === 'expired' ||
+    Date.parse(request.expiresAt) <= now.getTime()
+  );
+}
+
 export function memoryApprovalStore(
   options: { readonly ttl?: number } = {},
 ): MemoryApprovalStore {
@@ -231,6 +239,10 @@ export function memoryApprovalStore(
   const store: MemoryApprovalStore = {
     ttl,
     create(request: ApprovalRequest): void {
+      const current = records.get(request.token);
+      if (current !== undefined && !isStale(current, new Date())) {
+        return;
+      }
       records.set(request.token, freezeDeep(request));
     },
     get(token: string): ApprovalRequest | null {
@@ -242,6 +254,20 @@ export function memoryApprovalStore(
         throw new ApprovalError('approval-not-found', 'approval was not found');
       }
       const next = applyVerdict(current, verdict, new Date());
+      records.set(token, next);
+      return next;
+    },
+    consume(token: string, now: Date = new Date()): ApprovalRequest | null {
+      const current = records.get(token);
+      if (
+        current === undefined ||
+        current.status !== 'approved' ||
+        current.consumedAt !== undefined ||
+        Date.parse(current.expiresAt) <= now.getTime()
+      ) {
+        return null;
+      }
+      const next = freezeDeep({ ...current, consumedAt: now.toISOString() });
       records.set(token, next);
       return next;
     },
@@ -258,10 +284,12 @@ export function memoryApprovalStore(
       let count = 0;
       const instant = now.getTime();
       for (const [token, request] of records) {
-        if (
-          request.status === 'pending' &&
-          Date.parse(request.expiresAt) <= instant
-        ) {
+        const deadline = Date.parse(request.expiresAt);
+        if (request.status !== 'pending' && deadline + ttl <= instant) {
+          records.delete(token);
+          continue;
+        }
+        if (request.status === 'pending' && deadline <= instant) {
           records.set(
             token,
             freezeDeep(

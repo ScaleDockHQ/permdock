@@ -17,17 +17,17 @@ Audit needs the result, not just the attempt: permix's audit hook lacked the out
 
 ```ts
 import { createPermDock } from 'permdock'
-import { instrument } from 'permdock/otel'
+import { withOtel } from 'permdock/otel'
 
-const permdock = await createPermDock(policy, user)
-
-instrument(permdock, {
+const permdock = withOtel(await createPermDock(policy, user), {
   tracer: 'permdock',                 // tracer / meter name; default 'permdock'
   logger,                             // optional structural logger: { debug, info, warn, error }
   attributes: (event) => ({ 'app.tenant': event.subject?.orgId }),  // extra attributes per check
   redact: ['subject.email'],          // attribute paths never recorded
 })
 ```
+
+`withOtel(instance, options)` returns an instrumented instance: it times `can`, `decide`, `assert`, `filter`, `pick` and `actions`, so spans carry a real start and end time and the histogram records durations, and it wraps the instances `tenant()` and `team()` derive. `instrument(instance, options)` only attaches an `on('decision')` listener to the instance you pass. A listener sees a decision after it is made, so its spans have no duration and it records no histogram; use it when the instance is not yours to replace.
 
 Server adapters accept the same options under `otel` so instrumentation applies to every request-scoped instance:
 
@@ -42,7 +42,7 @@ Recorded per check:
 |---|---|---|
 | Span | `permdock.decide` | `permdock.outcome` (`granted` / `denied` / `approval-required`), `permdock.permission` (key), `permdock.scope`, `permdock.resource.type`, `permdock.resource.id`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.delegation.scopes`, `permdock.matched.role`, `permdock.denials.count`, `permdock.validate` |
 | Counter | `permdock.decisions` | `permdock.outcome`, `permdock.permission`, `permdock.adapter` |
-| Histogram | `permdock.decide.duration` | `permdock.outcome`, `permdock.permission` |
+| Histogram | `permdock.decide.duration` (unit `s`) | `permdock.outcome`, `permdock.permission`; recorded by `withOtel` and the adapter `otel` option only |
 | Log | `permdock.decision` | same fields as the span, through the structural logger |
 
 The logger interface is a type-only structural contract (`debug`, `info`, `warn`, `error` taking a message and an attributes object), so `console`, pino, winston or a test spy all satisfy it without an adapter.
@@ -51,7 +51,7 @@ In an agent, the framework or the model SDK usually opens an `execute_tool` span
 
 ## Request lifecycle
 
-1. `instrument` (or the `otel` option) registers an `on('decision')` listener on the instance.
+1. `withOtel` (and the adapter `otel` option, which uses it) wraps the instance and times each check; `instrument` registers an `on('decision')` listener on the instance.
 2. On each `can`, `decide`, `assert`, `filter` or `simulate` call the instance emits a decision event containing the Decision, the permission, the resource identity (from the resource `id` field), subject, actor, delegation and timing.
 3. If `@opentelemetry/api` resolves at runtime, the listener starts and ends a span under the current context (so the check nests under the HTTP or tool span the framework created), records the counter and histogram, and adds an event to the span on `denied` with the denial reasons.
 4. If it does not resolve, the listener writes a single structured log line through `logger`; when no logger is given, nothing is written and the listener costs one function call.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { memoryApprovalStore, resolveApproval } from '../approvals/index.ts';
 import {
   adminUser,
   memberUser,
@@ -27,6 +28,7 @@ const skills = {
   summarise: {
     permission: permissions.post.read,
     description: 'Summarise a post',
+    data: async () => ownPost,
   },
   publish: {
     permission: permissions.post.publish,
@@ -191,5 +193,153 @@ describe('permdock/a2a', () => {
     );
     expect(signed.signature.startsWith('sig:')).toBe(true);
     expect(signed.card.name).toBe('Posts agent');
+  });
+
+  it('refuses an instance skill without a data loader', () => {
+    expect(() =>
+      createPermDock(policy, {
+        subject: () => memberUser,
+        card,
+        securitySchemes,
+        skills: { summarise: { permission: permissions.post.read } },
+      }),
+    ).toThrow(/data loader/u);
+  });
+
+  it('validates the loaded row instead of trusting the task body', async () => {
+    const { protectSkill } = createPermDock(policy, {
+      subject: () => adminUser,
+      card,
+      securitySchemes,
+      skills: {
+        publish: {
+          permission: permissions.post.publish,
+          data: async (task) => (task as { readonly post: unknown }).post,
+        },
+      },
+    });
+    const run = protectSkill(() => 'publish');
+    const scopes = { scopes: [permissions.post.publish.scope] };
+    const forged = await run(
+      { post: { id: 'p2', authorId: 'u9', orgId: 'o1' } },
+      scopes,
+    );
+    expect(forged.ok).toBe(false);
+    expect(await run({ post: ownPost }, scopes)).toEqual({ ok: true });
+  });
+
+  it('denies when the data loader throws or finds nothing', async () => {
+    const { protectSkill } = createPermDock(policy, {
+      subject: () => adminUser,
+      card,
+      securitySchemes,
+      skills: {
+        boom: {
+          permission: permissions.post.publish,
+          data: async () => {
+            throw new Error('db down');
+          },
+        },
+        gone: { permission: permissions.post.publish, data: async () => null },
+      },
+    });
+    const scopes = { scopes: [permissions.post.publish.scope] };
+    expect((await protectSkill(() => 'boom')({}, scopes)).ok).toBe(false);
+    expect((await protectSkill(() => 'gone')({}, scopes)).ok).toBe(false);
+  });
+
+  it('treats prototype names as unknown skills', async () => {
+    const { protectSkill } = createPermDock(policy, {
+      subject: () => adminUser,
+      card,
+      securitySchemes,
+      skills,
+    });
+    for (const id of [
+      '__proto__',
+      'constructor',
+      'toString',
+      'hasOwnProperty',
+    ]) {
+      const outcome = await protectSkill(() => id)({}, { scopes: [] });
+      expect(outcome).toMatchObject({ ok: false, status: 403 });
+    }
+  });
+
+  it('parks an approval in the store and resumes it once, on any instance', async () => {
+    const store = memoryApprovalStore();
+    const options = {
+      subject: () => memberUser,
+      card,
+      securitySchemes,
+      store,
+      skills: {
+        remove: {
+          permission: permissions.post.delete,
+          data: async () => ownPost,
+        },
+      },
+    };
+    const auth = {
+      clientId: 'agent-1',
+      scopes: [permissions.post.delete.scope],
+    };
+    const parked = await createPermDock(policy, options).protectSkill(
+      () => 'remove',
+    )({}, auth);
+    if (parked.ok) {
+      throw new Error('expected approval-required');
+    }
+    const token = parked.problem.token;
+    expect(token).toEqual(expect.any(String));
+    expect(await store.get(String(token))).toMatchObject({ status: 'pending' });
+
+    const again = await createPermDock(policy, options).protectSkill(
+      () => 'remove',
+    )({}, auth);
+    expect(again).toMatchObject({ ok: false, state: 'input-required' });
+
+    await resolveApproval(store, String(token), {
+      status: 'approved',
+      by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+    });
+    const run = createPermDock(policy, options).protectSkill(() => 'remove');
+    expect(await run({}, auth)).toEqual({ ok: true });
+    expect(await run({}, auth)).toMatchObject({ ok: false, state: 'failed' });
+  });
+
+  it('ignores an approval token for another client', async () => {
+    const store = memoryApprovalStore();
+    const options = {
+      subject: () => memberUser,
+      card,
+      securitySchemes,
+      store,
+      skills: {
+        remove: {
+          permission: permissions.post.delete,
+          data: async () => ownPost,
+        },
+      },
+    };
+    const scopes = [permissions.post.delete.scope];
+    const run = createPermDock(policy, options).protectSkill(() => 'remove');
+    const parked = await run({}, { clientId: 'agent-1', scopes });
+    if (parked.ok) {
+      throw new Error('expected approval-required');
+    }
+    await resolveApproval(store, String(parked.problem.token), {
+      status: 'approved',
+      by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+    });
+    const other = await run(
+      {},
+      {
+        clientId: 'agent-2',
+        scopes,
+        extra: { approval: String(parked.problem.token) },
+      },
+    );
+    expect(other).toMatchObject({ ok: false, state: 'input-required' });
   });
 });

@@ -28,6 +28,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+const CURRENT = Symbol.for('permdock.current');
+
+function current(permdock: WebMcpPermDock): WebMcpPermDock {
+  const latest = (permdock as { readonly [CURRENT]?: unknown })[CURRENT];
+  return typeof latest === 'function'
+    ? (latest as () => WebMcpPermDock)()
+    : permdock;
+}
+
 function snapshotOf(permdock: WebMcpPermDock): Snapshot | undefined {
   const value = permdock.snapshot();
   if (value instanceof Promise || typeof value === 'string') {
@@ -78,9 +87,22 @@ function jsonSchemaOf(
     return undefined;
   }
   const standard = schema['~standard'] as {
-    readonly jsonSchema?: Record<string, unknown>;
+    readonly jsonSchema?: unknown;
   };
-  if (isRecord(standard.jsonSchema)) {
+  const converter = standard.jsonSchema as
+    | { readonly input?: (options: { readonly target: string }) => unknown }
+    | undefined;
+  if (typeof converter?.input === 'function') {
+    try {
+      const converted = converter.input({ target: 'draft-2020-12' });
+      if (isRecord(converted)) {
+        return converted;
+      }
+    } catch {
+      return { type: 'object' };
+    }
+  }
+  if (isRecord(standard.jsonSchema) && converter?.input === undefined) {
     return standard.jsonSchema;
   }
   return { type: 'object' };
@@ -359,7 +381,9 @@ async function runTool(
         ],
       };
     }
-    return wrapResult(await handler(bound.input));
+    return wrapResult(
+      await handler({ input: bound.input, token: decision.token }),
+    );
   } catch (error) {
     if (error instanceof PermDockValidationError) {
       return validationResult(error);
@@ -384,10 +408,11 @@ function registerGeneration(
   options: RegisterToolsOptions,
   signal: AbortSignal,
 ): void {
+  const root = current(options.permdock);
   const dock =
-    options.tenant !== undefined && options.permdock.tenant !== undefined
-      ? options.permdock.tenant(options.tenant)
-      : options.permdock;
+    options.tenant !== undefined && root.tenant !== undefined
+      ? root.tenant(options.tenant)
+      : root;
   const snapshot = snapshotOf(dock);
   if (snapshot === undefined) {
     return;
@@ -445,15 +470,6 @@ export function registerTools(
       return;
     }
     generation = new AbortController();
-    if (parent !== undefined) {
-      parent.addEventListener(
-        'abort',
-        () => {
-          generation?.abort();
-        },
-        { once: true },
-      );
-    }
     registerGeneration(modelContext, group, options, generation.signal);
   };
   start();

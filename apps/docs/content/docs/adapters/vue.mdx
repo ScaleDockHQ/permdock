@@ -43,7 +43,7 @@ const { allowed, status } = usePermission(permissions.post.update, () => props.p
 
 | Export | Role |
 |---|---|
-| `permdockPlugin` | `app.use(permdockPlugin, options)` with the same options as the React provider (`snapshot`, `endpoint`, `fetch`, `headers`). Provides the store through `provide`/`inject`. |
+| `permdockPlugin` | `app.use(permdockPlugin, options)` with the same options as the React provider (`snapshot`, `endpoint`, `fetch`, `headers`). Provides the store through `provide`/`inject`. `snapshot` may be a ref or getter (the store re-hydrates when it changes) or a promise (the store is `pending` until it settles; await the same promise in an async `setup` under `<Suspense>`). |
 | `usePermDock` | Returns the snapshot-backed instance with reactive `status`. |
 | `usePermission` | Accepts the reference and a getter or ref for the resource so the answer tracks `id` changes. Returns `allowed`, `status`, `decision` as refs. |
 | `Protected` | Component with `permission`, `data` and optional `tenant` props and `default`, `pending`, `fallback` slots. The default slot receives the granted `Decision`. |

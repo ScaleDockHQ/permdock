@@ -20,7 +20,7 @@ export const { needsApproval, guardTools, resolveInterruptions, permdock } =
 
 export async function askDelete() {
   const required = await needsApproval(permissions.post.delete)(
-    { user: memberUser },
+    { context: { user: memberUser } },
     ownPost,
   );
   return required;

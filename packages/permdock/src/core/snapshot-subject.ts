@@ -44,7 +44,7 @@ export function heldRoleNames(
 ): string[] {
   const names = new Set<string>(subject.principal?.roles ?? []);
   for (const membership of subject.principal?.memberships ?? []) {
-    if (tenant !== undefined && membership.tenant !== tenant) {
+    if (membership.tenant !== tenant) {
       continue;
     }
     for (const role of membership.roles) {

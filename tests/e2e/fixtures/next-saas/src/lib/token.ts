@@ -1,17 +1,20 @@
 import type { Membership } from 'permdock';
 
-import { SignJWT, createLocalJWKSet, importJWK, jwtVerify } from 'jose';
+import {
+  SAAS_TOKEN_TTL_SECONDS,
+  saasAudience,
+  saasIssuer,
+  saasJwks,
+  signSaasToken,
+} from '@permdock/testing/saas';
+import { createLocalJWKSet, jwtVerify } from 'jose';
 
 import type { SessionClaims } from '../policy.ts';
 
-import { privateJwk, publicJwk } from './keys.ts';
-
 export const SESSION_COOKIE = 'saas_session';
-export const TOKEN_TTL_SECONDS = 3600;
+export const TOKEN_TTL_SECONDS = SAAS_TOKEN_TTL_SECONDS;
 
-const ISSUER = 'https://next-saas.test';
-const AUDIENCE = 'next-saas';
-const jwks = createLocalJWKSet({ keys: [publicJwk] });
+const jwks = createLocalJWKSet({ keys: [...saasJwks.keys] });
 
 function isMembership(value: unknown): value is Membership {
   if (typeof value !== 'object' || value === null) {
@@ -34,8 +37,8 @@ export async function verifySession(
   }
   try {
     const { payload } = await jwtVerify(token, jwks, {
-      issuer: ISSUER,
-      audience: AUDIENCE,
+      issuer: saasIssuer,
+      audience: saasAudience,
       algorithms: ['ES256'],
     });
     if (
@@ -59,17 +62,9 @@ export async function verifySession(
   }
 }
 
-export async function signSession(
+export function signSession(
   sub: string,
   memberships: readonly Membership[] | undefined,
 ): Promise<string> {
-  const key = await importJWK(privateJwk, 'ES256');
-  return new SignJWT(memberships === undefined ? {} : { memberships })
-    .setProtectedHeader({ alg: 'ES256', kid: 'e2e', typ: 'at+jwt' })
-    .setIssuer(ISSUER)
-    .setAudience(AUDIENCE)
-    .setSubject(sub)
-    .setIssuedAt()
-    .setExpirationTime(`${String(TOKEN_TTL_SECONDS)}s`)
-    .sign(key);
+  return signSaasToken(sub, { memberships: memberships ?? false });
 }

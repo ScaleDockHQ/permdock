@@ -40,6 +40,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 - The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `Decision` under `context.permdock` that the embedded engine produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)).
 - `resources` tells the handler how to load an instance by id (for `where` conditions on instance actions) and how to enumerate for resource search.
 - `subject` authenticates the calling PEP or end user; see "decision endpoint auth" below.
+- `trustedPep(pep)` is the allow-list of authenticated PEPs that may evaluate on behalf of another subject. It is off by default; a missing predicate, `false`, a non-function value or a throw means the request-body subject, actor and delegation are ignored.
 
 ## Request lifecycle
 
@@ -49,7 +50,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 
 | AuthZEN field | PermDock |
 |---|---|
-| `subject.type`, `subject.id`, `subject.properties` | principal; `properties.actor` and `properties.delegation` (scopes / `authorization_details`) fill the agent half of the subject when present |
+| `subject.type`, `subject.id`, `subject.properties` | principal, only for a PEP that `trustedPep` accepts; `properties.actor` and `properties.delegation` (scopes / `authorization_details`) fill the agent half of the subject under the same rule. Otherwise the authenticated caller from `subject` is the subject and the body's `subject` is ignored |
 | `action.name` | joined with `resource.type` to look up `findPermission(permissions, 'post.update')`; `action.properties.scope` accepted as an alternative |
 | `resource.type`, `resource.id`, `resource.properties` | the resource instance: `properties` used directly when complete, otherwise loaded via `resources.<type>.load` |
 | `context` | `context.<key>` values available to conditions |

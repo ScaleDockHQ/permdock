@@ -28,6 +28,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./saas": {
+      "types": "./dist/saas.d.ts",
+      "default": "./dist/saas.js"
+    },
+    "./saas/permissions": {
+      "types": "./dist/saas-permissions.d.ts",
+      "default": "./dist/saas-permissions.js"
     }
   },
   "publishConfig": {
@@ -39,6 +47,9 @@
     "check:publish": "publint && pnpm pack --out pack.tgz && attw --profile esm-only pack.tgz && rm -f pack.tgz",
     "test": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@standard-schema/spec": "catalog:"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
@@ -56,6 +67,11 @@
   "peerDependencies": {
     "permdock": "catalog:peers",
     "vitest": "catalog:peers"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=24"

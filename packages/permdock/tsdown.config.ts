@@ -1,15 +1,50 @@
+import { readFileSync } from 'node:fs';
 import { compile } from 'svelte/compiler';
 import { defineConfig } from 'tsdown';
 
+const SVELTE_SOURCE = 'src/svelte/Protected.svelte';
+
 function sveltePlugin(): {
   readonly name: string;
+  resolveId(
+    source: string,
+    importer: string | undefined,
+  ): { readonly id: string; readonly external: true } | null;
   transform(
     code: string,
     id: string,
   ): { readonly code: string; readonly map: unknown } | undefined;
+  generateBundle(this: {
+    emitFile(file: {
+      readonly type: 'asset';
+      readonly fileName: string;
+      readonly source: string;
+    }): string;
+  }): void;
 } {
   return {
     name: 'svelte',
+    // The `svelte` export condition ships the component as source, so the
+    // app's compiler builds it for SSR or the client.
+    resolveId(source, importer) {
+      if (
+        source === './Protected.svelte' &&
+        importer?.endsWith('src/svelte/source.ts') === true
+      ) {
+        return { id: './Protected.svelte', external: true };
+      }
+      return null;
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'svelte/Protected.svelte',
+        source: readFileSync(SVELTE_SOURCE, 'utf8').replace(
+          "from './runtime.ts'",
+          "from './runtime.js'",
+        ),
+      });
+    },
     transform(code, id) {
       if (!id.endsWith('.svelte')) {
         return undefined;
@@ -68,6 +103,8 @@ export default defineConfig({
     'src/orpc/index.ts',
     'src/vue/index.ts',
     'src/svelte/index.ts',
+    'src/svelte/source.ts',
+    'src/svelte/runtime.ts',
     'src/solid/index.ts',
     'src/ai-sdk/index.ts',
     'src/claude-agent/index.ts',

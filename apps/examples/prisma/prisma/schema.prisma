@@ -1,0 +1,19 @@
+// The table is created by src/db.ts; nothing here is migrated.
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated"
+  moduleFormat        = "esm"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model post {
+  id        String  @id
+  authorId  String
+  orgId     String
+  title     String
+  published Boolean
+}

@@ -4,6 +4,7 @@ import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -25,6 +26,7 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = {
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
   readonly endpoint?: string;

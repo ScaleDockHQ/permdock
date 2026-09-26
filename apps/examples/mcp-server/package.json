@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types src/stdio.ts",
+    "start": "node --experimental-strip-types src/http.ts",
+    "stdio": "node --experimental-strip-types src/stdio.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "catalog:",
     "permdock": "workspace:*",
     "zod": "catalog:"
   },

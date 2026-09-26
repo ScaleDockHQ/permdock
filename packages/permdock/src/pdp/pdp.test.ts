@@ -260,4 +260,85 @@ describe('permdock/pdp', () => {
     expect(decision.outcome).toBe('denied');
     expect(decision.denials[0]?.reason).toBe('no-delegation');
   });
+
+  it('keys the cache by tenant, so one tenant never reuses another tenant grant', async () => {
+    const policy = definePolicy(permissions, {
+      roles: [role('member', [allow(permissions.post.read)])],
+      subject: (user: {
+        readonly id: string;
+        readonly roles: readonly string[];
+        readonly memberships: readonly {
+          readonly tenant: string;
+          readonly roles: readonly string[];
+        }[];
+      }) => user,
+      providers: [
+        remotePdp({
+          url: 'https://pdp.example',
+          endpoints: { evaluation: 'https://pdp.example/access/v1/evaluation' },
+          cache: { ttl: '5s' },
+          fetch: async (_url, init) => {
+            const body = JSON.parse(String(init?.body)) as {
+              readonly context?: { readonly tenant?: string };
+            };
+            return jsonResponse({ decision: body.context?.tenant === 'acme' });
+          },
+        }),
+      ],
+    });
+    const dock = await createPermDock(policy, {
+      id: 'user-1',
+      roles: ['member'],
+      memberships: [
+        { tenant: 'acme', roles: ['member'] },
+        { tenant: 'globex', roles: ['member'] },
+      ],
+    });
+    expect(await dock.tenant('acme').can(permissions.post.read, post)).toBe(
+      true,
+    );
+    expect(await dock.tenant('globex').can(permissions.post.read, post)).toBe(
+      false,
+    );
+  });
+
+  it('re-asks the remote when the row changes under the same id', async () => {
+    let calls = 0;
+    const policy = policyWith([
+      remotePdp({
+        url: 'https://pdp.example',
+        endpoints: { evaluation: 'https://pdp.example/access/v1/evaluation' },
+        cache: { ttl: '5s' },
+        fetch: async () => {
+          calls += 1;
+          return jsonResponse({ decision: true });
+        },
+      }),
+    ]);
+    const dock = await createPermDock(policy, {
+      id: 'user-1',
+      roles: ['member'],
+    });
+    await dock.can(permissions.post.read, post);
+    await dock.can(permissions.post.read, { ...post, authorId: 'user-2' });
+    expect(calls).toBe(2);
+  });
+
+  it('never compiles a where for a delegated permission', async () => {
+    const policy = policyWith([
+      remotePdp({
+        url: 'https://pdp.example',
+        endpoints: { evaluation: 'https://pdp.example/access/v1/evaluation' },
+        fetch: async () => jsonResponse({ decision: true }),
+      }),
+    ]);
+    const dock = await createPermDock(policy, {
+      id: 'user-1',
+      roles: ['member'],
+    });
+    expect(dock.where(permissions.post.read)).toEqual({
+      condition: { op: 'or', conditions: [] },
+      partial: true,
+    });
+  });
 });

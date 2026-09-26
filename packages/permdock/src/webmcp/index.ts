@@ -9,6 +9,7 @@ export type {
   WebMcpPermDock,
   WebMcpRegisteredTool,
   WebMcpToolAnnotations,
+  WebMcpToolCall,
   WebMcpToolHandler,
   WebMcpToolResult,
 } from './types.ts';

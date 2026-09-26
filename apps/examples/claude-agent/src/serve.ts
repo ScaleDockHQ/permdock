@@ -3,8 +3,9 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
+import { resolveApproval } from 'permdock/approvals';
 
-import { canUseTool } from './agent.ts';
+import { canUseTool, store } from './agent.ts';
 import { ownPost } from './permissions.ts';
 
 const port = Number(process.env.PORT ?? 3473);
@@ -36,7 +37,8 @@ function json(data: unknown, status = 200): Response {
 }
 
 async function route(request: Request): Promise<Response> {
-  const path = new URL(request.url).pathname;
+  const url = new URL(request.url);
+  const path = url.pathname;
   if (request.method === 'GET' && path === '/health') {
     return json({ ok: true });
   }
@@ -47,6 +49,19 @@ async function route(request: Request): Promise<Response> {
   if (request.method === 'GET' && path === '/delete_post') {
     const result = await canUseTool('delete_post', { id: ownPost.id });
     return json({ result });
+  }
+  // Stands in for the reviewer UI: a real app authenticates the reviewer
+  // and checks they may approve before resolving.
+  if (request.method === 'POST' && path === '/approvals') {
+    const token = url.searchParams.get('token');
+    if (token === null) {
+      return json({ error: 'token required' }, 400);
+    }
+    await resolveApproval(store, token, {
+      status: 'approved',
+      by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+    });
+    return json({ ok: true });
   }
   return json({ error: 'not found' }, 404);
 }

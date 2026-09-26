@@ -2,6 +2,7 @@ import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -26,6 +27,7 @@ export type AgentKernelOptions<TContext, TUser = unknown> = {
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
   readonly adapter: string;
 };
@@ -60,4 +62,11 @@ export type ToolVerdict =
 
 export type DecideToolOptions = {
   readonly resumeToken?: string;
+  /**
+   * Treat an existing pending record as a re-check of a call that already
+   * asked: deny with `approval-pending` instead of asking again. For runtimes
+   * that re-run the approval hook after a human answers and run the tool on
+   * anything but a denial.
+   */
+  readonly denyPending?: boolean;
 };

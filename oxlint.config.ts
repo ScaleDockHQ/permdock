@@ -12,6 +12,10 @@ export default defineConfig({
     'apps/marketing/components/ui/**',
     'apps/marketing/components/reui/**',
     'apps/marketing/components/blocks/**',
+    'tests/integration/src/support/prisma/**',
+    'apps/examples/prisma/src/generated/**',
+    'tests/e2e/fixtures/*/build/**',
+    '**/routeTree.gen.ts',
   ],
   options: {
     typeAware: true,
@@ -80,6 +84,10 @@ export default defineConfig({
         '**/*.test-d.ts',
         '**/fixtures/**/*.ts',
         'packages/testing/src/**/*.ts',
+        'tests/**/support/**/*.ts',
+        'tests/e2e/src/**/*.ts',
+        'tests/e2e/playwright.config.ts',
+        'tests/runtimes/src/**/*.ts',
       ],
       rules: {
         'typescript/explicit-function-return-type': 'off',
@@ -197,6 +205,7 @@ export default defineConfig({
       files: [
         'packages/permdock/src/nest/**/*.{ts,tsx}',
         'apps/examples/nest/**/*.{ts,tsx}',
+        'tests/integration/src/http/nest.test.ts',
       ],
       rules: {
         // Nest modules, controllers and side-effect `reflect-metadata`.
@@ -243,12 +252,23 @@ export default defineConfig({
       },
     },
     {
-      files: ['tests/e2e/fixtures/**/*.{ts,tsx}'],
+      files: ['tests/e2e/fixtures/**/*.{ts,tsx,svelte,vue}'],
       rules: {
-        // Next.js app-router conventions, as for apps/** below.
+        // Framework file conventions (routes, loaders, SFCs), as for apps/** below.
         'typescript/prefer-readonly-parameter-types': 'off',
         'typescript/promise-function-async': 'off',
+        'typescript/explicit-function-return-type': 'off',
         'unicorn/no-array-callback-reference': 'off',
+        'oxc/no-async-await': 'off',
+        'oxc/no-optional-chaining': 'off',
+        'oxc/no-map-spread': 'off',
+        'eslint/no-undefined': 'off',
+        'unicorn/no-useless-undefined': 'off',
+        'eslint/no-use-before-define': 'off',
+        'eslint/no-void': 'off',
+        'import/unambiguous': 'off',
+        'node/no-top-level-await': 'off',
+        'import/no-relative-parent-imports': 'off',
       },
     },
     {

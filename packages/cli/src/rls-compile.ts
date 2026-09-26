@@ -1,4 +1,4 @@
-import type { Condition, Grant, Policy } from 'permdock';
+import type { Condition, Grant, Policy, ResourceNode } from 'permdock';
 
 import { hasConditionOp } from 'permdock';
 
@@ -52,22 +52,11 @@ export function tableFor(
   return tables?.[resource] ?? resource;
 }
 
-function parentFields(policy: Policy, resourceName: string): readonly string[] {
-  const fields: string[] = [];
-  let current = policy.resources.get(resourceName);
-  const seen = new Set<string>();
-  while (current?.parent !== undefined) {
-    if (seen.has(current.name)) {
-      break;
-    }
-    seen.add(current.name);
-    fields.push(current.parent.field);
-    current = policy.resources.get(current.parent.resource);
-  }
-  return fields;
-}
-
-function scopeCondition(grant: Grant, policy: Policy): Condition | undefined {
+function scopeCondition(
+  grant: Grant,
+  policy: Policy,
+  ctx: RlsSqlContext,
+): Condition | undefined {
   if (grant.scope === 'global') {
     return undefined;
   }
@@ -99,16 +88,65 @@ function scopeCondition(grant: Grant, policy: Policy): Condition | undefined {
       roles: grant.role === null ? [] : [grant.role],
     };
   }
-  const resourceName = grant.scope.resource;
-  const node = policy.resources.get(resourceName);
-  return {
-    op: 'memberOf',
-    scope: 'resource',
-    field: node?.id ?? 'id',
-    roles: grant.role === null ? [] : [grant.role],
-    resource: resourceName,
-    parents: parentFields(policy, resourceName),
-  };
+  // Mirrors `matchResourceMembership`: a membership on the role's resource or
+  // one of its ancestors, keyed by the row field that holds that resource's id.
+  const roleResource = grant.scope.resource;
+  const target = policy.resources.get(grant.permission.resource);
+  const holders = [roleResource, ...ancestorsOf(policy, roleResource)];
+  const hops: Condition[] = [];
+  for (const [index, holder] of holders.entries()) {
+    const field = membershipField(policy, target, holder);
+    if (field === undefined) {
+      continue;
+    }
+    if (index > 0 && ctx.memberships?.resource?.[holder] === undefined) {
+      continue;
+    }
+    hops.push({
+      op: 'memberOf',
+      scope: 'resource',
+      field,
+      roles: grant.role === null ? [] : [grant.role],
+      resource: holder,
+    });
+  }
+  return hops.length === 1 ? hops[0] : { op: 'or', conditions: hops };
+}
+
+function ancestorsOf(policy: Policy, name: string): readonly string[] {
+  const names: string[] = [];
+  let current = policy.resources.get(name);
+  while (
+    current?.parent !== undefined &&
+    !names.includes(current.parent.resource)
+  ) {
+    names.push(current.parent.resource);
+    current = policy.resources.get(current.parent.resource);
+  }
+  return names;
+}
+
+function membershipField(
+  policy: Policy,
+  resource: ResourceNode | undefined,
+  holder: string,
+): string | undefined {
+  if (resource === undefined) {
+    return undefined;
+  }
+  if (resource.name === holder) {
+    return resource.id ?? 'id';
+  }
+  let current: ResourceNode | undefined = resource;
+  const seen = new Set<string>();
+  while (current?.parent !== undefined && !seen.has(current.name)) {
+    seen.add(current.name);
+    if (current.parent.resource === holder) {
+      return current.parent.field;
+    }
+    current = policy.resources.get(current.parent.resource);
+  }
+  return undefined;
 }
 
 function policyRoles(roleName: string): readonly string[] {
@@ -164,7 +202,7 @@ export function compileGrant(
     );
     return undefined;
   }
-  const scoped = andConditions(scopeCondition(grant, policy), grant.where);
+  const scoped = andConditions(scopeCondition(grant, policy, ctx), grant.where);
   const check = grant.check ?? (command === 'update' ? grant.where : undefined);
   let using =
     command === 'insert'

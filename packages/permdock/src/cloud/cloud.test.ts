@@ -71,6 +71,11 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
         throw error;
       }
     }
+    const consume = /^\/approvals\/([^/]+)\/consume$/u.exec(path);
+    if (method === 'POST' && consume?.[1] !== undefined) {
+      const next = store.consume(decodeURIComponent(consume[1]));
+      return next === null ? json({}, 409) : json(next);
+    }
     const getOne = /^\/approvals\/([^/]+)$/u.exec(path);
     if (method === 'GET' && getOne?.[1] !== undefined) {
       const loaded = store.get(decodeURIComponent(getOne[1]));
@@ -321,5 +326,35 @@ describe('cloud', () => {
       new Date(Date.now() + 2 * 60 * 60 * 1000),
     );
     expect(expired).toBeGreaterThanOrEqual(1);
+  });
+
+  it('resumes a v2 approval once through the Cloud store', async () => {
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: fakeCloud().fetch,
+    });
+    const request: ApprovalRequest = {
+      v: 2,
+      token: 'pd1.v2',
+      permission: 'post.delete',
+      scope: 'post:delete',
+      resource: { type: 'post', id: '42' },
+      subject: { principal: { id: 'u_1', roles: ['member'] } },
+      detail: 'post.delete requires human approval.',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      status: 'pending',
+    };
+    await client.approvals.create(request);
+    expect(await client.approvals.get('pd1.v2')).toEqual(request);
+    await client.approvals.resolve('pd1.v2', {
+      status: 'approved',
+      by: { principal: { id: 'u_9', roles: ['admin'] }, context: {} },
+    });
+    expect((await client.approvals.consume('pd1.v2'))?.consumedAt).toEqual(
+      expect.any(String),
+    );
+    expect(await client.approvals.consume('pd1.v2')).toBeNull();
   });
 });

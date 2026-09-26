@@ -2,6 +2,7 @@ import type { ApprovalStore } from '../approvals/types.ts';
 import type { ProblemDetails } from '../core/errors.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -78,6 +79,7 @@ export type A2APermDockOptions<TUser = unknown> = {
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
 };
 

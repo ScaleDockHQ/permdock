@@ -1,0 +1,23 @@
+{
+  "name": "@permdock/e2e-solidstart-saas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "serve": "node scripts/serve.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/testing": "workspace:*",
+    "@solidjs/router": "catalog:",
+    "@solidjs/start": "catalog:",
+    "@types/node": "catalog:",
+    "nitro": "catalog:",
+    "permdock": "workspace:*",
+    "solid-js": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

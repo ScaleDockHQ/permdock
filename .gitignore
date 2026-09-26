@@ -16,6 +16,9 @@ dist/
 
 # testing
 coverage/
+# `prisma generate` output
+tests/integration/src/support/prisma/
+apps/examples/prisma/src/generated/
 packages/cli/tmp/
 playwright-report/
 test-results/
@@ -34,6 +37,13 @@ apps/marketing/AGENTS.md
 apps/marketing/CLAUDE.md
 # local agent chat logs; searched and read like source when tracked
 /agent-transcripts/
+
+# nuxt, sveltekit and tanstack start fixtures
+.nuxt/
+.output/
+.svelte-kit/
+tests/e2e/fixtures/*/build/
+routeTree.gen.ts
 
 # expo
 .expo/

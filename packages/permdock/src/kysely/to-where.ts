@@ -11,6 +11,7 @@ import {
   type CompiledExists,
   type CompiledWhere,
   compileWhere,
+  escapeLike,
 } from '../conditions/compile.ts';
 import { compact } from '../core/compact.ts';
 import { assertSafeKey } from '../core/paths.ts';
@@ -41,24 +42,57 @@ function existsExpr(
   if (eb.exists === undefined || eb.selectFrom === undefined) {
     return eb.lit(false);
   }
-  const rowRef = col(table, node.rowField, options.columns);
+  const m = (name: string): string => `m.${ident(name)}`;
   let query = eb
     .selectFrom(`${ident(node.table)} as m`)
     .select(eb.lit(1))
-    .whereRef(`m.${ident(node.rowColumn)}`, '=', rowRef)
-    .where(`m.${ident(node.user)}`, '=', eb.val(node.userValue))
-    .where(`m.${ident(node.role)}`, 'in', node.roles);
+    .whereRef(
+      m(node.rowColumn),
+      '=',
+      col(table, node.rowField, options.columns),
+    )
+    .where(m(node.user), '=', eb.val(node.userValue));
+  if (node.roles.length > 0) {
+    query = query.where(m(node.role), 'in', node.roles);
+  }
   if (node.expiresAt !== undefined) {
-    query = query.where(`m.${ident(node.expiresAt)}`, 'is', null);
+    const expires = eb.ref(m(node.expiresAt));
+    query = query.where(
+      eb.or([eb(expires, 'is', null), eb(expires, '>', eb.val(node.now))]),
+    );
   }
   if (node.tenantColumn !== undefined && node.tenantValue !== undefined) {
+    const tenant = eb.ref(m(node.tenantColumn));
     query = query.where(
-      `m.${ident(node.tenantColumn)}`,
+      eb.or([
+        eb(tenant, 'is', null),
+        eb(tenant, '=', eb.val(node.tenantValue)),
+      ]),
+    );
+  }
+  if (node.resourceColumn !== undefined && node.resourceValue !== undefined) {
+    query = query.where(
+      m(node.resourceColumn),
       '=',
-      eb.val(node.tenantValue),
+      eb.val(node.resourceValue),
     );
   }
   return eb.exists(query);
+}
+
+function containsExpr(
+  eb: KyselyExpressionBuilder,
+  column: unknown,
+  field: string,
+  value: unknown,
+  options: KyselyWhereOptions,
+): unknown {
+  if (options.listFields?.includes(field) === true) {
+    return eb(column, '@>', eb.val([value]));
+  }
+  return typeof value === 'string'
+    ? eb(column, 'like', eb.val(`%${escapeLike(value)}%`))
+    : eb(column, '@>', eb.val(value));
 }
 
 function render(
@@ -104,9 +138,7 @@ function render(
         case 'notIn':
           return eb(column, 'not in', node.value);
         case 'contains':
-          return typeof node.value === 'string'
-            ? eb(column, 'like', eb.val(`%${node.value}%`))
-            : eb(column, '@>', eb.val(node.value));
+          return containsExpr(eb, column, node.field, node.value, options);
         default: {
           const exhaustive: never = node.op;
           throw new Error(`PermDock: unknown compare '${String(exhaustive)}'`);

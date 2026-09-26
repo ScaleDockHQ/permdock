@@ -110,7 +110,7 @@ export const permissions = definePermissions({
 const editor = role('editor', [allow([permissions.document.update, permissions.folder.update])], { on: [permissions.folder, permissions.document] })
 ```
 
-An `editor` membership on folder `f_1` matches `document.update` for a document whose `folderId` is `f_1`. The chain is finite because it is typed: document to folder to project, three hops, declared once. `parent.resource` is the parent **name string**, not a reference; a resource declares at most one parent; the name is resolved at `definePolicy` after any `mergePermissions` ([0030](/docs/decisions/0030-parent-typing)). Self-referential parents (folders in folders) are deliberately not expressible; that is the Zanzibar case and the [pdp adapter](/docs/adapters/pdp) bridges it ([roadmap](/docs/roadmap) non-goals). The row must carry the parent field; a missing parent field is a non-match, never a walk-up query.
+An `editor` membership on folder `f_1` matches `document.update` for a document whose `folderId` is `f_1`. Matching is keyed by the membership's resource: the row's own id field identifies it only when the row is of that resource, and a descendant row matches through the parent field of that resource on its chain, so a document whose `id` happens to be `f_1` does not match. A membership on the role's resource or one of its ancestors counts (a project editor edits the documents of its folders when the document row carries `projectId`); a membership on an unrelated resource never does. The chain is finite because it is typed: document to folder to project, three hops, declared once. `parent.resource` is the parent **name string**, not a reference; a resource declares at most one parent; the name is resolved at `definePolicy` after any `mergePermissions` ([0030](/docs/decisions/0030-parent-typing)). Self-referential parents (folders in folders) are deliberately not expressible; that is the Zanzibar case and the [pdp adapter](/docs/adapters/pdp) bridges it ([roadmap](/docs/roadmap) non-goals). The row must carry the parent field; a missing parent field is a non-match, never a walk-up query.
 
 ### Grants over several references
 
@@ -220,16 +220,18 @@ Scope matching is data, so it compiles like any other condition ([ADR 0010](/doc
 ```json
 { "op": "memberOf", "scope": "tenant", "field": "orgId", "roles": ["admin", "viewer"] }
 { "op": "memberOf", "scope": "team",   "field": "teamId", "roles": ["lead"] }
-{ "op": "memberOf", "scope": "resource", "resource": "folder", "field": "folderId", "roles": ["editor"], "parents": ["projectId"] }
+{ "op": "memberOf", "scope": "resource", "resource": "folder", "field": "folderId", "roles": ["editor"], "parents": [{ "field": "projectId", "resource": "project" }] }
 ```
+
+A `parents` entry is either keyed (`{ field, resource }`: only a membership on that resource matches the field) or a bare field name (a membership on any resource whose id equals the field). Prefer the keyed form; the bare form exists for conditions written before it and matches the older behaviour. Membership `expiresAt` is Unix seconds, in memory and in a mapped `expires_at` column.
 
 | Target | Compilation |
 | --- | --- |
 | In memory, `filter`, snapshot | The row's scope field is compared against the subject's memberships holding one of `roles`; expired memberships excluded |
-| Drizzle, Prisma, Kysely `toWhere` | Active-tenant-only: `eq(orgId, <active tenant>)`; otherwise `inArray(orgId, [...tenants holding the role])`; team and resource scopes as `inArray` over the ids the subject holds, ancestors through the declared parent field |
+| Drizzle, Prisma, Kysely `toWhere` | Active-tenant-only: `eq(orgId, <active tenant>)`; with no active tenant, tenant- and team-scoped grants contribute nothing, so only unscoped grants match ([0050](/docs/decisions/0050-client-parity-and-snapshot-scopes)); team and resource scopes as `inArray` over the ids the subject holds, keyed parents over the ids held on that resource. With a memberships table (Drizzle, Kysely), an `exists` join with the role list, `expires_at > now` in bound Unix seconds, the active tenant, and the `resource` column when the table stores several resources |
 | RLS `supabase` | Tenant: `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` when the active tenant is a claim; otherwise `exists (select 1 from <membership table> m where m.tenant_id = org_id and m.user_id = (select auth.uid()) and m.role = any(...))` |
 | RLS `neon`, `guc` | Same shape over `auth.session()` or `current_setting('app.tenant_id', true)`; Nile's tenant session variable is the `guc` dialect with a fixed name |
-| RLS, team and resource | `exists (select 1 from <membership table> ...)`; parent derivation joins through the declared field, one join per hop |
+| RLS, team and resource | `exists (select 1 from <membership table> ...)`; a resource role ORs one join per mapped resource on the chain (the role's resource and each ancestor), each keyed by the row field that holds that resource's id |
 
 `memberOf` resolves the [RLS adapter](/docs/adapters/rls) open question on membership nodes: the AST gets the dedicated node and the membership table name is a per-scope mapping on the RLS adapter (`tables: { tenant: 'org_member', team: 'team_member', resource: 'document_member' }`). `permdock rls import` recognises both `IN (select ...)` and `EXISTS (select 1 ...)` forms as `memberOf` when the subquery matches a declared mapping. Custom roles compile through the same node after resolution: the declared role names are what reach SQL, never the tenant-defined name, so RLS stays a closed vocabulary.
 

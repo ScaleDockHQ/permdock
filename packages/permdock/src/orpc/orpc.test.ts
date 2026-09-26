@@ -2,6 +2,7 @@ import { call, ORPCError, os } from '@orpc/server';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
+import { memoryRevocationFeed } from '../core/revocations.ts';
 import {
   memberUser,
   otherPost,
@@ -12,6 +13,68 @@ import {
 import { createPermDock } from './index.ts';
 
 type Ctx = { readonly user: typeof memberUser | null };
+
+function channel<T>() {
+  const queue: T[] = [];
+  let wake: (() => void) | undefined;
+  const nextPush = async (): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      wake = resolve;
+    });
+  };
+  return {
+    push(...items: T[]): void {
+      queue.push(...items);
+      wake?.();
+    },
+    async *drain(): AsyncGenerator<T> {
+      for (;;) {
+        const next = queue.shift();
+        if (next === undefined) {
+          // oxlint-disable-next-line no-await-in-loop -- waits for the next push
+          await nextPush();
+        } else {
+          yield next;
+        }
+      }
+    },
+  };
+}
+
+describe('permdock/orpc event iterators', () => {
+  it('drops unreadable items and ends on session revocation', async () => {
+    const revocations = memoryRevocationFeed();
+    const { protect } = createPermDock(policy, {
+      subject: (opts) => opts.context.user,
+      revocations,
+    });
+    const posts = channel<typeof ownPost>();
+    const feed = os
+      .$context<Ctx>()
+      .use(
+        protect(permissions.post.list, undefined, {
+          items: permissions.post.update,
+        }),
+      )
+      .handler(async function* () {
+        yield* posts.drain();
+      });
+    const stream = (await call(feed, undefined, {
+      context: { user: memberUser },
+    })) as AsyncIterable<unknown>;
+    const iterator = stream[Symbol.asyncIterator]();
+    posts.push(otherPost, ownPost);
+    await expect(iterator.next()).resolves.toMatchObject({ value: ownPost });
+    const pending = iterator.next();
+    await revocations.revoke({ principal: 'u1', kind: 'session-revoked' });
+    const error: unknown = await pending.catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ORPCError);
+    expect(error).toMatchObject({
+      code: 'UNAUTHORIZED',
+      data: { status: 401, detail: 'session-revoked' },
+    });
+  });
+});
 
 describe('permdock/orpc', () => {
   it('grants and denies through call()', async () => {
@@ -53,6 +116,31 @@ describe('permdock/orpc', () => {
         }),
       );
     }
+  });
+
+  it('maps assert inside a handler to FORBIDDEN with the Problem', async () => {
+    const { permdock } = createPermDock<Ctx>(policy, {
+      subject: (opts) => opts.context.user,
+    });
+    const update = os
+      .$context<Ctx>()
+      .use(permdock())
+      .handler(({ context }) => {
+        context.permdock.assert(permissions.post.update, otherPost);
+        return { ok: true as const };
+      });
+    const error: unknown = await call(update, undefined, {
+      context: { user: memberUser },
+    }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ORPCError);
+    const denied = error as ORPCError<string, unknown>;
+    expect(denied.code).toBe('FORBIDDEN');
+    expect(denied.data).toEqual(
+      expect.objectContaining({
+        status: 403,
+        type: 'https://permdock.dev/problems/denied',
+      }),
+    );
   });
 
   it('throws UNAUTHORIZED for an anonymous caller', async () => {

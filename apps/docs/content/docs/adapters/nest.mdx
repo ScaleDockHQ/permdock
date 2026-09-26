@@ -9,7 +9,7 @@ Requires: `@nestjs/common` 12, `@nestjs/core` 12 and `@nestjs/platform-express` 
 
 ## Purpose
 
-Nest structures authorization as guards and decorators, so `permdock/nest` maps the [server kernel](/docs/adapters/server-kernel) onto that shape: a module that registers the factory, a guard registered as `APP_GUARD` that builds the request-scoped instance and evaluates route metadata, a `Protect` decorator that attaches the permission (and optional loader) to a handler, and a parameter decorator to inject the instance. The kernel only needs the underlying Node request converted once. GraphQL and microservice transports pass through when `context.getType()` is not `http`.
+Nest structures authorization as guards and decorators, so `permdock/nest` maps the [server kernel](/docs/adapters/server-kernel) onto that shape: a module that registers the factory, a guard registered as `APP_GUARD` that builds the request-scoped instance and evaluates route metadata, a `Protect` decorator that attaches the permission (and optional loader) to a handler, and a parameter decorator to inject the instance. The kernel only needs the underlying Node request converted once. Outside HTTP (GraphQL, WebSocket gateways, microservices) a route with `Protect` metadata is denied unless the `request` option maps the `ExecutionContext` to a request; a route without metadata passes through.
 
 ## API
 
@@ -49,18 +49,35 @@ export class PostsController {
 |---|---|
 | `PermDockModule` | Registers the kernel factory as a provider so guards and services can inject it. Also registers `PermDockExceptionFilter` as `APP_FILTER`. |
 | `PermDockGuard` | `CanActivate` implementation. Builds the request-scoped instance once per request (stored on the request), reads `Protect` metadata from the handler and class, runs `loadData`, decides, and throws before the handler. Routes without `Protect` metadata pass through but still get an instance. Register as `APP_GUARD` with `useExisting`. |
-| `Protect(permission, loadData?)` | Method or class decorator setting metadata for the guard. Multiple decorators on class and method are all enforced. |
+| `Protect(permission, loadData?, options?)` | Method or class decorator setting metadata for the guard. Multiple decorators on class and method are all enforced. `options` is `ProtectOptions` (`{ trusted: false }` for a loader that returns the request body). |
 | `InjectPermDock()` | Parameter decorator injecting the request-scoped instance into handlers. |
 | `PermDockExceptionFilter` | Filter that renders PermDock exceptions as `application/problem+json` with `WWW-Authenticate` when the kernel sets it. |
-| `permdockHandler` | Controller class for the AuthZEN-shaped decision endpoint, mountable under `/api/permdock`. |
+| `permdockHandler(options?)` | Controller class for the AuthZEN-shaped decision endpoint. `options.path` is the controller path (default `api/permdock`) and may hold route params, for example `':org/permdock/access/v1/evaluations'` with a `tenant` that reads `req.params.org`. |
 | `openapi` | Kernel hook contract for `@nestjs/swagger`. |
+| `request` option | `(context: ExecutionContext) => request \| undefined`. Maps a non-HTTP context (for example a GraphQL `context.req` or a WebSocket handshake) to the request the kernel reads. Without it, protected non-HTTP routes are denied. |
+
+### Gateways
+
+`connection(client, req, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for a gateway client (typed `NestSocket`: a Socket.IO socket or a raw `ws` socket), memoised per client ([0052](/docs/decisions/0052-streams-and-sockets)). When it aborts, the client receives `permdock:error` with the Problem Details and is disconnected, or a raw socket is closed with `1008`. `PermDockGuard` on a `@SubscribeMessage` handler with `Protect` metadata checks each message through the client's connection: a `null` loader result is a `404` problem, a denial the usual Problem Details, and the connection stays open. Pass `revocations` to `PermDockModule`.
+
+```ts
+@WebSocketGateway()
+export class ProjectsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  async handleConnection(client: Socket) {
+    await permdock.connection(client, client.request, { permission: permissions.project.read })
+  }
+  async handleDisconnect(client: Socket) {
+    (await permdock.connection(client, client.request)).close()
+  }
+}
+```
 
 ## Request lifecycle
 
-1. `PermDockGuard` runs for every HTTP route; it converts the platform request, calls `subject(request)` once, builds the instance and caches it on the request object.
+1. `PermDockGuard` runs for every HTTP route; it converts the platform request, calls `subject(request)` once, builds the instance for the tenant the `tenant` option reads from the routed request, and caches it on the request object. Both `@nestjs/platform-express` and `@nestjs/platform-fastify` are supported: the guard reads the parsed body or the raw stream of either, and the filter and decision controller write through a `ServerResponse` or a `FastifyReply`. Another platform fails loudly with a `TypeError` naming both.
 2. If the handler or class carries `Protect` metadata, the guard runs the loader, validates untrusted input, and decides. Denials throw before the handler executes.
 3. Handlers receive the instance through `@InjectPermDock()` and may call `assert`, `filter` or `where`.
-4. `PermDockExceptionFilter` maps thrown PermDock errors to Problem Details.
+4. `PermDockExceptionFilter` renders by transport: HTTP gets Problem Details; a `ws` client with `emit` receives an `exception` event carrying `status: 'error'`, the title and the Problem Details body; other transports get the exception rethrown to their own filters.
 
 ## What it validates
 
@@ -75,6 +92,8 @@ export class PostsController {
 ## Example app
 
 `apps/examples/nest`: a posts module on the Express platform with the guard as `APP_GUARD`, `Protect` on `PATCH /posts/:id` and `POST /posts/:id/publish`, and the decision endpoint controller.
+
+`tests/integration/src/http/nest.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on both platforms: `FileInterceptor` uploads on Express, `@fastify/multipart` on Fastify, an admin module under `RouterModule` and the decision controller at a tenant path.
 
 ## Related standards
 

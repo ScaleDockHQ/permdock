@@ -78,18 +78,30 @@ function unwrapList(value: unknown): unknown[] {
   return [];
 }
 
-export function parseMemberRows(value: unknown): readonly Membership[] {
+/**
+ * Member rows for `userId` only. `listMembers` returns every member of an
+ * organization, so a row without the caller's `userId` is never theirs.
+ */
+export function parseMemberRows(
+  value: unknown,
+  userId: string,
+  requireUserId = true,
+): readonly Membership[] {
   const out: Membership[] = [];
-  for (const item of unwrapList(value)) {
+  const rows =
+    isRecord(value) && typeof value.organizationId === 'string'
+      ? [value]
+      : unwrapList(value);
+  for (const item of rows) {
     if (!isRecord(item)) {
       continue;
     }
+    const owner = typeof item.userId === 'string' ? item.userId : undefined;
+    if (owner === undefined ? requireUserId : owner !== userId) {
+      continue;
+    }
     const tenant =
-      typeof item.organizationId === 'string'
-        ? item.organizationId
-        : typeof item.id === 'string'
-          ? item.id
-          : undefined;
+      typeof item.organizationId === 'string' ? item.organizationId : undefined;
     const roles = asRoles(item.role ?? item.roles);
     if (tenant === undefined || roles.length === 0) {
       continue;
@@ -99,10 +111,16 @@ export function parseMemberRows(value: unknown): readonly Membership[] {
   return out;
 }
 
-export function parseTeamRows(value: unknown): readonly Membership[] {
+export function parseTeamRows(
+  value: unknown,
+  userId: string,
+): readonly Membership[] {
   const out: Membership[] = [];
   for (const item of unwrapList(value)) {
     if (!isRecord(item)) {
+      continue;
+    }
+    if (typeof item.userId === 'string' && item.userId !== userId) {
       continue;
     }
     const teamRecord = isRecord(item.team) ? item.team : undefined;

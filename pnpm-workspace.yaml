@@ -4,19 +4,36 @@ packages:
   - apps/examples/*
   - tests/*
   - tests/e2e/fixtures/*
+  - tests/e2e/fixtures/turborepo/apps/*
+  - tests/e2e/fixtures/turborepo/packages/*
   - tests/types/*
 
 catalog:
+  '@ai-sdk/react': 4.0.108
   '@anthropic-ai/claude-agent-sdk': 0.3.274
+  '@modelcontextprotocol/client': 2.1.0
+  '@modelcontextprotocol/server': 2.1.0
   '@openai/agents': 0.18.0
   '@nestjs/common': 12.0.3
   '@nestjs/core': 12.0.3
   '@nestjs/platform-express': 12.0.3
+  '@nestjs/platform-fastify': 12.0.3
+  '@fastify/multipart': 10.1.2
+  '@hono/node-server': 2.1.1
   '@arethetypeswrong/cli': 0.18.5
   '@expo/log-box': 57.0.4
   '@expo/metro-runtime': 57.0.15
   '@react-native/metro-config': 0.87.1
   '@sveltejs/vite-plugin-svelte': 7.3.0
+  '@sveltejs/kit': 2.70.3
+  '@sveltejs/adapter-node': 5.5.7
+  nuxt: 4.5.2
+  '@tanstack/react-start': 1.168.58
+  '@tanstack/react-router': 1.170.39
+  '@solidjs/start': 2.0.5
+  '@solidjs/router': 1.0.0
+  nitro: 3.0.260903-beta
+  '@react-native-async-storage/async-storage': 3.1.1
   '@vitejs/plugin-react': 6.1.1
   '@vitejs/plugin-vue': 6.0.9
   ai: 7.0.105
@@ -25,6 +42,7 @@ catalog:
   '@commitlint/config-conventional': 21.2.2
   '@commitlint/types': 21.2.0
   '@orpc/server': 2.0.0-beta.36
+  '@orpc/client': 2.0.0-beta.36
   vue: 3.5.43
   svelte: 5.57.0
   tailwind-merge: 3.7.0
@@ -36,21 +54,31 @@ catalog:
   '@supabase/supabase-js': 2.116.0
   '@testcontainers/postgresql': 12.1.0
   '@trpc/server': 11.19.0
+  '@trpc/client': 11.19.0
   '@tailwindcss/postcss': 4.3.3
   '@types/express': 5.0.6
+  '@types/multer': 2.2.0
   '@types/mdx': 2.0.14
   '@types/node': 26.6.1
   '@types/pg': 8.23.1
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
+  '@types/ws': 8.18.1
   '@vitest/coverage-v8': 5.0.1
   arktype: 2.2.3
   class-variance-authority: 0.7.1
   clsx: 2.1.1
   cn: 0.3.0
   babel-preset-expo: 57.0.12
+  deno: 2.9.6
   elysia: 1.4.30
+  esbuild: 0.28.2
   drizzle-orm: 0.45.2
+  '@electric-sql/pglite': 0.5.8
+  '@electric-sql/pglite-socket': 0.2.11
+  '@prisma/adapter-pg': 7.10.0
+  '@prisma/client': 7.10.0
+  prisma: 7.10.0
   eve: 0.58.1
   expo: 57.0.23
   expo-constants: 57.0.18
@@ -59,6 +87,7 @@ catalog:
   expo-router: 57.0.21
   express: 5.2.1
   kysely: 0.29.6
+  multer: 2.4.0
   fastify: 5.12.5
   beautiful-mermaid: 1.1.3
   fumadocs-core: 16.15.11
@@ -68,6 +97,7 @@ catalog:
   jose: 6.2.12
   lefthook: 2.1.14
   lucide-react: 1.47.0
+  miniflare: 4.20260730.0
   next: 16.3.5
   next-themes: 0.4.6
   oxc-parser: 0.150.0
@@ -85,6 +115,7 @@ catalog:
   react: 19.3.0
   shadcn: 4.21.0
   shiki: 4.4.3
+  happy-dom: 20.14.5
   react-dom: 19.3.0
   react-native: 0.86.2
   react-native-safe-area-context: 5.10.0
@@ -102,6 +133,7 @@ catalog:
   vite: 8.3.0
   vite-plugin-solid: 2.11.14
   vitest: 5.0.1
+  ws: 8.21.3
   zod: 4.6.5
   motion: 13.4.0
   sonner: 2.0.8
@@ -113,6 +145,7 @@ catalogs:
     typescript: 6.0.3
   peers:
     '@anthropic-ai/claude-agent-sdk': '>=0.2'
+    '@modelcontextprotocol/server': '>=2'
     '@nestjs/common': '>=12'
     '@nestjs/core': '>=12'
     '@nestjs/platform-express': '>=12'
@@ -152,13 +185,26 @@ trustPolicyIgnoreAfter: 43200
 trustPolicyExclude:
   - ua-parser-js
 
+peerDependencyRules:
+  allowedVersions:
+    # Only its optional Nest integration needs the peer; tests/integration runs Nest 12.
+    '@supabase/server>@nestjs/common': '12'
+    # Only `svelte-kit sync` type generation reads it; the e2e fixture builds with Vite.
+    '@sveltejs/kit>typescript': '7'
+
 overrides:
   '@react-native/metro-config': 'catalog:'
   react-native-worklets: 'catalog:'
 
 allowBuilds:
+  # Engine downloads are for `prisma migrate`; tests/integration creates tables with SQL.
+  '@prisma/engines': false
+  prisma: false
   cpu-features: true
+  # tests/runtimes: the Deno CLI and Miniflare's workerd binary.
+  deno: true
   esbuild: true
   lefthook: true
   protobufjs: true
   ssh2: true
+  workerd: true

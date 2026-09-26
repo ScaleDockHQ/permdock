@@ -52,6 +52,12 @@ export type WhereResult = {
     | Condition
     | { readonly op: 'or'; readonly conditions: readonly [] };
   readonly partial: boolean;
+  /**
+   * The subject `where()` was built for. `toWhere` reads its memberships for
+   * `memberOf` when no `subject` option is passed. Not enumerable, so it never
+   * serialises with the result.
+   */
+  readonly subject?: Subject;
 };
 
 export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {

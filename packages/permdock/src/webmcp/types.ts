@@ -26,7 +26,14 @@ export type WebMcpToolResult = {
   readonly structuredContent?: Readonly<Record<string, unknown>>;
 };
 
-export type WebMcpToolHandler = (input: unknown) => Promise<unknown>;
+export type WebMcpToolCall = {
+  /** Validated arguments with the tenant key bound. */
+  readonly input: unknown;
+  /** The decision token; send it as `PermDock-Approval` so the server resumes. */
+  readonly token: string | undefined;
+};
+
+export type WebMcpToolHandler = (call: WebMcpToolCall) => Promise<unknown>;
 
 export type WebMcpToolAnnotations = {
   readonly readOnlyHint?: boolean;

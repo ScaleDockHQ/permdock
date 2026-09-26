@@ -13,6 +13,7 @@ import {
   role,
   separationConflicts,
 } from './policy.ts';
+import { defineRoles } from './vocabulary.ts';
 
 const permissions = definePermissions({
   post: resource({
@@ -69,6 +70,21 @@ describe('policy', () => {
         subject: () => ({ id: 'u1' }),
       }),
     ).toThrow(/scopes.tenant/);
+  });
+
+  it('keeps the on option of a role leaf on its grants', () => {
+    const roles = defineRoles({ editor: {} });
+    const binding = role(
+      roles.editor,
+      [allow(permissions.post.update, { to: roles.editor })],
+      { on: permissions.post },
+    );
+    expect(binding.grants[0]?.scope).toEqual({ resource: 'post' });
+    expect(binding.grants[0]?.to).toEqual({
+      kind: 'role',
+      role: 'editor',
+      scope: { resource: 'post' },
+    });
   });
 
   it('denies override allows when both exist', () => {

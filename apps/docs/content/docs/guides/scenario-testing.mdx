@@ -1,0 +1,68 @@
+---
+title: Scenario testing
+description: How PermDock tests itself against one realistic multi-tenant SaaS, which runners in @permdock/testing to reuse in your own suites, and how to add a fixture app to the repository.
+---
+
+Unit tests prove that a function does what its author thought. Scenario tests prove that an application built the way the docs say behaves the way the docs say: the right org, the right role, the right status code, the right rows, the right button. PermDock's own suites run one shared SaaS domain through every surface it ships, and the runners that do it are public in `@permdock/testing`, so an application can hold its own wiring to the same standard.
+
+## The domain
+
+`@permdock/testing/saas` is one multi-tenant SaaS ([testing adapter](/docs/adapters/testing)):
+
+- orgs `acme` (free plan, custom role `contractor`) and `globex` (pro plan), plus `org-1` and `tenant-1`, whose ids a loose comparison would confuse;
+- `project` and `doc` rows with tenant and team relations, collection actions (members, settings, billing, audit, SSO), plan-gated analytics, and `apiKey` with a daily quota and an owner approval;
+- users chosen for one hazard each: a role that differs per org, the same role in two orgs, an expired membership, no memberships at all, a team lead, a resource collaborator;
+- `saasScenarios`: hand-written `user`, `tenant`, `permission`, `row` and `expected` cases.
+
+The expectations are never computed by the engine. Every suite runs the same cases through its own surface and compares against the hand-written outcome, so a bug in `decide` cannot make its own test pass. `client: false` marks a case that depends on a quota store or an approval, which a snapshot client cannot see; `clientOutcome` records where the client is deliberately stricter (a closure deny fails closed in a snapshot).
+
+`saasSchemaSql` and `saasSeedSql` create the same domain in Postgres, with RLS forced on the row tables and policies from `permdock rls generate`. `signSaasToken` signs ES256 access tokens under a test-only key; never reuse that key outside tests.
+
+## Runners
+
+| Runner | What it proves | Where PermDock runs it |
+| --- | --- | --- |
+| `describePolicy` | Every permission has a cell per subject and fixture; a new permission cannot ship untested | Every example app |
+| `testClientParity` | `fromSnapshot` never grants what the server denies, per membership and tenant | `packages/testing` over the saas domain |
+| `testClientStore` | A client store's tenant switch, refresh races, stale snapshots, signed refreshes and cache | `permdock/react-native` `createNativeStore` |
+| `testHttpAdapter` | 14 HTTP scenarios over a real server: tenant from the path, per-org roles, custom roles, quotas, approvals, Problem Details | `tests/integration/src/http`, one file per adapter |
+| `ormParity` | `toWhere(where())` on a real database returns exactly the rows `filter()` keeps in memory | Drizzle, Kysely and Prisma 7 in `tests/integration` |
+| `rlsParity` | Generated RLS policies return the same rows as the in-memory evaluator | `tests/integration` on testcontainers Postgres |
+| `test<Interface>` conformance runners | A custom `ApprovalStore`, `DecisionSink`, `MembershipSource`, `RoleSource`, `SnapshotSource`, `LimitStore`, `DirectoryStore`, `ReplayStore`, `RevocationFeed`, `SubjectResolver`, `TokenVerifier`, `TokenSigner` or `WhereCompiler` keeps the interface's contract | The shipped defaults, the Drizzle `ApprovalStore` recipe on Postgres, the `b2b-scim` Postgres `DirectoryStore` |
+
+An application does not need the saas domain to use them. `describePolicy`, `ormParity`, `rlsParity` and the conformance runners take your own policy, scenarios and implementations; `testHttpAdapter` and `testClientStore` are tied to the saas domain because their scenarios are, and are most useful when you write a new adapter or store.
+
+## Fixture apps
+
+`tests/e2e/fixtures/<name>` holds one realistic application per archetype, each built for production and driven by Playwright from `tests/e2e/src/<name>.spec.ts`:
+
+| Fixture | Archetype |
+| --- | --- |
+| `next-saas` | Next.js 16.3 Cache Components, JWT and database modes, instant navigation |
+| `sveltekit-saas`, `nuxt-saas`, `tanstack-start-saas`, `solidstart-saas` | The same SaaS UI in each framework, sharing `saas-kit` and the `saasUiScenarios` spec |
+| `expo-saas` | Expo Router web build with API routes on the server kernel |
+| `mcp-oauth` | MCP over Streamable HTTP with OAuth bearer tokens, scope step-up and per-token tool lists |
+| `ai-chat` | AI SDK chat with tool approvals resolved through `approvalsHandler` and resumed once |
+| `realtime-collab` | Streams and sockets under revocation ([ADR 0052](/docs/decisions/0052-streams-and-sockets)) |
+| `b2b-scim` | SCIM provisioning per tenant credential and CAEP session revocation |
+| `turborepo` | Definitions in one workspace package, enforcement in another, catalog drift checked |
+
+`tests/runtimes` runs one kernel, Hono, Elysia and AuthZEN app on Node, Bun, Deno and workerd (through Miniflare) with `pnpm test:runtimes`; CI requires every runtime, and a local run skips the ones that are not installed.
+
+## Adding a fixture app
+
+1. Create `tests/e2e/fixtures/<name>` as a private package named `@permdock/e2e-<name>`. Import the domain from `@permdock/testing/saas` (client bundles that cannot tree-shake use `@permdock/testing/saas/permissions`), and a UI fixture reuses `saas-kit` for routes, sessions and the store.
+2. Give it a `serve` script that builds once, serves the production output on a fixed port and answers `GET /api/health`. Test-only control routes (reset, set role, set plan) live under `/api/test/`.
+3. Add it to `tests/e2e/package.json` as a dev dependency and to the project map in `tests/e2e/playwright.config.ts` with `fixtureServer('<name>', port)`, so a run starts only the servers its projects need.
+4. Write `tests/e2e/src/<name>.spec.ts`. A SaaS UI calls `saasUiScenarios`, which pins the DOM contract; anything else states its scenarios as numbered, serial tests with hand-written expectations. Assert denials by reason, not only by status.
+5. Add the project to one shard of the e2e matrix in `.github/workflows/ci.yml`. There are no retries: a flaky test fails the run, and the nightly job repeats every test three times.
+6. If the fixture has a `permdock.config.ts`, add `pnpm exec permdock collect --check --cwd tests/e2e/fixtures/<name>` to the catalog drift step and to the command list in `AGENTS.md`.
+7. Name every new third-party tool in `research/ecosystem-index.mdx`.
+
+A fixture that finds a bug does its job: write the failing scenario first, fix the library, and keep the scenario.
+
+## Related
+
+- [Testing adapter](/docs/adapters/testing): runner signatures and the saas entry.
+- [Extension interfaces](/docs/concepts/extension-interfaces): the contracts the conformance runners check.
+- [Next.js Cache Components](/docs/guides/next-cache-components): the guide `next-saas` proves.

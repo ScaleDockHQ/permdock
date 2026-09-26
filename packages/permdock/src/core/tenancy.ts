@@ -57,6 +57,23 @@ export function resolveActiveTenant(
   return match ? requested : undefined;
 }
 
+/**
+ * Whether `resource` declares a `memberOf` relation on `field`: its rows are
+ * partitioned by that scope, so a row without the field matches no membership.
+ */
+export function relatesTo(
+  resource: ResourceNode | undefined,
+  field: string,
+  memberOf: 'tenant' | 'team',
+): boolean {
+  if (resource === undefined) {
+    return false;
+  }
+  return Object.values(resource.relations).some(
+    (relation) => relation.field === field && relation.memberOf === memberOf,
+  );
+}
+
 export type ScopeMatch =
   | { readonly ok: true; readonly membership?: Membership }
   | {
@@ -78,7 +95,10 @@ export function matchScopedMembership(
     readonly team?: { readonly key: string };
   },
   resource: ResourceNode | undefined,
+  resources: ReadonlyMap<string, ResourceNode>,
   now: number,
+  rolesOf: (membership: Membership) => readonly string[] = (membership) =>
+    membership.roles,
 ): ScopeMatch {
   if (scope === 'global') {
     return { ok: true };
@@ -92,7 +112,7 @@ export function matchScopedMembership(
   let sawWrongScope = false;
   let sawTenantMismatch = false;
   for (const membership of memberships) {
-    if (!membership.roles.includes(roleName)) {
+    if (!rolesOf(membership).includes(roleName)) {
       continue;
     }
     if (isMembershipExpired(membership, now)) {
@@ -117,7 +137,10 @@ export function matchScopedMembership(
         scopes.tenant !== undefined
       ) {
         const rowTenant = (row as Record<string, unknown>)[scopes.tenant.key];
-        if (rowTenant !== undefined && rowTenant !== membership.tenant) {
+        const partitioned =
+          rowTenant !== undefined ||
+          relatesTo(resource, scopes.tenant.key, 'tenant');
+        if (partitioned && rowTenant !== membership.tenant) {
           sawTenantMismatch = true;
           continue;
         }
@@ -138,7 +161,9 @@ export function matchScopedMembership(
         scopes.team !== undefined
       ) {
         const rowTeam = (row as Record<string, unknown>)[scopes.team.key];
-        if (rowTeam !== undefined && rowTeam !== membership.team) {
+        const partitioned =
+          rowTeam !== undefined || relatesTo(resource, scopes.team.key, 'team');
+        if (partitioned && rowTeam !== membership.team) {
           sawWrongScope = true;
           continue;
         }
@@ -148,7 +173,15 @@ export function matchScopedMembership(
     if (kind !== 'resource' || membership.on === undefined) {
       continue;
     }
-    if (matchResourceMembership(membership, scope.resource, row, resource)) {
+    if (
+      matchResourceMembership(
+        membership,
+        scope.resource,
+        row,
+        resource,
+        resources,
+      )
+    ) {
       return { ok: true, membership };
     }
     sawWrongScope = true;
@@ -177,9 +210,10 @@ export function matchScopedMembership(
 
 function matchResourceMembership(
   membership: Membership,
-  resourceName: string,
+  roleResource: string,
   row: unknown,
   resource: ResourceNode | undefined,
+  resources: ReadonlyMap<string, ResourceNode>,
 ): boolean {
   const on = membership.on;
   if (on === undefined) {
@@ -189,34 +223,44 @@ function matchResourceMembership(
   if (row === null || typeof row !== 'object') {
     return false;
   }
-  const record = row as Record<string, unknown>;
-  if (on.resource === resourceName) {
-    const idField = resource?.id ?? 'id';
-    return record[idField] === on.id;
-  }
   if (
-    resource?.parent !== undefined &&
-    on.resource === resource.parent.resource
+    on.resource !== roleResource &&
+    membershipField(resources.get(roleResource), on.resource, resources) ===
+      undefined
   ) {
-    return record[resource.parent.field] === on.id;
+    return false;
   }
-  return false;
+  const field = membershipField(resource, on.resource, resources);
+  return (
+    field !== undefined && (row as Record<string, unknown>)[field] === on.id
+  );
 }
 
-export function parentFieldChain(
+/**
+ * The row field that holds the id of a `membershipResource` membership: the
+ * row's own id field when the row is of that resource, the declared parent
+ * field of the matching ancestor otherwise (the row carries it, never a
+ * walk-up query), `undefined` when the resource is not on the row's chain.
+ */
+export function membershipField(
   resource: ResourceNode | undefined,
+  membershipResource: string,
   resources: ReadonlyMap<string, ResourceNode>,
-): readonly string[] {
-  const fields: string[] = [];
-  let current = resource;
+): string | undefined {
+  if (resource === undefined) {
+    return undefined;
+  }
+  if (resource.name === membershipResource) {
+    return resource.id ?? 'id';
+  }
+  let current: ResourceNode | undefined = resource;
   const seen = new Set<string>();
-  while (current?.parent !== undefined) {
-    if (seen.has(current.name)) {
-      break;
-    }
+  while (current?.parent !== undefined && !seen.has(current.name)) {
     seen.add(current.name);
-    fields.push(current.parent.field);
+    if (current.parent.resource === membershipResource) {
+      return current.parent.field;
+    }
     current = resources.get(current.parent.resource);
   }
-  return fields;
+  return undefined;
 }

@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ApprovalStore } from '../approvals/types.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -12,12 +13,19 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
-import type { Guard, OpenApiHooks } from '../server/create.ts';
+import type { PdpFactory } from '../pdp/types.ts';
+import type {
+  Guard,
+  OpenApiHooks,
+  ProtectOptions,
+  TenantOption,
+  TenantScope,
+} from '../server/create.ts';
 import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { applyOtel } from '../otel/instrument.ts';
-import { createPermDock as createKernel } from '../server/create.ts';
+import { createKernel, tenantScope } from '../server/create.ts';
 import {
   fromResponse,
   sendResponse,
@@ -27,13 +35,15 @@ import {
 
 export type NodePermDockOptions<TUser = unknown> = {
   readonly subject: (req: NodeRequest) => TUser | Promise<TUser>;
-  readonly tenant?:
-    | string
-    | ((req: NodeRequest) => string | undefined | Promise<string | undefined>);
+  readonly tenant?: TenantOption<NodeRequest>;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
+  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
+  readonly pdp?: PdpFactory;
+  /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
   readonly webBotAuth?: WebBotAuthOptions;
@@ -44,6 +54,7 @@ export type NodePermDock = {
   readonly protect: (
     permission: Permission,
     loadData?: (req: NodeRequest) => unknown,
+    protectOptions?: ProtectOptions,
   ) => (req: IncomingMessage) => Promise<Guard>;
   readonly send: typeof sendResponse;
   readonly permdockHandler: () => (
@@ -61,7 +72,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 ): NodePermDock {
   const contexts = new WeakMap<globalThis.Request, NodeRequest>();
   const bound = new WeakMap<IncomingMessage, globalThis.Request>();
-  const tenantOption = options.tenant;
   const kernel = createKernel(
     policy,
     compact({
@@ -69,21 +79,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         const req = contexts.get(request);
         return req === undefined ? null : options.subject(req);
       },
-      tenant:
-        typeof tenantOption === 'function'
-          ? (
-              request: globalThis.Request,
-            ): string | undefined | Promise<string | undefined> => {
-              const req = contexts.get(request);
-              return req === undefined ? undefined : tenantOption(req);
-            }
-          : tenantOption,
       memberships: options.memberships,
       customRoles: options.customRoles,
       store: options.store,
       sink: options.sink,
-      snapshots: options.snapshots,
+      limits: options.limits,
+      pdp: options.pdp,
       webBotAuth: options.webBotAuth,
+      adapter: 'node',
       wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),
   );
@@ -100,33 +103,43 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     return request;
   };
 
-  const permdock = (req: IncomingMessage): Promise<PermDock> =>
-    kernel.permdock(bind(req));
+  const scopeOf = (req: IncomingMessage): Promise<TenantScope> =>
+    tenantScope(options.tenant, req as NodeRequest);
+
+  const permdock = async (req: IncomingMessage): Promise<PermDock> =>
+    kernel.permdock(bind(req), await scopeOf(req));
 
   const protect =
     (
       permission: Permission,
       loadData?: (req: NodeRequest) => unknown,
+      protectOptions?: ProtectOptions,
     ): ((req: IncomingMessage) => Promise<Guard>) =>
-    (req: IncomingMessage): Promise<Guard> =>
+    async (req: IncomingMessage): Promise<Guard> =>
       kernel.protect(
         permission,
         loadData === undefined
           ? undefined
           : (): unknown => loadData(req as NodeRequest),
-      )(bind(req));
+        protectOptions,
+      )(bind(req), await scopeOf(req));
 
   const permdockHandler = (): ((
     req: IncomingMessage,
     res: ServerResponse,
   ) => Promise<void>) => {
-    const { POST, GET } = kernel.handler();
+    const { POST, GET } = kernel.handler((request) => {
+      const req = contexts.get(request);
+      return req === undefined ? { tenant: undefined } : scopeOf(req);
+    });
     return async (req, res): Promise<void> => {
-      const request = bind(req);
       if (req.method === 'GET' || req.method === 'HEAD') {
-        await sendResponse(res, await GET(request));
+        await sendResponse(res, await GET(bind(req)));
         return;
       }
+      const nodeReq = req as NodeRequest;
+      const request = toRequest(nodeReq);
+      contexts.set(request, nodeReq);
       await sendResponse(res, await POST(request));
     };
   };

@@ -20,6 +20,7 @@ import {
   roleNameOf,
   roleScopeOf,
 } from './grantee.ts';
+import { assertLimit } from './limits.ts';
 import {
   type Permission,
   type PermissionKind,
@@ -163,11 +164,7 @@ export type Policy<
   readonly providers?: readonly DecisionProvider[];
 };
 
-export function requiresApproval(
-  approval: Grant['approval'] | undefined,
-): boolean {
-  return approval !== undefined;
-}
+export { requiresApproval } from './approval-required.ts';
 
 export function normalizeApproval(
   approval: ApprovalOption | undefined,
@@ -267,6 +264,7 @@ function makeGrant(
     whereInput === undefined ? undefined : normalizeWhere(whereInput);
   const check =
     checkInput === undefined ? undefined : normalizeWhere(checkInput);
+  assertLimit(condition?.limit, permission.key);
   const portable = condition?.limit === undefined;
   return compact<Omit<Grant, 'role' | 'scope'>>({
     permission,
@@ -346,12 +344,11 @@ export function role(
   const assignable =
     options?.assignable ?? leaf?.assignable ?? scope !== 'global';
   const roleGrantee = asGrantee(
-    leaf ??
-      freezeDeep({
-        kind: 'role' as const,
-        role: roleName,
-        scope,
-      }),
+    freezeDeep({
+      kind: 'role' as const,
+      role: roleName,
+      scope,
+    }),
   );
   const normalised = flattenGrants(grants).map((grant) => {
     const items = flattenGrantee(grant.to);

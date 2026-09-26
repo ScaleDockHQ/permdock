@@ -4,8 +4,8 @@ import type { Subject } from '../core/subject.ts';
 
 import {
   type CompiledWhere,
-  type MembershipsMapping,
   compileWhere,
+  escapeLike,
 } from '../conditions/compile.ts';
 import { compact } from '../core/compact.ts';
 import { assertSafeKey } from '../core/paths.ts';
@@ -13,9 +13,11 @@ import { assertSafeKey } from '../core/paths.ts';
 export type PrismaWhereOptions = {
   readonly fields?: Readonly<Record<string, string>>;
   readonly subject?: Subject;
-  readonly memberships?: MembershipsMapping;
   readonly now?: number;
   readonly listFields?: readonly string[];
+  // Prisma rejects a null filter on a required field, and its runtime data
+  // model does not say which fields are required.
+  readonly requiredFields?: readonly string[];
 };
 
 const EMPTY_OR: { readonly OR: readonly [] } = { OR: [] };
@@ -26,6 +28,67 @@ function fieldName(
 ): string {
   assertSafeKey(field, 'condition field');
   return fields?.[field] ?? field;
+}
+
+const NEVER: CompiledWhere = { kind: 'never' };
+const ALWAYS: CompiledWhere = { kind: 'always' };
+
+function foldRequired(
+  node: CompiledWhere,
+  required: readonly string[],
+): CompiledWhere {
+  switch (node.kind) {
+    case 'isNull':
+      if (!required.includes(node.field)) {
+        return node;
+      }
+      return node.negated ? ALWAYS : NEVER;
+    case 'and': {
+      const items = node.items
+        .map((item) => foldRequired(item, required))
+        .filter((item) => item.kind !== 'always');
+      if (items.some((item) => item.kind === 'never')) {
+        return NEVER;
+      }
+      return items.length === 0
+        ? ALWAYS
+        : items.length === 1
+          ? (items[0] as CompiledWhere)
+          : { kind: 'and', items };
+    }
+    case 'or': {
+      const items = node.items
+        .map((item) => foldRequired(item, required))
+        .filter((item) => item.kind !== 'never');
+      if (items.some((item) => item.kind === 'always')) {
+        return ALWAYS;
+      }
+      return items.length === 0
+        ? NEVER
+        : items.length === 1
+          ? (items[0] as CompiledWhere)
+          : { kind: 'or', items };
+    }
+    case 'not': {
+      const item = foldRequired(node.item, required);
+      return item.kind === 'never'
+        ? ALWAYS
+        : item.kind === 'always'
+          ? NEVER
+          : { kind: 'not', item };
+    }
+    case 'never':
+    case 'always':
+    case 'exists':
+    case 'compare':
+      return node;
+    default: {
+      const exhaustive: never = node;
+      throw new Error(
+        `PermDock: unknown compiled node '${String(exhaustive)}'`,
+      );
+    }
+  }
 }
 
 function render(
@@ -53,6 +116,8 @@ function render(
       };
     case 'not':
       return { NOT: render(node.item, options) };
+    // Unreachable: Prisma takes no `memberships` mapping, so `memberOf`
+    // compiles from the subject. Fail closed if it ever arrives.
     case 'exists':
       return {
         [fieldName(node.rowField, options.fields)]: {
@@ -81,7 +146,14 @@ function render(
         case 'contains':
           return options.listFields?.includes(node.field) === true
             ? { [name]: { has: node.value } }
-            : { [name]: { contains: node.value } };
+            : {
+                [name]: {
+                  contains:
+                    typeof node.value === 'string'
+                      ? escapeLike(node.value)
+                      : node.value,
+                },
+              };
         default: {
           const exhaustive: never = node.op;
           throw new Error(`PermDock: unknown compare '${String(exhaustive)}'`);
@@ -125,14 +197,15 @@ function rewriteEmptyOr<T extends Record<string, unknown>>(args: T): T {
 export function toWhere<
   T extends Record<string, unknown> = Record<string, unknown>,
 >(input: Condition | WhereResult, options: PrismaWhereOptions = {}): T {
+  const compiled = compileWhere(
+    input,
+    compact({
+      subject: options.subject,
+      now: options.now,
+    }),
+  );
   return render(
-    compileWhere(
-      input,
-      compact({
-        subject: options.subject,
-        now: options.now,
-      }),
-    ),
+    foldRequired(compiled, options.requiredFields ?? []),
     options,
   ) as T;
 }

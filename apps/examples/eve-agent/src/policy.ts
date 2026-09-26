@@ -37,3 +37,10 @@ export const policy = definePolicy(permissions, {
 });
 
 export const memberUser: User = { id: 'u1', orgId: 'o1', roles: ['member'] };
+export const adminUser: User = { id: 'u2', orgId: 'o1', roles: ['admin'] };
+
+const users: readonly User[] = [memberUser, adminUser];
+
+export function userById(id: unknown): User | null {
+  return users.find((user) => user.id === id) ?? null;
+}

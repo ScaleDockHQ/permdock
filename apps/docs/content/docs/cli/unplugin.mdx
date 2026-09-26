@@ -24,7 +24,7 @@ export default {
 }
 ```
 
-Adapters on the factory: `createPermDockUnplugin.vite()`, `.rollup()`, `.webpack()`, `.rspack()`, `.esbuild()`. Options match the Next plugin (`collect.srcPath`, `collect.out`, `collect.barrel`, `onDrift`). `permdock.config.ts` is read when options are omitted.
+Adapters on the factory: `createPermDockUnplugin.vite()`, `.rollup()`, `.webpack()`, `.rspack()`, `.esbuild()`. Options match the Next plugin (`collect.srcPath`, `collect.out`, `collect.barrel`, `onDrift`). `buildStart` writes the catalog by default; `check: true` makes it compare instead, and a stale catalog fails the build unless `onDrift: 'warn'`. `watchChange` re-runs collect and logs failures without stopping the dev server. `permdock.config.ts` is read when options are omitted.
 
 ## Recipes
 

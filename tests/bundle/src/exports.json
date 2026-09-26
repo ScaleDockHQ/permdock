@@ -2,6 +2,7 @@
   ".": [
     "PermDockApprovalRequiredError",
     "PermDockDeniedError",
+    "PermDockRevokedError",
     "PermDockValidationError",
     "actor",
     "allow",
@@ -36,6 +37,7 @@
     "mayAccess",
     "membershipEvent",
     "memoryLimitStore",
+    "memoryRevocationFeed",
     "memoryRoleSource",
     "memorySink",
     "mergePermissions",
@@ -59,14 +61,19 @@
   ],
   "./approvals": [
     "APPROVAL_HEADER",
+    "ApprovalError",
     "DEFAULT_APPROVAL_TTL_MS",
     "approvalsHandler",
+    "assertApprover",
     "cancelApprovals",
+    "consumeApproval",
     "inspectApproval",
+    "isApprovalError",
     "memoryApprovalStore",
     "readApprovalHeader",
     "requestApproval",
     "resolveApproval",
+    "resumeDecision",
     "resumeFromHeader",
     "summariseSubject"
   ],
@@ -118,6 +125,7 @@
     "PROBLEM_BASE",
     "PermDockApprovalRequiredError",
     "PermDockDeniedError",
+    "PermDockRevokedError",
     "PermDockValidationError",
     "createEvaluationsHandler",
     "createHandler",
@@ -125,7 +133,9 @@
     "discoverViaSignatureAgent",
     "invalidSignatureProblem",
     "invalidSignatureResponse",
+    "memoryRevocationFeed",
     "problemFromDecision",
+    "problemFromError",
     "problemResponse",
     "validationProblem",
     "wwwAuthenticate"
@@ -222,9 +232,19 @@
   ],
   "./ai-sdk": ["createPermDock"],
   "./claude-agent": ["createPermDock"],
-  "./eve": ["actorFromSession", "createPermDock", "subjectFromSession"],
+  "./eve": [
+    "actorFromSession",
+    "createPermDock",
+    "rolesOf",
+    "subjectFromSession"
+  ],
   "./openai": ["createPermDock"],
-  "./mcp": ["InsufficientScopeError", "createPermDock"],
+  "./mcp": [
+    "APPROVAL_META_KEY",
+    "InsufficientScopeError",
+    "createPermDock",
+    "subjectFromMcp"
+  ],
   "./authzen": ["createPermDock"],
   "./openapi": [
     "DRAFT_PINS",

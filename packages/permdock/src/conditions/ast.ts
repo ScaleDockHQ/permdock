@@ -63,8 +63,24 @@ export type MemberOfCondition = {
   readonly field: string;
   readonly roles: readonly string[];
   readonly resource?: string;
-  readonly parents?: readonly string[];
+  readonly parents?: readonly MemberOfParent[];
 };
+
+/**
+ * A row field holding an ancestor's id. The keyed form matches only a
+ * membership on that resource; a bare field name matches a membership on any
+ * resource whose id equals the field.
+ */
+export type MemberOfParent =
+  | string
+  | { readonly field: string; readonly resource: string };
+
+export function parentHop(parent: MemberOfParent): {
+  readonly field: string;
+  readonly resource?: string;
+} {
+  return typeof parent === 'string' ? { field: parent } : parent;
+}
 
 export type OpaqueCondition = {
   readonly op: 'opaque';

@@ -33,8 +33,9 @@ await withSubject(db, permdock, async (trx) => {
 })
 ```
 
-- `toWhere(condition, table, options?)` returns `(eb) => Expression<SqlBool>`; fields map to `table.column` references, operators map to Kysely binary operators and `eb.and` / `eb.or` / `eb.not`, `in` / `notIn` to `in` / `not in`, `isNull` to `is null`, `contains` to `@>` for arrays and `like` for strings. `kysely` is an optional peer; the callback is typed structurally so tests need no install.
-- `memberOf` matches the Drizzle rules: frozen memberships become equality / `in`, and `options.memberships` becomes `eb.exists(eb.selectFrom('<table> as m')...)`. Without `eb.exists` / `eb.selectFrom` the join fails closed (`eb.lit(false)`).
+- `toWhere(condition, table, options?)` returns `(eb) => Expression<SqlBool>`; fields map to `table.column` references, operators map to Kysely binary operators and `eb.and` / `eb.or` / `eb.not`, `in` / `notIn` to `in` / `not in`, `isNull` to `is null`, `contains` to `@>` with a one-element array for fields in `options.listFields` and to `like` (with `%`, `_` and `\` escaped) for strings. `kysely` is an optional peer; the callback is typed structurally so tests need no install.
+- `memberOf` and NULL handling match the [Drizzle rules](/docs/adapters/drizzle): frozen memberships become equality / `in`, and `options.memberships` becomes `eb.exists(eb.selectFrom('<table> as m')...)` with the same expiry, active-tenant and resource-column predicates. Without `eb.exists` / `eb.selectFrom` the join fails closed (`eb.lit(false)`).
+- `where(expression)` accepts the callback directly: `db.selectFrom('post').where(toWhere(permdock.where(permissions.post.read), 'post'))`.
 - No grant returns `(eb) => eb.lit(false)`, so the query yields no rows (fail closed).
 - `principal.<field>` and `context.<key>` values become bound parameters via `eb.val`.
 - `withSubject(db, permdock, fn)` opens a transaction and runs `set local role` plus `set_config('request.jwt.claims', ..., true)` (Supabase dialect) or `set_config('app.user_id', ..., true)` (GUC dialect) before `fn`, so database-side RLS sees the same subject as the in-process check. Dialect follows the policy's `rls` configuration.
@@ -46,7 +47,7 @@ Operator mapping:
 | `eq`, `ne`, `gt`, `gte`, `lt`, `lte` | `eb(col, '=' / '!=' / '>' / '>=' / '<' / '<=', eb.val(v))` |
 | `in`, `notIn` | `eb(col, 'in', values)` / `eb(col, 'not in', values)` |
 | `isNull` | `eb(col, 'is', null)` |
-| `contains` | `@>` for array columns, `like` for text (column type from `options.columns`) |
+| `contains` | `eb(col, '@>', eb.val([v]))` for `options.listFields`, `like` with escaped wildcards for text |
 | `and`, `or`, `not` | `eb.and([...])`, `eb.or([...])`, `eb.not(...)` |
 
 ## Request lifecycle
@@ -73,7 +74,7 @@ Operator mapping:
 
 ## Example app
 
-None. Kysely is covered by `tests/integration` (parity between `filter`, `toWhere` and generated SQL policies against a testcontainers Postgres) and by a snippet in the [RLS adapter](/docs/adapters/rls) page.
+None. Kysely is covered by `tests/integration/src/orm-parity.test.ts` (`ormParity`: `filter` in memory against `toWhere` on a testcontainers Postgres, with and without a memberships table) and by a snippet in the [RLS adapter](/docs/adapters/rls) page.
 
 ## Related standards
 
@@ -85,5 +86,4 @@ None. Kysely is covered by `tests/integration` (parity between `filter`, `toWher
 ## Open questions
 
 - Whether `withSubject` belongs in `permdock/kysely` or in a database-agnostic `permdock/rls` runtime shared with Drizzle and Prisma.
-- `contains` semantics per column type (array, JSONB, text) need a column-type hint or a `columns` map entry.
 - Whether to offer a `createPolicyTester`-style DB-less parity helper in `@permdock/testing`, mirroring Kysera.

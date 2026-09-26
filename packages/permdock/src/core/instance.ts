@@ -1,4 +1,3 @@
-import type { Condition } from '../conditions/ast.ts';
 import type { Decision } from './decision.ts';
 import type {
   AuthEvent,
@@ -38,9 +37,15 @@ import { pickVisible } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
 import { getResource, listPermissions } from './permissions.ts';
-import { buildSnapshot, signSnapshot } from './snapshot.ts';
-import { nowSeconds, resolveActiveTenant, tenantsOf } from './tenancy.ts';
+import { buildSnapshot, signSnapshot, snapshotGrant } from './snapshot.ts';
+import {
+  nowSeconds,
+  relatesTo,
+  resolveActiveTenant,
+  tenantsOf,
+} from './tenancy.ts';
 import { findRole, listRoles, synthesiseRole } from './vocabulary.ts';
+import { whereFromGrants } from './where-scope.ts';
 
 function includePrefixes(
   include:
@@ -71,7 +76,7 @@ function heldRoleNames(subject: Subject, tenant?: string): readonly string[] {
   }
   const names = new Set<string>(subject.principal.roles ?? []);
   for (const membership of subject.principal.memberships ?? []) {
-    if (tenant !== undefined && membership.tenant !== tenant) {
+    if (membership.tenant !== tenant) {
       continue;
     }
     for (const role of membership.roles) {
@@ -81,6 +86,11 @@ function heldRoleNames(subject: Subject, tenant?: string): readonly string[] {
   return [...names];
 }
 
+/**
+ * Every grant the subject may reach, once per membership that holds all of
+ * its scoped roles, so a client can check that membership's tenant, team or
+ * resource. A scoped role held only globally reaches nothing.
+ */
 export function collectSnapshotGrants(
   policy: Policy,
   subject: Subject,
@@ -92,14 +102,19 @@ export function collectSnapshotGrants(
     subject.principal?.roles ?? [],
     declared,
     customRoles,
+    subject.principal?.tenant,
   );
-  const matchingRoles = new Set<string>(global.roles);
-  for (const membership of subject.principal?.memberships ?? []) {
-    const expanded = expandRoleNames(membership.roles, declared, customRoles);
-    for (const name of expanded.roles) {
-      matchingRoles.add(name);
-    }
-  }
+  const held = (subject.principal?.memberships ?? []).map((membership) => ({
+    membership,
+    roles: new Set(
+      expandRoleNames(
+        membership.roles,
+        declared,
+        customRoles,
+        membership.tenant,
+      ).roles,
+    ),
+  }));
   const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
   for (const grant of grantList(policy)) {
     const resource = getResource(policy.permissions, grant.permission.resource);
@@ -110,30 +125,14 @@ export function collectSnapshotGrants(
     const roleItems = flattenGrantee(grant.to).filter(
       (item) => item.kind === 'role',
     );
-    let membership: Membership | undefined;
-    if (roleItems.length > 0) {
-      if (subject.principal === null) {
-        continue;
-      }
-      let allHeld = true;
-      for (const roleItem of roleItems) {
-        const held =
-          roleItem.scope === 'global'
-            ? global.roles.includes(roleItem.role)
-            : matchingRoles.has(roleItem.role);
-        if (!held) {
-          allHeld = false;
-          break;
-        }
-        if (roleItem.scope !== 'global') {
-          membership = (subject.principal.memberships ?? []).find((item) =>
-            item.roles.includes(roleItem.role),
-          );
-        }
-      }
-      if (!allHeld) {
-        continue;
-      }
+    if (roleItems.length > 0 && subject.principal === null) {
+      continue;
+    }
+    const globalOk = roleItems.every(
+      (item) => item.scope !== 'global' || global.roles.includes(item.role),
+    );
+    if (!globalOk) {
+      continue;
     }
     const merged: Grant = freezeDeep(
       compact({
@@ -141,11 +140,16 @@ export function collectSnapshotGrants(
         where: combineWhere(grant.where, match.where),
       }),
     );
-    out.push(
-      membership === undefined
-        ? { grant: merged }
-        : { grant: merged, membership },
-    );
+    const scoped = roleItems.filter((item) => item.scope !== 'global');
+    if (scoped.length === 0) {
+      out.push({ grant: merged });
+      continue;
+    }
+    for (const entry of held) {
+      if (scoped.every((item) => entry.roles.has(item.role))) {
+        out.push({ grant: merged, membership: entry.membership });
+      }
+    }
   }
   return out;
 }
@@ -178,8 +182,38 @@ export function snapshotOf(
       simulated: options.simulated,
       now: Math.floor(now),
       vocabulary: policy.vocabulary,
+      scopes: snapshotScopes(policy),
     }),
   );
+}
+
+function snapshotScopes(policy: Policy): Snapshot['scopes'] {
+  const { tenant, team } = policy.scopes;
+  if (tenant === undefined && team === undefined) {
+    return undefined;
+  }
+  const partitioned: Record<string, { tenant?: true; team?: true }> = {};
+  for (const node of policy.resources.values()) {
+    const entry = compact<{ tenant?: true; team?: true }>({
+      tenant:
+        tenant !== undefined && relatesTo(node, tenant.key, 'tenant')
+          ? true
+          : undefined,
+      team:
+        team !== undefined && relatesTo(node, team.key, 'team')
+          ? true
+          : undefined,
+    });
+    if (entry.tenant === true || entry.team === true) {
+      partitioned[node.name] = entry;
+    }
+  }
+  return compact<NonNullable<Snapshot['scopes']>>({
+    tenant,
+    team,
+    partitioned:
+      Object.keys(partitioned).length === 0 ? undefined : partitioned,
+  });
 }
 
 export function buildInstance(
@@ -391,48 +425,21 @@ export function buildInstance(
       });
     },
     where(permission: Permission): WhereResult {
-      const grants = collectSnapshotGrants(
-        policy,
-        subject,
-        envBase.customRoles,
-      ).filter((item) => item.grant.permission.key === permission.key);
-      const allows = grants.filter(
-        (item) => item.grant.effect === 'allow' && item.grant.portable,
+      const grants = collectSnapshotGrants(policy, subject, envBase.customRoles)
+        .filter((item) => item.grant.permission.key === permission.key)
+        .map((item) => snapshotGrant(item.grant, item.membership));
+      return whereFromGrants(
+        grants,
+        compact({
+          resource: permission.resource,
+          resources: policy.resources,
+          scopes: snapshotScopes(policy),
+          tenant: subject.principal?.tenant,
+          team,
+          now: nowSeconds(),
+          subject,
+        }),
       );
-      const denies = grants.filter(
-        (item) => item.grant.effect === 'deny' && item.grant.portable,
-      );
-      const partial = grants.some((item) => !item.grant.portable);
-      if (allows.length === 0) {
-        return {
-          condition: { op: 'or', conditions: [] },
-          partial,
-        };
-      }
-      const parts: Condition[] = allows.map((item) => {
-        let condition: Condition = item.grant.where ?? {
-          op: 'eq',
-          field: '_',
-          value: true,
-        };
-        for (const denyGrant of denies) {
-          if (denyGrant.grant.where !== undefined) {
-            condition = {
-              op: 'and',
-              conditions: [
-                condition,
-                { op: 'not', condition: denyGrant.grant.where },
-              ],
-            };
-          }
-        }
-        return condition;
-      });
-      return {
-        condition:
-          parts.length === 1 ? parts[0]! : { op: 'or', conditions: parts },
-        partial,
-      };
     },
     actions(
       resource: Permission | { readonly [key: string]: unknown },

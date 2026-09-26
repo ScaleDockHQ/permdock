@@ -20,5 +20,16 @@ export function memoryReplayStore(): ReplayStore {
       evict();
       seen.set(jti, expiresAt);
     },
+    claim(key: string, expiresAt?: number): boolean {
+      evict();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.set(key, expiresAt);
+      return true;
+    },
+    release(key: string): void {
+      seen.delete(key);
+    },
   };
 }

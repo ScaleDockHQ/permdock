@@ -276,3 +276,51 @@ test('9. next build prints no instant-validation warnings', () => {
   expect(log).not.toMatch(/docs\/messages\/(?:blocking-|instant-)/u);
   expect(log).not.toMatch(/⚠.*(?:instant|prefetch|blocking)/iu);
 });
+
+test('10. an admin of two orgs gets each org’s plan in the nav', async ({
+  page,
+}) => {
+  await signIn(page, JWT, 'erin');
+  await expect(nav(page, 'members')).toBeVisible();
+  await expect(page.locator('[data-upsell="analytics"]:visible')).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await instant(page, async () => {
+    await page.locator('[data-switch="globex"]').click();
+    await page.waitForURL(`${JWT}/globex`);
+    await expect(nav(page, 'analytics')).toBeVisible(INSTANT);
+    await expect(nav(page, 'members')).toBeVisible(INSTANT);
+    await expect(page.locator('[data-upsell="analytics"]:visible')).toHaveCount(
+      0,
+      INSTANT,
+    );
+  });
+  await page.waitForLoadState('networkidle');
+  await instant(page, async () => {
+    await nav(page, 'analytics').click();
+    await page.waitForURL(`${JWT}/globex/analytics`);
+    await expect(page.getByTestId('section-content')).toBeVisible(INSTANT);
+  });
+});
+
+test('11. a user with no live membership sees no org data', async ({
+  browser,
+}) => {
+  for (const [origin, user] of [
+    [JWT, 'mallory'],
+    [DATABASE, 'mallory'],
+    [JWT, 'frank'],
+    [DATABASE, 'frank'],
+  ] as const) {
+    const page = await (await browser.newContext()).newPage();
+    await page.goto(`${origin}/login`);
+    await page.getByRole('button', { name: `Sign in as ${user}` }).click();
+    await page.waitForURL(`${origin}/acme`);
+    await expect(page.getByTestId('forbidden')).toBeVisible();
+    await expect(page.locator('[data-nav]')).toHaveCount(0);
+
+    await page.goto(`${origin}/acme/projects`);
+    await expect(page.getByTestId('forbidden')).toBeVisible();
+    await expect(page.locator('[data-project]')).toHaveCount(0);
+    await page.context().close();
+  }
+});

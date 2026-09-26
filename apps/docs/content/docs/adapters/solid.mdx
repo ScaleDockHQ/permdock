@@ -34,7 +34,7 @@ function PostActions(props: { post: Post }) {
 
 | Export | Role |
 |---|---|
-| `PermDockProvider` | Creates the client store once, validates the snapshot, provides it through Solid context. Options match the React provider. |
+| `PermDockProvider` | Creates the client store once, validates the snapshot, provides it through Solid context. Options match the React provider. `snapshot` may be an accessor (a `createResource` result included: the store stays `pending` while it is `undefined`, then re-hydrates on every change) or a promise. `<Protected>` follows a changed `permission` and accepts JSX children. |
 | `usePermDock` | Returns the store: `can`, `decide`, `status` (accessor), `invalidate`, `refresh`. |
 | `usePermission` | Takes the reference and an accessor for the resource; returns an accessor of `allowed`, `status`, `decision`. Tracks the resource `id`, so a new post re-evaluates. |
 | `Protected` | Guard component with `permission`, `data`, optional `tenant`, `pending`, `fallback` props; children may be a function receiving the granted `Decision`. |
@@ -47,13 +47,31 @@ For SolidStart the snapshot is loaded in a server function from a request-scoped
 ## Request lifecycle
 
 1. The server creates the request-scoped instance and returns `permdock.snapshot()` with the page (or from a session endpoint).
-2. `PermDockProvider` validates the snapshot and builds one store per provider instance. The subscription is created during render (`createRenderEffect`), so hydrated answers are present on the first paint; permix's Solid adapter subscribed in a deferred effect and missed the first render.
+2. `PermDockProvider` validates the snapshot and builds one store per provider instance. Hooks subscribe during render, and a snapshot accessor is forwarded to the store in a computation (`createComputed`), not an effect: effects under a suspended `<Suspense>` are deferred during hydration, so a `createAsync` snapshot that resolved while a sibling was still streaming could leave the store `pending`. permix's Solid adapter subscribed in a deferred effect and missed the first render.
 3. `usePermission` derives portable answers synchronously in a memo keyed by `reference.key` plus resource `id`. Non-portable grants create a resource that posts a batched AuthZEN `evaluations` request to `endpoint`.
 4. `invalidate(permissions.post)` drops cached answers under the namespace and refetches active ones.
 
 Accessors matter for correctness here: `usePermission(permissions.post.update, () => props.post)` re-evaluates when `props.post.id` changes, whereas passing `props.post` directly would read the prop once and freeze the answer (the refetch bug Kilpi's `useAuthorize` had). The adapter accepts only an accessor for instance actions, so the type system prevents the mistake.
 
 For SSR with `renderToStream`, the provider serialises nothing extra: the snapshot is already page data, and the client store is created from the same JSON, so hydration produces identical answers.
+
+In SolidStart, mount the provider inside the `<Suspense>` boundary once the snapshot has resolved. Streaming SSR then waits for the snapshot inside the boundary and hydration builds the store from it. A `createAsync` accessor handed to a provider above every boundary can still resolve without reaching the store under concurrent streaming requests; `tests/e2e/fixtures/solidstart-saas` reproduced it, and the recipe below is what it runs.
+
+```tsx
+const snapshot = createAsync(() => getSnapshot(props.params.org));
+
+return (
+  <Suspense fallback={<NavSkeleton />}>
+    <Show when={snapshot()}>
+      {(current) => (
+        <PermDockProvider snapshot={current}>{props.children}</PermDockProvider>
+      )}
+    </Show>
+  </Suspense>
+);
+```
+
+`getSnapshot` is a `query` whose body starts with `'use server'` and returns `snapshotFor(...)` for the request's session; `revalidate(getSnapshot.key)` after a role or plan change re-hydrates the same store through the `current` accessor.
 
 ## What it validates
 

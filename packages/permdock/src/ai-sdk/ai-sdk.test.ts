@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { memoryApprovalStore } from '../approvals/index.ts';
+import { PermDockDeniedError } from '../core/errors.ts';
 import {
   adminUser,
   memberUser,
@@ -149,28 +150,64 @@ describe('permdock/ai-sdk', () => {
     ).toMatchObject({ type: 'denied' });
   });
 
-  it('narrows tools before the model sees them', async () => {
+  it('narrows tools per subject before the model sees them', async () => {
     const { capabilityMiddleware } = createPermDock(policy, {
-      subject: () => memberUser,
+      subject: (context) => context.user,
       tools: tools(),
     });
-    const next = await capabilityMiddleware.transformParams({
-      params: {
-        tools: {
-          delete_post: { description: 'delete' },
-          list_posts: { description: 'list' },
-          publish_post: { description: 'publish' },
-          explode: { description: 'nope' },
-        },
-      },
-    });
-    expect(Object.keys(next.tools ?? {})).toEqual([
+    const params = {
+      prompt: [],
+      tools: [
+        { type: 'function', name: 'delete_post' },
+        { type: 'function', name: 'list_posts' },
+        { type: 'function', name: 'publish_post' },
+        { type: 'function', name: 'explode' },
+        { type: 'provider', name: 'web_search' },
+      ],
+      toolChoice: { type: 'tool', toolName: 'publish_post' },
+    };
+    const member = await capabilityMiddleware({
+      user: memberUser,
+    }).transformParams({ params });
+    expect(member.tools?.map((tool) => tool.name)).toEqual([
       'delete_post',
       'list_posts',
     ]);
+    expect(member.toolChoice).toEqual({ type: 'none' });
+
+    const admin = await capabilityMiddleware({
+      user: adminUser,
+    }).transformParams({ params });
+    expect(admin.tools?.map((tool) => tool.name)).toEqual([
+      'delete_post',
+      'list_posts',
+      'publish_post',
+    ]);
+    expect(admin.toolChoice).toEqual(params.toolChoice);
+
+    const anonymous = await capabilityMiddleware({}).transformParams({
+      params,
+    });
+    expect(anonymous.tools).toEqual([]);
   });
 
-  it('returns a WorkflowAgent predicate that pauses unless granted', async () => {
+  it('reads the subject for needsApproval from the tool context', async () => {
+    const { needsApproval } = createPermDock(policy, {
+      subject: (context) => context.user,
+      tools: tools(),
+    });
+    expect(
+      await needsApproval(permissions.post.list)(
+        {},
+        { toolCallId: 'c1', messages: [], context: { user: memberUser } },
+      ),
+    ).toBe(false);
+    await expect(
+      needsApproval(permissions.post.list)({}, { toolCallId: 'c1' }),
+    ).rejects.toThrow(PermDockDeniedError);
+  });
+
+  it('returns a predicate that pauses for approval and throws when denied', async () => {
     const { needsApproval } = createPermDock(policy, {
       subject: () => memberUser,
       actor: () => ({ id: 'agent-1', kind: 'ai-sdk' }),
@@ -180,8 +217,11 @@ describe('permdock/ai-sdk', () => {
     expect(await needsApproval(permissions.post.delete)({ id: 'p1' })).toBe(
       true,
     );
-    expect(await needsApproval(permissions.post.publish)({ id: 'p1' })).toBe(
-      true,
+    await expect(
+      needsApproval(permissions.post.publish)({ id: 'p1' }),
+    ).rejects.toThrow(PermDockDeniedError);
+    await expect(needsApproval(permissions.post.update)({})).rejects.toThrow(
+      PermDockDeniedError,
     );
   });
 

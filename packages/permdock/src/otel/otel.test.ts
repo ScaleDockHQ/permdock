@@ -9,7 +9,7 @@ import {
   permissions,
   policy,
 } from '../fixtures/quick-start.ts';
-import { GENAI_SEMCONV_PIN, instrument } from './instrument.ts';
+import { GENAI_SEMCONV_PIN, instrument, withOtel } from './instrument.ts';
 
 type RecordedSpan = {
   readonly name: string;
@@ -21,6 +21,8 @@ type RecordedSpan = {
   readonly exceptions: readonly unknown[];
   readonly status: { readonly code?: number } | undefined;
   readonly ended: boolean;
+  readonly startTime: number | undefined;
+  readonly endTime: number | undefined;
 };
 
 function fakeApi(parent?: Record<string, unknown>): {
@@ -52,7 +54,7 @@ function fakeApi(parent?: Record<string, unknown>): {
     trace: {
       getTracer() {
         return {
-          startSpan(name: string) {
+          startSpan(name: string, spanOptions?: { startTime?: number }) {
             const attributes: Record<string, unknown> = {};
             const events: {
               name: string;
@@ -66,10 +68,13 @@ function fakeApi(parent?: Record<string, unknown>): {
               exceptions,
               status: undefined,
               ended: false,
+              startTime: spanOptions?.startTime,
+              endTime: undefined,
             };
             const mutable = recorded as {
               status: { readonly code?: number } | undefined;
               ended: boolean;
+              endTime: number | undefined;
             };
             spans.push(recorded);
             return {
@@ -88,8 +93,9 @@ function fakeApi(parent?: Record<string, unknown>): {
               setStatus(status: { readonly code?: number }) {
                 mutable.status = status;
               },
-              end() {
+              end(endTime?: number) {
                 mutable.ended = true;
+                mutable.endTime = endTime;
               },
               isRecording() {
                 return true;
@@ -159,8 +165,10 @@ describe('permdock/otel', () => {
 
   it('records a span, counter and histogram per decide', async () => {
     const { api, spans, counters, histograms } = fakeApi();
-    const permdock = await createPermDock(policy, memberUser);
-    instrument(permdock, { api, tracer: 'permdock-test' });
+    const permdock = withOtel(await createPermDock(policy, memberUser), {
+      api,
+      tracer: 'permdock-test',
+    });
     permdock.decide(permissions.post.update, ownPost);
     expect(spans).toHaveLength(1);
     expect(spans[0]?.name).toBe('permdock.decide');
@@ -252,6 +260,35 @@ describe('permdock/otel', () => {
     expect(spans[0]?.attributes['permdock.filter.kept']).toBe(2);
   });
 
+  it('reads providers from the OpenTelemetry global registry without importing the API', async () => {
+    const { api, spans } = fakeApi({ 'gen_ai.tool.name': 'from_registry' });
+    const key = Symbol.for('opentelemetry.js.api.1');
+    const spanKey = Symbol.for('OpenTelemetry Context Key SPAN');
+    const parent = api.trace.getActiveSpan?.();
+    const registry = globalThis as Record<symbol, unknown>;
+    const previous = registry[key];
+    registry[key] = {
+      version: '1.9.0',
+      trace: { getTracer: (name: string) => api.trace.getTracer(name) },
+      metrics: api.metrics,
+      context: {
+        active: () => ({
+          getValue: (lookup: symbol) =>
+            lookup === spanKey ? parent : undefined,
+        }),
+      },
+    };
+    try {
+      const permdock = await createPermDock(policy, memberUser);
+      instrument(permdock, {});
+      expect(permdock.can(permissions.post.read)).toBe(true);
+      expect(spans).toHaveLength(1);
+      expect(spans[0]?.attributes['gen_ai.tool.name']).toBe('from_registry');
+    } finally {
+      registry[key] = previous;
+    }
+  });
+
   it('does nothing when neither logger nor API is present', async () => {
     const permdock = await createPermDock(policy, memberUser);
     const off = instrument(permdock, {});
@@ -272,5 +309,31 @@ describe('permdock/otel', () => {
       },
     });
     expect(() => permdock.can(permissions.post.read)).not.toThrow();
+  });
+
+  it('times the span and histogram around the decision, in seconds', async () => {
+    const { api, spans, histograms } = fakeApi();
+    const permdock = withOtel(await createPermDock(policy, memberUser), {
+      api,
+    });
+    permdock.can(permissions.post.update, ownPost);
+    const [span] = spans;
+    expect(span?.startTime).toBeTypeOf('number');
+    expect(span?.endTime).toBeGreaterThanOrEqual(span?.startTime ?? Infinity);
+    expect(histograms[0]?.value).toBeGreaterThanOrEqual(0);
+    expect(histograms[0]?.value).toBe(
+      ((span?.endTime ?? 0) - (span?.startTime ?? 0)) / 1000,
+    );
+  });
+
+  it('instruments instances derived through tenant() and team()', async () => {
+    const { api, spans } = fakeApi();
+    const permdock = withOtel(await createPermDock(policy, memberUser), {
+      api,
+    });
+    permdock.tenant('acme').can(permissions.post.update, ownPost);
+    permdock.team('red').tenant('acme').can(permissions.post.update, ownPost);
+    expect(spans).toHaveLength(2);
+    expect(spans.every((span) => span.startTime !== undefined)).toBe(true);
   });
 });

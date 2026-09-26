@@ -162,6 +162,8 @@ export function joseTokenVerifier(
     if (!typAccepted(header?.typ, expectedTyp, options.profile)) {
       return fail('wrong-token-type');
     }
+    // RFC 8417 section 2.2: a SET may omit exp; it must carry iat instead.
+    const securityEvent = normalizeTyp(header?.typ) === 'secevent+jwt';
     const verifyAlgs = algorithms.includes('Ed25519')
       ? [...algorithms, 'EdDSA']
       : [...algorithms];
@@ -181,11 +183,11 @@ export function joseTokenVerifier(
             options,
             expectations.clockTolerance,
           ),
-          requiredClaims: ['exp'] as const,
+          requiredClaims: securityEvent ? ['iat'] : ['exp'],
         }),
       );
       const claims = result.payload as JwtClaims;
-      if (typeof claims.exp !== 'number') {
+      if (!securityEvent && typeof claims.exp !== 'number') {
         return fail('expired');
       }
       return {

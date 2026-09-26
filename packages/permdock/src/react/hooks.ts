@@ -161,10 +161,12 @@ export function useSubject(): SubjectView {
 
 export function useApproval(decision: Decision): ApprovalHandle {
   const store = useStore();
-  let state: ApprovalState = 'not-needed';
-  if (decision.outcome === 'approval-required') {
-    state = 'required';
-  }
+  useSyncExternalStore(
+    (listener) => store.subscribe(listener),
+    () => store.get(),
+    () => store.get(),
+  );
+  const state: ApprovalState = store.approvalState(decision);
   return {
     state,
     token:

@@ -115,6 +115,7 @@ export function createPermDock<
           memberships: options.memberships,
           customRoles: options.customRoles,
           sink: options.sink,
+          limits: options.limits,
         }),
       ),
       options.otel,

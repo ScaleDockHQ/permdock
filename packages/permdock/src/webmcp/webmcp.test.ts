@@ -7,7 +7,7 @@ import type {
   WebMcpToolResult,
 } from './types.ts';
 
-import { fromSnapshot } from '../core/from-snapshot.ts';
+import { emptySnapshot, fromSnapshot } from '../core/from-snapshot.ts';
 import { createPermDock } from '../core/permdock.ts';
 import {
   adminUser,
@@ -17,6 +17,7 @@ import {
   policy,
   type User,
 } from '../fixtures/quick-start.ts';
+import { createClientStore } from '../react/store.ts';
 import { registerTools } from './register.ts';
 
 async function clientOf(user: User) {
@@ -247,5 +248,85 @@ describe('registerTools', () => {
       },
     });
     expect(tools.size).toBe(0);
+  });
+
+  it('re-registers from the current store instance, not the one it was given', async () => {
+    const member = await clientOf(memberUser);
+    const store = createClientStore({
+      snapshot: emptySnapshot(),
+      server: false,
+    });
+    const { context, tools } = fakeContext();
+    registerTools(context, permissions.post, { permdock: store.get() });
+    expect(tools.size).toBe(0);
+    store.replace(member.snapshot());
+    expect(tools.has('post_update')).toBe(true);
+  });
+
+  it('passes the input and the decision token to the handler', async () => {
+    const permdock = await clientOf(memberUser);
+    const { context, tools } = fakeContext();
+    const handler = vi.fn<(call: unknown) => Promise<unknown>>(
+      async () => 'ok',
+    );
+    registerTools(context, permissions.post, {
+      permdock,
+      handlers: { update: handler },
+    });
+    await tools.get('post_update')?.execute(ownPost);
+    const call = handler.mock.calls[0]?.[0] as {
+      readonly input: unknown;
+      readonly token: unknown;
+    };
+    expect(call.input).toEqual(ownPost);
+    expect(typeof call.token).toBe('string');
+  });
+
+  it('reads the input JSON Schema through the Standard JSON Schema input()', async () => {
+    const permdock = await clientOf(memberUser);
+    const { context, tools } = fakeContext();
+    const input = vi.fn<(options: { readonly target: string }) => unknown>(
+      () => ({ type: 'object', required: ['id'] }),
+    );
+    registerTools(context, permissions.post, {
+      permdock,
+      schema: {
+        '~standard': {
+          version: 1,
+          vendor: 'test',
+          validate: (value: unknown) => ({ value }),
+          jsonSchema: { input, output: input },
+        },
+      } as never,
+    });
+    expect(tools.get('post_update')?.inputSchema).toEqual({
+      type: 'object',
+      required: ['id'],
+    });
+    expect(input).toHaveBeenCalledWith({ target: 'draft-2020-12' });
+  });
+
+  it('adds one abort listener to the parent signal, however often it re-registers', async () => {
+    const permdock = await clientOf(memberUser);
+    const listeners: (() => void)[] = [];
+    const controller = new AbortController();
+    const added = vi.spyOn(controller.signal, 'addEventListener');
+    const { context } = fakeContext();
+    registerTools(context, permissions.post, {
+      permdock: {
+        ...permdock,
+        subscribe(listener) {
+          listeners.push(listener);
+          return () => undefined;
+        },
+      },
+      signal: controller.signal,
+    });
+    for (let round = 0; round < 5; round += 1) {
+      for (const listener of listeners) {
+        listener();
+      }
+    }
+    expect(added).toHaveBeenCalledTimes(1);
   });
 });

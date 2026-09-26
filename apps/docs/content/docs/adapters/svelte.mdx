@@ -43,7 +43,7 @@ Same model as [React](/docs/adapters/react): snapshot from the server, local eva
 
 | Export | Role |
 |---|---|
-| `setPermDock` | Called once in a layout. Validates the snapshot, creates the client store and sets it in Svelte context. Options match the React provider (`snapshot`, `endpoint`, `fetch`, `headers`). |
+| `setPermDock` | Called once in a layout. Validates the snapshot, creates the client store and sets it in Svelte context. Options match the React provider (`snapshot`, `endpoint`, `fetch`, `headers`). `snapshot` may be a getter (`() => data.snapshot`) or a readable store, which re-hydrates the store on change, or a promise, which keeps it `pending` until it settles (render the same promise with `{#await}`). Store factories also recompute when a rune read inside their `data`, `rows` or `options` getter changes. |
 | `getPermDock` | Reads the store from context: `can`, `decide`, `status`, `invalidate`, `refresh`. |
 | `permission` | Returns a readable store for one reference and, for instance actions, a getter for the resource. Emits `allowed`, `status`, `decision`; re-evaluates when the resource `id` changes. |
 | `Protected` | Component with `permission`, `data` and optional `tenant` props and `children`, `pending`, `fallback` snippets. |
@@ -59,6 +59,7 @@ In SvelteKit the snapshot is loaded in `+layout.server.ts` from a request-scoped
 2. `setPermDock` runs during component initialisation (not in an effect), so the first server render and the first client render already see the snapshot.
 3. `permission(...)` derives its answer synchronously for portable grants; non-portable grants enqueue a batched AuthZEN `evaluations` request to `endpoint` and emit `pending` until the answer arrives.
 4. Answers are cached by `reference.key` plus resource `id`. `invalidate(permissions.post)` drops that namespace and subscribed stores refetch.
+5. When page data changes (an org switch, `invalidateAll()`), a `snapshot: () => data.snapshot` getter makes the store `replace` its snapshot and drop cached answers; a plain value is read once at initialisation.
 
 ## What it validates
 

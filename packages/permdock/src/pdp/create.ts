@@ -4,6 +4,7 @@ import type {
   CreatePermDockOptions,
   DecideOptions,
   PermDock,
+  WhereResult,
 } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
@@ -266,7 +267,10 @@ function wrap(
       return rows.filter((_, index) => decisions[index]?.outcome === 'granted');
     },
     pick: dock.pick.bind(dock),
-    where: dock.where.bind(dock),
+    where: (permission: Permission): WhereResult =>
+      providerFor(providers, permission) === undefined
+        ? dock.where(permission)
+        : { condition: { op: 'or', conditions: [] }, partial: true },
     actions: dock.actions.bind(dock),
     simulate,
     snapshot: dock.snapshot.bind(dock),

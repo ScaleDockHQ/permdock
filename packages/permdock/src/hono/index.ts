@@ -1,5 +1,9 @@
 export { createPermDock } from './create.ts';
-export type { HonoPermDock, HonoPermDockOptions } from './create.ts';
+export type {
+  HonoPermDock,
+  HonoPermDockOptions,
+  SseOptions,
+} from './create.ts';
 export {
   discoverViaSignatureAgent,
   InvalidSignatureError,

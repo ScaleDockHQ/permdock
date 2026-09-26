@@ -1,9 +1,10 @@
-import type { ApprovalInspectResult } from '../approvals/types.ts';
+import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
+import type { SnapshotGrant } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Actor } from '../core/subject.ts';
+import type { Actor, Delegation } from '../core/subject.ts';
 import type {
   AgentKernelOptions,
   DecideToolOptions,
@@ -11,8 +12,9 @@ import type {
   ToolVerdict,
 } from './types.ts';
 
-import { inspectApproval, requestApproval } from '../approvals/helpers.ts';
+import { resumeDecision } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
+import { coveredByDelegation } from '../core/delegation.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { modelReason, thrownReason, unmappedReason } from './reason.ts';
 
@@ -41,6 +43,16 @@ async function resolveTenant<TContext>(
   }
 }
 
+/** The resume token an agent run carries under the namespaced `permdockApproval` key. */
+export function approvalTokenOf(context: unknown): string | undefined {
+  if (context === null || typeof context !== 'object') {
+    return undefined;
+  }
+  const token = (context as { readonly permdockApproval?: unknown })
+    .permdockApproval;
+  return typeof token === 'string' && token !== '' ? token : undefined;
+}
+
 export function idOf(data: unknown): string | undefined {
   if (data === null || typeof data !== 'object') {
     return undefined;
@@ -62,89 +74,6 @@ export function resourceRef(
   });
 }
 
-function approvalDenied(
-  detail: string,
-): Extract<Decision, { readonly outcome: 'denied' }> {
-  return {
-    outcome: 'denied',
-    denials: [{ role: null, reason: 'approval', detail }],
-    alternatives: [],
-  };
-}
-
-function resumeMatches(
-  inspected: ApprovalInspectResult,
-  permission: Permission,
-  resource: { readonly type: string; readonly id?: string },
-  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
-): boolean {
-  if (!inspected.ok) {
-    return false;
-  }
-  if (inspected.request.token !== decision.token) {
-    return false;
-  }
-  if (inspected.request.permission !== permission.key) {
-    return false;
-  }
-  if (
-    inspected.request.resource.id !== undefined &&
-    inspected.request.resource.id !== resource.id
-  ) {
-    return false;
-  }
-  return true;
-}
-
-async function applyResume(
-  decision: Decision,
-  permission: Permission,
-  dock: PermDock,
-  store: AgentKernelOptions<unknown>['store'],
-  resource: { readonly type: string; readonly id?: string },
-  adapter: string,
-  resumeToken: string | undefined,
-): Promise<Decision> {
-  if (resumeToken === undefined) {
-    if (decision.outcome === 'approval-required' && store !== undefined) {
-      await requestApproval(
-        store,
-        decision,
-        compact({
-          permission,
-          resource,
-          subject: dock.subject,
-          adapter,
-        }),
-      );
-    }
-    return decision;
-  }
-  if (store === undefined) {
-    return approvalDenied('approval-not-found');
-  }
-  const inspected = await inspectApproval(store, resumeToken);
-  if (!inspected.ok) {
-    return approvalDenied(inspected.detail);
-  }
-  if (decision.outcome === 'granted' || decision.outcome === 'denied') {
-    return decision;
-  }
-  if (!resumeMatches(inspected, permission, resource, decision)) {
-    return approvalDenied('approval-mismatch');
-  }
-  const principal = dock.subject.principal;
-  if (principal === null) {
-    return approvalDenied('approval-mismatch');
-  }
-  return {
-    outcome: 'granted',
-    subject: { ...dock.subject, principal },
-    matched: decision.grant,
-    token: decision.token,
-  };
-}
-
 function runDecide(
   dock: PermDock,
   permission: Permission,
@@ -163,38 +92,99 @@ function runDecide(
   )(permission, data, compact({ source: 'adapter' as const, adapter }));
 }
 
-export function hasAnyGrant(
-  policy: Policy,
-  dock: PermDock,
+function delegationMayCover(
   permission: Permission,
+  delegation: Delegation | undefined,
 ): boolean {
-  const principal = dock.subject.principal;
-  if (principal === null) {
+  const identifiers = (delegation?.access ?? []).flatMap((entry) =>
+    typeof entry === 'object' &&
+    entry !== null &&
+    typeof entry.identifier === 'string'
+      ? [entry.identifier]
+      : [],
+  );
+  return [undefined, ...identifiers].some(
+    (id) => coveredByDelegation(permission, delegation, id) === undefined,
+  );
+}
+
+function blocksEveryRow(grant: SnapshotGrant): boolean {
+  return (
+    grant.effect === 'deny' &&
+    grant.where === undefined &&
+    grant.check === undefined &&
+    grant.portable !== false &&
+    grant.fields === undefined &&
+    (grant.scope === undefined || grant.scope === 'tenant')
+  );
+}
+
+/**
+ * Whether `permission` could be granted to this instance's subject for some
+ * row: the grants its snapshot carries for the active tenant, minus an
+ * unconditional deny, within its delegation. A listing hint for tools and
+ * skills, never a decision; the call itself is decided in full.
+ */
+export function mayUse(dock: PermDock, permission: Permission): boolean {
+  try {
+    const snapshot = dock.snapshot();
+    if (!('grants' in snapshot)) {
+      return false;
+    }
+    if (!delegationMayCover(permission, dock.subject.delegation)) {
+      return false;
+    }
+    const tenant = dock.subject.principal?.tenant;
+    const grants = snapshot.grants.filter(
+      (grant) =>
+        grant.permission === permission.key &&
+        (grant.membership?.tenant === undefined ||
+          grant.membership.tenant === tenant),
+    );
+    if (grants.some(blocksEveryRow)) {
+      return false;
+    }
+    return grants.some((grant) => grant.effect === 'allow');
+  } catch {
     return false;
   }
-  const names = new Set(principal.roles ?? []);
-  for (const membership of principal.memberships ?? []) {
-    for (const role of membership.roles) {
-      names.add(role);
-    }
+}
+
+/**
+ * The stored token for a decision that is waiting on approval: an approved or
+ * rejected record for the recomputed token resumes without the caller
+ * carrying it, since the token already binds permission, resource, subject
+ * and actor.
+ */
+export async function storedApprovalToken(
+  store: ApprovalStore | undefined,
+  decision: Decision,
+  denyPending: boolean,
+): Promise<string | undefined> {
+  if (store === undefined || decision.outcome !== 'approval-required') {
+    return undefined;
   }
-  for (const role of policy.roles) {
-    if (!names.has(role.name)) {
-      continue;
+  try {
+    const record = await store.get(decision.token);
+    if (
+      record === null ||
+      (record.status === 'pending' && !denyPending) ||
+      record.status === 'expired' ||
+      Date.parse(record.expiresAt) <= Date.now()
+    ) {
+      return undefined;
     }
-    for (const grant of role.grants) {
-      if (grant.effect === 'allow' && grant.permission.key === permission.key) {
-        return true;
-      }
-    }
+    return decision.token;
+  } catch {
+    return undefined;
   }
-  return false;
 }
 
 export function createAgentKernel<TContext, TUser = unknown>(
   policy: Policy<TUser>,
   options: AgentKernelOptions<TContext, TUser>,
 ): {
+  /** One instance per context object while a call is in flight; later calls re-read the subject. */
   readonly instance: (context: TContext) => Promise<PermDock>;
   readonly decideTool: (
     toolName: string,
@@ -209,6 +199,12 @@ export function createAgentKernel<TContext, TUser = unknown>(
     context: TContext,
     decideOptions?: DecideToolOptions,
   ) => Promise<ToolVerdict>;
+  /** The approval token a call would park under, without touching the store. */
+  readonly tokenFor: (
+    binding: ToolBinding,
+    args: unknown,
+    context: TContext,
+  ) => Promise<string | undefined>;
   readonly allowedToolNames: (
     context: TContext,
   ) => Promise<ReadonlySet<string>>;
@@ -247,11 +243,18 @@ export function createAgentKernel<TContext, TUser = unknown>(
           memberships: options.memberships,
           customRoles: options.customRoles,
           sink: options.sink,
+          limits: options.limits,
         }),
       );
     })();
     if (typeof context === 'object' && context !== null) {
       cache.set(context, built);
+      const release = (): void => {
+        if (cache.get(context) === built) {
+          cache.delete(context);
+        }
+      };
+      built.then(release, release);
     }
     return built;
   };
@@ -287,15 +290,21 @@ export function createAgentKernel<TContext, TUser = unknown>(
         }
       }
       const raw = runDecide(dock, binding.permission, data, options.adapter);
-      const decision = await applyResume(
-        raw,
-        binding.permission,
-        dock,
-        options.store,
-        resourceRef(binding.permission, data),
-        options.adapter,
-        decideOptions.resumeToken,
-      );
+      const decision = await resumeDecision({
+        decision: raw,
+        permission: binding.permission,
+        subject: dock.subject,
+        store: options.store,
+        resource: resourceRef(binding.permission, data),
+        adapter: options.adapter,
+        token:
+          decideOptions.resumeToken ??
+          (await storedApprovalToken(
+            options.store,
+            raw,
+            decideOptions.denyPending === true,
+          )),
+      });
       if (decision.outcome === 'granted') {
         return {
           outcome: 'granted',
@@ -338,6 +347,27 @@ export function createAgentKernel<TContext, TUser = unknown>(
     }
   };
 
+  const tokenFor = async (
+    binding: ToolBinding,
+    args: unknown,
+    context: TContext,
+  ): Promise<string | undefined> => {
+    try {
+      const dock = await instance(context);
+      let data: unknown;
+      if (binding.data !== undefined) {
+        data = await binding.data(args);
+        if (data === null || data === undefined) {
+          return undefined;
+        }
+      }
+      const raw = runDecide(dock, binding.permission, data, options.adapter);
+      return raw.outcome === 'approval-required' ? raw.token : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   const decideTool = (
     toolName: string,
     args: unknown,
@@ -362,12 +392,12 @@ export function createAgentKernel<TContext, TUser = unknown>(
     const dock = await instance(context);
     const allowed = new Set<string>();
     for (const [name, binding] of Object.entries(options.tools)) {
-      if (hasAnyGrant(policy, dock, binding.permission)) {
+      if (mayUse(dock, binding.permission)) {
         allowed.add(name);
       }
     }
     return allowed;
   };
 
-  return { instance, decideTool, evaluate, allowedToolNames };
+  return { instance, decideTool, evaluate, tokenFor, allowedToolNames };
 }

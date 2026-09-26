@@ -4,11 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --experimental-strip-types src/serve.ts",
-    "start": "node --experimental-strip-types src/serve.ts",
-    "typecheck": "tsc --noEmit"
+    "dev": "prisma generate && node --watch --experimental-strip-types src/serve.ts",
+    "generate": "prisma generate",
+    "start": "prisma generate && node --experimental-strip-types src/serve.ts",
+    "typecheck": "prisma generate && tsc --noEmit"
   },
   "dependencies": {
+    "@electric-sql/pglite": "catalog:",
+    "@electric-sql/pglite-socket": "catalog:",
+    "@hono/node-server": "catalog:",
+    "@prisma/adapter-pg": "catalog:",
+    "@prisma/client": "catalog:",
     "hono": "catalog:",
     "permdock": "workspace:*",
     "zod": "catalog:"
@@ -16,6 +22,7 @@
   "devDependencies": {
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "prisma": "catalog:",
     "typescript": "catalog:"
   }
 }

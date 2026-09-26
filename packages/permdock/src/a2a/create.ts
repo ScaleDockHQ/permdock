@@ -1,6 +1,6 @@
 import type { Decision } from '../core/decision.ts';
 import type { ProblemDetails } from '../core/errors.ts';
-import type { PermDock } from '../core/permdock.ts';
+import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { Actor, Delegation, Principal } from '../core/subject.ts';
@@ -13,6 +13,8 @@ import type {
   A2ATaskOutcome,
 } from './types.ts';
 
+import { mayUse, storedApprovalToken } from '../agent/kernel.ts';
+import { resumeDecision } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import {
   PermDockApprovalRequiredError,
@@ -96,23 +98,6 @@ function hasScope(auth: A2AAuth, scope: string): boolean {
   return auth.scopes?.includes(scope) === true;
 }
 
-function snapshotAllows(dock: PermDock, permission: Permission): boolean {
-  const snapshot = dock.snapshot();
-  if (typeof snapshot === 'string' || snapshot instanceof Promise) {
-    return false;
-  }
-  return snapshot.grants.some(
-    (grant) => grant.permission === permission.key && grant.effect === 'allow',
-  );
-}
-
-function skillAllowed(dock: PermDock, permission: Permission): boolean {
-  if (permission.kind === 'collection') {
-    return (dock.can as (next: Permission) => boolean)(permission);
-  }
-  return snapshotAllows(dock, permission);
-}
-
 function resourceRef(
   permission: Permission,
   data: unknown,
@@ -130,6 +115,12 @@ function wwwAuthenticate(scope: string, held: readonly string[]): string {
   const scopes = [...new Set([...held, scope])].toSorted().join(' ');
   return `Bearer error="insufficient_scope", scope="${scopes}"`;
 }
+
+const LOAD_FAILED: Extract<Decision, { readonly outcome: 'denied' }> = {
+  outcome: 'denied',
+  denials: [{ role: null, reason: 'validation' }],
+  alternatives: [],
+};
 
 function deniedOutcome(
   decision: Extract<Decision, { readonly outcome: 'denied' }>,
@@ -205,6 +196,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: A2APermDockOptions<TUser>,
 ): A2APermDock {
+  for (const [id, config] of Object.entries(options.skills)) {
+    if (config.permission.kind === 'instance' && config.data === undefined) {
+      throw new TypeError(
+        `PermDock: A2A skill '${id}' checks ${config.permission.key} on a row and needs a data loader; the task body is never used as the row`,
+      );
+    }
+  }
   const instanceFor = async (auth: A2AAuth): Promise<PermDock> => {
     let user: TUser | null = null;
     try {
@@ -223,6 +221,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         memberships: options.memberships,
         customRoles: options.customRoles,
         sink: options.sink,
+        limits: options.limits,
       }),
     );
   };
@@ -234,7 +233,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     const scheme = firstScheme(options);
     const skills: A2ASkill[] = [];
     for (const [id, config] of Object.entries(options.skills)) {
-      if (skillAllowed(dock, config.permission)) {
+      if (mayUse(dock, config.permission)) {
         skills.push(skillOf(id, config.permission, config.description, scheme));
       }
     }
@@ -245,7 +244,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     (selector: (task: unknown) => string) =>
     async (task: unknown, auth: A2AAuth): Promise<A2ATaskOutcome> => {
       const id = selector(task);
-      const config = options.skills[id];
+      const config = Object.hasOwn(options.skills, id)
+        ? options.skills[id]
+        : undefined;
       if (config === undefined) {
         return {
           ok: false,
@@ -262,25 +263,53 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (!hasScope(auth, config.permission.scope)) {
         return missingScope(config.permission, auth);
       }
-      let data: unknown = task;
-      if (config.data !== undefined) {
-        data = await config.data(task);
-      }
       const dock = await instanceFor(auth);
-      const decision = (
-        dock.decide as (
-          next: Permission,
-          row?: unknown,
-          decideOptions?: {
-            readonly source: 'adapter';
-            readonly adapter: string;
-          },
-        ) => Decision
-      )(
-        config.permission,
-        data,
-        compact({ source: 'adapter' as const, adapter: 'a2a' }),
-      );
+      let data: unknown;
+      if (config.data !== undefined) {
+        try {
+          data = await config.data(task);
+        } catch {
+          return deniedOutcome(LOAD_FAILED, config.permission, undefined, dock);
+        }
+        if (
+          config.permission.kind === 'instance' &&
+          (data === null || data === undefined)
+        ) {
+          return deniedOutcome(LOAD_FAILED, config.permission, undefined, dock);
+        }
+      }
+      let decision: Decision;
+      try {
+        const raw = (
+          dock.decide as (
+            next: Permission,
+            row?: unknown,
+            decideOptions?: DecideOptions,
+          ) => Decision
+        )(
+          config.permission,
+          data,
+          compact<DecideOptions>({
+            source: 'adapter',
+            adapter: 'a2a',
+            trusted: false,
+            boundary: 'tool-args',
+          }),
+        );
+        decision = await resumeDecision({
+          decision: raw,
+          permission: config.permission,
+          subject: dock.subject,
+          store: options.store,
+          resource: resourceRef(config.permission, data),
+          adapter: 'a2a',
+          token:
+            auth.extra?.approval ??
+            (await storedApprovalToken(options.store, raw, false)),
+        });
+      } catch {
+        return deniedOutcome(LOAD_FAILED, config.permission, data, dock);
+      }
       switch (decision.outcome) {
         case 'granted':
           return { ok: true };

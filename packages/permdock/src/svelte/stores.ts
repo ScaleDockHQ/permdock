@@ -1,4 +1,4 @@
-import { readable, type Readable } from 'svelte/store';
+import { readable, toStore, type Readable } from 'svelte/store';
 
 import type { Decision } from '../core/decision.ts';
 import type { Permission } from '../core/permissions.ts';
@@ -20,12 +20,19 @@ import type { PermDockSvelteOptions } from './types.ts';
 
 import { getStore, providePermDock } from './context.ts';
 
+// Recomputes on a store change and, in the browser build, when a rune read
+// inside `compute` (a `data`, `rows` or `options` getter) changes.
 function fromStore<T>(store: ClientStore, compute: () => T): Readable<T> {
-  return readable(compute(), (set) =>
-    store.subscribe(() => {
+  return readable(compute(), (set) => {
+    const offStore = store.subscribe(() => {
       set(compute());
-    }),
-  );
+    });
+    const offRunes = toStore(compute).subscribe(set);
+    return (): void => {
+      offStore();
+      offRunes();
+    };
+  });
 }
 
 export function sveltePermDock(store: ClientStore): ClientPermDock {
@@ -207,10 +214,7 @@ export function approvalFor(
 ): Readable<ApprovalHandle> {
   return fromStore(store, () => {
     const next = decision();
-    let state: ApprovalState = 'not-needed';
-    if (next.outcome === 'approval-required') {
-      state = 'required';
-    }
+    const state: ApprovalState = store.approvalState(next);
     return {
       state,
       token: next.outcome === 'approval-required' ? next.token : undefined,

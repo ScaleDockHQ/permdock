@@ -1,4 +1,5 @@
 import type { DecisionSink, TokenVerifier } from '../core/interfaces.ts';
+import type { RevocationFeed } from '../core/revocations.ts';
 
 export const SCIM_CONTENT_TYPE = 'application/scim+json';
 export const USER_SCHEMA = 'urn:ietf:params:scim:schemas:core:2.0:User';
@@ -126,6 +127,11 @@ export type ScimHandlerOptions = {
   readonly assignable?: readonly string[];
   readonly sink?: DecisionSink;
   readonly onChange?: (change: DirectoryChange) => void | Promise<void>;
+  /**
+   * Publishes `changed` for each affected user's id, `externalId` and
+   * `userName`, so open connections revalidate their memberships (ADR 0052).
+   */
+  readonly revocations?: RevocationFeed;
   readonly onUnknownRole?: (name: string) => void;
 };
 

@@ -44,7 +44,10 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
     },
   },
   setup(props, { slots }): () => VNode | VNode[] | string | null {
-    const local = usePermission(props.permission, () => props.data);
+    const local = usePermission(
+      () => props.permission,
+      () => props.data,
+    );
     const root = usePermDock();
     return (): VNode | VNode[] | string | null => {
       const scoped: ScopedView =

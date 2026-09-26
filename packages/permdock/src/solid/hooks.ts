@@ -41,14 +41,16 @@ export function usePermDock(): ClientPermDock {
 }
 
 export function usePermission(
-  permission: Permission,
+  permission: Permission | Accessor<Permission>,
   data?: Accessor<unknown>,
 ): Accessor<PermissionState> {
   const store = useStore();
   const version = useVersion(store);
   return createMemo(() => {
     version();
-    return store.permissionState(permission, data?.());
+    const current =
+      typeof permission === 'function' ? permission() : permission;
+    return store.permissionState(current, data?.());
   });
 }
 
@@ -156,12 +158,11 @@ export function useApproval(
   decision: Accessor<Decision>,
 ): Accessor<ApprovalHandle> {
   const store = useStore();
+  const version = useVersion(store);
   return createMemo(() => {
+    version();
     const next = decision();
-    let state: ApprovalState = 'not-needed';
-    if (next.outcome === 'approval-required') {
-      state = 'required';
-    }
+    const state: ApprovalState = store.approvalState(next);
     return {
       state,
       token: next.outcome === 'approval-required' ? next.token : undefined,

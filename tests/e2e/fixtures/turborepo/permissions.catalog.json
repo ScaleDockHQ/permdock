@@ -1,0 +1,337 @@
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v2.json",
+  "version": 2,
+  "generatedAt": "2026-09-26T00:37:04.404Z",
+  "generator": "@permdock/cli@0.1.0",
+  "resources": {
+    "project": {
+      "id": "id",
+      "schema": null,
+      "relations": {
+        "org": {
+          "field": "orgId",
+          "memberOf": "tenant"
+        }
+      }
+    },
+    "doc": {
+      "id": "id",
+      "schema": null,
+      "relations": {
+        "org": {
+          "field": "orgId",
+          "memberOf": "tenant"
+        },
+        "team": {
+          "field": "teamId",
+          "memberOf": "team"
+        }
+      }
+    },
+    "member": {
+      "id": "id",
+      "schema": null
+    },
+    "settings": {
+      "id": "id",
+      "schema": null
+    },
+    "billing": {
+      "id": "id",
+      "schema": null
+    },
+    "analytics": {
+      "id": "id",
+      "schema": null
+    },
+    "audit": {
+      "id": "id",
+      "schema": null
+    },
+    "sso": {
+      "id": "id",
+      "schema": null
+    },
+    "apiKey": {
+      "id": "id",
+      "schema": null
+    },
+    "integration": {
+      "id": "id",
+      "schema": null
+    }
+  },
+  "permissions": [
+    {
+      "key": "analytics.read",
+      "scope": "analytics:read",
+      "resource": "analytics",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "apiKey.create",
+      "scope": "apiKey:create",
+      "resource": "apiKey",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "apiKey.manage",
+      "scope": "apiKey:manage",
+      "resource": "apiKey",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "apiKey.revokeAll",
+      "scope": "apiKey:revokeAll",
+      "resource": "apiKey",
+      "action": "revokeAll",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "audit.read",
+      "scope": "audit:read",
+      "resource": "audit",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "billing.manage",
+      "scope": "billing:manage",
+      "resource": "billing",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "billing.read",
+      "scope": "billing:read",
+      "resource": "billing",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "doc.create",
+      "scope": "doc:create",
+      "resource": "doc",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "doc.delete",
+      "scope": "doc:delete",
+      "resource": "doc",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {
+        "tags": [
+          "destructive"
+        ]
+      },
+      "usages": []
+    },
+    {
+      "key": "doc.list",
+      "scope": "doc:list",
+      "resource": "doc",
+      "action": "list",
+      "arity": "collection",
+      "meta": {
+        "readOnly": true
+      },
+      "usages": []
+    },
+    {
+      "key": "doc.read",
+      "scope": "doc:read",
+      "resource": "doc",
+      "action": "read",
+      "arity": "instance",
+      "meta": {
+        "readOnly": true
+      },
+      "usages": []
+    },
+    {
+      "key": "doc.update",
+      "scope": "doc:update",
+      "resource": "doc",
+      "action": "update",
+      "arity": "instance",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "integration.read",
+      "scope": "integration:read",
+      "resource": "integration",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "member.assignRole",
+      "scope": "member:assignRole",
+      "resource": "member",
+      "action": "assignRole",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "member.invite",
+      "scope": "member:invite",
+      "resource": "member",
+      "action": "invite",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "member.list",
+      "scope": "member:list",
+      "resource": "member",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "project.create",
+      "scope": "project:create",
+      "resource": "project",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "project.delete",
+      "scope": "project:delete",
+      "resource": "project",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {
+        "tags": [
+          "destructive"
+        ]
+      },
+      "usages": []
+    },
+    {
+      "key": "project.list",
+      "scope": "project:list",
+      "resource": "project",
+      "action": "list",
+      "arity": "collection",
+      "meta": {
+        "readOnly": true
+      },
+      "usages": [
+        {
+          "file": "apps/api/src/server.ts",
+          "line": 102,
+          "call": "can"
+        },
+        {
+          "file": "apps/web/src/app/[org]/page.tsx",
+          "line": 14,
+          "call": "can"
+        }
+      ]
+    },
+    {
+      "key": "project.read",
+      "scope": "project:read",
+      "resource": "project",
+      "action": "read",
+      "arity": "instance",
+      "meta": {
+        "readOnly": true
+      },
+      "usages": [
+        {
+          "file": "apps/api/src/server.ts",
+          "line": 108,
+          "call": "where"
+        },
+        {
+          "file": "apps/web/src/app/[org]/page.tsx",
+          "line": 21,
+          "call": "filter"
+        }
+      ]
+    },
+    {
+      "key": "project.update",
+      "scope": "project:update",
+      "resource": "project",
+      "action": "update",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "apps/api/src/server.ts",
+          "line": 120,
+          "call": "can"
+        },
+        {
+          "file": "apps/web/src/app/[org]/page.tsx",
+          "line": 26,
+          "call": "can"
+        },
+        {
+          "file": "apps/worker/src/worker.ts",
+          "line": 14,
+          "call": "reference"
+        },
+        {
+          "file": "apps/worker/src/worker.ts",
+          "line": 14,
+          "call": "reference"
+        },
+        {
+          "file": "apps/worker/src/worker.ts",
+          "line": 70,
+          "call": "decide"
+        }
+      ]
+    },
+    {
+      "key": "settings.manage",
+      "scope": "settings:manage",
+      "resource": "settings",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "sso.manage",
+      "scope": "sso:manage",
+      "resource": "sso",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    }
+  ]
+}

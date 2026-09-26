@@ -136,4 +136,10 @@ export type RunResult = {
 export type CreatePermDockPluginOptions = {
   readonly collect?: CollectConfig;
   readonly onDrift?: 'error' | 'warn';
+  /**
+   * Unplugin only: compare instead of write in `buildStart`, failing the
+   * build on drift (as `permdock collect --check` does). The Next plugin
+   * checks in `phase-production-build` unless `PERMDOCK_COLLECT=write`.
+   */
+  readonly check?: boolean;
 };

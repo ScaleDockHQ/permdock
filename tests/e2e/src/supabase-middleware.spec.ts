@@ -83,6 +83,19 @@ test.describe('supabase-middleware example', { tag: '@smoke' }, () => {
             resource: {
               type: 'post',
               id: 'p1',
+              properties: {
+                id: 'p1',
+                authorId: 'u1',
+                orgId: 'o1',
+                published: false,
+              },
+            },
+          },
+          {
+            action: { name: 'post.update' },
+            resource: {
+              type: 'post',
+              id: 'p1',
               properties: { authorId: 'u1' },
             },
           },
@@ -93,6 +106,6 @@ test.describe('supabase-middleware example', { tag: '@smoke' }, () => {
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
-    expect(body.evaluations[0]?.decision).toBe(true);
+    expect(body.evaluations.map((row) => row.decision)).toEqual([true, false]);
   });
 });

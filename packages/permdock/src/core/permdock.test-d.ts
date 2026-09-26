@@ -12,9 +12,7 @@ import {
   allow,
   createPermDock,
   definePermissions,
-  definePolicy,
   resource,
-  role,
 } from '../index.ts';
 
 describe('permission arity', () => {

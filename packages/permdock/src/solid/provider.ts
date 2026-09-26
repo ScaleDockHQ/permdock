@@ -1,15 +1,29 @@
-import { createComponent } from 'solid-js';
+import { createComponent, createComputed, on, type JSX } from 'solid-js';
 
+import type { Snapshot } from '../core/interfaces.ts';
 import type { PermDockProviderProps } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { emptySnapshot } from '../core/from-snapshot.ts';
+import { isPromiseLike } from '../react/source.ts';
 import { createClientStore } from '../react/store.ts';
 import { PermDockContext } from './context.ts';
 
-export function PermDockProvider(props: PermDockProviderProps): unknown {
+export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
+  const source = props.snapshot;
+  const promised = isPromiseLike(source);
+  const read =
+    typeof source === 'function'
+      ? (source as () => Snapshot | string | undefined)
+      : undefined;
+  const initial = promised
+    ? undefined
+    : read === undefined
+      ? (source as Snapshot | string)
+      : read();
   const store = createClientStore(
     compact({
-      snapshot: props.snapshot,
+      snapshot: initial ?? emptySnapshot(),
       endpoint: props.endpoint,
       approvals: props.approvals,
       tenant: props.tenant,
@@ -19,6 +33,39 @@ export function PermDockProvider(props: PermDockProviderProps): unknown {
       verifier: props.verifier,
     }),
   );
+  if (promised) {
+    store.follow(source);
+  } else if (read !== undefined) {
+    // An accessor that is still `undefined` (a loading `createResource`)
+    // keeps the store pending until its first value.
+    let arrive: ((value: Snapshot | string) => void) | undefined;
+    if (initial === undefined) {
+      store.follow(
+        new Promise<Snapshot | string>((resolve) => {
+          arrive = resolve;
+        }),
+      );
+    }
+    // A computation, not an effect: effects under a suspended boundary are
+    // deferred during hydration, which left the store pending for good.
+    createComputed(
+      on(
+        read,
+        (next) => {
+          if (next === undefined) {
+            return;
+          }
+          if (arrive === undefined) {
+            store.replace(next);
+            return;
+          }
+          arrive(next);
+          arrive = undefined;
+        },
+        { defer: initial !== undefined },
+      ),
+    );
+  }
   return createComponent(PermDockContext.Provider, {
     value: store,
     get children() {

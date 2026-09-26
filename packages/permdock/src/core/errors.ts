@@ -187,3 +187,62 @@ export function approvalMessage(
 ): string {
   return `${permission} requires human approval (${reason}). Token: ${token}.`;
 }
+
+export type RevokedCode =
+  | 'session-revoked'
+  | 'expired'
+  | 'denied'
+  | 'subject-changed';
+
+/**
+ * The `reason` of a long-lived connection's aborted `signal`. `denied` carries
+ * the decision that re-denied the permission the connection was opened for.
+ */
+export class PermDockRevokedError extends Error {
+  public override readonly name = 'PermDockRevokedError' as const;
+  public readonly code: RevokedCode;
+  public readonly permission?: string;
+  public readonly decision?: Exclude<Decision, { readonly outcome: 'granted' }>;
+
+  public constructor(input: {
+    readonly code: RevokedCode;
+    readonly permission?: string;
+    readonly decision?: Exclude<Decision, { readonly outcome: 'granted' }>;
+  }) {
+    super(`PermDock: connection ended (${input.code}).`);
+    this.code = input.code;
+    if (input.permission !== undefined) {
+      this.permission = input.permission;
+    }
+    if (input.decision !== undefined) {
+      this.decision = input.decision;
+    }
+  }
+
+  public toProblemDetails(options?: {
+    readonly instance?: string;
+  }): ProblemDetails {
+    if (this.code === 'denied') {
+      return compact<ProblemDetails>({
+        type: `${PROBLEM_BASE}/denied`,
+        title: 'Permission denied',
+        status: 403,
+        detail: this.code,
+        instance: options?.instance,
+        permission: this.permission,
+        denials:
+          this.decision?.outcome === 'denied'
+            ? this.decision.denials
+            : undefined,
+      });
+    }
+    return compact<ProblemDetails>({
+      type: `${PROBLEM_BASE}/unauthenticated`,
+      title: 'Authorization ended',
+      status: 401,
+      detail: this.code,
+      instance: options?.instance,
+      permission: this.permission,
+    });
+  }
+}

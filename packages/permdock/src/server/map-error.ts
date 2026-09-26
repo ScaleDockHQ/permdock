@@ -1,6 +1,7 @@
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
+  PermDockRevokedError,
   PermDockValidationError,
 } from '../core/errors.ts';
 import { problemResponse } from './problem.ts';
@@ -18,6 +19,9 @@ export function mapPermDockError(error: unknown): Response | undefined {
     error instanceof PermDockDeniedError ||
     error instanceof PermDockApprovalRequiredError
   ) {
+    return problemResponse(error.toProblemDetails(), undefined, error.decision);
+  }
+  if (error instanceof PermDockRevokedError) {
     return problemResponse(error.toProblemDetails(), undefined, error.decision);
   }
   if (error instanceof PermDockValidationError) {

@@ -71,7 +71,7 @@ Each row is a default of `permdock/jwt`; the "reason" column is the `on('auth')`
 | 3.11 Use explicit typing | `typ` is checked: `at+jwt` (RFC 9068) or `JWT` for access tokens, `at+jwt` only under `fapi2`, `logout+jwt` and `secevent+jwt` in `permdock/ssf`, PermDock's own `permdock-*+jwt` values on its outputs | `wrong-token-type` |
 | 3.12 Use mutually exclusive validation rules for different kinds of JWTs | One resolver accepts one `accept` value; an ID token is never verified by an access-token resolver and vice versa | `wrong-token-type` |
 | bis: prefer fully-specified algorithms | `Ed25519` is the allow-list value; `alg: EdDSA` is accepted only when the selected key is `OKP` / `crv: Ed25519`, and `permdock doctor` reports it | `alg-not-allowed` for `EdDSA` on any other curve |
-| bis: `exp`, `nbf`, `iat` | All three honoured within `clockTolerance`; a token without `exp` is rejected | `expired`, `not-yet-valid`, `invalid-claims` |
+| bis: `exp`, `nbf`, `iat` | All three honoured within `clockTolerance`; a token without `exp` is rejected, except a `typ: secevent+jwt` SET (RFC 8417 section 2.2), which must carry `iat` instead; the SSF receiver bounds it by `iat` and its `jti` replay store | `expired`, `not-yet-valid`, `invalid-claims` |
 
 ### What PermDock produces
 

@@ -205,6 +205,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         memberships: options.memberships,
         customRoles: options.customRoles,
         sink: options.sink,
+        limits: options.limits,
       }),
     );
     last = built;

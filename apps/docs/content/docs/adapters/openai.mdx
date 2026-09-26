@@ -17,12 +17,15 @@ The SDK's [human-in-the-loop guide](https://openai.github.io/openai-agents-js/gu
 ```ts
 import { Agent, run, tool, RunState } from '@openai/agents'
 import { createPermDock } from 'permdock/openai'
+import { z } from 'zod'
+
+const PostArgs = z.object({ id: z.string() }) // tool input arrives as `unknown`
 
 const { needsApproval, guardTools, resolveInterruptions, permdock } = createPermDock(policy, {
   subject: (context) => context.user,                      // RunContext -> principal
   actor: (context) => ({ id: context.agentId, kind: 'openai-agent' }),
   tools: {
-    delete_post: { permission: permissions.post.delete, data: (args) => loadPost(args.id) },
+    delete_post: { permission: permissions.post.delete, data: (args) => loadPost(PostArgs.parse(args).id) },
     list_posts:  { permission: permissions.post.list },
   },
   store,                                                  // ApprovalStore; memoryApprovalStore() when omitted
@@ -42,20 +45,21 @@ const agent = new Agent({ name: 'Posts', tools: guardTools([deletePost, listPost
 // After a run pauses
 let result = await run(agent, input, { context })
 if (result.interruptions.length) {
-  await db.save(runId, result.state.toString())            // RunState; tokens live in the store, keyed by callId
   const pending = await resolveInterruptions(result.state, result.interruptions, { context })
   // pending: ApprovalRequest[] written to the store; surface them to a person
+  await db.save(runId, result.state.toString())            // RunState; tokens live in the store, not in the state
 }
 
-// Later, in another process
-const state = await RunState.fromString(agent, await db.load(runId))
-await resolveInterruptions(state, state.interruptions ?? [], { context })   // applies approved / rejected records
-result = await run(agent, state)
+// Later, in another process: the context comes from the resuming session, not from the stored state
+const context = { user: await currentUser(request) }
+const state = await RunState.fromStringWithContext(agent, await db.load(runId), new RunContext(context))
+const pending = await resolveInterruptions(state, state.getInterruptions(), { context })
+if (pending.length === 0) result = await run(agent, state) // every interruption approved or rejected
 ```
 
-- `needsApproval(permission)` returns the SDK predicate `(context, args) => Promise<boolean>`. It runs `decide` on the resolved resource: `approval-required` returns `true` (pause), `granted` returns `false` (run), `denied` returns `true` *and* records a rejection so the interruption is auto-rejected with the reason; the tool never executes on a denial.
+- `needsApproval(permission)` returns the SDK predicate `(runContext, args) => Promise<boolean>`; it reads the application context from `runContext.context`. It returns `false` only when `can(permission, row)` holds for the resolved resource, and `true` (pause) for `approval-required`, `denied`, a thrown or empty `data` loader and anything else; the check does not touch the store. The tool never executes on a denial: `resolveInterruptions` rejects it.
 - `guardTools(tools, context)` filters the tool array to those whose permission has any grant for this subject, so the model cannot plan with tools it may not use (the `capabilityMiddleware` equivalent).
-- `resolveInterruptions(state, interruptions, { context })` has two jobs: for new interruptions it creates `ApprovalRequest` records (one per `callId`) and returns them; for interruptions whose record is resolved it calls `state.approve(i)` or `state.reject(i, { message })` so the run can resume.
+- `resolveInterruptions(state, interruptions, { context })` decides each interruption in order. `granted` (including an approved record, which it consumes) calls `state.approve(i)`; `denied` (including a rejected, consumed or expired record) calls `state.reject(i, { message })` with the Decision's reason; `approval-required` writes or finds the pending `ApprovalRequest` and returns it. An interruption whose name or JSON arguments cannot be read is rejected. The token is recomputed from permission, resource, principal, actor and arguments, so any process with the same store finds the record.
 - `permdock(context)` returns a request-scoped `PermDock` for checks inside `execute`.
 - `subject` and `actor` read from the `RunContext` the application passes to `run`; nothing is read from model output.
 
@@ -72,9 +76,9 @@ result = await run(agent, state)
 | `denied` | `true` | `resolveInterruptions` immediately calls `state.reject(i, { message })` with the Decision's reason and alternatives |
 | unmapped tool, validation error, thrown resolver | `true` then reject | Fail closed |
 
-4. The application persists `result.state.toString()` and shows the pending requests (its own UI, `approvalsHandler`, or the PermDock Cloud inbox). The token is stored with the request, keyed by `callId`; it is not placed inside `RunState`, because serialised state travels with the request and may be logged.
+4. The application persists `result.state.toString()` and shows the pending requests (its own UI, `approvalsHandler`, or the PermDock Cloud inbox). The token lives only in the store; it is not placed inside `RunState`, because serialised state travels with the request and may be logged.
 5. A person resolves the request; the store records the approver. The actor (the agent) cannot approve its own call.
-6. The application restores `RunState`, calls `resolveInterruptions`, and resumes with `run(agent, state)`. Before `execute`, the adapter re-runs `decide`, recomputes `token` and compares it with the stored one; a mismatch or an expired record rejects the call.
+6. The application restores `RunState` with a fresh context, calls `resolveInterruptions`, and resumes with `run(agent, state)` once nothing is pending. The adapter re-runs `decide` and recomputes `token`: an approved record resumes one call and is consumed, so restoring the same state again rejects the call; another principal's resume never matches the token.
 7. Every step emits `on('decision')`; ask, answer and resumed decision share `token`.
 
 Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapter: each call gets its own decision and its own record.
@@ -83,7 +87,7 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 
 - Arguments against the resource's Standard Schema when `data` exists; the SDK's own parse-failure path already fails closed for malformed JSON, and the adapter's validation covers well-formed but wrong data.
 - The subject comes from `RunContext`, never from arguments or `interruption.rawItem`.
-- Approvals on resume: token recomputed and compared; unknown, pending, rejected or expired records reject the call.
+- Approvals on resume: token recomputed and compared; unknown, pending, rejected, expired or already consumed records reject the call. An approval resumes one call.
 - Tool coverage: in development, `guardTools` warns about tools missing from the `tools` map, because `needsApproval` will reject them at runtime.
 - Serialised state: `RunState` is treated as opaque; the adapter reads `callId` and tool name from interruptions and nothing else. `runContext.context` is persisted data per the SDK's own warning, so `subject` and `actor` should be re-derived from authentication on resume, not trusted from the deserialised context; `RunState.fromStringWithContext(agent, s, freshContext)` is the recommended path.
 
@@ -97,7 +101,7 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 
 ## Example app
 
-`apps/examples/openai-agent`: HTTP harness on `127.0.0.1:3475` with `GET /health`. `GET /list_posts` calls `needsApproval` and returns `false` (run). `GET /delete_post` returns `true` (pause for approval). No OpenAI API key.
+`apps/examples/openai-agent`: HTTP harness on `127.0.0.1:3475` with `GET /health`. `GET /list_posts` calls `needsApproval` and returns `false` (run). `GET /delete_post` returns `true` (pause for approval). No OpenAI API key. `tests/integration` runs a real `Runner` with a scripted model against a Postgres `ApprovalStore`: the run interrupts, `RunState.toString()` is resumed in a child process after an owner approves, the approved call runs once, and replaying the same state or resuming as another user runs nothing.
 
 ## Related standards
 

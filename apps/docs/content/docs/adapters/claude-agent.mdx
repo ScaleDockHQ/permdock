@@ -16,6 +16,9 @@ The Claude Agent SDK exposes tool use to the host application as a callback: the
 
 ```ts
 import { createPermDock } from 'permdock/claude-agent'
+import { z } from 'zod'
+
+const PostArgs = z.object({ id: z.string() }) // tool input arrives as `unknown`
 
 const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => currentUser,
@@ -24,7 +27,7 @@ const { canUseTool, permissionRequestHook } = createPermDock(policy, {
     Bash:  { permission: permissions.shell.run,   data: (input) => ({ command: input.command }) },
     Write: { permission: permissions.file.write,  data: (input) => ({ path: input.file_path }) },
     Read:  { permission: permissions.file.read,   data: (input) => ({ path: input.file_path }) },
-    mcp__posts__delete_post: { permission: permissions.post.delete, data: (input) => loadPost(input.id) },
+    mcp__posts__delete_post: { permission: permissions.post.delete, data: (input) => loadPost(PostArgs.parse(input).id) },
   },
 })
 
@@ -32,14 +35,16 @@ query({
   prompt,
   options: {
     canUseTool,
-    hooks: { PermissionRequest: [permissionRequestHook] },
+    hooks: { PermissionRequest: [{ hooks: [permissionRequestHook] }] },
   },
 })
 ```
 
 - `tools` keys are SDK tool names, including built-ins (`Bash`, `Read`, `Write`, `Edit`, `WebFetch`) and MCP tools by their prefixed name. Each entry names a permission and, for instance-level actions, a `data` resolver that turns the tool input into the resource shape the permission's schema expects.
 - `subject` and `actor` are resolved once per `query` unless they are functions of the call context; `delegation` can be supplied when the host holds scoped credentials for the agent.
-- `canUseTool` and `permissionRequestHook` are ready to pass to the SDK; both close over the same request-scoped `PermDock`.
+- `canUseTool` and `permissionRequestHook` are ready to pass to the SDK and take its real shapes: `canUseTool(toolName, input, { signal, mcpServer, agentID, toolUseID })` and the `PermissionRequest` hook input (`hook_event_name`, `session_id`, `agent_id`, `tool_name`, `tool_input`, `mcp_server`). The hook returns `{}` for any other event.
+- `mcpSources` (default `['sdk']`) lists the MCP server sources whose tools are trusted. An `mcp__` tool is denied when the SDK reports no server provenance, when the server's `source` is not listed, or when the tool name does not start with `mcp__<server name>__`; trust keys on the source, never on the name alone.
+- `store` (an `ApprovalStore`), `sink`, `limits`, `memberships`, `customRoles` and `tenant` behave as on every adapter.
 
 ## Request lifecycle
 
@@ -53,28 +58,29 @@ query({
 |---|---|
 | `granted` | allow, with the (possibly normalised) input |
 | `denied` | deny, with a message built from denials and alternatives |
-| `approval-required` | defer to the human path: the adapter returns the SDK's ask behaviour so the `PermissionRequest` hook fires |
+| `approval-required` | deny, with a message naming the permission, the resource and `Approval <token> is pending; retry the call once it is approved.`; the pending request is written to the `store` |
 
-6. When the SDK asks for human confirmation, `permissionRequestHook` receives the request. The adapter attaches `Decision.token` and a summary (permission key, resource identity, reason) so the prompt shown to the human is specific. When the human answers, the hook re-runs `decide` and compares the token before allowing; a mismatch or an expired token denies.
+6. A reviewer resolves the request through `approvalsHandler`, `resolveApproval` or the PermDock Cloud inbox. When the agent retries the same call, the adapter recomputes the token from permission, resource, principal, actor and input, finds the approved record in the store, consumes it and allows the call once; a replay is denied with `approval-consumed`. `permissionRequestHook` answers the SDK's own prompt with the same decision, so the SDK never asks a human to allow what PermDock denied or has not yet approved.
 7. `on('decision')` fires for every step, including the human's answer, for audit and `permdock/otel`.
 
 ## What it validates
 
 - Tool input against the permission's resource schema after `data` projection (`validate: 'boundary'`). For `Bash`, a `shell.run` resource can carry `command` so `where` conditions such as an allow-listed prefix are expressed as portable conditions, not regexes in the callback.
 - Subject provenance: the subject comes from the host process, never from the conversation or tool input.
-- Approval replays: token equality between the `approval-required` decision and the human's answer.
+- Approval replays: the token is recomputed on every retry and must match an approved record in the store; an approval resumes one call, and a replay is denied with `approval-consumed`.
+- MCP provenance: `mcp__` tools only from trusted `mcpSources` whose server name matches the tool prefix.
 - Coverage in development: a warning lists SDK tools enabled for the session that are missing from `tools`, because those calls will be denied at runtime.
 
 ## How denials surface
 
 - `denied` returns the SDK deny behaviour with a message such as `Denied: shell.run (command not allow-listed). You may: file.read, file.write.` The message is built from `Decision.denials` reasons and `alternatives` so the model can self-correct.
-- `approval-required` becomes a human prompt through the `PermissionRequest` hook rather than a silent deny; the prompt carries the permission key and the resource identity.
+- `approval-required` is a deny whose message tells the model the call is waiting for approval and carries the token, so the model can tell the user and retry instead of treating it as a final refusal.
 - Errors thrown by a `data` resolver or by the policy are caught, logged through `on('decision')` and reported as a deny; the agent loop never receives an unhandled exception from the permission layer.
 - There is no pass-through or default-allow mode; the SDK's own permission modes remain in force on top of PermDock's answer.
 
 ## Example app
 
-`apps/examples/claude-agent`: HTTP harness on `127.0.0.1:3473` with `GET /health`. `GET /list_posts` calls `canUseTool` and returns `behavior: 'allow'`. `GET /delete_post` returns `null` so the SDK `PermissionRequest` hook can ask a human. No Anthropic API key.
+`apps/examples/claude-agent`: HTTP harness on `127.0.0.1:3473` with `GET /health`. `GET /list_posts` calls `canUseTool` and returns `behavior: 'allow'`. `GET /delete_post` returns a deny carrying the pending approval token; after `POST /approvals?token=…` the next `GET /delete_post` is allowed once and the one after that is denied. No Anthropic API key; a full `query()` loop needs the Claude Code runtime and is not part of the test suite.
 
 ## Related standards
 

@@ -199,9 +199,32 @@ function compileMemberOf(
     if (condition.scope !== 'resource' || condition.parents === undefined) {
       return primary;
     }
-    const extras = condition.parents.map((parent) =>
-      existsSql(mapping, rowColumn, parent, condition.roles, ctx, tenantColumn),
-    );
+    const extras = condition.parents.flatMap((parent) => {
+      if (typeof parent === 'string') {
+        return [
+          existsSql(
+            mapping,
+            rowColumn,
+            parent,
+            condition.roles,
+            ctx,
+            tenantColumn,
+          ),
+        ];
+      }
+      const hopTable = ctx.memberships?.resource?.[parent.resource];
+      return hopTable?.id === undefined
+        ? []
+        : [
+            existsSql(
+              hopTable,
+              hopTable.id,
+              parent.field,
+              condition.roles,
+              ctx,
+            ),
+          ];
+    });
     return `(${[primary, ...extras].join(' or ')})`;
   }
   if (condition.scope === 'tenant') {

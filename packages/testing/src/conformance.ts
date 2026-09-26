@@ -3,6 +3,8 @@ import type {
   LimitStore,
   Membership,
   MembershipSource,
+  RevocationEvent,
+  RevocationFeed,
   Role,
   RoleSource,
   SnapshotSource,
@@ -17,7 +19,7 @@ import type { DirectoryStore } from 'permdock/scim';
 import type { ReplayStore } from 'permdock/ssf';
 
 import { directoryMembershipSource } from 'permdock/scim';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 
 import {
   jwtFixtureAudience,
@@ -204,6 +206,95 @@ export function testReplayStore(store: ReplayStore): void {
     await store.remember('ttl-jti', Math.floor(Date.now() / 1000) - 1);
     expect(await store.seen('ttl-jti')).toBe(false);
   });
+
+  it('claims a key once under concurrency and releases it for a retry', async (context) => {
+    if (store.claim === undefined || store.release === undefined) {
+      context.skip();
+      return;
+    }
+    const expiresAt = Math.floor(Date.now() / 1000) + 60;
+    const results = await Promise.all([
+      store.claim('claim-key', expiresAt),
+      store.claim('claim-key', expiresAt),
+    ]);
+    expect(results.toSorted()).toEqual([false, true]);
+    expect(await store.seen('claim-key')).toBe(true);
+    await store.release('claim-key');
+    expect(await store.claim('claim-key', expiresAt)).toBe(true);
+  });
+}
+
+export function testRevocationFeed(feed: RevocationFeed): void {
+  it('delivers each event to every subscriber until it unsubscribes', async () => {
+    const first: RevocationEvent[] = [];
+    const second: RevocationEvent[] = [];
+    const stopFirst = feed.subscribe((event) => {
+      first.push(event);
+    });
+    const stopSecond = feed.subscribe((event) => {
+      second.push(event);
+    });
+    const revoked: RevocationEvent = {
+      principal: 'u-feed',
+      session: 's-feed',
+      kind: 'session-revoked',
+    };
+    await feed.revoke(revoked);
+    await vi.waitFor(() => {
+      expect(first).toEqual([revoked]);
+      expect(second).toEqual([revoked]);
+    });
+    stopFirst();
+    const changed: RevocationEvent = {
+      principal: 'u-feed',
+      tenant: 't-feed',
+      kind: 'changed',
+    };
+    await feed.revoke(changed);
+    await vi.waitFor(() => {
+      expect(second).toEqual([revoked, changed]);
+    });
+    expect(first).toEqual([revoked]);
+    stopSecond();
+  });
+
+  it('keeps delivering when a listener throws', async () => {
+    const seen: RevocationEvent[] = [];
+    const stopThrowing = feed.subscribe(() => {
+      throw new Error('listener failed');
+    });
+    const stop = feed.subscribe((event) => {
+      seen.push(event);
+    });
+    const event: RevocationEvent = { principal: 'u-throw', kind: 'changed' };
+    await feed.revoke(event);
+    await vi.waitFor(() => {
+      expect(seen).toEqual([event]);
+    });
+    stopThrowing();
+    stop();
+  });
+
+  it('rejects an event without a principal or with an unknown kind', async () => {
+    const seen: unknown[] = [];
+    const stop = feed.subscribe((event) => {
+      seen.push(event);
+    });
+    const bad = [
+      { principal: '', kind: 'changed' },
+      { principal: 'u-bad', kind: 'granted' },
+    ] as unknown as readonly RevocationEvent[];
+    for (const event of bad) {
+      // oxlint-disable-next-line no-await-in-loop -- each rejection is asserted in order
+      await expect(
+        (async (): Promise<void> => {
+          await feed.revoke(event);
+        })(),
+      ).rejects.toThrow(TypeError);
+    }
+    expect(seen).toEqual([]);
+    stop();
+  });
 }
 
 export function testDirectoryStore(
@@ -276,7 +367,92 @@ export function testDirectoryStore(
   });
 }
 
-export function testApprovalStore(store: ApprovalStore): void {
+export type ApprovalStoreOptions = {
+  /**
+   * Opens a second store over the same backing storage, as a restarted process
+   * would. Omit it for stores that do not persist (the resume-after-restart
+   * case is then skipped).
+   */
+  readonly reopen?: () => ApprovalStore | Promise<ApprovalStore>;
+};
+
+function tenantApproval(token: string, tenant: string): ApprovalRequest {
+  const base = sampleApproval(token);
+  return {
+    ...base,
+    subject: {
+      ...base.subject,
+      principal: { id: 'u_1', roles: ['member'], tenant },
+    },
+  };
+}
+
+function tenantApprover(tenant: string): Subject {
+  return {
+    principal: {
+      id: 'u_9',
+      roles: [],
+      memberships: [{ tenant, roles: ['admin'] }],
+    },
+    context: {},
+  };
+}
+
+export function testApprovalStore(
+  store: ApprovalStore,
+  options: ApprovalStoreOptions = {},
+): void {
+  it('keeps the existing record when the same call asks again', async () => {
+    await store.create(sampleApproval('dup-token'));
+    await store.resolve('dup-token', { status: 'approved', by: approver });
+    await store.create(sampleApproval('dup-token'));
+    expect((await store.get('dup-token'))?.status).toBe('approved');
+  });
+
+  it('consumes an approved request exactly once', async () => {
+    await store.create(sampleApproval('once-token'));
+    expect(await store.consume('once-token')).toBeNull();
+    await store.resolve('once-token', { status: 'approved', by: approver });
+    const [first, second] = await Promise.all([
+      store.consume('once-token'),
+      store.consume('once-token'),
+    ]);
+    expect([first, second].filter((item) => item !== null)).toHaveLength(1);
+    expect((first ?? second)?.consumedAt).toEqual(expect.any(String));
+    expect(await store.consume('once-token')).toBeNull();
+    expect((await store.get('once-token'))?.consumedAt).toEqual(
+      expect.any(String),
+    );
+  });
+
+  it('refuses an approver from another tenant', async () => {
+    await store.create(tenantApproval('tenant-token', 'o_1'));
+    await expect(
+      Promise.resolve().then(() =>
+        store.resolve('tenant-token', {
+          status: 'approved',
+          by: tenantApprover('o_2'),
+        }),
+      ),
+    ).rejects.toThrow(/tenant|eligible/u);
+    expect((await store.get('tenant-token'))?.status).toBe('pending');
+  });
+
+  it.skipIf(options.reopen === undefined)(
+    'resumes an approval after a restart',
+    async () => {
+      await store.create(sampleApproval('restart-token'));
+      await store.resolve('restart-token', {
+        status: 'approved',
+        by: approver,
+      });
+      const reopened = await options.reopen!();
+      expect((await reopened.get('restart-token'))?.status).toBe('approved');
+      expect(await reopened.consume('restart-token')).not.toBeNull();
+      expect(await store.consume('restart-token')).toBeNull();
+    },
+  );
+
   it('creates, gets, lists, resolves and expires', async () => {
     const request = sampleApproval('opaque-token');
     await store.create(request);

@@ -38,7 +38,7 @@ function json(data: unknown, status = 200): Response {
 
 async function route(request: Request): Promise<Response> {
   const path = new URL(request.url).pathname;
-  const context = { user: memberUser };
+  const context = { context: { user: memberUser } };
   if (request.method === 'GET' && path === '/health') {
     return json({ ok: true });
   }

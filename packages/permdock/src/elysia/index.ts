@@ -5,6 +5,7 @@ export type {
   ElysiaPermDock,
   ElysiaPermDockOptions,
   ElysiaProtect,
+  ElysiaSocket,
 } from './create.ts';
 export {
   discoverViaSignatureAgent,

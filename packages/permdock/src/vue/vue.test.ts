@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createSSRApp, defineComponent, h } from 'vue';
+import { createSSRApp, defineComponent, h, ref } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 
 import { createPermDock } from '../core/permdock.ts';
@@ -89,6 +89,24 @@ describe('permdock/vue', () => {
     expect(html).toContain('true:1:1:false');
     expect(html).toContain('member');
     expect(html).toContain('false:ready');
+  });
+
+  it('renders a snapshot held in reactive state (Nuxt useState)', async () => {
+    const state = ref<unknown>(
+      JSON.parse(JSON.stringify(await memberSnapshot())),
+    );
+    const app = createSSRApp({
+      setup() {
+        return () =>
+          h(
+            Protected,
+            { permission: permissions.post.update, data: ownPost },
+            { default: () => 'edit', fallback: () => 'locked' },
+          );
+      },
+    });
+    app.use(permdockPlugin, { snapshot: () => state.value as never });
+    await expect(renderToString(app)).resolves.toContain('edit');
   });
 
   it('builds the approval resume header', () => {

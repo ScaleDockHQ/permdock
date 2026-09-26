@@ -26,6 +26,26 @@ import { decisionToken } from './token.ts';
 import { validateBoundary } from './validation.ts';
 import { listRoles } from './vocabulary.ts';
 
+type ScopeMatch = ReturnType<typeof matchScopedMembership>;
+
+/**
+ * A collection write proposes `next`; an update pair may move `next` out of
+ * the scope `current` is in. Both must stay in scope.
+ */
+function matchWriteScope(
+  match: (row: unknown) => ScopeMatch,
+  instance: boolean,
+  current: unknown,
+  next: unknown,
+): ScopeMatch {
+  const first = match(instance ? current : next);
+  if (!first.ok || !instance || next === current) {
+    return first;
+  }
+  const moved = match(next);
+  return moved.ok ? first : moved;
+}
+
 function isRowPair(value: unknown): value is RowPair<unknown> {
   return (
     value !== null &&
@@ -65,10 +85,16 @@ export function customRolesFor(
   return (loaded as CustomRole[][]).flat();
 }
 
+/**
+ * Declared names pass through; a custom role expands to its declared
+ * includes, and only a custom role of `tenant` (a tenant's role never
+ * expands inside another tenant, nor for a membership without one).
+ */
 export function expandRoleNames(
   names: readonly string[],
   declared: ReadonlySet<string>,
   custom: readonly CustomRole[],
+  tenant: string | undefined,
 ): { readonly roles: readonly string[]; readonly unknown: readonly string[] } {
   const resolved = new Set<string>();
   const unknown: string[] = [];
@@ -77,7 +103,10 @@ export function expandRoleNames(
       resolved.add(name);
       continue;
     }
-    const customRole = custom.find((item) => item.name === name);
+    const customRole =
+      tenant === undefined
+        ? undefined
+        : custom.find((item) => item.name === name && item.tenant === tenant);
     if (customRole === undefined) {
       unknown.push(name);
       continue;
@@ -333,6 +362,7 @@ export function evaluate(
     principalRoles,
     declared,
     env.customRoles,
+    subject.principal?.tenant,
   );
   if (subject.principal !== null && globalNames.unknown.length > 0) {
     emitSafe(
@@ -355,6 +385,7 @@ export function evaluate(
       membership.roles,
       declared,
       env.customRoles,
+      membership.tenant,
     );
     for (const name of expanded.roles) {
       matchingRoles.add(name);
@@ -397,16 +428,29 @@ export function evaluate(
           allHeld = false;
           break;
         }
-        const rowForScope =
-          permission.kind === 'instance' ? current : undefined;
-        const scopeMatch = matchScopedMembership(
-          subject,
-          roleItem.scope,
-          roleItem.role,
-          rowForScope,
-          policy.scopes,
-          resource,
-          now,
+        const matchRow = (row: unknown): ScopeMatch =>
+          matchScopedMembership(
+            subject,
+            roleItem.scope,
+            roleItem.role,
+            row,
+            policy.scopes,
+            resource,
+            policy.resources,
+            now,
+            (membership) =>
+              expandRoleNames(
+                membership.roles,
+                declared,
+                env.customRoles,
+                membership.tenant,
+              ).roles,
+          );
+        const scopeMatch = matchWriteScope(
+          matchRow,
+          permission.kind === 'instance',
+          current,
+          next,
         );
         if (!scopeMatch.ok) {
           denials.push({ role: roleItem.role, reason: scopeMatch.reason });
@@ -545,6 +589,7 @@ export function evaluate(
       grant: candidate.grant,
       permissionKey: permission.key,
       subjectId: subject.principal?.id ?? '',
+      tenant: subject.principal?.tenant,
       now,
       consume,
     });

@@ -43,7 +43,7 @@ The normalised form of `{ where: { authorId: principal.id, teamId: { in: context
 | Compound | `{ "op": "and" \| "or", "conditions": Condition[] }`, `{ "op": "not", "condition": Condition }` |
 | Reference | `{ "ref": "principal.<field>" }` or `{ "ref": "context.<key>" }`. No other prefix resolves ([0045](/docs/decisions/0045-drop-subject-ref-alias)). |
 | Date | `{ "date": "2026-09-06T10:15:00Z" }` |
-| Scope (from scoped roles) | `{ "op": "memberOf", "scope": "tenant" \| "team" \| "resource", "field": string, "roles": string[], "resource"?: string, "parents"?: string[] }` ([tenancy](/docs/concepts/tenancy)) |
+| Scope (from scoped roles) | `{ "op": "memberOf", "scope": "tenant" \| "team" \| "resource", "field": string, "roles": string[], "resource"?: string, "parents"?: (string \| { "field": string, "resource": string })[] }`. A keyed parent matches only a membership on that resource; a bare field name matches any ([tenancy](/docs/concepts/tenancy)) |
 | SQL function | `{ "op": "sqlFunction", "name": string, "args": array, "twin": Condition }` ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)). Each arg is a value or `{ "field": "id" }`. |
 | Opaque (imported) | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }` |
 
@@ -51,7 +51,7 @@ Literals are JSON literals. Single-child compounds are collapsed and nested same
 
 ## Snapshot v3
 
-Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). The TypeScript type is `Snapshot`; `v` is the format major. Version 3 adds `grants[].to` (the grantee union) and `vocabulary.roles` / `vocabulary.plans`. Version 2 added `subject.principal.memberships`, `subject.principal.tenant`, per-grant `scope` and `membership`, and the top-level `tenants` and `simulated` fields ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships)). `parseSnapshot` accepts majors 1–3.
+Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). The TypeScript type is `Snapshot`; `v` is the format major. Version 3 adds `grants[].to` (the grantee union) and `vocabulary.roles` / `vocabulary.plans`. Version 3 also carries the optional `scopes` field ([ADR 0050](/docs/decisions/0050-client-parity-and-snapshot-scopes)): the policy's row keys `scopes.tenant.key` and `scopes.team.key`, and `scopes.partitioned`, a map from resource name to `{ tenant?: true, team?: true }` for its `memberOf` relations. A client compares the row's tenant and team with each grant's `membership`, so a snapshot client never grants what the server denies. Version 2 added `subject.principal.memberships`, `subject.principal.tenant`, per-grant `scope` and `membership`, and the top-level `tenants` and `simulated` fields ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships)). `parseSnapshot` accepts majors 1–3.
 
 ```json
 {
@@ -87,7 +87,7 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
 }
 ```
 
-A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [0039](/docs/decisions/0039-grantee-selectors-and-relations) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (`"tenant"`, `"team"` or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
+A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [0039](/docs/decisions/0039-grantee-selectors-and-relations) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (`"tenant"`, `"team"` or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. A snapshot has one entry per membership that holds a scoped grant's roles, and a client denies when a `portable: false` deny applies. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
 
 ## Membership and custom role
 
@@ -228,7 +228,7 @@ Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See [approvals](
 }
 ```
 
-`status` is `pending`, `approved`, `rejected` or `expired`; `resolvedAt`, `resolvedBy` and `note` appear only once resolved. `approvers` is copied from `grant.approval` when it is the object form. `subject.session` is the OIDC `sid` when the subject carried one. The record never carries the resource object, the policy, or tokens from `authInfo`. On the wire, the HTTP resume header is `PermDock-Approval: <token>`.
+`status` is `pending`, `approved`, `rejected` or `expired`; `resolvedAt`, `resolvedBy` and `note` appear only once resolved. `consumedAt` appears once an approved request has resumed its call: an approval resumes exactly one call, and `status` stays `approved` ([ADR 0051](/docs/decisions/0051-approval-lifecycle)). The `token` is `pd1.` followed by the base64url SHA-256 of the permission key, the resource id, the principal's `id`, `tenant` and `issuer`, the actor's `id` and `kind`, and the condition fingerprint; roles, memberships, assurance and claims are not hashed, so a session refresh keeps an outstanding approval valid. `approvers` is copied from `grant.approval` when it is the object form. `subject.session` is the OIDC `sid` when the subject carried one. The record never carries the resource object, the policy, or tokens from `authInfo`. On the wire, the HTTP resume header is `PermDock-Approval: <token>`.
 
 ## Signed outputs
 

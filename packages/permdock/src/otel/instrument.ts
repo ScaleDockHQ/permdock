@@ -1,11 +1,10 @@
-import { createRequire } from 'node:module';
-
 import type { DecisionEvent } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type {
   OtelApi,
   OtelOptions,
   OtelSpan,
+  OtelTracer,
   StructuralLogger,
 } from './types.ts';
 
@@ -21,15 +20,57 @@ export { GENAI_SEMCONV_PIN, GEN_AI_TOOL_CALL_ID, GEN_AI_TOOL_NAME };
 const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
 const SPAN_STATUS_ERROR = 2;
 
+// `@opentelemetry/api` 1.x keeps registered providers on this global, so
+// reading it needs neither the package nor a Node module loader.
+const OTEL_REGISTRY = Symbol.for('opentelemetry.js.api.1');
+const OTEL_SPAN_KEY = Symbol.for('OpenTelemetry Context Key SPAN');
+
+type OtelRegistry = {
+  readonly trace?: { readonly getTracer?: OtelApi['trace']['getTracer'] };
+  readonly metrics?: {
+    readonly getMeter?: NonNullable<OtelApi['metrics']>['getMeter'];
+  };
+  readonly context?: {
+    readonly active?: () =>
+      | { readonly getValue?: (key: symbol) => unknown }
+      | undefined;
+  };
+};
+
+function registry(): OtelRegistry | undefined {
+  const value = (globalThis as Record<symbol, unknown>)[OTEL_REGISTRY];
+  return typeof value === 'object' && value !== null
+    ? (value as OtelRegistry)
+    : undefined;
+}
+
+const NOOP_TRACER: OtelTracer = {
+  startSpan: () => ({}),
+};
+
+// Looked up per call, so a provider registered after `instrument()` is used.
+const registryApi: OtelApi = {
+  trace: {
+    getTracer: (name) => registry()?.trace?.getTracer?.(name) ?? NOOP_TRACER,
+    getActiveSpan: () =>
+      registry()?.context?.active?.()?.getValue?.(OTEL_SPAN_KEY) as
+        | OtelSpan
+        | undefined,
+  },
+  metrics: {
+    getMeter: (name) =>
+      registry()?.metrics?.getMeter?.(name) ?? {
+        createCounter: () => ({ add: () => undefined }),
+        createHistogram: () => ({ record: () => undefined }),
+      },
+  },
+};
+
 function resolveApi(injected: OtelApi | undefined): OtelApi | undefined {
   if (injected !== undefined) {
     return injected;
   }
-  try {
-    return createRequire(import.meta.url)('@opentelemetry/api') as OtelApi;
-  } catch {
-    return undefined;
-  }
+  return registry() === undefined ? undefined : registryApi;
 }
 
 function safeCall(fn: () => void, logger: StructuralLogger | undefined): void {
@@ -141,10 +182,18 @@ function attributesOf(
   return redacted;
 }
 
+/** Epoch milliseconds with sub-millisecond precision, the OTel `TimeInput` form. */
+function now(): number {
+  return performance.timeOrigin + performance.now();
+}
+
+type Timing = { readonly start: number; readonly end: number };
+
 function recordSignals(
   event: DecisionEvent,
   options: OtelOptions,
   api: OtelApi | undefined,
+  timing: Timing | undefined,
 ): void {
   const parent = api?.trace.getActiveSpan?.();
   const attributes = attributesOf(event, options, parent);
@@ -158,7 +207,10 @@ function recordSignals(
   }
   const name = options.tracer ?? 'permdock';
   const tracer = api.trace.getTracer(name);
-  const span = tracer.startSpan('permdock.decide');
+  const span = tracer.startSpan(
+    'permdock.decide',
+    timing === undefined ? undefined : { startTime: timing.start },
+  );
   if (span.isRecording?.() === false) {
     safeCall(() => {
       options.logger?.warn(
@@ -186,7 +238,7 @@ function recordSignals(
       span.setStatus?.({ code: SPAN_STATUS_ERROR });
     }
   }
-  span.end?.();
+  span.end?.(timing?.end);
   const meter = api.metrics?.getMeter(name);
   const counterAttrs = compact<Record<string, unknown>>({
     'permdock.outcome': event.outcome,
@@ -194,36 +246,96 @@ function recordSignals(
     'permdock.adapter': event.adapter,
   });
   meter?.createCounter('permdock.decisions').add(1, counterAttrs);
-  meter?.createHistogram('permdock.decide.duration').record(0, counterAttrs);
+  if (timing !== undefined) {
+    meter
+      ?.createHistogram('permdock.decide.duration', { unit: 's' })
+      .record((timing.end - timing.start) / 1000, counterAttrs);
+  }
 }
 
-export function instrument(
+function listen(
   permdock: PermDock,
-  options: OtelOptions = {},
+  options: OtelOptions,
+  api: OtelApi | undefined,
+  startedAt: () => number | undefined,
 ): () => void {
-  const api = resolveApi(options.api);
   return permdock.on('decision', (payload) => {
+    const end = now();
+    const start = startedAt();
     const event = payload as DecisionEvent;
     safeCall(() => {
-      recordSignals(event, options, api);
+      recordSignals(
+        event,
+        options,
+        api,
+        start === undefined ? undefined : { start, end },
+      );
     }, options.logger);
   });
 }
 
+/**
+ * Listens on one instance. Spans carry no duration and no histogram is
+ * recorded, because a listener only sees a decision after it is made; use
+ * `withOtel` for timings and for `tenant()` / `team()` derived instances.
+ */
+export function instrument(
+  permdock: PermDock,
+  options: OtelOptions = {},
+): () => void {
+  return listen(permdock, options, resolveApi(options.api), () => undefined);
+}
+
+function instrumented(
+  permdock: PermDock,
+  options: OtelOptions,
+  api: OtelApi | undefined,
+): PermDock {
+  let started: number | undefined;
+  listen(permdock, options, api, () => started);
+  const timed =
+    <TArgs extends unknown[], TResult>(
+      fn: (...args: TArgs) => TResult,
+    ): ((...args: TArgs) => TResult) =>
+    (...args: TArgs): TResult => {
+      const outer = started === undefined;
+      if (outer) {
+        started = now();
+      }
+      try {
+        return fn(...args);
+      } finally {
+        if (outer) {
+          started = undefined;
+        }
+      }
+    };
+  return Object.freeze({
+    ...permdock,
+    can: timed(permdock.can) as PermDock['can'],
+    decide: timed(permdock.decide) as PermDock['decide'],
+    assert: timed(permdock.assert) as PermDock['assert'],
+    filter: timed(permdock.filter) as PermDock['filter'],
+    pick: timed(permdock.pick) as PermDock['pick'],
+    actions: timed(permdock.actions),
+    tenant: (id: string): PermDock =>
+      instrumented(permdock.tenant(id), options, api),
+    team: (id: string): PermDock =>
+      instrumented(permdock.team(id), options, api),
+  });
+}
+
+/** Returns an instrumented instance: timed spans and histogram, derived instances included. */
 export function withOtel(
   permdock: PermDock,
   options: OtelOptions = {},
 ): PermDock {
-  instrument(permdock, options);
-  return permdock;
+  return instrumented(permdock, options, resolveApi(options.api));
 }
 
 export function applyOtel(
   permdock: PermDock,
   options: OtelOptions | undefined,
 ): PermDock {
-  if (options !== undefined) {
-    instrument(permdock, options);
-  }
-  return permdock;
+  return options === undefined ? permdock : withOtel(permdock, options);
 }

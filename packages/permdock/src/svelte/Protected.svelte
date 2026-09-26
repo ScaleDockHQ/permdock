@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
 
-  import { getStore } from './context.ts';
-  import { protectedView, type ProtectedProps } from './protected.ts';
+  import { getStore, protectedView, type ProtectedProps } from './runtime.ts';
 
   let {
     permission,

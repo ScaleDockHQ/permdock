@@ -53,7 +53,12 @@ export const ENTRIES = {
 
 export type Entry = keyof typeof ENTRIES;
 
-export const WINTERTC_ENTRIES = ['.', './server', './react'] as const;
+/** Entries that are Node-only by design: a terminal CLI helper. */
+export const NODE_ONLY_ENTRIES = ['./terminal'] as const;
+
+export const WINTERTC_ENTRIES = (Object.keys(ENTRIES) as Entry[]).filter(
+  (entry) => !(NODE_ONLY_ENTRIES as readonly string[]).includes(entry),
+);
 export const CLIENT_ENTRIES = [
   './react',
   './react-native',
@@ -69,8 +74,10 @@ const RELATIVE_IMPORT =
 const NODE_SPECIFIER =
   /(?:from|import)\s*['"](node:[^'"]+|fs|path|crypto|buffer|child_process|worker_threads|async_hooks|os|net|tls|http|https|module|vm|inspector|v8|perf_hooks|querystring|assert|constants|domain|repl|readline|tty|dgram|dns|cluster|string_decoder|diagnostics_channel)['"]/u;
 
+// Bare globals only: `loader.createRequire` on a feature-detected
+// `process?.getBuiltinModule?.()` result is optional, not a hard dependency.
 const NODE_GLOBAL =
-  /\b(?:process\.|AsyncLocalStorage|createRequire|__dirname|__filename)\b/u;
+  /(?<![.\w])(?:process\.|AsyncLocalStorage|createRequire|__dirname|__filename)\b/u;
 
 export function walk(entryFile: string): readonly string[] {
   const seen = new Set<string>();
@@ -196,6 +203,13 @@ export function exportNames(entryFile: string): readonly string[] {
     }
   }
   return names.toSorted();
+}
+
+/** Chunks that carry policy definition or server evaluation code. */
+export function policyChunks(files: readonly string[]): readonly string[] {
+  return files.filter((file) =>
+    /[/\\](?:policy|evaluate|instance)-[^/\\]+\.js$/u.test(file),
+  );
 }
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {

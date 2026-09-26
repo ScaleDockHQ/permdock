@@ -32,13 +32,16 @@ export type OtelSpan = {
   ) => void;
   readonly recordException?: (error: unknown) => void;
   readonly setStatus?: (status: { readonly code: number }) => void;
-  readonly end?: () => void;
+  readonly end?: (endTime?: number) => void;
   readonly isRecording?: () => boolean;
   readonly attributes?: Record<string, unknown>;
 };
 
 export type OtelTracer = {
-  readonly startSpan: (name: string) => OtelSpan;
+  readonly startSpan: (
+    name: string,
+    options?: { readonly startTime?: number },
+  ) => OtelSpan;
 };
 
 export type OtelCounter = {
@@ -54,7 +57,10 @@ export type OtelHistogram = {
 
 export type OtelMeter = {
   readonly createCounter: (name: string) => OtelCounter;
-  readonly createHistogram: (name: string) => OtelHistogram;
+  readonly createHistogram: (
+    name: string,
+    options?: { readonly unit?: string; readonly description?: string },
+  ) => OtelHistogram;
 };
 
 export type OtelApi = {

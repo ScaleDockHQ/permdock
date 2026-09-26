@@ -28,6 +28,21 @@ function tools() {
   };
 }
 
+const signal = new AbortController().signal;
+const sdkServer = { signal, mcpServer: { name: 'posts', source: 'sdk' } };
+
+function hookInput(toolName: string, toolInput: unknown, mcpServer?: unknown) {
+  return {
+    hook_event_name: 'PermissionRequest' as const,
+    session_id: 's1',
+    transcript_path: '/tmp/t.jsonl',
+    cwd: '/tmp',
+    tool_name: toolName,
+    tool_input: toolInput,
+    ...(mcpServer === undefined ? {} : { mcp_server: mcpServer }),
+  };
+}
+
 describe('permdock/claude-agent', () => {
   it('allows granted tools and denies unmapped or unpublished ones', async () => {
     const { canUseTool } = createPermDock(policy, {
@@ -36,70 +51,167 @@ describe('permdock/claude-agent', () => {
       tools: tools(),
     });
 
-    const allowed = await canUseTool('Read', { file_path: '/posts/p1' });
+    const allowed = await canUseTool(
+      'Read',
+      { file_path: '/posts/p1' },
+      { signal },
+    );
     expect(allowed).toEqual({
       behavior: 'allow',
       updatedInput: { file_path: '/posts/p1' },
     });
 
-    const denied = await canUseTool('Publish', {});
-    expect(denied).toMatchObject({ behavior: 'deny' });
-    if (denied !== null && denied.behavior === 'deny') {
+    const denied = await canUseTool('Publish', {}, { signal });
+    expect(denied.behavior).toBe('deny');
+    if (denied.behavior === 'deny') {
       expect(denied.message).toContain('post.publish');
     }
 
-    const unmapped = await canUseTool('Bash', { command: 'rm -rf /' });
+    const unmapped = await canUseTool(
+      'Bash',
+      { command: 'rm -rf /' },
+      { signal },
+    );
     expect(unmapped).toEqual({
       behavior: 'deny',
       message: 'Denied: unmapped tool Bash.',
     });
   });
 
-  it('defers approval-required calls and binds the resume token', async () => {
+  it('denies an approval-required call with the pending token, then allows it once approved', async () => {
     const store = memoryApprovalStore();
-    const { canUseTool, permissionRequestHook } = createPermDock(policy, {
+    const { canUseTool } = createPermDock(policy, {
       subject: () => memberUser,
       actor: () => ({ id: 'claude-agent', kind: 'claude-agent' }),
       tools: tools(),
       store,
     });
 
-    expect(
-      await canUseTool('mcp__posts__delete_post', { id: 'p1' }),
-    ).toBeNull();
-
-    const asked = await permissionRequestHook({
-      tool_name: 'mcp__posts__delete_post',
-      tool_input: { id: 'p1' },
-    });
-    expect(asked.token).toEqual(expect.any(String));
-    expect(asked.additionalContext).toContain('Token:');
-    expect(asked.hookSpecificOutput.decision).toBeUndefined();
-
-    const token = asked.token;
-    if (token === undefined) {
-      throw new Error('expected token');
+    const parked = await canUseTool(
+      'mcp__posts__delete_post',
+      { id: 'p1' },
+      sdkServer,
+    );
+    expect(parked.behavior).toBe('deny');
+    const [pending] = await store.list({ status: 'pending' });
+    if (pending === undefined || parked.behavior !== 'deny') {
+      throw new Error('expected a pending approval');
     }
-    await store.resolve(token, {
+    expect(parked.message).toContain(pending.token);
+
+    await store.resolve(pending.token, {
       status: 'approved',
       by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
     });
-
     expect(
-      await canUseTool('mcp__posts__delete_post', { id: 'p1' }, { token }),
-    ).toEqual({
-      behavior: 'allow',
-      updatedInput: { id: 'p1' },
-    });
+      await canUseTool('mcp__posts__delete_post', { id: 'p1' }, sdkServer),
+    ).toEqual({ behavior: 'allow', updatedInput: { id: 'p1' } });
+    expect(
+      (await canUseTool('mcp__posts__delete_post', { id: 'p1' }, sdkServer))
+        .behavior,
+    ).toBe('deny');
+  });
 
-    const tampered = await permissionRequestHook({
-      tool_name: 'mcp__posts__delete_post',
-      tool_input: { id: 'p2' },
-      token,
+  it('trusts mcp__ tools only from the configured server sources', async () => {
+    const { canUseTool } = createPermDock(policy, {
+      subject: () => adminUser,
+      tools: tools(),
     });
-    expect(tampered.hookSpecificOutput.decision).toMatchObject({
-      behavior: 'deny',
+    expect(
+      (await canUseTool('mcp__posts__delete_post', { id: 'p2' }, sdkServer))
+        .behavior,
+    ).toBe('allow');
+    const project = await canUseTool(
+      'mcp__posts__delete_post',
+      { id: 'p2' },
+      { signal, mcpServer: { name: 'posts', source: 'project' } },
+    );
+    expect(project).toMatchObject({ behavior: 'deny' });
+    const unlabelled = await canUseTool(
+      'mcp__posts__delete_post',
+      { id: 'p2' },
+      { signal },
+    );
+    expect(unlabelled).toMatchObject({ behavior: 'deny' });
+    const renamed = await canUseTool(
+      'mcp__posts__delete_post',
+      { id: 'p2' },
+      { signal, mcpServer: { name: 'other', source: 'sdk' } },
+    );
+    expect(renamed).toMatchObject({ behavior: 'deny' });
+
+    const plugins = createPermDock(policy, {
+      subject: () => adminUser,
+      tools: tools(),
+      mcpSources: ['plugin'],
     });
+    expect(
+      (
+        await plugins.canUseTool(
+          'mcp__posts__delete_post',
+          { id: 'p2' },
+          { signal, mcpServer: { name: 'posts', source: 'plugin' } },
+        )
+      ).behavior,
+    ).toBe('allow');
+  });
+
+  it('answers the PermissionRequest hook and ignores other events', async () => {
+    const { permissionRequestHook } = createPermDock(policy, {
+      subject: () => memberUser,
+      tools: tools(),
+    });
+    expect(
+      await permissionRequestHook(
+        hookInput('Read', { file_path: '/p1' }),
+        't1',
+        {
+          signal,
+        },
+      ),
+    ).toEqual({
+      hookSpecificOutput: {
+        hookEventName: 'PermissionRequest',
+        decision: { behavior: 'allow', updatedInput: { file_path: '/p1' } },
+      },
+    });
+    const parked = await permissionRequestHook(
+      hookInput(
+        'mcp__posts__delete_post',
+        { id: 'p1' },
+        {
+          name: 'posts',
+          source: 'sdk',
+        },
+      ),
+      't2',
+      { signal },
+    );
+    expect(parked).toMatchObject({
+      hookSpecificOutput: { decision: { behavior: 'deny' } },
+    });
+    const tampered = await permissionRequestHook(
+      hookInput(
+        'mcp__posts__delete_post',
+        { id: 'p2' },
+        {
+          name: 'posts',
+          source: 'user',
+        },
+      ),
+      't3',
+      { signal },
+    );
+    expect(tampered).toMatchObject({
+      hookSpecificOutput: { decision: { behavior: 'deny' } },
+    });
+    expect(
+      await permissionRequestHook(
+        { hook_event_name: 'Stop', session_id: 's1' },
+        undefined,
+        { signal },
+      ),
+    ).toEqual({});
   });
 
   it('ignores a subject smuggled in tool input', async () => {
@@ -107,9 +219,11 @@ describe('permdock/claude-agent', () => {
       subject: () => memberUser,
       tools: tools(),
     });
-    const denied = await canUseTool('Publish', {
-      subject: adminUser,
-    });
+    const denied = await canUseTool(
+      'Publish',
+      { subject: adminUser },
+      { signal },
+    );
     expect(denied).toMatchObject({ behavior: 'deny' });
   });
 });

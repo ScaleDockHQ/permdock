@@ -1,20 +1,22 @@
 import { run } from '@permdock/cli';
 import { rlsParity } from '@permdock/testing';
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import type { Postgres } from './support/postgres.ts';
 
 import { permissions } from '../fixtures/posts/permissions.ts';
 import { policy } from '../fixtures/posts/policy.ts';
+import { startPostgres } from './support/postgres.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, '../fixtures/posts');
 const own = { id: 'p1', authorId: 'u1' };
 const other = { id: 'p2', authorId: 'u9' };
+const slug = { id: 'p3', authorId: 'user-2' };
 const publicJob = { id: 'j-public', scope: 'public', teamId: null };
 const teamJob = { id: 'j-team', scope: 'team', teamId: 't1' };
 const foreignJob = { id: 'j-other', scope: 'team', teamId: 't9' };
@@ -22,16 +24,15 @@ const foreignJob = { id: 'j-other', scope: 'team', teamId: 't9' };
 const SETUP = `
 create role authenticated nologin;
 create role anon nologin;
-create role tester login password 'tester' nosuperuser nobypassrls inherit;
 grant authenticated to tester;
-grant usage on schema public to authenticated, anon, tester;
+grant usage on schema public to authenticated, anon;
 create table post (
   id text primary key,
   "authorId" text not null
 );
 alter table post enable row level security;
 alter table post force row level security;
-insert into post (id, "authorId") values ('p1', 'u1'), ('p2', 'u9');
+insert into post (id, "authorId") values ('p1', 'u1'), ('p2', 'u9'), ('p3', 'user-2');
 create table team_users (
   team_id text not null,
   user_id text not null
@@ -79,9 +80,7 @@ grant execute on function job_permitted(text) to authenticated, tester;
 `;
 
 describe('RLS parity', () => {
-  let container: Awaited<ReturnType<PostgreSqlContainer['start']>> | undefined;
-  let admin: Client | undefined;
-  let tester: Client | undefined;
+  let db: Postgres | undefined;
   let generated = '';
   let generateCode = 1;
 
@@ -95,31 +94,11 @@ describe('RLS parity', () => {
     generateCode = generate.code;
     generated = readFileSync(out, 'utf8');
     rmSync(dir, { recursive: true, force: true });
-    container = await new PostgreSqlContainer('postgres:16-alpine').start();
-    admin = new Client({ connectionString: container.getConnectionUri() });
-    await admin.connect();
-    await admin.query(SETUP);
-    await admin.query(generated);
-    tester = new Client({
-      host: container.getHost(),
-      port: container.getPort(),
-      user: 'tester',
-      password: 'tester',
-      database: container.getDatabase(),
-    });
-    await tester.connect();
+    db = await startPostgres([SETUP, generated]);
   }, 120_000);
 
   afterAll(async () => {
-    if (tester !== undefined) {
-      await tester.end();
-    }
-    if (admin !== undefined) {
-      await admin.end();
-    }
-    if (container !== undefined) {
-      await container.stop();
-    }
+    await db?.stop();
   });
 
   it('never emits service_role in generated SQL', () => {
@@ -131,10 +110,10 @@ describe('RLS parity', () => {
   });
 
   it('agrees with can() for granted reads and filtered updates', async () => {
-    if (tester === undefined) {
-      throw new Error('PermDock: tester client was not started');
+    if (db === undefined) {
+      throw new Error('PermDock: Postgres was not started');
     }
-    const client = tester;
+    const client = db.tester;
     const report = await rlsParity(policy, {
       dialect: 'guc',
       fixtures: [
@@ -164,6 +143,20 @@ describe('RLS parity', () => {
           subject: { id: 'u1', roles: ['member'] },
           permission: permissions.post.update,
           row: other,
+          table: 'post',
+        },
+        {
+          name: 'update slug owner as 2',
+          subject: { id: '2', roles: ['member'] },
+          permission: permissions.post.update,
+          row: slug,
+          table: 'post',
+        },
+        {
+          name: 'update slug owner as user-2',
+          subject: { id: 'user-2', roles: ['member'] },
+          permission: permissions.post.update,
+          row: slug,
           table: 'post',
         },
         {
@@ -225,6 +218,18 @@ describe('RLS parity', () => {
       { name: 'read other', granted: true, database: 'allowed', ok: true },
       { name: 'update own', granted: true, database: 'allowed', ok: true },
       { name: 'update other', granted: false, database: 'filtered', ok: true },
+      {
+        name: 'update slug owner as 2',
+        granted: false,
+        database: 'filtered',
+        ok: true,
+      },
+      {
+        name: 'update slug owner as user-2',
+        granted: true,
+        database: 'allowed',
+        ok: true,
+      },
       { name: 'job public', granted: true, database: 'allowed', ok: true },
       { name: 'job team', granted: true, database: 'allowed', ok: true },
       { name: 'job foreign', granted: false, database: 'filtered', ok: true },

@@ -39,19 +39,25 @@ receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) 
 - `onEvent` is keyed by CAEP event type. Handlers receive the resolved `subject`, the raw `event` claims, `event_timestamp` and the `jti`.
 - `subject` maps the SET `sub_id` (formats `iss_sub`, `email`, `opaque`, and others defined by the Subject Identifiers RFC) to the id PermDock uses in `tag` and snapshots.
 - `verifier` (optional, a `TokenVerifier` from [extension interfaces](/docs/concepts/extension-interfaces)) replaces the built-in `joseTokenVerifier` over `jwks`; `discovery: '<issuer>'` may stand in for `issuer` plus `jwks` exactly as in [`permdock/jwt`](/docs/adapters/jwt).
-- `replay` (optional, a `ReplayStore`) replaces the in-memory `jti` store. `memoryReplayStore()` is the default. `remember(jti, expiresAt?)` is additive; the receiver passes the SET `exp` or `iat + clockTolerance`. The memory store evicts expired `jti`s on read.
+- `replay` (optional, a `ReplayStore`) replaces the in-memory `jti` store. `memoryReplayStore()` is the default. Keys are opaque strings namespaced by issuer, so receivers for two IdPs can share one store without a `jti` collision. `claim(key, expiresAt?)` records a key and returns `true` only for the first caller, and `release(key)` forgets it when a handler failed. A store with both makes concurrent deliveries of one SET dispatch once; a store with only `seen` and `remember(key, expiresAt?)` still works, but two simultaneous deliveries can both dispatch. The receiver passes the SET `exp` or `iat + clockTolerance`. The memory store evicts expired keys on read.
+- A SET carrying several events records each event that succeeded. When a later handler fails, the receiver answers `400`, the transmitter retries, and only the events that did not succeed are dispatched again.
+- `revocations` (optional, a `RevocationFeed`) ends and revalidates open streams and sockets ([0052](/docs/decisions/0052-streams-and-sockets)). After the handler succeeds, a verified `session-revoked` (CAEP and Back-Channel Logout) publishes `session-revoked` for the principal and `subject.session`, which aborts that session's connections; `credential-change`, `assurance-level-change` and `token-claims-change` publish `changed` for the principal, which makes every connection it holds resolve its subject again. A failed handler publishes nothing, and a throwing feed never fails the delivery.
 - `approvals` (optional, an `ApprovalStore`) lets `session-revoked` (CAEP and Back-Channel Logout) call `cancelApprovals` for the principal and `subject.session`. Pending requests are marked `rejected` with `resolvedBy: 'system:ssf'`. The receiver emits an `approvals-cancelled` audit event with the count.
 
 ### Shared replay store
 
 ```ts
-// Redis: SET NX EX, TTL from expiresAt
-remember(jti, expiresAt) {
-  const ttl = expiresAt === undefined ? 3600 : Math.max(1, expiresAt - Math.floor(Date.now() / 1000))
-  return redis.set(`ssf:jti:${jti}`, '1', { NX: true, EX: ttl })
+// Redis: SET NX EX is the atomic claim, TTL from expiresAt
+const ttl = (expiresAt?: number) =>
+  expiresAt === undefined ? 3600 : Math.max(1, expiresAt - Math.floor(Date.now() / 1000))
+const replay: ReplayStore = {
+  seen: async (key) => (await redis.exists(`ssf:${key}`)) === 1,
+  remember: async (key, expiresAt) => { await redis.set(`ssf:${key}`, '1', { EX: ttl(expiresAt) }) },
+  claim: async (key, expiresAt) => (await redis.set(`ssf:${key}`, '1', { NX: true, EX: ttl(expiresAt) })) === 'OK',
+  release: async (key) => { await redis.del(`ssf:${key}`) },
 }
 
-// Postgres: insert with expires_at, delete where expires_at <= now() on seen
+// Postgres: claim is INSERT … ON CONFLICT DO NOTHING RETURNING key; release is DELETE
 ```
 
 ### OpenID Connect Back-Channel Logout
@@ -69,7 +75,7 @@ Back-Channel Logout and CAEP `session-revoked` are two deliveries of one signal,
 ## Request lifecycle
 
 1. Delivery: a SET arrives by push (HTTP POST) or poll (fetched batch).
-2. Verification: signature against `jwks`, `iss` equals `issuer`, `aud` contains `audience`, `iat` within tolerance, `jti` not seen before (replay store, in-memory by default, pluggable).
+2. Verification: signature against `jwks`, `iss` equals `issuer`, `aud` contains `audience`, `iat` within tolerance, `exp` honoured when present and optional as RFC 8417 section 2.2 allows, `jti` not seen before (replay store, in-memory by default, pluggable).
 3. Parsing: the `events` claim is walked; each CAEP event URI maps to a short name (`session-revoked`, `credential-change`, `assurance-level-change`, `token-claims-change`, `device-compliance-change`).
 4. Subject resolution: `sub_id` is passed to `subject`; unknown subjects are logged and acknowledged (an event for a user this app does not know is not an error).
 5. Dispatch: `onEvent[type]` runs. Typical handlers call `updateTag` so the next navigation refetches the snapshot, and, when the app has a realtime channel, push an `invalidate()` to connected clients.
@@ -130,5 +136,5 @@ None. The receiver is exercised in `tests/integration` against recorded SETs fro
 ## Open questions
 
 - Whether to ship a stream-management helper (creating the stream at the transmitter, `add_subject`) or leave transmitter configuration to the IdP console.
-- Whether client push (WebSocket or SSE `invalidate`) belongs in this adapter or in the React adapters with `permdock/ssf` only invalidating server tags.
+- Whether client snapshot push (an `invalidate` message to UI adapters) belongs in this adapter or in the React adapters. Server-side streams and sockets already end through `revocations` ([0052](/docs/decisions/0052-streams-and-sockets)).
 - Keycloak's transmitter is experimental; event shapes may change before Phase 3.

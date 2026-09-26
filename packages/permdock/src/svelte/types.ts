@@ -1,3 +1,5 @@
+import type { Readable } from 'svelte/store';
+
 import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
 import type {
   ApprovalHandle,
@@ -13,7 +15,17 @@ import type {
 } from '../react/types.ts';
 
 export type PermDockSvelteOptions = {
-  readonly snapshot: Snapshot | string;
+  /**
+   * A getter (`() => data.snapshot`) or a readable store re-hydrates the
+   * store when it changes; a promise keeps the store `pending` until it
+   * settles (render the same promise with `{#await}`).
+   */
+  readonly snapshot:
+    | Snapshot
+    | string
+    | (() => Snapshot | string)
+    | Readable<Snapshot | string>
+    | PromiseLike<Snapshot | string>;
   readonly endpoint?: string;
   readonly approvals?: string;
   readonly tenant?: string;

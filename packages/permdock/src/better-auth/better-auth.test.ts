@@ -41,6 +41,69 @@ const session = {
   teamMembers: [{ organizationId: 'o_acme', teamId: 't_design', role: 'lead' }],
 };
 
+// Response shapes documented by the Better Auth organization plugin
+// (`listOrganizations`, `listMembers`, `getActiveMember`, `listUserTeams`).
+const ORGANIZATIONS = [
+  {
+    id: 'o_acme',
+    name: 'Acme',
+    slug: 'acme',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'o_globex',
+    name: 'Globex',
+    slug: 'globex',
+    createdAt: '2026-01-02T00:00:00.000Z',
+  },
+];
+
+function member(
+  id: string,
+  organizationId: string,
+  userId: string,
+  role: string,
+) {
+  return {
+    id,
+    organizationId,
+    userId,
+    role,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    user: {
+      id: userId,
+      name: userId,
+      email: `${userId}@example.com`,
+      image: null,
+    },
+  };
+}
+
+const ACME_MEMBERS = {
+  members: [
+    member('m_1', 'o_acme', 'u_alice', 'owner'),
+    member('m_2', 'o_acme', 'u_bob', 'member'),
+  ],
+  total: 2,
+};
+
+const GLOBEX_MEMBERS = {
+  members: [
+    member('m_3', 'o_globex', 'u_carol', 'owner'),
+    member('m_4', 'o_globex', 'u_bob', 'admin'),
+  ],
+  total: 2,
+};
+
+const USER_TEAMS = [
+  {
+    id: 't_design',
+    name: 'Design',
+    organizationId: 'o_acme',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+];
+
 describe('subjectFromBetterAuth', () => {
   it('never throws and fails closed to anonymous', async () => {
     await expect(subjectFromBetterAuth({}, null)).resolves.toMatchObject({
@@ -95,31 +158,94 @@ describe('subjectFromBetterAuth', () => {
     ]);
   });
 
-  it('loads memberships from the Better Auth server API', async () => {
+  it('loads only the signed-in member from organization plugin responses', async () => {
+    const calls: unknown[] = [];
     const subject = await subjectFromBetterAuth(
       {
         api: {
-          listOrganizations: async () => [
-            { organizationId: 'o_from_api', role: 'member' },
-          ],
-          listTeams: async () => [
-            { organizationId: 'o_from_api', teamId: 't_api', role: 'reviewer' },
-          ],
+          listOrganizations: async () => ORGANIZATIONS,
+          listMembers: async (args) => {
+            calls.push(args?.query);
+            return args?.query?.organizationId === 'o_acme'
+              ? ACME_MEMBERS
+              : GLOBEX_MEMBERS;
+          },
+          listUserTeams: async () => USER_TEAMS,
         },
       },
-      {
-        user: { id: 'user-2' },
-        session: { activeOrganizationId: 'o_from_api' },
-      },
+      { user: { id: 'u_bob' }, session: { activeOrganizationId: 'o_acme' } },
     );
     expect(subject.principal?.memberships).toEqual([
-      { tenant: 'o_from_api', roles: ['member'] },
+      { tenant: 'o_acme', roles: ['member'] },
+      { tenant: 'o_globex', roles: ['admin'] },
+    ]);
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        organizationId: 'o_acme',
+        filterField: 'userId',
+        filterOperator: 'eq',
+        filterValue: 'u_bob',
+      }),
+    );
+  });
+
+  it('uses getActiveMember for the active organization', async () => {
+    const subject = await subjectFromBetterAuth(
       {
-        tenant: 'o_from_api',
-        team: 't_api',
-        roles: ['reviewer'],
-        via: 'team:t_api',
+        api: {
+          getActiveMember: async () => ACME_MEMBERS.members[1],
+          listMembers: async () => ACME_MEMBERS,
+        },
       },
+      { user: { id: 'u_bob' }, session: { activeOrganizationId: 'o_acme' } },
+      { memberships: 'active' },
+    );
+    expect(subject.principal?.memberships).toEqual([
+      { tenant: 'o_acme', roles: ['member'] },
+    ]);
+  });
+
+  it('drops member rows that belong to another user', async () => {
+    const subject = await subjectFromBetterAuth(
+      {
+        api: {
+          getActiveMember: async () => ACME_MEMBERS.members[0],
+        },
+      },
+      { user: { id: 'u_bob' }, session: { activeOrganizationId: 'o_acme' } },
+      { memberships: 'active' },
+    );
+    expect(subject.principal?.memberships).toEqual([]);
+    const injected = await subjectFromBetterAuth(
+      {},
+      {
+        user: { id: 'u_bob' },
+        session: {},
+        members: [
+          { organizationId: 'o_acme', userId: 'u_alice', role: 'owner' },
+        ],
+      },
+    );
+    expect(injected.principal?.memberships).toEqual([]);
+  });
+
+  it('skips one organization whose lookup fails and keeps the rest', async () => {
+    const subject = await subjectFromBetterAuth(
+      {
+        api: {
+          listOrganizations: async () => ORGANIZATIONS,
+          listMembers: async (args) => {
+            if (args?.query?.organizationId === 'o_acme') {
+              throw new Error('unavailable');
+            }
+            return GLOBEX_MEMBERS;
+          },
+        },
+      },
+      { user: { id: 'u_bob' }, session: {} },
+    );
+    expect(subject.principal?.memberships).toEqual([
+      { tenant: 'o_globex', roles: ['admin'] },
     ]);
   });
 

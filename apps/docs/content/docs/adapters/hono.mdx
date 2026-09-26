@@ -37,7 +37,7 @@ app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.
 | Export | Role |
 |---|---|
 | `permdock()` | Middleware. Resolves the subject with the `subject` option (receives the Hono context `c`), builds the instance through the kernel and sets it as `c.set('permdock', instance)`. The `Variables` type is augmented per factory instance, so `c.get('permdock')` is typed without global module augmentation. |
-| `protect(permission, loadData?)` | Route middleware. For instance actions `loadData(c)` runs first; the result is available to the handler as `c.get('permdockData')` and validated at the boundary if the loader is marked untrusted. Denials short-circuit with a Problem Details response. |
+| `protect(permission, loadData?, options?)` | Route middleware. The `tenant` option (`(c) => c.req.param('org')`) is resolved for each `protect`, where route params exist. For instance actions `loadData(c)` runs first; the result is available to the handler as `c.get('permdockData')` and validated at the boundary if the loader is marked untrusted. Denials short-circuit with a Problem Details response. |
 | `permdockHandler()` | Mounts the AuthZEN-shaped decision endpoint (`POST /`) for `permdock/react` clients on any sub-app: `app.route('/api/permdock', permdockHandler())`. |
 | `openapi` | Kernel hook contract, used by the two integrations below. |
 
@@ -66,12 +66,39 @@ const route = createRoute({
 
 `openapi.securitySchemes()` returns the `oauth2` scheme with every `scope` from `listPermissions(permissions)`, plus `oauth2MetadataUrl` and `deviceAuthorization` when configured. Emitted documents target OpenAPI 3.2; for a 3.1 document `deviceAuthorization` and `deprecated` are written under the registered `x-oai-deviceAuthorization` / `x-oai-deviceAuthorizationUrl` / `x-oai-deprecated` extensions and `oauth2MetadataUrl` under `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). `permdock openapi` in the CLI reads the same hook output to check that every protected route is documented.
 
+### Streams and sockets
+
+`connection(c, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for the request behind `c` ([0052](/docs/decisions/0052-streams-and-sockets)); pass `revocations` to `createPermDock` so revoked sessions and membership changes reach it. `sse(conn, stream, source, options?)` writes an async iterable to a `streamSSE` stream: items the subscriber cannot read under `options.items` are dropped (`unwrap` picks the row inside an envelope, `format` builds the frame), and when the connection aborts it writes `event: permdock` with the Problem Details body and resolves. Await it last in the callback, since `streamSSE` closes the stream when the callback returns. `socket(conn, events)` wraps `upgradeWebSocket` events so an abort closes the socket with `1008` and the Problem Details `type` as reason, and a closed socket closes the connection.
+
+```ts
+const { protect, connection, sse, socket } = createPermDock(policy, { subject, revocations })
+
+app.get('/projects/:id/events', protect(permissions.project.read, loadProject), async (c) => {
+  const conn = await connection(c, { permission: permissions.project.read, data: c.get('permdockData') })
+  return streamSSE(c, async (stream) => {
+    await sse(conn, stream, projectEvents(c.req.param('id'), conn.signal), { items: permissions.project.read })
+  })
+})
+
+app.get('/ws', upgradeWebSocket(async (c) => {
+  const conn = await connection(c)
+  return socket(conn, {
+    onMessage(event, ws) {
+      const decision = conn.check(permissions.post.update, JSON.parse(String(event.data)), { trusted: false })
+      if (decision.outcome !== 'granted') ws.send(JSON.stringify({ denied: decision.denials }))
+    },
+  })
+}))
+```
+
+A denied message leaves the socket open; only a revocation, an expiry or a re-denied opening permission closes it.
+
 ## Request lifecycle
 
 1. `app.use(permdock())` runs; `subject(c)` is called once per request (typically reading a user set by an auth middleware earlier in the chain) and the kernel builds the instance. Anonymous callers get an anonymous instance, not an error.
 2. `protect(...)` on a route loads data if needed, calls `decide`, and either continues (`c.get('permdock')`, `c.get('permdockData')`) or returns the 403.
-3. Handlers may call `c.get('permdock').assert(...)` for checks that need data only the handler has; `PermDockDeniedError` thrown there is caught by an `app.onError` helper the adapter installs and turned into the same Problem Details body.
-4. Every decision is emitted through `on('decision')` with method and route path for audit and [otel](/docs/adapters/otel).
+3. Handlers may call `c.get('permdock').assert(...)` for checks that need data only the handler has. After `await next()`, `permdock()` and `protect()` read the error Hono recorded for the downstream handler and replace the response with the same Problem Details body. No `app.onError` is needed, and an app's own `onError` keeps handling every other error.
+4. Every decision is emitted through `on('decision')` and the `sink` for audit and [otel](/docs/adapters/otel). The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route.
 
 ## What it validates
 
@@ -89,7 +116,7 @@ const route = createRoute({
 
 ## Example app
 
-`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts` for `pnpm start`. The factory enables `otel` with a structural logger so decision lines are recorded locally. `tests/e2e` smokes both routes over Playwright's request fixture. OpenAPI hooks and the decision endpoint land with later Phase 2 examples.
+`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts`, which serves `app.fetch` with `@hono/node-server`, for `pnpm start`. `tests/integration/src/http/hono.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on `@hono/node-server` with a global `permdock()`, a tenant from the `:org` param and a sub-app. The factory enables `otel` with a structural logger so decision lines are recorded locally. `tests/e2e` smokes both routes over Playwright's request fixture. OpenAPI hooks and the decision endpoint land with later Phase 2 examples.
 
 ## Related standards
 
@@ -102,5 +129,4 @@ const route = createRoute({
 
 - Whether the loaded resource should be exposed as `c.get('permdockData')` or passed into the handler through a typed wrapper (`protect(permission, load, (c, data) => ...)`), which avoids a second context key.
 - Default behaviour when `loadData` returns `null`: `404` versus `403` (kernel open question).
-- Whether to ship the `app.onError` helper as part of `permdock()` or require an explicit `app.onError(permdockError)`.
 - Support for Hono's `createMiddleware` typing so `permdock()` composes with user-defined `Env` without the factory generic.

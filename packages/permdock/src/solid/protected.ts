@@ -1,4 +1,4 @@
-import { createMemo, type Accessor } from 'solid-js';
+import { createMemo, type JSX } from 'solid-js';
 
 import type { Decision } from '../core/decision.ts';
 import type { Permission } from '../core/permissions.ts';
@@ -17,9 +17,12 @@ type ScopedView = {
   readonly decision: Decision;
 };
 
-export function Protected(props: ProtectedProps): Accessor<SolidChild> {
+export function Protected(props: ProtectedProps): JSX.Element {
   const root = usePermDock();
-  const local = usePermission(props.permission, () => props.data);
+  const local = usePermission(
+    () => props.permission,
+    () => props.data,
+  );
   const view = createMemo((): ScopedView => {
     if (props.tenant === undefined) {
       return local();
@@ -30,7 +33,7 @@ export function Protected(props: ProtectedProps): Accessor<SolidChild> {
       props.data,
     );
   });
-  return () => {
+  const render = (): SolidChild => {
     const scoped = view();
     if (scoped.status === 'pending') {
       return props.pending ?? null;
@@ -48,6 +51,8 @@ export function Protected(props: ProtectedProps): Accessor<SolidChild> {
     }
     return props.children;
   };
+  // Solid renders an accessor child reactively; its JSX types only name nodes.
+  return render as unknown as JSX.Element;
 }
 
 function tenantView(

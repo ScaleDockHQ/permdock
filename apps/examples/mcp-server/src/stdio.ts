@@ -1,5 +1,9 @@
-import { tools } from './server.ts';
+import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 
-const names = [...tools.keys()].toSorted().join(',');
-process.stderr.write(`mcp-server ready tools=${names}\n`);
-process.stdin.resume();
+import { memberUser } from './policy.ts';
+import { createServer } from './server.ts';
+
+// A stdio server runs as the local user: there is no token, so scopes are
+// not checked and the subject is the account that launched the process.
+const server = createServer({ local: memberUser });
+await server.connect(new StdioServerTransport());

@@ -114,6 +114,45 @@ describe('permdock/drizzle toWhere', () => {
     expect(exists.args).toContain('u1');
   });
 
+  it('escapes LIKE wildcards and matches array columns by element', () => {
+    expect(
+      toWhere({ op: 'contains', field: 'authorId', value: '100%_a' }, posts, {
+        operators: ops(),
+      }),
+    ).toEqual({ op: 'like', args: ['col.author', '%100\\%\\_a%'] });
+    const arrays = { tags: { dataType: 'array' } };
+    expect(
+      toWhere({ op: 'contains', field: 'tags', value: 'draft' }, arrays, {
+        operators: ops(),
+      }),
+    ).toEqual({ op: 'sql', args: ['? = any(?)', 'draft', arrays.tags] });
+  });
+
+  it('binds whole-second expiry and the active tenant in exists joins', () => {
+    const exists = toWhere(
+      { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['viewer'] },
+      posts,
+      {
+        operators: ops(),
+        subject,
+        now: 100.2,
+        memberships: {
+          tenant: {
+            table: 'members',
+            user: 'user_id',
+            role: 'role',
+            tenant: 'org_id',
+            expiresAt: 'expires_at',
+          },
+        },
+      },
+    ) as { op: string; args: unknown[] };
+    expect(String(exists.args[0])).toContain('expires_at > ?');
+    expect(exists.args).toContain(101);
+    expect(exists.args).toContain('o1');
+    expect(exists.args).toContain('viewer');
+  });
+
   it('throws on unknown columns and non-portable grants', () => {
     expect(() =>
       toWhere({ op: 'eq', field: 'missing', value: 'x' }, posts, {

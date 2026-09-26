@@ -36,7 +36,7 @@ The first milestone shipped `packages/permdock` (root entry: definitions, policy
 
 ### Phase 2: v0.2–0.5 "surfaces"
 
-- `permdock/mcp` (`scopeChallenge`, Enterprise-Managed Authorization, elicitation for approvals) — shipped.
+- `permdock/mcp` (`scopeChallenge`, approval-required refusals with an elicitation hint) — shipped. Enterprise-Managed Authorization needs no adapter code: ID-JAG access tokens verify through `permdock/jwt` like any other token.
 - `permdock/authzen` full endpoint set and a certification run — shipped (in-repo Basic / Batch / Search / Discovery shapes).
 - `permdock/openapi` targeting 3.2 (document and [Overlay](/docs/standards/openapi-overlay) output, `x-permdock-*` extensions; the experimental `--overlay 1.2` emitting the pinned Overlay 1.2 reusable-actions draft) with the experimental `--target 3.3` emitting the pinned [OpenAPI 3.3](/docs/standards/openapi-3-3) Security Profile draft — shipped (`permdock openapi emit`; Spectral / Redocly / vacuum ruleset file; `import` still later). Register the `permdock` namespace in the [OpenAPI registries](/docs/standards/openapi-registry) remains.
 - `permdock/react-native` (Expo Router) — shipped (persisted `storage`, `snapshotUrl` revalidate, `clear()`).

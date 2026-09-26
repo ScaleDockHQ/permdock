@@ -1,0 +1,23 @@
+{
+  "name": "@permdock/e2e-mcp-oauth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node scripts/serve.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "catalog:",
+    "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/testing": "workspace:*",
+    "jose": "catalog:",
+    "permdock": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

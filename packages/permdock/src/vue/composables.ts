@@ -59,7 +59,7 @@ export function usePermDock(): ClientPermDock {
 }
 
 export function usePermission(
-  permission: Permission,
+  permission: MaybeRefOrGetter<Permission>,
   data?: MaybeRefOrGetter<unknown>,
 ): {
   readonly allowed: ComputedRef<boolean>;
@@ -70,7 +70,7 @@ export function usePermission(
   const dock = useTick(store);
   const state = computed(() => {
     void dock.value;
-    return store.permissionState(permission, toValue(data));
+    return store.permissionState(toValue(permission), toValue(data));
   });
   return {
     allowed: computed(() => state.value.allowed),
@@ -185,12 +185,11 @@ export function useApproval(
   decision: MaybeRefOrGetter<Decision>,
 ): ComputedRef<ApprovalHandle> {
   const store = useStore();
+  const dock = useTick(store);
   return computed(() => {
+    void dock.value;
     const next = toValue(decision);
-    let state: ApprovalState = 'not-needed';
-    if (next.outcome === 'approval-required') {
-      state = 'required';
-    }
+    const state: ApprovalState = store.approvalState(next);
     return {
       state,
       token: next.outcome === 'approval-required' ? next.token : undefined,

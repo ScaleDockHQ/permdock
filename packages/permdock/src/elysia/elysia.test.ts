@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import { describe, expect, it } from 'vitest';
 
+import { memoryRevocationFeed } from '../core/revocations.ts';
 import {
   memberUser,
   otherPost,
@@ -9,6 +10,37 @@ import {
   policy,
 } from '../fixtures/quick-start.ts';
 import { createPermDock, type ElysiaContext } from './index.ts';
+
+describe('permdock/elysia sockets', () => {
+  it('shares one connection per socket, checks messages and closes with 1008 on revocation', async () => {
+    const revocations = memoryRevocationFeed();
+    const { connection } = createPermDock(policy, {
+      subject: () => memberUser,
+      revocations,
+    });
+    const closes: [number | undefined, string | undefined][] = [];
+    const ws = {
+      data: { request: new Request('http://localhost/ws') },
+      close: (code?: number, reason?: string) => {
+        closes.push([code, reason]);
+      },
+    };
+    const opened = await connection(ws, { permission: permissions.post.list });
+    const again = await connection({ ...ws });
+    expect(again).toBe(opened);
+    expect(opened.check(permissions.post.update, ownPost).outcome).toBe(
+      'granted',
+    );
+    expect(opened.check(permissions.post.update, otherPost).outcome).toBe(
+      'denied',
+    );
+    expect(closes).toEqual([]);
+    await revocations.revoke({ principal: 'u1', kind: 'session-revoked' });
+    expect(closes).toEqual([
+      [1008, 'https://permdock.dev/problems/unauthenticated'],
+    ]);
+  });
+});
 
 describe('permdock/elysia', () => {
   it('sets a request-scoped instance and protects routes', async () => {

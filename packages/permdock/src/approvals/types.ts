@@ -39,6 +39,7 @@ export type ApprovalRequest = {
   readonly resolvedAt?: string;
   readonly resolvedBy?: string;
   readonly note?: string;
+  readonly consumedAt?: string;
 };
 
 export type ApprovalVerdict = {
@@ -71,6 +72,15 @@ export type ApprovalStore = {
     filter: ApprovalListFilter,
   ): Promise<ApprovalRequest[]> | ApprovalRequest[];
   expire(now?: Date): Promise<number> | number;
+  /**
+   * Marks an approved, unexpired, unconsumed request consumed and returns it;
+   * returns `null` otherwise. Must be atomic: two concurrent calls for one
+   * token never both return the request.
+   */
+  consume(
+    token: string,
+    now?: Date,
+  ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   cancel?(
     filter: ApprovalListFilter,
     meta: ApprovalCancelMeta,
@@ -81,7 +91,8 @@ export type ApprovalResumeFailure =
   | 'approval-not-found'
   | 'approval-pending'
   | 'approval-rejected'
-  | 'approval-expired';
+  | 'approval-expired'
+  | 'approval-consumed';
 
 export type ApprovalInspectResult =
   | { readonly ok: true; readonly request: ApprovalRequest }

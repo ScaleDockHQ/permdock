@@ -1,6 +1,10 @@
+import type { WSContext } from 'hono/ws';
+
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import { describe, expect, it } from 'vitest';
 
+import { memoryRevocationFeed } from '../core/revocations.ts';
 import {
   memberUser,
   otherPost,
@@ -9,6 +13,119 @@ import {
   policy,
 } from '../fixtures/quick-start.ts';
 import { createPermDock } from './index.ts';
+
+async function* posts(
+  signal: AbortSignal,
+): AsyncGenerator<typeof ownPost, void, undefined> {
+  yield otherPost;
+  yield ownPost;
+  // A quiet source: parked until the connection ends.
+  await new Promise<void>((resolve) => {
+    signal.addEventListener('abort', () => {
+      resolve();
+    });
+  });
+}
+
+describe('permdock/hono streams and sockets', () => {
+  it('filters SSE items and ends the stream with a permdock event on revocation', async () => {
+    const revocations = memoryRevocationFeed();
+    const { connection, sse } = createPermDock(policy, {
+      subject: () => memberUser,
+      revocations,
+    });
+    const app = new Hono();
+    app.get('/events', async (c) => {
+      const conn = await connection(c, { permission: permissions.post.list });
+      return streamSSE(c, async (stream) => {
+        await sse(conn, stream, posts(conn.signal), {
+          items: permissions.post.update,
+          format: (post) => ({ event: 'post', data: post.id }),
+        });
+      });
+    });
+    const response = await app.request('/events');
+    const reader = response.body?.getReader();
+    if (reader === undefined) {
+      throw new Error('expected a body');
+    }
+    const decoder = new TextDecoder();
+    const first = await reader.read();
+    expect(decoder.decode(first.value)).toBe('event: post\ndata: p1\n\n');
+
+    await revocations.revoke({ principal: 'u1', kind: 'session-revoked' });
+    let rest = '';
+    for (;;) {
+      // oxlint-disable-next-line no-await-in-loop -- reads the stream to its end
+      const chunk = await reader.read();
+      if (chunk.done) {
+        break;
+      }
+      rest += decoder.decode(chunk.value);
+    }
+    expect(rest).toContain('event: permdock');
+    const data = /data: (.+)/u.exec(rest)?.[1] ?? '{}';
+    expect(JSON.parse(data)).toMatchObject({
+      status: 401,
+      detail: 'session-revoked',
+    });
+  });
+
+  it('stops a parked source when the client disconnects', async () => {
+    const { connection, sse } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    let finished = false;
+    const app = new Hono();
+    app.get('/events', async (c) => {
+      const conn = await connection(c, { permission: permissions.post.list });
+      return streamSSE(c, async (stream) => {
+        await sse(conn, stream, posts(conn.signal));
+        finished = true;
+      });
+    });
+    const response = await app.request('/events');
+    const reader = response.body?.getReader();
+    await reader?.read();
+    await reader?.cancel();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+    expect(finished).toBe(true);
+  });
+
+  it('closes a socket with 1008 and the problem type when the connection aborts', async () => {
+    const revocations = memoryRevocationFeed();
+    const { connection, socket } = createPermDock(policy, {
+      subject: () => memberUser,
+      revocations,
+    });
+    const app = new Hono();
+    const closes: [number | undefined, string | undefined][] = [];
+    const opened: string[] = [];
+    app.get('/ws', async (c) => {
+      const conn = await connection(c);
+      const events = socket(conn, {
+        onOpen: () => {
+          opened.push('open');
+        },
+      });
+      const ws = {
+        close: (code?: number, reason?: string) => {
+          closes.push([code, reason]);
+        },
+      } as unknown as WSContext;
+      events.onOpen?.(new Event('open'), ws);
+      return c.text(conn.check(permissions.post.update, ownPost).outcome);
+    });
+    expect(await (await app.request('/ws')).text()).toBe('granted');
+    expect(opened).toEqual(['open']);
+    await revocations.revoke({ principal: 'u1', kind: 'session-revoked' });
+    expect(closes).toEqual([
+      [1008, 'https://permdock.dev/problems/unauthenticated'],
+    ]);
+  });
+});
 
 describe('permdock/hono', () => {
   it('sets a request-scoped instance and protects routes', async () => {

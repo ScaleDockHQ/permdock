@@ -64,6 +64,7 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL
 | `POST` | `/v1/environments/:env/approvals` | `approvals.create` |
 | `GET` | `/v1/environments/:env/approvals/:token` | `approvals.get` (unreachable or unknown → `null`) |
 | `POST` | `/v1/environments/:env/approvals/:token/resolve` | `approvals.resolve` (`409` not pending, `410` expired, `404` missing) |
+| `POST` | `/v1/environments/:env/approvals/:token/consume` | `approvals.consume`: the approved record with `consumedAt` set, or `409` when it is not approved, already consumed or expired (any failure → `null`) ([ADR 0051](/docs/decisions/0051-approval-lifecycle)) |
 | `GET` | `/v1/environments/:env/approvals` | `approvals.list` |
 | `POST` | `/v1/environments/:env/approvals/expire` | `approvals.expire` |
 | `GET` | `/v1/environments/:env/snapshot` | `snapshots.get` (Snapshot v3 JSON or `permdock-snapshot+jwt`) |

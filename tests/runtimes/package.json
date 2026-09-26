@@ -1,0 +1,24 @@
+{
+  "name": "@permdock/runtimes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:runtimes": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@permdock/testing": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "deno": "catalog:",
+    "elysia": "catalog:",
+    "esbuild": "catalog:",
+    "hono": "catalog:",
+    "jose": "catalog:",
+    "miniflare": "catalog:",
+    "permdock": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

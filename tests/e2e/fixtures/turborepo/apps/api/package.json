@@ -1,0 +1,23 @@
+{
+  "name": "@permdock/e2e-turbo-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "catalog:",
+    "@hono/node-server": "catalog:",
+    "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/e2e-turbo-permissions": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "permdock": "workspace:*"
+  },
+  "devDependencies": {
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

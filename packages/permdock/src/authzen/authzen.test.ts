@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { memorySink } from '../core/sink.ts';
 import {
   adminUser,
   memberUser,
@@ -31,6 +32,7 @@ function pdp(
 ): ReturnType<typeof createPermDock>['handler'] {
   return createPermDock(policy, {
     subject: () => ({ id: 'pep', orgId: 'o1', roles: ['admin'] }),
+    trustedPep: (pep) => (pep as { readonly id?: unknown }).id === 'pep',
     resources: {
       post: {
         load: (id) => (id === 'p1' ? ownPost : id === 'p2' ? otherPost : null),
@@ -98,8 +100,52 @@ describe('permdock/authzen', () => {
     expect(body.context.outcome).toBe('denied');
   });
 
+  it('uses the PEP identity unless trustedPep allows the PEP', async () => {
+    for (const trustedPep of [undefined, () => false, true as never]) {
+      const handler = createPermDock(policy, {
+        subject: () => ({ id: 'pep', orgId: 'o1', roles: ['admin'] }),
+        ...(trustedPep === undefined ? {} : { trustedPep }),
+      }).handler;
+      // oxlint-disable-next-line no-await-in-loop
+      const response = await handler(
+        request('/access/v1/evaluation', {
+          json: memberBody({
+            resource: { type: 'post', id: otherPost.id, properties: otherPost },
+          }),
+        }),
+      );
+      const body = (await response.json()) as { readonly decision: boolean };
+      expect(body.decision).toBe(true);
+    }
+  });
+
+  it('ignores a body actor and delegation from an untrusted PEP', async () => {
+    const sink = memorySink();
+    const response = await createPermDock(policy, {
+      subject: () => ({ id: 'pep', orgId: 'o1', roles: ['admin'] }),
+      sink,
+    }).handler(
+      request('/access/v1/evaluation', {
+        json: memberBody({
+          context: {
+            actor: { id: 'forged', kind: 'mcp-client' },
+            delegation: { scopes: [] },
+          },
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      readonly decision: boolean;
+      readonly context: { readonly outcome: string };
+    };
+    expect(body.context.outcome).toBe('granted');
+    const [event] = sink.events();
+    expect(event).toMatchObject({ subject: { principal: { id: 'pep' } } });
+    expect(JSON.stringify(event)).not.toContain('forged');
+  });
+
   it('uses the PEP identity when trustedPep is false', async () => {
-    const response = await pdp({ trustedPep: false })(
+    const response = await pdp({ trustedPep: () => false })(
       request('/access/v1/evaluation', {
         json: memberBody({
           resource: { type: 'post', id: otherPost.id, properties: otherPost },

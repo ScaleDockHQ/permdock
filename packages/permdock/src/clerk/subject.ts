@@ -68,6 +68,8 @@ const REGISTERED_CLAIMS = new Set([
   'org_slug',
   'pla',
   'fea',
+  'o',
+  'v',
 ]);
 
 function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
@@ -150,6 +152,73 @@ function globalRolesFrom(
   return asRoles(readPath(claims, option));
 }
 
+type OrgClaims = {
+  readonly tenant: string | undefined;
+  readonly orgRole: string | undefined;
+  readonly orgPermissions: readonly string[];
+};
+
+function splitList(value: unknown): readonly string[] {
+  return typeof value === 'string'
+    ? value
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item !== '')
+    : [];
+}
+
+function orgFeatures(fea: unknown): readonly string[] {
+  return splitList(fea)
+    .map((token) => /^o:(.+)$/u.exec(token)?.[1])
+    .filter((feature): feature is string => feature !== undefined);
+}
+
+/**
+ * Session token v2 carries the organization as `o: { id, rol, per, fpm }`:
+ * `fpm` holds one bitmask per `o:` feature in `fea`, bit `i` selecting
+ * `per[i]`, so a permission key is `org:<feature>:<per[i]>`.
+ */
+function orgClaimsV2(claims: Record<string, unknown>): OrgClaims | undefined {
+  const org = claims.o;
+  if (!isRecord(org) || typeof org.id !== 'string' || org.id === '') {
+    return undefined;
+  }
+  const role =
+    typeof org.rol === 'string' && org.rol !== ''
+      ? org.rol.startsWith('org:')
+        ? org.rol
+        : `org:${org.rol}`
+      : undefined;
+  const actions = splitList(org.per);
+  const features = orgFeatures(claims.fea);
+  const masks = splitList(org.fpm).map(Number);
+  const orgPermissions: string[] = [];
+  for (const [index, feature] of features.entries()) {
+    const mask = masks[index];
+    if (mask === undefined || !Number.isSafeInteger(mask) || mask < 0) {
+      continue;
+    }
+    for (const [bit, action] of actions.entries()) {
+      if (bit < 31 && (mask & (1 << bit)) !== 0) {
+        orgPermissions.push(`org:${feature}:${action}`);
+      }
+    }
+  }
+  return { tenant: org.id, orgRole: role, orgPermissions };
+}
+
+function orgClaimsV1(claims: Record<string, unknown>): OrgClaims {
+  return {
+    tenant: typeof claims.org_id === 'string' ? claims.org_id : undefined,
+    orgRole: typeof claims.org_role === 'string' ? claims.org_role : undefined,
+    orgPermissions: asRoles(claims.org_permissions),
+  };
+}
+
+function orgClaims(claims: Record<string, unknown>): OrgClaims {
+  return orgClaimsV2(claims) ?? orgClaimsV1(claims);
+}
+
 function isAuthObject(value: unknown): value is ClerkAuthObject {
   if (!isRecord(value)) {
     return false;
@@ -167,7 +236,8 @@ function isVerifiedPayload(value: unknown): value is Record<string, unknown> {
   return (
     typeof value.sid === 'string' ||
     typeof value.azp === 'string' ||
-    typeof value.org_id === 'string'
+    typeof value.org_id === 'string' ||
+    orgClaimsV2(value) !== undefined
   );
 }
 
@@ -180,6 +250,7 @@ function fromAuthObject(auth: ClerkAuthObject): {
   readonly session: string | undefined;
 } {
   const claims = isRecord(auth.sessionClaims) ? { ...auth.sessionClaims } : {};
+  const fromClaims = orgClaims(claims);
   const id =
     typeof auth.userId === 'string'
       ? auth.userId
@@ -187,21 +258,13 @@ function fromAuthObject(auth: ClerkAuthObject): {
         ? claims.sub
         : undefined;
   const tenant =
-    typeof auth.orgId === 'string'
-      ? auth.orgId
-      : typeof claims.org_id === 'string'
-        ? claims.org_id
-        : undefined;
+    typeof auth.orgId === 'string' ? auth.orgId : fromClaims.tenant;
   const orgRole =
-    typeof auth.orgRole === 'string'
-      ? auth.orgRole
-      : typeof claims.org_role === 'string'
-        ? claims.org_role
-        : undefined;
+    typeof auth.orgRole === 'string' ? auth.orgRole : fromClaims.orgRole;
   const orgPermissions =
     auth.orgPermissions !== undefined && auth.orgPermissions !== null
       ? asRoles(auth.orgPermissions)
-      : asRoles(claims.org_permissions);
+      : fromClaims.orgPermissions;
   const session =
     typeof auth.sessionId === 'string'
       ? auth.sessionId
@@ -221,46 +284,76 @@ function fromPayload(claims: Record<string, unknown>): {
 } {
   return {
     id: typeof claims.sub === 'string' ? claims.sub : undefined,
-    tenant: typeof claims.org_id === 'string' ? claims.org_id : undefined,
-    orgRole: typeof claims.org_role === 'string' ? claims.org_role : undefined,
-    orgPermissions: asRoles(claims.org_permissions),
+    ...orgClaims(claims),
     claims,
     session: typeof claims.sid === 'string' ? claims.sid : undefined,
   };
+}
+
+const MEMBERSHIP_PAGE = 100;
+const MEMBERSHIP_PAGES = 50;
+
+function membershipRow(item: unknown, userId: string): Membership | undefined {
+  if (!isRecord(item)) {
+    return undefined;
+  }
+  const owner = isRecord(item.publicUserData)
+    ? item.publicUserData.userId
+    : undefined;
+  if (typeof owner === 'string' && owner !== userId) {
+    return undefined;
+  }
+  const organization = isRecord(item.organization)
+    ? item.organization
+    : undefined;
+  const tenant =
+    typeof item.organizationId === 'string'
+      ? item.organizationId
+      : typeof organization?.id === 'string'
+        ? organization.id
+        : undefined;
+  const roles = asRoles(item.role);
+  if (tenant === undefined || roles.length === 0) {
+    return undefined;
+  }
+  return compact<Membership>({ tenant, roles });
 }
 
 async function extraMemberships(
   backend: ClerkBackend | undefined,
   userId: string,
 ): Promise<readonly Membership[]> {
+  const list = backend?.users?.getOrganizationMembershipList;
+  if (list === undefined) {
+    return [];
+  }
   try {
-    const raw = await backend?.users?.getOrganizationMembershipList?.({
-      userId,
-    });
-    const rows = Array.isArray(raw)
-      ? raw
-      : isRecord(raw) && Array.isArray(raw.data)
-        ? raw.data
-        : [];
     const out: Membership[] = [];
-    for (const item of rows) {
-      if (!isRecord(item)) {
-        continue;
+    for (let page = 0; page < MEMBERSHIP_PAGES; page += 1) {
+      const offset = page * MEMBERSHIP_PAGE;
+      // oxlint-disable-next-line no-await-in-loop -- each page's offset depends on the previous page's size
+      const raw = await list({ userId, limit: MEMBERSHIP_PAGE, offset });
+      const rows = Array.isArray(raw)
+        ? raw
+        : isRecord(raw) && Array.isArray(raw.data)
+          ? raw.data
+          : [];
+      for (const item of rows) {
+        const row = membershipRow(item, userId);
+        if (row !== undefined) {
+          out.push(row);
+        }
       }
-      const organization = isRecord(item.organization)
-        ? item.organization
-        : undefined;
-      const tenant =
-        typeof item.organizationId === 'string'
-          ? item.organizationId
-          : typeof organization?.id === 'string'
-            ? organization.id
-            : undefined;
-      const roles = asRoles(item.role);
-      if (tenant === undefined || roles.length === 0) {
-        continue;
+      const total =
+        isRecord(raw) && typeof raw.totalCount === 'number'
+          ? raw.totalCount
+          : undefined;
+      if (
+        rows.length < MEMBERSHIP_PAGE ||
+        (total !== undefined && offset + rows.length >= total)
+      ) {
+        break;
       }
-      out.push(compact<Membership>({ tenant, roles }));
     }
     return out;
   } catch {

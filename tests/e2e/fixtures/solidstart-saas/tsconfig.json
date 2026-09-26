@@ -1,0 +1,17 @@
+{
+  "extends": "@permdock/typescript-config/base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "declaration": false,
+    "isolatedDeclarations": false,
+    "exactOptionalPropertyTypes": false,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "types": ["node", "@solidjs/start/env"]
+  },
+  "include": ["src", "scripts", "vite.config.ts"]
+}

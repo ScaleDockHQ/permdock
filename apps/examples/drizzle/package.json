@@ -9,6 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@electric-sql/pglite": "catalog:",
+    "@hono/node-server": "catalog:",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "permdock": "workspace:*",

@@ -130,7 +130,7 @@ export function fromSnapshot(
       });
     },
     where(permission) {
-      return whereFromSnapshot(snapshot, permission);
+      return whereFromSnapshot(snapshot, subject, permission, team);
     },
     actions(resource, data, decideOptions) {
       const fromTree = listPermissions(resource as never);

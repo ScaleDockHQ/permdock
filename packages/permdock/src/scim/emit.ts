@@ -4,7 +4,7 @@ import type {
   SinkEvent,
 } from '../core/interfaces.ts';
 import type { ScimCredential } from './auth.ts';
-import type { DirectoryGroup } from './types.ts';
+import type { DirectoryGroup, DirectoryUser } from './types.ts';
 import type { ScimHandlerOptions } from './types.ts';
 
 import { compact } from '../core/compact.ts';
@@ -78,6 +78,8 @@ export async function emitDirectory(
   event: DirectoryEvent,
   userIds: readonly string[],
   extra: readonly SinkEvent[] = [],
+  /** Records read before a delete, when the store can no longer return them. */
+  known: readonly DirectoryUser[] = [],
 ): Promise<void> {
   const sink = options.sink ?? memorySink();
   try {
@@ -89,6 +91,66 @@ export async function emitDirectory(
     await options.onChange?.({ tenant: event.tenant, userIds });
   } catch {
     // Snapshot invalidation is best-effort.
+  }
+  await publishChanged(options, event.tenant, userIds, known);
+}
+
+/** Every identifier a principal may carry for these users, deduplicated. */
+async function principalIds(
+  options: ScimHandlerOptions,
+  tenant: string,
+  userIds: readonly string[],
+  known: readonly DirectoryUser[],
+): Promise<readonly string[]> {
+  const ids = new Set<string>();
+  const users = await Promise.all(
+    userIds.map(async (id) => {
+      const hit = known.find((user) => user.id === id);
+      if (hit !== undefined) {
+        return hit;
+      }
+      try {
+        return await options.store.getUser(tenant, id);
+      } catch {
+        return null;
+      }
+    }),
+  );
+  for (const [index, user] of users.entries()) {
+    ids.add(userIds[index] ?? '');
+    if (user !== null) {
+      ids.add(user.userName);
+      if (user.externalId !== undefined) {
+        ids.add(user.externalId);
+      }
+    }
+  }
+  ids.delete('');
+  return [...ids];
+}
+
+async function publishChanged(
+  options: ScimHandlerOptions,
+  tenant: string,
+  userIds: readonly string[],
+  known: readonly DirectoryUser[],
+): Promise<void> {
+  const feed = options.revocations;
+  if (feed === undefined || userIds.length === 0) {
+    return;
+  }
+  try {
+    for (const principal of await principalIds(
+      options,
+      tenant,
+      userIds,
+      known,
+    )) {
+      // oxlint-disable-next-line no-await-in-loop -- a feed may bridge to pub/sub
+      await feed.revoke({ principal, tenant, kind: 'changed' });
+    }
+  } catch {
+    // Connections fall back to their expiry when a feed is down.
   }
 }
 

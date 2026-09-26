@@ -54,6 +54,15 @@ Done when every quota grant has a `LimitStore` and no tool uses only `can` to en
 
 Done when each of those four checks has a pass or a file-level finding.
 
+## Tests
+
+- No `describePolicy` suite, or one with `exhaustive: false`, is a finding: a new permission can ship untested.
+- A list endpoint that uses `where()` / `toWhere` or generated RLS without an `ormParity` or `rlsParity` run is a finding.
+- A custom `ApprovalStore`, `DecisionSink`, `MembershipSource`, `RoleSource`, `SnapshotSource`, `LimitStore` or `DirectoryStore` without its `test<Interface>` runner from `@permdock/testing` is a finding.
+- Expectations computed by calling `decide` or `can` in the test are a finding; write the expected outcome by hand.
+
+Done when every policy, list query and custom store has its runner, or a finding.
+
 ## ASI02 and ASI03
 
 Map the inventory onto [OWASP Agentic](https://permdock.dev/docs/security/owasp-agentic):

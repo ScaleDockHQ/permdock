@@ -3,6 +3,7 @@ export type {
   ConditionRef,
   ConditionValue,
   MemberOfCondition,
+  MemberOfParent,
   SqlFunctionArg,
   SqlFunctionCondition,
 } from './ast.ts';

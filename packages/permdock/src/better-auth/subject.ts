@@ -67,52 +67,102 @@ function isTrustedSession(
   return isRecord(session.user) || isRecord(session.session);
 }
 
+async function settle<T>(load: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await load();
+  } catch {
+    return fallback;
+  }
+}
+
+async function organizationIds(
+  auth: BetterAuthLike,
+  tenant: string | undefined,
+  options: BetterAuthSubjectOptions,
+): Promise<readonly string[]> {
+  const list = auth.api?.listOrganizations;
+  if (options.memberships === 'active' || list === undefined) {
+    return tenant === undefined ? [] : [tenant];
+  }
+  const rows = await settle(async () => {
+    const value: unknown = await list({ headers: options.headers });
+    return Array.isArray(value) ? value : [];
+  }, []);
+  const ids = rows
+    .map((row: unknown) =>
+      isRecord(row) && typeof row.id === 'string' ? row.id : undefined,
+    )
+    .filter((id): id is string => id !== undefined && id !== '');
+  return [...new Set(ids)];
+}
+
+function memberIn(
+  auth: BetterAuthLike,
+  userId: string,
+  organizationId: string,
+  tenant: string | undefined,
+  headers: unknown,
+): Promise<readonly Membership[]> {
+  const active = auth.api?.getActiveMember;
+  if (organizationId === tenant && active !== undefined) {
+    return settle(
+      async () => parseMemberRows(await active({ headers }), userId),
+      [],
+    );
+  }
+  const list = auth.api?.listMembers;
+  if (list === undefined) {
+    return Promise.resolve([]);
+  }
+  return settle(
+    async () =>
+      parseMemberRows(
+        await list({
+          query: {
+            organizationId,
+            filterField: 'userId',
+            filterOperator: 'eq',
+            filterValue: userId,
+          },
+          headers,
+        }),
+        userId,
+      ).filter((item) => item.tenant === organizationId),
+    [],
+  );
+}
+
 async function loadMemberships(
   auth: BetterAuthLike,
   session: Record<string, unknown>,
   user: Record<string, unknown>,
+  userId: string,
   tenant: string | undefined,
   options: BetterAuthSubjectOptions,
 ): Promise<readonly Membership[]> {
-  const injectedMembers = parseMemberRows(
+  let members = parseMemberRows(
     session.members ?? session.member ?? user.members,
+    userId,
+    false,
   );
-  const injectedTeams = parseTeamRows(
+  let teams = parseTeamRows(
     session.teamMembers ?? session.teams ?? user.teamMembers,
+    userId,
   );
-  let members = injectedMembers;
-  let teams = injectedTeams;
   const headers = options.headers;
-  if (members.length === 0 && auth.api?.listOrganizations !== undefined) {
-    try {
-      members = parseMemberRows(await auth.api.listOrganizations({ headers }));
-    } catch {
-      members = [];
-    }
+  if (members.length === 0) {
+    const ids = await organizationIds(auth, tenant, options);
+    const found = await Promise.all(
+      ids.map((id) => memberIn(auth, userId, id, tenant, headers)),
+    );
+    members = found.flat();
   }
-  if (members.length === 0 && auth.api?.listMembers !== undefined) {
-    try {
-      members = parseMemberRows(
-        await auth.api.listMembers({
-          query: compact({ organizationId: tenant }),
-          headers,
-        }),
-      );
-    } catch {
-      members = [];
-    }
-  }
-  if (teams.length === 0 && auth.api?.listTeams !== undefined) {
-    try {
-      teams = parseTeamRows(
-        await auth.api.listTeams({
-          query: compact({ organizationId: tenant }),
-          headers,
-        }),
-      );
-    } catch {
-      teams = [];
-    }
+  const listUserTeams = auth.api?.listUserTeams;
+  if (teams.length === 0 && listUserTeams !== undefined) {
+    teams = await settle(
+      async () => parseTeamRows(await listUserTeams({ headers }), userId),
+      [],
+    );
   }
   if (options.memberships === 'active' && tenant !== undefined) {
     members = members.filter((item) => item.tenant === tenant);
@@ -161,6 +211,7 @@ export async function subjectFromBetterAuth(
       auth,
       session,
       user,
+      id,
       tenant,
       options,
     );

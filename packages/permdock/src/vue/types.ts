@@ -1,3 +1,5 @@
+import type { MaybeRefOrGetter } from 'vue';
+
 import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
 import type {
   ApprovalHandle,
@@ -13,7 +15,14 @@ import type {
 } from '../react/types.ts';
 
 export type PermDockPluginOptions = {
-  readonly snapshot: Snapshot | string;
+  /**
+   * A ref or getter re-hydrates the store when it changes; a promise keeps
+   * the store `pending` until it settles (await the same promise in an async
+   * `setup` under `<Suspense>`).
+   */
+  readonly snapshot:
+    | MaybeRefOrGetter<Snapshot | string>
+    | PromiseLike<Snapshot | string>;
   readonly endpoint?: string;
   readonly approvals?: string;
   readonly tenant?: string;

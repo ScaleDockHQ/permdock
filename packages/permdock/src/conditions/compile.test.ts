@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Subject } from '../core/subject.ts';
+import type { Condition } from './ast.ts';
 
 import { PermDockValidationError } from '../core/errors.ts';
 import { compileWhere } from './compile.ts';
@@ -88,12 +89,19 @@ describe('compileWhere', () => {
         field: 'due',
         value: { date: '2026-01-01' },
       }),
-    ).toEqual({ kind: 'compare', op: 'gt', field: 'due', value: '2026-01-01' });
+    ).toEqual({
+      kind: 'compare',
+      op: 'gt',
+      field: 'due',
+      value: new Date('2026-01-01'),
+    });
     expect(compileWhere({ op: 'in', field: 'id', value: [] })).toEqual({
       kind: 'never',
     });
     expect(compileWhere({ op: 'notIn', field: 'id', value: [] })).toEqual({
-      kind: 'always',
+      kind: 'isNull',
+      field: 'id',
+      negated: true,
     });
   });
 
@@ -243,6 +251,9 @@ describe('compileWhere', () => {
       rowColumn: 'organization_id',
       rowField: 'orgId',
       expiresAt: 'expires_at',
+      now: expect.any(Number),
+      tenantColumn: 'organization_id',
+      tenantValue: 'o1',
     });
     expect(
       compileWhere(
@@ -317,8 +328,14 @@ describe('compileWhere', () => {
         condition: { op: 'eq', field: 'authorId', value: 'u1' },
       }),
     ).toEqual({
-      kind: 'not',
-      item: { kind: 'compare', op: 'eq', field: 'authorId', value: 'u1' },
+      kind: 'or',
+      items: [
+        {
+          kind: 'not',
+          item: { kind: 'compare', op: 'eq', field: 'authorId', value: 'u1' },
+        },
+        { kind: 'isNull', field: 'authorId', negated: false },
+      ],
     });
     expect(
       compileWhere({
@@ -500,5 +517,216 @@ describe('compileWhere', () => {
     expect(() =>
       compileWhere({ op: 'eq', field: 'constructor', value: 'x' }),
     ).toThrow(/forbidden/);
+  });
+  it('keys parent hops by resource in the in-list and exists forms', () => {
+    const condition = {
+      op: 'memberOf',
+      scope: 'resource',
+      resource: 'doc',
+      field: 'id',
+      roles: ['editor'],
+      parents: [{ field: 'folderId', resource: 'folder' }],
+    } as const;
+    const holder: Subject = {
+      principal: {
+        id: 'u1',
+        memberships: [
+          { on: { resource: 'folder', id: 'f1' }, roles: ['editor'] },
+          { on: { resource: 'project', id: 'p1' }, roles: ['editor'] },
+        ],
+      },
+      context: {},
+    };
+    expect(compileWhere(condition, { subject: holder })).toEqual({
+      kind: 'compare',
+      op: 'eq',
+      field: 'folderId',
+      value: 'f1',
+    });
+    const table = {
+      table: 'members',
+      user: 'user_id',
+      role: 'role',
+      id: 'on_id',
+    };
+    expect(
+      compileWhere(condition, {
+        subject: holder,
+        now: 1,
+        memberships: { resource: { doc: table } },
+      }),
+    ).toMatchObject({ kind: 'exists', rowField: 'id' });
+    const shared = { ...table, resource: 'on_type' };
+    expect(
+      compileWhere(condition, {
+        subject: holder,
+        now: 1,
+        memberships: { resource: { doc: shared, folder: shared } },
+      }),
+    ).toMatchObject({
+      kind: 'or',
+      items: [
+        { kind: 'exists', rowField: 'id', resourceValue: 'doc' },
+        { kind: 'exists', rowField: 'folderId', resourceValue: 'folder' },
+      ],
+    });
+  });
+
+  it('negates every compiled node kind with SQL NULL in mind', () => {
+    expect(
+      compileWhere({ op: 'not', condition: { op: 'or', conditions: [] } }),
+    ).toEqual({
+      kind: 'always',
+    });
+    expect(
+      compileWhere({ op: 'not', condition: { op: 'and', conditions: [] } }),
+    ).toEqual({ kind: 'never' });
+    expect(
+      compileWhere({
+        op: 'not',
+        condition: {
+          op: 'and',
+          conditions: [
+            { op: 'eq', field: 'a', value: 1 },
+            { op: 'isNull', field: 'b', value: true },
+          ],
+        },
+      }),
+    ).toEqual({
+      kind: 'or',
+      items: [
+        {
+          kind: 'or',
+          items: [
+            {
+              kind: 'not',
+              item: { kind: 'compare', op: 'eq', field: 'a', value: 1 },
+            },
+            { kind: 'isNull', field: 'a', negated: false },
+          ],
+        },
+        { kind: 'isNull', field: 'b', negated: true },
+      ],
+    });
+    expect(
+      compileWhere({
+        op: 'not',
+        condition: {
+          op: 'or',
+          conditions: [
+            { op: 'isNull', field: 'a', value: true },
+            { op: 'isNull', field: 'b', value: true },
+          ],
+        },
+      }),
+    ).toEqual({
+      kind: 'and',
+      items: [
+        { kind: 'isNull', field: 'a', negated: true },
+        { kind: 'isNull', field: 'b', negated: true },
+      ],
+    });
+    expect(
+      compileWhere({
+        op: 'not',
+        condition: { op: 'not', condition: { op: 'eq', field: 'a', value: 1 } },
+      }),
+    ).toEqual({
+      kind: 'and',
+      items: [
+        { kind: 'compare', op: 'eq', field: 'a', value: 1 },
+        { kind: 'isNull', field: 'a', negated: true },
+      ],
+    });
+    const member: Subject = {
+      principal: {
+        id: 'u1',
+        tenant: 'o1',
+        memberships: [{ tenant: 'o1', roles: [] }],
+      },
+      context: {},
+    };
+    expect(
+      compileWhere(
+        {
+          op: 'not',
+          condition: {
+            op: 'memberOf',
+            scope: 'tenant',
+            field: 'orgId',
+            roles: [],
+          },
+        },
+        {
+          subject: member,
+          memberships: {
+            tenant: { table: 'm', user: 'u', role: 'r', tenant: 't' },
+          },
+        },
+      ),
+    ).toMatchObject({ kind: 'not', item: { kind: 'exists', roles: [] } });
+    expect(
+      compileWhere(
+        { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: [] },
+        { subject: member },
+      ),
+    ).toEqual({ kind: 'compare', op: 'eq', field: 'orgId', value: 'o1' });
+  });
+
+  it('fails closed on invalid dates, null values and unknown operators', () => {
+    expect(
+      compileWhere({ op: 'gt', field: 'due', value: { date: 'not a date' } }),
+    ).toEqual({ kind: 'never' });
+    expect(compileWhere({ op: 'eq', field: 'a', value: null })).toEqual({
+      kind: 'never',
+    });
+    expect(() =>
+      compileWhere({ op: 'nope', field: 'a' } as unknown as Condition),
+    ).toThrow(/unknown condition/);
+  });
+
+  it('compiles a bare parent hop against the row table without a resource key', () => {
+    const holder: Subject = {
+      principal: {
+        id: 'u1',
+        memberships: [
+          { on: { resource: 'folder', id: 'f1' }, roles: ['editor'] },
+        ],
+      },
+      context: {},
+    };
+    expect(
+      compileWhere(
+        {
+          op: 'memberOf',
+          scope: 'resource',
+          resource: 'doc',
+          field: 'id',
+          roles: ['editor'],
+          parents: ['folderId'],
+        },
+        {
+          subject: holder,
+          now: 1,
+          memberships: {
+            resource: {
+              doc: {
+                table: 'members',
+                user: 'u',
+                role: 'r',
+                id: 'on_id',
+                resource: 'kind',
+              },
+            },
+          },
+        },
+      ),
+    ).toMatchObject({
+      kind: 'or',
+      items: [
+        { kind: 'exists', rowField: 'id', resourceValue: 'doc' },
+        { kind: 'exists', rowField: 'folderId' },
+      ],
+    });
   });
 });

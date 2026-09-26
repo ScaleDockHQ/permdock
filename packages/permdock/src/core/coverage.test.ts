@@ -29,7 +29,7 @@ import { memorySink } from './sink.ts';
 import { parseSnapshot } from './snapshot.ts';
 import { isPrincipal, isSubject } from './subject.ts';
 import {
-  parentFieldChain,
+  membershipField,
   matchScopedMembership,
   nowSeconds,
 } from './tenancy.ts';
@@ -257,18 +257,16 @@ describe('coverage edges', () => {
     }
     const resources = tree as unknown as { readonly [key: string]: unknown };
     void resources;
-    expect(parentFieldChain(undefined, new Map()).length).toBe(0);
-    const org = (await import('./permissions.ts')).getResource(tree, 'org');
-    const post = (await import('./permissions.ts')).getResource(tree, 'post');
-    expect(
-      parentFieldChain(
-        post,
-        new Map([
-          ['org', org!],
-          ['post', post!],
-        ]),
-      ),
-    ).toEqual(['orgId']);
+    expect(membershipField(undefined, 'org', new Map())).toBeUndefined();
+    const org = getResource(tree, 'org');
+    const post = getResource(tree, 'post');
+    const graph = new Map([
+      ['org', org!],
+      ['post', post!],
+    ]);
+    expect(membershipField(post, 'org', graph)).toBe('orgId');
+    expect(membershipField(post, 'post', graph)).toBe('id');
+    expect(membershipField(post, 'team', graph)).toBeUndefined();
     const cycled = post!;
     const looping = new Map([
       [
@@ -280,8 +278,8 @@ describe('coverage edges', () => {
       ],
     ]);
     expect(
-      parentFieldChain(looping.get('post'), looping).length,
-    ).toBeGreaterThan(0);
+      membershipField(looping.get('post'), 'org', looping),
+    ).toBeUndefined();
 
     const throwingSource = await createPermDock(
       policy,
@@ -683,6 +681,7 @@ describe('coverage edges', () => {
         { orgId: 'o2' },
         { tenant: { key: 'orgId' } },
         undefined,
+        new Map(),
         now,
       ).ok,
     ).toBe(false);
@@ -694,6 +693,7 @@ describe('coverage edges', () => {
         {},
         {},
         undefined,
+        new Map(),
         now,
       ).ok,
     ).toBe(false);
@@ -712,6 +712,7 @@ describe('coverage edges', () => {
         { teamId: 'other' },
         { team: { key: 'teamId' } },
         undefined,
+        new Map(),
         now,
       ).ok,
     ).toBe(false);
@@ -723,6 +724,7 @@ describe('coverage edges', () => {
         { id: 'p1' },
         {},
         undefined,
+        new Map(),
         now,
       ).ok,
     ).toBe(false);
@@ -740,6 +742,7 @@ describe('coverage edges', () => {
       {},
       {},
       undefined,
+      new Map(),
       now,
     );
     expect(expiredOnly.ok).toBe(false);
@@ -871,6 +874,7 @@ describe('coverage edges', () => {
     );
     expect(principal.id[Symbol.iterator as unknown as string]).toBeUndefined();
     expect(parseSnapshot({ v: 1, grants: [] }).v).toBe(1);
+    const postNode = getResource(tree, 'post');
     expect(
       matchScopedMembership(
         {
@@ -886,7 +890,8 @@ describe('coverage edges', () => {
         'owner',
         { id: 'p1' },
         {},
-        undefined,
+        postNode,
+        new Map(),
         now,
       ).ok,
     ).toBe(true);
@@ -906,6 +911,7 @@ describe('coverage edges', () => {
         null,
         {},
         undefined,
+        new Map(),
         now,
       ).ok,
     ).toBe(false);
@@ -933,6 +939,7 @@ describe('coverage edges', () => {
           instanceActions: new Set(),
           collectionActions: new Set(),
         },
+        new Map(),
         now,
       ).ok,
     ).toBe(false);

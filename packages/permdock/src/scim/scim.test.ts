@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import type { DirectoryEvent, TokenVerifier } from '../core/interfaces.ts';
+import type { RevocationEvent } from '../core/revocations.ts';
 
 import { createPermDock } from '../core/permdock.ts';
+import { memoryRevocationFeed } from '../core/revocations.ts';
 import { memorySink } from '../core/sink.ts';
 import {
   allow,
@@ -129,6 +131,41 @@ describe('memoryDirectoryStore', () => {
       meta: { created: '', lastModified: '' },
     });
     expect(copy.userName).toBe('ada');
+  });
+
+  it('matches `pr` only on a non-empty value (RFC 7644 §3.4.2.2)', async () => {
+    const store = memoryDirectoryStore();
+    for (const [id, members] of [
+      ['g_full', [{ value: 'u1' }]],
+      ['g_empty', []],
+    ] as const) {
+      // oxlint-disable-next-line no-await-in-loop -- order is the page order
+      await store.putGroup(TENANT, {
+        id,
+        displayName: id,
+        members,
+        meta: { created: '', lastModified: '' },
+      });
+    }
+    await store.putUser(TENANT, {
+      id: 'u_blank',
+      userName: 'blank',
+      externalId: '',
+      active: true,
+      meta: { created: '', lastModified: '' },
+    });
+    const groups = await store.findGroups(
+      TENANT,
+      { op: 'pr', attribute: 'members.value' },
+      {},
+    );
+    expect(groups.Resources.map((group) => group.id)).toEqual(['g_full']);
+    const users = await store.findUsers(
+      TENANT,
+      { op: 'pr', attribute: 'externalId' },
+      {},
+    );
+    expect(users.Resources).toEqual([]);
   });
 });
 
@@ -633,5 +670,70 @@ describe('scimHandler', () => {
     expect(denied.can(permissions.post.read, { id: 'p1', orgId: TENANT })).toBe(
       false,
     );
+  });
+});
+
+describe('scimHandler revocations', () => {
+  it('publishes changed for id, userName and externalId on deactivate and delete', async () => {
+    const feed = memoryRevocationFeed();
+    const seen: RevocationEvent[] = [];
+    feed.subscribe((event) => {
+      seen.push(event);
+    });
+    const { handle } = handler({ revocations: feed });
+    const user = await json(
+      await handle(
+        request('/Users', {
+          method: 'POST',
+          body: JSON.stringify({
+            schemas: [USER_SCHEMA],
+            userName: 'ada',
+            externalId: '00u1',
+            active: true,
+          }),
+        }),
+      ),
+    );
+    const id = String(user.id);
+    const expected = [id, 'ada', '00u1']
+      .map((principal) => ({ principal, tenant: TENANT, kind: 'changed' }))
+      .toSorted((a, b) => a.principal.localeCompare(b.principal));
+    const sorted = (): RevocationEvent[] =>
+      seen.toSorted((a, b) => a.principal.localeCompare(b.principal));
+
+    seen.length = 0;
+    await handle(
+      request(`/Users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          schemas: [PATCH_SCHEMA],
+          Operations: [{ op: 'replace', path: 'active', value: false }],
+        }),
+      }),
+    );
+    expect(sorted()).toEqual(expected);
+
+    seen.length = 0;
+    const deleted = await handle(request(`/Users/${id}`, { method: 'DELETE' }));
+    expect(deleted.status).toBe(204);
+    expect(sorted()).toEqual(expected);
+  });
+
+  it('keeps the IdP write successful when the feed throws', async () => {
+    const { handle } = handler({
+      revocations: {
+        subscribe: () => () => undefined,
+        revoke: () => {
+          throw new Error('down');
+        },
+      },
+    });
+    const created = await handle(
+      request('/Users', {
+        method: 'POST',
+        body: JSON.stringify({ schemas: [USER_SCHEMA], userName: 'ada' }),
+      }),
+    );
+    expect(created.status).toBe(201);
   });
 });

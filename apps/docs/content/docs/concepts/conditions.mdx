@@ -167,7 +167,7 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 ## Semantics to keep in mind
 
 - Three-valued logic. In memory a comparison with `undefined` or `null` is `false`, never `true`, mirroring SQL where `NULL = x` is unknown and unknown filters out. `isNull` is the explicit way to test for absence.
-- Dates compare by instant. `{ date }` tags carry ISO strings with an offset; comparisons parse them once.
+- Dates compare by instant. `{ date }` tags carry ISO strings with an offset; comparisons parse them once. A comparison is by instant only when one side is a `Date` or a `{ date }` tag, and the other side must then be a `Date`, epoch milliseconds or an ISO 8601 string (the Postgres text form included). Otherwise both sides must have the same primitive type: `'2'` never equals `2`, and ids such as `'user-2'`, `'org-1'` or `'acme-1'` are never read as dates.
 - Case and collation are the database's business. `contains` on strings is case-sensitive in memory and compiles to `LIKE`, not `ILIKE`.
 - Nested paths are not in v1. Conditions address top-level fields of the resource schema; relation data goes through `memberships` (roles held somewhere) or `context` (everything else).
 - `memberOf` is evaluated against the frozen subject's memberships, so an expired membership or an active tenant with no membership makes it `false`, the same way a missing field does.

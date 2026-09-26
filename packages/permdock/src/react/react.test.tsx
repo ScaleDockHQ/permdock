@@ -112,6 +112,38 @@ describe('permdock/react', () => {
     expect(state.status).toBe('server-only');
   });
 
+  it('never calls the endpoint while rendering on the server', async () => {
+    const snapshot = await memberSnapshot();
+    let calls = 0;
+    const store = createClientStore({
+      snapshot: {
+        ...snapshot,
+        grants: snapshot.grants.map((grant) =>
+          grant.permission === 'post.update'
+            ? {
+                permission: grant.permission,
+                effect: grant.effect,
+                role: grant.role,
+                portable: false as const,
+              }
+            : grant,
+        ),
+      },
+      endpoint: '/api/permdock',
+      fetch: () => {
+        calls += 1;
+        return Promise.resolve(new Response('{}'));
+      },
+    });
+    expect(
+      store.permissionState(permissions.post.update, ownPost),
+    ).toMatchObject({ allowed: false, status: 'pending' });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(calls).toBe(0);
+  });
+
   it('batches endpoint evaluations and caches by resource id', async () => {
     const snapshot = await memberSnapshot();
     const calls: unknown[] = [];
@@ -130,6 +162,7 @@ describe('permdock/react', () => {
         ),
       },
       endpoint: '/api/permdock',
+      server: false,
       fetch: async (_input, init) => {
         calls.push(JSON.parse(String(init?.body)));
         return new Response(

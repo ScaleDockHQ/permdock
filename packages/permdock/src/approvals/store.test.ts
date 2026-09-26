@@ -80,6 +80,26 @@ describe('memoryApprovalStore', () => {
     ).toThrow('approval is not pending');
   });
 
+  it('keeps a resolved request when the same call asks again', () => {
+    const store = memoryApprovalStore();
+    store.create(pending());
+    store.resolve('pd1.token-1', {
+      status: 'approved',
+      by: subject('u_9', 'o_1'),
+    });
+    store.create(pending({ detail: 'asked again' }));
+    expect(store.get('pd1.token-1')?.status).toBe('approved');
+    expect(store.list({ status: 'pending' })).toHaveLength(0);
+  });
+
+  it('replaces an expired request on a new ask', () => {
+    const store = memoryApprovalStore();
+    store.create(pending({ expiresAt: past }));
+    store.create(pending());
+    expect(store.get('pd1.token-1')?.status).toBe('pending');
+    expect(store.get('pd1.token-1')?.expiresAt).toBe(future);
+  });
+
   it('treats unknown tokens as missing and refuses the actor', () => {
     const store = memoryApprovalStore({ ttl: 1_000 });
     expect(store.ttl).toBe(1_000);
@@ -224,7 +244,7 @@ describe('request and resume helpers', () => {
       pending({
         token: 'pd1.old-ok',
         status: 'approved',
-        expiresAt: past,
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
         resolvedBy: 'u_9',
         resolvedAt: created,
       }),

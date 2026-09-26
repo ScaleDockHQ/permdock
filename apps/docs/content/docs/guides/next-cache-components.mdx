@@ -178,6 +178,7 @@ Run against `next build && next start` with `experimental.exposeTestingApiInProd
 - `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
 - A `stale` below 30 seconds silently drops the snapshot from per-link prefetches, and below 300 seconds from the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
 - Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.
+- Sign out with a document navigation (a plain `<form method="post">` to a Route Handler that clears the cookie and answers `303`), not a Server Action `redirect`. The App Router keeps visited routes as hidden trees in the page, so after a client-side sign-out the previous user's gated nav can stay in the DOM while the next user signs in. The `next-saas` fixture's scenario 7 asserts it never appears.
 
 ## Related
 

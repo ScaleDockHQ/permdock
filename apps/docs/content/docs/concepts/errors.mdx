@@ -1,9 +1,9 @@
 ---
 title: Errors
-description: PermDock throws three error classes, each carrying the Decision or issues that caused it, and adapters map them to Problem Details and model-readable refusals.
+description: PermDock throws three evaluation error classes and ends long-lived connections with a fourth, each carrying the Decision or issues that caused it, and adapters map them to Problem Details and model-readable refusals.
 ---
 
-PermDock's evaluation path never throws: `can`, `decide`, `filter`, `where`, `simulate` and `snapshot` return values for every input, including anonymous subjects, unknown roles and invalid data. Throwing is reserved for `assert` and for configuration mistakes, and it uses exactly three classes. Each carries the structured object that explains it, so an adapter, a test or a log never has to parse a message.
+PermDock's evaluation path never throws: `can`, `decide`, `filter`, `where`, `simulate` and `snapshot` return values for every input, including anonymous subjects, unknown roles and invalid data. Throwing is reserved for `assert` and for configuration mistakes, and it uses exactly three classes; a fourth, `PermDockRevokedError`, is never thrown by a check but is the `reason` of an aborted connection signal. Each carries the structured object that explains it, so an adapter, a test or a log never has to parse a message.
 
 ## The three classes
 
@@ -13,7 +13,9 @@ PermDock's evaluation path never throws: `can`, `decide`, `filter`, `where`, `si
 | `PermDockApprovalRequiredError` | `assert` when the outcome is `approval-required` | the `approval-required` `Decision` including `token` | 403, `type` `/approval-required` |
 | `PermDockValidationError` | boundary validation when data fails its resource schema, when a schema is async, or when a schema is missing in `'always'` mode | `code`, `issues`, `permission`, `resource`, `boundary` | 400, `type` `/validation` |
 
-All three extend `Error`, set `name` to the class name, and are exported from `permdock`. They are ordinary subclasses with no prototype tricks, so `instanceof` works across the package's own entry points; across bundle copies, check `error.name`.
+| `PermDockRevokedError` | never thrown by a check; the `reason` of a [`Connection`](/docs/adapters/server-kernel#connections) signal when a stream or socket must end, and what tRPC and oRPC subscriptions end with | `code` (`session-revoked`, `expired`, `denied`, `subject-changed`), `permission`, the re-denying `decision` for `denied` | 403 `/denied` for `denied`, otherwise 401 `/unauthenticated` with `detail` set to the `code` |
+
+All four extend `Error`, set `name` to the class name, and are exported from `permdock`. They are ordinary subclasses with no prototype tricks, so `instanceof` works across the package's own entry points; across bundle copies, check `error.name`.
 
 HTTP adapters add one kernel rejection that is not an evaluation class: `InvalidSignatureError` from `permdock/server` when `webBotAuth.verify` is on and a claimed RFC 9421 signature fails. `protect` returns the Problem Details `response` (`type` `.../invalid-signature`); it is never downgraded to an anonymous actor.
 
@@ -78,6 +80,20 @@ class PermDockValidationError extends Error {
 
 `issues` is the Standard Schema issue array unchanged, so it renders with whatever you already use for your validator's errors. `code: 'async-schema'` and `'no-schema'` are configuration errors and should be treated as bugs, not user input problems. Details on modes and boundaries: [validation](/docs/concepts/validation).
 
+## PermDockRevokedError
+
+```ts
+class PermDockRevokedError extends Error {
+  readonly name: 'PermDockRevokedError'
+  readonly code: 'session-revoked' | 'expired' | 'denied' | 'subject-changed'
+  readonly permission?: string         // the permission the connection was opened for
+  readonly decision?: Exclude<Decision, { outcome: 'granted' }>   // set for 'denied'
+  toProblemDetails(options?: { instance?: string }): ProblemDetails
+}
+```
+
+Adapters send `toProblemDetails()` in the transport's own close frame: an SSE `event: permdock`, a WebSocket close `1008` with the `type` as reason, Nest's `permdock:error`. `problemFromError` maps it like the other classes. See [0052](/docs/decisions/0052-streams-and-sockets).
+
 ## When each is thrown
 
 | Situation | `decide` | `assert` | Adapter behaviour |
@@ -90,6 +106,7 @@ class PermDockValidationError extends Error {
 | Untrusted data fails its schema | `denied` with reason `validation` | throws `PermDockValidationError` | 400 `/validation` with `issues` |
 | Schema returns a Promise at a boundary | throws `PermDockValidationError` (`async-schema`) | same | 500; this is a configuration bug |
 | Closure grant throws | `denied` with `closure-error` | throws `PermDockDeniedError` | 403; the closure's error is attached as `cause` on the denial |
+| An open connection's session is revoked, its token expires, its opening permission is re-denied or its principal changes | a later `connection.check` is `denied` with `no-grant` and `detail: 'connection-revoked'` | n/a | `signal` aborts with `PermDockRevokedError`; the stream or socket closes with its Problem Details |
 | Unknown permission string in `findPermission` | returns `undefined` | n/a | Your code decides; typed references cannot be unknown |
 
 The only case where `decide` throws is a misconfigured schema. Everything a request can cause is a `Decision`.
@@ -100,6 +117,7 @@ The only case where `decide` throws is a misconfigured schema. Everything a requ
 PermDockDeniedError            → 403 application/problem+json  type .../denied
 PermDockApprovalRequiredError  → 403 application/problem+json  type .../approval-required
 PermDockValidationError        → 400 application/problem+json  type .../validation
+PermDockRevokedError           → 401 type .../unauthenticated, or 403 type .../denied when re-denied
 ```
 
 - HTTP adapters (`permdock/hono` and siblings) call `toProblemDetails({ instance: request.url })` and set `Content-Type: application/problem+json`. Nothing else is needed in your handlers.
@@ -108,7 +126,7 @@ PermDockValidationError        → 400 application/problem+json  type .../valida
 - `permdock/ai-sdk`: never throws into the model loop; `toolApproval` returns `denied` with the message as the reason, or `user-approval`.
 - `permdock/claude-agent`: `canUseTool` returns a deny result with the message; approval returns an ask.
 - `permdock/authzen`: never throws to the client; `decision: false` with the Decision in `context`.
-- `permdock/trpc`, `permdock/orpc`: mapped to the framework's `FORBIDDEN` and `BAD_REQUEST` error codes with the Problem Details object as `cause`.
+- `permdock/trpc`, `permdock/orpc`: mapped to the framework's `FORBIDDEN` and `BAD_REQUEST` error codes with the Problem Details object as `cause`; an ended subscription or event iterator ends with `UNAUTHORIZED` or `FORBIDDEN`.
 
 ## Problem Details shape
 

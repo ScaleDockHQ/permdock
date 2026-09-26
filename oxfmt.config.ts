@@ -15,5 +15,12 @@ export default oxfmt({
     'apps/marketing/components/reui/**',
     'apps/marketing/components/blocks/**',
     'apps/marketing/components/examples/**',
+    'tests/integration/src/support/prisma/**',
+    'apps/examples/prisma/src/generated/**',
+    '**/.nuxt/**',
+    '**/.output/**',
+    '**/.svelte-kit/**',
+    'tests/e2e/fixtures/*/build/**',
+    '**/routeTree.gen.ts',
   ],
 });

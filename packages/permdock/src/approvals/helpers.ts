@@ -149,6 +149,9 @@ export async function inspectApproval(
   if (request.status === 'rejected') {
     return { ok: false, detail: 'approval-rejected' };
   }
+  if (request.consumedAt !== undefined) {
+    return { ok: false, detail: 'approval-consumed' };
+  }
   if (
     request.status === 'expired' ||
     Date.parse(request.expiresAt) <= now.getTime()
@@ -156,6 +159,116 @@ export async function inspectApproval(
     return { ok: false, detail: 'approval-expired' };
   }
   return { ok: true, request };
+}
+
+/** Inspects `token` and, when it is approved, consumes it so it resumes once. */
+export async function consumeApproval(
+  store: ApprovalStore,
+  token: string,
+  now: Date = new Date(),
+): Promise<ApprovalInspectResult> {
+  const inspected = await inspectApproval(store, token, now);
+  if (!inspected.ok) {
+    return inspected;
+  }
+  if (typeof store.consume !== 'function') {
+    return { ok: false, detail: 'approval-not-found' };
+  }
+  const consumed = await store.consume(token, now);
+  if (consumed === null) {
+    return { ok: false, detail: 'approval-consumed' };
+  }
+  return { ok: true, request: consumed };
+}
+
+function approvalDenied(
+  detail: string,
+): Extract<Decision, { readonly outcome: 'denied' }> {
+  return {
+    outcome: 'denied',
+    denials: [{ role: null, reason: 'approval', detail }],
+    alternatives: [],
+  };
+}
+
+/**
+ * Applies a resume token to a decision. The token only matters when the
+ * decision is `approval-required` and the token is the one this call was
+ * issued; otherwise a new approval is requested. A matching token is consumed
+ * unless `consume` is `false`, so an approval resumes exactly one call.
+ */
+export async function resumeDecision(input: {
+  readonly decision: Decision;
+  readonly permission:
+    | Permission
+    | {
+        readonly key: string;
+        readonly scope: string;
+        readonly resource: string;
+      };
+  readonly subject: Subject;
+  readonly store: ApprovalStore | undefined;
+  readonly resource: { readonly type: string; readonly id?: string };
+  readonly adapter: string;
+  readonly token: string | undefined;
+  /** `false` for checks that do not run the action, such as the decision endpoint. */
+  readonly consume?: boolean;
+  readonly now?: Date;
+}): Promise<Decision> {
+  const { decision, store, token } = input;
+  if (decision.outcome !== 'approval-required') {
+    return decision;
+  }
+  if (token === undefined || token !== decision.token) {
+    if (store !== undefined) {
+      await requestApproval(
+        store,
+        decision,
+        compact({
+          permission: input.permission,
+          resource: input.resource,
+          subject: input.subject,
+          adapter: input.adapter,
+        }),
+      );
+    }
+    return decision;
+  }
+  if (store === undefined) {
+    return approvalDenied('approval-not-found');
+  }
+  let inspected: ApprovalInspectResult;
+  try {
+    inspected = await inspectApproval(store, token, input.now);
+    if (inspected.ok) {
+      const { request } = inspected;
+      if (
+        request.permission !== input.permission.key ||
+        (request.resource.id !== undefined &&
+          request.resource.id !== input.resource.id)
+      ) {
+        return approvalDenied('approval-mismatch');
+      }
+      if (input.consume !== false) {
+        inspected = await consumeApproval(store, token, input.now);
+      }
+    }
+  } catch {
+    return approvalDenied('approval-not-found');
+  }
+  if (!inspected.ok) {
+    return approvalDenied(inspected.detail);
+  }
+  const principal = input.subject.principal;
+  if (principal === null) {
+    return approvalDenied('approval-mismatch');
+  }
+  return {
+    outcome: 'granted',
+    subject: { ...input.subject, principal },
+    matched: decision.grant,
+    token: decision.token,
+  };
 }
 
 const SYSTEM_KIND = 'system';

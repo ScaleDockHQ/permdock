@@ -108,7 +108,17 @@ function resourceRef(
 
 export const createPermDock: AuthzenFactory = (policy, options) => {
   const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX;
-  const trustedPep = options.trustedPep !== false;
+  const trusts = (pep: unknown): boolean => {
+    const allow = options.trustedPep;
+    if (typeof allow !== 'function' || pep === null) {
+      return false;
+    }
+    try {
+      return allow(pep) === true;
+    } catch {
+      return false;
+    }
+  };
   const allowAnonymous = options.anonymous === true;
 
   async function authenticate(
@@ -130,18 +140,20 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     pep: unknown,
     item: AuthzenItem,
   ): PermDock | Promise<PermDock> {
-    const bodyUser = userFromEntity(item.subject);
-    const user = trustedPep && bodyUser !== null ? bodyUser : pep;
+    const trusted = trusts(pep);
+    const bodyUser = trusted ? userFromEntity(item.subject) : null;
+    const user = bodyUser ?? pep;
     return createCorePermDock(
       policy,
       user,
       compact({
-        actor: actorOf(item),
-        delegation: delegationOf(item),
+        actor: trusted ? actorOf(item) : undefined,
+        delegation: trusted ? delegationOf(item) : undefined,
         tenant: tenantOf(item),
         memberships: options.memberships,
         customRoles: options.customRoles,
         sink: options.sink,
+        limits: options.limits,
       }),
     );
   }

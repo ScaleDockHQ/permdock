@@ -9,11 +9,26 @@ test.describe('claude-agent example', { tag: '@smoke' }, () => {
     });
   });
 
-  test('defers delete_post to the PermissionRequest hook', async ({
+  test('denies delete_post with a pending approval, then allows it once after approval', async ({
     request,
   }) => {
-    const response = await request.get('/delete_post');
-    expect(response.status()).toBe(200);
-    expect(await response.json()).toEqual({ result: null });
+    const parked = (await (await request.get('/delete_post')).json()) as {
+      readonly result: { readonly behavior: string; readonly message: string };
+    };
+    expect(parked.result.behavior).toBe('deny');
+    const token = /Approval (\S+) is pending/u.exec(parked.result.message)?.[1];
+    expect(token).toEqual(expect.any(String));
+
+    const approved = await request.post(
+      `/approvals?token=${encodeURIComponent(String(token))}`,
+    );
+    expect(approved.status()).toBe(200);
+
+    const resumed = await request.get('/delete_post');
+    expect(await resumed.json()).toEqual({
+      result: { behavior: 'allow', updatedInput: { id: 'p1' } },
+    });
+    const replay = await request.get('/delete_post');
+    expect((await replay.json()).result.behavior).toBe('deny');
   });
 });

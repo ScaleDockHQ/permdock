@@ -14,14 +14,20 @@ export type ClerkMembershipListItem = {
   readonly organization?: { readonly id?: string };
   readonly organizationId?: string;
   readonly role?: string;
+  readonly publicUserData?: { readonly userId?: string } | null;
 };
 
 export type ClerkBackend = {
   readonly users?: {
     readonly getOrganizationMembershipList?: (args: {
       readonly userId: string;
+      readonly limit?: number;
+      readonly offset?: number;
     }) => Promise<
-      | { readonly data?: readonly ClerkMembershipListItem[] }
+      | {
+          readonly data?: readonly ClerkMembershipListItem[];
+          readonly totalCount?: number;
+        }
       | readonly ClerkMembershipListItem[]
     >;
   };

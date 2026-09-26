@@ -228,3 +228,49 @@ describe('quota grants', () => {
     expect(exportGrant).not.toHaveProperty('limit');
   });
 });
+
+describe('quota windows and keys', () => {
+  it('rejects an unknown per at definition time', () => {
+    expect(() =>
+      allow(permissions.report.export, {
+        limit: { count: 1, per: 'fortnight' },
+      }),
+    ).toThrow(/per/u);
+    expect(() =>
+      allow(permissions.report.export, { limit: { count: 0, per: 'hour' } }),
+    ).toThrow(/count/u);
+  });
+
+  it('keeps separate counters per tenant', () => {
+    const limits = memoryLimitStore();
+    const base = {
+      key: 'report.export',
+      subjectId: 'u1',
+      count: 1,
+      per: 'hour',
+      now: 0,
+    };
+    expect(limits.consume({ ...base, tenant: 'acme' })).toEqual({
+      remaining: 0,
+    });
+    expect(limits.consume({ ...base, tenant: 'globex' })).toEqual({
+      remaining: 0,
+    });
+    expect(limits.consume({ ...base, tenant: 'acme' })).toEqual({
+      remaining: -1,
+    });
+  });
+
+  it('forgets windows that have ended', () => {
+    const limits = memoryLimitStore();
+    const base = {
+      key: 'report.export',
+      subjectId: 'u1',
+      count: 1,
+      per: '1 s',
+    };
+    expect(limits.consume({ ...base, now: 0 })).toEqual({ remaining: 0 });
+    expect(limits.consume({ ...base, now: 5 })).toEqual({ remaining: 0 });
+    expect(limits.size()).toBe(1);
+  });
+});

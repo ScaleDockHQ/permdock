@@ -16,10 +16,27 @@ import type {
   UseRolesOptions,
 } from '../react/types.ts';
 
-export type SolidChild = string | number | boolean | null | undefined;
+/** Structural `JSX.Element`: text, a DOM node or a list of children. */
+export type SolidChild =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | { readonly nodeType: number }
+  | readonly SolidChild[];
 
 export type PermDockProviderProps = {
-  readonly snapshot: Snapshot | string;
+  /**
+   * An accessor re-hydrates the store when it changes and keeps it `pending`
+   * while it returns `undefined` (a loading `createResource`); a promise keeps
+   * the store `pending` until it settles.
+   */
+  readonly snapshot:
+    | Snapshot
+    | string
+    | Accessor<Snapshot | string | undefined>
+    | PromiseLike<Snapshot | string>;
   readonly endpoint?: string;
   readonly approvals?: string;
   readonly tenant?: string;

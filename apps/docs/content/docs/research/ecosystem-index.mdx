@@ -85,6 +85,8 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | mcp-handler (Vercel) | Fetch handler for MCP servers on Next.js, Nuxt, SvelteKit, Hono; `withMcpAuth`, `protectedResourceHandler` | MCP (`protectServer` inside `createMcpHandler`) | [MCP adapter](/docs/adapters/mcp) Hosting, [Next.js adapter](/docs/adapters/next) MCP route |
 | @modelcontextprotocol/server 2.x | Official TypeScript SDK v2 | Types-only optional peer of `permdock/mcp` | [MCP adapter](/docs/adapters/mcp), [installation](/docs/getting-started/installation) |
 | Official Express middleware, Cloudflare `McpAgent`, FastMCP (TypeScript), xmcp | Other MCP hosts | MCP | [MCP adapter](/docs/adapters/mcp) Hosting |
+| `@hono/node-server` | Node.js server for Hono with built-in WebSocket upgrade over `ws` | Recipe (`permdock/hono` `connection` and `socket`); scenario fixture `tests/e2e/fixtures/realtime-collab` | [Hono adapter](/docs/adapters/hono), [streams and sockets](/docs/decisions/0052-streams-and-sockets) |
+| `ws` | WebSocket server for Node.js | Transport under `@hono/node-server`; the socket is closed with 1008 on denial or revocation | [Hono adapter](/docs/adapters/hono) |
 | mcp-remote | stdio bridge for remote servers | Nothing to do | [MCP adapter](/docs/adapters/mcp) |
 
 ## Linters, testing and diff
@@ -144,9 +146,10 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Claude Agent SDK | Anthropic agent runtime | Adapter (`permdock/claude-agent`) | [Claude Agent adapter](/docs/adapters/claude-agent) |
 | Eve | Vercel agent framework | Adapter (`permdock/eve`) | [Eve adapter](/docs/adapters/eve) |
 | OpenAI Agents SDK | OpenAI agent runtime; tool guardrails as a second hook; Agent Builder retiring | Adapter (`permdock/openai`) | [OpenAI adapter](/docs/adapters/openai) |
-| Model Context Protocol servers | Tool protocol | Adapter (`permdock/mcp`) | [MCP adapter](/docs/adapters/mcp) |
+| Model Context Protocol servers | Tool protocol; scenario fixture `tests/e2e/fixtures/mcp-oauth` runs the official SDK behind OAuth 2.1 | Adapter (`permdock/mcp`) | [MCP adapter](/docs/adapters/mcp) |
 | WebMCP | Browser tool registration | Adapter (`permdock/webmcp`) | [WebMCP adapter](/docs/adapters/webmcp) |
 | A2A | Agent-to-agent protocol | Adapter (`permdock/a2a`) | [A2A adapter](/docs/adapters/a2a) |
+| `@ai-sdk/react` | AI SDK UI hooks (`useChat`, tool approval parts) | Recipe (`permdock/ai-sdk` on the route, approval parts rendered by the app); scenario fixture `tests/e2e/fixtures/ai-chat` | [AI SDK adapter](/docs/adapters/ai-sdk) |
 | LangGraph.js | Graph runtime with `interrupt` | Recipe; Phase 4 adapter candidate | [agent frameworks](/docs/research/agent-frameworks) |
 | Mastra, Cloudflare Agents SDK, Vercel Workflow `WorkflowAgent` | AI SDK based runtimes | AI SDK | [agent frameworks](/docs/research/agent-frameworks) |
 | Inngest AgentKit, Google ADK | Runtimes with before-tool hooks | Recipe | [agent frameworks](/docs/research/agent-frameworks) |
@@ -211,6 +214,7 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | --- | --- | --- | --- |
 | Drizzle, Prisma, Kysely | TypeScript query builders and ORMs | Adapter (`toWhere`) | [Drizzle](/docs/adapters/drizzle), [Prisma](/docs/adapters/prisma), [Kysely](/docs/adapters/kysely) |
 | Postgres, Supabase, Neon (RLS) | Row-level security targets | `permdock rls generate` | [RLS adapter](/docs/adapters/rls) |
+| PGlite, `@electric-sql/pglite-socket` | Postgres compiled to WASM, in process, and its Postgres wire-protocol socket server | Test and example database for `toWhere`: Drizzle through `drizzle-orm/pglite`, Prisma 7 through `@prisma/adapter-pg` over the socket; never a runtime dependency | [Drizzle](/docs/adapters/drizzle), [Prisma](/docs/adapters/prisma), [Testing](/docs/adapters/testing) |
 | Convex | Backend platform | Adapter (`permdock/convex`) | [Convex adapter](/docs/adapters/convex) |
 | Zero, ElectricSQL, PowerSync, InstantDB, TinyBase | Local-first sync engines | `where` target candidates (Phase 3 planning) | [local-first sync](/docs/research/local-first-sync) |
 | MongoDB | Document database | `where` target candidate | [local-first sync](/docs/research/local-first-sync) |
@@ -224,6 +228,9 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | Playwright | Browser and API e2e runner | Recipe (`tests/e2e`, one spec per example) | [Testing adapter](/docs/adapters/testing) |
 | `@next/playwright` | Next.js Playwright helper; `instant()` asserts a navigation completed from prefetched UI | Recipe (`tests/e2e/src/next-saas.spec.ts`, no wrapper in `@permdock/testing`) | [Next.js Cache Components guide](/docs/guides/next-cache-components), [0049](/docs/decisions/0049-cache-components-building-blocks) |
 | testcontainers | Docker-backed Postgres for RLS parity | Recipe (`pnpm test:integration`) | [Testing adapter](/docs/adapters/testing), [RLS adapter](/docs/adapters/rls) |
+| Bun, Deno | JavaScript runtimes with a Web `fetch` server (`Bun.serve`, `Deno.serve`) | WinterTC entries run unchanged; `tests/runtimes` smoke (kernel, Hono, AuthZEN, JWT; Elysia on Bun) | [Testing adapter](/docs/adapters/testing), [server kernel](/docs/adapters/server-kernel) |
+| workerd, Miniflare | Cloudflare Workers runtime and its local simulator | WinterTC entries without `nodejs_compat`; `tests/runtimes` smoke through Miniflare | [Testing adapter](/docs/adapters/testing), [server kernel](/docs/adapters/server-kernel) |
+| esbuild | Bundler | Builds the `platform: 'neutral'` Worker bundle in `tests/runtimes`; never a dependency of `permdock` | [Testing adapter](/docs/adapters/testing) |
 
 ## Distribution channels
 
@@ -246,6 +253,12 @@ The mechanisms are few and fixed by [ADR 0023](/docs/decisions/0023-compose-open
 | React Router 7 | Vite-based router / framework | Recipe (`createPermDockUnplugin.vite`, `permdock/react`) | [unplugin](/docs/cli/unplugin), [UI](/docs/concepts/ui) |
 | TanStack Start | Full-stack Vite framework | Recipe (`createPermDockUnplugin.vite`, `permdock/react`) | [unplugin](/docs/cli/unplugin), [UI](/docs/concepts/ui) |
 | Effect | Typed-effects runtime; Effect Schema and HttpApi | Recipe (Standard Schema adapter; Overlay on HttpApi output; unplugin when the bundler is Vite) | [unplugin](/docs/cli/unplugin), [Standard Schema](/docs/standards/standard-schema), [OpenAPI](/docs/adapters/openapi) |
+| SvelteKit | Svelte meta-framework on Vite | Recipe (`permdock/svelte` stores, `permdock/server` in `hooks.server.ts` and load functions); scenario fixture `tests/e2e/fixtures/sveltekit-saas` | [Svelte](/docs/adapters/svelte), [unplugin](/docs/cli/unplugin) |
+| SolidStart | Solid meta-framework on Vinxi and Nitro | Recipe (`permdock/solid` accessors, `permdock/server` in server functions); scenario fixture `tests/e2e/fixtures/solidstart-saas` | [Solid](/docs/adapters/solid), [unplugin](/docs/cli/unplugin) |
+| Nitro | Server engine under Nuxt, SolidStart and TanStack Start | Recipe (`permdock/server` over the Web `Request`); nothing Nitro-specific | [server kernel](/docs/adapters/server-kernel) |
+| Expo Router and `expo-server` | File-based routing and API routes for React Native apps | Recipe (`permdock/react-native` in screens, `permdock/server` in API routes); scenario fixture `tests/e2e/fixtures/expo-saas` | [React Native](/docs/adapters/react-native) |
+| Turborepo | Monorepo task runner | Recipe (shared definitions package, `permdock collect` with globbed `srcPath` across apps and packages); scenario fixture `tests/e2e/fixtures/turborepo` | [collect](/docs/cli/collect), [Next.js plugin](/docs/cli/next-plugin) |
+| tsdown | Library bundler used for PermDock's packages and a shared definitions package | Build tool; a bundled copy of the definitions resolves to the same grants by `key` | [collect](/docs/cli/collect) |
 | unplugin | Unified bundler plugin helper | Hook (`createPermDockUnplugin`) | [unplugin](/docs/cli/unplugin) |
 
 ## Adopt / adapt / avoid

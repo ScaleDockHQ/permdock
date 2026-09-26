@@ -2,10 +2,17 @@ export { createPermDock } from './create.ts';
 export type {
   Guard,
   OpenApiHooks,
+  ProtectOptions,
   ServerPermDock,
   ServerPermDockOptions,
 } from './create.ts';
+export type {
+  Connection,
+  ConnectionData,
+  ConnectionOptions,
+} from './connection.ts';
 export { createEvaluationsHandler, createHandler } from './evaluations.ts';
+export { mapPermDockError as problemFromError } from './map-error.ts';
 export {
   PROBLEM_BASE,
   problemFromDecision,
@@ -16,8 +23,11 @@ export {
 export {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
+  PermDockRevokedError,
   PermDockValidationError,
 } from '../core/errors.ts';
+export { memoryRevocationFeed } from '../core/revocations.ts';
+export type { RevocationEvent, RevocationFeed } from '../core/revocations.ts';
 export {
   InvalidSignatureError,
   discoverViaSignatureAgent,

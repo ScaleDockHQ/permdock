@@ -1,0 +1,42 @@
+// ORM parity models over the tables that fixtures/items/sql.ts and the saas
+// domain create with SQL; nothing here is migrated.
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/support/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model item {
+  id       String    @id
+  orgId    String
+  teamId   String?
+  folderId String?
+  owner    String?
+  status   String?
+  score    Int?
+  title    String
+  tags     String[]
+  due      DateTime? @db.Timestamptz
+  archived Boolean?
+}
+
+model project {
+  id       String  @id
+  orgId    String
+  ownerId  String
+  name     String
+  archived Boolean
+}
+
+model doc {
+  id     String  @id
+  orgId  String
+  teamId String?
+  title  String
+  locked Boolean
+}

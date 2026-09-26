@@ -6,7 +6,24 @@ import { assertSafeKey, readPath, splitPath } from '../core/paths.ts';
 
 const REF_BRAND: unique symbol = Symbol.for('permdock.ref');
 
+// Declared so `principal.id` stays `SubjectRef` under noUncheckedIndexedAccess;
+// other claims go through the index signature.
+type KnownRefField =
+  | 'id'
+  | 'issuer'
+  | 'kind'
+  | 'tenant'
+  | 'team'
+  | 'roles'
+  | 'plans'
+  | 'memberships'
+  | 'assurance'
+  | 'binding'
+  | 'session';
+
 export type SubjectRef = ConditionRef & {
+  readonly [K in KnownRefField]: SubjectRef;
+} & {
   readonly [key: string]: SubjectRef;
 };
 

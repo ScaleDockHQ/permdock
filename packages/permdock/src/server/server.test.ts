@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { memoryApprovalStore, resolveApproval } from '../approvals/index.ts';
 import { APPROVAL_HEADER } from '../approvals/types.ts';
 import {
+  adminUser,
   memberUser,
   otherPost,
   ownPost,
@@ -159,6 +160,82 @@ describe('permdock/server', () => {
       }),
     );
     expect(resumed.ok).toBe(true);
+
+    const replayed = await protect(
+      permissions.post.delete,
+      () => ownPost,
+    )(
+      request('https://api.example/posts/p1', {
+        headers: { [APPROVAL_HEADER]: required.token },
+      }),
+    );
+    expect(replayed.ok).toBe(false);
+
+    const unrelated = await protect(
+      permissions.post.read,
+      () => ownPost,
+    )(
+      request('https://api.example/posts/p1', {
+        headers: { [APPROVAL_HEADER]: 'pd1.stale' },
+      }),
+    );
+    expect(unrelated.ok).toBe(true);
+  });
+
+  it('checks an approval on the decision endpoint without consuming it', async () => {
+    const store = memoryApprovalStore();
+    const { permdock, handler } = createPermDock(policy, {
+      subject: () => memberUser,
+      store,
+    });
+    const dock = await permdock(request());
+    const required = dock.decide(permissions.post.delete, ownPost);
+    if (required.outcome !== 'approval-required') {
+      throw new Error('expected approval-required');
+    }
+    store.create({
+      v: 2,
+      token: required.token,
+      permission: 'post.delete',
+      scope: permissions.post.delete.scope,
+      resource: { type: 'post', id: ownPost.id },
+      subject: { principal: { id: memberUser.id, roles: [] } },
+      detail: 'approve',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      status: 'pending',
+    });
+    await resolveApproval(store, required.token, {
+      status: 'approved',
+      by: { principal: { id: 'u9', roles: ['admin'] }, context: {} },
+    });
+    const { POST } = handler();
+    const ask = () =>
+      POST(
+        new Request('https://api.example/access/v1/evaluations', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            [APPROVAL_HEADER]: required.token,
+          },
+          body: JSON.stringify({
+            evaluations: [
+              {
+                action: { name: 'post.delete' },
+                resource: { type: 'post', id: ownPost.id, properties: ownPost },
+              },
+            ],
+          }),
+        }),
+      );
+    for (const _ of [1, 2]) {
+      // oxlint-disable-next-line no-await-in-loop
+      const body = (await (await ask()).json()) as {
+        readonly evaluations: readonly { readonly decision: boolean }[];
+      };
+      expect(body.evaluations[0]?.decision).toBe(true);
+    }
+    expect(store.get(required.token)?.consumedAt).toBeUndefined();
   });
 
   it('exposes AuthZEN evaluations and OpenAPI security hooks', async () => {
@@ -189,6 +266,71 @@ describe('permdock/server', () => {
     expect(security.security[0]?.oauth2).toEqual(['post:delete']);
     expect(security['x-permdock-permissions']).toEqual(['post.delete']);
     expect(openapi.securitySchemes().oauth2).toBeDefined();
+  });
+});
+
+describe('permdock/server protect', () => {
+  it('validates a body loader marked untrusted', async () => {
+    const { protect } = createPermDock(policy, {
+      subject: () => adminUser,
+    });
+    const forged = { id: 'p2', authorId: 'u9', orgId: 'o1' };
+    const trusted = await protect(
+      permissions.post.publish,
+      () => forged,
+    )(request());
+    expect(trusted.ok).toBe(true);
+    const untrusted = await protect(permissions.post.publish, () => forged, {
+      trusted: false,
+    })(request());
+    expect(untrusted.ok).toBe(false);
+    if (!untrusted.ok) {
+      expect(untrusted.response.status).toBe(400);
+    }
+    const valid = await protect(permissions.post.publish, () => ownPost, {
+      trusted: false,
+    })(request());
+    expect(valid.ok).toBe(true);
+  });
+});
+
+describe('permdock/server decision endpoint', () => {
+  it('validates body rows against the resource schema', async () => {
+    const { handler } = createPermDock(policy, {
+      subject: () => adminUser,
+    });
+    const { POST } = handler();
+    const evaluate = async (properties: unknown) => {
+      const response = await POST(
+        new Request('https://api.example/access/v1/evaluations', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            evaluations: [
+              {
+                resource: { type: 'post', properties },
+                action: { name: 'publish' },
+              },
+            ],
+          }),
+        }),
+      );
+      const body = (await response.json()) as {
+        readonly evaluations: readonly {
+          readonly decision: boolean;
+          readonly context: {
+            readonly permdock: {
+              readonly denials?: readonly { readonly reason: string }[];
+            };
+          };
+        }[];
+      };
+      return body.evaluations[0]!;
+    };
+    expect((await evaluate(ownPost)).decision).toBe(true);
+    const forged = await evaluate({ id: 'p2', authorId: 'u9', orgId: 'o1' });
+    expect(forged.decision).toBe(false);
+    expect(forged.context.permdock.denials?.[0]?.reason).toBe('validation');
   });
 });
 

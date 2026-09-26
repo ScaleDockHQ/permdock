@@ -6,20 +6,20 @@ import { createComponent } from 'solid-js';
 import { ownPost, permissions } from './permissions.ts';
 
 export function App(props: { readonly snapshot: Snapshot }) {
-  return createComponent(PermDockProvider as never, {
+  return createComponent(PermDockProvider, {
     get snapshot() {
       return props.snapshot;
     },
     get children() {
       return [
-        createComponent(Protected as never, {
+        createComponent(Protected, {
           permission: permissions.post.update,
           data: ownPost,
           fallback: 'locked',
           children: 'edit',
         }),
         ' ',
-        createComponent(Protected as never, {
+        createComponent(Protected, {
           permission: permissions.post.publish,
           data: ownPost,
           fallback: 'locked',

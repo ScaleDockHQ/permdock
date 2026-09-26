@@ -58,7 +58,19 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `MembershipSource`, `RoleSource` | The two subject-input interfaces (`membershipsFor`, `rolesFor` / `assignable`) passed as `memberships` and `customRoles` to every `createPermDock` | Stores; PermDock never writes a membership or role |
 | `SubjectResolver` | The generic type of every `subjectFrom*` function: verified input in, `Subject` out, never throws | A class hierarchy |
 | `memoryRoleSource` | The in-process `RoleSource` over a static `CustomRole[]` | Production storage |
-| `LimitStore`, `memoryLimitStore`, `limits` | The quota counter for `limit` grants, its in-process default, and the `createPermDock` option | Auto-installing a store; a thenable `consume` as granted |
+| `LimitStore`, `memoryLimitStore`, `limits` | The quota counter for `limit` grants, its in-process default, and the `createPermDock` option (core, every HTTP and agent adapter) | Auto-installing a store; a thenable `consume` as granted |
+| `pdp` | The HTTP adapter and kernel option taking `createPermDock` from `permdock/pdp`, so `protect` decides delegated permissions remotely | Making the request-scoped instance async |
+| `ProtectOptions`, `trusted` | The third argument of every `protect` (`{ trusted: false }` validates what the loader returns) | A per-route `validate` mode |
+| `request` | The `permdock/trpc` and `permdock/orpc` option mapping a context to its Web `Request`, and the `permdock/nest` option mapping a non-HTTP `ExecutionContext` | Reading a subject from it directly |
+| `problemFromError` | The `permdock/server` function turning a thrown PermDock error into its Problem Details `Response`, `undefined` for anything else | An error class; a catch-all that maps non-PermDock errors |
+| `ormParity`, `OrmParityScenario` | The `@permdock/testing` runner comparing `filter()` in memory with the rows a database returns for `toWhere(where())`, and its scenario shape | A database the runner opens itself |
+| `testClientParity`, `ClientParityCase` | The `@permdock/testing` runner asserting that `fromSnapshot` never grants what the server denies, per membership and tenant ([ADR 0050](/docs/decisions/0050-client-parity-and-snapshot-scopes)), and its case shape | Deriving expectations from the snapshot itself |
+| `testClientStore`, `ClientStoreFactory` | The `@permdock/testing` runner for client snapshot stores (tenant switch, `replace` and `refresh` races, logout during a refresh, stale and signed snapshots, endpoint answers per tenant) over the saas domain, and the factory it calls | A DOM or a framework renderer |
+| `WebMcpToolCall` | The `{ input, token }` argument a `permdock/webmcp` handler receives | Positional `input` arguments |
+| `listFields`, `requiredFields` | `toWhere` options: scalar-list fields whose `contains` is element membership (Prisma, Kysely), and Prisma's non-nullable fields, where a null branch folds away | Inferring either from a schema at runtime |
+| `MemberOfParent` | A `memberOf` `parents` entry: a keyed `{ field, resource }` or a bare field name | Walking a parent chain with a query |
+| `WhereResult.subject` | The non-enumerable subject a `where()` result carries so `toWhere` compiles `memberOf` without a second argument | A serialised field; it never reaches JSON |
+| `testHttpAdapter`, `HttpMounted` | The `@permdock/testing` HTTP scenario runner and the value a mount returns (`fetch`, `call`, `close`) | A server the runner starts itself |
 | `ArazzoSimulateInput`, `ArazzoPlan`, `arazzoFindings` | The `simulate({ arazzo, openapi })` argument and result, and the resolution-only helper the CLI uses | A `permdock/arazzo` package; a subject on the call |
 | `webBotAuth`, `discoverViaSignatureAgent` | Option on HTTP `createPermDock` that verifies RFC 9421 signatures when `verify` is true, and the `Signature-Agent` directory lookup with an `allow` host list. Not a named export. | A `permdock/web-bot-auth` package; trusting a host that is not on `allow` |
 | `InvalidSignatureError` | Thrown by `permdock(request)` when a claimed Web Bot Auth signature fails; `protect` returns the Problem Details `response` instead | Downgrading a failed signature to an anonymous actor |
@@ -95,6 +107,10 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `mayAccess` | `mayAccess(policy, user, permission, { tenant })`: optimistic check for a proxy; `false` only when the declared roles provably lack the permission | A decision; the page still calls `can` / `decide` |
 | `approvalHeaders` | `{ 'PermDock-Approval': token }` for a retried mutation | Minting a token; it only wraps the one `decide` returned |
 | `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, `cancelApprovals` | The pluggable store behind `approval-required`, its in-process default, the Fetch routes for approvers, and the helper that rejects pending requests for a session (`permdock/approvals`) | Deciding; a store never influences `decide` |
+| `consume`, `consumedAt`, `consumeApproval`, `resumeDecision` | The atomic single-use step on `ApprovalStore`, the field it sets on an Approval request, and the helpers adapters use to apply a resume token to a decision ([ADR 0051](/docs/decisions/0051-approval-lifecycle)) | `used`, `redeemed`, a `consumed` status |
+| `ApprovalError`, `isApprovalError`, `assertApprover` | The error (with a closed `code` list), its guard (matches by `name` and `code`, so a duplicated module copy still maps) and the approver check a custom `ApprovalStore` applies in `resolve` | Plain `Error` from a store, which `approvalsHandler` maps to `500` |
+| `permdockApproval` | The context key the `ai-sdk` and `openai` adapters read an explicit resume token from; every agent adapter also recomputes the token and finds the record in its `store` without it | `approval`, `token` (collide with application context) |
+| `APPROVAL_META_KEY` | `'dev.permdock/approval'`, the MCP request `_meta` key `permdock/mcp` reads a resume token from | A token in tool arguments (model-controlled) |
 | `approval: 'human'` or `{ by, distinct }` | Grant option that yields `approval-required`; `by` is a grantee selector and `distinct` excludes the principal ([0047](/docs/decisions/0047-approver-eligibility)) | A fluent approver builder; `quorum` |
 | `exclusiveWith` | Role option listing roles that must not be held together; doctor PD018 and `separationConflicts` | An evaluation deny |
 | `DecisionSink`, `memorySink` | The pluggable destination for `on('decision')` events and its in-process default; `memorySink({ signer })` signs each write | Blocking a decision; sinks are fire-and-forget |
@@ -102,10 +118,16 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `store`, `sink`, `snapshots` | The three options every adapter's `createPermDock` accepts for an `ApprovalStore`, a `DecisionSink` and a `SnapshotSource` | Anything else; `store` is never a database handle |
 | `memberships`, `customRoles`, `tenant` | The three tenancy options every adapter's `createPermDock` accepts: a `MembershipSource`, a `RoleSource`, and how the active tenant is resolved from the request | Reading a tenant from an unsigned header or a model argument |
 | `cloud` | `cloud({ url, key })` from `permdock/cloud`, returning `approvals`, `sink` and `snapshots` for PermDock Cloud | A factory for a `PermDock`; there is no `decide` on it |
-| `scimHandler` | The RFC 7644 Fetch handler from `permdock/scim` serving `/Users` and `/Groups` into a `DirectoryStore`; options `store`, `tenant`, `token` or `verifier`, `groupRoles`, `sink`, `onChange` | A `PermDock`; it decides nothing and reads no tenant from a body |
+| `scimHandler` | The RFC 7644 Fetch handler from `permdock/scim` serving `/Users` and `/Groups` into a `DirectoryStore`; options `store`, `tenant`, `token` or `verifier`, `groupRoles`, `sink`, `onChange`, `revocations` | A `PermDock`; it decides nothing and reads no tenant from a body |
 | `DirectoryStore`, `memoryDirectoryStore` | The repository interface SCIM provisioning writes to (users, groups, `groupsFor`), every method tenant-first, and its in-process default | A `MembershipSource`; the store is the write side, the source below is the read side |
 | `directoryMembershipSource` | `directoryMembershipSource(store)`: the `MembershipSource` that turns synced groups into `{ tenant, team: group.id, roles, via: 'group:<id>' }` and yields nothing for an inactive user | Reading display names; group ids only |
 | `ReplayStore`, `memoryReplayStore` | The pluggable `jti` replay store for `permdock/ssf` and its in-process default | A decision input; SETs and `logout_token`s never reach `decide` |
+| `connection`, `Connection`, `ConnectionOptions` | The kernel and HTTP adapter method that opens a long-lived connection for a stream or socket, and its frozen result (`permdock`, `signal`, `check`, `filter`, `close`) ([0052](/docs/decisions/0052-streams-and-sockets)) | A mutable instance; `stream`, `socket` or `subscribe` as the kernel method name |
+| `RevocationFeed`, `RevocationEvent`, `memoryRevocationFeed` | The interface that tells open connections a subject changed (`subscribe`, `revoke`; events `session-revoked` and `changed`) and its in-process default | A decision input; a feed ends or revalidates, never grants |
+| `revocations` | The option carrying a `RevocationFeed` on the kernel, the HTTP adapters, `permdock/ssf` and `permdock/scim` | `revocationFeed`, `feed` |
+| `PermDockRevokedError`, `RevokedCode` | The `reason` of an aborted connection signal; `code` is `session-revoked`, `expired`, `denied` or `subject-changed` | A denial reason; a check after the abort is `no-grant` with `detail: 'connection-revoked'` |
+| `socket`, `sse`, `SseOptions` | `permdock/hono` helpers: `socket(conn, events)` wraps `upgradeWebSocket` events, `sse(conn, stream, source, options)` writes an async iterable to `streamSSE` | A `with*` or `Dock` name; helpers for other adapters |
+| `ElysiaSocket`, `NestSocket` | The structural socket types `connection` accepts in `permdock/elysia` and `permdock/nest` | An import of the framework's socket class |
 | `remotePdp` | `permdock/pdp` helper that implements `DecisionProvider` over an AuthZEN evaluation URL | A local `decide`; unknown or unreachable remote answers deny |
 | `PermDock-Approval` | The HTTP request header carrying an approval `token` on a retried request | Anything else on the wire |
 
@@ -137,16 +159,17 @@ These never appear as public identifiers, for the reasons given:
 | --- | --- | --- |
 | `permdock` | `PermDock` | `await createPermDock(policy, user, { tenant?, memberships?, customRoles?, actor?, delegation? })`; sync when the policy declares no `context` and no async source |
 | `permdock/next` | `{ getPermDock, getPermission, PermDockProvider, permdockHandler }`, plus the standalone `cacheLifeFor(snapshot, { min, max, now })` | Options: `subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots`; never a cache directive or a `tag` option |
-| `permdock/hono` | `{ permdock, protect }` | `permdock()` is middleware; `protect(permission, load?)` guards a route |
-| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect }` | Same shape as Hono over the shared kernel |
-| `permdock/nest` | `{ PermDockModule, PermDockGuard, Protect, InjectPermDock }` | Register `PermDockGuard` as `APP_GUARD` with `useExisting` |
+| `permdock/server` | `{ permdock, protect, problem, openapi, handler }`, plus the standalone `problemFromError(error)` | The Fetch kernel every HTTP adapter wraps. Options: `subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `limits`, `pdp`, `snapshots` (accepted, not read), `otel`, `webBotAuth` |
+| `permdock/hono` | `{ permdock, protect, permdockHandler }` | `permdock()` is middleware; `protect(permission, load?, options?)` guards a route |
+| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect, permdockHandler }`, plus `errorHandler` (Express) and `send` (Node) | Same shape as Hono over the shared kernel |
+| `permdock/nest` | `{ PermDockModule, PermDockGuard, Protect, InjectPermDock, permdockHandler }` | Register `PermDockGuard` as `APP_GUARD` with `useExisting`; `permdockHandler({ path })` sets the controller path |
 | `permdock/terminal` | `{ permdock, protect, filterCommands, format, exitCode }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not `@permdock/cli` |
 | `permdock/trpc` | `{ permdock, protect, permdockHandler }` | `protect` is procedure middleware; denials throw `TRPCError` |
 | `permdock/orpc` | `{ permdock, protect, permdockHandler }` | `protect` is procedure middleware; denials throw `ORPCError` |
-| `permdock/mcp` | `{ protectServer }` | `protectServer(server).registerTool(name, { permission, ... }, handler)` |
+| `permdock/mcp` | `{ protectServer }` | `protectServer(server).registerTool(name, { permission, ... }, handler)`, plus `registerResource` and `registerPrompt`; options: `subject`, `requireAuthInfo`, `store`; also exports `subjectFromMcp`, `APPROVAL_META_KEY`, `McpPrincipal` |
 | `permdock/ai-sdk` | `{ toolApproval, capabilityMiddleware, needsApproval }` | Options: `subject`, `actor`, `tools` |
-| `permdock/claude-agent` | `{ canUseTool, permissionRequestHook }` | Options: `subject`, `tools` |
-| `permdock/eve` | `{ approval, approvalFor, permdock }` | `approval` is Eve's `{ request, response }` pair for `defineTool`; options: `tools`, `store`, `approvers` |
+| `permdock/claude-agent` | `{ canUseTool, permissionRequestHook, permdock }` | Options: `subject`, `tools`, `store`, `mcpSources` (trusted MCP server sources, default `['sdk']`) |
+| `permdock/eve` | `{ approval, approvalFor, permdock }` | `approval` is Eve's `{ request, response }` pair for `defineTool` (`EveApprovalPair`, contexts `EveApprovalContext` and `EveResponseContext`, principals `EvePrincipal`); options: `tools`, `store`, `approvers` (`EveApprovers`); also exports `subjectFromSession`, `actorFromSession`, `rolesOf` |
 | `permdock/openai` | `{ needsApproval, guardTools, resolveInterruptions, permdock }` | Options: `subject`, `actor`, `tools`, `store` |
 | `permdock/authzen` | `{ handler }` | Serves evaluation, evaluations, search and `.well-known` |
 | `permdock/ssf` | `{ receiver }` | RFC 8935 push and RFC 8936 poll receiver for CAEP events; `receiver.logout` for OIDC Back-Channel Logout |

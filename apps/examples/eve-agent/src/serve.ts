@@ -4,7 +4,7 @@ import {
   type ServerResponse,
 } from 'node:http';
 
-import { approval } from './agent.ts';
+import { approval, approve, callContext } from './agent.ts';
 import { ownPost } from './permissions.ts';
 
 const port = Number(process.env.PORT ?? 3474);
@@ -36,23 +36,27 @@ function json(data: unknown, status = 200): Response {
 }
 
 async function route(request: Request): Promise<Response> {
-  const path = new URL(request.url).pathname;
+  const url = new URL(request.url);
+  const path = url.pathname;
+  const session = url.searchParams.get('session') ?? 's1';
+  const call = url.searchParams.get('call') ?? 'c1';
   if (request.method === 'GET' && path === '/health') {
     return json({ ok: true });
   }
   if (request.method === 'GET' && path === '/list_posts') {
     const result = await approval.request(
-      {},
-      { toolName: 'list_posts', toolInput: {} },
+      callContext(session, call, 'list_posts', {}),
     );
     return json({ result });
   }
   if (request.method === 'GET' && path === '/delete_post') {
     const result = await approval.request(
-      {},
-      { toolName: 'delete_post', toolInput: { id: ownPost.id } },
+      callContext(session, call, 'delete_post', { id: ownPost.id }),
     );
     return json({ result });
+  }
+  if (request.method === 'POST' && path === '/approve') {
+    return json({ result: await approve(session, call, 'delete_post') });
   }
   return json({ error: 'not found' }, 404);
 }

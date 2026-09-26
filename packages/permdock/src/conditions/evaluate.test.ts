@@ -22,6 +22,70 @@ function sub(
 }
 
 describe('evaluateCondition', () => {
+  it('keys a keyed parent hop by the membership resource', () => {
+    const condition = {
+      op: 'memberOf',
+      scope: 'resource',
+      resource: 'doc',
+      field: 'id',
+      roles: ['editor'],
+      parents: [{ field: 'folderId', resource: 'folder' }],
+    } as const;
+    const row = { id: 'd1', folderId: 'f1' };
+    const holding = (resource: string, id: string): Subject =>
+      sub({
+        principal: {
+          id: 'u1',
+          memberships: [{ on: { resource, id }, roles: ['editor'] }],
+        },
+      });
+    expect(
+      evaluateCondition(condition, row, holding('folder', 'f1'), now),
+    ).toBe(true);
+    expect(
+      evaluateCondition(condition, row, holding('project', 'f1'), now),
+    ).toBe(false);
+    expect(evaluateCondition(condition, row, holding('doc', 'd1'), now)).toBe(
+      true,
+    );
+  });
+
+  it('scopes tenant memberOf to the active tenant', () => {
+    const condition = {
+      op: 'memberOf',
+      scope: 'tenant',
+      field: 'orgId',
+      roles: ['viewer'],
+    } as const;
+    const holder = {
+      id: 'u1',
+      memberships: [
+        { tenant: 'o1', roles: ['viewer'] },
+        { tenant: 'o2', roles: ['viewer'] },
+      ],
+    };
+    const row = { orgId: 'o2' };
+    expect(
+      evaluateCondition(condition, row, sub({ principal: holder }), now),
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        condition,
+        row,
+        sub({ principal: { ...holder, tenant: 'o1' } }),
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        condition,
+        row,
+        sub({ principal: { ...holder, tenant: 'o2' } }),
+        now,
+      ),
+    ).toBe(true);
+  });
+
   it('compares, contains, in/notIn and isNull, failing closed on missing values', () => {
     const data = { authorId: 'u1', tags: ['a'], title: 'hello', gone: null };
     expect(
@@ -110,6 +174,48 @@ describe('evaluateCondition', () => {
         now,
       ),
     ).toBe(true);
+  });
+
+  it('never treats date-like identifiers as instants', () => {
+    const check = (where: Parameters<typeof normalizeWhere>[0], data: object) =>
+      evaluateCondition(normalizeWhere(where), data, sub({}), now);
+    expect(check({ orgId: 'acme-1' }, { orgId: 'globex-1' })).toBe(false);
+    expect(check({ orgId: 'org-1' }, { orgId: 'tenant-1' })).toBe(false);
+    expect(check({ ownerId: 'user-2' }, { ownerId: '2' })).toBe(false);
+    expect(check({ id: '01' }, { id: '1' })).toBe(false);
+    expect(check({ id: 1 }, { id: '1' })).toBe(false);
+    expect(check({ id: '2' }, { id: 2 })).toBe(false);
+    expect(check({ id: { gt: 'b' } }, { id: 'c' })).toBe(true);
+    expect(
+      evaluateCondition(
+        normalizeWhere({ ownerId: principal.id }),
+        { ownerId: 'user-2' },
+        sub({ principal: { id: '2' } }),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it('compares a date literal with ISO strings, epoch milliseconds and Date rows only', () => {
+    const after = normalizeWhere({
+      createdAt: { gt: { date: '2020-01-01T00:00:00.000Z' } },
+    });
+    const at = (createdAt: unknown) =>
+      evaluateCondition(after, { createdAt }, sub({}), now);
+    expect(at('2020-01-02')).toBe(true);
+    expect(at('2019-12-31T23:00:00+00:00')).toBe(false);
+    expect(at(Date.parse('2020-01-02T00:00:00.000Z'))).toBe(true);
+    expect(at(new Date('2020-01-02T00:00:00.000Z'))).toBe(true);
+    expect(at('tenant-1')).toBe(false);
+    expect(at('Jan 2 2020')).toBe(false);
+    expect(
+      evaluateCondition(
+        normalizeWhere({ createdAt: { eq: { date: 'not-a-date' } } }),
+        { createdAt: 'not-a-date' },
+        sub({}),
+        now,
+      ),
+    ).toBe(false);
   });
 
   it('evaluates and/or/not and never matches opaque', () => {
@@ -223,6 +329,16 @@ describe('evaluateCondition', () => {
         sub({}),
         now,
       ),
+    ).toBe(false);
+  });
+
+  it('reads the unconditional where sentinel the way the compilers do', () => {
+    const subject = { principal: null, context: {} };
+    expect(
+      evaluateCondition({ op: 'eq', field: '_', value: true }, {}, subject, 0),
+    ).toBe(true);
+    expect(
+      evaluateCondition({ op: 'eq', field: '_', value: false }, {}, subject, 0),
     ).toBe(false);
   });
 });

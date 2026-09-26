@@ -1,17 +1,10 @@
-import type {
-  ApprovalInspectResult,
-  ApprovalStore,
-} from '../approvals/types.ts';
+import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
-import type { PermDock } from '../core/permdock.ts';
+import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission, PermissionTree } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 
-import {
-  readApprovalHeader,
-  requestApproval,
-  resumeFromHeader,
-} from '../approvals/helpers.ts';
+import { readApprovalHeader, resumeDecision } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import { findPermission, listPermissions } from '../core/permissions.ts';
 import { validationProblem } from './problem.ts';
@@ -120,36 +113,7 @@ function evaluationRow(decision: Decision): {
   }
 }
 
-function approvalDenied(detail: string): Decision {
-  return {
-    outcome: 'denied',
-    denials: [{ role: null, reason: 'approval', detail }],
-    alternatives: [],
-  };
-}
-
-function resumeMatches(
-  inspected: Extract<ApprovalInspectResult, { readonly ok: true }>,
-  permission: Permission,
-  ref: { readonly type: string; readonly id?: string },
-  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
-): boolean {
-  if (inspected.request.token !== decision.token) {
-    return false;
-  }
-  if (inspected.request.permission !== permission.key) {
-    return false;
-  }
-  if (
-    inspected.request.resource.id !== undefined &&
-    inspected.request.resource.id !== ref.id
-  ) {
-    return false;
-  }
-  return true;
-}
-
-export async function applyApprovalResume(
+export function applyApprovalResume(
   decision: Decision,
   permission: Permission,
   dock: PermDock,
@@ -158,101 +122,15 @@ export async function applyApprovalResume(
   resource: { readonly type: string; readonly id?: string },
   adapter: string,
 ): Promise<Decision> {
-  const header = readApprovalHeader(request.headers);
-  if (header === undefined) {
-    if (decision.outcome === 'approval-required' && store !== undefined) {
-      await requestApproval(
-        store,
-        decision,
-        compact({
-          permission,
-          resource,
-          subject: dock.subject,
-          adapter,
-        }),
-      );
-    }
-    return decision;
-  }
-  const inspected =
-    store === undefined
-      ? undefined
-      : await resumeFromHeader(store, request.headers);
-  if (store === undefined || inspected === undefined || !inspected.ok) {
-    return approvalDenied(
-      inspected !== undefined && !inspected.ok
-        ? inspected.detail
-        : 'approval-not-found',
-    );
-  }
-  if (decision.outcome === 'granted' || decision.outcome === 'denied') {
-    return decision;
-  }
-  if (!resumeMatches(inspected, permission, resource, decision)) {
-    return approvalDenied('approval-mismatch');
-  }
-  const principal = dock.subject.principal;
-  if (principal === null) {
-    return approvalDenied('approval-mismatch');
-  }
-  return {
-    outcome: 'granted',
-    subject: { ...dock.subject, principal },
-    matched: decision.grant,
-    token: decision.token,
-  };
-}
-
-async function applyResume(
-  decision: Decision,
-  permission: Permission,
-  item: EvaluationItem,
-  data: unknown,
-  dock: PermDock,
-  store: ApprovalStore | undefined,
-  inspected: ApprovalInspectResult | undefined,
-  header: string | undefined,
-  adapter: string,
-): Promise<Decision> {
-  if (header === undefined) {
-    if (decision.outcome === 'approval-required' && store !== undefined) {
-      await requestApproval(
-        store,
-        decision,
-        compact({
-          permission,
-          resource: resourceRef(permission, item, data),
-          subject: dock.subject,
-          adapter,
-        }),
-      );
-    }
-    return decision;
-  }
-  if (store === undefined || inspected === undefined || !inspected.ok) {
-    return approvalDenied(
-      inspected !== undefined && !inspected.ok
-        ? inspected.detail
-        : 'approval-not-found',
-    );
-  }
-  if (decision.outcome === 'granted' || decision.outcome === 'denied') {
-    return decision;
-  }
-  const ref = resourceRef(permission, item, data);
-  if (!resumeMatches(inspected, permission, ref, decision)) {
-    return approvalDenied('approval-mismatch');
-  }
-  const principal = dock.subject.principal;
-  if (principal === null) {
-    return approvalDenied('approval-mismatch');
-  }
-  return {
-    outcome: 'granted',
-    subject: { ...dock.subject, principal },
-    matched: decision.grant,
-    token: decision.token,
-  };
+  return resumeDecision({
+    decision,
+    permission,
+    subject: dock.subject,
+    store,
+    resource,
+    adapter,
+    token: readApprovalHeader(request.headers),
+  });
 }
 
 function evaluateOne(
@@ -260,7 +138,6 @@ function evaluateOne(
   dock: PermDock,
   item: EvaluationItem,
   store: ApprovalStore | undefined,
-  inspected: ApprovalInspectResult | undefined,
   header: string | undefined,
   adapter: string,
 ): Promise<Decision> {
@@ -272,24 +149,28 @@ function evaluateOne(
   const decide = dock.decide as (
     next: Permission,
     row?: unknown,
-    options?: { readonly source: 'endpoint'; readonly adapter: string },
+    options?: DecideOptions,
   ) => Decision;
   const decision = decide(
     permission,
     data,
-    compact({ source: 'endpoint' as const, adapter }),
+    compact<DecideOptions>({
+      source: 'endpoint',
+      adapter,
+      trusted: false,
+      boundary: 'decision-endpoint',
+    }),
   );
-  return applyResume(
+  return resumeDecision({
     decision,
     permission,
-    item,
-    data,
-    dock,
+    subject: dock.subject,
     store,
-    inspected,
-    header,
+    resource: resourceRef(permission, item, data),
     adapter,
-  );
+    token: header,
+    consume: false,
+  });
 }
 
 async function resolveDock(
@@ -345,10 +226,6 @@ export function createEvaluationsHandler(options: {
     }
 
     const header = readApprovalHeader(request.headers);
-    const inspected =
-      header === undefined || options.store === undefined
-        ? undefined
-        : await resumeFromHeader(options.store, request.headers);
     let dock: PermDock;
     try {
       dock = await resolveDock(options, request);
@@ -370,7 +247,6 @@ export function createEvaluationsHandler(options: {
             dock,
             entry,
             options.store,
-            inspected,
             header,
             adapter,
           ),

@@ -1,5 +1,6 @@
 import type { ApprovalStore } from '../approvals/types.ts';
 import type { TokenVerifier, VerifiedToken } from '../core/interfaces.ts';
+import type { RevocationFeed } from '../core/revocations.ts';
 import type {
   PollHandle,
   PollOptions,
@@ -49,8 +50,15 @@ type ReceiverConfig = {
   readonly onEvent: SsfOnEvent;
   readonly replay: ReplayStore;
   readonly approvals?: ApprovalStore;
+  readonly revocations?: RevocationFeed;
   readonly clockTolerance?: number;
 };
+
+const CHANGED_EVENTS: ReadonlySet<string> = new Set([
+  'credential-change',
+  'assurance-level-change',
+  'token-claims-change',
+]);
 
 function replayExpiresAt(
   claims: Readonly<Record<string, unknown>>,
@@ -64,6 +72,25 @@ function replayExpiresAt(
     return until > Date.now() / 1000 ? until : undefined;
   }
   return undefined;
+}
+
+type DeliveryRun = {
+  readonly issuer: string | undefined;
+  readonly jti: string;
+  readonly baseSubject: SetSubject | undefined;
+  readonly expiresAt: number | undefined;
+  /** Record each event that succeeded, so a retried SET skips it. */
+  readonly perEvent: boolean;
+};
+
+function replayKey(
+  issuer: string | undefined,
+  jti: string,
+  event?: string,
+): string {
+  return JSON.stringify(
+    event === undefined ? [issuer ?? null, jti] : [issuer ?? null, jti, event],
+  );
 }
 
 export function createReceiver(config: ReceiverConfig): SsfReceiver {
@@ -140,14 +167,63 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     return asSubject(mapped, session, issuer);
   }
 
-  async function rememberReplay(
-    jti: string,
-    claims: Readonly<Record<string, unknown>>,
+  const atomic =
+    typeof config.replay.claim === 'function' &&
+    typeof config.replay.release === 'function';
+
+  /** `true` when this delivery owns the SET and should dispatch it. */
+  async function claimDelivery(
+    key: string,
+    expiresAt: number | undefined,
+  ): Promise<boolean> {
+    if (atomic) {
+      return (await config.replay.claim?.(key, expiresAt)) === true;
+    }
+    return !(await config.replay.seen(key));
+  }
+
+  async function settleDelivery(
+    key: string,
+    expiresAt: number | undefined,
+    ok: boolean,
   ): Promise<void> {
-    await config.replay.remember(
-      jti,
-      replayExpiresAt(claims, config.clockTolerance),
-    );
+    if (atomic) {
+      if (!ok) {
+        await config.replay.release?.(key);
+      }
+      return;
+    }
+    if (ok) {
+      await config.replay.remember(key, expiresAt);
+    }
+  }
+
+  async function publishRevocation(input: SsfEventInput): Promise<void> {
+    const feed = config.revocations;
+    if (feed === undefined) {
+      return;
+    }
+    const kind =
+      input.type === 'session-revoked'
+        ? 'session-revoked'
+        : CHANGED_EVENTS.has(input.type)
+          ? 'changed'
+          : undefined;
+    if (kind === undefined) {
+      return;
+    }
+    try {
+      await feed.revoke(
+        compact({
+          principal: input.subject.id,
+          session:
+            kind === 'session-revoked' ? input.subject.session : undefined,
+          kind,
+        }),
+      );
+    } catch {
+      // Connections fall back to their expiry when a feed is down.
+    }
   }
 
   async function cancelSessionApprovals(input: SsfEventInput): Promise<void> {
@@ -185,6 +261,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         jti: input.jti,
         unknown: 'event',
       });
+      await publishRevocation(input);
       await cancelSessionApprovals(input);
       return { ok: true };
     }
@@ -203,21 +280,25 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       transmitter: input.subject.issuer,
       jti: input.jti,
     });
+    await publishRevocation(input);
     await cancelSessionApprovals(input);
     return { ok: true };
   }
 
   async function dispatchEvents(
     entries: readonly (readonly [string, unknown])[],
-    issuer: string | undefined,
-    jti: string,
-    baseSubject: SetSubject | undefined,
+    run: DeliveryRun,
   ): Promise<IngestResult> {
     const [head, ...tail] = entries;
     if (head === undefined) {
       return { ok: true };
     }
+    const { issuer, jti, baseSubject } = run;
     const [uri, raw] = head;
+    const eventKey = replayKey(issuer, jti, uri);
+    if (run.perEvent && (await config.replay.seen(eventKey))) {
+      return dispatchEvents(tail, run);
+    }
     const payload = isRecord(raw) ? raw : {};
     const type = caepName(uri) ?? uri;
     const session = eventSession(payload);
@@ -228,7 +309,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         jti,
         unknown: 'event',
       });
-      return dispatchEvents(tail, issuer, jti, baseSubject);
+      return dispatchEvents(tail, run);
     }
     const identifier = baseSubject ?? {
       format: 'opaque',
@@ -242,7 +323,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         jti,
         unknown: 'subject',
       });
-      return dispatchEvents(tail, issuer, jti, baseSubject);
+      return dispatchEvents(tail, run);
     }
     const result = await dispatch(
       type,
@@ -257,7 +338,10 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     if (!result.ok) {
       return result;
     }
-    return dispatchEvents(tail, issuer, jti, baseSubject);
+    if (run.perEvent) {
+      await config.replay.remember(eventKey, run.expiresAt);
+    }
+    return dispatchEvents(tail, run);
   }
 
   async function ingestSet(token: string): Promise<IngestResult> {
@@ -271,18 +355,8 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       return verified;
     }
     const jti = verified.claims.jti as string;
-    if (await config.replay.seen(jti)) {
-      emit({
-        type: 'replay',
-        transmitter:
-          typeof verified.claims.iss === 'string'
-            ? verified.claims.iss
-            : undefined,
-        jti,
-        replayed: true,
-      });
-      return { ok: true };
-    }
+    const issuer =
+      typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
     const events = verified.claims.events;
     if (!isRecord(events)) {
       return {
@@ -292,20 +366,30 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         cause: 'invalid-claims',
       };
     }
-    const issuer =
-      typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
-    const baseSubject = setSubjectFromClaims(verified.claims);
-    const dispatched = await dispatchEvents(
-      Object.entries(events),
-      issuer,
-      jti,
-      baseSubject,
-    );
-    if (!dispatched.ok) {
-      return dispatched;
+    const key = replayKey(issuer, jti);
+    const expiresAt = replayExpiresAt(verified.claims, config.clockTolerance);
+    if (!(await claimDelivery(key, expiresAt))) {
+      emit({ type: 'replay', transmitter: issuer, jti, replayed: true });
+      return { ok: true };
     }
-    await rememberReplay(jti, verified.claims);
-    return { ok: true };
+    const entries = Object.entries(events);
+    let dispatched: IngestResult = {
+      ok: false,
+      err: 'invalid_request',
+      description: 'handler failed',
+    };
+    try {
+      dispatched = await dispatchEvents(entries, {
+        issuer,
+        jti,
+        baseSubject: setSubjectFromClaims(verified.claims),
+        expiresAt,
+        perEvent: entries.length > 1,
+      });
+    } finally {
+      await settleDelivery(key, expiresAt, dispatched.ok);
+    }
+    return dispatched;
   }
 
   async function ingestLogout(token: string): Promise<IngestResult> {
@@ -355,16 +439,43 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       };
     }
     const jti = verified.claims.jti as string;
-    if (await config.replay.seen(jti)) {
-      emit({
-        type: 'replay',
-        jti,
-        replayed: true,
-      });
-      return { ok: true };
-    }
     const issuer =
       typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
+    const key = replayKey(issuer, jti);
+    const expiresAt = replayExpiresAt(verified.claims, config.clockTolerance);
+    if (!(await claimDelivery(key, expiresAt))) {
+      emit({ type: 'replay', transmitter: issuer, jti, replayed: true });
+      return { ok: true };
+    }
+    let dispatched: IngestResult = {
+      ok: false,
+      err: 'invalid_request',
+      description: 'handler failed',
+    };
+    try {
+      dispatched = await dispatchLogout(verified.claims, {
+        issuer,
+        jti,
+        sub,
+        sid,
+      });
+    } finally {
+      await settleDelivery(key, expiresAt, dispatched.ok);
+    }
+    return dispatched;
+  }
+
+  async function dispatchLogout(
+    claims: Readonly<Record<string, unknown>>,
+    ids: {
+      readonly issuer: string | undefined;
+      readonly jti: string;
+      readonly sub: string | undefined;
+      readonly sid: string | undefined;
+    },
+  ): Promise<IngestResult> {
+    const { issuer, jti, sub, sid } = ids;
+    const events = claims.events as Readonly<Record<string, unknown>>;
     const identifier: SetSubject =
       sub === undefined
         ? compact({ format: 'opaque', id: sid })
@@ -377,13 +488,12 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         jti,
         unknown: 'subject',
       });
-      await rememberReplay(jti, verified.claims);
       return { ok: true };
     }
     const payload = isRecord(events[BACKCHANNEL_LOGOUT_EVENT])
       ? events[BACKCHANNEL_LOGOUT_EVENT]
       : {};
-    const dispatched = await dispatch(
+    return dispatch(
       'session-revoked',
       compact({
         subject,
@@ -393,11 +503,6 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         type: 'session-revoked',
       }),
     );
-    if (!dispatched.ok) {
-      return dispatched;
-    }
-    await rememberReplay(jti, verified.claims);
-    return { ok: true };
   }
 
   const receiver: SsfReceiver = {

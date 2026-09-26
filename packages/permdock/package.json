@@ -100,7 +100,7 @@
     },
     "./svelte": {
       "types": "./dist/svelte/index.d.ts",
-      "svelte": "./dist/svelte/index.js",
+      "svelte": "./dist/svelte/source.js",
       "default": "./dist/svelte/index.js"
     },
     "./solid": {
@@ -216,6 +216,8 @@
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@arethetypeswrong/cli": "catalog:",
+    "@modelcontextprotocol/client": "catalog:",
+    "@modelcontextprotocol/server": "catalog:",
     "@nestjs/common": "catalog:",
     "@nestjs/core": "catalog:",
     "@nestjs/platform-express": "catalog:",
@@ -223,6 +225,7 @@
     "@orpc/server": "catalog:",
     "@permdock/typescript-config": "workspace:*",
     "@supabase/middleware": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
     "@trpc/server": "catalog:",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
@@ -235,6 +238,7 @@
     "eve": "catalog:",
     "express": "catalog:",
     "fastify": "catalog:",
+    "happy-dom": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
     "kysely": "catalog:",
@@ -255,6 +259,7 @@
   },
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:peers",
+    "@modelcontextprotocol/server": "catalog:peers",
     "@nestjs/common": "catalog:peers",
     "@nestjs/core": "catalog:peers",
     "@nestjs/platform-express": "catalog:peers",
@@ -282,6 +287,9 @@
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
+    "@modelcontextprotocol/server": {
       "optional": true
     },
     "@openai/agents": {

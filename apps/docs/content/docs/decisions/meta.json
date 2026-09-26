@@ -49,6 +49,9 @@
     "0046-supabase-middleware-entry",
     "0047-approver-eligibility",
     "0048-membership-sink-event",
-    "0049-cache-components-building-blocks"
+    "0049-cache-components-building-blocks",
+    "0050-client-parity-and-snapshot-scopes",
+    "0051-approval-lifecycle",
+    "0052-streams-and-sockets"
   ]
 }

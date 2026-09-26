@@ -1,0 +1,15 @@
+{
+  "extends": "@permdock/typescript-config/next.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src",
+    "next.config.ts",
+    "permdock.config.ts",
+    ".next/types/**/*.ts"
+  ]
+}

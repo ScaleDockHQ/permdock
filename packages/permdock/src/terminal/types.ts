@@ -3,6 +3,7 @@ import type { Decision } from '../core/decision.ts';
 import type { ProblemDetails } from '../core/errors.ts';
 import type {
   DecisionSink,
+  LimitStore,
   MembershipSource,
   RoleSource,
 } from '../core/interfaces.ts';
@@ -87,6 +88,7 @@ export type TerminalPermDockOptions<TUser = unknown> = {
   readonly customRoles?: RoleSource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
+  readonly limits?: LimitStore;
   readonly storage?: TerminalStorageOptions;
   readonly device?: DeviceFlowOptions;
   readonly interactive?: boolean | { readonly confirm: InteractiveConfirm };

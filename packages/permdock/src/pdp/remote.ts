@@ -61,17 +61,25 @@ function resourceIdOf(data: unknown): string {
   return '*';
 }
 
+const CACHE_MAX = 1000;
+
+/**
+ * The evaluation body that would be sent, plus what a custom mapping may drop
+ * (issuer, tenant, actor): a tenant switch or a changed row never reuses a
+ * cached decision.
+ */
 function cacheKey(
   subject: Subject,
   permission: Permission,
-  data: unknown,
+  body: Record<string, unknown>,
 ): string {
-  return [
-    subject.principal?.id ?? '',
-    subject.actor?.id ?? '',
+  return JSON.stringify([
     permission.key,
-    resourceIdOf(data),
-  ].join(':');
+    subject.principal?.issuer ?? null,
+    subject.principal?.tenant ?? null,
+    subject.actor === undefined ? null : [subject.actor.id, subject.actor.kind],
+    body,
+  ]);
 }
 
 function denied(reason: DenialReason): Decision {
@@ -330,26 +338,30 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
       if (request.subject.principal === null) {
         return denied('anonymous');
       }
-      const key = cacheKey(request.subject, request.permission, request.data);
+      let body: Record<string, unknown>;
+      try {
+        body = mapEvaluationBody(
+          request.permission,
+          request.data,
+          request.subject,
+          options.mapping,
+        );
+      } catch {
+        return denied('pdp-invalid-response');
+      }
+      const key = cacheKey(request.subject, request.permission, body);
       if (cacheTtl > 0) {
         const hit = cache.get(key);
         if (hit !== undefined && Date.now() - hit.at < cacheTtl) {
           return hit.decision;
         }
+        cache.delete(key);
       }
       const endpoints = await discover();
       if (endpoints === null) {
         return denied('pdp-unavailable');
       }
-      const posted = await post(
-        endpoints.evaluation,
-        mapEvaluationBody(
-          request.permission,
-          request.data,
-          request.subject,
-          options.mapping,
-        ),
-      );
+      const posted = await post(endpoints.evaluation, body);
       if (!posted.ok) {
         return denied('pdp-unavailable');
       }
@@ -367,6 +379,12 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
           decision.denials[0]?.reason === 'pdp-denied');
       if (cacheTtl > 0 && cacheable) {
         cache.set(key, { at: Date.now(), decision });
+        if (cache.size > CACHE_MAX) {
+          const oldest = cache.keys().next();
+          if (oldest.done !== true) {
+            cache.delete(oldest.value);
+          }
+        }
       }
       return decision;
     },

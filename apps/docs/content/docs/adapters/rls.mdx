@@ -58,7 +58,7 @@ Portable subset compiled by `generate` and recognised by `import`:
 | `memberOf(tenant, row.org_id, roles)` from a tenant-scoped role, active tenant in a claim | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = org_id` |
 | `memberOf(tenant, row.org_id, roles)` with a membership table (`supabaseRls({ memberships })` or `--memberships <table>`) | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any('{admin,viewer}'))` | same | same, user from the GUC |
 | `memberOf(team, row.team_id, roles)` | `exists (select 1 from team_members m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = any(...))`, plus the active-tenant equality | same | same |
-| `memberOf(resource, row.id, roles)` with declared parents | `exists (...)` over the resource membership table on `row.id`, `OR` one `exists` per declared ancestor field (`folder_id`, `project_id`) | same | same |
+| `memberOf(resource, row.id, roles)` with declared parents | A resource role: one `exists (...)` per mapped resource on the chain, each over that resource's membership table and keyed by the row field holding its id (`id` for the resource itself, `folder_id`, `project_id` for ancestors); a resource with no mapped table contributes nothing | same | same |
 | `hasPermission('channels.delete')` (with `--rbac supabase`) | `(select authorize('channels.delete'))` | opaque | opaque |
 | literals, `isNull`, boolean columns, `and` / `or` / `not` | literal SQL | literal SQL | literal SQL |
 

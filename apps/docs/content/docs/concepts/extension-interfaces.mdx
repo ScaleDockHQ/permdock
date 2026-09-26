@@ -1,6 +1,6 @@
 ---
 title: Extension interfaces
-description: The fixed set of interfaces through which providers, verifiers, signers, stores, sinks and compilers plug into PermDock (SubjectResolver, TokenVerifier, TokenSigner, MembershipSource, RoleSource, DirectoryStore, ApprovalStore, DecisionSink, SnapshotSource, LimitStore, WhereCompiler, on() events), their trust classes, the in-process default each ships with, how provider principal types are extended without global augmentation, and the conformance runners in @permdock/testing.
+description: The fixed set of interfaces through which providers, verifiers, signers, stores, sinks and compilers plug into PermDock (SubjectResolver, TokenVerifier, TokenSigner, MembershipSource, RoleSource, DirectoryStore, ApprovalStore, DecisionSink, SnapshotSource, LimitStore, ReplayStore, RevocationFeed, WhereCompiler, on() events), their trust classes, the in-process default each ships with, how provider principal types are extended without global augmentation, and the conformance runners in @permdock/testing.
 ---
 
 Status: proposed ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable), [ADR 0026](/docs/decisions/0026-spec-aligned-naming))
@@ -21,7 +21,8 @@ PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-
 | `ApprovalStore` | Hold pending `approval-required` decisions until a human answers | Operational: never influences an outcome | `memoryApprovalStore()` | Postgres, Redis, Durable Objects, PermDock Cloud ([approvals](/docs/adapters/approvals)) |
 | `DecisionSink` | Receive decision events after the fact | Operational | `memorySink()` | OpenTelemetry, SIEMs, a table, PermDock Cloud ([audit](/docs/concepts/audit-and-observability)) |
 | `SnapshotSource` | Distribute and invalidate snapshots | Operational | In-process `snapshot()` | PermDock Cloud, your cache ([snapshots](/docs/concepts/snapshots)) |
-| `ReplayStore` | Remember SET / `logout_token` `jti` values so a replay is dropped. `remember(jti, expiresAt?)` is additive | Operational: never a decision input | `memoryReplayStore()` in `permdock/ssf` (evicts on read) | Redis `SET NX EX` or a Postgres `expires_at` row; recipes on [SSF](/docs/adapters/ssf); `testReplayStore` in `@permdock/testing` |
+| `ReplayStore` | Remember SET / `logout_token` `jti` values, namespaced by issuer, so a replay is dropped. `remember(key, expiresAt?)` is additive; the optional pair `claim(key, expiresAt?)` / `release(key)` makes concurrent deliveries dispatch once | Operational: never a decision input | `memoryReplayStore()` in `permdock/ssf` (evicts on read) | Redis `SET NX EX` or a Postgres `expires_at` row; recipes on [SSF](/docs/adapters/ssf); `testReplayStore` in `@permdock/testing` |
+| `RevocationFeed` | Tell open streams and sockets that a subject changed: `subscribe(listener)` returns an unsubscribe function, `revoke({ principal, session?, tenant?, kind })` publishes. `session-revoked` ends matching connections; `changed` makes them resolve their subject again | Operational: it can end or revalidate a connection, never grant; a lost event falls back to expiry | `memoryRevocationFeed()` in `permdock` (validates and freezes events, isolates listener errors) | Postgres `LISTEN`/`NOTIFY`, Redis pub/sub or Supabase Realtime bridging `revoke` across replicas ([0052](/docs/decisions/0052-streams-and-sockets)); `testRevocationFeed` in `@permdock/testing` |
 | `DecisionProvider` | Answer `decide` for delegated permissions via a remote AuthZEN PDP | Decision path, opt-in, fail-closed | None; local evaluation only | `remotePdp` in `permdock/pdp` |
 | `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/local-first-sync)) |
 | `on(event, handler)` | Observe `decision`, `denied`, `approval`, `auth` events | Observational: cannot change a `Decision` | No-op | Logging, metrics, tests |
@@ -155,6 +156,7 @@ interface LimitStore {
     count: number
     per: string
     now?: number
+    tenant?: string
   }): { remaining: number } | Promise<{ remaining: number }>
   remaining(input: {
     key: string
@@ -162,11 +164,12 @@ interface LimitStore {
     count: number
     per: string
     now?: number
+    tenant?: string
   }): { remaining: number } | undefined
 }
 ```
 
-`remaining` must be synchronous. A Promise from either method is denied, never awaited. Pass `limits: memoryLimitStore()` to `createPermDock`; omitting it fails closed on every quota grant.
+`remaining` must be synchronous. A Promise from either method is denied, never awaited. A store counts per `subjectId` and `tenant` (the active tenant, absent without one). `per` is a duration such as `'hour'`, `'15 min'` or `'1 d'`, validated when the grant is defined ([ADR 0050](/docs/decisions/0050-client-parity-and-snapshot-scopes)); `memoryLimitStore()` forgets ended windows. Pass `limits: memoryLimitStore()` to `createPermDock`; omitting it fails closed on every quota grant.
 
 ```ts
 interface WhereCompiler<TTarget, TOptions = unknown> {
@@ -195,7 +198,7 @@ Handlers cannot change a `Decision`; they receive a frozen copy after the outcom
 `@permdock/testing` ships one runner per interface so an implementation can prove it honours the contract before it is used:
 
 ```ts
-import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testLimitStore, testWhereCompiler } from '@permdock/testing'
+import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testLimitStore, testReplayStore, testRevocationFeed, testWhereCompiler } from '@permdock/testing'
 
 testSubjectResolver((claims) => subjectFromSupabase(claims, { schema }), { valid: [okClaims], invalid: [null, { role: 'anon' }] })
 testTokenVerifier(myVerifier, { jwks: fixtureJwks })          // runs the JWT adapter behaviour table against the fixture tokens
@@ -203,7 +206,7 @@ testTokenSigner(kmsSigner, { verifier: joseTokenVerifier({ jwks: await kmsSigner
 testMembershipSource(documentMembers, { principals: [alice], expect: { alice: [{ on: { resource: 'document', id: 'd_1' }, roles: ['editor'] }] } })
 testRoleSource(betterAuthRoles, { tenants: ['o_acme'], declared: policy.assignable })
 testDirectoryStore(drizzleDirectory, { tenants: ['o_acme', 'o_globex'] })   // replays the recorded Okta and Entra ID requests
-testApprovalStore(postgresStore)
+testApprovalStore(postgresStore, { reopen: () => openPostgresStore() })
 testLimitStore(memoryLimitStore())
 testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 ```
@@ -216,9 +219,11 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testMembershipSource` | Returns only well-formed memberships (one scope shape each); a throw yields an empty list; results are JSON |
 | `testRoleSource` | Every `includes` entry is a declared assignable role or is dropped; `assignable` is a subset of the declared assignable roles; unknown tenants yield an empty list |
 | `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user |
-| `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; the token is opaque to the store |
+| `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; a repeated `create` keeps the record; concurrent `consume` succeeds once; an approver from another tenant is refused; with `{ reopen }`, an approval resumes after a restart; the token is opaque to the store |
 | `testDecisionSink` | Accepts batches including a `membership` event; `flush` is idempotent; a throw never propagates to the caller |
 | `testSnapshotSource` | Round-trips snapshot v3 through the format schema; invalidation is observed by a subscriber |
+| `testReplayStore` | A remembered key is seen; an expired key is not; with `claim` and `release`, two concurrent claims succeed once and a released key can be claimed again |
+| `testRevocationFeed` | Every subscriber receives each event until it unsubscribes; a throwing listener does not stop the others; an event without a principal or with an unknown `kind` is rejected with a `TypeError` and delivered to no one. Delivery may be asynchronous |
 | `testLimitStore` | `consume` counts down; remaining after the cap is less than zero; `remaining` when present is not a thenable |
 | `testWhereCompiler` | The empty allow set compiles to a fail-closed value (`false` / `null` / `undefined`, or `options.isFailClosed`); adapters pass constant-false SQL, `{ OR: [] }` or `eb.lit(false)` |
 

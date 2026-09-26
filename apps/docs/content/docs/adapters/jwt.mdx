@@ -114,7 +114,7 @@ Every failure produces the same outcome: the anonymous subject (`principal: null
 | Input | Result | `cause` |
 |---|---|---|
 | Signature does not verify | anonymous | `invalid-signature` |
-| `exp` in the past beyond `clockTolerance`, or `exp` absent | anonymous | `expired` |
+| `exp` in the past beyond `clockTolerance`, or `exp` absent (except on a `secevent+jwt` Security Event Token, which RFC 8417 lets omit `exp` and which must carry `iat` instead) | anonymous | `expired` |
 | `nbf` or `iat` in the future beyond `clockTolerance` | anonymous | `not-yet-valid` |
 | `aud` does not contain the configured audience | anonymous | `wrong-audience` |
 | `iss` differs from the configured or discovered issuer | anonymous | `wrong-issuer` |

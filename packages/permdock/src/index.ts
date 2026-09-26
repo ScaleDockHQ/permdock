@@ -6,6 +6,7 @@ export type {
   ConditionRef,
   ConditionValue,
   MemberOfCondition,
+  MemberOfParent,
   SqlFunctionArg,
   SqlFunctionCondition,
 } from './conditions/ast.ts';
@@ -30,9 +31,16 @@ export type {
 export {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
+  PermDockRevokedError,
   PermDockValidationError,
 } from './core/errors.ts';
-export type { ProblemDetails } from './core/errors.ts';
+export type { ProblemDetails, RevokedCode } from './core/errors.ts';
+export { memoryRevocationFeed } from './core/revocations.ts';
+export type {
+  RevocationEvent,
+  RevocationFeed,
+  RevocationListener,
+} from './core/revocations.ts';
 export { memoryRoleSource } from './core/interfaces.ts';
 export { memoryLimitStore } from './core/limits.ts';
 export type {

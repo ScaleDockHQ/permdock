@@ -62,6 +62,30 @@ app.delete(
 );
 ```
 
+Every HTTP adapter takes `tenant` (for example `(c) => c.req.param('org')`), resolved again on each `protect` where route params exist, plus `limits` (a `LimitStore` for quota grants) and `pdp` (`createPermDock` from `permdock/pdp`). Pass `{ trusted: false }` as the third `protect` argument when the loader returns the request body. `assert` inside a handler becomes the same 403 Problem Details as a guard denial; no `onError` wiring is needed.
+
+Streams and sockets: pass `revocations: memoryRevocationFeed()` (from `permdock`) and open a connection after `protect` succeeded. `sse` drops items the subscriber cannot read and ends with an `event: permdock` frame on revocation; await it last. `socket` closes a WebSocket with `1008`. Check inbound socket messages with `conn.check(permission, data, { trusted: false })`; a denial keeps the socket open.
+
+```ts
+app.get(
+  '/projects/:id/events',
+  protect(permissions.project.read, loadProject),
+  async (c) => {
+    const conn = await connection(c, {
+      permission: permissions.project.read,
+      data: c.get('permdockData'),
+    });
+    return streamSSE(c, async (stream) => {
+      await sse(conn, stream, projectEvents(conn.signal), {
+        items: permissions.project.read,
+      });
+    });
+  },
+);
+```
+
+Publish `revocations.revoke({ principal, tenant, kind: 'changed' })` from your role-edit code so open connections revalidate.
+
 ## React (Vite) — `permdock/react`
 
 No factory. The server builds a snapshot (`permdock.snapshot()` or `fromSnapshot` on snapshot JSON) and the client wraps the tree:
@@ -76,6 +100,9 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/react';
 
 ```ts
 import { createPermDock } from 'permdock/ai-sdk';
+import { z } from 'zod';
+
+const PostArgs = z.object({ id: z.string() });
 
 export const { toolApproval, capabilityMiddleware, needsApproval } =
   createPermDock(policy, {
@@ -87,13 +114,14 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
     tools: {
       delete_post: {
         permission: permissions.post.delete,
-        data: (args) => loadPost(args.id),
+        // Tool input arrives as `unknown`: parse it before loading.
+        data: (args) => loadPost(PostArgs.parse(args).id),
       },
     },
   });
 ```
 
-Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `capabilityMiddleware`. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`.
+Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`.
 
 ## Claude Agent SDK — `permdock/claude-agent`
 
@@ -112,7 +140,7 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
 });
 ```
 
-`canUseTool` returns `{ behavior: 'allow', updatedInput }`, `{ behavior: 'deny', message }`, or `null` while approval is pending. Resume with `token` / `approval` on the context.
+`canUseTool` returns `{ behavior: 'allow', updatedInput }` or `{ behavior: 'deny', message }`; approval-required is a deny whose message carries the pending token. Pass a `store`: once a reviewer approves, the retried call is allowed exactly once. `mcp__` tools are trusted only from `mcpSources` (default `['sdk']`). Pass `permissionRequestHook` under `hooks.PermissionRequest`.
 
 ## Eve — `permdock/eve`
 
@@ -129,7 +157,7 @@ export const { approval, approvalFor, permdock } = createPermDock(policy, {
 });
 ```
 
-Default subject/actor read `session.auth.initiator` / `current`. `approval.request` maps granted to Eve's `not-applicable` (continue), approval-required to `user-approval`, denied to `{ type: 'denied', reason }`.
+Pass `approval` as the tool's `approval`. Default subject/actor read `session.auth.initiator` / `current`. `approval.request(ctx)` maps granted to Eve's `not-applicable` (continue), approval-required to `user-approval`, denied to `{ type: 'denied', reason }`; Eve's re-check of a call nobody approved is denied. `approval.response(ctx)` maps the responder through the same `subject`. Use a durable `store` when replicas share sessions.
 
 ## OpenAI Agents SDK — `permdock/openai`
 
@@ -149,7 +177,7 @@ export const { needsApproval, guardTools, resolveInterruptions, permdock } =
   });
 ```
 
-`needsApproval` is true unless the decision is granted. `guardTools` drops tools with no grant. `resolveInterruptions` approves or rejects each pause.
+`needsApproval(permission)` is the tool's `needsApproval`; it reads `runContext.context` and is true unless granted. `guardTools` drops tools with no grant. `resolveInterruptions(state, interruptions, { context })` approves or rejects each pause and returns the still-pending `ApprovalRequest`s. On resume, rebuild the context from the session and use `RunState.fromStringWithContext`.
 
 ## MCP — `permdock/mcp`
 
@@ -157,18 +185,26 @@ export const { needsApproval, guardTools, resolveInterruptions, permdock } =
 import { createPermDock } from 'permdock/mcp';
 
 export const { protectServer } = createPermDock(policy, {
-  subject: (authInfo) => authInfo.extra?.subject ?? null,
+  subject: (authInfo) => userFrom(authInfo), // or subjectFromMcp
+  requireAuthInfo: true, // HTTP behind bearer auth
+  store,
 });
 
-const guarded = protectServer(server);
-guarded.registerTool(
+const server = protectServer(
+  new McpServer({ name: 'posts', version: '1.0.0' }),
+);
+server.registerTool(
   'delete_post',
-  { permission: permissions.post.delete, data: (args) => loadPost(args) },
+  {
+    permission: permissions.post.delete,
+    inputSchema: z.object({ id: z.string() }),
+    data: ({ id }) => loadPost(id),
+  },
   handler,
 );
 ```
 
-`actor.kind` is `'mcp-client'`. Missing scopes throw `InsufficientScopeError` (HTTP `403 insufficient_scope`). Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` returns an elicitation payload; resume only from `authInfo.extra.approval`, never from tool arguments.
+`actor.kind` is `'mcp-client'`. Every `registerTool` / `registerResource` / `registerPrompt` needs a `permission`. Lists are filtered per caller. A missing scope is an `insufficient_scope` step-up (HTTP `403`). Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` returns `isError: true` with the token and parks it in `store`; the retried call runs once after approval (token optional under `_meta["dev.permdock/approval"]`, never from tool arguments).
 
 ## AuthZEN — `permdock/authzen`
 
@@ -267,7 +303,7 @@ const app = new Elysia().use(permdock()).delete('/posts/:id', handler, {
 });
 ```
 
-Fetch-native plugin via `derive`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
+Fetch-native plugin via `derive`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. For `.ws` routes, `connection(ws, { permission })` in `open` returns the socket's connection (memoised); it closes the socket with `1008` when revoked.
 
 ## Nest — `permdock/nest`
 
@@ -280,7 +316,7 @@ export const { PermDockModule, PermDockGuard, Protect, InjectPermDock } =
   });
 ```
 
-Register `PermDockGuard` as `APP_GUARD` with `useExisting`. `Protect` attaches a permission (and optional loader) to a handler or class. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
+Register `PermDockGuard` as `APP_GUARD` with `useExisting`. `Protect` attaches a permission (and optional loader) to a handler or class. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Works on `@nestjs/platform-express` and `@nestjs/platform-fastify`. `permdockHandler({ path: ':org/permdock' })` mounts the decision controller where you choose. In a gateway, call `connection(client, client.request, { permission })` in `handleConnection` and `.close()` in `handleDisconnect`; `PermDockGuard` then checks each `@SubscribeMessage` through it.
 
 ## Node — `permdock/node`
 
@@ -295,7 +331,7 @@ export const { permdock, protect, send, permdockHandler } = createPermDock(
 );
 ```
 
-Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Express and Nest reuse `toRequest` / `fromResponse`.
+Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Express and Nest reuse `toRequest` / `fromResponse`. The body is read only when consumed, so a body parser after `permdock(req)` still works. There is no error hook: wrap handlers that call `assert` and `send(res, problemFromError(error))` (from `permdock/server`) when it returns a `Response`.
 
 ## tRPC — `permdock/trpc`
 
@@ -313,7 +349,7 @@ procedure
   .mutation(({ ctx }) => deletePost(ctx.permdockData));
 ```
 
-`protect` throws `TRPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `cause`. `openapi.security(permission)` is the `trpc-to-openapi` meta fragment.
+`protect` throws `TRPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `cause`; pass `errorFormatter` to `initTRPC.create` so clients see it under `data`. `ctx.permdock.assert` in a resolver maps to the same error. Read the tenant from each procedure's input (`tenant: (opts) => opts.input?.org`) so a batch never shares one; `request: (ctx) => ctx.req` names the Web `Request` when the context holds it elsewhere. `openapi.security(permission)` is the `trpc-to-openapi` meta fragment. On a subscription, `protect(permission, load, { items })` ends the iterator with `UNAUTHORIZED` or `FORBIDDEN` when the session is revoked or the permission re-denied, and drops items the subscriber cannot read; pass `revocations`.
 
 ## oRPC — `permdock/orpc`
 
@@ -331,7 +367,7 @@ base
   .handler(({ context }) => deletePost(context.permdockData));
 ```
 
-`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`. `openapi.protect` is the same guard; pass `openapi.security(permission)` to oRPC 2's `openapi({ spec })` metadata helper.
+`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`, and so does `context.permdock.assert` in a handler. Read the tenant from each procedure's input. `openapi.protect` is the same guard; pass `openapi.security(permission)` to oRPC 2's `openapi({ spec })` metadata helper. Event iterators behind `protect(permission, load, { items })` end and filter like tRPC subscriptions.
 
 ## Vue — `permdock/vue`
 
@@ -388,7 +424,7 @@ Client entry. No factory. Register snapshot-allowed tools on `document.modelCont
 
 ```ts
 import { registerTools } from 'permdock/webmcp';
-import { usePermDock } from 'permdock/react';
+import { approvalHeaders, usePermDock } from 'permdock/react';
 
 const permdock = usePermDock();
 const controller = new AbortController();
@@ -396,7 +432,8 @@ registerTools(document.modelContext, permissions.post, {
   permdock,
   signal: controller.signal,
   handlers: {
-    update: async (input) => api.posts.update(input),
+    update: async ({ input, token }) =>
+      api.posts.update(input, { headers: approvalHeaders(token) }),
   },
 });
 ```
@@ -459,7 +496,7 @@ export const scim = scimHandler({
 });
 ```
 
-The handler writes users and groups. It never decides. Unknown or non-assignable role names are stored and dropped when memberships are read.
+The handler writes users and groups. It never decides. Unknown or non-assignable role names are stored and dropped when memberships are read. Pass the app's `revocations` feed so a deprovisioned member's open streams revalidate and close.
 
 ## Cloud — `permdock/cloud`
 

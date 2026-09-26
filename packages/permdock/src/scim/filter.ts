@@ -259,6 +259,14 @@ function matchCompare(
   }
 }
 
+/** RFC 7644 §3.4.2.2: `pr` needs a non-empty value; a multi-valued one needs an item. */
+function present(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(present);
+  }
+  return value !== undefined && value !== null && value !== '';
+}
+
 export function matchFilter(
   target: DirectoryUser | DirectoryGroup | Record<string, unknown>,
   filter: ScimFilter | undefined,
@@ -273,7 +281,7 @@ export function matchFilter(
     case 'or':
       return filter.filters.some((item) => matchFilter(target, item));
     case 'pr':
-      return readAttribute(record, filter.attribute) !== undefined;
+      return present(readAttribute(record, filter.attribute));
     case 'eq':
     case 'ne':
     case 'co':

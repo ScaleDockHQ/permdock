@@ -42,13 +42,14 @@ app.post('/a2a/tasks', protectSkill((task) => task.skillId), handleTask)
 
 1. Discovery: a client fetches the public card. No authentication; scopes per skill are visible so the client can request them during OAuth.
 2. Authenticated discovery: the client fetches the extended card with a bearer token. The adapter resolves the subject, fills `actor` from the token's client identity and `delegation` from scopes or `authorization_details`, and filters skills with `can(permission)` (collection) or any-grant (instance).
-3. Task submission: `protectSkill` maps the task to a skill and permission, validates the task payload against the resource schema when `data` exists, and calls `decide`.
+3. Task submission: `protectSkill` maps the task to a skill and permission, runs the skill's `data` loader, validates what it returns against the resource schema, and calls `decide`. A loader that throws, or returns nothing for an instance permission, is a denial.
 4. Outcome: `granted` runs the task; `denied` and `approval-required` answer with an A2A task failure carrying the Decision (below).
 5. `on('decision')` records the discovery filter and the task decision with `actor` and `delegation`.
 
 ## What it validates
 
-- Task payloads against the resource schema when a `data` resolver is declared (`validate: 'boundary'`).
+- The row a `data` loader returns, against the resource schema (`validate: 'boundary'`); the task body is untrusted and is never the row itself.
+- A skill whose permission is instance-level must declare `data`; `createPermDock` throws a `TypeError` at startup otherwise.
 - Scope presence: the caller's token must carry the skill's `scope`; a missing scope is reported as a `401`/`403` with `WWW-Authenticate` naming the required scope, matching the security requirement in the card.
 - Card consistency: in development, the adapter asserts that every skill declares exactly one permission and that the `securitySchemes` referenced by `securityRequirements` exist.
 - Caller identity is never taken from the task body; it comes from the transport authentication only.
@@ -57,7 +58,8 @@ app.post('/a2a/tasks', protectSkill((task) => task.skillId), handleTask)
 
 - In discovery: the skill is absent from the extended card. The public card is never filtered, so a caller can always learn what scopes to request.
 - At execution: an A2A task in the failed state whose error is an RFC 9457 Problem Details object: `type` ending in `/denied` or `/approval-required`, `permission`, `denials`, `alternatives`. HTTP status `403`.
-- `approval-required`: the task enters an input-required state with the `Decision.token` and a human-readable prompt in the message; when the caller returns the approval, the adapter re-checks the token before continuing.
+- `approval-required`: the task enters an input-required state with the `Decision.token` and a human-readable prompt in the message, and the pending request is written to the `store`. When the caller continues the task, the adapter recomputes the token (or reads the one the verified token carries in `auth.extra.approval`) and resumes only if the store holds an approved record for the same permission, resource, principal and client; the approval is consumed, so a second run fails with `approval-consumed`. A token issued to another client never matches.
+- An unknown skill id, including `__proto__`, `constructor` and other inherited names, fails with `403`; skills are looked up by own key only.
 - Missing scope: standard OAuth step-up (`insufficient_scope`), not a denial.
 
 ## Example app

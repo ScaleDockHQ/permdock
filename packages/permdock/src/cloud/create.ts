@@ -43,7 +43,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asApproval(value: unknown): ApprovalRequest | null {
-  if (!isRecord(value) || value.v !== 1 || typeof value.token !== 'string') {
+  if (
+    !isRecord(value) ||
+    (value.v !== 1 && value.v !== 2) ||
+    typeof value.token !== 'string'
+  ) {
     return null;
   }
   return value as ApprovalRequest;
@@ -141,6 +145,27 @@ export function cloud(options: CloudOptions = {}): CloudClient {
         );
       }
       return parsed;
+    },
+    async consume(token: string, now?: Date): Promise<ApprovalRequest | null> {
+      try {
+        const response = await request(
+          `/approvals/${encodeURIComponent(token)}/consume`,
+          {
+            method: 'POST',
+            body: JSON.stringify(
+              compact({
+                now: now === undefined ? undefined : now.toISOString(),
+              }),
+            ),
+          },
+        );
+        if (!response.ok) {
+          return null;
+        }
+        return asApproval(await response.json());
+      } catch {
+        return null;
+      }
     },
     async list(filter: ApprovalListFilter): Promise<ApprovalRequest[]> {
       const query = new URLSearchParams(

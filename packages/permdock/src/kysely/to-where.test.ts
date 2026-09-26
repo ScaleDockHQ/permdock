@@ -118,6 +118,50 @@ describe('permdock/kysely toWhere', () => {
     expect(compiled.query.table).toBe('organization_members as m');
   });
 
+  it('matches listFields by element and escapes LIKE elsewhere', () => {
+    expect(
+      toWhere({ op: 'contains', field: 'tags', value: 'a' }, 'posts', {
+        listFields: ['tags'],
+      })(eb()),
+    ).toEqual({
+      kind: 'bin',
+      left: { kind: 'ref', column: 'posts.tags' },
+      op: '@>',
+      right: { kind: 'val', value: ['a'] },
+    });
+    expect(
+      toWhere({ op: 'contains', field: 'title', value: '5%_' }, 'posts')(eb()),
+    ).toEqual({
+      kind: 'bin',
+      left: { kind: 'ref', column: 'posts.title' },
+      op: 'like',
+      right: { kind: 'val', value: '%5\\%\\_%' },
+    });
+  });
+
+  it('binds whole-second expiry in exists joins', () => {
+    const compiled = toWhere(
+      { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['viewer'] },
+      'posts',
+      {
+        subject,
+        now: 100.2,
+        memberships: {
+          tenant: {
+            table: 'members',
+            user: 'user_id',
+            role: 'role',
+            tenant: 'org_id',
+            expiresAt: 'expires_at',
+          },
+        },
+      },
+    )(eb());
+    expect(JSON.stringify(compiled)).toContain(
+      '{"kind":"bin","left":{"kind":"ref","column":"m.expires_at"},"op":">","right":{"kind":"val","value":101}}',
+    );
+  });
+
   it('sets session claims inside withSubject', async () => {
     const queries: { sql: string; parameters: readonly unknown[] }[] = [];
     const db = {

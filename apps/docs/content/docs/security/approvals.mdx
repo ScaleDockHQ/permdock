@@ -25,7 +25,7 @@ If the grant does not match, the outcome is `denied` as usual; approval is never
 
 ## The replay-safe token
 
-`Decision.token` is a hash of the permission key, the resource id (from the resource's `id` field), the subject and the actor. It exists so an approval given for one call cannot be attached to another: approving "delete post p_42 for user u_123 via agent A" must not authorise deleting p_43, or deleting p_42 as a different user, or the same action by a different agent. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approval replies; PermDock computes the binding itself so the guarantee holds in every runtime.
+`Decision.token` is a hash of the permission key, the resource id (from the resource's `id` field), the principal's `id`, `tenant` and `issuer`, the actor's `id` and `kind`, and the fingerprint of the matched grant's conditions ([ADR 0051](/docs/decisions/0051-approval-lifecycle)). Roles, memberships, assurance and claims are not hashed: the resume re-runs `decide`, so a role lost in between is a denial. It exists so an approval given for one call cannot be attached to another: approving "delete post p_42 for user u_123 via agent A" must not authorise deleting p_43, or deleting p_42 as a different user, or the same action by a different agent. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approval replies; PermDock computes the binding itself so the guarantee holds in every runtime.
 
 Properties:
 
@@ -38,10 +38,13 @@ On resume, the adapter recomputes the token from the actual call being made and 
 
 ## The store
 
-Between the ask and the answer, the pending approval is an `ApprovalRequest` record in an `ApprovalStore` ([approvals adapter](/docs/adapters/approvals)). Every adapter that can surface `approval-required` takes a `store` option and uses `memoryApprovalStore()` when none is given, so nothing here needs infrastructure. The record carries the `token`, the permission key, the resource id, a subject summary, the model-readable `detail`, `createdAt`, `expiresAt` (default one hour) and `status`; on resolution it gains `resolvedBy`, the approver's principal id, and `resolvedAt`. Rules the store and the adapters hold:
+Between the ask and the answer, the pending approval is an `ApprovalRequest` record in an `ApprovalStore` ([approvals adapter](/docs/adapters/approvals)). Every adapter that can surface `approval-required` takes a `store` option. Eve and the OpenAI Agents SDK adapter use `memoryApprovalStore()` when none is given, because their resolve flows need one; the other adapters return `approval-required` without recording it and deny any resume until a `store` is configured. An approval resumes exactly one call ([ADR 0051](/docs/decisions/0051-approval-lifecycle)). The record carries the `token`, the permission key, the resource id, a subject summary, the model-readable `detail`, `createdAt`, `expiresAt` (default one hour) and `status`; on resolution it gains `resolvedBy`, the approver's principal id, and `resolvedAt`. Rules the store and the adapters hold:
 
 - The approver comes from authentication, never from the resume request, and is never the request's actor: an agent cannot approve its own call. `requireDistinctApprover` additionally excludes the principal for true four-eyes flows.
 - Only `pending` becomes `approved` or `rejected`; `expired` is terminal. A resume against anything but `approved` is `denied`.
+- An approval is spent once. A resume that enforces the call (`protect`, agent tool execution, MCP) calls the store's atomic `consume`, which sets `consumedAt`; a second resume is `denied` with detail `approval-consumed`. A store without `consume` cannot resume. The decision endpoint only inspects, so a UI check does not spend the approval.
+- `create` is idempotent per token: a pending, approved or rejected record is kept until it expires, so a consumed or rejected call cannot be asked again before `expiresAt`.
+- A request with a tenant is resolvable only by an approver with a membership in that tenant.
 - A `simulate()` plan produces one request per `approval-required` step; approving the plan approves each token, and each step is still re-checked at execution.
 - The ask, the answer and the resumed decision are three `on('decision')` records sharing `token`.
 
@@ -51,12 +54,12 @@ Applications that need approvals to survive a restart implement the interface ov
 
 | Runtime | How `approval-required` is surfaced | How it resumes |
 | --- | --- | --- |
-| AI SDK 7 `generateText` / `streamText` / `ToolLoopAgent` | `toolApproval` returns `'user-approval'` | Approval response is re-checked against `token` before the tool runs |
+| AI SDK 7 `generateText` / `streamText` / `ToolLoopAgent` | `toolApproval` returns `'user-approval'` | The SDK's re-check of the same `toolCallId` is `denied` unless the store holds an approved, unconsumed record for the recomputed `token`; the record is consumed before the tool runs |
 | AI SDK 7 `WorkflowAgent` | `needsApproval(permissions.post.delete)` suspends the durable workflow | Workflow resumes; the adapter recomputes and compares `token` |
-| Claude Agent SDK | `canUseTool` returns the ask outcome; `permissionRequestHook` receives the decision | The user's answer is bound to the pending call's `token` |
+| Claude Agent SDK | `canUseTool` denies with the reason and `token` and records the request in the store; `permissionRequestHook` answers the SDK's own prompt with the same decision | A reviewer resolves the request in the store; the agent's retry recomputes `token` and consumes the approved record once |
 | Eve | `approval.request` returns `"user-approval"`; the session parks at `session.waiting` | `approval.response` checks the responder against the store and `approvers`; on resume the adapter recomputes and compares `token` ([Eve adapter](/docs/adapters/eve)) |
 | OpenAI Agents SDK | `needsApproval` returns `true`; the run returns `interruptions` and a serialisable `RunState` | `resolveInterruptions` applies the store's verdict with `state.approve` / `state.reject`; the token is recomputed before `execute` ([OpenAI adapter](/docs/adapters/openai)) |
-| MCP | Elicitation request carrying the reason and `token` (stateless, multi-round-trip) | Client replies with the token; server re-runs `decide` and compares |
+| MCP | Structured tool result (`isError`) carrying the reason, `token` and an `elicitation: { mode: 'approval', token }` hint; the adapter sends no `elicitation/create` request | A reviewer resolves the request in the store; the retried call re-runs `decide`, compares and consumes |
 | HTTP adapters | `403` Problem Details with `type` `.../approval-required`, `permission`, `token` | Client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record, re-runs `decide` and compares |
 | Terminal (`permdock/terminal`) | Interactive prompt in a TTY; `denied` in a non-TTY | The prompt writes to and reads from the same store, so a CLI approval leaves the same audit record |
 | A2A | Skill returns a structured "approval required" result with `token` | Caller retries with the token; open question whether to use task states |
@@ -93,7 +96,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 ## What an approval does not do
 
 - It does not grant a permission the subject lacks. Approval sits on top of a matching grant.
-- It does not outlive its request. Each call needs its own approval; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step.
+- It does not outlive its request. Each call needs its own approval, which is consumed on use; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step.
 - It does not decide who may approve beyond the grant and the actor rule. `approval.by` and `approval.distinct` on the grant are stored on the v2 `ApprovalRequest` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is the application-wide default when the grant omits `distinct`.
 
 ## Sources

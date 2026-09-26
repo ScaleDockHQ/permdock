@@ -27,6 +27,7 @@ const httpExamples = [
   { name: 'openai-agent', port: 3475 },
   { name: 'scim', port: 3476 },
   { name: 'supabase-middleware', port: 3477 },
+  { name: 'mcp-server', port: 3478 },
 ] as const;
 
 function envWith(extra: { readonly [key: string]: string }): {
@@ -86,16 +87,133 @@ function uiServer(
   };
 }
 
-const uiProjectNames = new Set([
-  'react-vite',
-  'vue',
-  'svelte',
-  'solid',
-  'webmcp',
-  'next',
-  'expo',
-  'marketing',
-]);
+type Server = ReturnType<typeof httpServer>;
+
+type Project = {
+  readonly name: string;
+  readonly port?: number;
+  readonly servers: readonly Server[];
+};
+
+/** A fixture that builds once and serves its production output (`scripts/serve.ts`). */
+function fixtureServer(name: string, healthPort: number): Server {
+  return {
+    command: `pnpm --filter @permdock/e2e-${name} serve`,
+    cwd: root,
+    url: `http://127.0.0.1:${String(healthPort)}/api/health`,
+    reuseExistingServer: !inCi,
+    timeout: 600_000,
+    env: envWith({ CI: '1' }),
+  };
+}
+
+const marketingServer: Server = {
+  ...uiServer('marketing', 3487),
+  env: envWith({ CI: '1', PORT: '3487' }),
+};
+
+// Builds once, then serves JWT mode on 3490, database mode on 3491 and the
+// no-private-cache negative variant on 3492.
+const saasServer: Server = {
+  ...fixtureServer('next-saas', 3492),
+};
+
+/** The one project-to-servers map: a run starts only its projects' servers. */
+const projectTable: readonly Project[] = [
+  ...httpExamples.map((example) => ({
+    name: example.name,
+    port: example.port,
+    servers: [httpServer(example.name, example.port)],
+  })),
+  { name: 'terminal', servers: [] },
+  {
+    name: 'react-vite',
+    port: 3480,
+    servers: [uiServer('@permdock/example-react-vite', 3480)],
+  },
+  {
+    name: 'vue',
+    port: 3481,
+    servers: [uiServer('@permdock/example-vue', 3481)],
+  },
+  {
+    name: 'svelte',
+    port: 3482,
+    servers: [uiServer('@permdock/example-svelte', 3482)],
+  },
+  {
+    name: 'solid',
+    port: 3483,
+    servers: [uiServer('@permdock/example-solid', 3483)],
+  },
+  {
+    name: 'webmcp',
+    port: 3484,
+    servers: [uiServer('@permdock/example-webmcp', 3484)],
+  },
+  {
+    name: 'next',
+    port: 3485,
+    servers: [uiServer('@permdock/example-next', 3485)],
+  },
+  {
+    name: 'expo',
+    port: 3486,
+    servers: [uiServer('@permdock/example-expo', 3486)],
+  },
+  { name: 'marketing', port: 3487, servers: [marketingServer] },
+  { name: 'next-saas', port: 3490, servers: [saasServer] },
+  {
+    name: 'sveltekit-saas',
+    port: 3500,
+    servers: [fixtureServer('sveltekit-saas', 3500)],
+  },
+  {
+    name: 'nuxt-saas',
+    port: 3501,
+    servers: [fixtureServer('nuxt-saas', 3501)],
+  },
+  {
+    name: 'tanstack-start-saas',
+    port: 3502,
+    servers: [fixtureServer('tanstack-start-saas', 3502)],
+  },
+  {
+    name: 'solidstart-saas',
+    port: 3503,
+    servers: [fixtureServer('solidstart-saas', 3503)],
+  },
+  {
+    name: 'expo-saas',
+    port: 3504,
+    servers: [fixtureServer('expo-saas', 3504)],
+  },
+  {
+    name: 'mcp-oauth',
+    port: 3505,
+    servers: [fixtureServer('mcp-oauth', 3505)],
+  },
+  {
+    name: 'ai-chat',
+    port: 3506,
+    servers: [fixtureServer('ai-chat', 3506)],
+  },
+  {
+    name: 'realtime-collab',
+    port: 3507,
+    servers: [fixtureServer('realtime-collab', 3507)],
+  },
+  {
+    name: 'turborepo',
+    port: 3508,
+    servers: [fixtureServer('turborepo', 3508)],
+  },
+  {
+    name: 'b2b-scim',
+    port: 3510,
+    servers: [fixtureServer('b2b-scim', 3510)],
+  },
+];
 
 function requestedProjects(): readonly string[] {
   const names: string[] = [];
@@ -113,115 +231,37 @@ function requestedProjects(): readonly string[] {
   return names;
 }
 
-const requested = requestedProjects();
-const uiOnly =
-  requested.length > 0 && requested.every((name) => uiProjectNames.has(name));
-const marketingOnly = requested.length === 1 && requested[0] === 'marketing';
-const saasOnly = requested.length === 1 && requested[0] === 'next-saas';
+function projectConfig(project: Project) {
+  const testMatch = new RegExp(`(^|/)${project.name}\\.spec\\.ts$`, 'u');
+  return project.port === undefined
+    ? { name: project.name, testMatch }
+    : {
+        name: project.name,
+        testMatch,
+        use: { baseURL: `http://127.0.0.1:${String(project.port)}` },
+      };
+}
 
-// Builds once, then serves JWT mode on 3490, database mode on 3491 and the
-// no-private-cache negative variant on 3492.
-const saasServer = {
-  command: 'pnpm --filter @permdock/e2e-next-saas serve',
-  cwd: root,
-  url: 'http://127.0.0.1:3492/api/health',
-  reuseExistingServer: !inCi,
-  timeout: 600_000,
-  env: envWith({ CI: '1' }),
-};
-
-const marketingServer = {
-  ...uiServer('marketing', 3487),
-  env: envWith({
-    CI: '1',
-    PORT: '3487',
-  }),
-};
+const requested = new Set(requestedProjects());
+const selected =
+  requested.size === 0
+    ? projectTable
+    : projectTable.filter((project) => requested.has(project.name));
+const servers = [
+  ...new Map(
+    selected
+      .flatMap((project) => project.servers)
+      .map((server) => [server.url, server]),
+  ).values(),
+];
 
 export default defineConfig({
   testDir: './src',
   fullyParallel: true,
   forbidOnly: inCi,
-  retries: inCi ? 2 : 0,
-  reporter: inCi ? 'github' : 'list',
-  webServer: marketingOnly
-    ? [marketingServer]
-    : saasOnly
-      ? [saasServer]
-      : [
-          ...(uiOnly
-            ? []
-            : httpExamples.map((example) =>
-                httpServer(example.name, example.port),
-              )),
-          uiServer('@permdock/example-react-vite', 3480),
-          uiServer('@permdock/example-vue', 3481),
-          uiServer('@permdock/example-svelte', 3482),
-          uiServer('@permdock/example-solid', 3483),
-          uiServer('@permdock/example-webmcp', 3484),
-          uiServer('@permdock/example-next', 3485),
-          uiServer('@permdock/example-expo', 3486),
-          marketingServer,
-          ...(uiOnly ? [] : [saasServer]),
-        ],
-  projects: [
-    ...httpExamples.map((example) => ({
-      name: example.name,
-      testMatch: `${example.name}.spec.ts`,
-      use: { baseURL: `http://127.0.0.1:${String(example.port)}` },
-    })),
-    {
-      name: 'terminal',
-      testMatch: /terminal\.spec\.ts$/u,
-    },
-    {
-      name: 'mcp-server',
-      testMatch: /mcp-server\.spec\.ts$/u,
-    },
-    {
-      name: 'react-vite',
-      testMatch: /react-vite\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3480' },
-    },
-    {
-      name: 'vue',
-      testMatch: /vue\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3481' },
-    },
-    {
-      name: 'svelte',
-      testMatch: /svelte\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3482' },
-    },
-    {
-      name: 'solid',
-      testMatch: /solid\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3483' },
-    },
-    {
-      name: 'webmcp',
-      testMatch: /webmcp\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3484' },
-    },
-    {
-      name: 'next',
-      testMatch: /next\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3485' },
-    },
-    {
-      name: 'expo',
-      testMatch: /expo\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3486' },
-    },
-    {
-      name: 'marketing',
-      testMatch: /marketing\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3487' },
-    },
-    {
-      name: 'next-saas',
-      testMatch: /next-saas\.spec\.ts$/u,
-      use: { baseURL: 'http://127.0.0.1:3490' },
-    },
-  ],
+  // No retries anywhere: a flaky test fails the run; the nightly CI job repeats each test.
+  retries: 0,
+  reporter: inCi ? [['github'], ['list']] : 'list',
+  webServer: servers,
+  projects: projectTable.map((project) => projectConfig(project)),
 });

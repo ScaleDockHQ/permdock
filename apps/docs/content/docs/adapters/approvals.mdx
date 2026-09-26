@@ -38,15 +38,18 @@ interface ApprovalStore {
   resolve(token: string, verdict: { status: 'approved' | 'rejected'; by: Subject; note?: string }): Promise<ApprovalRequest> | ApprovalRequest
   list(filter: { status?: ApprovalRequest['status']; principalId?: string; actorId?: string; tenant?: string }): Promise<ApprovalRequest[]> | ApprovalRequest[]
   expire(now?: Date): Promise<number> | number
+  consume(token: string, now?: Date): Promise<ApprovalRequest | null> | ApprovalRequest | null
+  cancel?(filter, meta: { by: string; note?: string }): Promise<number> | number
 }
 ```
 
-- `create` is called by an adapter when `decide` returns `approval-required`; the record is [Approval request v2](/docs/concepts/wire-formats) and carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant`, `session` and the `membership` that supplied the matched role), `approvers` from `grant.approval` when present, the model-readable `detail`, `createdAt` and `expiresAt`. The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another.
+- `create` is called by an adapter when `decide` returns `approval-required`; the record is [Approval request v2](/docs/concepts/wire-formats) and carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant`, `session` and the `membership` that supplied the matched role), `approvers` from `grant.approval` when present, the model-readable `detail`, `createdAt` and `expiresAt`. The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another. `create` is idempotent per token: a repeated call for a pending or resolved request keeps the existing record, and only an expired record is replaced, so an agent loop that asks twice never resets an approval to pending.
 - `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`. When `approvers` is set, the approver must belong to the request tenant and match `by`; `approvers.distinct` also refuses the principal. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
 - `cancel(filter, { by, note })` is optional. It marks matching pending requests `rejected` with `resolvedBy: 'system:<by>'` and does not run eligibility, because a rejection never grants. `cancelApprovals` in `permdock/approvals` calls it, or falls back to `list` plus a system `resolve`.
 - `list({ tenant })` scopes the approver inbox to one tenant, which is how a tenant admin sees only their organisation's pending requests; `approvalsHandler` applies it from the approver's active tenant and the approver must hold a membership there ([tenancy](/docs/concepts/tenancy)).
-- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`; `approvalsHandler` enforces this before calling the store, and a custom store should too.
-- `list` powers the approver UI and the `permdock/terminal` interactive prompt.
+- `consume` is the atomic step that makes an approval single-use: it sets `consumedAt` on an approved, unexpired, unconsumed request and returns it, or returns `null`. Two concurrent calls never both succeed. Adapters call it when a resume enforces the call (`protect`, tool execution, MCP); the decision endpoint only inspects. A store without `consume` cannot resume ([ADR 0051](/docs/decisions/0051-approval-lifecycle)).
+- A request with a tenant can be resolved only by an approver with a membership in that tenant, whether or not the grant names `approvers`. `assertApprover(request, by, requireDistinct)` applies these checks and throws `ApprovalError`; custom stores call it in `resolve`.
+- `list` powers the approver UI and the `permdock/terminal` interactive prompt. `approvalsHandler`'s pending inbox lists the requested tenant, else the active tenant, else every tenant the approver holds a membership in; requests without a tenant appear only in the last case.
 - `expire` is called opportunistically by adapters and by `approvalsHandler`; a scheduled job may call it as well.
 - `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
 - `signer` (optional, a `TokenSigner` such as `joseTokenSigner` from `permdock/jwt`) makes `approvalsHandler` return, on approve, a compact JWS with `typ: permdock-approval+jwt` alongside the bare token: registered claims `iss`, `aud`, `sub` (the principal), `iat`, `exp` (= the request's `expiresAt`), `jti`, and `{ token, permission, resource, status }` under the `approval` claim ([wire formats](/docs/concepts/wire-formats)). It exists for a resume that crosses services or trust domains, where the resuming side wants proof of who resolved the request before it spends a `decide`. The bound hash `token` stays the thing that is compared ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)): the adapter verifies the JWS with its `verifier`, extracts `approval.token`, and then runs the unchanged step 5 below. `PermDock-Approval` carries either form; the kernel tells them apart by the `pd1.` prefix versus the three-segment JWS shape.
@@ -76,60 +79,178 @@ Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token
 - The approver comes from `subject` in `approvalsHandler` options or from the adapter's verified session, never from the approve request body.
 - The approver is not the request's actor, and optionally not its principal.
 - Status transitions: only `pending` can become `approved` or `rejected`; `expired` is terminal; a second resolve is a `409`.
-- Tokens on resume: unknown, pending, rejected, expired or mismatched tokens are `denied` with reason kind `approval`. No token is ever accepted without a fresh `decide`.
+- Tokens on resume: a token only applies to the call it was issued for. On that call, unknown, pending, rejected, expired, consumed or mismatched tokens are `denied` with reason kind `approval`; on any other call, or when the decision needs no approval, the token is ignored. No token is ever accepted without a fresh `decide`. Agent adapters read it from the `permdockApproval` context key.
 - `memoryApprovalStore` is per process. The adapter logs a development warning when it is used in a serverless runtime, because a request that resumes on another instance will not find its record.
 
 ## How denials surface
 
-- Resume with a bad token: the normal `denied` path of the calling adapter (`'denied'` in the AI SDK, `{ type: 'denied', reason }` in Eve, `state.reject` in OpenAI, `403` Problem Details over HTTP) with `detail` naming the cause: `approval-not-found`, `approval-pending`, `approval-rejected`, `approval-expired`, `approval-mismatch`.
+- Resume with a bad token: the normal `denied` path of the calling adapter (`'denied'` in the AI SDK, `{ type: 'denied', reason }` in Eve, `state.reject` in OpenAI, `403` Problem Details over HTTP) with `detail` naming the cause: `approval-not-found`, `approval-pending`, `approval-rejected`, `approval-expired`, `approval-consumed`, `approval-mismatch`.
 - Approver not allowed: `403` from `approvalsHandler` with the `denied` problem type and `detail` "approver is the actor of this request".
 - Everything is recorded: the ask, the answer and the resumed decision share `token`, so a `DecisionSink` reconstructs the flow from three rows.
 
 ## Recipe: a Drizzle-backed store
 
-The interface is small enough that persistence is a short file. This is documentation, not a shipped entry; PermDock Cloud implements the same interface over its API.
+The interface is small enough that persistence is a short file. This is documentation, not a shipped entry; PermDock Cloud implements the same interface over its API. The same code (`tests/integration/fixtures/approval-store/drizzle.ts`) runs against Postgres under `testApprovalStore(store, { reopen })`, so it holds the idempotent `create`, single-use `consume`, tenant-bound `resolve` and resume-after-restart rules.
 
 ```ts
-import { eq, and, lt } from 'drizzle-orm'
-import type { ApprovalStore, ApprovalRequest } from 'permdock/approvals'
-import { approvals } from './schema'   // columns: token (pk), body (jsonb), status, expires_at, resolved_by
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type {
+  ApprovalListFilter,
+  ApprovalRequest,
+  ApprovalStatus,
+  ApprovalStore,
+} from 'permdock/approvals';
 
-export function drizzleApprovalStore(db: Db): ApprovalStore {
+import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
+import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { ApprovalError, assertApprover } from 'permdock/approvals';
+
+export const approvals = pgTable('permdock_approvals', {
+  token: text('token').primaryKey(),
+  body: jsonb('body').$type<ApprovalRequest>().notNull(),
+  status: text('status').$type<ApprovalStatus>().notNull(),
+  tenant: text('tenant'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+});
+
+export const approvalsDdl = `
+create table if not exists permdock_approvals (
+  token text primary key,
+  body jsonb not null,
+  status text not null,
+  tenant text,
+  expires_at timestamptz not null,
+  consumed_at timestamptz
+)`;
+
+export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
+  const get = async (token: string): Promise<ApprovalRequest | null> => {
+    const [row] = await db
+      .select({ body: approvals.body })
+      .from(approvals)
+      .where(eq(approvals.token, token));
+    return row?.body ?? null;
+  };
+
   return {
-    async create(r) {
-      await db.insert(approvals).values({ token: r.token, body: r, status: r.status, expiresAt: new Date(r.expiresAt) })
+    async create(request) {
+      const values = {
+        token: request.token,
+        body: request,
+        status: request.status,
+        tenant: request.subject.principal?.tenant ?? null,
+        expiresAt: new Date(request.expiresAt),
+        consumedAt: null,
+      };
+      // A repeated ask keeps the existing record; only an expired one is replaced.
+      await db
+        .insert(approvals)
+        .values(values)
+        .onConflictDoUpdate({
+          target: approvals.token,
+          set: values,
+          setWhere: or(
+            eq(approvals.status, 'expired'),
+            lte(approvals.expiresAt, new Date()),
+          ),
+        });
     },
-    async get(token) {
-      const row = await db.query.approvals.findFirst({ where: eq(approvals.token, token) })
-      return row ? { ...row.body, status: row.status } : null
+    get,
+    async resolve(token, verdict) {
+      const current = await get(token);
+      if (current === null) {
+        throw new ApprovalError('approval-not-found', 'approval was not found');
+      }
+      assertApprover(current, verdict.by, false);
+      const next: ApprovalRequest = {
+        ...current,
+        status: verdict.status,
+        resolvedAt: new Date().toISOString(),
+        resolvedBy: verdict.by.principal!.id,
+        ...(verdict.note === undefined ? {} : { note: verdict.note }),
+      };
+      const [row] = await db
+        .update(approvals)
+        .set({ status: next.status, body: next })
+        .where(
+          and(
+            eq(approvals.token, token),
+            eq(approvals.status, 'pending'),
+            gt(approvals.expiresAt, new Date()),
+          ),
+        )
+        .returning({ body: approvals.body });
+      if (row === undefined) {
+        throw new ApprovalError('approval-not-pending', 'approval is not pending');
+      }
+      return row.body;
     },
-    async resolve(token, { status, by, note }) {
-      if (!by.principal) throw new Error('approver must be authenticated')
-      const [row] = await db.update(approvals)
-        .set({ status, resolvedBy: by.principal.id, body: { note } })
-        .where(and(eq(approvals.token, token), eq(approvals.status, 'pending')))
-        .returning()
-      if (!row) throw new Error('approval is not pending')
-      return { ...row.body, status, resolvedBy: row.resolvedBy, resolvedAt: new Date().toISOString(), note }
+    async consume(token, now = new Date()) {
+      const [row] = await db
+        .update(approvals)
+        .set({
+          consumedAt: now,
+          body: sql`${approvals.body} || jsonb_build_object('consumedAt', ${now.toISOString()}::text)`,
+        })
+        .where(
+          and(
+            eq(approvals.token, token),
+            eq(approvals.status, 'approved'),
+            isNull(approvals.consumedAt),
+            gt(approvals.expiresAt, now),
+          ),
+        )
+        .returning({ body: approvals.body });
+      return row?.body ?? null;
     },
-    async list({ status = 'pending' }) {
-      const rows = await db.query.approvals.findMany({ where: eq(approvals.status, status) })
-      return rows.map((row) => ({ ...row.body, status: row.status }))
+    async list(filter: ApprovalListFilter) {
+      const rows = await db
+        .select({ body: approvals.body })
+        .from(approvals)
+        .where(
+          and(
+            filter.status === undefined
+              ? undefined
+              : eq(approvals.status, filter.status),
+            filter.tenant === undefined
+              ? undefined
+              : eq(approvals.tenant, filter.tenant),
+            filter.principalId === undefined
+              ? undefined
+              : sql`${approvals.body} #>> '{subject,principal,id}' = ${filter.principalId}`,
+            filter.actorId === undefined
+              ? undefined
+              : sql`${approvals.body} #>> '{subject,actor,id}' = ${filter.actorId}`,
+            filter.session === undefined
+              ? undefined
+              : sql`${approvals.body} #>> '{subject,session}' = ${filter.session}`,
+          ),
+        );
+      return rows.map((row) => row.body);
     },
     async expire(now = new Date()) {
-      const rows = await db.update(approvals).set({ status: 'expired' })
-        .where(and(eq(approvals.status, 'pending'), lt(approvals.expiresAt, now))).returning()
-      return rows.length
+      const rows = await db
+        .update(approvals)
+        .set({
+          status: 'expired',
+          body: sql`${approvals.body} || '{"status":"expired"}'::jsonb`,
+        })
+        .where(
+          and(eq(approvals.status, 'pending'), lte(approvals.expiresAt, now)),
+        )
+        .returning({ token: approvals.token });
+      return rows.length;
     },
-  }
+  };
 }
 ```
 
-The actor check (`by.principal.id !== request.subject.actor?.id`) is performed by `approvalsHandler` and by the agent adapters before `resolve` is called; a store used from custom code should repeat it.
+`create` uses `onConflictDoUpdate` with `setWhere` so a repeated ask keeps the existing record and only an expired one is replaced. `resolve` writes the whole next body, never a partial one, and `assertApprover` applies the actor, four-eyes, tenant and `approvers` checks with the same `ApprovalError` codes `approvalsHandler` maps to Problem Details.
 
 ## Recipes for other stores
 
-The Drizzle store above is the template; every other backing store is the same four methods over a different driver, and none is a package ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)):
+The Drizzle store above is the template; every other backing store is the same methods over a different driver, and none is a package ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)):
 
 | Runtime or store | `ApprovalStore` | Notes |
 | --- | --- | --- |

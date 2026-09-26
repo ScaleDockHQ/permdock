@@ -39,7 +39,7 @@ createServer(async (req, res) => {
 | Export | Role |
 |---|---|
 | `permdock(req)` | Converts the request once (headers, method, URL; body is streamed lazily), resolves the subject, builds the instance, memoises it in a `WeakMap` keyed by `req`. |
-| `protect(permission, loadData?)` | Returns `(req) => Promise<Guard>`; same result shape as the kernel (`ok`, `permdock`, `decision`, `data` or `response`). |
+| `protect(permission, loadData?, options?)` | Returns `(req) => Promise<Guard>`; same result shape as the kernel (`ok`, `permdock`, `decision`, `data` or `response`). The `tenant` option (`(req) => ...`) is resolved for each call. |
 | `send(res, response)` | Writes a Fetch `Response` to a `ServerResponse` (status, headers, body). Used for Problem Details and for the decision endpoint. |
 | `permdockHandler()` | `(req, res) => Promise<void>` implementing the AuthZEN-shaped decision endpoint for mounting under any path. |
 | `toRequest(req)` / `fromResponse(res, response)` | Exported converters so other adapters and custom frameworks can reuse them. |
@@ -48,10 +48,10 @@ createServer(async (req, res) => {
 
 1. `permdock(req)` converts and resolves the subject once; subsequent calls with the same `req` return the same instance.
 2. `protect` loads data, validates untrusted input, decides, and hands back either the instance and data or a ready `Response`.
-3. The handler writes its own response or forwards the kernel's through `send`.
+3. The handler writes its own response or forwards the kernel's through `send`. A PermDock error thrown by `assert` has no framework hook to catch it: wrap the handler and send `problemFromError(error)` from `permdock/server` when it returns a `Response`.
 4. Decisions are emitted through `on('decision')` with method and URL path.
 
-The conversion is intentionally lazy. Headers, method and URL are copied when `permdock(req)` is first called; an unread body is exposed as a stream on the Fetch `Request` and only read when a loader or the decision endpoint consumes it. A parsed `req.body` (Express, Nest) is reused instead of re-reading the stream. A missing `Host` header falls back to `localhost` and does not throw.
+The conversion is intentionally lazy. Headers, method and URL are copied when `permdock(req)` is first called; an unread body is exposed as a pull stream (`highWaterMark: 0`) on the Fetch `Request` and only read when a loader or the decision endpoint consumes it, so a body parser that runs later still sees every byte. A parsed `req.body` (Express, Nest) is reused instead of re-reading the stream. A missing `Host` header falls back to `localhost` and does not throw.
 
 ## What it validates
 
@@ -66,6 +66,8 @@ The conversion is intentionally lazy. Headers, method and URL are copied when `p
 ## Example app
 
 No dedicated example. Covered by unit tests using `node:http` on an ephemeral port and by the Express and Nest examples, which reuse the same converters.
+
+`tests/integration/src/http/node.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on `node:http` with a `URLPattern` router, a `formData()` upload behind `protect` and `problemFromError` for `assert`.
 
 ## Related standards
 

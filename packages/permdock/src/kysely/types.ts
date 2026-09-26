@@ -4,6 +4,7 @@ import type { Subject } from '../core/subject.ts';
 export type KyselySelectQuery = {
   select(expr: unknown): KyselySelectQuery;
   where(column: string, op: string, value: unknown): KyselySelectQuery;
+  where(expression: unknown): KyselySelectQuery;
   whereRef(left: string, op: string, right: string): KyselySelectQuery;
 };
 
@@ -21,6 +22,8 @@ export type KyselyExpressionBuilder = {
 
 export type KyselyWhereOptions = {
   readonly columns?: Readonly<Record<string, string>>;
+  /** Condition fields that are Postgres arrays; `contains` on them is `@>`. */
+  readonly listFields?: readonly string[];
   readonly subject?: Subject;
   readonly memberships?: MembershipsMapping;
   readonly now?: number;

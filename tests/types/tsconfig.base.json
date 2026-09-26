@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "es2022",
     "lib": ["ES2022", "DOM"],
     "noEmit": true,
+    "declaration": true,
     "skipLibCheck": false,
     "verbatimModuleSyntax": true,
     "exactOptionalPropertyTypes": true

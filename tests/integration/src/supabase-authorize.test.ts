@@ -1,11 +1,15 @@
+import type { Client } from 'pg';
+
 import { run } from '@permdock/cli';
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import type { Postgres } from './support/postgres.ts';
+
+import { startPostgres } from './support/postgres.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, '../fixtures/supabase-rbac');
@@ -20,7 +24,6 @@ const SUPABASE_STUB = `
 create role authenticated nologin;
 create role anon nologin;
 create role supabase_auth_admin nologin;
-create role tester login password 'tester' nosuperuser nobypassrls inherit;
 grant authenticated, anon, supabase_auth_admin to tester;
 create schema auth;
 create table auth.users (id uuid primary key);
@@ -66,9 +69,7 @@ async function ids(client: Client): Promise<string[]> {
 }
 
 describe('Supabase RBAC scaffold, database mode', () => {
-  let container: Awaited<ReturnType<PostgreSqlContainer['start']>> | undefined;
-  let admin: Client | undefined;
-  let tester: Client | undefined;
+  let db: Postgres | undefined;
   let generated = '';
 
   beforeAll(async () => {
@@ -98,28 +99,15 @@ describe('Supabase RBAC scaffold, database mode', () => {
     }
     generated = readFileSync(out, 'utf8');
     rmSync(dir, { recursive: true, force: true });
-    container = await new PostgreSqlContainer('postgres:16-alpine').start();
-    admin = new Client({ connectionString: container.getConnectionUri() });
-    await admin.connect();
-    await admin.query(SUPABASE_STUB);
-    await admin.query(generated);
-    await admin.query(
+    db = await startPostgres([
+      SUPABASE_STUB,
+      generated,
       `insert into public.user_roles (user_id, role) values ('${STAFF}', 'staff')`,
-    );
-    tester = new Client({
-      host: container.getHost(),
-      port: container.getPort(),
-      user: 'tester',
-      password: 'tester',
-      database: container.getDatabase(),
-    });
-    await tester.connect();
+    ]);
   }, 120_000);
 
   afterAll(async () => {
-    await tester?.end();
-    await admin?.end();
-    await container?.stop();
+    await db?.stop();
   });
 
   async function as<T>(
@@ -127,20 +115,21 @@ describe('Supabase RBAC scaffold, database mode', () => {
     sub: string | null,
     work: (client: Client) => Promise<T>,
   ): Promise<T> {
-    if (tester === undefined) {
-      throw new Error('PermDock: tester client was not started');
+    if (db === undefined) {
+      throw new Error('PermDock: Postgres was not started');
     }
-    const client = tester;
-    await client.query('begin');
-    try {
-      await client.query(`set local role ${role}`);
-      await client.query(`select set_config('request.jwt.claims', $1, true)`, [
-        JSON.stringify(sub === null ? { role } : { sub, role }),
-      ]);
-      return await work(client);
-    } finally {
-      await client.query('rollback');
-    }
+    const client = db.tester;
+    return db.as(
+      {
+        role,
+        settings: {
+          'request.jwt.claims': JSON.stringify(
+            sub === null ? { role } : { sub, role },
+          ),
+        },
+      },
+      () => work(client),
+    );
   }
 
   it('emits schema-qualified, tenant-aware policies and never service_role', () => {
@@ -206,9 +195,10 @@ describe('Supabase RBAC scaffold, database mode', () => {
   });
 
   it('applies a role change on the next statement', async () => {
-    if (admin === undefined) {
-      throw new Error('PermDock: admin client was not started');
+    if (db === undefined) {
+      throw new Error('PermDock: Postgres was not started');
     }
+    const admin = db.admin;
     const deleteOther = (): Promise<number | null> =>
       as('authenticated', ADMIN, async (client) => {
         const result = await client.query(

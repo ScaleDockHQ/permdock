@@ -6,6 +6,8 @@ import {
   type ConditionValue,
   isConditionDate,
   isConditionRef,
+  type MemberOfParent,
+  parentHop,
 } from './ast.ts';
 import { resolveConditionRef } from './refs.ts';
 
@@ -22,7 +24,7 @@ function unwrap(value: ConditionValue, subject: Subject): unknown {
     return resolveRef(value.ref, subject);
   }
   if (isConditionDate(value)) {
-    return Date.parse(value.date);
+    return new Date(isoInstant(value.date) ?? Number.NaN);
   }
   if (Array.isArray(value)) {
     return value.map((item) => unwrap(item, subject));
@@ -30,17 +32,63 @@ function unwrap(value: ConditionValue, subject: Subject): unknown {
   return value;
 }
 
-function toInstant(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
+// ISO 8601 date or date-time, including the Postgres text form
+// (`2020-01-02 10:00:00+00`). Anything else is never an instant.
+const ISO_INSTANT =
+  /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?)(Z|[+-]\d{2}(?::?\d{2})?)?)?$/u;
+
+function isoInstant(value: string): number | undefined {
+  const match = ISO_INSTANT.exec(value);
+  if (match === null) {
+    return undefined;
   }
+  const [, day, time, zone] = match;
+  let offset = zone ?? (time === undefined ? '' : 'Z');
+  if (/^[+-]\d{2}$/u.test(offset)) {
+    offset = `${offset}:00`;
+  } else if (/^[+-]\d{4}$/u.test(offset)) {
+    offset = `${offset.slice(0, 3)}:${offset.slice(3)}`;
+  }
+  const parsed = Date.parse(
+    time === undefined ? `${day}` : `${day}T${time}${offset}`,
+  );
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function instantOf(value: unknown): number | undefined {
   if (value instanceof Date) {
     const time = value.getTime();
     return Number.isNaN(time) ? undefined : time;
   }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
   if (typeof value === 'string') {
-    const parsed = Date.parse(value);
-    return Number.isNaN(parsed) ? undefined : parsed;
+    return isoInstant(value);
+  }
+  return undefined;
+}
+
+// Instants only when one side is a Date (a row value or a date literal);
+// otherwise same-type primitives only, so '2' never equals 2 or 'user-2'.
+function comparablePair(
+  left: unknown,
+  right: unknown,
+): readonly [string | number | boolean, string | number | boolean] | undefined {
+  if (left instanceof Date || right instanceof Date) {
+    const a = instantOf(left);
+    const b = instantOf(right);
+    return a === undefined || b === undefined ? undefined : [a, b];
+  }
+  const kind = typeof left;
+  if (
+    kind === typeof right &&
+    (kind === 'string' || kind === 'number' || kind === 'boolean')
+  ) {
+    return [
+      left as string | number | boolean,
+      right as string | number | boolean,
+    ];
   }
   return undefined;
 }
@@ -54,14 +102,7 @@ function compare(op: string, left: unknown, right: unknown): boolean {
   ) {
     return false;
   }
-  const leftInstant = toInstant(left);
-  const rightInstant = toInstant(right);
-  const comparable =
-    leftInstant !== undefined && rightInstant !== undefined
-      ? ([leftInstant, rightInstant] as const)
-      : typeof left === typeof right
-        ? ([left, right] as const)
-        : undefined;
+  const comparable = comparablePair(left, right);
   if (comparable === undefined) {
     return false;
   }
@@ -112,14 +153,15 @@ function inList(left: unknown, right: unknown): boolean {
 
 function matchesParentHop(
   data: object,
-  parents: readonly string[] | undefined,
-  membershipId: string,
+  parents: readonly MemberOfParent[] | undefined,
+  on: { readonly resource: string; readonly id: string },
 ): boolean {
-  if (parents === undefined) {
-    return false;
-  }
-  for (const parentField of parents) {
-    if (ownGet(data, parentField) === membershipId) {
+  for (const parent of parents ?? []) {
+    const hop = parentHop(parent);
+    if (hop.resource !== undefined && hop.resource !== on.resource) {
+      continue;
+    }
+    if (ownGet(data, hop.field) === on.id) {
       return true;
     }
   }
@@ -141,6 +183,8 @@ function evaluateMemberOf(
   }
   const memberships = subject.principal?.memberships ?? [];
   const wanted = new Set(condition.roles);
+  const active =
+    subject.principal?.tenant === '' ? undefined : subject.principal?.tenant;
   for (const membership of memberships) {
     if (isExpired(membership, now)) {
       continue;
@@ -149,7 +193,11 @@ function evaluateMemberOf(
       continue;
     }
     if (condition.scope === 'tenant') {
-      if (membership.tenant === rowValue) {
+      // With an active tenant, only that tenant's membership counts.
+      if (
+        membership.tenant === rowValue &&
+        (active === undefined || membership.tenant === active)
+      ) {
         return true;
       }
       continue;
@@ -173,7 +221,7 @@ function evaluateMemberOf(
       condition.resource !== undefined &&
       membership.on.resource !== condition.resource
     ) {
-      if (matchesParentHop(data, condition.parents, membership.on.id)) {
+      if (matchesParentHop(data, condition.parents, membership.on)) {
         return true;
       }
       continue;
@@ -181,7 +229,7 @@ function evaluateMemberOf(
     if (membership.on.id === rowValue) {
       return true;
     }
-    if (matchesParentHop(data, condition.parents, membership.on.id)) {
+    if (matchesParentHop(data, condition.parents, membership.on)) {
       return true;
     }
   }
@@ -240,6 +288,9 @@ export function evaluateCondition(
     case 'gte':
     case 'lt':
     case 'lte': {
+      if (condition.field === '_' && condition.op === 'eq') {
+        return condition.value === true;
+      }
       if (data === null || typeof data !== 'object') {
         return false;
       }
