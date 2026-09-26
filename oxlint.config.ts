@@ -121,6 +121,8 @@ export default defineConfig({
         'vitest/expect-expect': 'off',
         'eslint/no-await-in-loop': 'off',
         'typescript/no-unnecessary-template-expression': 'off',
+        // Case-local helpers stay next to the assertions that use them.
+        'unicorn/consistent-function-scoping': 'off',
       },
     },
     {

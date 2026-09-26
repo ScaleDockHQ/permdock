@@ -487,6 +487,24 @@ async function untilEnd(
  * written by hand, never computed with PermDock.
  */
 export function testHttpAdapter(options: HttpAdapterOptions): void {
+  const scenario = (
+    name: HttpScenarioName,
+    title: string,
+    run: () => Promise<void>,
+    timeout?: number,
+  ): void => {
+    const reason =
+      options.skip?.[name] ??
+      (name.startsWith('stream-') && options.streams !== true
+        ? 'no events stream'
+        : undefined);
+    it.skipIf(reason !== undefined)(
+      reason === undefined ? title : `${title} (${reason})`,
+      run,
+      timeout,
+    );
+  };
+
   describe(`${options.name}: real-life HTTP scenarios`, () => {
     const domain = createDomain();
     const tokens = new Map<string, string>();
@@ -535,24 +553,6 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       }
       return readResult(
         await mounted.fetch(restRequest('http://app.test', call)),
-      );
-    };
-
-    const scenario = (
-      name: HttpScenarioName,
-      title: string,
-      run: () => Promise<void>,
-      timeout?: number,
-    ): void => {
-      const reason =
-        options.skip?.[name] ??
-        (name.startsWith('stream-') && options.streams !== true
-          ? 'no events stream'
-          : undefined);
-      it.skipIf(reason !== undefined)(
-        reason === undefined ? title : `${title} (${reason})`,
-        run,
-        timeout,
       );
     };
 

@@ -171,6 +171,32 @@ function applyGroupOp(group: DirectoryGroup, op: ScimPatchOp): DirectoryGroup {
   };
 }
 
+function stampUser(user: DirectoryUser, created?: string): DirectoryUser {
+  const at = now();
+  return freezeDeep({
+    ...user,
+    meta: compact({
+      created: created ?? user.meta.created ?? at,
+      lastModified: at,
+      resourceType: 'User' as const,
+      location: user.meta.location,
+    }),
+  });
+}
+
+function stampGroup(group: DirectoryGroup, created?: string): DirectoryGroup {
+  const at = now();
+  return freezeDeep({
+    ...group,
+    meta: compact({
+      created: created ?? group.meta.created ?? at,
+      lastModified: at,
+      resourceType: 'Group' as const,
+      location: group.meta.location,
+    }),
+  });
+}
+
 export function memoryDirectoryStore(): DirectoryStore {
   const users = new Map<string, DirectoryUser>();
   const groups = new Map<string, DirectoryGroup>();
@@ -232,32 +258,6 @@ export function memoryDirectoryStore(): DirectoryStore {
         throw new DirectoryUniquenessError('externalId');
       }
     }
-  }
-
-  function stampUser(user: DirectoryUser, created?: string): DirectoryUser {
-    const at = now();
-    return freezeDeep({
-      ...user,
-      meta: compact({
-        created: created ?? user.meta.created ?? at,
-        lastModified: at,
-        resourceType: 'User' as const,
-        location: user.meta.location,
-      }),
-    });
-  }
-
-  function stampGroup(group: DirectoryGroup, created?: string): DirectoryGroup {
-    const at = now();
-    return freezeDeep({
-      ...group,
-      meta: compact({
-        created: created ?? group.meta.created ?? at,
-        lastModified: at,
-        resourceType: 'Group' as const,
-        location: group.meta.location,
-      }),
-    });
   }
 
   return {

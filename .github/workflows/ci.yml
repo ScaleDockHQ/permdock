@@ -31,11 +31,12 @@ jobs:
           cache: true
           require-lockfile: true
 
-      - name: Check
-        run: pnpm run check
-
+      # Type-aware lint resolves workspace packages through their dist/ declarations.
       - name: Build
         run: pnpm run build
+
+      - name: Check
+        run: pnpm run check
 
       - name: Typecheck matrix
         run: |
@@ -73,7 +74,7 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: packages/*/dist
@@ -93,7 +94,7 @@ jobs:
           cache: true
           require-lockfile: true
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: packages
@@ -116,7 +117,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: packages
@@ -170,7 +171,7 @@ jobs:
           cache: true
           require-lockfile: true
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: packages
@@ -179,7 +180,7 @@ jobs:
         id: playwright
         run: echo "version=$(pnpm --filter @permdock/e2e exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         id: browsers
         with:
           path: ~/.cache/ms-playwright
@@ -196,7 +197,7 @@ jobs:
       - name: E2E
         run: pnpm --filter @permdock/e2e exec playwright test ${{ matrix.shard.projects }} ${{ github.event_name == 'schedule' && '--repeat-each=3' || '' }}
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-${{ matrix.shard.name }}

@@ -210,6 +210,16 @@ export function toWhere<
   ) as T;
 }
 
+function wrap({
+  args,
+  query,
+}: {
+  readonly args: Record<string, unknown>;
+  readonly query: (next: Record<string, unknown>) => Promise<unknown>;
+}): Promise<unknown> {
+  return query(rewriteEmptyOr(args));
+}
+
 export function permdockExtension(): {
   readonly name: 'permdock';
   readonly query: {
@@ -222,15 +232,6 @@ export function permdockExtension(): {
     >;
   };
 } {
-  const wrap = ({
-    args,
-    query,
-  }: {
-    readonly args: Record<string, unknown>;
-    readonly query: (next: Record<string, unknown>) => Promise<unknown>;
-  }): Promise<unknown> => {
-    return query(rewriteEmptyOr(args));
-  };
   return {
     name: 'permdock',
     query: {
