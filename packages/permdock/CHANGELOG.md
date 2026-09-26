@@ -1,5 +1,20 @@
 # permdock
 
+## 0.2.0
+
+### Minor Changes
+
+- 71bdf71: Open the 0.2 cycle after the 0.1.0 release.
+- 45fb5d2: Add `sqlFunction` conditions with an in-memory twin so SQL-authority RLS helpers stay portable. `permdock rls` generates the call, imports mapped functions via `pgsql-parser`, and `verify --db` proves the twin. PermDock Cloud must accept the new node in snapshots and decision events.
+- f9e31e1: Typed vocabulary (`defineRoles`, `definePlans`), `to:` grantee selectors, `principal` refs, `actions()`, and snapshot v3.
+
+  Breaking before 1.0: `Role` is now the vocabulary leaf (`RoleBinding` is the grant list); `roles()` / `assignable()` rename to `heldRoles()` / `assignableRoles()` and return `Role[]`; `Grant.role` becomes `Grant.to`; snapshots emit `v: 3`.
+
+### Patch Changes
+
+- ed04e0a: Document PermDock Cloud production hosts: dashboard `https://app.permdock.com`, API `https://api.permdock.com`, read-only MCP `https://mcp.permdock.com`.
+- f9e31e1: Docs treat permix as one landscape reason for PermDock, not a rejected PR stack.
+
 ## 0.1.0
 
 ### Minor Changes
