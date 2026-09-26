@@ -98,6 +98,20 @@ export function limitCacheKey(
       ]);
 }
 
+function locate(
+  input: Parameters<LimitStore['consume']>[0],
+):
+  | { readonly id: string; readonly until: number; readonly now: number }
+  | undefined {
+  const now = input.now ?? Date.now() / 1000;
+  const seconds = limitWindowSeconds(input.per);
+  const id = limitCacheKey(input, now);
+  if (seconds === undefined || id === undefined) {
+    return undefined;
+  }
+  return { id, until: (Math.floor(now / seconds) + 1) * seconds, now };
+}
+
 export function memoryLimitStore(): LimitStore & {
   /** Live counters, for tests and diagnostics. */
   size(): number;
@@ -116,19 +130,6 @@ export function memoryLimitStore(): LimitStore & {
         earliest = Math.min(earliest, entry.until);
       }
     }
-  };
-  const locate = (
-    input: Parameters<LimitStore['consume']>[0],
-  ):
-    | { readonly id: string; readonly until: number; readonly now: number }
-    | undefined => {
-    const now = input.now ?? Date.now() / 1000;
-    const seconds = limitWindowSeconds(input.per);
-    const id = limitCacheKey(input, now);
-    if (seconds === undefined || id === undefined) {
-      return undefined;
-    }
-    return { id, until: (Math.floor(now / seconds) + 1) * seconds, now };
   };
   return {
     remaining(input) {
