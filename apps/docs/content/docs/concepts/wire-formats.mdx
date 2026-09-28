@@ -201,7 +201,7 @@ A `membership` event records a role change that is not a SCIM resource write. Ap
 }
 ```
 
-`source` is `scim`, `better-auth`, `clerk`, `app`, or another string. `via` is `group:<id>` when the change came from a group. See [audit and observability](/docs/concepts/audit-and-observability).
+`source` is `scim`, `better-auth`, `clerk`, `app`, `cloud` (an assignment in the PermDock Cloud directory, with `by` set to the Cloud admin who made it), or another string. `via` is `group:<id>` when the change came from a group. See [audit and observability](/docs/concepts/audit-and-observability).
 
 ## Approval request
 
