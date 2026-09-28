@@ -224,7 +224,7 @@ export const { handler } = createPermDock(policy, {
 });
 ```
 
-One Fetch handler serves `POST /access/v1/evaluation`, `/evaluations`, `/search/action`, `/search/resource`, `/search/subject` and `GET /.well-known/authzen-configuration`. PEP authentication is required (`401` unless `anonymous: true`). The body `subject` is the evaluation principal when the PEP is trusted (default). Unknown actions return `decision: false` with `context.reason: 'unknown-permission'`. Omit `subjects.list` to drop search/subject from discovery.
+One Fetch handler serves `POST /access/v1/evaluation`, `/evaluations`, `/search/action`, `/search/resource`, `/search/subject` and `GET /.well-known/authzen-configuration`. PEP authentication is required (`401` unless `anonymous: true`). The body `subject` is the evaluation principal when the PEP is trusted (default). Unknown actions return `decision: false` with `context.reason: 'unknown-permission'`. Omit `subjects.list` to drop search/subject from discovery. A custom PDP that evaluates delegated callers outside `createPermDock` calls `coveredByDelegation(permission, delegation, resourceId, hasActor)` from `permdock` instead of re-implementing scope, `authorization_details` and GNAP `access` matching.
 
 ## OpenAPI — `permdock/openapi`
 

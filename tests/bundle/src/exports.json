@@ -15,6 +15,7 @@
     "authenticated",
     "catalogFingerprint",
     "context",
+    "coveredByDelegation",
     "createPermDock",
     "crud",
     "definePermissions",
