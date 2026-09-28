@@ -94,6 +94,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
           principalId: url.searchParams.get('principalId') ?? undefined,
           actorId: url.searchParams.get('actorId') ?? undefined,
           tenant: url.searchParams.get('tenant') ?? undefined,
+          session: url.searchParams.get('session') ?? undefined,
           limit:
             url.searchParams.get('limit') === null
               ? undefined
@@ -101,6 +102,21 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
           cursor: url.searchParams.get('cursor') ?? undefined,
         }),
       );
+    }
+    if (method === 'POST' && path === '/approvals/cancel') {
+      const body = (await request.json()) as {
+        readonly filter: Parameters<typeof store.cancel>[0];
+        readonly by: string;
+        readonly note?: string;
+      };
+      return json({
+        cancelled: store.cancel(
+          body.filter,
+          body.note === undefined
+            ? { by: body.by }
+            : { by: body.by, note: body.note },
+        ),
+      });
     }
     if (method === 'POST' && path === '/approvals/expire') {
       const body = (await request.json()) as { readonly now?: string };
@@ -347,6 +363,49 @@ describe('cloud', () => {
       new Date(Date.now() + 2 * 60 * 60 * 1000),
     );
     expect(expired).toBeGreaterThanOrEqual(1);
+  });
+
+  it('filters by session and cancels pending approvals over HTTP', async () => {
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: fakeCloud().fetch,
+    });
+    const pending = (token: string, session: string): ApprovalRequest => ({
+      v: 1,
+      token,
+      permission: 'post.delete',
+      scope: 'post:delete',
+      resource: { type: 'post', id: token },
+      subject: { principal: { id: 'u_1', roles: ['member'] }, session },
+      detail: 'post.delete requires human approval.',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      status: 'pending',
+    });
+    await client.approvals.create(pending('t_a', 'sid-a'));
+    await client.approvals.create(pending('t_b', 'sid-b'));
+    const bySession = await client.approvals.list({ session: 'sid-a' });
+    expect(bySession.items.map((item) => item.token)).toEqual(['t_a']);
+    expect(
+      await client.approvals.cancel?.(
+        { session: 'sid-a' },
+        { by: 'system:ssf', note: 'session revoked' },
+      ),
+    ).toBe(1);
+    expect((await client.approvals.get('t_a'))?.status).toBe('rejected');
+    expect((await client.approvals.get('t_b'))?.status).toBe('pending');
+  });
+
+  it('throws when the Cloud rejects a cancel', async () => {
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: () => Promise.resolve(new Response(null, { status: 500 })),
+    });
+    await expect(
+      client.approvals.cancel?.({ tenant: 'o_1' }, { by: 'admin' }),
+    ).rejects.toThrow(/cancel/);
   });
 
   it('resumes an approval once through the Cloud store', async () => {

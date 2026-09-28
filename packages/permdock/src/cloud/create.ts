@@ -1,4 +1,6 @@
 import type {
+  ApprovalCancelMeta,
+  ApprovalListFilter,
   ApprovalListQuery,
   ApprovalPage,
   ApprovalRequest,
@@ -217,6 +219,23 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       } catch {
         return { items: [] };
       }
+    },
+    async cancel(
+      filter: ApprovalListFilter,
+      meta: ApprovalCancelMeta,
+    ): Promise<number> {
+      const response = await request('/approvals/cancel', {
+        method: 'POST',
+        body: JSON.stringify(compact({ filter, by: meta.by, note: meta.note })),
+      });
+      if (!response.ok) {
+        throw new Error('PermDock Cloud rejected the approval cancel');
+      }
+      const body: unknown = await response.json();
+      if (!isRecord(body) || typeof body.cancelled !== 'number') {
+        throw new Error('PermDock Cloud returned an unknown cancel shape');
+      }
+      return body.cancelled;
     },
     async expire(now?: Date): Promise<number> {
       try {

@@ -150,6 +150,7 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL
 | `POST` | `/v1/environments/:env/approvals/:token/consume` | `approvals.consume`: the approved record with `consumedAt` set, or `409` when it is not approved, already consumed or expired (any failure → `null`) |
 | `GET` | `/v1/environments/:env/approvals` | `approvals.list`: `?status=`, `principalId`, `actorId`, `tenant`, `session`, `limit`, `cursor`; returns `{ items, next? }` (unreachable → `{ items: [] }`) |
 | `POST` | `/v1/environments/:env/approvals/expire` | `approvals.expire` |
+| `POST` | `/v1/environments/:env/approvals/cancel` | `approvals.cancel` (what `cancelApprovals` calls on session revocation): body `{ filter, by, note? }` with an `ApprovalListFilter`; rejects the matching pending requests with `resolvedBy` = `by` and returns `{ cancelled }`; a non-2xx status throws |
 | `GET` | `/v1/environments/:env/snapshot` | `snapshots.get` (snapshot JSON or `permdock-snapshot+jwt`) |
 | `POST` | `/v1/environments/:env/catalog` | `permdock cloud push`: body `{ fingerprint, catalog }` ([cloud](/docs/cli/cloud)); not called by `cloud()` |
 | `GET` | `/v1/environments/:env/policy` | `policies.refresh`: a `permdock-policy+jwt` compact JWS as the body; `404` means no hosted grants and clears the document, any other failure keeps the last verified one |
