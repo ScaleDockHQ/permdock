@@ -131,6 +131,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       return new Response(null, { status: 204 });
     }
     if (method === 'GET' && path === '/snapshot') {
+      expect(request.headers.get('accept')).toBe('application/jwt');
       if (typeof snapshot === 'string') {
         return new Response(snapshot, { status: 200 });
       }
@@ -279,7 +280,7 @@ describe('cloud', () => {
     ).toEqual(['u_3', 'u_4', 'u_5']);
   });
 
-  it('flushes decision batches and reads snapshots', async () => {
+  it('flushes decision batches and refuses an unsigned snapshot', async () => {
     const backend = fakeCloud();
     const client = cloud({
       url: `${CLOUD_URL}/`,
@@ -298,7 +299,7 @@ describe('cloud', () => {
     };
     await client.sink.write([event]);
     expect(backend.decisions).toEqual([[event]]);
-    expect(await client.snapshots.get()).toEqual(SNAPSHOT);
+    await expect(client.snapshots.get()).rejects.toThrow(/unsigned/);
   });
 
   it('returns a compact JWS snapshot unchanged', async () => {

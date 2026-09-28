@@ -11,7 +11,6 @@ import type { PolicyDocument, PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   SinkEvent,
-  Snapshot,
   SnapshotSource,
 } from '../core/interfaces.ts';
 import type {
@@ -25,7 +24,6 @@ import { ApprovalError } from '../approvals/errors.ts';
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { parsePolicyDocument } from '../core/hosted.ts';
-import { parseSnapshot } from '../core/snapshot.ts';
 
 function readEnv(name: string): string {
   const runtime = globalThis as {
@@ -113,11 +111,16 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     return next;
   };
 
-  const request = (path: string, init: RequestInit = {}): Promise<Response> => {
-    return fetchFn(`${root}${path}`, {
-      ...init,
-      headers: headers(),
-    });
+  const request = (
+    path: string,
+    init: RequestInit = {},
+    accept?: string,
+  ): Promise<Response> => {
+    const next = headers();
+    if (accept !== undefined) {
+      next.set('accept', accept);
+    }
+    return fetchFn(`${root}${path}`, { ...init, headers: next });
   };
 
   const approvals: ApprovalStore = {
@@ -303,16 +306,16 @@ export function cloud(options: CloudOptions = {}): CloudClient {
   };
 
   const snapshots: SnapshotSource = {
-    async get(): Promise<Snapshot | string> {
-      const response = await request('/snapshot');
+    async get(): Promise<string> {
+      const response = await request('/snapshot', {}, 'application/jwt');
       if (!response.ok) {
         throw new Error('PermDock Cloud snapshot request failed');
       }
-      const text = await response.text();
-      if (isCompactJws(text)) {
-        return text;
+      const text = (await response.text()).trim();
+      if (!isCompactJws(text)) {
+        throw new Error('PermDock Cloud served an unsigned snapshot');
       }
-      return parseSnapshot(text);
+      return text;
     },
   };
 
