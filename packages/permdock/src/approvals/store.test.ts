@@ -57,12 +57,12 @@ describe('memoryApprovalStore', () => {
     const store = memoryApprovalStore();
     store.create(pending());
     expect(store.get('pd1.token-1')?.status).toBe('pending');
-    expect(store.list({ status: 'pending' })).toHaveLength(1);
-    expect(store.list({ tenant: 'o_1' })).toHaveLength(1);
-    expect(store.list({ tenant: 'o_other' })).toHaveLength(0);
-    expect(store.list({ principalId: 'u_1' })).toHaveLength(1);
-    expect(store.list({ actorId: 'missing' })).toHaveLength(0);
-    expect(store.list({ principalId: 'missing' })).toHaveLength(0);
+    expect(store.list({ status: 'pending' }).items).toHaveLength(1);
+    expect(store.list({ tenant: 'o_1' }).items).toHaveLength(1);
+    expect(store.list({ tenant: 'o_other' }).items).toHaveLength(0);
+    expect(store.list({ principalId: 'u_1' }).items).toHaveLength(1);
+    expect(store.list({ actorId: 'missing' }).items).toHaveLength(0);
+    expect(store.list({ principalId: 'missing' }).items).toHaveLength(0);
 
     const resolved = store.resolve('pd1.token-1', {
       status: 'approved',
@@ -89,7 +89,7 @@ describe('memoryApprovalStore', () => {
     });
     store.create(pending({ detail: 'asked again' }));
     expect(store.get('pd1.token-1')?.status).toBe('approved');
-    expect(store.list({ status: 'pending' })).toHaveLength(0);
+    expect(store.list({ status: 'pending' }).items).toHaveLength(0);
   });
 
   it('replaces an expired request on a new ask', () => {
@@ -221,7 +221,7 @@ describe('request and resume helpers', () => {
         by: { principal: null, context: {} },
       }),
     ).toThrow('approver must be authenticated');
-    expect(store.list({ status: 'approved' })).toHaveLength(0);
+    expect(store.list({ status: 'approved' }).items).toHaveLength(0);
 
     store.create(pending({ token: 'pd1.gone', status: 'expired' }));
     expect(await inspectApproval(store, 'pd1.gone')).toEqual({
@@ -413,15 +413,17 @@ describe('approvalsHandler', () => {
       new Request('https://api.example.com/permdock/approvals/pending'),
     );
     expect(pendingRes.status).toBe(200);
-    expect(await pendingRes.json()).toEqual([
-      expect.objectContaining({ token: 'pd1.token-1', status: 'pending' }),
-    ]);
+    expect(await pendingRes.json()).toEqual({
+      items: [
+        expect.objectContaining({ token: 'pd1.token-1', status: 'pending' }),
+      ],
+    });
 
     const mine = await fetch(
       new Request('https://api.example.com/permdock/approvals/mine'),
     );
     expect(mine.status).toBe(200);
-    expect(await mine.json()).toEqual([]);
+    expect(await mine.json()).toEqual({ items: [] });
 
     const one = await fetch(
       new Request('https://api.example.com/permdock/approvals/pd1.token-1'),
@@ -586,9 +588,9 @@ describe('approvalsHandler', () => {
     const mine = await owner.fetch(
       new Request('https://api.example.com/permdock/approvals/mine'),
     );
-    expect(await mine.json()).toEqual([
-      expect.objectContaining({ token: 'pd1.token-1' }),
-    ]);
+    expect(await mine.json()).toEqual({
+      items: [expect.objectContaining({ token: 'pd1.token-1' })],
+    });
 
     const outsider = handler(memoryApprovalStore(), { tenant: 'o_other' });
     expect(

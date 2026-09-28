@@ -28,7 +28,7 @@ import { subjectFromJwt, createJwtSubjectResolver, verifyDpopProof } from 'permd
 
 const subject = await subjectFromJwt(token, {
   discovery: 'https://login.example.com',                              // OIDC Discovery, RFC 8414 fallback; supplies jwks_uri and issuer
-  // jwks: new URL('https://login.example.com/.well-known/jwks.json'),  // alternative: URL | JSONWebKeySet | { secret: Uint8Array }
+  // jwks: new URL('https://login.example.com/.well-known/jwks.json'),  // alternative: URL | URL string | JSONWebKeySet | { secret: Uint8Array }
   // issuer: 'https://login.example.com',                               // required with `jwks`; derived from the document with `discovery`
   audience: 'https://api.example.com',
   accept: 'access-token',                                              // default; 'id-token' for BFF patterns
@@ -41,7 +41,7 @@ const subject = await subjectFromJwt(token, {
     entitlements: 'entitlements',                                      // default; RFC 9068, maps to principal.plans
     tenant: 'org_id',                                                  // no standard claim; vendor specific
     memberships: 'tenants',                                            // optional; a per-tenant object such as Descope `tenants`
-    assurance: { acr: 'acr', amr: 'amr', authTime: 'auth_time' },      // defaults; OIDC Core section 2
+    assurance: { acr: 'acr', amr: 'amr', authTime: 'auth_time', verified: 'verified_claims' },   // defaults; OIDC Core section 2, OIDC4IDA
     session: 'sid',                                                    // default; joins logout_token and CAEP events to the snapshot
   },
   groupRoles: { '9f2c': ['lead'] },                                    // group id -> declared team roles; ids, never display names
@@ -85,6 +85,7 @@ Option notes:
 | Claim | Trust | Becomes |
 | --- | --- | --- |
 | `acr`, `amr`, `auth_time` | Verified by `TokenVerifier` | `principal.assurance.acr`, `.amr`, `.authTime` |
+| `verified_claims` | Verified by `TokenVerifier`; entries without `verification.trust_framework` and `claims` dropped | `principal.assurance.verified`, frozen and opaque |
 - `claims.session` fills `subject.session` from `sid` so a later Back-Channel Logout `logout_token` or CAEP `session-revoked` event can be matched to the snapshot ([SSF adapter](/docs/adapters/ssf)).
 - `schema` (any Standard Schema) validates the claims that are not covered by `claims.*` before they become `principal.claims`; an invalid claim set drops `claims`, never the subject, and reports cause `invalid-claims` on `on('auth')`.
 - `memberships` (a `MembershipSource`) supplements the token with memberships from your tables for issuers that carry none; it runs after verification with the verified `sub`.
@@ -191,6 +192,8 @@ const jws = await permdock.snapshot({ signer, audience: 'https://app.example.com
 approvalsHandler({ store, signer })                                                      // typ: permdock-approval+jwt on the resume token
 cloud({ url, key }).sink                                                                 // typ: permdock-decisions+jwt on batch export
 ```
+
+PermDock Cloud signs one more artefact, the hosted-grant policy document (`typ: permdock-policy+jwt`); the application only verifies it, through the `verifier` passed to `cloud()`.
 
 A client in any language verifies a signed snapshot with its JOSE library and the signer's JWKS; in TypeScript, `joseTokenVerifier({ jwks, typ: 'permdock-snapshot+jwt' })`. The unsigned JSON form remains the default and the two carry the same snapshot object.
 

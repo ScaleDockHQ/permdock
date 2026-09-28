@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from 'react';
 
 import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -24,6 +25,8 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = {
   readonly onDenied?: (decision: Decision) => never | void;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;

@@ -77,11 +77,11 @@ describe('permdock/authzen', () => {
     );
     const body = (await response.json()) as {
       readonly decision: boolean;
-      readonly context: { readonly outcome: string };
+      readonly context: { readonly permdock: { readonly outcome: string } };
     };
     expect(response.status).toBe(200);
     expect(body.decision).toBe(true);
-    expect(body.context.outcome).toBe('granted');
+    expect(body.context.permdock.outcome).toBe('granted');
   });
 
   it('evaluates the body subject, not the PEP identity', async () => {
@@ -94,10 +94,41 @@ describe('permdock/authzen', () => {
     );
     const body = (await response.json()) as {
       readonly decision: boolean;
-      readonly context: { readonly outcome: string };
+      readonly context: { readonly permdock: { readonly outcome: string } };
     };
     expect(body.decision).toBe(false);
-    expect(body.context.outcome).toBe('denied');
+    expect(body.context.permdock.outcome).toBe('denied');
+  });
+
+  it('exposes only outcome and denial reasons to another PEP', async () => {
+    const denied = await pdp()(
+      request('/access/v1/evaluation', {
+        json: memberBody({
+          resource: { type: 'post', id: otherPost.id, properties: otherPost },
+        }),
+      }),
+    );
+    const deniedBody = (await denied.json()) as {
+      readonly context: { readonly permdock: Record<string, unknown> };
+    };
+    expect(Object.keys(deniedBody.context)).toEqual(['permdock']);
+    expect(Object.keys(deniedBody.context.permdock).toSorted()).toEqual([
+      'denials',
+      'outcome',
+    ]);
+    for (const denial of deniedBody.context.permdock.denials as readonly Record<
+      string,
+      unknown
+    >[]) {
+      expect(Object.keys(denial).toSorted()).toEqual(['reason', 'role']);
+    }
+    const granted = await pdp()(
+      request('/access/v1/evaluation', { json: memberBody() }),
+    );
+    const grantedBody = (await granted.json()) as {
+      readonly context: Record<string, unknown>;
+    };
+    expect(grantedBody.context).toEqual({ permdock: { outcome: 'granted' } });
   });
 
   it('uses the PEP identity unless trustedPep allows the PEP', async () => {
@@ -136,9 +167,9 @@ describe('permdock/authzen', () => {
     );
     const body = (await response.json()) as {
       readonly decision: boolean;
-      readonly context: { readonly outcome: string };
+      readonly context: { readonly permdock: { readonly outcome: string } };
     };
-    expect(body.context.outcome).toBe('granted');
+    expect(body.context.permdock.outcome).toBe('granted');
     const [event] = sink.events();
     expect(event).toMatchObject({ subject: { principal: { id: 'pep' } } });
     expect(JSON.stringify(event)).not.toContain('forged');
@@ -164,10 +195,10 @@ describe('permdock/authzen', () => {
     );
     const body = (await response.json()) as {
       readonly decision: boolean;
-      readonly context: { readonly reason?: string };
+      readonly context: { readonly permdock: { readonly reason?: string } };
     };
     expect(body.decision).toBe(false);
-    expect(body.context.reason).toBe('unknown-permission');
+    expect(body.context.permdock.reason).toBe('unknown-permission');
   });
 
   it('signals approval-required as decision false', async () => {
@@ -178,11 +209,16 @@ describe('permdock/authzen', () => {
     );
     const body = (await response.json()) as {
       readonly decision: boolean;
-      readonly context: { readonly outcome: string; readonly token?: string };
+      readonly context: {
+        readonly permdock: {
+          readonly outcome: string;
+          readonly token?: string;
+        };
+      };
     };
     expect(body.decision).toBe(false);
-    expect(body.context.outcome).toBe('approval-required');
-    expect(body.context.token).toBeTruthy();
+    expect(body.context.permdock.outcome).toBe('approval-required');
+    expect(body.context.permdock.token).toBeTruthy();
   });
 
   it('loads a trusted row when properties are omitted', async () => {
@@ -247,14 +283,37 @@ describe('permdock/authzen', () => {
     const body = (await response.json()) as {
       readonly evaluations: readonly {
         readonly decision: boolean;
-        readonly context: { readonly outcome: string };
+        readonly context: { readonly permdock: { readonly outcome: string } };
       }[];
     };
     expect(body.evaluations).toHaveLength(3);
     expect(body.evaluations[0]!.decision).toBe(true);
     expect(body.evaluations[1]!.decision).toBe(false);
-    expect(body.evaluations[1]!.context.outcome).toBe('approval-required');
+    expect(body.evaluations[1]!.context.permdock.outcome).toBe(
+      'approval-required',
+    );
     expect(body.evaluations[2]!.decision).toBe(false);
+  });
+
+  it('uses the top-level action and resource as batch defaults', async () => {
+    const response = await pdp()(
+      request('/access/v1/evaluations', {
+        json: {
+          subject: {
+            type: 'user',
+            id: memberUser.id,
+            properties: { orgId: memberUser.orgId, roles: memberUser.roles },
+          },
+          action: { name: 'update' },
+          resource: { type: 'post', id: 'p1', properties: ownPost },
+          evaluations: [{}, { action: { name: 'explode' } }],
+        },
+      }),
+    );
+    const body = (await response.json()) as {
+      readonly evaluations: readonly { readonly decision: boolean }[];
+    };
+    expect(body.evaluations.map((row) => row.decision)).toEqual([true, false]);
   });
 
   it('rejects an oversized evaluations batch', async () => {

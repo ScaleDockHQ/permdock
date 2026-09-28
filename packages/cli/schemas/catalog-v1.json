@@ -4,13 +4,53 @@
   "type": "object",
   "required": ["$schema", "version", "permissions", "resources"],
   "properties": {
-    "$schema": { "type": "string" },
-    "version": { "const": 1 },
-    "generatedAt": { "type": "string" },
-    "generator": { "type": "string" },
-    "resources": { "type": "object" },
-    "permissions": { "type": "array" },
-    "roles": { "type": "array" },
-    "plans": { "type": "array" }
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "generatedAt": {
+      "type": "string"
+    },
+    "generator": {
+      "type": "string"
+    },
+    "resources": {
+      "type": "object"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key"],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "on": {
+            "enum": ["tenant", "team", "resource"]
+          },
+          "assignable": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "plans": {
+      "type": "array"
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "resource", "action", "arity", "scope"],
+        "properties": {
+          "hostable": {
+            "const": true
+          }
+        }
+      }
+    }
   }
 }

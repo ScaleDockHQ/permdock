@@ -21,6 +21,8 @@ export type {
   ApprovalCancelMeta,
   ApprovalInspectResult,
   ApprovalListFilter,
+  ApprovalListQuery,
+  ApprovalPage,
   ApprovalRequest,
   ApprovalResumeFailure,
   ApprovalStatus,

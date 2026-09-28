@@ -9,6 +9,7 @@ import type {
 import express from 'express';
 
 import type { ApprovalStore } from '../approvals/types.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -41,6 +42,8 @@ export type ExpressPermDockOptions<TUser = unknown> = {
   readonly tenant?: TenantOption<Request>;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -110,6 +113,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       },
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       store: options.store,
       sink: options.sink,
       limits: options.limits,

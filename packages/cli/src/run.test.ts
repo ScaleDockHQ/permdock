@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { cpSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +18,12 @@ const FIXTURE = join(HERE, '../fixtures/mini-app');
 const TMP = join(HERE, '../tmp');
 
 const temps: string[] = [];
+const URLS = [
+  '--authorization-url',
+  'https://auth.example.com/authorize',
+  '--token-url',
+  'https://auth.example.com/token',
+];
 
 function appCopy(): string {
   mkdirSync(TMP, { recursive: true });
@@ -49,7 +61,15 @@ describe('run', () => {
   it('emits security onto an OpenAPI document', async () => {
     const cwd = appCopy();
     const result = await run(
-      ['openapi', 'emit', '--doc', 'openapi.json', '--out', 'openapi.out.json'],
+      [
+        'openapi',
+        'emit',
+        '--doc',
+        'openapi.json',
+        '--out',
+        'openapi.out.json',
+        ...URLS,
+      ],
       { cwd },
     );
     expect(result.code).toBe(0);
@@ -62,6 +82,7 @@ describe('run', () => {
         'openapi.json',
         '--out',
         'openapi.out.json',
+        ...URLS,
         '--check',
       ],
       { cwd },
@@ -137,6 +158,64 @@ describe('run', () => {
       true,
     );
     expect(report.noRole.some((item) => item.key === 'finance')).toBe(true);
+  });
+
+  it('usage flags conditions on fields the schema does not declare', async () => {
+    const cwd = appCopy();
+    const policyFile = join(cwd, 'src/policy.ts');
+    writeFileSync(
+      policyFile,
+      readFileSync(policyFile, 'utf8').replace(
+        'allow(permissions.post.read),',
+        'allow(permissions.post.read, { where: { ownerId: principal.id } }),',
+      ),
+    );
+    const result = await run(['usage', '--json'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly undeclared: readonly {
+        readonly key: string;
+        readonly detail: string;
+      }[];
+    };
+    expect(report.undeclared).toEqual([
+      {
+        kind: 'undeclared-field',
+        key: 'post.read',
+        detail:
+          "role 'member' reads 'ownerId', which the post schema does not declare",
+      },
+    ]);
+  });
+
+  it('usage flags client checks outside every snapshot include', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/layout.ts'),
+      `import { createPermDock } from 'permdock';
+import { permissions } from './permissions.ts';
+import { policy } from './policy.ts';
+
+export const snapshot = createPermDock(policy, { subject: null }).snapshot({
+  include: [permissions.post.read, permissions.post.update],
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'src/page.ts'),
+      `'use client';
+import { permissions } from './permissions.ts';
+
+export const read = (permdock: { can: (p: unknown) => boolean }) =>
+  permdock.can(permissions.post.read) && permdock.can(permissions.post.delete);
+`,
+    );
+    const result = await run(['usage', '--json'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly outsideInclude: readonly { readonly key: string }[];
+    };
+    expect(report.outsideInclude.map((item) => item.key)).toEqual([
+      'post.delete',
+    ]);
   });
 
   it('usage --strict fails on warnings', async () => {

@@ -115,6 +115,8 @@ export type ScimTokenOptions = {
 export type DirectoryChange = {
   readonly tenant: string;
   readonly userIds: readonly string[];
+  /** `session-revoked` when a user was deactivated or deleted; `changed` otherwise. */
+  readonly kind: 'session-revoked' | 'changed';
 };
 
 export type ScimHandlerOptions = {
@@ -128,8 +130,9 @@ export type ScimHandlerOptions = {
   readonly sink?: DecisionSink;
   readonly onChange?: (change: DirectoryChange) => void | Promise<void>;
   /**
-   * Publishes `changed` for each affected user's id, `externalId` and
-   * `userName`, so open connections revalidate their memberships.
+   * Publishes for each affected user's id, `externalId` and `userName`:
+   * `session-revoked` when a user is deactivated (`active: false`) or
+   * deleted, so open connections end; `changed` otherwise, so they revalidate.
    */
   readonly revocations?: RevocationFeed;
   readonly onUnknownRole?: (name: string) => void;

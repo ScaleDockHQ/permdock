@@ -55,9 +55,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "ajv": "catalog:",
     "oxc-parser": "catalog:",
     "pgsql-parser": "catalog:",
-    "unplugin": "catalog:"
+    "unplugin": "catalog:",
+    "yaml": "catalog:"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",

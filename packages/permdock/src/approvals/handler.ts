@@ -150,6 +150,18 @@ function canView(request: ApprovalRequest, subject: Subject): boolean {
  * else the active one, else every membership tenant. Requests without a tenant
  * are listed only when no tenant was requested or active.
  */
+function pageQuery(url: URL): {
+  readonly limit?: number;
+  readonly cursor?: string;
+} {
+  const limit = url.searchParams.get('limit');
+  const cursor = url.searchParams.get('cursor');
+  return compact({
+    limit: limit === null ? undefined : Number(limit),
+    cursor: cursor ?? undefined,
+  });
+}
+
 function inboxScope(
   url: URL,
   subject: Subject,
@@ -287,23 +299,27 @@ export function approvalsHandler(
             'denied',
           );
         }
-        const pending = await store.list({ status: 'pending' });
+        const page = await store.list({ ...pageQuery(url), status: 'pending' });
         const tenants = new Set(scoped.tenants);
         return json(
           200,
-          pending.filter((item) => {
-            const tenant = item.subject.principal?.tenant;
-            const inScope =
-              tenant === undefined ? scoped.tenantless : tenants.has(tenant);
-            return inScope && mayResolve(item, subject, requireDistinct);
+          compact({
+            items: page.items.filter((item) => {
+              const tenant = item.subject.principal?.tenant;
+              const inScope =
+                tenant === undefined ? scoped.tenantless : tenants.has(tenant);
+              return inScope && mayResolve(item, subject, requireDistinct);
+            }),
+            next: page.next,
           }),
         );
       }
       if (route.kind === 'mine') {
-        const mine = await store.list({
+        const page = await store.list({
+          ...pageQuery(url),
           principalId: subject.principal.id,
         });
-        return json(200, mine);
+        return json(200, compact({ items: page.items, next: page.next }));
       }
       if (route.kind === 'get') {
         const current = await store.get(route.token);

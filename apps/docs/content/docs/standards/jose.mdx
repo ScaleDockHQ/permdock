@@ -79,15 +79,16 @@ Every output is compact JWS, signed through a `TokenSigner`, with a registered `
 | Signed snapshot | `permdock-snapshot+jwt` | `iss`, `aud`, `sub` (= `principal.id`), `iat`, `exp` (= `expiresAt`), `jti`, `snapshot` (the unchanged snapshot object, `v: 1`) | `permdock.snapshot({ signer })`, `SnapshotSource` implementations, `permdock/cloud` |
 | Signed approval token | `permdock-approval+jwt` | `iss`, `aud`, `sub`, `iat`, `exp`, `jti`, `approval` (the bound hash token and its request id) | `approvalsHandler({ signer })` for cross-service resume |
 | Signed decision export | `permdock-decisions+jwt` | `iss`, `iat`, `jti`, `events` (an array of CloudEvents-shaped decision events) | A `DecisionSink` option for batch export and `permdock/cloud` |
+| Signed policy document | `permdock-policy+jwt` | `iss`, `aud`, `iat`, `exp`, `jti`, `policy` (a PolicyDocument, `v: 1`) | PermDock Cloud for hosted grants; verified by `cloud().policies` with `aud` checked |
 
-The specification of each payload is on [wire formats](/docs/concepts/wire-formats); the three `typ` values are listed on the [OpenAPI registry](/docs/standards/openapi-registry) page next to the `x-permdock-*` extensions so they are registered together.
+The specification of each payload is on [wire formats](/docs/concepts/wire-formats); the four `typ` values are listed on the [OpenAPI registry](/docs/standards/openapi-registry) page next to the `x-permdock-*` extensions so they are registered together.
 
 ### The interoperability contract
 
 1. **Compact JWS only.** No JSON serialization, no detached payloads, no custom envelope. An export that needs two signatures (a Cloud-side and a tenant-side key) carries one compact JWS per key. `jose` in TypeScript and any of the Go, Python, Java, .NET, Rust, Ruby or PHP libraries on the OpenID Foundation's [implementations list](https://openid.net/developers/jwt-jws-jwe-jwk-and-jwa-implementations/) verify it without knowing PermDock exists.
 2. **Registered header parameters only.** `alg`, `kid`, `typ`, optionally `cty` and `x5t#S256`. PermDock never writes `jku`, `x5u` or `jwk` into a header it signs, so a verifier that follows RFC 8725 has nothing to ignore.
 3. **Algorithms from the allow-list.** `Ed25519` by default, `ES256` and `PS256` available; never `HS*` on anything that leaves the process, never `none`.
-4. **Registered claim names with registered semantics.** `iss`, `aud`, `sub`, `iat`, `exp`, `nbf`, `jti` mean what RFC 7519 says; PermDock's own data lives in exactly one private claim per format (`snapshot`, `approval`, `events`). Times inside those claims are NumericDate seconds too (the snapshot's `issuedAt` and `expiresAt`), so the envelope's `exp` equals the snapshot's `expiresAt`.
+4. **Registered claim names with registered semantics.** `iss`, `aud`, `sub`, `iat`, `exp`, `nbf`, `jti` mean what RFC 7519 says; PermDock's own data lives in exactly one private claim per format (`snapshot`, `approval`, `events`, `policy`). Times inside those claims are NumericDate seconds too (the snapshot's `issuedAt` and `expiresAt`), so the envelope's `exp` equals the snapshot's `expiresAt`.
 5. **Keys are published as a JWK Set.** A signer that serves consumers outside the process publishes `/.well-known/jwks.json`; `permdock/cloud` does. Rotation follows the JWKS rules the consumer already applies to identity providers: new `kid` first, old key kept until every signed artefact with it has expired.
 6. **Verification is the consumer's TokenVerifier.** In TypeScript, `joseTokenVerifier({ jwks, algorithms, typ })` from `permdock/jwt`; elsewhere, any JOSE library with `typ` and `alg` pinned.
 

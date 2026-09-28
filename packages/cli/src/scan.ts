@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { parseSync } from 'oxc-parser';
 
-import type { CatalogUsage, DynamicUsage, ScanResult } from './types.ts';
+import type {
+  CatalogUsage,
+  DynamicUsage,
+  ScanResult,
+  SnapshotSite,
+} from './types.ts';
 
 import { rel } from './files.ts';
 
@@ -48,6 +53,7 @@ type Estree = {
   readonly body?: Estree | readonly Estree[];
   readonly properties?: readonly Estree[];
   readonly key?: Estree;
+  readonly elements?: readonly Estree[];
 };
 
 export function scanSources(
@@ -63,6 +69,7 @@ export function scanSources(
   const roleNames = new Set<string>();
   const planNames = new Set<string>();
   const allowKeys = new Set<string>();
+  const snapshots: SnapshotSite[] = [];
 
   for (const file of files) {
     const source = readFileSync(file, 'utf8');
@@ -91,6 +98,17 @@ export function scanSources(
           allowKeys,
           knownKeys,
         );
+        const callee = calleeName(node.callee);
+        if (callee === 'snapshot' || callee === 'snapshotFor') {
+          snapshots.push({
+            file: fileRel,
+            line: lineAt(source, node.start ?? 0),
+            include: includeOf(
+              node.arguments?.[callee === 'snapshot' ? 0 : 2],
+              roots,
+            ),
+          });
+        }
       }
       if (
         node.type === 'MemberExpression' &&
@@ -124,7 +142,40 @@ export function scanSources(
     roleNames: [...roleNames].toSorted(),
     planNames: [...planNames].toSorted(),
     allowKeys: [...allowKeys].toSorted(),
+    snapshots,
   };
+}
+
+function includeOf(
+  options: Estree | undefined,
+  roots: ReadonlySet<string>,
+): readonly string[] | null | undefined {
+  if (options?.type !== 'ObjectExpression') {
+    return options === undefined ? undefined : null;
+  }
+  const property = options.properties?.find(
+    (item) => item.key?.name === 'include',
+  );
+  if (property === undefined) {
+    return options.properties?.some((item) => item.type === 'SpreadElement')
+      ? null
+      : undefined;
+  }
+  const list = property.value as Estree | undefined;
+  if (list?.type !== 'ArrayExpression') {
+    return null;
+  }
+  const keys: string[] = [];
+  for (const element of list.elements ?? []) {
+    const path =
+      element.type === 'MemberExpression' ? memberPath(element) : undefined;
+    const [root, ...rest] = path ?? [];
+    if (root === undefined || !roots.has(root) || rest.length === 0) {
+      return null;
+    }
+    keys.push(rest.join('.'));
+  }
+  return keys;
 }
 
 function recordImport(node: Estree, roots: Set<string>): void {

@@ -21,10 +21,10 @@ afterEach(() => {
 
 describe('createPermDockPlugin', () => {
   it('returns the same Next config object shape', async () => {
-    const withPermDock = createPermDockPlugin({
+    const permdockPlugin = createPermDockPlugin({
       collect: { srcPath: ['./src'] },
     });
-    const config = await withPermDock({ reactStrictMode: true })(
+    const config = await permdockPlugin({ reactStrictMode: true })(
       'phase-export',
       {},
     );

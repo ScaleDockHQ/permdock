@@ -11,21 +11,21 @@ description: createPermDockPlugin runs permdock collect during next dev and next
 // next.config.ts
 import { createPermDockPlugin } from 'permdock/next/plugin'
 
-const withPermDock = createPermDockPlugin({
+const permdockPlugin = createPermDockPlugin({
   collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
 })
 
-export default withPermDock({
+export default permdockPlugin({
   // your Next.js config
 })
 ```
 
 `srcPath` accepts first-party folders, sibling workspace packages and installed packages, so a monorepo where `@acme/ui` ships its own `permissions.ts` next to its components is collected into the app's catalog without any manual import.
 
-`withPermDock` accepts a config object or a config function and returns Next's config function `(phase, context) => Promise<config>`: the phase constant is how the plugin tells `next build` from `next dev`. Put it outermost when composing with plugins that only accept an object:
+`permdockPlugin` accepts a config object or a config function and returns Next's config function `(phase, context) => Promise<config>`: the phase constant is how the plugin tells `next build` from `next dev`. Put it outermost when composing with plugins that only accept an object:
 
 ```ts
-export default withPermDock(withOtherPlugin({ /* your Next.js config */ }))
+export default permdockPlugin(withOtherPlugin({ /* your Next.js config */ }))
 ```
 
 ## What it does
@@ -72,6 +72,10 @@ Next.js 16.3 builds with Turbopack by default. The plugin does not register a lo
 ## Example
 
 `apps/examples/next` uses the plugin. `apps/examples/monorepo` collects from two sibling feature packages with `permdock collect --check` and fails CI on catalog drift.
+
+## Why
+
+- **The dev-time catalog stays at the app root, not in `.next/`.** The catalog is a committed file that `collect --check` compares in CI, that `permdock usage`, `openapi` and `cloud push` read, and that reviewers see in a diff. Writing it into `.next/` during `next dev` would give the same data two homes, one of them deleted by every `next build` and invisible to tools that do not know about Next.js.
 
 ## Related
 

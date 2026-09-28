@@ -9,16 +9,19 @@ export {
 export { exitCode, formatDecision } from './format.ts';
 export { looksLikeJwt } from './token.ts';
 export type {
+  ApprovalHint,
   CommandEntry,
   DeviceFlowOptions,
   FilterCommandsOptions,
   FormatOptions,
+  KeyringEntry,
   PermDockResolveOptions,
   ProtectContext,
   TerminalPermDock,
   TerminalPermDockOptions,
   TerminalProblemDetails,
   TerminalRuntime,
+  TerminalStorageOptions,
   TokenContext,
   TokenHelper,
   TokenSource,

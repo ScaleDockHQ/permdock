@@ -7,7 +7,7 @@ description: permdock/authzen serves the OpenID AuthZEN Authorization API 1.0 (e
 
 ## Purpose
 
-The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (final January 2026) standardises how a PEP asks a PDP "may this subject perform this action on this resource in this context". It defines `/access/v1/evaluation`, batched `/access/v1/evaluations` (boxcar), `/access/v1/search/subject`, `/search/resource`, `/search/action`, and a `.well-known/authzen-configuration` metadata document, plus a [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels. Keycloak and the NLgov profile implement it. PermDock adopts it instead of a bespoke format. In-repo tests cover all four shapes.
+The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (final January 2026) standardises how a PEP asks a PDP "may this subject perform this action on this resource in this context". It defines `/access/v1/evaluation`, batched `/access/v1/evaluations` (boxcar), `/access/v1/search/subject`, `/search/resource`, `/search/action`, and a `.well-known/authzen-configuration` metadata document, plus a [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels. Keycloak and the NLgov profile implement it. PermDock adopts it instead of a bespoke format. In-repo tests cover all four shapes, and `testAuthZen` from `@permdock/testing` runs the official interop Todo vectors ([conformance](/docs/standards/authzen#conformance)).
 
 ## API
 
@@ -29,12 +29,12 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 | `POST /access/v1/evaluation` | `decide(permission, resource)` | Basic |
 | `POST /access/v1/evaluations` | `simulate([[permission, resource], ...])` | Batch |
 | `POST /access/v1/search/action` | catalog of permitted actions on a resource for the subject ("what can I do") | Search |
-| `POST /access/v1/search/resource` | `filter` / `where` over a resource type, materialised via `resources.<type>.list` | Search |
+| `POST /access/v1/search/resource` | `filter` / `where` over a resource type, materialised via `resources.<type>.list`; results are `{ type, id }` entities | Search |
 | `POST /access/v1/search/subject` | subjects permitted for an action on a resource (requires a subject enumerator) | Search |
 | `GET /.well-known/authzen-configuration` | PDP metadata: endpoint URLs, supported features | Discovery |
 
 - `handler` is a Fetch handler (`Request` to `Response`), so it mounts on Hono, Next.js route handlers, Node and any [server kernel](/docs/adapters/server-kernel) adapter.
-- The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `Decision` under `context.permdock` that the embedded engine produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [PermDock Cloud](/docs/adapters/cloud)).
+- The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `context` (`outcome`, denial reasons, approval `token`) that the embedded handler produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [PermDock Cloud](/docs/adapters/cloud)).
 - `resources` tells the handler how to load an instance by id (for `where` conditions on instance actions) and how to enumerate for resource search.
 - `subject` authenticates the calling PEP or end user; see "decision endpoint auth" below.
 - `trustedPep(pep)` is the allow-list of authenticated PEPs that may evaluate on behalf of another subject. It is off by default; a missing predicate, `false`, a non-function value or a throw means the request-body subject, actor and delegation are ignored.
@@ -53,23 +53,27 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 | `context` | `context.<key>` values available to conditions |
 
 4. The decision runs; `evaluations` uses `simulate` so a plan is evaluated as one boxcar with shared subject resolution.
-5. The response is built: `decision: true|false` plus a `context` object carrying the PermDock Decision (`outcome`, `denials`, `alternatives`, `token` for `approval-required`).
+5. The response is built: `decision: true|false` plus a `context` object carrying `outcome`, `denials` (role and reason only) and `token` for `approval-required`. Matched grants, conditions and `alternatives` are never included.
 6. `on('decision')` fires once per evaluation with the AuthZEN request id for correlation.
 
 ## What it validates
 
 - Request bodies against the AuthZEN schemas; malformed requests get `400` with Problem Details.
 - `resource.properties` against the resource's Standard Schema when they are used as the instance (boundary validation): a PEP is a trust boundary. When the handler loads the row itself, no validation runs.
-- Unknown `resource.type` or `action.name`: `decision: false` with a `context.reason` of `unknown-permission`; never an exception.
+- Unknown `resource.type` or `action.name`: `decision: false` with a `context.permdock.reason` of `unknown-permission`; never an exception.
 - Decision-endpoint authentication must be real authentication (bearer tokens, mTLS, session), not a shared static secret; Kilpi's public-secret obfuscation is an explicit anti-pattern ([threat model](/docs/security/threat-model)). In-app, `subject` reads the application's session or a `subjectFromJwt` result; on the hosted ADS, callers present a Vercel OIDC token or an OAuth client-credentials token verified with `permdock/jwt`.
 
 ## How denials surface
 
-- `evaluation`: `{ "decision": false, "context": { "outcome": "denied", "denials": [...], "alternatives": [...] } }`. The `context` member is optional in AuthZEN and PermDock always fills it so a PEP can explain the refusal.
-- `approval-required`: `decision: false` with `context.outcome: 'approval-required'` and `context.token`; the PEP decides how to obtain approval. AuthZEN has no third outcome, so this is a `false` with a reason in `context`, not a profile-specific extension.
+- `evaluation`: `{ "decision": false, "context": { "permdock": { "outcome": "denied", "denials": [{ "role": "member", "reason": "condition" }] } } }`. The `context` member is optional in AuthZEN and PermDock always fills it so a PEP can explain the refusal. A PEP that wants what else the subject may do asks `search/action`.
+- `approval-required`: `decision: false` with `context.permdock.outcome: 'approval-required'` and `context.permdock.token`; the PEP decides how to obtain approval. AuthZEN has no third outcome, so this is a `false` with a reason in `context`, not a profile-specific extension.
 - `evaluations`: one result per item, in order; a batch never fails partially because one item is denied.
-- Search endpoints return the permitted subset; an empty page is the denial. Resource search returns the rows `resources.<type>.list` yields, filtered in memory, so the loader decides whether they are ids or full records. Pagination follows the AuthZEN `page` object with an offset `next_token`.
+- Search endpoints return the permitted subset; an empty page is the denial. Resource search filters the rows `resources.<type>.list` yields in memory and returns each as a `{ type, id }` entity, reading `id` from the resource's `id` field and dropping rows without one. Pagination follows the AuthZEN `page` object with an offset `next_token`.
 - Transport errors use RFC 9457 Problem Details (`400`, `401`, `413` for oversized batches).
+
+## Why
+
+An AuthZEN PEP is another party: a gateway, a service in another language, sometimes another team's system. It needs enough to enforce and explain a refusal, and no more. The `context` therefore carries the outcome, the denial reasons and the approval token, and never the matched grant, its conditions or `alternatives`. Conditions reveal policy structure (which column gates a row), and `alternatives` reveal what else the subject could do; a PEP that needs the second asks `search/action`, which is an explicit, auditable question rather than a side effect of every denial. The application's own decision endpoint (`permdockHandler`) keeps returning the full Decision because its caller is the application's UI, inside the same trust boundary. Both nest PermDock's data under `context.permdock`: AuthZEN leaves `context` open to every PDP, so one namespaced member cannot collide with another vendor's keys, and a PEP that talks to several PDPs reads PermDock's fields from the same place in both responses.
 
 ## Example app
 
@@ -78,5 +82,5 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 ## Related standards
 
 - [AuthZEN](/docs/standards/authzen): request and response schemas, search semantics, discovery, certification levels.
-- [Wire formats](/docs/concepts/wire-formats): the PermDock Decision embedded in `context`.
+- [Wire formats](/docs/concepts/wire-formats): the evaluation `context` shape.
 - [Problem Details](/docs/standards/problem-details): transport errors.

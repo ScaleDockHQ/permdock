@@ -181,6 +181,70 @@ describe('doctor checks', () => {
     expect(result.stdout).toContain('PD005');
   });
 
+  it('PD001 treats doctor.clientEntries as client entries', async () => {
+    const leak = (cwd: string): void => {
+      mkdirSync(join(cwd, 'src/client'), { recursive: true });
+      writeFileSync(
+        join(cwd, 'src/client/page.ts'),
+        `import { createPermDock } from 'permdock/next'\n`,
+      );
+    };
+    const plain = appCopy();
+    leak(plain);
+    const before = await run(['doctor', '--json', '--only', 'imports'], {
+      cwd: plain,
+    });
+    expect(codes(before.stdout)).not.toContain('PD001');
+
+    const configured = appCopy();
+    leak(configured);
+    writeFileSync(
+      join(configured, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  doctor: { clientEntries: ['src/client/**/*.ts'] },
+};
+`,
+    );
+    const after = await run(['doctor', '--json', '--only', 'imports'], {
+      cwd: configured,
+    });
+    expect(codes(after.stdout)).toContain('PD001');
+  });
+
+  it('PD022 warns on views that are not security_invoker', async () => {
+    const cwd = appCopy();
+    mkdirSync(join(cwd, 'supabase/migrations'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'supabase/migrations/001_views.sql'),
+      `create view public.post_stats as select count(*) from posts;
+create or replace view "public"."safe_posts" with (security_invoker = true) as select * from posts;
+create view later_fixed as select * from posts;
+-- create view commented_out as select 1;
+create materialized view mat as select 1;
+`,
+    );
+    writeFileSync(
+      join(cwd, 'supabase/migrations/002_fix.sql'),
+      'alter view later_fixed set (security_invoker = on);\n',
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  rls: { dialect: 'supabase' },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD022'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly { readonly message: string }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      'view public.post_stats in supabase/migrations/001_views.sql is not security_invoker, so it reads past row level security',
+    ]);
+  });
+
   it('PD016 warns on opaque grants under an rls config', async () => {
     const cwd = appCopy();
     writeFileSync(
@@ -214,6 +278,77 @@ export const policy = definePolicy(permissions, {
       cwd,
     });
     expect(codes(result.stdout)).toContain('PD016');
+  });
+
+  it('PD020 warns on hostable permissions compiled into RLS', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/hostable-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [role('member', [allow(permissions.post.read)])],
+  subject: () => null,
+  hostable: [permissions.post.read],
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/hostable-policy.ts',
+  rls: { dialect: 'supabase' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD020'], {
+      cwd,
+    });
+    expect(result.stdout).toContain('post.read');
+    expect(codes(result.stdout)).toContain('PD020');
+  });
+
+  it('PD021 warns on hostable permissions without Cloud variables', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/hostable-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [role('member', [allow(permissions.post.read)])],
+  subject: () => null,
+  hostable: [permissions.post.read],
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/hostable-policy.ts',
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const quiet = { stdout: () => undefined, stderr: () => undefined };
+    const missing = await run(['doctor', '--json', '--only', 'PD021'], {
+      cwd,
+      io: { ...quiet, env: { PERMDOCK_CLOUD_URL: 'https://x.test' } },
+    });
+    expect(missing.stdout).toContain('PERMDOCK_CLOUD_KEY');
+    expect(codes(missing.stdout)).toContain('PD021');
+    const present = await run(['doctor', '--json', '--only', 'PD021'], {
+      cwd,
+      io: {
+        ...quiet,
+        env: { PERMDOCK_CLOUD_URL: 'https://x.test', PERMDOCK_CLOUD_KEY: 'k' },
+      },
+    });
+    expect(codes(present.stdout)).not.toContain('PD021');
   });
 
   it('PD016 warns on sqlFunction grants without fixtures', async () => {

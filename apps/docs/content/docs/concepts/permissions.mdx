@@ -122,7 +122,7 @@ permissions.post.update
 | `scope` | `'billing:invoice:pay'` | OAuth scopes, MCP `scopeChallenge`, OpenAPI `securitySchemes`, RFC 9396 `authorization_details` |
 | `resource` | `'post'` | Lookup of the resource node (schema, `id` field), `alternatives` in denials |
 | `action` | `'update'` | RLS command mapping (`update` becomes `USING` plus `WITH CHECK`), tool descriptions |
-| `meta` | `{ title, description, tags, readOnly }` | Catalogs, docs, tool hints |
+| `meta` | `{ title, description, tags, readOnly, inferredFrom }` | Catalogs, docs, tool hints; `inferredFrom` is written by `permdock openapi import` with the operation an action came from |
 
 The schema is not on the leaf. It lives on the resource node, reachable through the definition, so a leaf stays JSON-serialisable while `can(permissions.post.update, post)` still knows that `post` must be a `Post`.
 

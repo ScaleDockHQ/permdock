@@ -147,7 +147,7 @@ All three `toProblemDetails()` results share the RFC 9457 members plus PermDock 
 }
 ```
 
-The approval variant adds `reason` and `token`; the validation variant replaces `denials` with `issues` and uses status 400. The base URI for `type` is `https://permdock.dev/problems`, replaceable through the server kernel's `problem.base` option. The HTTP status lives only in `toProblemDetails()`; the error classes carry no `status` property, so non-HTTP callers map on the class. Full JSON for each is on [wire formats](/docs/concepts/wire-formats); the standard itself is described under [Problem Details](/docs/standards/problem-details).
+The approval variant adds `reason` and `token`; the validation variant replaces `denials` with `issues` and uses status 400. The base URI for `type` is the fixed identifier `https://permdock.dev/problems`. The HTTP status lives only in `toProblemDetails()`; the error classes carry no `status` property, so non-HTTP callers map on the class. Full JSON for each is on [wire formats](/docs/concepts/wire-formats); the standard itself is described under [Problem Details](/docs/standards/problem-details).
 
 ## Writing error text for models
 

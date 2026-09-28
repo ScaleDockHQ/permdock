@@ -56,7 +56,7 @@ PermDock never coins an `x-oai-*` name, because `oai` is reserved for the OpenAP
 
 ### Import
 
-`permdock openapi import` is planned; the CLI currently answers it with exit `2`. It will read a 3.1 or 3.2 document and writes a deterministic `definePermissions()` file with a `// @generated` header. Each scope becomes a permission whose `scope` is the OAuth scope and whose key replaces `:` with `.`; an operation's `security` lands in the permission's `meta` so `permdock usage` can report scopes no route requires. When an operation carries `x-permdock-permissions`, those keys are used as written so they round-trip exactly. The file merges with hand-written definitions like any feature file ([larger apps](/docs/getting-started/larger-apps)).
+`permdock openapi import` reads a 3.1 or 3.2 document (validated against the official JSON Schema first) and writes a deterministic `definePermissions()` file with a `// @generated` header. Each scope becomes a permission whose key replaces `:` with `.`, so its `scope` is the OAuth scope again; the operations each action came from land in `meta.inferredFrom`. When an operation carries `x-permdock-permissions`, those keys are used as written so they round-trip exactly, and `--annotate` writes the inferred keys back onto the document ([permdock openapi](/docs/cli/openapi)). The file merges with hand-written definitions like any feature file ([larger apps](/docs/getting-started/larger-apps)).
 
 ### Mapping table
 

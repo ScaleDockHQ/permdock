@@ -1,6 +1,7 @@
 import { type Middleware, defineMiddleware } from '@supabase/middleware';
 
 import type { ApprovalStore } from '../approvals/types.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -63,6 +64,8 @@ export type SupabaseMiddlewareOptions<TUser = unknown> = {
       ) => string | undefined | Promise<string | undefined>);
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -72,7 +75,6 @@ export type SupabaseMiddlewareOptions<TUser = unknown> = {
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
   readonly webBotAuth?: WebBotAuthOptions;
-  readonly problem?: { readonly base?: string };
 };
 
 export type WithPermDockConfig = {
@@ -129,12 +131,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           : tenantOption,
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       store: options.store,
       sink: options.sink,
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      problem: options.problem,
       adapter: 'supabase-middleware',
       wrap: (dock: PermDock) => applyOtel(dock, options.otel),
     }),

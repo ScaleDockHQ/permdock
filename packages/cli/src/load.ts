@@ -1,5 +1,6 @@
 import type { Permission, PermissionTree, Policy } from 'permdock';
 
+import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { listPermissions } from 'permdock';
 
@@ -48,4 +49,21 @@ export function asPolicy(value: unknown): Policy {
 
 export function leavesOf(tree: PermissionTree): readonly Permission[] {
   return listPermissions(tree);
+}
+
+/** The configured policy export, or `undefined` when unset or unloadable. */
+export async function loadConfiguredPolicy(
+  cwd: string,
+  path: string | undefined,
+): Promise<Policy | undefined> {
+  if (path === undefined) {
+    return undefined;
+  }
+  try {
+    return asPolicy(
+      pickNamed(await loadModule(resolve(cwd, path)), ['policy']),
+    );
+  } catch {
+    return undefined;
+  }
 }

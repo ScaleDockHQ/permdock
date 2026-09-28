@@ -1,5 +1,7 @@
 {
   ".": [
+    "CLOUD_EVENT_TYPES",
+    "OCSF_VERSION",
     "PermDockApprovalRequiredError",
     "PermDockDeniedError",
     "PermDockRevokedError",
@@ -29,6 +31,7 @@
     "isConditionDate",
     "isConditionRef",
     "isPlan",
+    "isPortableCondition",
     "isRole",
     "isSqlFunctionField",
     "listPermissions",
@@ -37,12 +40,15 @@
     "mayAccess",
     "membershipEvent",
     "memoryLimitStore",
+    "memoryPolicySource",
     "memoryRevocationFeed",
     "memoryRoleSource",
     "memorySink",
+    "mergeHostedGrants",
     "mergePermissions",
     "normalizeApproval",
     "opaque",
+    "parsePolicyDocument",
     "parseSnapshot",
     "plan",
     "principal",
@@ -57,6 +63,7 @@
     "snapshotFor",
     "sqlFunction",
     "toCloudEvent",
+    "toOcsf",
     "writable"
   ],
   "./approvals": [
@@ -299,7 +306,7 @@
     "sha256Hex",
     "tenantFromPath"
   ],
-  "./cloud": ["cloud"],
+  "./cloud": ["cloud", "parseCloudEvent", "verifyWebhook"],
   "./drizzle": ["toWhere"],
   "./prisma": ["permdockExtension", "toWhere"],
   "./kysely": ["toWhere", "withSubject"],
@@ -319,5 +326,5 @@
   ],
   "./clerk": ["subjectFromClerk"],
   "./convex": ["ConvexError", "createPermDock"],
-  "./pdp": ["createPermDock", "remotePdp"]
+  "./pdp": ["createPermDock", "openfga", "remotePdp", "spicedb"]
 }

@@ -2,12 +2,13 @@ import type { Policy } from 'permdock';
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { definePolicy, findPermission } from 'permdock';
+import { definePolicy, findPermission, getResource } from 'permdock';
 import { createPermDock } from 'permdock/openapi';
 
 import type { CliIo, PermDockConfig } from './types.ts';
 
 import { asPermissionTree, asPolicy, loadModule, pickNamed } from './load.ts';
+import { validateOpenapi, validateOverlay } from './openapi-schema.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -23,6 +24,36 @@ function mergeRecord(
   }
   for (const [key, value] of Object.entries(extra)) {
     result[key] = value;
+  }
+  return result;
+}
+
+/** Keeps what the document already says about a scheme (flow URLs, other flows, description); PermDock owns the scopes. */
+function mergeSchemes(
+  existing: Readonly<Record<string, unknown>>,
+  emitted: Readonly<Record<string, unknown>>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [name, scheme] of Object.entries(emitted)) {
+    const before = existing[name];
+    if (!isRecord(before) || !isRecord(scheme)) {
+      result[name] = scheme;
+      continue;
+    }
+    const beforeFlows = isRecord(before.flows) ? before.flows : {};
+    const flows: Record<string, unknown> = { ...beforeFlows };
+    for (const [kind, flow] of Object.entries(
+      isRecord(scheme.flows) ? scheme.flows : {},
+    )) {
+      const previous = beforeFlows[kind];
+      flows[kind] =
+        isRecord(previous) && isRecord(flow) ? { ...previous, ...flow } : flow;
+    }
+    result[name] = {
+      ...before,
+      ...scheme,
+      ...(isRecord(scheme.flows) ? { flows } : {}),
+    };
   }
   return result;
 }
@@ -56,16 +87,41 @@ async function loadPolicy(
   });
 }
 
+/** `instance` when any listed permission acts on one row; the id is the last path template parameter. */
+function arityOf(
+  policy: Policy,
+  leaves: readonly { readonly resource: string; readonly action: string }[],
+  path: string,
+): Record<string, unknown> {
+  const instance = leaves.some(
+    (leaf) =>
+      getResource(policy.permissions, leaf.resource)?.instanceActions.has(
+        leaf.action,
+      ) === true,
+  );
+  if (!instance) {
+    return { kind: 'collection' };
+  }
+  const parameter = [...path.matchAll(/\{([^}]+)\}/gu)].at(-1)?.[1];
+  return parameter === undefined
+    ? { kind: 'instance' }
+    : { kind: 'instance', parameter };
+}
+
 function applyDocument(
   document: Record<string, unknown>,
   policy: Policy,
   factory: ReturnType<typeof createPermDock>,
+  arity: boolean,
 ): Record<string, unknown> {
   const components = isRecord(document.components) ? document.components : {};
   const schemes = isRecord(components.securitySchemes)
     ? components.securitySchemes
     : {};
-  const nextSchemes = mergeRecord(schemes, factory.securitySchemes());
+  const nextSchemes = mergeRecord(
+    schemes,
+    mergeSchemes(schemes, factory.securitySchemes()),
+  );
   const requirements = factory.securityProfileRequirements();
   const nextComponents = mergeRecord(
     components,
@@ -106,7 +162,12 @@ function applyDocument(
         }
         return leaf;
       });
-      nextItem[method] = mergeRecord(operation, factory.describe(leaves));
+      const described = mergeRecord(operation, factory.describe(leaves));
+      nextItem[method] = arity
+        ? mergeRecord(described, {
+            'x-permdock-arity': arityOf(policy, leaves, path),
+          })
+        : described;
     }
     nextPaths[path] = nextItem;
   }
@@ -115,6 +176,40 @@ function applyDocument(
     paths: nextPaths,
     'x-permdock-catalog': factory.catalog(),
   });
+}
+
+function urls(
+  values: Readonly<Record<string, string | undefined>>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(values).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  );
+}
+
+/** A finding when the source validates but PermDock's output does not. */
+function outputConformance(
+  source: Record<string, unknown>,
+  result: Record<string, unknown>,
+  format: 'document' | 'overlay',
+  overlay: '1.1' | '1.2',
+  target: '3.1' | '3.2' | '3.3',
+): string | undefined {
+  if (format === 'overlay') {
+    if (overlay !== '1.1') {
+      return undefined;
+    }
+    const checked = validateOverlay(result);
+    return checked.ok ? undefined : `openapi emit: ${checked.error}`;
+  }
+  if (target === '3.3' || !validateOpenapi(source).ok) {
+    return undefined;
+  }
+  const checked = validateOpenapi(result);
+  return checked.ok
+    ? undefined
+    : `openapi emit: ${checked.error}\npass --authorization-url and --token-url, or declare the scheme's flows in the document`;
 }
 
 export async function runOpenapi(input: {
@@ -133,10 +228,14 @@ export async function runOpenapi(input: {
   readonly scheme: string;
   readonly metadataUrl: string | undefined;
   readonly deviceFlow: boolean;
+  readonly arity?: boolean;
+  readonly authorizationUrl?: string | undefined;
+  readonly tokenUrl?: string | undefined;
+  readonly deviceAuthorizationUrl?: string | undefined;
   readonly io: CliIo;
 }): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
   const action = input.rest[0] ?? 'emit';
-  if (action !== 'emit' && action !== 'import') {
+  if (action !== 'emit') {
     return {
       code: 2,
       output: 'openapi action must be emit or import',
@@ -158,18 +257,23 @@ export async function runOpenapi(input: {
       ...(input.metadataUrl === undefined
         ? {}
         : { oauth2MetadataUrl: input.metadataUrl }),
-      flows: input.deviceFlow
-        ? { authorizationCode: {}, deviceAuthorization: {} }
-        : { authorizationCode: {} },
+      flows: {
+        authorizationCode: urls({
+          authorizationUrl: input.authorizationUrl,
+          tokenUrl: input.tokenUrl,
+        }),
+        ...(input.deviceFlow
+          ? {
+              deviceAuthorization: urls({
+                deviceAuthorizationUrl: input.deviceAuthorizationUrl,
+                tokenUrl: input.tokenUrl,
+              }),
+            }
+          : {}),
+      },
     },
   });
   const docPath = resolve(input.cwd, input.doc);
-  if (action === 'import') {
-    return {
-      code: 2,
-      output: 'PermDock CLI: openapi import is not available yet',
-    };
-  }
   if (!existsSync(docPath)) {
     return {
       code: 2,
@@ -197,7 +301,17 @@ export async function runOpenapi(input: {
           extends: input.doc,
           version: input.overlay,
         })
-      : applyDocument(parsed, policy, factory);
+      : applyDocument(parsed, policy, factory, input.arity === true);
+  const conformance = outputConformance(
+    parsed,
+    result,
+    input.format,
+    input.overlay,
+    input.target,
+  );
+  if (conformance !== undefined) {
+    return { code: 1, output: conformance };
+  }
   const text = stableJson(result);
   const outPath = resolve(input.cwd, input.out ?? input.doc);
   if (input.check) {

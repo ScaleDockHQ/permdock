@@ -38,6 +38,7 @@ guarded.registerTool('list_posts', { permission: permissions.post.list, inputSch
 - `subject` receives the SDK `AuthInfo` and returns the principal (or `null` for anonymous). `subjectFromMcp(authInfo, { claims, groupRoles, schema, delegation })` is the ready-made mapper when the verifier puts token claims on `authInfo.extra`; it returns the anonymous subject for missing or malformed material and never throws. The adapter fills `actor` with `{ id: authInfo.clientId, kind: 'mcp-client' }` and `delegation` with `authInfo.scopes` and, when present, RFC 9396 `authorization_details`, so a decision is the principal's grants intersected with what the client was delegated.
 - `requireAuthInfo: true` refuses every call that arrives without `authInfo` (an HTTP server behind bearer middleware). Without it a call with no `authInfo`, such as a stdio server run by the local user, skips the scope check and is decided on `subject` alone.
 - `store` (an `ApprovalStore`) holds `approval-required` calls; `sink`, `limits`, `memberships`, `customRoles`, `tenant` and `otel` behave as on every adapter.
+- `longRunning: true` on a tool re-runs the decision when the handler resolves, reloading `data` and building a fresh subject (so a changed membership or role source counts). The re-check never consumes quota. It passes when the outcome is `granted`, when it is `approval-required` with the same token that was approved at submission, or when the only denial is a spent `limit`; anything else, including a throw, returns the refusal instead of the result. The re-check withholds the result; it cannot undo work the handler already did, so a handler that writes should write last.
 - `protectServer` also filters `tools/list`, `resources/list`, `resources/templates/list` and `prompts/list` per caller, including handlers the SDK installed before `protectServer` ran, and marks the filtered results `cacheScope: 'private'`.
 
 ## Hosting
@@ -91,7 +92,7 @@ export { authed as GET, authed as POST }
 3. `tools/call`: the SDK validates arguments against `inputSchema`; if `data` is declared, the resource is loaded and validated against the resource schema (boundary mode).
 4. Scope check: if the token lacks the permission's `scope`, the adapter answers with the SDK `scopeChallenge`, producing a `403` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="post:delete ..."`. Scope accumulation follows SEP-2350: the challenge lists the union of previously granted scopes plus the missing one, so a step-up never drops authority the client already had.
 5. Decision: `permdock.decide(permission, data)` runs with the two-principal subject.
-6. Outcome: `granted` runs the handler; `denied` returns a refusal; `approval-required` parks the call in the `ApprovalStore` and returns a refusal carrying the token (below).
+6. Outcome: `granted` runs the handler (and, for a `longRunning` tool, decides again when it resolves); `denied` returns a refusal; `approval-required` parks the call in the `ApprovalStore` and returns a refusal carrying the token (below).
 7. `on('decision')` fires with outcome, permission key, actor and delegation for audit and `permdock/otel`.
 
 ## What it validates
@@ -140,6 +141,11 @@ This is a recipe, not a package: PermDock composes with the bridge through the e
 ## Example app
 
 `apps/examples/mcp-server`: a real SDK v2 `McpServer` with `list_posts`, `update_post`, `delete_post` and `publish_post`, served over Streamable HTTP (`createMcpHandler` behind `verifyBearerToken`, `requireAuthInfo: true`) and over stdio as the local user. Playwright drives it with the SDK `Client`: a request without a token gets `401`, `tools/list` differs per token, a narrow token gets the `403` step-up naming `post:list post:update`, and `delete_post` parks, runs once after `POST /approvals` and refuses the replay.
+
+## Why
+
+- **Re-check at completion, opt-in.** A call that runs for minutes can outlive the grant that allowed it: a role is removed, a membership expires, the row changes owner. For those tools the adapter decides again before handing the result to the model and fails closed. It is opt-in because a second `data` load doubles the cost of every short call, and it is `longRunning` on the tool rather than tied to MCP tasks because SDK 2.x carries the task wire types but no task runtime; a tool that runs long today is an ordinary call that takes long. When the SDK ships task handlers, the same re-check runs before the task result is stored.
+- **Delegation chains stay in the token layer.** The adapter reads `authInfo` only. Verifying an RFC 8693 `act` chain, and deciding how many hops are acceptable, belongs to the verifier that produced `authInfo` ([`permdock/jwt`](/docs/adapters/jwt) with `act` handling, or the SDK's bearer middleware). Doing it twice would let the two disagree about the same token.
 
 ## Related standards
 

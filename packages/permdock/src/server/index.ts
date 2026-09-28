@@ -27,6 +27,7 @@ export {
   PermDockValidationError,
 } from '../core/errors.ts';
 export { memoryRevocationFeed } from '../core/revocations.ts';
+export type { ApprovalHint } from '../core/errors.ts';
 export type { RevocationEvent, RevocationFeed } from '../core/revocations.ts';
 export {
   InvalidSignatureError,

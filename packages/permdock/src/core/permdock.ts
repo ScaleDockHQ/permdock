@@ -26,6 +26,11 @@ import type { PlanTree, Role, RoleTree } from './vocabulary.ts';
 
 import { describe } from './describe.ts';
 import { customRolesFor } from './evaluate.ts';
+import {
+  type PolicyDocument,
+  type PolicySource,
+  mergeHostedGrants,
+} from './hosted.ts';
 import { buildInstance } from './instance.ts';
 import { resolveSubject } from './resolve-subject.ts';
 import { parseSnapshot } from './snapshot.ts';
@@ -161,14 +166,34 @@ export type CreatePermDockOptions = {
   readonly limits?: LimitStore;
   readonly session?: string;
   readonly expiresAt?: number;
+  /** Hosted grants; `current()` is read once, when the instance is created. */
+  readonly policies?: PolicySource;
 };
 
-function instantiate(
+function hostedPolicy(
   policy: Policy,
+  source: PolicySource | undefined,
+): { readonly policy: Policy; readonly errors: readonly unknown[] } {
+  if (source === undefined || policy.hostable.length === 0) {
+    return { policy, errors: [] };
+  }
+  let document: PolicyDocument | null;
+  try {
+    document = source.current();
+  } catch (error) {
+    return { policy, errors: [error] };
+  }
+  const merged = mergeHostedGrants(policy, document);
+  return { policy: merged.policy, errors: merged.dropped };
+}
+
+function instantiate(
+  codePolicy: Policy,
   subject: Subject,
   options: CreatePermDockOptions,
   auth: AuthEvent[],
 ): PermDock | Promise<PermDock> {
+  const { policy, errors } = hostedPolicy(codePolicy, options.policies);
   const tenants = tenantsOf(subject.principal);
   const customRoles = customRolesFor(options.customRoles, tenants, auth);
   const build = (roles: readonly CustomRole[]): PermDock =>
@@ -180,6 +205,7 @@ function instantiate(
       simulated: false,
       roleSource: options.customRoles,
       queuedAuth: auth,
+      queuedErrors: errors,
     });
   if (isThenable(customRoles)) {
     return customRoles.then(build);

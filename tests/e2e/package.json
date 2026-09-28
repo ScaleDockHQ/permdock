@@ -12,6 +12,7 @@
     "@next/playwright": "catalog:",
     "@permdock/e2e-ai-chat": "workspace:*",
     "@permdock/e2e-b2b-scim": "workspace:*",
+    "@permdock/e2e-cloud-contract": "workspace:*",
     "@permdock/e2e-expo-saas": "workspace:*",
     "@permdock/e2e-mcp-oauth": "workspace:*",
     "@permdock/e2e-next-saas": "workspace:*",

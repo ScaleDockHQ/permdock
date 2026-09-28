@@ -5,6 +5,12 @@ import type { Subject } from './subject.ts';
 
 import { compact } from './compact.ts';
 
+/** Where and how a human approves; carries no secret. */
+export type ApprovalHint = {
+  readonly at?: string;
+  readonly hint?: string;
+};
+
 export type ProblemDetails = {
   readonly type: string;
   readonly title: string;
@@ -22,6 +28,7 @@ export type ProblemDetails = {
   readonly reason?: string;
   readonly token?: string;
   readonly issues?: readonly StandardSchemaV1.Issue[];
+  readonly approval?: ApprovalHint;
 };
 
 const PROBLEM_BASE = 'https://permdock.dev/problems';

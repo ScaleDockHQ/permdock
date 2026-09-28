@@ -216,6 +216,17 @@ describe('permdock/otel', () => {
     expect(spans[0]?.events[0]?.name).toBe('permdock.denied');
   });
 
+  it('puts the approval token on an approval-required span', async () => {
+    const { api, spans } = fakeApi();
+    const permdock = await createPermDock(policy, memberUser);
+    instrument(permdock, { api });
+    const decision = permdock.decide(permissions.post.delete, ownPost);
+    expect(decision.outcome).toBe('approval-required');
+    expect(spans[0]?.attributes['permdock.token']).toBe(
+      decision.outcome === 'approval-required' ? decision.token : undefined,
+    );
+  });
+
   it('marks denied spans ERROR when errorOnDeny is set', async () => {
     const { api, spans } = fakeApi();
     const permdock = await createPermDock(policy, memberUser);

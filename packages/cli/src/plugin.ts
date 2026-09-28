@@ -44,7 +44,7 @@ export function createPermDockPlugin(
   nextConfig: NextConfigInput<T>,
 ) => NextConfigFunction<T> {
   const watching = new Set<string>();
-  return function withPermDock<T extends NextConfigLike>(
+  return function permdockPlugin<T extends NextConfigLike>(
     nextConfig: NextConfigInput<T>,
   ): NextConfigFunction<T> {
     return async (phase, context) => {

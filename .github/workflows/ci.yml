@@ -56,6 +56,9 @@ jobs:
           pnpm exec permdock collect --check --cwd apps/examples/monorepo
           pnpm exec permdock collect --check --cwd tests/e2e/fixtures/turborepo
 
+      - name: Docs drift
+        run: pnpm run docs:drift
+
       - name: Publish checks
         run: pnpm run check:publish
 

@@ -11,7 +11,13 @@ import {
 } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
 import { defaultSrcPath, listSourceFiles } from './files.ts';
-import { asPermissionTree, leavesOf, loadModule, pickNamed } from './load.ts';
+import {
+  asPermissionTree,
+  leavesOf,
+  loadModule,
+  pickNamed,
+  loadConfiguredPolicy,
+} from './load.ts';
 import { scanSources } from './scan.ts';
 
 export async function runCatalog(input: {
@@ -46,7 +52,12 @@ export async function runCatalog(input: {
       files,
       new Set(leavesOf(tree).map((leaf) => leaf.key)),
     );
-    document = buildCatalog(tree, scan, input.now.toISOString());
+    document = buildCatalog(
+      tree,
+      scan,
+      input.now.toISOString(),
+      await loadConfiguredPolicy(input.cwd, input.config.policy),
+    );
   } else {
     const collected = await runCollect({
       cwd: input.cwd,

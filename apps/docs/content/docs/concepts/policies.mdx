@@ -214,21 +214,51 @@ test('policy matrix', () => {
 
 A change in the matrix is a change in who can do what, and shows up in review as a snapshot diff.
 
-## Hostable permissions (planned)
+## Hostable permissions
 
-Planned, not implemented: no `hostable` option, `PolicySource` or policy document exists in the package yet. The design lets an application opt specific permissions into grants authored in PermDock Cloud without a deploy. `definePolicy(vocabulary, { hostable: [permissions.invoice, permissions.auditLog.read] })` would list the subtrees or leaves hosted grants may touch; the default is none, so a policy without `hostable` ignores every hosted grant.
+An application can opt specific permissions into grants authored in PermDock Cloud without a deploy. `hostable` lists the subtrees or leaves hosted grants may touch; the default is none, so a policy without `hostable` ignores every hosted grant.
 
-Hosted grants would arrive as a signed policy document through a [`PolicySource`](/docs/concepts/extension-interfaces) read once by `createPermDock`, and merge under rules that keep code in charge:
+```ts
+export const policy = definePolicy(vocabulary, {
+  roles: [member, admin],
+  hostable: [permissions.invoice, permissions.auditLog.read],
+})
 
-- Allows OR together and any matching deny wins, so a code deny always beats a hosted allow.
-- A hosted allow on a permission a code grant guards with `approval` must carry an approval at least as strict, or it is dropped. Hosted grants can add friction, never remove it.
-- A hosted grant on a permission that is not `hostable`, or naming a role, plan or relation the vocabulary does not declare, is dropped and reported through `on('error')`; it never makes `can()` throw.
-- Only portable conditions are allowed: no closures, no `portable: false` nodes, no raw SQL.
-- `permdock rls`, `permdock openapi` and `permdock collect` keep reading the code policy, so a permission compiled into generated RLS must not be `hostable`: the database would never see the hosted grant.
+const permdock = await createPermDock(policy, user, { policies: pd.policies })
+```
+
+Hosted grants arrive as a [`PolicyDocument`](/docs/concepts/wire-formats) through a [`PolicySource`](/docs/concepts/extension-interfaces) whose `current()` is read once by `createPermDock`, and merge under rules that keep code in charge:
+
+- Allows OR together and any matching deny wins, so a code deny always beats a hosted allow. A hosted grant may be a deny.
+- A hosted allow on a permission a code grant guards with `approval` must carry an approval at least as strict (the same `by`, and `distinct` when the code grant has it), or it is dropped as `weaker-approval`. Hosted grants can add friction, never remove it.
+- The grantee is a declared role, plan or relation on the permission's resource. `anyone()`, `authenticated()`, `actor()` and `assurance()` are code-only selectors; a hosted grant naming them, or an undeclared name, is dropped as `unknown-grantee`.
+- Only portable conditions are accepted: no closures, no `opaque`, no `sqlFunction`, no path through `__proto__`, `constructor` or `prototype` (`non-portable`).
+- A grant on a permission that is not `hostable` (`not-hostable`), on an unknown key (`unknown-permission`) or with a malformed shape (`invalid`) is dropped too. Each drop is a `hosted-grant-dropped` value on `on('error')` carrying the document fingerprint, the grant id and the reason; it never makes `can()` throw.
+- A decision a hosted grant matched carries `matched.hosted` with the document `fingerprint` and the grant `id`, and so does its decision event. The merged instance's `fingerprint` hashes the code fingerprint with the document's, so an approval token issued under one document does not resume under another.
+- `permdock rls`, `permdock openapi` and `permdock collect` keep reading the code policy. A permission compiled into generated RLS should not be `hostable`, because the database never sees the hosted grant; `permdock doctor` reports it as `PD020`.
+- A snapshot built from an instance reflects the hosted grants that instance merged, because it is the instance's computed answer. A `SnapshotSource` never delivers hosted grants of its own.
 
 The opt-in exists because a hosted grant is an allow no code reviewer saw. Listing `hostable` permissions in code bounds what a Cloud admin, or an attacker holding a Cloud admin session, can widen.
 
+## Protected queries
+
+Authorizing a data fetch takes the three instance methods you already have, with no wrapper API: `where` narrows the query before it runs, `filter` drops rows a closure or a non-portable grant refuses, and `pick` redacts fields.
+
+```ts
+import { toWhere } from 'permdock/drizzle'
+
+export async function listPosts(permdock: PermDock) {
+  const read = permissions.post.read
+  const rows = await db.select().from(posts).where(toWhere(permdock.where(read), posts)) // before: the database only returns candidate rows
+  return permdock.filter(read, rows).map((row) => permdock.pick(read, row))            // after: closures and fields
+}
+```
+
+For a single record, load it and call `assert` (or `protect` in an HTTP adapter) before returning it. When `where` is `partial` (a closure grant exists) the `filter` step is what keeps the result correct; when it is not, `filter` is a cheap confirmation.
+
 ## Design rationale
+
+**No protected-query helper.** A `protect(queryFn, { before, after })` wrapper, as Kilpi's `$query` offers, was considered and rejected. `where` already runs before the fetch and reaches the database, which a post-fetch hook cannot; `filter` and `pick` already cover the after step. A wrapper would add a fourth way to say the same thing and hide which of the three steps ran, so it is the recipe under Protected queries instead.
 
 **Policy as data.** One check has to give the same answer in the browser, in an array filter, in an ORM `where`, in a Postgres RLS policy and in an audit log. Closures can serve only the first two: they cannot be hydrated to a client, compiled to SQL or read by a reviewer or an agent. So roles are arrays of grants, grants are data, and conditions are a small JSON AST with one interpreter per target (the in-memory evaluator, `toWhere` for Drizzle, Prisma and Kysely, and the RLS generator). The same JSON appears in the snapshot, the catalog and the AuthZEN `context`. The operator set is deliberately small because every compiler must implement every operator. A closure is still available when a check needs something the portable subset cannot express, but it is branded non-portable and the type system marks it server-only. MongoDB-style query syntax carries operators that do not compile to RLS, and a policy language such as Cedar, Rego or Polar is a second language with no inference over resource fields.
 

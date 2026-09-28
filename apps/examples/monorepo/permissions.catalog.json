@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-09-28T09:08:29.218Z",
+  "generatedAt": "2026-09-28T12:11:02.007Z",
   "generator": "@permdock/cli@0.0.0",
   "resources": {
     "post": {
@@ -231,10 +231,12 @@
   ],
   "roles": [
     {
-      "key": "admin"
+      "key": "admin",
+      "assignable": false
     },
     {
-      "key": "member"
+      "key": "member",
+      "assignable": false
     }
   ]
 }

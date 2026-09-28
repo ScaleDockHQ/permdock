@@ -71,6 +71,10 @@ onProjectEvent: t.procedure
 - Boundary validation failure: `TRPCError` code `BAD_REQUEST` with `issues`.
 - Anonymous subject: `UNAUTHORIZED` when the procedure requires one.
 
+
+## Why
+
+- **`trpc-to-openapi` keeps `protect: true`.** Its `protect` is a boolean: a protected procedure requires the document's security schemes, with no way to name scopes per procedure. Per-scope requirements would need a fork or a post-processing step on its output; instead `openapi.security` puts the permission keys in `x-permdock-permissions`, and `permdock openapi emit` over the generated document turns them into per-operation `security` with the exact scopes. One pass through the CLI gives the same result as the producers with a native per-operation hook.
 ## Example app
 
 `apps/examples/trpc`: tRPC v11 with the Fetch adapter, a posts router using `permdock()` and `protect` on `posts.update` (granted) and `posts.publish` (denied for `member`). Unit tests call procedures through `createCaller` and assert `TRPCError` codes and Problem Details `cause` bodies.

@@ -227,11 +227,14 @@ export function buildInstance(
     readonly simulated: boolean;
     readonly roleSource: RoleSource | undefined;
     readonly queuedAuth: readonly AuthEvent[];
+    /** Errors from building the instance (a dropped hosted grant), replayed to `on('error')`. */
+    readonly queuedErrors?: readonly unknown[];
   },
   team?: string,
 ): PermDock {
   const listeners = emptyListeners();
   const queuedAuth = [...envBase.queuedAuth];
+  const queuedErrors = [...(envBase.queuedErrors ?? [])];
   const envFor = (emit: boolean): EvalEnv => ({
     emit,
     simulated: envBase.simulated,
@@ -550,6 +553,15 @@ export function buildInstance(
             (handler as (payload: AuthEvent) => void)(queued);
           } catch (error) {
             emitSafe(listeners.error, error, listeners);
+          }
+        }
+      }
+      if (event === 'error') {
+        for (const queued of queuedErrors) {
+          try {
+            handler(queued);
+          } catch {
+            // An error handler that throws has nowhere left to report.
           }
         }
       }

@@ -39,6 +39,8 @@ export type RlsConfig = {
   readonly memberships?: RlsMemberships;
   readonly functions?: Readonly<Record<string, RlsFunctionMapping>>;
   readonly inlineFunctions?: boolean;
+  /** Emit FORCE ROW LEVEL SECURITY so the table owner is subject to the policies. */
+  readonly force?: boolean;
   readonly fixtures?: string;
   readonly tenantClaim?: string;
   readonly roleClaim?: string;
@@ -54,6 +56,10 @@ export type RlsConfig = {
 export type DoctorConfig = {
   readonly sensitiveActions?: readonly string[];
   readonly memberships?: string;
+  /** Globs or directories whose files are client entries for PD001, for frameworks with no `'use client'` convention. */
+  readonly clientEntries?: readonly string[];
+  /** Globs or directories of SQL migrations PD022 scans for views; defaults to the usual migration folders. */
+  readonly migrations?: readonly string[];
 };
 
 export type PermDockConfig = {
@@ -82,6 +88,8 @@ export type CatalogPermission = {
   readonly arity: 'instance' | 'collection';
   readonly meta: Readonly<Record<string, unknown>>;
   readonly usages: readonly CatalogUsage[];
+  /** Present only when the policy lists the permission in `hostable`. */
+  readonly hostable?: true;
 };
 
 export type CatalogResource = {
@@ -93,6 +101,12 @@ export type CatalogResource = {
   >;
 };
 
+export type CatalogRole = {
+  readonly key: string;
+  readonly on?: 'tenant' | 'team' | 'resource';
+  readonly assignable?: boolean;
+};
+
 export type CatalogDocument = {
   readonly $schema: string;
   readonly version: 1 | 2;
@@ -100,7 +114,7 @@ export type CatalogDocument = {
   readonly generator: string;
   readonly resources: Readonly<Record<string, CatalogResource>>;
   readonly permissions: readonly CatalogPermission[];
-  readonly roles?: readonly { readonly key: string }[];
+  readonly roles?: readonly CatalogRole[];
   readonly plans?: readonly { readonly key: string }[];
 };
 
@@ -119,12 +133,22 @@ export type ScanResult = {
   readonly roleNames: readonly string[];
   readonly planNames: readonly string[];
   readonly allowKeys: readonly string[];
+  readonly snapshots: readonly SnapshotSite[];
+};
+
+/** `include` is `undefined` for an unscoped call and `null` when it is not a literal list. */
+export type SnapshotSite = {
+  readonly file: string;
+  readonly line: number;
+  readonly include: readonly string[] | null | undefined;
 };
 
 export type CliIo = {
   readonly stdout: (text: string) => void;
   readonly stderr: (text: string) => void;
   readonly now?: () => Date;
+  readonly fetch?: typeof fetch;
+  readonly env?: Readonly<Record<string, string | undefined>>;
 };
 
 export type RunResult = {

@@ -1,9 +1,11 @@
 import type {
-  ApprovalListFilter,
+  ApprovalListQuery,
+  ApprovalPage,
   ApprovalRequest,
   ApprovalStore,
   ApprovalVerdict,
 } from '../approvals/types.ts';
+import type { PolicyDocument, PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   SinkEvent,
@@ -15,6 +17,7 @@ import type { CloudClient, CloudOptions } from './types.ts';
 import { ApprovalError } from '../approvals/errors.ts';
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
+import { parsePolicyDocument } from '../core/hosted.ts';
 import { parseSnapshot } from '../core/snapshot.ts';
 
 function readEnv(name: string): string {
@@ -163,31 +166,37 @@ export function cloud(options: CloudOptions = {}): CloudClient {
         return null;
       }
     },
-    async list(filter: ApprovalListFilter): Promise<ApprovalRequest[]> {
-      const query = new URLSearchParams(
+    async list(query: ApprovalListQuery): Promise<ApprovalPage> {
+      const params = new URLSearchParams(
         compact<Record<string, string>>({
-          status: filter.status,
-          principalId: filter.principalId,
-          actorId: filter.actorId,
-          tenant: filter.tenant,
+          status: query.status,
+          principalId: query.principalId,
+          actorId: query.actorId,
+          tenant: query.tenant,
+          session: query.session,
+          limit: query.limit === undefined ? undefined : String(query.limit),
+          cursor: query.cursor,
         }),
       );
-      const suffix = query.size === 0 ? '' : `?${query.toString()}`;
+      const suffix = params.size === 0 ? '' : `?${params.toString()}`;
       try {
         const response = await request(`/approvals${suffix}`);
         if (!response.ok) {
-          return [];
+          return { items: [] };
         }
         const body: unknown = await response.json();
-        if (!Array.isArray(body)) {
-          return [];
+        if (!isRecord(body) || !Array.isArray(body.items)) {
+          return { items: [] };
         }
-        return body.flatMap((item) => {
+        const items = body.items.flatMap((item: unknown) => {
           const parsed = asApproval(item);
           return parsed === null ? [] : [parsed];
         });
+        return typeof body.next === 'string' && body.next !== ''
+          ? { items, next: body.next }
+          : { items };
       } catch {
-        return [];
+        return { items: [] };
       }
     },
     async expire(now?: Date): Promise<number> {
@@ -261,5 +270,56 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     },
   };
 
-  return freezeDeep({ approvals, sink, snapshots });
+  let document: PolicyDocument | null = null;
+
+  const policies: PolicySource = {
+    current(): PolicyDocument | null {
+      return document;
+    },
+    async refresh(): Promise<void> {
+      const verifier = options.verifier;
+      if (verifier === undefined) {
+        return;
+      }
+      let response: Response;
+      try {
+        response = await request('/policy');
+      } catch {
+        return;
+      }
+      if (response.status === 404) {
+        document = null;
+        return;
+      }
+      if (!response.ok) {
+        return;
+      }
+      const token = (await response.text()).trim();
+      if (!isCompactJws(token)) {
+        return;
+      }
+      const verified = await verifier.verify(
+        token,
+        compact({ typ: 'permdock-policy+jwt', audience: options.audience }),
+      );
+      if (!verified.ok) {
+        return;
+      }
+      let next: PolicyDocument;
+      try {
+        next = parsePolicyDocument(verified.claims.policy);
+      } catch {
+        return;
+      }
+      document = next;
+    },
+  };
+
+  return freezeDeep({
+    approvals,
+    sink,
+    snapshots,
+    policies,
+    jwks: `${url}/.well-known/jwks.json`,
+  });
 }

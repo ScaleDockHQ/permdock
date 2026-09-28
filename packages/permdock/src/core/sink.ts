@@ -7,12 +7,33 @@ import type {
 
 import { compact } from './compact.ts';
 
+/** The closed list of CloudEvents `type` values PermDock emits. */
+export const CLOUD_EVENT_TYPES: {
+  readonly decision: 'dev.permdock.decision';
+  readonly approval: 'dev.permdock.approval';
+  readonly directory: 'dev.permdock.directory';
+  readonly membership: 'dev.permdock.membership';
+  readonly catalog: 'dev.permdock.catalog';
+} = Object.freeze({
+  decision: 'dev.permdock.decision',
+  approval: 'dev.permdock.approval',
+  directory: 'dev.permdock.directory',
+  membership: 'dev.permdock.membership',
+  catalog: 'dev.permdock.catalog',
+});
+
 export type CloudEventType =
-  | 'dev.permdock.decision'
-  | 'dev.permdock.approval'
-  | 'dev.permdock.directory'
-  | 'dev.permdock.catalog'
-  | 'dev.permdock.membership';
+  (typeof CLOUD_EVENT_TYPES)[keyof typeof CLOUD_EVENT_TYPES];
+
+/** `data` of a `dev.permdock.catalog` event: a `permdock cloud push` or a scheduled drift check. */
+export type CatalogEventData = {
+  readonly kind: 'publish' | 'drift';
+  /** The catalog fingerprint after the publish, or the one drift was measured against. */
+  readonly fingerprint: string;
+  readonly previous?: string;
+  /** Drift findings, one line each, as `permdock collect --check` reports them. */
+  readonly findings?: readonly string[];
+};
 
 export type CloudEvent = {
   readonly specversion: '1.0';
@@ -22,7 +43,7 @@ export type CloudEvent = {
   readonly id: string;
   readonly time: string;
   readonly datacontenttype: 'application/json';
-  readonly data: SinkEvent;
+  readonly data: SinkEvent | CatalogEventData;
 };
 
 export type SignDecisionBatchOptions = {
@@ -45,14 +66,14 @@ export type MemorySink = DecisionSink & {
 function cloudEventType(event: SinkEvent): CloudEventType {
   switch (event.type) {
     case 'directory':
-      return 'dev.permdock.directory';
+      return CLOUD_EVENT_TYPES.directory;
     case 'membership':
-      return 'dev.permdock.membership';
+      return CLOUD_EVENT_TYPES.membership;
     case 'decision':
       if (event.phase === 'requested' || event.phase === 'resolved') {
-        return 'dev.permdock.approval';
+        return CLOUD_EVENT_TYPES.approval;
       }
-      return 'dev.permdock.decision';
+      return CLOUD_EVENT_TYPES.decision;
     default: {
       const exhaustive: never = event;
       return exhaustive;

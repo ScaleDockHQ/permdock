@@ -83,6 +83,54 @@ When the caller is an OAuth client, Problem Details is the body and RFC 6750 (wi
 
 Hyphenated PermDock reasons become the underscored wire codes; nothing else is translated.
 
+## Problem types
+
+Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redirects to the matching section below.
+
+### denied
+
+403. A matching deny, no matching grant, or a condition that failed. Carries `permission`, `denials` and `alternatives`.
+
+### approval-required
+
+403. The grant needs a human approval first. Carries `permission`, `reason`, `token` and, when the adapter knows them, an optional `approval` object (`ApprovalHint`) with `at` (where to approve, a URL) and `hint` (a short instruction), set by the `approval` option on the [server kernel](/docs/adapters/server-kernel) and every HTTP adapter built on it, and on [permdock/terminal](/docs/adapters/terminal). Resume by repeating the call with the `PermDock-Approval` header.
+
+### validation
+
+400. Boundary data failed the resource's Standard Schema. Carries `issues` instead of `denials`.
+
+### unauthenticated
+
+401. No token, or a token that failed verification. Sent with a `WWW-Authenticate` challenge and no `denials`.
+
+### step-up-required
+
+401. Only `subject.assurance` conditions failed (RFC 9470). Carries `acrValues` and `maxAge`.
+
+### invalid-signature
+
+403. A request claimed a Web Bot Auth signature that did not verify. It never becomes an anonymous actor.
+
+### method-not-allowed
+
+405. A route of the [AuthZEN handler](/docs/adapters/authzen) or the [approvals handler](/docs/adapters/approvals) was called with the wrong method or an unknown path. The AuthZEN handler also sets `Allow`.
+
+### not-found
+
+404. The approvals handler has no approval for the token, or the AuthZEN handler has no endpoint at the path (including a search endpoint the application did not configure).
+
+### conflict
+
+409. The approvals handler was asked to resolve an approval that is no longer pending or has expired.
+
+### payload-too-large
+
+413. An AuthZEN `evaluations` batch exceeded the handler's `maxEvaluations`.
+
+### internal
+
+500. The approval store threw. The body says only that the store failed and never carries the store's error.
+
 ## Mapping table
 
 | RFC 9457 member | PermDock value |
@@ -99,6 +147,12 @@ Hyphenated PermDock reasons become the underscored wire codes; nothing else is t
 | Extension `issues` | Standard Schema `issues` (validation only) |
 | Media type | `application/problem+json` |
 | Companion `WWW-Authenticate` (RFC 6750, RFC 9470) | `invalid_token` from `on('auth')` `reason`, `insufficient_scope` from `not-delegated` / `no-delegation`, `insufficient_user_authentication` from `insufficient-user-authentication` |
+
+## Why
+
+The `type` URI is an identifier first: clients and gateways switch on it, so it must be identical across every deployment. A configurable base would let two installs emit different identifiers for the same problem and break any client written against one of them, which is why the kernel has no `problem.base` option. RFC 9457 still asks that the URI dereference to documentation, so `permdock.dev/problems/<type>` redirects to the section above for that type rather than living as a separate page tree.
+
+The `approval` member (`at`, `hint`) is shared across the terminal and HTTP adapters rather than terminal-only: it carries no secret, only where and how a human approves, and every surface that can return `approval-required` benefits from the same pointer.
 
 ## Sources
 

@@ -1,14 +1,31 @@
-import { existsSync } from 'node:fs';
+import type { Condition, Policy } from 'permdock';
+
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { getResource } from 'permdock';
 
-import type { CatalogUsage, CliIo, PermDockConfig } from './types.ts';
+import type {
+  CatalogUsage,
+  CliIo,
+  PermDockConfig,
+  ScanResult,
+} from './types.ts';
 
+import { jsonSchemaOf } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
+import { isClientSource } from './doctor-source.ts';
+import { listSourceFiles, rel } from './files.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { USAGE_REPORT_SCHEMA } from './version.ts';
 
 export type UsageFinding = {
-  readonly kind: 'unused' | 'ungranted' | 'no-role' | 'dynamic';
+  readonly kind:
+    | 'unused'
+    | 'ungranted'
+    | 'no-role'
+    | 'dynamic'
+    | 'undeclared-field'
+    | 'outside-include';
   readonly key: string;
   readonly detail: string;
 };
@@ -19,6 +36,8 @@ export type UsageReport = {
   readonly ungranted: readonly UsageFinding[];
   readonly noRole: readonly UsageFinding[];
   readonly dynamic: readonly UsageFinding[];
+  readonly undeclared: readonly UsageFinding[];
+  readonly outsideInclude: readonly UsageFinding[];
   readonly warnings: number;
   readonly errors: number;
 };
@@ -123,13 +142,29 @@ export async function runUsage(input: {
       detail: `${site.file}:${String(site.line)} (${site.call})`,
     });
   }
+  const undeclared = undeclaredFields(policy).filter(
+    (finding) => !ignored(finding.key, input.ignore),
+  );
+  const outsideInclude = outsideSnapshotInclude(
+    input.cwd,
+    input.config,
+    collected.scan,
+    usedAt,
+  ).filter((finding) => !ignored(finding.key, input.ignore));
   const report: UsageReport = {
     $schema: USAGE_REPORT_SCHEMA,
     unused,
     ungranted,
     noRole,
     dynamic,
-    warnings: unused.length + ungranted.length + dynamic.length,
+    undeclared,
+    outsideInclude,
+    warnings:
+      unused.length +
+      ungranted.length +
+      dynamic.length +
+      undeclared.length +
+      outsideInclude.length,
     errors: noRole.length,
   };
   const code: 0 | 1 =
@@ -140,6 +175,173 @@ export async function runUsage(input: {
       ? `${JSON.stringify(report, null, 2)}\n`
       : formatUsage(report),
   };
+}
+
+const CLIENT_CALLS = new Set([
+  'usePermission',
+  'can',
+  'decide',
+  'filter',
+  'actions',
+]);
+
+function undeclaredFields(policy: Policy): readonly UsageFinding[] {
+  const findings: UsageFinding[] = [];
+  for (const grant of policy.grants) {
+    const declared = declaredFields(policy, grant.permission.resource);
+    if (declared === undefined) {
+      continue;
+    }
+    const fields = new Set<string>();
+    conditionFields(grant.where, fields);
+    conditionFields(grant.check, fields);
+    for (const field of fields) {
+      if (!declared.has(field)) {
+        findings.push({
+          kind: 'undeclared-field',
+          key: grant.permission.key,
+          detail: `${grant.role === null ? 'policy grant' : `role '${grant.role}'`} reads '${field}', which the ${grant.permission.resource} schema does not declare`,
+        });
+      }
+    }
+  }
+  return findings;
+}
+
+function declaredFields(
+  policy: Policy,
+  resource: string,
+): ReadonlySet<string> | undefined {
+  const node = getResource(policy.permissions, resource);
+  const schema = node === undefined ? null : jsonSchemaOf(node);
+  if (schema === null || typeof schema !== 'object') {
+    return undefined;
+  }
+  const properties = (schema as { readonly properties?: unknown }).properties;
+  if (properties === null || typeof properties !== 'object') {
+    return undefined;
+  }
+  return new Set(Object.keys(properties));
+}
+
+function conditionFields(
+  condition: Condition | undefined,
+  out: Set<string>,
+): void {
+  if (condition === undefined) {
+    return;
+  }
+  const add = (field: string): void => {
+    out.add(field.split('.')[0] ?? field);
+  };
+  switch (condition.op) {
+    case 'eq':
+    case 'ne':
+    case 'gt':
+    case 'gte':
+    case 'lt':
+    case 'lte':
+    case 'contains':
+    case 'in':
+    case 'notIn':
+    case 'isNull': {
+      add(condition.field);
+      break;
+    }
+    case 'and':
+    case 'or': {
+      for (const child of condition.conditions) {
+        conditionFields(child, out);
+      }
+      break;
+    }
+    case 'not': {
+      conditionFields(condition.condition, out);
+      break;
+    }
+    case 'memberOf': {
+      add(condition.field);
+      for (const parent of condition.parents ?? []) {
+        add(typeof parent === 'string' ? parent : parent.field);
+      }
+      break;
+    }
+    case 'sqlFunction': {
+      for (const arg of condition.args) {
+        if (
+          arg !== null &&
+          typeof arg === 'object' &&
+          !Array.isArray(arg) &&
+          'field' in arg
+        ) {
+          add(arg.field);
+        }
+      }
+      conditionFields(condition.twin, out);
+      break;
+    }
+    case 'opaque': {
+      break;
+    }
+    default: {
+      const exhaustive: never = condition;
+      throw new Error(`unknown condition ${String(exhaustive)}`);
+    }
+  }
+}
+
+function outsideSnapshotInclude(
+  cwd: string,
+  config: PermDockConfig,
+  scan: ScanResult,
+  usedAt: Readonly<Record<string, readonly CatalogUsage[]>>,
+): readonly UsageFinding[] {
+  if (
+    scan.snapshots.length === 0 ||
+    scan.snapshots.some(
+      (site) => site.include === undefined || site.include === null,
+    )
+  ) {
+    return [];
+  }
+  const include = scan.snapshots.flatMap((site) => site.include ?? []);
+  const clientEntries = new Set(
+    listSourceFiles(cwd, config.doctor?.clientEntries ?? []).map((file) =>
+      rel(cwd, file),
+    ),
+  );
+  const client = new Map<string, boolean>();
+  const isClient = (file: string): boolean => {
+    let known = client.get(file);
+    if (known === undefined) {
+      const path = resolve(cwd, file);
+      known =
+        existsSync(path) &&
+        isClientSource(
+          { file, text: readFileSync(path, 'utf8') },
+          clientEntries,
+        );
+      client.set(file, known);
+    }
+    return known;
+  };
+  const findings: UsageFinding[] = [];
+  for (const [key, sites] of Object.entries(usedAt)) {
+    if (include.some((item) => key === item || key.startsWith(`${item}.`))) {
+      continue;
+    }
+    const site = sites.find(
+      (usage) => CLIENT_CALLS.has(usage.call) && isClient(usage.file),
+    );
+    if (site !== undefined) {
+      findings.push({
+        kind: 'outside-include',
+        key,
+        detail: `${site.file}:${String(site.line)} (${site.call}) is outside every snapshot include`,
+      });
+    }
+  }
+  return findings;
 }
 
 function ignored(key: string, patterns: readonly string[]): boolean {
@@ -166,6 +368,18 @@ function formatUsage(report: UsageReport): string {
   lines.push(`  granted by no role (${String(report.noRole.length)})`);
   for (const finding of report.noRole) {
     lines.push(`    ${finding.key.padEnd(28)} ${finding.detail}`);
+  }
+  for (const [title, list] of [
+    ['conditions on undeclared fields', report.undeclared],
+    ['client checks outside include', report.outsideInclude],
+  ] as const) {
+    if (list.length > 0) {
+      lines.push('');
+      lines.push(`  ${title} (${String(list.length)})`);
+      for (const finding of list) {
+        lines.push(`    ${finding.key.padEnd(28)} ${finding.detail}`);
+      }
+    }
   }
   if (report.dynamic.length > 0) {
     lines.push('');

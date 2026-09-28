@@ -126,7 +126,7 @@ export default defineConfig({
       },
     },
     {
-      files: ['tests/**/*.{ts,tsx}'],
+      files: ['tests/**/*.{ts,tsx}', 'scripts/**/*.ts'],
       rules: {
         'oxc/no-async-await': 'off',
         'oxc/no-optional-chaining': 'off',
@@ -144,6 +144,7 @@ export default defineConfig({
         'import/no-relative-parent-imports': 'off',
         'node/no-process-env': 'off',
         'import/no-default-export': 'off',
+        'unicorn/no-array-callback-reference': 'off',
         // Child-process scripts under tests run as ESM, never through require(esm).
         'node/no-top-level-await': 'off',
       },

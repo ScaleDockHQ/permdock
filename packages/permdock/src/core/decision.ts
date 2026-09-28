@@ -1,6 +1,6 @@
 import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
-import type { ApprovalRequirement, Grant } from './policy.ts';
+import type { ApprovalRequirement, Grant, HostedGrantRef } from './policy.ts';
 import type { Subject } from './subject.ts';
 
 export type DenialReason =
@@ -43,6 +43,8 @@ export type MatchedGrant = {
   readonly check?: Grant['check'];
   readonly approval?: 'human' | ApprovalRequirement;
   readonly provider?: string;
+  /** The hosted policy document fingerprint and grant id, when a hosted grant matched. */
+  readonly hosted?: HostedGrantRef;
 };
 
 export type GrantedDecision = {

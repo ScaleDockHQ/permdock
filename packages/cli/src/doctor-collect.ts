@@ -342,6 +342,63 @@ function supabaseJwtExpiry(cwd: string): number | undefined {
   return undefined;
 }
 
+export async function pd020(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const tables = input.config.rls.tables;
+  const compiled = (policy.hostable ?? []).filter((key) => {
+    const resource = key.slice(0, key.lastIndexOf('.'));
+    return tables === undefined || tables[resource] !== undefined;
+  });
+  if (compiled.length === 0) {
+    return [];
+  }
+  return [
+    {
+      code: 'PD020',
+      severity: 'warning',
+      message: `hostable permissions are also compiled into RLS, which never sees hosted grants: ${compiled.join(', ')}`,
+      fix: 'remove them from hostable, or drop their tables from rls.tables and enforce them in the application',
+    },
+  ];
+}
+
+export async function pd021(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+  readonly env: Readonly<Record<string, string | undefined>>;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined || (policy.hostable ?? []).length === 0) {
+    return [];
+  }
+  const missing = ['PERMDOCK_CLOUD_URL', 'PERMDOCK_CLOUD_KEY'].filter(
+    (name) => (input.env[name] ?? '') === '',
+  );
+  if (missing.length === 0) {
+    return [];
+  }
+  return [
+    {
+      code: 'PD021',
+      severity: 'warning',
+      message: `the policy lists hostable permissions but ${missing.join(' and ')} is not set, so no hosted grant can be published or fetched`,
+      fix: 'set the variables from the PermDock Cloud dashboard, or remove hostable',
+    },
+  ];
+}
+
 export async function pd019(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;

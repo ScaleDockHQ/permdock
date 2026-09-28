@@ -8,7 +8,12 @@ import {
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import type { StoredCredential, TerminalRuntime } from './types.ts';
+import type {
+  KeyringEntry,
+  StoredCredential,
+  TerminalRuntime,
+  TerminalStorageOptions,
+} from './types.ts';
 
 import { compact } from '../core/compact.ts';
 
@@ -53,7 +58,47 @@ function parseCredential(value: unknown): StoredCredential | null {
   });
 }
 
+function keyringEntry(
+  storage: TerminalStorageOptions,
+  profile: string,
+): KeyringEntry | null {
+  if (storage.keyring === undefined) {
+    return null;
+  }
+  try {
+    return new storage.keyring(storage.service, profile);
+  } catch {
+    return null;
+  }
+}
+
+function readKeyring(
+  storage: TerminalStorageOptions,
+  profile: string,
+): StoredCredential | null {
+  const entry = keyringEntry(storage, profile);
+  if (entry === null) {
+    return null;
+  }
+  try {
+    const raw = entry.getPassword();
+    return typeof raw === 'string' ? parseCredential(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function readCredentials(
+  storage: TerminalStorageOptions,
+  profile: string,
+  runtime: TerminalRuntime,
+): StoredCredential | null {
+  return (
+    readKeyring(storage, profile) ?? readFile(storage.service, profile, runtime)
+  );
+}
+
+function readFile(
   service: string,
   profile: string,
   runtime: TerminalRuntime,
@@ -81,7 +126,27 @@ export function readCredentials(
   }
 }
 
+/** The OS keychain when `storage.keyring` is set and works; otherwise the mode-0600 file. */
 export function writeCredentials(
+  storage: TerminalStorageOptions,
+  profile: string,
+  credential: StoredCredential,
+  runtime: TerminalRuntime,
+): void {
+  const entry = keyringEntry(storage, profile);
+  if (entry !== null) {
+    try {
+      entry.setPassword(JSON.stringify(credential));
+      deleteFile(storage.service, profile, runtime);
+      return;
+    } catch {
+      // No keychain service (headless Linux, containers): use the file.
+    }
+  }
+  writeFile(storage.service, profile, credential, runtime);
+}
+
+function writeFile(
   service: string,
   profile: string,
   credential: StoredCredential,
@@ -106,6 +171,22 @@ export function writeCredentials(
 }
 
 export function deleteCredentials(
+  storage: TerminalStorageOptions,
+  profile: string,
+  runtime: TerminalRuntime,
+): void {
+  const entry = keyringEntry(storage, profile);
+  if (entry !== null) {
+    try {
+      entry.deletePassword();
+    } catch {
+      // Nothing stored, or no keychain service.
+    }
+  }
+  deleteFile(storage.service, profile, runtime);
+}
+
+function deleteFile(
   service: string,
   profile: string,
   runtime: TerminalRuntime,

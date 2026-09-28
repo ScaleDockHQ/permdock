@@ -5,9 +5,12 @@ import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { flattenGrantee, matchGrantee } from '../core/grantee.ts';
 import { ApprovalError } from './errors.ts';
+import { pageOf } from './page.ts';
 import {
   type ApprovalCancelMeta,
   type ApprovalListFilter,
+  type ApprovalListQuery,
+  type ApprovalPage,
   type ApprovalRequest,
   type ApprovalStore,
   type ApprovalVerdict,
@@ -271,14 +274,14 @@ export function memoryApprovalStore(
       records.set(token, next);
       return next;
     },
-    list(filter: ApprovalListFilter): ApprovalRequest[] {
-      const out: ApprovalRequest[] = [];
+    list(query: ApprovalListQuery): ApprovalPage {
+      const matching: ApprovalRequest[] = [];
       for (const request of records.values()) {
-        if (matchesFilter(request, filter)) {
-          out.push(request);
+        if (matchesFilter(request, query)) {
+          matching.push(request);
         }
       }
-      return out;
+      return pageOf(matching, query);
     },
     expire(now: Date = new Date()): number {
       let count = 0;

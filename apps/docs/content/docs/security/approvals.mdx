@@ -99,6 +99,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - It does not outlive its request. Each call needs its own approval, which is consumed on use; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step with no plan-level token.
 - It is not remembered. A rejection applies to one call; the next call asks again, and the OpenAI SDK's `alwaysReject` is never set.
 - It does not decide who may approve beyond the grant and the actor rule. `approval.by` and `approval.distinct` on the grant are copied to the `ApprovalRequest` as `approvers` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is the application-wide default when the grant omits `distinct`.
+- It is never given by a link alone. An emailed or chat link carries only the token and opens a page where the approver authenticates; the verdict goes through `approvalsHandler` with that session's subject. A link that approves without a session would make possession of the message the approver's identity ([approvals](/docs/adapters/approvals)).
 
 ## Sources
 

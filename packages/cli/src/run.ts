@@ -3,9 +3,12 @@ import type { CliIo, RunResult } from './types.ts';
 import { runArazzo } from './arazzo.ts';
 import { flagBool, flagList, flagString, parseArgs } from './args.ts';
 import { runCatalog } from './catalog.ts';
+import { runCloud } from './cloud.ts';
 import { runCollect } from './collect.ts';
 import { loadConfig, resolveCwd } from './config.ts';
 import { runDoctor } from './doctor.ts';
+import { isSchemaKind } from './generate.ts';
+import { runOpenapiImport } from './openapi-import.ts';
 import { runOpenapi } from './openapi.ts';
 import { runRls } from './rls.ts';
 import { runSkills } from './skills.ts';
@@ -20,8 +23,10 @@ Commands:
   doctor [--json] [--only <codes>] [--fix]
   skills [install|list|update] [--agent <name>]
   openapi emit --doc <path> [--target 3.1|3.2|3.3] [--format document|overlay]
+  openapi import --doc <path|url> --out <file> [--schema zod|valibot|arktype] [--map <json>] [--annotate]
   rls generate|import|verify [--target sql|drizzle|prisma] [--dialect supabase|neon|guc]
   arazzo check --doc <arazzo.json> --openapi <doc.json> [--workflow <id>] [--from <module>]
+  cloud push [--dry-run] [--url <url>] [--environment <env>]
 
 Global:
   --cwd <dir>   --config <file>   --json   --no-color
@@ -158,6 +163,30 @@ export async function run(
         return finish(result.code, stdoutChunks, stderrChunks);
       }
       case 'openapi': {
+        if (args.rest[0] === 'import') {
+          const schemaFlag = flagString(args.flags, 'schema');
+          if (schemaFlag !== undefined && !isSchemaKind(schemaFlag)) {
+            writeErr('openapi --schema must be zod, valibot or arktype');
+            return finish(2, stdoutChunks, stderrChunks);
+          }
+          const doc =
+            flagString(args.flags, 'doc') ?? flagList(args.flags, 'doc')[0];
+          if (doc === undefined) {
+            writeErr('openapi --doc is required');
+            return finish(2, stdoutChunks, stderrChunks);
+          }
+          const result = await runOpenapiImport({
+            cwd,
+            doc,
+            out: flagString(args.flags, 'out'),
+            schema: schemaFlag,
+            map: flagString(args.flags, 'map'),
+            annotate: flagBool(args.flags, 'annotate'),
+            io,
+          });
+          writeOut(result.output);
+          return finish(result.code, stdoutChunks, stderrChunks);
+        }
         const targetFlag = flagString(args.flags, 'target') ?? '3.2';
         if (
           targetFlag !== '3.1' &&
@@ -198,6 +227,13 @@ export async function run(
           scheme: flagString(args.flags, 'scheme') ?? 'permdockOAuth',
           metadataUrl: flagList(args.flags, 'metadata-url')[0],
           deviceFlow: flagBool(args.flags, 'device-flow'),
+          arity: flagBool(args.flags, 'arity'),
+          authorizationUrl: flagString(args.flags, 'authorization-url'),
+          tokenUrl: flagString(args.flags, 'token-url'),
+          deviceAuthorizationUrl: flagString(
+            args.flags,
+            'device-authorization-url',
+          ),
           io,
         });
         writeOut(result.output);
@@ -245,7 +281,24 @@ export async function run(
           check: flagBool(args.flags, 'check'),
           skipClosures: flagBool(args.flags, 'skip-closures'),
           inlineFunctions: flagBool(args.flags, 'inline-functions'),
+          force: flagBool(args.flags, 'force'),
           gucPrefix: flagString(args.flags, 'guc-prefix'),
+          io,
+        });
+        writeOut(result.output);
+        return finish(result.code, stdoutChunks, stderrChunks);
+      }
+      case 'cloud': {
+        const result = await runCloud({
+          cwd,
+          config,
+          rest: args.rest,
+          url: flagString(args.flags, 'url'),
+          environment: flagString(args.flags, 'environment'),
+          dryRun: flagBool(args.flags, 'dry-run'),
+          json,
+          env: io.env ?? process.env,
+          now,
           io,
         });
         writeOut(result.output);
@@ -253,7 +306,7 @@ export async function run(
       }
       default:
         writeErr(
-          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills, openapi, rls or arazzo.`,
+          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills, openapi, rls, arazzo or cloud.`,
         );
         return finish(2, stdoutChunks, stderrChunks);
     }

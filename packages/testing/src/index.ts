@@ -45,6 +45,21 @@ export type {
   HttpScenarioDomain,
   HttpScenarioName,
 } from './http-adapter.ts';
+export {
+  authzenTodoData,
+  authzenTodoPermissions,
+  authzenTodoPolicy,
+  authzenTodoUsers,
+  authzenTodoVectors,
+  testAuthZen,
+} from './authzen.ts';
+export type {
+  AuthZenEvaluationVector,
+  AuthZenEvaluationsVector,
+  AuthZenSearchVector,
+  AuthZenVectors,
+  TestAuthZenOptions,
+} from './authzen.ts';
 export type { ApprovalStoreOptions } from './conformance.ts';
 export {
   testApprovalStore,
@@ -54,6 +69,7 @@ export {
   testReplayStore,
   testRevocationFeed,
   testMembershipSource,
+  testPolicySource,
   testRoleSource,
   testSnapshotSource,
   testSubjectResolver,

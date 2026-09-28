@@ -34,7 +34,7 @@ receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) 
 - `receiver.push(request)` is a Fetch handler for RFC 8935 push delivery: it accepts `application/secevent+jwt`, verifies, dispatches and returns `202`.
 - `receiver.poll(options)` runs RFC 8936 poll delivery from a long-lived process: it fetches pending SETs, dispatches them and acknowledges by `jti`.
 - `onEvent` is keyed by CAEP event type. Handlers receive the resolved `subject`, the raw `event` claims, `event_timestamp` and the `jti`.
-- `subject` maps the SET `sub_id` (formats `iss_sub`, `email`, `opaque`, and others defined by the Subject Identifiers RFC) to the id PermDock uses in `tag` and snapshots.
+- `subject` maps the SET `sub_id` (formats `iss_sub`, `email`, `opaque`, `complex`, and others defined by the Subject Identifiers RFC) to the id PermDock uses in `tag` and snapshots. A SET without `sub_id` falls back to `sub`, then to the event's own `subject` member (the pre-1.0 CAEP layout some transmitters still send). The session of a `complex` subject becomes `subject.session`, so a `session-revoked` event ends only that session.
 - `verifier` (optional, a `TokenVerifier` from [extension interfaces](/docs/concepts/extension-interfaces)) replaces the built-in `joseTokenVerifier` over `jwks`; `discovery: '<issuer>'` may stand in for `issuer` plus `jwks` exactly as in [`permdock/jwt`](/docs/adapters/jwt).
 - `replay` (optional, a `ReplayStore`) replaces the in-memory `jti` store. `memoryReplayStore()` is the default. Keys are opaque strings namespaced by issuer, so receivers for two IdPs can share one store without a `jti` collision. `claim(key, expiresAt?)` records a key and returns `true` only for the first caller, and `release(key)` forgets it when a handler failed. A store with both makes concurrent deliveries of one SET dispatch once; a store with only `seen` and `remember(key, expiresAt?)` still works, but two simultaneous deliveries can both dispatch. The receiver passes the SET `exp` or `iat + clockTolerance`. The memory store evicts expired keys on read.
 - A SET carrying several events records each event that succeeded. When a later handler fails, the receiver answers `400`, the transmitter retries, and only the events that did not succeed are dispatched again.
@@ -100,7 +100,7 @@ SSF 1.0 and CAEP 1.0 leave a transmitter and a receiver several choices: which e
 
 - The event types the profile requires are the ones `onEvent` is keyed by; the receiver accepts them without configuration and treats profile-required delivery as the baseline rather than an option.
 - Events and subject identifier formats outside the profile still work through `onEvent['*']` and the `subject` mapper, so a transmitter that emits more than the profile is not rejected.
-- `tests/integration` records SETs from transmitters that claim the profile and replays them against the receiver, so a profile revision that changes a required shape shows up as a failing fixture rather than a silent drop.
+- `packages/testing/fixtures/ssf/transmitters.json` holds SETs in the shapes Entra, Okta and Auth0 transmit, and `ssf-transmitters.test.ts` replays them against the receiver with no network, so a transmitter or profile change that alters a required shape shows up as a failing fixture rather than a silent drop.
 
 The profile is an implementer's draft; its row on the [standards watch list](/docs/standards/watch-list) is reviewed each release, and this section is updated when the profile reaches final.
 
@@ -116,7 +116,12 @@ Delivery failures return the RFC 8935 error object (`err`, `description`) so the
 
 ## Example app
 
-None. The receiver is exercised in `tests/integration` against recorded SETs from the transmitters listed above and a Keycloak container. The Next.js example (`apps/examples/next`) documents mounting `receiver.push` as a route handler.
+None. The receiver is exercised against the recorded Entra, Okta and Auth0 SETs in `@permdock/testing`. The Next.js example (`apps/examples/next`) documents mounting `receiver.push` as a route handler.
+
+## Why
+
+- **Recorded SETs, not live transmitters.** The receiver's risk is shape drift: a transmitter that puts the subject somewhere new, or a session in a `complex` identifier, turns a revocation into a silently acknowledged unknown subject. Replaying each transmitter's shape as a committed fixture catches that on every `pnpm test` without tenants, secrets or network. The signature is re-created with a test key because the transmitters' keys are private; signature verification is covered by the `permdock/jwt` suites.
+- **Keycloak waits.** Its transmitter is experimental and the only self-hostable one, so a container suite would test a moving target. Its SETs join the fixture file once the transmitter is stable.
 
 ## Related standards
 

@@ -11,7 +11,7 @@ The OpenID Foundation's [Shared Signals Framework (SSF) 1.0 and Continuous Acces
 - `credential-change`: a password, key or MFA factor was changed, added or removed.
 - `assurance-level-change`: the user's authentication assurance went up or down.
 
-Transmitters in production include Microsoft Entra, Okta and Auth0; Keycloak shipped an [experimental SSF transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support) in July 2026.
+Transmitters in production include Microsoft Entra, Okta and Auth0; Keycloak shipped an [experimental SSF transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support) in July 2026. PermDock's receiver is tested against SETs in the Entra, Okta and Auth0 shapes; Keycloak joins when its transmitter leaves experimental status ([SSF adapter](/docs/adapters/ssf)).
 
 ## Why it matters for PermDock
 

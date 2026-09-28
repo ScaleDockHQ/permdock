@@ -1,0 +1,113 @@
+import type { DecisionEvent } from './interfaces.ts';
+
+import { compact } from './compact.ts';
+
+/** The OCSF schema version `toOcsf` emits. */
+export const OCSF_VERSION = '1.3.0';
+
+/** An OCSF Authorize Session (class 3003, category Identity and Access Management) event. */
+export type OcsfAuthorizeSession = {
+  readonly class_uid: 3003;
+  readonly category_uid: 3;
+  readonly activity_id: 1;
+  readonly type_uid: 300301;
+  readonly severity_id: 1;
+  readonly time: number;
+  readonly status_id: 1 | 2 | 99;
+  readonly status: 'Success' | 'Failure' | 'Other';
+  readonly status_detail?: string;
+  readonly message: string;
+  readonly privileges: readonly string[];
+  readonly user?: { readonly uid: string };
+  readonly actor?: {
+    readonly user?: { readonly uid: string };
+    readonly app_name?: string;
+  };
+  readonly metadata: {
+    readonly version: typeof OCSF_VERSION;
+    readonly product: {
+      readonly name: 'PermDock';
+      readonly vendor_name: 'PermDock';
+      readonly feature?: { readonly name: string };
+    };
+    readonly tenant_uid?: string;
+    readonly correlation_uid?: string;
+  };
+  readonly unmapped: {
+    readonly outcome: DecisionEvent['outcome'];
+    readonly scope: string;
+    readonly resource: DecisionEvent['resource'];
+    readonly source: DecisionEvent['source'];
+    readonly phase?: DecisionEvent['phase'];
+    readonly role?: string | null;
+    readonly via?: string | null;
+  };
+};
+
+function status(
+  outcome: DecisionEvent['outcome'],
+): Pick<OcsfAuthorizeSession, 'status_id' | 'status'> {
+  switch (outcome) {
+    case 'granted':
+      return { status_id: 1, status: 'Success' };
+    case 'denied':
+      return { status_id: 2, status: 'Failure' };
+    case 'approval-required':
+      return { status_id: 99, status: 'Other' };
+    default: {
+      const exhaustive: never = outcome;
+      return exhaustive;
+    }
+  }
+}
+
+/** Projects a decision or approval event onto OCSF Authorize Session; the event itself is unchanged. */
+export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
+  const principal = event.subject.principal;
+  const actor = event.subject.actor;
+  const detail =
+    event.outcome === 'approval-required'
+      ? 'approval-required'
+      : event.denials?.map((denial) => denial.reason).join(',');
+  const time = Date.parse(event.at);
+  return compact<OcsfAuthorizeSession>({
+    class_uid: 3003,
+    category_uid: 3,
+    activity_id: 1,
+    type_uid: 300301,
+    severity_id: 1,
+    time: Number.isNaN(time) ? 0 : time,
+    ...status(event.outcome),
+    status_detail: detail === '' ? undefined : detail,
+    message: `${event.permission} ${event.outcome}`,
+    privileges: [event.permission],
+    user: principal === null ? undefined : { uid: principal.id },
+    actor:
+      actor === undefined
+        ? undefined
+        : compact({
+            user: principal === null ? undefined : { uid: principal.id },
+            app_name: actor.id,
+          }),
+    metadata: compact({
+      version: OCSF_VERSION,
+      product: compact({
+        name: 'PermDock' as const,
+        vendor_name: 'PermDock' as const,
+        feature:
+          event.adapter === undefined ? undefined : { name: event.adapter },
+      }),
+      tenant_uid: event.tenant,
+      correlation_uid: event.token,
+    }),
+    unmapped: compact({
+      outcome: event.outcome,
+      scope: event.scope,
+      resource: event.resource,
+      source: event.source,
+      phase: event.phase,
+      role: event.matched?.role,
+      via: event.via,
+    }),
+  });
+}

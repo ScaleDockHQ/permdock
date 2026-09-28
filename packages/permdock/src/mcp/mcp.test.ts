@@ -278,7 +278,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
       authInfo: auth(['post:delete']),
     });
     await client.callTool({ name: 'delete_post', arguments: { id: 'p1' } });
-    const [pending] = await store.list({ status: 'pending' });
+    const [pending] = (await store.list({ status: 'pending' })).items;
     if (pending === undefined) {
       throw new Error('expected a pending approval');
     }
@@ -476,6 +476,41 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
       guarded.registerTool('open', {} as never, () => ({ content: [] })),
     ).toThrow(TypeError);
   });
+
+  it.each([
+    [true, true],
+    [false, false],
+  ])(
+    'with longRunning %s, a grant revoked while the handler runs refuses the result: %s',
+    async (longRunning, refused) => {
+      let row = ownPost;
+      const server = new McpServer({ name: 'posts', version: '1.0.0' });
+      createPermDock(policy, { subject: () => memberUser })
+        .protectServer(server)
+        .registerTool(
+          'rewrite_post',
+          {
+            permission: permissions.post.update,
+            inputSchema: idInput,
+            data: () => row,
+            longRunning,
+          },
+          ({ id }) => {
+            row = otherPost;
+            return { content: [{ type: 'text', text: `rewrote ${id}` }] };
+          },
+        );
+      const { client } = await connect(server, {
+        authInfo: auth(['post:update']),
+      });
+      const result = await client.callTool({
+        name: 'rewrite_post',
+        arguments: { id: 'p1' },
+      });
+      expect(result.isError === true).toBe(refused);
+      expect(text(result).startsWith('rewrote')).toBe(!refused);
+    },
+  );
 });
 
 describe('subjectFromMcp', () => {

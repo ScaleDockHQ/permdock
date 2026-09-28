@@ -1,5 +1,6 @@
 import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -29,6 +30,8 @@ export type AgentKernelOptions<TContext, TUser = unknown> = {
   readonly tools: ToolMap;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;

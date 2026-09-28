@@ -56,6 +56,7 @@ export async function runRlsGenerate(input: {
   readonly check: boolean;
   readonly skipClosures: boolean;
   readonly inlineFunctions: boolean;
+  readonly force?: boolean;
   readonly gucPrefix?: string;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
@@ -127,16 +128,22 @@ export async function runRlsGenerate(input: {
       `enable the hook: [auth.hook.custom_access_token] enabled = true, uri = "${hookUri(rbacSchema)}"`,
     );
   }
+  const force = input.force === true || input.config.rls?.force === true;
+  if (force && input.target !== 'sql') {
+    warnings.push(
+      `--force: ${input.target} has no FORCE ROW LEVEL SECURITY option; run the commented statements in a migration`,
+    );
+  }
   let text: string;
   switch (input.target) {
     case 'sql':
-      text = emitSql(withSelect, rbac);
+      text = emitSql(withSelect, rbac, force);
       break;
     case 'drizzle':
-      text = emitDrizzle(withSelect, rbac);
+      text = emitDrizzle(withSelect, rbac, force);
       break;
     case 'prisma':
-      text = emitPrisma(withSelect, rbac);
+      text = emitPrisma(withSelect, rbac, force);
       break;
     default: {
       const exhaustive: never = input.target;

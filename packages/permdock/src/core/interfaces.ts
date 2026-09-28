@@ -2,7 +2,7 @@ import type { Condition } from '../conditions/ast.ts';
 import type { Decision } from './decision.ts';
 import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
-import type { ApprovalRequirement } from './policy.ts';
+import type { ApprovalRequirement, HostedGrantRef } from './policy.ts';
 import type {
   CustomRole,
   JsonWebKeyLike,
@@ -21,6 +21,15 @@ export type DecisionProvider = {
     readonly subject: Subject;
     readonly local: Decision;
   }): Promise<Decision>;
+  /**
+   * Ids of the resources of `permission.resource` the subject may act on.
+   * `null` means the provider could not answer and every row is denied;
+   * `undefined` means it cannot list, and each row is decided on its own.
+   */
+  permitted?(request: {
+    readonly permission: Permission;
+    readonly subject: Subject;
+  }): Promise<readonly string[] | null | undefined>;
 };
 
 export type RoleSource = {
@@ -102,7 +111,8 @@ export type TokenSigner = {
       readonly typ:
         | 'permdock-snapshot+jwt'
         | 'permdock-approval+jwt'
-        | 'permdock-decisions+jwt';
+        | 'permdock-decisions+jwt'
+        | 'permdock-policy+jwt';
       readonly audience?: string | readonly string[];
       readonly expiresAt?: number;
     },
@@ -263,6 +273,7 @@ export type DecisionEvent = {
     readonly role: string | null;
     readonly permission: string;
     readonly to?: Grantee | readonly Grantee[];
+    readonly hosted?: HostedGrantRef;
   };
   readonly denials?: readonly {
     readonly role: string | null;

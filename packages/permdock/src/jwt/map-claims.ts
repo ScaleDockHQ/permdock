@@ -10,6 +10,7 @@ import type {
   GnapAccess,
   Membership,
   Principal,
+  VerifiedClaims,
 } from '../core/subject.ts';
 import type {
   JwtClaimPaths,
@@ -19,7 +20,7 @@ import type {
 
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
-import { readPath } from '../core/paths.ts';
+import { isForbiddenKey, readPath } from '../core/paths.ts';
 import { anonymousSubject } from '../core/subject.ts';
 
 const DEFAULT_CLAIMS = {
@@ -85,6 +86,10 @@ function assuranceOf(
     typeof configured === 'string'
       ? 'auth_time'
       : (configured?.authTime ?? 'auth_time');
+  const verifiedPath =
+    typeof configured === 'string'
+      ? 'verified_claims'
+      : (configured?.verified ?? 'verified_claims');
   const acr = readPath(claims, acrPath);
   const amr = readPath(claims, amrPath);
   const authTime = readPath(claims, authTimePath);
@@ -94,8 +99,54 @@ function assuranceOf(
       ? amr.filter((item): item is string => typeof item === 'string')
       : undefined,
     authTime: typeof authTime === 'number' ? authTime : undefined,
+    verified: verifiedClaimsOf(readPath(claims, verifiedPath)),
   });
   return Object.keys(assurance).length === 0 ? undefined : assurance;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasForbiddenKey(value: unknown, depth = 0): boolean {
+  if (depth > 16) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.some((item) => hasForbiddenKey(item, depth + 1));
+  }
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  return Object.keys(value).some(
+    (key) => isForbiddenKey(key) || hasForbiddenKey(value[key], depth + 1),
+  );
+}
+
+/**
+ * `verified_claims` is one object or an array (OIDC4IDA section 5); an entry
+ * without `verification.trust_framework` and a `claims` object is dropped.
+ */
+function verifiedClaimsOf(
+  value: unknown,
+): readonly VerifiedClaims[] | undefined {
+  const entries = Array.isArray(value) ? value : [value];
+  const verified = entries.filter(
+    (entry): entry is VerifiedClaims =>
+      isPlainRecord(entry) &&
+      isPlainRecord(entry.verification) &&
+      typeof entry.verification.trust_framework === 'string' &&
+      isPlainRecord(entry.claims) &&
+      !hasForbiddenKey(entry),
+  );
+  return verified.length === 0
+    ? undefined
+    : freezeDeep(
+        verified.map((entry) => ({
+          verification: entry.verification,
+          claims: entry.claims,
+        })),
+      );
 }
 
 function bindingOf(claims: JwtClaims): Binding | undefined {

@@ -1,4 +1,9 @@
-import type { ActionMeta, PermissionTree, ResourceNode } from 'permdock';
+import type {
+  ActionMeta,
+  PermissionTree,
+  Policy,
+  ResourceNode,
+} from 'permdock';
 
 import { getResource, listPermissions } from 'permdock';
 
@@ -6,11 +11,14 @@ import type { CatalogDocument, CatalogUsage, ScanResult } from './types.ts';
 
 import { CATALOG_SCHEMA, generatorBanner } from './version.ts';
 
+/** With `policy`, permissions carry `hostable` and roles carry `on` and `assignable`. */
 export function buildCatalog(
   tree: PermissionTree,
   scan: ScanResult,
   generatedAt: string,
+  policy?: Policy,
 ): CatalogDocument {
+  const hostable = new Set(policy?.hostable ?? []);
   const resources: Record<string, CatalogDocument['resources'][string]> = {};
   const definedIn = scan.definitionFiles.permissions;
   for (const leaf of listPermissions(tree)) {
@@ -34,15 +42,18 @@ export function buildCatalog(
     );
   }
   const permissions = listPermissions(tree)
-    .map((leaf) => ({
-      key: leaf.key,
-      scope: leaf.scope,
-      resource: leaf.resource,
-      action: leaf.action,
-      arity: leaf.kind,
-      meta: metaRecord(leaf.meta),
-      usages: scan.usages[leaf.key] ?? [],
-    }))
+    .map((leaf) =>
+      withDefined({
+        key: leaf.key,
+        scope: leaf.scope,
+        resource: leaf.resource,
+        action: leaf.action,
+        arity: leaf.kind,
+        meta: metaRecord(leaf.meta),
+        usages: scan.usages[leaf.key] ?? [],
+        hostable: hostable.has(leaf.key) ? (true as const) : undefined,
+      }),
+    )
     .toSorted((a, b) => a.key.localeCompare(b.key));
   return {
     $schema: CATALOG_SCHEMA,
@@ -51,13 +62,60 @@ export function buildCatalog(
     generator: generatorBanner(),
     resources,
     permissions,
-    ...(scan.roleNames.length === 0
-      ? {}
-      : { roles: scan.roleNames.map((key) => ({ key })) }),
+    ...catalogRoles(scan.roleNames, policy),
     ...(scan.planNames.length === 0
       ? {}
       : { plans: scan.planNames.map((key) => ({ key })) }),
   };
+}
+
+function catalogRoles(
+  scanned: readonly string[],
+  policy: Policy | undefined,
+): Pick<CatalogDocument, 'roles'> {
+  if (policy === undefined) {
+    return scanned.length === 0
+      ? {}
+      : { roles: scanned.map((key) => ({ key })) };
+  }
+  const names = [
+    ...new Set([...scanned, ...policy.roles.map((role) => role.name)]),
+  ].toSorted();
+  if (names.length === 0) {
+    return {};
+  }
+  return {
+    roles: names.map((key) => {
+      const binding = policy.rolesByName.get(key);
+      return binding === undefined
+        ? { key }
+        : withDefined({
+            key,
+            on:
+              binding.on === undefined
+                ? undefined
+                : typeof binding.on === 'string'
+                  ? binding.on
+                  : ('resource' as const),
+            assignable: binding.assignable,
+          });
+    }),
+  };
+}
+
+type Defined<T> = {
+  [K in keyof T as undefined extends T[K] ? never : K]: T[K];
+} & {
+  [K in keyof T as undefined extends T[K] ? K : never]?: Exclude<
+    T[K],
+    undefined
+  >;
+};
+
+function withDefined<T extends Record<string, unknown>>(value: T): Defined<T> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as Defined<T>;
 }
 
 function compactResource(resource: {
@@ -94,7 +152,7 @@ function metaRecord(meta: ActionMeta): Readonly<Record<string, unknown>> {
   return { ...meta };
 }
 
-function jsonSchemaOf(node: ResourceNode): unknown {
+export function jsonSchemaOf(node: ResourceNode): unknown {
   const schema = node.schema as
     | {
         readonly '~standard'?: {
@@ -167,13 +225,25 @@ export function catalogSchemaDocument(): unknown {
       generatedAt: { type: 'string' },
       generator: { type: 'string' },
       resources: { type: 'object' },
-      roles: { type: 'array' },
+      roles: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['key'],
+          properties: {
+            key: { type: 'string' },
+            on: { enum: ['tenant', 'team', 'resource'] },
+            assignable: { type: 'boolean' },
+          },
+        },
+      },
       plans: { type: 'array' },
       permissions: {
         type: 'array',
         items: {
           type: 'object',
           required: ['key', 'resource', 'action', 'arity', 'scope'],
+          properties: { hostable: { const: true } },
         },
       },
     },

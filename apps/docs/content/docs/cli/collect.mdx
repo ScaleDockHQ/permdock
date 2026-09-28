@@ -57,11 +57,11 @@ The [Next.js plugin](/docs/cli/next-plugin) runs `collect` during `next dev` and
 // next.config.ts
 import { createPermDockPlugin } from 'permdock/next/plugin'
 
-const withPermDock = createPermDockPlugin({
+const permdockPlugin = createPermDockPlugin({
   collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
 })
 
-export default withPermDock({})
+export default permdockPlugin({})
 ```
 
 The plugin is a build hook only; it never wires the API or augments module types. See [Next.js plugin](/docs/cli/next-plugin).

@@ -6,7 +6,15 @@ export default defineConfig({
   dts: true,
   clean: true,
   deps: {
-    neverBundle: ['permdock', 'oxc-parser', 'pgsql-parser', 'pg', 'unplugin'],
+    neverBundle: [
+      'ajv',
+      'oxc-parser',
+      'permdock',
+      'pg',
+      'pgsql-parser',
+      'unplugin',
+      'yaml',
+    ],
   },
   exports: false,
 });

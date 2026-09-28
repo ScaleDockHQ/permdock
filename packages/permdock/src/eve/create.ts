@@ -1,5 +1,6 @@
 import type { ToolBinding, ToolMap, ToolVerdict } from '../agent/types.ts';
 import type { ApprovalRequest, ApprovalStore } from '../approvals/types.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -80,6 +81,8 @@ export type EvePermDockOptions<TUser = unknown> = {
   readonly approvers?: EveApprovers;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -188,6 +191,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       delegation: options.delegation,
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       sink: options.sink,
       limits: options.limits,
       snapshots: options.snapshots,

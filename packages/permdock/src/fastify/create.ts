@@ -2,10 +2,16 @@ import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
+  FastifySchema,
+  FastifyTypeProvider,
+  FastifyTypeProviderDefault,
+  RawRequestDefaultExpression,
+  RawServerDefault,
   RouteGenericInterface,
 } from 'fastify';
 
 import type { ApprovalStore } from '../approvals/types.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -40,6 +46,8 @@ export type FastifyPermDockOptions<TUser = unknown> = {
   readonly tenant?: TenantOption<FastifyRequest>;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -58,13 +66,35 @@ export type PermDockRequest<
   permdockData?: unknown;
 };
 
+/** A request typed by the route, its schema and the app's type provider. */
+export type ProtectRequest<
+  Route extends RouteGenericInterface = RouteGenericInterface,
+  Schema extends FastifySchema = FastifySchema,
+  Provider extends FastifyTypeProvider = FastifyTypeProviderDefault,
+> = FastifyRequest<
+  Route,
+  RawServerDefault,
+  RawRequestDefaultExpression,
+  Schema,
+  Provider
+>;
+
+/**
+ * Generic over the route, schema and type provider so a `preHandler` slot
+ * infers them: `loadData` sees the same typed `request.body` as the handler.
+ */
 export type FastifyProtect = <
   Route extends RouteGenericInterface = RouteGenericInterface,
+  Schema extends FastifySchema = FastifySchema,
+  Provider extends FastifyTypeProvider = FastifyTypeProviderDefault,
 >(
   permission: Permission,
-  loadData?: (request: FastifyRequest<Route>) => unknown,
+  loadData?: (request: ProtectRequest<Route, Schema, Provider>) => unknown,
   protectOptions?: ProtectOptions,
-) => (request: FastifyRequest<Route>, reply: FastifyReply) => Promise<void>;
+) => (
+  request: ProtectRequest<Route, Schema, Provider>,
+  reply: FastifyReply,
+) => Promise<void>;
 
 export type FastifyPermDock = {
   readonly permdock: FastifyPluginAsync;
@@ -105,6 +135,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       },
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       store: options.store,
       sink: options.sink,
       limits: options.limits,
@@ -159,16 +190,17 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const protect: FastifyProtect =
     (permission, loadData, protectOptions) => async (request, reply) => {
+      const plain = request as FastifyRequest;
       const guard = await kernel.protect(
         permission,
         loadData === undefined ? undefined : (): unknown => loadData(request),
         protectOptions,
-      )(bind(request), await scopeOf(request));
+      )(bind(plain), await scopeOf(plain));
       if (!guard.ok) {
         await sendReply(reply, guard.response);
         return;
       }
-      decorate(request, guard.permdock, guard.data);
+      decorate(plain, guard.permdock, guard.data);
     };
 
   const permdockHandler: FastifyPluginAsync = (app) => {

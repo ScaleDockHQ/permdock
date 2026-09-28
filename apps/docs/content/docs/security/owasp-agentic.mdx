@@ -7,22 +7,22 @@ The [OWASP Top 10 for Agentic Applications](https://genai.owasp.org/download/521
 
 ## Scope of this mapping
 
-The project sources quote the OWASP document for ASI02, ASI03 and its cross-cutting recommendations (per-tool least-privilege profiles, deterministic argument validation, human-in-the-loop gates, "Least Agency"). The names of the other eight entries are not reproduced in the sources this page was written from, so they are listed by ID only and their mitigations are marked provisional until the official text is incorporated. PermDock addresses authorization; several OWASP entries concern memory, supply chain or inter-agent trust, where PermDock contributes audit and least agency but is not the primary control.
+The names below are the official entry names, checked against the OWASP GenAI Security Project's [release announcement](https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/). PermDock addresses authorization. For goal hijack, supply chain, code execution, memory poisoning and rogue agents the primary control lives elsewhere (the model host, the package manager, the sandbox, the memory store); PermDock's part there is the blast radius: what a compromised agent can still reach, and the audit trail of what it tried.
 
 ## Mapping table
 
 | ID | Name | PermDock mitigation |
 | --- | --- | --- |
-| ASI01 | Name not in project sources | Provisional: decisions evaluated outside the model; model-supplied subjects never trusted; boundary validation of tool arguments |
+| ASI01 | Agent Goal Hijack | A hijacked goal still runs through the same `decide`: subjects come from verified credentials, never from model output; tool arguments are validated at the boundary; destructive permissions carry `approval: 'human'`, so an injected instruction reaches a person before it reaches data. PermDock does not detect injection. |
 | ASI02 | Tool Misuse | `permission` on each tool (scope, condition, `approval`, `limit`); boundary validation of arguments; `list_tools` and `capabilityMiddleware` filtering; `simulate()` pre-flight; `denied` with `alternatives`; see below |
 | ASI03 | Identity and Privilege Abuse | Two-principal subject (`principal`, `actor`, `delegation`); decision = principal grants ∩ delegation; monotonic attenuation across hops; `actor` in every audit event; see below |
-| ASI04 | Name not in project sources | Provisional: fail-closed `Decision`; deny overrides allow; `approval: 'human'` for consequential actions |
-| ASI05 | Name not in project sources | Provisional: portable conditions are data, no eval; snapshots and imports never executed |
-| ASI06 | Name not in project sources | Provisional: `on('decision')` audit with outcome, reasons, actor and delegation; `permdock/otel` |
-| ASI07 | Name not in project sources | Provisional: A2A extended card filtered per caller; `actor` and `delegation` required for agent-to-agent calls |
-| ASI08 | Name not in project sources | Provisional: CAEP receiver invalidates on `session-revoked`; `simulate()` bounds a plan before execution |
-| ASI09 | Name not in project sources | Provisional: model-readable `denied` reasons and `alternatives` so the model self-corrects rather than escalating |
-| ASI10 | Name not in project sources | `limit` grants with a server-side `LimitStore`; quotas per subject |
+| ASI04 | Agentic Supply Chain Vulnerabilities | A tool or MCP server added at runtime is not callable until registered with a `permission`, and a generated server bound through `x-permdock-permissions` fails closed on unknown operations. Zero runtime dependencies in core; snapshots, catalogs and hosted policy documents are data, never executed. |
+| ASI05 | Unexpected Code Execution | Conditions are a JSON AST with no `eval` or `new Function`; paths never traverse `__proto__`, `constructor` or `prototype`; a shell or code tool is a permission like any other and can require approval per call. Sandboxing the execution is the runtime's job. |
+| ASI06 | Memory and Context Poisoning | Decisions read `subject` and `context` from the application, never from conversation memory, so a poisoned memory cannot grant; `on('decision')` and `permdock/otel` record what the poisoned agent attempted. |
+| ASI07 | Insecure Inter-Agent Communication | A2A extended card filtered per caller; agent-to-agent calls need a verified `actor` and a `delegation` (none is `no-delegation`); Web Bot Auth signatures that fail verification throw rather than becoming anonymous. |
+| ASI08 | Cascading Failures | Fail-closed on every error path (a thrown closure, a down PDP, a missing limit store); `limit` grants cap how often one agent can act; the CAEP receiver and `RevocationFeed` stop open connections on `session-revoked`; `longRunning` MCP tools re-check before returning a result. |
+| ASI09 | Human-Agent Trust Exploitation | Approval requests show the permission key, the resource identity and the bound token, not the agent's own summary; the actor cannot approve its own call and `requireDistinctApprover` separates requester and approver; a batch approval is never issued. |
+| ASI10 | Rogue Agents | Least agency (`guardTools`, filtered `tools/list`), per-subject `limit` quotas, revocation through SSF and `RevocationFeed`, and an audit event naming principal and actor for every decision, so a drifting agent is bounded and visible. Detecting the drift is outside PermDock. |
 
 ## ASI02 Tool Misuse
 
@@ -47,7 +47,7 @@ const member = role('member', [
 
 - **Scopes**: `permission.scope` (`post:delete`) is the OAuth scope, emitted as the MCP `scopeChallenge`, the OpenAPI scope and the A2A `securityRequirements` entry.
 - **Maximum rate**: `limit` grants bound how often a subject may exercise a permission, enforced by a server-owned `LimitStore`. `can` never consumes.
-- **Egress allow-lists**: not a PermDock feature; PermDock records this as out of scope and points at the runtime's network policy. A permission may still carry `meta` describing the egress a tool needs, so the catalog documents it.
+- **Egress allow-lists**: not a PermDock feature, and never enforced by it. A permission may carry free-form `meta` describing the egress a tool needs, so the catalog documents it for the runtime's network policy; PermDock defines no schema for it, because an allow-list that PermDock published but did not enforce would read as a control it is not.
 
 ### Deterministic argument validation
 
@@ -77,7 +77,7 @@ The failure is an agent operating with more authority than the human it serves, 
 - **No anonymous agents.** An `actor` without `delegation` has no authority: every check is `denied` with `no-delegation`, and agent adapters apply no default delegation; a Web Bot Auth signature that fails verification is rejected, not downgraded.
 - **Traceability.** `actor.id` (MCP client id, CIMD URL, AI SDK agent name, signing key, A2A card) is in every decision event and in the AuthZEN `subject.properties`, so privilege use is attributable to a specific agent and a specific human.
 - **Revocation propagates.** CAEP `session-revoked` and `credential-change` events invalidate the principal's snapshots, so a compromised human session does not leave agents holding stale authority.
-- **Hosted authority stays bounded.** When PermDock Cloud is the directory of record, the roles it mints into tokens are limited to declared, assignable roles, and every change is a `membership` event naming the admin. Proposed hosted grants apply only to permissions the code marks `hostable` and never drop a code `approval` gate. Neither path lets the Cloud, or an agent reading it, decide at request time.
+- **Hosted authority stays bounded.** When PermDock Cloud is the directory of record, the roles it mints into tokens are limited to declared, assignable roles, and every change is a `membership` event naming the admin. Hosted grants apply only to permissions the code marks `hostable` and never drop a code `approval` gate. Neither path lets the Cloud, or an agent reading it, decide at request time.
 
 ## Using this page in an audit
 
@@ -85,6 +85,6 @@ The `audit-permissions` skill walks a repository and reports, per ASI02 and ASI0
 
 ## Sources
 
-- [OWASP Top 10 for Agentic Applications, December 2025 (PDF)](https://genai.owasp.org/download/52117): ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse, per-tool least-privilege profiles "expressed as authorization policy stanzas attached to each tool", deterministic argument validation, human-in-the-loop gates, Least Agency.
+- [OWASP Top 10 for Agentic Applications, December 2025 (PDF)](https://genai.owasp.org/download/52117) and its [release announcement](https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/) (entry names ASI01 to ASI10): ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse, per-tool least-privilege profiles "expressed as authorization policy stanzas attached to each tool", deterministic argument validation, human-in-the-loop gates, Least Agency.
 - [`@ai-sdk/policy-opa` fail-open issue](https://github.com/vercel/ai/issues/19978) as the motivating example for fail-closed adapters.
 - [Threat model](/docs/security/threat-model) for the invariants referenced above.

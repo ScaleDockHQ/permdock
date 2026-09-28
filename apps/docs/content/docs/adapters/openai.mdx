@@ -97,6 +97,12 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 - Hosted MCP tools reached through the SDK's `requireApproval` and `onApproval` can call `needsApproval` inside `onApproval`; the mapping is the same, with the MCP server name and tool name as the lookup key in `tools`.
 - The SDK's tool guardrails (`toolInputGuardrails`, `toolOutputGuardrails`) are a second hook: an input guardrail can call `decide` and return a tripwire with the same Decision-derived message, which is useful when a team already routes all argument checks through guardrails. `needsApproval` remains the primary hook because it is the only one that can pause for `approval-required`; a guardrail can only allow or reject. OpenAI's Agent Builder is being retired on 30 November 2026 and does not affect this adapter, which targets the SDK ([landscape](/docs/research/landscape)).
 
+## Why
+
+- **An inner `asTool()` agent inherits the outer subject and actor.** The nested agent runs inside the outer run, on the outer run's context, for the same person. Giving it an actor of its own would need a second delegation to deny against, which the application has no verified source for; inheriting keeps the outer delegation as the ceiling, so nesting an agent can never widen what the run may do.
+- **One approval per computer-tool action, never a batch.** Each click, keystroke or navigation is a separate tool call with its own arguments, so each gets its own decision and its own token. A batch approval would bind a token to a sequence the reviewer cannot see in advance, and the screen state that justified the first action may not hold for the fifth.
+- **No Python client.** The adapter is the TypeScript SDK integration. A Python agent reaches the same policy through the [AuthZEN endpoint](/docs/adapters/authzen) over HTTP, so there is one wire contract rather than a second client to keep in step.
+
 ## Example app
 
 `apps/examples/openai-agent`: HTTP harness on `127.0.0.1:3475` with `GET /health`. `GET /list_posts` calls `needsApproval` and returns `false` (run). `GET /delete_post` returns `true` (pause for approval). No OpenAI API key. `tests/integration` runs a real `Runner` with a scripted model against a Postgres `ApprovalStore`: the run interrupts, `RunState.toString()` is resumed in a child process after an owner approves, the approved call runs once, and replaying the same state or resuming as another user runs nothing.

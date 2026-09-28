@@ -150,6 +150,7 @@ function attributesOf(
     'permdock.delegation.scopes': event.subject.delegation?.scopes?.join(','),
     'permdock.matched.role': event.matched?.role,
     'permdock.denials.count': event.denials?.length,
+    'permdock.token': event.token,
     'permdock.validate': event.trusted ? 'trusted' : 'boundary',
     'permdock.adapter': event.adapter,
     'permdock.filter.total':

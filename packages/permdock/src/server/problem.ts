@@ -1,5 +1,5 @@
 import type { Decision } from '../core/decision.ts';
-import type { ProblemDetails } from '../core/errors.ts';
+import type { ApprovalHint, ProblemDetails } from '../core/errors.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Subject } from '../core/subject.ts';
 
@@ -92,9 +92,12 @@ export function problemFromDecision(
   decision: Decision,
   permission: Permission,
   subject: Subject,
-  options: { readonly instance?: string; readonly base?: string } = {},
+  options: {
+    readonly instance?: string;
+    readonly approval?: ApprovalHint;
+  } = {},
 ): Response {
-  const base = options.base ?? PROBLEM_BASE;
+  const base = PROBLEM_BASE;
   if (decision.outcome === 'granted') {
     return new Response(null, { status: 204 });
   }
@@ -109,8 +112,20 @@ export function problemFromDecision(
     const details = error.toProblemDetails(
       compact({ instance: options.instance }),
     );
+    const approval =
+      options.approval === undefined ||
+      (options.approval.at === undefined && options.approval.hint === undefined)
+        ? undefined
+        : compact<ApprovalHint>({
+            at: options.approval.at,
+            hint: options.approval.hint,
+          });
     return problemResponse(
-      { ...details, type: `${base}/approval-required` },
+      compact<ProblemDetails>({
+        ...details,
+        type: `${base}/approval-required`,
+        approval,
+      }),
       permission,
       decision,
     );

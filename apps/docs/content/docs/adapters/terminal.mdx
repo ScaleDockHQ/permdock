@@ -20,11 +20,12 @@ A CLI is a client like any other: the user behind it holds grants, the binary ma
 pnpm add permdock
 ```
 
-Optional peers: the OS keychain binding used by the `keychain` source, and your prompt library (`@clack/prompts`, Ink) if you replace the default `node:readline` confirm.
+Optional peers: `@napi-rs/keyring` for the OS keychain used by the `keychain` source (pass its `Entry` class as `storage.keyring`), and your prompt library (`@clack/prompts`, Ink) if you replace the default `node:readline` confirm.
 
 ## API
 
 ```ts
+import { Entry } from '@napi-rs/keyring'
 import { createPermDock } from 'permdock/terminal'
 import { subjectFromJwt } from 'permdock/jwt'
 import { policy } from './policy'
@@ -41,8 +42,9 @@ export const { permdock, protect, filterCommands, format, exitCode } = createPer
     const jwt = await token([{ env: 'PERMDOCK_ACTOR_TOKEN' }])          // agent-run mode; see below
     return jwt ? subjectFromJwt(jwt, { issuer, audience: 'acme-cli-agent' }) : undefined
   },
-  storage: { service: 'acme-cli' },                                      // keychain entry; file fallback in the config dir
+  storage: { service: 'acme-cli', keyring: Entry },                      // Entry from @napi-rs/keyring; file fallback in the config dir
   interactive: process.stdout.isTTY && !process.env.CI,                  // default shown; controls approval prompts
+  approval: { at: 'https://console.acme.dev/approvals', hint: 'Ask a release manager to approve, then re-run.' },
   output: { json: process.argv.includes('--json') },                     // default shown; selects Problem Details output
 })
 ```
@@ -62,7 +64,7 @@ export const { permdock, protect, filterCommands, format, exitCode } = createPer
 | Source | How the token is obtained | Typical use |
 |---|---|---|
 | `device` | OAuth 2.0 device authorization grant (RFC 8628). The CLI prints `user_code` and `verification_uri` (and opens `verification_uri_complete` when a browser is available), polls the token endpoint honouring `interval` and `slow_down`, then stores the result through `storage`. | Interactive `login` on a developer machine |
-| `keychain` | Reads the token stored by a previous `device` login from the OS keychain via an optional peer; falls back to a mode-0600 file when no keychain is available (headless Linux, containers). Refreshes with the refresh token when expired. | Every later invocation |
+| `keychain` | Reads the token stored by a previous `device` login from the OS keychain through `storage.keyring`; falls back to a mode-0600 file when no keychain is available (headless Linux, containers). Refreshes with the refresh token when expired. | Every later invocation |
 | `env` | `PERMDOCK_TOKEN` (or a configured name) holding a JWT or an API key that your `subject` resolver exchanges for a principal. | Scripts, non-interactive shells |
 | `ci-oidc` | GitHub Actions or GitLab CI id tokens, exchanged with RFC 8693 token exchange at your authorization server for a workload principal (`kind: 'workload'`). The CLI never sees a long-lived secret. | Pipelines |
 | anonymous | `token()` returned `null` and `subject` returned `null`. | Public read-only commands |
@@ -160,7 +162,7 @@ A grant with `approval: 'human'` produces `approval-required` ([approvals](/docs
 }
 ```
 
-Where the approval is recorded and how the re-run finds it are the application's concern; the adapter only guarantees the token check on resume. Replacing the prompt with clack:
+`approval` is the `approval` option (`ApprovalHint`, `{ at?, hint? }`), the same optional member the [server kernel](/docs/adapters/server-kernel) adds to its `approval-required` Problem Details ([vocabulary](/docs/standards/problem-details)). Where the approval is recorded and how the re-run finds it are the application's concern; the adapter only guarantees the token check on resume. Replacing the prompt with clack:
 
 ```ts
 import { confirm, isCancel } from '@clack/prompts'
@@ -191,7 +193,7 @@ Combined with `filterCommands({ mode: 'hide' })`, the agent's `--help` shows onl
 
 ## Storage and secrets
 
-- Tokens obtained by the `device` source are written to the OS keychain when the optional peer is installed, under the `storage.service` name. Without it, they go to `credentials.json` in the platform config directory (`$XDG_CONFIG_HOME/<service>` on Linux and macOS, `%APPDATA%\<service>` on Windows) with the directory at mode `0700` and the file at `0600`; the adapter refuses to read a credentials file that is group- or world-readable.
+- Tokens obtained by the `device` source are written to the OS keychain when `storage.keyring` is set (the `Entry` class from `@napi-rs/keyring`), one entry per profile under the `storage.service` name. Without it, or when the keychain throws (no secret service on headless Linux, a locked keychain), they go to `credentials.json` in the platform config directory (`$XDG_CONFIG_HOME/<service>` on Linux and macOS, `%APPDATA%\<service>` on Windows) with the directory at mode `0700` and the file at `0600`; the adapter refuses to read a credentials file that is group- or world-readable.
 - `logout` deletes the entry and, when the authorization server advertises a `revocation_endpoint` in its RFC 8414 metadata, revokes the refresh token so the copy on disk is useless afterwards.
 - Tokens never appear in `argv`. There is no `--token` flag, and the adapter warns on startup when a value that parses as a JWT is found among the arguments, because `argv` is visible to other users via `ps` and to shell history.
 - Tokens are never written to `on('decision')` events, Problem Details, or `--verbose` output; events carry the subject id and the token's `jti` at most. An expired refresh token falls through to the next source, typically `device`, which prompts for a new login.
@@ -236,6 +238,13 @@ runMain(defineCommand({ meta: { name: 'acme' }, subCommands: { deploy } }))
 ```
 
 Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, print `format(error.decision, output)` to stderr and call `process.exit(exitCode(error.decision))`; a `--json` run prints nothing else on stdout, so `acme deploy api --json || echo $?` yields `77` and a parseable object.
+
+## Why
+
+- The keychain peer is injected, not imported. `permdock` has no runtime dependencies (invariant 12), and a dynamic import of an optional native module breaks bundlers and single-file CLI builds. Passing `Entry` keeps the choice and the native build in the consumer's `package.json`.
+- `@napi-rs/keyring` is the recommendation because it ships prebuilt binaries for macOS Keychain, Windows Credential Manager and the Linux Secret Service, needs no `node-gyp` step, and replaced the archived `keytar`. Any class with the same `getPassword` / `setPassword` / `deletePassword` shape works.
+- The mode-0600 file stays as the fallback. Containers, CI runners and headless Linux have no secret service, and a CLI that cannot log in there is worse than one that stores a refreshable token in a file only its user can read. A successful keychain write removes the file copy for that profile.
+- `approval.at` and `hint` are shared with the HTTP adapters rather than terminal-only fields, so one client that reads `approval-required` Problem Details handles both a CLI's `--json` output and a 403 body.
 
 ## Example app
 

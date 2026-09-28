@@ -1,0 +1,5 @@
+{
+  "extends": "@permdock/typescript-config/base.json",
+  "compilerOptions": { "types": ["node"], "noEmit": true },
+  "include": ["."]
+}

@@ -113,6 +113,7 @@ export function assertSafeClaimPaths(claims: JwtClaimPaths | undefined): void {
         claims.assurance.acr,
         claims.assurance.amr,
         claims.assurance.authTime,
+        claims.assurance.verified,
       ].filter((path): path is string => path !== undefined),
     );
   }
@@ -139,6 +140,9 @@ export function assertVerifierConfig(options: JoseTokenVerifierOptions): void {
   }
   if (options.discovery === undefined && options.jwks === undefined) {
     throw new Error('PermDock: joseTokenVerifier requires jwks or discovery.');
+  }
+  if (typeof options.jwks === 'string' && !URL.canParse(options.jwks)) {
+    throw new Error('PermDock: jwks must be an absolute URL.');
   }
   if (options.discovery !== undefined) {
     const issuer = issuerFromDiscovery(options.discovery);

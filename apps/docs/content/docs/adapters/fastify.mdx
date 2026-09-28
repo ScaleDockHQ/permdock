@@ -32,7 +32,7 @@ app.delete<{ Params: { id: string } }>('/posts/:id', {
 | Export | Role |
 |---|---|
 | `permdock` | Plugin (wrapped with `fastify-plugin` so decorators are visible to the parent scope). Adds `request.permdock` and registers an error handler mapping PermDock errors to Problem Details. Any other error goes to the error handler that was in place before, so an app's own `setErrorHandler` keeps working. |
-| `protect(permission, loadData?, options?)` | `preHandler` hook. The `tenant` option (`(request) => request.params.org`) is resolved for each `protect`. Typed against the route's `RouteGenericInterface`, so `request.params` and `request.body` keep their types inside `loadData` (permix's Elysia and Fastify guards lost route typing). |
+| `protect(permission, loadData?, options?)` | `preHandler` hook. The `tenant` option (`(request) => request.params.org`) is resolved for each `protect`. Generic over the route, schema and type provider (`protect<Route, Schema, Provider>`): route generics infer from the `preHandler` slot, so `request.params` and `request.body` keep their types inside `loadData` (permix's Elysia and Fastify guards lost route typing). With a zod or TypeBox type provider, pass the provider explicitly or read the body in the handler; see [Why](#why). |
 | `permdockHandler` | Plugin mounting the AuthZEN-shaped decision endpoint: `app.register(permdockHandler, { prefix: '/api/permdock' })`. |
 | `openapi` | Kernel hook contract; feeds `@fastify/swagger` route `schema.security` and the document-level `securitySchemes`. |
 
@@ -59,6 +59,10 @@ await app.register(async (admin) => {
 - Decision events carry `request.method` and `request.routeOptions.url`.
 
 Denials are the kernel's Problem Details responses.
+
+## Why
+
+`protect` takes the route, schema and type provider as generics instead of fixing them to Fastify's defaults, so the handler it returns fits any typed `preHandler` slot. TypeScript infers route generics (`app.get<{ Params }>`) into `loadData` from that slot. A body derived from a type provider's schema does not flow into an inline `preHandler: protect(...)`: the route shorthand infers its own schema generic from the same options object and accepts one handler or an array, and TypeScript does not carry the provider back through both into a nested generic call. The handler still sees the typed body. Rather than a Fastify-specific wrapper, `protect<RouteGenericInterface, FastifySchema, ZodTypeProvider>(...)` names the provider explicitly, and a loader that only needs `request.params.id` needs nothing at all. Both patterns are type-tested.
 
 ## Example app
 

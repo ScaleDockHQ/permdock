@@ -1,6 +1,6 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type {
-  ApprovalListFilter,
+  ApprovalListQuery,
   ApprovalRequest,
   ApprovalStatus,
   ApprovalStore,
@@ -113,30 +113,57 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         .returning({ body: approvals.body });
       return row?.body ?? null;
     },
-    async list(filter: ApprovalListFilter) {
+    async list(query: ApprovalListQuery) {
+      const limit = Math.min(Math.max(Math.trunc(query.limit ?? 50), 1), 200);
+      let after: readonly [string, string] | undefined;
+      if (query.cursor !== undefined) {
+        try {
+          const parsed: unknown = JSON.parse(query.cursor);
+          if (
+            !Array.isArray(parsed) ||
+            typeof parsed[0] !== 'string' ||
+            typeof parsed[1] !== 'string'
+          ) {
+            return { items: [] };
+          }
+          after = [parsed[0], parsed[1]];
+        } catch {
+          return { items: [] };
+        }
+      }
+      const createdAt = sql`${approvals.body} ->> 'createdAt'`;
       const rows = await db
         .select({ body: approvals.body })
         .from(approvals)
         .where(
           and(
-            filter.status === undefined
+            query.status === undefined
               ? undefined
-              : eq(approvals.status, filter.status),
-            filter.tenant === undefined
+              : eq(approvals.status, query.status),
+            query.tenant === undefined
               ? undefined
-              : eq(approvals.tenant, filter.tenant),
-            filter.principalId === undefined
+              : eq(approvals.tenant, query.tenant),
+            query.principalId === undefined
               ? undefined
-              : sql`${approvals.body} #>> '{subject,principal,id}' = ${filter.principalId}`,
-            filter.actorId === undefined
+              : sql`${approvals.body} #>> '{subject,principal,id}' = ${query.principalId}`,
+            query.actorId === undefined
               ? undefined
-              : sql`${approvals.body} #>> '{subject,actor,id}' = ${filter.actorId}`,
-            filter.session === undefined
+              : sql`${approvals.body} #>> '{subject,actor,id}' = ${query.actorId}`,
+            query.session === undefined
               ? undefined
-              : sql`${approvals.body} #>> '{subject,session}' = ${filter.session}`,
+              : sql`${approvals.body} #>> '{subject,session}' = ${query.session}`,
+            after === undefined
+              ? undefined
+              : sql`(${createdAt}, ${approvals.token}) > (${after[0]}, ${after[1]})`,
           ),
-        );
-      return rows.map((row) => row.body);
+        )
+        .orderBy(createdAt, approvals.token)
+        .limit(limit + 1);
+      const items = rows.slice(0, limit).map((row) => row.body);
+      const last = items.at(-1);
+      return rows.length > limit && last !== undefined
+        ? { items, next: JSON.stringify([last.createdAt, last.token]) }
+        : { items };
     },
     async expire(now = new Date()) {
       const rows = await db

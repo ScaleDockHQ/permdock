@@ -22,8 +22,10 @@ import { compact } from '../core/compact.ts';
 import {
   asSubject,
   eventSession,
+  eventSubject,
   eventTimestamp,
   setSubjectFromClaims,
+  subjectSession,
 } from './claims.ts';
 import { BACKCHANNEL_LOGOUT_EVENT, caepName } from './events.ts';
 import { pollOnce } from './poll.ts';
@@ -301,7 +303,6 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     }
     const payload = isRecord(raw) ? raw : {};
     const type = caepName(uri) ?? uri;
-    const session = eventSession(payload);
     if (caepName(uri) === undefined && config.onEvent['*'] === undefined) {
       emit({
         type,
@@ -311,10 +312,12 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       });
       return dispatchEvents(tail, run);
     }
-    const identifier = baseSubject ?? {
-      format: 'opaque',
-      id: session ?? jti,
-    };
+    const identifier = baseSubject ??
+      eventSubject(payload) ?? {
+        format: 'opaque',
+        id: eventSession(payload) ?? jti,
+      };
+    const session = eventSession(payload) ?? subjectSession(identifier);
     const subject = await resolveSubject(identifier, session, issuer);
     if (subject === undefined) {
       emit({

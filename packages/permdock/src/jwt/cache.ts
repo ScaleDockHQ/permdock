@@ -197,6 +197,9 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
     if (options.jwks instanceof URL) {
       return loadJwks(options.jwks.href, now, force);
     }
+    if (typeof options.jwks === 'string') {
+      return loadJwks(options.jwks, now, force);
+    }
     if (
       options.jwks !== undefined &&
       typeof options.jwks === 'object' &&

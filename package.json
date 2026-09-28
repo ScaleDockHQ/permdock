@@ -3,11 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "authzen:vectors": "node scripts/fetch-authzen-vectors.ts",
     "build": "turbo run build",
     "changeset": "changeset",
     "check": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck",
     "check:publish": "turbo run check:publish",
     "docs:dev": "turbo run dev --filter=docs",
+    "docs:drift": "node scripts/check-docs-drift.ts",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
     "lint": "oxlint .",

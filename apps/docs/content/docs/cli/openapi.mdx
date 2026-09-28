@@ -19,8 +19,13 @@ description: Emit security and securitySchemes into an existing OpenAPI document
 | `--profile-scheme <name>` | scheme name | `permdock<Profile>` (`permdockFapi2`) | `emit` (`--target 3.3` only) | Name of the `type: profile` scheme under `components.securitySchemes` |
 | `--scheme <name>` | scheme name | `permdockOAuth` | `emit` | Name of the `oauth2` scheme under `components.securitySchemes` |
 | `--metadata-url <URL>` or `<name>=<URL>` (repeatable) | URL | none | `emit` | Value for `oauth2MetadataUrl` (3.2, 3.3) or `x-permdock-oauth2MetadataUrl` (3.1); on `3.3` each entry also becomes a `profileMetadata.servers` item |
+| `--arity` | flag | off | `emit` (`--format document`) | Add `x-permdock-arity` to every covered operation: `{ kind: 'collection' }`, or `{ kind: 'instance', parameter }` with the path parameter that carries the resource id |
 | `--device-flow` | flag | off | `emit` | Add a `deviceAuthorization` flow (3.2, 3.3) or `x-oai-deviceAuthorization` with `x-oai-deviceAuthorizationUrl` (3.1) |
-| `--schema` | `zod`, `valibot`, `arktype` | none | `import` | Validator used for generated resource schemas |
+| `--authorization-url <URL>`, `--token-url <URL>` | URL | the document's own values | `emit` | `authorizationUrl` and `tokenUrl` of the `authorizationCode` flow (and `tokenUrl` of the device flow) when the document does not already declare the scheme's flows |
+| `--device-authorization-url <URL>` | URL | the document's own value | `emit` (`--device-flow`) | `deviceAuthorizationUrl` of the device flow |
+| `--schema` | `zod`, `valibot`, `arktype` | none | `import` | Validator used for generated resource schemas; without it resources are schema-less |
+| `--map <file>` | JSON file | none | `import` | `{ "METHOD /path": "resource.action" }`: names the permission for an operation, overriding scopes, `x-permdock-permissions` and the inferred name |
+| `--annotate` | flag | off | `import` | Write the inferred keys back into the local `--doc` as `x-permdock-permissions` on every operation; JSON is rewritten with two-space indent, YAML keeps its comments and layout |
 
 `--cwd`, `--config` and `--json` are shared by every command ([CLI](/docs/cli)). Exit codes follow the shared contract: `0` clean, `1` drift or findings, `2` usage error (for example `--target 3.0`, or `--profile fapi2` on a document whose scheme is not `oauth2` or `openIdConnect`).
 
@@ -41,7 +46,11 @@ permdock openapi emit --doc openapi.json --check                          # exit
 2. For every operation that declares `x-permdock-permissions` (an array of permission keys, written by the runtime hooks or by hand), adds a `security` entry requiring the matching scopes and validates that each key exists in the catalog. Unknown keys are errors. Permissions with a portable condition also receive `x-permdock-conditions`; permissions whose grants carry `approval` receive `x-permdock-approval`. Per-step permissions for Arazzo workflows are checked by [`permdock arazzo check`](/docs/cli/arazzo), not by `permdock openapi`.
 3. Marks scopes whose permission carries `meta.deprecated` as `deprecated` on the scheme (3.2, 3.3) or `x-oai-deprecated` (3.1).
 4. With `--profile fapi2`, writes `x-permdock-securityProfile: "fapi2"` on the scheme and on every covered operation, and refuses (exit `2`) a scheme that accepts tokens anywhere but the HTTP header, since FAPI 2.0 forbids query-parameter tokens for resource servers. On `--target 3.3` it additionally writes a `type: profile` scheme (`profileMetadata.name: fapi-20-security-profile`, `supportedParametersSchema`, `servers` from the metadata URLs) and one `components.securityProfileRequirements` entry per distinct scope set, in the shape of the pinned draft; the extension stays as the twin ([OpenAPI 3.3](/docs/standards/openapi)).
-5. Writes `x-permdock-catalog` at document level with the catalog version and generator, so `--check` can detect drift. On `--target 3.3` it adds `drafts` with the pinned `v3.3-dev` commit and Security Profile design revision, and on `--overlay 1.2` the pinned `v1.2-dev` commit; `--check` fails on a document or Overlay whose pins differ from the installed CLI's.
+5. Keeps what the document already says about the scheme: flow URLs, flows PermDock does not write, `description`. PermDock owns the `scopes`.
+6. With `--arity`, writes `x-permdock-arity` on every covered operation: `instance` when any listed permission is an instance action of its resource, else `collection`; for `instance`, `parameter` names the last path template parameter (`/posts/{id}` gives `id`), omitted when the path has none.
+7. Writes `x-permdock-catalog` at document level with the catalog version and generator, so `--check` can detect drift. On `--target 3.3` it adds `drafts` with the pinned `v3.3-dev` commit and Security Profile design revision, and on `--overlay 1.2` the pinned `v1.2-dev` commit; `--check` fails on a document or Overlay whose pins differ from the installed CLI's.
+
+When the source document validates against the official OpenAPI 3.1 or 3.2 JSON Schema, the output must too: `emit` exits `1` with the schema errors instead of writing a document it made invalid (the usual cause is an `oauth2` scheme with no `authorizationUrl` or `tokenUrl`, which `--authorization-url` and `--token-url` fix). An Overlay 1.1 output is validated against the Overlay 1.1 schema the same way. `--target 3.3` and `--overlay 1.2` are drafts without a published schema and are not validated.
 
 Everything not owned by PermDock is left untouched; the command is safe to run on documents produced by `@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger`, next-openapi-gen or hand-written specs. With `--format overlay` the source is not modified at all. Operations whose source already carries `security` that PermDock would replace are reported as findings, so two tools writing `security` on one operation is caught in CI.
 
@@ -127,16 +136,29 @@ The CLI ships a ruleset file for Spectral, Redocly and vacuum alongside the CLI.
 ```bash
 permdock openapi import --doc https://api.example.com/openapi.json --out src/permissions.generated.ts
 permdock openapi import --doc openapi.yaml --out src/permissions.generated.ts --schema zod
+permdock openapi import --doc openapi.yaml --out src/permissions.generated.ts --map permdock.map.json --annotate
 ```
 
-`import` produces a deterministic `definePermissions()` module with a `// @generated` header from a document:
+`import` needs no policy or config. It reads a JSON or YAML document from a file or an `http(s)` URL, validates it against the official OpenAPI 3.1 or 3.2 JSON Schema (anything else, including Swagger 2.0 and OpenAPI 3.0, exits `2`), and writes a deterministic `definePermissions()` module with a `// @generated by permdock openapi import` header. Per operation, the permission key comes from the first of:
 
-- Each `x-permdock-permissions` key becomes a leaf; when absent, scopes on `oauth2` and `openIdConnect` security requirements are converted from the colon form (`post:delete`) to keys (`post.delete`).
-- Resources are inferred from the key prefix; when an operation's request or response schema is referenced, it is emitted as the resource schema in the validator selected by `--schema zod|valibot|arktype`, or as a schema-less resource otherwise.
-- Arity is `instance` when the operation path contains a parameter after the resource segment (`/posts/{id}`), `collection` otherwise; this heuristic is recorded in `meta.inferredFrom` so a reviewer can override it.
-- 3.1 documents are read with their fallbacks: `x-oai-deprecated`, `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` and `x-permdock-oauth2MetadataUrl` are understood exactly like the 3.2 fields.
+1. The `--map` entry for `METHOD /path`.
+2. `x-permdock-permissions` on the operation, so a document written by `emit` or the runtime hooks round-trips.
+3. The scopes of its `oauth2` or `openIdConnect` security requirements (the operation's, else the document's), with colons turned into dots (`post:delete` to `post.delete`).
+4. A name inferred from the operation: the resource is the first tag, else the first static path segment; the action is the `operationId` in camel case, else the method and arity (`GET` on an instance is `read`, on a collection `list`; `POST` on a collection `create`; `PUT` and `PATCH` `update`; `DELETE` `delete`).
 
-The generated file merges with hand-written definitions through `mergePermissions()` like any other feature file ([Larger apps](/docs/getting-started/larger-apps)). Re-running `import` rewrites the file; hand edits belong in a sibling definition.
+Every key is checked: at least two dot-separated identifiers and never `__proto__`, `constructor` or `prototype`. An operation that yields no valid key is a finding (exit `1`) naming the operation, fixed with a `--map` entry.
+
+Arity is `instance` when the path has a parameter after the resource segment (`/posts/{id}`), `collection` otherwise; an action seen on both becomes `instance`. Each action's `meta.inferredFrom` records the operations it came from (`GET /posts/{id}`), so a reviewer can see and override the heuristic; `summary`, `description` and `tags` become `meta.title`, `meta.description` and `meta.tags`, and read-only methods set `meta.readOnly`. With `--schema`, the resource schema is the first `$ref` JSON body among the resource's `200` or `201` responses and request bodies, translated for the portable core (strings, numbers, integers, booleans, string enums, arrays, objects with `required`); anything else becomes the validator's `unknown`.
+
+`--annotate` writes the keys back onto each operation as `x-permdock-permissions` and changes nothing else, so vendor extensions and comments survive and `emit` can attach `security` afterwards.
+
+The generated file merges with hand-written definitions through `mergePermissions()` like any other feature file ([Larger apps](/docs/getting-started/larger-apps)). Re-running `import` rewrites the file; hand edits belong in a sibling definition. `permdock rls import` writes its module through the same generator.
+
+### Why
+
+- **No policy needed.** Import is the first step of adopting PermDock on an existing API, when there is no definition to load yet.
+- **Validation first.** A document the official schema rejects produces keys from whatever happened to parse; failing early keeps the generated module honest. The schemas ship with the CLI, so validation needs no network.
+- **`--map` over flags per operation.** A committed mapping file is reviewable and survives regeneration; heuristics stay visible in `meta.inferredFrom` instead of being hidden in naming rules.
 
 ## `--check` in CI
 
@@ -169,6 +191,12 @@ jobs:
 ```
 
 [oasdiff](https://www.oasdiff.com) classifies `security` removals as breaking; [Schemathesis](https://schemathesis.readthedocs.io/) `ignored_auth` sends each protected operation without credentials and fails on anything other than `401` or `403`, which catches a route whose `protect` was removed after the description was published ([OpenAPI ecosystem](/docs/research/ecosystem-index), testing and diff).
+
+## Why
+
+- **`--target 3.3` is never chosen from the source document.** A `3.3.x` source is a draft its author opted into; emitting draft structures because of a version string would turn a pinned, experimental output into a silent default, and a producer upgrading its own version field would change PermDock's output without a flag in the diff. The target is always the flag, and `3.2` stays the default.
+- **Overlay 1.2 becomes the default only when it is final.** Until then `--overlay 1.2` is the experimental form with its pin in `x-permdock-catalog.drafts.overlay`, and 1.1 is what every applier accepts. The default changes in the release that follows the final 1.2 text, with a changeset.
+- **`x-permdock-arity` is opt-in.** Most consumers read `security` and `x-permdock-permissions`; arity and the id parameter matter to generated MCP servers and SDKs that need to know whether a call targets one row. Emitting it everywhere would add a field to every operation of every document for the few consumers that use it. The id parameter is inferred from the path rather than configured, because the catalog knows the resource's id field but not what a route calls it.
 
 ## Related
 

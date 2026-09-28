@@ -56,6 +56,22 @@ export type ApprovalListFilter = {
   readonly session?: string;
 };
 
+export type ApprovalListQuery = ApprovalListFilter & {
+  /** Page size, 1 to 200; 50 when omitted. */
+  readonly limit?: number;
+  /** The `next` of the previous page; opaque to the caller. */
+  readonly cursor?: string;
+};
+
+/**
+ * One page, oldest `createdAt` first. `next` is absent on the last page; an
+ * unreadable cursor yields an empty last page.
+ */
+export type ApprovalPage = {
+  readonly items: readonly ApprovalRequest[];
+  readonly next?: string;
+};
+
 export type ApprovalCancelMeta = {
   readonly by: string;
   readonly note?: string;
@@ -68,9 +84,7 @@ export type ApprovalStore = {
     token: string,
     verdict: ApprovalVerdict,
   ): Promise<ApprovalRequest> | ApprovalRequest;
-  list(
-    filter: ApprovalListFilter,
-  ): Promise<ApprovalRequest[]> | ApprovalRequest[];
+  list(query: ApprovalListQuery): Promise<ApprovalPage> | ApprovalPage;
   expire(now?: Date): Promise<number> | number;
   /**
    * Marks an approved, unexpired, unconsumed request consumed and returns it;

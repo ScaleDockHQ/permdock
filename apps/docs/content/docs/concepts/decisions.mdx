@@ -142,7 +142,7 @@ A third overload reads an [Arazzo](/docs/standards/arazzo) workflow and the appl
 | --- | --- | --- | --- | --- |
 | `granted` | `approved` | tool runs | 2xx | `decision: true` |
 | `denied` | `denied` with reason and alternatives | `isError: true`, refusal text plus `structuredContent` with denials and alternatives | `403` Problem Details `/denied` | `decision: false`, denials in `context` |
-| `approval-required` | `user-approval` | elicitation | `403` Problem Details `/approval-required` | `decision: false`, `context.outcome: 'approval-required'` |
+| `approval-required` | `user-approval` | elicitation | `403` Problem Details `/approval-required` | `decision: false`, `context.permdock.outcome: 'approval-required'` |
 
 Each adapter page documents its exact translation; the [wire formats](/docs/concepts/wire-formats) page has the JSON.
 

@@ -103,7 +103,7 @@ generateSpecs(app, { components: { securitySchemes: securitySchemes() } })
 
 ## Registry and namespace
 
-Every PermDock-specific field in a document is an OpenAPI extension under the `x-permdock-` prefix. PermDock registers the `permdock` namespace in the OAI [Namespace Registry](https://spec.openapis.org/registry/namespace/) (the pull request is described on [OpenAPI registries](/docs/standards/openapi-registry)). When the OpenAPI Initiative has already registered an extension for the same purpose (`x-oai-deprecated`, `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` for 3.1 targets, `x-agent-trust` for agent-authenticated `apiKey` schemes) the adapter emits the registered name instead of inventing one; it never coins an `x-oai-*` name. The full extension table and the rules are on [OpenAPI registries](/docs/standards/openapi-registry).
+Every PermDock-specific field in a document is an OpenAPI extension under the `x-permdock-` prefix. PermDock registers the `permdock` namespace in the OAI [Namespace Registry](https://spec.openapis.org/registry/namespace/) (the pull request is described on [OpenAPI registries](/docs/standards/openapi-registry)). When the OpenAPI Initiative has already registered an extension for the same purpose (`x-oai-deprecated`, `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` for 3.1 targets) the adapter emits the registered name instead of inventing one; it never coins an `x-oai-*` name. The full extension table and the rules are on [OpenAPI registries](/docs/standards/openapi-registry).
 
 ## Overlay output
 

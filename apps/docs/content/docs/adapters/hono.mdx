@@ -33,7 +33,7 @@ app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.
 
 | Export | Role |
 |---|---|
-| `permdock()` | Middleware. Resolves the subject with the `subject` option (receives the Hono context `c`), builds the instance through the kernel and sets it as `c.set('permdock', instance)`. The `Variables` type is augmented per factory instance, so `c.get('permdock')` is typed without global module augmentation. |
+| `permdock()` | Middleware. Resolves the subject with the `subject` option (receives the Hono context `c`), builds the instance through the kernel and sets it as `c.set('permdock', instance)`. It returns `MiddlewareHandler<PermDockEnv>`, and Hono merges that `Variables` type into the route's Env, so `c.get('permdock')` is typed without global module augmentation and without a factory generic. |
 | `protect(permission, loadData?, options?)` | Route middleware. The `tenant` option (`(c) => c.req.param('org')`) is resolved for each `protect`, where route params exist. For instance actions `loadData(c)` runs first; the result is available to the handler as `c.get('permdockData')` and validated at the boundary if the loader is marked untrusted. Denials short-circuit with a Problem Details response. |
 | `permdockHandler()` | Mounts the AuthZEN-shaped decision endpoint (`POST /`) for `permdock/react` clients on any sub-app: `app.route('/api/permdock', permdockHandler())`. |
 | `openapi` | Kernel hook contract, used by the two integrations below. |
@@ -101,6 +101,10 @@ A denied message leaves the socket open; only a revocation, an expiry or a re-de
 - The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route.
 
 Denials are the kernel's Problem Details responses.
+
+## Why
+
+Hono types context variables through the `Env` generic of each middleware and merges them along the chain, so the adapter only has to say what it sets. `permdock()` returns `MiddlewareHandler<PermDockEnv>` and `protect(permission, loadData)` returns `MiddlewareHandler<PermDockEnv<Row>>`, where `Row` is the loader's non-null return type. That works with `new Hono()`, with an app `Env` that declares its own variables, and inside `createMiddleware<PermDockEnv>` for an app middleware that reads `c.get('permdock')`, with no `createFactory` generic and no `declare module 'hono'` augmentation (which would leak one policy's types into every app in a monorepo). All three cases are type-tested.
 
 ## Example app
 

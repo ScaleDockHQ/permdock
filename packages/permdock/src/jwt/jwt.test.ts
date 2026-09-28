@@ -553,6 +553,17 @@ describe('configuration and remaining causes', () => {
     }).verify(await accessToken(), { audience: AUDIENCE });
     expect(remote.ok).toBe(true);
 
+    const fromString = await joseTokenVerifier({
+      jwks: 'https://login.example.com/jwks',
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      fetch: fetchImpl,
+    }).verify(await accessToken(), { audience: AUDIENCE });
+    expect(fromString.ok).toBe(true);
+    expect(() =>
+      joseTokenVerifier({ jwks: 'login.example.com/jwks', issuer: ISSUER }),
+    ).toThrow(/absolute URL/u);
+
     const empty = await joseTokenVerifier({
       jwks: new URL('https://login.example.com/jwks'),
       issuer: ISSUER,

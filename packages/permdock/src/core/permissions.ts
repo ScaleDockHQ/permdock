@@ -17,6 +17,8 @@ export type ActionMeta = {
   readonly description?: string;
   readonly tags?: readonly string[];
   readonly readOnly?: boolean;
+  /** Set by a generator (`permdock openapi import`) to the operation an action was inferred from. */
+  readonly inferredFrom?: string;
 };
 
 export type PermissionKind = 'instance' | 'collection';

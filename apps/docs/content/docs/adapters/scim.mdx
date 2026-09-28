@@ -30,8 +30,8 @@ export const scim = scimHandler({
   }),
   groupRoles: { 'g_9f2c…': ['editor'], 'g_0e6f…': ['admin'] },   // optional static map; the extension attribute wins when present
   sink,                                               // a DecisionSink; receives one `directory` event per write, plus a `membership` event per affected group member
-  onChange: ({ tenant, userIds }) => updateTag(`permdock:${tenant}`),   // optional; invalidate cached snapshots
-  revocations,                                        // optional RevocationFeed; open streams and sockets revalidate
+  onChange: ({ tenant, userIds, kind }) => updateTag(`permdock:${tenant}`),   // optional; invalidate cached snapshots
+  revocations,                                        // optional RevocationFeed; deactivation ends streams, other writes revalidate them
 })
 
 app.all('/scim/v2/:tenant/*', (c) => scim(c.req.raw))
@@ -47,8 +47,8 @@ export const { permdock, protect } = createPermDock(policy, {
 - `tenant` resolves the tenant for a request from the mount path or from the credential. SCIM has no tenant attribute, so one endpoint (or one credential) per tenant is the model every IdP expects.
 - `token` and `verifier` are the two credential kinds; at least one is required and both may be set. `token` is a per-tenant static bearer compared in constant time against a stored hash (never stored plain). `verifier` is a `TokenVerifier` for an RFC 7523 JWT bearer whose `aud` must be this endpoint and whose tenant claim must equal the resolved tenant; this is what the Cloud relay presents and what the IPSIE AL1 profile prescribes.
 - `groupRoles` maps a group `id` to the role names its members hold. When a `Group` arrives with the PermDock extension attribute (`urn:permdock:scim:schemas:extension:roles:1.0` with a `roles` array), the attribute is stored on the group and takes precedence; the Cloud's mapping UI writes it, and an IdP that supports custom group attributes may too. Role names are offered to the tenant's `RoleSource` as custom roles first and then matched against declared `assignable` roles; anything else is dropped and reported in development.
-- `sink` is a `DecisionSink` ([audit and observability](/docs/concepts/audit-and-observability)); the handler writes one `directory` event per accepted operation so provisioning and the decisions it later explains share one log. Group create, replace, patch and delete also write one `membership` event per affected user (`source: 'scim'`, `via: 'group:<id>'`, roles from the extension). `onChange` receives the tenant and the affected user ids after a write, for snapshot invalidation.
-- `revocations` is a `RevocationFeed`. After a write, the handler publishes `changed` in the tenant for each affected user, once for each of the user's SCIM `id`, `userName` and `externalId`, because a principal id is whichever of them `directoryMembershipSource` matched on. Open connections then resolve their subject again, so a deprovisioned member's stream closes. A deleted user's record is read before the delete; a throwing feed never fails the IdP write.
+- `sink` is a `DecisionSink` ([audit and observability](/docs/concepts/audit-and-observability)); the handler writes one `directory` event per accepted operation so provisioning and the decisions it later explains share one log. Group create, replace, patch and delete also write one `membership` event per affected user (`source: 'scim'`, `via: 'group:<id>'`, roles from the extension). `onChange` receives the tenant, the affected user ids and a `kind` after a write, for snapshot invalidation: `session-revoked` when the write deactivated (`active: false`) or deleted a user, `changed` otherwise.
+- `revocations` is a `RevocationFeed`. After a write, the handler publishes in the tenant for each affected user, once for each of the user's SCIM `id`, `userName` and `externalId`, because a principal id is whichever of them `directoryMembershipSource` matched on. A user write that leaves `active: false`, and a user delete, publish the CAEP `session-revoked` kind, so the user's open streams and sockets end without revalidating; every other write (a group change, a rename, a reactivation) publishes `changed`, so connections resolve their subject again and stay open only if access still holds. A deleted user's record is read before the delete; a throwing feed never fails the IdP write.
 - `directoryMembershipSource(store)` returns a `MembershipSource` whose `membershipsFor(principal, { tenant })` looks the principal up by `externalId` or `userName` (configurable `match`), returns nothing when the user is missing or `active: false`, and otherwise one membership per group: `{ tenant, team: group.id, roles: group.roles, via: 'group:' + group.id }`.
 
 ### DirectoryStore
@@ -155,10 +155,15 @@ The handler never trusts the body to name the tenant or the caller, never accept
 The adapter makes no permission decisions. Its effect is visible in three places:
 
 - Server: the next request for a deprovisioned user builds a subject with no memberships, so every tenant-scoped check is `denied` with `no-membership`; a user added to a group holds its roles on the next request.
-- Client: the snapshot for that user is stale until it is refetched; pair the handler with a CAEP `session-revoked` event through [`permdock/ssf`](/docs/adapters/ssf) or with `updateTag` in the handler's `onChange` callback so the change reaches cached snapshots immediately.
+- Client: the snapshot for that user is stale until it is refetched; `updateTag` in the handler's `onChange` callback makes the change reach cached snapshots immediately, and the `revocations` feed ends the user's open connections on deactivation.
 - Audit: the `directory` event and the later decision events share the group id (`via: 'group:<id>'`), so "who gave this person editor" is the provisioning event that added them to the group.
 
 Deprovisioning latency is bounded by how memberships are read: per request through `directoryMembershipSource` (immediate), or from a cached snapshot (until invalidation). The [threat model](/docs/security/threat-model) has the row.
+
+## Why
+
+- **Deactivation is `session-revoked`, not `changed`.** A `changed` event makes a connection re-resolve its subject, and a connection authenticated by a locally verified JWT still resolves the same principal after the IdP deactivates the user; only the membership read turns empty, and a permission that does not need a membership would survive. Deactivation in SCIM means the person is gone, which is what CAEP `session-revoked` says, so the handler publishes that kind and the connection ends. The IdP's own CAEP transmitter, when there is one, sends the same signal through `permdock/ssf`; the two are idempotent.
+- **One signal to two places.** `onChange` carries the same `kind` so cached snapshots and the feed agree without the application re-deriving deactivation from the SCIM body. The PermDock Cloud relay replays the SCIM write to this handler and does not send its own `session-revoked` for it.
 
 ## Hosted relay
 

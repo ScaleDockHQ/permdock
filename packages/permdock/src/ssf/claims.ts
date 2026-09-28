@@ -56,3 +56,21 @@ export function eventSession(
   }
   return undefined;
 }
+
+/** CAEP drafts before SSF 1.0 put the subject in the event instead of `sub_id`. */
+export function eventSubject(
+  payload: Readonly<Record<string, unknown>>,
+): SetSubject | undefined {
+  const subject = payload.subject;
+  return isRecord(subject) && typeof subject.format === 'string'
+    ? (subject as SetSubject)
+    : undefined;
+}
+
+export function subjectSession(subject: SetSubject): string | undefined {
+  if (subject.format !== 'complex' || !isRecord(subject.session)) {
+    return undefined;
+  }
+  const { id } = subject.session;
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}

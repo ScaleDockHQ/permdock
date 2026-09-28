@@ -188,3 +188,8 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 - Tenant-defined custom role names: they are resolved to declared roles before serialisation, so a snapshot never carries a name RLS could not.
 - Quota state for `limit` grants; those are always `server-only` (`portable: false`).
 - Anything from the actor beyond what appears in `delegation`.
+
+## Why
+
+- **`tenants: 'all'` has no cap and no paging.** A cap would silently drop tenants from a switcher, which is worse than a large payload the application chose; paging would turn one pure, cacheable value into a sequence of requests with a consistency problem between pages. A subject with many memberships combines `tenants: 'all'` with `include` to ship only the groups the switcher needs, and the default (the active tenant) stays the right answer for everyone else. `include` already filters by permission, which is the axis that grows with policy size; a separate tenant filter on `include` was rejected because `tenants` is that filter.
+- **Per-tenant snapshots at the edge are a `SnapshotSource` job.** Serving a pre-built snapshot per tenant from a CDN needs a store, invalidation and signing, which is what `SnapshotSource` exists for; the Cloud's implementation serves signed snapshots from its edge and invalidates them on CAEP events ([PermDock Cloud](/docs/adapters/cloud)). Core keeps producing snapshots on demand and never grows a cache of its own.

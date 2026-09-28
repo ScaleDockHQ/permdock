@@ -3,7 +3,7 @@ title: OpenID Connect
 description: "Where PermDock sits in an OpenID Connect deployment: the relying party or resource server runs Discovery and verifies the token, permdock/jwt maps the verified claims to a Subject, and every OIDC claim that reaches the principal has one documented home."
 ---
 
-[`permdock/jwt`](/docs/adapters/jwt) implements the `discovery` option, the `accept` option and the claim-to-Subject mapping below, and [`permdock/ssf`](/docs/adapters/ssf) accepts Back-Channel Logout as a revocation input. The provider adapters (`supabase`, `clerk`, `better-auth`) map the claims they already expose. Federation, the Enterprise Extensions, IPSIE and Identity Assurance stay on the [watch list](/docs/standards/watch-list).
+[`permdock/jwt`](/docs/adapters/jwt) implements the `discovery` option, the `accept` option and the claim-to-Subject mapping below, and [`permdock/ssf`](/docs/adapters/ssf) accepts Back-Channel Logout as a revocation input. The provider adapters (`supabase`, `clerk`, `better-auth`) map the claims they already expose. Identity Assurance `verified_claims` is mapped into `principal.assurance.verified`; Federation, the Enterprise Extensions and IPSIE stay on the [watch list](/docs/standards/watch-list).
 
 ## What it is
 
@@ -75,7 +75,7 @@ const resolve = createJwtSubjectResolver({
 | `nonce` | Rejected on access tokens | Its presence is one of the signals for `wrong-token-type` |
 | `roles`, `groups`, `entitlements` | `principal.roles`, `principal.memberships` | RFC 9068 claim names and SCIM encoding ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) |
 | `org_id`, `tid`, `hd`, `org_code` | `principal.tenant` | No standard claim exists; the provider page names the claim; a tenant with no matching membership is no tenant |
-| `verified_claims` | `principal.assurance.verified` (planned) | Identity Assurance; to be consumed as opaque evidence for conditions |
+| `verified_claims` | `principal.assurance.verified` | OpenID Connect for Identity Assurance 1.0: one object or an array, normalised to an array of `{ verification, claims }` kept as the issuer sent them and frozen. An entry without `verification.trust_framework` or a `claims` object, or with a `__proto__`, `constructor` or `prototype` key anywhere, is dropped. Conditions read it as a ref (`principal.assurance.verified['0'].verification.trust_framework`); PermDock never interprets the evidence. Path option `claims.assurance.verified` (default `verified_claims`) |
 | `email`, `name`, `picture` | Nowhere | The provider owns them; conditions do not need them ([subject](/docs/concepts/subject)) |
 
 `user_metadata`-style claims that the End-User can edit are never mapped to roles or memberships ([authentication](/docs/concepts/authentication)).
@@ -104,6 +104,7 @@ It does not run the authorization code flow, exchange codes, refresh tokens, ver
 | Access token (RFC 9068 `at+jwt`) | The default input to `subjectFromJwt` |
 | Discovery document | Source of `jwks_uri` and `issuer`; cached with the JWKS |
 | `acr`, `amr`, `auth_time` | `principal.assurance.{acr, amr, authTime}` |
+| `verified_claims` | `principal.assurance.verified` |
 | RFC 9470 step-up challenge | `denied` with reason `insufficient-user-authentication`, rendered as `WWW-Authenticate` |
 | `sid` | `subject.session`; the join key for logout and CAEP events |
 | Back-Channel Logout `logout_token` | Revocation input to `permdock/ssf` |

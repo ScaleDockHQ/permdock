@@ -39,10 +39,22 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD017` | An `allow` on a sensitive verb (`approve`, `pay`, `settle`, `submit`, `transfer`, `refund`, `disburse`, or `doctor.sensitiveActions`) has no `approval` and no `deny` on the same leaf | warning |
 | `PD018` | `exclusiveWith` names an undeclared role (error), or a `doctor.memberships` fixture / custom role holds two exclusive roles (warning) | error / warning |
 | `PD019` | `rls.rbac.authorize` is `jwt`, `[auth] jwt_expiry` in `supabase/config.toml` exceeds 3600 seconds, and the policy grants a sensitive verb | warning |
+| `PD020` | A permission the policy marks `hostable` sits on a resource the `rls` config compiles | warning |
+| `PD021` | The policy lists `hostable` permissions but `PERMDOCK_CLOUD_URL` or `PERMDOCK_CLOUD_KEY` is unset | warning |
+| `PD022` | A SQL migration creates a view without `security_invoker`, so it reads past row level security | warning |
 
 ### PD001: server-only imports in client entries
 
-Policy modules, `createPermDock` from `permdock/next` and any file that imports from `permdock/hono`, `permdock/mcp` or a provider must never be reachable from a client bundle. `doctor` builds the import graph from `collect.srcPath` with `oxc-parser`, marks files with `'use client'` or under known client roots (Vite `src/`, Expo `app/`) as client entries, and reports any path from a client entry to a server-only module. This is the permix issue #49 class of bug (server code leaking into client bundles), caught before the bundler does something surprising.
+Policy modules, `createPermDock` from `permdock/next` and any file that imports from `permdock/hono`, `permdock/mcp` or a provider must never be reachable from a client bundle. `doctor` reads every file under `collect.srcPath`, treats a file as a client entry when it carries `'use client'`, has `.client.` in its name, or matches `doctor.clientEntries`, and reports each client entry that imports a server-only entry directly. Frameworks with no client marker (a Vite SPA, an Expo app, a Chrome extension) list their client code in `doctor.clientEntries`, an array of directories or globs relative to the project root:
+
+```ts title="permdock.config.ts"
+export default defineConfig({
+  permissions: './src/permissions.ts',
+  doctor: { clientEntries: ['src/**/*.tsx', 'app'] },
+})
+```
+
+This is the permix issue #49 class of bug (server code leaking into client bundles), caught before the bundler does something surprising. The bundle check in `tests/bundle` covers what a transitive import would reach.
 
 ### PD002: unknown permission references
 
@@ -109,7 +121,7 @@ Warns when `permdock.config.ts` has an `rls` block whose policy still contains `
 ```text
 permdock doctor
 
-  ✖ PD001  app/(marketing)/pricing/page.tsx imports src/permdock/server.ts through src/lib/billing.ts
+  ✖ PD001  app/(marketing)/pricing/page.tsx imports permdock/next
            fix: move the check into a Server Component or import from 'permdock/react'
   ✖ PD004  permissions.catalog.json is stale (post.publish added)
            fix: pnpm exec permdock collect
@@ -132,6 +144,24 @@ Loads the policy and warns on each `allow` whose action is in the sensitive list
 ### PD019: JWT-mode authorize() with long-lived tokens
 
 With `rls.rbac.authorize: 'jwt'`, Postgres reads roles from the access token, so a revoked role keeps working until the token expires. The check reads `[auth] jwt_expiry` from `supabase/config.toml` (default 3600) and warns when it exceeds an hour while the policy grants a verb from `doctor.sensitiveActions`. Fix it with `authorize: 'database'` or a shorter expiry.
+
+### PD020: hostable permissions compiled into RLS
+
+`permdock rls` compiles the code policy, so a hosted grant on a `hostable` permission widens the application's answer while Postgres keeps the code answer. With an `rls` config, the check lists every `hostable` key whose resource is compiled (every resource, or those in `rls.tables` when it is set). Fix it by removing the permission from `hostable`, or by dropping its table from `rls.tables` and enforcing it in the application ([hostable permissions](/docs/concepts/policies)). `--only hosted` runs this check and PD021.
+
+### PD021: hostable permissions without Cloud variables
+
+A policy with `hostable` permissions expects hosted grants, which need `permdock cloud push` to publish the catalog and `cloud()` to fetch the policy document. The check warns when `PERMDOCK_CLOUD_URL` or `PERMDOCK_CLOUD_KEY` is missing from the environment `doctor` runs in, and names the missing variable ([cloud](/docs/cli/cloud)).
+
+### PD022: views without `security_invoker`
+
+A Postgres view runs with its owner's rights unless it is created `with (security_invoker = true)`, so a view over an RLS table returns every row to every caller. With an `rls` config or `doctor.migrations`, the check reads the `.sql` files under `doctor.migrations` (default `supabase/migrations`, `migrations`, `drizzle`, `prisma/migrations`, `db/migrations`) in name order and warns on each `create view` that neither sets `security_invoker` nor gets it from a later `alter view ... set (security_invoker = true)`. Materialized views are skipped: Postgres does not apply RLS to them at read time. `--only views` runs this check.
+
+## Why
+
+- **PD001 reads direct imports, not an import graph.** A graph needs module resolution for every bundler's aliases, and a wrong resolution produces a false path to a server module. The bundle measurement already fails on a server import reachable from a client entry; `doctor` catches the common case, a client file importing a server entry, in milliseconds. `doctor.clientEntries` replaces guessing client roots from folder names.
+- **`security_invoker` is a warning, not generated SQL.** `permdock rls` generates policies for tables, not views; a view is application SQL, and some views are meant to bypass RLS (a public aggregate). The warning names the view so the choice is explicit.
+- **Docs drift is a maintainer check, not a `doctor` check.** Whether the PermDock docs list every CLI flag and public export is a property of this repository; `scripts/check-docs-drift.ts` runs it in the PermDock CI, and `doctor` stays about the consumer's project.
 
 ## Related
 

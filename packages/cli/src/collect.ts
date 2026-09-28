@@ -15,7 +15,13 @@ import {
   formatCatalogJson,
 } from './catalog-doc.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
-import { asPermissionTree, leavesOf, loadModule, pickNamed } from './load.ts';
+import {
+  asPermissionTree,
+  leavesOf,
+  loadModule,
+  pickNamed,
+  loadConfiguredPolicy,
+} from './load.ts';
 import { scanSources } from './scan.ts';
 
 export type CollectOutcome = {
@@ -80,7 +86,12 @@ export async function runCollect(input: {
   const files = listSourceFiles(input.cwd, srcPath);
   const knownKeys = new Set(leavesOf(tree).map((leaf) => leaf.key));
   const scan = scanSources(input.cwd, files, knownKeys);
-  const document = buildCatalog(tree, scan, input.now.toISOString());
+  const document = buildCatalog(
+    tree,
+    scan,
+    input.now.toISOString(),
+    await loadConfiguredPolicy(input.cwd, input.config.policy),
+  );
   const next = formatCatalogJson(document);
   if (input.check) {
     if (!existsSync(outPath)) {

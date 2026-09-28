@@ -6,6 +6,7 @@ import { compact } from '../core/compact.ts';
 import { describe } from '../core/describe.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { ApprovalError } from './errors.ts';
+import { listAll } from './page.ts';
 import { assertApprover } from './store.ts';
 import {
   APPROVAL_HEADER,
@@ -281,7 +282,7 @@ export async function cancelApprovals(
   if (store.cancel !== undefined) {
     return store.cancel(filter, meta);
   }
-  const pending = await store.list({ ...filter, status: 'pending' });
+  const pending = await listAll(store, { ...filter, status: 'pending' });
   const by: Subject = {
     principal: { id: `system:${meta.by}`, kind: 'service', roles: [] },
     actor: { id: `system:${meta.by}`, kind: SYSTEM_KIND },

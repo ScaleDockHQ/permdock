@@ -53,9 +53,9 @@ What the Cloud sells:
 - **Snapshot distribution.** Signed snapshots with CAEP invalidation, behind the `SnapshotSource` interface.
 - **SCIM relay.** An identity-provider wizard, group-to-role mapping and a sync log that replays provisioning into a `DirectoryStore` the application owns (`permdock/scim`). In this bring-your-own mode the Cloud holds no authoritative directory copy. In Cloud-native directory mode the Cloud holds the directory of record, and it reaches a decision only as claims on a token the application verifies locally.
 - **Hosted AuthZEN endpoint** for gateways and services not written in TypeScript.
-- **Hosted grants (planned).** A signed policy document that only adds grants to permissions the code marks `hostable`, and never overrides a code deny or a code approval.
+- **Hosted grants.** A signed policy document that only adds grants to permissions the code marks `hostable`, and never overrides a code deny or a code approval.
 
-Every hosted capability is an interface with an in-process default in the open-source package (`ApprovalStore`, `DecisionSink`, `SnapshotSource`, `DirectoryStore`), so a team can self-host over its own database. The Cloud is the managed implementation. Every connector speaks a standard wire format or an existing PermDock interface, never a per-vendor package ([PermDock Cloud](./apps/docs/content/docs/adapters/cloud.mdx)).
+Every hosted capability is an interface with an in-process default in the open-source package (`ApprovalStore`, `DecisionSink`, `SnapshotSource`, `PolicySource`, `DirectoryStore`), so a team can self-host over its own database. The Cloud is the managed implementation. Every connector speaks a standard wire format or an existing PermDock interface, never a per-vendor package ([PermDock Cloud](./apps/docs/content/docs/adapters/cloud.mdx)).
 
 **Meters.** Monthly active principals (a human and each agent actor counted once), connected tenants, resolved approvals above a free allowance, decision retention tier, and hosted AuthZEN evaluations. Decisions made by the embedded engine are never metered.
 

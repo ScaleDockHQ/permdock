@@ -237,7 +237,7 @@ const { describe, securitySchemes, overlay } = createPermDock(policy, {
 });
 ```
 
-`describe(permission)` returns `security` plus `x-permdock-permissions`. `overlay({ version: '1.2' })` emits the pinned Overlay 1.2 draft. `target: '3.3'` emits the pinned Security Profile draft next to `x-permdock-securityProfile`. `scheme.type: 'gnap'` throws and emits nothing. CLI: `permdock openapi emit --doc openapi.json`.
+`describe(permission)` returns `security` plus `x-permdock-permissions`. `overlay({ version: '1.2' })` emits the pinned Overlay 1.2 draft. `target: '3.3'` emits the pinned Security Profile draft next to `x-permdock-securityProfile`. `scheme.type: 'gnap'` throws and emits nothing. CLI: `permdock openapi emit --doc openapi.json`; add `--arity` when a generated MCP server or SDK needs `x-permdock-arity` (instance or collection, and the id path parameter).
 
 ## React Native — `permdock/react-native`
 
@@ -505,7 +505,7 @@ The handler writes users and groups. It never decides. Unknown or non-assignable
 
 ## Cloud — `permdock/cloud`
 
-No factory for a `PermDock`. `cloud({ url, key })` returns `approvals`, `sink` and `snapshots` to pass into any adapter. It never implements `MembershipSource` or `RoleSource` and never decides.
+No factory for a `PermDock`. `cloud({ url, key })` returns `approvals`, `sink`, `snapshots` and `policies` to pass into any adapter, plus the `jwks` URL. It never implements `MembershipSource` or `RoleSource` and never decides.
 
 ```ts
 import { cloud } from 'permdock/cloud';
@@ -522,6 +522,8 @@ export const { getPermDock } = createPermDock(policy, {
   snapshots: pd.snapshots,
 });
 ```
+
+Hosted grants are opt-in per permission. List the permissions a Cloud admin may grant in `definePolicy(..., { hostable: [permissions.auditLog.read] })`, pass `verifier: joseTokenVerifier({ jwks: pd.jwks })` and `audience` to `cloud()`, forward `policies: pd.policies`, and call `pd.policies.refresh()` on a timer. Never mark a permission `hostable` when `permdock rls` compiles its table (`permdock doctor` PD020).
 
 `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are server-only. Production `PERMDOCK_CLOUD_URL` is `https://api.permdock.com`. The dashboard is `https://app.permdock.com`; the read-only MCP server is `https://mcp.permdock.com`. A Cloud outage leaves directory memberships at their last synced state.
 
@@ -683,7 +685,9 @@ const permdock = await createPermDock(policy, user);
 await permdock.can(permissions.post.read, post);
 ```
 
-Use `createPermDock` from `permdock/pdp` when `providers` is set. Core `can` / `decide` stay synchronous and deny delegated permissions with `pdp-unavailable`.
+Use `createPermDock` from `permdock/pdp` when `providers` is set. Core `can` / `decide` stay synchronous and deny delegated permissions with `pdp-unavailable`; on the PDP instance `filter` and `where` are async too.
+
+For OpenFGA or SpiceDB, use `openfga({ url, storeId, map })` or `spicedb({ url, token, map })` as the provider. `map` is one `[permission, (subject, row) => tuple]` pair per delegated permission; `filter` and `where` then use `list-objects` / `LookupResources` ids, so the tuple ids must equal the resource's `id` field. The app writes the tuples.
 
 ## Collect-only frameworks (no package)
 
@@ -702,5 +706,7 @@ pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
 When SQL is the authority, skip `generate`. Map helpers in `rls.functions`, write `sqlFunction` twins, and fail CI on `verify --db`. `--inline-functions` inlines the twin for generate targets that cannot call a SQL function.
 
 Never emit `service_role`. Fixtures may carry `memberships` and `tenant`.
+
+Add `--force` (or `rls.force: true`) only when the application connects as the table owner; it emits `FORCE ROW LEVEL SECURITY`. Create views over RLS tables `with (security_invoker = true)`; `permdock doctor` PD022 warns on views that are not. When `rls import` prints a commented `rls.memberships.tenant` stanza, confirm the table holds memberships before pasting it.
 
 `--authorize database` (default) makes `authorize()` read `user_roles` and the membership table per statement. `--authorize jwt` reads the hook's claims and stays stale until the token refreshes; keep `jwt_expiry` at 3600 or less (doctor PD019). Enable the printed `[auth.hook.custom_access_token]` stanza in `supabase/config.toml`.

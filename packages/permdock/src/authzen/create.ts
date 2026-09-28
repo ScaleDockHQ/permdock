@@ -5,8 +5,9 @@ import type { AuthzenItem } from './map.ts';
 import type { AuthzenFactory } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { ownGet } from '../core/paths.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
-import { listPermissions } from '../core/permissions.ts';
+import { getResource, listPermissions } from '../core/permissions.ts';
 import { applyApprovalResume } from '../server/evaluations.ts';
 import {
   PROBLEM_BASE,
@@ -152,6 +153,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         tenant: tenantOf(item),
         memberships: options.memberships,
         customRoles: options.customRoles,
+        policies: options.policies,
         sink: options.sink,
         limits: options.limits,
       }),
@@ -258,6 +260,8 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     }
     const shared = compact<AuthzenItem>({
       subject: isRecord(body.subject) ? body.subject : undefined,
+      action: isRecord(body.action) ? body.action : undefined,
+      resource: isRecord(body.resource) ? body.resource : undefined,
       context: body.context,
     });
     const rows = await Promise.all(
@@ -368,8 +372,15 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     ) {
       permitted = rows;
     }
+    const idField = getResource(policy.permissions, type)?.id ?? 'id';
+    const entities = permitted.flatMap((row) => {
+      const id = isRecord(row) ? ownGet(row, idField) : undefined;
+      return typeof id === 'string' || typeof id === 'number'
+        ? [{ type, id: String(id) }]
+        : [];
+    });
     const { offset, size } = pageOf(body);
-    return Response.json(paged(permitted, offset, size));
+    return Response.json(paged(entities, offset, size));
   }
 
   async function searchSubject(

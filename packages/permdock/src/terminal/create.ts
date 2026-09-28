@@ -204,6 +204,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         delegation,
         memberships: options.memberships,
         customRoles: options.customRoles,
+        policies: options.policies,
         sink: options.sink,
         limits: options.limits,
       }),
@@ -355,15 +356,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     if (options.storage === undefined) {
       return;
     }
-    const stored = readCredentials(
-      options.storage.service,
-      lastProfile,
-      runtime,
-    );
+    const stored = readCredentials(options.storage, lastProfile, runtime);
     if (stored !== null) {
       await revokeCredential(options.device, stored, runtime);
     }
-    deleteCredentials(options.storage.service, lastProfile, runtime);
+    deleteCredentials(options.storage, lastProfile, runtime);
     cached = undefined;
     last = undefined;
   };

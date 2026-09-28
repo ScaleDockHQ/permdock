@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  globSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
@@ -143,4 +149,86 @@ export function pd012(
     }
   }
   return findings;
+}
+
+const MIGRATION_DIRS = [
+  'supabase/migrations',
+  'migrations',
+  'drizzle',
+  'prisma/migrations',
+  'db/migrations',
+] as const;
+
+const VIEW_NAME = String.raw`((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)`;
+const CREATE_VIEW = new RegExp(
+  String.raw`\bcreate\s+(?:or\s+replace\s+)?(?:temp(?:orary)?\s+)?(?:recursive\s+)?view\s+${VIEW_NAME}([\s\S]*?)\bas\b`,
+  'giu',
+);
+const ALTER_VIEW = new RegExp(
+  String.raw`\balter\s+view\s+(?:if\s+exists\s+)?${VIEW_NAME}\s+set\s*\(([^)]*)\)`,
+  'giu',
+);
+const INVOKER =
+  /\bsecurity_invoker\s*(?:=\s*(?:true|on|'true'|'on'|1)\b|[,)]|$)/iu;
+
+function sqlFiles(cwd: string, entries: readonly string[]): string[] {
+  const files = new Set<string>();
+  for (const entry of entries) {
+    const pattern = /[*?[{]/u.test(entry) ? entry : `${entry}/**/*.sql`;
+    for (const match of globSync(pattern, { cwd })) {
+      if (match.endsWith('.sql')) {
+        files.add(resolve(cwd, match));
+      }
+    }
+  }
+  return [...files].toSorted();
+}
+
+function viewKey(name: string): string {
+  const parts = name.split('.').map((part) => part.replaceAll('"', ''));
+  return (parts.length === 1 ? ['public', ...parts] : parts)
+    .join('.')
+    .toLowerCase();
+}
+
+/** Views run as their owner unless `security_invoker` is set, so they read past RLS on the tables beneath them. */
+export function pd022(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  if (config.rls === undefined && config.doctor?.migrations === undefined) {
+    return [];
+  }
+  const created = new Map<string, string>();
+  const invoker = new Set<string>();
+  for (const file of sqlFiles(
+    cwd,
+    config.doctor?.migrations ?? MIGRATION_DIRS,
+  )) {
+    const text = readFileSync(file, 'utf8')
+      .replaceAll(/--[^\n]*/gu, '')
+      .replaceAll(/\/\*[\s\S]*?\*\//gu, '');
+    for (const [, name = '', options = ''] of text.matchAll(CREATE_VIEW)) {
+      const key = viewKey(name);
+      created.set(key, rel(cwd, file));
+      if (INVOKER.test(options)) {
+        invoker.add(key);
+      } else {
+        invoker.delete(key);
+      }
+    }
+    for (const [, name = '', options = ''] of text.matchAll(ALTER_VIEW)) {
+      if (INVOKER.test(options)) {
+        invoker.add(viewKey(name));
+      }
+    }
+  }
+  return [...created]
+    .filter(([key]) => !invoker.has(key))
+    .map(([key, file]) => ({
+      code: 'PD022',
+      severity: 'warning',
+      message: `view ${key} in ${file} is not security_invoker, so it reads past row level security`,
+      fix: `create the view with (security_invoker = true), or alter view ${key} set (security_invoker = true); Postgres 15 or later`,
+    }));
 }

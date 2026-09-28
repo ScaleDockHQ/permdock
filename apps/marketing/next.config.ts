@@ -9,6 +9,15 @@ const docsOrigin = process.env.DOCS_ORIGIN ?? 'http://127.0.0.1:3001';
 const config: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ['127.0.0.1'],
+  redirects() {
+    return [
+      {
+        source: '/problems/:type',
+        destination: '/docs/standards/problem-details#:type',
+        permanent: true,
+      },
+    ];
+  },
   rewrites() {
     if (process.env.NODE_ENV === 'production') {
       return [];

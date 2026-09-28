@@ -4,6 +4,7 @@ import type { WSEvents } from 'hono/ws';
 import { Hono, type Context, type MiddlewareHandler, type Next } from 'hono';
 
 import type { ApprovalStore } from '../approvals/types.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -44,6 +45,8 @@ export type HonoPermDockOptions<TUser = unknown> = {
   readonly tenant?: TenantOption<Context>;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -57,13 +60,21 @@ export type HonoPermDockOptions<TUser = unknown> = {
   readonly revocations?: RevocationFeed;
 };
 
+/** The `Variables` both middlewares set; Hono merges them into the route's Env. */
+export type PermDockEnv<TData = unknown> = {
+  readonly Variables: {
+    readonly permdock: PermDock;
+    readonly permdockData: TData;
+  };
+};
+
 export type HonoPermDock = {
-  readonly permdock: () => MiddlewareHandler;
-  readonly protect: (
+  readonly permdock: () => MiddlewareHandler<PermDockEnv>;
+  readonly protect: <TData = unknown>(
     permission: Permission,
-    loadData?: (c: Context) => unknown,
+    loadData?: (c: Context) => TData | Promise<TData>,
     protectOptions?: ProtectOptions,
-  ) => MiddlewareHandler;
+  ) => MiddlewareHandler<PermDockEnv<NonNullable<TData>>>;
   /** A long-lived connection for the request behind `c`. */
   readonly connection: (
     c: Context,
@@ -190,6 +201,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       },
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       store: options.store,
       sink: options.sink,
       limits: options.limits,
@@ -212,27 +224,28 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const scopeOf = (c: Context): Promise<TenantScope> =>
     tenantScope(options.tenant, c);
 
-  const permdock = (): MiddlewareHandler => async (c, next: Next) => {
-    try {
-      c.set('permdock', await kernel.permdock(bind(c), await scopeOf(c)));
-    } catch (error) {
-      const response = invalidSignatureResponse(error);
-      if (response !== undefined) {
-        return response;
+  const permdock =
+    (): MiddlewareHandler<PermDockEnv> => async (c, next: Next) => {
+      try {
+        c.set('permdock', await kernel.permdock(bind(c), await scopeOf(c)));
+      } catch (error) {
+        const response = invalidSignatureResponse(error);
+        if (response !== undefined) {
+          return response;
+        }
+        throw error;
       }
-      throw error;
-    }
-    await next();
-    mapDownstream(c);
-    return undefined;
-  };
+      await next();
+      mapDownstream(c);
+      return undefined;
+    };
 
   const protect =
-    (
+    <TData = unknown>(
       permission: Permission,
-      loadData?: (c: Context) => unknown,
+      loadData?: (c: Context) => TData | Promise<TData>,
       protectOptions?: ProtectOptions,
-    ): MiddlewareHandler =>
+    ): MiddlewareHandler<PermDockEnv<NonNullable<TData>>> =>
     async (c, next: Next): Promise<Response | undefined> => {
       const guard = await kernel.protect(
         permission,
@@ -243,7 +256,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return guard.response;
       }
       c.set('permdock', guard.permdock);
-      c.set('permdockData', guard.data);
+      c.set('permdockData', guard.data as NonNullable<TData>);
       await next();
       mapDownstream(c);
       return undefined;

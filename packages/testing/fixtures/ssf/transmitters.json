@@ -1,0 +1,136 @@
+{
+  "$comment": "Security Event Token payloads in the shapes Microsoft Entra, Okta and Auth0 transmit. Header and claims are kept as sent; the signature is replaced by a test key at run time because the transmitters' signing keys are private. `expect` is what the PermDock receiver must dispatch.",
+  "audience": "https://app.example.com/ssf",
+  "transmitters": [
+    {
+      "name": "entra",
+      "header": {
+        "alg": "RS256",
+        "kid": "entra-2026-09",
+        "typ": "secevent+jwt"
+      },
+      "claims": {
+        "iss": "https://login.microsoftonline.com/7f1e3c2a-5b9d-4e8f-a1c6-2d4b8e9f0a13/v2.0",
+        "jti": "b8f3a6d2-4c1e-49a7-9e25-0f6d8c3b1a74",
+        "iat": 1790000000,
+        "txn": "c4d2e1f0-8a7b-4c6d-9e5f-1a2b3c4d5e6f",
+        "sub_id": {
+          "format": "iss_sub",
+          "iss": "https://login.microsoftonline.com/7f1e3c2a-5b9d-4e8f-a1c6-2d4b8e9f0a13/v2.0",
+          "sub": "AAAAAAAAAAAAAAAAAAAAAIkzqFVrSaSaFHy782bbtaQ"
+        },
+        "events": {
+          "https://schemas.openid.net/secevent/caep/event-type/session-revoked": {
+            "event_timestamp": 1789999990,
+            "initiating_entity": "policy",
+            "reason_admin": {
+              "en": "User risk high: session revoked by Conditional Access"
+            }
+          },
+          "https://schemas.openid.net/secevent/caep/event-type/credential-change": {
+            "event_timestamp": 1789999995,
+            "credential_type": "password",
+            "change_type": "update",
+            "initiating_entity": "user"
+          }
+        }
+      },
+      "expect": [
+        {
+          "type": "session-revoked",
+          "subject": "AAAAAAAAAAAAAAAAAAAAAIkzqFVrSaSaFHy782bbtaQ"
+        },
+        {
+          "type": "credential-change",
+          "subject": "AAAAAAAAAAAAAAAAAAAAAIkzqFVrSaSaFHy782bbtaQ"
+        }
+      ]
+    },
+    {
+      "name": "okta",
+      "header": { "alg": "RS256", "kid": "okta-ssf-1", "typ": "secevent+jwt" },
+      "claims": {
+        "iss": "https://acme.okta.com",
+        "jti": "okta-set-7c4e2a91d3",
+        "iat": 1790000100,
+        "events": {
+          "https://schemas.openid.net/secevent/caep/event-type/session-revoked": {
+            "subject": {
+              "format": "complex",
+              "user": { "format": "email", "email": "ada@acme.example" },
+              "session": {
+                "format": "opaque",
+                "id": "102Xp7sQ9vHQ5aOpA3hGz0Wng"
+              }
+            },
+            "event_timestamp": 1790000090,
+            "initiating_entity": "admin",
+            "reason_admin": {
+              "en": "Universal Logout triggered by an administrator"
+            }
+          },
+          "https://schemas.openid.net/secevent/caep/event-type/assurance-level-change": {
+            "subject": {
+              "format": "complex",
+              "user": { "format": "email", "email": "ada@acme.example" }
+            },
+            "event_timestamp": 1790000095,
+            "namespace": "NIST-AAL",
+            "current_level": "nist-aal1",
+            "previous_level": "nist-aal2",
+            "change_direction": "decrease"
+          }
+        }
+      },
+      "expect": [
+        {
+          "type": "session-revoked",
+          "subject": "ada@acme.example",
+          "session": "102Xp7sQ9vHQ5aOpA3hGz0Wng"
+        },
+        { "type": "assurance-level-change", "subject": "ada@acme.example" }
+      ]
+    },
+    {
+      "name": "auth0",
+      "header": {
+        "alg": "RS256",
+        "kid": "auth0-ssf-3f9a",
+        "typ": "secevent+jwt"
+      },
+      "claims": {
+        "iss": "https://acme.us.auth0.com/",
+        "jti": "01J8Z3K6Q9W2E5R7T1Y4U8I0OP",
+        "iat": 1790000200,
+        "sub_id": {
+          "format": "complex",
+          "user": {
+            "format": "iss_sub",
+            "iss": "https://acme.us.auth0.com/",
+            "sub": "auth0|64f1c2b3a4d5e6f7a8b9c0d1"
+          },
+          "session": { "format": "opaque", "id": "s_9f8e7d6c5b4a" }
+        },
+        "events": {
+          "https://schemas.openid.net/secevent/caep/event-type/session-revoked": {
+            "event_timestamp": 1790000190,
+            "initiating_entity": "user"
+          },
+          "https://schemas.openid.net/secevent/risc/event-type/account-disabled": {
+            "reason": "bulk-account"
+          }
+        }
+      },
+      "expect": [
+        {
+          "type": "session-revoked",
+          "subject": "auth0|64f1c2b3a4d5e6f7a8b9c0d1",
+          "session": "s_9f8e7d6c5b4a"
+        }
+      ],
+      "unknown": [
+        "https://schemas.openid.net/secevent/risc/event-type/account-disabled"
+      ]
+    }
+  ]
+}

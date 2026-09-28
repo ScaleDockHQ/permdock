@@ -1,6 +1,6 @@
 ---
 name: audit-permissions
-description: Review an existing PermDock setup. Use when auditing permissions, finding ungranted or unused leaves, missing human approvals on agent tools, closures that should be portable, validate never, or OWASP ASI02 / ASI03. Use whenever the user asks to audit, review, or harden PermDock.
+description: Review an existing PermDock setup or a pull request that changes it. Use when auditing permissions, reviewing a PR that touches permissions.ts or policy.ts, finding ungranted or unused leaves, missing human approvals on agent tools, closures that should be portable, validate never, or OWASP ASI02 / ASI03. Use whenever the user asks to audit, review, or harden PermDock.
 ---
 
 # Audit PermDock
@@ -71,6 +71,20 @@ Map the inventory onto [OWASP Agentic](https://permdock.dev/docs/security/owasp-
 - **ASI03** (identity and privilege abuse): model-supplied subject or actor, actor used as approver, resume token not rebound to permission + resource + subject + actor.
 
 Done when each agent adapter in the app has an ASI02 line and an ASI03 line.
+
+## Pull request review
+
+When the task is one pull request rather than the whole app, review only what the diff changes, against the base branch:
+
+- Run `permdock collect --check` and `permdock usage --json` on both sides and compare. New leaves with no grant, grants for leaves nobody checks, and new `undeclared` or `outsideInclude` findings are review comments.
+- A new or widened `allow` (a role gains a leaf, a `where` is dropped or loosened, a `to` becomes `anyone` or `authenticated`) needs a matching `describePolicy` matrix row in the same PR. A deny that is removed needs one too.
+- A new model-reachable tool, or a new destructive action on an existing one, follows the Agent surfaces checks above.
+- A change to `rls` config or generated RLS comes with `permdock rls generate --check` passing and an `rlsParity` or `rls verify` run.
+- `permdock doctor --json` on the head branch reports no new error.
+
+Post one comment per finding on the changed line, and lead the summary with anything that widens access.
+
+Done when every changed grant, leaf and tool has a comment or an explicit pass.
 
 ## Report
 

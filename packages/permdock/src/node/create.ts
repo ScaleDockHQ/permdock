@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { ApprovalStore } from '../approvals/types.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -38,6 +39,8 @@ export type NodePermDockOptions<TUser = unknown> = {
   readonly tenant?: TenantOption<NodeRequest>;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -81,6 +84,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       },
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       store: options.store,
       sink: options.sink,
       limits: options.limits,

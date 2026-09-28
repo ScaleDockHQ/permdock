@@ -75,6 +75,10 @@ For RLS, the same tree is compiled by the CLI at build time instead of per reque
 
 `apps/examples/drizzle`: a Hono API over an in-process PGlite database. `GET /posts` selects through the list filter; `PATCH /posts/:id` updates through the update filter and answers `403` when no row matched. `tests/integration/src/orm-parity.test.ts` compares `filter` in memory with `toWhere` results on node-postgres and PGlite for every operator, NULL and negation case, reference, `memberOf` scope, parent hop and expired membership (`ormParity` in `@permdock/testing`).
 
+## Why
+
+- **A hand-written Standard Schema wins over a `drizzle-zod` schema.** `rls import --from drizzle` writes a separate `// @generated` module whose resources reference the tables' `drizzle-zod` schemas. A resource the application defines by hand keeps its own schema, and its entry in the generated module is left out of the merge: the hand-written schema is the boundary contract (invariant 9) and usually narrower than the table, for example without server-set columns. One resource is never defined with two schemas. Both are Standard Schemas, so `toWhere` and validation treat them the same, and `permdock usage` reports a condition on a field neither declares ([usage](/docs/cli/usage)).
+
 ## Related standards
 
 - [Postgres RLS](/docs/standards/postgres-rls): policy semantics that the generated `pgPolicy` entries follow, Drizzle `pgPolicy`, `drizzle-orm/supabase` helpers and `crudPolicy` for Neon.

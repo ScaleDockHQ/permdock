@@ -49,14 +49,10 @@ export function invalidSignatureResponse(error: unknown): Response | undefined {
   return error instanceof InvalidSignatureError ? error.response : undefined;
 }
 
-export function invalidSignatureProblem(
-  detail: string,
-  base?: string,
-): Response {
-  const prefix = base ?? PROBLEM_BASE;
+export function invalidSignatureProblem(detail: string): Response {
   return problemResponse(
     compact<ProblemDetails>({
-      type: `${prefix}/invalid-signature`,
+      type: `${PROBLEM_BASE}/invalid-signature`,
       title: 'Invalid signature',
       status: 403,
       detail,
@@ -112,7 +108,6 @@ export function discoverViaSignatureAgent(
 export async function verifyWebBotAuth(
   request: Request,
   options: WebBotAuthOptions | undefined,
-  problemBase?: string,
 ): Promise<Actor | undefined> {
   if (options === undefined || options.verify === false) {
     return undefined;
@@ -121,7 +116,7 @@ export async function verifyWebBotAuth(
   if (signatureInput === null) {
     if (options.required === true) {
       throw new InvalidSignatureError(
-        invalidSignatureProblem('Signature-Input is required', problemBase),
+        invalidSignatureProblem('Signature-Input is required'),
       );
     }
     return undefined;
@@ -129,28 +124,28 @@ export async function verifyWebBotAuth(
   const parsed = parseSignatureInput(signatureInput);
   const signatureHeader = request.headers.get('Signature');
   if (parsed === undefined || signatureHeader === null) {
-    throw reject(problemBase, 'Signature-Input could not be parsed');
+    throw reject('Signature-Input could not be parsed');
   }
   const signature = parseSignature(signatureHeader, parsed.label);
   if (signature === undefined) {
-    throw reject(problemBase, 'Signature could not be parsed');
+    throw reject('Signature could not be parsed');
   }
   const now = Math.floor(Date.now() / 1000);
   const maxAge = options.maxAge ?? DEFAULT_MAX_AGE;
   if (typeof parsed.created !== 'number') {
-    throw reject(problemBase, 'Signature-Input created is required');
+    throw reject('Signature-Input created is required');
   }
   if (parsed.created > now + FUTURE_SKEW) {
-    throw reject(problemBase, 'Signature-Input created is in the future');
+    throw reject('Signature-Input created is in the future');
   }
   if (now - parsed.created > maxAge) {
-    throw reject(problemBase, 'Signature-Input created is too old');
+    throw reject('Signature-Input created is too old');
   }
   if (typeof parsed.expires === 'number' && parsed.expires < now) {
-    throw reject(problemBase, 'Signature-Input expires is in the past');
+    throw reject('Signature-Input expires is in the past');
   }
   if (parsed.keyid === undefined) {
-    throw reject(problemBase, 'Signature-Input keyid is required');
+    throw reject('Signature-Input keyid is required');
   }
   const agent = parseSignatureAgent(
     request.headers.get('Signature-Agent'),
@@ -162,31 +157,28 @@ export async function verifyWebBotAuth(
   try {
     key = await lookup({ request, keyid: parsed.keyid, agent });
   } catch {
-    throw reject(problemBase, 'Web Bot Auth key lookup failed');
+    throw reject('Web Bot Auth key lookup failed');
   }
   if (key === undefined) {
-    throw reject(problemBase, 'Web Bot Auth key was not found');
+    throw reject('Web Bot Auth key was not found');
   }
   const base = signatureBase(request, parsed);
   if (base === undefined) {
-    throw reject(problemBase, 'signed components could not be covered');
+    throw reject('signed components could not be covered');
   }
   const alg = parsed.alg ?? algorithmFromJwk(key);
   if (alg === undefined) {
-    throw reject(problemBase, 'signature algorithm is not supported');
+    throw reject('signature algorithm is not supported');
   }
   const ok = await verifyBytes(key, alg, signature, base);
   if (!ok) {
-    throw reject(problemBase, 'HTTP Message Signature did not verify');
+    throw reject('HTTP Message Signature did not verify');
   }
   return Object.freeze({ id: parsed.keyid, kind: 'web-bot-auth' });
 }
 
-function reject(
-  base: string | undefined,
-  detail: string,
-): InvalidSignatureError {
-  return new InvalidSignatureError(invalidSignatureProblem(detail, base));
+function reject(detail: string): InvalidSignatureError {
+  return new InvalidSignatureError(invalidSignatureProblem(detail));
 }
 
 type ParsedSignatureInput = {

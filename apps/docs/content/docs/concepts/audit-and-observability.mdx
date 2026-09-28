@@ -87,7 +87,7 @@ Sinks for Sentry, PostHog, Datadog, Axiom, Better Stack, a Postgres table or a q
 
 Two things make those recipes interchangeable:
 
-- **An OCSF projection.** The [Open Cybersecurity Schema Framework](https://schema.ocsf.io/) is the vendor-neutral schema SIEMs ingest. PermDock documents one mapping from a decision event onto the OCSF Authorization activity class (category System Activity or IAM, depending on the OCSF version in use): `outcome` to `status` and `status_detail`, `permission` and `scope` to the `resource` and `privileges` fields, `subject.principal` to `actor.user`, `subject.actor` to `actor.process` or `actor.app_name`, `denials[].reason` to `status_detail`, `adapter` and `source` to `metadata.product`. The projection is a planned pure function, `toOcsf(event)`, documented on [wire formats](/docs/concepts/wire-formats); a sink that wants SIEM-ready output applies it before `write`. The event format itself does not change.
+- **An OCSF projection.** The [Open Cybersecurity Schema Framework](https://schema.ocsf.io/) is the vendor-neutral schema SIEMs ingest. PermDock ships one mapping from a decision event onto the OCSF 1.3.0 Authorize Session class: `outcome` to `status_id` and `status`, `denials[].reason` to `status_detail`, `permission` to `privileges`, `subject.principal` to `user` and `actor.user`, `subject.actor` to `actor.app_name`, `adapter` to `metadata.product.feature`, and the fields OCSF has no slot for under `unmapped`. The projection is the pure function `toOcsf(event)` from `permdock`, specified on [wire formats](/docs/concepts/wire-formats); a sink that wants SIEM-ready output applies it before `write`, and the Cloud's SIEM connector runs the same function. The event format itself does not change.
 - **A CloudEvents envelope.** When events leave the process over HTTP or a queue, wrap each in a [CloudEvents 1.0](https://cloudevents.io/) envelope: `type` `dev.permdock.decision` or `dev.permdock.approval`, `source` the service, `subject` the permission key, `data` the event. Every broker and function platform accepts it, and the PermDock Cloud sink uses the same envelope on the wire.
 
 The PermDock Cloud ingest reads the same envelope, so both are part of the wire contract. Neither is a dependency; the projection and the envelope are plain objects.
@@ -117,7 +117,19 @@ Evidence leaves the log in three forms, all documented here so a reader in anoth
 
 - **Signed batches** (`permdock-decisions+jwt`, above): provenance for an auditor or a compliance tool; the Cloud's export endpoint serves them and a self-hosted sink can sign its own.
 - **OCSF**: the projection below for SIEMs and security lakes.
-- **CSV** with one row per event and the review columns above, for compliance platforms (Vanta, Drata, Secureframe) that collect access-review evidence from connected systems and for spreadsheets in an audit.
+- **CSV** with one row per event, for compliance platforms (Vanta, Drata, Secureframe) that collect access-review evidence from connected systems and for spreadsheets in an audit. The columns are fixed, in this order: `time` (the event's `at`, RFC 3339), `principal` (`subject.principal.id`, empty for anonymous), `actor` (`subject.actor.id`), `tenant`, `permission` (the key), `outcome`, `matched.role`, `via`, `denials.reason` (the reasons joined with `;`), `token`. A list inside a cell never uses commas, so the file parses with any RFC 4180 reader. Columns beyond these belong in the signed batch, not in the CSV.
+
+### Access-review template
+
+An access review asks a named owner to confirm, per person, that what they could do and what they did is still right. Run it per tenant and per review window (a quarter is common) from the sink or the Cloud export:
+
+1. **Scope.** The tenant, the window, the reviewer, and the permissions in scope (usually every permission the catalog marks destructive or `approval: 'human'`, plus anything `hostable`).
+2. **Population.** Every principal with a `granted` or `approval-required` event on an in-scope permission in the window, from the CSV filtered on `tenant` and `permission`. Add principals whose current memberships grant an in-scope permission but who did not use it; unused access is the finding reviews most often surface.
+3. **Per principal.** The roles and memberships behind each grant (`matched.role`, `via`), the count of `granted`, `denied` and `approval-required` events per permission, and the agents that acted for them (`actor`).
+4. **Decision.** The reviewer marks each principal and permission keep, reduce or revoke, with a reason. Reduce and revoke change the role or membership at its source (the identity provider, SCIM, the application's `RoleSource`); PermDock records the effect on the next decisions and never applies the change itself.
+5. **Evidence.** The CSV rows, the signed batch covering the same window, and the reviewer's decisions, filed with the compliance platform.
+
+Agents get the same review keyed on `actor` instead of `principal`: which delegations they used, for whom, and whether any `approval-required` call was approved by the principal it acted for.
 
 Retention is the cost lever: the Cloud offers retention tiers; a self-hosted sink keeps what its table keeps. Sampling is never the lever (see above).
 
@@ -158,7 +170,7 @@ HTTP adapters answer a denied `assert` with `403 application/problem+json` per [
 
 Rules the adapters follow:
 
-- `type` is a stable URI per outcome under `https://permdock.dev/problems`; the server kernel's `problem.base` option replaces the base. `title` is constant per `type`; `detail` is human-readable and may vary.
+- `type` is a stable URI per outcome under the fixed base `https://permdock.dev/problems`. `title` is constant per `type`; `detail` is human-readable and may vary.
 - The extension members `permission`, `scope`, `resource`, `denials`, `alternatives`, `reason`, `token` and `issues` are the machine-readable part. Their names match the `Decision` and the audit event, so a client library can parse all three with one type.
 - `approval-required` is a 403 with its own `type`, not a 401 and not a 202: the request was understood and refused pending a human. The client retries with a `PermDock-Approval: <token>` header once the request is approved in the store ([approvals](/docs/security/approvals)).
 - The body never contains the policy, the closure source, or another subject's data. `denials` names roles the subject holds, which the subject already knows.

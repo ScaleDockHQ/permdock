@@ -13,6 +13,7 @@ permdock rls generate --target sql     --dialect neon     --out migrations/0007_
 permdock rls generate --target prisma  --dialect guc      --out prisma/policies.prisma
 permdock rls generate --target sql --dialect supabase --rbac-scaffold   # also emit Supabase's authorize() RBAC tables
 permdock rls generate --target sql --inline-functions --out migrations/rls.sql
+permdock rls generate --target sql --force --out migrations/rls.sql   # also FORCE ROW LEVEL SECURITY
 ```
 
 Inputs: the policy module from `permdock.config.ts` (roles as data) and a mapping from resources to tables. The mapping is read from `--from drizzle` (table names and columns from the Drizzle schema, resource schemas via `drizzle-zod`) or declared in the config as `rls.tables`.
@@ -22,7 +23,7 @@ Targets:
 | `--target` | Output |
 | --- | --- |
 | `drizzle` | `pgPolicy()` calls next to the table definitions, using `drizzle-orm/supabase` helpers (`authenticatedRole`, `authUid`) when `--dialect supabase` |
-| `sql` | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` plus `CREATE POLICY` statements, one file, idempotent |
+| `sql` | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` plus `CREATE POLICY` statements, the `REVOKE` / `GRANT` statements for the target role, one file, idempotent |
 | `prisma` | Prisma 8 native `policy_*` blocks in the schema |
 
 Dialects decide how the subject reaches SQL:
@@ -45,6 +46,8 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 | `--rbac-schema` | a Postgres identifier | `public`, or `rls.rbac.schema` | Schema for the enums, tables, `authorize()` and the hook. Policies call `<schema>.authorize(...)`. |
 | `--authorize` | `database`, `jwt` | `database`, or `rls.rbac.authorize` | `database` reads `user_roles` and the `--memberships` table on every call. `jwt` reads the hook-injected `user_role` and `memberships` claims: no query, stale until the token refreshes (doctor PD019). |
 
+`--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
+
 Tenant-scoped grants call `authorize('perm', "<tenant column>"::text)`. In `database` mode they need `--memberships`, otherwise they deny and the command warns. The command prints the `config.toml` stanza that enables the hook.
 
 ## import
@@ -55,7 +58,7 @@ permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts --sche
 permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts --from drizzle
 ```
 
-`import` reads `pg_policies` (with `--db`, optional `pg` peer) or a SQL dump (`--sql`), parses each `USING` and `WITH CHECK` expression with `pgsql-parser` (libpg_query compiled to WASM) and pattern-matches the AST against the portable subset, recognising the `EXISTS` form of membership, the Supabase `auth.uid()` / `auth.jwt()` idioms, and `FuncCall` names listed in `rls.functions`. Recognised expressions become portable conditions; mapped functions become `sqlFunction` with the configured twin; everything else becomes `opaque({ sql, fingerprint })`, where `fingerprint` is a hash of the deparsed AST so formatting changes do not register as drift. Unmapped functions print `add rls.functions.<name>` and, with `--db`, a slice of `pg_proc.prosrc`.
+`import` reads `pg_policies` (with `--db`, optional `pg` peer) or a SQL dump (`--sql`), parses each `USING` and `WITH CHECK` expression with `pgsql-parser` (libpg_query compiled to WASM) and pattern-matches the AST against the portable subset, recognising the `EXISTS` form of membership, the Supabase `auth.uid()` / `auth.jwt()` idioms, and `FuncCall` names listed in `rls.functions`. Recognised expressions become portable conditions; mapped functions become `sqlFunction` with the configured twin; everything else becomes `opaque({ sql, fingerprint })`, where `fingerprint` is a hash of the deparsed AST so formatting changes do not register as drift. Unmapped functions print `add rls.functions.<name>` and, with `--db`, a slice of `pg_proc.prosrc`. An `EXISTS` or `IN` subquery over a table that `rls.memberships` does not name stays opaque, and the command prints a commented `rls.memberships.tenant` stanza for that table with the default column names to edit; it never assumes the table holds memberships.
 
 The output is a deterministic `definePermissions()` module with a `// @generated` header: one resource per table with its actions derived from the policy commands, resource schemas emitted for the validator chosen with `--schema zod|valibot|arktype` from the table's columns, or referencing existing Drizzle tables through `drizzle-zod` with `--from drizzle`. Conditions are emitted as a role fragment alongside, so the generated file can be merged with hand-written definitions and policy fragments ([Larger apps](/docs/getting-started/larger-apps)).
 

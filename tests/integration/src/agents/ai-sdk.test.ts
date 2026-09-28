@@ -164,7 +164,7 @@ describe('permdock/ai-sdk in a multi-step streamText loop on Postgres', () => {
     expect(approvalId).toBeDefined();
 
     const reviewer = await db.openStore();
-    const [pending] = await reviewer.list({ status: 'pending' });
+    const [pending] = (await reviewer.list({ status: 'pending' })).items;
     expect(pending?.permission).toBe('apiKey.revokeAll');
     await expect(
       resolveApproval(reviewer, pending!.token, {

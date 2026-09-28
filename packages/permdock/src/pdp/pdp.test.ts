@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { createPermDock as createCore } from '../core/permdock.ts';
@@ -158,7 +158,9 @@ describe('permdock/pdp', () => {
         fetch: async () =>
           jsonResponse({
             decision: false,
-            context: { outcome: 'approval-required', token: 'pd1.remote' },
+            context: {
+              permdock: { outcome: 'approval-required', token: 'pd1.remote' },
+            },
           }),
       }),
     ]);
@@ -324,7 +326,7 @@ describe('permdock/pdp', () => {
     expect(calls).toBe(2);
   });
 
-  it('never compiles a where for a delegated permission', async () => {
+  it('returns an always-false partial where when the provider cannot list', async () => {
     const policy = policyWith([
       remotePdp({
         url: 'https://pdp.example',
@@ -336,9 +338,110 @@ describe('permdock/pdp', () => {
       id: 'user-1',
       roles: ['member'],
     });
-    expect(dock.where(permissions.post.read)).toEqual({
+    expect(await dock.where(permissions.post.read)).toEqual({
       condition: { op: 'or', conditions: [] },
       partial: true,
     });
+  });
+
+  it('filters and compiles where from AuthZEN resource search ids', async () => {
+    const bodies: unknown[] = [];
+    const policy = policyWith([
+      remotePdp({
+        url: 'https://pdp.example',
+        endpoints: {
+          evaluation: 'https://pdp.example/access/v1/evaluation',
+          searchResource: 'https://pdp.example/access/v1/search/resource',
+        },
+        fetch: async (_url, init) => {
+          const body = JSON.parse(String(init?.body)) as {
+            readonly page?: unknown;
+          };
+          bodies.push(body);
+          return body.page === undefined
+            ? jsonResponse({
+                results: [{ type: 'post', id: 'p1' }],
+                page: { next_token: 'n1' },
+              })
+            : jsonResponse({ results: [{ type: 'post', id: 'p3' }] });
+        },
+      }),
+    ]);
+    const dock = await createPermDock(policy, {
+      id: 'user-1',
+      roles: ['member'],
+    });
+    const rows = [
+      { id: 'p1', authorId: 'a' },
+      { id: 'p2', authorId: 'a' },
+      { id: 'p3', authorId: 'a' },
+    ];
+    expect(
+      (await dock.filter(permissions.post.read, rows)).map((row) => row.id),
+    ).toEqual(['p1', 'p3']);
+    expect(bodies).toHaveLength(2);
+    const where = await dock.where(permissions.post.read);
+    expect(where.partial).toBe(false);
+    expect(where.condition).toEqual({
+      op: 'and',
+      conditions: [
+        expect.anything(),
+        { op: 'in', field: 'id', value: ['p1', 'p3'] },
+      ],
+    });
+    expect(bodies).toHaveLength(4);
+  });
+
+  it('denies every row when resource search fails', async () => {
+    const policy = policyWith([
+      remotePdp({
+        url: 'https://pdp.example',
+        endpoints: {
+          evaluation: 'https://pdp.example/access/v1/evaluation',
+          searchResource: 'https://pdp.example/access/v1/search/resource',
+        },
+        fetch: async () => jsonResponse({ results: [{ id: 'p1' }] }),
+      }),
+    ]);
+    const dock = await createPermDock(policy, {
+      id: 'user-1',
+      roles: ['member'],
+    });
+    expect(await dock.filter(permissions.post.read, [post])).toEqual([]);
+    expect(await dock.where(permissions.post.read)).toEqual({
+      condition: { op: 'or', conditions: [] },
+      partial: false,
+    });
+  });
+
+  it('caps the cache TTL at 30 seconds', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const policy = policyWith([
+        remotePdp({
+          url: 'https://pdp.example',
+          endpoints: { evaluation: 'https://pdp.example/access/v1/evaluation' },
+          cache: { ttl: '300s' },
+          fetch: async () => {
+            calls += 1;
+            return jsonResponse({ decision: true });
+          },
+        }),
+      ]);
+      const dock = await createPermDock(policy, {
+        id: 'user-1',
+        roles: ['member'],
+      });
+      await dock.decide(permissions.post.read, post);
+      vi.advanceTimersByTime(29_000);
+      await dock.decide(permissions.post.read, post);
+      expect(calls).toBe(1);
+      vi.advanceTimersByTime(2000);
+      await dock.decide(permissions.post.read, post);
+      expect(calls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

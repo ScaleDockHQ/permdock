@@ -34,23 +34,60 @@ Each environment picks one directory mode:
 
 In both modes `permdock/cloud` implements neither `MembershipSource` nor `RoleSource`. Switching modes changes a connector and a claim mapping, not your policy.
 
+In Cloud-native mode there is no new entry: the application verifies the Cloud's access token with `permdock/jwt`, like any other issuer.
+
+```ts
+import { subjectFromJwt } from 'permdock/jwt'
+
+const subject = await subjectFromJwt(request, {
+  discovery: process.env.PERMDOCK_CLOUD_URL,   // issuer, JWKS and algorithms from OIDC Discovery
+  audience: 'https://app.example.com',
+  claims: { tenant: 'tenant', memberships: 'memberships' },
+})
+```
+
+| Claim on a Cloud-native access token | Carries | Read as |
+| --- | --- | --- |
+| `sub` | The Cloud user id | `principal.id` |
+| `roles` | Global declared roles the admin assigned | `principal.roles` |
+| `memberships` | `[{ tenant, roles, team? }]`, only declared `assignable` roles | `principal.memberships` |
+| `tenant` | The tenant the user signed in to | The active tenant, kept only when a membership matches it |
+| `groups` | Directory group ids | Team memberships through `groupRoles` or a `MembershipSource` |
+| `entitlements` | Plans held | `principal.plans` |
+
+The Cloud mints only names the pushed catalog declares ([`permdock cloud push`](/docs/cli/cloud)), and the application still drops a role its policy does not declare and ignores a tenant with no matching membership. The package's scenario tests cover the contract with signed fixture tokens: a Cloud-native token decides locally, an undeclared role grants nothing, a tenant with no membership is no tenant, and a token for another audience is anonymous.
+
 Two modes exist because two kinds of team ask for opposite things. Teams without an identity provider want one place to manage people, groups and held roles without building an admin UI; for them an issuer that knows nothing about roles is useless. Teams on Clerk, Okta, Entra ID, Better Auth or their own tables will not move their directory of record and want the Cloud only for federation, the provisioning relay and evidence. Both modes keep the same line: a directory that reaches the engine only as signed claims on a token verified locally sits on the login path, not the decision path, which is the pattern Clerk already uses with `org_role`, `pla` and `fea`. Letting `permdock/cloud` implement `MembershipSource` behind a cache was rejected because a remote table on the decision path is the failure mode of hosted control planes, and a cache does not change who is authoritative during an outage. Providers that want to act as a Cloud directory or issuer speak OIDC Discovery with JWKS, SCIM 2.0 and the PermDock claim table; there is no PermDock-specific provider interface and no per-vendor entry. Self-hosters get the same shape with their own issuer, `subjectFromJwt`, and their own `DirectoryStore` behind an admin screen.
 
 - **Assignment UI.** The Cloud edits users, groups, memberships and which declared roles and plans a principal holds. It reads roles, plans and permissions from the catalog `permdock collect` produces, never accepts a free-text role, and only hands out roles the policy declares `assignable`, narrowed by the tenant's assignable set and by what the acting admin holds there.
 - **Freshness.** A removal takes effect at the next token issue or refresh. Cloud-native access tokens default to a lifetime of minutes; for faster revocation the Cloud's CAEP transmitter sends `session-revoked` or `credential-change` for the subject ([SSF adapter](/docs/adapters/ssf)) and the snapshot edge invalidates signed snapshots. Your app never looks the directory up live.
 - **Evidence.** Every assignment or removal writes a `membership` event with `source: 'cloud'` and `by` set to the Cloud admin, so "who gave this person that role" is a decision-log query.
-- **Hosted grants.** Editing grants themselves, not only assignments, is planned and described below.
+- **Hosted grants.** Editing grants themselves, not only assignments, on permissions the code marks `hostable` (below).
 
-### Hosted grants (planned)
+### Hosted grants
 
-Planned, not implemented: `permdock/cloud` does not yet return a `policies` source and the package has no `PolicySource`. The design lets a Cloud admin write grants such as "the `pro` plan may read audit logs" without a deploy, bounded by the code policy:
+A Cloud admin can write grants such as "the `pro` plan may read audit logs" without a deploy, bounded by the code policy:
 
-- The Cloud publishes portable grants as a versioned JSON policy document, signed by the environment key as a compact JWS and verified by the application against the environment JWKS. An unsigned, wrongly typed or unverifiable document is absent, never partially applied.
-- `cloud()` would return a `policies` source next to `approvals`, `sink` and `snapshots`. `createPermDock` reads its `current()` document once per instance; the application calls `refresh()` on its own schedule, so no check waits on the Cloud.
+- The Cloud publishes portable grants as a `PolicyDocument` (`v: 1`, [wire formats](/docs/concepts/wire-formats)) under the `policy` claim of a compact JWS with `typ: permdock-policy+jwt`, signed by the environment key. `cloud().policies.refresh()` fetches it, verifies it with the `verifier` and `audience` you pass to `cloud()`, and keeps it. An unsigned, wrongly typed or unverifiable document is absent, never partially applied, and the last verified document stays; without a `verifier` the source never holds a document.
+- `cloud().policies` is a `PolicySource`. `createPermDock` reads its `current()` document once per instance; the application calls `refresh()` on its own schedule (an interval, a cron, or the `catalog` webhook), so no check waits on the Cloud.
 - Hosted grants apply only to permissions the policy marks `hostable`, target only declared roles, plans and relations, never override a code deny and never remove an `approval` a code grant requires. The merge rules are on [policies](/docs/concepts/policies) and the interface on [extension interfaces](/docs/concepts/extension-interfaces).
-- A decision matched by a hosted grant records the document fingerprint and grant id, so the decision log can answer which hosted grant allowed it.
+- A decision matched by a hosted grant records the document fingerprint and grant id in `matched.hosted`, so the decision log can answer which hosted grant allowed it.
 
-A snapshot cannot carry hosted grants, because it is a per-subject result the server computed, not a policy. Fetching the policy per request would put the Cloud on the decision path.
+```ts
+import { joseTokenVerifier } from 'permdock/jwt'
+
+const url = process.env.PERMDOCK_CLOUD_URL
+const pd = cloud({
+  verifier: joseTokenVerifier({ jwks: `${url}/.well-known/jwks.json`, algorithms: ['Ed25519', 'ES256'] }),
+  audience: 'https://app.example.com',
+})
+await pd.policies.refresh()
+setInterval(() => void pd.policies.refresh(), 60_000)
+
+const permdock = await createPermDock(policy, user, { policies: pd.policies })
+```
+
+A snapshot source never delivers hosted grants, because a snapshot is a per-subject result the server computed, not a policy; a snapshot the application builds from an instance already reflects that instance's merged grants. Fetching the policy per request would put the Cloud on the decision path.
 
 ## Purpose
 
@@ -85,10 +122,13 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
   store: pd.approvals,       // ApprovalStore: persistent, inbox UI, delivery
   sink: pd.sink,             // DecisionSink: batched, retried, queryable
   snapshots: pd.snapshots,   // SnapshotSource: distributed, CAEP-invalidated (optional)
+  policies: pd.policies,     // PolicySource: hosted grants on hostable permissions (optional)
 })
 ```
 
-- `cloud()` returns a frozen object; `approvals`, `sink` and `snapshots` are the three interfaces. There is no `decide` on it.
+- `cloud()` returns a frozen object; `approvals`, `sink`, `snapshots` and `policies` are the interfaces, and `jwks` is the environment's JWK Set URL. There is no `decide` on it.
+- `verifyWebhook(request, { jwks, audience, replay })` and `parseCloudEvent` verify the Cloud's signed webhook deliveries ([Cloud integrations](/docs/adapters/cloud-integrations)); there is no unsigned mode.
+- `policies` holds the last verified policy document ([hosted grants](#hosted-grants)). It needs `verifier` (a `TokenVerifier` over `jwks`) and `audience` (the `aud` your application expects); without a verifier `current()` stays `null`.
 - `sink` batches events in memory and flushes on an interval, on size, and at the end of a request when the runtime exposes `waitUntil`. Every event is written; sampling is opt-in and never applies to the evidence log. Delivery failure never affects a decision and is reported through `on('error')`. The Cloud's export endpoint serves the same events back as signed batches (`permdock-decisions+jwt`), OCSF or CSV. The sink does not accept `permdock/otel` spans: traces go to your collector (the Cloud can export a copy of the log to it as OTLP) and evidence goes to the sink ([audit and observability](/docs/concepts/audit-and-observability)).
 - `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store (`v: 1`, with the optional `approvers` and `subject.session`); a Cloud inbox rejects an unknown major rather than approve without checking eligibility. The inbox UI, Slack, Teams and email delivery, and approver groups are Cloud features layered on the same records. Slack and Teams delivery is the Vercel Chat SDK recipe from the [approvals adapter](/docs/adapters/approvals) "Delivery" section, run by the Cloud instead of by your application; a self-hoster who copies that recipe gets identical cards and the same signature-verified responder.
 - `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)). Everything the Cloud serves is signed: a compact JWS with `typ: permdock-snapshot+jwt` and the unchanged Snapshot object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats)).
@@ -109,9 +149,11 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL
 | `GET` | `/v1/environments/:env/approvals/:token` | `approvals.get` (unreachable or unknown → `null`) |
 | `POST` | `/v1/environments/:env/approvals/:token/resolve` | `approvals.resolve` (`409` not pending, `410` expired, `404` missing) |
 | `POST` | `/v1/environments/:env/approvals/:token/consume` | `approvals.consume`: the approved record with `consumedAt` set, or `409` when it is not approved, already consumed or expired (any failure → `null`) |
-| `GET` | `/v1/environments/:env/approvals` | `approvals.list` |
+| `GET` | `/v1/environments/:env/approvals` | `approvals.list`: `?status=`, `principalId`, `actorId`, `tenant`, `session`, `limit`, `cursor`; returns `{ items, next? }` (unreachable → `{ items: [] }`) |
 | `POST` | `/v1/environments/:env/approvals/expire` | `approvals.expire` |
 | `GET` | `/v1/environments/:env/snapshot` | `snapshots.get` (snapshot JSON or `permdock-snapshot+jwt`) |
+| `POST` | `/v1/environments/:env/catalog` | `permdock cloud push`: body `{ fingerprint, catalog }` ([cloud](/docs/cli/cloud)); not called by `cloud()` |
+| `GET` | `/v1/environments/:env/policy` | `policies.refresh`: a `permdock-policy+jwt` compact JWS as the body; `404` means no hosted grants and clears the document, any other failure keeps the last verified one |
 
 ### Environment variables
 
@@ -137,7 +179,7 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL
 
 ## Hosted Authorization Decision Service
 
-The Cloud runs the same `permdock/authzen` handler your app could run, against the policy you publish with `permdock cloud push` (a planned CLI command). Kong, Envoy, Tyk, Zuplo or a Go service calls `POST /access/v1/evaluation` and gets an AuthZEN answer with the PermDock `Decision` under `context.permdock` ([AuthZEN](/docs/standards/authzen)). Decision semantics are identical to the embedded engine because it is the same code; an `evaluations` batch of a policy matrix from `@permdock/testing` is the parity test.
+The Cloud runs the same `permdock/authzen` handler your app could run, against the policy you publish with [`permdock cloud push`](/docs/cli/cloud). Kong, Envoy, Tyk, Zuplo or a Go service calls `POST /access/v1/evaluation` and gets an AuthZEN answer whose `context` carries `outcome`, denial reasons and the approval `token` ([AuthZEN](/docs/standards/authzen)). Decision semantics are identical to the embedded engine because it is the same code; an `evaluations` batch of a policy matrix from `@permdock/testing` is the parity test.
 
 Caller authentication is real authentication ([threat model](/docs/security/threat-model), invariant 9):
 
@@ -179,7 +221,7 @@ The Cloud has an Integrations page; what each connector speaks is fixed here and
 
 - The Cloud is not on the decision path, so it produces no denials of its own. A resume against a request the Cloud reports as `rejected` or `expired` surfaces through the calling adapter exactly as with any store ([approvals adapter](/docs/adapters/approvals)).
 - API unreachable during a resume: `denied` with `detail` `approval-not-found` and an `on('error')` event; the application may retry.
-- The hosted ADS answers denied evaluations with `decision: false` and the PermDock `Decision` under `context.permdock`, and transport errors as Problem Details ([AuthZEN adapter](/docs/adapters/authzen)).
+- The hosted ADS answers denied evaluations with `decision: false` and `context.permdock.outcome` plus denial reasons, and transport errors as Problem Details ([AuthZEN adapter](/docs/adapters/authzen)).
 
 ## Example app
 

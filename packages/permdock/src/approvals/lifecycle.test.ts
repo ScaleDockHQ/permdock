@@ -266,8 +266,10 @@ describe('approval tenancy', () => {
       const response = await fetch(
         new Request('https://api.example.com/permdock/approvals/pending'),
       );
-      const body = (await response.json()) as ApprovalRequest[];
-      return body.map((request) => request.token).toSorted();
+      const body = (await response.json()) as {
+        readonly items: readonly ApprovalRequest[];
+      };
+      return body.items.map((request) => request.token).toSorted();
     };
     expect(await inbox(approver('u_9', ['o_1']))).toEqual([
       'pd1.none',
@@ -301,8 +303,10 @@ describe('approval tenancy', () => {
       const response = await fetch(
         new Request('https://api.example.com/permdock/approvals/pending'),
       );
-      const body = (await response.json()) as ApprovalRequest[];
-      return body.map((request) => request.token).toSorted();
+      const body = (await response.json()) as {
+        readonly items: readonly ApprovalRequest[];
+      };
+      return body.items.map((request) => request.token).toSorted();
     };
     expect(await inbox(true)).toEqual([]);
     expect(await inbox(false)).toEqual(['pd1.own']);

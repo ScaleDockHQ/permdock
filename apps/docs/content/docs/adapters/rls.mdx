@@ -116,6 +116,15 @@ The in-process side answers with a [Decision](/docs/concepts/decisions), so a `d
 
 `apps/examples/supabase-rls`: a Hono server on `127.0.0.1:3469` that boots without a database. `GET /rls/authorize` checks that generated SQL never contains `service_role`; `PATCH /posts/:id` uses `subjectFromSupabase` with fixed claims.
 
+## Why
+
+- **`FORCE ROW LEVEL SECURITY` is a flag.** Without it the table owner bypasses every policy, which is the usual path for migrations, seed scripts and the Supabase dashboard. Forcing it by default would break those on the first run. `--force` (or `rls.force`) emits it for teams whose application connects as the owner. The Drizzle and Prisma targets cannot express it, so they print the statement to add to a migration.
+- **`security_invoker` views are a `doctor` warning, not generated SQL.** `generate` writes policies for tables, and views are application SQL. Some views are meant to read past RLS (a public aggregate), so doctor PD022 names each view that does and leaves the choice explicit ([doctor](/docs/cli/doctor)).
+- **`REVOKE` / `GRANT` is always emitted, with no `--grants` flag.** The `sql` target revokes table privileges from `anon` and `authenticated` and grants back only the commands the policy uses. A policy without the matching grant fails with `42501`, and a grant without a policy is the open-by-default mistake RLS exists to prevent. Making the pair optional would allow either half to go missing.
+- **The `neon` dialect is pinned to `auth.user_id()`.** That is the helper `pg_session_jwt` installs, and the generated SQL calls it through `(select ...)` so Postgres evaluates it once per statement. Claims go through `auth.session()`. A different helper name is a `guc` dialect with `--guc-prefix`.
+- **App roles are claims, not Postgres roles.** Every generated policy targets `authenticated`. Roles, tenants and memberships reach the policy as JWT claims or GUCs, or through the membership table for `memberOf`. PermDock never generates a Postgres role per tenant or per app role: the number of Postgres roles would grow with the customer count, `GRANT` changes would need DDL at request time, and connection pools hold one role per connection. A deployment that already uses per-tenant Postgres roles makes each one a member of `authenticated` (`grant authenticated to tenant_a`), so the generated policies apply to it, and the policies still read the tenant from the claim.
+- **`rls import` proposes, never assumes, a membership table.** An `EXISTS` join over a table that `rls.memberships` does not name stays `opaque`, and the command prints a commented stanza to paste. Guessing that a table holds memberships would turn an unknown join into a grant.
+
 ## Related standards
 
 - [Postgres RLS](/docs/standards/postgres-rls): `CREATE POLICY` semantics, permissive versus restrictive, `pg_policies`, the portable subset, parsers and testing.

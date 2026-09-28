@@ -142,9 +142,13 @@ function Approvals() {
   const load = (): void => {
     fetch('/api/approvals/pending', { credentials: 'include' })
       .then((response) =>
-        response.ok ? (response.json() as Promise<Pending[]>) : [],
+        response.ok
+          ? (response.json() as Promise<{ items: Pending[] }>)
+          : { items: [] },
       )
-      .then(setPending)
+      .then((page) => {
+        setPending(page.items);
+      })
       .catch(() => undefined);
   };
   useEffect(load, []);

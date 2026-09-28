@@ -6,6 +6,7 @@ import {
 
 import type { ApprovalStore } from '../approvals/types.ts';
 import type { PermDockRevokedError } from '../core/errors.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -51,6 +52,8 @@ export type TrpcPermDockOptions<TCtx = object, TUser = unknown> = {
   readonly request?: (ctx: TCtx) => Request | null | undefined;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -237,6 +240,7 @@ export function createPermDock<
       },
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       store: options.store,
       sink: options.sink,
       limits: options.limits,

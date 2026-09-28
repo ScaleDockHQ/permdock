@@ -51,8 +51,30 @@ type Refusal = {
 };
 
 type Checked =
-  | { readonly ok: true }
+  | { readonly ok: true; readonly approved?: string }
   | { readonly ok: false; readonly refusal: Refusal };
+
+/** What a completion re-check still accepts after the handler ran. */
+function stillAllowed(
+  decision: Decision,
+  approved: string | undefined,
+): boolean {
+  switch (decision.outcome) {
+    case 'granted':
+      return true;
+    case 'approval-required':
+      return approved !== undefined && decision.token === approved;
+    case 'denied':
+      return (
+        decision.denials.length > 0 &&
+        decision.denials.every((denial) => denial.reason === 'limit')
+      );
+    default: {
+      const exhaustive: never = decision;
+      return exhaustive;
+    }
+  }
+}
 
 type Handler = (...params: unknown[]) => unknown;
 
@@ -292,6 +314,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             authInfo === undefined ? undefined : delegationOf(authInfo),
           memberships: options.memberships,
           customRoles: options.customRoles,
+          policies: options.policies,
           sink: options.sink,
           limits: options.limits,
         }),
@@ -312,6 +335,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     permission: Permission,
     load: (() => unknown) | undefined,
     context: Context,
+    completion?: { readonly approved: string | undefined },
   ): Promise<Checked> => {
     const authInfo = context.http?.authInfo;
     if (authInfo === undefined && options.requireAuthInfo === true) {
@@ -365,16 +389,32 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           next: Permission,
           row?: unknown,
           decideOptions?: {
-            readonly source: 'adapter';
+            readonly source: 'adapter' | 'simulate';
             readonly adapter: string;
             readonly boundary: 'mcp-args';
           },
         ) => Decision
       )(permission, data, {
-        source: 'adapter',
+        source: completion === undefined ? 'adapter' : 'simulate',
         adapter: 'mcp',
         boundary: 'mcp-args',
       });
+      if (completion !== undefined) {
+        if (stillAllowed(raw, completion.approved)) {
+          return { ok: true };
+        }
+        return {
+          ok: false,
+          refusal:
+            raw.outcome === 'denied'
+              ? deniedRefusal(raw, permission, data)
+              : plainRefusal(
+                  permission,
+                  `Denied: ${permission.key} was revoked before the call completed.`,
+                  {},
+                ),
+        };
+      }
       const decision = await resumeDecision({
         decision: raw,
         permission,
@@ -388,7 +428,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       });
       switch (decision.outcome) {
         case 'granted':
-          return { ok: true };
+          return raw.outcome === 'approval-required'
+            ? { ok: true, approved: raw.token }
+            : { ok: true };
         case 'denied':
           return {
             ok: false,
@@ -461,19 +503,29 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       dataArgs: (params: readonly unknown[]) => readonly unknown[],
       onRefusal: (refusal: Refusal) => unknown,
       after?: (context: Context) => Promise<void>,
+      longRunning = false,
     ): Handler =>
     async (...params: unknown[]): Promise<unknown> => {
       const context = contextOf(params.at(-1));
-      const checked = await check(
-        permission,
+      const loader =
         load === undefined
           ? undefined
-          : (): unknown => load(...dataArgs(params)),
-        context,
-      );
-      const result = checked.ok
-        ? await handler(...params)
-        : onRefusal(checked.refusal);
+          : (): unknown => load(...dataArgs(params));
+      const checked = await check(permission, loader, context);
+      let result: unknown;
+      if (checked.ok) {
+        result = await handler(...params);
+        if (longRunning) {
+          const again = await check(permission, loader, context, {
+            approved: checked.approved,
+          });
+          if (!again.ok) {
+            result = onRefusal(again.refusal);
+          }
+        }
+      } else {
+        result = onRefusal(checked.refusal);
+      }
       await after?.(context);
       return result;
     };
@@ -611,6 +663,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       permission: Permission,
       load: ((args: unknown) => unknown) | undefined,
       handler: Handler,
+      longRunning: boolean,
     ): Handler =>
       guard(
         permission,
@@ -619,6 +672,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         (params) => (params.length >= 2 ? [params[0]] : [undefined]),
         toolRefusal,
         announce,
+        longRunning,
       );
 
     // oxlint-disable-next-line typescript/no-deprecated -- bind() resolves to the raw-shape overload
@@ -637,9 +691,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         permission: _permission,
         data,
         scopeChallenge,
+        longRunning: rawLongRunning,
         ...passthrough
       } = config;
       const load = data as ((args: unknown) => unknown) | undefined;
+      const longRunning = rawLongRunning === true;
       const registered = originalTool(
         name,
         {
@@ -649,13 +705,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             scopeChallenge as ScopeChallengeHandler | undefined,
           ),
         },
-        guardTool(permission, load, handler),
+        guardTool(permission, load, handler, longRunning),
       );
       tools.set(name, permission);
       let current = name;
       guardUpdates(
         registered,
-        (callback) => guardTool(permission, load, callback),
+        (callback) => guardTool(permission, load, callback, longRunning),
         (from, to) => {
           tools.delete(from);
           if (to !== null) {

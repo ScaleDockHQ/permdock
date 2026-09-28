@@ -1,6 +1,9 @@
 import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
-import type { ProblemDetails } from '../core/errors.ts';
+import type { ApprovalHint, ProblemDetails } from '../core/errors.ts';
+import type { PolicySource } from '../core/hosted.ts';
+
+export type { ApprovalHint };
 import type {
   DecisionSink,
   LimitStore,
@@ -70,14 +73,22 @@ export type TerminalRuntime = {
   readonly configDir?: string;
 };
 
+/** The shape of `Entry` from `@napi-rs/keyring`. */
+export type KeyringEntry = {
+  getPassword(): string | null | undefined;
+  setPassword(password: string): void;
+  deletePassword(): unknown;
+};
+
 export type TerminalStorageOptions = {
   readonly service: string;
   readonly dir?: string;
-};
-
-export type ApprovalHint = {
-  readonly at?: string;
-  readonly hint?: string;
+  /**
+   * `Entry` from `@napi-rs/keyring`: tokens go to the OS keychain under
+   * `service`, one entry per profile. Without it, or when the keychain
+   * throws, they go to the mode-0600 credentials file.
+   */
+  readonly keyring?: new (service: string, account: string) => KeyringEntry;
 };
 
 export type TerminalPermDockOptions<TUser = unknown> = {
@@ -86,6 +97,8 @@ export type TerminalPermDockOptions<TUser = unknown> = {
   readonly tenant?: string;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -122,9 +135,7 @@ export type FormatOptions = {
   readonly approval?: ApprovalHint;
 };
 
-export type TerminalProblemDetails = ProblemDetails & {
-  readonly approval?: ApprovalHint;
-};
+export type TerminalProblemDetails = ProblemDetails;
 
 export type ProtectContext<T = unknown> = {
   readonly permdock: PermDock;

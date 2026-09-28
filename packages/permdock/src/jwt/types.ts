@@ -25,6 +25,7 @@ export type JsonWebKeySet = {
 
 export type JwtJwks =
   | URL
+  | string
   | JsonWebKeySet
   | { readonly secret: Uint8Array | string };
 
@@ -81,6 +82,8 @@ export type JwtClaimPaths = {
         readonly acr?: string;
         readonly amr?: string;
         readonly authTime?: string;
+        /** OpenID Connect for Identity Assurance; default `verified_claims`. */
+        readonly verified?: string;
       };
   readonly session?: string;
 };

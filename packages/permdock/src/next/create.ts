@@ -114,6 +114,7 @@ export function createPermDock<
           tenant,
           memberships: options.memberships,
           customRoles: options.customRoles,
+          policies: options.policies,
           sink: options.sink,
           limits: options.limits,
         }),

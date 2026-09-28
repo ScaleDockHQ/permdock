@@ -23,7 +23,6 @@ export const { permdock, protect, connection, problem, openapi } = createPermDoc
     keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }),
     required: false,
   },
-  problem: { base: 'https://api.example.com/problems' },  // Problem Details `type` prefix
   tenant: (request) => orgFromPath(request),            // optional; resolved again on every protect
   limits: memoryLimitStore(),                           // optional LimitStore for quota grants
 })
@@ -52,13 +51,14 @@ export default async function handler(request: Request): Promise<Response> {
 
 | Option | Role |
 |---|---|
-| `subject`, `actor`, `webBotAuth`, `problem` | As above. |
+| `subject`, `actor`, `webBotAuth` | As above. |
 | `tenant` | A tenant id or `(request) => string \| undefined`. Adapters pass their framework context instead of the `Request`. A throwing resolver is no tenant, never a default one. |
 | `memberships`, `customRoles` | `MembershipSource` and `RoleSource` ([tenancy](/docs/concepts/tenancy)). |
 | `store`, `sink` | `ApprovalStore` for the `PermDock-Approval` resume and `DecisionSink` for decision events. |
 | `limits` | `LimitStore` for quota grants. Without it a quota grant denies with `limit-unavailable`. |
 | `pdp` | `createPermDock` from [`permdock/pdp`](/docs/adapters/pdp). `protect` then decides delegated permissions through the provider; `can` on the instance stays synchronous and keeps denying them with `pdp-unavailable`. |
 | `snapshots` | Accepted so every adapter takes the same options; HTTP adapters do not read it. A `SnapshotSource` serves client snapshots, and the kernel builds decisions from the policy it was given. |
+| `approval` | An `ApprovalHint` (`{ at?, hint? }`) added as the `approval` member of every `approval-required` Problem Details: where to approve and what to tell the caller. The terminal adapter takes the same option. |
 | `otel` | [OpenTelemetry](/docs/adapters/otel) spans, counters and the duration histogram. |
 | `revocations` | A `RevocationFeed` ([extension interfaces](/docs/concepts/extension-interfaces)) that ends or revalidates open connections. Never a decision input. |
 

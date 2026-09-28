@@ -10,10 +10,22 @@ export type Binding = {
   readonly kid?: string;
 };
 
+/**
+ * One OpenID Connect for Identity Assurance `verified_claims` entry, kept as
+ * the issuer sent it: opaque, frozen evidence for conditions and audit.
+ */
+export type VerifiedClaims = {
+  readonly verification: Readonly<Record<string, unknown>> & {
+    readonly trust_framework: string;
+  };
+  readonly claims: Readonly<Record<string, unknown>>;
+};
+
 export type Assurance = {
   readonly acr?: string;
   readonly amr?: readonly string[];
   readonly authTime?: number;
+  readonly verified?: readonly VerifiedClaims[];
 };
 
 export type Membership = {

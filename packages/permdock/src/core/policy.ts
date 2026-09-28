@@ -108,6 +108,14 @@ export type Grant = {
   readonly limit?: { readonly count: number; readonly per: string };
   readonly fields?: readonly string[];
   readonly scope: 'global' | 'tenant' | 'team' | { readonly resource: string };
+  /** Set only on a grant merged from a hosted policy document. */
+  readonly hosted?: HostedGrantRef;
+};
+
+/** Which hosted policy document and grant a merged grant came from. */
+export type HostedGrantRef = {
+  readonly document: string;
+  readonly grant: string;
 };
 
 export type RoleBinding = {
@@ -162,6 +170,8 @@ export type Policy<
   readonly fingerprint: string;
   readonly resources: ReadonlyMap<string, ResourceNode>;
   readonly providers?: readonly DecisionProvider[];
+  /** Permission keys a hosted policy document may grant or deny; empty by default. */
+  readonly hostable: readonly string[];
 };
 
 export { requiresApproval } from './approval-required.ts';
@@ -432,7 +442,7 @@ function isVocabularyInput(value: unknown): value is PolicyVocabulary {
   );
 }
 
-function completeGrant(grant: Omit<Grant, 'role' | 'scope'>): Grant {
+export function completeGrant(grant: Omit<Grant, 'role' | 'scope'>): Grant {
   const to = flattenGrantee(grant.to);
   const first = to[0];
   const placeholder =
@@ -495,6 +505,11 @@ export type DefinePolicyOptions<TUser, TPrincipal extends Principal> = {
   readonly validate?: ValidateMode;
   readonly onDenied?: (decision: unknown) => never | void;
   readonly providers?: readonly DecisionProvider[];
+  /**
+   * Leaves or subtrees a hosted policy document (`PolicySource`) may touch.
+   * The default is none, so a policy without it ignores every hosted grant.
+   */
+  readonly hostable?: readonly (Permission | PermissionTree)[];
 };
 
 export function definePolicy<
@@ -533,6 +548,13 @@ export function definePolicy<
   const scopes = options.scopes ?? {};
   assertScopedResources(grants, scopes, resources);
   const fingerprint = bytesToBase64Url(sha256(canonicalGrants(grants)));
+  const hostable = [
+    ...new Set(
+      (options.hostable ?? []).flatMap((item) =>
+        flattenPermissions(item).map((leaf) => leaf.key),
+      ),
+    ),
+  ].toSorted();
   return freezeDeep({
     permissions: tree,
     roles,
@@ -548,6 +570,7 @@ export function definePolicy<
     fingerprint,
     resources,
     providers: options.providers,
+    hostable,
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }
 

@@ -1,3 +1,4 @@
+import type { Condition } from '../conditions/ast.ts';
 import type { Decision } from '../core/decision.ts';
 import type { DecisionProvider } from '../core/interfaces.ts';
 import type {
@@ -23,6 +24,7 @@ import {
 import { freezeDeep } from '../core/freeze.ts';
 import { createPermDock as createCore } from '../core/permdock.ts';
 import { getResource } from '../core/permissions.ts';
+import { resourceIdOf } from './shared.ts';
 
 function withoutProviders<TUser, TPrincipal extends Principal>(
   policy: Policy<TUser, TPrincipal>,
@@ -65,6 +67,10 @@ function providerFor(
     }
   }
   return undefined;
+}
+
+function idFieldOf(policy: Policy, permission: Permission): string {
+  return getResource(policy.permissions, permission.resource)?.id ?? 'id';
 }
 
 function isExplicitDeny(decision: Decision): boolean {
@@ -259,18 +265,61 @@ function wrap(
       rows: readonly T[],
       options?: DecideOptions,
     ): Promise<T[]> {
-      const decisions = await Promise.all(
-        rows.map((row) =>
-          decide(permission, row, { ...options, source: 'filter' }),
-        ),
-      );
-      return rows.filter((_, index) => decisions[index]?.outcome === 'granted');
+      const next = { ...options, source: 'filter' as const };
+      const provider = providerFor(providers, permission);
+      const ids =
+        provider?.permitted === undefined || subject.principal === null
+          ? undefined
+          : await provider.permitted({ permission, subject });
+      if (ids === undefined) {
+        const decisions = await Promise.all(
+          rows.map((row) => decide(permission, row, next)),
+        );
+        return rows.filter(
+          (_, index) => decisions[index]?.outcome === 'granted',
+        );
+      }
+      const allowed = new Set(ids ?? []);
+      const field = idFieldOf(policy, permission);
+      return rows.filter((row) => {
+        const id = resourceIdOf(row, field);
+        return (
+          allowed.has(id) &&
+          !isLocalShortCircuit(decideLocal(permission, row, next))
+        );
+      });
     },
     pick: dock.pick.bind(dock),
-    where: (permission: Permission): WhereResult =>
-      providerFor(providers, permission) === undefined
-        ? dock.where(permission)
-        : { condition: { op: 'or', conditions: [] }, partial: true },
+    async where(permission: Permission): Promise<WhereResult> {
+      const provider = providerFor(providers, permission);
+      if (provider === undefined) {
+        return dock.where(permission);
+      }
+      const ids =
+        provider.permitted === undefined || subject.principal === null
+          ? undefined
+          : await provider.permitted({ permission, subject });
+      if (ids === undefined) {
+        return { condition: { op: 'or', conditions: [] }, partial: true };
+      }
+      if (ids === null || ids.length === 0) {
+        return { condition: { op: 'or', conditions: [] }, partial: false };
+      }
+      const remote: Condition = {
+        op: 'in',
+        field: idFieldOf(policy, permission),
+        value: [...ids],
+      };
+      const local = dock.where(permission);
+      const hasLocal =
+        local.condition.op !== 'or' || local.condition.conditions.length > 0;
+      return hasLocal
+        ? {
+            condition: { op: 'and', conditions: [local.condition, remote] },
+            partial: local.partial,
+          }
+        : { condition: remote, partial: true };
+    },
     actions: dock.actions.bind(dock),
     simulate,
     snapshot: dock.snapshot.bind(dock),

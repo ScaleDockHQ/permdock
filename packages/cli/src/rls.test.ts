@@ -47,6 +47,38 @@ describe('permdock rls', () => {
     expect(result.stdout).toContain('rls');
   });
 
+  it('adds FORCE ROW LEVEL SECURITY only with --force', async () => {
+    const cwd = appCopy();
+    const generate = (out: string, target: string, extra: readonly string[]) =>
+      run(
+        [
+          'rls',
+          'generate',
+          '--target',
+          target,
+          '--dialect',
+          'supabase',
+          '--out',
+          out,
+          ...extra,
+        ],
+        { cwd },
+      );
+    await generate('plain.sql', 'sql', []);
+    expect(readFileSync(join(cwd, 'plain.sql'), 'utf8')).not.toContain(
+      'force row level security',
+    );
+    await generate('forced.sql', 'sql', ['--force']);
+    expect(readFileSync(join(cwd, 'forced.sql'), 'utf8')).toMatch(
+      /enable row level security;\nalter table "[^"]+" force row level security;/u,
+    );
+    const drizzle = await generate('policies.ts', 'drizzle', ['--force']);
+    expect(drizzle.stdout).toContain('--force');
+    expect(readFileSync(join(cwd, 'policies.ts'), 'utf8')).toContain(
+      '/* run in a migration:',
+    );
+  });
+
   it('generates SQL without service_role and compiles principal.id', async () => {
     const cwd = appCopy();
     const result = await run(
@@ -635,6 +667,32 @@ create policy "posts_read" on post for select to authenticated using ((select au
     );
     expect(unmapped.code).toBe(0);
     expect(unmapped.stdout).toContain('rls.functions.job_permitted');
+  });
+
+  it('import proposes a memberships mapping for an unknown EXISTS join', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'members.sql'),
+      `create policy "posts_read" on post for select to authenticated using (
+  exists (select 1 from workspace_users w where w.workspace_id = "orgId")
+);
+`,
+    );
+    const result = await run(
+      [
+        'rls',
+        'import',
+        '--sql',
+        'members.sql',
+        '--out',
+        'src/permissions.generated.ts',
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      "rls: { memberships: { tenant: { table: 'workspace_users'",
+    );
   });
 
   it('import maps EXISTS and IN membership subqueries to memberOf', async () => {

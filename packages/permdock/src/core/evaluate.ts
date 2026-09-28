@@ -648,6 +648,7 @@ export function evaluate(
     where: matchedAllow.grant.where,
     check: matchedAllow.grant.check,
     approval: matchedAllow.grant.approval,
+    hosted: matchedAllow.grant.hosted,
   });
   const decision: Decision = requiresApproval(matchedAllow.grant.approval)
     ? freezeDeep({

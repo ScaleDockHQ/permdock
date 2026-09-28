@@ -1,6 +1,6 @@
 ---
 title: OpenAPI registries
-description: "The OpenAPI Initiative registries, the x-permdock- namespace PermDock emits, which registered x-oai-* and x-agent-trust extensions it reuses, the JWS typ values PermDock signs with, and the rule for never inventing names in someone else's namespace."
+description: "The OpenAPI Initiative registries, the x-permdock- namespace PermDock emits, which registered x-oai-* extensions it reuses, why it does not use x-agent-trust, the JWS typ values and media types PermDock signs with, and the rule for never inventing names in someone else's namespace."
 ---
 
 Status: planned
@@ -26,7 +26,7 @@ The [Extension Registry](https://spec.openapis.org/registry/extension/) entries 
 - `x-oai-deprecated`: marks a Security Scheme deprecated in documents older than 3.2.
 - `x-oai-deviceAuthorization`: the OAuth 2.0 device authorization flow inside `flows`, pre-3.2.
 - `x-oai-deviceAuthorizationUrl`: the RFC 8628 device authorization endpoint, pre-3.2.
-- `x-agent-trust`: a trust-level metadata block for agent-authenticated `apiKey` security schemes, carrying the signature `algorithm`, a trust level vocabulary and a JWKS endpoint for local verification.
+- `x-agent-trust`: a trust-level block (`algorithm`, `trustLevels`, `issuerKeysUrl`) for `apiKey` schemes whose header is `Agent-Signature`, from the `draft-sharif-agent-identity-framework` family. It is listed here because it looks close to Web Bot Auth and is not: PermDock does not emit it (see below).
 
 There is no registered `x-oai-oauth2MetadataUrl`, and `permdock` is not a registered namespace today.
 
@@ -37,7 +37,7 @@ PermDock puts permission keys, portable conditions, approval metadata and securi
 - **Collisions.** An `x-permissions` field means something different to every tool that emits one. A registered namespace makes `x-permdock-permissions` mean exactly one thing.
 - **Impersonation.** Writing an unregistered `x-oai-*` name looks official and is not; a viewer that implements the registered `x-oai-*` set will ignore it or, worse, misread it. `oai` is reserved for the OpenAPI Initiative.
 
-Conversely, when a registered extension already says what PermDock needs to say, reusing it means other tools understand the output without knowing PermDock exists. That is why the 3.1 fallbacks for device authorization and deprecation use the `x-oai-*` names, and why the Web Bot Auth security scheme carries `x-agent-trust` rather than an `x-permdock-*` twin.
+Conversely, when a registered extension already says what PermDock needs to say, reusing it means other tools understand the output without knowing PermDock exists. That is why the 3.1 fallbacks for device authorization and deprecation use the `x-oai-*` names. The converse also holds: a registered name whose definition is for a different protocol is not reused because it looks close, which is why the Web Bot Auth scheme carries no `x-agent-trust`.
 
 ## How PermDock uses it
 
@@ -59,6 +59,7 @@ Until the registration lands, the extensions are still valid OpenAPI (any `x-` f
 | `x-permdock-conditions` | Operation | Object keyed by permission key whose values are portable condition JSON ([wire formats](/docs/concepts/wire-formats)) | What a scope allows beyond "the scope is present", e.g. `authorId = principal.id` |
 | `x-permdock-securityProfile` | Security Scheme, Operation, root | String, currently `"fapi2"` | Declares that the resource server implements a named security profile ([FAPI 2.0](/docs/standards/fapi-2)); an operation-level value overrides the scheme's. On `--target 3.3` output it is the stable twin of the native `type: profile` scheme and `securityProfileRequirements` emitted from the pinned [OpenAPI 3.3](/docs/standards/openapi) draft, so consumers that ignore the draft still see the declaration |
 | `x-permdock-approval` | Operation | Object keyed by permission key: `{ "post.delete": { "reason": "human" } }` | The operation may answer `approval-required`; clients can plan for an approval step ([approvals](/docs/security/approvals)) |
+| `x-permdock-arity` | Operation (`permdock openapi emit --arity` only) | `{ "kind": "collection" }` or `{ "kind": "instance", "parameter": "id" }` | Whether the operation acts on one resource and which path parameter carries its id, for generated MCP servers and SDKs ([permdock openapi](/docs/cli/openapi)) |
 | `x-permdock-oauth2MetadataUrl` | Security Scheme (3.1 targets only) | URL string | Fallback for the 3.2 `oauth2MetadataUrl` field, for which no `x-oai-*` extension is registered |
 | `x-permdock-catalog` | Root | `{ "v": 1, "generator": "permdock/openapi", "drafts": { "oas": "3.3-dev@<commit>", "securityProfiles": "oai-discussion-5304@2026-09-01", "overlay": "1.2-dev@<commit>" } }` | Identifies the generator and the shape version (`v`); it carries no catalog hash, because `permdock openapi --check` detects drift by regenerating the output and comparing it. `drafts` is present only when the output depends on an unfinished specification (today: `--target 3.3` for `oas` and `securityProfiles`, `--overlay 1.2` for `overlay`) and names each pinned revision; `--check` fails and `permdock doctor` warns when the pins differ from the installed CLI's |
 
@@ -91,7 +92,6 @@ Every value is plain JSON that survives the same round trips as a permission lea
 | Deprecated scheme, `--target 3.1` | `x-oai-deprecated` | Security Scheme |
 | Device authorization flow, `--target 3.1` | `x-oai-deviceAuthorization` | Inside `flows` of an `oauth2` scheme |
 | Device authorization endpoint, `--target 3.1` | `x-oai-deviceAuthorizationUrl` | Inside that flow |
-| Web Bot Auth agent identity | `x-agent-trust` | The `apiKey` Security Scheme that carries the signature |
 
 ### JWS `typ` values PermDock emits
 
@@ -102,21 +102,61 @@ These are not OpenAPI extensions but they are the other namespace PermDock write
 | `permdock-snapshot+jwt` | `snapshot` (snapshot `v: 1`) | `permdock.snapshot({ signer })`, `permdock/cloud` snapshots |
 | `permdock-approval+jwt` | `approval` | `approvalsHandler({ signer })` |
 | `permdock-decisions+jwt` | `events` | A `DecisionSink` with `signer`, `permdock/cloud` export |
+| `permdock-policy+jwt` | `policy` (policy document `v: 1`) | PermDock Cloud hosted grants, read by `cloud().policies` |
 
-The `+jwt` structured syntax suffix is registered (RFC 8417 section 7.2), so any JOSE library treats these as JWTs. The names themselves are not registered media types, unlike `at+jwt` (RFC 9068), `secevent+jwt` (RFC 8417) and `logout+jwt` (Back-Channel Logout), whose specifications registered `application/…` types; registering `application/permdock-snapshot+jwt` and its siblings is planned next to the `permdock` namespace registration, and until then the names are safe because a verifier only accepts the `typ` it was configured for. A breaking change to an envelope is a new `typ` value and a new row, never a changed row. Fixtures in `@permdock/testing` assert the set of `typ` values the package can emit equals this table.
+The `+jwt` structured syntax suffix is registered (RFC 8417 section 7.2), so any JOSE library treats these as JWTs. Each `typ` is the short form of a media type, and the full names are the media types PermDock documents:
 
-For [Web Bot Auth](/docs/standards/web-bot-auth), PermDock documents signed agent traffic as an `apiKey` scheme with `in: header` and `name: Signature-Agent`, the header through which the verifier discovers the signer's keys. The `x-agent-trust` block on that scheme carries the signature `algorithm`, the trust level (using the vocabulary the registry entry defines) and the JWKS endpoint the adapter verifies against. PermDock does not define its own trust vocabulary; the field names and allowed values are copied from the registry entry. The HTTP adapters verify Web Bot Auth today; emitting the `x-agent-trust` block in OpenAPI output is planned.
+| Media type | `typ` | Carried as |
+| --- | --- | --- |
+| `application/permdock-snapshot+jwt` | `permdock-snapshot+jwt` | A signed snapshot in a response body or `SnapshotSource` payload |
+| `application/permdock-approval+jwt` | `permdock-approval+jwt` | A signed approval request handed to a delivery surface |
+| `application/permdock-decisions+jwt` | `permdock-decisions+jwt` | A signed event batch: a sink export or a Cloud webhook delivery |
+| `application/permdock-policy+jwt` | `permdock-policy+jwt` | The hosted-grants policy document from `GET /policy` |
+
+On the wire PermDock sends and accepts `application/jwt` as the `Content-Type` of every one of them, because a receiver checks `typ` after verifying and `application/jwt` is registered (RFC 7519 section 10.3.1); the specific names identify the envelope in documentation, in OpenAPI `content` keys a team writes for its own endpoints, and in the `typ` check. They are not registered with IANA, unlike `at+jwt` (RFC 9068), `secevent+jwt` (RFC 8417) and `logout+jwt` (Back-Channel Logout); until they are, the names are safe because a verifier only accepts the `typ` it was configured for. A breaking change to an envelope is a new `typ` value and a new row, never a changed row. Fixtures in `@permdock/testing` assert the set of `typ` values the package can emit equals this table.
+
+For [Web Bot Auth](/docs/standards/web-bot-auth), a team that wants signed agent traffic in its description declares an `apiKey` scheme with `in: header` and `name: Signature-Agent`, the header through which the verifier discovers the signer's keys, and lists it as an alternative requirement next to the OAuth scheme. It uses standard fields only:
+
+```json
+{
+  "components": {
+    "securitySchemes": {
+      "webBotAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Signature-Agent",
+        "description": "RFC 9421 HTTP Message Signature (Web Bot Auth); keys are discovered through the Signature-Agent directory."
+      }
+    }
+  }
+}
+```
+
+PermDock does not emit this scheme, because whether a route accepts signed agents is the application's deployment decision, and it does not attach `x-agent-trust` to it: that extension is defined for the `Agent-Signature` header of a different draft family, with its own trust-level vocabulary, and a consumer that implements it would misread a Web Bot Auth scheme.
 
 ### Rules
 
 1. Never invent an `x-oai-*` name. The `oai` namespace belongs to the OpenAPI Initiative; if a 3.2 or 3.3 feature has no registered pre-3.2 extension, the fallback is `x-permdock-*` (as for `oauth2MetadataUrl`).
-2. Use a registered extension whenever one exists for the purpose, including extensions outside the `oai` namespace (`x-agent-trust`).
+2. Use a registered extension whenever one exists for the purpose, including extensions outside the `oai` namespace, and only for the purpose its entry defines.
 3. Otherwise use `x-permdock-*`, document it in the table above, and version its shape through `x-permdock-catalog.v`.
 4. Never write into another registered namespace (`x-ms-`, `x-sap-`, `x-scalar-`, `x-jsonschema-`), nor into an unregistered vendor namespace a consumer reads as its own: gateway import fields (`x-amazon-apigateway-*`, `x-google-*`, `x-kong-*`, `x-zuplo-*`), docs-host and generator fields (`x-mint`, `x-mcp`, `x-topics`, `x-fern-*`, `x-speakeasy-*`, `x-stainless-*`, `x-readme`), nor another party's extension for a protocol PermDock has not adopted (the community `x-gnap`; see [GNAP](/docs/standards/watch-list#gnap)). A team that wants one of those derived from PermDock's fields writes its own consumer-side overlay ([OpenAPI ecosystem](/docs/research/ecosystem-index)), even when a field there looks close.
 5. The importer reads the native fields, the registered fallbacks and the `x-permdock-*` set; unknown extensions are preserved untouched, never dropped.
 6. Draft-only native fields (today the `type: profile` scheme and `securityProfileRequirements` on `--target 3.3`, and the Overlay 1.2 `components.actions` shape on `--overlay 1.2`) are emitted only behind an experimental flag, always with a stable twin (the `x-permdock-*` extension, or the 1.1 Overlay form), and with the pinned revision written into `x-permdock-catalog.drafts`.
 
 The emitter's test fixtures enforce rule 1 mechanically: output containing any `x-oai-*` name outside the three registered ones fails the suite.
+
+## Registration checklist
+
+These steps happen outside this repository. Remove the `Status: planned` line at the top of this page in the pull request that records the first one as merged.
+
+1. Namespace: open the pull request against [OAI/spec.openapis.org](https://github.com/OAI/spec.openapis.org/) that adds `registries/_namespace/permdock.md` with prefix `x-permdock-`, a link to this page and the maintainers' contact; record the PR link here.
+2. Extensions: after the namespace merges, nothing further is needed per field; the table above is the description the registry entry links to.
+3. Media types: decide whether to request IANA registration of the four `application/permdock-*+jwt` types (a specification-required registration under RFC 6838 section 3.1 needs a published document; this page and [wire formats](/docs/concepts/wire-formats) are the candidate). Until then the table above is the only definition.
+
+## Why
+
+- **No `x-agent-trust`.** The entry's definition, header name and trust-level vocabulary belong to another draft family. Rule 2 exists so other tools understand PermDock's output; reusing a name for a different protocol produces the opposite.
+- **`application/jwt` on the wire.** Receivers already route `application/jwt`, and the `typ` check after verification is what selects the envelope; a specific `Content-Type` would add a second place for the two to disagree.
 
 ## Mapping table
 
@@ -125,10 +165,11 @@ The emitter's test fixtures enforce rule 1 mechanically: output containing any `
 | Namespace `permdock`, prefix `x-permdock-` | Every PermDock-specific field in a document |
 | Extension `x-oai-deprecated` | `meta.deprecated` on an action, 3.1 output |
 | Extension `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` | `flows: ['deviceAuthorization']` adapter option, 3.1 output |
-| Extension `x-agent-trust` | Web Bot Auth `apiKey` scheme (planned) |
+| Extension `x-agent-trust` | Not used: it is defined for `Agent-Signature`, not Web Bot Auth's `Signature-Agent` |
 | Extension Registry, no entry for `oauth2MetadataUrl` | `x-permdock-oauth2MetadataUrl` |
-| Format, Tag Kind, Media Type, Draft Feature, Alternative Schema registries | Not used; PermDock emits standard JSON Schema formats and no draft features |
-| (JOSE, not OAI) JWS `typ` header values | `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`, the closed list above |
+| Format, Tag Kind, Draft Feature, Alternative Schema registries | Not used; PermDock emits standard JSON Schema formats and no draft features |
+| Media Type registry, IANA media types | `application/permdock-*+jwt`, documented above; not registered |
+| (JOSE, not OAI) JWS `typ` header values | `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`, `permdock-policy+jwt`, the closed list above |
 
 ## Sources
 
@@ -142,5 +183,5 @@ The emitter's test fixtures enforce rule 1 mechanically: output containing any `
 - [OpenAPI](/docs/standards/openapi): the 3.1 fallback table, and why `x-permdock-securityProfile` exists and what it twins on 3.3 output.
 - [OpenAPI Overlay](/docs/standards/openapi-overlay): how the extensions are delivered without mutating the source document.
 - [watch list](/docs/standards/watch-list): the draft pin in `x-permdock-catalog.drafts`.
-- [Web Bot Auth](/docs/standards/web-bot-auth): the scheme that carries `x-agent-trust`.
+- [Web Bot Auth](/docs/standards/web-bot-auth): the `Signature-Agent` scheme recipe.
 - [OpenAPI adapter](/docs/adapters/openapi) and [CLI: openapi](/docs/cli/openapi).

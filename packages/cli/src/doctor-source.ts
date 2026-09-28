@@ -37,16 +37,25 @@ const UNTRUSTED_CLAIMS = [
   'preferred_username',
 ] as const;
 
+export function isClientSource(
+  source: DoctorSource,
+  clientEntries: ReadonlySet<string>,
+): boolean {
+  return (
+    clientEntries.has(source.file) ||
+    source.text.includes("'use client'") ||
+    source.text.includes('"use client"') ||
+    source.file.includes('.client.')
+  );
+}
+
 export function pd001(
   sources: readonly DoctorSource[],
+  clientEntries: ReadonlySet<string> = new Set(),
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   for (const source of sources) {
-    const isClient =
-      source.text.includes("'use client'") ||
-      source.text.includes('"use client"') ||
-      source.file.includes('.client.');
-    if (!isClient) {
+    if (!isClientSource(source, clientEntries)) {
       continue;
     }
     for (const spec of SERVER_SPECIFIERS) {

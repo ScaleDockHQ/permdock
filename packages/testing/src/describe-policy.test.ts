@@ -18,9 +18,12 @@ import {
 } from 'permdock';
 import {
   memoryLimitStore,
+  memoryPolicySource,
   memoryRevocationFeed,
   memoryRoleSource,
   memorySink,
+  mergeHostedGrants,
+  parsePolicyDocument,
 } from 'permdock';
 import { memoryApprovalStore } from 'permdock/approvals';
 import { joseTokenSigner, joseTokenVerifier } from 'permdock/jwt';
@@ -37,6 +40,7 @@ import {
   testReplayStore,
   testRevocationFeed,
   testMembershipSource,
+  testPolicySource,
   testRoleSource,
   testSnapshotSource,
   testSubjectResolver,
@@ -98,6 +102,54 @@ const policy = definePolicy(permissions, {
 
 const ownPost = { id: 'p1', authorId: 'u1', orgId: 'o1', published: false };
 const otherPost = { id: 'p2', authorId: 'u9', orgId: 'o1', published: true };
+
+const hostablePolicy = definePolicy(permissions, {
+  roles: [member, admin],
+  subject: (user: User | null) =>
+    user === null
+      ? null
+      : { id: user.id, orgId: user.orgId, roles: user.roles },
+  hostable: [permissions.post.publish],
+});
+
+const hostedDocument = parsePolicyDocument({
+  v: 1,
+  id: 'doc_1',
+  fingerprint: 'fp_doc_1',
+  catalog: 'cat_1',
+  issuedAt: 1,
+  grants: [
+    {
+      id: 'g_member_publish',
+      permission: 'post.publish',
+      to: { kind: 'role', role: 'member', scope: 'global' },
+      where: { op: 'eq', field: 'authorId', value: { ref: 'principal.id' } },
+    },
+    {
+      id: 'g_member_delete',
+      permission: 'post.delete',
+      to: { kind: 'role', role: 'member', scope: 'global' },
+    },
+  ],
+});
+
+describePolicy(mergeHostedGrants(hostablePolicy, hostedDocument).policy, {
+  exhaustive: false,
+  subjects: {
+    member: { id: 'u1', orgId: 'o1', roles: ['member'] },
+    admin: { id: 'u2', orgId: 'o1', roles: ['admin'] },
+  },
+  fixtures: { ownPost, otherPost },
+  matrix: {
+    [permissions.post.publish.key]: {
+      ownPost: { member: 'granted', admin: 'granted' },
+      otherPost: { member: 'denied', admin: 'denied' },
+    },
+    [permissions.post.delete.key]: {
+      ownPost: { member: 'approval-required', admin: 'granted' },
+    },
+  },
+});
 
 describePolicy(policy, {
   snapshot: true,
@@ -460,6 +512,11 @@ describe('conformance runners', () => {
     subscribe: () => () => undefined,
   });
 
+  testPolicySource(memoryPolicySource(), { policy: hostablePolicy });
+  testPolicySource(memoryPolicySource(hostedDocument), {
+    policy: hostablePolicy,
+  });
+
   testWhereCompiler(() => false, { target: {} });
 
   testApprovalStore(memoryApprovalStore());
@@ -491,8 +548,30 @@ describe('conformance runners', () => {
     expect(Object.keys(fixtures).toSorted()).toEqual([
       'permdock-approval+jwt',
       'permdock-decisions+jwt',
+      'permdock-policy+jwt',
       'permdock-snapshot+jwt',
     ]);
+  });
+
+  it('verifies the policy fixture and parses its document', async () => {
+    const fixtures = JSON.parse(
+      readFileSync(
+        new URL('../fixtures/jwt/signed-outputs.json', import.meta.url),
+        'utf8',
+      ),
+    ) as Record<string, string>;
+    const verified = await joseTokenVerifier({
+      jwks: jwtFixtureJwks,
+      algorithms: ['Ed25519'],
+    }).verify(fixtures['permdock-policy+jwt'] ?? '', {
+      typ: 'permdock-policy+jwt',
+      audience: 'https://app.example.com',
+    });
+    expect(verified.ok).toBe(true);
+    const document = parsePolicyDocument(
+      verified.ok ? verified.claims.policy : null,
+    );
+    expect(document.grants).toHaveLength(1);
   });
 
   testTokenSigner(

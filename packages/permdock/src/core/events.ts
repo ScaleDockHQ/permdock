@@ -130,12 +130,14 @@ export function finish(
               role: decision.matched.role,
               permission: decision.matched.permission,
               to: decision.matched.to,
+              hosted: decision.matched.hosted,
             })
           : decision.outcome === 'approval-required'
             ? compact({
                 role: decision.grant.role,
                 permission: decision.grant.permission,
                 to: decision.grant.to,
+                hosted: decision.grant.hosted,
               })
             : undefined,
       denials: decision.outcome === 'denied' ? decision.denials : undefined,

@@ -1,4 +1,4 @@
-import type { Decision } from '../core/decision.ts';
+import type { Decision, DenialReason } from '../core/decision.ts';
 import type { Permission, PermissionTree } from '../core/permissions.ts';
 import type { Actor, Delegation } from '../core/subject.ts';
 
@@ -146,47 +146,43 @@ export function tenantOf(item: AuthzenItem): string | undefined {
   return item.context.tenant;
 }
 
-export function evaluationContext(decision: Decision): {
+/**
+ * What another PEP learns from an evaluation: the outcome, the denial reasons
+ * and the approval token. Grants, conditions and `alternatives` stay inside;
+ * `search/action` is the only place a PEP asks what else is permitted.
+ */
+export type PermDockContext = {
   readonly outcome: Decision['outcome'];
-  readonly permdock: Decision;
-  readonly matched?: Extract<
-    Decision,
-    { readonly outcome: 'granted' }
-  >['matched'];
-  readonly denials?: Extract<
-    Decision,
-    { readonly outcome: 'denied' }
-  >['denials'];
-  readonly alternatives?: readonly string[];
+  readonly denials?: readonly {
+    readonly role: string | null;
+    readonly reason: DenialReason;
+  }[];
   readonly token?: string;
-  readonly reason?: string;
-} {
+  readonly reason?: 'unknown-permission';
+};
+
+/** Only the outcome, denial reasons and token leave the PDP; `alternatives` are `search/action`. */
+export type EvaluationContext = { readonly permdock: PermDockContext };
+
+function permdockContext(decision: Decision): PermDockContext {
   switch (decision.outcome) {
     case 'granted':
-      return {
-        outcome: 'granted',
-        matched: decision.matched,
-        token: decision.token,
-        permdock: decision,
-      };
+      return { outcome: 'granted' };
     case 'denied': {
       const unknown = decision.denials.some(
         (denial) => denial.detail === 'unknown-permission',
       );
-      return compact({
-        outcome: 'denied' as const,
-        denials: decision.denials,
-        alternatives: decision.alternatives.map((leaf) => leaf.key),
+      return compact<PermDockContext>({
+        outcome: 'denied',
+        denials: decision.denials.map((denial) => ({
+          role: denial.role,
+          reason: denial.reason,
+        })),
         reason: unknown ? 'unknown-permission' : undefined,
-        permdock: decision,
       });
     }
     case 'approval-required':
-      return {
-        outcome: 'approval-required',
-        token: decision.token,
-        permdock: decision,
-      };
+      return { outcome: 'approval-required', token: decision.token };
     default: {
       const exhaustive: never = decision;
       return exhaustive;
@@ -194,9 +190,13 @@ export function evaluationContext(decision: Decision): {
   }
 }
 
+export function evaluationContext(decision: Decision): EvaluationContext {
+  return { permdock: permdockContext(decision) };
+}
+
 export function evaluationRow(decision: Decision): {
   readonly decision: boolean;
-  readonly context: ReturnType<typeof evaluationContext>;
+  readonly context: EvaluationContext;
 } {
   return {
     decision: decision.outcome === 'granted',

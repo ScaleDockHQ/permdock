@@ -19,6 +19,7 @@ import type {
 } from '@modelcontextprotocol/server';
 
 import type { ApprovalStore } from '../approvals/types.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -68,6 +69,12 @@ export type McpToolConfig<
   readonly icons?: Icon[];
   readonly scopeChallenge?: ScopeChallengeHandler;
   readonly _meta?: Record<string, unknown>;
+  /**
+   * Decide again when the handler resolves, without consuming quota, and
+   * return the refusal instead of the result unless the call is still
+   * allowed. The re-check withholds the result; it cannot undo the work.
+   */
+  readonly longRunning?: boolean;
 };
 
 export type McpResourceConfig<TArgs extends readonly unknown[]> = Guard<TArgs> &
@@ -131,6 +138,8 @@ export type McpPermDockOptions<TUser = unknown> = {
   readonly requireAuthInfo?: boolean;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;

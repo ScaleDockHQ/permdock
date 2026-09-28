@@ -54,8 +54,8 @@ function httpServer(
   readonly env: { [key: string]: string };
 } {
   return {
-    command: `pnpm --filter @permdock/example-${name} start`,
-    cwd: root,
+    command: 'node --run start',
+    cwd: join(root, 'apps/examples', name),
     url: `http://127.0.0.1:${String(port)}/health`,
     reuseExistingServer: !inCi,
     timeout: 30_000,
@@ -64,7 +64,7 @@ function httpServer(
 }
 
 function uiServer(
-  filter: string,
+  dir: string,
   port: number,
 ): {
   readonly command: string;
@@ -75,8 +75,8 @@ function uiServer(
   readonly env: { [key: string]: string };
 } {
   return {
-    command: `pnpm --filter ${filter} dev`,
-    cwd: root,
+    command: 'node --run dev',
+    cwd: join(root, dir),
     url: `http://127.0.0.1:${String(port)}/`,
     reuseExistingServer: !inCi,
     timeout: 120_000,
@@ -98,8 +98,8 @@ type Project = {
 /** A fixture that builds once and serves its production output (`scripts/serve.ts`). */
 function fixtureServer(name: string, healthPort: number): Server {
   return {
-    command: `pnpm --filter @permdock/e2e-${name} serve`,
-    cwd: root,
+    command: 'node --run serve',
+    cwd: join(root, 'tests/e2e/fixtures', name),
     url: `http://127.0.0.1:${String(healthPort)}/api/health`,
     reuseExistingServer: !inCi,
     timeout: 600_000,
@@ -108,7 +108,7 @@ function fixtureServer(name: string, healthPort: number): Server {
 }
 
 const marketingServer: Server = {
-  ...uiServer('marketing', 3487),
+  ...uiServer('apps/marketing', 3487),
   env: envWith({ CI: '1', PORT: '3487' }),
 };
 
@@ -129,37 +129,37 @@ const projectTable: readonly Project[] = [
   {
     name: 'react-vite',
     port: 3480,
-    servers: [uiServer('@permdock/example-react-vite', 3480)],
+    servers: [uiServer('apps/examples/react-vite', 3480)],
   },
   {
     name: 'vue',
     port: 3481,
-    servers: [uiServer('@permdock/example-vue', 3481)],
+    servers: [uiServer('apps/examples/vue', 3481)],
   },
   {
     name: 'svelte',
     port: 3482,
-    servers: [uiServer('@permdock/example-svelte', 3482)],
+    servers: [uiServer('apps/examples/svelte', 3482)],
   },
   {
     name: 'solid',
     port: 3483,
-    servers: [uiServer('@permdock/example-solid', 3483)],
+    servers: [uiServer('apps/examples/solid', 3483)],
   },
   {
     name: 'webmcp',
     port: 3484,
-    servers: [uiServer('@permdock/example-webmcp', 3484)],
+    servers: [uiServer('apps/examples/webmcp', 3484)],
   },
   {
     name: 'next',
     port: 3485,
-    servers: [uiServer('@permdock/example-next', 3485)],
+    servers: [uiServer('apps/examples/next', 3485)],
   },
   {
     name: 'expo',
     port: 3486,
-    servers: [uiServer('@permdock/example-expo', 3486)],
+    servers: [uiServer('apps/examples/expo', 3486)],
   },
   { name: 'marketing', port: 3487, servers: [marketingServer] },
   { name: 'next-saas', port: 3490, servers: [saasServer] },
@@ -212,6 +212,11 @@ const projectTable: readonly Project[] = [
     name: 'b2b-scim',
     port: 3510,
     servers: [fixtureServer('b2b-scim', 3510)],
+  },
+  {
+    name: 'cloud-contract',
+    port: 3511,
+    servers: [fixtureServer('cloud-contract', 3511)],
   },
 ];
 

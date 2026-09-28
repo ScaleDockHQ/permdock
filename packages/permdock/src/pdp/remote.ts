@@ -7,32 +7,21 @@ import type { RemotePdpOptions } from './types.ts';
 import { isRecord } from '../authzen/map.ts';
 import { compact } from '../core/compact.ts';
 import { listPermissions } from '../core/permissions.ts';
-import { decisionToken } from '../core/token.ts';
+import {
+  DEFAULT_TIMEOUT_MS,
+  cacheKey,
+  denied,
+  granted,
+  joinUrl,
+  postJson,
+  resourceIdOf,
+  ttlCache,
+  ttlMs,
+} from './shared.ts';
 
-const DEFAULT_TIMEOUT_MS = 300;
 const DEFAULT_EVALUATION = '/access/v1/evaluation';
 const DEFAULT_EVALUATIONS = '/access/v1/evaluations';
-
-function ttlMs(ttl: RemotePdpOptions['cache']): number {
-  if (ttl === undefined) {
-    return 0;
-  }
-  if (typeof ttl.ttl === 'number') {
-    return ttl.ttl;
-  }
-  if (ttl.ttl.endsWith('ms')) {
-    return Number(ttl.ttl.slice(0, -2));
-  }
-  return Number(ttl.ttl.slice(0, -1)) * 1000;
-}
-
-function joinUrl(base: string, path: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
-  }
-  const trimmed = base.endsWith('/') ? base.slice(0, -1) : base;
-  return `${trimmed}${path.startsWith('/') ? path : `/${path}`}`;
-}
+const MAX_SEARCH_PAGES = 100;
 
 function delegatedKeys(
   listed: RemotePdpOptions['permissions'],
@@ -47,72 +36,6 @@ function delegatedKeys(
     }
   }
   return keys;
-}
-
-function resourceIdOf(data: unknown): string {
-  if (data === null || typeof data !== 'object') {
-    return '*';
-  }
-  const record = data as Record<string, unknown>;
-  const id = record.id;
-  if (typeof id === 'string' || typeof id === 'number') {
-    return String(id);
-  }
-  return '*';
-}
-
-const CACHE_MAX = 1000;
-
-/**
- * The evaluation body that would be sent, plus what a custom mapping may drop
- * (issuer, tenant, actor): a tenant switch or a changed row never reuses a
- * cached decision.
- */
-function cacheKey(
-  subject: Subject,
-  permission: Permission,
-  body: Record<string, unknown>,
-): string {
-  return JSON.stringify([
-    permission.key,
-    subject.principal?.issuer ?? null,
-    subject.principal?.tenant ?? null,
-    subject.actor === undefined ? null : [subject.actor.id, subject.actor.kind],
-    body,
-  ]);
-}
-
-function denied(reason: DenialReason): Decision {
-  return {
-    outcome: 'denied',
-    denials: [{ role: null, reason }],
-    alternatives: [],
-  };
-}
-
-function granted(
-  permission: Permission,
-  subject: Subject,
-  fingerprint: string,
-  data: unknown,
-): Extract<Decision, { readonly outcome: 'granted' }> {
-  const principal = subject.principal!;
-  return {
-    outcome: 'granted',
-    subject: { ...subject, principal },
-    matched: {
-      role: 'pdp',
-      permission: permission.key,
-      provider: 'pdp',
-    },
-    token: decisionToken({
-      key: permission.key,
-      resourceId: resourceIdOf(data),
-      principal,
-      actor: subject.actor,
-      fingerprint,
-    }),
-  };
 }
 
 type Discovery = {
@@ -195,16 +118,18 @@ function parseRemoteDecision(
   body: unknown,
   permission: Permission,
   subject: Subject,
-  fingerprint: string,
   data: unknown,
 ): Decision {
   if (!isRecord(body) || typeof body.decision !== 'boolean') {
     return denied('pdp-invalid-response');
   }
   if (body.decision) {
-    return granted(permission, subject, fingerprint, data);
+    return granted('pdp', permission, subject, data);
   }
-  const context = isRecord(body.context) ? body.context : {};
+  const context =
+    isRecord(body.context) && isRecord(body.context.permdock)
+      ? body.context.permdock
+      : {};
   if (context.outcome === 'approval-required') {
     const token = typeof context.token === 'string' ? context.token : '';
     return {
@@ -243,15 +168,52 @@ function parseRemoteDecision(
   return denied('pdp-denied');
 }
 
+function mapSearchBody(
+  permission: Permission,
+  subject: Subject,
+  mapping: RemotePdpOptions['mapping'],
+): Record<string, unknown> {
+  const body = mapEvaluationBody(permission, undefined, subject, mapping);
+  const resource = isRecord(body.resource) ? body.resource : {};
+  return {
+    ...body,
+    resource: { type: resource.type ?? permission.resource },
+  };
+}
+
+function searchIds(body: unknown, type: unknown): string[] | null {
+  if (!isRecord(body) || !Array.isArray(body.results)) {
+    return null;
+  }
+  const ids: string[] = [];
+  for (const entity of body.results) {
+    if (
+      !isRecord(entity) ||
+      entity.type !== type ||
+      typeof entity.id !== 'string'
+    ) {
+      return null;
+    }
+    ids.push(entity.id);
+  }
+  return ids;
+}
+
+function nextToken(body: unknown): string | undefined {
+  if (!isRecord(body) || !isRecord(body.page)) {
+    return undefined;
+  }
+  const token = body.page.next_token;
+  return typeof token === 'string' && token !== '' ? token : undefined;
+}
+
 export function remotePdp(options: RemotePdpOptions): DecisionProvider {
   const keys = delegatedKeys(options.permissions);
   const timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
-  const cacheTtl = ttlMs(options.cache);
-  const cache = new Map<
-    string,
-    { readonly at: number; readonly decision: Decision }
-  >();
+  const decisions = ttlCache<Decision>(ttlMs(options.cache));
+  const lists = ttlCache<readonly string[]>(ttlMs(options.cache));
   const fetcher = options.fetch ?? fetch;
+  const post = { auth: options.auth, timeout };
   let discovery: Discovery | null =
     options.endpoints?.evaluation === undefined
       ? null
@@ -260,20 +222,6 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
           evaluations: options.endpoints.evaluations,
           searchResource: options.endpoints.searchResource,
         });
-
-  async function bearer(): Promise<string | null> {
-    const auth = options.auth;
-    if (auth === undefined) {
-      return null;
-    }
-    try {
-      const token =
-        typeof auth.bearer === 'function' ? await auth.bearer() : auth.bearer;
-      return token === '' ? null : token;
-    } catch {
-      return null;
-    }
-  }
 
   async function discover(): Promise<Discovery | null> {
     if (discovery !== null) {
@@ -299,31 +247,18 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
     }
   }
 
-  async function post(
+  async function readJson(
     url: string,
     body: unknown,
   ): Promise<
     { readonly ok: true; readonly body: unknown } | { readonly ok: false }
   > {
-    const token = await bearer();
-    const headers: Record<string, string> = {
-      'content-type': 'application/json',
-      accept: 'application/json',
-    };
-    if (token !== null) {
-      headers.authorization = `Bearer ${token}`;
+    const posted = await postJson(fetcher, url, body, post);
+    if (!posted.ok) {
+      return posted;
     }
     try {
-      const response = await fetcher(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeout),
-      });
-      if (!response.ok) {
-        return { ok: false };
-      }
-      return { ok: true, body: await response.json() };
+      return { ok: true, body: await posted.response.json() };
     } catch {
       return { ok: false };
     }
@@ -350,18 +285,15 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
         return denied('pdp-invalid-response');
       }
       const key = cacheKey(request.subject, request.permission, body);
-      if (cacheTtl > 0) {
-        const hit = cache.get(key);
-        if (hit !== undefined && Date.now() - hit.at < cacheTtl) {
-          return hit.decision;
-        }
-        cache.delete(key);
+      const hit = decisions.get(key);
+      if (hit !== undefined) {
+        return hit;
       }
       const endpoints = await discover();
       if (endpoints === null) {
         return denied('pdp-unavailable');
       }
-      const posted = await post(endpoints.evaluation, body);
+      const posted = await readJson(endpoints.evaluation, body);
       if (!posted.ok) {
         return denied('pdp-unavailable');
       }
@@ -369,7 +301,6 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
         posted.body,
         request.permission,
         request.subject,
-        'pdp',
         request.data,
       );
       const cacheable =
@@ -377,16 +308,67 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
         decision.outcome === 'approval-required' ||
         (decision.outcome === 'denied' &&
           decision.denials[0]?.reason === 'pdp-denied');
-      if (cacheTtl > 0 && cacheable) {
-        cache.set(key, { at: Date.now(), decision });
-        if (cache.size > CACHE_MAX) {
-          const oldest = cache.keys().next();
-          if (oldest.done !== true) {
-            cache.delete(oldest.value);
-          }
-        }
+      if (cacheable) {
+        decisions.set(key, decision);
       }
       return decision;
+    },
+    async permitted(request): Promise<readonly string[] | null | undefined> {
+      if (request.subject.principal === null) {
+        return [];
+      }
+      const endpoints = await discover();
+      if (endpoints === null) {
+        return null;
+      }
+      if (endpoints.searchResource === undefined) {
+        return undefined;
+      }
+      let body: Record<string, unknown>;
+      try {
+        body = mapSearchBody(
+          request.permission,
+          request.subject,
+          options.mapping,
+        );
+      } catch {
+        return null;
+      }
+      const key = cacheKey(request.subject, request.permission, body);
+      const hit = lists.get(key);
+      if (hit !== undefined) {
+        return hit;
+      }
+      const type = isRecord(body.resource) ? body.resource.type : undefined;
+      const url = endpoints.searchResource;
+      const collect = async (
+        token: string | undefined,
+        page: number,
+        ids: readonly string[],
+      ): Promise<readonly string[] | null> => {
+        if (page >= MAX_SEARCH_PAGES) {
+          return null;
+        }
+        const posted = await readJson(
+          url,
+          token === undefined ? body : { ...body, page: { token } },
+        );
+        const found = posted.ok ? searchIds(posted.body, type) : null;
+        if (!posted.ok || found === null) {
+          return null;
+        }
+        const next = nextToken(posted.body);
+        return next === undefined
+          ? [...ids, ...found]
+          : collect(next, page + 1, [...ids, ...found]);
+      };
+      const ids = await collect(undefined, 0, []);
+      if (ids === null) {
+        return null;
+      }
+      const frozen = Object.freeze([...ids]);
+      lists.set(key, frozen);
+      return frozen;
     },
   };
 }

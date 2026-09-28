@@ -117,7 +117,7 @@ export async function resolveToken(
           break;
         }
         const stored = readCredentials(
-          options.storage.service,
+          options.storage,
           options.profile,
           options.runtime,
         );
@@ -133,7 +133,7 @@ export async function resolveToken(
             );
             if (refreshed !== null) {
               writeCredentials(
-                options.storage.service,
+                options.storage,
                 options.profile,
                 refreshed,
                 options.runtime,
@@ -166,7 +166,7 @@ export async function resolveToken(
         }
         if (options.storage !== undefined) {
           writeCredentials(
-            options.storage.service,
+            options.storage,
             options.profile,
             credential,
             options.runtime,

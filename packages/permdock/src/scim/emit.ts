@@ -4,8 +4,12 @@ import type {
   SinkEvent,
 } from '../core/interfaces.ts';
 import type { ScimCredential } from './auth.ts';
-import type { DirectoryGroup, DirectoryUser } from './types.ts';
-import type { ScimHandlerOptions } from './types.ts';
+import type {
+  DirectoryChange,
+  DirectoryGroup,
+  DirectoryUser,
+  ScimHandlerOptions,
+} from './types.ts';
 
 import { compact } from '../core/compact.ts';
 import { membershipEvent, memorySink } from '../core/sink.ts';
@@ -81,6 +85,10 @@ export async function emitDirectory(
   /** Records read before a delete, when the store can no longer return them. */
   known: readonly DirectoryUser[] = [],
 ): Promise<void> {
+  const kind =
+    event.resource.type === 'User' && event.active === false
+      ? 'session-revoked'
+      : 'changed';
   const sink = options.sink ?? memorySink();
   try {
     await sink.write([event, ...extra] as readonly SinkEvent[]);
@@ -88,11 +96,11 @@ export async function emitDirectory(
     // A throwing sink must never fail the IdP write.
   }
   try {
-    await options.onChange?.({ tenant: event.tenant, userIds });
+    await options.onChange?.({ tenant: event.tenant, userIds, kind });
   } catch {
     // Snapshot invalidation is best-effort.
   }
-  await publishChanged(options, event.tenant, userIds, known);
+  await publish(options, kind, event.tenant, userIds, known);
 }
 
 /** Every identifier a principal may carry for these users, deduplicated. */
@@ -129,8 +137,9 @@ async function principalIds(
   return [...ids];
 }
 
-async function publishChanged(
+async function publish(
   options: ScimHandlerOptions,
+  kind: DirectoryChange['kind'],
   tenant: string,
   userIds: readonly string[],
   known: readonly DirectoryUser[],
@@ -147,7 +156,7 @@ async function publishChanged(
       known,
     )) {
       // oxlint-disable-next-line no-await-in-loop -- a feed may bridge to pub/sub
-      await feed.revoke({ principal, tenant, kind: 'changed' });
+      await feed.revoke({ principal, tenant, kind });
     }
   } catch {
     // Connections fall back to their expiry when a feed is down.

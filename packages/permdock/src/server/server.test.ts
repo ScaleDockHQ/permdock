@@ -120,6 +120,44 @@ describe('permdock/server', () => {
     );
   });
 
+  it('adds the approval hint to every approval-required problem', async () => {
+    const { protect, problem, permdock } = createPermDock(policy, {
+      subject: () => memberUser,
+      approval: { at: 'https://app.example/approvals', hint: 'Ask an admin.' },
+    });
+    const pending = await protect(
+      permissions.post.delete,
+      () => ownPost,
+    )(request());
+    if (pending.ok) {
+      throw new Error('expected approval-required');
+    }
+    expect(await pending.response.json()).toMatchObject({
+      type: 'https://permdock.dev/problems/approval-required',
+      approval: { at: 'https://app.example/approvals', hint: 'Ask an admin.' },
+    });
+    const dock = await permdock(request());
+    const decision = dock.decide(permissions.post.delete, ownPost);
+    const body = (await problem(decision, {
+      permission: permissions.post.delete,
+    }).json()) as { readonly approval?: unknown };
+    expect(body.approval).toEqual({
+      at: 'https://app.example/approvals',
+      hint: 'Ask an admin.',
+    });
+    const read = await protect(permissions.post.update, () => ({
+      ...ownPost,
+      authorId: 'someone-else',
+    }))(request());
+    if (read.ok) {
+      throw new Error('expected denied');
+    }
+    expect(
+      ((await read.response.json()) as { readonly approval?: unknown })
+        .approval,
+    ).toBeUndefined();
+  });
+
   it('resumes an approved PermDock-Approval header on protect', async () => {
     const store = memoryApprovalStore();
     const { permdock, protect } = createPermDock(policy, {

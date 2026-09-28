@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import type { DirectoryEvent, TokenVerifier } from '../core/interfaces.ts';
 import type { RevocationEvent } from '../core/revocations.ts';
+import type { DirectoryChange } from './types.ts';
 
 import { createPermDock } from '../core/permdock.ts';
 import { memoryRevocationFeed } from '../core/revocations.ts';
@@ -674,13 +675,19 @@ describe('scimHandler', () => {
 });
 
 describe('scimHandler revocations', () => {
-  it('publishes changed for id, userName and externalId on deactivate and delete', async () => {
+  it('publishes session-revoked for id, userName and externalId on deactivate and delete', async () => {
     const feed = memoryRevocationFeed();
     const seen: RevocationEvent[] = [];
+    const changes: DirectoryChange[] = [];
     feed.subscribe((event) => {
       seen.push(event);
     });
-    const { handle } = handler({ revocations: feed });
+    const { handle } = handler({
+      revocations: feed,
+      onChange: (change) => {
+        changes.push(change);
+      },
+    });
     const user = await json(
       await handle(
         request('/Users', {
@@ -695,11 +702,13 @@ describe('scimHandler revocations', () => {
       ),
     );
     const id = String(user.id);
-    const expected = [id, 'ada', '00u1']
-      .map((principal) => ({ principal, tenant: TENANT, kind: 'changed' }))
-      .toSorted((a, b) => a.principal.localeCompare(b.principal));
+    const expected = (kind: RevocationEvent['kind']): RevocationEvent[] =>
+      [id, 'ada', '00u1']
+        .map((principal) => ({ principal, tenant: TENANT, kind }))
+        .toSorted((a, b) => a.principal.localeCompare(b.principal));
     const sorted = (): RevocationEvent[] =>
       seen.toSorted((a, b) => a.principal.localeCompare(b.principal));
+    expect(sorted()).toEqual(expected('changed'));
 
     seen.length = 0;
     await handle(
@@ -711,12 +720,35 @@ describe('scimHandler revocations', () => {
         }),
       }),
     );
-    expect(sorted()).toEqual(expected);
+    expect(sorted()).toEqual(expected('session-revoked'));
+
+    seen.length = 0;
+    await handle(
+      request(`/Users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          schemas: [PATCH_SCHEMA],
+          Operations: [{ op: 'replace', path: 'active', value: true }],
+        }),
+      }),
+    );
+    expect(sorted()).toEqual(expected('changed'));
 
     seen.length = 0;
     const deleted = await handle(request(`/Users/${id}`, { method: 'DELETE' }));
     expect(deleted.status).toBe(204);
-    expect(sorted()).toEqual(expected);
+    expect(sorted()).toEqual(expected('session-revoked'));
+    expect(changes.map((change) => change.kind)).toEqual([
+      'changed',
+      'session-revoked',
+      'changed',
+      'session-revoked',
+    ]);
+    expect(changes.at(-1)).toEqual({
+      tenant: TENANT,
+      userIds: [id],
+      kind: 'session-revoked',
+    });
   });
 
   it('keeps the IdP write successful when the feed throws', async () => {

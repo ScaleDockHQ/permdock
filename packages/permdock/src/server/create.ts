@@ -1,5 +1,7 @@
 import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
+import type { ApprovalHint } from '../core/errors.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -25,7 +27,11 @@ import {
   applyApprovalResume,
   createEvaluationsHandler,
 } from './evaluations.ts';
-import { problemFromDecision, problemResponse } from './problem.ts';
+import {
+  PROBLEM_BASE,
+  problemFromDecision,
+  problemResponse,
+} from './problem.ts';
 import { InvalidSignatureError, verifyWebBotAuth } from './web-bot-auth.ts';
 
 export type ServerPermDockOptions<TUser = unknown> = {
@@ -37,6 +43,8 @@ export type ServerPermDockOptions<TUser = unknown> = {
     | ((request: Request) => string | undefined | Promise<string | undefined>);
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -50,7 +58,8 @@ export type ServerPermDockOptions<TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; HTTP adapters do not read it. */
   readonly snapshots?: SnapshotSource;
-  readonly problem?: { readonly base?: string };
+  /** Added as `approval` to every `approval-required` problem. */
+  readonly approval?: ApprovalHint;
 };
 
 export type Guard<T = unknown> =
@@ -154,11 +163,7 @@ async function resolveActor(
   request: Request,
   options: ServerPermDockOptions,
 ): Promise<Actor | undefined> {
-  const verified = await verifyWebBotAuth(
-    request,
-    options.webBotAuth,
-    options.problem?.base,
-  );
+  const verified = await verifyWebBotAuth(request, options.webBotAuth);
   if (verified !== undefined) {
     return verified;
   }
@@ -190,6 +195,27 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   options: ServerPermDockOptions<TUser>,
 ): ServerPermDock {
   return createKernel(policy, options);
+}
+
+function problemFor(
+  decision: Decision,
+  init?: { readonly permission?: Permission; readonly instance?: string },
+  approval?: ApprovalHint,
+): Response {
+  if (init?.permission !== undefined) {
+    return problemFromDecision(
+      decision,
+      init.permission,
+      { principal: null, context: {} },
+      compact({ instance: init.instance, approval }),
+    );
+  }
+  return problemResponse({
+    type: `${PROBLEM_BASE}/denied`,
+    title: 'Permission denied',
+    status: 403,
+    detail: decision.outcome,
+  });
 }
 
 /**
@@ -244,6 +270,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
       tenant,
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       sink: options.sink,
       limits: options.limits,
       actor,
@@ -391,33 +418,10 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
           decision,
           permission,
           instance.subject,
-          compact({ base: options.problem?.base }),
+          compact({ approval: options.approval }),
         ),
       };
     };
-
-  const problem = (
-    decision: Decision,
-    init?: { readonly permission?: Permission; readonly instance?: string },
-  ): Response => {
-    if (init?.permission !== undefined) {
-      return problemFromDecision(
-        decision,
-        init.permission,
-        { principal: null, context: {} },
-        compact({
-          instance: init.instance,
-          base: options.problem?.base,
-        }),
-      );
-    }
-    return problemResponse({
-      type: `${options.problem?.base ?? 'https://permdock.dev/problems'}/denied`,
-      title: 'Permission denied',
-      status: 403,
-      detail: decision.outcome,
-    });
-  };
 
   const openapi: OpenApiHooks = {
     security: (permission: Permission) => ({
@@ -455,5 +459,12 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
       }),
     );
 
-  return { permdock, protect, connection, problem, openapi, handler };
+  return {
+    permdock,
+    protect,
+    connection,
+    problem: (decision, init) => problemFor(decision, init, options.approval),
+    openapi,
+    handler,
+  };
 }

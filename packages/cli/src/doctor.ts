@@ -12,8 +12,10 @@ import {
   pd017,
   pd018,
   pd019,
+  pd020,
+  pd021,
 } from './doctor-collect.ts';
-import { pd005, pd006, pd009, pd012 } from './doctor-project.ts';
+import { pd005, pd006, pd009, pd012, pd022 } from './doctor-project.ts';
 import {
   pd001,
   pd007,
@@ -75,7 +77,12 @@ export async function runDoctor(input: {
   }));
 
   if (include('imports') || include('PD001')) {
-    findings.push(...pd001(sources));
+    const clientEntries = new Set(
+      listSourceFiles(input.cwd, input.config.doctor?.clientEntries ?? []).map(
+        (file) => rel(input.cwd, file),
+      ),
+    );
+    findings.push(...pd001(sources, clientEntries));
   }
   if (include('references') || include('PD002')) {
     findings.push(...(await pd002(input)));
@@ -130,6 +137,17 @@ export async function runDoctor(input: {
   }
   if (include('jwt-roles') || include('PD019')) {
     findings.push(...(await pd019(input)));
+  }
+  if (include('hosted') || include('PD020')) {
+    findings.push(...(await pd020(input)));
+  }
+  if (include('hosted') || include('PD021')) {
+    findings.push(
+      ...(await pd021({ ...input, env: input.io.env ?? process.env })),
+    );
+  }
+  if (include('views') || include('PD022')) {
+    findings.push(...pd022(input.cwd, input.config));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

@@ -34,28 +34,64 @@ export const policy = definePolicy(permissions, {
 })
 ```
 
+### OpenFGA and SpiceDB
+
+```ts
+import { openfga, spicedb } from 'permdock/pdp'
+
+const fga = openfga({
+  url: 'https://fga.internal',
+  storeId: process.env.FGA_STORE_ID,
+  authorizationModelId: process.env.FGA_MODEL_ID, // optional
+  auth: { bearer: () => getFgaToken() },           // optional
+  map: [
+    [permissions.doc.read, (subject, doc) => ({
+      user: `user:${subject.principal.id}`, relation: 'viewer', type: 'document', id: doc?.id,
+    })],
+  ],
+})
+
+const spice = spicedb({
+  url: 'https://spicedb.internal:8443',             // the HTTP gateway (--http-enabled)
+  token: process.env.SPICEDB_KEY,
+  consistency: 'minimize-latency',                   // or 'fully-consistent'
+  map: [
+    [permissions.doc.read, (subject, doc) => ({
+      subject: { type: 'user', id: subject.principal.id },
+      permission: 'view',
+      resource: { type: 'document', id: doc?.id },
+    })],
+  ],
+})
+```
+
+- `map` is one callback per delegated permission; permissions not in it stay local. The callback gets the row for a check and `undefined` for a listing. Returning `null` denies with `pdp-denied`; throwing denies with `pdp-invalid-response` and nothing is sent. A check without an `id` is `pdp-invalid-response`.
+- `decide` calls OpenFGA `POST /stores/<id>/check` (`allowed`) or SpiceDB `POST /v1/permissions/check` (`permissionship`). `PERMISSIONSHIP_CONDITIONAL_PERMISSION`, a caveat missing context, is a denial; an unknown permissionship is `pdp-invalid-response`.
+- `filter` and `where` call OpenFGA `list-objects` (ids are the objects of the mapped `type` with the `type:` prefix removed; an object of another type fails the whole list) or SpiceDB `LookupResources` (the gateway's newline-delimited stream; only `LOOKUP_PERMISSIONSHIP_HAS_PERMISSION` rows count, and an `error` line fails the whole list). The ids must match the PermDock resource's id field.
+- `timeout`, `cache` and `fetch` behave as for `remotePdp`. Relation tuples are written by the application; PermDock never models or stores them.
+
 - `remotePdp(options)` returns a provider that handles `decide` for the listed permissions (or all when `permissions` is omitted). Local roles and grants remain in force; the outcome is the intersection: local `denied` wins, local `granted` still requires the remote `true` when the permission is delegated.
 - `mapping` defaults to `type = permission.resource`, `id = data[resource.id]`, `action.name = permission.action`, `subject.type = 'user'`; override for PDPs with their own naming.
-- `simulate` sends one `evaluations` boxcar request; `filter` sends `evaluations` with one item per row unless the PDP advertises `search/resource`, in which case `filter` and `where` call resource search and the provider returns the permitted ids (`where` compiles to `in(row.id, ids)`).
+- `simulate` decides each check through the provider. `filter` decides row by row unless the provider lists ids: `remotePdp` does when the PDP advertises `search/resource` (it follows `page.next_token`, up to 100 pages), and the relation presets always do. Then `filter` keeps the rows whose id field is in the list and that local evaluation does not short-circuit, with one request per call instead of one per row.
 - Discovery reads `.well-known/authzen-configuration` to learn endpoints and supported features; a static `endpoints` object can be supplied when discovery is unavailable.
-- `where` on a delegated permission returns `{ condition: { op: 'or', conditions: [] }, partial: true }`: no row matches locally, and `partial` tells the caller the provider decides. Filter the rows through `decide` instead.
+- `where` is async on the PDP instance. For a delegated permission whose provider lists ids it returns `in(id, ids)` over the resource's id field, ANDed with the local condition when local grants exist; without local grants it is `partial: true`, because local denies are not in the condition and each row must still pass `decide`. A listing failure returns the always-false condition with `partial: false`. A provider that cannot list returns `{ condition: { op: 'or', conditions: [] }, partial: true }`: filter the rows through `decide` instead.
 
 ### In an HTTP adapter
 
-Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `pdp: createPermDock` from `permdock/pdp`. With it, `protect` decides delegated permissions through the provider and a provider failure denies with `pdp-unavailable`. The request-scoped instance on the context stays the synchronous one, so `can` there keeps denying delegated permissions with `pdp-unavailable` instead of returning a Promise that would read as truthy.
+Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `pdp: createPermDock` from `permdock/pdp`. With it, `protect` decides delegated permissions through the provider and a provider failure denies with `pdp-unavailable`. On the PDP instance `can`, `decide`, `assert`, `filter`, `simulate` and `where` return Promises. The request-scoped instance on the context stays the synchronous one, so `can` there keeps denying delegated permissions with `pdp-unavailable` instead of returning a Promise that would read as truthy.
 
 ## Request lifecycle
 
 1. `decide(permission, data)` runs local evaluation first. A local `denied` (explicit deny or no local grant for a non-delegated permission) short-circuits without a network call.
 2. For delegated permissions, the provider builds the AuthZEN evaluation request from `mapping` and adds `subject.properties.actor` and `subject.properties.delegation` when the PermDock subject has an actor.
-3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache. The key is the mapped request plus the permission key, the principal's issuer, the tenant and the actor id and kind, so a changed row, another tenant or another agent is a new request. The cache holds at most 1000 entries, drops the oldest first and deletes an expired entry when it is read. A `mapping` function that throws is `pdp-invalid-response` and nothing is sent. Only answers are cached; unavailability never is.
+3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache. The TTL is capped at 30 seconds; a larger value is clamped, and zero, a negative or an unparseable value disables the cache. The key is the mapped request plus the permission key, the principal's issuer, the tenant and the actor id and kind, so a changed row, another tenant or another agent is a new request. The cache holds at most 1000 entries, drops the oldest first and deletes an expired entry when it is read. A `mapping` function that throws is `pdp-invalid-response` and nothing is sent. Only answers are cached; unavailability never is.
 4. The response is mapped:
 
 | Remote response | PermDock Decision |
 |---|---|
 | `decision: true` | `granted` (matched: `provider: 'pdp'`) |
-| `decision: false` with `context.outcome: 'approval-required'` | `approval-required` with `context.token` when present |
-| `decision: false` | `denied`; `context.denials` and `context.alternatives` copied when present, otherwise `reason: 'pdp-denied'` |
+| `decision: false` with `context.permdock.outcome: 'approval-required'` | `approval-required` with `context.permdock.token` when present |
+| `decision: false` | `denied`; `context.permdock.denials` copied when present, otherwise `reason: 'pdp-denied'` |
 | timeout, network error, non-2xx, unparseable body, unknown shape | `denied` with `reason: 'pdp-unavailable'` or `'pdp-invalid-response'` |
 
 5. `on('decision')` fires with the provider name, latency, and whether the answer came from cache.
@@ -73,11 +109,17 @@ Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `p
 - Unavailability is a denial, not an exception; the reason distinguishes it so operators can alert on `pdp-unavailable` without conflating it with policy.
 - The client snapshot marks delegated permissions as `server-only`; `usePermission` asks the decision endpoint, which asks the PDP.
 
-Relation graphs: `openfga` and `spicedb` presets wrap their `check` / `listObjects` and `CheckPermission` / `LookupResources` calls behind the same provider interface; the app supplies the relation tuple mapping as one callback per permission, not a mapping DSL. `filter` uses list-objects to return permitted ids; `where` compiles to an `in` condition over those ids. PermDock does not model or store relation tuples.
+- The relation presets map every failure the same way: unreachable is `pdp-unavailable`, an unknown shape is `pdp-invalid-response`, and a failed listing denies every row.
 
 ## Example app
 
-None. The [authzen-pdp example](/docs/adapters/authzen) runs a second process that uses `remotePdp` against the PermDock PDP so both halves are exercised; `tests/integration` runs the provider against Topaz and OpenFGA containers.
+None. The [authzen-pdp example](/docs/adapters/authzen) runs a second process that uses `remotePdp` against the PermDock PDP so both halves are exercised. `tests/integration/src/pdp` runs `openfga` against the `openfga/openfga` container and `spicedb` against the `authzed/spicedb` container with the same scenarios: a direct and a userset relation, `filter` and `where` from the listed ids, a local deny over a remote allow, a removed relation, and an unreachable server.
+
+## Why
+
+- **A listing member instead of a search DSL.** Zanzibar engines and AuthZEN resource search all answer "which ids", and their own list-endpoint guides turn that into `WHERE id = ANY(...)`. An optional `permitted` on `DecisionProvider` carries exactly that, so `filter` makes one request instead of one per row and `where` is a plain `in`. The list is ANDed with local evaluation, so a local deny still wins and a remote list never widens a local grant.
+- **One tuple callback per permission.** Relation models differ per application (`viewer` on a document, `member` on a team userset), and a mapping DSL would be a second policy language. A callback per delegated permission is typed, sees the verified subject, and keeps the delegated set explicit.
+- **A 30 second cache cap, no event-driven purge.** A cached `granted` outlives a revocation by at most the TTL. Purging per subject on an SSF event would put a mutable, cross-request index in the provider and tie `permdock/pdp` to `permdock/ssf`; a hard cap bounds the staleness for every source of change (SSF, a tuple write, a policy deploy) without either. Connections that must end at once use the [revocation feed](/docs/concepts/streams).
 
 ## Related standards
 

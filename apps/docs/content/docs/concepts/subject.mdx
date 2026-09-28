@@ -35,7 +35,8 @@ type Principal = {
 }
 
 type Membership = { tenant?: string; team?: string; on?: { resource: string; id: string }; roles: string[]; via?: string; expiresAt?: number }
-type Assurance = { acr?: string; amr?: string[]; authTime?: number }          // OIDC Core section 2; provider `aal` maps into `acr`
+type Assurance = { acr?: string; amr?: string[]; authTime?: number; verified?: VerifiedClaims[] }   // OIDC Core section 2; provider `aal` maps into `acr`
+type VerifiedClaims = { verification: { trust_framework: string } & Record<string, unknown>; claims: Record<string, unknown> }   // OIDC4IDA `verified_claims`, opaque
 type Binding = { jkt?: string; 'x5t#S256'?: string; jwk?: JsonWebKey; kid?: string }   // the RFC 7800 `cnf` members, verbatim
 ```
 
@@ -214,7 +215,7 @@ Put in the principal only what conditions reference and what you are willing to 
 
 | Value | Where it goes | Why |
 | --- | --- | --- |
-| The user id and issuer, kind, assurance (`acr`, `amr`, `authTime`) | `principal` fields | Referenced by conditions (`subject.assurance.acr`), step-up challenges and the token binding |
+| The user id and issuer, kind, assurance (`acr`, `amr`, `authTime`, `verified`) | `principal` fields | Referenced by conditions (`subject.assurance.acr`), step-up challenges and the token binding |
 | Global roles (`support`, `platform-admin`, `pro`) | `principal.roles` | Apply everywhere |
 | A role held in a tenant, a team or on a document | `principal.memberships` | Scoped roles, `memberOf`, tenant-scoped audit, the UI's role chips |
 | The tenant this request is about | `principal.tenant` | Selected by the server from the URL or the provider's active organisation, only when a membership matches |

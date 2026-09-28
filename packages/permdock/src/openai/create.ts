@@ -1,5 +1,6 @@
 import type { ToolMap } from '../agent/types.ts';
 import type { ApprovalRequest, ApprovalStore } from '../approvals/types.ts';
+import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
@@ -43,6 +44,8 @@ export type OpenAiPermDockOptions<TUser = unknown> = {
   readonly tools: ToolMap;
   readonly memberships?: MembershipSource;
   readonly customRoles?: RoleSource;
+  /** Hosted grants, read once per instance; see `PolicySource`. */
+  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
@@ -137,6 +140,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       tenant: options.tenant,
       memberships: options.memberships,
       customRoles: options.customRoles,
+      policies: options.policies,
       sink: options.sink,
       limits: options.limits,
       snapshots: options.snapshots,

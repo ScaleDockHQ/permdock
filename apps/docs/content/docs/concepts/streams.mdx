@@ -75,7 +75,7 @@ A feed can only end or revalidate a connection; it never grants. A lost event th
 Events come from three places:
 
 - `permdock/ssf` with `revocations`: a verified `session-revoked` (CAEP or Back-Channel Logout) publishes `session-revoked` for the subject and session, and the credential, assurance and claims change events publish `changed` for the subject alone. A feed failure never fails the receiver.
-- `permdock/scim` with `revocations`: every user a write affects gets a `changed` event with the handler's tenant, published under the SCIM `id`, `userName` and `externalId` so it reaches whichever id the membership source matched on. A throwing feed never fails the identity provider's write.
+- `permdock/scim` with `revocations`: every user a write affects gets an event with the handler's tenant, published under the SCIM `id`, `userName` and `externalId` so it reaches whichever id the membership source matched on. Deactivating (`active: false`) or deleting a user publishes `session-revoked`; every other write publishes `changed`. A throwing feed never fails the identity provider's write.
 - Your own code, for example an admin screen that edits a role: `revocations.revoke({ principal, tenant, kind: 'changed' })`.
 
 ## Adapter mappings

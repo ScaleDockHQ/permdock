@@ -38,7 +38,7 @@ Recorded per check:
 
 | Signal | Name | Attributes |
 |---|---|---|
-| Span | `permdock.decide` | `permdock.outcome` (`granted` / `denied` / `approval-required`), `permdock.permission` (key), `permdock.scope`, `permdock.resource.type`, `permdock.resource.id`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.delegation.scopes`, `permdock.matched.role`, `permdock.denials.count`, `permdock.validate` |
+| Span | `permdock.decide` | `permdock.outcome` (`granted` / `denied` / `approval-required`), `permdock.permission` (key), `permdock.scope`, `permdock.resource.type`, `permdock.resource.id`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.delegation.scopes`, `permdock.matched.role`, `permdock.denials.count`, `permdock.validate`, `permdock.token` (the Decision `token` on `granted` and `approval-required`; an ask and its resume share it) |
 | Counter | `permdock.decisions` | `permdock.outcome`, `permdock.permission`, `permdock.adapter` |
 | Histogram | `permdock.decide.duration` (unit `s`) | `permdock.outcome`, `permdock.permission`; recorded by `withOtel` and the adapter `otel` option only |
 | Log | `permdock.decision` | same fields as the span, through the structural logger |
@@ -68,6 +68,11 @@ The adapter never awaits: recording is synchronous and cannot delay a decision.
 - A `permdock.denied` span event lists `role` and `reason` per denial and the `alternatives` keys.
 - `PermDockValidationError` (boundary validation failure) is recorded as a span exception with the issue count, and the check counts as `denied` in the counter.
 - Because the same event feeds the [audit hook](/docs/concepts/audit-and-observability), an app can keep audit in its database and traces in its collector without duplicating decision logic.
+
+## Why
+
+- **No log record per denial.** The span already carries the outcome and a `permdock.denied` event with the reasons, and the `DecisionSink` holds the durable record. An OpenTelemetry log record per denial would be a third copy of the same event on the path that samples and drops most, and would tempt teams to treat logs as evidence ([audit and observability](/docs/concepts/audit-and-observability)). The structural `logger` line exists only for processes with no OpenTelemetry API.
+- **The approval token is an attribute, not a span link.** The ask and the resume happen in different requests, often hours apart and in different traces. A span link needs the earlier span context, which the resuming request does not have; the token is already the join key the sink, the `ApprovalStore` and the `approval` events share. Searching the tracing backend for one `permdock.token` value finds both spans. The token is a hash bound to permission, resource, subject and actor; add it to `redact` if a backend should not see it.
 
 ## Example app
 

@@ -6,6 +6,8 @@ import type { Subject } from '../core/subject.ts';
 
 import { isApprovalError } from '../approvals/errors.ts';
 import { memoryApprovalStore } from '../approvals/store.ts';
+import { joseTokenSigner } from '../jwt/signer.ts';
+import { joseTokenVerifier } from '../jwt/verifier.ts';
 import { cloud } from './create.ts';
 
 const CLOUD_URL = 'https://cloud.permdock.test';
@@ -92,6 +94,11 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
           principalId: url.searchParams.get('principalId') ?? undefined,
           actorId: url.searchParams.get('actorId') ?? undefined,
           tenant: url.searchParams.get('tenant') ?? undefined,
+          limit:
+            url.searchParams.get('limit') === null
+              ? undefined
+              : Number(url.searchParams.get('limit')),
+          cursor: url.searchParams.get('cursor') ?? undefined,
         }),
       );
     }
@@ -181,7 +188,7 @@ describe('cloud', () => {
       },
     });
     expect(await client.approvals.get('missing')).toBeNull();
-    expect(await client.approvals.list({})).toEqual([]);
+    expect(await client.approvals.list({})).toEqual({ items: [] });
     expect(await client.approvals.expire()).toBe(0);
   });
 
@@ -301,7 +308,21 @@ describe('cloud', () => {
     await client.approvals.create(request);
     expect(await client.approvals.get('opaque-token')).toEqual(request);
     const listed = await client.approvals.list({ status: 'pending' });
-    expect(listed.some((item) => item.token === 'opaque-token')).toBe(true);
+    expect(listed.items.some((item) => item.token === 'opaque-token')).toBe(
+      true,
+    );
+    await client.approvals.create({ ...request, token: 'second-token' });
+    const first = await client.approvals.list({ status: 'pending', limit: 1 });
+    expect(first.items).toHaveLength(1);
+    expect(first.next).toBeTypeOf('string');
+    const second = await client.approvals.list({
+      status: 'pending',
+      limit: 1,
+      cursor: first.next!,
+    });
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0]?.token).not.toBe(first.items[0]?.token);
+    expect(second.next).toBeUndefined();
     const approver: Subject = {
       principal: { id: 'u_9', roles: ['admin'] },
       context: {},
@@ -356,5 +377,86 @@ describe('cloud', () => {
       expect.any(String),
     );
     expect(await client.approvals.consume('pd1.v2')).toBeNull();
+  });
+
+  it('verifies the signed policy document and keeps the last good one', async () => {
+    const PRIVATE_JWK = {
+      crv: 'Ed25519',
+      d: 'qco_Uh5slpzay2a-eC3woOxpC4DlS6aEzLtBRjrdtd4',
+      x: '79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ',
+      kty: 'OKP',
+      kid: '2026-09',
+      alg: 'Ed25519',
+    };
+    const { d: _d, ...publicJwk } = PRIVATE_JWK;
+    const signer = joseTokenSigner({
+      key: { ...PRIVATE_JWK },
+      alg: 'Ed25519',
+      kid: '2026-09',
+    });
+    const policy = {
+      v: 1,
+      id: 'doc_1',
+      fingerprint: 'fp_1',
+      catalog: 'cat_1',
+      issuedAt: 1,
+      grants: [],
+    };
+    const good = await signer.sign(
+      { policy },
+      { typ: 'permdock-policy+jwt', audience: 'https://app.example.com' },
+    );
+    const wrongTyp = await signer.sign(
+      { policy: { ...policy, id: 'doc_2' } },
+      { typ: 'permdock-snapshot+jwt', audience: 'https://app.example.com' },
+    );
+    const bodies = [good, wrongTyp, JSON.stringify(policy)];
+    const paths: string[] = [];
+    const fetchImpl: typeof fetch = (input, init) => {
+      const request = new Request(input, init);
+      paths.push(new URL(request.url).pathname);
+      return Promise.resolve(
+        new Response(bodies.shift() ?? '', { status: 200 }),
+      );
+    };
+    const verifier = joseTokenVerifier({
+      jwks: { keys: [publicJwk] },
+      algorithms: ['Ed25519'],
+    });
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: fetchImpl,
+      verifier,
+      audience: 'https://app.example.com',
+    });
+    expect(client.jwks).toBe(`${CLOUD_URL}/.well-known/jwks.json`);
+    expect(client.policies.current()).toBeNull();
+    await client.policies.refresh();
+    expect(client.policies.current()?.id).toBe('doc_1');
+    await client.policies.refresh();
+    expect(client.policies.current()?.id).toBe('doc_1');
+    await client.policies.refresh();
+    expect(client.policies.current()?.id).toBe('doc_1');
+    expect(paths).toEqual([
+      '/v1/environments/production/policy',
+      '/v1/environments/production/policy',
+      '/v1/environments/production/policy',
+    ]);
+  });
+
+  it('never applies a policy document without a verifier', async () => {
+    let calls = 0;
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: () => {
+        calls += 1;
+        return Promise.resolve(new Response('a.b.c'));
+      },
+    });
+    await client.policies.refresh();
+    expect(client.policies.current()).toBeNull();
+    expect(calls).toBe(0);
   });
 });

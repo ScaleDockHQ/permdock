@@ -18,9 +18,10 @@ PermDock has no plugin system. What it has instead is a short list of interfaces
 | `ApprovalStore` | Hold pending `approval-required` decisions until a human answers | Operational: never influences an outcome | `memoryApprovalStore()` | Postgres, Redis, Durable Objects, PermDock Cloud ([approvals](/docs/adapters/approvals)) |
 | `DecisionSink` | Receive decision events after the fact | Operational | `memorySink()` | OpenTelemetry, SIEMs, a table, PermDock Cloud ([audit](/docs/concepts/audit-and-observability)) |
 | `SnapshotSource` | Distribute and invalidate snapshots | Operational | In-process `snapshot()` | PermDock Cloud, your cache ([snapshots](/docs/concepts/snapshots)) |
+| `PolicySource` | Deliver a verified `PolicyDocument` of hosted grants; `current()` is read once by `createPermDock` | Policy input: may widen an outcome, bounded by `hostable` in code | `memoryPolicySource(document)` | `cloud().policies` ([PermDock Cloud](/docs/adapters/cloud)); `testPolicySource` in `@permdock/testing` |
 | `ReplayStore` | Remember SET / `logout_token` `jti` values, namespaced by issuer, so a replay is dropped. `remember(key, expiresAt?)` is additive; the optional pair `claim(key, expiresAt?)` / `release(key)` makes concurrent deliveries dispatch once | Operational: never a decision input | `memoryReplayStore()` in `permdock/ssf` (evicts on read) | Redis `SET NX EX` or a Postgres `expires_at` row; recipes on [SSF](/docs/adapters/ssf); `testReplayStore` in `@permdock/testing` |
 | `RevocationFeed` | Tell open streams and sockets that a subject changed: `subscribe(listener)` returns an unsubscribe function, `revoke({ principal, session?, tenant?, kind })` publishes. `session-revoked` ends matching connections; `changed` makes them resolve their subject again | Operational: it can end or revalidate a connection, never grant; a lost event falls back to expiry | `memoryRevocationFeed()` in `permdock` (validates and freezes events, isolates listener errors) | Postgres `LISTEN`/`NOTIFY`, Redis pub/sub or Supabase Realtime bridging `revoke` across replicas; `testRevocationFeed` in `@permdock/testing` |
-| `DecisionProvider` | Answer `decide` for delegated permissions via a remote AuthZEN PDP | Decision path, opt-in, fail-closed | None; local evaluation only | `remotePdp` in `permdock/pdp` |
+| `DecisionProvider` | Answer `decide` for delegated permissions via a remote PDP, and optionally list permitted ids (`permitted`) for `filter` and `where` | Decision path, opt-in, fail-closed | None; local evaluation only | `remotePdp`, `openfga` and `spicedb` in `permdock/pdp` |
 | `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/ecosystem-index)) |
 | `on(event, handler)` | Observe `decision`, `denied`, `approval`, `auth` events | Observational: cannot change a `Decision` | No-op | Logging, metrics, tests |
 
@@ -63,7 +64,7 @@ type VerificationFailure = { ok: false; reason: 'invalid-token'; cause: TokenFai
 ```ts
 interface TokenSigner {
   sign(payload: Record<string, unknown>, options: {
-    typ: 'permdock-snapshot+jwt' | 'permdock-approval+jwt' | 'permdock-decisions+jwt'
+    typ: 'permdock-snapshot+jwt' | 'permdock-approval+jwt' | 'permdock-decisions+jwt' | 'permdock-policy+jwt'
     audience?: string | string[]
     expiresAt?: number                   // NumericDate (Unix seconds); written as `exp`
   }): Promise<string>                    // compact JWS
@@ -170,9 +171,9 @@ interface LimitStore {
 
 The rules follow from synchronous evaluation. `can`, `filter`, `simulate` and an `approval-required` outcome only peek `remaining`, because UI paths call `can` on every render and consuming there would spend quota on a hover; `decide` and `assert` consume, since mutations call them. A Promise is truthy, so reading an async `consume` as a remaining count would fail open; the store is never awaited and a thenable is `limit-unavailable`. An async store (Redis, a database) sits behind a synchronous cache or implements only a synchronous `remaining` for UI peeks. Exhausted (`limit`) and store-down (`limit-unavailable`) are separate reasons so operators can tell them apart. If the first matching allow is over quota, the next matching allow is tried, as allows OR together. `limits` is never filled in automatically: a forgotten production store would otherwise count silently in process memory, and falling back to unlimited on a store failure would fail open.
 
-### PolicySource (planned)
+### PolicySource
 
-Planned, not implemented: nothing below exists in the package yet. `PolicySource` is the designed channel for grants authored in PermDock Cloud ([hostable permissions](/docs/concepts/policies)).
+`PolicySource` is the channel for grants authored in PermDock Cloud ([hostable permissions](/docs/concepts/policies)).
 
 ```ts
 interface PolicySource {
@@ -181,10 +182,11 @@ interface PolicySource {
 }
 ```
 
-- `createPermDock(policy, user, { policies: source })` calls `current()` once, when the instance is created, and merges the document into that frozen instance. No check calls `refresh()` or the network, and there is no module-level policy the source swaps in the background.
-- The application calls `refresh()` on an interval, a cron or a webhook. A refresh that fails, or a document whose signature does not verify with the application's `TokenVerifier`, keeps the previous document. With no document, only code grants apply.
-- Hosted grants apply only to permissions the policy marks `hostable`, never override a code deny, and never weaken an `approval` a code grant requires; a grant outside those bounds is dropped and reported through `on('error')`.
-- The trust class is a policy input: unlike the operational interfaces it can widen an outcome, which is why it is bounded by `hostable` in code. The planned defaults are `memoryPolicySource(document)` in the package and `testPolicySource` in `@permdock/testing`.
+- `createPermDock(policy, user, { policies: source })` calls `current()` once, when the instance is created, and merges the document into that frozen instance. No check calls `refresh()` or the network, and there is no module-level policy the source swaps in the background. Every server and agent adapter forwards the `policies` option.
+- The source is only read when the policy lists `hostable` permissions. A `current()` that throws is reported through `on('error')` and treated as no document.
+- The application calls `refresh()` on an interval, a cron or a webhook. A refresh that fails, or a document whose signature does not verify with the application's `TokenVerifier`, keeps the previous document; `refresh()` never rejects. With no document, only code grants apply.
+- Hosted grants apply only to permissions the policy marks `hostable`, never override a code deny, and never weaken an `approval` a code grant requires; a grant outside those bounds is dropped and reported through `on('error')` as `hosted-grant-dropped`.
+- The trust class is a policy input: unlike the operational interfaces it can widen an outcome, which is why it is bounded by `hostable` in code. The defaults are `memoryPolicySource(document)` in the package (it runs the document through `parsePolicyDocument`) and `testPolicySource(source, { policy })` in `@permdock/testing`. `cloud().policies` is the hosted implementation ([PermDock Cloud](/docs/adapters/cloud)).
 
 ```ts
 interface WhereCompiler<TTarget, TOptions = unknown> {
@@ -213,7 +215,7 @@ Handlers cannot change a `Decision`; they receive a frozen copy after the outcom
 `@permdock/testing` ships one runner per interface so an implementation can prove it honours the contract before it is used:
 
 ```ts
-import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testLimitStore, testReplayStore, testRevocationFeed, testWhereCompiler } from '@permdock/testing'
+import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testPolicySource, testLimitStore, testReplayStore, testRevocationFeed, testWhereCompiler } from '@permdock/testing'
 
 testSubjectResolver((claims) => subjectFromSupabase(claims, { schema }), { valid: [okClaims], invalid: [null, { role: 'anon' }] })
 testTokenVerifier(myVerifier, { jwks: fixtureJwks })          // runs the JWT adapter behaviour table against the fixture tokens
@@ -223,6 +225,7 @@ testRoleSource(betterAuthRoles, { tenants: ['o_acme'], declared: policy.assignab
 testDirectoryStore(drizzleDirectory, { tenants: ['o_acme', 'o_globex'] })   // replays the recorded Okta and Entra ID requests
 testApprovalStore(postgresStore, { reopen: () => openPostgresStore() })
 testLimitStore(memoryLimitStore())
+testPolicySource(pd.policies, { policy })
 testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 ```
 
@@ -233,10 +236,11 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testTokenSigner` | Output is compact JWS whose protected header has exactly `alg`, `kid`, `typ`; `alg` is in the allow-list; `iat`, `jti` and `iss` are set; the supplied verifier accepts it with the same `typ`; `jwks()` when present contains the signing key's public half |
 | `testMembershipSource` | Returns only well-formed memberships (one scope shape each); a throw yields an empty list; results are JSON |
 | `testRoleSource` | Every `includes` entry is a declared assignable role or is dropped; `assignable` is a subset of the declared assignable roles; unknown tenants yield an empty list |
-| `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user |
+| `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user; `scimHandler` over the store publishes `session-revoked` into a `RevocationFeed` and `onChange` when a `PATCH` deactivates a user |
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; a repeated `create` keeps the record; concurrent `consume` succeeds once; an approver from another tenant is refused; with `{ reopen }`, an approval resumes after a restart; the token is opaque to the store |
 | `testDecisionSink` | Accepts batches including a `membership` event; `flush` is idempotent; a throw never propagates to the caller |
 | `testSnapshotSource` | Round-trips a snapshot through the format schema; invalidation is observed by a subscriber |
+| `testPolicySource` | `current()` is synchronous and returns `null` or a document `parsePolicyDocument` accepts; `refresh()` never rejects; with `{ policy }`, every merged grant targets a `hostable` permission and every other grant is reported as dropped |
 | `testReplayStore` | A remembered key is seen; an expired key is not; with `claim` and `release`, two concurrent claims succeed once and a released key can be claimed again |
 | `testRevocationFeed` | Every subscriber receives each event until it unsubscribes; a throwing listener does not stop the others; an event without a principal or with an unknown `kind` is rejected with a `TypeError` and delivered to no one. Delivery may be asynchronous |
 | `testLimitStore` | `consume` counts down; remaining after the cap is less than zero; `remaining` when present is not a thenable |

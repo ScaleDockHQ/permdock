@@ -48,11 +48,15 @@ A review skill for an existing PermDock installation. It runs `permdock usage --
 - policies with `validate: 'never'`;
 - the OWASP Agentic Top 10 mapping for ASI02 and ASI03 ([OWASP Agentic](/docs/security/owasp-agentic)).
 
-The report is written as a Markdown checklist an agent can turn into pull requests.
+The report is written as a Markdown checklist an agent can turn into pull requests. A "Pull request review" section covers a single PR: it compares `usage` and `collect` between the base and head branches, asks for a `describePolicy` row for every widened grant, and posts one comment per finding on the changed line.
 
 ## Versioning
 
 Skills are versioned with `permdock`. A skill references docs pages by `/docs/<path>` URL and the `.md` variant of each page, so an agent with network access can read the full page and an agent without it still has the skill's inline recipe. When an adapter's API changes, its docs page, its skill section and its example app change in the same pull request; `AGENTS.md` lists this rule for maintainers.
+
+## Why
+
+- **Two skills, not three.** Reviewing a pull request uses the same checks as auditing an app, limited to the diff. A separate `review-permissions-pr` skill would duplicate every check and drift from `audit-permissions`; a section in the audit skill keeps one list and lets the agent pick the scope.
 
 ## For maintainers
 

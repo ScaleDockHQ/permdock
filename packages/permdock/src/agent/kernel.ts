@@ -262,6 +262,7 @@ export function createAgentKernel<TContext, TUser = unknown>(
           delegation,
           memberships: options.memberships,
           customRoles: options.customRoles,
+          policies: options.policies,
           sink: options.sink,
           limits: options.limits,
         }),

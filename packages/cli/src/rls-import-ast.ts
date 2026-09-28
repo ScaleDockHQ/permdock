@@ -287,6 +287,7 @@ export async function conditionFromAst(
   memberships: RlsMemberships | undefined,
   functions: Readonly<Record<string, RlsFunctionMapping>> | undefined,
   unmapped: string[],
+  joins: string[] = [],
 ): Promise<unknown> {
   if (sql === undefined || sql.trim() === '' || sql.trim() === 'true') {
     return { op: 'eq', field: '_', value: true };
@@ -301,7 +302,7 @@ export async function conditionFromAst(
   } catch {
     return { op: 'opaque', sql, fingerprint: await fingerprintSql(sql) };
   }
-  const mapped = mapNode(where, memberships, functions, unmapped);
+  const mapped = mapNode(where, memberships, functions, unmapped, joins);
   if (mapped === undefined) {
     return { op: 'opaque', sql, fingerprint: await fingerprintSql(sql) };
   }
@@ -321,6 +322,7 @@ function mapNode(
   memberships: RlsMemberships | undefined,
   functions: Readonly<Record<string, RlsFunctionMapping>> | undefined,
   unmapped: string[],
+  joins: string[],
 ): Condition | undefined {
   if (value === undefined) {
     return undefined;
@@ -349,11 +351,11 @@ function mapNode(
       return undefined;
     }
     if (compound === 'not') {
-      const inner = mapNode(args[0], memberships, functions, unmapped);
+      const inner = mapNode(args[0], memberships, functions, unmapped, joins);
       return inner === undefined ? undefined : { op: 'not', condition: inner };
     }
     const children = args
-      .map((arg) => mapNode(arg, memberships, functions, unmapped))
+      .map((arg) => mapNode(arg, memberships, functions, unmapped, joins))
       .filter((item): item is Condition => item !== undefined);
     if (children.length !== args.length) {
       return undefined;
@@ -378,6 +380,7 @@ function mapNode(
         roles: [],
       };
     }
+    joins.push(table);
     return undefined;
   }
   const name = funcName(node);

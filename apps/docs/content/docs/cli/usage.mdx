@@ -1,6 +1,6 @@
 ---
 title: usage
-description: Report permissions that are defined but never used, used but never granted, or granted by no role.
+description: Report permissions that are defined but never used, used but never granted or granted by no role, conditions on undeclared fields, and client checks outside a snapshot include.
 ---
 
 `permdock usage` cross-references three sets: the permissions the definition declares, the permissions the code checks, and the permissions the policy grants. Gaps between them are either dead code or security bugs, and both are cheap to catch in CI.
@@ -16,7 +16,7 @@ permdock usage --ignore 'billing.plan.*'
 
 Inputs come from `permdock.config.ts`: `permissions` (the definition module), `policy` (the server-only policy module) and `collect.srcPath` (where to look for usages). If `permissions.catalog.json` exists and is fresh, usages are read from it; otherwise the source scan from [collect](/docs/cli/collect) runs in memory.
 
-## The three findings
+## Findings
 
 ### Defined but unused
 
@@ -29,6 +29,14 @@ A permission is checked somewhere, but no role in the policy has an `allow` for 
 ### Granted by no role
 
 A permission is granted by an `allow` that belongs to a role fragment not passed to `definePolicy`, or the grant is unreachable because a `deny` in the same role always wins for the same permission with no condition. Reported as an error because it usually means a feature's `policy.ts` fragment was never merged. See [Larger apps](/docs/getting-started/larger-apps) for how fragments are composed.
+
+### Conditions on undeclared fields
+
+A grant's `where` or `check` reads a field that the resource's schema does not declare, for example `where: { ownerId: principal.id }` on a resource whose schema has `authorId`. The in-memory evaluator reads a missing field as absent, so the grant silently matches nothing, and the RLS compiler emits a column that does not exist. Only the first segment of a dotted path is checked. Resources whose schema exposes no JSON Schema through Standard JSON Schema (`~standard.jsonSchema`) are skipped. Reported as a warning.
+
+### Client checks outside include
+
+When every `snapshot(...)` and `snapshotFor(...)` call passes a literal `include` list, a check (`usePermission`, `can`, `decide`, `filter`, `actions`) on a permission outside all of those lists, in a client file, is reported. On the client that permission resolves as `server-only` or through the decision endpoint, which is usually a missing entry in `include` rather than a choice. A file is a client file when it carries `'use client'`, has `.client.` in its name, or matches `doctor.clientEntries` ([doctor](/docs/cli/doctor)). An unscoped snapshot, or an `include` that is not a literal list of permission references, turns the check off, because either one can cover every permission. Reported as a warning.
 
 ## Example report
 
@@ -45,7 +53,13 @@ permdock usage
   granted by no role (1)
     billing.invoice.refund       features/billing/policy.ts:22 (role 'finance' not passed to definePolicy)
 
-  2 warnings, 1 error
+  conditions on undeclared fields (1)
+    post.read                    role 'member' reads 'ownerId', which the post schema does not declare
+
+  client checks outside include (1)
+    post.delete                  app/posts/[id]/menu.tsx:12 (usePermission) is outside every snapshot include
+
+  4 warnings, 1 error
 ```
 
 ## How grants are read
@@ -55,6 +69,11 @@ permdock usage
 ## Dynamic usages
 
 Permissions resolved through `findPermission(permissions, someString)` cannot be attributed statically. They are listed under a `dynamic` section with their call sites so a reviewer can decide whether the string source (database, JWT scope, OpenAPI import) is trusted. `--dynamic-as-used` treats every permission as potentially used, which silences "defined but unused" for catalogs that are driven entirely by data.
+
+## Why
+
+- **Undeclared fields are a `usage` warning, not a `definePolicy` error.** A schema without Standard JSON Schema cannot be read, and some policies deliberately condition on a field added by a view or a join. A warning in CI catches the typo without making the policy module depend on schema introspection at runtime.
+- **Include scoping is checked only when every snapshot is scoped with a literal list.** The check has to be certain what the client holds; with one unscoped or computed `include` it cannot be, and a guess would produce findings nobody can act on.
 
 ## CI
 

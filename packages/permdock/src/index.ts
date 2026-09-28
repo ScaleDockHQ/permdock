@@ -43,6 +43,19 @@ export type {
 } from './core/revocations.ts';
 export { memoryRoleSource } from './core/interfaces.ts';
 export { memoryLimitStore } from './core/limits.ts';
+export {
+  isPortableCondition,
+  memoryPolicySource,
+  mergeHostedGrants,
+  parsePolicyDocument,
+} from './core/hosted.ts';
+export type {
+  HostedGrant,
+  HostedGrantDropReason,
+  HostedGrantDropped,
+  PolicyDocument,
+  PolicySource,
+} from './core/hosted.ts';
 export type {
   AuthEvent,
   DecisionEvent,
@@ -124,6 +137,7 @@ export type {
   Grant,
   GrantCondition,
   GrantOptions,
+  HostedGrantRef,
   MembershipFixture,
   Policy,
   SeparationConflict,
@@ -159,18 +173,22 @@ export type {
   Vocabulary,
 } from './core/vocabulary.ts';
 export {
+  CLOUD_EVENT_TYPES,
   membershipEvent,
   memorySink,
   signDecisionBatch,
   toCloudEvent,
 } from './core/sink.ts';
 export type {
+  CatalogEventData,
   CloudEvent,
   CloudEventType,
   MemorySink,
   MemorySinkOptions,
   SignDecisionBatchOptions,
 } from './core/sink.ts';
+export { OCSF_VERSION, toOcsf } from './core/ocsf.ts';
+export type { OcsfAuthorizeSession } from './core/ocsf.ts';
 export type {
   Actor,
   Assurance,
@@ -182,4 +200,5 @@ export type {
   Membership,
   Principal,
   Subject,
+  VerifiedClaims,
 } from './core/subject.ts';

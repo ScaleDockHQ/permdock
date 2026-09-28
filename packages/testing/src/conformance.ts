@@ -3,6 +3,9 @@ import type {
   LimitStore,
   Membership,
   MembershipSource,
+  Policy,
+  PolicyDocument,
+  PolicySource,
   RevocationEvent,
   RevocationFeed,
   Role,
@@ -18,7 +21,16 @@ import type { ApprovalRequest, ApprovalStore } from 'permdock/approvals';
 import type { DirectoryStore } from 'permdock/scim';
 import type { ReplayStore } from 'permdock/ssf';
 
-import { directoryMembershipSource } from 'permdock/scim';
+import {
+  memoryRevocationFeed,
+  mergeHostedGrants,
+  parsePolicyDocument,
+} from 'permdock';
+import {
+  directoryMembershipSource,
+  scimHandler,
+  sha256Hex,
+} from 'permdock/scim';
 import { expect, it, vi } from 'vitest';
 
 import {
@@ -166,6 +178,53 @@ export function testSnapshotSource(source: SnapshotSource): void {
       unsubscribe();
     }
   });
+}
+
+export function testPolicySource(
+  source: PolicySource,
+  options: { readonly policy?: Policy } = {},
+): void {
+  const readCurrent = (): PolicyDocument | null => {
+    const document = source.current();
+    expect(
+      document !== null &&
+        typeof document === 'object' &&
+        'then' in document &&
+        typeof (document as { readonly then?: unknown }).then === 'function',
+    ).toBe(false);
+    return document;
+  };
+
+  it('returns null or a v1 policy document synchronously', () => {
+    const document = readCurrent();
+    if (document !== null) {
+      expect(parsePolicyDocument(document)).toEqual(document);
+    }
+  });
+
+  it('refreshes without rejecting and keeps current() synchronous', async () => {
+    await expect(Promise.resolve(source.refresh())).resolves.toBeUndefined();
+    const document = readCurrent();
+    if (document !== null) {
+      expect(document.v).toBe(1);
+    }
+  });
+
+  if (options.policy !== undefined) {
+    const policy = options.policy;
+    it('merges only grants on hostable permissions', () => {
+      const document = readCurrent();
+      const merged = mergeHostedGrants(policy, document);
+      for (const grant of merged.policy.grants) {
+        if (grant.hosted !== undefined) {
+          expect(policy.hostable).toContain(grant.permission.key);
+        }
+      }
+      for (const dropped of merged.dropped) {
+        expect(dropped.kind).toBe('hosted-grant-dropped');
+      }
+    });
+  }
 }
 
 function sampleApproval(token: string): ApprovalRequest {
@@ -363,6 +422,56 @@ export function testDirectoryStore(
     ]);
     expect(await store.groupsFor(home, created.id)).toEqual([]);
   });
+
+  it('ends sessions when scimHandler deactivates a user in this store', async () => {
+    const feed = memoryRevocationFeed();
+    const seen: RevocationEvent[] = [];
+    feed.subscribe((event) => {
+      seen.push(event);
+    });
+    const kinds: string[] = [];
+    const token = 'conformance-scim-token';
+    const handle = scimHandler({
+      store,
+      tenant: home,
+      token: { hash: 'sha256', lookup: () => sha256Hex(token) },
+      revocations: feed,
+      onChange: (change) => {
+        kinds.push(change.kind);
+      },
+    });
+    const call = (path: string, method: string, body: unknown) =>
+      handle(
+        new Request(`https://app.example.com/scim/v2${path}`, {
+          method,
+          headers: {
+            authorization: `Bearer ${token}`,
+            'content-type': 'application/scim+json',
+          },
+          body: JSON.stringify(body),
+        }),
+      );
+    const created = await call('/Users', 'POST', {
+      schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
+      userName: 'grace',
+      active: true,
+    });
+    expect(created.status).toBe(201);
+    const id = String(((await created.json()) as { id: unknown }).id);
+    seen.length = 0;
+    const patched = await call(`/Users/${id}`, 'PATCH', {
+      schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+      Operations: [{ op: 'replace', path: 'active', value: false }],
+    });
+    expect(patched.status).toBe(200);
+    expect(seen).toContainEqual({
+      principal: 'grace',
+      tenant: home,
+      kind: 'session-revoked',
+    });
+    expect(seen.every((event) => event.kind === 'session-revoked')).toBe(true);
+    expect(kinds).toEqual(['changed', 'session-revoked']);
+  });
 }
 
 export type ApprovalStoreOptions = {
@@ -458,7 +567,9 @@ export function testApprovalStore(
     expect(loaded).toEqual(request);
     expect(JSON.parse(JSON.stringify(loaded))).toEqual(request);
     const listed = await store.list({ status: 'pending' });
-    expect(listed.some((item) => item.token === 'opaque-token')).toBe(true);
+    expect(listed.items.some((item) => item.token === 'opaque-token')).toBe(
+      true,
+    );
     const resolved = await store.resolve('opaque-token', {
       status: 'approved',
       by: approver,
@@ -474,6 +585,34 @@ export function testApprovalStore(
       new Date(Date.now() + 2 * 60 * 60 * 1000),
     );
     expect(expired).toBeGreaterThanOrEqual(1);
+  });
+
+  it('pages list results with limit and an opaque cursor', async () => {
+    const base = Date.parse('2026-01-01T00:00:00.000Z');
+    const tokens = ['page-a', 'page-b', 'page-c'];
+    await Promise.all(
+      tokens.map(async (token, index) =>
+        store.create({
+          ...sampleApproval(token),
+          subject: { principal: { id: 'u_pager', roles: ['member'] } },
+          createdAt: new Date(base + index * 1000).toISOString(),
+        }),
+      ),
+    );
+    const first = await store.list({ principalId: 'u_pager', limit: 2 });
+    expect(first.items.map((item) => item.token)).toEqual(['page-a', 'page-b']);
+    expect(typeof first.next).toBe('string');
+    const second = await store.list({
+      principalId: 'u_pager',
+      limit: 2,
+      cursor: first.next!,
+    });
+    expect(second.items.map((item) => item.token)).toEqual(['page-c']);
+    expect(second.next).toBeUndefined();
+    expect(
+      (await store.list({ principalId: 'u_pager', cursor: 'not a cursor' }))
+        .items,
+    ).toEqual([]);
   });
 
   it('refuses an approver who does not match request.approvers', async () => {

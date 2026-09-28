@@ -27,10 +27,10 @@ test.describe('authzen-pdp example', { tag: '@smoke' }, () => {
     expect(response.status()).toBe(200);
     const body: {
       readonly decision?: boolean;
-      readonly context?: { readonly outcome?: string };
+      readonly context?: { readonly permdock?: { readonly outcome?: string } };
     } = await response.json();
     expect(body.decision).toBe(true);
-    const context = body.context;
+    const context = body.context?.permdock;
     expect(context === undefined ? undefined : context.outcome).toBe('granted');
   });
 
@@ -42,10 +42,10 @@ test.describe('authzen-pdp example', { tag: '@smoke' }, () => {
     expect(response.status()).toBe(200);
     const body: {
       readonly decision?: boolean;
-      readonly context?: { readonly outcome?: string };
+      readonly context?: { readonly permdock?: { readonly outcome?: string } };
     } = await response.json();
     expect(body.decision).toBe(false);
-    const context = body.context;
+    const context = body.context?.permdock;
     expect(context === undefined ? undefined : context.outcome).toBe('denied');
   });
 });
