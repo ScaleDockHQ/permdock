@@ -3,10 +3,7 @@ title: JWT
 description: "permdock/jwt verifies bearer JWTs against a JWKS, an OpenID Connect Discovery document or a secret with jose as an optional peer and returns a PermDock subject: principal from iss and sub, delegation from scope, authorization_details and access, actor from act, sender binding from cnf. Verification failure yields the anonymous subject, never an exception, and every failure has an RFC 6750 rendering."
 ---
 
-Status: shipped
-Phase: 1
-
-`permdock/jwt` is the one place in the `permdock` package that verifies a token. It exists because core cannot: core has no runtime dependency other than `@standard-schema/spec` ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)), and signature verification needs a crypto library. `permdock/jwt` takes `jose` as an optional peer dependency, applies the RFC 8725 checklist from [JOSE](/docs/standards/jose), and maps the verified claims to a [subject](/docs/concepts/subject) following [OpenID Connect](/docs/standards/openid-connect). It is used by HTTP adapters that receive bearer tokens directly and by the MCP adapter when the SDK exposes the raw token. It also holds the package's `TokenVerifier` and `TokenSigner` implementations, so it is where JWS-signed snapshots are produced.
+`permdock/jwt` is the one place in the `permdock` package that verifies a token. It exists because core cannot: core has no runtime dependency other than `@standard-schema/spec`, and signature verification needs a crypto library. `permdock/jwt` takes `jose` as an optional peer dependency, applies the RFC 8725 checklist from [JOSE](/docs/standards/jose), and maps the verified claims to a [subject](/docs/concepts/subject) following [OpenID Connect](/docs/standards/openid-connect). It is used by HTTP adapters that receive bearer tokens directly and by the MCP adapter when the SDK exposes the raw token. It also holds the package's `TokenVerifier` and `TokenSigner` implementations, so it is where JWS-signed snapshots are produced.
 
 ## Purpose
 
@@ -69,7 +66,7 @@ const subject = await subjectFromJwt(token, {
 | `verifyDpopProof(request, claims)` | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: proof signature, `htm` / `htu` match, `iat` window, `ath` hash of the access token. Returns `{ ok: true }` or `{ ok: false, cause }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere. |
 | `joseTokenVerifier(options)` | The built-in `TokenVerifier`: `jwks` or `discovery`, `algorithms`, `typ`, `audience`, `clockTolerance`, `decryptionKeys`. Exported so `permdock/ssf`, `permdock/cloud` and your own code verify PermDock's signed outputs and SETs with the same rules ([extension interfaces](/docs/concepts/extension-interfaces)). |
 | `joseTokenSigner({ key, alg, kid })` | The built-in `TokenSigner`: signs a payload as compact JWS with a registered `typ`. Used by `permdock.snapshot({ signer })`, `approvalsHandler({ signer })` and `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)). |
-| `subjectFromIntrospection(response, options)` | Maps an RFC 7662 or RFC 9767 introspection response (`active`, `access` / `scope`, `key`, `sub`, `iss`, `instance_id` / `client_id`) to the same `Subject` shape; `active` other than `true` is anonymous. The HTTP call to the introspection endpoint is yours ([GNAP](/docs/standards/gnap), [0035](/docs/decisions/0035-gnap-access-and-chain)). |
+| `subjectFromIntrospection(response, options)` | Maps an RFC 7662 or RFC 9767 introspection response (`active`, `access` / `scope`, `key`, `sub`, `iss`, `instance_id` / `client_id`) to the same `Subject` shape; `active` other than `true` is anonymous. The HTTP call to the introspection endpoint is yours ([GNAP](/docs/standards/watch-list#gnap), [delegation](/docs/security/delegation)). |
 
 Option notes:
 
@@ -77,7 +74,7 @@ Option notes:
 - `accept: 'access-token'` (default) verifies `typ` as `at+jwt` or `application/at+jwt` (RFC 9068 section 4) or `JWT`; under `profile: 'fapi2'` only `at+jwt`. A token that carries `nonce`, or whose `aud` is a client identifier rather than the configured `audience`, is an ID token and fails with cause `wrong-token-type`. `accept: 'id-token'` verifies an ID token per OpenID Connect Core section 3.1.3.7 (`aud` contains the client id, `azp` equals it when several audiences are present, `typ` absent or `JWT`) for backends-for-frontends that want its claims as the principal. One resolver accepts one kind.
 - `algorithms` defaults to `['ES256', 'PS256', 'Ed25519', 'RS256']` and to `['ES256', 'PS256', 'Ed25519']` under `profile: 'fapi2'`. `Ed25519` is the RFC 9864 fully-specified name; a token with `alg: EdDSA` verifies only when the selected JWK is `kty: OKP` with `crv: Ed25519`, and `permdock doctor` reports issuers that still publish `EdDSA`. `HS256` is accepted only together with `{ secret }` of at least 256 bits. `none` and the JWE `RSA1_5` are never accepted.
 - `claims.*` paths are resolved with own-property lookups; `__proto__`, `constructor` and `prototype` segments are rejected at configuration time (threat model invariant 4). A path that resolves to nothing leaves the field absent; a missing `id` path makes the subject anonymous.
-- `principal.issuer` is always set from the verified `iss` (or the Discovery document's `issuer`). `principal.id` alone is not an identity across issuers; audit events carry both ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)).
+- `principal.issuer` is always set from the verified `iss` (or the Discovery document's `issuer`). `principal.id` alone is not an identity across issuers; audit events carry both.
 - `claims.kind` may name a claim or be a literal (`'workload'`) so client-credentials tokens produce `principal.kind: 'workload'` ([subject](/docs/concepts/subject), "Workload principals").
 - `claims.roles`, `claims.groups` and `claims.entitlements` default to the RFC 9068 claim names and accept plain string arrays or SCIM complex values (`{ value, display, type }`), matching on `value` only. `roles` fill `principal.roles`; `entitlements` fill `principal.plans`. `groups` become `{ team: value, roles: groupRoles[value] ?? [], via: 'group:<value>' }` memberships inside the active tenant. A group id that has no `groupRoles` entry is a membership with no roles: visible to `permdock.memberships()`, contributing no grant ([JWT authorization claims](/docs/standards/jwt-authorization-claims)).
 - `claims.tenant` names the active tenant claim (`org_id`, `tid`, `hd`, `org_code`); there is no standard. A missing or unexpected value yields a principal without a tenant, never a default. `claims.memberships` points at a per-tenant object or array (Descope `tenants`, Zitadel project roles) and maps each entry to a `{ tenant, roles }` membership; the [claims standard](/docs/standards/jwt-authorization-claims) lists the vendor shapes.
@@ -91,8 +88,8 @@ Option notes:
 - `claims.session` fills `subject.session` from `sid` so a later Back-Channel Logout `logout_token` or CAEP `session-revoked` event can be matched to the snapshot ([SSF adapter](/docs/adapters/ssf)).
 - `schema` (any Standard Schema) validates the claims that are not covered by `claims.*` before they become `principal.claims`; an invalid claim set drops `claims`, never the subject, and reports cause `invalid-claims` on `on('auth')`.
 - `memberships` (a `MembershipSource`) supplements the token with memberships from your tables for issuers that carry none; it runs after verification with the verified `sub`.
-- `actor.from: 'act'` takes the innermost `act.sub` as `actor.id` and stores the full nesting as `delegation.chain`. A claimed `act` that is not an object, or whose nested `act` lacks a string `sub`, is anonymous with cause `invalid-chain` ([0035](/docs/decisions/0035-gnap-access-and-chain)). `actor.kind` is `'oauth-client'` by default and `'mcp-client'` when the resolver runs inside `permdock/mcp`, the one value the MCP adapter uses for its own actors; there is no other `kind` for `act`-derived actors. A function receives the verified claims and returns an `Actor` or `undefined`.
-- `delegation.access` reads the GNAP `access` claim as RFC 9767 section 2.1 defines it for JWT-formatted tokens (objects and reference strings, RFC 9635 section 8). Entries are stored on `delegation.access` from Phase 1 and evaluated from Phase 4; until then they add nothing.
+- `actor.from: 'act'` takes the innermost `act.sub` as `actor.id` and stores the full nesting as `delegation.chain`. A claimed `act` that is not an object, or whose nested `act` lacks a string `sub`, is anonymous with cause `invalid-chain`. `actor.kind` is `'oauth-client'` by default and `'mcp-client'` when the resolver runs inside `permdock/mcp`, the one value the MCP adapter uses for its own actors; there is no other `kind` for `act`-derived actors. A function receives the verified claims and returns an `Actor` or `undefined`.
+- `delegation.access` reads the GNAP `access` claim as RFC 9767 section 2.1 defines it for JWT-formatted tokens (objects and reference strings, RFC 9635 section 8). Entries are stored on `delegation.access` and intersected with grants like `scopes`.
 - `sender: 'dpop'` attaches `binding: { jkt: cnf.jkt }` and, when a `request` is available, runs `verifyDpopProof`. `sender: 'mtls'` attaches `binding: { 'x5t#S256': cnf['x5t#S256'] }` and compares it to the certificate thumbprint the adapter passes in. `Binding` carries the RFC 7800 `cnf` members verbatim (`jkt`, `x5t#S256`, `jwk`, `kid`) so it round-trips into anything PermDock signs. The binding goes on `actor` when an `act` chain is present, otherwise on `principal`.
 - `expiresAt` on the returned subject is `exp`, or `min(exp, session_expiry)` when the IPSIE / Enterprise Extensions claim is present; `snapshot()` copies it.
 - `verifier` replaces the built-in `joseTokenVerifier` with any `TokenVerifier`: another JOSE library, a hardware-backed verifier, or one that calls an introspection endpoint. The claim mapping, `accept` logic and audit events are unchanged; only the "is this token genuine" step moves.
@@ -136,11 +133,11 @@ Every failure produces the same outcome: the anonymous subject (`principal: null
 | Discovery document could not be fetched and none is cached | anonymous | `discovery-unavailable` |
 | Discovery document `issuer` differs from the configured issuer | anonymous | `discovery-mismatch` |
 
-The audit event carries `reason`, `cause`, the `kid`, `alg` and `typ` seen, the issuer claimed and the request id when the adapter has one. It never carries the token.
+The audit event carries `reason`, `cause`, the `kid`, `alg` and `typ` seen, the issuer claimed and the request id when the adapter has one. It never carries the token. `on('auth')` is its own event, separate from `on('decision')`: a verification failure is not a decision, and the decision that follows is recorded on its own with reason `anonymous`.
 
 ## RFC 6750 and RFC 9470 error mapping
 
-The resolver produces subjects, not HTTP responses; the HTTP adapters render the eventual `Decision`. Because `reason` values reuse the RFC 6750 error vocabulary ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)), the rendering needs no second table:
+The resolver produces subjects, not HTTP responses; the HTTP adapters render the eventual `Decision`. Because `reason` values reuse the RFC 6750 error vocabulary, the rendering needs no second table:
 
 | Situation | `Decision` | HTTP status | `WWW-Authenticate` | Problem Details `type` |
 | --- | --- | --- | --- | --- |
@@ -149,7 +146,7 @@ The resolver produces subjects, not HTTP responses; the HTTP adapters render the
 | Verified principal without a grant | `denied`, reason `no-grant` or `deny` | 403 | none | `.../denied` |
 | Delegation does not cover the permission | `denied`, reason `not-delegated` | 403 | `Bearer error="insufficient_scope", scope="<permission.scope>"`; `alternatives` lists the permissions the token would allow | `.../denied` with `alternatives` |
 | Actor without any delegation | `denied`, reason `no-delegation` | 403 | `Bearer error="insufficient_scope", scope="<permission.scope>"` | `.../denied` |
-| The only conditions that failed read `subject.assurance` | `denied`, reason `insufficient-user-authentication` (a denial reason added by [ADR 0026](/docs/decisions/0026-spec-aligned-naming); any other failed condition keeps the ordinary `condition` reason) | 401 | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age=<seconds>` (RFC 9470) | `.../step-up-required` with `acrValues` and `maxAge` |
+| The only conditions that failed read `subject.assurance` | `denied`, reason `insufficient-user-authentication` (a denial reason added by [subject](/docs/concepts/subject); any other failed condition keeps the ordinary `condition` reason) | 401 | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age=<seconds>` (RFC 9470) | `.../step-up-required` with `acrValues` and `maxAge` |
 | Human gate | `approval-required` | 403 | none | `.../approval-required` with `token` |
 
 RFC 6750 says the resource server "SHOULD NOT" describe the failure beyond the error code to an unauthenticated caller; the `cause` therefore stays on the audit event and the OpenTelemetry span. The two `insufficient_scope` lines take `scope` from `permission.scope`, the same string the MCP adapter puts in a `scopeChallenge`; `not-delegated` and `no-delegation` are the Decision reasons, `insufficient_scope` their one HTTP rendering. The RFC 9470 line takes `acr_values` and `max_age` from the condition that failed. [Problem Details](/docs/standards/problem-details) documents the bodies; the [adapter matrix](/docs/adapters) shows every runtime's rendering side by side.
@@ -195,7 +192,7 @@ approvalsHandler({ store, signer })                                             
 cloud({ url, key }).sink                                                                 // typ: permdock-decisions+jwt on batch export
 ```
 
-A client in any language verifies a signed snapshot with its JOSE library and the signer's JWKS; in TypeScript, `joseTokenVerifier({ jwks, typ: 'permdock-snapshot+jwt' })`. The unsigned JSON form remains the default and the two are the same Snapshot v3 object.
+A client in any language verifies a signed snapshot with its JOSE library and the signer's JWKS; in TypeScript, `joseTokenVerifier({ jwks, typ: 'permdock-snapshot+jwt' })`. The unsigned JSON form remains the default and the two carry the same snapshot object.
 
 ## Usage
 
@@ -251,8 +248,8 @@ The SDK's verification and the resolver's verification must agree on issuer and 
 
 ## What it validates
 
-- Signature, `alg`, `kid`, `typ`, `iss`, `aud`, `exp`, `nbf`, `iat` as listed in the behaviour table.
-- DPoP proof (`sender: 'dpop'`) and mTLS thumbprint (`sender: 'mtls'`) when the adapter supplies the request or certificate.
+- Signature, `alg`, `kid`, `typ`, `iss`, `aud`, `exp`, `nbf`, `iat` as listed in the behaviour table; the RFC 8725 checklist row by row is on [JOSE](/docs/standards/jose).
+- DPoP proof (`sender: 'dpop'`) and mTLS thumbprint (`sender: 'mtls'`) when the adapter supplies the request or certificate. `verifyDpopProof` bounds proofs by the `iat` window and keeps no `jti` cache.
 - The Discovery document's `issuer` and transport.
 - Claim path safety at configuration time.
 - Role names against the policy: unknown names are dropped with a development warning, unless a `customRoles` source resolves them for the token's tenant.
@@ -261,7 +258,7 @@ The SDK's verification and the resolver's verification must agree on issuer and 
 
 ## Not an authentication library
 
-`permdock/jwt` does not log users in, redirect to an authorization server, issue, refresh or revoke tokens, manage sessions or cookies, or implement any OAuth grant. It consumes a token that a client obtained elsewhere and verifies it. If you need the client side of OAuth, use your provider's SDK or an OAuth client library and hand the resulting token to `subjectFromJwt` ([Authentication and PermDock](/docs/concepts/authentication)).
+`permdock/jwt` does not log users in, redirect to an authorization server, issue, refresh or revoke tokens, manage sessions or cookies, or implement any OAuth grant. It consumes a token that a client obtained elsewhere and verifies it. If you need the client side of OAuth, use your provider's SDK or an OAuth client library and hand the resulting token to `subjectFromJwt` ([Authentication and PermDock](/docs/concepts/authentication)). Nonce handling therefore stays with the OAuth client that received the token; a token carrying `nonce` is an ID token and is refused as an access token. One resolver serves one issuer; a multi-issuer API picks a resolver by the unverified `iss` and lets that resolver verify. `groupRoles` is a static map from group id to roles; tenant-prefixed group ids go through a `MembershipSource`.
 
 ## How denials surface
 
@@ -281,14 +278,6 @@ No example of its own. `permdock/jwt` is exercised inside `apps/examples/hono` (
 - [JOSE](/docs/standards/jose): the RFC 8725 checklist row by row, RFC 9864, the interoperability contract for signed outputs.
 - [FAPI 2.0 Security Profile](/docs/standards/fapi-2): sections 5.3.4 and 5.4.1, enforced by `profile: 'fapi2'`.
 - [JWT authorization claims](/docs/standards/jwt-authorization-claims): RFC 9068 `roles`, `groups`, `entitlements`, SCIM encoding, vendor tenant claims.
-- [GNAP](/docs/standards/gnap): the `access` claim (RFC 9767) mapped to `delegation.access` and intersected with grants ([0035](/docs/decisions/0035-gnap-access-and-chain)); `subjectFromIntrospection` for RFC 7662 and RFC 9767 responses.
+- [GNAP](/docs/standards/watch-list#gnap): the `access` claim (RFC 9767) mapped to `delegation.access` and intersected with grants; `subjectFromIntrospection` for RFC 7662 and RFC 9767 responses.
 - [OAuth agent delegation](/docs/standards/oauth-agent-delegation): RFC 9396 `authorization_details`, RFC 8693 `act` chains.
 - [Shared Signals (SSF / CAEP)](/docs/standards/shared-signals-caep): revocation before `exp`.
-
-## Open questions
-
-- Whether `createJwtSubjectResolver` should accept several issuers (a map from `iss` to options) or whether multi-issuer setups compose resolvers themselves.
-- Whether the `on('auth')` event should be a separate event name or a `decision` event with `outcome: 'denied'` and `reason: 'anonymous'` plus the verification `cause`.
-- Whether `verifyDpopProof` needs a replay cache for `jti` or whether the `iat` window is enough for PermDock's purposes.
-- Whether `groupRoles` should also accept a function `(groupId, claims) => string[]` for issuers whose group ids are tenant-prefixed.
-- Whether `accept: 'id-token'` should also verify `nonce` against a value the adapter supplies, or whether nonce handling stays entirely with the OAuth client that received the token.

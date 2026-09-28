@@ -3,8 +3,6 @@ title: OpenAPI Overlay
 description: "How permdock openapi --format overlay emits an Overlay 1.1.0 document (or, behind --overlay 1.2, the pinned Overlay 1.2 draft with reusable actions) that adds security, securitySchemes and x-permdock-* fields to an OpenAPI description without mutating it, how to apply and check it in CI, and why the Overlay never removes security."
 ---
 
-Status: shipped
-Phase: 2
 Draft posture: build (Overlay 1.2 pinned to `v1.2-dev` at commit `edd4adea`, 8 August 2026, recorded in `x-permdock-catalog.drafts.overlay`; 1.1.0 stays the default output)
 
 ## What it is
@@ -27,12 +25,12 @@ An applier resolves each `target` against the description and applies the action
 `permdock openapi emit` can write the mutated document, and that is still the default (`--format document`) because it is the simplest thing to serve. The Overlay form is preferred whenever the OpenAPI description is owned by someone other than the team running PermDock, or whenever the security metadata should be reviewable on its own:
 
 - **The source stays owned by the API team.** A generator (`@hono/zod-openapi`, `hono-openapi`, `@orpc/openapi`, `trpc-to-openapi`, next-openapi-gen) or a hand-written file remains the single source of truth for paths, schemas and descriptions. PermDock adds authorization metadata beside it instead of rewriting it.
-- **It is how PermDock reaches producers it has no hook in.** Next.js route handlers, and every framework next-openapi-gen scans, have no in-process place to call `describe()`. The Overlay is the hand-off: the producer generates, PermDock overlays, the producer's applier merges ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)). For generated descriptions the Overlay is therefore the documented default even though `--format document` stays the CLI default.
+- **It is how PermDock reaches producers it has no hook in.** Next.js route handlers, and every framework next-openapi-gen scans, have no in-process place to call `describe()`. The Overlay is the hand-off: the producer generates, PermDock overlays, the producer's applier merges. For generated descriptions the Overlay is therefore the documented default even though `--format document` stays the CLI default.
 - **PermDock's output is reviewable.** The Overlay contains exactly what PermDock decided: which operations require which scopes, which keys they map to, which scheme they use. A reviewer reads a few dozen lines instead of diffing a whole regenerated description.
 - **Repeatable and diffable in CI.** The Overlay is a deterministic function of the catalog and the source's `operationId`s. `permdock openapi emit --format overlay --check` fails when the committed Overlay no longer matches, which catches a permission renamed without the document following, and a document edited to change what PermDock emitted.
 - **One Overlay, many descriptions.** A monorepo with several APIs that share one catalog can apply one `securitySchemes` Overlay to each, which answers the "shared scheme document" question on the [adapter page](/docs/adapters/openapi) without URI-referenced schemes (a 3.2-only feature).
 
-The Overlay is the delivery mechanism; the semantics of every field it writes are on [OpenAPI 3.2](/docs/standards/openapi-3-2) and [OpenAPI registries](/docs/standards/openapi-registry).
+The Overlay is the delivery mechanism; the semantics of every field it writes are on [OpenAPI](/docs/standards/openapi) and [OpenAPI registries](/docs/standards/openapi-registry).
 
 ## How PermDock uses it
 
@@ -109,7 +107,7 @@ Rules the emitter follows:
 
 ### Overlay 1.2 output
 
-`--overlay 1.2` (adapter: `overlay({ version: '1.2' })`) emits the Overlay 1.2 draft at the pinned `v1.2-dev` commit instead of 1.1.0. It is the *build* posture of [ADR 0025](/docs/decisions/0025-draft-protocol-posture) applied to a document format rather than to a field: PermDock needs it in Phase 2 because the 1.1 form repeats the same `update` body once per operation, the draft's shape is small enough to write fixtures against, and the stable twin is the 1.1 form itself, one flag away and carrying exactly the same information. `1.1` stays the default until 1.2.0 is released and the appliers in the table below accept it.
+`--overlay 1.2` (adapter: `overlay({ version: '1.2' })`) emits the Overlay 1.2 draft at the pinned `v1.2-dev` commit instead of 1.1.0. It is the *build* posture of [watch list](/docs/standards/watch-list) applied to a document format rather than to a field: PermDock builds it because the 1.1 form repeats the same `update` body once per operation, the draft's shape is small enough to write fixtures against, and the stable twin is the 1.1 form itself, one flag away and carrying exactly the same information. `1.1` stays the default until 1.2.0 is released and the appliers in the table below accept it.
 
 The 1.2 form differs from the 1.1 form in exactly one way: every operation `update` body becomes a reusable action, keyed by the permission keys it grants, and the operation entries become references to it. Operations that grant the same permissions share one reusable action; the `securitySchemes`, `securityProfileRequirements` and root catalog actions are unchanged because each has one target.
 
@@ -180,7 +178,9 @@ Rules specific to 1.2:
 
 ### Applying
 
-Any Overlay 1.x applier can consume the file: it takes the OpenAPI description (from `extends` or a command-line argument) and the Overlay and writes the combined description. Run it as a build step and serve or publish the result; the source description in the repository stays unchanged. PermDock does not ship its own applier in Phase 2; the document form covers projects that do not want one.
+Any Overlay 1.x applier can consume the file: it takes the OpenAPI description (from `extends` or a command-line argument) and the Overlay and writes the combined description. Run it as a build step and serve or publish the result; the source description in the repository stays unchanged. PermDock does not ship its own applier; the document form covers projects that do not want one.
+
+Each operation action targets the operation object by `operationId` and sets `security` on it, one action per route. Because the producer must not write `security` on covered operations (below), there is no existing array for an applier to merge with, and the operation ends with exactly the requirements PermDock wrote.
 
 | Applier | Where it runs | Notes |
 | --- | --- | --- |
@@ -219,7 +219,7 @@ Mitigations:
 
 - PermDock's Overlay **never** contains `remove` on `security` or `securitySchemes`, so the presence of one is a signal, not a configuration choice.
 - `permdock openapi emit --format overlay --check` fails on any difference from the regenerated Overlay, including an added `remove`. Run it in the same job that applies the Overlay.
-- Treat the Overlay like any other build input: commit it, review it, and do not fetch it from a mutable URL at build time.
+- Treat the Overlay like any other build input: commit it, review it, and do not fetch it from a mutable URL at build time. PermDock does not sign the Overlay; repository review plus `--check` is the integrity control.
 - Keep enforcement independent of the document. PermDock's `protect` guards routes from the policy, not from the OpenAPI description, so a tampered description cannot open a route ([threat model](/docs/security/threat-model)).
 
 ## Mapping table
@@ -244,17 +244,10 @@ Mitigations:
 
 ## Related
 
-- [OpenAPI 3.2](/docs/standards/openapi-3-2): the fields the Overlay adds.
+- [OpenAPI](/docs/standards/openapi): the fields the Overlay adds, and what changes when a native security-profile construct exists.
 - [OpenAPI registries](/docs/standards/openapi-registry): the `x-permdock-*` namespace.
-- [OpenAPI 3.3](/docs/standards/openapi-3-3): what changes when a native security-profile construct exists.
 - [Arazzo workflows](/docs/standards/arazzo): reading the applied description back to pre-flight a workflow.
 - [OpenAPI adapter](/docs/adapters/openapi), [Next.js adapter](/docs/adapters/next) and [CLI: openapi](/docs/cli/openapi).
-- [OpenAPI ecosystem](/docs/research/openapi-ecosystem): producers, appliers and consumers.
-- [ADR 0019](/docs/decisions/0019-openapi-extensions-and-overlay), [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem) and [ADR 0025](/docs/decisions/0025-draft-protocol-posture) (the 1.2 draft posture and pin).
+- [OpenAPI ecosystem](/docs/research/ecosystem-index): producers, appliers and consumers.
+- [Adapters](/docs/adapters).
 - [Watch list](/docs/standards/watch-list): the Overlay 1.2 row.
-
-## Open questions
-
-- Whether to target the operation object (as above) or the `security` array itself, given Overlay's merge semantics for arrays; the operation object keeps one action per route but relies on the applier replacing `security` rather than appending to it.
-- Whether PermDock should ship a minimal applier in `@permdock/cli` (`permdock openapi apply`) so `--check` can also validate the applied result, not only the Overlay.
-- Signing the Overlay (a detached signature checked before applying) versus relying on repository review and `--check`.

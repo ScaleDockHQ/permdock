@@ -5,7 +5,7 @@ description: "PermDock never authenticates: it consumes material something else 
 
 PermDock is an authorization library. It does not log anyone in, does not issue or refresh tokens, and does not store sessions. Every decision starts from **verified material**: a session your framework validated, a JWT whose signature and claims were checked against the issuer's keys, an `authInfo` object the MCP SDK attached after bearer verification, a signature the Web Bot Auth verifier accepted. PermDock's job begins where that verification ends: map the material to a [subject](/docs/concepts/subject), build a request-scoped `PermDock`, and answer `can` / `decide`.
 
-The rule that follows from this is the one every adapter and provider on this site obeys: **if the material cannot be verified, the subject is anonymous.** Anonymous has no roles. The only selector that still matches is `anyone()`; every other `to:` fails closed. Nothing throws, nothing falls back to "trust the claims anyway", and the audit event says why ([ADR 0018](/docs/decisions/0018-authentication-is-upstream)).
+The rule that follows from this is the one every adapter and provider on this site obeys: **if the material cannot be verified, the subject is anonymous.** Anonymous has no roles. The only selector that still matches is `anyone()`; every other `to:` fails closed. Nothing throws, nothing falls back to "trust the claims anyway", and the audit event says why.
 
 ## The pipeline
 
@@ -17,7 +17,7 @@ flowchart LR
   Bad["Unverifiable material"] -.->|anonymous, audit reason| Subject
 ```
 
-Verification happens to the left of the first box and is never PermDock core's job: core has no runtime dependency other than `@standard-schema/spec` ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)), so it cannot verify a signature. Verification lives in three places instead:
+Verification happens to the left of the first box and is never PermDock core's job: core has no runtime dependency other than `@standard-schema/spec`, so it cannot verify a signature. Verification lives in three places instead:
 
 - **Your framework or provider** verifies sessions and tokens and hands PermDock the result (Next.js, Better Auth, Supabase `getClaims()`, Clerk `auth()`, the MCP SDK's bearer middleware).
 - **`permdock/jwt`** verifies bearer JWTs against a JWKS or secret with `jose` as an optional peer dependency and returns a subject ([JWT adapter](/docs/adapters/jwt)).
@@ -30,7 +30,7 @@ Each of them exposes a `subjectFrom<Source>` function. The name says where the m
 | Source | Verified by | Becomes | Adapter |
 | --- | --- | --- | --- |
 | Session cookie | The framework's session layer (Next.js, Better Auth server API) | `principal` from the session user | `permdock/next`, `permdock/better-auth` |
-| OAuth 2.0 / OIDC access token (bearer or DPoP JWT, `typ: at+jwt` or `JWT`) | Signature, `iss`, `aud`, `exp`, `nbf`, `typ` against the JWKS named by [OIDC Discovery](/docs/standards/openid-connect) (`discovery`) or a configured `jwks` | `principal` from `sub` and `issuer` from `iss`; `assurance` from `acr` / `amr` / `auth_time`; `session` from `sid`; global roles from RFC 9068 `roles`, team memberships from `groups`, entitlement roles from `entitlements` ([JWT authorization claims](/docs/standards/jwt-authorization-claims)); `tenant` from the configured claim; `delegation` from `scope`, `authorization_details`, GNAP `access`; `actor` from `act`; `binding` from `cnf` | `permdock/jwt` (`subjectFromJwt`) |
+| OAuth 2.0 / OIDC access token (bearer or DPoP JWT, `typ: at+jwt` or `JWT`) | Signature, `iss`, `aud`, `exp`, `nbf`, `typ` against the JWKS named by [OIDC Discovery](/docs/standards/openid-connect) (`discovery`) or a configured `jwks` | `principal` from `sub` and `issuer` from `iss`; `assurance` from `acr` / `amr` / `auth_time`; `session` from `sid`; global roles from RFC 9068 `roles`, team memberships from `groups`, `principal.plans` from `entitlements` ([JWT authorization claims](/docs/standards/jwt-authorization-claims)); `tenant` from the configured claim; `delegation` from `scope`, `authorization_details`, GNAP `access`; `actor` from `act`; `binding` from `cnf` | `permdock/jwt` (`subjectFromJwt`) |
 | OIDC ID token (`accept: 'id-token'`, explicit opt-in for BFF patterns) | As above, plus `aud` must equal the client id and `nonce` is verified by the RP, not by PermDock | Same principal fields; never `delegation` (an ID token carries no `scope` for a resource server) | `permdock/jwt` (`subjectFromJwt`) |
 | GNAP or OAuth introspection response | The RS's own credential at the AS introspection endpoint (RFC 7662 / RFC 9767); the response is trusted as server-to-server material | `principal` from `sub`, `issuer` from `iss`; `delegation.access` from `access` or `delegation.scopes` from `scope`; `binding` from `key` | `permdock/jwt` (`subjectFromIntrospection`) |
 | Supabase `getClaims()` output | `@supabase/supabase-js` against the project JWKS (asymmetric keys) or the Auth server (legacy secret) | `principal.id` from `sub`, `issuer` from `iss`, roles and `tenant` from `app_metadata` / hook claim, `assurance.acr` from `aal`; memberships from your tables through `memberships` | `permdock/supabase` (`subjectFromSupabase`) |
@@ -50,7 +50,7 @@ Two entries deserve a note. An **API key** identifies a caller that acts on its 
 
 ## Provider recipes
 
-Four providers get an adapter (`permdock/supabase`, `permdock/better-auth`, `permdock/clerk`, `permdock/convex`) because each exposes a verification hook only in-process code can use. Every other provider is a recipe over `subjectFromJwt` or the framework session, following the rule that ecosystems are reached through wire formats rather than per-tool packages ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)). Every mapper, shipped or yours, satisfies the `SubjectResolver` interface, exports a base principal type and takes a `schema` option for custom claims ([extension interfaces](/docs/concepts/extension-interfaces)); how each fills tenant, team and resource memberships is summarised on [tenancy](/docs/concepts/tenancy) and detailed in each provider page's "Memberships" section. The table records, per provider, where verification happens, which claim carries roles and organisation, and which fields are user-editable and therefore never feed grants. Claim names are the providers' defaults as documented in September 2026; confirm against the provider's current docs and pin them in the `claims` option.
+Four providers get an adapter (`permdock/supabase`, `permdock/better-auth`, `permdock/clerk`, `permdock/convex`) because each exposes a verification hook only in-process code can use. Every other provider is a recipe over `subjectFromJwt` or the framework session, following the rule that ecosystems are reached through wire formats rather than per-tool packages. Every mapper, PermDock's or yours, satisfies the `SubjectResolver` interface, exports a base principal type and takes a `schema` option for custom claims ([extension interfaces](/docs/concepts/extension-interfaces)); how each fills tenant, team and resource memberships is summarised on [tenancy](/docs/concepts/tenancy) and detailed in each provider page's "Memberships" section. The table records, per provider, where verification happens, which claim carries roles and organisation, and which fields are user-editable and therefore never feed grants. Claim names are the providers' defaults as documented in September 2026; confirm against the provider's current docs and pin them in the `claims` option.
 
 | Provider | Verified by | Roles and organisation | User-editable, never grants | Recipe |
 | --- | --- | --- | --- | --- |
@@ -77,7 +77,7 @@ Four providers get an adapter (`permdock/supabase`, `permdock/better-auth`, `per
 
 Three patterns recur. Every provider has a server-only bucket (`app_metadata`, custom claims, `serverMetadata`, `metadata_admin`, `trusted_metadata`) and a user-writable one; only the first feeds grants. Organisation-scoped roles ride in the token for the org the session is currently in, so multi-org checks need either a token per org or a `context` lookup. And a provider's own permission or feature-flag arrays are `delegation.scopes` or `context` inputs, not PermDock grants: the policy stays the single place that says who may do what.
 
-Two newer rows follow from the 2026-07-28 MCP release. Providers that sell the OAuth 2.1 authorization server for MCP servers (WorkOS Connect, Stytch Connected Apps, Descope, Scalekit, Auth0 Token Vault, Supabase's OAuth server) issue the access tokens `permdock/mcp` receives as `authInfo`; `client_id` becomes `actor.id` and `scope` becomes `delegation.scopes` with no provider-specific code ([MCP authorization](/docs/standards/mcp-authorization)). Enterprise agent identity (Okta Cross App Access, Microsoft Entra Agent ID) produces tokens with the human as `sub` and the agent as the client, which is the two-principal subject as-is ([delegation](/docs/security/delegation)). Billing and entitlement claims (Clerk Billing `pla` and `fea`, Frontegg entitlements, Kinde `feature_flags`) are server-written and eligible as roles under the "entitlements are roles" rule, never as grants ([Clerk provider](/docs/adapters/clerk)).
+Two groups of rows concern agents. Providers that sell the OAuth 2.1 authorization server for MCP servers (WorkOS Connect, Stytch Connected Apps, Descope, Scalekit, Auth0 Token Vault, Supabase's OAuth server) issue the access tokens `permdock/mcp` receives as `authInfo`; `client_id` becomes `actor.id` and `scope` becomes `delegation.scopes` with no provider-specific code ([MCP authorization](/docs/standards/mcp-authorization)). Enterprise agent identity (Okta Cross App Access, Microsoft Entra Agent ID) produces tokens with the human as `sub` and the agent as the client, which is the two-principal subject as-is ([delegation](/docs/security/delegation)). Billing and entitlement claims are server-written plan and feature inputs, never grants: RFC 9068 `entitlements` and Clerk Billing `pla` become `principal.plans`, Clerk `fea` becomes roles through the `features` map, and Frontegg entitlements and Kinde `feature_flags` are `principal.plans` or `context` ([Clerk provider](/docs/adapters/clerk)).
 
 ## Claim trust rules
 
@@ -155,7 +155,7 @@ export const policy = definePolicy(permissions, {
 })
 ```
 
-Group ids rather than display names, because names are editable by any group owner and are not unique across tenants. Directory Sync and SCIM are the third path: the IdP provisions users and groups into your database, and roles come from a row you control. Two ways to get there: an auth layer's Directory Sync (WorkOS, Better Auth's provisioning hook) writing rows your `context` or `MembershipSource` reads, or [`permdock/scim`](/docs/adapters/scim) (Phase 2), an RFC 7644 receiver you mount that writes to a `DirectoryStore` you own and exposes it as `directoryMembershipSource`; group-to-role mapping is a `groupRoles` map or the `roles` attribute of the PermDock SCIM extension, set by the IdP or by the PermDock Cloud relay's mapping UI. The Cloud relays; it never resolves memberships (invariant 15). [IPSIE AL1](/docs/standards/watch-list) is the checklist for the receiver's authentication.
+Group ids rather than display names, because names are editable by any group owner and are not unique across tenants. Directory Sync and SCIM are the third path: the IdP provisions users and groups into your database, and roles come from a row you control. Two ways to get there: an auth layer's Directory Sync (WorkOS, Better Auth's provisioning hook) writing rows your `context` or `MembershipSource` reads, or [`permdock/scim`](/docs/adapters/scim), an RFC 7644 receiver you mount that writes to a `DirectoryStore` you own and exposes it as `directoryMembershipSource`; group-to-role mapping is a `groupRoles` map or the `roles` attribute of the PermDock SCIM extension, set by the IdP or by the PermDock Cloud relay's mapping UI. The Cloud relays; it never resolves memberships (invariant 15). [IPSIE AL1](/docs/standards/watch-list) is the checklist for the receiver's authentication.
 
 With [scoped roles](/docs/concepts/tenancy) the same lookup produces memberships instead of flat roles, which keeps the team visible to audit and to team-scoped roles: `groups` become `{ tenant: claims.tid, team: id, roles: rolesByGroupId[id] ?? [], via: 'group:' + id }` entries, and `subjectFromJwt` does this by default for the RFC 9068 `groups` claim with a `groupRoles` option holding the id-to-roles map ([JWT authorization claims](/docs/standards/jwt-authorization-claims)).
 
@@ -163,49 +163,17 @@ With [scoped roles](/docs/concepts/tenancy) the same lookup produces memberships
 
 ### Enterprise SSO
 
-OIDC enterprise SSO is `subjectFromJwt({ discovery })` against the IdP or the auth layer's issuer. SAML is terminated upstream: Better Auth's SSO plugin, Clerk Enterprise SSO, WorkOS AuthKit, Auth.js, Supabase SAML, or the Cloud gateway of [ADR 0042](/docs/decisions/0042-cloud-identity-gateway). A SAML assertion is never a PermDock input, and there is no `permdock/saml` entry ([ecosystem index](/docs/research/ecosystem-index)).
+OIDC enterprise SSO is `subjectFromJwt({ discovery })` against the IdP or the auth layer's issuer. SAML is terminated upstream: Better Auth's SSO plugin, Clerk Enterprise SSO, WorkOS AuthKit, Auth.js, Supabase SAML, or the Cloud gateway of [PermDock Cloud](/docs/adapters/cloud). A SAML assertion is never a PermDock input, and there is no `permdock/saml` entry ([ecosystem index](/docs/research/ecosystem-index)).
 
 ## JWT validation checklist
 
-`permdock/jwt` implements this list; if you verify tokens yourself before calling a `subjectFrom*` function, or plug a custom `TokenVerifier` in through the `verifier` option ([extension interfaces](/docs/concepts/extension-interfaces)), your verifier must too. It follows RFC 8725 (JSON Web Token Best Current Practices) and its successor draft, `rfc8725bis`, which is in the RFC Editor queue; the per-item mapping is on the [JOSE](/docs/standards/jose) page.
+`permdock/jwt` implements the RFC 8725 checklist: keys and issuer from Discovery or explicit configuration, an explicit algorithm allow-list that never includes `none`, keys never chosen by the token, `iss`, `aud`, `typ`, `exp` and `nbf` checked, signature before claims, and every failure mapped to the anonymous subject with `on('auth')` reason `invalid-token`. If you verify tokens yourself before calling a `subjectFrom*` function, or plug a custom `TokenVerifier` in through the `verifier` option ([extension interfaces](/docs/concepts/extension-interfaces)), your verifier must follow the same list. The full checklist with its RFC mapping is on [JOSE](/docs/standards/jose); the `cause` values are on the [JWT adapter](/docs/adapters/jwt).
 
-1. **Keys and issuer come from Discovery, or from explicit configuration.** With `discovery: '<issuer>'` the resolver fetches `<issuer>/.well-known/openid-configuration` (RFC 8414 `/.well-known/oauth-authorization-server` as fallback), requires the document's `issuer` to equal the configured one byte for byte, and takes `jwks_uri` from it. Discovery is over HTTPS only and is cached with the JWKS; it runs in the resolver, never in `decide`. Without `discovery`, `jwks` and `issuer` are both required ([OpenID Connect](/docs/standards/openid-connect)).
-2. **Allowed algorithms are an explicit list.** The default is `ES256`, `PS256`, `Ed25519` (RFC 9864's fully-specified name), plus `RS256` outside `profile: 'fapi2'`; configure the subset your issuer uses. `EdDSA` is accepted only for a `crv: Ed25519` key and `permdock doctor` suggests the fully-specified name. A token whose `alg` is not in the list is rejected before any key lookup.
-3. **`none` is never allowed**, whatever the list says; nor is `RSA1_5` for JWE.
-4. **The token never picks the key.** `jku`, `x5u` and embedded `jwk` headers are ignored; keys come only from the JWKS Discovery named or the configured key set. This closes key-confusion attacks where an RSA public key is fed to an HMAC verifier.
-5. **`kid` must resolve in the JWKS.** An unknown `kid` triggers at most one refetch per configured interval; if it still does not resolve, the token is rejected.
-6. **`iss` equals the configured or discovered issuer.** Exact string comparison.
-7. **`aud` contains this resource.** A token issued for another API is rejected even when the signature is valid.
-8. **`typ` is checked.** `at+jwt` (RFC 9068) or `JWT` for access tokens, `at+jwt` only under `profile: 'fapi2'`; an ID token (`nonce` present, `aud` equal to a client id) is rejected unless `accept: 'id-token'` was chosen. A JWE is accepted only when `decryptionKeys` is configured, and only as a nested JWS with `cty: JWT`.
-9. **`exp` and `nbf` are checked** with a small, explicit clock tolerance (seconds, not minutes). `iat` in the future is rejected under the same tolerance.
-10. **Signature before claims.** Claims are parsed only after the signature verified; an attacker cannot make the verifier branch on unverified data.
-11. **Bearer tokens come from the `Authorization` header** (RFC 6750 section 2.1) or the `DPoP` scheme (RFC 9449 section 7.1). Tokens in query strings are rejected under `profile: 'fapi2'` and discouraged everywhere.
-12. **Every failure is one shape.** The token becomes the anonymous subject and `on('auth')` receives `reason: 'invalid-token'` with a `cause` from the closed list on the [JWT adapter](/docs/adapters/jwt); HTTP adapters render `WWW-Authenticate: Bearer error="invalid_token"` from the reason alone ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)).
+## Token to delegation and sender constraint
 
-## Token to delegation
+A token often carries authority that was delegated to the bearer, not the bearer's own authority. `subjectFromJwt` maps `scope` (RFC 6749 / RFC 8693) to `delegation.scopes`, `authorization_details` (RFC 9396) to `delegation.authorizationDetails`, GNAP `access` (RFC 9635) to `delegation.access`, and the RFC 8693 `act` claim to `actor` with the full nesting as `delegation.chain`; `may_act` is recorded for audit and never grants. A sender-constrained token's `cnf` member (`jkt` for DPoP, `x5t#S256` for mTLS) becomes `binding` on the principal or, for an `act` chain, on the actor. The shapes and the intersection rule are on [subject](/docs/concepts/subject).
 
-A token often carries authority that was delegated to the bearer, not the bearer's own authority. PermDock maps the standard carriers to `delegation` so that the [intersection rule](/docs/concepts/subject) applies:
-
-| Claim | Standard | Becomes |
-| --- | --- | --- |
-| `scope` (space-separated) | RFC 6749 / RFC 8693 | `delegation.scopes`, matched against `permission.scope` |
-| `authorization_details` | RFC 9396 Rich Authorization Requests | `delegation.authorizationDetails`, matched per permission by `type` |
-| `access` (array of objects and reference strings) | GNAP, RFC 9635 section 8 | `delegation.access`; objects match by `type`, `actions`, `identifier`; strings behave like scopes ([GNAP](/docs/standards/gnap)) |
-| `act` (nested actor claim) | RFC 8693 section 4.1 | `actor` from the innermost `act.sub`; the full nesting as `delegation.chain` |
-| `may_act` | RFC 8693 section 4.4 | Recorded on the decision for audit; not a grant |
-
-A token with an `act` claim and no `scope` or `authorization_details` yields an actor with no delegation, and every check is `denied` with reason `no-delegation`. This is deliberate: a delegated token that says nothing about what was delegated grants nothing.
-
-## Sender constraint
-
-FAPI 2.0 and the IPSIE profiles ask resource servers to accept sender-constrained tokens: a token bound to a key the client must prove it holds. The binding lives in the `cnf` claim and PermDock surfaces it on the subject so adapters can check it:
-
-| `cnf` member | Standard | On the subject |
-| --- | --- | --- |
-| `cnf.jkt` | DPoP, RFC 9449 | `binding: { jkt }` (the `cnf` member, verbatim; [ADR 0026](/docs/decisions/0026-spec-aligned-naming)) |
-| `cnf.x5t#S256` | OAuth 2.0 mTLS, RFC 8705 | `binding: { 'x5t#S256' }` |
-
-The binding is attached to `principal` when the token identifies a user or workload acting for itself, and to `actor` when the token carries an `act` chain (the key belongs to the agent that presented it). Core stores it and puts it on audit events; **checking** it is an adapter concern, because proof-of-possession needs the request: `verifyDpopProof(request, claims)` in `permdock/jwt` compares the `DPoP` header's JWK thumbprint to `cnf.jkt`, and the mTLS check compares the client certificate the TLS terminator forwarded to `cnf.x5t#S256`. Under `profile: 'fapi2'` a token without `cnf` is rejected outright ([FAPI 2.0](/docs/standards/fapi-2)).
+Two rules belong to verification. A token with an `act` claim and no `scope` or `authorization_details` yields an actor with no delegation, so every check is `denied` with reason `no-delegation`. And checking a binding needs the request, so it is an adapter concern: `verifyDpopProof(request, claims)` in `permdock/jwt` compares the `DPoP` proof's JWK thumbprint to `cnf.jkt`, the mTLS check compares the forwarded client certificate to `cnf.x5t#S256`, and under `profile: 'fapi2'` a token without `cnf` is rejected ([FAPI 2.0](/docs/standards/fapi-2)).
 
 ## Staleness and revocation
 
@@ -275,7 +243,6 @@ const decision = permdock.decide(permissions.post.update, post)
 - [SCIM adapter](/docs/adapters/scim): the RFC 7644 receiver that provisions users and groups into a `DirectoryStore` you own and exposes them as memberships.
 - [doctor](/docs/cli/doctor): `PD010` and `PD011`, the checks for role and tenant claims sourced from unverified or optional claims.
 - [Threat model](/docs/security/threat-model): token-handling threats and their mitigations.
-- [ADR 0018: Authentication is upstream](/docs/decisions/0018-authentication-is-upstream).
 
 ## Sources
 

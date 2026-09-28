@@ -11,6 +11,15 @@ import {
 } from '../fixtures/quick-start.ts';
 import { createPermDock } from './index.ts';
 
+const delegated = {
+  scopes: [
+    permissions.post.read.scope,
+    permissions.post.list.scope,
+    permissions.post.delete.scope,
+    permissions.post.publish.scope,
+  ],
+};
+
 function tools() {
   return {
     mcp__posts__delete_post: {
@@ -47,6 +56,7 @@ describe('permdock/claude-agent', () => {
   it('allows granted tools and denies unmapped or unpublished ones', async () => {
     const { canUseTool } = createPermDock(policy, {
       subject: () => memberUser,
+      delegation: () => delegated,
       actor: () => ({ id: 'claude-agent', kind: 'claude-agent' }),
       tools: tools(),
     });
@@ -82,6 +92,7 @@ describe('permdock/claude-agent', () => {
     const store = memoryApprovalStore();
     const { canUseTool } = createPermDock(policy, {
       subject: () => memberUser,
+      delegation: () => delegated,
       actor: () => ({ id: 'claude-agent', kind: 'claude-agent' }),
       tools: tools(),
       store,

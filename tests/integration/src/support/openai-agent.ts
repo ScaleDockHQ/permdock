@@ -5,7 +5,7 @@ import { saasPermissions as p, saasPolicy } from '@permdock/testing/saas';
 import { createPermDock } from 'permdock/openai';
 import { z } from 'zod';
 
-import { agentSubject, agentTools, TENANT } from './agents.ts';
+import { agentDelegation, agentSubject, agentTools, TENANT } from './agents.ts';
 
 type ModelRequest = { readonly input: string | readonly unknown[] };
 
@@ -82,6 +82,7 @@ export function buildAgent(
     subject: agentSubject,
     actor: () => ({ id: 'support-bot', kind: 'openai-agent' }),
     tenant: TENANT,
+    delegation: agentDelegation,
     tools: agentTools(load),
     store,
   });

@@ -3,9 +3,6 @@ title: Standard Schema
 description: How PermDock consumes Standard Schema v1 and Standard JSON Schema so resources can be defined with Zod, Valibot, ArkType or Effect Schema without adapters.
 ---
 
-Status: shipped
-Phase: 1
-
 ## What it is
 
 [Standard Schema](https://standardschema.dev/) is a small interface that validation libraries implement so downstream tools can accept any of them without per-library adapters. The spec is published as the types-only package `@standard-schema/spec` and defines three interfaces under a single `~standard` key:
@@ -24,7 +21,7 @@ A permissions library has to know the shape of the things it protects. CASL infe
 
 1. **Types.** `resource(Post, ...)` infers the instance type from `InferOutput` so `permissions.post.update` is a `Permission` over `Post` and `can(permissions.post.update, post)` type-checks the second argument.
 2. **Conditions.** Portable `where` / `check` conditions are typed against the schema output, so `{ where: { authorId: principal.id } }` fails to compile if `Post` has no `authorId`.
-3. **Boundary validation.** Data that crossed a trust boundary (HTTP body, MCP tool arguments, client `refresh`) is validated with the resource schema before a rule runs. See [validation](/docs/concepts/validation) and [ADR 0009](/docs/decisions/0009-boundary-validation).
+3. **Boundary validation.** Data that crossed a trust boundary (HTTP body, MCP tool arguments, client `refresh`) is validated with the resource schema before a rule runs. See [validation](/docs/concepts/validation) and [validation](/docs/concepts/validation).
 4. **Export.** Standard JSON Schema turns the same resource schemas into JSON Schema for the catalog, `permdock catalog`, and OpenAPI `components`, without Zod-specific converters.
 
 Because the interface is a dependency-free set of types, PermDock keeps its zero-runtime-dependency budget while supporting every validator on the list.
@@ -51,7 +48,7 @@ export const permissions = definePermissions({
 
 Rules of consumption:
 
-- `resource()` accepts anything that satisfies `StandardSchemaV1`. It reads `~standard.types.output` for inference and stores the schema on the resource node, never on the permission leaf, so leaves stay plain JSON (see [ADR 0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)).
+- `resource()` accepts anything that satisfies `StandardSchemaV1`. It reads `~standard.types.output` for inference and stores the schema on the resource node, never on the permission leaf, so leaves stay plain JSON.
 - **Validation is synchronous at boundaries.** `validate: 'boundary'` (the default in `definePolicy`) calls `~standard.validate` on untrusted data. If the validator returns a Promise, PermDock throws `PermDockValidationError` with a message naming the async schema rather than silently denying, which is the failure mode `@zap-studio/permit` has with async rules. `validate: 'always'` and `'never'` are the other two modes.
 - **Issues become denials.** A failed validation yields `outcome: 'denied'` with a reason of kind `validation` carrying the `issues` array, so an MCP client or an HTTP caller sees which field was wrong.
 - **JSON Schema export** uses `~standard.jsonSchema.output(...)` when the validator implements `StandardJSONSchemaV1`; schema-less resources and validators without it produce an empty object schema and a warning from `permdock doctor`.
@@ -75,15 +72,11 @@ Rules of consumption:
 
 Any implementer works. The ones PermDock documents and tests in `tests/types` are Zod, Valibot, ArkType and Effect Schema. Schema-less resources (`resource({ collection: [...] })`) are supported for actions that have no instance.
 
+The boundary is strictly synchronous: there is no async validation mode, and an Effect Schema user passes its synchronous adapter. Field-level grants type their `fields` list from `InferOutput`, so a field name the schema does not declare is a type error. `permdock rls import` ships no built-in schema object: generated definitions import the validator named by `--schema` (Zod by default).
+
 ## Sources
 
 - [standardschema.dev](https://standardschema.dev/): specification, interfaces, implementer and consumer tables.
 - [Standard JSON Schema](https://standardschema.dev/schema).
 - [standard-schema/standard-schema on GitHub](https://github.com/standard-schema/standard-schema).
-- [Landscape research](/docs/research/landscape) and [zap-studio/permit deep-dive](/docs/research/zap-studio-permit) for how existing libraries consume the spec.
-
-## Open questions
-
-- Whether to accept an async schema at all with an explicit `validate: 'async'` mode, or keep the boundary strictly synchronous and document Effect Schema's sync adapter as the path.
-- Whether `permdock rls import` should ship a minimal built-in `StandardSchemaV1` object for generated definitions when no validator is installed, or always require `--schema`.
-- How field-level grants (Phase 3) should read field names: from `InferOutput` only, or also from the exported JSON Schema so schema-less resources can opt in.
+- [Landscape research](/docs/research/landscape) for how existing libraries, including zap-studio/permit, consume the spec.

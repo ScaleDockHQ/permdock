@@ -3,7 +3,7 @@ title: Validation
 description: PermDock validates resource data against its Standard Schema only where it crossed a trust boundary, synchronously, with a typed error.
 ---
 
-A permission check is only as good as the data it checks. `can(permissions.post.update, post)` with a `post` that a client made up is a check against fiction. PermDock attaches each resource's Standard Schema to the resource node and runs it on data that came from outside the trust boundary, and only there: trusted rows loaded by your own server code are not re-validated on every call. This page defines the modes, what counts as a boundary, and why validation is synchronous ([ADR 0009](/docs/decisions/0009-boundary-validation)).
+A permission check is only as good as the data it checks. `can(permissions.post.update, post)` with a `post` that a client made up is a check against fiction. PermDock attaches each resource's Standard Schema to the resource node and runs it on data that came from outside the trust boundary, and only there: trusted rows loaded by your own server code are not re-validated on every call. This page defines the modes, what counts as a boundary, and why validation is synchronous.
 
 ## Modes
 
@@ -15,7 +15,7 @@ A permission check is only as good as the data it checks. `can(permissions.post.
 | `'always'` | Validate every instance passed to `can`, `decide`, `assert`, `filter`, regardless of origin. | Development, test suites, while migrating an untyped codebase |
 | `'never'` | Never run schemas. Types are still enforced at compile time. | Hot paths where every row came from your own database and the type is trusted |
 
-The two comparison points that shaped the default: `@zap-studio/permit` validates every `can()` call, which is wasted work for rows the server just read; Kilpi's decision endpoint accepted `z.any()` and never validated, so a client could fabricate the object the server decided on ([research](/docs/research/zap-studio-permit), [Kilpi](/docs/research/kilpi-v1)).
+The two comparison points that shaped the default: `@zap-studio/permit` validates every `can()` call, which is wasted work for rows the server just read; Kilpi's decision endpoint accepted `z.any()` and never validated, so a client could fabricate the object the server decided on ([landscape](/docs/research/landscape)).
 
 ## What a boundary is
 
@@ -134,7 +134,7 @@ Validation modes only change runtime behaviour. At compile time:
 Because resources are Standard Schema values, PermDock can also ask them for JSON Schema through the Standard JSON Schema interface where the validator supports it. That feeds:
 
 - the [catalog](/docs/cli/catalog): `permissions.catalog.json` includes a JSON Schema per resource next to each permission;
-- [OpenAPI 3.2](/docs/standards/openapi-3-2) emission: resource schemas become components, `x-permdock-permissions` references them;
+- [OpenAPI](/docs/standards/openapi) emission: resource schemas become components, `x-permdock-permissions` references them;
 - MCP tool `inputSchema` validation when a tool's arguments are the resource itself.
 
 No validator-specific converter is involved. See [Standard Schema](/docs/standards/standard-schema).
@@ -143,8 +143,4 @@ No validator-specific converter is involved. See [Standard Schema](/docs/standar
 
 Boundary validation runs once per untrusted object, not once per check: the adapter validates, then passes the parsed value to `decide` as trusted. In `'always'` mode the parsed value is cached per object identity for the lifetime of the `PermDock`, so `filter` over a thousand rows validates each row once. Schema cost is the validator's; PermDock adds a single `~standard.validate` call.
 
-## Open questions
-
-- Whether `trusted: false` should be the option name or whether adapters should pass a `boundary` string only.
-- Whether `'boundary'` should also validate objects passed to the React client's `decide` from user code, or only those that reach the endpoint.
-- How to surface async schemas at the type level: Standard Schema's `validate` type is `Result | Promise<Result>` for every library, so a compile-time check would need per-validator knowledge.
+The client instance built from a snapshot never runs schemas: its answers are UI hints, and any object it sends to the decision endpoint is validated there. Async schemas are caught at runtime (`async-schema`), not at the type level, because Standard Schema types every `validate` as `Result | Promise<Result>`.

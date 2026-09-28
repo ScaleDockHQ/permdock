@@ -26,7 +26,7 @@ import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
-import { mapPermDockError } from '../server/map-error.ts';
+import { problemFromError } from '../server/map-error.ts';
 import { guardIterable, isAsyncIterable } from '../server/stream.ts';
 import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
 
@@ -72,7 +72,7 @@ export type OrpcPermDockOptions<
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
   readonly webBotAuth?: WebBotAuthOptions;
-  /** Ends or revalidates open event iterators (ADR 0052). */
+  /** Ends or revalidates open event iterators. */
   readonly revocations?: RevocationFeed;
 };
 
@@ -96,7 +96,7 @@ export type OrpcPermDock<TCtx extends object = object> = {
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => OrpcMiddleware<TCtx>;
-  /** A long-lived connection for the request behind `context` (ADR 0052). */
+  /** A long-lived connection for the request behind `context`. */
   readonly connection: (
     opts: OrpcMiddlewareOpts<TCtx>,
     connectionOptions?: ConnectionOptions,
@@ -200,7 +200,7 @@ function mapDownstream<T>(run: () => T | PromiseLike<T>): Promise<T> {
   return new Promise<T>((resolve) => {
     resolve(run());
   }).catch((error: unknown) => {
-    const mapped = mapPermDockError(error);
+    const mapped = problemFromError(error);
     if (mapped === undefined) {
       throw error;
     }

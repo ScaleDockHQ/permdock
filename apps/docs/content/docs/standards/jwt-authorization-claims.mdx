@@ -3,9 +3,6 @@ title: JWT authorization claims (RFC 9068, SCIM)
 description: How PermDock reads the registered roles, groups and entitlements JWT claims (RFC 9068 section 2.2.3.1, SCIM RFC 7643 encoding) into global roles, team memberships and entitlement roles, how vendor tenant claims map to the active tenant, and the AuthZEN claims draft that makes a PDP a claim source.
 ---
 
-Status: shipped
-Phase: 1
-Adapter phases: `permdock/jwt` 1, provider `subjectFrom*` mappers 1 and 2, `permdock/authzen` search endpoints 2.
 
 ## What it is
 
@@ -49,11 +46,11 @@ const subject = await subjectFromJwt(token, {
 
 | Claim | Encoding accepted | Becomes | Rule |
 | --- | --- | --- | --- |
-| `roles` | `string[]` or SCIM complex values | `principal.roles` (global) or, when the issuer scopes roles to the tenant it named, a membership `{ tenant, roles }` | Names the policy never declared are dropped and reported once by `on('auth')`; a custom role name resolves through the `RoleSource` |
+| `roles` | `string[]` or SCIM complex values | `principal.roles` (global); an issuer that scopes roles to a tenant is read through a `claims.memberships` path, which yields memberships `{ tenant, roles }` | Names the policy never declared are dropped and reported once by `on('auth')`; a custom role name resolves through the `RoleSource` |
 | `groups` | `string[]` or SCIM complex values | `principal.memberships[]` entries `{ tenant, team: value, roles: [] }`, with `via: 'group:<value>'`; roles come from the resolver's `groupRoles` option (`{ '9f2c': ['lead'] }`, ids never names) or a `MembershipSource` | The `value` sub-attribute is the identifier; `display` is never used for matching |
 | `entitlements` | `string[]` or SCIM complex values | `principal.plans`, selected by name | Same trust rule as `roles`; grant with `to: plans.pro`, not by stuffing the name into `principal.roles` |
 
-Reading SCIM complex values: `{ "value": "9f2c", "display": "Design", "type": "direct" }` contributes `9f2c`; `type: "indirect"` (nested membership expanded by the issuer) is kept and recorded in `via` as `group:9f2c:indirect`. Entra's `_claim_names` and `_claim_sources` overflow (above roughly 200 groups) is not resolved by PermDock; the resolver reports `groups-overflow` through `on('auth')` and the recipe is app roles or a directory lookup in `context` ([authentication](/docs/concepts/authentication) single sign-on).
+Reading SCIM complex values: `{ "value": "9f2c", "display": "Design", "type": "direct" }` contributes `9f2c`; `display` and `type` are not read. An Entra `_claim_names` / `_claim_sources` overflow (above roughly 200 groups) is not resolved. For large or nested directories, use app roles or a directory lookup in `context` ([authentication](/docs/concepts/authentication) single sign-on).
 
 ### Tenant claims
 
@@ -74,18 +71,18 @@ There is no standard tenant claim. The `claims.tenant` path is configuration, an
 
 ### PermDock as a claim source
 
-`permdock/authzen` serves `/access/v1/search/resource`. Under the AuthZEN claims draft an authorization server binds `roles` to a resource type and action (for example type `role`, action `hold`) and asks the PDP which resources the subject may act on; the answer is the claim value list. PermDock answers from `permdock.heldRoles({ tenant })` and `permdock.memberships()` for the authenticated subject. This is Phase 2 and depends on the draft's adoption; recorded on the watch list.
+`permdock/authzen` serves `/access/v1/search/resource`. Under the AuthZEN claims draft an authorization server binds `roles` to a resource type and action (for example type `role`, action `hold`) and asks the PDP which resources the subject may act on; the answer is the claim value list. PermDock answers from `permdock.heldRoles({ tenant })` and `permdock.memberships()` for the authenticated subject. PermDock follows the draft only through this existing endpoint and adds nothing draft-specific until a working group adopts it; the draft is on the [watch list](/docs/standards/watch-list).
 
 ## Mapping table
 
 | Specification concept | PermDock concept |
 | --- | --- |
-| RFC 9068 `roles` claim | `principal.roles`, or `Membership.roles` when tenant-scoped by the issuer |
+| RFC 9068 `roles` claim | `principal.roles`; tenant-scoped roles through a `claims.memberships` path |
+| RFC 7643 complex value `value` | The identifier PermDock matches on |
+| RFC 7643 complex value `display` | Never used for matching |
+| RFC 7643 complex value `type` (`direct`, `indirect`) | Not read; direct and indirect memberships map the same way |
 | RFC 9068 `groups` claim | `Membership.team` (identifier), `via: 'group:<id>'` |
 | RFC 9068 `entitlements` claim | Roles under the entitlements-are-roles rule |
-| RFC 7643 complex value `value` | The identifier PermDock matches on |
-| RFC 7643 complex value `display` | Ignored for matching; may be copied to `meta` for UI |
-| RFC 7643 complex value `type` (`direct`, `indirect`) | Recorded in `via` |
 | SCIM `Group.id` | `Membership.team` |
 | SCIM `Group.displayName` | Never an identifier |
 | No standard tenant claim | `claims.tenant` configuration; `principal.tenant` after resolution |
@@ -98,10 +95,4 @@ There is no standard tenant claim. The `claims.tenant` path is configuration, an
 - [IANA JSON Web Token Claims registry](https://www.iana.org/assignments/jwt/jwt.xhtml) entries `roles`, `groups`, `entitlements`.
 - [draft-gazitt-oauth-authzen-claims-00](https://www.ietf.org/archive/id/draft-gazitt-oauth-authzen-claims-00.txt).
 - [Microsoft Entra: configure group claims](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims#configure-groups-optional-claims), [Okta: add a groups claim](https://developer.okta.com/docs/guides/customize-tokens-groups-claim/main/).
-- [SaaS tenancy and roles](/docs/research/saas-tenancy-and-roles) for the vendor rows.
-
-## Open questions
-
-- Whether an issuer's tenant-scoped `roles` (Auth0 Organization Roles in a token that also carries `org_id`) should default to a membership or to global roles; the proposal is membership whenever `claims.tenant` resolves, global otherwise.
-- Whether to surface SCIM `display` values to the UI through `meta` or drop them entirely.
-- How far to follow the AuthZEN claims draft before it is adopted by a working group.
+- [SaaS tenancy and roles](/docs/concepts/tenancy#why-this-model) for the vendor rows.

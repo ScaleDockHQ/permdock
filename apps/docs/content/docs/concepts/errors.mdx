@@ -92,7 +92,7 @@ class PermDockRevokedError extends Error {
 }
 ```
 
-Adapters send `toProblemDetails()` in the transport's own close frame: an SSE `event: permdock`, a WebSocket close `1008` with the `type` as reason, Nest's `permdock:error`. `problemFromError` maps it like the other classes. See [0052](/docs/decisions/0052-streams-and-sockets).
+Adapters send `toProblemDetails()` in the transport's own close frame: an SSE `event: permdock`, a WebSocket close `1008` with the `type` as reason, Nest's `permdock:error`. `problemFromError` maps it like the other classes. See [streams and sockets](/docs/concepts/streams).
 
 ## When each is thrown
 
@@ -120,7 +120,7 @@ PermDockValidationError        → 400 application/problem+json  type .../valida
 PermDockRevokedError           → 401 type .../unauthenticated, or 403 type .../denied when re-denied
 ```
 
-- HTTP adapters (`permdock/hono` and siblings) call `toProblemDetails({ instance: request.url })` and set `Content-Type: application/problem+json`. Nothing else is needed in your handlers.
+- HTTP adapters (`permdock/hono` and siblings) call `toProblemDetails({ instance: request.url })` and set `Content-Type: application/problem+json`. Nothing else is needed in your handlers. Over plain HTTP the `approval-required` body is the whole surface: the caller orchestrates the wait and retries with the `PermDock-Approval` header ([approvals adapter](/docs/adapters/approvals)).
 - `permdock/next`: `assert` inside a Server Component or Action runs your `onDenied` handler first (typically `redirect()` or `notFound()`); in a Route Handler the error becomes Problem Details.
 - `permdock/mcp`: denied and validation errors become a tool result with `isError: true`, the `message` as text content and the Decision fields as `structuredContent`; a missing scope also produces the `scopeChallenge` step-up; approval becomes an elicitation.
 - `permdock/ai-sdk`: never throws into the model loop; `toolApproval` returns `denied` with the message as the reason, or `user-approval`.
@@ -147,7 +147,7 @@ All three `toProblemDetails()` results share the RFC 9457 members plus PermDock 
 }
 ```
 
-The approval variant adds `reason` and `token`; the validation variant replaces `denials` with `issues` and uses status 400. The base URI for `type` is a placeholder until the docs domain is final. Full JSON for each is on [wire formats](/docs/concepts/wire-formats); the standard itself is described under [Problem Details](/docs/standards/problem-details).
+The approval variant adds `reason` and `token`; the validation variant replaces `denials` with `issues` and uses status 400. The base URI for `type` is `https://permdock.dev/problems`, replaceable through the server kernel's `problem.base` option. The HTTP status lives only in `toProblemDetails()`; the error classes carry no `status` property, so non-HTTP callers map on the class. Full JSON for each is on [wire formats](/docs/concepts/wire-formats); the standard itself is described under [Problem Details](/docs/standards/problem-details).
 
 ## Writing error text for models
 
@@ -168,9 +168,3 @@ Guidance the adapters and your own handlers should follow:
 - Keep it to one line per outcome. Multi-paragraph refusals get truncated in tool results.
 
 The same strings appear in `on('decision')` events, so the audit log and the model see identical text.
-
-## Open questions
-
-- How `approval-required` should surface over plain HTTP beyond the 403 body: a polling URL, a callback, or leaving orchestration to the caller.
-- Whether `PermDockDeniedError` should expose `status` as a property so non-HTTP callers can map it, or whether that belongs only on `toProblemDetails()`.
-- Whether errors should carry a `cause` chain to the closure error by default or only in development.

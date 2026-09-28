@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
 import { latestReleases, parseChangelog } from './changelog';
+import { loadChangelogs } from './changelogs';
 
 const sample = `# permdock
 
@@ -45,15 +46,16 @@ describe('parseChangelog', () => {
     expect(releases[2]?.version).toBe('0.0.1');
   });
 
-  test('parses the real permdock changelog', () => {
+  test('parses the real package changelogs, none before the first release', () => {
     const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
-    const markdown = readFileSync(
-      join(root, 'packages/permdock/CHANGELOG.md'),
-      'utf8',
-    );
-    const releases = parseChangelog(markdown, 'permdock');
-    expect(releases.length).toBeGreaterThan(0);
-    expect(releases[0]?.version).toBe('0.1.0');
-    expect(latestReleases(releases, 3).length).toBeGreaterThan(0);
+    const path = join(root, 'packages/permdock/CHANGELOG.md');
+    const releases = loadChangelogs();
+    if (!existsSync(path)) {
+      expect(releases).toEqual([]);
+      return;
+    }
+    const permdock = parseChangelog(readFileSync(path, 'utf8'), 'permdock');
+    expect(permdock.length).toBeGreaterThan(0);
+    expect(latestReleases(permdock, 3).length).toBeGreaterThan(0);
   });
 });

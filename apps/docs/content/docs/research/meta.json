@@ -1,22 +1,4 @@
 {
   "title": "Research",
-  "pages": [
-    "permix-lessons",
-    "api-surface-2026",
-    "landscape",
-    "casl-v7",
-    "kilpi-v1",
-    "zap-studio-permit",
-    "postgres-rls",
-    "nextjs-16-3-instant-navigation",
-    "expo-router",
-    "next-intl-extraction-model",
-    "agent-standards-2026",
-    "commercial-landscape",
-    "saas-tenancy-and-roles",
-    "openapi-ecosystem",
-    "agent-frameworks",
-    "local-first-sync",
-    "ecosystem-index"
-  ]
+  "pages": ["landscape", "ecosystem-index"]
 }

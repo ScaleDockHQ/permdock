@@ -9,6 +9,8 @@
     "generatedAt": { "type": "string" },
     "generator": { "type": "string" },
     "resources": { "type": "object" },
-    "permissions": { "type": "array" }
+    "permissions": { "type": "array" },
+    "roles": { "type": "array" },
+    "plans": { "type": "array" }
   }
 }

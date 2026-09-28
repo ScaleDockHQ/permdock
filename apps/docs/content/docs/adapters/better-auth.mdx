@@ -3,9 +3,6 @@ title: Better Auth
 description: The permdock/better-auth provider builds a PermDock subject from Better Auth sessions and organization roles, including dynamic database roles, so PermDock's conditions, snapshots and adapters layer on top of Better Auth access control.
 ---
 
-Status: shipped
-Phase: 4
-
 `permdock/better-auth` is a provider. Better Auth already answers "which roles does this user hold in this organization"; PermDock answers "may this subject perform this action on this resource", with conditions, three-outcome decisions, snapshots for the client, and every server, agent and data adapter. The provider connects the two by turning a Better Auth session into a PermDock subject and, optionally, by deriving PermDock role fragments from Better Auth `createAccessControl` statements.
 
 ## Purpose
@@ -83,10 +80,13 @@ List and revoke sessions through Better Auth's session API (`listSessions`, `rev
 - Role names from Better Auth must exist in `definePolicy` or resolve through `betterAuthRoleSource`; names that do neither are dropped with a warning (fail closed).
 - `rolesFromAccessControl` checks every `resource:action` pair against `listPermissions(permissions)` and reports pairs that have no PermDock permission, so the two catalogs stay aligned; `permdock usage` includes these findings.
 - No condition data comes from Better Auth; conditions are evaluated on app data as in any other setup.
+- `rolesFromAccessControl` seeds roles at runtime from the statements; there is no build step and no reverse mapping that emits Better Auth statements from `permissions`.
+- `betterAuthRoleSource` gives a dynamic `organizationRole` the declared assignable roles whose statements it covers, matched by permission set; `organizationRole` needs no extra column.
+- A role name used both as a global `user.role` and as an organization role is one declared role with two scopes, which `permdock doctor` reports.
 
 ## How denials surface
 
-- Through PermDock: `Decision` with denials and alternatives, RFC 9457 `403` from HTTP adapters, MCP refusals, AI SDK `denied`. Better Auth's own `hasPermission` is not called on the request path, so there is one denial format.
+- Through PermDock, per the shared contract on [adapters](/docs/adapters). Better Auth's own `hasPermission` is not called on the request path, so there is one denial format.
 - Apps that keep calling `auth.api.hasPermission` for Better Auth plugin routes (organization management) continue to get Better Auth's boolean; the provider does not intercept those.
 - A user with no active organization yields a subject with `tenant` undefined; tenant-scoped grants are `denied` with `no-membership`, global roles still apply. A row from another organization is `denied` with `tenant-mismatch` ([tenancy](/docs/concepts/tenancy)).
 
@@ -100,13 +100,5 @@ List and revoke sessions through Better Auth's session API (`listSessions`, `rev
 - [Tenants, teams and scoped roles](/docs/concepts/tenancy): memberships, `RoleSource`, team roles.
 - [Policies](/docs/concepts/policies): role fragments merged by name.
 - [Snapshots](/docs/concepts/snapshots): what the client receives.
-- [Research: landscape](/docs/research/landscape): Better Auth access control capabilities and limits.
-- [Research: SaaS tenancy and roles](/docs/research/saas-tenancy-and-roles): Better Auth organizations, teams and dynamic access control.
-
-## Open questions
-
-- The plan names the provider's role (layer over `createAccessControl` / `newRole` / `hasPermission` and dynamic DB roles); `subjectFromBetterAuth`, `betterAuthRoleSource` and `rolesFromAccessControl` are proposed export names.
-- Whether seeding from Better Auth statements should be a runtime call or a `permdock collect` step that writes a role fragment file.
-- Global `admin` plugin roles next to organization roles: resolved by [ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships). `user.role` fills `principal.roles` (global); organization roles fill `memberships`; a name used in both places is one declared role with two scopes, which `permdock doctor` reports.
-- Whether PermDock should offer the reverse mapping, emitting Better Auth statements from `permissions` for teams that must keep Better Auth checks on plugin routes.
-- Whether `betterAuthRoleSource` should match dynamic role statements to declared assignable roles by permission set (current) or require an explicit `includes` column on `organizationRole`.
+- [Landscape](/docs/research/landscape): Better Auth access control capabilities and limits.
+- [Tenancy](/docs/concepts/tenancy#why-this-model): Better Auth organizations, teams and dynamic access control.

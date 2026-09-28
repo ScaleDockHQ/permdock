@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AgentDb } from '../support/agents.ts';
 
 import {
+  agentDelegation,
   agentSubject,
   agentTools,
   owner,
@@ -122,6 +123,7 @@ async function agent() {
     subject: (context) => agentSubject({ user: context.user }),
     actor: () => ({ id: 'support-bot', kind: 'ai-sdk' }),
     tenant: TENANT,
+    delegation: agentDelegation,
     tools: agentTools(rows.load),
     store: await db.openStore(),
   });

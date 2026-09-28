@@ -282,5 +282,3 @@ export function createEvaluationsHandler(options: {
 
   return { POST, GET };
 }
-
-export { createEvaluationsHandler as createHandler };

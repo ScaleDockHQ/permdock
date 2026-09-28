@@ -3,9 +3,6 @@ title: Terminal (your own CLI)
 description: permdock/terminal puts permission checks inside command-line tools you build with commander, citty, oclif, yargs, clack or Ink, with verified subjects from device flow, keychain, env or CI tokens, sysexits exit codes and Problem Details on --json.
 ---
 
-Status: shipped
-Phase: 2
-
 Not to be confused with `@permdock/cli`. That package is PermDock's own developer tool (`permdock collect`, `permdock doctor`); this page is about the library entry you import when the command-line tool is yours and its commands need to be authorised.
 
 | | `permdock/terminal` (this page) | `@permdock/cli` |
@@ -53,7 +50,7 @@ export const { permdock, protect, filterCommands, format, exitCode } = createPer
 | Export | Role |
 |---|---|
 | `permdock()` | Resolves the subject once and returns a process-scoped `PermDock`. Memoised for the process lifetime; `permdock({ refresh: true })` re-resolves after `login`, `logout` or `--as <profile>` switches the stored profile. Anonymous callers get an anonymous instance, not an error. |
-| `protect(permission, load?)` | Returns a wrapper for a command action. `load(...args)` receives the framework's action arguments and returns the resource instance; the wrapped action runs only on `granted` (or after an approval) and receives `{ permdock, data, decision }` as its first argument. |
+| `protect(permission, load?)` | Returns a wrapper for a command action. `load(...args)` receives the framework's action arguments and returns the resource instance; the wrapped action runs only on `granted` (or after an approval) and receives `{ permdock, data, decision }` as its first argument, ahead of whatever the framework passes (commander's positionals, `options` and `command`, or citty's single context). |
 | `filterCommands(entries, options)` | Removes or annotates entries the subject cannot run before they are registered with the framework, so help output matches authority. |
 | `format(decision, options)` | Renders a `denied` or `approval-required` decision as text for stderr or, with `json: true`, as the RFC 9457 Problem Details object the HTTP adapters emit. |
 | `exitCode(decision)` | Maps an outcome to a `sysexits.h` code (table below). |
@@ -253,8 +250,3 @@ Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, p
 - [Approvals](/docs/security/approvals): the replay-safe `token` and resume flow.
 - [Errors](/docs/concepts/errors): error classes and the Problem Details shape.
 - [CLI](/docs/cli): `@permdock/cli`, the developer tool this adapter is not.
-
-## Open questions
-
-- Whether `protect` should pass `{ permdock, data, decision }` as the first action argument or as the last, given that commander appends `options` and `command` while citty passes a single context object.
-- The exact `approval` extension members (`at`, `hint`) and whether they belong in the shared Problem Details vocabulary on [wire formats](/docs/concepts/wire-formats); which keychain peer to recommend.

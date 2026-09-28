@@ -3,10 +3,7 @@ title: Cloud
 description: permdock/cloud is the thin, optional client for PermDock Cloud; it implements ApprovalStore, DecisionSink and SnapshotSource over a documented HTTP API, never sits in the decision path, and is provisioned from the Vercel Marketplace.
 ---
 
-Status: shipped
-Phase: 2
-
-`permdock/cloud` is one implementation of the interfaces the rest of the package defines. `cloud({ url, key })` returns a `DecisionSink` with a queryable decision log sold as compliance evidence and agent governance, an `ApprovalStore` with an inbox UI behind it, and a `SnapshotSource` that distributes signed snapshots and invalidates them on CAEP events. Nothing in this entry is consulted by `can`, `decide`, `filter`, `where` or `simulate`: every decision still runs in-process on the policy in your bundle ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)). Remove the entry and the application keeps working on the in-memory defaults.
+`permdock/cloud` is one implementation of the interfaces the rest of the package defines. `cloud({ url, key })` returns a `DecisionSink` with a queryable decision log sold as compliance evidence and agent governance, an `ApprovalStore` with an inbox UI behind it, and a `SnapshotSource` that distributes signed snapshots and invalidates them on CAEP events. Nothing in this entry is consulted by `can`, `decide`, `filter`, `where` or `simulate`: every decision still runs in-process on the policy in your bundle. Remove the entry and the application keeps working on the in-memory defaults.
 
 PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud` repository. This page defines what the client speaks; that repository implements it. Production hosts:
 
@@ -18,11 +15,58 @@ PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud
 
 ## Identity gateway
 
-From 0.2 the Cloud is also an identity gateway ([0042](/docs/decisions/0042-cloud-identity-gateway)): each environment publishes `/.well-known/openid-configuration` next to the existing JWKS, runs authorization code plus PKCE, and offers the device flow for agents. It federates upstream IdPs and maps Agent Auth capability grants onto permission references. The only OSS integration is `subjectFromJwt({ discovery: PERMDOCK_CLOUD_URL })`. There is no `cloud().identity` helper in this cycle, and the Cloud still never sits on the decision path.
+The Cloud is also an identity gateway: each environment publishes `/.well-known/openid-configuration` next to the existing JWKS, runs authorization code plus PKCE, and offers the device flow for agents. It federates upstream IdPs and maps Agent Auth capability grants onto permission references. The only OSS integration is `subjectFromJwt({ discovery: PERMDOCK_CLOUD_URL })`. There is no `cloud().identity` helper, and the Cloud still never sits on the decision path.
+
+The gateway exists because the Cloud already signs with a per-environment JWKS, and an OIDC Discovery document next to it is the other half of an issuer, not a new product. Humans and agents that use the inbox, the evidence export, the read-only MCP server and the hosted ADS need a first-party way to get those tokens. It is deliberately not a login SDK:
+
+- **Federation, not a session layer.** An upstream IdP (Clerk, Auth0, WorkOS, Google, enterprise SSO, any Discovery issuer) authenticates; the Cloud issues the access token the application and the ADS consume. The application keeps its own sessions.
+- **One capability vocabulary.** Agent Auth capability grants on a device-flow token name permission `key` or `scope` values, never a second set of names.
+- **The library still does not authenticate.** Core never verifies a token; `permdock/jwt` verifies the Cloud's token exactly as it verifies any other issuer's, and there is no `permdock/cloud-auth` entry. A Cloud outage leaves the embedded engine deciding from the application's own `subjectFrom*` and tokens already issued.
+
+### Directory modes
+
+Each environment picks one directory mode:
+
+| Mode | Directory of record | How facts reach `decide` | Cloud outage |
+| --- | --- | --- | --- |
+| Cloud-native | The Cloud: users, groups, memberships, held declared roles and plans | Claims on the Cloud-issued access token (`roles`, `groups`, `entitlements`, the tenant claim per [JWT authorization claims](/docs/standards/jwt-authorization-claims)), verified by `subjectFromJwt` in your app | New logins fail; issued tokens keep deciding until they expire |
+| Bring your own | Your tables, Clerk, Okta, Entra ID or Better Auth | The provider's token through its `subjectFrom*`, and your `DirectoryStore` / `MembershipSource`, fed by the SCIM relay when you use it | Nothing changes; memberships stay at their last synced state |
+
+In both modes `permdock/cloud` implements neither `MembershipSource` nor `RoleSource`. Switching modes changes a connector and a claim mapping, not your policy.
+
+Two modes exist because two kinds of team ask for opposite things. Teams without an identity provider want one place to manage people, groups and held roles without building an admin UI; for them an issuer that knows nothing about roles is useless. Teams on Clerk, Okta, Entra ID, Better Auth or their own tables will not move their directory of record and want the Cloud only for federation, the provisioning relay and evidence. Both modes keep the same line: a directory that reaches the engine only as signed claims on a token verified locally sits on the login path, not the decision path, which is the pattern Clerk already uses with `org_role`, `pla` and `fea`. Letting `permdock/cloud` implement `MembershipSource` behind a cache was rejected because a remote table on the decision path is the failure mode of hosted control planes, and a cache does not change who is authoritative during an outage. Providers that want to act as a Cloud directory or issuer speak OIDC Discovery with JWKS, SCIM 2.0 and the PermDock claim table; there is no PermDock-specific provider interface and no per-vendor entry. Self-hosters get the same shape with their own issuer, `subjectFromJwt`, and their own `DirectoryStore` behind an admin screen.
+
+- **Assignment UI.** The Cloud edits users, groups, memberships and which declared roles and plans a principal holds. It reads roles, plans and permissions from the catalog `permdock collect` produces, never accepts a free-text role, and only hands out roles the policy declares `assignable`, narrowed by the tenant's assignable set and by what the acting admin holds there.
+- **Freshness.** A removal takes effect at the next token issue or refresh. Cloud-native access tokens default to a lifetime of minutes; for faster revocation the Cloud's CAEP transmitter sends `session-revoked` or `credential-change` for the subject ([SSF adapter](/docs/adapters/ssf)) and the snapshot edge invalidates signed snapshots. Your app never looks the directory up live.
+- **Evidence.** Every assignment or removal writes a `membership` event with `source: 'cloud'` and `by` set to the Cloud admin, so "who gave this person that role" is a decision-log query.
+- **Hosted grants.** Editing grants themselves, not only assignments, is planned and described below.
+
+### Hosted grants (planned)
+
+Planned, not implemented: `permdock/cloud` does not yet return a `policies` source and the package has no `PolicySource`. The design lets a Cloud admin write grants such as "the `pro` plan may read audit logs" without a deploy, bounded by the code policy:
+
+- The Cloud publishes portable grants as a versioned JSON policy document, signed by the environment key as a compact JWS and verified by the application against the environment JWKS. An unsigned, wrongly typed or unverifiable document is absent, never partially applied.
+- `cloud()` would return a `policies` source next to `approvals`, `sink` and `snapshots`. `createPermDock` reads its `current()` document once per instance; the application calls `refresh()` on its own schedule, so no check waits on the Cloud.
+- Hosted grants apply only to permissions the policy marks `hostable`, target only declared roles, plans and relations, never override a code deny and never remove an `approval` a code grant requires. The merge rules are on [policies](/docs/concepts/policies) and the interface on [extension interfaces](/docs/concepts/extension-interfaces).
+- A decision matched by a hosted grant records the document fingerprint and grant id, so the decision log can answer which hosted grant allowed it.
+
+A snapshot cannot carry hosted grants, because it is a per-subject result the server computed, not a policy. Fetching the policy per request would put the Cloud on the decision path.
 
 ## Purpose
 
-Four things are worth paying for around an embedded decision engine, in the order PermDock Cloud leads with them ([ADR 0027](/docs/decisions/0027-governance-first-cloud)): a place where decisions accumulate as evidence, so an access review, an agent-activity review or "which agent did what for whom" is a query with a signed export rather than a log grep; a way for services that do not run TypeScript, and for API gateways, to enforce the same policy; a place where pending approvals wait for a person with a UI and notifications; and a hosted SCIM endpoint that relays directory provisioning into a store your application owns. PermDock Cloud provides all four as an Authorization Decision Service plus control plane, and `permdock/cloud` is the client for the first three (the fourth targets [`permdock/scim`](/docs/adapters/scim) in your app). The Supabase model applies: every capability has an interface in the open-source package with an in-process default, the Cloud is the managed implementation, and the interfaces are documented well enough to implement yourself ([approvals adapter](/docs/adapters/approvals), [audit](/docs/concepts/audit-and-observability)).
+Four things are worth paying for around an embedded decision engine, in the order PermDock Cloud leads with them: a place where decisions accumulate as evidence, so an access review, an agent-activity review or "which agent did what for whom" is a query with a signed export rather than a log grep; a way for services that do not run TypeScript, and for API gateways, to enforce the same policy; a place where pending approvals wait for a person with a UI and notifications; and a hosted SCIM endpoint that relays directory provisioning into a store your application owns. PermDock Cloud provides all four as an Authorization Decision Service plus control plane, and `permdock/cloud` is the client for the first three (the fourth targets [`permdock/scim`](/docs/adapters/scim) in your app). The Supabase model applies: every capability has an interface in the open-source package with an in-process default, the Cloud is the managed implementation, and the interfaces are documented well enough to implement yourself ([approvals adapter](/docs/adapters/approvals), [audit](/docs/concepts/audit-and-observability)).
+
+### Design rules
+
+- **An embedded PDP, an optional ADS.** PermDock is a policy decision point that runs inside your process, and it never needs a network call to decide. Hosted authorization products put every check behind a request and take strings in and booleans out; that adds latency to every check and makes the service a failure mode for the application. The [pdp provider](/docs/adapters/pdp) is the one opt-in exception, for permissions the application explicitly delegates to a remote PDP. The docs call the embedded engine the PDP and the hosted endpoint the Authorization Decision Service (ADS), never the other way round.
+- **No forced subscription.** Everything the Cloud does, an application can do on its own with the interface and its in-process default, the way Supabase users can run Postgres themselves. That is why approvals and the decision log are interfaces rather than Cloud features, and why a gateway or MCP proxy in the decision path was rejected.
+- **One package, one server-only entry.** The client is a subpath of `permdock`, not a separate `@permdock/cloud` package, so consumers and the `wire-permdock` skill have one install path and one version line; an app that never imports it pays nothing. The hosted service, its persistence, UI and billing live in the separate `PermDock-Cloud` repository and follow this repository's wire formats.
+- **Evidence leads.** Buyers with budget pay for proof of who could do what and a way to stop it: procurement for access reviews and audit evidence, security teams for agent governance. The decision event (`principal`, `actor`, `delegation`, `tenant`, `outcome`) and the bound approval token are that proof, so the decision log is the lead capability and the inbox is a feature on top. What makes an approval trustworthy is not the inbox but the resume rule: re-run `decide` and recompute the token before trusting a stored approval.
+- **Every event is evidence.** Sinks receive every `granted`, `denied` and `approval-required` event; sampling is opt-in and never applies to the evidence log, because access reviews are about what was allowed. Ingest cost is handled by retention tiers.
+- **Governance actions never decide.** The Cloud can reject pending approvals and invalidate snapshots; it cannot deny a future check. A "freeze this agent" action is those two operations plus a kill-switch table the application's own `RoleSource` or `context` reads.
+- **A relay, not a membership source.** The hosted SCIM endpoint replays provisioning into a `DirectoryStore` your application owns, so self-hosters get the same feature from `permdock/scim` and the Cloud has one documented target instead of writing into arbitrary customer databases.
+- **Approvals are resolved by people.** No approval is resolvable through the Cloud's MCP server; approver identity comes only from the Cloud's own authentication, because an agent approving an agent's action is a denial the model can talk its way past.
+- **No authentication product and no gateway in the decision path.** The identity gateway above federates and issues tokens; it does not replace the application's login SDK, and it never decides.
 
 ## API
 
@@ -45,8 +89,8 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 ```
 
 - `cloud()` returns a frozen object; `approvals`, `sink` and `snapshots` are the three interfaces. There is no `decide` on it.
-- `sink` batches events in memory and flushes on an interval, on size, and at the end of a request when the runtime exposes `waitUntil`. Every event is written; sampling is opt-in and never applies to the evidence log. Delivery failure never affects a decision and is reported through `on('error')`. The Cloud's export endpoint serves the same events back as signed batches (`permdock-decisions+jwt`), OCSF or CSV.
-- `approvals` speaks the same `ApprovalRequest` v2 wire shape as the in-memory store (`approvers`, `subject.session`); a Cloud inbox that only accepts v1 must reject unknown majors rather than approve without checking eligibility. The inbox UI, Slack, Teams and email delivery, and approver groups are Cloud features layered on the same records. Slack and Teams delivery is the Vercel Chat SDK recipe from the [approvals adapter](/docs/adapters/approvals) "Delivery" section, run by the Cloud instead of by your application; a self-hoster who copies that recipe gets identical cards and the same signature-verified responder.
+- `sink` batches events in memory and flushes on an interval, on size, and at the end of a request when the runtime exposes `waitUntil`. Every event is written; sampling is opt-in and never applies to the evidence log. Delivery failure never affects a decision and is reported through `on('error')`. The Cloud's export endpoint serves the same events back as signed batches (`permdock-decisions+jwt`), OCSF or CSV. The sink does not accept `permdock/otel` spans: traces go to your collector (the Cloud can export a copy of the log to it as OTLP) and evidence goes to the sink ([audit and observability](/docs/concepts/audit-and-observability)).
+- `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store (`v: 1`, with the optional `approvers` and `subject.session`); a Cloud inbox rejects an unknown major rather than approve without checking eligibility. The inbox UI, Slack, Teams and email delivery, and approver groups are Cloud features layered on the same records. Slack and Teams delivery is the Vercel Chat SDK recipe from the [approvals adapter](/docs/adapters/approvals) "Delivery" section, run by the Cloud instead of by your application; a self-hoster who copies that recipe gets identical cards and the same signature-verified responder.
 - `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)). Everything the Cloud serves is signed: a compact JWS with `typ: permdock-snapshot+jwt` and the unchanged Snapshot object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats)).
 
 ### Keys
@@ -56,7 +100,7 @@ The Cloud signs with a per-environment key through the `TokenSigner` interface (
 
 ### HTTP API
 
-The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL is `https://api.permdock.com`. `:env` is `environment`, then `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`.
+The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL is `https://api.permdock.com`; a self-hosted deployment of the Cloud repository works by pointing `PERMDOCK_CLOUD_URL` at it, with no Marketplace involvement and no discovery step. `:env` is `environment`, then `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`.
 
 | Method | Path | Interface |
 | --- | --- | --- |
@@ -64,10 +108,10 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL
 | `POST` | `/v1/environments/:env/approvals` | `approvals.create` |
 | `GET` | `/v1/environments/:env/approvals/:token` | `approvals.get` (unreachable or unknown → `null`) |
 | `POST` | `/v1/environments/:env/approvals/:token/resolve` | `approvals.resolve` (`409` not pending, `410` expired, `404` missing) |
-| `POST` | `/v1/environments/:env/approvals/:token/consume` | `approvals.consume`: the approved record with `consumedAt` set, or `409` when it is not approved, already consumed or expired (any failure → `null`) ([ADR 0051](/docs/decisions/0051-approval-lifecycle)) |
+| `POST` | `/v1/environments/:env/approvals/:token/consume` | `approvals.consume`: the approved record with `consumedAt` set, or `409` when it is not approved, already consumed or expired (any failure → `null`) |
 | `GET` | `/v1/environments/:env/approvals` | `approvals.list` |
 | `POST` | `/v1/environments/:env/approvals/expire` | `approvals.expire` |
-| `GET` | `/v1/environments/:env/snapshot` | `snapshots.get` (Snapshot v3 JSON or `permdock-snapshot+jwt`) |
+| `GET` | `/v1/environments/:env/snapshot` | `snapshots.get` (snapshot JSON or `permdock-snapshot+jwt`) |
 
 ### Environment variables
 
@@ -85,7 +129,7 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL
 | --- | --- | --- |
 | Deciding | `decide` on the bundled policy | Unchanged |
 | Pending approvals | `memoryApprovalStore()` | Persistent store, inbox UI scoped per tenant, delivery, approver groups, expiry jobs |
-| Memberships and custom roles | `subjectFrom*`, `context`, your `MembershipSource` and `RoleSource`; [`permdock/scim`](/docs/adapters/scim) writing a `DirectoryStore` you own | A hosted SCIM relay per tenant (IdP setup wizard, group-to-role mapping UI, sync log) that replays provisioning to your `scimHandler` with an RFC 7523 bearer. The Cloud still implements neither interface and holds no authoritative copy, so it never joins the decision path (invariant 15) |
+| Memberships and custom roles | `subjectFrom*`, `context`, your `MembershipSource` and `RoleSource`; [`permdock/scim`](/docs/adapters/scim) writing a `DirectoryStore` you own | A hosted SCIM relay per tenant (IdP setup wizard, group-to-role mapping UI, sync log) that replays provisioning to your `scimHandler` with an RFC 7523 bearer. In Cloud-native directory mode, the Cloud directory and assignment UI instead, delivered as claims on the tokens it issues. Either way the Cloud implements neither interface and is never read at request time, so it never joins the decision path (invariant 15); in bring-your-own mode it holds no authoritative copy |
 | Evidence and governance | `on('decision')` handler, a `DecisionSink` over your table, `permdock/otel` for traces | Decision log with retention tiers; access-review, agent-activity, approval-chain and tenant queries over the `principal`, `actor`, `tenant`, `membership` and `via` fields of every event; signed (`permdock-decisions+jwt`), OCSF and CSV exports for auditors, SIEMs and compliance platforms; governance actions limited to rejecting pending approvals and invalidating snapshots ([audit and observability](/docs/concepts/audit-and-observability) "Evidence and governance") |
 | Snapshots | Served by the application's endpoint, plain JSON or signed with your own `TokenSigner` | Edge distribution, always signed (`permdock-snapshot+jwt`, keys at `/.well-known/jwks.json`), invalidated by CAEP |
 | Non-TypeScript callers | Your own `permdock/authzen` deployment | Hosted AuthZEN ADS serving the same policy to gateways and services |
@@ -93,7 +137,7 @@ The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL
 
 ## Hosted Authorization Decision Service
 
-The Cloud runs the same `permdock/authzen` handler your app could run, against the policy you publish with `permdock cloud push` (a CLI command in Phase 2). Kong, Envoy, Tyk, Zuplo or a Go service calls `POST /access/v1/evaluation` and gets an AuthZEN answer with the PermDock `Decision` under `context.permdock` ([AuthZEN](/docs/standards/authzen)). Decision semantics are identical to the embedded engine because it is the same code; an `evaluations` batch of a policy matrix from `@permdock/testing` is the parity test.
+The Cloud runs the same `permdock/authzen` handler your app could run, against the policy you publish with `permdock cloud push` (a planned CLI command). Kong, Envoy, Tyk, Zuplo or a Go service calls `POST /access/v1/evaluation` and gets an AuthZEN answer with the PermDock `Decision` under `context.permdock` ([AuthZEN](/docs/standards/authzen)). Decision semantics are identical to the embedded engine because it is the same code; an `evaluations` batch of a policy matrix from `@permdock/testing` is the parity test.
 
 Caller authentication is real authentication ([threat model](/docs/security/threat-model), invariant 9):
 
@@ -110,11 +154,11 @@ PermDock Cloud is listed as a native Marketplace integration so a Vercel project
 - **Resource model.** One Marketplace resource is one PermDock environment, created per Vercel project and environment (`production`, `preview`, `development`) so preview approvals never land in the production inbox. `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are written to the project's environment variables on provisioning and rotated from either dashboard.
 - **Integration server.** The Cloud repository implements the Marketplace provisioning API (install, resource create, update, delete, SSO, billing webhooks and invoices) per the [approval checklist](https://vercel.com/docs/integrations/create-integration/approval-checklist); this repository only documents the variables and the `doctor` check.
 - **Template.** `apps/examples/eve-agent` is the deploy template the listing requires: an Eve agent with `post` tools, `permdock/eve` approvals stored in the Cloud, and the inbox linked from the deployed app ([Eve adapter](/docs/adapters/eve)).
-- **Plans.** A free environment with a short retention window, then usage-based plans on five meters ([ADR 0027](/docs/decisions/0027-governance-first-cloud)): monthly active principals (a human and each agent `actor` counted once), connected tenants (a tenant with a SCIM connection or a tenant-scoped inbox), resolved approvals above a free allowance at a small per-unit price, the decision retention tier, and hosted ADS evaluations. Decisions made by the embedded engine are never metered. The exact numbers belong to the Cloud repository and the [commercial landscape](/docs/research/commercial-landscape) research, not to the library docs.
+- **Plans.** A free environment with a short retention window, then usage-based plans on five meters: monthly active principals (a human and each agent `actor` counted once), connected tenants (a tenant with a SCIM connection or a tenant-scoped inbox), resolved approvals above a free allowance at a small per-unit price, the decision retention tier, and hosted ADS evaluations. Decisions made by the embedded engine are never metered. The exact numbers belong to the Cloud repository and the [landscape](/docs/research/landscape) research, not to the library docs.
 
 ## Integrations
 
-The Cloud has an Integrations page; what each connector speaks is fixed here and catalogued on [Cloud integrations](/docs/adapters/cloud-integrations). Every connector is a standard wire format or an existing PermDock interface (trusted issuers over JWKS or OIDC Discovery, CAEP transmitters, SCIM sources, Vercel provisioning and OIDC, OTLP and OCSF export, CloudEvents webhooks, signed and CSV evidence exports, Chat SDK delivery, a read-only MCP server), and none sits on the decision path. No connector adds an npm entry ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+The Cloud has an Integrations page; what each connector speaks is fixed here and catalogued on [Cloud integrations](/docs/adapters/cloud-integrations). Every connector is a standard wire format or an existing PermDock interface (trusted issuers over JWKS or OIDC Discovery, CAEP transmitters, SCIM sources, Vercel provisioning and OIDC, OTLP and OCSF export, CloudEvents webhooks, signed and CSV evidence exports, Chat SDK delivery, a read-only MCP server), and none sits on the decision path. No connector adds an npm entry.
 
 ## Request lifecycle
 
@@ -146,16 +190,6 @@ The Cloud has an Integrations page; what each connector speaks is fixed here and
 - [AuthZEN](/docs/standards/authzen): the hosted ADS wire format.
 - [Shared Signals and CAEP](/docs/standards/shared-signals-caep): snapshot invalidation.
 - [SCIM 2.0](/docs/standards/scim): the hosted relay's protocol and the RFC 7523 bearer it presents to `scimHandler`.
-- [Wire formats](/docs/concepts/wire-formats): `ApprovalRequest`, `DecisionEvent`, Snapshot v3 and the signed-output envelope.
+- [Wire formats](/docs/concepts/wire-formats): `ApprovalRequest`, `DecisionEvent`, the snapshot and the signed-output envelope.
 - [JOSE](/docs/standards/jose) and the [JWT adapter](/docs/adapters/jwt): the `TokenSigner` and `TokenVerifier` the Cloud signs and clients verify with.
 - [Approvals adapter](/docs/adapters/approvals) and [Audit and observability](/docs/concepts/audit-and-observability): the interfaces this entry implements.
-- [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable), [ADR 0027](/docs/decisions/0027-governance-first-cloud).
-
-Resolved here: the sink does not accept `permdock/otel` spans. Traces go to your collector (and the Cloud can export a copy of the log as OTLP to it); evidence goes to the sink ([audit and observability](/docs/concepts/audit-and-observability) "OpenTelemetry is not the evidence path"). The SCIM question is resolved by the relay above and [ADR 0027](/docs/decisions/0027-governance-first-cloud).
-
-## Open questions
-
-- Whether `snapshots` belongs in Phase 2 with the store and sink, or later, since it is the only capability that changes a client-visible path.
-- How a self-hosted PermDock Cloud (the repository is open) advertises itself so that `cloud({ url })` works against it with no Marketplace involvement; the target is "point `PERMDOCK_CLOUD_URL` at your deployment".
-- Whether the hosted `snapshots` source should serve per-tenant snapshots (`refresh({ tenant })`) from the edge or only the active-tenant snapshot the application issued; either way it distributes what the application computed and never resolves memberships itself.
-- The `permdock cloud push` command shape and whether policy publication should be a build step (`createPermDockPlugin`) rather than a CLI command.

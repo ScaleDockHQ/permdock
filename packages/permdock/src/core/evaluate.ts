@@ -555,6 +555,7 @@ export function evaluate(
     permission,
     subject.delegation,
     resourceIdOf(current),
+    subject.actor !== undefined,
   );
   if (delegationMiss !== undefined) {
     const decision: Decision = freezeDeep({

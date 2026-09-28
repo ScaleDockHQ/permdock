@@ -10,7 +10,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
+import type { Delegation, Principal } from '../core/subject.ts';
 
 import { createAgentKernel } from '../agent/kernel.ts';
 import { boundedMap } from '../agent/lru.ts';
@@ -68,6 +68,9 @@ export type EveApprovers =
 export type EvePermDockOptions<TUser = unknown> = {
   readonly subject?: (context: EveContext) => TUser | Promise<TUser>;
   readonly actor?: (context: EveContext) => unknown;
+  readonly delegation?: (
+    context: EveContext,
+  ) => Delegation | undefined | Promise<Delegation | undefined>;
   readonly tenant?:
     | string
     | ((
@@ -182,6 +185,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const kernel = createAgentKernel<EveContext, TUser>(policy, {
     ...compact({
       tenant: options.tenant,
+      delegation: options.delegation,
       memberships: options.memberships,
       customRoles: options.customRoles,
       sink: options.sink,

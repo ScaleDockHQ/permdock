@@ -3,7 +3,7 @@ title: Decisions
 description: decide returns a discriminated Decision with three outcomes, matched grants, denials, alternatives and a replay-safe token; assert and simulate build on it.
 ---
 
-`can` returns a boolean. Everything else in PermDock is built on `decide`, which returns a `Decision`: a discriminated union that says whether the check passed, why, what the caller could do instead, and a token that binds any follow-up approval to these exact arguments. Adapters translate the same object into HTTP Problem Details, MCP refusals, AI SDK approval states and audit events ([ADR 0007](/docs/decisions/0007-decide-not-explain), [ADR 0013](/docs/decisions/0013-three-outcome-decision)).
+`can` returns a boolean. Everything else in PermDock is built on `decide`, which returns a `Decision`: a discriminated union that says whether the check passed, why, what the caller could do instead, and a token that binds any follow-up approval to these exact arguments. Adapters translate the same object into HTTP Problem Details, MCP refusals, AI SDK approval states and audit events.
 
 ## The three outcomes
 
@@ -60,9 +60,9 @@ if (decision.outcome === 'granted') {
 | `opaque-condition` | An imported opaque condition cannot be evaluated in memory |
 | `anonymous` | No principal |
 | `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
-| `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)) |
+| `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge |
 | `limit` | Quota exhausted |
-| `limit-unavailable` | No `LimitStore`, the store threw, or `consume` / `remaining` returned a thenable ([0034](/docs/decisions/0034-quota-grants)) |
+| `limit-unavailable` | No `LimitStore`, the store threw, or `consume` / `remaining` returned a thenable |
 | `validation` | Boundary validation failed ([validation](/docs/concepts/validation)) |
 | `unknown-role` | A role name on the principal or a membership is not declared |
 | `pdp-denied` | The remote PDP answered `decision: false` |
@@ -102,9 +102,9 @@ See [approvals](/docs/security/approvals) for the full human-in-the-loop flow.
 
 ## token
 
-`token` is present on `granted` and `approval-required`. It is a hash over the permission key, the resource `id` (or the collection marker), the frozen principal, the actor and a policy version. It has one job: an approval or a granted decision produced for one set of arguments cannot be replayed against another. When an approval reply comes back, the adapter recomputes the token from the actual tool arguments and rejects the reply if it differs. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approvals; PermDock computes it from the decision so every adapter gets it.
+`token` is present on `granted` and `approval-required`. It is a hash over the permission key, the resource `id` (or the collection marker), the principal's stable identity, the actor and the condition fingerprint. It has one job: an approval or a granted decision produced for one set of arguments cannot be replayed against another. When an approval reply comes back, the adapter recomputes the token from the actual tool arguments and rejects the reply if it differs. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approvals; PermDock computes it from the decision so every adapter gets it.
 
-The token is not a capability. Possessing it grants nothing; it only proves that a decision with these inputs was issued. Encoding is `pd1.` plus base64url of a SHA-256 over the permission key, the resource id or `*`, the canonical principal, the canonical actor, and the policy fingerprint. Treat the string as opaque.
+The token is not a capability. Possessing it grants nothing; it only proves that a decision with these inputs was issued. Treat the string as opaque; the exact encoding is on [wire formats](/docs/concepts/wire-formats#approval-request) and the binding rules are on [approval security](/docs/security/approvals).
 
 ## assert
 
@@ -119,7 +119,7 @@ const { subject } = permdock.assert(permissions.post.delete, post)
 2. Instance hooks registered with `permdock.on('denied', handler)`. `on('decision')` is the audit event and is not an unauthorized handler.
 3. The policy default declared in `definePolicy`.
 
-All layers run even if an earlier one throws, so audit hooks still fire when a Next.js handler calls `redirect()`. If nothing throws, `assert` throws `PermDockDeniedError` or `PermDockApprovalRequiredError` itself. The layering is borrowed from Kilpi's `.assert(handler?)` ([research](/docs/research/kilpi-v1)); it lets the Next.js adapter redirect and the HTTP adapters emit Problem Details from one place. Error classes are documented under [errors](/docs/concepts/errors).
+All layers run even if an earlier one throws, so audit hooks still fire when a Next.js handler calls `redirect()`. If nothing throws, `assert` throws `PermDockDeniedError` or `PermDockApprovalRequiredError` itself. The layering is borrowed from Kilpi's `.assert(handler?)` ([landscape](/docs/research/landscape)); it lets the Next.js adapter redirect and the HTTP adapters emit Problem Details from one place. Error classes are documented under [errors](/docs/concepts/errors).
 
 ## simulate
 
@@ -134,7 +134,7 @@ const results = permdock.simulate([
 
 `simulate` evaluates a batch without side effects: no `on('decision')` events for the individual checks (one `simulate` event instead), no approval tokens issued, no quota consumed. It is the pre-flight an agent runs over its plan before executing, and it is the same shape as an AuthZEN `evaluations` boxcar request, so the decision endpoint and the `pdp` provider expose it over HTTP unchanged ([AuthZEN](/docs/standards/authzen)).
 
-A third overload reads an [Arazzo](/docs/standards/arazzo) workflow and the applied OpenAPI description. Each step's `operationId` resolves to `x-permdock-permissions`; a hole is `denied` with reason `undocumented` or `unsupported` ([0036](/docs/decisions/0036-arazzo-simulate)). The subject is the instance's. `permdock arazzo check` runs only the resolution half and never decides.
+A third overload reads an [Arazzo](/docs/standards/arazzo) workflow and the applied OpenAPI description. Each step's `operationId` resolves to `x-permdock-permissions`; a hole is `denied` with reason `undocumented` or `unsupported`. The subject is the instance's. `permdock arazzo check` runs only the resolution half and never decides.
 
 ## Mapping decisions to other vocabularies
 
@@ -149,9 +149,5 @@ Each adapter page documents its exact translation; the [wire formats](/docs/conc
 ## Immutability and performance
 
 - A `Decision` is a frozen plain object. It can be cached by the client keyed on permission key plus resource id, serialised to the decision endpoint response, or stored with an audit record.
-- `decide` never throws and never awaits: the policy is data, `context` was loaded at `createPermDock`, and a thenable from a closure is a `closure-error` denial reported to `on('error')` ([0028](/docs/decisions/0028-synchronous-evaluation)).
+- `decide` never throws and never awaits: the policy is data, `context` was loaded at `createPermDock`, and a thenable from a closure is a `closure-error` denial reported to `on('error')`.
 - `can` is `decide(...).outcome === 'granted'` with `alternatives` skipped.
-
-## Open questions
-
-- Whether `alternatives` should be limited to the same resource or may include collection actions on related resources.

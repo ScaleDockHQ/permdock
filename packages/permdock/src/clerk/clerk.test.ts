@@ -117,7 +117,7 @@ describe('subjectFromClerk', () => {
   it('maps a session token v2 payload with the compact o claim', async () => {
     const subject = await subjectFromClerk(
       {
-        v: 2,
+        v: 1,
         sub: 'user_3',
         sid: 'sess_3',
         exp: 1_800_000_000,

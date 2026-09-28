@@ -6,30 +6,28 @@ import { assertSafeKey, isForbiddenKey, ownKeys } from './paths.ts';
 export const ROLE_KIND = 'role' as const;
 export const PLAN_KIND = 'plan' as const;
 
-export type RoleMeta = ActionMeta;
-
 export type Role<K extends string = string> = {
   readonly key: K;
   readonly on?: 'tenant' | 'team';
   readonly assignable: boolean;
-  readonly meta: RoleMeta;
+  readonly meta: ActionMeta;
   readonly kind: typeof ROLE_KIND;
 };
 
 export type Plan<K extends string = string> = {
   readonly key: K;
-  readonly meta: RoleMeta;
+  readonly meta: ActionMeta;
   readonly kind: typeof PLAN_KIND;
 };
 
 export type RoleInit = {
   readonly on?: 'tenant' | 'team';
   readonly assignable?: boolean;
-  readonly meta?: RoleMeta;
+  readonly meta?: ActionMeta;
 };
 
 export type PlanInit = {
-  readonly meta?: RoleMeta;
+  readonly meta?: ActionMeta;
 };
 
 export type RoleTree = {

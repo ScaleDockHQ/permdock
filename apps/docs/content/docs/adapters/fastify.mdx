@@ -3,9 +3,6 @@ title: Fastify
 description: permdock/fastify registers the Fetch kernel as a Fastify plugin that decorates request.permdock and provides protect as a typed preHandler hook.
 ---
 
-Status: shipped
-Phase: 2
-
 ## Purpose
 
 Fastify's plugin system, request decorators and typed route generics map cleanly onto the [server kernel](/docs/adapters/server-kernel). `permdock/fastify` registers a plugin that resolves the subject in an `onRequest` hook and decorates `request.permdock`; `protect` is a `preHandler` that loads data, decides and replies with Problem Details on denial. Fastify already fails closed after `reply.send()` in a hook, so denial never falls through to the handler.
@@ -52,22 +49,16 @@ await app.register(async (admin) => {
 
 ## Request lifecycle
 
-1. The plugin's `onRequest` hook calls `subject(request)` once and builds the instance.
-2. `protect` runs as `preHandler`: load, validate untrusted input, decide, continue or `reply.code(403)`.
-3. Handlers call `request.permdock.assert(...)`; thrown PermDock errors reach the plugin's `setErrorHandler` and become Problem Details.
-4. `on('decision')` events carry `request.method` and `request.routeOptions.url`.
+`permdock/fastify` follows the [shared adapter contract](/docs/adapters) through the [server kernel](/docs/adapters/server-kernel). What differs on Fastify:
 
-The decision endpoint builds its Web `Request` from the body Fastify already parsed. Multipart bodies stay with `@fastify/multipart`: `request.file()` works in a handler behind `protect`.
+- The plugin's `onRequest` hook resolves the subject once; `protect` runs as a `preHandler` and stores the loaded row on `request.permdockData`, so the handler does not run the loader twice.
+- The plugin registers the error handler itself and chains to the one that was in place before, so thrown PermDock errors become Problem Details and an app's own `setErrorHandler` keeps handling everything else.
+- Fastify's own JSON Schema validation runs first; PermDock validates only the resource shape the policy uses.
+- The decision endpoint builds its Web `Request` from the body Fastify already parsed. Multipart bodies stay with `@fastify/multipart`: `request.file()` works in a handler behind `protect`.
+- Using `protect` on a route in a scope where the plugin is not registered throws at startup.
+- Decision events carry `request.method` and `request.routeOptions.url`.
 
-## What it validates
-
-- Untrusted `loadData` results and bodies under `validate: 'boundary'`. Fastify's own JSON Schema validation runs first; PermDock validates only the resource shape used by the policy.
-- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
-- Plugin registration: using `protect` on a route in a scope where the plugin is not registered throws at startup.
-
-## How denials surface
-
-`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation; `401` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+Denials are the kernel's Problem Details responses.
 
 ## Example app
 
@@ -77,10 +68,4 @@ The decision endpoint builds its Web `Request` from the body Fastify already par
 
 ## Related standards
 
-- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2).
-
-## Open questions
-
-- Whether the plugin should also register the error handler or leave that to the app (some apps already own `setErrorHandler`).
-- Whether `request.permdockData` should exist or the loader result should be passed by re-running the loader inside the handler.
-- Type-provider interplay: confirm `protect` keeps inference with `@fastify/type-provider-zod` and TypeBox providers.
+- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi).

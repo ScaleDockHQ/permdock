@@ -3,12 +3,9 @@ title: Hono
 description: permdock/hono wraps the Fetch kernel as a Hono middleware and a protect route guard, with OpenAPI 3.2 security emitted through hono-openapi or @hono/zod-openapi.
 ---
 
-Status: shipped
-Phase: 1
-
 ## Purpose
 
-Hono is the first HTTP adapter because it already speaks Fetch, runs on Node, Bun, Deno and Workers, and is what the example backends for the React, Vue, Solid and Expo examples use. `permdock/hono` is a thin wrapper over the [server kernel](/docs/adapters/server-kernel): a middleware that puts the request-scoped `PermDock` on the context, a `protect` guard for routes, and hooks that emit OpenAPI 3.2 `security` for the two common OpenAPI integrations.
+Hono is the reference HTTP adapter because it already speaks Fetch, runs on Node, Bun, Deno and Workers, and is what the example backends for the React, Vue, Solid and Expo examples use. `permdock/hono` is a thin wrapper over the [server kernel](/docs/adapters/server-kernel): a middleware that puts the request-scoped `PermDock` on the context, a `protect` guard for routes, and hooks that emit OpenAPI 3.2 `security` for the two common OpenAPI integrations.
 
 ## API
 
@@ -68,7 +65,7 @@ const route = createRoute({
 
 ### Streams and sockets
 
-`connection(c, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for the request behind `c` ([0052](/docs/decisions/0052-streams-and-sockets)); pass `revocations` to `createPermDock` so revoked sessions and membership changes reach it. `sse(conn, stream, source, options?)` writes an async iterable to a `streamSSE` stream: items the subscriber cannot read under `options.items` are dropped (`unwrap` picks the row inside an envelope, `format` builds the frame), and when the connection aborts it writes `event: permdock` with the Problem Details body and resolves. Await it last in the callback, since `streamSSE` closes the stream when the callback returns. `socket(conn, events)` wraps `upgradeWebSocket` events so an abort closes the socket with `1008` and the Problem Details `type` as reason, and a closed socket closes the connection.
+`connection(c, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for the request behind `c`; pass `revocations` to `createPermDock` so revoked sessions and membership changes reach it. `sse(conn, stream, source, options?)` writes an async iterable to a `streamSSE` stream: items the subscriber cannot read under `options.items` are dropped (`unwrap` picks the row inside an envelope, `format` builds the frame), and when the connection aborts it writes `event: permdock` with the Problem Details body and resolves. Await it last in the callback, since `streamSSE` closes the stream when the callback returns. `socket(conn, events)` wraps `upgradeWebSocket` events so an abort closes the socket with `1008` and the Problem Details `type` as reason, and a closed socket closes the connection.
 
 ```ts
 const { protect, connection, sse, socket } = createPermDock(policy, { subject, revocations })
@@ -95,38 +92,23 @@ A denied message leaves the socket open; only a revocation, an expiry or a re-de
 
 ## Request lifecycle
 
-1. `app.use(permdock())` runs; `subject(c)` is called once per request (typically reading a user set by an auth middleware earlier in the chain) and the kernel builds the instance. Anonymous callers get an anonymous instance, not an error.
-2. `protect(...)` on a route loads data if needed, calls `decide`, and either continues (`c.get('permdock')`, `c.get('permdockData')`) or returns the 403.
-3. Handlers may call `c.get('permdock').assert(...)` for checks that need data only the handler has. After `await next()`, `permdock()` and `protect()` read the error Hono recorded for the downstream handler and replace the response with the same Problem Details body. No `app.onError` is needed, and an app's own `onError` keeps handling every other error.
-4. Every decision is emitted through `on('decision')` and the `sink` for audit and [otel](/docs/adapters/otel). The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route.
+`permdock/hono` follows the [shared adapter contract](/docs/adapters) through the [server kernel](/docs/adapters/server-kernel). What differs on Hono:
 
-## What it validates
+- `subject(c)` typically reads a user set by an auth middleware earlier in the chain.
+- `protect` exposes the loaded row as `c.get('permdockData')`, so the handler does not run the loader again. A loader that returns `null` or `undefined` answers `404`.
+- After `await next()`, `permdock()` and `protect()` read the error Hono recorded for the downstream handler (for example from `c.get('permdock').assert(...)`) and replace the response with the same Problem Details body. No `app.onError` is needed, and an app's own `onError` keeps handling every other error.
+- Calling `protect` before `permdock()` throws at startup with a message naming both middlewares, instead of failing per request.
+- The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route.
 
-- Request bodies and params passed to an untrusted `loadData` against the resource schema (`validate: 'boundary'`); `PermDockValidationError` becomes `400 application/problem+json` with `issues`.
-- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
-- Web Bot Auth signatures when the kernel option is enabled (Phase 4).
-- Middleware order: calling `protect` before `permdock()` throws at startup with a message naming both middlewares, instead of failing per request.
-
-## How denials surface
-
-- `denied`: `403` Problem Details with `permission`, `denials`, `alternatives`.
-- `approval-required`: `403` with `type` ending in `/approval-required` and a `token` the client can present after approval.
-- Validation failure: `400` with `issues`.
-- Anonymous subject on a permission that requires one: `401` when a `WWW-Authenticate` scheme is configured, otherwise `403`.
+Denials are the kernel's Problem Details responses.
 
 ## Example app
 
-`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts`, which serves `app.fetch` with `@hono/node-server`, for `pnpm start`. `tests/integration/src/http/hono.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on `@hono/node-server` with a global `permdock()`, a tenant from the `:org` param and a sub-app. The factory enables `otel` with a structural logger so decision lines are recorded locally. `tests/e2e` smokes both routes over Playwright's request fixture. OpenAPI hooks and the decision endpoint land with later Phase 2 examples.
+`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts`, which serves `app.fetch` with `@hono/node-server`, for `pnpm start`. `tests/integration/src/http/hono.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on `@hono/node-server` with a global `permdock()`, a tenant from the `:org` param and a sub-app. The factory enables `otel` with a structural logger so decision lines are recorded locally. `tests/e2e` smokes both routes over Playwright's request fixture.
 
 ## Related standards
 
 - [Problem Details](/docs/standards/problem-details).
-- [OpenAPI 3.2](/docs/standards/openapi-3-2), [decision 0014](/docs/decisions/0014-openapi-3-2).
+- [OpenAPI 3.2](/docs/standards/openapi).
 - [Web Bot Auth](/docs/standards/web-bot-auth).
 - [AuthZEN](/docs/standards/authzen) for the decision endpoint.
-
-## Open questions
-
-- Whether the loaded resource should be exposed as `c.get('permdockData')` or passed into the handler through a typed wrapper (`protect(permission, load, (c, data) => ...)`), which avoids a second context key.
-- Default behaviour when `loadData` returns `null`: `404` versus `403` (kernel open question).
-- Support for Hono's `createMiddleware` typing so `permdock()` composes with user-defined `Env` without the factory generic.

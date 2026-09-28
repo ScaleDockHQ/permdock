@@ -7,6 +7,9 @@ export const { needsApproval, guardTools, resolveInterruptions, permdock } =
   createPermDock(policy, {
     subject: (ctx) => ctx.user ?? memberUser,
     actor: (ctx) => ({ id: ctx.agentId ?? 'openai-1', kind: 'openai' }),
+    delegation: () => ({
+      scopes: [permissions.post.list.scope, permissions.post.delete.scope],
+    }),
     tools: {
       list_posts: {
         permission: permissions.post.list,

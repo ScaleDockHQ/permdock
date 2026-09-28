@@ -43,11 +43,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asApproval(value: unknown): ApprovalRequest | null {
-  if (
-    !isRecord(value) ||
-    (value.v !== 1 && value.v !== 2) ||
-    typeof value.token !== 'string'
-  ) {
+  if (!isRecord(value) || value.v !== 1 || typeof value.token !== 'string') {
     return null;
   }
   return value as ApprovalRequest;

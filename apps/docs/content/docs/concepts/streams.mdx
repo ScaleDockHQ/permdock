@@ -1,0 +1,105 @@
+---
+title: Streams and sockets
+description: A long-lived WebSocket, SSE stream or subscription gets a frozen Connection with per-message checks, an outbound filter and an AbortSignal that ends it when the subject is revoked, expires or loses the permission that opened it.
+---
+
+Every HTTP adapter decides once per request. A WebSocket, a Server-Sent Events stream, a tRPC subscription, an oRPC event iterator or a Nest gateway can stay open for hours, and one decision at the handshake is not enough: a member demoted to viewer would keep receiving updates, a session revoked at the identity provider would keep its sockets, a token that expired mid-stream would stay effective, and every inbound message and outbound item would need a hand-written check. The request-scoped instance is frozen, so a connection cannot keep one instance and hope its grants change. Instead the kernel hands out a `Connection` that swaps in a fresh instance when the subject changes and ends itself when it must.
+
+## Opening a connection
+
+The server kernel and every streaming adapter expose `connection(...)` next to `permdock` and `protect`. It resolves the subject once from the upgrade or stream-opening request and returns a frozen `Connection`:
+
+```ts
+const conn = await connection(c, {
+  permission: permissions.project.read,     // checked at open and after every revalidation
+  data: () => loadProject(c.req.param('id')), // a row, or a loader re-run on every revalidation
+  revalidate: 5 * 60_000,                    // optional periodic revalidation, off by default
+})
+```
+
+| Member | Meaning |
+| --- | --- |
+| `permdock` | The current request-scoped instance. After a revalidation it is replaced by a new instance, never mutated. |
+| `signal` | An `AbortSignal` that aborts when the connection must end. `signal.reason` is a `PermDockRevokedError`. |
+| `check(permission, data?, { trusted? })` | A per-message decision against the current instance. It never throws and returns the `Decision`. Pass `trusted: false` for data taken from the message itself, so it is validated against the resource schema first. |
+| `filter(permission, items)` | The outbound filter for items pushed to the subscriber, with the same semantics as `permdock.filter`. |
+| `close()` | Stops the connection's timers and its feed subscription. Adapters call it when the transport closes; a long-running server must not skip it. |
+
+Once the signal has aborted or `close()` was called, `check` returns `denied` with reason `no-grant` and `detail: 'connection-revoked'`, and `filter` returns an empty array. If the opening itself failed (building the instance threw, the opening permission was denied, or the `data` loader returned nothing), the connection starts aborted with `denied`; reading `conn.permdock` then throws, so check `conn.signal.aborted` first.
+
+A denied per-message check does not end the connection. Answer it with a Problem Details frame and keep going; only a revocation, an expiry or a re-denied opening permission closes it.
+
+## Why a connection ends
+
+`signal.reason.code` says why:
+
+| Code | Cause |
+| --- | --- |
+| `session-revoked` | A revocation feed published `session-revoked` for this principal (and this session, when both sides name one). |
+| `expired` | The subject's `expiresAt` (the token's `exp`) passed, or the feed's `subscribe` threw. |
+| `denied` | The opening permission was denied at open or after a revalidation; the `Decision` rides on the error as `decision`. |
+| `subject-changed` | A revalidation resolved no principal, a different principal id, or threw. |
+
+`PermDockRevokedError` is only a connection signal: it is never thrown by `can` or `decide`, and it is not a denial reason. `toProblemDetails()` maps `denied` to a 403 `denied` body with the denials, and every other code to a 401 `unauthenticated` body whose `detail` is the code. An abort adds nothing to the closed lists on the wire: there is no `revoked` denial reason and no `on('auth')` event for it. Per-message checks emit decision events like any other check, so `on('decision')` and sinks see them.
+
+## Revalidation and expiry
+
+- **On a `changed` event**, the connection resolves the subject again from the original request (bypassing the per-request cache), re-reads `memberships` and `customRoles`, builds a new instance and re-checks the opening permission with fresh `data`. If the principal is the same and the permission still holds, the new instance replaces the old one and the connection stays open. Revalidations run one at a time.
+- **On `session-revoked`**, the connection aborts without revalidating: a locally verified JWT would still pass verification, so re-resolving would keep a revoked session alive.
+- **At `subject.expiresAt`** the connection aborts with `expired`. At the earliest `Membership.expiresAt` it revalidates, so an expiring membership drops its grants without ending a connection that still qualifies. `revalidate` adds a periodic revalidation for apps without a feed. Timers are clamped to the platform maximum and cleared on abort and by `close()`.
+
+Revalidating instead of closing on every change means a role edit that adds a permission does not disconnect every open tab of that user.
+
+## The revocation feed
+
+`RevocationFeed` is the extension interface that tells open connections a subject changed:
+
+```ts
+interface RevocationFeed {
+  subscribe(listener: (event: RevocationEvent) => void): () => void
+  revoke(event: RevocationEvent): void | Promise<void>
+}
+
+type RevocationEvent = {
+  principal: string
+  session?: string
+  tenant?: string
+  kind: 'session-revoked' | 'changed'
+}
+```
+
+`memoryRevocationFeed()` is the in-process default exported from `permdock` and `permdock/server`. It validates and freezes each event, throws a `TypeError` for an event without a principal or with an unknown `kind`, and isolates listener errors so one listener cannot stop the others. A multi-replica app bridges `revoke` across processes with its own pub/sub (Postgres `LISTEN` / `NOTIFY`, Redis, Supabase Realtime). Pass the feed as the `revocations` option of the kernel or the adapter.
+
+A feed can only end or revalidate a connection; it never grants. A lost event therefore degrades to the expiry timers, and a feed whose `subscribe` throws aborts the connection with `expired`. A `changed` event naming a tenant only reaches connections opened for that tenant (or with no tenant); a `session-revoked` event naming a session only reaches that session.
+
+Events come from three places:
+
+- `permdock/ssf` with `revocations`: a verified `session-revoked` (CAEP or Back-Channel Logout) publishes `session-revoked` for the subject and session, and the credential, assurance and claims change events publish `changed` for the subject alone. A feed failure never fails the receiver.
+- `permdock/scim` with `revocations`: every user a write affects gets a `changed` event with the handler's tenant, published under the SCIM `id`, `userName` and `externalId` so it reaches whichever id the membership source matched on. A throwing feed never fails the identity provider's write.
+- Your own code, for example an admin screen that edits a role: `revocations.revoke({ principal, tenant, kind: 'changed' })`.
+
+## Adapter mappings
+
+Each adapter wires the transport so an app does not repeat the plumbing:
+
+| Adapter | Opening | Per message | On abort |
+| --- | --- | --- | --- |
+| `permdock/server` | `connection(request, options)`; Next.js Route Handlers streaming SSE use this directly | `conn.check`, `conn.filter` | Your code reads `conn.signal` |
+| `permdock/hono` | `connection(c, options)` before `upgradeWebSocket` or `streamSSE` | `conn.check` in `onMessage`; `sse(conn, stream, source, { items })` drops items the subscriber cannot read | `socket(conn, events)` closes the WebSocket with `1008` and the Problem Details `type` as the reason; `sse` writes an `event: permdock` frame with the Problem Details body and resolves, so await it as the last statement of the `streamSSE` callback |
+| `permdock/elysia` | `connection(ws, options)` in the `.ws` `open` handler, one connection per socket | `conn.check` in `message` | `ws.close(1008, ...)` |
+| `permdock/trpc` | `protect(permission)` on a subscription procedure opens the connection | Outbound items pass the filter when `protect` is given `{ items: permission }`; tracked envelopes are unwrapped before the check | The iterator ends with `FORBIDDEN` or `UNAUTHORIZED`, with the Problem Details on `cause` |
+| `permdock/orpc` | The same as tRPC, for event iterators | The same | `ORPCError` `FORBIDDEN` or `UNAUTHORIZED` |
+| `permdock/nest` | `connection(client, req, options)` in `handleConnection`, one connection per client | `PermDockGuard` on a `@SubscribeMessage` handler checks through the client's connection | Emits `permdock:error` with the Problem Details, then `client.disconnect(true)`, or `close(1008, ...)` for a raw socket |
+
+Close code `1008` is the RFC 6455 policy-violation code. The close frame and the SSE `permdock` event carry the reason so a client can tell a revocation from a network drop and does not reconnect in a loop. The SSE frame reuses the existing Problem Details body; there is no new wire format.
+
+## Rejected designs
+
+- **Re-running `protect` per message with the upgrade request.** Correct for inbound checks, but it resolves the subject and memberships on every frame, and nothing closes the connection on revocation.
+- **Closing on every `changed` event.** Simpler, but it disconnects users whose change added access.
+- **Revocation from `permdock/ssf` only.** SSF sees identity-provider revocations, but the common demotion paths are app-side role edits and SCIM, so the feed is a shared channel.
+- **A mutable instance that swaps grants in place.** It would break request-scoped immutability and every consumer that captured the instance.
+
+## Testing
+
+`testHttpAdapter({ streams: true })` in `@permdock/testing` runs `stream-revoked`, `stream-demoted`, `stream-filter` and `stream-expired` over real servers, and `testRevocationFeed` checks a feed implementation ([extension interfaces](/docs/concepts/extension-interfaces)). See the [server kernel](/docs/adapters/server-kernel), [SSF](/docs/adapters/ssf) and [SCIM](/docs/adapters/scim) pages for the adapter options.

@@ -3,12 +3,25 @@ title: React Native
 description: permdock/react-native adds a persisted snapshot so Expo Router Stack.Protected and Tabs.Protected guards answer synchronously on the first frame and revalidate in the background.
 ---
 
-Status: shipped
-Phase: 2
-
 ## Purpose
 
-Expo Router's `Stack.Protected` and `Tabs.Protected` (SDK 53 and later) take a plain boolean `guard`. They are evaluated synchronously during the first render, before any network request can complete. `permdock/react-native` re-exports everything from [permdock/react](/docs/adapters/react) and adds one option, `storage`, so the last known snapshot is read from device storage on launch, guards answer immediately, and a fresh snapshot is fetched and swapped in without a flash. See [Expo Router research](/docs/research/expo-router).
+Expo Router's `Stack.Protected` and `Tabs.Protected` (SDK 53 and later) take a plain boolean `guard`. They are evaluated synchronously during the first render, before any network request can complete. `permdock/react-native` re-exports everything from [permdock/react](/docs/adapters/react) and adds one option, `storage`, so the last known snapshot is read from device storage on launch, guards answer immediately, and a fresh snapshot is fetched and swapped in without a flash.
+
+### Why a persisted snapshot
+
+The guard has no promise, loading state or pending value: when it flips to `false` the protected screens stop existing and Expo Router moves the user off them. A library that answers `usePermission()` by calling a server or waiting for a session can only drive it with a splash screen on every cold start or a guard that briefly lies. A snapshot (roles, grants and portable conditions as JSON) persisted on the device answers every guard on the first frame, and because it carries the `where` conditions, ownership checks such as `usePermission(permissions.post.update, post)` also work offline without a second copy of the policy in the app. That rules out hooks that suspend or return `undefined`, boolean-only client state, and a splash screen on every launch; the splash is needed once per install, before the first snapshot arrives.
+
+`Stack.Protected` and `Tabs.Protected` decide which screens exist; `Protected` decides which sections of a screen render, with `pending` and `fallback` render props. Both read the same snapshot.
+
+| Concern | `permdock/next` (web) | `permdock/react-native` (Expo) |
+| --- | --- | --- |
+| First-frame answer | Snapshot in the prefetched App Shell | Snapshot in device storage |
+| What makes it available before render | `'use cache: private'` with `cacheLife` | A synchronous `storage.getItem()` on launch |
+| Refresh trigger | `updateTag` after a mutation | Fetch on launch, on foreground, or on `refresh()` |
+| Revocation path | SSF receiver invalidates the tag | The `revalidate` interval; no push without an app channel |
+| Closure grants | Batched call to `permdockHandler()` | Same endpoint; `server-only` while offline |
+
+Everything above the transport is shared: the snapshot format, the condition evaluator, `usePermission`'s return shape and the decision endpoint.
 
 ## API
 
@@ -60,26 +73,20 @@ Because the on-device answer is a UI hint, an API request made while offline and
 - The snapshot's `subject.id` against the currently signed-in user id when the app provides one through `subjectId`; a mismatch is treated as empty storage.
 - Nothing else client-side. As on the web, on-device answers are UI hints; every mutation is re-checked by the API.
 
+The snapshot is stored as the `storage` implementation stores it. The entry ships only `memoryStorage` and the three-method interface; an app that wants the snapshot encrypted at rest (it reveals role names, condition shapes and, with `tenants: 'all'`, every organisation the user belongs to, but no rows) passes `expo-secure-store` or an encrypted MMKV instance. Memberships whose `expiresAt` has passed are ignored by the evaluator at read time. A persisted snapshot keeps serving grants that the server has since removed until the next revalidation; the [threat model](/docs/security/threat-model) accepts this for UI hints because every mutation is re-checked server-side.
+
 ## How denials surface
 
-- Guards receive `false`; Expo Router redirects to the nearest allowed route. Because the answer comes from storage there is no denied-then-allowed flash after launch.
+- Guards receive `false`, including while `status` is `pending` on a cold start with empty storage, so a `Tabs.Protected` tab is hidden until the first snapshot arrives; Expo Router redirects to the nearest allowed route. Because the answer comes from storage there is no denied-then-allowed flash after launch.
 - `Protected` renders `fallback`, and the `decision` is available for an "approval required" screen.
 - Persisted grants are stale by design until revalidation finishes. A role downgrade takes effect on the next successful fetch; for immediate revocation the API should reject the mutation and the app can call `refresh()`, or a [Shared Signals receiver](/docs/adapters/ssf) on the server can rotate the snapshot.
 
 ## Example app
 
-`apps/examples/expo`: an Expo Router web app with an inline Snapshot v3, `memoryStorage`, and `Protected` / `usePermission`. `http://127.0.0.1:3486/` shows `edit` for a granted update and `locked` for a denied publish. Web smoke via Playwright; native via Maestro is optional.
+`apps/examples/expo`: an Expo Router web app with an inline snapshot, `memoryStorage`, and `Protected` / `usePermission`. `http://127.0.0.1:3486/` shows `edit` for a granted update and `locked` for a denied publish. Web smoke via Playwright; native via Maestro is optional.
 
 ## Related standards
 
 - [AuthZEN](/docs/standards/authzen): decision endpoint request and response shapes.
 - Concepts: [snapshots](/docs/concepts/snapshots), [decisions](/docs/concepts/decisions), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui).
-- Research: [Expo Router](/docs/research/expo-router).
-
-## Open questions
-
-- Whether to encrypt the persisted snapshot by default (grants reveal role names and condition shapes, not data; with `tenants: 'all'` it also lists every organisation the user belongs to), or leave the choice to the `storage` implementation.
-- Whether a persisted multi-tenant snapshot should drop memberships whose `expiresAt` has passed at read time (current: yes, the evaluator ignores them anyway) and whether a stale persisted snapshot should keep serving another tenant's grants offline after a server-side removal (current: until `revalidate` runs; the threat model accepts this for UI hints because every mutation is re-checked server-side).
-- The right default for `revalidate`: launch only, or launch plus foreground.
-- Whether to ship an `expo-secure-store` and an MMKV adapter in the entry or document the three-method interface only.
-- How `Tabs.Protected` should behave while `status` is `pending` on a cold start with empty storage: hide the tab or show it disabled.
+- [Expo Router protected routes](https://docs.expo.dev/router/advanced/protected/).

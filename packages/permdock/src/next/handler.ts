@@ -1,1 +1,1 @@
-export { createHandler } from '../server/evaluations.ts';
+export { createEvaluationsHandler } from '../server/evaluations.ts';

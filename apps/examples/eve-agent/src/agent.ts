@@ -22,6 +22,9 @@ export const { approval, approvalFor, permdock } = createPermDock(policy, {
   subject: ({ session }) => userById(session?.auth?.initiator?.principalId),
   store: memoryApprovalStore(),
   approvers: { roles: ['admin'] },
+  delegation: () => ({
+    scopes: [permissions.post.list.scope, permissions.post.delete.scope],
+  }),
   tools: {
     list_posts: {
       permission: permissions.post.list,

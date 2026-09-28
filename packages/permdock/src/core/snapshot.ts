@@ -1,6 +1,6 @@
 import type { Snapshot, SnapshotGrant, TokenSigner } from './interfaces.ts';
 import type { Grant, PolicyVocabulary } from './policy.ts';
-import type { Membership, Subject } from './subject.ts';
+import type { Delegation, Membership, Subject } from './subject.ts';
 
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
@@ -73,7 +73,7 @@ export function buildSnapshot(input: {
     .map((item) => snapshotGrant(item.grant, item.membership));
   const snapshot = freezeDeep(
     compact<Snapshot>({
-      v: 3 as const,
+      v: 1 as const,
       issuedAt: now,
       subject: compact<Snapshot['subject']>({
         principal:
@@ -86,7 +86,7 @@ export function buildSnapshot(input: {
                 tenant: principal.tenant,
                 memberships: principal.memberships,
               }),
-        delegation: input.subject.delegation,
+        delegation: snapshotDelegation(input.subject),
         context: input.subject.context,
       }),
       roles: input.roles,
@@ -146,6 +146,21 @@ export async function signSnapshot(
   return token;
 }
 
+function snapshotDelegation(subject: Subject): Delegation | undefined {
+  const delegation = subject.delegation;
+  if (subject.actor === undefined) {
+    return delegation;
+  }
+  if (
+    delegation?.scopes === undefined &&
+    delegation?.authorizationDetails === undefined &&
+    delegation?.access === undefined
+  ) {
+    return { ...delegation, scopes: [] };
+  }
+  return delegation;
+}
+
 function rejectUnsafe(value: unknown, path: string): void {
   if (value === null || typeof value !== 'object') {
     return;
@@ -178,7 +193,7 @@ export function parseSnapshot(json: unknown): Snapshot {
   rejectUnsafe(value, '$');
   const record = value as Record<string, unknown>;
   const version = record.v;
-  if (version !== 1 && version !== 2 && version !== 3) {
+  if (version !== 1) {
     throw new Error(
       `PermDock: unsupported snapshot version '${String(version)}'`,
     );

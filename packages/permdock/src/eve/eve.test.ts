@@ -12,6 +12,15 @@ import {
 } from '../fixtures/quick-start.ts';
 import { createPermDock } from './index.ts';
 
+const delegated = {
+  scopes: [
+    permissions.post.read.scope,
+    permissions.post.list.scope,
+    permissions.post.delete.scope,
+    permissions.post.publish.scope,
+  ],
+};
+
 type Person = { readonly id: string; readonly roles: readonly string[] };
 
 function principal(user: Person) {
@@ -79,7 +88,10 @@ const deleteOwn = { toolName: 'delete_post', toolInput: { id: 'p1' } };
 
 describe('permdock/eve', () => {
   it('maps granted to not-applicable and denied to a typed denial', async () => {
-    const { approval, permdock } = createPermDock(policy, { tools: tools() });
+    const { approval, permdock } = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+    });
 
     expect(await approval.request(call('list_posts', {}))).toBe(
       'not-applicable',
@@ -100,6 +112,7 @@ describe('permdock/eve', () => {
     const store = memoryApprovalStore();
     const { approval } = createPermDock(policy, {
       tools: tools(),
+      delegation: () => delegated,
       store,
       approvers: { roles: ['admin'] },
     });
@@ -135,7 +148,10 @@ describe('permdock/eve', () => {
   });
 
   it('denies the re-check of a call nobody approved', async () => {
-    const { approval } = createPermDock(policy, { tools: tools() });
+    const { approval } = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+    });
     expect(await approval.request(call('delete_post', { id: 'p1' }))).toBe(
       'user-approval',
     );
@@ -145,26 +161,41 @@ describe('permdock/eve', () => {
 
   it('resolves a response in another process from the shared store', async () => {
     const store = memoryApprovalStore();
-    const first = createPermDock(policy, { tools: tools(), store });
+    const first = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+      store,
+    });
     expect(
       await first.approval.request(call('delete_post', { id: 'p1' })),
     ).toBe('user-approval');
 
-    const second = createPermDock(policy, { tools: tools(), store });
+    const second = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+      store,
+    });
     expect(
       await second.approval.response(
         respond({ principalId: 'u2', roles: ['admin'] }, deleteOwn),
       ),
     ).toEqual({ status: 'allowed' });
 
-    const third = createPermDock(policy, { tools: tools(), store });
+    const third = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+      store,
+    });
     expect(
       await third.approval.request(call('delete_post', { id: 'p1' })),
     ).toBe('not-applicable');
   });
 
   it('rejects a response for a call that never asked', async () => {
-    const { approval } = createPermDock(policy, { tools: tools() });
+    const { approval } = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+    });
     expect(
       await approval.response(
         respond({ principalId: 'u2', roles: ['admin'] }, deleteOwn, 'c9'),
@@ -173,7 +204,10 @@ describe('permdock/eve', () => {
   });
 
   it('builds a single-tool pair with approvalFor and ignores tool-input subjects', async () => {
-    const { approvalFor } = createPermDock(policy, { tools: tools() });
+    const { approvalFor } = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+    });
     const pair = approvalFor(permissions.post.publish, () => ownPost);
     const denied = await pair.request(
       call('publish', { subject: { id: 'u2', roles: ['admin'] } }),
@@ -182,7 +216,10 @@ describe('permdock/eve', () => {
   });
 
   it('treats missing session auth as anonymous', async () => {
-    const { approval } = createPermDock(policy, { tools: tools() });
+    const { approval } = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+    });
     const denied = await approval.request({
       toolName: 'list_posts',
       toolInput: {},

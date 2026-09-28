@@ -9,7 +9,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
+import type { Delegation, Principal } from '../core/subject.ts';
 
 import { createAgentKernel } from '../agent/kernel.ts';
 import { compact } from '../core/compact.ts';
@@ -35,6 +35,9 @@ export type ClaudeAgentContext = {
 export type ClaudeAgentPermDockOptions<TUser = unknown> = {
   readonly subject: (context: ClaudeAgentContext) => TUser | Promise<TUser>;
   readonly actor?: (context: ClaudeAgentContext) => unknown;
+  readonly delegation?: (
+    context: ClaudeAgentContext,
+  ) => Delegation | undefined | Promise<Delegation | undefined>;
   readonly tenant?:
     | string
     | ((
@@ -151,6 +154,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const kernel = createAgentKernel<ClaudeAgentContext, TUser>(policy, {
     ...compact({
       actor: options.actor,
+      delegation: options.delegation,
       tenant: options.tenant,
       memberships: options.memberships,
       customRoles: options.customRoles,

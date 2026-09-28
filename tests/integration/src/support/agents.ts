@@ -86,6 +86,11 @@ export function agentTools(load: (args: unknown) => Promise<unknown>) {
   };
 }
 
+/** What the user delegated to the agent: the scopes behind its tools. */
+export function agentDelegation() {
+  return { scopes: [p.project.delete.scope, p.apiKey.revokeAll.scope] };
+}
+
 export const owner = {
   principal: saasPrincipal('carol', TENANT),
   context: {},

@@ -60,6 +60,7 @@ async function run(job: Job): Promise<void> {
         plans: input.plans,
       },
       actor: { kind: 'service', id: 'turbo-worker' },
+      delegation: { scopes: [p.project.update.scope] },
       context: {},
     },
     { tenant: job.org, customRoles: memoryRoleSource(input.customRoles) },

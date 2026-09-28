@@ -12,6 +12,15 @@ import {
 } from '../fixtures/quick-start.ts';
 import { createPermDock } from './index.ts';
 
+const delegated = {
+  scopes: [
+    permissions.post.read.scope,
+    permissions.post.list.scope,
+    permissions.post.delete.scope,
+    permissions.post.publish.scope,
+  ],
+};
+
 function tools() {
   return {
     delete_post: {
@@ -37,6 +46,7 @@ describe('permdock/ai-sdk', () => {
     const { toolApproval } = createPermDock(policy, {
       subject: ({ runtimeContext }) =>
         (runtimeContext as { readonly user: unknown }).user,
+      delegation: () => delegated,
       actor: () => ({ id: 'agent-1', kind: 'ai-sdk' }),
       tools: tools(),
     });
@@ -72,6 +82,7 @@ describe('permdock/ai-sdk', () => {
     const store = memoryApprovalStore();
     const { toolApproval } = createPermDock(policy, {
       subject: () => memberUser,
+      delegation: () => delegated,
       actor: () => ({ id: 'agent-1', kind: 'ai-sdk' }),
       tools: tools(),
       store,
@@ -107,6 +118,7 @@ describe('permdock/ai-sdk', () => {
   it('never trusts a subject or actor from tool arguments', async () => {
     const { toolApproval } = createPermDock(policy, {
       subject: () => memberUser,
+      delegation: () => delegated,
       actor: () => ({ id: 'agent-1', kind: 'ai-sdk' }),
       tools: tools(),
     });
@@ -210,6 +222,7 @@ describe('permdock/ai-sdk', () => {
   it('returns a predicate that pauses for approval and throws when denied', async () => {
     const { needsApproval } = createPermDock(policy, {
       subject: () => memberUser,
+      delegation: () => delegated,
       actor: () => ({ id: 'agent-1', kind: 'ai-sdk' }),
       tools: tools(),
     });

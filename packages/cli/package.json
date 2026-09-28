@@ -1,6 +1,6 @@
 {
   "name": "@permdock/cli",
-  "version": "0.2.0",
+  "version": "0.0.0",
   "description": "Collect, catalog, usage, openapi, rls, doctor and skills for PermDock. Collect-only build hooks for Next.js and unplugin bundlers.",
   "keywords": [
     "catalog",

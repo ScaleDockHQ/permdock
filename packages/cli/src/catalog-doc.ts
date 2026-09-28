@@ -46,7 +46,7 @@ export function buildCatalog(
     .toSorted((a, b) => a.key.localeCompare(b.key));
   return {
     $schema: CATALOG_SCHEMA,
-    version: 2,
+    version: 1,
     generatedAt,
     generator: generatorBanner(),
     resources,
@@ -163,7 +163,7 @@ export function catalogSchemaDocument(): unknown {
     required: ['$schema', 'version', 'permissions', 'resources'],
     properties: {
       $schema: { type: 'string' },
-      version: { const: 2 },
+      version: { const: 1 },
       generatedAt: { type: 'string' },
       generator: { type: 'string' },
       resources: { type: 'object' },

@@ -98,7 +98,7 @@ export async function requestApproval(
         });
   const request = freezeDeep(
     compact<ApprovalRequest>({
-      v: 2,
+      v: 1,
       token: decision.token,
       permission: leaf.key,
       scope: leaf.scope,

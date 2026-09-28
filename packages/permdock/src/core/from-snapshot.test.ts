@@ -83,6 +83,7 @@ describe('fromSnapshot', () => {
           permission: grant.permission,
           effect: grant.effect,
           role: grant.role,
+          to: grant.to,
           portable: false as const,
         };
       }),

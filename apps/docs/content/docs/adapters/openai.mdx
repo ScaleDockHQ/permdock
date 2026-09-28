@@ -3,9 +3,6 @@ title: OpenAI Agents SDK
 description: permdock/openai turns PermDock decisions into OpenAI Agents SDK needsApproval predicates, guards tool lists per caller, resolves interruptions against a pluggable ApprovalStore, and binds the replay-safe token to the serialised RunState.
 ---
 
-Status: shipped
-Phase: 1
-
 `permdock/openai` connects the [Decision](/docs/concepts/decisions) model to the [OpenAI Agents SDK](https://openai.github.io/openai-agents-js/) for JavaScript. The SDK pauses a run when a tool needs approval, returns `interruptions`, and resumes from the same `RunState` after `state.approve()` or `state.reject()`. What it does not do is decide *whether* a call needs approval from anything richer than a boolean, nor record who approved, nor guarantee that the approved call is the one that runs. The adapter supplies the predicate from the typed policy, the record through an [ApprovalStore](/docs/adapters/approvals), and the binding through the token.
 
 ## Purpose
@@ -24,6 +21,7 @@ const PostArgs = z.object({ id: z.string() }) // tool input arrives as `unknown`
 const { needsApproval, guardTools, resolveInterruptions, permdock } = createPermDock(policy, {
   subject: (context) => context.user,                      // RunContext -> principal
   actor: (context) => ({ id: context.agentId, kind: 'openai-agent' }),
+  delegation: (context) => ({ scopes: context.scopes }),
   tools: {
     delete_post: { permission: permissions.post.delete, data: (args) => loadPost(PostArgs.parse(args).id) },
     list_posts:  { permission: permissions.post.list },
@@ -61,7 +59,7 @@ if (pending.length === 0) result = await run(agent, state) // every interruption
 - `guardTools(tools, context)` filters the tool array to those whose permission has any grant for this subject, so the model cannot plan with tools it may not use (the `capabilityMiddleware` equivalent).
 - `resolveInterruptions(state, interruptions, { context })` decides each interruption in order. `granted` (including an approved record, which it consumes) calls `state.approve(i)`; `denied` (including a rejected, consumed or expired record) calls `state.reject(i, { message })` with the Decision's reason; `approval-required` writes or finds the pending `ApprovalRequest` and returns it. An interruption whose name or JSON arguments cannot be read is rejected. The token is recomputed from permission, resource, principal, actor and arguments, so any process with the same store finds the record.
 - `permdock(context)` returns a request-scoped `PermDock` for checks inside `execute`.
-- `subject` and `actor` read from the `RunContext` the application passes to `run`; nothing is read from model output.
+- `subject` and `actor` read from the `RunContext` the application passes to `run`; nothing is read from model output. `delegation` reads from the same context and has no default: an `actor` with no `delegation` is denied every tool with reason `no-delegation`.
 
 ## Request lifecycle
 
@@ -81,7 +79,7 @@ if (pending.length === 0) result = await run(agent, state) // every interruption
 6. The application restores `RunState` with a fresh context, calls `resolveInterruptions`, and resumes with `run(agent, state)` once nothing is pending. The adapter re-runs `decide` and recomputes `token`: an approved record resumes one call and is consumed, so restoring the same state again rejects the call; another principal's resume never matches the token.
 7. Every step emits `on('decision')`; ask, answer and resumed decision share `token`.
 
-Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapter: each call gets its own decision and its own record.
+Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapter: each call gets its own decision and its own record. A denial returns `true` from `needsApproval` rather than throwing in `execute`, so the SDK's approval item carries the rejection message and the tool is never invoked. Tools of an inner agent nested with `agent.asTool()` interrupt the outer run and are decided with the outer run's `subject` and `actor`.
 
 ## What it validates
 
@@ -97,7 +95,7 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 - `guardTools` removals are silent to the model; they appear in `on('decision')` with `source: 'adapter'`.
 - Resume failures use `message` values `approval-expired`, `approval-mismatch`, `approval-rejected` and `approval-not-found`.
 - Hosted MCP tools reached through the SDK's `requireApproval` and `onApproval` can call `needsApproval` inside `onApproval`; the mapping is the same, with the MCP server name and tool name as the lookup key in `tools`.
-- The SDK's tool guardrails (`toolInputGuardrails`, `toolOutputGuardrails`) are a second hook: an input guardrail can call `decide` and return a tripwire with the same Decision-derived message, which is useful when a team already routes all argument checks through guardrails. `needsApproval` remains the primary hook because it is the only one that can pause for `approval-required`; a guardrail can only allow or reject. OpenAI's Agent Builder is being retired on 30 November 2026 and does not affect this adapter, which targets the SDK ([commercial landscape](/docs/research/commercial-landscape)).
+- The SDK's tool guardrails (`toolInputGuardrails`, `toolOutputGuardrails`) are a second hook: an input guardrail can call `decide` and return a tripwire with the same Decision-derived message, which is useful when a team already routes all argument checks through guardrails. `needsApproval` remains the primary hook because it is the only one that can pause for `approval-required`; a guardrail can only allow or reject. OpenAI's Agent Builder is being retired on 30 November 2026 and does not affect this adapter, which targets the SDK ([landscape](/docs/research/landscape)).
 
 ## Example app
 
@@ -105,15 +103,8 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 
 ## Related standards
 
-- [Approvals](/docs/security/approvals) and [ADR 0022](/docs/decisions/0022-approvals-are-pluggable).
+- [Approvals](/docs/security/approvals) and [approvals](/docs/adapters/approvals).
 - [Delegation](/docs/security/delegation): the actor half of the subject for agent runs.
 - [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 tool misuse mitigations.
 - [MCP authorization](/docs/standards/mcp-authorization): hosted MCP tools through the SDK.
 - [AI SDK adapter](/docs/adapters/ai-sdk) and [Eve adapter](/docs/adapters/eve): the same Decision in other runtimes.
-
-## Open questions
-
-- Whether `needsApproval` should return `true` for `denied` (current, so the SDK's approval item is the vehicle for the rejection message) or whether the adapter should throw inside `execute` instead; the former keeps the tool from ever being invoked.
-- `agent.asTool()` nesting: interruptions surface on the outer run, so `subject` and `actor` are the outer run's; whether an inner agent should ever be a distinct actor.
-- Computer-tool interruptions covering a batch of actions: one approval for a sequence does not fit per-call tokens; the adapter may treat the batch as one resource or refuse to gate computer tools.
-- The Python SDK: whether a `permdock` Python client that speaks the hosted ADS is the right answer for non-TypeScript agents rather than a second adapter.

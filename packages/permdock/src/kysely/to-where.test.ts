@@ -185,7 +185,7 @@ describe('permdock/kysely toWhere', () => {
       db,
       {
         snapshot: () => ({
-          v: 2,
+          v: 1,
           issuedAt: 1,
           subject: {
             principal: { id: 'u1', roles: [], tenant: 'o1' },

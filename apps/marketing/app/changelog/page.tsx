@@ -27,6 +27,11 @@ export default function ChangelogPage() {
           packages/testing CHANGELOG.md files.
         </p>
       </div>
+      {releases.length === 0 ? (
+        <p className="text-muted-foreground text-sm leading-6">
+          No releases yet. The first release is 0.1.0.
+        </p>
+      ) : null}
       <Timeline defaultValue={1} className="w-full">
         {releases.map((release, index) => (
           <TimelineItem

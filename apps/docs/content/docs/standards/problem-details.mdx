@@ -3,9 +3,6 @@ title: RFC 9457 Problem Details
 description: The application/problem+json body PermDock's HTTP adapters return for denied and approval-required decisions, and why it is written for humans and models alike.
 ---
 
-Status: shipped
-Phase: 1
-Adapter phases: `permdock/server` and `permdock/hono` 1, `permdock/next` 1, `permdock/terminal` 2, other HTTP and RPC adapters 2.
 
 ## What it is
 
@@ -62,17 +59,17 @@ An approval-required decision:
 
 Rules:
 
-- **`type` URIs are stable** and per outcome: `.../denied`, `.../approval-required`, `.../validation` (for `PermDockValidationError` at a boundary, status 400), plus two 401 types that exist only where a `WWW-Authenticate` challenge is the real answer: `.../unauthenticated` (no token, or a token that failed verification) and `.../step-up-required` (RFC 9470, carrying `acrValues` and `maxAge`). They resolve to the docs pages describing each outcome. The `permdock.dev` host in the examples is a placeholder until the docs domain is fixed (see open questions).
+- **`type` URIs are stable** and per outcome: `.../denied`, `.../approval-required`, `.../validation` (for `PermDockValidationError` at a boundary, status 400), plus two 401 types that exist only where a `WWW-Authenticate` challenge is the real answer: `.../unauthenticated` (no token, or a token that failed verification) and `.../step-up-required` (RFC 9470, carrying `acrValues` and `maxAge`). They sit under the fixed base `https://permdock.dev/problems`; the host is not configurable, so a self-hosted deployment emits the same identifiers.
 - **`permission`** is the permission `key`, never the object; keys are the wire form of references.
-- **`denials`** mirrors `Decision.denials`: one entry per role that had a matching grant and why it did not apply. Conditions are the portable JSON AST, so a client can show exactly which constraint failed. Closure grants appear as `{ "kind": "closure" }` with no further detail.
+- **`denials`** mirrors `Decision.denials` and is always present, in production too, because what it reveals is bounded by the subject's own snapshot: one entry per role that had a matching grant and why it did not apply. Conditions are the portable JSON AST, so a client can show exactly which constraint failed. Closure grants appear as `{ "kind": "closure" }` with no further detail.
 - **`alternatives`** lists permission keys on the same resource the subject does hold, so a model can pick a permitted action.
-- **`token`** appears only on `approval-required` and is the replay-safe hash described in [approvals](/docs/security/approvals).
+- **`token`** appears only on `approval-required` and is the replay-safe hash described in [approvals](/docs/security/approvals). `approval-required` is a 403 like a denial, so a client that ignores the `type` fails closed; once approved, the client resumes by repeating the request with the `PermDock-Approval` header ([approvals adapter](/docs/adapters/approvals)).
 - **Nothing secret** is in the body: no other users' grants, no role definitions beyond the role name, no raw SQL from opaque conditions. What a 403 reveals is bounded by what the subject's own snapshot already reveals.
 - HTTP adapters set `Content-Type: application/problem+json` and the status from `status`. tRPC and oRPC adapters embed the same object as the error's `data` because they own their envelopes.
 
 ### The `WWW-Authenticate` header next to the body
 
-When the caller is an OAuth client, Problem Details is the body and RFC 6750 (with RFC 9470 for step-up) is the header. The two are emitted together, and the header is derived from the same reason the body carries, so no adapter keeps a second mapping ([ADR 0026](/docs/decisions/0026-spec-aligned-naming), [JWT adapter](/docs/adapters/jwt)):
+When the caller is an OAuth client, Problem Details is the body and RFC 6750 (with RFC 9470 for step-up) is the header. The two are emitted together, and the header is derived from the same reason the body carries, so no adapter keeps a second mapping ([subject](/docs/concepts/subject), [JWT adapter](/docs/adapters/jwt)):
 
 | Situation | Status | `WWW-Authenticate` | Problem Details `type` |
 | --- | --- | --- | --- |
@@ -109,9 +106,3 @@ Hyphenated PermDock reasons become the underscored wire codes; nothing else is t
 - RFC 6750 section 3 (`WWW-Authenticate: Bearer` and its error codes) and RFC 9470 section 3 (`insufficient_user_authentication`, `acr_values`, `max_age`) for the header emitted next to the body.
 - Product plan, HTTP adapter section ("deny → 403 application/problem+json ...") and the [decisions concept](/docs/concepts/decisions).
 - [OWASP Agentic Top 10 mapping](/docs/security/owasp-agentic) for why denials are written to be model-readable.
-
-## Open questions
-
-- Whether `approval-required` over plain HTTP should be a 403 (as planned) or a distinct status with a `Retry-After`-style hint, and how a client resumes with the token in a stateless request; see [approvals](/docs/security/approvals).
-- Whether to expose a `problems/*` registry page in the docs so `type` URIs dereference to the exact page, and whether the host should be configurable for self-hosted deployments.
-- Whether `denials` should be omitted by default in production and enabled per adapter, trading self-correction hints for a smaller information surface.

@@ -128,7 +128,6 @@
     "PermDockRevokedError",
     "PermDockValidationError",
     "createEvaluationsHandler",
-    "createHandler",
     "createPermDock",
     "discoverViaSignatureAgent",
     "invalidSignatureProblem",

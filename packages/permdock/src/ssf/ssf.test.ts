@@ -184,7 +184,7 @@ describe('receiver.push', () => {
   it('cancels pending approvals for the revoked session', async () => {
     const store = memoryApprovalStore();
     store.create({
-      v: 2,
+      v: 1,
       token: 'pd1.ssf',
       permission: 'post.delete',
       scope: 'post:delete',

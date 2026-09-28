@@ -88,7 +88,7 @@ describe('joseTokenSigner', () => {
       issuer: 'https://app.example.com',
     });
     const jws = await signer.sign(
-      { snapshot: { v: 2 }, sub: 'u_1' },
+      { snapshot: { v: 1 }, sub: 'u_1' },
       { typ: 'permdock-snapshot+jwt', audience: 'https://app.example.com' },
     );
     const [encoded] = jws.split('.');
@@ -112,7 +112,7 @@ describe('joseTokenSigner', () => {
     });
     expect(checked.ok).toBe(true);
     if (checked.ok) {
-      expect(checked.claims.snapshot).toEqual({ v: 2 });
+      expect(checked.claims.snapshot).toEqual({ v: 1 });
     }
     const published = await signer.jwks?.();
     expect(published?.keys[0]).toMatchObject({ kid: '2026-09', kty: 'OKP' });
@@ -802,7 +802,7 @@ describe('signed snapshot', () => {
     });
     expect(checked.ok).toBe(true);
     if (checked.ok) {
-      expect(checked.claims.snapshot).toMatchObject({ v: 3 });
+      expect(checked.claims.snapshot).toMatchObject({ v: 1 });
     }
   });
 });

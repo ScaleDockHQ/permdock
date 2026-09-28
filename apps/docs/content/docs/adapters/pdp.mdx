@@ -3,9 +3,6 @@ title: Remote PDP
 description: The permdock/pdp provider is an AuthZEN policy enforcement point client that asks a remote decision point such as Cerbos, Topaz, Keycloak, Axiomatics, PlainID or OPA, maps requests and responses to PermDock decisions, fails closed on anything unknown, and bridges to OpenFGA or SpiceDB relation graphs.
 ---
 
-Status: shipped
-Phase: 4
-
 `permdock/pdp` lets a PermDock instance defer some or all decisions to a remote Policy Decision Point that speaks the OpenID AuthZEN Authorization API. The same typed references, `Decision` outcomes, adapters and audit apply; only the source of truth moves. It is the mirror image of [permdock/authzen](/docs/adapters/authzen), which makes PermDock the PDP.
 
 ## Purpose
@@ -51,7 +48,7 @@ Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `p
 
 1. `decide(permission, data)` runs local evaluation first. A local `denied` (explicit deny or no local grant for a non-delegated permission) short-circuits without a network call.
 2. For delegated permissions, the provider builds the AuthZEN evaluation request from `mapping` and adds `subject.properties.actor` and `subject.properties.delegation` when the PermDock subject has an actor.
-3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache. The key is the mapped request plus the permission key, the principal's issuer, the tenant and the actor id and kind, so a changed row, another tenant or another agent is a new request. The cache holds at most 1000 entries, drops the oldest first and deletes an expired entry when it is read. A `mapping` function that throws is `pdp-invalid-response` and nothing is sent.
+3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache. The key is the mapped request plus the permission key, the principal's issuer, the tenant and the actor id and kind, so a changed row, another tenant or another agent is a new request. The cache holds at most 1000 entries, drops the oldest first and deletes an expired entry when it is read. A `mapping` function that throws is `pdp-invalid-response` and nothing is sent. Only answers are cached; unavailability never is.
 4. The response is mapped:
 
 | Remote response | PermDock Decision |
@@ -67,7 +64,7 @@ Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `p
 
 - Responses are validated against the AuthZEN response schema before mapping; any deviation is `denied` (fail closed). This is the explicit contrast with fail-open adapters such as `@ai-sdk/policy-opa` on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
 - `resource.properties` sent to the PDP are validated against the resource schema when they crossed a boundary (`validate: 'boundary'`), so untrusted data is never forwarded unchecked.
-- Discovery documents are validated; a PDP that advertises no `evaluation` endpoint is a configuration error at startup.
+- Discovery documents are validated; a PDP that advertises no `evaluation` endpoint is a configuration error at startup. The provider relies on discovery and does not check the remote PDP's AuthZEN certification.
 - Delegation invariant: an agent can never exceed its user even when the remote PDP grants, because local delegation intersection runs before and after the remote call.
 
 ## How denials surface
@@ -76,7 +73,7 @@ Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `p
 - Unavailability is a denial, not an exception; the reason distinguishes it so operators can alert on `pdp-unavailable` without conflating it with policy.
 - The client snapshot marks delegated permissions as `server-only`; `usePermission` asks the decision endpoint, which asks the PDP.
 
-Relation graphs: `openfga` and `spicedb` presets wrap their `check` / `listObjects` and `CheckPermission` / `LookupResources` calls behind the same provider interface (subject to relation tuple mapping supplied by the app). `filter` uses list-objects to return permitted ids; `where` compiles to an `in` condition over those ids. PermDock does not model or store relation tuples.
+Relation graphs: `openfga` and `spicedb` presets wrap their `check` / `listObjects` and `CheckPermission` / `LookupResources` calls behind the same provider interface; the app supplies the relation tuple mapping as one callback per permission, not a mapping DSL. `filter` uses list-objects to return permitted ids; `where` compiles to an `in` condition over those ids. PermDock does not model or store relation tuples.
 
 ## Example app
 
@@ -88,9 +85,3 @@ None. The [authzen-pdp example](/docs/adapters/authzen) runs a second process th
 - [Delegation](/docs/security/delegation): actor and delegation forwarded to the PDP.
 - [Threat model](/docs/security/threat-model): fail closed, never trust unknown responses.
 - [Research: landscape](/docs/research/landscape): Cerbos, Topaz, OpenFGA, SpiceDB, Oso and other hosted PDPs.
-
-## Open questions
-
-- Cache semantics: whether SSF events should purge the cache per subject. Successful decisions may be cached for `cache.ttl`; unavailability is never cached.
-- OpenFGA and SpiceDB presets need a tuple mapping DSL or a callback per permission; the callback is the minimal choice.
-- Whether PermDock should verify AuthZEN certification of the remote PDP at startup or only rely on discovery.

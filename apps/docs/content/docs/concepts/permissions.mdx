@@ -39,11 +39,11 @@ export const permissions = definePermissions({
 | `id` | key of the schema output | Identity field used for client cache keys, `filter`, decision tokens and RLS row identity. Defaults to `'id'` when the schema has one. |
 | `actions` | array or record | Instance-level actions: `can(permissions.post.update, post)` requires a `Post`. |
 | `collection` | array or record | Type-level actions: `can(permissions.post.create)` takes no instance. |
-| `parent` | `{ field, resource }` | Optional. `resource` is the parent **name string** (the last path segment). Exactly one parent. The name is resolved at `definePolicy` after `mergePermissions` ([0030](/docs/decisions/0030-parent-typing)). See [tenancy](/docs/concepts/tenancy). |
+| `parent` | `{ field, resource }` | Optional. `resource` is the parent **name string** (the last path segment). Exactly one parent. The name is resolved at `definePolicy` after `mergePermissions`. See [tenancy](/docs/concepts/tenancy). |
 
 ### actions versus collection
 
-The split is the answer to CASL's "can I read some Post versus this Post" ambiguity ([ADR 0004](/docs/decisions/0004-actions-vs-collection)). Arity is part of the type:
+The split is the answer to CASL's "can I read some Post versus this Post" ambiguity. Arity is part of the type:
 
 ```ts
 permdock.can(permissions.post.update, post) // ok
@@ -52,7 +52,7 @@ permdock.can(permissions.post.create)       // ok: type-level "may I create"
 permdock.can(permissions.post.create, body) // ok: optional body; a check grant matches only with a body
 ```
 
-Collection `check` is [0029](/docs/decisions/0029-check-on-collection-actions).
+Collection `check` is [permissions](/docs/concepts/permissions).
 
 An action name may appear in both lists when both readings are meaningful (`read` on an instance and `read` on the collection would be two different leaves: `post.read` and, for example, `post.list`). Prefer distinct names so `.key` values stay unambiguous.
 
@@ -79,7 +79,7 @@ export const permissions = definePermissions({
 | `readable()` | `read` | `list` | both `readOnly: true` |
 | `writable()` | `read`, `update` | none | `read` carries `readOnly: true` |
 
-The name is `readable`, not `readOnly`: `readOnly` is already `ActionMeta.readOnly`. Extra names merge into the preset records; overlapping meta fields on the extra win. There is no `omit`: write the lists by hand when the preset is the wrong shape. See [0032](/docs/decisions/0032-action-presets).
+The name is `readable`, not `readOnly`: `readOnly` is already `ActionMeta.readOnly`. Extra names merge into the preset records; overlapping meta fields on the extra win. There is no `omit`: write the lists by hand when the preset is the wrong shape. See [permissions](/docs/concepts/permissions).
 
 ### Nested groups
 
@@ -141,7 +141,7 @@ No template-literal unions are generated from the tree, which keeps TypeScript 7
 
 ## Invariants
 
-These hold for every leaf and every adapter depends on them ([ADR 0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)).
+These hold for every leaf and every adapter depends on them.
 
 1. A leaf is plain, frozen, JSON-serialisable data. It can be passed as a prop across the RSC boundary, posted to the decision endpoint, stored in a queue message, or printed in a log.
 2. Identity is by `key`, never by object identity. Two bundle copies of the definition module, a leaf that came back from `JSON.parse`, and the leaf in the merged registry all resolve to the same grant. `mergePermissions` preserves object identity as a convenience, but nothing relies on it.
@@ -179,7 +179,7 @@ findPermission(permissions, scopeFromJwt)       // strings from a DB, JWT scope 
 }
 ```
 
-This is the exact object you get from `JSON.stringify(permissions.post.update)`. The [wire formats](/docs/concepts/wire-formats) page lists it next to conditions, snapshots and AuthZEN messages.
+This is the exact object you get from `JSON.stringify(permissions.post.update)`. The [wire formats](/docs/concepts/wire-formats) page lists it next to conditions, snapshots and AuthZEN messages. The RFC 9396 `authorization_details` object a consent screen shows is derived from `resource`, `action` and the resource id, so a leaf carries no example object in `meta`.
 
 ## Workflow verbs
 
@@ -217,13 +217,22 @@ Typical policy:
 
 Default PD017 verbs are `approve`, `pay`, `settle`, `submit`, `transfer`, `refund`, `disburse`. Override with `doctor.sensitiveActions` in `permdock.config.ts`. A matching `deny` on the same leaf silences the warning.
 
+## Design rationale
+
+**References, not string keys.** A string key has no go-to-definition and no safe rename, and a typo is at best a compile error and at worst a silent deny. Template-literal unions over every resource and action slow the type checker on large catalogs, a string has nowhere to carry a scope or a title, and the union does not exist at runtime, so a catalog would have to be extracted from source. A reference fixes all four: the runtime definition is the catalog, an unknown permission is a type error, and types flow from the reference argument, so hooks and server helpers are direct exports with no per-app generic factory. Runtime subject detection in the CASL style is unnecessary because the reference already names the resource, and a Proxy tree was rejected because it cannot be serialised or enumerated.
+
+**Plain leaves, identity by key.** Leaves cross RSC props, JSON bodies, queue messages and duplicate bundle copies, and Standard Schema validators are neither serialisable nor small, so the schema stays on the resource node and a leaf is only data. Because identity is the `key`, keys are part of the public contract: renaming a resource is a wire-visible change, and `permdock collect --check` reports it.
+
+**Arity in the type.** If every action accepted optional data, a handler could check `update` without loading the row and an ownership condition would be evaluated against nothing. That mistake is easiest to make in an agent tool handler, where nothing else flags it. Arity cannot be inferred from the policy instead, because the policy is server-only while the definition is shared with clients. The same split explains why `where`, `filter` and `permdock.where` exist only for instance actions.
+
+**An optional body on collection actions.** `create` stays a collection action so "may I create at all" needs no placeholder row. A collection grant may carry `check` on the proposed body but never `where`, since there is no current row. `can(permissions.post.create, body)` passes the body, typed as the schema output and boundary-validated when `trusted: false`. Without a body, a `check` grant does not match: a row condition cannot be true for a row nobody described. An unconditional collection grant still matches with no body.
+
+**One parent, named by a string.** `parent.resource` is a name so a feature package can declare `parent: { field: 'projectId', resource: 'project' }` before the app merges the project definition, and so the option stays plain JSON. A resource has at most one parent and must not name itself, which keeps `memberOf` a finite chain rather than a graph walk in evaluation and in RLS. The name is resolved at `definePolicy`, after `mergePermissions`; an unknown parent or a duplicate resource name in the merged tree throws at policy construction instead of silently never matching at check time.
+
+**Presets are sugar, not defaults.** `resource(schema)` never implies CRUD, because a resource that is only listed would grow `update` and `delete` leaves. There is no closed action union (domain verbs such as `publish` and `pay` are first-class), no `manage` alias (it would silently cover actions the author never listed), and no possession in action names such as `createOwn` (ownership is a `where`; the action stays the verb RLS maps).
+
 ## What permissions are not
 
 - Not rules. Who may do what lives in the [policy](/docs/concepts/policies).
 - Not classes. There is no subject detection, no `constructor.name`, no tagging of user objects.
 - Not strings in the public API. `can('post.update', post)` does not exist; `can(findPermission(permissions, key)!, post)` is the explicit escape hatch.
-
-## Open questions
-
-- Whether a leaf should carry an `authorizationDetails` example object in `meta` for consent screens or derive it entirely from `scope` and the resource `id`.
-- Field-level permissions: whether they are expressed as a `fields` option on grants (schema-aware, wildcards expanded against real keys) or as separate leaves.

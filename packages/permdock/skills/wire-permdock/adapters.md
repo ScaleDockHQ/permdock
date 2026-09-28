@@ -111,6 +111,8 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
       id: runtimeContext.agentId,
       kind: 'ai-sdk',
     }),
+    // What the user handed the agent. No default: without it every tool is denied.
+    delegation: () => ({ scopes: [permissions.post.delete.scope] }),
     tools: {
       delete_post: {
         permission: permissions.post.delete,
@@ -121,7 +123,7 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
   });
 ```
 
-Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`.
+Every agent adapter (`ai-sdk`, `claude-agent`, `openai`, `eve`) takes a `delegation` option: the scopes, `authorizationDetails` or `access` the user handed the agent. An actor with no delegation is denied every check with `no-delegation`; list the scopes explicitly, never the principal's whole role. Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`.
 
 ## Claude Agent SDK — `permdock/claude-agent`
 
@@ -131,6 +133,7 @@ import { createPermDock } from 'permdock/claude-agent';
 export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => user,
   actor: () => ({ id: 'claude', kind: 'claude-agent' }),
+  delegation: () => ({ scopes: [permissions.post.delete.scope] }),
   tools: {
     delete_post: {
       permission: permissions.post.delete,
@@ -148,6 +151,7 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
 import { createPermDock } from 'permdock/eve';
 
 export const { approval, approvalFor, permdock } = createPermDock(policy, {
+  delegation: () => ({ scopes: [permissions.post.delete.scope] }),
   tools: {
     delete_post: {
       permission: permissions.post.delete,
@@ -168,6 +172,7 @@ export const { needsApproval, guardTools, resolveInterruptions, permdock } =
   createPermDock(policy, {
     subject: (ctx) => ctx.user,
     actor: (ctx) => ({ id: ctx.agentId, kind: 'openai' }),
+    delegation: (ctx) => ({ scopes: ctx.scopes }),
     tools: {
       delete_post: {
         permission: permissions.post.delete,

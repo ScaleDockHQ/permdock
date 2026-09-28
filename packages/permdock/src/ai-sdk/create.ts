@@ -11,7 +11,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
+import type { Delegation, Principal } from '../core/subject.ts';
 
 import { approvalTokenOf, createAgentKernel } from '../agent/kernel.ts';
 import { compact } from '../core/compact.ts';
@@ -29,6 +29,9 @@ export type AiSdkContext = {
 export type AiSdkPermDockOptions<TUser = unknown> = {
   readonly subject: (context: AiSdkContext) => TUser | Promise<TUser>;
   readonly actor?: (context: AiSdkContext) => unknown;
+  readonly delegation?: (
+    context: AiSdkContext,
+  ) => Delegation | undefined | Promise<Delegation | undefined>;
   readonly tenant?:
     | string
     | ((
@@ -186,6 +189,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const kernel = createAgentKernel(policy, {
     ...compact({
       actor: options.actor,
+      delegation: options.delegation,
       tenant: options.tenant,
       memberships: options.memberships,
       customRoles: options.customRoles,

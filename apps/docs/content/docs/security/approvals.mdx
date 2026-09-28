@@ -3,7 +3,7 @@ title: Approvals (human in the loop)
 description: "How approval: 'human' grants produce approval-required decisions, how the replay-safe token binds an approval to one call, and how each runtime surfaces and resumes the approval."
 ---
 
-Some actions should be permitted in principle but confirmed by a person each time: refunds, deletions, publishing, anything an agent might do a thousand times before anyone notices. PermDock models this as a third decision outcome rather than a denial with a note, so every adapter can translate it into the runtime's own approval vocabulary and resume safely once a human says yes. See [decisions](/docs/concepts/decisions) and [ADR 0013](/docs/decisions/0013-three-outcome-decision). Who may approve lives on the grant ([ADR 0047](/docs/decisions/0047-approver-eligibility)).
+Some actions should be permitted in principle but confirmed by a person each time: refunds, deletions, publishing, anything an agent might do a thousand times before anyone notices. PermDock models this as a third decision outcome rather than a denial with a note, so every adapter can translate it into the runtime's own approval vocabulary and resume safely once a human says yes. See [decisions](/docs/concepts/decisions); the API and the resolve flow are on the [approvals adapter](/docs/adapters/approvals). Who may approve lives on the grant.
 
 ## The grant
 
@@ -15,7 +15,7 @@ const clerk = role('clerk', [
 ])
 ```
 
-`approval: 'human'` still marks a grant that any authenticated person who is not the actor may resolve. `{ by, distinct }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, an array as intersection) and, when `distinct` is true, excludes the principal as well as the actor. When the grant matches, `decide` returns:
+`approval: 'human'` marks a grant that any authenticated person who is not the actor may resolve. `{ by, distinct }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, an array as intersection) and, when `distinct` is true, excludes the principal as well as the actor. When the grant matches, `decide` returns:
 
 ```ts
 { outcome: 'approval-required', grant, reason, token }
@@ -25,20 +25,20 @@ If the grant does not match, the outcome is `denied` as usual; approval is never
 
 ## The replay-safe token
 
-`Decision.token` is a hash of the permission key, the resource id (from the resource's `id` field), the principal's `id`, `tenant` and `issuer`, the actor's `id` and `kind`, and the fingerprint of the matched grant's conditions ([ADR 0051](/docs/decisions/0051-approval-lifecycle)). Roles, memberships, assurance and claims are not hashed: the resume re-runs `decide`, so a role lost in between is a denial. It exists so an approval given for one call cannot be attached to another: approving "delete post p_42 for user u_123 via agent A" must not authorise deleting p_43, or deleting p_42 as a different user, or the same action by a different agent. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approval replies; PermDock computes the binding itself so the guarantee holds in every runtime.
+`Decision.token` is a hash of the permission key, the resource id (from the resource's `id` field), the principal's `id`, `tenant` and `issuer`, the actor's `id` and `kind`, and the fingerprint of the matched grant's conditions. Roles, memberships, assurance and claims are not hashed: the resume re-runs `decide`, so a role lost in between is a denial. It exists so an approval given for one call cannot be attached to another: approving "delete post p_42 for user u_123 via agent A" must not authorise deleting p_43, or deleting p_42 as a different user, or the same action by a different agent. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approval replies; PermDock computes the binding itself so the guarantee holds in every runtime.
 
 Properties:
 
 - Deterministic for the same inputs, so a resumed request can recompute and compare.
 - Includes `actor`, so an approval obtained by one agent cannot be spent by another.
-- Does not include a timestamp; expiry lives on the `ApprovalRequest` record in the store, not in the token ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)).
+- Does not include a timestamp; expiry lives on the `ApprovalRequest` record in the store, not in the token.
 - Carries no secret material and reveals nothing beyond what the caller already knows.
 
-On resume, the adapter recomputes the token from the actual call being made and compares it with the approved token. A mismatch is `denied` with a reason of kind `approval`.
+On resume, the adapter recomputes the token from the actual call being made and compares it with the approved token. A mismatch is `denied` with a reason of kind `approval`. A signed `permdock-approval+jwt` never replaces this comparison: it proves who resolved the request, the token proves what was approved.
 
 ## The store
 
-Between the ask and the answer, the pending approval is an `ApprovalRequest` record in an `ApprovalStore` ([approvals adapter](/docs/adapters/approvals)). Every adapter that can surface `approval-required` takes a `store` option. Eve and the OpenAI Agents SDK adapter use `memoryApprovalStore()` when none is given, because their resolve flows need one; the other adapters return `approval-required` without recording it and deny any resume until a `store` is configured. An approval resumes exactly one call ([ADR 0051](/docs/decisions/0051-approval-lifecycle)). The record carries the `token`, the permission key, the resource id, a subject summary, the model-readable `detail`, `createdAt`, `expiresAt` (default one hour) and `status`; on resolution it gains `resolvedBy`, the approver's principal id, and `resolvedAt`. Rules the store and the adapters hold:
+Between the ask and the answer, the pending approval is an `ApprovalRequest` record in an `ApprovalStore`; the API is on the [approvals adapter](/docs/adapters/approvals) and the record shape on [wire formats](/docs/concepts/wire-formats#approval-request). An adapter without a `store` denies every resume (Eve and the OpenAI Agents SDK adapter default to `memoryApprovalStore()`). Rules the store and the adapters hold:
 
 - The approver comes from authentication, never from the resume request, and is never the request's actor: an agent cannot approve its own call. `requireDistinctApprover` additionally excludes the principal for true four-eyes flows.
 - Only `pending` becomes `approved` or `rejected`; `expired` is terminal. A resume against anything but `approved` is `denied`.
@@ -62,12 +62,12 @@ Applications that need approvals to survive a restart implement the interface ov
 | MCP | Structured tool result (`isError`) carrying the reason, `token` and an `elicitation: { mode: 'approval', token }` hint; the adapter sends no `elicitation/create` request | A reviewer resolves the request in the store; the retried call re-runs `decide`, compares and consumes |
 | HTTP adapters | `403` Problem Details with `type` `.../approval-required`, `permission`, `token` | Client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record, re-runs `decide` and compares |
 | Terminal (`permdock/terminal`) | Interactive prompt in a TTY; `denied` in a non-TTY | The prompt writes to and reads from the same store, so a CLI approval leaves the same audit record |
-| A2A | Skill returns a structured "approval required" result with `token` | Caller retries with the token; open question whether to use task states |
+| A2A | Skill returns a structured "approval required" result with `token` | The task enters `input-required`; the caller retries with the token |
 | WebMCP | Tool handler returns a structured refusal with `token`; page renders its own approval UI | Page re-invokes the guarded route with the token |
 | React / Next.js UI | `usePermission` reports `allowed: false`; `decide` on the server shows `approval-required` for rendering an approval button | Server action re-checks with the token |
-| Chat UIs over AG-UI | The backend emits the approval request (reason, `token`, what to ask) as an AG-UI human-in-the-loop or custom event; the UI renders the control | The answer flows back on the same stream; the adapter in the backend recomputes and compares `token` ([agent frameworks](/docs/research/agent-frameworks)) |
+| Chat UIs over AG-UI | The backend emits the approval request (reason, `token`, what to ask) as an AG-UI human-in-the-loop or custom event; the UI renders the control | The answer flows back on the same stream; the adapter in the backend recomputes and compares `token` ([agent frameworks](/docs/research/ecosystem-index)) |
 | Slack, Microsoft Teams, Discord through the Vercel Chat SDK | The store's `approval` event triggers `requestApproval` from a `chat/workflow` step; the card carries the reason and names the approvers | The Chat SDK verifies the platform signature and returns the responder's `user.id`; the app maps it to a `Subject` and calls `store.resolve`, which applies the actor rule; the resumed call recomputes `token` ([approvals adapter](/docs/adapters/approvals), Delivery) |
-| Other frameworks (LangGraph.js, Mastra, Inngest AgentKit, Google ADK) | Recipes, not adapters: `decide` in the framework's before-tool hook; `approval-required` parks as an `interrupt`, `suspend` or waiting step | The durable step resumes with the token; the same store and token check apply ([agent frameworks](/docs/research/agent-frameworks)) |
+| Other frameworks (LangGraph.js, Mastra, Inngest AgentKit, Google ADK) | Recipes, not adapters: `decide` in the framework's before-tool hook; `approval-required` parks as an `interrupt`, `suspend` or waiting step | The durable step resumes with the token; the same store and token check apply ([agent frameworks](/docs/research/ecosystem-index)) |
 
 The AI SDK adapter fails closed: `denied` maps to `'denied'`, `approval-required` maps to `'user-approval'`, and `'not-applicable'` is never returned, in contrast to `@ai-sdk/policy-opa`, which executes tools on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
 
@@ -96,8 +96,9 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 ## What an approval does not do
 
 - It does not grant a permission the subject lacks. Approval sits on top of a matching grant.
-- It does not outlive its request. Each call needs its own approval, which is consumed on use; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step.
-- It does not decide who may approve beyond the grant and the actor rule. `approval.by` and `approval.distinct` on the grant are stored on the v2 `ApprovalRequest` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is the application-wide default when the grant omits `distinct`.
+- It does not outlive its request. Each call needs its own approval, which is consumed on use; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step with no plan-level token.
+- It is not remembered. A rejection applies to one call; the next call asks again, and the OpenAI SDK's `alwaysReject` is never set.
+- It does not decide who may approve beyond the grant and the actor rule. `approval.by` and `approval.distinct` on the grant are copied to the `ApprovalRequest` as `approvers` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is the application-wide default when the grant omits `distinct`.
 
 ## Sources
 
@@ -107,19 +108,4 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - [MCP 2026-07-28 release](https://blog.modelcontextprotocol.io/posts/2026-07-28/): stateless elicitation via multi-round-trip requests.
 - [Eve human-in-the-loop](https://eve.dev/docs/human-in-the-loop): `approval` request and response policies, `session.auth.initiator` and `current`.
 - [OpenAI Agents SDK human-in-the-loop](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/): `needsApproval`, `interruptions`, `RunState` serialisation.
-- Product plan, "Decision" section: `token` as a hash of permission key, resource id, subject and actor.
 - [Vercel Chat SDK `requestApproval`](https://chat-sdk.dev) (6 August 2026): durable approval cards for Slack, Teams and Discord with signature-verified responders.
-
-## Resolved
-
-The following were open questions on this page until [ADR 0022](/docs/decisions/0022-approvals-are-pluggable):
-
-- **Plain HTTP resume**: the client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` store record and re-checks. No consent endpoint in core; `approvalsHandler` provides approver routes.
-- **Expiry**: on the `ApprovalRequest` record, not in the token, so the token stays deterministic.
-- **`ApprovalStore`**: shipped as an interface in `permdock/approvals` with an in-memory default; persistence is the application's or the Cloud's.
-- **Bulk approvals**: a `simulate()` plan yields per-step tokens approved together; there is no plan-level token.
-
-## Open questions
-
-- Whether approvals should be answerable through a signed link in an email without a session on the approver side, and how that link binds to the approver's identity. Chat platforms are settled: the Chat SDK's signature-verified responder is the identity ([approvals adapter](/docs/adapters/approvals), Delivery).
-- Whether a `deny` verdict should be remembered for the rest of an agent run (the OpenAI SDK's `alwaysReject`) or whether every call must ask again; the current rule is per call.

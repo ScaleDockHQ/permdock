@@ -120,7 +120,7 @@ export type SubjectResolver<
 ) => Subject<TPrincipal> | Promise<Subject<TPrincipal>>;
 
 export type Snapshot = {
-  readonly v: 1 | 2 | 3;
+  readonly v: 1;
   readonly issuedAt: number;
   readonly subject: {
     readonly principal: {
@@ -158,7 +158,7 @@ export type SnapshotGrant = {
   readonly permission: string;
   readonly effect: 'allow' | 'deny';
   readonly role: string | null;
-  readonly to?: Grantee | readonly Grantee[];
+  readonly to: Grantee | readonly Grantee[];
   readonly where?: Condition;
   readonly check?: Condition;
   readonly approval?: 'human' | ApprovalRequirement;
@@ -173,10 +173,8 @@ export type SnapshotSource = {
   subscribe?(listener: () => void): () => void;
 };
 
-export type PortableCondition = Condition;
-
 export type WhereCompiler<TTarget, TOptions = unknown> = (
-  condition: PortableCondition,
+  condition: Condition,
   target: TTarget,
   options?: TOptions,
 ) => unknown;

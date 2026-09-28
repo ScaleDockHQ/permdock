@@ -4,7 +4,6 @@ import type {
   DenialReason,
   MatchedGrant,
 } from './decision.ts';
-import type { Grantee } from './grantee.ts';
 import type { Snapshot, SnapshotGrant } from './interfaces.ts';
 import type { DecideOptions, WhereResult } from './permdock.ts';
 import type { Permission } from './permissions.ts';
@@ -51,23 +50,6 @@ export function rowId(data: unknown): string {
   }
   const id = (data as Record<string, unknown>).id;
   return typeof id === 'string' || typeof id === 'number' ? String(id) : '*';
-}
-
-function snapshotGrantee(grant: SnapshotGrant): Grantee | readonly Grantee[] {
-  if (grant.to !== undefined) {
-    return grant.to;
-  }
-  const scope =
-    grant.scope === undefined
-      ? 'global'
-      : grant.scope === 'tenant' || grant.scope === 'team'
-        ? grant.scope
-        : grant.scope;
-  return freezeDeep({
-    kind: 'role' as const,
-    role: grant.role ?? '',
-    scope,
-  });
 }
 
 function rowField(data: unknown, key: string | undefined): unknown {
@@ -230,7 +212,7 @@ export function evaluateSnapshot(
     if (grant.permission !== permission.key) {
       continue;
     }
-    const match = matchGrantee(snapshotGrantee(grant), subject, now, undefined);
+    const match = matchGrantee(grant.to, subject, now, undefined);
     if (!match.matched) {
       denials.push(
         compact({
@@ -315,6 +297,7 @@ export function evaluateSnapshot(
     permission,
     subject.delegation,
     resourceIdOf(current),
+    subject.actor !== undefined,
   );
   if (miss !== undefined) {
     return freezeDeep({
@@ -334,7 +317,7 @@ export function evaluateSnapshot(
   const grant = compact<MatchedGrant>({
     role: matched.role,
     permission: permission.key,
-    to: matched.to ?? snapshotGrantee(matched),
+    to: matched.to,
     where: matched.where,
     check: matched.check,
     approval: matched.approval,

@@ -3,13 +3,11 @@ title: oRPC
 description: permdock/orpc adds a request-scoped PermDock to oRPC context, a protect middleware fed by procedure input, and an OpenAPI security fragment for oRPC 2 `openapi()` metadata.
 ---
 
-Status: shipped
-Phase: 2
 Requires: `@orpc/server` 2.x (beta)
 
 ## Purpose
 
-oRPC is contract-first and generates OpenAPI natively, which makes it the RPC framework where the [OpenAPI 3.2](/docs/standards/openapi-3-2) story is most direct. `permdock/orpc` mirrors the [tRPC adapter](/docs/adapters/trpc): `ctx.permdock` on every procedure, `protect(permission, load)` as a middleware after input validation, `ORPCError` denials carrying Problem Details, and `openapi.security(permission)` so the operation's `security` requirement can be attached with oRPC 2's `openapi()` metadata helper.
+oRPC is contract-first and generates OpenAPI natively, which makes it the RPC framework where the [OpenAPI 3.2](/docs/standards/openapi) story is most direct. `permdock/orpc` mirrors the [tRPC adapter](/docs/adapters/trpc): `ctx.permdock` on every procedure, `protect(permission, load)` as a middleware after input validation, `ORPCError` denials carrying Problem Details, and `openapi.security(permission)` so the operation's `security` requirement can be attached with oRPC 2's `openapi()` metadata helper.
 
 ## API
 
@@ -39,7 +37,7 @@ export const list = base
 
 | Export | Role |
 |---|---|
-| `permdock()` | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. Applied a second time on the same request, it is a no-op when `context.permdock` is already set (oRPC 2 no longer dedupes middleware). |
+| `permdock()` | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. Applied a second time on the same request, it is a no-op when `context.permdock` is already set, because oRPC 2 does not dedupe middleware. |
 | `protect(permission, load?, options?)` | Middleware placed after `.input(...)`. The `tenant` option reads each procedure's own opts (`(opts) => opts.input?.org`), so procedures in one `BatchLinkPlugin` batch decide in their own tenant. Loads and boundary-validates the resource, decides, continues with `context.permdockData` or throws `ORPCError` with code `FORBIDDEN`. |
 | `openapi.protect(permission, load?)` | Same as `protect`. Pair it with `openapi.security(permission)` in `.meta(orpcOpenapi({ spec }))` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document. |
 | `openapi.securitySchemes()` | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). |
@@ -48,21 +46,15 @@ export const list = base
 
 ### Event iterators
 
-A procedure behind `protect(permission, load?, { items })` whose handler returns an event iterator is wrapped the same way as a [tRPC subscription](/docs/adapters/trpc#subscriptions) ([0052](/docs/decisions/0052-streams-and-sockets)): items the subscriber cannot read are dropped, and an abort ends the iterator with an `ORPCError` (`UNAUTHORIZED` or `FORBIDDEN`) whose `data` is the Problem Details body. Pass `revocations` to `createPermDock`; `connection(opts, options?)` opens a [`Connection`](/docs/adapters/server-kernel#connections) by hand.
+A procedure behind `protect(permission, load?, { items })` whose handler returns an event iterator is wrapped the same way as a [tRPC subscription](/docs/adapters/trpc#subscriptions): items the subscriber cannot read are dropped, and an abort ends the iterator with an `ORPCError` (`UNAUTHORIZED` or `FORBIDDEN`) whose `data` is the Problem Details body. Pass `revocations` to `createPermDock`; `connection(opts, options?)` opens a [`Connection`](/docs/adapters/server-kernel#connections) by hand.
 
 ## Request lifecycle
 
-1. The oRPC handler (Fetch, Node, Next.js) creates the initial context with the authenticated user.
-2. `permdock()` resolves the subject once and adds the instance to the context.
-3. `protect` (or `openapi.protect`) runs after input validation: load, validate, decide, continue or throw.
-4. Handlers call `context.permdock.assert(...)`, `filter` or `where`; a PermDock error thrown in the handler propagates through `permdock()` and `protect()`, which rethrow it as the same `ORPCError` a guard denial produces, with the Problem Details body as `data`.
-5. When `OpenAPIGenerator` runs, `openapi({ spec })` metadata from each procedure carries the `security` fragment from `openapi.security`.
+`permdock/orpc` follows the [shared adapter contract](/docs/adapters) with oRPC-specific steps:
 
-## What it validates
-
-- Untrusted loader results and inputs used as resource data against the resource schema under `validate: 'boundary'`, after oRPC's own input validation.
-- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
-- Middleware order at the type level: `protect` requires `permdock` in the inferred context.
+- `protect` (or `openapi.protect`) runs after oRPC's input validation and hands the row on as `context.permdockData`. `protect` requires `permdock` in the inferred context, so the wrong order is a type error. Both guards stay exported: `openapi.protect` is the same guard for apps that generate OpenAPI and read it next to `openapi.security`.
+- A PermDock error thrown in a handler propagates through `permdock()` and `protect()`, which rethrow it as the same `ORPCError` a guard denial produces, with the Problem Details body as `data`; the OpenAPI handler writes that body as `application/problem+json`.
+- When `OpenAPIGenerator` runs, `openapi({ spec })` metadata from each procedure carries the `security` fragment from `openapi.security`.
 
 ## How denials surface
 
@@ -79,12 +71,6 @@ A procedure behind `protect(permission, load?, { items })` whose handler returns
 
 ## Related standards
 
-- [OpenAPI 3.2](/docs/standards/openapi-3-2), [decision 0014](/docs/decisions/0014-openapi-3-2).
+- [OpenAPI 3.2](/docs/standards/openapi).
 - [Problem Details](/docs/standards/problem-details).
 - [AuthZEN](/docs/standards/authzen) for the decision endpoint.
-
-## Open questions
-
-- Whether `openapi.protect` should be the only exported guard (always emitting spec) or stay separate from `protect` for apps that do not generate OpenAPI.
-- How `context.permdockData` interacts with oRPC's typed context merging in nested routers; the alternative is a `protect(permission, load, handler)` shape.
-- Whether the Problem Details body should be the `ORPCError` `data` payload or whether the OpenAPI handler should own the content type mapping.

@@ -60,7 +60,7 @@ Tool arguments are model output and therefore untrusted. `validate: 'boundary'` 
 ### Least Agency
 
 - `capabilityMiddleware` (AI SDK) and `list_tools` filtering (MCP) narrow the tools a model sees to those the subject may call, before the model plans.
-- `simulate([[permission, data], ...])` batch-evaluates an agent's intended calls (an AuthZEN boxcar request) so a plan can be trimmed or rejected before the first side effect.
+- `simulate([[permission, data], ...])` batch-evaluates an agent's intended calls (an AuthZEN boxcar request) so a plan can be trimmed or rejected before the first side effect. It is a runtime-side pre-flight; no adapter exposes it to the model as a tool.
 - `denied` decisions carry `alternatives`: permitted permissions on the same resource, so the model picks a smaller action instead of retrying or escalating.
 
 ### Audit
@@ -73,10 +73,11 @@ The failure is an agent operating with more authority than the human it serves, 
 
 - **Two principals.** `createPermDock(policy, user, { actor, delegation })`. The human is `principal`, the agent is `actor`, and `delegation` is the authority the human granted (OAuth scopes, RFC 9396 `authorization_details`, or an attenuated chain). Adapters fill `actor` and `delegation` from verified `authInfo`, never from prompt content.
 - **Intersection, not union.** A decision is the principal's grants intersected with the delegation. An agent with `post:delete` scope acting for a user who lacks `post.delete` is denied. An agent acting for an admin but delegated only `post:read` is denied everything else. "An agent can never exceed its user" is not a rule the developer writes; it is how `decide` works.
-- **Monotonic attenuation.** Delegation-chain hops can only narrow. A hop that widens is rejected with a `delegation` reason (Phase 4 verification in core is an open question; see [delegation](/docs/security/delegation)).
-- **No anonymous agents.** An `actor` without `delegation` has no authority; a Web Bot Auth signature that fails verification is rejected, not downgraded.
+- **Monotonic attenuation.** Delegation-chain hops can only narrow. The token layer enforces it when it issues the token; core evaluates the final delegation and carries the chain for audit ([delegation](/docs/security/delegation)).
+- **No anonymous agents.** An `actor` without `delegation` has no authority: every check is `denied` with `no-delegation`, and agent adapters apply no default delegation; a Web Bot Auth signature that fails verification is rejected, not downgraded.
 - **Traceability.** `actor.id` (MCP client id, CIMD URL, AI SDK agent name, signing key, A2A card) is in every decision event and in the AuthZEN `subject.properties`, so privilege use is attributable to a specific agent and a specific human.
 - **Revocation propagates.** CAEP `session-revoked` and `credential-change` events invalidate the principal's snapshots, so a compromised human session does not leave agents holding stale authority.
+- **Hosted authority stays bounded.** When PermDock Cloud is the directory of record, the roles it mints into tokens are limited to declared, assignable roles, and every change is a `membership` event naming the admin. Proposed hosted grants apply only to permissions the code marks `hostable` and never drop a code `approval` gate. Neither path lets the Cloud, or an agent reading it, decide at request time.
 
 ## Using this page in an audit
 
@@ -84,12 +85,6 @@ The `audit-permissions` skill walks a repository and reports, per ASI02 and ASI0
 
 ## Sources
 
-- [OWASP Top 10 for Agentic Applications, December 2025 (PDF)](https://genai.owasp.org/download/52117), as quoted in the product plan: ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse, per-tool least-privilege profiles "expressed as authorization policy stanzas attached to each tool", deterministic argument validation, human-in-the-loop gates, Least Agency.
+- [OWASP Top 10 for Agentic Applications, December 2025 (PDF)](https://genai.owasp.org/download/52117): ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse, per-tool least-privilege profiles "expressed as authorization policy stanzas attached to each tool", deterministic argument validation, human-in-the-loop gates, Least Agency.
 - [`@ai-sdk/policy-opa` fail-open issue](https://github.com/vercel/ai/issues/19978) as the motivating example for fail-closed adapters.
 - [Threat model](/docs/security/threat-model) for the invariants referenced above.
-
-## Open questions
-
-- Incorporating the official names and descriptions of ASI01, ASI04 to ASI10 from the OWASP document and replacing the provisional mitigations with specific ones.
-- Whether egress allow-lists should be representable in permission `meta` in a structured way so `permdock catalog` can export a per-tool profile in the shape OWASP describes.
-- Whether `simulate()` should be exposed to the model as a tool itself (a "check my plan" tool) or remain a runtime-side pre-flight.

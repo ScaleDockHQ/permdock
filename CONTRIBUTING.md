@@ -1,23 +1,23 @@
 # Contributing
 
-Thanks for contributing to PermDock. This repository is a pnpm 12 + Turborepo monorepo. Public API changes start as an RFC-lite issue and land as an ADR. Maintainer rules live in [`AGENTS.md`](./AGENTS.md).
+Thanks for contributing to PermDock. This repository is a pnpm 12 + Turborepo monorepo. Public API changes start as an RFC-lite issue; accepted RFCs update the owning concept page. Maintainer rules live in [`AGENTS.md`](./AGENTS.md).
 
 ## Requirements
 
 - Node.js 24 or later (24 LTS is what CI runs)
-- pnpm 12.3.1 or later
+- pnpm 12.6.0 or later
 
-npm and Yarn are not supported. Enable pnpm 12 with Corepack, or install it from the `next-12` tag (npm `latest` still points at pnpm 11):
+npm and Yarn are not supported. Enable pnpm 12 with Corepack:
 
 ```bash
 corepack enable
-corepack prepare pnpm@12.3.1 --activate
+corepack prepare pnpm@12.6.0 --activate
 ```
 
 If Corepack cannot resolve pnpm 12:
 
 ```bash
-npx get-pnpm next-12
+npx get-pnpm latest-12
 ```
 
 ## Setup

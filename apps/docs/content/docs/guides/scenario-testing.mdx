@@ -28,7 +28,7 @@ The expectations are never computed by the engine. Every suite runs the same cas
 | `testHttpAdapter` | 14 HTTP scenarios over a real server: tenant from the path, per-org roles, custom roles, quotas, approvals, Problem Details | `tests/integration/src/http`, one file per adapter |
 | `ormParity` | `toWhere(where())` on a real database returns exactly the rows `filter()` keeps in memory | Drizzle, Kysely and Prisma 7 in `tests/integration` |
 | `rlsParity` | Generated RLS policies return the same rows as the in-memory evaluator | `tests/integration` on testcontainers Postgres |
-| `test<Interface>` conformance runners | A custom `ApprovalStore`, `DecisionSink`, `MembershipSource`, `RoleSource`, `SnapshotSource`, `LimitStore`, `DirectoryStore`, `ReplayStore`, `RevocationFeed`, `SubjectResolver`, `TokenVerifier`, `TokenSigner` or `WhereCompiler` keeps the interface's contract | The shipped defaults, the Drizzle `ApprovalStore` recipe on Postgres, the `b2b-scim` Postgres `DirectoryStore` |
+| `test<Interface>` conformance runners | A custom `ApprovalStore`, `DecisionSink`, `MembershipSource`, `RoleSource`, `SnapshotSource`, `LimitStore`, `DirectoryStore`, `ReplayStore`, `RevocationFeed`, `SubjectResolver`, `TokenVerifier`, `TokenSigner` or `WhereCompiler` keeps the interface's contract | The in-package defaults, the Drizzle `ApprovalStore` recipe on Postgres, the `b2b-scim` Postgres `DirectoryStore` |
 
 An application does not need the saas domain to use them. `describePolicy`, `ormParity`, `rlsParity` and the conformance runners take your own policy, scenarios and implementations; `testHttpAdapter` and `testClientStore` are tied to the saas domain because their scenarios are, and are most useful when you write a new adapter or store.
 
@@ -43,7 +43,7 @@ An application does not need the saas domain to use them. `describePolicy`, `orm
 | `expo-saas` | Expo Router web build with API routes on the server kernel |
 | `mcp-oauth` | MCP over Streamable HTTP with OAuth bearer tokens, scope step-up and per-token tool lists |
 | `ai-chat` | AI SDK chat with tool approvals resolved through `approvalsHandler` and resumed once |
-| `realtime-collab` | Streams and sockets under revocation ([ADR 0052](/docs/decisions/0052-streams-and-sockets)) |
+| `realtime-collab` | Streams and sockets under revocation |
 | `b2b-scim` | SCIM provisioning per tenant credential and CAEP session revocation |
 | `turborepo` | Definitions in one workspace package, enforcement in another, catalog drift checked |
 

@@ -4,17 +4,16 @@ description: The connectors PermDock Cloud offers on its Integrations page, what
 ---
 
 Status: planned
-Phase: 2
-
-PermDock Cloud has an Integrations page where an environment is connected to the platforms around it: identity providers, Vercel, observability backends, SIEMs, webhooks, compliance platforms, your own database, chat surfaces and an MCP host. This page is the contract for that UI. It fixes what each connector speaks; the `PermDock-Cloud` repository implements it. Two rules from the rest of the docs apply to every row ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), [ADR 0027](/docs/decisions/0027-governance-first-cloud), invariant 15):
+PermDock Cloud has an Integrations page where an environment is connected to the platforms around it: identity providers, Vercel, observability backends, SIEMs, webhooks, compliance platforms, your own database, chat surfaces and an MCP host. This page is the contract for that UI. It fixes what each connector speaks; the `PermDock-Cloud` repository implements it. Two rules from the rest of the docs apply to every row ([adapters](/docs/adapters), [PermDock Cloud](/docs/adapters/cloud), invariant 15):
 
 - A connector is a standard wire format (AuthZEN, OCSF, CloudEvents, OTLP, SCIM, CAEP, JOSE, OIDC) or an existing PermDock interface (`ApprovalStore`, `DecisionSink`, `SnapshotSource`, `DirectoryStore`). There is no `permdock/auth0`, `permdock/datadog` or `permdock/vanta`, and connecting a platform never adds a dependency to your application.
-- No connector sits on the decision path. Inbound connectors change who the Cloud authenticates and what your `DirectoryStore` contains; outbound connectors copy evidence and notifications out. Nothing any connector does is consulted by `can`, `decide`, `filter`, `where` or `simulate`.
+- No connector sits on the decision path. Inbound connectors change who the Cloud authenticates, what your `DirectoryStore` contains, or (in Cloud-native directory mode) which claims the Cloud mints into the tokens your app verifies; outbound connectors copy evidence and notifications out. Nothing any connector does is consulted by `can`, `decide`, `filter`, `where` or `simulate`.
 
 ```mermaid
 flowchart LR
   subgraph inbound [Inbound: identity and platform]
     Idp["Auth0, Okta, Entra ID, Clerk, Supabase Auth, WorkOS, Better Auth, Google Workspace"]
+    NativeDir["Cloud-native directory and assignment UI"]
     Vercel["Vercel: Marketplace, OIDC, env vars"]
   end
   Cloud["PermDock Cloud: evidence log, inbox, hosted ADS, SCIM relay, snapshots"]
@@ -27,7 +26,8 @@ flowchart LR
     Mcp["MCP server: read-only evidence and catalog"]
     Db["Supabase Postgres, Neon, your Postgres: evidence export"]
   end
-  Idp -->|"trusted issuer (JWKS), CAEP transmitter, SCIM source"| Cloud
+  Idp -->|"trusted issuer (JWKS), federated login, CAEP transmitter, SCIM source"| Cloud
+  NativeDir -->|"claims minted into issued tokens"| Cloud
   Vercel -->|"provisioning, caller identity"| Cloud
   Cloud --> Otel
   Cloud --> Siem
@@ -42,13 +42,17 @@ Each table below has the same columns. **Connector** is what the Integrations pa
 
 ## Inbound: identity providers
 
-One identity provider can be connected in up to three roles. They are independent: a tenant may use Okta as a SCIM source while its end users authenticate with Clerk.
+One identity provider can be connected in up to four roles. They are independent: a tenant may use Okta as a SCIM source while its end users authenticate with Clerk.
+
+The environment's directory mode decides which rows apply. In Cloud-native mode the Cloud directory is the source of the claims it mints, and upstream providers connect only as federated login. In bring-your-own mode your provider or your tables stay authoritative: end users either log in through the Cloud issuer, which federates to the provider, or bypass the Cloud entirely and your app uses the provider's `subjectFrom*`; the SCIM relay feeds your `DirectoryStore`.
 
 | Connector | Standard or interface | What it carries | Never |
 | --- | --- | --- | --- |
 | Trusted issuer (Auth0, Okta, Entra ID, Clerk, Supabase Auth, WorkOS AuthKit, Better Auth, Google Identity, any JWKS-publishing issuer) | OIDC Discovery or RFC 8414 metadata, JWKS, RFC 9068 access tokens; verified by `permdock/jwt` with the same `discovery`, `accept`, `algorithms` and `profile` rules the application uses | Who the hosted ADS and the snapshot edge accept as an end user: `iss`, `sub`, `aud`, `roles`, `groups`, `org_id`, `act`, `cnf`, mapped to a `Subject` exactly as [`subjectFromJwt`](/docs/adapters/jwt) does in your app | Widen what the embedded engine decides; accept a token whose tenant claim has no onboarded connection (no tenant, never a default); read memberships from the provider's management API |
 | CAEP transmitter (Okta, Entra ID, Google Workspace, Auth0, any SSF transmitter) | Shared Signals Framework: RFC 8935 push or RFC 8936 poll into the Cloud's SSF receiver; OIDC Back-Channel Logout as the alternative | `session-revoked`, `credential-change`, `assurance-level-change` events keyed on the subject; `logout_token` for Back-Channel Logout | Change a decision; the event invalidates signed snapshots served by the Cloud edge and nothing else ([Shared Signals](/docs/standards/shared-signals-caep), [SSF adapter](/docs/adapters/ssf)) |
-| SCIM source (Okta, Entra ID, Google Workspace, WorkOS Directory Sync, any SCIM 2.0 client) | SCIM 2.0 (RFC 7643, RFC 7644, RFC 9865) into the hosted relay; RFC 7523 JWT bearer from the relay to your `scimHandler` | `User` and `Group` resources, the tenant's group-to-role mapping as the `urn:permdock:scim:schemas:extension:roles:1.0` attribute, one sync-log entry per operation | Hold an authoritative directory; implement `MembershipSource` or `RoleSource`; grant a role the policy did not declare `assignable` ([SCIM adapter](/docs/adapters/scim)) |
+| SCIM source (Okta, Entra ID, Google Workspace, WorkOS Directory Sync, any SCIM 2.0 client) | SCIM 2.0 (RFC 7643, RFC 7644, RFC 9865) into the hosted relay; RFC 7523 JWT bearer from the relay to your `scimHandler` | `User` and `Group` resources, the tenant's group-to-role mapping as the `urn:permdock:scim:schemas:extension:roles:1.0` attribute, one sync-log entry per operation | Hold an authoritative copy of what it relays (your `DirectoryStore` stays the record in bring-your-own mode); implement `MembershipSource` or `RoleSource`; grant a role the policy did not declare `assignable` ([SCIM adapter](/docs/adapters/scim)) |
+| Federated upstream (Clerk, Auth0, WorkOS, Google, Enterprise SSO, any OIDC Discovery issuer) | OIDC authorization code plus PKCE from the Cloud issuer to the upstream | The upstream's authentication of the user; the Cloud then issues the access token your app verifies with `subjectFromJwt({ discovery: PERMDOCK_CLOUD_URL })` | Become the application's session layer; copy upstream roles into claims without the directory mode's mapping; accept an upstream token without its `iss` and `aud` checks |
+| Cloud-native directory (the Cloud's own users, groups and assignment UI) | PermDock JWT claims ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) on Cloud-issued tokens; `dev.permdock.membership` events for every change | `roles`, `groups`, `entitlements` and the tenant claim for each principal, taken from declared `assignable` roles and plans in the uploaded catalog | Be read at request time; implement `MembershipSource` or `RoleSource`; mint a role or plan the catalog does not declare; hand out a role the acting admin does not hold in that tenant |
 
 "Connect Supabase" on the identity side means Supabase Auth as a trusted issuer (its project JWKS, `role` and `app_metadata` handled as on the [Supabase adapter](/docs/adapters/supabase) page); the Cloud never reads your Supabase tables or RLS policies. "Connect Clerk", "Connect Auth0" and "Connect WorkOS" mean the same three roles with the provider's discovery URL, SSF transmitter and SCIM client.
 
@@ -118,8 +122,8 @@ This is how "connect Supabase" reads on the data side: Supabase is a destination
 
 - A connector that resolves memberships or roles from a provider API. That is a `MembershipSource` or `RoleSource` in your application, or SCIM into a `DirectoryStore` you own ([tenancy](/docs/concepts/tenancy), invariant 15).
 - A connector that pushes a policy into the application. Policies are code in your bundle; `permdock cloud push` publishes a copy to the hosted ADS and the catalog, in one direction.
-- Per-vendor npm entries or per-vendor OpenAPI extensions ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)).
-- An authentication product or a gateway. Trusted issuers are how the Cloud consumes authentication, not how it provides it ([ADR 0018](/docs/decisions/0018-authentication-is-upstream), [ADR 0027](/docs/decisions/0027-governance-first-cloud)).
+- Per-vendor npm entries or per-vendor OpenAPI extensions.
+- An authentication product or a gateway. Trusted issuers are how the Cloud consumes authentication, not how it provides it.
 
 ## Example app
 
@@ -132,10 +136,4 @@ No example app of its own: `apps/examples/eve-agent` (the Marketplace template) 
 - [SCIM 2.0](/docs/standards/scim): SCIM sources and the relay.
 - [MCP authorization](/docs/standards/mcp-authorization): the Cloud's MCP server.
 - [Wire formats](/docs/concepts/wire-formats): CloudEvents types, the OCSF projection and `permdock-decisions+jwt`.
-- [ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), [ADR 0027](/docs/decisions/0027-governance-first-cloud).
-
-## Open questions
-
-- Whether the webhook's unsigned mode should exist at all, or every batch should be a JWS so receivers have one verification path.
-- Whether `dev.permdock.catalog` drift findings need their own data schema in [wire formats](/docs/concepts/wire-formats) before Phase 2, or can carry the `permdock collect --check` output as is.
-- Whether the MCP server should expose an `explain` tool that renders `describe(decision)` for one event, given that the same text is in the UI.
+- [adapters](/docs/adapters), [PermDock Cloud](/docs/adapters/cloud).

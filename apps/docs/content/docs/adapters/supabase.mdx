@@ -3,9 +3,6 @@ title: Supabase
 description: The permdock/supabase provider maps Supabase JWT claims to a PermDock subject, scaffolds the authorize() RBAC tables and hook, and compiles named permissions to authorize('perm') calls in RLS policies.
 ---
 
-Status: shipped
-Phase: 3
-
 `permdock/supabase` is a provider: it does not check permissions itself, it produces the subject PermDock checks against, from a Supabase session or access token. It also owns the Supabase-specific half of [RLS generation](/docs/adapters/rls): the `user_roles` / `role_permissions` / `authorize()` scaffold from Supabase's RBAC guide and the compilation of named permissions to `authorize('perm')`.
 
 ## Purpose
@@ -67,10 +64,7 @@ A single-tenant-per-user app (the common Supabase case) needs only `tenant_id` i
 
 ## Middleware: `permdock/supabase/middleware`
 
-Status: shipped
-Phase: 4
-
-Supabase's server packages compose through [`@supabase/middleware`](https://github.com/supabase/middleware): `defineMiddleware` produces a `withFoo(config)` entry that contributes typed keys to a shared `ctx`, declares the upstream keys it needs, and `pipeline([...entries], handler)` runs them in order. `permdock/supabase/middleware` is PermDock's entry for that pipeline ([ADR 0046](/docs/decisions/0046-supabase-middleware-entry)). It is a separate subpath so `permdock/supabase` keeps zero peer dependencies; `@supabase/middleware` is the optional peer of the middleware entry only.
+Supabase's server packages compose through [`@supabase/middleware`](https://github.com/supabase/middleware): `defineMiddleware` produces a `withFoo(config)` entry that contributes typed keys to a shared `ctx`, declares the upstream keys it needs, and `pipeline([...entries], handler)` runs them in order. `permdock/supabase/middleware` is PermDock's entry for that pipeline. It is a separate subpath so `permdock/supabase` keeps zero peer dependencies; `@supabase/middleware` is the optional peer of the middleware entry only.
 
 ```ts
 import { pipeline } from '@supabase/middleware'
@@ -175,7 +169,7 @@ Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/d
 | `role` (`anon`, `authenticated`, `service_role`) | Verified | The Postgres role the request runs under; `anon` yields the anonymous subject; `service_role` is refused for subject building (a bypass role is not a principal) |
 | `app_metadata.*` and hook-injected top-level claims (`user_role`, `tenant_id`, `memberships`) | Server-set, trusted | `principal.roles`, `principal.tenant`, `principal.memberships`, `principal.claims.*` |
 | `user_metadata.*` | User-writable through the client SDK | **Never read.** A user can set `user_metadata.role = 'admin'` on themselves; it must not become a grant |
-| `aal` (`aal1`, `aal2`) | Verified | `principal.assurance.acr` (Supabase's level takes the `acr` slot, [ADR 0026](/docs/decisions/0026-spec-aligned-naming)), for grants that require MFA (`where: { subject: { assurance: { acr: 'aal2' } } }`); a failed condition is `denied` with reason `insufficient-user-authentication` |
+| `aal` (`aal1`, `aal2`) | Verified | `principal.assurance.acr` (Supabase's level takes the `acr` slot, [subject](/docs/concepts/subject)), for grants that require MFA (`where: { subject: { assurance: { acr: 'aal2' } } }`); a failed condition is `denied` with reason `insufficient-user-authentication` |
 | `amr` (array of `{ method, timestamp }`) | Verified | Not copied into `principal.assurance.amr` (those objects are not RFC 8176 strings). Use `aal` for MFA, or map `method` yourself in a wrapper |
 | `iss` | Verified | `principal.issuer`; the project's Auth URL |
 | `session_id` | Verified | Carried on audit events; the key a CAEP `session-revoked` event invalidates |
@@ -257,7 +251,7 @@ In `jwt` mode the policy and PermDock read one claim written by one function. Ke
 2. Server request: the adapter in use (`permdock/next` over `@supabase/ssr`, `permdock/hono` over `@supabase/server`'s Hono adapter, or `withPermDock` after `withClaims` in a pipeline) takes the claims Supabase verified, calls `subjectFromSupabase`, and creates the request-scoped `PermDock`.
 3. In-process checks (`can`, `assert`, `filter`, `where`) run with `principal.roles` and `principal.tenant` from the claims, `principal.memberships` from the claim or the membership source, and `subject.claims` for other conditions.
 4. Database access: with `toWhere` the filter travels in the query; with RLS the database evaluates `authorize()` and the compiled conditions under the `authenticated` role with `request.jwt.claims` set by PostgREST or by the app's transaction preamble.
-5. Snapshot: `permdock.snapshot()` is sent to the client; claims are stale until token refresh, so a role change should also trigger `updateTag` and a session refresh.
+5. Snapshot: `permdock.snapshot()` is sent to the client; the browser never derives permissions from the JWT roles, even offline. Claims are stale until token refresh, so a role change should also trigger `updateTag` and a session refresh.
 
 ## Sessions and devices
 
@@ -268,11 +262,11 @@ List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSess
 - Token verification is Supabase's job (`auth.getUser()` or JWKS); the provider never parses an unverified JWT for authorization.
 - Role claim shape: `user_role` is a string or string array; anything else yields no roles. A role name the policy does not declare grants nothing (denial reason `unknown-role`), and `declared` drops such names at the boundary. Either way the result is fail closed: fewer grants, never more.
 - `app_metadata` versus `user_metadata`: only `app_metadata` claims are exposed as `subject.claims`.
-- `permdock rls generate --rbac supabase` derives the enums and seed rows from the policy, so they cannot disagree with it; `--check` fails when the file on disk has drifted. `permdock rls verify` runs fixtures with `set local role authenticated` and `request.jwt.claims` containing `user_role`.
+- `permdock rls generate --rbac supabase` derives the enums and `role_permissions` seed rows from the policy at migration time, so they cannot disagree with it; `--check` fails when the file on disk has drifted. The membership table stays opt-in (`--memberships`). On import, the deprecated `auth.role()` is not mapped and stays `opaque`. `permdock rls verify` runs fixtures with `set local role authenticated` and `request.jwt.claims` containing `user_role`.
 
 ## How denials surface
 
-- In-process: the usual [Decision](/docs/concepts/decisions); HTTP adapters produce RFC 9457 `403` bodies.
+- In-process: the shared contract on [adapters](/docs/adapters).
 - In Postgres: `authorize()` returning false yields `filtered` (SELECT, UPDATE `USING`) or `rejected 42501` (INSERT and UPDATE `WITH CHECK`); `permdock rls verify` maps these to the in-process outcome.
 - Anonymous requests: `auth.uid()` is NULL, so `(select auth.uid()) = user_id` is never true and every ownership policy filters; in-process, `subjectFromSupabase(null)` yields the anonymous subject and only anonymous grants apply.
 - Stale claims: a demoted user keeps `user_role` until refresh; the [SSF receiver](/docs/adapters/ssf) or an app-level `updateTag` on role change shortens the window.
@@ -285,18 +279,8 @@ List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSess
 
 ## Related standards
 
-- [Postgres RLS](/docs/standards/postgres-rls): `auth.uid()`, `auth.jwt()`, `authorize()`, roles `anon` / `authenticated` / `service_role`.
-- [Research: Postgres RLS](/docs/research/postgres-rls): Supabase specifics, RBAC guide, Splinter lints, `supabase gen types` limits.
+- [Postgres RLS](/docs/standards/postgres-rls): `auth.uid()`, `auth.jwt()`, `authorize()`, roles `anon` / `authenticated` / `service_role`, the RBAC guide, Splinter lints and `supabase gen types` limits.
 - [RLS adapter](/docs/adapters/rls): `generate`, `import`, `verify`.
 - [Subject](/docs/concepts/subject): principal fields and `subject.context`.
 - [Tenants, teams and scoped roles](/docs/concepts/tenancy): memberships, the active tenant, `memberOf` compilation.
-- [ADR 0046](/docs/decisions/0046-supabase-middleware-entry): why the middleware entry is its own subpath and `@supabase/server` / `@supabase/ssr` are recipes.
 - [MCP adapter](/docs/adapters/mcp): `withOAuthProtectedResource` with Supabase Auth as the OAuth 2.1 authorization server.
-
-## Open questions
-
-- Whether `role_permissions` should be seeded from the policy at migration time (drift risk when roles change in code) or read back at runtime through `import`.
-- Whether the RBAC scaffold should emit a membership table by default, or keep `--memberships` / `supabaseRls({ memberships })` as the opt-in.
-- Token size: a `memberships` claim for a user in many organizations grows the JWT; when to prefer a `MembershipSource` (a query per request) over the claim is a recipe, not a rule.
-- Whether to support the deprecated `auth.role()` on import for older projects or map it to the `TO` clause only.
-- Client-side: whether the browser Supabase client should receive a PermDock snapshot from the server or derive a coarse one from the JWT roles when offline.

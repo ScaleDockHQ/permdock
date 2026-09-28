@@ -3,10 +3,7 @@ title: rls
 description: Generate Postgres row-level security policies from a PermDock policy, import existing policies into a generated definition, and verify that both agree.
 ---
 
-Status: shipped
-Phase: 3
-
-`permdock rls` is the round-trip between PermDock's policy and Postgres row-level security. `generate` compiles roles and grants to policies, `import` reads `pg_policies` back into a `definePermissions()` module, and `verify` proves that `can()` in-process and the database agree. The runtime side (`permdock.where()` and the `toWhere` compilers) is documented on the [RLS adapter](/docs/adapters/rls) page; the semantics and the portable subset come from the [Postgres RLS research](/docs/research/postgres-rls).
+`permdock rls` is the round-trip between PermDock's policy and Postgres row-level security. `generate` compiles roles and grants to policies, `import` reads `pg_policies` back into a `definePermissions()` module, and `verify` proves that `can()` in-process and the database agree. The runtime side (`permdock.where()` and the `toWhere` compilers) is documented on the [RLS adapter](/docs/adapters/rls) page; the semantics and the portable subset come from the [Postgres RLS research](/docs/standards/postgres-rls).
 
 ## generate
 
@@ -36,15 +33,15 @@ Dialects decide how the subject reaches SQL:
 | `neon` | `(select auth.user_id())` | JWT claims via `pg_session_jwt` |
 | `guc` | `current_setting('app.user_id', true)` | `current_setting('app.<claim>', true)`; the prefix is configurable with `--guc-prefix` |
 
-Semantics mirrored from the research: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH CHECK`, `update` becomes `FOR UPDATE USING (where) WITH CHECK (check)`, `delete` becomes `FOR DELETE USING`; `allow` grants are `PERMISSIVE`, `deny` grants are `RESTRICTIVE` with `NOT (condition)`; a `SELECT` policy is emitted whenever `UPDATE` or `DELETE` is, because Postgres needs it; the default target role is `authenticated`; `service_role` is never emitted.
+Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH CHECK`, `update` becomes `FOR UPDATE USING (where) WITH CHECK (check)`, `delete` becomes `FOR DELETE USING`; `allow` grants are `PERMISSIVE`, `deny` grants are `RESTRICTIVE` with `NOT (condition)`; a `SELECT` policy is emitted whenever `UPDATE` or `DELETE` is, because Postgres needs it; the default target role is `authenticated`; `service_role` is never emitted.
 
-Only portable conditions compile ([0010](/docs/decisions/0010-policy-as-data-portable-conditions)): equality against the subject, `in` / `notIn` membership (emitted as `IN (select ...)`), literal columns, `and` / `or` / `not`, `memberOf`, and `sqlFunction`. A `sqlFunction` grant emits `name(args)` so the database keeps its helper; `--inline-functions` (or `rls.inlineFunctions`) compiles the twin instead. Generate reports those grants as portable via twin. A closure grant fails generation with the grant's location and the message that the grant must be rewritten as a portable condition or excluded with `--skip-closures`.
+Only portable conditions compile: equality against the subject, `in` / `notIn` membership (emitted as `IN (select ...)`), literal columns, `and` / `or` / `not`, `memberOf`, and `sqlFunction`. A `sqlFunction` grant emits `name(args)` so the database keeps its helper; `--inline-functions` (or `rls.inlineFunctions`) compiles the twin instead. Generate reports those grants as portable via twin. A closure grant fails generation with the grant's location and the message that the grant must be rewritten as a portable condition or excluded with `--skip-closures`. Grants with `approval: 'human'` are skipped with a warning, because RLS has no approval step; the table stays closed for that permission.
 
 With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `user_roles`, `role_permissions` and `authorize('permission')` function, and policies call `authorize('post.delete')` instead of inlining role checks, so the named-permission catalog exists in the database too.
 
 | Flag | Values | Default | Effect |
 |---|---|---|---|
-| `--rbac` | `supabase` | off | Emit the RBAC scaffold (`--rbac-scaffold` is the older spelling). Any other value exits 2; so does a dialect other than `supabase`. |
+| `--rbac` | `supabase` | off | Emit the RBAC scaffold (`--rbac-scaffold` is an equivalent spelling). Any other value exits 2; so does a dialect other than `supabase`. |
 | `--rbac-schema` | a Postgres identifier | `public`, or `rls.rbac.schema` | Schema for the enums, tables, `authorize()` and the hook. Policies call `<schema>.authorize(...)`. |
 | `--authorize` | `database`, `jwt` | `database`, or `rls.rbac.authorize` | `database` reads `user_roles` and the `--memberships` table on every call. `jwt` reads the hook-injected `user_role` and `memberships` claims: no query, stale until the token refreshes (doctor PD019). |
 
@@ -93,16 +90,11 @@ When SQL is the authority, skip `generate`. Pin the TypeScript policy (with `sql
 
 `tests/integration` in this repository runs `verify` against Postgres in testcontainers.
 
-## Open questions
-
-- Whether `generate` should emit `REVOKE` / `GRANT` statements for table privileges alongside policies. The research recommends it because a missing grant raises the same `42501` as a `WITH CHECK` failure and masquerades as a policy denial; leaning yes, behind `--grants`.
-- How `approval: 'human'` grants should compile: skipped with a warning (RLS has no approval concept) is the current plan.
-
 ## Related
 
 - [RLS adapter](/docs/adapters/rls)
 - [Postgres RLS standard](/docs/standards/postgres-rls)
-- [Postgres RLS research](/docs/research/postgres-rls)
+- [Postgres RLS research](/docs/standards/postgres-rls)
 - [Supabase provider](/docs/adapters/supabase)
 - [Drizzle adapter](/docs/adapters/drizzle)
 - [Prisma adapter](/docs/adapters/prisma)

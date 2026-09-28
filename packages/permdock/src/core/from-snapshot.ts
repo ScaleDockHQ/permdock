@@ -225,7 +225,7 @@ export function fromSnapshot(
 
 export function emptySnapshot(): Snapshot {
   return freezeDeep({
-    v: 3 as const,
+    v: 1 as const,
     issuedAt: 0,
     subject: { principal: null, context: {} },
     roles: [],

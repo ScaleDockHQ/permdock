@@ -3,8 +3,6 @@ title: OpenTelemetry
 description: permdock/otel records a span and a counter per permission check with decision attributes, behind a structural logger interface, with @opentelemetry/api as an optional dependency that is never required.
 ---
 
-Status: shipped
-Phase: 2
 Draft posture: build (OpenTelemetry GenAI semantic conventions 1.37.0; copies `gen_ai.tool.name` and `gen_ai.tool.call.id` only)
 
 `permdock/otel` subscribes to `permdock.on('decision')` and emits one span per check plus a decision counter, carrying the outcome, permission key, resource id and actor as attributes. It depends on `@opentelemetry/api` only if the host app already has it installed; without it, the adapter degrades to the structural logger interface and nothing else changes.
@@ -45,9 +43,9 @@ Recorded per check:
 | Histogram | `permdock.decide.duration` (unit `s`) | `permdock.outcome`, `permdock.permission`; recorded by `withOtel` and the adapter `otel` option only |
 | Log | `permdock.decision` | same fields as the span, through the structural logger |
 
-The logger interface is a type-only structural contract (`debug`, `info`, `warn`, `error` taking a message and an attributes object), so `console`, pino, winston or a test spy all satisfy it without an adapter.
+The logger interface is a type-only structural contract (`debug`, `info`, `warn`, `error` taking a message and an attributes object), so `console`, pino, winston or a test spy all satisfy it without an adapter, and core exports no logger of its own. The `permdock.*` attribute names are PermDock's own namespace and stay stable whatever authorization conventions OpenTelemetry later adopts. The histogram is on whenever `withOtel` or the adapter `otel` option is used; `instrument` records none.
 
-In an agent, the framework or the model SDK usually opens an `execute_tool` span from the [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) around each tool call, with `gen_ai.tool.name` and `gen_ai.tool.call.id`. `permdock.decide` nests under it because the listener starts its span in the current context, so LLM-observability backends (Langfuse, LangSmith, Braintrust, Datadog LLM Observability, Sentry, PostHog) show the decision as a child of the tool call with no PermDock-specific integration. The adapter also copies `gen_ai.tool.name` and `gen_ai.tool.call.id` from the parent span onto its own when present, so a denial can be grouped by tool without joining spans. The GenAI conventions are still at Development status (the `execute_tool` span and its attributes are not yet stable), so these two attribute names are pinned in the adapter to a named semantic-conventions release (recorded here when Phase 2 starts) and revisited when the conventions stabilise; none of PermDock's own `permdock.*` attributes depend on them. This is the **build** draft posture of [ADR 0025](/docs/decisions/0025-draft-protocol-posture): the pinned names are the only draft content, the `permdock.*` attributes are the stable twin, and a pin bump ships with fixtures and a changeset.
+In an agent, the framework or the model SDK usually opens an `execute_tool` span from the [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) around each tool call, with `gen_ai.tool.name` and `gen_ai.tool.call.id`. `permdock.decide` nests under it because the listener starts its span in the current context, so LLM-observability backends (Langfuse, LangSmith, Braintrust, Datadog LLM Observability, Sentry, PostHog) show the decision as a child of the tool call with no PermDock-specific integration. The adapter also copies `gen_ai.tool.name` and `gen_ai.tool.call.id` from the parent span onto its own when present, so a denial can be grouped by tool without joining spans. The GenAI conventions are still at Development status (the `execute_tool` span and its attributes are not yet stable), so these two attribute names are pinned in the adapter to semantic-conventions release 1.37.0 and revisited when the conventions stabilise; none of PermDock's own `permdock.*` attributes depend on them. This is the **build** draft posture of [watch list](/docs/standards/watch-list): the pinned names are the only draft content, the `permdock.*` attributes are the stable twin, and a pin bump ships with fixtures and a changeset.
 
 ## Request lifecycle
 
@@ -78,12 +76,5 @@ None. The Hono example (`apps/examples/hono`) and the MCP example (`apps/example
 ## Related standards
 
 - [Audit and observability](/docs/concepts/audit-and-observability): the `on('decision')` event contract.
-- [Decision 0015](/docs/decisions/0015-no-runtime-deps-in-core): why the OpenTelemetry API is optional and lives outside core.
-- [Research: zap-studio permit](/docs/research/zap-studio-permit): the instrumentation pattern adopted and the required-peer lesson.
-
-## Open questions
-
-- Attribute naming: `permdock.*` versus aligning with OpenTelemetry semantic conventions for authorization if such conventions stabilise.
-- Whether the histogram is worth its cardinality by default or should be opt-in.
-- How to correlate an `approval-required` span with the later approval replay (span link by `Decision.token` is the current idea).
-- Whether the structural logger should be exported from core so other adapters can log without importing `permdock/otel`.
+- [Installation](/docs/getting-started/installation): the OpenTelemetry API as an optional peer outside core.
+- [Research: landscape](/docs/research/landscape): the zap-studio permit instrumentation pattern adopted and the required-peer lesson.

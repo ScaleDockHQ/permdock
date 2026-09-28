@@ -3,9 +3,6 @@ title: A2A
 description: How permdock/a2a emits Agent Card security schemes and requirements per skill and filters the authenticated extended card by the caller's permissions.
 ---
 
-Status: shipped
-Phase: 2
-Adapter phases: `permdock/a2a` 2.
 
 ## What it is
 
@@ -40,11 +37,13 @@ app.get('/agent/authenticatedExtendedCard', (c) => c.json(extendedAgentCard(c.ge
 
 What the adapter does:
 
-- **Emits `securitySchemes`** from the adapter's OAuth configuration (the same shape used by the [OpenAPI emitter](/docs/standards/openapi-3-2)), and a **`securityRequirements`** entry per skill listing the skill's `permission.scope`.
+- **Emits `securitySchemes`** from the adapter's OAuth configuration (the same shape used by the [OpenAPI emitter](/docs/standards/openapi)), and a **`securityRequirements`** entry per skill listing the skill's `permission.scope`.
 - **Filters the extended card.** `extendedAgentCard(auth)` builds a request-scoped `PermDock` from the caller's credentials and includes only skills whose permission the subject holds (`can` on collection actions; instance actions are included when a representative check or an explicit `advertise` rule passes).
 - **Guards skill execution.** `protectSkill` wraps a skill handler: it validates parameters against the resource schema at the boundary, loads the instance with `data`, calls `decide`, and returns a structured refusal with reasons and `alternatives` on `denied`, or an approval request on `approval-required`.
 - **Fills `actor` and `delegation`** from the calling agent's identity and token scopes, so the calling agent cannot exceed the user it acts for.
 - **Signed cards** are produced by the hosting framework's signing step; the adapter supplies the card content and leaves signing to the deployment, because PermDock does not manage keys.
+
+The public card lists every skill with its scopes: a scope names what a token must carry, not what any user holds, so it discloses nothing the OAuth metadata does not. The extended card is the per-caller view.
 
 ### Request lifecycle
 
@@ -52,7 +51,7 @@ What the adapter does:
 2. It obtains a token with that scope for the user it acts for, typically through the OAuth flows described in [OAuth for agent delegation](/docs/standards/oauth-agent-delegation).
 3. It fetches the authenticated extended card. `extendedAgentCard(auth)` builds a request-scoped `PermDock` and lists only the skills the subject may invoke, so the caller learns up front whether `publish` is available to this user.
 4. It invokes the skill. `protectSkill` validates parameters at the boundary, loads the instance, and calls `decide` with `principal` from the token, `actor` from the caller's identity and `delegation` from the token scopes.
-5. `granted` runs the handler; `denied` returns the reasons and `alternatives`; `approval-required` returns the approval `token` (see [approvals](/docs/security/approvals)).
+5. `granted` runs the handler; `denied` returns the reasons and `alternatives`; `approval-required` puts the task in the A2A `input-required` state and returns the approval `token` in the Problem Details body (see [approvals](/docs/security/approvals)).
 6. The decision is emitted through `on('decision')` with the calling agent as `actor`, so cross-agent calls are attributable.
 
 ### Relationship to the other agent adapters
@@ -80,10 +79,3 @@ The A2A adapter reuses the MCP adapter's translation of a `Decision` into a stru
 - [A2A protocol specification](https://a2a-protocol.org/latest/specification/).
 - [Linux Foundation announcement: A2A surpasses 150 organisations](https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year).
 - Product plan, `permdock/a2a` API sketch.
-
-## Open questions
-
-- The exact adapter surface: the plan names `agentCard` and `extendedAgentCard`; `protectSkill` above is a proposed addition that mirrors `protect` in HTTP adapters and is not yet locked.
-- How a skill that maps to an instance-level permission should be advertised in the extended card when no instance is known at card-fetch time.
-- Whether A2A task lifecycle states can carry `approval-required` natively (a task waiting on input) rather than as a refusal; see [approvals](/docs/security/approvals).
-- Whether the public card should list scopes for skills the caller can never obtain, or whether that is itself an information-disclosure concern (see [threat model](/docs/security/threat-model)).

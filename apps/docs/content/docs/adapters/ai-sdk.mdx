@@ -3,9 +3,6 @@ title: AI SDK
 description: permdock/ai-sdk turns PermDock decisions into Vercel AI SDK 7 tool approvals, capability middleware and WorkflowAgent suspensions, fail-closed by construction.
 ---
 
-Status: shipped
-Phase: 1
-
 `permdock/ai-sdk` connects the [Decision](/docs/concepts/decisions) model to the approval vocabulary of the Vercel AI SDK 7: `toolApproval` on `generateText`, `streamText` and `ToolLoopAgent`, a language-model middleware that narrows the tool list before the model sees it, and `needsApproval` for `WorkflowAgent`, the one place where that option is not deprecated.
 
 ## Purpose
@@ -23,6 +20,7 @@ const PostArgs = z.object({ id: z.string() }) // tool input arrives as `unknown`
 const { toolApproval, capabilityMiddleware, needsApproval } = createPermDock(policy, {
   subject: ({ runtimeContext }) => runtimeContext.user,
   actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' }),
+  delegation: ({ runtimeContext }) => ({ scopes: runtimeContext.scopes }), // what the user handed the agent
   tools: {
     delete_post: { permission: permissions.post.delete, data: (args) => loadPost(PostArgs.parse(args).id) },
     list_posts:  { permission: permissions.post.list },
@@ -41,6 +39,7 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 
 - `tools` maps AI SDK tool names to a permission reference and, for instance-level actions, a `data` resolver that loads the resource from the tool arguments.
 - `subject` and `actor` read from `runtimeContext` (or any per-call context the caller provides), so one configuration serves many tenants when returned from `prepareCall`.
+- `delegation` is what the user handed the agent: `scopes`, `authorizationDetails` or `access`. It has no default. With an `actor` and no `delegation`, every tool is denied with reason `no-delegation`, and `capabilityMiddleware` offers the model no tools. A resolver that throws counts as no delegation.
 - `toolApproval` is a plain function compatible with the AI SDK signature; `capabilityMiddleware(context)` returns a `LanguageModelMiddleware` (specification `v4`) for that caller, because the middleware sees only the model parameters and no per-call context; `needsApproval(permission)` returns the predicate `WorkflowAgent` expects. A boolean cannot say "denied", so the predicate returns `false` only when granted, `true` for approval-required, and throws `PermDockDeniedError` for a denial or an unmapped call (the AI SDK rejects the run). On the re-check after an approval, it throws `PermDockApprovalRequiredError` unless the approval is recorded.
 - Tool names not present in `tools` are treated as unmapped and denied (see fail-closed rules below).
 
@@ -75,7 +74,8 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 - `denied` results include a `reason` string built from the Decision: the failing role reasons and the `alternatives` list (permitted permissions on the same resource), so a model can choose a permitted action instead of retrying the denied one.
 - `user-approval` results carry `Decision.token` and a human-readable summary for the approval UI.
 - Nothing ever maps to `not-applicable`. If the adapter cannot decide (unknown tool, thrown resolver, malformed context) it returns `denied` and logs the cause. This is the intentional contrast with `@ai-sdk/policy-opa`, where unrecognised decisions execute the tool ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
-- `capabilityMiddleware` denials are silent by design: the tool is absent from the request. Set `onDecision` on the instance to log them.
+- `capabilityMiddleware` denials are silent by design: the tool is absent from the request. Set `onDecision` on the instance to log them. The middleware only removes tools; it never rewrites tool descriptions.
+- The AI SDK result type is a string, so the Decision is rendered into `reason`; the structured Decision stays available to audit through `on('decision')`. A plan pre-flight is `permdock.simulate()` called by the application before the loop; the adapter adds no hook for it.
 
 ## Example app
 
@@ -87,10 +87,3 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 - [Delegation](/docs/security/delegation): the `actor` half of the subject for agent runs.
 - [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 Tool Misuse mitigations via per-tool permissions and argument validation.
 - [MCP adapter](/docs/adapters/mcp) and [Claude Agent adapter](/docs/adapters/claude-agent): the same Decision mapped to other runtimes.
-
-## Open questions
-
-- Whether unmapped tools should be denied (current default) or passed through with a loud development warning; passing through would re-introduce fail-open behaviour.
-- How much of the Decision to expose in the `reason` string versus a structured field, given the AI SDK result type is a string.
-- Whether `capabilityMiddleware` should also rewrite tool descriptions to mention conditions (for instance, "only your own posts").
-- Whether `simulate()` should be offered as a plan pre-flight hook before the agent loop starts.

@@ -53,7 +53,7 @@ import {
 } from '../core/errors.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
-import { mapPermDockError } from '../server/map-error.ts';
+import { problemFromError } from '../server/map-error.ts';
 import { POLICY_VIOLATION, onRevoked } from '../server/stream.ts';
 import { InvalidSignatureError } from '../server/web-bot-auth.ts';
 import { sendNestResponse, toRequest, type NestHttpRequest } from './http.ts';
@@ -85,7 +85,7 @@ export type NestPermDockOptions<TUser = unknown> = {
    * from. Without it, a protected handler outside HTTP is denied.
    */
   readonly request?: (context: ExecutionContext) => NestRequest | undefined;
-  /** Ends or revalidates open gateway connections (ADR 0052). */
+  /** Ends or revalidates open gateway connections. */
   readonly revocations?: RevocationFeed;
 };
 
@@ -381,7 +381,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const problem =
         exception instanceof PermDockHttpError
           ? exception.response
-          : mapPermDockError(exception);
+          : problemFromError(exception);
       if (problem === undefined) {
         throw new TypeError('unhandled permdock exception');
       }

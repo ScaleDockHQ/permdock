@@ -120,7 +120,7 @@ const withPermDock = createPermDockPlugin({
 export default withPermDock({ /* next config */ })
 ```
 
-`createPermDockPlugin` is a build hook only. It never wires the API, never augments modules and never creates a `PermDock`; that stays in the explicit `src/permdock/server.ts` factory file described in the [quick start](/docs/getting-started/quick-start). See [next-plugin](/docs/cli/next-plugin) and [ADR 0006](/docs/decisions/0006-explicit-factory-not-plugin).
+`createPermDockPlugin` is a build hook only. It never wires the API, never augments modules and never creates a `PermDock`; that stays in the explicit `src/permdock/server.ts` factory file described in the [quick start](/docs/getting-started/quick-start). See [Next.js plugin](/docs/cli/next-plugin).
 
 ## Scoped snapshots
 
@@ -130,7 +130,7 @@ A snapshot of a large policy can be big. `snapshot({ include: [...] })` limits i
 const snapshot = permdock.snapshot({ include: [permissions.post, permissions.billing.plan] })
 ```
 
-Permissions outside the included groups report `status: 'server-only'` on the client and fall back to the decision endpoint. See [snapshots](/docs/concepts/snapshots).
+Permissions outside the included groups report `status: 'server-only'` on the client and fall back to the decision endpoint. Snapshots always ship full grants with their conditions, never per-permission booleans, however large the policy; `include` is the size lever. See [snapshots](/docs/concepts/snapshots).
 
 ## Checklist for a monorepo
 
@@ -142,8 +142,3 @@ Permissions outside the included groups report `status: 'server-only'` on the cl
 6. Routes call `snapshot` with an `include` option so clients only receive the grants they can use.
 
 The `monorepo` example app under `apps/examples/monorepo` covers steps 1 to 4: colocated `definePermissions` in `packages/posts` and `packages/billing`, `mergePermissions` at the app root, role fragments spread into `definePolicy`, and `permdock collect --check` against a committed catalog.
-
-## Open questions
-
-- Whether `collect` should also emit the `mergePermissions` barrel or only the catalog.
-- Whether `snapshot` should ship full grants or per-permission booleans for very large policies.

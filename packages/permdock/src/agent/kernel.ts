@@ -95,8 +95,12 @@ function runDecide(
 function delegationMayCover(
   permission: Permission,
   delegation: Delegation | undefined,
+  hasActor: boolean,
 ): boolean {
-  const identifiers = (delegation?.access ?? []).flatMap((entry) =>
+  const identifiers = [
+    ...(delegation?.access ?? []),
+    ...(delegation?.authorizationDetails ?? []),
+  ].flatMap((entry) =>
     typeof entry === 'object' &&
     entry !== null &&
     typeof entry.identifier === 'string'
@@ -104,7 +108,8 @@ function delegationMayCover(
       : [],
   );
   return [undefined, ...identifiers].some(
-    (id) => coveredByDelegation(permission, delegation, id) === undefined,
+    (id) =>
+      coveredByDelegation(permission, delegation, id, hasActor) === undefined,
   );
 }
 
@@ -131,7 +136,13 @@ export function mayUse(dock: PermDock, permission: Permission): boolean {
     if (!('grants' in snapshot)) {
       return false;
     }
-    if (!delegationMayCover(permission, dock.subject.delegation)) {
+    if (
+      !delegationMayCover(
+        permission,
+        dock.subject.delegation,
+        dock.subject.actor !== undefined,
+      )
+    ) {
       return false;
     }
     const tenant = dock.subject.principal?.tenant;
@@ -233,6 +244,14 @@ export function createAgentKernel<TContext, TUser = unknown>(
           actor = undefined;
         }
       }
+      let delegation: Delegation | undefined;
+      if (options.delegation !== undefined) {
+        try {
+          delegation = await options.delegation(context);
+        } catch {
+          delegation = undefined;
+        }
+      }
       const tenant = await resolveTenant(options.tenant, context);
       return createCorePermDock(
         policy,
@@ -240,6 +259,7 @@ export function createAgentKernel<TContext, TUser = unknown>(
         compact({
           tenant,
           actor,
+          delegation,
           memberships: options.memberships,
           customRoles: options.customRoles,
           sink: options.sink,

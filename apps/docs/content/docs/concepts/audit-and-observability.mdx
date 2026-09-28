@@ -13,34 +13,7 @@ const permdock = await createPermDock(policy, user, { actor, delegation })
 permdock.on('decision', (event) => audit.write(event))
 ```
 
-Every `can`, `decide`, `assert` and `filter` emits one event per evaluated check (`filter` emits one event with the counts, not one per row; `simulate` emits one `simulate` event). The event is a frozen JSON object:
-
-```ts
-type DecisionEvent = {
-  type: 'decision'
-  at: string                          // ISO timestamp
-  outcome: 'granted' | 'denied' | 'approval-required'
-  permission: string                  // 'post.delete'
-  scope: string                       // 'post:delete'
-  resource: { type: string; id?: string }   // id from the resource's `id` field; absent for collection actions
-  subject: {
-    principal: { id: string; roles: string[]; tenant?: string } | null
-    actor?: { id: string; kind: string }
-    delegation?: { scopes?: string[]; authorizationDetails?: unknown[] }
-  }
-  tenant?: string                     // the active tenant for this request
-  membership?: Membership             // the membership that supplied the matched role; absent for global roles
-  via?: string                        // 'group:<id>' | 'team:<id>' when the membership was inherited
-  matched?: { role: string; permission: string }        // granted / approval-required
-  denials?: Array<{ role: string | null; reason: string }> // denied
-  alternatives?: string[]             // permission keys
-  token?: string
-  trusted: boolean                    // whether the data crossed a boundary and was validated
-  source: 'can' | 'decide' | 'assert' | 'filter' | 'endpoint' | 'adapter' | 'approval'
-  adapter?: string                    // 'next' | 'hono' | 'mcp' | 'ai-sdk' | 'eve' | 'openai' | ...
-  phase?: 'requested' | 'resolved'    // only on source 'approval'; see the approval store
-}
-```
+Every `can`, `decide`, `assert` and `filter` emits one event per evaluated check (`filter` emits one event with the counts, not one per row; `simulate` emits one `simulate` event). The event is a frozen JSON object carrying `outcome`, `permission`, `scope`, `resource`, the `subject` (principal, actor, delegation), the active `tenant`, the full `membership` that supplied the matched role, `via`, `matched`, `denials`, `alternatives`, `token`, `trusted`, `source` and `adapter`; the full shape and an example are on [wire formats](/docs/concepts/wire-formats#decision-event). Events are emitted on the server and on the decision endpoint, never for client-side snapshot evaluations, so the audit log records only authoritative decisions.
 
 The event contains the result. permix's `hooks` gave you `{ path, data }` before the check and nothing after, so an audit log could record that a check happened but not what it returned; issue [#38](https://github.com/letstri/permix/issues/38) asked for the result and stayed open. PermDock's event is emitted after evaluation and includes `outcome`, `denials`, `matched` and `alternatives`, which is what an audit trail, an anomaly detector or a "why can't I see this" support tool needs.
 
@@ -73,7 +46,7 @@ Register the handler once where you create the `PermDock` (the server factory fi
 
 ### DecisionSink
 
-A handler is enough for one process. When events must leave the process, the adapters take a `sink` option typed against a small interface, with an in-memory default, so the destination is pluggable the same way the [approval store](/docs/adapters/approvals) is ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)):
+A handler is enough for one process. When events must leave the process, the adapters take a `sink` option typed against a small interface, with an in-memory default, so the destination is pluggable the same way the [approval store](/docs/adapters/approvals) is:
 
 ```ts
 interface DecisionSink {
@@ -98,13 +71,13 @@ Implementations that ship or are documented:
 
 A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A sink passed to [`scimHandler`](/docs/adapters/scim) also receives `directory` events (`type: 'directory'`, `source: 'scim'`: the provisioning operation, tenant, resource type and id, and the credential kind), which join to later decisions on `via: 'group:<id>'`. Group membership changes emit a `membership` event per affected user next to the directory event. `membershipEvent()` and `onRoleChange({ sink })` write the same shape for in-app role changes. A failing sink is reported to `on('error')` and never changes an outcome.
 
-**Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was *allowed* to do, so a log that drops grants cannot answer it ([ADR 0027](/docs/decisions/0027-governance-first-cloud)). Cost is controlled by retention, not by omission.
+**Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was *allowed* to do, so a log that drops grants cannot answer it. Cost is controlled by retention, not by omission.
 
 **Signed batch export.** A sink that hands events to a party who must be able to prove where they came from (a SIEM in another trust domain, an auditor, a compliance tool reading an export file) can sign each batch. The batch becomes one compact JWS with `typ: permdock-decisions+jwt`, registered claims `iss`, `iat`, `exp`, `jti`, and the CloudEvents-enveloped events under the `events` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)); the consumer verifies it with any JOSE library against the signer's JWK Set. In this package it is a `TokenSigner` handed to a sink, not a new sink: `memorySink({ signer, audience })` signs each `write`, `signDecisionBatch(events, signer)` is the same helper for your own sink, and `permdock/cloud`'s export endpoint serves signed batches. The recipe is `signer.sign({ events }, { typ: 'permdock-decisions+jwt' })` before `write` posts the batch. Events inside the JWS are the same objects a plain sink receives, so a consumer verifies, unwraps and applies the OCSF projection below unchanged. Signing is evidence for the reader; nothing in PermDock reads a batch back.
 
 ### Sink recipes and the OCSF projection
 
-Sinks for Sentry, PostHog, Datadog, Axiom, Better Stack, a Postgres table or a queue are recipes, not entries: each is the interface above with `write` calling the vendor SDK or a driver ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), the general rule). The destinations fall into three groups with three different ingestion shapes:
+Sinks for Sentry, PostHog, Datadog, Axiom, Better Stack, a Postgres table or a queue are recipes, not entries: each is the interface above with `write` calling the vendor SDK or a driver ([adapters](/docs/adapters), the general rule). The destinations fall into three groups with three different ingestion shapes:
 
 | Destination | Examples | Ingests | Recipe |
 | --- | --- | --- | --- |
@@ -114,10 +87,10 @@ Sinks for Sentry, PostHog, Datadog, Axiom, Better Stack, a Postgres table or a q
 
 Two things make those recipes interchangeable:
 
-- **An OCSF projection.** The [Open Cybersecurity Schema Framework](https://schema.ocsf.io/) is the vendor-neutral schema SIEMs ingest. PermDock documents one mapping from a decision event onto the OCSF Authorization activity class (category System Activity or IAM, depending on the OCSF version in use): `outcome` to `status` and `status_detail`, `permission` and `scope` to the `resource` and `privileges` fields, `subject.principal` to `actor.user`, `subject.actor` to `actor.process` or `actor.app_name`, `denials[].reason` to `status_detail`, `adapter` and `source` to `metadata.product`. The projection is a pure function shipped as `toOcsf(event)` in a later `@permdock/testing` or CLI utility and documented on [wire formats](/docs/concepts/wire-formats); a sink that wants SIEM-ready output applies it before `write`. The event format itself does not change.
+- **An OCSF projection.** The [Open Cybersecurity Schema Framework](https://schema.ocsf.io/) is the vendor-neutral schema SIEMs ingest. PermDock documents one mapping from a decision event onto the OCSF Authorization activity class (category System Activity or IAM, depending on the OCSF version in use): `outcome` to `status` and `status_detail`, `permission` and `scope` to the `resource` and `privileges` fields, `subject.principal` to `actor.user`, `subject.actor` to `actor.process` or `actor.app_name`, `denials[].reason` to `status_detail`, `adapter` and `source` to `metadata.product`. The projection is a planned pure function, `toOcsf(event)`, documented on [wire formats](/docs/concepts/wire-formats); a sink that wants SIEM-ready output applies it before `write`. The event format itself does not change.
 - **A CloudEvents envelope.** When events leave the process over HTTP or a queue, wrap each in a [CloudEvents 1.0](https://cloudevents.io/) envelope: `type` `dev.permdock.decision` or `dev.permdock.approval`, `source` the service, `subject` the permission key, `data` the event. Every broker and function platform accepts it, and the PermDock Cloud sink uses the same envelope on the wire.
 
-Both are documented now, before the Cloud repository fixes its ingest format, because changing them later is a format bump for two repositories. Neither is a dependency; the projection and the envelope are plain objects.
+The PermDock Cloud ingest reads the same envelope, so both are part of the wire contract. Neither is a dependency; the projection and the envelope are plain objects.
 
 ### What is not logged
 
@@ -125,7 +98,7 @@ The event never includes the resource object itself, the parsed schema output, t
 
 ## Evidence and governance
 
-"Audit" names the mechanism above. What the log is *for*, and what PermDock Cloud sells it as, is compliance evidence and agent governance ([ADR 0027](/docs/decisions/0027-governance-first-cloud)): the decision event already carries the fields an access review or an agent-governance review asks for (`subject.principal`, `subject.actor`, `delegation`, `tenant`, `permission`, `outcome`, `matched`, `via`), so the work is queries and exports, not new data. The list below is the contract for any sink table and for the Cloud UI; a self-hoster's Postgres sink and the Cloud answer the same questions.
+"Audit" names the mechanism above. What the log is *for*, and what PermDock Cloud sells it as, is compliance evidence and agent governance: the decision event already carries the fields an access review or an agent-governance review asks for (`subject.principal`, `subject.actor`, `delegation`, `tenant`, `permission`, `outcome`, `matched`, `via`), so the work is queries and exports, not new data. The list below is the contract for any sink table and for the Cloud UI; a self-hoster's Postgres sink and the Cloud answer the same questions.
 
 ### Questions the log must answer
 
@@ -142,7 +115,7 @@ The event never includes the resource object itself, the parsed schema output, t
 
 Evidence leaves the log in three forms, all documented here so a reader in another trust domain can verify and ingest without PermDock code:
 
-- **Signed batches** (`permdock-decisions+jwt`, above): provenance for an auditor or a compliance tool; the Cloud's export endpoint serves them and a self-hosted sink can sign its own. Phase 2, so the Cloud alpha ships evidence with provenance.
+- **Signed batches** (`permdock-decisions+jwt`, above): provenance for an auditor or a compliance tool; the Cloud's export endpoint serves them and a self-hosted sink can sign its own.
 - **OCSF**: the projection below for SIEMs and security lakes.
 - **CSV** with one row per event and the review columns above, for compliance platforms (Vanta, Drata, Secureframe) that collect access-review evidence from connected systems and for spreadsheets in an audit.
 
@@ -159,7 +132,7 @@ A "freeze this agent" button in the Cloud is those two operations plus a recomme
 
 ### OpenTelemetry is not the evidence path
 
-`permdock/otel` (below) emits spans and metrics from the same events, and an OTLP export from the Cloud does the same for backends that want a copy next to their traces. Both are observability: collectors sample, tail-sample and drop; retention is short; a span is not signed. The evidence is the sink's log and its signed export. Do not point an auditor at a tracing backend, and do not send OTel spans to a `DecisionSink` ([Cloud adapter](/docs/adapters/cloud) open questions).
+`permdock/otel` (below) emits spans and metrics from the same events, and an OTLP export from the Cloud does the same for backends that want a copy next to their traces. Both are observability: collectors sample, tail-sample and drop; retention is short; a span is not signed. The evidence is the sink's log and its signed export. Do not point an auditor at a tracing backend, and do not send OTel spans to a `DecisionSink` ([Cloud adapter](/docs/adapters/cloud)).
 
 ## permdock/otel
 
@@ -181,53 +154,11 @@ const permdock = withOtel(await createPermDock(policy, user), { tracer, meter })
 
 ## Problem Details
 
-HTTP adapters answer a denied `assert` with `403 application/problem+json` per [RFC 9457](/docs/standards/problem-details). The body is generated from the `Decision`:
-
-```json
-{
-  "type": "https://permdock.dev/problems/denied",
-  "title": "Permission denied",
-  "status": 403,
-  "detail": "post.delete was denied for the current subject.",
-  "instance": "/posts/42",
-  "permission": "post.delete",
-  "scope": "post:delete",
-  "resource": { "type": "post", "id": "42" },
-  "denials": [
-    { "role": "member", "reason": "condition" }
-  ],
-  "alternatives": ["post.read", "post.update"]
-}
-```
-
-```json
-{
-  "type": "https://permdock.dev/problems/approval-required",
-  "title": "Approval required",
-  "status": 403,
-  "detail": "post.delete requires human approval.",
-  "permission": "post.delete",
-  "scope": "post:delete",
-  "resource": { "type": "post", "id": "42" },
-  "reason": "human",
-  "token": "pd1.…"
-}
-```
-
-```json
-{
-  "type": "https://permdock.dev/problems/validation",
-  "title": "Invalid resource data",
-  "status": 400,
-  "permission": "post.update",
-  "resource": { "type": "post" },
-  "issues": [{ "path": ["authorId"], "message": "Expected string, received number" }]
-}
-```
+HTTP adapters answer a denied `assert` with `403 application/problem+json` per [RFC 9457](/docs/standards/problem-details), generated from the `Decision`. The `denied`, `approval-required` and `validation` bodies are on [wire formats](/docs/concepts/wire-formats#problem-details).
 
 Rules the adapters follow:
 
-- `type` is a stable URI per outcome (the base URI above is a placeholder until the docs domain is final). `title` is constant per `type`; `detail` is human-readable and may vary.
+- `type` is a stable URI per outcome under `https://permdock.dev/problems`; the server kernel's `problem.base` option replaces the base. `title` is constant per `type`; `detail` is human-readable and may vary.
 - The extension members `permission`, `scope`, `resource`, `denials`, `alternatives`, `reason`, `token` and `issues` are the machine-readable part. Their names match the `Decision` and the audit event, so a client library can parse all three with one type.
 - `approval-required` is a 403 with its own `type`, not a 401 and not a 202: the request was understood and refused pending a human. The client retries with a `PermDock-Approval: <token>` header once the request is approved in the store ([approvals](/docs/security/approvals)).
 - The body never contains the policy, the closure source, or another subject's data. `denials` names roles the subject holds, which the subject already knows.
@@ -247,11 +178,3 @@ Model-readable text: the `detail` strings are written for an LLM as much as for 
 | How often is `post.delete` denied per adapter? | The `permdock.checks` counter |
 | Why is this page slow? | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint |
 | What changed in who can do what? | `permdock usage` and the policy matrix snapshot in `@permdock/testing`, in review |
-
-## Open questions
-
-- The Problem Details base URI.
-- The `permdock/otel` entry point shape (`withOtel` above is a placeholder) and the `on('error')` event for failing handlers; the plan only fixes "span per check".
-- Whether `on('decision')` should also fire for client-side snapshot evaluations (useful for UX analytics, noisy for audit); the current design emits only on the server and on the endpoint.
-- Whether `permdock/otel` should emit a log record per denial in addition to the span, for backends that index logs but not spans.
-- The CSV export's exact column set and whether it follows an existing access-review template (Vanta's and Drata's importers differ); decided when the Cloud export ships.

@@ -3,9 +3,6 @@ title: doctor
 description: "Diagnose a PermDock installation: server-only imports in client entries, unknown references, ungranted permissions, stale catalogs, roles or tenants read from unverified claims, missing skills and the TypeScript version."
 ---
 
-Status: shipped
-Phase: 1
-
 `permdock doctor` runs every check PermDock knows how to make about a repository and prints a report with a fix for each finding. It is the first command an agent runs after wiring PermDock and the last one before opening a pull request. Findings have stable codes so skills and CI can reference them.
 
 ## Usage
@@ -34,7 +31,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD009` | Duplicate `permdock` copies in the dependency tree | error |
 | `PD010` | Roles or tenant read from an unverified or user-editable claim | error |
 | `PD011` | Tenant read from an optional claim under a multi-tenant issuer | warning |
-| `PD012` | OpenAPI document or Overlay pinned to a draft revision the installed CLI no longer emits | warning |
+| `PD012` | OpenAPI document or Overlay pinned to a draft revision the installed CLI does not emit | warning |
 | `PD013` | Polymorphic `EdDSA` in a JWT `algorithms` list instead of `Ed25519` | warning |
 | `PD014` | `discovery` issuer mismatch, plain-HTTP issuer, or `jwks` without `issuer` | error |
 | `PD015` | Token verification that does not check `typ`, or `accept: 'id-token'` on an API route | warning |
@@ -73,11 +70,11 @@ Reads the resolved `typescript` version and compares it with the supported matri
 
 ### PD008: reserved identifiers
 
-Public exports named `dock`, `ability`, a `can` that defines rather than checks, or `$`-prefixed members in modules that import `permdock`. Enforces the [naming convention](/docs/decisions/0005-naming-convention) in userland code where a skill would otherwise learn the wrong names.
+Public exports named `dock`, `ability`, a `can` that defines rather than checks, or `$`-prefixed members in modules that import `permdock`. Enforces the [naming convention](/docs/getting-started/naming) in userland code where a skill would otherwise learn the wrong names.
 
 ### PD009: duplicate copies
 
-Two versions of `permdock` in `node_modules` are not a correctness problem for references (identity is by key, [0008](/docs/decisions/0008-plain-json-leaves-identity-by-key)) but are for types and bundle size; reported with the two paths.
+Two versions of `permdock` in `node_modules` are not a correctness problem for references (identity is by key, [permissions](/docs/concepts/permissions)) but are for types and bundle size; reported with the two paths.
 
 ### PD010: roles or tenant from an unverified claim
 
@@ -89,7 +86,7 @@ Fires when `claims.tenant` names a claim the issuer emits only for some accounts
 
 ### PD012: stale draft pin
 
-Reads `x-permdock-catalog.drafts` from every OpenAPI document and Overlay `permdock openapi` has written in the repository (found through the `openapi` section of the config or the paths passed to `--doc`) and compares each pin with the revision the installed CLI emits ([OpenAPI 3.3](/docs/standards/openapi-3-3), [ADR 0025](/docs/decisions/0025-draft-protocol-posture)). A mismatch means the document carries an older draft shape than a regeneration would produce, which is a warning here and an error in `permdock openapi emit --check`; the fix is to regenerate. Documents and Overlays without `drafts` (targets `3.1` and `3.2`, Overlay `1.1`) are not checked; a `--overlay 1.2` Overlay carries `drafts.overlay` ([OpenAPI Overlay](/docs/standards/openapi-overlay)).
+Reads `x-permdock-catalog.drafts` from every OpenAPI document and Overlay `permdock openapi` has written in the repository (found through the `openapi` section of the config or the paths passed to `--doc`) and compares each pin with the revision the installed CLI emits ([OpenAPI 3.3](/docs/standards/openapi), [watch list](/docs/standards/watch-list)). A mismatch means the document carries an older draft shape than a regeneration would produce, which is a warning here and an error in `permdock openapi emit --check`; the fix is to regenerate. Documents and Overlays without `drafts` (targets `3.1` and `3.2`, Overlay `1.1`) are not checked; a `--overlay 1.2` Overlay carries `drafts.overlay` ([OpenAPI Overlay](/docs/standards/openapi-overlay)).
 
 ### PD013: polymorphic `EdDSA`
 
@@ -105,7 +102,7 @@ Warns when a custom `TokenVerifier` passed as `verifier` does not declare `typ` 
 
 ### PD016: RLS opaque grants and unverified twins
 
-Warns when `permdock.config.ts` has an `rls` block whose policy still contains `opaque` conditions (they deny in memory; map the helper through `rls.functions` or rewrite as `sqlFunction`) or `sqlFunction` grants with no `rls.fixtures.json` (or `rls.fixtures`) so `permdock rls verify --db` cannot prove the twin. See [0043](/docs/decisions/0043-sql-functions-as-portable-conditions) and [rls](/docs/cli/rls).
+Warns when `permdock.config.ts` has an `rls` block whose policy still contains `opaque` conditions (they deny in memory; map the helper through `rls.functions` or rewrite as `sqlFunction`) or `sqlFunction` grants with no `rls.fixtures.json` (or `rls.fixtures`) so `permdock rls verify --db` cannot prove the twin. See [conditions](/docs/concepts/conditions) and [rls](/docs/cli/rls).
 
 ## Example report
 
@@ -116,7 +113,7 @@ permdock doctor
            fix: move the check into a Server Component or import from 'permdock/react'
   ✖ PD004  permissions.catalog.json is stale (post.publish added)
            fix: pnpm exec permdock collect
-  ⚠ PD005  skill wire-permdock@0.1.0 installed, 0.2.0 available
+  ⚠ PD005  skill wire-permdock@0.1.0 installed, 0.1.1 available
            fix: pnpm exec permdock skills install
 
   2 errors, 1 warning
@@ -135,11 +132,6 @@ Loads the policy and warns on each `allow` whose action is in the sensitive list
 ### PD019: JWT-mode authorize() with long-lived tokens
 
 With `rls.rbac.authorize: 'jwt'`, Postgres reads roles from the access token, so a revoked role keeps working until the token expires. The check reads `[auth] jwt_expiry` from `supabase/config.toml` (default 3600) and warns when it exceeds an hour while the policy grants a verb from `doctor.sensitiveActions`. Fix it with `authorize: 'database'` or a shorter expiry.
-
-## Open questions
-
-- Whether `doctor` should compare shipped `permdock` exports against the documented adapter pages once the docs app exists (a "docs drift" check for maintainers).
-- Detection of client roots for frameworks without a convention (plain Vite, Solid Start) may need a `doctor.clientEntries` config option.
 
 ## Related
 

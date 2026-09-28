@@ -10,6 +10,7 @@
     "authentication",
     "decisions",
     "snapshots",
+    "streams",
     "validation",
     "audit-and-observability",
     "extension-interfaces",

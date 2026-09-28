@@ -100,6 +100,7 @@ describe('coverage edges', () => {
       {
         sink,
         actor: { id: 'c1', kind: 'oauth-client' },
+        delegation: { authorizationDetails: [{ type: 'post' }] },
         session: 's1',
         expiresAt: 9_999_999_999,
       },
@@ -758,7 +759,7 @@ describe('coverage edges', () => {
     });
     expect(() => parseSnapshot([])).toThrow(/must be an object/);
     expect(() =>
-      parseSnapshot({ v: 2, nested: { __proto__: {} } }),
+      parseSnapshot({ v: 1, nested: { __proto__: {} } }),
     ).not.toThrow();
     const hashed = bytesToBase64Url(sha256('hello'));
     expect(hashed.length).toBeGreaterThan(10);

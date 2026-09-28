@@ -255,13 +255,13 @@ describePolicy(orgPolicy, {
 });
 
 describe('snapshotFixture', () => {
-  it('returns snapshot v3 JSON', async () => {
+  it('returns snapshot JSON', async () => {
     const snapshot = await snapshotFixture(policy, {
       id: 'u1',
       orgId: 'o1',
       roles: ['member'],
     });
-    expect(snapshot.v).toBe(3);
+    expect(snapshot.v).toBe(1);
     expect(snapshot.roles).toContain('member');
   });
 
@@ -276,7 +276,7 @@ describe('snapshotFixture', () => {
         tenant: 'o1',
       },
     );
-    expect(snapshot.v).toBe(3);
+    expect(snapshot.v).toBe(1);
     expect(snapshot.simulated).toBe(true);
   });
 });
@@ -358,6 +358,40 @@ describePolicy(policy, {
   },
 });
 
+describePolicy(policy, {
+  exhaustive: false,
+  options: { actor: { id: 'agent-1', kind: 'ai-sdk' } },
+  subjects: { admin: { id: 'u2', orgId: 'o1', roles: ['admin'] } },
+  fixtures: { ownPost },
+  matrix: {
+    [permissions.post.read.key]: {
+      ownPost: {
+        admin: { outcome: 'denied', denials: [{ reason: 'no-delegation' }] },
+      },
+    },
+  },
+});
+
+describePolicy(policy, {
+  exhaustive: false,
+  options: {
+    delegation: {
+      authorizationDetails: [
+        { type: 'post', actions: ['read'], identifier: 'someone-else' },
+      ],
+    },
+  },
+  subjects: { admin: { id: 'u2', orgId: 'o1', roles: ['admin'] } },
+  fixtures: { ownPost },
+  matrix: {
+    [permissions.post.read.key]: {
+      ownPost: {
+        admin: { outcome: 'denied', denials: [{ reason: 'not-delegated' }] },
+      },
+    },
+  },
+});
+
 describe('conformance runners', () => {
   testLimitStore(memoryLimitStore());
 
@@ -416,7 +450,7 @@ describe('conformance runners', () => {
 
   testSnapshotSource({
     get: () => ({
-      v: 2,
+      v: 1,
       issuedAt: 1,
       subject: { principal: null, context: {} },
       roles: [],
@@ -554,6 +588,7 @@ describePolicy(selectorPolicy, {
     agent: {
       principal: { id: 'u1', assurance: { acr: 'mfa' } },
       actor: { id: 'agent', kind: 'mcp-client' },
+      delegation: { scopes: [selectorPermissions.post.publish.scope] },
       context: {},
     },
   },

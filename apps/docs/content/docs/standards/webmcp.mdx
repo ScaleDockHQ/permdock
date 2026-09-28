@@ -3,10 +3,7 @@ title: WebMCP
 description: How permdock/webmcp registers browser-exposed tools through document.modelContext only when the client snapshot allows them, and how WebMCP hints and Permissions-Policy fit in.
 ---
 
-Status: shipped
-Phase: 2
-Draft posture: build (pinned to the W3C Web Machine Learning CG draft as shipped in Chrome 150, `document.modelContext`; pin recorded on the [WebMCP adapter](/docs/adapters/webmcp), per [ADR 0025](/docs/decisions/0025-draft-protocol-posture))
-Adapter phases: `permdock/webmcp` 2.
+Draft posture: build (pinned to the W3C Web Machine Learning CG draft as shipped in Chrome 150, `document.modelContext`; pin recorded on the [WebMCP adapter](/docs/adapters/webmcp), per [watch list](/docs/standards/watch-list))
 
 ## What it is
 
@@ -52,6 +49,9 @@ What `registerTools` does:
 - Sets `readOnlyHint` for actions marked read-only in the action metadata (`read`, `list`) and leaves it unset for mutations.
 - Sets `untrustedContentHint` when the resource carries user-generated fields, or when configured explicitly, so the agent does not treat tool output as instructions.
 - Passes the caller's `AbortSignal` through and additionally aborts and re-registers when the snapshot changes (`usePermDock().status` moving to `stale` and back to `ready`), so revoked permissions disappear from the tool list without a reload.
+- Registers an instance action once, taking the resource `id` as an argument that the `data` resolver loads at call time, never one tool per visible row.
+- Skips any permission whose status is `pending` or `server-only`, so a tool is registered only when the snapshot can answer for it.
+- Returns `approval-required` as a structured tool result carrying the `token` and an `elicitation: { mode: 'approval', token }` hint; the browser has no elicitation channel, so the page renders its own approval UI.
 - Does nothing when `document.modelContext` is undefined and no polyfill is present; `permdock doctor` reports the missing Permissions-Policy header if the page is served without `tools`.
 
 ## Mapping table
@@ -76,9 +76,3 @@ What `registerTools` does:
 - [Chrome WebMCP documentation](https://developer.chrome.com/docs/ai/webmcp).
 - [WebMCP in Chrome 150: `navigator.modelContext` deprecation](https://byteiota.com/webmcp-chrome-150-navigator-modelcontext-deprecation/).
 - Product plan, "Standards and agent runtimes (Sept 2026)" and the `permdock/webmcp` API sketch.
-
-## Open questions
-
-- Whether instance-level tools should be registered per visible resource (one tool per post) or once with an `id` argument checked at call time; the latter is smaller but the snapshot can only answer it when a `data` resolver is supplied.
-- How `approval-required` surfaces inside a page: the browser has no elicitation channel, so the handler likely returns a structured refusal with the token and the page renders its own approval UI.
-- Whether the adapter should refuse to register mutating tools when `usePermDock().status` is `pending` or `server-only`, or register them and rely on the server check.

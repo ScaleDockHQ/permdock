@@ -40,7 +40,7 @@ export type ServerPermDockOptions<TUser = unknown> = {
   readonly store?: ApprovalStore;
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
-  /** Ends or revalidates open connections (ADR 0052); never a decision input. */
+  /** Ends or revalidates open connections; never a decision input. */
   readonly revocations?: RevocationFeed;
   /**
    * `createPermDock` from `permdock/pdp`: `protect` then decides delegated
@@ -137,7 +137,7 @@ export type ServerPermDock = {
     ) => T | null | undefined | Promise<T | null | undefined>,
     protectOptions?: ProtectOptions,
   ) => (request: Request) => Promise<Guard<T>>;
-  /** A long-lived connection for a stream or socket opened by `request` (ADR 0052). */
+  /** A long-lived connection for a stream or socket opened by `request`. */
   readonly connection: <T = unknown>(
     request: Request,
     options?: ConnectionOptions<T>,

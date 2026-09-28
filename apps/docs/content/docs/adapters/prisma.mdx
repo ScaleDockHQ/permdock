@@ -3,14 +3,11 @@ title: Prisma
 description: permdock/prisma compiles portable conditions to Prisma where inputs with toWhere, fails closed with an empty OR when nothing is granted, and targets Prisma 8 native policy blocks for RLS generation.
 ---
 
-Status: shipped
-Phase: 3
-
 `permdock/prisma` turns `permdock.where(permission)` into a Prisma `WhereInput` for the matching model. When no grant applies it returns `{ OR: [] }`, the fail-closed shape CASL established, and it ships a client extension that keeps that shape effective across all query types. For RLS, `permdock rls generate --target prisma` emits Prisma 8 `policy_*` blocks so the same conditions are enforced in the database.
 
 ## Purpose
 
-Prisma has no server-side row filter unless the database enforces one, so list queries must carry the permission filter in `where`. `@casl/prisma` showed the working pattern and its pitfalls: `accessibleBy` returns `{ OR: [] }` when nothing is allowed, but Prisma did not reliably treat an empty `OR` as always-false ([prisma#17367](https://github.com/prisma/prisma/issues/17367)), so `createCaslExtension` rewrites any `where` containing it into `{ ...where, OR: [], AND: [where] }` ([CASL research](/docs/research/casl-v7)). PermDock adopts the same fail-closed behaviour and adds the Prisma 8 native RLS target introduced in July 2026 ([changelog](https://www.prisma.io/changelog/2026-07-17)).
+Prisma has no server-side row filter unless the database enforces one, so list queries must carry the permission filter in `where`. `@casl/prisma` showed the working pattern and its pitfalls: `accessibleBy` returns `{ OR: [] }` when nothing is allowed, but Prisma did not reliably treat an empty `OR` as always-false ([prisma#17367](https://github.com/prisma/prisma/issues/17367)), so `createCaslExtension` rewrites any `where` containing it into `{ ...where, OR: [], AND: [where] }` ([landscape](/docs/research/landscape)). PermDock adopts the same fail-closed behaviour and adds the Prisma 8 native RLS target ([changelog](https://www.prisma.io/changelog/2026-07-17)).
 
 ## API
 
@@ -81,7 +78,7 @@ policy_update post_update_member {
 ## How denials surface
 
 - Not granted: an empty result set. As with Drizzle, run `assert(permissions.post.list)` first when the API should answer `403` instead of an empty list; `{ OR: [] }` alone cannot distinguish forbidden from not found ([CASL #794](https://github.com/stalniy/casl/issues/794), [#404](https://github.com/stalniy/casl/issues/404)).
-- Writes: `updateMany` / `deleteMany` with `{ OR: [] }` affect zero rows; single-record `update` / `delete` should be preceded by `assert(permissions.post.update, post)` because Prisma's unique-where does not accept the filter.
+- Writes: `updateMany` / `deleteMany` with `{ OR: [] }` affect zero rows; single-record `update` / `delete` should be preceded by `assert(permissions.post.update, post)` because Prisma's unique-where does not accept the filter. The extension wraps only `findMany`, `findFirst`, `count`, `aggregate`, `updateMany` and `deleteMany`; `findUnique` is left alone, so a unique lookup is guarded by `assert` on the loaded row.
 - Non-portable grant: `PermDockValidationError` at compile time.
 - In RLS mode: policies filter (`USING`) or raise `42501` (`WITH CHECK`), which Prisma surfaces as a known request error; `permdock rls verify` maps both to `filtered` / `rejected`.
 
@@ -94,10 +91,4 @@ policy_update post_update_member {
 - [Postgres RLS](/docs/standards/postgres-rls): policy semantics behind the `policy_*` blocks.
 - [Conditions](/docs/concepts/conditions): the operator set and the flattening rule.
 - [RLS adapter](/docs/adapters/rls): `generate --target prisma`, `import`, `verify`.
-- [Research: CASL v7](/docs/research/casl-v7): `accessibleBy`, `{ OR: [] }`, `createCaslExtension`.
-
-## Open questions
-
-- How to type `toWhere` without importing `@prisma/client` in the adapter, given Prisma 7 and 8 custom output paths. Callers pass `toWhere<Prisma.PostWhereInput>(...)`.
-- Whether the extension should also guard `findUnique` by throwing when `{ OR: [] }` would be the only filter (unique lookups ignore it).
-- Prisma 8 policy syntax is new; the exact quoting and `roles` shape will be pinned once `permdock rls generate --target prisma` ships.
+- [Landscape](/docs/research/landscape): CASL's `accessibleBy`, `{ OR: [] }` and `createCaslExtension`.

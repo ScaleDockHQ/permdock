@@ -3,9 +3,6 @@ title: Node http
 description: permdock/node wraps the Fetch kernel for raw node:http handlers (IncomingMessage and ServerResponse) and for any framework not covered by a dedicated adapter.
 ---
 
-Status: shipped
-Phase: 2
-
 ## Purpose
 
 Some services run on `node:http` directly, on a framework without a PermDock adapter (Koa, Polka, h3), or on a custom server. `permdock/node` converts `IncomingMessage` / `ServerResponse` to the Fetch `Request` / `Response` pair the [server kernel](/docs/adapters/server-kernel) expects, and exposes the kernel's `permdock`, `protect` and `problem` in a callback shape. It is also the conversion layer the [Express](/docs/adapters/express) and [Nest](/docs/adapters/nest) adapters reuse. Runtimes that already expose Fetch handlers (Bun, Deno, Workers, `srvx`) should use `permdock/server` directly.
@@ -46,22 +43,14 @@ createServer(async (req, res) => {
 
 ## Request lifecycle
 
-1. `permdock(req)` converts and resolves the subject once; subsequent calls with the same `req` return the same instance.
-2. `protect` loads data, validates untrusted input, decides, and hands back either the instance and data or a ready `Response`.
-3. The handler writes its own response or forwards the kernel's through `send`. A PermDock error thrown by `assert` has no framework hook to catch it: wrap the handler and send `problemFromError(error)` from `permdock/server` when it returns a `Response`.
-4. Decisions are emitted through `on('decision')` with method and URL path.
+`permdock/node` follows the [shared adapter contract](/docs/adapters) through the [server kernel](/docs/adapters/server-kernel). What differs on raw `node:http`:
 
-The conversion is intentionally lazy. Headers, method and URL are copied when `permdock(req)` is first called; an unread body is exposed as a pull stream (`highWaterMark: 0`) on the Fetch `Request` and only read when a loader or the decision endpoint consumes it, so a body parser that runs later still sees every byte. A parsed `req.body` (Express, Nest) is reused instead of re-reading the stream. A missing `Host` header falls back to `localhost` and does not throw.
+- `permdock(req)` memoises on `req`, so later calls with the same request return the same instance.
+- A PermDock error thrown by `assert` has no framework hook to catch it: wrap the handler and `send` the result of `problemFromError(error)` from `permdock/server` when it returns a `Response`.
+- The conversion is lazy. Headers, method and URL are copied when `permdock(req)` is first called; an unread body is exposed as a pull stream (`highWaterMark: 0`) on the Fetch `Request` and only read when a loader or the decision endpoint consumes it, so a body parser that runs later still sees every byte. A parsed `req.body` (Express, Nest) is reused instead of re-reading the stream. A missing `Host` header falls back to `localhost` and does not throw.
+- `permdockHandler()` validates decision-endpoint bodies against the AuthZEN `evaluations` schema.
 
-## What it validates
-
-- Untrusted loader results and JSON bodies against the resource schema under `validate: 'boundary'`. Body parsing is only performed when a loader or the decision endpoint asks for it.
-- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
-- The `Host` header when constructing the Fetch `Request` URL; a missing header uses `localhost`.
-
-## How denials surface
-
-`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation failures; `401` plus `WWW-Authenticate` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+Denials are the kernel's Problem Details responses, written through `send`.
 
 ## Example app
 

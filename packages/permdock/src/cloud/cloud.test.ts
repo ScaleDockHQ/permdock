@@ -11,7 +11,7 @@ import { cloud } from './create.ts';
 const CLOUD_URL = 'https://cloud.permdock.test';
 const KEY = 'env-key';
 const SNAPSHOT: Snapshot = {
-  v: 2,
+  v: 1,
   issuedAt: 1,
   subject: { principal: { id: 'u_1', roles: ['member'] }, context: {} },
   roles: ['member'],
@@ -328,14 +328,14 @@ describe('cloud', () => {
     expect(expired).toBeGreaterThanOrEqual(1);
   });
 
-  it('resumes a v2 approval once through the Cloud store', async () => {
+  it('resumes an approval once through the Cloud store', async () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
       fetch: fakeCloud().fetch,
     });
     const request: ApprovalRequest = {
-      v: 2,
+      v: 1,
       token: 'pd1.v2',
       permission: 'post.delete',
       scope: 'post:delete',

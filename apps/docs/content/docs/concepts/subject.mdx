@@ -3,7 +3,7 @@ title: Subject
 description: A subject is a principal, an optional actor and the authority delegated between them; a decision is principal grants intersected with delegation.
 ---
 
-Who is asking? In a classic web app the answer is "the logged-in user". In 2026 the answer is often "an agent, acting for a user, with a token that lets it do part of what the user can". PermDock models both with one subject type: a `principal` (the human or service whose grants apply), an optional `actor` (the agent doing the asking) and a `delegation` (the authority the principal handed to the actor). A decision is the principal's grants intersected with the delegated authority, so an agent can never exceed its user ([ADR 0012](/docs/decisions/0012-two-principal-subject)).
+Who is asking? In a classic web app the answer is "the logged-in user". In 2026 the answer is often "an agent, acting for a user, with a token that lets it do part of what the user can". PermDock models both with one subject type: a `principal` (the human or service whose grants apply), an optional `actor` (the agent doing the asking) and a `delegation` (the authority the principal handed to the actor). A decision is the principal's grants intersected with the delegated authority, so an agent can never exceed its user.
 
 ## Shape
 
@@ -39,7 +39,7 @@ type Assurance = { acr?: string; amr?: string[]; authTime?: number }          //
 type Binding = { jkt?: string; 'x5t#S256'?: string; jwk?: JsonWebKey; kid?: string }   // the RFC 7800 `cnf` members, verbatim
 ```
 
-Field names follow one rule ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)): where a specification names the concept, PermDock uses that name or maps to it exactly once, in the "Spec names" table on [naming](/docs/getting-started/naming). `id`, `issuer`, `expiresAt`, `actor`, `delegation.scopes` and `authorizationDetails` are the camelCase spellings of `sub`, `iss`, `exp`, `act`, `scope` and `authorization_details`; `assurance` and `binding` carry the claims' own member names inside.
+Field names follow one rule: where a specification names the concept, PermDock uses that name or maps to it exactly once, in the "Spec names" table on [naming](/docs/getting-started/naming). `id`, `issuer`, `expiresAt`, `actor`, `delegation.scopes` and `authorizationDetails` are the camelCase spellings of `sub`, `iss`, `exp`, `act`, `scope` and `authorization_details`; `assurance` and `binding` carry the claims' own member names inside.
 
 ```ts
 const permdock = await createPermDock(policy, user)                        // human or service: principal only
@@ -71,7 +71,7 @@ The `principal` may be a service account. A cron job or a backend-to-backend cal
 
 When `subject` returns `null` the principal is anonymous. Anonymous has no roles, so with the default policy every check is `denied` with reason `anonymous`, and `assert` narrows nothing. The granted branch of a `Decision` types `subject.principal` as non-null, which is how `assert` gives you a narrowed subject for the rest of the handler (Kilpi's `Grant(subject)` trick, carried through RSC and client types where Kilpi loses it).
 
-`can` on an anonymous `PermDock` still works and still returns `false`; it never throws.
+`can` on an anonymous `PermDock` still works and still returns `false`; it never throws. The one way to grant to anonymous callers is `to: anyone()`, the only selector that matches a `null` principal; there is no magic `anonymous` role ([policies](/docs/concepts/policies)).
 
 ## Context
 
@@ -105,13 +105,13 @@ The actor identifies the agent. It has an `id` and a `kind` plus whatever the ad
 | `permdock/a2a` | `'a2a-agent'` | the calling Agent Card identity | A2A `securitySchemes` on the authenticated extended card |
 | none | absent | absent | a plain human or service request |
 
-This table is the closed list of `actor.kind` values; the transaction-token and SPIFFE recipes below add `'workload'`, and the agent-runtime adapters add their own name (`'eve'`, `'openai-agent'`, `'claude-agent'`, `'terminal'`) on their pages. An adapter adds its row here before using a new value ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)).
+This table is the closed list of `actor.kind` values; the transaction-token and SPIFFE recipes below add `'workload'`, and the agent-runtime adapters add their own name (`'eve'`, `'openai-agent'`, `'claude-agent'`, `'terminal'`) on their pages. An adapter adds its row here before using a new value.
 
 The actor appears on every decision and audit event so you can answer "which agent did this, for whom". The actor never has grants of its own; only the principal has roles.
 
 ## Delegation
 
-Delegation is the authority the principal has given the actor. Two carriers are understood today:
+Delegation is the authority the principal has given the actor. Two carriers are understood:
 
 ### OAuth scopes
 
@@ -129,11 +129,11 @@ Rich Authorization Requests carry structured objects instead of flat scopes. Per
 }
 ```
 
-`permissions.post.update` carries an `authorizationDetails` type that says which fields may appear (`type` from the resource, `actions` from the action, `identifier` from the resource `id` field, optional `locations`). A decision on `post_456` with the object above is `denied` with reason `not-delegated`. See [OAuth agent delegation](/docs/standards/oauth-agent-delegation).
+`permissions.post.update` carries an `authorizationDetails` type that says which fields may appear (`type` from the resource, `actions` from the action, `identifier` from the resource `id` field, optional `locations`). A decision on `post_456` with the object above is `denied` with reason `not-delegated`. For a collection action the object has no `identifier`. See [OAuth agent delegation](/docs/standards/oauth-agent-delegation).
 
 ### Delegation chains
 
-The Agent Delegation Chain and Credential Delegation drafts describe tokens that attenuate across agent hops. PermDock accepts the chain as opaque `delegation.chain` today and leaves verification to the token layer; Phase 4 may verify monotonic attenuation in core. See the open questions.
+The Agent Delegation Chain and Credential Delegation drafts describe tokens that attenuate across agent hops. PermDock accepts the chain as opaque `delegation.chain` and leaves verification of monotonic attenuation to the token layer; core never inspects the chain.
 
 ### Example: an MCP server
 
@@ -167,20 +167,20 @@ The WIMSE architecture treats workloads as principals in their own right: a work
 
 **Transaction tokens.** Inside a trust domain, the [OAuth Transaction Tokens draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) propagates the original user, the workload chain and an authorization context (`azd`) through every hop of a call chain. PermDock maps them as: the token's subject is the `principal` (the user the transaction is for, or the originating workload); each workload in the chain is recorded as `actor` with `kind: 'workload'`; `azd` is merged into `principal.context` so conditions can reference values the first hop asserted. The `aud` of a transaction token is the trust domain, and `permdock/jwt` checks it like any audience.
 
-**SPIFFE SVIDs as actor material.** When a workload calls with a user's delegated token (a backend-for-frontend forwarding a user request, a job running under an OBO token) it is an actor, and its [SPIFFE](https://spiffe.io/docs/latest/spiffe-about/overview/) identity is the verified material for that half: the X.509-SVID presented over mTLS, or a JWT-SVID in a header, yields `actor: { id: '<spiffe id>', kind: 'workload' }` while the principal comes from the user token. Verification of the SVID is upstream (the mesh, the TLS terminator or the SPIRE Workload API), the same rule as every other token ([authentication](/docs/concepts/authentication)); PermDock reads the result. This is a recipe over `permdock/jwt` and the server kernel, not an adapter, and it is scheduled with the other workload rows in Phase 4 ([watch list](/docs/standards/watch-list)).
+**SPIFFE SVIDs as actor material.** When a workload calls with a user's delegated token (a backend-for-frontend forwarding a user request, a job running under an OBO token) it is an actor, and its [SPIFFE](https://spiffe.io/docs/latest/spiffe-about/overview/) identity is the verified material for that half: the X.509-SVID presented over mTLS, or a JWT-SVID in a header, yields `actor: { id: '<spiffe id>', kind: 'workload' }` while the principal comes from the user token. Verification of the SVID is upstream (the mesh, the TLS terminator or the SPIRE Workload API), the same rule as every other token ([authentication](/docs/concepts/authentication)); PermDock reads the result. This is a recipe over `permdock/jwt` and the server kernel, not an adapter ([watch list](/docs/standards/watch-list)).
 
 **Why a workload is a principal and an agent is an actor.** The distinction is whose authority applies. A nightly report job runs under its own grants; nobody delegated anything to it, so it is a principal. An MCP client, an AI SDK agent or a Web Bot Auth signer exercises a *user's* authority under a delegation, so it is an actor and the user is the principal. The same binary can be both on different requests: a workload is a principal when it runs its own schedule and an actor when it calls with a user's delegated token. What decides is the token, not the process.
 
 ## Binding
 
-Sender-constrained tokens carry a `cnf` claim (RFC 7800) that binds the token to a key the presenter must prove it holds. PermDock keeps that binding on the subject as the `cnf` object itself, member names unchanged, so it round-trips into signed outputs and into a verifier in another language without translation ([ADR 0026](/docs/decisions/0026-spec-aligned-naming)):
+Sender-constrained tokens carry a `cnf` claim (RFC 7800) that binds the token to a key the presenter must prove it holds. PermDock keeps that binding on the subject as the `cnf` object itself, member names unchanged, so it round-trips into signed outputs and into a verifier in another language without translation:
 
 ```ts
 binding: { jkt: 'NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs' }          // DPoP, RFC 9449: JWK thumbprint of the proof key
 binding: { 'x5t#S256': 'A4DtL2JmUMhAsvJj5tKyn64SqzmuXbMrJa0n761y5v0' }   // mTLS, RFC 8705: certificate thumbprint
 ```
 
-- The method is implied by the member: `jkt` is DPoP, `x5t#S256` is mTLS; `jwk` and `kid` are accepted for RFC 7800 completeness but no adapter verifies them today. An object with none of the four members is not a binding and is dropped.
+- The method is implied by the member: `jkt` is DPoP, `x5t#S256` is mTLS; `jwk` and `kid` are accepted for RFC 7800 completeness but no adapter verifies them. An object with none of the four members is not a binding and is dropped.
 - It sits on `principal` when the token identifies a user or workload acting for itself, and on `actor` when the token carries an `act` chain (the key belongs to the presenting agent).
 - **Core does not check it.** Proof-of-possession needs the HTTP request (the `DPoP` header) or the TLS client certificate, which core never sees. The check belongs to the adapter that has the request: `verifyDpopProof(request, claims)` in `permdock/jwt`, or the mTLS thumbprint comparison in the server kernel. A failed check yields the anonymous subject, so the binding never reaches core in an unverified state.
 - It appears on `on('decision')` events and OTel spans (the `cnf` member and its value) so an audit can prove that a decision was made for a token bound to a specific key. It is not included in snapshots.
@@ -222,11 +222,3 @@ Put in the principal only what conditions reference and what you are willing to 
 | Display names, avatars, emails | Nowhere | The provider owns them; conditions do not need them |
 
 Provider mappers (`subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromJwt`) fill the first four rows from verified material and expose a `schema` option for custom claims, typed from its output ([extension interfaces](/docs/concepts/extension-interfaces)). `PrincipalOf<typeof policy>` is the resulting type.
-
-## Open questions
-
-- Whether delegation-chain verification (monotonic attenuation across hops) belongs in core or stays in the token layer.
-- The exact `authorization_details` mapping when a permission is a collection action with no `identifier`.
-- Whether `actor` should be allowed to carry its own roles for service accounts that call on their own behalf, or whether such calls should simply use the service as `principal` (the current design).
-- Whether a principal has a home tenant distinct from its memberships (cross-tenant guests), see [tenancy](/docs/concepts/tenancy).
-- How anonymous principals receive grants, if at all (see [policies](/docs/concepts/policies)).

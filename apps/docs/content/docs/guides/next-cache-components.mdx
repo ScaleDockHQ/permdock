@@ -7,7 +7,21 @@ This guide builds permission UI for a multi-org SaaS on Next.js 16.3 with `cache
 
 The approach is proven end to end by `tests/e2e/fixtures/next-saas` and `tests/e2e/src/next-saas.spec.ts`, which run `@next/playwright` `instant()` against `next start`. Every claim on this page is one of that spec's scenarios.
 
-PermDock adds no cache directives and never calls `cookies()` or `headers()`. The app owns every `'use cache'`, `cacheLife` and `cacheTag`; PermDock supplies pure functions to call inside them ([ADR 0049](/docs/decisions/0049-cache-components-building-blocks)).
+PermDock adds no cache directives and never calls `cookies()` or `headers()`. The app owns every `'use cache'`, `cacheLife` and `cacheTag`; PermDock supplies pure functions to call inside them.
+
+## Why this shape
+
+On an instant route, anything that reads `cookies()` or `headers()` has three legal places: inside a `'use cache: private'` scope whose `stale` is long enough for the output to join the App Shell, behind a Suspense boundary so the shell paints first and the region streams, or on a segment that exports `instant = false`. A library that resolves the user at the top of every layout forces the third option everywhere, and a client hook that suspends on a network decision flashes a fallback in every guarded region.
+
+PermDock avoids both because the per-user result of a policy is a JSON snapshot carrying portable conditions ([snapshots](/docs/concepts/snapshots)). It changes rarely, is small when scoped, fits a private cache, and has a tag to bust it. That rules out a few designs:
+
+- No `setup()` in a layout and no mutable global `ready` flag; the layout stays synchronous.
+- No boolean-only hydration: the snapshot carries the `where` conditions, so `usePermission(permissions.post.update, post)` answers ownership locally for a post the server never saw.
+- No hook that throws a promise. `usePermission()` returns `{ allowed, status }` with `status` one of `ready`, `pending`, `stale` or `server-only`. A closure grant the snapshot cannot answer goes to the `permdockHandler()` decision endpoint, batched and deduped, and arrives as `ready` later without blocking navigation.
+- No class instances across the RSC boundary: the snapshot and the permission leaves are plain JSON props.
+- Data-dependent checks (`getPermission(permissions.post.update, post)`) run in a Server Component under Suspense; `getPermDock()` is memoised per request with `React.cache`, so a layout and a page share one instance.
+
+No route needs `instant = false` for authorization; it stays the framework's escape hatch for pages that read a cookie outside both a private cache and Suspense.
 
 ## The four layers
 
@@ -186,5 +200,4 @@ Run against `next build && next start` with `experimental.exposeTestingApiInProd
 - [Snapshots](/docs/concepts/snapshots)
 - [Supabase provider](/docs/adapters/supabase)
 - [rls](/docs/cli/rls)
-- [Next.js 16.3 instant navigation research](/docs/research/nextjs-16-3-instant-navigation)
-- [ADR 0049](/docs/decisions/0049-cache-components-building-blocks)
+- [Next.js 16.3 release post](https://nextjs.org/blog/next-16-3) and [Instant Navigation guide](https://nextjs.org/docs/app/guides/instant-navigation)

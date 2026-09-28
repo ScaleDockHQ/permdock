@@ -22,7 +22,7 @@ export default function ComparePage() {
         description="Libraries that share a problem space, hosted PDPs that sit on the wire, and policy languages with their own schemas. The full write-up is in the docs."
         primary={{ href: '/docs/comparison', label: 'Full comparison' }}
         secondary={{
-          href: '/docs/research/commercial-landscape',
+          href: '/docs/research/landscape',
           label: 'Landscape',
         }}
         features={[

@@ -5,7 +5,7 @@ import { parseSnapshot } from './snapshot.ts';
 
 const fixture = JSON.parse(
   readFileSync(
-    new URL('../../fixtures/snapshot-v2.json', import.meta.url),
+    new URL('../../fixtures/snapshot.json', import.meta.url),
     'utf8',
   ),
 ) as unknown;
@@ -22,13 +22,13 @@ describe('parseSnapshot', () => {
     expect(Object.isFrozen(input.grants)).toBe(false);
   });
 
-  it('accepts snapshot v2 fixtures and rejects unknown majors and unsafe keys', () => {
-    expect(parseSnapshot(fixture).v).toBe(2);
-    expect(parseSnapshot(JSON.stringify(fixture)).v).toBe(2);
+  it('accepts the snapshot fixture and rejects unknown majors and unsafe keys', () => {
+    expect(parseSnapshot(fixture).v).toBe(1);
+    expect(parseSnapshot(JSON.stringify(fixture)).v).toBe(1);
     expect(() => parseSnapshot({ v: 9 })).toThrow(
       /unsupported snapshot version/,
     );
-    expect(() => parseSnapshot({ v: 2, constructor: {} })).toThrow(
+    expect(() => parseSnapshot({ v: 1, constructor: {} })).toThrow(
       /unsafe snapshot key/,
     );
   });

@@ -24,7 +24,7 @@ const proof = [
     icon: <PuzzleIcon aria-hidden="true" />,
   },
   {
-    title: 'Docs and ADRs',
+    title: 'Docs-first',
     description: 'The product plan is the docs tree, not a slide deck.',
     icon: <BookOpenIcon aria-hidden="true" />,
   },

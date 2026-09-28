@@ -155,13 +155,11 @@ export function testDecisionSink(sink: DecisionSink): void {
 }
 
 export function testSnapshotSource(source: SnapshotSource): void {
-  it('round-trips snapshot v2', async () => {
+  it('round-trips a snapshot', async () => {
     const snapshot = await source.get();
     expect(snapshot === null || snapshot === undefined).toBe(false);
     if (typeof snapshot === 'object' && snapshot !== null && 'v' in snapshot) {
-      expect(snapshot.v === 1 || snapshot.v === 2 || snapshot.v === 3).toBe(
-        true,
-      );
+      expect(snapshot.v).toBe(1);
     }
     if (source.subscribe !== undefined) {
       const unsubscribe = source.subscribe(() => undefined);
@@ -172,7 +170,7 @@ export function testSnapshotSource(source: SnapshotSource): void {
 
 function sampleApproval(token: string): ApprovalRequest {
   return {
-    v: 2,
+    v: 1,
     token,
     permission: 'post.delete',
     scope: 'post:delete',
@@ -558,7 +556,7 @@ export function testTokenSigner(
 ): void {
   it('emits compact JWS with only alg, kid and typ', async () => {
     const token = await signer.sign(
-      { snapshot: { v: 2 }, sub: 'u_1' },
+      { snapshot: { v: 1 }, sub: 'u_1' },
       { typ: 'permdock-snapshot+jwt', audience: 'https://app.example.com' },
     );
     const header = decodeHeader(token);

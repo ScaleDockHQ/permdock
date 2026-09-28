@@ -1,10 +1,8 @@
 ---
 title: NestJS
-description: permdock/nest provides a module, a guard and a Protect decorator so Nest controllers get a request-scoped PermDock over the Express platform adapter.
+description: permdock/nest provides a module, a guard and a Protect decorator so Nest controllers get a request-scoped PermDock on the Express or Fastify platform.
 ---
 
-Status: shipped
-Phase: 2
 Requires: `@nestjs/common` 12, `@nestjs/core` 12 and `@nestjs/platform-express` 12
 
 ## Purpose
@@ -58,7 +56,7 @@ export class PostsController {
 
 ### Gateways
 
-`connection(client, req, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for a gateway client (typed `NestSocket`: a Socket.IO socket or a raw `ws` socket), memoised per client ([0052](/docs/decisions/0052-streams-and-sockets)). When it aborts, the client receives `permdock:error` with the Problem Details and is disconnected, or a raw socket is closed with `1008`. `PermDockGuard` on a `@SubscribeMessage` handler with `Protect` metadata checks each message through the client's connection: a `null` loader result is a `404` problem, a denial the usual Problem Details, and the connection stays open. Pass `revocations` to `PermDockModule`.
+`connection(client, req, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for a gateway client (typed `NestSocket`: a Socket.IO socket or a raw `ws` socket), memoised per client. When it aborts, the client receives `permdock:error` with the Problem Details and is disconnected, or a raw socket is closed with `1008`. `PermDockGuard` on a `@SubscribeMessage` handler with `Protect` metadata checks each message through the client's connection: a `null` loader result is a `404` problem, a denial the usual Problem Details, and the connection stays open. Pass `revocations` to `PermDockModule`.
 
 ```ts
 @WebSocketGateway()
@@ -74,20 +72,12 @@ export class ProjectsGateway implements OnGatewayConnection, OnGatewayDisconnect
 
 ## Request lifecycle
 
+`permdock/nest` follows the [shared adapter contract](/docs/adapters) through the [server kernel](/docs/adapters/server-kernel). What differs on Nest:
+
 1. `PermDockGuard` runs for every HTTP route; it converts the platform request, calls `subject(request)` once, builds the instance for the tenant the `tenant` option reads from the routed request, and caches it on the request object. Both `@nestjs/platform-express` and `@nestjs/platform-fastify` are supported: the guard reads the parsed body or the raw stream of either, and the filter and decision controller write through a `ServerResponse` or a `FastifyReply`. Another platform fails loudly with a `TypeError` naming both.
-2. If the handler or class carries `Protect` metadata, the guard runs the loader, validates untrusted input, and decides. Denials throw before the handler executes.
+2. If the handler or class carries `Protect` metadata, the guard runs the loader, validates untrusted input after Nest's own `ValidationPipe` has run, and decides. Denials throw before the handler executes. A `Protect` decorator referencing a permission from a different definition than the module's policy is a type error.
 3. Handlers receive the instance through `@InjectPermDock()` and may call `assert`, `filter` or `where`.
-4. `PermDockExceptionFilter` renders by transport: HTTP gets Problem Details; a `ws` client with `emit` receives an `exception` event carrying `status: 'error'`, the title and the Problem Details body; other transports get the exception rethrown to their own filters.
-
-## What it validates
-
-- Untrusted loader results and bodies against the resource schema under `validate: 'boundary'`, after Nest's own `ValidationPipe` has run.
-- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
-- Metadata: a `Protect` decorator referencing a permission from a different definition than the module's policy is a type error.
-
-## How denials surface
-
-`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation failures; `401` plus `WWW-Authenticate` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+4. `PermDockExceptionFilter` renders by transport: HTTP gets the kernel's Problem Details; a `ws` client with `emit` receives an `exception` event carrying `status: 'error'`, the title and the Problem Details body; other transports get the exception rethrown to their own filters.
 
 ## Example app
 
@@ -97,4 +87,4 @@ export class ProjectsGateway implements OnGatewayConnection, OnGatewayDisconnect
 
 ## Related standards
 
-- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2).
+- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi).

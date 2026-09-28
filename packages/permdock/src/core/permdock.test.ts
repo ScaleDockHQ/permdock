@@ -15,6 +15,7 @@ import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from './errors.ts';
+import { fromSnapshot } from './from-snapshot.ts';
 import { memoryRoleSource } from './interfaces.ts';
 import { createPermDock } from './permdock.ts';
 import { definePermissions, resource } from './permissions.ts';
@@ -149,17 +150,17 @@ describe('createPermDock', () => {
     expect(snapshot.simulated).toBe(true);
   });
 
-  it('builds snapshot v3 and parses it', async () => {
+  it('builds a snapshot and parses it', async () => {
     const permdock = await dock(memberUser);
     const snapshot = permdock.snapshot({ include: [permissions.post] });
     if (snapshot instanceof Promise) {
       throw new Error('expected json snapshot');
     }
-    expect(snapshot.v).toBe(3);
+    expect(snapshot.v).toBe(1);
     expect(
       snapshot.grants.every((grant) => grant.permission.startsWith('post')),
     ).toBe(true);
-    expect(parseSnapshot(JSON.stringify(snapshot)).v).toBe(3);
+    expect(parseSnapshot(JSON.stringify(snapshot)).v).toBe(1);
   });
 
   it('signs snapshots when a signer is passed', async () => {
@@ -236,6 +237,54 @@ describe('createPermDock', () => {
     if (denied.outcome === 'denied') {
       expect(denied.denials[0]?.reason).toBe('not-delegated');
     }
+  });
+
+  it('denies an actor that arrives with no delegation', async () => {
+    const agent = { id: 'agent-1', kind: 'ai-sdk' };
+    for (const delegation of [undefined, {}]) {
+      const permdock = await createPermDock(policy, {
+        principal: { id: 'u1', roles: ['admin'] },
+        context: {},
+        actor: agent,
+        ...(delegation === undefined ? {} : { delegation }),
+      });
+      const denied = permdock.decide(permissions.post.read, ownPost);
+      expect(denied.outcome).toBe('denied');
+      if (denied.outcome === 'denied') {
+        expect(denied.denials[0]?.reason).toBe('no-delegation');
+      }
+      expect(permdock.snapshot().grants.length).toBeGreaterThan(0);
+      expect(
+        fromSnapshot(permdock.snapshot()).can(permissions.post.read, ownPost),
+      ).toBe(false);
+    }
+    const human = await createPermDock(policy, {
+      principal: { id: 'u1', roles: ['admin'] },
+      context: {},
+    });
+    expect(human.can(permissions.post.read, ownPost)).toBe(true);
+  });
+
+  it('binds an authorization details identifier to one resource', async () => {
+    const permdock = await createPermDock(policy, {
+      principal: { id: 'u1', roles: ['admin'] },
+      context: {},
+      delegation: {
+        authorizationDetails: [
+          { type: 'post', actions: ['read'], identifier: ownPost.id },
+        ],
+      },
+    });
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
+    const other = permdock.decide(permissions.post.read, {
+      ...ownPost,
+      id: 'p9',
+    });
+    expect(other.outcome).toBe('denied');
+    if (other.outcome === 'denied') {
+      expect(other.denials[0]?.reason).toBe('not-delegated');
+    }
+    expect(permdock.can(permissions.post.list)).toBe(false);
   });
 
   it('treats a thenable closure as closure-error', async () => {

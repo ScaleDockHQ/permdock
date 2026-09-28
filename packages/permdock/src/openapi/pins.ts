@@ -9,4 +9,4 @@ export const PROFILE_NAMES = {
 } as const;
 
 export const GNAP_RESERVED =
-  "scheme.type 'gnap' is reserved and emits nothing. See https://permdock.dev/docs/standards/gnap";
+  "scheme.type 'gnap' is reserved and emits nothing. See https://permdock.dev/docs/standards/watch-list#gnap";

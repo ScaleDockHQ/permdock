@@ -3,9 +3,6 @@ title: Claude Agent SDK
 description: permdock/claude-agent answers Claude Agent SDK canUseTool callbacks and PermissionRequest hooks from PermDock decisions, mapping built-in tools such as Bash to typed permissions.
 ---
 
-Status: shipped
-Phase: 1
-
 `permdock/claude-agent` plugs PermDock into the two permission surfaces of the Claude Agent SDK: the `canUseTool` callback that runs before every tool invocation, and the `PermissionRequest` hook that fires when the SDK is about to ask a human. Both are answered from one `Decision`, so the same policy that guards an HTTP route decides whether an agent may run a shell command.
 
 ## Purpose
@@ -23,6 +20,7 @@ const PostArgs = z.object({ id: z.string() }) // tool input arrives as `unknown`
 const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => currentUser,
   actor: () => ({ id: 'claude-agent', kind: 'claude-agent' }),
+  delegation: () => ({ scopes: [permissions.post.read.scope, permissions.post.update.scope] }),
   tools: {
     Bash:  { permission: permissions.shell.run,   data: (input) => ({ command: input.command }) },
     Write: { permission: permissions.file.write,  data: (input) => ({ path: input.file_path }) },
@@ -41,7 +39,7 @@ query({
 ```
 
 - `tools` keys are SDK tool names, including built-ins (`Bash`, `Read`, `Write`, `Edit`, `WebFetch`) and MCP tools by their prefixed name. Each entry names a permission and, for instance-level actions, a `data` resolver that turns the tool input into the resource shape the permission's schema expects.
-- `subject` and `actor` are resolved once per `query` unless they are functions of the call context; `delegation` can be supplied when the host holds scoped credentials for the agent.
+- `subject` and `actor` are resolved once per `query` unless they are functions of the call context; `delegation` states what the user handed the agent (the scopes of scoped credentials, or the permissions the host chooses) and has no default: an `actor` with no `delegation` is denied every tool with reason `no-delegation`.
 - `canUseTool` and `permissionRequestHook` are ready to pass to the SDK and take its real shapes: `canUseTool(toolName, input, { signal, mcpServer, agentID, toolUseID })` and the `PermissionRequest` hook input (`hook_event_name`, `session_id`, `agent_id`, `tool_name`, `tool_input`, `mcp_server`). The hook returns `{}` for any other event.
 - `mcpSources` (default `['sdk']`) lists the MCP server sources whose tools are trusted. An `mcp__` tool is denied when the SDK reports no server provenance, when the server's `source` is not listed, or when the tool name does not start with `mcp__<server name>__`; trust keys on the source, never on the name alone.
 - `store` (an `ApprovalStore`), `sink`, `limits`, `memberships`, `customRoles` and `tenant` behave as on every adapter.
@@ -56,7 +54,7 @@ query({
 
 | Decision outcome | `canUseTool` result |
 |---|---|
-| `granted` | allow, with the (possibly normalised) input |
+| `granted` | allow, with the input passed back unchanged as `updatedInput` |
 | `denied` | deny, with a message built from denials and alternatives |
 | `approval-required` | deny, with a message naming the permission, the resource and `Approval <token> is pending; retry the call once it is approved.`; the pending request is written to the `store` |
 
@@ -77,6 +75,8 @@ query({
 - `approval-required` is a deny whose message tells the model the call is waiting for approval and carries the token, so the model can tell the user and retry instead of treating it as a final refusal.
 - Errors thrown by a `data` resolver or by the policy are caught, logged through `on('decision')` and reported as a deny; the agent loop never receives an unhandled exception from the permission layer.
 - There is no pass-through or default-allow mode; the SDK's own permission modes remain in force on top of PermDock's answer.
+- PermDock never rewrites tool input. Forcing a `cwd` for `Bash` or similar is host code, and a `shell.run` resource schema is defined by the application; the entry ships no built-in tool schemas.
+- A pending approval lives in the `store`, so with a durable `ApprovalStore` it survives a restarted session: the retried call recomputes the same token and finds the record.
 
 ## Example app
 
@@ -88,10 +88,3 @@ query({
 - [Delegation](/docs/security/delegation): the agent as `actor`, principal grants intersected with delegated authority.
 - [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse, least agency.
 - [MCP authorization](/docs/standards/mcp-authorization): for MCP tools reached through the Claude Agent SDK.
-
-## Open questions
-
-- The exact SDK return shapes for allow, deny and ask are tracked against the current Claude Agent SDK release; the adapter will pin a minimum SDK version.
-- Whether the adapter should support `updatedInput` rewriting (for example, forcing `cwd` for `Bash`) as a grant option, or leave rewriting to the host.
-- Whether a `shell.run` resource schema should ship as a helper for common built-in tools, or stay app-defined.
-- Whether `PermissionRequest` decisions should be persisted so an approval survives a restarted session (cf. `WorkflowAgent` durable suspend in the AI SDK adapter).

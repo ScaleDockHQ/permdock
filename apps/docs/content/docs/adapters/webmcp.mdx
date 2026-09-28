@@ -3,8 +3,6 @@ title: WebMCP
 description: permdock/webmcp registers browser-exposed WebMCP tools only for actions the current snapshot allows, with hints from action metadata and automatic unregistration when permissions change.
 ---
 
-Status: shipped
-Phase: 2
 Pinned: Chrome 150 `document.modelContext` (W3C WebML CG draft)
 
 `permdock/webmcp` is the client-side twin of [permdock/mcp](/docs/adapters/mcp). A page calls `registerTools` with a permission group and the snapshot-backed `PermDock` from `usePermDock()`; the adapter registers one WebMCP tool per allowed action on `document.modelContext`, sets tool hints from action metadata, and unregisters tools whenever the snapshot changes.
@@ -40,17 +38,17 @@ function PostTools() {
 ```
 
 - `registerTools(modelContext, permissionGroup, options)` walks the group (`permissions.post` is a resource node; a nested group such as `permissions.billing` is also accepted) and registers a tool per action for which `permdock.can(permission)` (collection) or a grant exists (instance actions) in the snapshot.
-- Tool names are derived from the permission key (`post.update` becomes `post_update`); `title` and `description` come from action metadata when actions are declared as a record.
+- Tool names are derived from the permission key with dots replaced by underscores (`post.update` becomes `post_update`), which fits WebMCP tool-name constraints; `title` and `description` come from action metadata when actions are declared as a record.
 - `readOnlyHint` is `true` for actions tagged read-only in metadata (default for `read` and `list`); `untrustedContentHint` is `true` for tools that return user-generated content, also from metadata.
 - The resource schema becomes the tool `inputSchema` through Standard JSON Schema (`schema['~standard'].jsonSchema.input({ target: 'draft-2020-12' })`) for instance actions; collection actions use the schema declared in metadata or accept no input. A schema without a converter becomes `{ type: 'object' }`.
 - Each handler receives `{ input, token }` (`WebMcpToolCall`): the validated arguments with the tenant key bound, and the decision token to send as `PermDock-Approval` so the server re-checks the same decision.
-- `signal` unregisters everything on abort; the adapter also aborts and re-registers internally when the snapshot changes (role change, tenant switch through `useTenant().switchTo`, `invalidate`, SSF event). Re-registration reads the store's current instance, not the object passed as `permdock`, so an effect that runs once still sees later snapshots.
-- `tenant` (optional) registers tools against `permdock.tenant(id)` instead of the active tenant, for a page that shows another organisation's workspace. Tool descriptions include the tenant's `meta.title` from the snapshot when one is present so a browser agent can tell two workspaces apart; the tenant id itself is never a tool argument the agent may set ([tenancy](/docs/concepts/tenancy)). A snapshot with `simulated: true` registers no tools at all.
+- `registerTools` takes one group per call; several calls that share one `AbortController` share one abort scope. `signal` unregisters everything on abort; the adapter also aborts and re-registers internally when the snapshot changes (role change, tenant switch through `useTenant().switchTo`, `invalidate`, SSF event). Re-registration reads the store's current instance, not the object passed as `permdock`, so an effect that runs once still sees later snapshots.
+- `tenant` (optional) registers tools against `permdock.tenant(id)` instead of the active tenant, for a page that shows another organisation's workspace. Tool descriptions include the tenant's `meta.title` from the snapshot when one is present so a browser agent can tell two workspaces apart; the tenant id itself is never a tool argument the agent may set ([tenancy](/docs/concepts/tenancy)). A multi-tenant page registers one tool set for the active tenant and re-registers on a switch, never one suffixed set per tenant. A snapshot with `simulated: true` registers no tools at all.
 
 ## Request lifecycle
 
 1. Mount: the component reads the snapshot-backed `PermDock` and calls `registerTools`.
-2. Registration: for each action in the group, the adapter evaluates the snapshot and registers only allowed tools, carrying hints and JSON Schema input.
+2. Registration: for each action in the group, the adapter evaluates the snapshot and registers only allowed tools, carrying hints and JSON Schema input. An instance action with a `where` condition registers when a grant exists and has its condition checked against the input at call time.
 3. Agent call: the browser agent invokes a tool. The adapter validates the input against the resource schema (boundary mode), re-checks `permdock.decide(permission, input)` against the current snapshot, then calls the app handler.
 4. Server enforcement: the handler calls the app's API, where a server adapter (`permdock/next`, `permdock/hono`) makes the authoritative decision. The client check is a filter for good UX, never the security boundary.
 5. Snapshot change: `usePermDock()` re-renders with a new snapshot; the adapter aborts the previous registrations and repeats step 2.
@@ -73,7 +71,7 @@ function PostTools() {
 
 ## Example app
 
-`apps/examples/webmcp`: a Vite React app at `http://127.0.0.1:3484/` with `post` tools registered from a Snapshot v3. The in-memory tool list includes snapshot-allowed tools and excludes `post_publish`. `tests/e2e` smokes it with Playwright. Serve the page with a `Permissions-Policy: tools=*` header when using a native or polyfill `document.modelContext`.
+`apps/examples/webmcp`: a Vite React app at `http://127.0.0.1:3484/` with `post` tools registered from a snapshot. The in-memory tool list includes snapshot-allowed tools and excludes `post_publish`. `tests/e2e` smokes it with Playwright. Serve the page with a `Permissions-Policy: tools=*` header when using a native or polyfill `document.modelContext`.
 
 ## Related standards
 
@@ -81,11 +79,3 @@ function PostTools() {
 - [Standard Schema](/docs/standards/standard-schema): input schemas via Standard JSON Schema.
 - [Snapshots](/docs/concepts/snapshots): what the client knows and when it changes.
 - [MCP adapter](/docs/adapters/mcp): the server-side counterpart.
-
-## Open questions
-
-- Naming: `post_update` versus `post.update` as the tool name, depending on WebMCP name constraints.
-- Whether instance actions with `where` conditions should register with a description that states the condition ("only your own posts") or register only when the condition can be evaluated client-side.
-- How approvals should be presented in a page with no host UI for confirmation; the polyfill and native implementations may differ.
-- Whether `registerTools` should accept multiple groups in one call to share a single abort scope.
-- Whether a multi-tenant page should register one tool set per tenant with a suffix (`post_update__acme`) or, as documented, one set for the active tenant that re-registers on switch.

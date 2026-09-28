@@ -162,6 +162,7 @@ describe('grantee selectors', () => {
       { id: 'u1', plans: ['pro'] },
       {
         actor: { id: 'agent', kind: 'mcp-client' },
+        delegation: { authorizationDetails: [{ type: 'post' }] },
       },
     );
     expect(dock.can(permissions.post.update, row)).toBe(true);
@@ -207,7 +208,7 @@ describe('grantee selectors', () => {
   });
 });
 
-describe('principal refs and snapshot v3', () => {
+describe('principal refs and snapshots', () => {
   it('evaluates principal.id in where', async () => {
     const policy = definePolicy(permissions, {
       principal: () => ({ id: 'u1', roles: ['member'] }),
@@ -223,7 +224,7 @@ describe('principal refs and snapshot v3', () => {
     expect(dock.can(permissions.post.update, row)).toBe(true);
   });
 
-  it('emits snapshot v3 with grant.to and vocabulary', async () => {
+  it('emits a snapshot with grant.to and vocabulary', async () => {
     const policy = definePolicy(
       { permissions, roles, plans },
       {
@@ -240,13 +241,13 @@ describe('principal refs and snapshot v3', () => {
     if (snapshot instanceof Promise) {
       throw new Error('expected json snapshot');
     }
-    expect(snapshot.v).toBe(3);
+    expect(snapshot.v).toBe(1);
     expect(snapshot.grants[0]?.to).toMatchObject({
       kind: 'role',
       role: 'owner',
     });
     expect(snapshot.vocabulary?.roles?.owner?.key).toBe('owner');
-    expect(parseSnapshot(snapshot).v).toBe(3);
+    expect(parseSnapshot(snapshot).v).toBe(1);
   });
 });
 

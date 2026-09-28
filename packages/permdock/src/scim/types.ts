@@ -129,7 +129,7 @@ export type ScimHandlerOptions = {
   readonly onChange?: (change: DirectoryChange) => void | Promise<void>;
   /**
    * Publishes `changed` for each affected user's id, `externalId` and
-   * `userName`, so open connections revalidate their memberships (ADR 0052).
+   * `userName`, so open connections revalidate their memberships.
    */
   readonly revocations?: RevocationFeed;
   readonly onUnknownRole?: (name: string) => void;

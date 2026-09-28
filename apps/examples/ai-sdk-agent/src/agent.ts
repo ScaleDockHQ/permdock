@@ -7,6 +7,9 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
   createPermDock(policy, {
     subject: () => memberUser,
     actor: () => ({ id: 'agent-1', kind: 'ai-sdk' }),
+    delegation: () => ({
+      scopes: [permissions.post.list.scope, permissions.post.delete.scope],
+    }),
     tools: {
       list_posts: {
         permission: permissions.post.list,

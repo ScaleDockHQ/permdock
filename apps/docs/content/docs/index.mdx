@@ -6,21 +6,33 @@ description: Typed permissions for TypeScript apps, APIs, databases, and AI agen
 PermDock lets you define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have, grant them to roles with portable conditions, and check them in React, React Native, Next.js, Hono, tRPC and MCP servers. The same conditions compile to SQL `where` clauses and Postgres Row Level Security policies, and the same decision object drives tool approvals in the Vercel AI SDK and the Claude Agent SDK.
 
 ```ts
-import { definePermissions, resource, definePolicy, role, allow, subject, createPermDock } from 'permdock'
+import {
+  definePermissions,
+  defineRoles,
+  resource,
+  crud,
+  definePolicy,
+  role,
+  allow,
+  principal,
+  createPermDock,
+} from 'permdock'
 
 export const permissions = definePermissions({
-  post: resource(Post, { id: 'id', actions: ['read', 'update', 'delete'], collection: ['create', 'list'] }),
+  post: resource(Post, crud({ id: 'id' })),
 })
 
-export const policy = definePolicy(permissions, {
+export const roles = defineRoles({ member: {} })
+
+export const policy = definePolicy({ permissions, roles }, {
   roles: [
-    role('member', [
+    role(roles.member, [
       allow(permissions.post.read),
       allow(permissions.post.create),
-      allow(permissions.post.update, { where: { authorId: subject.id } }),
+      allow(permissions.post.update, { where: { authorId: principal.id } }),
     ]),
   ],
-  subject: (user: User | null) => user && { id: user.id, roles: user.roles },
+  principal: (user: User | null) => user && { id: user.id, roles: user.roles },
 })
 
 const permdock = await createPermDock(policy, user)
@@ -42,11 +54,8 @@ permdock.decide(permissions.post.delete, post) // { outcome: 'granted' | 'denied
 
 - [Installation](/docs/getting-started/installation) and the [quick start](/docs/getting-started/quick-start).
 - [Larger apps](/docs/getting-started/larger-apps): define per feature, merge centrally, generate from RLS or OpenAPI.
-- [Adapters](/docs/adapters): one page per framework, runtime and data layer, each with its status and phase; includes [your own CLI](/docs/adapters/terminal).
+- [Adapters](/docs/adapters): one page per framework, runtime and data layer; includes [your own CLI](/docs/adapters/terminal).
 - [Standards](/docs/standards), the [standards watch list](/docs/standards/watch-list) and [security](/docs/security/threat-model).
 - [Comparison](/docs/comparison) with CASL, Kilpi, permix, Cedar, OPA, the Zanzibar family and hosted PDPs, with a pick-by-use-case guide.
-- [Research](/docs/research/landscape) and [decision records](/docs/decisions/0001-greenfield-mit) explaining why PermDock looks the way it does.
-
-## Status
-
-PermDock is in Phase 4. `permdock`, `@permdock/cli` and `@permdock/testing` are released as `0.1.0`: the core, every Phase 1–3 adapter, the CLI, the `toWhere` compilers, the RLS generator and the providers are shipped. External AuthZEN certification is the remaining `1.0` gate. Every adapter and standards page carries a `Status` and `Phase` line. See the [roadmap](/docs/roadmap).
+- [Research](/docs/research/landscape): the libraries and products PermDock learned from. Design rationale lives in the Why section of each concept and adapter page.
+- [Roadmap](/docs/roadmap): what the baseline contains, what is planned, and the open questions.

@@ -34,7 +34,7 @@ function subject(id: string, tenant?: string): Subject {
 
 function pending(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
   return {
-    v: 2,
+    v: 1,
     token: 'pd1.token-1',
     permission: 'post.delete',
     scope: 'post:delete',
@@ -165,7 +165,7 @@ describe('request and resume helpers', () => {
     );
     expect(recorded.status).toBe('pending');
     expect(recorded.token).toBe('pd1.abc');
-    expect(recorded.v).toBe(2);
+    expect(recorded.v).toBe(1);
 
     const pendingInspect = await inspectApproval(store, 'pd1.abc');
     expect(pendingInspect.ok).toBe(false);
@@ -272,7 +272,7 @@ describe('request and resume helpers', () => {
     expect(expired).toEqual({ ok: false, detail: 'approval-expired' });
   });
 
-  it('records grant approvers and the subject session on v2 requests', async () => {
+  it('records grant approvers and the subject session on requests', async () => {
     const store = memoryApprovalStore();
     const recorded = await requestApproval(
       store,
@@ -302,7 +302,7 @@ describe('request and resume helpers', () => {
         },
       },
     );
-    expect(recorded.v).toBe(2);
+    expect(recorded.v).toBe(1);
     expect(recorded.approvers).toEqual({
       by: { kind: 'role', role: 'admin', scope: 'tenant' },
       distinct: true,

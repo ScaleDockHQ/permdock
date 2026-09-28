@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AgentDb } from '../support/agents.ts';
 
 import {
+  agentDelegation,
   agentSubject,
   agentTools,
   projectLoader,
@@ -155,6 +156,7 @@ async function dock(): Promise<EvePermDock> {
     subject: ({ session: current }) =>
       agentSubject({ user: current?.auth?.initiator?.principalId }),
     tenant: TENANT,
+    delegation: agentDelegation,
     tools: agentTools(rows.load),
     store: await db.openStore(),
   });

@@ -3,10 +3,7 @@ title: Extension interfaces
 description: The fixed set of interfaces through which providers, verifiers, signers, stores, sinks and compilers plug into PermDock (SubjectResolver, TokenVerifier, TokenSigner, MembershipSource, RoleSource, DirectoryStore, ApprovalStore, DecisionSink, SnapshotSource, LimitStore, ReplayStore, RevocationFeed, WhereCompiler, on() events), their trust classes, the in-process default each ships with, how provider principal types are extended without global augmentation, and the conformance runners in @permdock/testing.
 ---
 
-Status: proposed ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships), [ADR 0022](/docs/decisions/0022-approvals-are-pluggable), [ADR 0026](/docs/decisions/0026-spec-aligned-naming))
-Phase: 1 (interfaces, defaults, runners), 2 to 4 (implementations)
-
-PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-not-plugin)). What it has instead is a short list of interfaces, each with one job, one trust class and one in-process default, passed explicitly to `createPermDock`. A provider (Supabase, Clerk, Better Auth), a store (Postgres, Redis, PermDock Cloud), a sink (OpenTelemetry, a SIEM) or a compile target (Drizzle, MongoDB, a sync engine) implements one of them; nothing else can reach the evaluator. This page is the list. If an integration needs something not on it, that is an ADR, not a new option.
+PermDock has no plugin system. What it has instead is a short list of interfaces, each with one job, one trust class and one in-process default, passed explicitly to `createPermDock`. A provider (Supabase, Clerk, Better Auth), a store (Postgres, Redis, PermDock Cloud), a sink (OpenTelemetry, a SIEM) or a compile target (Drizzle, MongoDB, a sync engine) implements one of them; nothing else can reach the evaluator. This page is the list. If an integration needs something not on it, that is an RFC-lite issue and a change to this page, not a new option.
 
 ## The interfaces
 
@@ -17,17 +14,17 @@ PermDock has no plugin system ([ADR 0006](/docs/decisions/0006-explicit-factory-
 | `TokenSigner` | Produce compact JWS for PermDock's own outputs (snapshots, approval tokens, decision exports) | Operational: signs what core already computed; never influences an outcome | None in core (type only); `joseTokenSigner` in `permdock/jwt` | A KMS or HSM signer, `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)) |
 | `MembershipSource` | Add tenant, team and resource memberships to a principal | Subject input | What `subject` and `context` returned | Provider mappers, your `document_members` table |
 | `RoleSource` | Resolve tenant-defined custom roles to declared roles; list assignable roles | Subject input | `memoryRoleSource(customRoles)` | Better Auth `organizationRole`, Supabase `role_permissions`, WorkOS, Clerk, Auth0 organisation roles, your table |
-| `DirectoryStore` | Hold the users, groups and memberships an identity provider provisions over SCIM; read back by `directoryMembershipSource` | Subject input, write side: what `scimHandler` writes becomes memberships | `memoryDirectoryStore()` in `permdock/scim` | Your `scim_users` / `scim_groups` tables over Drizzle, Prisma or Kysely ([SCIM adapter](/docs/adapters/scim)); never PermDock Cloud |
+| `DirectoryStore` | Hold the users, groups and memberships an identity provider provisions over SCIM; read back by `directoryMembershipSource` | Subject input, write side: what `scimHandler` writes becomes memberships | `memoryDirectoryStore()` in `permdock/scim` | Your `scim_users` / `scim_groups` tables over Drizzle, Prisma or Kysely ([SCIM adapter](/docs/adapters/scim)); never PermDock Cloud (a Cloud-native directory reaches you as token claims, not as a store, [PermDock Cloud](/docs/adapters/cloud)) |
 | `ApprovalStore` | Hold pending `approval-required` decisions until a human answers | Operational: never influences an outcome | `memoryApprovalStore()` | Postgres, Redis, Durable Objects, PermDock Cloud ([approvals](/docs/adapters/approvals)) |
 | `DecisionSink` | Receive decision events after the fact | Operational | `memorySink()` | OpenTelemetry, SIEMs, a table, PermDock Cloud ([audit](/docs/concepts/audit-and-observability)) |
 | `SnapshotSource` | Distribute and invalidate snapshots | Operational | In-process `snapshot()` | PermDock Cloud, your cache ([snapshots](/docs/concepts/snapshots)) |
 | `ReplayStore` | Remember SET / `logout_token` `jti` values, namespaced by issuer, so a replay is dropped. `remember(key, expiresAt?)` is additive; the optional pair `claim(key, expiresAt?)` / `release(key)` makes concurrent deliveries dispatch once | Operational: never a decision input | `memoryReplayStore()` in `permdock/ssf` (evicts on read) | Redis `SET NX EX` or a Postgres `expires_at` row; recipes on [SSF](/docs/adapters/ssf); `testReplayStore` in `@permdock/testing` |
-| `RevocationFeed` | Tell open streams and sockets that a subject changed: `subscribe(listener)` returns an unsubscribe function, `revoke({ principal, session?, tenant?, kind })` publishes. `session-revoked` ends matching connections; `changed` makes them resolve their subject again | Operational: it can end or revalidate a connection, never grant; a lost event falls back to expiry | `memoryRevocationFeed()` in `permdock` (validates and freezes events, isolates listener errors) | Postgres `LISTEN`/`NOTIFY`, Redis pub/sub or Supabase Realtime bridging `revoke` across replicas ([0052](/docs/decisions/0052-streams-and-sockets)); `testRevocationFeed` in `@permdock/testing` |
+| `RevocationFeed` | Tell open streams and sockets that a subject changed: `subscribe(listener)` returns an unsubscribe function, `revoke({ principal, session?, tenant?, kind })` publishes. `session-revoked` ends matching connections; `changed` makes them resolve their subject again | Operational: it can end or revalidate a connection, never grant; a lost event falls back to expiry | `memoryRevocationFeed()` in `permdock` (validates and freezes events, isolates listener errors) | Postgres `LISTEN`/`NOTIFY`, Redis pub/sub or Supabase Realtime bridging `revoke` across replicas; `testRevocationFeed` in `@permdock/testing` |
 | `DecisionProvider` | Answer `decide` for delegated permissions via a remote AuthZEN PDP | Decision path, opt-in, fail-closed | None; local evaluation only | `remotePdp` in `permdock/pdp` |
-| `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/local-first-sync)) |
+| `WhereCompiler<TTarget>` | Compile the portable condition AST to a query language | Pure function of the AST | The in-memory evaluator and `filter` | `permdock/drizzle`, `prisma`, `kysely`, the RLS generator; candidates for MongoDB, Zero, ElectricSQL ([local-first sync](/docs/research/ecosystem-index)) |
 | `on(event, handler)` | Observe `decision`, `denied`, `approval`, `auth` events | Observational: cannot change a `Decision` | No-op | Logging, metrics, tests |
 
-Two rules follow from the table. **Subject inputs run once per `createPermDock`**, before any check, and their output is frozen into the subject; they never run during `can` or `decide`, so a slow membership lookup costs one await per request, not one per button. **Operational interfaces never sit in the decision path**: `decide` returns before a sink is awaited, a store is consulted only on resume (and the resume re-runs `decide`), a snapshot source distributes what the in-process instance already computed, and a signer signs it afterwards (invariant 15). `permdock/cloud` implements the three operational stores and a `TokenSigner` for the snapshots it distributes, and none of the subject inputs; the Cloud's SCIM relay writes *to* an application's `DirectoryStore` through `scimHandler` and never *is* one. Core declares `TokenVerifier` and `TokenSigner` as types only, so the one runtime dependency rule ([ADR 0015](/docs/decisions/0015-no-runtime-deps-in-core)) holds: the JOSE implementation lives in `permdock/jwt` behind the optional `jose` peer.
+Two rules follow from the table. **Subject inputs run once per `createPermDock`**, before any check, and their output is frozen into the subject; they never run during `can` or `decide`, so a slow membership lookup costs one await per request, not one per button. **Operational interfaces never sit in the decision path**: `decide` returns before a sink is awaited, a store is consulted only on resume (and the resume re-runs `decide`), a snapshot source distributes what the in-process instance already computed, and a signer signs it afterwards (invariant 15). `permdock/cloud` implements the three operational stores and a `TokenSigner` for the snapshots it distributes, and none of the subject inputs; the Cloud's SCIM relay writes *to* an application's `DirectoryStore` through `scimHandler` and never *is* one. Core declares `TokenVerifier` and `TokenSigner` as types only, so the one runtime dependency rule holds: the JOSE implementation lives in `permdock/jwt` behind the optional `jose` peer.
 
 ## Subject inputs
 
@@ -41,7 +38,7 @@ interface SubjectResolver<TInput, TPrincipal extends Principal = Principal> {
 }
 ```
 
-Every `subjectFrom*` function satisfies it, and so does the `subject` function you pass to `definePolicy`. A resolver never throws: an unverifiable token, a missing session or a failed schema check yields the anonymous subject and an `on('auth')` event with the reason ([authentication](/docs/concepts/authentication)). The optional `tenant` is the active tenant the server resolved from the request; the resolver compares it against the memberships it finds and sets `principal.tenant` only on a match ([tenancy](/docs/concepts/tenancy)).
+Every `subjectFrom*` function satisfies it, and so does the `subject` function you pass to `definePolicy`. A resolver never throws: an unverifiable token, a missing session or a failed schema check yields the anonymous subject and an `on('auth')` event with the reason ([authentication](/docs/concepts/authentication)). The optional `tenant` is the active tenant the server resolved from the request; the resolver compares it against the memberships it finds and sets `principal.tenant` only on a match ([tenancy](/docs/concepts/tenancy)). A resolver never receives the request: DPoP and mTLS binding checks need it and stay in the adapter kernel that already has it.
 
 ### TokenVerifier
 
@@ -59,7 +56,7 @@ type VerifiedToken<TClaims> = { ok: true; claims: TClaims; header: { alg: string
 type VerificationFailure = { ok: false; reason: 'invalid-token'; cause: TokenFailureCause }
 ```
 
-`verify` never throws and never returns a partially verified result: signature, `alg`, `kid`, `typ`, `iss`, `aud`, `exp`, `nbf`, `iat` are all checked before `ok: true`. `TokenFailureCause` is the closed list on the [JWT adapter](/docs/adapters/jwt) behaviour table (`invalid-signature`, `expired`, `wrong-audience`, `wrong-token-type`, `alg-not-allowed`, `encrypted-token`, ...), so an `on('auth')` event has the same shape whichever verifier produced it. `subjectFromJwt` takes a `verifier`; `permdock/ssf` takes one for SETs and `logout_token`s; `SnapshotSource` consumers use one for signed snapshots. The built-in implementation is `joseTokenVerifier({ jwks | discovery, algorithms, typ, decryptionKeys })`. A verifier that calls an RFC 7662 or RFC 9767 introspection endpoint satisfies the same interface: `claims` is the introspection response, `cause` is `expired` for `active: false`.
+`verify` never throws and never returns a partially verified result: signature, `alg`, `kid`, `typ`, `iss`, `aud`, `exp`, `nbf`, `iat` are all checked before `ok: true`. `TokenFailureCause` is the closed list on the [JWT adapter](/docs/adapters/jwt) behaviour table (`invalid-signature`, `expired`, `wrong-audience`, `wrong-token-type`, `alg-not-allowed`, `encrypted-token`, ...), so an `on('auth')` event has the same shape whichever verifier produced it. `subjectFromJwt` takes a `verifier`; `permdock/ssf` takes one for SETs and `logout_token`s; `SnapshotSource` consumers use one for signed snapshots. The built-in implementation is `joseTokenVerifier({ jwks | discovery, algorithms, typ, decryptionKeys })`. A verifier that calls an RFC 7662 or RFC 9767 introspection endpoint satisfies the same interface: `claims` is the introspection response, `cause` is `expired` for `active: false`. The interface has only `verify`: the key set is the verifier's own configuration, not something `permdock doctor` reads back.
 
 ### TokenSigner
 
@@ -75,7 +72,7 @@ interface TokenSigner {
 }
 ```
 
-`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iat` and `jti` itself and copies `iss` from its configuration, so the caller only supplies the format-specific claim (`snapshot`, `approval`, `events`) and optional `aud` / `exp`. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer })`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` is the plain Snapshot v3 JSON it always was ([wire formats](/docs/concepts/wire-formats)).
+`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iat` and `jti` itself and copies `iss` from its configuration, so the caller only supplies the format-specific claim (`snapshot`, `approval`, `events`) and optional `aud` / `exp`. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer })`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` returns the plain snapshot JSON ([wire formats](/docs/concepts/wire-formats)).
 
 ### Typed provider principals
 
@@ -105,7 +102,7 @@ export const subject = subjectFromSupabase(error ? null : data.claims, {
 | `permdock/convex` | `ConvexPrincipal` | `id` (`tokenIdentifier` or `subject`), `kind` | Custom claims on the identity |
 | `permdock/mcp` | `McpPrincipal` | `id` from `authInfo`, `kind`, the `actor` and `delegation` halves | `authInfo.extra` claims |
 
-Validation failure is not a throw: the principal becomes anonymous and `on('auth')` reports `schema` as the reason, the same fail-closed rule as an invalid token. The `schema` output type is intersected with the base type, so `subject.plan` in a condition is typed and a typo is a compile error. There is no `declare module 'permdock'` augmentation and no `$Infer` accessor: augmentation types values that may not exist at runtime and cannot be validated, and an inference accessor cannot see configuration TypeScript cannot link statically ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships) alternatives).
+Validation failure is not a throw: the principal becomes anonymous and `on('auth')` reports `schema` as the reason, the same fail-closed rule as an invalid token. The `schema` output type is intersected with the base type, so `subject.plan` in a condition is typed and a typo is a compile error. There is no `declare module 'permdock'` augmentation and no `$Infer` accessor: augmentation types values that may not exist at runtime and cannot be validated, and an inference accessor cannot see configuration TypeScript cannot link statically ([tenancy](/docs/concepts/tenancy) alternatives).
 
 Two helper types cover the policy side: `PrincipalOf<typeof policy>` and `SubjectOf<typeof policy>` are the principal and subject types the policy's `subject` function produces, for use in server actions, tests and handlers without re-deriving them.
 
@@ -142,11 +139,11 @@ interface DirectoryStore {
 }
 ```
 
-`DirectoryStore` is the one exception to "a source is a query": it is a repository, because SCIM provisioning is a write. The trust rule is the same as for the other subject inputs with one refinement. Only [`scimHandler`](/docs/adapters/scim) writes to it, and only after authenticating the identity provider or the PermDock Cloud relay with a per-tenant credential; `directoryMembershipSource(store)` is the `MembershipSource` that reads it (`groupsFor`), and `decide` sees only the `Membership[]` that source returns. Every method takes the tenant first, so a store cannot answer across tenants by accident. A store that throws on read yields no memberships for that request, like any source; a store that throws on write makes the handler answer the IdP with a SCIM error and no partial state. The store lives in the application (`memoryDirectoryStore()` by default, your tables in production); PermDock Cloud relays provisioning into it and never holds the authoritative copy (invariant 15, [ADR 0027](/docs/decisions/0027-governance-first-cloud)).
+`DirectoryStore` is the one exception to "a source is a query": it is a repository, because SCIM provisioning is a write. The trust rule is the same as for the other subject inputs with one refinement. Only [`scimHandler`](/docs/adapters/scim) writes to it, and only after authenticating the identity provider or the PermDock Cloud relay with a per-tenant credential; `directoryMembershipSource(store)` is the `MembershipSource` that reads it (`groupsFor`), and `decide` sees only the `Membership[]` that source returns. Every method takes the tenant first, so a store cannot answer across tenants by accident. A store that throws on read yields no memberships for that request, like any source; a store that throws on write makes the handler answer the IdP with a SCIM error and no partial state. The store lives in the application (`memoryDirectoryStore()` by default, your tables in production); PermDock Cloud relays provisioning into it and never holds the authoritative copy (invariant 15, [PermDock Cloud](/docs/adapters/cloud)). An environment in Cloud-native directory mode has no `DirectoryStore` at all: the Cloud is the directory of record and its facts arrive as claims on a token that `subjectFromJwt` verifies, so the Cloud still implements neither `MembershipSource` nor `RoleSource`.
 
 ## Operational interfaces
 
-`ApprovalStore`, `DecisionSink` and `SnapshotSource` are defined on their own pages ([approvals](/docs/adapters/approvals), [audit and observability](/docs/concepts/audit-and-observability), [snapshots](/docs/concepts/snapshots)) and summarised here for the trust rule only. `LimitStore` is the one operational interface whose answer produces a `denied`: exhausted remaining is reason `limit`, and a missing store, a throw, or a thenable from `consume` or `remaining` is `limit-unavailable`. `can` never consumes. See [0034](/docs/decisions/0034-quota-grants).
+`ApprovalStore`, `DecisionSink` and `SnapshotSource` are defined on their own pages ([approvals](/docs/adapters/approvals), [audit and observability](/docs/concepts/audit-and-observability), [snapshots](/docs/concepts/snapshots)) and summarised here for the trust rule only. `LimitStore` is the one operational interface whose answer produces a `denied`: exhausted remaining is reason `limit`, and a missing store, a throw, or a thenable from `consume` or `remaining` is `limit-unavailable`. `can` never consumes. See [extension interfaces](/docs/concepts/extension-interfaces).
 
 ```ts
 interface LimitStore {
@@ -169,15 +166,33 @@ interface LimitStore {
 }
 ```
 
-`remaining` must be synchronous. A Promise from either method is denied, never awaited. A store counts per `subjectId` and `tenant` (the active tenant, absent without one). `per` is a duration such as `'hour'`, `'15 min'` or `'1 d'`, validated when the grant is defined ([ADR 0050](/docs/decisions/0050-client-parity-and-snapshot-scopes)); `memoryLimitStore()` forgets ended windows. Pass `limits: memoryLimitStore()` to `createPermDock`; omitting it fails closed on every quota grant.
+`remaining` must be synchronous. A Promise from either method is denied, never awaited. A store counts per `subjectId` and `tenant` (the active tenant, absent without one). `per` is a duration such as `'hour'`, `'15 min'` or `'1 d'`, validated when the grant is defined; `memoryLimitStore()` forgets ended windows. Pass `limits: memoryLimitStore()` to `createPermDock`; omitting it fails closed on every quota grant.
+
+The rules follow from synchronous evaluation. `can`, `filter`, `simulate` and an `approval-required` outcome only peek `remaining`, because UI paths call `can` on every render and consuming there would spend quota on a hover; `decide` and `assert` consume, since mutations call them. A Promise is truthy, so reading an async `consume` as a remaining count would fail open; the store is never awaited and a thenable is `limit-unavailable`. An async store (Redis, a database) sits behind a synchronous cache or implements only a synchronous `remaining` for UI peeks. Exhausted (`limit`) and store-down (`limit-unavailable`) are separate reasons so operators can tell them apart. If the first matching allow is over quota, the next matching allow is tried, as allows OR together. `limits` is never filled in automatically: a forgotten production store would otherwise count silently in process memory, and falling back to unlimited on a store failure would fail open.
+
+### PolicySource (planned)
+
+Planned, not implemented: nothing below exists in the package yet. `PolicySource` is the designed channel for grants authored in PermDock Cloud ([hostable permissions](/docs/concepts/policies)).
 
 ```ts
-interface WhereCompiler<TTarget, TOptions = unknown> {
-  (condition: PortableCondition, target: TTarget, options?: TOptions): unknown
+interface PolicySource {
+  current(): PolicyDocument | null   // synchronous: the last verified document
+  refresh(): Promise<void>           // called by the application on its own schedule
 }
 ```
 
-`toWhere` from each query adapter is a `WhereCompiler`. A compiler receives the normalised JSON tree ([conditions](/docs/concepts/conditions)), including the `memberOf` node, and must return a fail-closed value (an always-false expression, `{ OR: [] }`, `eb.lit(false)`) when the condition is the empty allow set. It never receives closures; `permdock.where` has already excluded them and set `partial`. A community compiler for a new target (MongoDB, a sync engine's permission language) implements this interface and runs `testWhereCompiler` below; it does not become a package entry without an ADR ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)).
+- `createPermDock(policy, user, { policies: source })` calls `current()` once, when the instance is created, and merges the document into that frozen instance. No check calls `refresh()` or the network, and there is no module-level policy the source swaps in the background.
+- The application calls `refresh()` on an interval, a cron or a webhook. A refresh that fails, or a document whose signature does not verify with the application's `TokenVerifier`, keeps the previous document. With no document, only code grants apply.
+- Hosted grants apply only to permissions the policy marks `hostable`, never override a code deny, and never weaken an `approval` a code grant requires; a grant outside those bounds is dropped and reported through `on('error')`.
+- The trust class is a policy input: unlike the operational interfaces it can widen an outcome, which is why it is bounded by `hostable` in code. The planned defaults are `memoryPolicySource(document)` in the package and `testPolicySource` in `@permdock/testing`.
+
+```ts
+interface WhereCompiler<TTarget, TOptions = unknown> {
+  (condition: Condition, target: TTarget, options?: TOptions): unknown
+}
+```
+
+`toWhere` from each query adapter is a `WhereCompiler`. A compiler receives the normalised JSON tree ([conditions](/docs/concepts/conditions)), including the `memberOf` node, and must return a fail-closed value (an always-false expression, `{ OR: [] }`, `eb.lit(false)`) when the condition is the empty allow set. It never receives closures; `permdock.where` has already excluded them and set `partial`. A community compiler for a new target (MongoDB, a sync engine's permission language) implements this interface and runs `testWhereCompiler` below; it does not become a package entry without a `Why` update on [adapters](/docs/adapters). `WhereCompiler` is exported from `permdock` as a type so such a compiler can be typed against it.
 
 ## Events
 
@@ -221,17 +236,10 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user |
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; a repeated `create` keeps the record; concurrent `consume` succeeds once; an approver from another tenant is refused; with `{ reopen }`, an approval resumes after a restart; the token is opaque to the store |
 | `testDecisionSink` | Accepts batches including a `membership` event; `flush` is idempotent; a throw never propagates to the caller |
-| `testSnapshotSource` | Round-trips snapshot v3 through the format schema; invalidation is observed by a subscriber |
+| `testSnapshotSource` | Round-trips a snapshot through the format schema; invalidation is observed by a subscriber |
 | `testReplayStore` | A remembered key is seen; an expired key is not; with `claim` and `release`, two concurrent claims succeed once and a released key can be claimed again |
 | `testRevocationFeed` | Every subscriber receives each event until it unsubscribes; a throwing listener does not stop the others; an event without a principal or with an unknown `kind` is rejected with a `TypeError` and delivered to no one. Delivery may be asynchronous |
 | `testLimitStore` | `consume` counts down; remaining after the cap is less than zero; `remaining` when present is not a thenable |
 | `testWhereCompiler` | The empty allow set compiles to a fail-closed value (`false` / `null` / `undefined`, or `options.isFailClosed`); adapters pass constant-false SQL, `{ OR: [] }` or `eb.lit(false)` |
 
 The runners are what the provider adapters run in this repository's CI and what a community implementation runs in its own.
-
-## Open questions
-
-- Whether `SubjectResolver` should receive the request itself (for DPoP or mTLS binding checks) or keep those in the adapter kernel that already has the request (the current design).
-- Resolved: `LimitStore` lives in core; store failure denies with `limit-unavailable` ([0034](/docs/decisions/0034-quota-grants)).
-- Whether `WhereCompiler` should be a formal export of `permdock` or stay a type the query adapters share internally until a community compiler exists.
-- Whether `TokenVerifier` should expose a `jwks()` or `keys()` accessor so `permdock doctor` can report the key set a deployment verifies against, or whether that stays specific to `joseTokenVerifier`.

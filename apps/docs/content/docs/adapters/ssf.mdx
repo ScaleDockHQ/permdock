@@ -3,9 +3,6 @@ title: Shared Signals (SSF / CAEP)
 description: permdock/ssf receives Shared Signals Framework security event tokens (push and poll) and maps CAEP events to snapshot and cache invalidation so permissions go stale when the IdP says so, not on a timer.
 ---
 
-Status: shipped
-Phase: 3
-
 `permdock/ssf` is a receiver for Security Event Tokens delivered under the Shared Signals Framework. It verifies incoming CAEP events such as `session-revoked`, `credential-change` and `assurance-level-change`, resolves the affected subject, and calls the app's `onEvent` handlers, which typically invalidate the Next.js cache tag and client snapshots for that user.
 
 ## Purpose
@@ -41,7 +38,7 @@ receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) 
 - `verifier` (optional, a `TokenVerifier` from [extension interfaces](/docs/concepts/extension-interfaces)) replaces the built-in `joseTokenVerifier` over `jwks`; `discovery: '<issuer>'` may stand in for `issuer` plus `jwks` exactly as in [`permdock/jwt`](/docs/adapters/jwt).
 - `replay` (optional, a `ReplayStore`) replaces the in-memory `jti` store. `memoryReplayStore()` is the default. Keys are opaque strings namespaced by issuer, so receivers for two IdPs can share one store without a `jti` collision. `claim(key, expiresAt?)` records a key and returns `true` only for the first caller, and `release(key)` forgets it when a handler failed. A store with both makes concurrent deliveries of one SET dispatch once; a store with only `seen` and `remember(key, expiresAt?)` still works, but two simultaneous deliveries can both dispatch. The receiver passes the SET `exp` or `iat + clockTolerance`. The memory store evicts expired keys on read.
 - A SET carrying several events records each event that succeeded. When a later handler fails, the receiver answers `400`, the transmitter retries, and only the events that did not succeed are dispatched again.
-- `revocations` (optional, a `RevocationFeed`) ends and revalidates open streams and sockets ([0052](/docs/decisions/0052-streams-and-sockets)). After the handler succeeds, a verified `session-revoked` (CAEP and Back-Channel Logout) publishes `session-revoked` for the principal and `subject.session`, which aborts that session's connections; `credential-change`, `assurance-level-change` and `token-claims-change` publish `changed` for the principal, which makes every connection it holds resolve its subject again. A failed handler publishes nothing, and a throwing feed never fails the delivery.
+- `revocations` (optional, a `RevocationFeed`) ends and revalidates open streams and sockets. After the handler succeeds, a verified `session-revoked` (CAEP and Back-Channel Logout) publishes `session-revoked` for the principal and `subject.session`, which aborts that session's connections; `credential-change`, `assurance-level-change` and `token-claims-change` publish `changed` for the principal, which makes every connection it holds resolve its subject again. A failed handler publishes nothing, and a throwing feed never fails the delivery.
 - `approvals` (optional, an `ApprovalStore`) lets `session-revoked` (CAEP and Back-Channel Logout) call `cancelApprovals` for the principal and `subject.session`. Pending requests are marked `rejected` with `resolvedBy: 'system:ssf'`. The receiver emits an `approvals-cancelled` audit event with the count.
 
 ### Shared replay store
@@ -105,7 +102,7 @@ SSF 1.0 and CAEP 1.0 leave a transmitter and a receiver several choices: which e
 - Events and subject identifier formats outside the profile still work through `onEvent['*']` and the `subject` mapper, so a transmitter that emits more than the profile is not rejected.
 - `tests/integration` records SETs from transmitters that claim the profile and replays them against the receiver, so a profile revision that changes a required shape shows up as a failing fixture rather than a silent drop.
 
-The profile is an implementer's draft and may change before Phase 3; its row on the [standards watch list](/docs/standards/watch-list) is reviewed each release, and this section is updated when the profile reaches final.
+The profile is an implementer's draft; its row on the [standards watch list](/docs/standards/watch-list) is reviewed each release, and this section is updated when the profile reaches final.
 
 ## How denials surface
 
@@ -133,8 +130,4 @@ None. The receiver is exercised in `tests/integration` against recorded SETs fro
 
 `assurance-level-change` is invalidation only. The next `subjectFrom*` carries the new `acr` / `amr`; `assurance()` on the grant decides. The event never raises a policy.
 
-## Open questions
-
-- Whether to ship a stream-management helper (creating the stream at the transmitter, `add_subject`) or leave transmitter configuration to the IdP console.
-- Whether client snapshot push (an `invalidate` message to UI adapters) belongs in this adapter or in the React adapters. Server-side streams and sockets already end through `revocations` ([0052](/docs/decisions/0052-streams-and-sockets)).
-- Keycloak's transmitter is experimental; event shapes may change before Phase 3.
+The receiver does not manage streams: creating the stream at the transmitter and `add_subject` stay in the IdP console. It also pushes nothing to clients; an `onEvent` handler that has a realtime channel sends `invalidate()` itself, and server-side streams and sockets end through `revocations`.

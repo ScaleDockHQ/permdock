@@ -3,9 +3,6 @@ title: Eve
 description: permdock/eve turns PermDock decisions into Eve tool approval policies and approval response policies, takes principal and actor from the durable session's auth, and stores pending approvals in a pluggable ApprovalStore.
 ---
 
-Status: shipped
-Phase: 1
-
 `permdock/eve` connects the [Decision](/docs/concepts/decisions) model to Eve's `approval` hook on `defineTool`. Eve already pauses a session durably and renders the approval on every channel; what it asks the application for is the policy that decides whether a call may run, must wait for a person, or is refused, and a second policy that decides who may press Approve. Both come out of one `createPermDock` call, typed against your permissions, fail-closed.
 
 ## Purpose
@@ -28,6 +25,7 @@ const { approval, approvalFor, permdock } = createPermDock(policy, {
   },
   store,                                   // ApprovalStore; memoryApprovalStore() when omitted
   approvers: { roles: ['finance-admin'] }, // who may resolve; see below
+  delegation: () => ({ scopes: [permissions.post.delete.scope, permissions.charge.refund.scope] }),
 })
 
 export default defineTool({
@@ -48,7 +46,8 @@ approval: approvalFor(permissions.charge.refund, (input) => loadCharge(RefundInp
 - `approval` is an Eve `{ request, response }` pair, each taking the one context object Eve passes (`EveApprovalContext` for `request`, `EveResponseContext` for `response`). `request` looks the tool name up in `tools` (own keys only), resolves the resource, calls `decide` and maps the outcome. `response` checks the responder against the approval record and the `approvers` rule.
 - `approvalFor(permission, data?)` builds the same pair for one tool inline.
 - `data` receives the tool input as `unknown`; parse it with the tool's schema before loading the resource.
-- `permdock(ctx)` returns a request-scoped `PermDock` from `ctx.session` for checks inside `execute` or in other Eve code.
+- `permdock(ctx)` returns a request-scoped `PermDock` from `ctx.session` for checks inside `execute` or in other Eve code. It builds a fresh frozen instance on every call, so a replayed step never sees state from an earlier one.
+- `tenant` resolves the active tenant from the same context on every call; the `tools` map has no tenant dimension, because the tenant is part of the subject, not of the tool.
 - `store` is the [ApprovalStore](/docs/adapters/approvals). `approvers` is either `{ roles }` (approver must hold one of these roles in the PermDock policy) or a function `(responder, request) => boolean`. It is an extra restriction on top of `grant.approval.by`; both must pass. The actor rule (an agent never approves its own call) is enforced regardless.
 
 ### Subject from the session
@@ -59,7 +58,7 @@ Eve exposes two authenticated principals on `ctx.session.auth`: `initiator`, who
 | --- | --- | --- |
 | `principal` | `session.auth.initiator` | The human the session acts for; roles come from `policy.subject` or `attributes` you declare as server-set |
 | `actor` | `session.auth.current` when it is not the initiator, else the Eve app principal | `kind: 'eve'`; a schedule-dispatched turn (`authenticator: 'app'`, `principalId: 'eve:app'`) is an actor with no human `current` |
-| `delegation` | `attributes.scopes` or `attributes.authorization_details` when the connection's token carries them | Absent means "whatever the principal may do" ([delegation](/docs/security/delegation)) |
+| `delegation` | The `delegation` option, resolved from the same context | No default. Every eve turn has an actor, so without `delegation` every tool is denied with reason `no-delegation` ([delegation](/docs/security/delegation)) |
 
 The `subject` and `actor` options override these defaults when an application encodes identity differently. Model output, `toolInput` and `attributes` that Eve marks as user-supplied never build a subject ([authentication](/docs/concepts/authentication)).
 
@@ -87,7 +86,7 @@ The `subject` and `actor` options override these defaults when an application en
 - `toolInput` against the resource's Standard Schema when `data` is declared; Eve's `toolInput` may be `undefined`, which is a validation failure and therefore a denial.
 - The subject comes from `session.auth`, never from `toolInput` or the model.
 - The responder in `approval.response` is Eve's authenticated principal; it must not be the actor, must satisfy `approvers`, and its verdict is recorded in the store.
-- Replays: the token is recomputed on resume. `once()`-style reuse is not offered; each call has its own request, which is also what Eve's docs recommend for non-idempotent side effects across replays.
+- Replays: the token is recomputed on resume. Eve's `approvedTools` (session-scoped sticky approvals) is never consulted, and `once()`-style reuse is not offered; each call has its own request, which is also what Eve's docs recommend for non-idempotent side effects across replays.
 
 ## How denials surface
 
@@ -101,14 +100,7 @@ The `subject` and `actor` options override these defaults when an application en
 
 ## Related standards
 
-- [Approvals](/docs/security/approvals) and [ADR 0022](/docs/decisions/0022-approvals-are-pluggable): the token, the store, the approver rules.
+- [Approvals](/docs/security/approvals) and [approvals](/docs/adapters/approvals): the token, the store, the approver rules.
 - [Delegation](/docs/security/delegation): the actor half of the subject for agent turns.
 - [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 tool misuse via per-tool permissions and input validation.
 - [AI SDK adapter](/docs/adapters/ai-sdk): Eve's approval status vocabulary is the AI SDK 7 one.
-
-## Open questions
-
-- Whether `permdock(ctx)` should be memoised per turn or per session; Eve turns may replay steps, and a frozen per-turn instance is the safer default.
-- How `approvers: { roles }` should be evaluated when the approver's roles come from a different identity source (Slack workspace membership) than the policy's `subject` mapper.
-- Whether Eve's `approvedTools` (session-scoped sticky approvals) should ever be consulted, or whether PermDock's per-call rule should always win. Current answer: per-call always wins.
-- Multi-tenant approval resolution (Eve's per-tenant approval policy for connection tools) and whether the `tools` map needs a tenant dimension.

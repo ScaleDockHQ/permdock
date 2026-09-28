@@ -3,14 +3,11 @@ title: SCIM
 description: permdock/scim is an RFC 7644 receiver for Users and Groups provisioned by Okta, Entra ID or Google Workspace; it writes to a DirectoryStore you own and exposes the synced groups as a MembershipSource, so deprovisioning and group-to-role changes reach decisions without a token refresh and without the Cloud on the decision path.
 ---
 
-Status: shipped
-Phase: 2
-
-`permdock/scim` receives SCIM 2.0 provisioning (RFC 7643, RFC 7644) from an identity provider and writes users, groups and group membership into a `DirectoryStore` the application owns. `directoryMembershipSource(store)` reads that store back as a `MembershipSource`, so a group becomes a team membership carrying the roles the application mapped to it, and a deactivated user loses every membership on the next request. PermDock Cloud hosts the same endpoint as a relay with an IdP setup wizard and a mapping UI, and replays each operation to your `scimHandler`; the store in your database stays authoritative ([ADR 0027](/docs/decisions/0027-governance-first-cloud)).
+`permdock/scim` receives SCIM 2.0 provisioning (RFC 7643, RFC 7644) from an identity provider and writes users, groups and group membership into a `DirectoryStore` the application owns. `directoryMembershipSource(store)` reads that store back as a `MembershipSource`, so a group becomes a team membership carrying the roles the application mapped to it, and a deactivated user loses every membership on the next request. PermDock Cloud hosts the same endpoint as a relay with an IdP setup wizard and a mapping UI, and replays each operation to your `scimHandler`; the store in your database stays authoritative.
 
 ## Purpose
 
-Enterprise buyers already pay WorkOS, Frontegg and Okta for "directory sync": turn the groups an administrator manages in the IdP into roles in the application, and remove access when the account is disabled. Before this entry the documented paths were to map groups to roles in the IdP or the auth layer and read a claim, or to run a sync into your own table ([authentication](/docs/concepts/authentication) single sign-on). Both still work. This entry is for the case where the IdP pushes SCIM and the application wants a receiver it did not have to write: the SCIM protocol surface (filters, PATCH semantics, error bodies, pagination) is the part that takes weeks, and the mapping to PermDock memberships is the part that must follow the trust rules (ids, never display names; unknown roles dropped; no tenant from the body).
+Enterprise buyers already pay WorkOS, Frontegg and Okta for "directory sync": turn the groups an administrator manages in the IdP into roles in the application, and remove access when the account is disabled. Two other paths work without this entry: map groups to roles in the IdP or the auth layer and read a claim, or run a sync into your own table ([authentication](/docs/concepts/authentication) single sign-on). This entry is for the case where the IdP pushes SCIM and the application wants a receiver it did not have to write: the SCIM protocol surface (filters, PATCH semantics, error bodies, pagination) is the part that takes weeks, and the mapping to PermDock memberships is the part that must follow the trust rules (ids, never display names; unknown roles dropped; no tenant from the body).
 
 It is an open-source entry first so that self-hosters get the feature, and so that the Cloud has one documented target to relay to instead of writing into customer databases.
 
@@ -51,7 +48,7 @@ export const { permdock, protect } = createPermDock(policy, {
 - `token` and `verifier` are the two credential kinds; at least one is required and both may be set. `token` is a per-tenant static bearer compared in constant time against a stored hash (never stored plain). `verifier` is a `TokenVerifier` for an RFC 7523 JWT bearer whose `aud` must be this endpoint and whose tenant claim must equal the resolved tenant; this is what the Cloud relay presents and what the IPSIE AL1 profile prescribes.
 - `groupRoles` maps a group `id` to the role names its members hold. When a `Group` arrives with the PermDock extension attribute (`urn:permdock:scim:schemas:extension:roles:1.0` with a `roles` array), the attribute is stored on the group and takes precedence; the Cloud's mapping UI writes it, and an IdP that supports custom group attributes may too. Role names are offered to the tenant's `RoleSource` as custom roles first and then matched against declared `assignable` roles; anything else is dropped and reported in development.
 - `sink` is a `DecisionSink` ([audit and observability](/docs/concepts/audit-and-observability)); the handler writes one `directory` event per accepted operation so provisioning and the decisions it later explains share one log. Group create, replace, patch and delete also write one `membership` event per affected user (`source: 'scim'`, `via: 'group:<id>'`, roles from the extension). `onChange` receives the tenant and the affected user ids after a write, for snapshot invalidation.
-- `revocations` is a `RevocationFeed` ([0052](/docs/decisions/0052-streams-and-sockets)). After a write, the handler publishes `changed` in the tenant for each affected user, once for each of the user's SCIM `id`, `userName` and `externalId`, because a principal id is whichever of them `directoryMembershipSource` matched on. Open connections then resolve their subject again, so a deprovisioned member's stream closes. A deleted user's record is read before the delete; a throwing feed never fails the IdP write.
+- `revocations` is a `RevocationFeed`. After a write, the handler publishes `changed` in the tenant for each affected user, once for each of the user's SCIM `id`, `userName` and `externalId`, because a principal id is whichever of them `directoryMembershipSource` matched on. Open connections then resolve their subject again, so a deprovisioned member's stream closes. A deleted user's record is read before the delete; a throwing feed never fails the IdP write.
 - `directoryMembershipSource(store)` returns a `MembershipSource` whose `membershipsFor(principal, { tenant })` looks the principal up by `externalId` or `userName` (configurable `match`), returns nothing when the user is missing or `active: false`, and otherwise one membership per group: `{ tenant, team: group.id, roles: group.roles, via: 'group:' + group.id }`.
 
 ### DirectoryStore
@@ -77,6 +74,58 @@ type DirectoryGroup = { id: string; externalId?: string; displayName: string; me
 
 The store is a repository, unlike `MembershipSource` and `RoleSource`, which are queries: this is the one place PermDock writes membership data, and it writes only what an authenticated IdP or relay sent. `displayName` is stored for the mapping UI and is never used as an identifier. `roles` on a group is the extension attribute. Every method may throw; the handler turns a throw into a SCIM `500` and never a partial write.
 
+## Protocol subset
+
+| RFC 7644 feature | `permdock/scim` | Note |
+| --- | --- | --- |
+| `/Users`, `/Groups` `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | Implements | The operations Okta, Entra ID and Google Workspace send |
+| `filter` with `eq`, `ne`, `co`, `sw`, `pr`, `and`, `or` on `userName`, `externalId`, `active`, `displayName`, `members.value` | Implements | Enough for every IdP's lookup-before-create; `pr` matches only a non-empty value (not null, not an empty string, not an empty array, RFC 7644 section 3.4.2.2); other operators return `400 invalidFilter` |
+| Index pagination (`startIndex`, `count`) | Implements | Required by RFC 7644 |
+| Cursor pagination (RFC 9865) | Implements | Advertised in `/ServiceProviderConfig`; used when the store returns a cursor |
+| `PATCH` path forms (`members[value eq "…"]`, `active`, `emails[type eq "work"].value`) | Implements, normalised | Each IdP's dialect is rewritten to one operation shape before the store sees it |
+| `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas` | Implements | Advertises the supported subset and the PermDock extension |
+| `/Me`, `/Bulk`, `/.search` | Not implemented | No IdP requires them for provisioning; the routes do not exist |
+| `ETag` and `If-Match` | Not implemented | Stores may return `meta.version`; conditional requests are not enforced |
+| `sortBy`, `sortOrder` | Not implemented | Ignored |
+
+### The PermDock extension schema
+
+Group-to-role mapping is application data, carried in a SCIM extension:
+
+```json
+{
+  "schemas": [
+    "urn:ietf:params:scim:schemas:core:2.0:Group",
+    "urn:permdock:scim:schemas:extension:roles:1.0"
+  ],
+  "id": "g_9f2c",
+  "externalId": "00g1abc",
+  "displayName": "Editors",
+  "members": [{ "value": "u_1" }, { "value": "u_7" }],
+  "urn:permdock:scim:schemas:extension:roles:1.0": { "roles": ["editor"] }
+}
+```
+
+`roles` is a multi-valued string attribute. The Cloud relay's mapping UI writes it, an IdP with custom group attributes may write it, and `groupRoles` is the fallback. The URN is under the `permdock` namespace in the form RFC 7643 section 10 requires of an unregistered extension; no IANA registration is planned. The relay's RFC 7523 bearer is a plain assertion (`typ: JWT`) with no new JWS `typ` value, and `permdock/jwt`'s default `accept: 'access-token'` check applies to it.
+
+### IdP dialects
+
+| IdP | What it sends | Normalisation |
+| --- | --- | --- |
+| Okta | `PATCH` `replace` on `active`; group push as `PUT` of the full `members` list, later `PATCH` `add` / `remove` with `members[value eq "…"]`; `externalId` from the Okta user id | Full `PUT` members diffed into `add` / `remove` |
+| Microsoft Entra ID | `PATCH` `Operations` with `path` `members[value eq "…"]` and `remove`; `active` as a string in older tenants; no `/Groups` `PUT` | String `"False"` coerced; `remove` with filter path mapped to member removal |
+| Google Workspace | Full `PUT` of the user on any change; groups optional | `PUT` diffed against the stored resource |
+| WorkOS Directory Sync (as a client) | Standard `PATCH` | None |
+
+The dialect table is maintained with recorded requests in `apps/examples/scim`; a new IdP adds a recording, not a code path in the store.
+
+### Wire checklist
+
+- `application/scim+json` on requests and responses; `application/json` accepted on requests.
+- `meta.location` on every returned resource; `meta.created` and `meta.lastModified` in RFC 3339.
+- `ListResponse` with `totalResults` even when paging by cursor.
+- The extension URN advertised under `/Schemas` and in `/ResourceTypes` `schemaExtensions` with `required: false`.
+
 ## Request lifecycle
 
 1. The IdP (or the Cloud relay) sends an HTTP request to the mount point with a bearer credential.
@@ -85,7 +134,7 @@ The store is a repository, unlike `MembershipSource` and `RoleSource`, which are
 4. The operation is applied to the store. `PATCH` operations are normalised (Entra's `members[value eq "…"]` remove form, Okta's `replace` on `active`, Google's full `PUT`) before they reach `patchUser` / `patchGroup`, so a store implements one shape.
 5. The response is the resource as stored (`201` on create, `200` otherwise, `204` on delete) with `meta.location`.
 6. The handler writes a `directory` event (`type: 'directory'`, `source: 'scim'`, the operation, the tenant, the resource type and id, and the credential kind: `token` or the JWT `iss`) to its `sink`, and calls `onChange` when given. The Cloud relay also records the same operation in its sync log.
-7. Nothing on this path touches `decide`. The next `createPermDock` for an affected principal calls `directoryMembershipSource`, which reads the store; a deactivated user has no memberships, a new group member has the group's roles.
+7. Nothing on this path touches `decide`. The next `createPermDock` for an affected principal calls `directoryMembershipSource`, which reads the store; a deactivated user keeps the principal but has no memberships, a new group member has the group's roles.
 
 ## What it validates
 
@@ -99,7 +148,7 @@ The store is a repository, unlike `MembershipSource` and `RoleSource`, which are
 | Extension `roles` values are role names the policy declares or the tenant's `RoleSource` resolves | Unknown names stored as sent, contribute no grant, reported in development |
 | Resource exists | `404` |
 
-The handler never trusts the body to name the tenant or the caller, never accepts a `roles` value that widens beyond declared `assignable` roles, and never returns another tenant's resources.
+The handler never trusts the body to name the tenant or the caller, never accepts a `roles` value that widens beyond declared `assignable` roles, and never returns another tenant's resources. Bulk operations (RFC 7644 section 3.7) are not supported, because the IdPs PermDock targets do not require them. Enterprise User attributes such as `department` and `manager` stay in the store for the application to read; they never become `principal` fields.
 
 ## How denials surface
 
@@ -113,7 +162,7 @@ Deprovisioning latency is bounded by how memberships are read: per request throu
 
 ## Hosted relay
 
-PermDock Cloud runs a SCIM endpoint per connected tenant, with the IdP-specific setup instructions (Okta and Entra ID applications, Google Workspace auto-provisioning), a group-to-role mapping UI that writes the extension attribute, and a sync log. Each operation the Cloud accepts is replayed unchanged to your `scimHandler`, authenticated with an RFC 7523 JWT bearer signed by the Cloud's per-environment key and verified by your `verifier` against the same JWKS that signs snapshots ([Cloud adapter](/docs/adapters/cloud)). The Cloud keeps no authoritative copy of your directory: if the relay is unreachable, the IdP retries, and your store keeps its last state. The Cloud never implements `MembershipSource` or `RoleSource` (invariant 15).
+PermDock Cloud runs a SCIM endpoint per connected tenant, with the IdP-specific setup instructions (Okta and Entra ID applications, Google Workspace auto-provisioning), a group-to-role mapping UI that writes the extension attribute, and a sync log. Each operation the Cloud accepts is replayed unchanged to your `scimHandler`, authenticated with an RFC 7523 JWT bearer signed by the Cloud's per-environment key and verified by your `verifier` against the same JWKS that signs snapshots ([Cloud adapter](/docs/adapters/cloud)). The Cloud keeps no authoritative copy of your directory (the relay is the bring-your-own directory mode; a Cloud-native environment has no `scimHandler` target and delivers memberships as token claims): if the relay is unreachable, the IdP retries, and your store keeps its last state. The Cloud never implements `MembershipSource` or `RoleSource` (invariant 15).
 
 ## Store recipe
 
@@ -125,16 +174,9 @@ A Drizzle store is three tables (`scim_users`, `scim_groups`, `scim_group_member
 
 ## Related standards
 
-- [SCIM 2.0](/docs/standards/scim): RFC 7643 schemas, RFC 7644 protocol, RFC 9865 cursor pagination, the PermDock extension schema, IdP dialects.
+- [SCIM 2.0](/docs/standards/scim): RFC 7643 schemas, RFC 7644 protocol and RFC 9865 cursor pagination.
 - [JWT authorization claims](/docs/standards/jwt-authorization-claims): the RFC 9068 `groups` claim as the token-side sibling of a synced group; both key on the SCIM `value`.
 - [JOSE](/docs/standards/jose) and the [JWT adapter](/docs/adapters/jwt): the `TokenVerifier` for the RFC 7523 bearer.
 - [Shared Signals and CAEP](/docs/standards/shared-signals-caep): the revocation signal that makes deprovisioning reach cached snapshots.
 - [Tenancy](/docs/concepts/tenancy): memberships, `via`, `assignable`.
 - [Standards watch list](/docs/standards/watch-list): the IPSIE AL1 SCIM profile.
-
-## Open questions
-
-- Whether `directoryMembershipSource` should also expose the user's `active` flag to `subject` so that a deactivated user is anonymous rather than membership-less; the current design keeps the principal and removes memberships.
-- Whether to support SCIM `Enterprise User` attributes (`department`, `manager`) as `principal` fields through a `schema` option, or leave them in the store for the application to read.
-- Bulk operations (RFC 7644 section 3.7): not supported in Phase 2; IdPs do not require them.
-- Whether the handler should emit CAEP-shaped events itself for a deactivation, so an app without an IdP transmitter still gets snapshot invalidation through the `permdock/ssf` handler shape.

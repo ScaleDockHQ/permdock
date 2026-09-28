@@ -27,7 +27,7 @@ import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 import { compact } from '../core/compact.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
-import { mapPermDockError } from '../server/map-error.ts';
+import { problemFromError } from '../server/map-error.ts';
 import { POLICY_VIOLATION, onRevoked } from '../server/stream.ts';
 
 export type ElysiaCtx = {
@@ -50,7 +50,7 @@ export type ElysiaPermDockOptions<TUser = unknown> = {
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
   readonly webBotAuth?: WebBotAuthOptions;
-  /** Ends or revalidates open sockets (ADR 0052). */
+  /** Ends or revalidates open sockets. */
   readonly revocations?: RevocationFeed;
 };
 
@@ -75,7 +75,7 @@ export type ElysiaPermDock = {
   readonly permdock: () => Elysia;
   readonly protect: ElysiaProtect;
   /**
-   * One connection per socket (ADR 0052): the same promise for every handler
+   * One connection per socket: the same promise for every handler
    * of that socket; closes it with `1008` when the connection aborts.
    */
   readonly connection: (
@@ -147,7 +147,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return { permdock: instance };
       })
       .onError({ as: 'global' }, ({ error }) =>
-        mapPermDockError(error),
+        problemFromError(error),
       ) as unknown as Elysia;
 
   const protect: ElysiaProtect =

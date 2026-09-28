@@ -3,7 +3,7 @@ title: Delegation
 description: The principal, actor and delegation model, the attenuation invariants that keep an agent from exceeding its user, how adapters fill the agent half of the subject, and how RAR authorization_details are emitted and verified.
 ---
 
-A PermDock subject has two halves. `principal` is the human or service whose grants are evaluated; `actor` is the agent acting for them; `delegation` is the authority the principal handed over. A decision is the principal's grants intersected with the delegation. This page is the security view of that model; the API view is in [subject](/docs/concepts/subject), the standards behind it in [OAuth for agent delegation](/docs/standards/oauth-agent-delegation), and the decision record in [ADR 0012](/docs/decisions/0012-two-principal-subject).
+A PermDock subject has two halves. `principal` is the human or service whose grants are evaluated; `actor` is the agent acting for them; `delegation` is the authority the principal handed over. A decision is the principal's grants intersected with the delegation. This page is the security view of that model; the API view is in [subject](/docs/concepts/subject), and the standards behind it in [OAuth for agent delegation](/docs/standards/oauth-agent-delegation).
 
 ## The three parts
 
@@ -12,7 +12,7 @@ const permdock = await createPermDock(policy, user, {
   actor: { id: 'https://agent.example/cimd.json', kind: 'mcp-client' },
   delegation: {
     scopes: ['post:read', 'post:update'],
-    authorizationDetails: [{ type: 'permdock:post.update', where: { authorId: '$subject.id' } }],
+    authorizationDetails: [{ type: 'post', actions: ['update'] }],
   },
 })
 ```
@@ -23,13 +23,13 @@ const permdock = await createPermDock(policy, user, {
 | `actor` | The adapter, from `authInfo.clientId`, runtime context, signature or Agent Card | Who is making the call | Trusted after the runtime verified it; never from prompt content |
 | `delegation` | The adapter, from token scopes, `authorization_details`, a GNAP `access` array or a delegation chain | What the principal allowed the actor to do | Trusted after token verification; intersected, never added to |
 
-A call with no `actor` is a human call and behaves exactly as `createPermDock(policy, user)`. A call with an `actor` and no `delegation` has no delegated authority: every check is denied. Adapters therefore always supply at least the token's scopes.
+A call with no `actor` is a human call and behaves exactly as `createPermDock(policy, user)`. A call with an `actor` and no `delegation` (or a `delegation` with no `scopes`, `authorizationDetails` or `access`) has no delegated authority: every check is `denied` with reason `no-delegation`, and the snapshot carries an empty `scopes` list so a client ceiling agrees. Token-based adapters supply the token's scopes; in-process agent adapters take a `delegation` option from the application and apply none by default.
 
 ## Attenuation invariants
 
 1. **Agent ≤ user.** For every permission, `asAgent.can(p, x)` implies `asUser.can(p, x)`. Delegation can only remove or narrow grants. This is enforced by construction: `decide` evaluates the principal's grants first, then filters by delegation.
-2. **Chain hops only narrow.** In a multi-hop chain (user to orchestrator to sub-agent), each hop's authority is the intersection of the previous hop's authority with what it passes on. A hop that names a scope or `authorization_details` entry the previous hop lacked is rejected, and the decision is `denied` with a reason of kind `delegation` naming the offending hop.
-3. **Conditions intersect.** When a grant has `where: { authorId: principal.id }` and the delegation's `authorization_details` for the same permission has a further constraint, both must hold. A delegation cannot relax a grant condition.
+2. **Chain hops only narrow.** In a multi-hop chain (user to orchestrator to sub-agent), each hop's authority is the intersection of the previous hop's authority with what it passes on. The token layer enforces this when it issues the token; core carries `delegation.chain` opaquely for audit and evaluates only the final `scopes`, `authorizationDetails` and `access`.
+3. **Conditions intersect.** A grant's `where` is evaluated first and the delegation only filters the result, so a delegation cannot relax a grant condition.
 4. **Approval survives delegation.** A grant with `approval: 'human'` still requires approval when exercised through an agent; delegation cannot pre-approve. The approval `token` includes `actor`, so the approval is bound to the agent that asked.
 5. **Deny is not delegable away.** A `deny` grant applies regardless of delegation; an agent cannot be delegated around a deny.
 6. **Fail closed on unknowns.** An `authorization_details` type PermDock does not recognise, a scope that matches no permission, or a malformed chain contributes nothing; it never widens.
@@ -39,26 +39,28 @@ A call with no `actor` is a human call and behaves exactly as `createPermDock(po
 | Adapter | `actor` | `delegation` |
 | --- | --- | --- |
 | `permdock/mcp` | `authInfo.clientId` (an OAuth client id or a CIMD URL), `kind: 'mcp-client'` | `authInfo.scopes`; `authorization_details` when the token carries them (including ID-JAG-derived tokens under Enterprise-Managed Authorization) |
-| `permdock/ai-sdk` | `actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' })` | Supplied by the application per call; defaults to the principal's full authority only when explicitly configured |
-| `permdock/claude-agent` | The Claude Agent SDK session, `kind: 'claude-agent'` | Configured per session; the `tools` map bounds what the agent can even ask for |
+| `permdock/ai-sdk` | `actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' })` | The `delegation` option, resolved per call by the application; none by default, so an agent without it is denied |
+| `permdock/claude-agent` | The Claude Agent SDK session, `kind: 'claude-agent'` | The `delegation` option, resolved per session; none by default. The `tools` map separately bounds what the agent can even ask for |
+| `permdock/openai` | The `actor` option, from the run context | The `delegation` option, from the run context; none by default |
+| `permdock/eve` | `actorFromSession`: the current principal when it differs from the initiator, otherwise `eve:app`, `kind: 'eve'` | The `delegation` option, from the session; none by default |
 | `permdock/a2a` | The calling agent's identity from its card or token, `kind: 'a2a'` | Caller's token scopes and `authorization_details` |
 | HTTP adapters with Web Bot Auth | Verified RFC 9421 signer key id, `kind: 'web-bot-auth'` | From the bearer token on the same request, if any; otherwise empty |
 | `permdock/webmcp` | The page's agent context, if the browser exposes one | The client snapshot is the ceiling; the server re-checks with the real delegation |
 | Human-only adapters (`permdock/next`, `permdock/react`) | None | None; principal grants apply directly |
 
-The AI SDK case deserves a note: the SDK gives PermDock the agent's identity but not a token, so what the agent is delegated is an application decision. The plan's default is that the application states it in `createPermDock` options; the alternative, treating an in-process agent as having the user's full authority, is a conscious choice the docs call out rather than a silent default. See the [ai-sdk adapter](/docs/adapters/ai-sdk).
+The AI SDK case deserves a note: the SDK gives PermDock the agent's identity but not a token, so what the agent is delegated is an application decision, stated in the `delegation` option of `createPermDock`. There is deliberately no default: an in-process agent with no `delegation` is denied every check with reason `no-delegation`, so an application that wants the agent to act as the user lists those scopes explicitly. See the [ai-sdk adapter](/docs/adapters/ai-sdk).
 
 ## RAR `authorization_details`
 
 Every permission reference carries a `scope` and an `authorizationDetails` type. This lets PermDock participate in RFC 9396 Rich Authorization Requests in both directions:
 
-- **Emission for consent screens.** Given a set of permissions an agent wants, PermDock produces `authorization_details` entries whose `type` names the permission and whose constraint payload is the portable condition. An authorization server renders "update posts you authored" from it and issues a token carrying exactly that.
-- **Verification on incoming tokens.** `delegation.authorizationDetails` entries are matched by `type` to permissions; their constraints are parsed as portable conditions and intersected with the grant's conditions. Unknown types are ignored (fail closed); malformed constraints deny the permission they name.
+- **Emission for consent screens.** Given a set of permissions an agent wants, PermDock produces `authorization_details` entries whose `type` is the resource name, `actions` the actions and `identifier` the resource id for an instance action. The objects carry no condition payload: the grant's conditions stay in the policy and are evaluated on every call.
+- **Verification on incoming tokens.** `delegation.authorizationDetails` entries are matched to a permission by `type` equal to its resource, when present `actions` containing its action, and when present `identifier` equal to the resource id (an entry with an `identifier` never covers a collection check). Unknown types contribute nothing (fail closed).
 
 ```json
 [
-  { "type": "permdock:post.read" },
-  { "type": "permdock:post.update", "where": { "authorId": "$subject.id" } }
+  { "type": "post", "actions": ["read"] },
+  { "type": "post", "actions": ["update"], "identifier": "post_123" }
 ]
 ```
 
@@ -66,12 +68,12 @@ Scopes remain the coarse layer: `post:update` in `delegation.scopes` is required
 
 ### GNAP `access` as a third input
 
-[RFC 9635 (GNAP)](/docs/standards/gnap) describes delegated rights as an `access` array whose objects carry `type`, `actions`, `locations`, `datatypes`, `identifier` and `privileges`, a structure the RFC itself calls analogous to RAR. `delegation.access` accepts those objects next to `scopes` and `authorizationDetails`. At a resource server the normative source is [RFC 9767](https://www.rfc-editor.org/rfc/rfc9767.html) (GNAP Resource Server Connections): `permdock/jwt` fills it from the `access` claim of a JWT-formatted access token (RFC 9767 sections 2.1 and 2.2), and `subjectFromIntrospection` fills it from the `access` array of an introspection response (section 3.3), which the AS may have filtered to what this RS is allowed to see ([GNAP](/docs/standards/gnap)). The three fields are unioned into one delegated set before the intersection with the principal's grants ([0035](/docs/decisions/0035-gnap-access-and-chain)): an unknown `type` contributes nothing, `identifier` narrows to one resource, `privileges` never adds a role.
+[RFC 9635 (GNAP)](/docs/standards/watch-list#gnap) describes delegated rights as an `access` array whose objects carry `type`, `actions`, `locations`, `datatypes`, `identifier` and `privileges`, a structure the RFC itself calls analogous to RAR. `delegation.access` accepts those objects next to `scopes` and `authorizationDetails`. At a resource server the normative source is [RFC 9767](https://www.rfc-editor.org/rfc/rfc9767.html) (GNAP Resource Server Connections): `permdock/jwt` fills it from the `access` claim of a JWT-formatted access token (RFC 9767 sections 2.1 and 2.2), and `subjectFromIntrospection` fills it from the `access` array of an introspection response (section 3.3), which the AS may have filtered to what this RS is allowed to see ([GNAP](/docs/standards/watch-list#gnap)). The three fields are unioned into one delegated set before the intersection with the principal's grants: an unknown `type` contributes nothing, a `type` matches the resource name or a URI ending in `/<resource>`, `identifier` narrows to one resource, `privileges` never adds a role.
 
 ```ts
 delegation: {
   scopes: ['post:read'],
-  authorizationDetails: [{ type: 'permdock:post.update', where: { authorId: '$subject.id' } }],
+  authorizationDetails: [{ type: 'post', actions: ['update'] }],
   access: [{ type: 'https://api.example.com/permdock/resources/post', actions: ['update'], identifier: 'post_123' }],
 }
 ```
@@ -86,7 +88,7 @@ PermDock already computes the content of that object. `Decision.alternatives` li
 - The RFC 9457 Problem Details body with `alternatives` expressed as `authorization_details` objects in the draft's remediation shape, so a RAR-aware client can copy them straight into its next authorization request.
 - For MCP clients, the same alternatives inside the `scopeChallenge`, since SEP-2350 step-up accumulates scopes ([MCP authorization](/docs/standards/mcp-authorization)).
 
-The mapping is one-directional and fail-closed: remediation tells the client what to ask for; it never changes the decision that produced it, and the authorization server remains free to refuse. The draft is a working-group document and its field names may change before Phase 2 ships the HTTP rendering; the Problem Details `alternatives` member is stable regardless, and the remediation shape is emitted next to it rather than instead of it. Its draft posture is therefore **build** ([ADR 0025](/docs/decisions/0025-draft-protocol-posture)): the HTTP adapters pin the `draft-ietf-oauth-rar-metadata-remediation` revision they render (recorded on this page and in the Problem Details fixtures when Phase 2 starts), `alternatives` is the stable twin, and a pin bump is a maintainer change with fixtures and a changeset. The metadata half of the draft is where PermDock's catalog `type` URIs would be published so an authorization server can validate `authorization_details` requests against them; that is an open question on the [GNAP page](/docs/standards/gnap) as well.
+The mapping is one-directional and fail-closed: remediation tells the client what to ask for; it never changes the decision that produced it, and the authorization server remains free to refuse. The draft is a working-group document and its field names may change; the Problem Details `alternatives` member is stable regardless, and the remediation shape is emitted next to it rather than instead of it. Its draft posture is therefore **build**: the HTTP adapters pin the `draft-ietf-oauth-rar-metadata-remediation` revision they render in the Problem Details fixtures, `alternatives` is the stable twin, and a pin bump is a maintainer change with fixtures and a changeset. The metadata half of the draft is where an authorization server would publish the resource `type` values it accepts.
 
 ## Transaction tokens
 
@@ -99,7 +101,7 @@ PermDock's design for it:
 - **Never from outside the domain.** A transaction token is accepted only when its `iss` is the domain's Transaction Token Service and its `aud` names this service; one that arrives from outside the trust boundary, or whose `aud` is another service, resolves to the anonymous subject and every check is denied. Cross-domain propagation is the separate Identity and Authorization Chaining specification (RFC Editor queue) and maps to `delegation.chain`, not to `azd`.
 - **Audit correlates by id.** The snapshot id and decision id in `azd` appear on every downstream `on('decision')` event, so an incident review can walk from the edge decision through every hop that acted on it.
 
-The Transaction Tokens for Agents and Cross-domain Transaction Tokens drafts extend the same claims to agent context and to federated domains; both are tracked on the [watch list](/docs/standards/watch-list) and neither changes the rule above. WIMSE's architecture uses transaction tokens for security-context propagation between workloads, which is why a workload appears in PermDock as a service principal rather than as an actor without a principal.
+The Transaction Tokens for Agents and Cross-domain Transaction Tokens drafts extend the same claims to agent context and to federated domains; both are tracked on the [watch list](/docs/standards/watch-list) and neither changes the rule above. WIMSE's architecture uses transaction tokens for security-context propagation between workloads, which is why a workload appears in PermDock as a service principal rather than as an actor without a principal. A service acting on its own behalf is always a principal (`kind: 'service'` or `'workload'`) with its own roles, never a distinct subject shape.
 
 ## Audit
 
@@ -107,17 +109,10 @@ Every `on('decision')` event includes `actor` and `delegation` alongside the pri
 
 ## Sources
 
-- Product plan, "Subject model" paragraph and differentiator 17 ("Delegation-aware").
 - [Agent Delegation Chain draft](https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00) for monotonic attenuation across hops.
 - [OAuth for AI agents on behalf of a user draft](https://datatracker.ietf.org/doc/html/draft-oauth-ai-agents-on-behalf-of-user-02) for `requested_actor` and `actor_token`.
 - [MCP Enterprise-Managed Authorization](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/extensions/auth/enterprise-managed-authorization.mdx) for ID-JAG-derived tokens.
 - [RFC 9635, GNAP](https://datatracker.ietf.org/doc/html/rfc9635), section 8, for the `access` array; [RFC 9767, GNAP Resource Server Connections](https://www.rfc-editor.org/rfc/rfc9767.html) for how a resource server obtains it (introspection, JWT-formatted tokens).
 - [Transaction Tokens](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) (draft-ietf-oauth-transaction-tokens) for `sub_id`, `azd` and the trust-domain `aud` rule; the [WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch) for workload context propagation.
 - RFC 6750, RFC 8693 and the RAR Metadata and Error Remediation draft (draft-ietf-oauth-rar-metadata-remediation) are referenced by name; see the [watch list](/docs/standards/watch-list) for their status.
-- [ADR 0012: two-principal subject](/docs/decisions/0012-two-principal-subject).
-
-## Open questions
-
-- The `authorizationDetails` `type` naming scheme (`permdock:<key>` is a placeholder) and how portable conditions are serialised inside RAR objects so authorization servers can render them.
-- The default `delegation` for in-process AI SDK and Claude Agent SDK agents when no token exists: required explicit configuration, or full principal authority with a documented warning.
-- Whether a service acting on its own behalf (no human principal) is a principal with its own role or a distinct subject shape.
+- [two-principal subject](/docs/concepts/subject).

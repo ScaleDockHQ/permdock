@@ -3,14 +3,11 @@ title: Server kernel
 description: permdock/server is the Fetch-first kernel every HTTP and RPC adapter wraps; it resolves the subject from a Request, scopes one PermDock per request, runs protect, emits Problem Details and exposes the OpenAPI hook contract.
 ---
 
-Status: shipped
-Phase: 1
-
 ## Purpose
 
 `permdock/server` implements the shared behaviour of every server adapter once, in terms of the Fetch API (`Request`, `Response`, `Headers`). Frameworks that already speak Fetch (Hono, Elysia, SvelteKit, Next.js Route Handlers, Bun, Deno, Cloudflare Workers) can use it directly. Frameworks with their own request types (Express, Fastify, Nest, Node `http`) wrap it with a few lines of typed glue. The kernel owns four things: subject resolution, request-scoped instance creation, `protect` semantics, and the denial-to-response mapping. Adapters add only naming, storage of the instance on the framework context, and OpenAPI hooks.
 
-permix adapters each copy request isolation onto the framework context; PermDock does it once in the kernel. See [permix lessons](/docs/research/permix-lessons).
+permix adapters each copy request isolation onto the framework context; PermDock does it once in the kernel ([landscape](/docs/research/landscape)).
 
 ## API
 
@@ -59,7 +56,7 @@ export default async function handler(request: Request): Promise<Response> {
 | `tenant` | A tenant id or `(request) => string \| undefined`. Adapters pass their framework context instead of the `Request`. A throwing resolver is no tenant, never a default one. |
 | `memberships`, `customRoles` | `MembershipSource` and `RoleSource` ([tenancy](/docs/concepts/tenancy)). |
 | `store`, `sink` | `ApprovalStore` for the `PermDock-Approval` resume and `DecisionSink` for decision events. |
-| `limits` | `LimitStore` for quota grants ([0034](/docs/decisions/0034-quota-grants)). Without it a quota grant denies with `limit-unavailable`. |
+| `limits` | `LimitStore` for quota grants. Without it a quota grant denies with `limit-unavailable`. |
 | `pdp` | `createPermDock` from [`permdock/pdp`](/docs/adapters/pdp). `protect` then decides delegated permissions through the provider; `can` on the instance stays synchronous and keeps denying them with `pdp-unavailable`. |
 | `snapshots` | Accepted so every adapter takes the same options; HTTP adapters do not read it. A `SnapshotSource` serves client snapshots, and the kernel builds decisions from the policy it was given. |
 | `otel` | [OpenTelemetry](/docs/adapters/otel) spans, counters and the duration histogram. |
@@ -72,7 +69,7 @@ export default async function handler(request: Request): Promise<Response> {
 ### `protect` semantics
 
 - Collection action (`permissions.post.create`): no `loadData`; `decide` runs on the subject alone.
-- Instance action with `loadData`: the loader runs before the handler; a `null` or `undefined` result maps to `404` (configurable to `403` to avoid existence leaks); the loaded value is validated against the resource schema only if `protect` is called with `{ trusted: false }`. The decision endpoint always treats `resource.properties` as untrusted and validates them.
+- Instance action with `loadData`: the loader runs before the handler; a `null` or `undefined` result is `404`; the loaded value is validated against the resource schema only if `protect` is called with `{ trusted: false }`. The decision endpoint always treats `resource.properties` as untrusted and validates them.
 - `approval-required`: `protect` fails closed with a `403` whose `type` ends in `/approval-required` and whose body carries `token`. The handler never runs.
 - Every outcome is emitted through `on('decision')` with the request method and path attached so [otel](/docs/adapters/otel) and audit sinks see HTTP context.
 
@@ -95,7 +92,7 @@ Three consequences:
 
 ### Connections
 
-A WebSocket, an SSE stream or a subscription lives longer than one decision ([0052](/docs/decisions/0052-streams-and-sockets)). `connection(request, options?)` resolves the subject from the request that opened it and returns a frozen `Connection`:
+A WebSocket, an SSE stream or a subscription lives longer than one decision. `connection(request, options?)` resolves the subject from the request that opened it and returns a frozen `Connection`:
 
 ```ts
 const guard = await protect(permissions.project.read, loadProject)(request)
@@ -123,35 +120,16 @@ Open a connection only after `protect` succeeded, so the refusal at open is the 
 
 ## Request lifecycle
 
-1. The framework hands the kernel a `Request` (or the adapter converts its request object).
-2. `subject(request)` runs once. If `webBotAuth` is enabled and the request carries a `Signature` and `Signature-Agent`, the kernel verifies the RFC 9421 signature against the agent's directory and fills `actor` with the verified key id; `delegation` comes from bearer-token scopes or `authorization_details` when an adapter or provider extracts them.
-3. `createPermDock(policy, subject, { actor, delegation, tenant })` builds the instance, memoised for this `Request` and tenant.
-4. Handlers call `can`, `decide`, `assert`, `filter`, `where`, or run behind `protect`.
-5. A `denied` or `approval-required` decision becomes a `Response` via `problem`; `PermDockDeniedError` thrown by `assert` inside a handler is caught by the adapter's error hook and routed through `problemFromError`.
+The kernel implements the [shared adapter contract](/docs/adapters) for every HTTP adapter. What it adds:
 
-## What it validates
-
-- Data supplied by the request (body, params fed into an untrusted `loadData`) against the resource schema under `validate: 'boundary'`. Trusted rows from a loader are not re-validated.
-- Bearer tokens are not validated by the kernel; the `subject` resolver or a [provider](/docs/adapters/supabase) does that. The kernel only reads scopes and `authorization_details` that a resolver returns.
-- Web Bot Auth signatures when enabled: `created`/`expires` window, covered components, key lookup through the `Signature-Agent` directory.
-- Permission references are typed; the kernel never parses permission strings from a request.
+- `permdock(request)` always takes a Fetch `Request`. Adapters with their own request type convert it first (`toRequest` in `permdock/node`) and pass their framework context only to the `tenant` resolver, so memoisation has one key everywhere.
+- When `webBotAuth` is enabled and the request carries `Signature` and `Signature-Agent`, the kernel verifies the RFC 9421 signature against the agent's directory (the `created` / `expires` window, covered components and key lookup) and fills `actor` with the verified key id.
+- Bearer tokens are not validated here; the `subject` resolver or a [provider](/docs/adapters/supabase) does that, and the kernel only reads the scopes and `authorization_details` the resolver returns.
+- `PermDockDeniedError` thrown by `assert` inside a handler is caught by the adapter's error hook and routed through `problemFromError`.
 
 ## How denials surface
 
-`403` with `Content-Type: application/problem+json`:
-
-```json
-{
-  "type": "https://api.example.com/problems/permission-denied",
-  "title": "Permission denied",
-  "status": 403,
-  "permission": "post.delete",
-  "denials": [{ "role": "member", "reason": "post.authorId must equal principal.id" }],
-  "alternatives": ["post.read", "post.update"]
-}
-```
-
-`approval-required` uses `type` `.../approval-required` and adds `token` and `reason`. Anonymous subjects hitting a permission that any role could grant receive `401` with `WWW-Authenticate` when the adapter knows the scheme, otherwise `403`. Bodies are stable and documented in [errors](/docs/concepts/errors) so clients and models can parse them.
+`denied` and `approval-required` become `403 application/problem+json` bodies built by `problem` ([Problem Details](/docs/standards/problem-details), [errors](/docs/concepts/errors)); boundary validation failures are `400` with `issues`. Anonymous subjects hitting a permission that any role could grant receive `401` with `WWW-Authenticate` when the adapter knows the scheme, otherwise `403`. The `approval-required` body with its `token` is the whole signal over plain HTTP: the kernel adds no `Retry-After` (a human reviewer has no predictable latency) and no `Location` (the approval UI belongs to the application or the [approvals inbox](/docs/adapters/approvals)).
 
 ## Example app
 
@@ -160,12 +138,6 @@ No dedicated example; the kernel is exercised by every HTTP example (`apps/examp
 ## Related standards
 
 - [Problem Details](/docs/standards/problem-details) (RFC 9457).
-- [OpenAPI 3.2](/docs/standards/openapi-3-2): the `security` and `securitySchemes` shapes the hook contract emits.
+- [OpenAPI](/docs/standards/openapi): the `security` and `securitySchemes` shapes the hook contract emits.
 - [Web Bot Auth](/docs/standards/web-bot-auth) (RFC 9421 HTTP Message Signatures).
 - [OAuth agent delegation](/docs/standards/oauth-agent-delegation): where `delegation` values come from.
-
-## Open questions
-
-- Whether `permdock(request)` should also accept a framework context object directly (so adapters can memoise on their own request type) or always require a `Request`.
-- Default for a `null` loader result: `404` hides existence, `403` is more honest; the plan does not decide.
-- How `approval-required` should surface over plain HTTP beyond the 403 body (listed in the roadmap open questions): a `Retry-After` hint, a `Location` to an approval page, or nothing.

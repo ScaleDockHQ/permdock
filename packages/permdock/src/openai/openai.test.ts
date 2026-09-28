@@ -13,6 +13,15 @@ import {
 } from '../fixtures/quick-start.ts';
 import { createPermDock } from './index.ts';
 
+const delegated = {
+  scopes: [
+    permissions.post.read.scope,
+    permissions.post.list.scope,
+    permissions.post.delete.scope,
+    permissions.post.publish.scope,
+  ],
+};
+
 function tools() {
   return {
     delete_post: {
@@ -79,6 +88,7 @@ describe('permdock/openai', () => {
       policy,
       {
         subject: (context) => context.user,
+        delegation: () => delegated,
         actor: (context) => ({
           id: typeof context.agentId === 'string' ? context.agentId : 'agent',
           kind: 'openai-agent',
@@ -117,6 +127,7 @@ describe('permdock/openai', () => {
     const store = memoryApprovalStore();
     const { needsApproval, resolveInterruptions } = createPermDock(policy, {
       subject: (context) => context.user,
+      delegation: () => delegated,
       actor: () => ({ id: 'agent-1', kind: 'openai-agent' }),
       tools: tools(),
       store,
@@ -166,6 +177,7 @@ describe('permdock/openai', () => {
     const store = memoryApprovalStore();
     const options = {
       subject: (context: { readonly user?: unknown }) => context.user,
+      delegation: () => delegated,
       actor: () => ({ id: 'agent-1', kind: 'openai-agent' }),
       tools: tools(),
       store,

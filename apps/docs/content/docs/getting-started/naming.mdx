@@ -3,7 +3,7 @@ title: Naming
 description: The PermDock naming convention, the use* and get* duality, reserved words, and what each adapter's createPermDock returns.
 ---
 
-PermDock has one naming rule: the brand is the noun. The decision object is a `PermDock`, the variable is `permdock`, the factory is `createPermDock`, and the import path, not the identifier, says which framework you are in. Every package, docs page, skill, error message and example follows this page. The rationale is recorded in [ADR 0005](/docs/decisions/0005-naming-convention).
+PermDock has one naming rule: the brand is the noun. The decision object is a `PermDock`, the variable is `permdock`, the factory is `createPermDock`, and the import path, not the identifier, says which framework you are in. Every package, docs page, skill, error message and example follows this page.
 
 ## The three core names
 
@@ -43,15 +43,15 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | --- | --- | --- |
 | `definePermissions` | Build the reference tree from resources and groups | Rules |
 | `defineRoles`, `definePlans` | Build the typed `Role` and `Plan` trees (`permdock.roles.admin`, `permdock.plans.pro`) | Grants; Postgres roles |
-| `Role`, `Plan` | Frozen vocabulary leaves `{ key, on?, assignable, meta }` and `{ key, meta }` | The previous grant-list type; that is `RoleBinding` |
+| `Role`, `Plan` | Frozen vocabulary leaves `{ key, on?, assignable, meta }` and `{ key, meta }`. A role named only by string becomes a synthesised `Role` leaf with `assignable: false` | The grant-list type; that is `RoleBinding` |
 | `resource` | One resource node: schema, `id` field, `actions`, `collection`, optional `parent`, optional `relations` | Anything without a schema-or-actions shape |
-| `actions` | Instance-level actions (`can(permissions.post.update, post)`) | Type-level checks |
+| `actions` | The `resource()` option listing instance-level actions (`can(permissions.post.update, post)`), and the instance verb `permdock.actions(permissions.post, post)` returning one result per leaf of a resource | Type-level checks |
 | `collection` | Type-level actions (`can(permissions.post.create)`) | Instance checks |
 | `crud`, `readable`, `writable` | Option factories for `resource()`: conventional instance/collection split and default `meta` | Constructors; grants; a default of `resource()` |
 | `mergePermissions`, `listPermissions`, `findPermission` | Registry helpers; functions so they never collide with resource names | Methods on the tree |
 | `definePolicy` | Bind vocabulary, `scopes`, `grants`, `principal`, `context`, `validate` to a definition | Defining permissions |
 | `role` | A `RoleBinding`: named array of grants with an optional scope (`{ on: 'tenant' \| 'team' \| resource reference, assignable }`); same-named bindings merge; first argument may be a `Role` leaf | Postgres roles; the only grantee |
-| `to`, `anyone`, `authenticated`, `relation`, `plan`, `actor`, `assurance` | Grantee selectors on `allow` / `deny` ([0039](/docs/decisions/0039-grantee-selectors-and-relations)) | A second permission check; `hasRole` |
+| `to`, `anyone`, `authenticated`, `relation`, `plan`, `actor`, `assurance` | Grantee selectors on `allow` / `deny`. `anyone()` is the only selector that evaluates for `principal: null`; an array in `to` means every selector must match | A second permission check; `hasRole` |
 | `scopes` | The `definePolicy` option naming the tenant and team key fields on rows (`{ tenant: { key: 'orgId' }, team: { key: 'teamId' } }`) | Permission scopes (`.scope` is the colon string form) |
 | `tenant`, `team`, `on` | The three shapes of a `Membership` (tenant role, team role, resource role) and the `on` option of `role` | `org`, `organization`, `workspace`, `group` as identifiers; those are provider vocabulary the mapper translates |
 | `Membership`, `CustomRole` | The wire types for a scoped role assignment and a tenant-defined role composed of declared `assignable` roles | Classes; both are plain JSON |
@@ -64,18 +64,18 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `request` | The `permdock/trpc` and `permdock/orpc` option mapping a context to its Web `Request`, and the `permdock/nest` option mapping a non-HTTP `ExecutionContext` | Reading a subject from it directly |
 | `problemFromError` | The `permdock/server` function turning a thrown PermDock error into its Problem Details `Response`, `undefined` for anything else | An error class; a catch-all that maps non-PermDock errors |
 | `ormParity`, `OrmParityScenario` | The `@permdock/testing` runner comparing `filter()` in memory with the rows a database returns for `toWhere(where())`, and its scenario shape | A database the runner opens itself |
-| `testClientParity`, `ClientParityCase` | The `@permdock/testing` runner asserting that `fromSnapshot` never grants what the server denies, per membership and tenant ([ADR 0050](/docs/decisions/0050-client-parity-and-snapshot-scopes)), and its case shape | Deriving expectations from the snapshot itself |
-| `testClientStore`, `ClientStoreFactory` | The `@permdock/testing` runner for client snapshot stores (tenant switch, `replace` and `refresh` races, logout during a refresh, stale and signed snapshots, endpoint answers per tenant) over the saas domain, and the factory it calls | A DOM or a framework renderer |
+| `testClientParity`, `ClientParityCase` | The `@permdock/testing` runner asserting that `fromSnapshot` never grants what the server denies, per membership and tenant, and its case shape | Deriving expectations from the snapshot itself |
+| `testClientStore`, `ClientStoreFactory` | The `@permdock/testing` runner for client snapshot stores and the factory it calls ([scenario testing](/docs/guides/scenario-testing)) | A DOM or a framework renderer |
 | `WebMcpToolCall` | The `{ input, token }` argument a `permdock/webmcp` handler receives | Positional `input` arguments |
 | `listFields`, `requiredFields` | `toWhere` options: scalar-list fields whose `contains` is element membership (Prisma, Kysely), and Prisma's non-nullable fields, where a null branch folds away | Inferring either from a schema at runtime |
 | `MemberOfParent` | A `memberOf` `parents` entry: a keyed `{ field, resource }` or a bare field name | Walking a parent chain with a query |
 | `WhereResult.subject` | The non-enumerable subject a `where()` result carries so `toWhere` compiles `memberOf` without a second argument | A serialised field; it never reaches JSON |
 | `testHttpAdapter`, `HttpMounted` | The `@permdock/testing` HTTP scenario runner and the value a mount returns (`fetch`, `call`, `close`) | A server the runner starts itself |
 | `ArazzoSimulateInput`, `ArazzoPlan`, `arazzoFindings` | The `simulate({ arazzo, openapi })` argument and result, and the resolution-only helper the CLI uses | A `permdock/arazzo` package; a subject on the call |
-| `webBotAuth`, `discoverViaSignatureAgent` | Option on HTTP `createPermDock` that verifies RFC 9421 signatures when `verify` is true, and the `Signature-Agent` directory lookup with an `allow` host list. Not a named export. | A `permdock/web-bot-auth` package; trusting a host that is not on `allow` |
+| `webBotAuth`, `discoverViaSignatureAgent` | The HTTP `createPermDock` option for RFC 9421 signatures and its `Signature-Agent` directory lookup; options, not exports | A `permdock/web-bot-auth` package; trusting a host that is not on `allow` |
 | `InvalidSignatureError` | Thrown by `permdock(request)` when a claimed Web Bot Auth signature fails; `protect` returns the Problem Details `response` instead | Downgrading a failed signature to an anonymous actor |
 | `allow`, `deny` | The two grant constructors; both accept one reference or an array and a `to` grantee | Checking |
-| `principal` | The condition ref builder (`principal.id`) and the `definePolicy` option that maps a user to principal values. There is no `subject` ref builder ([0045](/docs/decisions/0045-drop-subject-ref-alias)); `subject` stays accepted as the `definePolicy` option name | The RFC 8693 `Subject` (that stays `subject` on the instance) |
+| `principal` | The condition ref builder (`principal.id`) and the `definePolicy` option that maps a user to principal values. There is no `subject` ref builder; `subject` stays accepted as the `definePolicy` option name | The RFC 8693 `Subject` (that stays `subject` on the instance) |
 | `context` | The condition ref builder for values loaded by the `definePolicy` `context` function (`context.teamIds`) | Request-scoped state; the `ctx` a closure receives |
 | `principal`, `actor`, `delegation` | The three parts of a subject | Synonyms for user or role |
 | `granted`, `denied`, `approval-required` | The three `Decision.outcome` values | `not-applicable`, `allow`, `deny` |
@@ -84,14 +84,14 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `opaque` | Imported SQL with a fingerprint and no twin; evaluates to `false` | A portable grant |
 | `fields`, `pick` | Schema keys on a grant and the redaction helper `permdock.pick(permission, row)` | CASL globs; a permission per field |
 | `key`, `scope` | The dotted (`post.update`) and colon (`post:update`) string forms of a permission | Public API arguments |
-| `subjectFrom<Provider>` | Turning verified material into a `Subject` with `roles`, `tenant` and `memberships`: `subjectFromJwt`, `subjectFromIntrospection`, `subjectFromSupabase` (and `subjectFromSupabaseSession` for a structural `{ kind, claims }` session), `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromMcp`; every one accepts a `schema` (Standard Schema) for custom claims | Verifying, logging in, or anything that can throw |
+| `subjectFrom<Provider>` | Turning verified material into a `Subject`: `subjectFromJwt`, `subjectFromIntrospection`, `subjectFromSupabase`, `subjectFromSupabaseSession`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromMcp`; each takes a `schema` option ([authentication](/docs/concepts/authentication)) | Verifying, logging in, or anything that can throw |
 | `JwtPrincipal` | The base principal type `permdock/jwt` exports (`id` from `sub`, `issuer` from `iss`, `assurance`, RFC 9068 roles and groups) | A session type; claims stay on `principal.claims` |
 | `SupabasePrincipal` | The base principal type `permdock/supabase` exports (`id` from `sub`, roles and `tenant` from hook claims, `memberships`, `assurance.acr` from `aal`) | A session type; `user_metadata` is never read |
 | `supabaseRls`, `authorizeSql` | RLS compile hints for `permdock rls` and the `authorize()` function SQL with an optional tenant parameter | A policy builder; it does not decide |
-| `withPermDock` | The `@supabase/middleware` entry `permdock/supabase/middleware`'s `createPermDock` returns: requires `jwtClaims` upstream, contributes `ctx.permdock`; `withPermDock({ protect, data })` short-circuits with Problem Details | A PermDock naming pattern; `with*` is the pipeline's convention and appears nowhere else ([0046](/docs/decisions/0046-supabase-middleware-entry)) |
-| `createJwtSubjectResolver` | The cached, reusable form of `subjectFromJwt` (one per issuer, Discovery and JWKS cache); options `discovery` or `jwks`, `accept`, `algorithms`, `claims.roles` / `groups` / `entitlements` / `tenant` / `memberships` / `assurance` / `session`, `groupRoles`, `verifier` | A second `createPermDock` |
+| `withPermDock` | The `@supabase/middleware` entry `permdock/supabase/middleware`'s `createPermDock` returns: requires `jwtClaims` upstream, contributes `ctx.permdock`; `withPermDock({ protect, data })` short-circuits with Problem Details | A PermDock naming pattern; `with*` is the pipeline's convention and appears nowhere else |
+| `createJwtSubjectResolver` | The cached, reusable form of `subjectFromJwt`, one per issuer ([JWT adapter](/docs/adapters/jwt)) | A second `createPermDock` |
 | `verifyDpopProof` | The exported DPoP check `permdock/jwt` also runs when `sender: 'dpop'` | A second verifier; it only checks the proof |
-| `TokenVerifier`, `TokenSigner` | The two JOSE interfaces core declares as types: `verify(token, expectations)` returning `{ ok, claims, header }` or `{ ok: false, reason: 'invalid-token', cause }`, and `sign(payload, { typ })` returning compact JWS | Anything that throws; anything that decides |
+| `TokenVerifier`, `TokenSigner` | The two JOSE interfaces core declares as types ([extension interfaces](/docs/concepts/extension-interfaces)) | Anything that throws; anything that decides |
 | `joseTokenVerifier`, `joseTokenSigner` | The `permdock/jwt` implementations of the two interfaces over the optional `jose` peer | Exports of core |
 | `verifier`, `signer` | The option names for a `TokenVerifier` (`subjectFromJwt`, `permdock/ssf`) and a `TokenSigner` (`permdock.snapshot`, `approvalsHandler`, `permdock/cloud`) | `jwt`, `jose`, `crypto` as option names |
 | `discovery`, `accept` | The `permdock/jwt` options for OpenID Connect Discovery (an issuer URL that supplies `jwks_uri` and `issuer`) and for which token kind a resolver accepts (`'access-token'` default, `'id-token'`) | Guessing the token kind from its claims |
@@ -101,28 +101,28 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `Snapshot` | The JSON type of `permdock.snapshot()`; format major is the `v` field | A versioned type name (`SnapshotV2`); majors live in `v` |
 | `parseSnapshot` | Read snapshot JSON; rejects unknown majors and forbidden keys (`__proto__`, `constructor`, `prototype`) | Evaluating; it is a reader, not `createPermDock` |
 | `fromSnapshot` | Build a client `PermDock` from a `Snapshot` so portable grants evaluate locally | A second policy; closures stay on the server |
-| `snapshotFor` | `snapshotFor(policy, user, { tenant, memberships, customRoles, plans, include, tenants, now })`: the synchronous, deterministic snapshot builder `permdock.snapshot()` shares, for app-owned `'use cache: private'` functions ([0049](/docs/decisions/0049-cache-components-building-blocks)) | A function that adds a cache directive, reads headers or awaits a source |
+| `snapshotFor` | The synchronous, deterministic snapshot builder for app-owned `'use cache: private'` functions ([snapshots](/docs/concepts/snapshots)) | A function that adds a cache directive, reads headers or awaits a source |
 | `snapshotPromise` | `PermDockProvider` prop on `permdock/react`: an unawaited `Promise<Snapshot>` from a Server Component; hooks suspend through `use()` and `<Protected pending>` is the Suspense fallback | Awaiting the snapshot in a layout |
 | `cacheLifeFor` | `permdock/next`: `{ stale }` for `cacheLife()` from a snapshot's `expiresAt` and `issuedAt`, clamped to 30..300 seconds | A cache directive; the app calls `cacheLife` |
 | `mayAccess` | `mayAccess(policy, user, permission, { tenant })`: optimistic check for a proxy; `false` only when the declared roles provably lack the permission | A decision; the page still calls `can` / `decide` |
 | `approvalHeaders` | `{ 'PermDock-Approval': token }` for a retried mutation | Minting a token; it only wraps the one `decide` returned |
 | `ApprovalStore`, `memoryApprovalStore`, `approvalsHandler`, `cancelApprovals` | The pluggable store behind `approval-required`, its in-process default, the Fetch routes for approvers, and the helper that rejects pending requests for a session (`permdock/approvals`) | Deciding; a store never influences `decide` |
-| `consume`, `consumedAt`, `consumeApproval`, `resumeDecision` | The atomic single-use step on `ApprovalStore`, the field it sets on an Approval request, and the helpers adapters use to apply a resume token to a decision ([ADR 0051](/docs/decisions/0051-approval-lifecycle)) | `used`, `redeemed`, a `consumed` status |
+| `consume`, `consumedAt`, `consumeApproval`, `resumeDecision` | The atomic single-use step on `ApprovalStore`, the field it sets, and the adapter helpers that apply a resume token | `used`, `redeemed`, a `consumed` status |
 | `ApprovalError`, `isApprovalError`, `assertApprover` | The error (with a closed `code` list), its guard (matches by `name` and `code`, so a duplicated module copy still maps) and the approver check a custom `ApprovalStore` applies in `resolve` | Plain `Error` from a store, which `approvalsHandler` maps to `500` |
 | `permdockApproval` | The context key the `ai-sdk` and `openai` adapters read an explicit resume token from; every agent adapter also recomputes the token and finds the record in its `store` without it | `approval`, `token` (collide with application context) |
 | `APPROVAL_META_KEY` | `'dev.permdock/approval'`, the MCP request `_meta` key `permdock/mcp` reads a resume token from | A token in tool arguments (model-controlled) |
-| `approval: 'human'` or `{ by, distinct }` | Grant option that yields `approval-required`; `by` is a grantee selector and `distinct` excludes the principal ([0047](/docs/decisions/0047-approver-eligibility)) | A fluent approver builder; `quorum` |
+| `approval: 'human'` or `{ by, distinct }` | Grant option that yields `approval-required`; `by` is a grantee selector and `distinct` excludes the principal | A fluent approver builder; `quorum` |
 | `exclusiveWith` | Role option listing roles that must not be held together; doctor PD018 and `separationConflicts` | An evaluation deny |
 | `DecisionSink`, `memorySink` | The pluggable destination for `on('decision')` events and its in-process default; `memorySink({ signer })` signs each write | Blocking a decision; sinks are fire-and-forget |
-| `signDecisionBatch` | Sign a `SinkEvent[]` as compact JWS with `typ: permdock-decisions+jwt` and CloudEvents under the `events` claim | Feeding a signed batch back into `decide`; evidence only |
+| `signDecisionBatch` | Sign a batch of sink events as a `permdock-decisions+jwt` JWS | Feeding a signed batch back into `decide`; evidence only |
 | `store`, `sink`, `snapshots` | The three options every adapter's `createPermDock` accepts for an `ApprovalStore`, a `DecisionSink` and a `SnapshotSource` | Anything else; `store` is never a database handle |
 | `memberships`, `customRoles`, `tenant` | The three tenancy options every adapter's `createPermDock` accepts: a `MembershipSource`, a `RoleSource`, and how the active tenant is resolved from the request | Reading a tenant from an unsigned header or a model argument |
 | `cloud` | `cloud({ url, key })` from `permdock/cloud`, returning `approvals`, `sink` and `snapshots` for PermDock Cloud | A factory for a `PermDock`; there is no `decide` on it |
-| `scimHandler` | The RFC 7644 Fetch handler from `permdock/scim` serving `/Users` and `/Groups` into a `DirectoryStore`; options `store`, `tenant`, `token` or `verifier`, `groupRoles`, `sink`, `onChange`, `revocations` | A `PermDock`; it decides nothing and reads no tenant from a body |
+| `scimHandler` | The RFC 7644 Fetch handler from `permdock/scim` writing into a `DirectoryStore` ([SCIM adapter](/docs/adapters/scim)) | A `PermDock`; it decides nothing and reads no tenant from a body |
 | `DirectoryStore`, `memoryDirectoryStore` | The repository interface SCIM provisioning writes to (users, groups, `groupsFor`), every method tenant-first, and its in-process default | A `MembershipSource`; the store is the write side, the source below is the read side |
 | `directoryMembershipSource` | `directoryMembershipSource(store)`: the `MembershipSource` that turns synced groups into `{ tenant, team: group.id, roles, via: 'group:<id>' }` and yields nothing for an inactive user | Reading display names; group ids only |
 | `ReplayStore`, `memoryReplayStore` | The pluggable `jti` replay store for `permdock/ssf` and its in-process default | A decision input; SETs and `logout_token`s never reach `decide` |
-| `connection`, `Connection`, `ConnectionOptions` | The kernel and HTTP adapter method that opens a long-lived connection for a stream or socket, and its frozen result (`permdock`, `signal`, `check`, `filter`, `close`) ([0052](/docs/decisions/0052-streams-and-sockets)) | A mutable instance; `stream`, `socket` or `subscribe` as the kernel method name |
+| `connection`, `Connection`, `ConnectionOptions` | The kernel and HTTP adapter method that opens a long-lived connection for a stream or socket, and its frozen result (`permdock`, `signal`, `check`, `filter`, `close`) | A mutable instance; `stream`, `socket` or `subscribe` as the kernel method name |
 | `RevocationFeed`, `RevocationEvent`, `memoryRevocationFeed` | The interface that tells open connections a subject changed (`subscribe`, `revoke`; events `session-revoked` and `changed`) and its in-process default | A decision input; a feed ends or revalidates, never grants |
 | `revocations` | The option carrying a `RevocationFeed` on the kernel, the HTTP adapters, `permdock/ssf` and `permdock/scim` | `revocationFeed`, `feed` |
 | `PermDockRevokedError`, `RevokedCode` | The `reason` of an aborted connection signal; `code` is `session-revoked`, `expired`, `denied` or `subject-changed` | A denial reason; a check after the abort is `no-grant` with `detail: 'connection-revoked'` |
@@ -130,6 +130,7 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `ElysiaSocket`, `NestSocket` | The structural socket types `connection` accepts in `permdock/elysia` and `permdock/nest` | An import of the framework's socket class |
 | `remotePdp` | `permdock/pdp` helper that implements `DecisionProvider` over an AuthZEN evaluation URL | A local `decide`; unknown or unreachable remote answers deny |
 | `PermDock-Approval` | The HTTP request header carrying an approval `token` on a retried request | Anything else on the wire |
+| `membershipEvent` | Pure builder for a `membership` sink event | A `Decision`; it is audit only |
 
 Strings appear only as `.key` and `.scope` on the wire, in audit events and in catalogs. The public API takes references.
 
@@ -141,17 +142,19 @@ These never appear as public identifiers, for the reasons given:
 
 | Word | Why it is reserved |
 | --- | --- |
-| `dock` | Early sketches used it as the instance name; it reads oddly next to `PermDock` and collides with nothing meaningful. Only `permdock` is used. |
+| `dock` | It reads oddly next to `PermDock`; only `permdock` is used for the instance. |
 | `ability` | CASL's noun; using it would imply CASL semantics (subject detection, `manage`/`all`) that PermDock does not have. |
 | `can` as a definer | CASL uses `can` both to define and to check rules, which its own cookbook documents as confusing ([less-confusing-can-api](https://github.com/stalniy/casl/blob/master/docs-src/src/content/pages/cookbook/less-confusing-can-api/en.md)). PermDock defines with `allow` / `deny` and checks with `can`. |
 | `$`-prefixed members | Kilpi prefixes every instance member with `$` to avoid clashing with policy names in a Proxy tree. PermDock keeps methods on the instance and the tree separate, so no prefix is needed. |
-| `explain` | Replaced by `decide`, which returns the full `Decision` rather than a message ([ADR 0007](/docs/decisions/0007-decide-not-explain)). |
-| `Can`, `Guard`, `Access` | Component names already used by CASL, older sketches and Kilpi; the PermDock component is `<Protected>`. |
+| `explain` | `decide` returns the full `Decision` and `describe(decision)` turns it into prose; a third method would say the same thing. |
+| `Can`, `Guard`, `Access` | Component names used by CASL and Kilpi; the PermDock component is `<Protected>`, and it is the only component. |
 | `org`, `organization`, `workspace`, `account`, `group` as PermDock identifiers | Every provider picks a different noun for the same thing. PermDock uses `tenant` and `team` in its own API and lets the `subjectFrom*` mapper translate (Clerk organization to `tenant`, SCIM group to `team`). |
 | `useOrganization`, `useTeam`, `TenantProvider` | The tenant is a property of the one snapshot, not a second provider; `useTenant` and `useMemberships` read it. |
 | `hasRole`, `isAdmin`, `roleGuard` | Role checks in application code bypass the permission model; check a permission, and read roles only for display (`useRoles`) or assignment (`useAssignableRoles`). |
-| `who` | Reserved for a later directory-backed "who may X this row" verb ([0040](/docs/decisions/0040-principal-refs-and-question-verbs)); not exported. |
+| `who` | Reserved for a directory-backed "who may X this row" verb; not exported. |
 | `SnapshotV2` | The format major lives in `v`; the type is `Snapshot`. |
+| `scope(...)` as a derived instance | Derived instances are `tenant(id)` and `team(id)`, one method per scope kind. |
+| `permdock/cloud-auth` | There is no such entry: PermDock Cloud identity is `subjectFromJwt({ discovery })` against the Cloud issuer. |
 
 ## What each adapter's createPermDock returns
 
@@ -179,46 +182,45 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/a2a` | `{ agentCard, extendedAgentCard, protectSkill, sign }` | Options: `skills` |
 | `permdock/otel` | no factory; `instrument` / `withOtel` | Subscribes to `on('decision')`; optional `@opentelemetry/api` |
 
-Two entries deliberately do not export `createPermDock`:
+These entries deliberately do not export `createPermDock`:
 
 - `permdock/react` and `permdock/react-native` export `PermDockProvider`, `usePermDock`, `usePermission`, `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject` and `<Protected>` directly. `permdock/vue` exports `permdockPlugin` plus the same composable names and `<Protected>`. `permdock/svelte` and `permdock/solid` keep the same surface under each framework's idiom.
 - `permdock/better-auth`, `permdock/clerk` and `permdock/supabase` export their `subjectFrom*` mapper and, where the provider stores roles, a `<provider>RoleSource`; both are values you pass to a factory.
 - `permdock/webmcp` exports `registerTools(document.modelContext, group, { permdock })` because it consumes a client `PermDock` rather than creating one. `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` export `toWhere`. `permdock/prisma` also exports `permdockExtension`. `permdock/kysely` also exports `withSubject`. `permdock/jwt` exports `subjectFromJwt`, `createJwtSubjectResolver`, `verifyDpopProof`, `joseTokenVerifier` and `joseTokenSigner` because it produces subjects, verifiers and signers for a factory, not an instance. Structurally typed providers (`permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex`, `permdock/prisma`, `permdock/mcp`, `permdock/react-native`) declare **no peer dependency**: they duck-type the SDK you already installed. `permdock/supabase/middleware` is the exception on the Supabase side: it calls `defineMiddleware`, so `@supabase/middleware` is its optional peer, while `@supabase/server`'s `JWTClaims` is still duck-typed.
 - `permdock/approvals` exports `memoryApprovalStore` and `approvalsHandler`, and `permdock/cloud` exports `cloud`; both produce values you pass *to* a factory (`store`, `sink`, `snapshots`) rather than a `PermDock`.
-- Build hooks live in `@permdock/cli`, not in `permdock`: `permdock/next/plugin` exports `createPermDockPlugin` and `@permdock/cli/unplugin` exports `createPermDockUnplugin` (Vite, Rollup, webpack, Rspack, esbuild through [unplugin](https://unplugin.unjs.io)). Both run `collect` at build time and never wire runtime API ([0006](/docs/decisions/0006-explicit-factory-not-plugin)). The `create` prefix and the `PermDock` noun follow the factory rule; the suffix names the host (`Plugin` for Next's config API, `Unplugin` for the bundler family).
+- Build hooks live in `@permdock/cli`, not in `permdock`: `permdock/next/plugin` exports `createPermDockPlugin` and `@permdock/cli/unplugin` exports `createPermDockUnplugin` (Vite, Rollup, webpack, Rspack, esbuild through [unplugin](https://unplugin.unjs.io)). Both run `collect` at build time and never wire runtime API. The `create` prefix and the `PermDock` noun follow the factory rule; the suffix names the host (`Plugin` for Next's config API, `Unplugin` for the bundler family).
 
 ## Spec names
 
-PermDock's subject vocabulary is TypeScript, camelCase and typed; the specifications it consumes are JSON claims with short registered names. [ADR 0026](/docs/decisions/0026-spec-aligned-naming) fixes the rule: where a spec name exists, PermDock either uses it verbatim or maps to it exactly once, in the table below and on [subject](/docs/concepts/subject); PermDock never coins a second spelling for a concept a specification already names. Names in the "PermDock" column that are new in ADR 0026 are marked.
+PermDock's subject vocabulary is TypeScript, camelCase and typed; the specifications it consumes are JSON claims with short registered names. [subject](/docs/concepts/subject) fixes the rule: where a spec name exists, PermDock either uses it verbatim or maps to it exactly once, in the table below and on [subject](/docs/concepts/subject); PermDock never coins a second spelling for a concept a specification already names.
 
 | Specification name | Source | PermDock name | Rule |
 | --- | --- | --- | --- |
 | `sub` | RFC 7519, OIDC Core | `principal.id` | Opaque string, compared byte for byte |
-| `iss` | RFC 7519, OIDC Core | `principal.issuer` (new) | Always set by `subjectFrom*`; identity is `issuer` + `id` |
+| `iss` | RFC 7519, OIDC Core | `principal.issuer` | Always set by `subjectFrom*`; identity is `issuer` + `id` |
 | `aud` | RFC 7519 | `audience` option | Verified, not stored |
 | `exp` | RFC 7519 | `subject.expiresAt`, `Membership.expiresAt`, `ApprovalRequest.expiresAt`, snapshot `expiresAt` | NumericDate (Unix seconds) everywhere, the same unit as `exp`; the JWS envelope's `exp` copies it |
 | `iat`, `nbf`, `jti` | RFC 7519 | none on the subject; `iat`, `jti` on signed outputs | Verified, then dropped |
-| `act` | RFC 8693 | `actor` (ADR 0012) | Innermost `act.sub` is `actor.id`; the nesting is `delegation.chain` |
+| `act` | RFC 8693 | `actor` | Innermost `act.sub` is `actor.id`; the nesting is `delegation.chain` |
 | `client_id`, `azp` | RFC 9068, OIDC Core | `actor.id` when the client acts under a delegation; verified otherwise | `actor.kind` `'oauth-client'` or `'mcp-client'` |
 | `Signature-Agent` `keyid` | Web Bot Auth / RFC 9421 | `actor.id` when `webBotAuth.verify` is on | `actor.kind` `'web-bot-auth'` |
 | `scope` | RFC 6749, RFC 9068 | `delegation.scopes`; `permission.scope` | Space-separated string on the wire, array in TypeScript |
 | `authorization_details` | RFC 9396 | `delegation.authorizationDetails`; `permission.authorizationDetails` | One RAR `type` per permission |
 | `access` | RFC 9635, RFC 9767 | `delegation.access` | Objects and reference strings kept verbatim |
 | `cnf` (`jkt`, `x5t#S256`, `jwk`, `kid`) | RFC 7800, RFC 9449, RFC 8705 | `binding` with the same member names (reshaped) | FAPI's "sender-constrained" gives the field its name; the members are the `cnf` members so it round-trips |
-| `acr`, `amr`, `auth_time` | OIDC Core, RFC 8176 | `principal.assurance.acr`, `.amr`, `.authTime` (new fields) | Provider `aal` maps into `acr`; RFC 8176 `amr` values include `pwd`, `otp`, `swk`, `hwk`, `mfa` |
+| `acr`, `amr`, `auth_time` | OIDC Core, RFC 8176 | `principal.assurance.acr`, `.amr`, `.authTime` | Provider `aal` maps into `acr`; RFC 8176 `amr` values include `pwd`, `otp`, `swk`, `hwk`, `mfa` |
 | `aal` (`aal1`, `aal2`) | Supabase Auth JWT | `principal.assurance.acr` | Verified by `getClaims()`; `aal2` is MFA |
 | `fva` / `factorVerificationAge` | Clerk session token | Recipe into `principal.assurance`; not mapped by `subjectFromClerk` | Second element `>= 0` means a second factor was verified |
 | `twoFactorEnabled` | Better Auth user row | Recipe into `principal.assurance`; not mapped by `subjectFromBetterAuth` | A session exists only after the two-factor plugin verifies |
-| `sid` | OIDC Front- and Back-Channel Logout | `subject.session` (new) | The join key for `logout_token` and CAEP events |
-| `roles`, `groups`, `entitlements` | RFC 9068 | `principal.roles`; `principal.memberships` (`team` from `groups`) | SCIM `value` only |
+| `sid` | OIDC Front- and Back-Channel Logout | `subject.session` | The join key for `logout_token` and CAEP events |
+| `roles`, `groups`, `entitlements` | RFC 9068 | `principal.roles`; `principal.memberships` (`team` from `groups`); `principal.plans` from `entitlements` | SCIM `value` only |
 | `userName`, `externalId`, `active`, `displayName` (SCIM `User`) | RFC 7643 | `DirectoryUser.userName`, `.externalId`, `.active`, `.displayName` verbatim | `externalId` is the IdP's identifier and `id` is the store's; `active: false` yields no memberships; `displayName` is never an identifier |
 | `members[].value`, `displayName` (SCIM `Group`) | RFC 7643 | `DirectoryGroup.members[].value` verbatim; `team: group.id` on the membership | Group `id` is the team identifier; `display` and `displayName` are labels only |
 | `urn:permdock:scim:schemas:extension:roles:1.0` (`roles`) | RFC 7643 section 3.3 extension | The `Group` extension carrying the declared role names for a group; read by `directoryMembershipSource` | Unknown or non-`assignable` role names are dropped, never invented |
 | `type`, `source`, `subject` (CloudEvents) | CloudEvents 1.0 | `dev.permdock.decision`, `dev.permdock.approval`, `dev.permdock.directory`, `dev.permdock.membership`, `dev.permdock.catalog`; the emitting service; the permission key, resource id or principal id | The envelope for every webhook and queue sink ([wire formats](/docs/concepts/wire-formats)) |
-| `membershipEvent` | Pure builder for a `membership` sink event | A `Decision`; it is audit only ([0048](/docs/decisions/0048-membership-sink-event)) |
 | `jwks_uri`, `issuer` (Discovery) | OIDC Discovery, RFC 8414 | `discovery` option; `jwks` and `issuer` options | Discovery supplies both |
 | `typ` (`at+jwt`, `JWT`, `logout+jwt`, `secevent+jwt`) | RFC 9068, RFC 7519, OIDC, RFC 8417 | `accept` option; `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt` on outputs | Explicit typing, RFC 8725 section 3.11 |
-| `invalid_token`, `insufficient_scope`, `insufficient_user_authentication` | RFC 6750, RFC 9470 | `on('auth')` reason `invalid-token` (renamed); Decision reasons `not-delegated` / `no-delegation` and `insufficient-user-authentication` (new) | Hyphenated in PermDock, underscored on the wire; the HTTP adapter renders without a second table |
+| `invalid_token`, `insufficient_scope`, `insufficient_user_authentication` | RFC 6750, RFC 9470 | `on('auth')` reason `invalid-token`; Decision reasons `not-delegated` / `no-delegation` and `insufficient-user-authentication` | Hyphenated in PermDock, underscored on the wire; the HTTP adapter renders without a second table |
 | `Subject`, `Resource`, `Action`, `Context` | AuthZEN 1.0 | `principal` (+ `actor`, `delegation`, `tenant` under `context`), `resource`, `action`, `context` | The evaluation mapping on [AuthZEN](/docs/standards/authzen) |
 
 ## Files and folders
@@ -226,8 +228,3 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 - The server factory lives in `src/permdock/server.ts` in every example. The definition is `src/permissions.ts`; the policy is `src/policy.ts`; generated definitions are `src/permissions.generated.ts`.
 - Example apps are `apps/examples/<adapter>`; the docs page is `/docs/adapters/<adapter>`; the source folder is `packages/permdock/src/<adapter>`. The same short name is used in all three.
 - Errors are `PermDockDeniedError`, `PermDockApprovalRequiredError` and `PermDockValidationError`. Problem Details `type` URIs end in `/denied`, `/approval-required` and `/validation`.
-
-## Open questions
-
-- Whether `<Protected>` should be joined by a second, `<Can>`-style inline render-prop component.
-- Whether the derived-instance methods should be `tenant(id)` / `team(id)` (current) or a single `scope({ tenant, team })`; the [tenancy](/docs/concepts/tenancy) page carries the rationale for two named methods.

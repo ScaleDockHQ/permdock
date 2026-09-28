@@ -23,7 +23,7 @@ export type ApprovalSubjectSummary = {
 };
 
 export type ApprovalRequest = {
-  readonly v: 1 | 2;
+  readonly v: 1;
   readonly token: string;
   readonly permission: string;
   readonly scope: string;

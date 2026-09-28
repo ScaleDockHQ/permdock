@@ -10,19 +10,19 @@ export const compareRows: readonly CompareRow[] = [
     name: 'permix',
     kind: 'In-process library',
     take: 'Closest adapter breadth. Mutable global core, boolean hydration, no explain, no SQL.',
-    href: '/docs/research/permix-lessons',
+    href: '/docs/research/landscape',
   },
   {
     name: 'CASL v7',
     kind: 'In-process library',
     take: 'Mature conditions to Prisma and Mongoose. String tuples, no Standard Schema, no MCP.',
-    href: '/docs/research/casl-v7',
+    href: '/docs/research/landscape',
   },
   {
     name: 'Kilpi v1',
     kind: 'In-process library',
     take: 'Server-first Grant and Deny. Zod and superjson in core, no Standard Schema, RN or MCP.',
-    href: '/docs/research/kilpi-v1',
+    href: '/docs/research/landscape',
   },
   {
     name: 'Better Auth access control',
@@ -34,7 +34,7 @@ export const compareRows: readonly CompareRow[] = [
     name: 'Hosted PDPs',
     kind: 'Network PDP',
     take: 'Cerbos, Permit.io, OpenFGA, SpiceDB, Oso Cloud: strings in, boolean out. PermDock embeds and can speak AuthZEN to them.',
-    href: '/docs/research/commercial-landscape',
+    href: '/docs/research/landscape',
   },
   {
     name: 'Cedar and OPA',

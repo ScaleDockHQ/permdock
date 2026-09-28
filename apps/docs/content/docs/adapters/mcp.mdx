@@ -3,9 +3,6 @@ title: MCP
 description: permdock/mcp guards MCP tools with typed permissions, scope step-up challenges, per-caller tool lists, boundary-validated arguments and model-readable refusals.
 ---
 
-Status: shipped
-Phase: 2
-
 `permdock/mcp` wraps an MCP server built with the official TypeScript SDK v2 so that every tool declares the permission it needs. The adapter turns that declaration into an OAuth scope challenge, a filtered `list_tools` response, validated arguments and a structured refusal, so the model learns why a call was refused and what it may do instead.
 
 ## Purpose
@@ -36,8 +33,8 @@ guarded.registerTool(
 guarded.registerTool('list_posts', { permission: permissions.post.list, inputSchema }, listHandler)
 ```
 
-- `createPermDock(policy, options)` returns `protectServer`, which takes an SDK v2 `McpServer` and returns the same server with permission-aware `registerTool`, `registerResource` and `registerPrompt`. Registering any of them without a `permission` throws a `TypeError` at startup.
-- `permission` is required. Collection actions (`permissions.post.list`) need no `data`; instance actions take `data(args)` so the adapter evaluates `where` conditions against the real row. A `data` loader that throws or returns `null` is a `validation` denial, never a grant.
+- `createPermDock(policy, options)` returns `protectServer`, which takes an SDK v2 `McpServer` and returns the same server with permission-aware `registerTool`, `registerResource` and `registerPrompt`. Registering any of them without a `permission` throws a `TypeError` at startup. There is no separate `requireScopes()` export: a handler registered outside `protectServer` is not guarded.
+- `permission` is required, and each tool declares exactly one, so a refusal's `alternatives` are always those of that permission's resource. Collection actions (`permissions.post.list`) need no `data`; instance actions take `data(args)` so the adapter evaluates `where` conditions against the real row. A `data` loader that throws or returns `null` is a `validation` denial, never a grant.
 - `subject` receives the SDK `AuthInfo` and returns the principal (or `null` for anonymous). `subjectFromMcp(authInfo, { claims, groupRoles, schema, delegation })` is the ready-made mapper when the verifier puts token claims on `authInfo.extra`; it returns the anonymous subject for missing or malformed material and never throws. The adapter fills `actor` with `{ id: authInfo.clientId, kind: 'mcp-client' }` and `delegation` with `authInfo.scopes` and, when present, RFC 9396 `authorization_details`, so a decision is the principal's grants intersected with what the client was delegated.
 - `requireAuthInfo: true` refuses every call that arrives without `authInfo` (an HTTP server behind bearer middleware). Without it a call with no `authInfo`, such as a stdio server run by the local user, skips the scope check and is decided on `subject` alone.
 - `store` (an `ApprovalStore`) holds `approval-required` calls; `sink`, `limits`, `memberships`, `customRoles`, `tenant` and `otel` behave as on every adapter.
@@ -138,7 +135,7 @@ Orval, Scalar, Speakeasy and similar tools generate an MCP server from an OpenAP
 
 Recipe: run the bridge on the **applied** description (the producer's output with PermDock's [Overlay](/docs/standards/openapi-overlay) merged), then map each generated tool to `registerTool` with `permission: findPermission(operation['x-permdock-permissions'][0])`. Where the bridge exposes a per-operation hook, do it there; otherwise have the bridge register its tools on the server `protectServer` returns. `protectServer` takes no mapping: a tool registered on the raw server without a `permission` stays listed and callable, so a bridge that bypasses the guarded server is not guarded. `findPermission` is the one place a string key enters the public API, and it throws on an unknown key, so a bridge cannot register a tool for an operation the catalog does not know. Operations without `x-permdock-permissions` are not registered (fail closed), the same rule `simulate` applies to Arazzo steps.
 
-This is a recipe, not a package: PermDock composes with the bridge through the extension it already writes ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), [OpenAPI ecosystem](/docs/research/openapi-ecosystem)). Standard `security` is not enough here because the bridge needs the permission key, not the OAuth scope; it is the one consumer for which `x-permdock-*` carries information the standard fields cannot.
+This is a recipe, not a package: PermDock composes with the bridge through the extension it already writes ([adapters](/docs/adapters), [ecosystem index](/docs/research/ecosystem-index)). Standard `security` is not enough here because the bridge needs the permission key, not the OAuth scope; it is the one consumer for which `x-permdock-*` carries information the standard fields cannot.
 
 ## Example app
 
@@ -151,12 +148,4 @@ This is a recipe, not a package: PermDock composes with the bridge through the e
 - [Approvals](/docs/security/approvals): `approval: 'human'`, replay-safe tokens.
 - [Problem Details](/docs/standards/problem-details): shared vocabulary for the `structuredContent` refusal body.
 - [OWASP Agentic Top 10](/docs/security/owasp-agentic): ASI02 Tool Misuse, ASI03 Identity and Privilege Abuse.
-- [OpenAPI 3.2](/docs/standards/openapi-3-2) and [OpenAPI ecosystem](/docs/research/openapi-ecosystem): `x-permdock-permissions` as the binding for generated MCP servers.
-
-## Open questions
-
-- Whether `list_tools` should hide tools with instance-level conditions or show them with a `permdock` annotation stating that per-row checks apply.
-- How to represent `alternatives` for tools that map several permissions to one tool name.
-- Whether the adapter should expose `requireScopes()` for handlers registered outside `protectServer`.
-- Where MCP Tasks (long-running tool calls) re-check the decision: at submission only, or again at completion.
-- Whether to verify delegation chains in the adapter or leave that to the token layer (tracked on the [roadmap](/docs/roadmap)).
+- [OpenAPI](/docs/standards/openapi) and the [ecosystem index](/docs/research/ecosystem-index): `x-permdock-permissions` as the binding for generated MCP servers.

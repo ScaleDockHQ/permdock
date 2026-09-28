@@ -167,7 +167,7 @@ export async function runOpenapi(input: {
   if (action === 'import') {
     return {
       code: 2,
-      output: 'openapi import ships in a later Phase 2 slice',
+      output: 'PermDock CLI: openapi import is not available yet',
     };
   }
   if (!existsSync(docPath)) {

@@ -11,8 +11,8 @@ export type {
   ConnectionData,
   ConnectionOptions,
 } from './connection.ts';
-export { createEvaluationsHandler, createHandler } from './evaluations.ts';
-export { mapPermDockError as problemFromError } from './map-error.ts';
+export { createEvaluationsHandler } from './evaluations.ts';
+export { problemFromError } from './map-error.ts';
 export {
   PROBLEM_BASE,
   problemFromDecision,

@@ -3,9 +3,6 @@ title: Express
 description: permdock/express wraps the Fetch kernel as Express middleware, exposing req.permdock and a protect guard, with Problem Details errors routed through Express error handling.
 ---
 
-Status: shipped
-Phase: 2
-
 ## Purpose
 
 Express 4 and 5 use Node's `IncomingMessage` / `ServerResponse` rather than Fetch objects. `permdock/express` converts the request once, delegates to the [server kernel](/docs/adapters/server-kernel), attaches the request-scoped `PermDock` as `req.permdock`, and provides `protect` as ordinary middleware. Async rejections are forwarded to `next(err)` so Express 4 does not hang (the fail-closed fix permix needed in its Express adapter).
@@ -50,22 +47,15 @@ app.get('/posts', handler(async (req, res) => {
 
 ## Request lifecycle
 
-1. `permdock()` runs after your auth middleware, resolves the subject once, and stores the instance on `req`.
-2. `protect` loads data, validates untrusted input at the boundary, decides, continues or responds.
-3. Handlers call `req.permdock.assert(...)` or `filter` for checks that need handler-local data; throws are routed by `errorHandler()`.
+`permdock/express` follows the [shared adapter contract](/docs/adapters) through the [server kernel](/docs/adapters/server-kernel). What differs on Express:
 
-The Web `Request` behind `req.permdock` reads the Node stream only when something consumes its body, so `express.json()`, multer or busboy mounted after `permdock()` still receive the whole body. A sub-router needs `express.Router({ mergeParams: true })` for a `tenant` resolver that reads a parent param such as `:org`.
-4. Decisions are emitted through `on('decision')` with `req.method` and `req.route.path`.
+- `permdock()` runs after your auth middleware. The Web `Request` behind `req.permdock` reads the Node stream only when something consumes its body, so `express.json()`, multer or busboy mounted after `permdock()` still receive the whole body.
+- `protect` stores the loaded row on `req.permdockData`, so the handler does not run the loader twice. Assertions thrown inside handlers are routed by `errorHandler()`.
+- A sub-router needs `express.Router({ mergeParams: true })` for a `tenant` resolver that reads a parent param such as `:org`.
+- `protect` used before `permdock()` throws a descriptive error at the first request rather than reading `undefined`.
+- Decision events carry `req.method` and `req.route.path`.
 
-## What it validates
-
-- Untrusted `loadData` results and request bodies against the resource schema under `validate: 'boundary'`.
-- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
-- Startup order: `protect` used before `permdock()` throws a descriptive error at first request rather than reading `undefined`.
-
-## How denials surface
-
-`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` and a `token` for `approval-required`; `400` with `issues` for boundary validation failures; `401` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+Express 4 and 5 are both supported (`express >=4`): rejections are forwarded to `next(err)`, which Express 4 needs and Express 5 tolerates. Denials are the kernel's Problem Details responses.
 
 ## Example app
 
@@ -73,10 +63,4 @@ The Web `Request` behind `req.permdock` reads the Node stream only when somethin
 
 ## Related standards
 
-- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2).
-
-## Open questions
-
-- Whether to support Express 4 at all, or Express 5 only (which handles async rejections natively).
-- Whether `req.permdockData` should exist or the handler should call the loader itself.
-- The OpenAPI integration to target for the example: `express-openapi`, `swagger-jsdoc`, or a hand-written document validated by `permdock openapi`.
+- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi).

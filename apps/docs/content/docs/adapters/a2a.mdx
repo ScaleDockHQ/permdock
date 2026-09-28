@@ -3,9 +3,6 @@ title: A2A
 description: permdock/a2a emits A2A Agent Cards whose skills carry security requirements derived from permissions and filters the authenticated extended card by the caller's grants.
 ---
 
-Status: shipped
-Phase: 2
-
 `permdock/a2a` maps A2A skills to permission references. From that map it emits the public Agent Card with `securitySchemes` and per-skill `securityRequirements`, and it builds the authenticated extended card for a specific caller by keeping only skills the caller may invoke. It is the A2A counterpart of `list_tools` filtering in [permdock/mcp](/docs/adapters/mcp).
 
 ## Purpose
@@ -33,10 +30,10 @@ app.post('/a2a/tasks', protectSkill((task) => task.skillId), handleTask)
 ```
 
 - `skills` maps skill ids to a permission and optional metadata; `data` resolves the resource for instance-level actions from the task payload.
-- `agentCard()` returns the public card: every skill, each with `securityRequirements` naming the configured scheme and the permission's `scope` (`post:read`, `post:publish`).
-- `extendedAgentCard(auth)` builds a request-scoped `PermDock` and returns only skills with a grant for the caller; `securityRequirements` are unchanged.
+- `agentCard()` returns the public card: every skill, each with `securityRequirements` naming the configured scheme and the permission's `scope` alone (`post:read`, `post:publish`), with no coarse agent scope added.
+- `extendedAgentCard(auth)` builds a request-scoped `PermDock` and returns only skills with a grant for the caller; `securityRequirements` are unchanged. A skill with instance-level conditions stays listed when any grant could match, as with MCP `tools/list`, and filtered skills carry no `alternatives` hints.
 - `protectSkill(selector)` is middleware for the task endpoint: it resolves the skill id, runs `decide`, and rejects the task when the outcome is not `granted`.
-- Card signing is delegated to the host's key material; the adapter exposes `sign(card, key)` as a thin helper so the filtered extended card can be signed per response.
+- Card signing stays with the host's key material: `sign(card, signPayload)` serialises the card and passes it to your signer callback, so the filtered extended card can be signed per response without the adapter holding a key.
 
 ## Request lifecycle
 
@@ -70,13 +67,5 @@ app.post('/a2a/tasks', protectSkill((task) => task.skillId), handleTask)
 
 - [A2A](/docs/standards/a2a): Agent Card, `securitySchemes`, `securityRequirements`, signed cards, authenticated extended card.
 - [OAuth agent delegation](/docs/standards/oauth-agent-delegation): scopes and `authorization_details` as delegated authority.
-- [OpenAPI 3.2](/docs/standards/openapi-3-2): the same `oauth2MetadataUrl` security scheme shape.
+- [OpenAPI 3.2](/docs/standards/openapi): the same `oauth2MetadataUrl` security scheme shape.
 - [Problem Details](/docs/standards/problem-details): task error body.
-
-## Open questions
-
-- The plan names only `agentCard` and `extendedAgentCard`; `protectSkill` and `sign` are proposed here as the minimum needed for execution-time enforcement and per-caller signing, and may move or be renamed.
-- Whether `securityRequirements` should list the permission scope alone or the scope plus a coarse agent scope.
-- How to express instance-level conditions in skill descriptions so a calling agent can plan (the same question as `list_tools` in MCP).
-- Whether card signing belongs in the adapter or stays a host concern with a documented recipe.
-- Whether the extended card should include `alternatives` hints for skills that were filtered out.

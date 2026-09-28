@@ -3,9 +3,6 @@ title: Elysia
 description: permdock/elysia derives a request-scoped PermDock into Elysia's context and provides protect as a typed beforeHandle hook that keeps validated route types.
 ---
 
-Status: shipped
-Phase: 2
-
 ## Purpose
 
 Elysia is Fetch-native and Bun-first, so the [server kernel](/docs/adapters/server-kernel) runs unchanged. `permdock/elysia` is a plugin that uses `derive` to attach `permdock` to the context and a `protect` hook for `beforeHandle`. The adapter is typed against Elysia's inferred route context so `params` and `body` validated with TypeBox or Zod keep their types inside `loadData` (permix's Elysia guard was typed against the raw `Context`, breaking with validated routes).
@@ -55,7 +52,7 @@ Because hooks run in registration order, the group-level `protect` decides first
 
 ### WebSockets
 
-`connection(ws, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for an Elysia `.ws` socket (typed `ElysiaSocket`), memoised per socket, and closes the socket with `1008` and the Problem Details `type` when the connection aborts ([0052](/docs/decisions/0052-streams-and-sockets)). Pass `revocations` to `createPermDock`.
+`connection(ws, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for an Elysia `.ws` socket (typed `ElysiaSocket`), memoised per socket, and closes the socket with `1008` and the Problem Details `type` when the connection aborts. Pass `revocations` to `createPermDock`.
 
 ```ts
 app.ws('/ws', {
@@ -71,20 +68,15 @@ app.ws('/ws', {
 
 ## Request lifecycle
 
-1. `derive` resolves the subject and builds the instance once per request.
-2. `protect` runs before the handler; the loaded, validated resource is available as `permdockData`.
-3. Handlers call `permdock.assert(...)` for checks with handler-local data; PermDock errors are mapped by the plugin's global `onError` to Problem Details.
-4. Decisions are emitted through `on('decision')` and the `sink`. The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route; a sink that needs them reads its own request context.
+`permdock/elysia` follows the [shared adapter contract](/docs/adapters) through the [server kernel](/docs/adapters/server-kernel). What differs on Elysia:
 
-## What it validates
+- The plugin uses `derive`, not `resolve`, so the subject is resolved once per request before route validation; a subject that depends on a header reads it in the `subject` resolver.
+- `protect` runs in `beforeHandle` after Elysia's own schema validation and puts the loaded, validated row on `permdockData`, so the handler does not run the loader again.
+- The plugin's global `onError` maps PermDock errors thrown by `permdock.assert(...)` to Problem Details.
+- `protect` without `permdock()` fails at startup with a message naming both.
+- The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route; a sink that needs them reads its own request context.
 
-- Untrusted `loadData` results and bodies against the resource schema under `validate: 'boundary'`; Elysia's own schema validation runs first.
-- Decision-endpoint bodies against the AuthZEN `evaluations` schema.
-- Plugin presence: `protect` without `permdock()` fails at startup with a message naming both.
-
-## How denials surface
-
-`403 application/problem+json` for `denied`; `403` with `type` ending in `/approval-required` plus `token`; `400` with `issues` for boundary validation failures; `401` for anonymous subjects when a scheme is configured. See [Problem Details](/docs/standards/problem-details).
+The peer range is `elysia >=1`. Denials are the kernel's Problem Details responses.
 
 ## Example app
 
@@ -94,10 +86,4 @@ The example serves `app.fetch` with `@hono/node-server` under Node. `tests/integ
 
 ## Related standards
 
-- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi-3-2).
-
-## Open questions
-
-- Whether to use `derive` or `resolve` for subject resolution (`resolve` runs after validation, which matters when the subject comes from a validated header schema).
-- Whether `permdockData` should be added to the context by `protect` or the handler should call the loader again.
-- Elysia version floor and the Node adapter (`@elysiajs/node`) test matrix.
+- [Problem Details](/docs/standards/problem-details), [OpenAPI 3.2](/docs/standards/openapi).

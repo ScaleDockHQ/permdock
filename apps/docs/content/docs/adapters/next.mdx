@@ -3,12 +3,9 @@ title: Next.js
 description: permdock/next wires one explicit server factory into Server Components, Server Actions, Route Handlers and the client, built for Next.js 16.3 Cache Components and Instant Navigations.
 ---
 
-Status: shipped
-Phase: 1
-
 ## Purpose
 
-`permdock/next` is the full-stack adapter. One `createPermDock` call in a server-only file returns the async server API (`getPermDock`, `getPermission`), a Server Component provider that serialises the snapshot for `permdock/react`, and a Route Handler for the batched decision endpoint. The design goals come from [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation): permission-gated UI must land in the prefetched App Shell, never block a navigation, and refresh when roles change. The end-to-end pattern for a multi-org app is the [Next.js Cache Components guide](/docs/guides/next-cache-components).
+`permdock/next` is the full-stack adapter. One `createPermDock` call in a server-only file returns the async server API (`getPermDock`, `getPermission`), a Server Component provider that serialises the snapshot for `permdock/react`, and a Route Handler for the batched decision endpoint. The design goals come from [Next.js 16.3 Instant Navigations](/docs/guides/next-cache-components#why-this-shape): permission-gated UI must land in the prefetched App Shell, never block a navigation, and refresh when roles change. The end-to-end pattern for a multi-org app is the [Next.js Cache Components guide](/docs/guides/next-cache-components).
 
 ## API
 
@@ -22,7 +19,7 @@ import { policy } from '@/policy'
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
   subject: async () => getUser(await cookies()),
   tenant: async () => (await cookies()).get('org')?.value,   // active tenant; accepted only when a membership matches
-  onDenied: () => redirect('/forbidden'),   // default assert handler; per-call handlers still run first
+  onDenied: () => redirect('/forbidden'),   // assert handler; per-call handlers still run first
 })
 ```
 
@@ -64,12 +61,12 @@ The `next.config.ts` plugin (`createPermDockPlugin`) exists only as a build hook
 
 - The file is the single import boundary between server and client. It can carry `import 'server-only'`, so a client component importing `getPermDock` fails at build time (permix issue 49 leaked Prisma and Better Auth into the browser bundle through a middleware callback).
 - Types flow from the returned object, not from module augmentation. Two policies, or a test double, can coexist.
-- Same shape in Vite, Expo and Hono: one file, one `createPermDock`. See [ADR 0006](/docs/decisions/0006-explicit-factory-not-plugin).
+- Same shape in Vite, Expo and Hono: one file, one `createPermDock`. See [Next.js plugin](/docs/cli/next-plugin).
 
 ## Request lifecycle
 
 1. A request or RSC render starts. The first call to `getPermDock`, `getPermission` or `PermDockProvider` runs the `subject` resolver inside `React.cache`; the result is memoised for the rest of the render. Server Actions and Route Handlers get their own instance per invocation.
-2. Snapshot. For permission UI that should be prefetched, the app owns the cache. PermDock never adds `'use cache'` and never reads `headers()` or `cookies()`; `snapshotFor` is a pure function you call inside your own private cache ([0049](/docs/decisions/0049-cache-components-building-blocks)):
+2. Snapshot. For permission UI that should be prefetched, the app owns the cache. PermDock never adds `'use cache'` and never reads `headers()` or `cookies()`; `snapshotFor` is a pure function you call inside your own private cache:
 
 ```tsx
 // src/permdock/snapshot.ts
@@ -107,7 +104,7 @@ export default function Layout({ children, params }) {
 
 ## OpenAPI
 
-Next.js has no built-in spec generator, so `permdock/next` has no in-process OpenAPI hook. The recipe is a producer plus PermDock's Overlay ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)):
+Next.js has no built-in spec generator, so `permdock/next` has no in-process OpenAPI hook. The recipe is a producer plus PermDock's Overlay:
 
 1. [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) scans `app/api/**/route.ts`, generates an `operationId` per handler, and scaffolds Scalar as the docs UI.
 2. `permdock openapi emit --format overlay` writes `permdock.overlay.json` with `securitySchemes`, per-operation `security` and `x-permdock-*` for every handler that calls `getPermDock().assert(...)` or is wrapped by `permdockHandler` ([CLI: openapi](/docs/cli/openapi)).
@@ -161,19 +158,16 @@ export { authed as GET, authed as POST }
 
 Three rules. The subject comes from the verified bearer token, never from the app session: an MCP client is not a browser and carries no cookie. `store` must be durable on Vercel because each invocation is stateless (`memoryApprovalStore()` would drop a pending approval; `permdock doctor` warns). And the route is unrelated to `permdockHandler()`, which serves the client decision endpoint for the React side; the two can share one policy file and nothing else. `mcp-handler` also mounts on Nuxt, SvelteKit and Hono with the same file, so the recipe is not Next-specific.
 
-## What it validates
+## What it validates and how denials surface
 
-- Posted decision-endpoint bodies against the AuthZEN `evaluations` schema and posted resource data against the resource's Standard Schema (`validate: 'boundary'`).
-- Snapshot scope: `include` must reference groups or resources from the policy's definition; unknown references are a type error.
-- Build-time: `permdock/next` is marked server-only; importing it from a `'use client'` module fails the build. The definition module stays client-safe.
-- Nothing about data already loaded on the server (trusted rows).
+The [shared adapter contract](/docs/adapters) applies; the Next.js specifics:
 
-## How denials surface
-
-- `assert` runs the layered handlers: the per-call handler, instance `on('denied')` hooks, then `onDenied` from the factory. The default redirects; apps may throw `notFound()` instead. `PermDockApprovalRequiredError` carries the replay-safe `token` so an approval page can call the action again.
+- `include` must reference groups or resources from the policy's definition; unknown references are a type error.
+- `permdock/next` is marked server-only; importing it from a `'use client'` module fails the build. The definition module stays client-safe.
+- `assert` runs the layered handlers: the per-call handler, instance `on('denied')` hooks, then `onDenied` from the factory. PermDock picks no default page behaviour: the app's `onDenied` calls `redirect()` or `notFound()`, and without one `assert` throws `PermDockDeniedError`. `PermDockApprovalRequiredError` carries the replay-safe `token` so an approval page can call the action again.
 - `getPermission` never throws; it returns the `Decision`.
-- Route Handlers using `permdockHandler` and the HTTP kernel answer `403 application/problem+json`.
-- Client components behave as in [React](/docs/adapters/react).
+- Route Handlers using `permdockHandler` answer with Problem Details; client components behave as in [React](/docs/adapters/react).
+- The subject always comes from the factory's `subject` resolver; `getPermDock` accepts only `{ tenant }`. A Route Handler authenticated by a bearer token instead of cookies uses [`permdock/server`](/docs/adapters/server-kernel) with a token resolver. The active tenant stays explicit (`getPermDock({ tenant })`, the `tenant` prop, or the `tenant` resolver); PermDock never reads a `[org]` segment on its own. Only the App Router is supported.
 
 ## Example app
 
@@ -186,12 +180,5 @@ The multi-org Cache Components pattern (synchronous `[org]` layout, private-cach
 - [AuthZEN](/docs/standards/authzen): decision endpoint shapes served by `permdockHandler`.
 - [Problem Details](/docs/standards/problem-details): Route Handler denials.
 - [Standard Schema](/docs/standards/standard-schema): boundary validation.
-- [OpenAPI 3.2](/docs/standards/openapi-3-2) and [OpenAPI Overlay](/docs/standards/openapi-overlay): the next-openapi-gen recipe above.
-- Research: [Next.js 16.3 Instant Navigations](/docs/research/nextjs-16-3-instant-navigation), [next-intl extraction model](/docs/research/next-intl-extraction-model), [OpenAPI ecosystem](/docs/research/openapi-ecosystem). Decisions: [0006 explicit factory](/docs/decisions/0006-explicit-factory-not-plugin), [0023 compose with the OpenAPI toolchain](/docs/decisions/0023-compose-openapi-ecosystem).
-
-## Open questions
-
-- Whether `getPermDock` should accept a `subject` override for Route Handlers authenticated with a bearer token instead of cookies.
-- Whether the `tenant` option should read `params` automatically for a conventional `[org]` or `[tenant]` segment, or stay explicit (`getPermDock({ tenant })` and the `tenant` prop on `PermDockProvider`) as documented here.
-- `notFound()` versus `redirect()` as the default denial for pages.
-- Whether the Pages Router gets any support (current answer: no).
+- [OpenAPI 3.2](/docs/standards/openapi) and [OpenAPI Overlay](/docs/standards/openapi-overlay): the next-openapi-gen recipe above.
+- Design rationale: [Next.js 16.3 Instant Navigations](/docs/guides/next-cache-components#why-this-shape), [the collect extraction model](/docs/cli/collect#why-this-model), [explicit factory over a plugin](/docs/cli/next-plugin), [composing with the OpenAPI toolchain](/docs/adapters) and the [ecosystem index](/docs/research/ecosystem-index).

@@ -30,7 +30,7 @@ import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
-import { mapPermDockError } from '../server/map-error.ts';
+import { problemFromError } from '../server/map-error.ts';
 import { guardIterable, isAsyncIterable } from '../server/stream.ts';
 import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
 
@@ -59,7 +59,7 @@ export type TrpcPermDockOptions<TCtx = object, TUser = unknown> = {
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
   readonly webBotAuth?: WebBotAuthOptions;
-  /** Ends or revalidates open subscriptions (ADR 0052). */
+  /** Ends or revalidates open subscriptions. */
   readonly revocations?: RevocationFeed;
 };
 
@@ -81,7 +81,7 @@ export type TrpcPermDock<TCtx = object> = {
     loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => TrpcMiddleware;
-  /** A long-lived connection for the request behind `ctx` (ADR 0052). */
+  /** A long-lived connection for the request behind `ctx`. */
   readonly connection: (
     opts: TrpcMiddlewareOpts<TCtx>,
     connectionOptions?: ConnectionOptions,
@@ -194,7 +194,7 @@ function mapDownstream(result: unknown): Promise<unknown> {
     error instanceof TRPCError && error.code === 'INTERNAL_SERVER_ERROR'
       ? error.cause
       : undefined;
-  const mapped = mapPermDockError(cause);
+  const mapped = problemFromError(cause);
   return mapped === undefined
     ? Promise.resolve(result)
     : throwTrpcError(mapped);

@@ -3,14 +3,11 @@ title: Kysely
 description: permdock/kysely compiles portable conditions into Kysely expression-builder callbacks with toWhere, fails closed when nothing is granted, and documents the Kysera @kysera/rls dual-mode prior art.
 ---
 
-Status: shipped
-Phase: 3
-
 `permdock/kysely` is the Kysely interpreter for PermDock's portable [conditions](/docs/concepts/conditions). `toWhere` returns a callback for Kysely's expression builder, so the permission filter composes with the rest of a typed query. Kysely has no RLS support of its own; RLS for Kysely users comes from `permdock rls generate --target sql` and a transaction helper that sets the session role and claims.
 
 ## Purpose
 
-Kysely users write queries by hand, which makes them the group most likely to forget the permission filter on one endpoint. `toWhere` makes the filter a one-liner derived from the same policy that guards the mutation. The only prior art for a dual-mode schema in the Kysely world is Kysera's `@kysera/rls`: one `defineRLSSchema` drives app-side query injection (`filter` / `allow` / `deny` / `validate`) and `@kysera/rls/native` emits `ENABLE RLS` / `CREATE POLICY` for policies that carry raw `using` / `withCheck` SQL, with `syncContextToPostgres()` mirroring context into `app.*` GUCs and `createPolicyTester()` for DB-less tests ([Kysera multi-tenancy](https://kysera.dev/docs/guides/multi-tenancy)). It generates in one direction only and only for raw-SQL policies; PermDock generates from portable conditions and imports back ([RLS research](/docs/research/postgres-rls)).
+Kysely users write queries by hand, which makes them the group most likely to forget the permission filter on one endpoint. `toWhere` makes the filter a one-liner derived from the same policy that guards the mutation. The only prior art for a dual-mode schema in the Kysely world is Kysera's `@kysera/rls`: one `defineRLSSchema` drives app-side query injection (`filter` / `allow` / `deny` / `validate`) and `@kysera/rls/native` emits `ENABLE RLS` / `CREATE POLICY` for policies that carry raw `using` / `withCheck` SQL, with `syncContextToPostgres()` mirroring context into `app.*` GUCs and `createPolicyTester()` for DB-less tests ([Kysera multi-tenancy](https://kysera.dev/docs/guides/multi-tenancy)). It generates in one direction only and only for raw-SQL policies; PermDock generates from portable conditions and imports back ([Postgres RLS](/docs/standards/postgres-rls)).
 
 ## API
 
@@ -78,12 +75,6 @@ None. Kysely is covered by `tests/integration/src/orm-parity.test.ts` (`ormParit
 
 ## Related standards
 
-- [Postgres RLS](/docs/standards/postgres-rls): `USING` versus `WITH CHECK`, `42501`, grants.
+- [Postgres RLS](/docs/standards/postgres-rls): `USING` versus `WITH CHECK`, `42501`, grants, Kysera's dual-mode design and the `set_config` patterns.
 - [Conditions](/docs/concepts/conditions): operator set.
 - [RLS adapter](/docs/adapters/rls): `generate --target sql` and the transaction preamble `withSubject` uses.
-- [Research: Postgres RLS](/docs/research/postgres-rls): Kysera `@kysera/rls` dual-mode design, `onReserveConnection` and `set_config` patterns.
-
-## Open questions
-
-- Whether `withSubject` belongs in `permdock/kysely` or in a database-agnostic `permdock/rls` runtime shared with Drizzle and Prisma.
-- Whether to offer a `createPolicyTester`-style DB-less parity helper in `@permdock/testing`, mirroring Kysera.

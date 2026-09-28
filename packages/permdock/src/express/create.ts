@@ -33,7 +33,7 @@ import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 import { compact } from '../core/compact.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
-import { mapPermDockError } from '../server/map-error.ts';
+import { problemFromError } from '../server/map-error.ts';
 import { sendResponse, toRequest } from './http.ts';
 
 export type ExpressPermDockOptions<TUser = unknown> = {
@@ -155,7 +155,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     };
 
   const errorHandler = (): ErrorRequestHandler => (err, _req, res, next) => {
-    const problem = mapPermDockError(err);
+    const problem = problemFromError(err);
     if (problem === undefined) {
       next(err);
       return;

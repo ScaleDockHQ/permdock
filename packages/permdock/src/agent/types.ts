@@ -8,6 +8,7 @@ import type {
   SnapshotSource,
 } from '../core/interfaces.ts';
 import type { Permission } from '../core/permissions.ts';
+import type { Delegation } from '../core/subject.ts';
 
 export type ToolBinding = {
   readonly permission: Permission;
@@ -19,6 +20,9 @@ export type ToolMap = Readonly<Record<string, ToolBinding>>;
 export type AgentKernelOptions<TContext, TUser = unknown> = {
   readonly subject: (context: TContext) => TUser | Promise<TUser>;
   readonly actor?: (context: TContext) => unknown;
+  readonly delegation?: (
+    context: TContext,
+  ) => Delegation | undefined | Promise<Delegation | undefined>;
   readonly tenant?:
     | string
     | ((context: TContext) => string | undefined | Promise<string | undefined>);

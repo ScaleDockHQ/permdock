@@ -3,9 +3,6 @@ title: skills
 description: Install the wire-permdock and audit-permissions Agent Skills from the permdock package or from skills.sh.
 ---
 
-Status: shipped
-Phase: 1
-
 PermDock ships two Agent Skills so a coding agent can wire and audit permissions without reading library source. Skills follow the `SKILL.md` format governed by the Agentic AI Foundation, are published on [skills.sh](https://skills.sh), and are bundled in the `permdock` npm package under `skills/` so the version an agent reads always matches the version the app runs. See [Agent docs standards](/docs/standards/agent-docs-standards).
 
 `permdock skills install` copies the bundled skills from `node_modules/permdock/skills/` into the folders your agent reads. You can still install from skills.sh.
@@ -61,13 +58,9 @@ Skills are versioned with `permdock`. A skill references docs pages by `/docs/<p
 
 `AGENTS.md` in the repository root (`CLAUDE.md` imports it) is the maintainer-facing guide: repo layout, commands, invariants and "when you change X also update Y". The consumer skills above are for apps that use PermDock; the two are kept separate on purpose.
 
-## Open questions
-
-- Whether to ship a third skill, `review-permissions-pr`, that runs on pull requests and comments on permission surface changes using the catalog diff.
-
 ## Related
 
 - [For AI agents](/docs/for-ai-agents)
 - [Agent docs standards](/docs/standards/agent-docs-standards)
 - [doctor](/docs/cli/doctor)
-- [Agent standards 2026](/docs/research/agent-standards-2026)
+- [Watch list](/docs/standards/watch-list)

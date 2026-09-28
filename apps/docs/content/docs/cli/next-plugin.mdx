@@ -3,10 +3,7 @@ title: Next.js plugin
 description: createPermDockPlugin runs permdock collect during next dev and next build; it is a build hook only and never wires the PermDock API.
 ---
 
-Status: shipped
-Phase: 1
-
-`createPermDockPlugin` is exported from `permdock/next/plugin` and wraps `next.config.ts`. Its only job is to run [collect](/docs/cli/collect) while Next.js runs, the way next-intl's loader keeps extracted message catalogs in sync during development. It does not alias modules, does not augment types and does not create a `PermDock` instance. API wiring is the explicit factory file described in [0006: Explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin).
+`createPermDockPlugin` is exported from `permdock/next/plugin` and wraps `next.config.ts`. Its only job is to run [collect](/docs/cli/collect) while Next.js runs, the way next-intl's loader keeps extracted message catalogs in sync during development. It does not alias modules, does not augment types and does not create a `PermDock` instance. API wiring is the explicit factory file described in the [quick start](/docs/getting-started/quick-start).
 
 ## Usage
 
@@ -50,6 +47,8 @@ The plugin resolves `@permdock/cli` from the app's `node_modules` and runs it in
 
 This is deliberate. The alternative, a next-intl-style plugin plus request config plus module augmentation, would have given a package-level import for server helpers at the cost of being Next-only and global to one policy per app. Explicit factories work identically in Vite, Expo and Hono, and agents follow one recipe.
 
+Vite apps use [`createPermDockUnplugin`](/docs/cli/unplugin) for the same hook. Expo (Metro) has no build hook; run `permdock collect` as a script instead.
+
 ## Options
 
 ```ts
@@ -68,16 +67,11 @@ Settings can also live in `permdock.config.ts`; plugin options override the file
 
 ## Turbopack
 
-Next.js 16.3 builds with Turbopack by default. The plugin does not register a loader or a Turbopack rule; it hooks Next's config lifecycle and runs the collector as a side process, so it works with Turbopack and webpack alike and has no effect on the module graph or on the App Shell used by Instant Navigations ([Next.js 16.3 research](/docs/research/nextjs-16-3-instant-navigation)).
+Next.js 16.3 builds with Turbopack by default. The plugin does not register a loader or a Turbopack rule; it hooks Next's config lifecycle and runs the collector as a side process, so it works with Turbopack and webpack alike and has no effect on the module graph or on the App Shell used by Instant Navigations ([Next.js 16.3 research](/docs/guides/next-cache-components#why-this-shape)).
 
 ## Example
 
 `apps/examples/next` uses the plugin. `apps/examples/monorepo` collects from two sibling feature packages with `permdock collect --check` and fails CI on catalog drift.
-
-## Open questions
-
-- Whether the plugin should write the catalog into `.next/` during `next dev` and only commit on demand, avoiding a modified file in the working tree during development.
-- Expo (Metro) has no unplugin target yet; Vite apps use [`createPermDockUnplugin`](/docs/cli/unplugin).
 
 ## Related
 
@@ -85,5 +79,4 @@ Next.js 16.3 builds with Turbopack by default. The plugin does not register a lo
 - [collect](/docs/cli/collect)
 - [Next.js adapter](/docs/adapters/next)
 - [Larger apps](/docs/getting-started/larger-apps)
-- [next-intl extraction model](/docs/research/next-intl-extraction-model)
-- [0006: Explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin)
+- [next-intl extraction model](/docs/cli/collect#why-this-model)

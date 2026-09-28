@@ -3,9 +3,6 @@ title: Devtools
 description: A docs-site panel for exploring decide and describe against a canned policy. Apps do not get a PermDock component beyond Protected.
 ---
 
-Status: shipped
-Phase: 4
-
 The [devtools panel](/devtools) on this site runs `decide` and `describe` against a canned `post` policy (`member` and `admin`). Admin `publish` is `approval: 'human'` so all three outcomes appear. The panel is not an export of `permdock` or `permdock/react`.
 
 `permdock/react` still ships only `PermDockProvider`, hooks and `Protected` ([UI](/docs/concepts/ui)). An in-app overlay is your design system plus `useSubject`, `usePermission` and `on('decision')` on a snapshot-backed instance. Never put the policy in a client bundle; the docs panel is allowed to because it is a demo, not a product adapter.

@@ -1,106 +1,24 @@
 ---
 title: SCIM 2.0 (RFC 7643, RFC 7644, RFC 9865)
-description: How permdock/scim implements the SCIM 2.0 core schema and protocol as a receiver for Users and Groups, which subset of the protocol identity providers actually send, the PermDock schema extension that carries group-to-role mappings, RFC 7523 bearer authentication for the Cloud relay, and the rules that keep group ids as team identifiers.
+description: The SCIM 2.0 core schema and protocol, why it is the write side of PermDock memberships, and the identifier and tenancy rules PermDock takes from it. The receiver, its protocol subset and IdP dialects are on the SCIM adapter page.
 ---
 
-Status: shipped
-Phase: 2
-Adapter phases: `permdock/scim` 2, PermDock Cloud hosted relay 2, `permdock rls` membership table mapping 3.
+The System for Cross-domain Identity Management defines a schema ([RFC 7643](https://www.rfc-editor.org/rfc/rfc7643.html)) and an HTTP protocol ([RFC 7644](https://www.rfc-editor.org/rfc/rfc7644.html)) for provisioning users and groups from an identity provider into an application. Two core resources matter: `User` (`id`, `externalId`, `userName`, `active`, `emails`, `name`) and `Group` (`id`, `externalId`, `displayName`, `members[].value`). Extension schemas add attributes under their own URN; IdPs send the Enterprise User extension by default. The protocol is REST over `application/scim+json` with filters, `PATCH` operations, `ListResponse` paging, an error body with `status`, `scimType` and `detail`, and discovery endpoints. [RFC 9865](https://www.rfc-editor.org/rfc/rfc9865.html) adds cursor pagination.
 
-## What it is
-
-The System for Cross-domain Identity Management defines a schema ([RFC 7643](https://www.rfc-editor.org/rfc/rfc7643.html)) and an HTTP protocol ([RFC 7644](https://www.rfc-editor.org/rfc/rfc7644.html)) for provisioning users and groups from an identity provider (the client) into an application (the service provider). The core schema has two resources that matter here: `User` (`id`, `externalId`, `userName`, `active`, `emails`, `name`) and `Group` (`id`, `externalId`, `displayName`, `members[].value`). Resources carry a `schemas` array of URNs and a `meta` block (`resourceType`, `created`, `lastModified`, `location`). Extension schemas add attributes under their own URN; the `Enterprise User` extension (`urn:ietf:params:scim:schemas:extension:enterprise:2.0:User`) is the one IdPs send by default.
-
-The protocol is REST over JSON with the `application/scim+json` media type: `GET` with `filter` (`userName eq "…"`, `externalId eq "…"`, `members.value eq "…"`), `POST`, `PUT`, `PATCH` (`Operations[]` of `add`, `replace`, `remove` with an optional `path`), `DELETE`, a `ListResponse` with `totalResults`, `startIndex` and `itemsPerPage`, an error body with `status`, `scimType` and `detail`, and discovery under `/ServiceProviderConfig`, `/ResourceTypes` and `/Schemas`. [RFC 9865](https://www.rfc-editor.org/rfc/rfc9865.html) (2025) adds cursor pagination (`cursor`, `nextCursor`) for service providers whose stores cannot page by index.
-
-Authentication is out of scope for the RFCs; in practice every IdP supports a static bearer token per connection, and the IPSIE AL1 SCIM profile (OpenID Foundation, draft) prescribes RFC 7523 JWT bearers so the credential can be scoped and short-lived ([watch list](/docs/standards/watch-list)).
-
-There is no tenant attribute in SCIM. Tenancy is per endpoint or per credential, which is why every multi-tenant receiver exposes one URL or one token per tenant.
+The RFCs leave authentication out of scope. Every IdP supports a static bearer per connection, and the IPSIE AL1 SCIM profile prescribes RFC 7523 JWT bearers so the credential can be scoped and short-lived ([watch list](/docs/standards/watch-list)). SCIM has no tenant attribute, so tenancy is per endpoint or per credential.
 
 ## Why it matters for PermDock
 
-- **It is the enterprise procurement feature.** "Does it support SCIM" is on every security questionnaire, and WorkOS Directory Sync, Frontegg and Okta charge for the receiver side. The [governance-first Cloud decision](/docs/decisions/0027-governance-first-cloud) schedules it as the open-source entry `permdock/scim` with a hosted relay in PermDock Cloud.
-- **It is the write side of memberships.** [Tenancy](/docs/concepts/tenancy) reads memberships through a `MembershipSource`; nothing in PermDock wrote them before. `scimHandler` writes exactly what an authenticated IdP sent into a `DirectoryStore` the application owns, and `directoryMembershipSource` reads it back. Deprovisioning (`active: false`, or `DELETE`) removes every membership on the next request without waiting for a token to expire.
-- **It fixes the identifier rule at the source.** [JWT authorization claims](/docs/standards/jwt-authorization-claims) already says team ids are the SCIM `value`, never the display name. A receiver that stores `displayName` for the UI and keys memberships on `id` makes the token-side `groups` claim and the synced group refer to the same team.
+- **It is the enterprise procurement feature.** "Does it support SCIM" is on every security questionnaire.
+- **It is the write side of memberships.** [Tenancy](/docs/concepts/tenancy) reads memberships through a `MembershipSource`. [`permdock/scim`](/docs/adapters/scim) writes exactly what an authenticated IdP sent into a `DirectoryStore` the application owns, and `directoryMembershipSource` reads it back. Deprovisioning (`active: false` or `DELETE`) removes every membership on the next request without waiting for a token to expire.
+- **It fixes the identifier rule at the source.** Team ids are the SCIM group `id` / `value`, never the display name, so the token-side `groups` claim ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) and a synced group refer to the same team.
 
-## How PermDock uses it
-
-### The subset `permdock/scim` implements
-
-| RFC 7644 feature | `permdock/scim` | Note |
-| --- | --- | --- |
-| `/Users`, `/Groups` `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | Implements | The operations Okta, Entra ID and Google Workspace send |
-| `filter` with `eq`, `ne`, `co`, `sw`, `pr`, `and`, `or` on `userName`, `externalId`, `active`, `displayName`, `members.value` | Implements | Enough for every IdP's lookup-before-create; `pr` matches only a non-empty value (not null, not an empty string, not an empty array, RFC 7644 section 3.4.2.2); other operators return `400 invalidFilter` |
-| Index pagination (`startIndex`, `count`) | Implements | Required by RFC 7644 |
-| Cursor pagination (RFC 9865) | Implements | Advertised in `/ServiceProviderConfig`; used when the store returns a cursor |
-| `PATCH` path forms (`members[value eq "…"]`, `active`, `emails[type eq "work"].value`) | Implements, normalised | Each IdP's dialect is rewritten to one operation shape before the store sees it |
-| `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas` | Implements | Advertises the supported subset and the PermDock extension |
-| `/Me`, `/Bulk`, `/.search` | Not implemented | No IdP requires them for provisioning; `501` with `scimType` `tooMany` is not used, the route simply does not exist |
-| `ETag` and `If-Match` | Not implemented | Stores may return `meta.version`; conditional requests are not enforced |
-| `sortBy`, `sortOrder` | Not implemented | Ignored |
-
-### The PermDock extension schema
-
-Group-to-role mapping is application data, and SCIM's extension mechanism is where it belongs:
-
-```json
-{
-  "schemas": [
-    "urn:ietf:params:scim:schemas:core:2.0:Group",
-    "urn:permdock:scim:schemas:extension:roles:1.0"
-  ],
-  "id": "g_9f2c",
-  "externalId": "00g1abc",
-  "displayName": "Editors",
-  "members": [{ "value": "u_1" }, { "value": "u_7" }],
-  "urn:permdock:scim:schemas:extension:roles:1.0": { "roles": ["editor"] }
-}
-```
-
-`roles` is a multi-valued string attribute naming roles the policy declares as `assignable` or the tenant's `RoleSource` resolves. The Cloud relay's mapping UI writes it; an IdP with custom group attributes may write it; a static `groupRoles` option is the fallback. Unknown names are stored as sent and contribute no grant, the same rule as a `roles` claim in a token. The URN is under the `permdock` namespace because PermDock has no registered IANA SCIM extension; registering one is not planned, the URN form is what RFC 7643 section 10 requires of an unregistered extension.
-
-### Authentication
-
-Two credential kinds, both bound to a tenant, both never read from the body:
-
-- `token`: a static bearer per tenant, compared in constant time against a stored hash. Okta and Entra ID provisioning applications only support this form.
-- `verifier`: a [`TokenVerifier`](/docs/concepts/extension-interfaces) for an RFC 7523 JWT bearer with `aud` set to the endpoint and a tenant claim equal to the resolved tenant. The PermDock Cloud relay presents this form, signed with the Cloud's per-environment key and verified against the same JWKS that signs snapshots ([JOSE](/docs/standards/jose)). IPSIE AL1 prescribes it for IdPs; when an IdP ships it, the same option applies.
-
-No new JWS `typ` value: the relay's bearer is a plain RFC 7523 assertion (`typ: JWT`), and `permdock/jwt`'s default `accept: 'access-token'` check applies to it.
-
-### IdP dialects the handler normalises
-
-| IdP | What it sends | Normalisation |
-| --- | --- | --- |
-| Okta | `PATCH` `replace` on `active`; group push as `PUT` of the full `members` list, later `PATCH` `add` / `remove` with `members[value eq "…"]`; `externalId` from the Okta user id | Full `PUT` members diffed into `add` / `remove` |
-| Microsoft Entra ID | `PATCH` `Operations` with `path` `members[value eq "…"]` and `remove`; `active` as a string in older tenants; no `/Groups` `PUT` | String `"False"` coerced; `remove` with filter path mapped to member removal |
-| Google Workspace | Full `PUT` of the user on any change; groups optional | `PUT` diffed against the stored resource |
-| WorkOS Directory Sync (as a client) | Standard `PATCH` | None |
-
-The dialect table is maintained with recorded requests in `apps/examples/scim`; a new IdP adds a recording, not a code path in the store.
-
-### What the store never does
-
-- Decide anything. The store is a repository written by `scimHandler` and read by `directoryMembershipSource`; nothing else in PermDock reads it, and `decide` sees only the `Membership[]` the source returns.
-- Use `displayName` as an identifier. Memberships key on `group.id` (`team: group.id`, `via: 'group:<id>'`); the display name is for the mapping UI.
-- Cross tenants. Every method takes the tenant first; uniqueness of `userName` and `externalId` is per tenant.
-- Live in PermDock Cloud. The Cloud relays; the store is yours (invariant 15, [ADR 0027](/docs/decisions/0027-governance-first-cloud)).
-
-## Checklist
-
-- `application/scim+json` on requests and responses; `application/json` accepted on requests.
-- `401` with `WWW-Authenticate: Bearer` and no detail on any credential failure; `403` on a tenant mismatch.
-- `409 uniqueness` on duplicate `userName` or `externalId` within a tenant.
-- `meta.location` on every returned resource; `meta.created` and `meta.lastModified` in RFC 3339.
-- `ListResponse` with `totalResults` even when paging by cursor.
-- The extension URN advertised under `/Schemas` and in `/ResourceTypes` `schemaExtensions` with `required: false`.
-- Every write produces a `directory` event (`type: 'directory'`, `source: 'scim'`) for the handler's `sink`; the Cloud relay writes the same operation to its sync log.
+The implemented protocol subset, the `urn:permdock:scim:schemas:extension:roles:1.0` group extension, the credential kinds, IdP dialect normalisation and the wire checklist are on the [SCIM adapter](/docs/adapters/scim) page.
 
 ## Related
 
 - [SCIM adapter](/docs/adapters/scim)
-- [JWT authorization claims](/docs/standards/jwt-authorization-claims): the token-side `groups` claim with the same `value` identifiers
+- [JWT authorization claims](/docs/standards/jwt-authorization-claims): the token-side `groups` claim with the same identifiers
 - [Tenancy](/docs/concepts/tenancy) and [extension interfaces](/docs/concepts/extension-interfaces): `Membership`, `MembershipSource`, `DirectoryStore`
 - [Shared Signals and CAEP](/docs/standards/shared-signals-caep): the revocation signal that makes deprovisioning reach cached snapshots
 - [Standards watch list](/docs/standards/watch-list): IPSIE AL1 and Common Requirements
-- [ADR 0027: Governance-first Cloud](/docs/decisions/0027-governance-first-cloud)

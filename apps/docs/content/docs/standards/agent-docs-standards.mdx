@@ -3,11 +3,6 @@ title: Agent docs standards
 description: AGENTS.md, Agent Skills and llms.txt as the formats coding agents read, and what PermDock ships in each so an agent can wire and audit permissions without reading source.
 ---
 
-Status: shipped
-Phase: 1 (skills, AGENTS.md, llms.txt, per-page Markdown); 4 (docs MCP)
-
-Phase 1 ships the skills, `AGENTS.md`, `llms.txt` and `.md` per docs page. The docs MCP server is shipped at `/mcp`.
-
 ## What it is
 
 Three conventions have converged into the way coding agents learn a codebase or a library:
@@ -39,13 +34,13 @@ The same rule applies to the maintainer side: an agent contributing to PermDock 
 
 ### Discovery and trust
 
-Three channels put PermDock in front of an agent before it reads a page, and each is a configuration or a publishing step rather than code ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)):
+Three channels put PermDock in front of an agent before it reads a page, and each is a configuration or a publishing step rather than code:
 
 | Channel | What PermDock does | Why |
 | --- | --- | --- |
 | npm provenance (Sigstore) | Every package is published from CI with `npm publish --provenance`, so the registry shows the source commit and workflow; `permdock doctor` warns when an installed copy lacks an attestation | An agent (or its human) can check that the `permdock` it installed was built from this repository, which matters for a library that decides authorization |
 | JSR | `permdock`, `@permdock/cli` and `@permdock/testing` are also published to [JSR](https://jsr.io) from the same commit, with the TypeScript source and generated docs | Deno users import without an npm shim; JSR renders the API reference from source, which agents read well |
-| Context7 and similar docs indexes | The docs site is registered with [Context7](https://context7.com) and serves `llms.txt`, `llms-full.txt` and `.md` per page so any index can pull it; the `wire-permdock` skill names the Context7 library id | Coding agents resolve "how do I use permdock" to current docs instead of training data; the `Status` and `Phase` lines tell them what exists |
+| Context7 and similar docs indexes | The docs site is registered with [Context7](https://context7.com) and serves `llms.txt`, `llms-full.txt` and `.md` per page so any index can pull it; the `wire-permdock` skill names the Context7 library id | Coding agents resolve "how do I use permdock" to current docs instead of training data; a `Status` line tells them what does not exist yet |
 | MCP Registry | `server.json` at the repository root (`io.github.scaledockhq/permdock-docs`); Streamable HTTP at `https://permdock.dev/mcp` | Agent hosts discover the docs server by name instead of a pasted URL |
 
 None of these changes an API. They are listed here so the release checklist and the skill agree on them.
@@ -56,12 +51,13 @@ Install the skills into a project:
 npx skills add ScaleDockHQ/PermDock
 ```
 
-The skills are also shipped inside the `permdock` npm package so `permdock skills` from `@permdock/cli` can install them offline into `.cursor/skills`, `.claude/skills` or the tool-specific location an agent runtime expects. See [CLI skills](/docs/cli/skills).
+The skills are also shipped inside the `permdock` npm package so `permdock skills` from `@permdock/cli` can install them offline. By default it writes to `.agents/skills`, `.claude/skills` and `.cursor/skills`; `--agent` narrows the targets, and nothing is detected from the repository. `audit-permissions` stays one skill so a single description covers routes, tools and definitions. See [CLI skills](/docs/cli/skills).
 
 ### Conventions the docs follow for agents
 
 - Every docs page has frontmatter `title` and `description`, one topic per page, plain Markdown bodies, so `.md` and `llms-full.txt` are lossless.
-- Adapter and standards pages carry `Status` and `Phase` lines so an agent knows whether an import path exists yet.
+- A page for something not built yet carries a `Status: planned` or `Status: tracking` line, so an agent knows whether an import path exists; a page without one describes code that exists.
+- `llms.txt` lists every page, and `llms-full.txt` carries the full text.
 - Error messages and Problem Details `detail` text are written so a model can act on them (what was denied, why, what is permitted instead); see [Problem Details](/docs/standards/problem-details).
 - Code examples use the exact public identifiers (`createPermDock`, `permissions.post.update`) and never placeholders an agent might copy literally.
 - `permdock doctor` reports the same findings the `audit-permissions` skill looks for, so the skill and the CLI cannot drift.
@@ -87,7 +83,7 @@ description: Add PermDock to a TypeScript app. Use when asked to add permissions
 | Convention | PermDock artefact |
 | --- | --- |
 | `AGENTS.md` (AAIF) | Repository-root maintainer guide |
-| `CLAUDE.md` | Symlink to `AGENTS.md` |
+| `CLAUDE.md` | The one line `@AGENTS.md` |
 | Agent Skill `SKILL.md` | `wire-permdock`, `audit-permissions` |
 | skills.sh + `npx skills add` | `npx skills add ScaleDockHQ/PermDock` |
 | Skills bundled with a package | `packages/permdock/skills/`, installed by `permdock skills` |
@@ -118,9 +114,3 @@ Locally the same handler is `http://localhost:3000/mcp` while `pnpm docs:dev` is
 - [Top AI agent standards 2026 overview](https://blog.agentailor.com/posts/top-ai-agent-standards-2026): AGENTS.md and Agent Skills under the Agentic AI Foundation, skills.sh and `npx skills add`.
 - Product plan, differentiator 13 ("Agent-native") and the `AGENTS.md` outline.
 - [MCP llms.txt](https://modelcontextprotocol.io/llms.txt) as an example of the convention in a specification site.
-
-## Open questions
-
-- Whether `audit-permissions` should be one skill or split into "audit routes" and "audit tools" so descriptions match narrower tasks.
-- Which agent runtimes' skill directories `permdock skills` should write to by default, and whether to detect them from the repository.
-- Whether `llms.txt` should list every page or a curated subset with `llms-full.txt` as the complete fallback.

@@ -124,7 +124,7 @@ function matches(
   );
 }
 
-/** Opens a long-lived connection (ADR 0052). Never throws; a failure aborts. */
+/** Opens a long-lived connection. Never throws; a failure aborts. */
 export async function openConnection<T>(
   input: OpenInput<T>,
 ): Promise<Connection> {

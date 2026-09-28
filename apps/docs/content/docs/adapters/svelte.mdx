@@ -3,12 +3,9 @@ title: Svelte
 description: permdock/svelte maps the snapshot-backed provider, hook and guard onto Svelte context, a readable permission store and a component.
 ---
 
-Status: shipped
-Phase: 2
-
 ## Purpose
 
-Same model as [React](/docs/adapters/react): snapshot from the server, local evaluation of portable grants, batched decision endpoint for closure grants. `permdock/svelte` uses Svelte's context API to hold one client store per component tree and a readable store per permission question so templates can use the `$` prefix. Svelte 5 runes are supported through the same store objects; a rune-first API is an open question below. No policy or server module is imported.
+Same model as [React](/docs/adapters/react): snapshot from the server, local evaluation of portable grants, batched decision endpoint for closure grants. `permdock/svelte` uses Svelte's context API to hold one client store per component tree and a readable store per permission question so templates can use the `$` prefix. Svelte 5 runes are supported through the same store objects rather than a separate rune-based API. No policy or server module is imported.
 
 ## API
 
@@ -51,7 +48,7 @@ Same model as [React](/docs/adapters/react): snapshot from the server, local eva
 | `tenant`, `memberships`, `roles`, `assignable` | Readable stores from context for the active tenant (with `switchTo` on the store object), the membership list, roles held in a tenant and roles the subject may hand out ([UI](/docs/concepts/ui), [tenancy](/docs/concepts/tenancy)). |
 | `approval`, `subject` | A store factory for the `approval-required` flow and a readable store of the snapshot's subject summary (`simulated` included). |
 
-In SvelteKit the snapshot is loaded in `+layout.server.ts` from a request-scoped `PermDock`, and the decision endpoint is a `+server.ts` route built on the [server kernel](/docs/adapters/server-kernel).
+In SvelteKit the snapshot is loaded in `+layout.server.ts` from a request-scoped `PermDock`, and the decision endpoint is a `+server.ts` route built on the [server kernel](/docs/adapters/server-kernel); there is no `permdock/sveltekit` entry. The client store is component-scoped through context, so `load` functions and hooks use the server instance, not the store.
 
 ## Request lifecycle
 
@@ -63,27 +60,13 @@ In SvelteKit the snapshot is loaded in `+layout.server.ts` from a request-scoped
 
 ## What it validates
 
-- The snapshot against the snapshot v1 schema; on failure the store enters `server-only` mode.
-- Arity of `permission` at the type level.
-- Nothing about resource data on the client; posted data is validated by the decision endpoint at the boundary, and the API re-checks every mutation.
-
-## How denials surface
-
-- `$store.allowed` is `false` and `$store.decision` explains why (`denials`, `alternatives`, or `approval-required`).
-- `Protected` renders the `fallback` snippet with the `Decision`.
-- The decision endpoint answers with [Problem Details](/docs/standards/problem-details); client-side failures degrade to `server-only`.
+The [shared adapter contract](/docs/adapters) applies: an invalid snapshot puts the store in `server-only` mode, the arity of the permission check (collection versus instance actions) is a type error, and resource data is never validated on the client because the decision endpoint validates posted data at the boundary and the API re-checks every mutation. Denials follow the React adapter: `$store.allowed` is `false`, `$store.decision` explains why, and `Protected` renders the `fallback` snippet with the `Decision`.
 
 ## Example app
 
-`apps/examples/svelte`: Svelte with a Snapshot v3 built in the app, `setPermDock`, and `Protected`. Vite serves `http://127.0.0.1:3482/`. The granted branch shows `edit`; the denied fallback shows `locked`. `tests/e2e` smokes it with Playwright.
+`apps/examples/svelte`: Svelte with a snapshot built in the app, `setPermDock`, and `Protected`. Vite serves `http://127.0.0.1:3482/`. The granted branch shows `edit`; the denied fallback shows `locked`. `tests/e2e` smokes it with Playwright.
 
 ## Related standards
 
 - [AuthZEN](/docs/standards/authzen), [Problem Details](/docs/standards/problem-details), [Standard Schema](/docs/standards/standard-schema).
 - Concepts: [snapshots](/docs/concepts/snapshots), [decisions](/docs/concepts/decisions).
-
-## Open questions
-
-- Exact identifier names. The plan is silent for Svelte; this page proposes `setPermDock` / `getPermDock` (Svelte's context idiom), a `permission` store factory and `Protected`, with store-shaped counterparts of every React hook in the [UI parity table](/docs/adapters) (`tenant`, `memberships`, `roles`, `assignable`, `approval`, `subject`, `permissions`, `filtered`). A rune-based `usePermission` returning a reactive object instead of a store is the main alternative once the Svelte 5 baseline is fixed.
-- Whether the SvelteKit pieces (`load` helper, `+server.ts` endpoint factory, `handle` hook) live in `permdock/svelte` or a separate `permdock/sveltekit` entry.
-- How to expose the store outside components (for example in `load` functions), since context is component-scoped.

@@ -23,7 +23,7 @@ export default function HomePage() {
       <AgentNative />
       <SecureByDefault />
       <WorksWith />
-      <RecentShips releases={ships} />
+      {ships.length > 0 ? <RecentShips releases={ships} /> : null}
       <GetStarted />
       <CloudBand />
       <FaqSection />

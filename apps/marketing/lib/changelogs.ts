@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,7 +15,11 @@ const files: readonly { readonly file: string; readonly name: string }[] = [
 export function loadChangelogs(): ChangelogRelease[] {
   const releases: ChangelogRelease[] = [];
   for (const entry of files) {
-    const markdown = readFileSync(join(root, entry.file), 'utf8');
+    const path = join(root, entry.file);
+    if (!existsSync(path)) {
+      continue;
+    }
+    const markdown = readFileSync(path, 'utf8');
     releases.push(...parseChangelog(markdown, entry.name));
   }
   return releases;

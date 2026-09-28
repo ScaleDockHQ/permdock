@@ -10,6 +10,9 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => memberUser,
   store,
   actor: () => ({ id: 'claude', kind: 'claude-agent' }),
+  delegation: () => ({
+    scopes: [permissions.post.list.scope, permissions.post.delete.scope],
+  }),
   tools: {
     list_posts: {
       permission: permissions.post.list,

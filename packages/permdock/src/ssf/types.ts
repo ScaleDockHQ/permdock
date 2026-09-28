@@ -104,7 +104,7 @@ export type SsfOptions = {
   /**
    * Publishes `session-revoked` for a revoked session and `changed` for
    * credential, assurance and claims changes, so open connections end or
-   * revalidate (ADR 0052).
+   * revalidate.
    */
   readonly revocations?: RevocationFeed;
   readonly clockTolerance?: number;

@@ -3,9 +3,6 @@ title: Arazzo workflows
 description: "How an Arazzo 1.1.0 workflow is an agent plan, and how permdock simulate pre-flights every step by resolving its operationId to the operation's x-permdock-permissions and returning one Decision per step before anything executes."
 ---
 
-Status: shipped
-Phase: 4
-
 ## What it is
 
 The [Arazzo Specification 1.1.0](https://spec.openapis.org/arazzo/v1.1.0.html) (released 17 May 2026, [announcement](https://www.openapis.org/arazzo-specification)) describes workflows: sequences of API calls with dependencies between them, inputs, outputs and success criteria. An Arazzo document has:
@@ -22,7 +19,7 @@ The [Arazzo Specification 1.1.0](https://spec.openapis.org/arazzo/v1.1.0.html) (
 
 ## Why it matters for PermDock
 
-An Arazzo workflow is a plan: an ordered list of operations somebody intends to call, with the data flowing between them. That is exactly what an agent produces before it acts, and exactly what `permdock.simulate` was designed to evaluate ([decisions](/docs/concepts/decisions), [for AI agents](/docs/for-ai-agents)). Today `simulate` takes an array of `[permission, data]` pairs the caller assembles by hand. An Arazzo document assembles them for free: each step names an `operationId`, the referenced OpenAPI description carries `x-permdock-permissions` on that operation ([OpenAPI 3.2](/docs/standards/openapi-3-2)), and the permission keys resolve to leaves in the catalog.
+An Arazzo workflow is a plan: an ordered list of operations somebody intends to call, with the data flowing between them. That is exactly what an agent produces before it acts, and exactly what `permdock.simulate` was designed to evaluate ([decisions](/docs/concepts/decisions), [for AI agents](/docs/for-ai-agents)). Today `simulate` takes an array of `[permission, data]` pairs the caller assembles by hand. An Arazzo document assembles them for free: each step names an `operationId`, the referenced OpenAPI description carries `x-permdock-permissions` on that operation ([OpenAPI](/docs/standards/openapi)), and the permission keys resolve to leaves in the catalog.
 
 The result is a pre-flight for a whole workflow, not a single call: before an agent (or a workflow runner, or a CI job) executes step one, PermDock reports which steps would be `granted`, which `denied` and with what alternatives, and which would stop at `approval-required`, so the approval can be requested up-front instead of halfway through a plan with side effects already committed. This is the OWASP ASI02 "bound the plan before the first side effect" control applied to a standard workflow format ([OWASP agentic](/docs/security/owasp-agentic)).
 
@@ -57,7 +54,7 @@ if (blocked.some((s) => s.decision.outcome === 'denied')) throw new PermDockDeni
 for (const step of blocked) await requestApproval(step)                      // approval-required steps, before step one runs
 ```
 
-What `simulate({ arazzo, openapi })` does, step by step (subject is the instance's, [0036](/docs/decisions/0036-arazzo-simulate)):
+What `simulate({ arazzo, openapi })` does, step by step (subject is the instance's, [Arazzo](/docs/standards/arazzo)):
 
 1. Validates the Arazzo document (`arazzo: 1.1.0` or `1.0.x`) and finds the `sourceDescriptions` of `type: openapi`. The `openapi` argument supplies the resolved description for those sources; a workflow with several OpenAPI sources takes a map keyed by source `name`.
 2. For each step of the selected workflow, resolves `operationId` (or `operationPath`) to an operation in the description and reads its `x-permdock-permissions`. Steps that reference a `workflowId` are expanded recursively; cycles are an error.
@@ -73,11 +70,11 @@ What `simulate({ arazzo, openapi })` does, step by step (subject is the instance
 - [next-openapi-gen](https://github.com/tazo90/next-openapi-gen/blob/main/docs/arazzo.md) compiles an `arazzo` block into workflow files after the spec write, against the generated `operationId`s, and applies Overlay files first, so its output is already the applied description.
 - Redocly CLI's `generate-arazzo` drafts a workflow from an OpenAPI description and `respect` executes one ([commands](https://redocly.com/docs/cli/commands)); `simulate` sits between the two as the authorization pre-flight.
 
-PermDock composes with these rather than wrapping them ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)); none is a dependency, and none moves `simulate` earlier than Phase 4.
+PermDock composes with these rather than wrapping them; none is a dependency.
 
 ### Surfacing approval-required steps
 
-An `approval-required` step tells the caller that executing it will stop for a human (or a policy-defined approver) unless approval is obtained first. Because `simulate` issues no tokens, the caller uses the step list to request approval before running the workflow; the approval flow and the binding of an approval token to permission key, resource id, subject and actor are described on [approvals](/docs/security/approvals). Whether one approval can cover a whole plan is an open question on that page; until it is decided, each `approval-required` step needs its own approval and the step's `decision` carries what to ask for.
+An `approval-required` step tells the caller that executing it will stop for a human (or a policy-defined approver) unless approval is obtained first. Because `simulate` issues no tokens, the caller uses the step list to request approval before running the workflow; the approval flow and the binding of an approval token to permission key, resource id, subject and actor are described on [approvals](/docs/security/approvals). There is no plan-level token: each `approval-required` step yields its own approval request, a reviewer may approve them together, and each step is still re-checked at execution. The step's `decision` carries what to ask for.
 
 ### `permdock arazzo check`
 
@@ -91,7 +88,7 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 
 ### Out of scope
 
-- **AsyncAPI steps.** Arazzo 1.1 allows `sourceDescriptions` of `type: asyncapi` and send / receive style steps. PermDock has no AsyncAPI adapter and does not emit `x-permdock-permissions` into AsyncAPI documents, so those steps are reported as `unsupported` and the plan's outcome is `denied` until an adapter exists. This is not a Phase 4 deliverable.
+- **AsyncAPI steps.** Arazzo 1.1 allows `sourceDescriptions` of `type: asyncapi` and send / receive style steps. PermDock has no AsyncAPI adapter and does not emit `x-permdock-permissions` into AsyncAPI documents, so those steps are reported as `unsupported` and the plan's outcome is `denied`.
 - **Executing workflows.** PermDock pre-flights and guards; it does not run steps. Runners keep calling the API, where `protect` decides for real.
 - **Import from Arazzo.** Generating permission definitions from a workflow document is not planned; permissions come from the OpenAPI description or the catalog ([CLI: openapi](/docs/cli/openapi)).
 
@@ -114,13 +111,13 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 
 - [Arazzo Specification 1.1.0](https://spec.openapis.org/arazzo/v1.1.0.html).
 - [Arazzo announcement, OpenAPI Initiative](https://www.openapis.org/arazzo-specification).
-- [Agent standards research](/docs/research/agent-standards-2026): the "workflow-step permission requirements" item, previously not pursued and now scheduled for Phase 4.
-- [OpenAPI ecosystem research](/docs/research/openapi-ecosystem): the producers that emit Arazzo files and the applied-description rule.
+- [Standards watch list](/docs/standards/watch-list): the "workflow-step permission requirements" item.
+- [OpenAPI ecosystem research](/docs/research/ecosystem-index): the producers that emit Arazzo files and the applied-description rule.
 
 ## Related
 
 - [Decisions](/docs/concepts/decisions): `simulate` semantics.
-- [OpenAPI 3.2](/docs/standards/openapi-3-2) and [OpenAPI Overlay](/docs/standards/openapi-overlay): where `x-permdock-permissions` comes from.
+- [OpenAPI](/docs/standards/openapi) and [OpenAPI Overlay](/docs/standards/openapi-overlay): where `x-permdock-permissions` comes from.
 - [OpenAPI registries](/docs/standards/openapi-registry): the extension namespace.
 - [Approvals](/docs/security/approvals): what happens to `approval-required` steps.
 - [OWASP agentic](/docs/security/owasp-agentic): plan bounding as an ASI02 control.
@@ -128,7 +125,3 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 - [For AI agents](/docs/for-ai-agents).
 
 A `provisional: true` step is not a final grant. The agent must not treat it as cleared; `protect` decides again with the real row.
-
-## Open questions
-
-- Whether a plan-level approval token (one approval for all `approval-required` steps) is acceptable; tracked on [approvals](/docs/security/approvals).

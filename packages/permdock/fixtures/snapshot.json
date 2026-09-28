@@ -1,5 +1,5 @@
 {
-  "v": 2,
+  "v": 1,
   "issuedAt": 1700000000,
   "subject": {
     "principal": {
@@ -13,7 +13,8 @@
     {
       "permission": "post.read",
       "effect": "allow",
-      "role": "member"
+      "role": "member",
+      "to": { "kind": "role", "role": "member", "scope": "global" }
     }
   ],
   "tenants": []

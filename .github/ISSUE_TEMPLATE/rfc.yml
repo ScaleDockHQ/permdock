@@ -5,7 +5,7 @@ labels: ['rfc']
 body:
   - type: markdown
     attributes:
-      value: Public identifier, wire format, and CLI flag changes start here. Accepted RFCs become an ADR under apps/docs/content/docs/decisions.
+      value: Public identifier, wire format, and CLI flag changes start here. Accepted RFCs update the owning concept page under apps/docs/content/docs.
   - type: textarea
     id: context
     attributes:
@@ -30,7 +30,7 @@ body:
   - type: textarea
     id: migration
     attributes:
-      label: Migration
-      description: How existing users move, or why this is additive.
+      label: Impact
+      description: What changes for callers, and which docs pages, fixtures and adapters must be updated.
     validations:
       required: true

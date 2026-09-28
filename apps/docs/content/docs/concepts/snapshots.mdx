@@ -5,7 +5,7 @@ description: A snapshot serialises roles, grants and portable conditions so clie
 
 The client needs to know what the current user may do, without a round trip per button and without duplicating the policy in a second `setup()` call. PermDock's answer is the snapshot: `permdock.snapshot()` serialises the subject, the roles and every portable grant, including conditions, as JSON. The browser or React Native app builds a snapshot-backed `PermDock` from it and answers `usePermission(permissions.post.update, post)` locally, ownership check included. Grants that cannot be serialised are marked, and the client asks a decision endpoint for those.
 
-This is the design response to permix's hydration, which collapsed function rules to booleans and forced a duplicated client `setup()`, and to CASL's undocumented `packRules` format ([research](/docs/research/permix-lessons), [CASL v7](/docs/research/casl-v7)).
+This is the design response to permix's hydration, which collapsed function rules to booleans and forced a duplicated client `setup()`, and to CASL's undocumented `packRules` format ([landscape](/docs/research/landscape)).
 
 ## Producing a snapshot
 
@@ -18,11 +18,11 @@ const all    = permdock.snapshot({ tenants: 'all' })          // every membershi
 const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).snapshot()   // simulated: true
 ```
 
-`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([0031](/docs/decisions/0031-snapshot-contents), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `parseSnapshot(json)` is the public reader.
+`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([snapshots](/docs/concepts/snapshots), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `parseSnapshot(json)` is the public reader.
 
 ### Without an instance: `snapshotFor`
 
-`snapshotFor(policy, user, options)` builds the same snapshot without creating an instance. It is synchronous and deterministic: pass `now` and the same inputs always give the same JSON, which makes it safe to call inside a function the app marks `'use cache: private'`. PermDock never adds that directive itself ([0049](/docs/decisions/0049-cache-components-building-blocks)).
+`snapshotFor(policy, user, options)` builds the same snapshot without creating an instance. It is synchronous and deterministic: pass `now` and the same inputs always give the same JSON, which makes it safe to call inside a function the app marks `'use cache: private'`. PermDock never adds that directive itself.
 
 ```ts
 import { snapshotFor } from 'permdock'
@@ -49,52 +49,17 @@ It throws a `TypeError` when the policy's `subject` or `context` mapper is async
 
 `include` limits the snapshot to the listed groups or leaves. Anything outside reports `status: 'server-only'` on the client and is resolved through the endpoint. This is how a large policy ships only the grants a route needs, the equivalent of passing one message namespace to the client in next-intl. See [larger apps](/docs/getting-started/larger-apps).
 
-## Wire format v3
+## Wire format
 
-The TypeScript type is `Snapshot`; `v` is the format major. Version 3 adds `grants[].to` and `vocabulary`. `parseSnapshot` still accepts v1 and v2.
-
-```json
-{
-  "v": 3,
-  "issuedAt": 1788999900,
-  "subject": {
-    "principal": {
-      "id": "u_1", "roles": ["support"], "tenant": "o_1",
-      "memberships": [
-        { "tenant": "o_1", "roles": ["member"] },
-        { "tenant": "o_1", "team": "t_design", "roles": ["lead"], "via": "group:9f2c" },
-        { "on": { "resource": "document", "id": "d_9" }, "roles": ["editor"], "expiresAt": 1789000000 }
-      ]
-    },
-    "delegation": { "scopes": ["post:read", "post:update"] },
-    "context": { "plan": "pro" }
-  },
-  "roles": ["support", "member", "lead", "editor"],
-  "vocabulary": {
-    "roles": { "member": { "key": "member", "assignable": true }, "lead": { "key": "lead", "on": "team", "assignable": true } }
-  },
-  "grants": [
-    { "permission": "post.read",    "effect": "allow", "role": "member", "scope": "tenant",
-      "to": { "kind": "role", "role": "member", "scope": "tenant" } },
-    { "permission": "post.update",  "effect": "allow", "role": "member", "scope": "tenant",
-      "where": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } } },
-    { "permission": "post.publish", "effect": "allow", "role": "lead", "scope": "team", "membership": { "tenant": "o_1", "team": "t_design" } },
-    { "permission": "document.update", "effect": "allow", "role": "editor", "scope": { "resource": "document" }, "membership": { "on": { "resource": "document", "id": "d_9" } } },
-    { "permission": "post.delete",  "effect": "allow", "role": "member", "scope": "tenant", "approval": "human",
-      "where": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } } },
-    { "permission": "post.archive", "effect": "allow", "role": "member", "scope": "tenant", "portable": false }
-  ],
-  "tenants": ["o_1"],
-  "include": ["post", "document"]
-}
-```
+The TypeScript type is `Snapshot`; `v` is the format major, `1`, and `parseSnapshot` rejects any other. The full JSON shape with an example is on [wire formats](/docs/concepts/wire-formats#snapshot); the fields mean:
 
 | Field | Meaning |
 | --- | --- |
-| `v` | Format version, currently `3`. Readers reject unknown majors; the format is public and documented here and in [wire formats](/docs/concepts/wire-formats). v1 (no memberships, no `scope`) and v2 (no `to`, no `vocabulary`) are still accepted by readers. |
+| `v` | Format major, `1`. Readers reject unknown majors. |
 | `subject` | The frozen principal (including `memberships` and the active `tenant`), delegation and context the conditions reference. The actor's secrets are never included. |
 | `roles` | The role names that were applied, custom roles resolved to declared names. |
-| `grants` | One entry per grant, keyed by permission `key`; conditions in the [portable JSON form](/docs/concepts/conditions). |
+| `grants` | One entry per grant, keyed by permission `key`; conditions in the [portable JSON form](/docs/concepts/conditions); `to` is the grantee union. |
+| `vocabulary` | The declared roles and plans (`vocabulary.roles`, `vocabulary.plans`), so the client renders titles without the catalog. |
 | `scope`, `membership` | On grants from scoped roles: the scope kind and the membership that supplied the role, so the client evaluates the scope match exactly as the server did ([tenancy](/docs/concepts/tenancy)). Absent on global grants. |
 | `portable: false` | The grant exists but uses a closure or an opaque condition; the client must ask the server. |
 | `tenants` | The tenants whose grants are present: the active tenant by default, every membership tenant with `tenants: 'all'`. |
@@ -118,7 +83,7 @@ const jws = await permdock.snapshot({ include: [permissions.post], signer, audie
 <PermDockProvider snapshot={jws} verifier={joseTokenVerifier({ jwks: 'https://app.example.com/.well-known/jwks.json', typ: 'permdock-snapshot+jwt' })} />
 ```
 
-With `signer`, `snapshot` returns a `Promise<string>`: a compact JWS with header `alg`, `kid`, `typ: 'permdock-snapshot+jwt'`, registered claims `iss`, `aud`, `sub` (the principal id), `iat` (= `issuedAt`), `exp` (= `expiresAt`), `jti`, and the unchanged v2 object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)). The client verifies before hydrating; a snapshot whose signature, `typ`, `aud` or `exp` fails is treated as absent and every guard reports `'server-only'` until a refresh succeeds. Without `signer` the plain JSON form is returned, and it remains the default for the common case where the server that computed the snapshot also serves the page.
+With `signer`, `snapshot` returns a `Promise<string>`: a compact JWS with header `alg`, `kid`, `typ: 'permdock-snapshot+jwt'`, registered claims `iss`, `aud`, `sub` (the principal id), `iat` (= `issuedAt`), `exp` (= `expiresAt`), `jti`, and the unchanged snapshot object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)). The client verifies before hydrating; a snapshot whose signature, `typ`, `aud` or `exp` fails is treated as absent and every guard reports `'server-only'` until a refresh succeeds. Without `signer` the plain JSON form is returned, and it remains the default for the common case where the server that computed the snapshot also serves the page.
 
 `SnapshotSource` implementations may serve either form; the client accepts both and applies `verifier` only to a string. `permdock/cloud` always signs and publishes its keys at `/.well-known/jwks.json` ([Cloud adapter](/docs/adapters/cloud)).
 
@@ -171,7 +136,7 @@ A snapshot is a point-in-time view. Three things refresh it:
 | Identity provider signal | `permdock/ssf` receives a CAEP `session-revoked`, `credential-change` or `assurance-level-change` event and calls the same tag update, so staleness is bounded by the IdP, not by a TTL ([Shared Signals](/docs/standards/shared-signals-caep)) |
 | Client-side knowledge | `permdock.invalidate(permissions.post)` drops endpoint answers under `post.*` and marks snapshot-derived answers `'stale'` until the provider refreshes |
 
-`invalidate` takes a reference (a group or a leaf), never a string prefix, so it is typed and rename-safe; it is the typed version of Kilpi's namespace invalidation. Snapshots also carry `issuedAt`, and the provider accepts a `maxAge` after which everything is reported `'stale'` while a refresh is fetched.
+`invalidate` takes a reference (a group or a leaf), never a string prefix, so it is typed and rename-safe; it is the typed version of Kilpi's namespace invalidation. Snapshots also carry `issuedAt`, and the provider accepts a `maxAge` after which everything is reported `'stale'` while a refresh is fetched. There is no default `maxAge`: without it and without `expiresAt`, a snapshot never goes stale by age.
 
 ## Next.js and Instant Navigations
 
@@ -223,8 +188,3 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 - Tenant-defined custom role names: they are resolved to declared roles before serialisation, so a snapshot never carries a name RLS could not.
 - Quota state for `limit` grants; those are always `server-only` (`portable: false`).
 - Anything from the actor beyond what appears in `delegation`.
-
-## Open questions
-
-- Whether a `tenants: 'all'` snapshot for a subject with many memberships should be paged or capped, and whether `include` should accept a tenant filter.
-- Default `maxAge` for a snapshot. (Whether `issuedAt` needs protecting is settled: a signed snapshot covers it, and an unsigned one is UI-only; see "Signed snapshots" above.)

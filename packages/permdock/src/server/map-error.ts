@@ -11,7 +11,7 @@ import { InvalidSignatureError } from './web-bot-auth.ts';
  * Turns a thrown PermDock error into its Problem Details response. Returns
  * `undefined` for anything else so the framework's own error path takes over.
  */
-export function mapPermDockError(error: unknown): Response | undefined {
+export function problemFromError(error: unknown): Response | undefined {
   if (error instanceof InvalidSignatureError) {
     return error.response;
   }

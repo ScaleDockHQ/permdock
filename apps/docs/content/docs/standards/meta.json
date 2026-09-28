@@ -3,8 +3,7 @@
   "pages": [
     "index",
     "standard-schema",
-    "openapi-3-2",
-    "openapi-3-3",
+    "openapi",
     "openapi-overlay",
     "arazzo",
     "openapi-registry",
@@ -16,7 +15,6 @@
     "jwt-authorization-claims",
     "scim",
     "fapi-2",
-    "gnap",
     "---Agents---",
     "mcp-authorization",
     "authzen",

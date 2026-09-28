@@ -31,7 +31,7 @@ An object literal is an implicit `and` over its fields. A field value is either 
 | `memberOf` | the row's scope field names a tenant, team or resource where the subject holds one of the listed roles; emitted by scoped role declarations, not written by hand | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)` |
 | `sqlFunction` | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run | `name(args)` (`--inline-functions` emits the twin instead) |
 
-That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/research/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition. `sqlFunction` is the node for SQL-authority policies whose database helper is the source of truth ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)):
+That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/standards/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition. `sqlFunction` is the node for SQL-authority policies whose database helper is the source of truth:
 
 ```ts
 allow(permissions.job.read, {
@@ -54,7 +54,7 @@ allow(permissions.job.read, {
 - `principal.<field>` refers to a field returned by the policy's `principal` function (`principal.id`, `principal.orgId`).
 - `context.<key>` refers to a value loaded by the policy's `context` function (`context.teamIds`).
 
-There is no `subject` builder: it was removed before 0.1.0 ([0045](/docs/decisions/0045-drop-subject-ref-alias)), and a ref whose path starts with `subject.` is not a reference at all, so it fails closed.
+There is no `subject` builder: a ref whose path starts with `subject.` is not a reference at all, so it fails closed.
 
 References are what make a condition portable. In memory they read from the frozen subject; in a snapshot they read from the client's copy of the subject; in SQL they become `(select auth.uid())`, `(select auth.jwt()) ->> 'orgId'` or a `current_setting()` GUC depending on the dialect. The type of a reference is checked against the field it is compared to.
 
@@ -155,26 +155,19 @@ Closures are the right tool for calls to another system or logic that is not a c
 allow(permissions.post.read, { where: opaque({ sql: '(created_at > now() - interval \'30 days\')', fingerprint: 'sha256:...' }) })
 ```
 
-An opaque condition keeps the SQL verbatim so `rls generate` can emit it back unchanged and the fingerprint (from the deparsed AST, not raw text, since `pg_get_expr` rewrites formatting) detects drift on re-import. In memory an opaque condition evaluates to `false` and the decision explains why (`reason: 'opaque-condition'`), so the client falls back to the decision endpoint and the endpoint falls back to the database. `permdock rls verify` reports opaque grants as untestable app-side. Prefer `sqlFunction` when the SQL is a named helper whose body you can twin.
+An opaque condition keeps the SQL verbatim so `rls generate` can emit it back unchanged and the fingerprint (from the deparsed AST, not raw text, since `pg_get_expr` rewrites formatting) detects drift on re-import. In memory an opaque condition evaluates to `false` and the decision explains why (`reason: 'opaque-condition'`), so the client falls back to the decision endpoint and the endpoint falls back to the database. `permdock rls verify` reports opaque grants as untestable app-side. Prefer `sqlFunction` when the SQL is a named helper whose body you can twin. Supabase's `authorize('perm')` RBAC helper is imported the same way: list it in `rls.functions` and it becomes a `sqlFunction` node, not a dedicated op.
 
 ## Type safety
 
 - Field names, literal types and reference types come from the resource schema output. `{ where: { authorId: principal.orgId } }` compiles only if both are strings; a mismatch is an error.
 - `in` requires an array on the right-hand side and a scalar field on the left.
-- `check` on a `read` or `delete` grant is a type error, as is `where` on a collection action. Collection grants may carry `check` ([0029](/docs/decisions/0029-check-on-collection-actions)).
-- Closures require the exact `(data: Post, ctx) => boolean` signature; the `data` type is the schema output. A thenable from a closure is a `closure-error` denial ([0028](/docs/decisions/0028-synchronous-evaluation)).
+- `check` on a `read` or `delete` grant is a type error, as is `where` on a collection action. Collection grants may carry `check`.
+- Closures require the exact `(data: Post, ctx) => boolean` signature; the `data` type is the schema output. A thenable from a closure is a `closure-error` denial.
 
 ## Semantics to keep in mind
 
 - Three-valued logic. In memory a comparison with `undefined` or `null` is `false`, never `true`, mirroring SQL where `NULL = x` is unknown and unknown filters out. `isNull` is the explicit way to test for absence.
 - Dates compare by instant. `{ date }` tags carry ISO strings with an offset; comparisons parse them once. A comparison is by instant only when one side is a `Date` or a `{ date }` tag, and the other side must then be a `Date`, epoch milliseconds or an ISO 8601 string (the Postgres text form included). Otherwise both sides must have the same primitive type: `'2'` never equals `2`, and ids such as `'user-2'`, `'org-1'` or `'acme-1'` are never read as dates.
-- Case and collation are the database's business. `contains` on strings is case-sensitive in memory and compiles to `LIKE`, not `ILIKE`.
-- Nested paths are not in v1. Conditions address top-level fields of the resource schema; relation data goes through `memberships` (roles held somewhere) or `context` (everything else).
-- `memberOf` is evaluated against the frozen subject's memberships, so an expired membership or an active tenant with no membership makes it `false`, the same way a missing field does.
-
-## Open questions
-
-- Whether `contains` should be split into `arrayContains` and `stringContains` for clearer SQL mapping.
-- Nested field paths (`address.city`) and array-of-object fields: v1 excludes them; a later version may add a typed path helper.
-- How much of the Supabase `authorize('perm')` RBAC pattern should be recognised on import as a named-permission node rather than opaque SQL. Follow-up: a `sqlFunction` preset over `authorize`, not a new op ([0043](/docs/decisions/0043-sql-functions-as-portable-conditions)).
-- Whether `memberOf` should be writable by hand in a `where` (for a grant that checks membership in a *different* scope than the role's) or stay generated from role declarations only.
+- Case and collation are the database's business. `contains` is one operator for both arrays and strings; on strings it is case-sensitive in memory and compiles to `LIKE`, not `ILIKE`.
+- Nested paths (`address.city`) and array-of-object fields are not supported. Conditions address top-level fields of the resource schema; relation data goes through `memberships` (roles held somewhere) or `context` (everything else).
+- `memberOf` is evaluated against the frozen subject's memberships, so an expired membership or an active tenant with no membership makes it `false`, the same way a missing field does. It is generated from role declarations only; there is no hand-written `memberOf` in a `where`.

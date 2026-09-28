@@ -48,7 +48,7 @@ export const NAVBAR_PRODUCTS: NavMegaMenuItem[] = [
 export const NAVBAR_COMPANIES: NavMegaMenuItem[] = [
   {
     title: 'Docs',
-    description: 'Quick start, adapters and ADRs.',
+    description: 'Quick start, concepts and adapters.',
     href: '/docs',
     icon: <BookOpenIcon aria-hidden="true" />,
   },

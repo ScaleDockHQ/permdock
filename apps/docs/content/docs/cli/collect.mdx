@@ -3,10 +3,7 @@ title: collect
 description: Scan source paths for definePermissions() calls and permission usages, write the catalog and generated barrel, and fail CI on drift.
 ---
 
-Status: shipped
-Phase: 1
-
-`permdock collect` is the build step that turns colocated permission definitions into a central catalog. It is modelled on next-intl's `useExtracted` extraction: the source of truth is the code where permissions are declared and used, and the catalog is a compile output that is checked in and kept fresh by tooling. See [next-intl extraction model](/docs/research/next-intl-extraction-model) and [Larger apps](/docs/getting-started/larger-apps).
+`permdock collect` is the build step that turns colocated permission definitions into a central catalog. It is modelled on next-intl's `useExtracted` extraction: the source of truth is the code where permissions are declared and used, and the catalog is a compile output that is checked in and kept fresh by tooling. See [why this model](#why-this-model) and [Larger apps](/docs/getting-started/larger-apps).
 
 ## Usage
 
@@ -28,12 +25,14 @@ Options come from `permdock.config.ts` (`collect.srcPath`, `catalog.out`) and ca
 
 `srcPath` entries may point at first-party code, sibling packages in a monorepo and installed packages (`./node_modules/@acme/*`), exactly as next-intl allows for shared UI packages. Globs are resolved relative to `--cwd` and match segment by segment (`packages/*/src` walks only each package's `src`). Under a glob, `node_modules`, `dist`, `.next`, `.turbo` and `coverage` are skipped unless the pattern names them literally; inside an installed package (`./node_modules/@acme/*`) `dist` is collected and nested `node_modules` never is. A file reached twice, for example through a workspace symlink, is collected once.
 
+Usage scanning also records `allow(permissions.x.y)` calls in policy files, as usages with `call: 'allow'`. Installed packages are scanned only when a `srcPath` entry names them.
+
 Scanning is static: dynamic keys, computed member access and permissions resolved through `findPermission(permissions, someString)` are recorded as `dynamic` usages and reported separately rather than guessed at.
 
 ## Outputs
 
 - **`permissions.catalog.json`**: the catalog described on the [catalog](/docs/cli/catalog) page, including for each permission its `key`, `scope`, arity, metadata, defining file and usage sites. Deterministic ordering and formatting so diffs are meaningful.
-- **Generated barrel** (`src/permissions.generated.ts` by default, only when `collect.barrel` is enabled): a `// @generated` file that imports every discovered `definePermissions()` export and passes them to `mergePermissions()`. This is the open question below.
+- **Generated barrel** (`src/permissions.generated.ts` by default, only when `collect.barrel` is enabled): a `// @generated` file that imports every discovered `definePermissions()` export and passes them to `mergePermissions()`.
 
 Generated files carry a header with the CLI version and the list of inputs, and are formatted with Oxfmt so they do not churn under the project's formatter.
 
@@ -65,11 +64,23 @@ const withPermDock = createPermDockPlugin({
 export default withPermDock({})
 ```
 
-The plugin is a build hook only; it never wires the API. See [Next.js plugin](/docs/cli/next-plugin) and [0006: Explicit factory, not a plugin](/docs/decisions/0006-explicit-factory-not-plugin).
+The plugin is a build hook only; it never wires the API or augments module types. See [Next.js plugin](/docs/cli/next-plugin).
 
-## Open questions
+## Why this model
 
-- Whether usage scanning should also cover role fragments (`allow(permissions.x.y)`) in policy files so `usage` can compute granted-by-no-role without loading the policy module.
+next-intl's `useExtracted` solved the same shape of problem for translations: many colocated typed declarations, one central artifact, client and server consumers. A central string catalog that usages reference by name puts the declaration far from the code, lets keys drift and accumulates dead entries. Extraction flips it, and PermDock takes the same properties:
+
+| next-intl | PermDock |
+| --- | --- |
+| `useExtracted()` declaration in a component | `definePermissions()` in a feature folder |
+| Build-time loader | `permdock collect`, `createPermDockPlugin({ collect })` |
+| `messages/*.json` as a committed compile output | `permissions.catalog.json`, checked with `--check` |
+| Namespaces for shared packages | Nested resource groups merged by `mergePermissions` (`permissions.billing.invoice.pay`) |
+| `useExtracted` / `getExtracted` | `usePermission` / `getPermission`, `usePermDock` / `getPermDock` |
+| Passing one message namespace to the client | `snapshot({ include: [permissions.post] })` |
+| Works in tests without the loader | Works in tests without `collect` |
+
+The analogy stops in three places. next-intl must extract because a string literal is not a queryable runtime value; PermDock's definitions exist at runtime, so the scan is for usage coverage and cross-package discovery, and a failed scan only leaves the catalog stale. Translations sync target locales; permissions have a policy instead, and `permdock usage` reports the gap (granted-by-no-role, used-but-ungranted) rather than syncing anything. next-intl's loader rewrites source; PermDock only reads it. Generated definitions (`permdock rls import`, `permdock openapi import`) merge through `mergePermissions` like any hand-written feature file.
 
 ## Related
 
@@ -77,4 +88,4 @@ The plugin is a build hook only; it never wires the API. See [Next.js plugin](/d
 - [usage](/docs/cli/usage)
 - [Larger apps](/docs/getting-started/larger-apps)
 - [Permissions](/docs/concepts/permissions)
-- [0008: Plain JSON leaves, identity by key](/docs/decisions/0008-plain-json-leaves-identity-by-key)
+- [next-intl message extraction](https://next-intl.dev/docs/usage/extraction)

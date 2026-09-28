@@ -101,6 +101,7 @@ describe('permdock/react', () => {
                 permission: grant.permission,
                 effect: grant.effect,
                 role: grant.role,
+                to: grant.to,
                 portable: false as const,
               }
             : grant,
@@ -124,6 +125,7 @@ describe('permdock/react', () => {
                 permission: grant.permission,
                 effect: grant.effect,
                 role: grant.role,
+                to: grant.to,
                 portable: false as const,
               }
             : grant,
@@ -156,6 +158,7 @@ describe('permdock/react', () => {
                 permission: grant.permission,
                 effect: grant.effect,
                 role: grant.role,
+                to: grant.to,
                 portable: false as const,
               }
             : grant,

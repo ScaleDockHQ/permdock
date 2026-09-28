@@ -19,7 +19,7 @@ import { compact } from '../core/compact.ts';
 import { emptySnapshot } from '../core/from-snapshot.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { applyOtel } from '../otel/instrument.ts';
-import { createHandler } from './handler.ts';
+import { createEvaluationsHandler } from './handler.ts';
 import { renderClientProvider } from './provider.tsx';
 
 const DENIED: Decision = {
@@ -174,8 +174,8 @@ export function createPermDock<
     );
   };
 
-  const permdockHandler = (): ReturnType<typeof createHandler> =>
-    createHandler(
+  const permdockHandler = (): ReturnType<typeof createEvaluationsHandler> =>
+    createEvaluationsHandler(
       compact({
         policy,
         getPermDock,

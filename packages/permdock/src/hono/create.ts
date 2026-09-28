@@ -31,7 +31,7 @@ import { compact } from '../core/compact.ts';
 import { PermDockRevokedError } from '../core/errors.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
-import { mapPermDockError } from '../server/map-error.ts';
+import { problemFromError } from '../server/map-error.ts';
 import {
   POLICY_VIOLATION,
   guardIterable,
@@ -53,7 +53,7 @@ export type HonoPermDockOptions<TUser = unknown> = {
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
   readonly webBotAuth?: WebBotAuthOptions;
-  /** Ends or revalidates open sockets and streams (ADR 0052). */
+  /** Ends or revalidates open sockets and streams. */
   readonly revocations?: RevocationFeed;
 };
 
@@ -64,7 +64,7 @@ export type HonoPermDock = {
     loadData?: (c: Context) => unknown,
     protectOptions?: ProtectOptions,
   ) => MiddlewareHandler;
-  /** A long-lived connection for the request behind `c` (ADR 0052). */
+  /** A long-lived connection for the request behind `c`. */
   readonly connection: (
     c: Context,
     connectionOptions?: ConnectionOptions,
@@ -169,7 +169,7 @@ async function sse<T>(
 }
 
 function mapDownstream(c: Context): void {
-  const mapped = c.error === undefined ? undefined : mapPermDockError(c.error);
+  const mapped = c.error === undefined ? undefined : problemFromError(c.error);
   if (mapped !== undefined) {
     c.res = undefined;
     c.res = mapped;

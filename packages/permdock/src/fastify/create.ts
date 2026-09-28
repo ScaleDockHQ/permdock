@@ -30,7 +30,7 @@ import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
 import { compact } from '../core/compact.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
-import { mapPermDockError } from '../server/map-error.ts';
+import { problemFromError } from '../server/map-error.ts';
 import { sendReply, toRequest } from './http.ts';
 
 const SKIP_OVERRIDE = Symbol.for('skip-override');
@@ -146,7 +146,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       reply: FastifyReply,
     ) => unknown = app.errorHandler;
     app.setErrorHandler(async function permdockErrors(err, request, reply) {
-      const problem = mapPermDockError(err);
+      const problem = problemFromError(err);
       if (problem === undefined) {
         await previous.call(this, err, request, reply);
         return undefined;

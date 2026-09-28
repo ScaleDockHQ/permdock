@@ -3,10 +3,7 @@ title: Building UI with PermDock
 description: Hidden versus disabled, menus, filtered lists, tenant switchers, role chips, request-access buttons, impersonation banners, view-as previews and role editors, built from the snapshot-backed client instance with usePermission, usePermissions, useFilter, useTenant, useMemberships, useRoles, useAssignableRoles, useApproval, useSubject and describe(decision); the same names in React, React Native, Vue, Svelte and Solid.
 ---
 
-Status: shipped for React and Next.js ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships))
-Phase: 1 (React, React Native), 4 (Vue, Svelte, Solid)
-
-The UI half of PermDock has one job: render what the current subject may do, in the active tenant, without a round trip per element and without a second copy of the policy. Everything on this page is built on the snapshot-backed client instance ([snapshots](/docs/concepts/snapshots)): a `PermDock` with the same `can`, `decide`, `filter` and `pick` as the server, evaluated against the same portable conditions, plus the tenancy introspection from [tenancy](/docs/concepts/tenancy). Client answers are hints; the server adapter that performs a mutation checks again ([threat model](/docs/security/threat-model)). Use `pick` after `filter` when a grant lists `fields` ([0033](/docs/decisions/0033-field-level-grants)).
+The UI half of PermDock has one job: render what the current subject may do, in the active tenant, without a round trip per element and without a second copy of the policy. Everything on this page is built on the snapshot-backed client instance ([snapshots](/docs/concepts/snapshots)): a `PermDock` with the same `can`, `decide`, `filter` and `pick` as the server, evaluated against the same portable conditions, plus the tenancy introspection from [tenancy](/docs/concepts/tenancy). Client answers are hints; the server adapter that performs a mutation checks again ([threat model](/docs/security/threat-model)). Use `pick` after `filter` when a grant lists `fields`.
 
 The hooks below are direct exports of `permdock/react` and `permdock/react-native`; `permdock/vue` exports them as composables, `permdock/svelte` as stores and `permdock/solid` as signals, with the same names and the same return shapes ([parity table](/docs/adapters)). Nothing here imports a policy, a closure or a Node built-in (invariant 8).
 
@@ -28,7 +25,7 @@ const why = describe(decision)   // { title: 'Approval required', detail: 'Publi
 <Button disabled={!allowed} aria-disabled={!allowed} title={allowed ? undefined : why.detail}>Publish</Button>
 ```
 
-`describe(decision)` is a pure function (importable from `permdock`, no React) that turns a `Decision` into `{ kind, title, detail, alternatives }` with `kind` one of `granted`, `denied`, `approval`, `tenant`, `delegation`, `server-only`. It reads `meta.title` and `meta.description` from the permission and the grant's `reason`, and it never includes role names or condition internals a user should not see. Adapters use the same function for Problem Details `detail`, so the tooltip and the API error say the same thing.
+`describe(decision)` is a pure function (importable from `permdock`, no React) that turns a `Decision` into `{ kind, title, detail, alternatives }` with `kind` one of `granted`, `denied`, `approval`, `tenant`, `delegation`, `server-only`. It reads `meta.title` and `meta.description` from the permission and the grant's `reason`, and it never includes role names or condition internals a user should not see. Adapters use the same function for Problem Details `detail`, so the tooltip and the API error say the same thing. It takes no locale: localise through the `meta` strings or by mapping on `kind`. There is no `useDecision` alias; `usePermission` already returns the `decision`.
 
 ## Menus and toolbars
 
@@ -77,7 +74,7 @@ const roles = useRoles()                                   // Role[] held in the
 const { roles: teamRoles } = useRoles({ team: 't_design' })
 ```
 
-Render a "Your roles in Acme" chip list from `useRoles()`, an organisation list from `useMemberships()` filtered to `tenant` entries, and a shared-with-me list from `on` entries. The display label for a role is `role.meta.title` on the `Role` leaf; snapshot v3 ships the vocabulary so the client no longer needs the catalog for titles.
+Render a "Your roles in Acme" chip list from `useRoles()`, an organisation list from `useMemberships()` filtered to `tenant` entries, and a shared-with-me list from `on` entries. The display label for a role is `role.meta.title` on the `Role` leaf; the snapshot's `vocabulary` carries it, so the client needs no catalog for titles.
 
 ## Request access
 
@@ -144,12 +141,6 @@ Every hook returns `status` from the same vocabulary (`ready`, `pending`, `stale
 
 ## What PermDock does not ship
 
-- Components beyond `<Protected>`: no `<Can>`, no tenant-switcher dropdown, no role badge, no approval dialog. Hooks return data; your design system renders it ([ADR 0024](/docs/decisions/0024-scoped-roles-and-memberships) alternatives). The [devtools panel](/devtools) on the docs site is a canned explorer, not a package export ([devtools](/docs/getting-started/devtools)).
+- Components beyond `<Protected>`: no `<Can>`, no tenant-switcher dropdown, no role badge, no approval dialog. Hooks return data; your design system renders it ([tenancy](/docs/concepts/tenancy) alternatives). The [devtools panel](/devtools) on the docs site is a canned explorer, not a package export ([devtools](/docs/getting-started/devtools)).
 - Tenant display names, logos or invitation flows: the auth provider owns them.
 - A client-side copy of the policy: conditions travel in the snapshot, closures stay on the server.
-
-## Open questions
-
-- Whether `useApproval` should subscribe through the `SnapshotSource` when one is configured (push) or poll the `approvalsHandler` route (pull, the default).
-- Whether `describe` should accept a locale or return message keys for next-intl and similar libraries to translate.
-- A `useDecision(reference, data)` alias returning only the `Decision` for callers that do not want `allowed` and `status`.

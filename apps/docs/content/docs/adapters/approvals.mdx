@@ -3,14 +3,11 @@ title: Approvals
 description: permdock/approvals is the pluggable store behind every approval-required decision, an in-memory default, a Fetch handler for approvers, and the interface that self-hosted stores and PermDock Cloud implement.
 ---
 
-Status: shipped
-Phase: 1
-
-`permdock/approvals` holds the part of a human-in-the-loop flow that the agent runtimes leave to the application: the pending request, who answered it, when it expires, and how a later call proves it was approved. It ships the `ApprovalStore` interface, `memoryApprovalStore()` as the default, and `approvalsHandler` so an application can mount list, approve and reject routes for its approvers. Every agent adapter (`ai-sdk`, `eve`, `openai`, `claude-agent`, `mcp`) and the HTTP kernel accept a `store` option typed against this interface. The decision itself is unchanged: `decide` still runs in-process and never waits on a store ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)).
+`permdock/approvals` holds the part of a human-in-the-loop flow that the agent runtimes leave to the application: the pending request, who answered it, when it expires, and how a later call proves it was approved. It ships the `ApprovalStore` interface, `memoryApprovalStore()` as the default, and `approvalsHandler` so an application can mount list, approve and reject routes for its approvers. Every agent adapter (`ai-sdk`, `eve`, `openai`, `claude-agent`, `mcp`) and the HTTP kernel accept a `store` option typed against this interface. The decision itself is unchanged: `decide` still runs in-process and never waits on a store.
 
 ## Purpose
 
-The AI SDK, Eve, the OpenAI Agents SDK, MCP elicitation and the Claude Agent SDK each pause a run and hand the application an approval to collect. None of them stores an auditable approval record, knows who may approve, or expires a stale ask, and Eve's documentation says outright that a four-eyes flow needs an application-owned approval request ([Eve human-in-the-loop](https://eve.dev/docs/human-in-the-loop)). Without a shared store, every adapter would reinvent this, and PermDock Cloud's inbox would be the only durable option. `permdock/approvals` makes the store an interface with an in-process default so an application can run entirely on its own ([ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)).
+The AI SDK, Eve, the OpenAI Agents SDK, MCP elicitation and the Claude Agent SDK each pause a run and hand the application an approval to collect. None of them stores an auditable approval record, knows who may approve, or expires a stale ask, and Eve's documentation says outright that a four-eyes flow needs an application-owned approval request ([Eve human-in-the-loop](https://eve.dev/docs/human-in-the-loop)). Without a shared store, every adapter would reinvent this, and PermDock Cloud's inbox would be the only durable option. `permdock/approvals` makes the store an interface with an in-process default so an application can run entirely on its own.
 
 ## API
 
@@ -43,16 +40,16 @@ interface ApprovalStore {
 }
 ```
 
-- `create` is called by an adapter when `decide` returns `approval-required`; the record is [Approval request v2](/docs/concepts/wire-formats) and carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant`, `session` and the `membership` that supplied the matched role), `approvers` from `grant.approval` when present, the model-readable `detail`, `createdAt` and `expiresAt`. The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another. `create` is idempotent per token: a repeated call for a pending or resolved request keeps the existing record, and only an expired record is replaced, so an agent loop that asks twice never resets an approval to pending.
+- `create` is called by an adapter when `decide` returns `approval-required`; the record is an [approval request](/docs/concepts/wire-formats) (`v: 1`) and carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant`, `session` and the `membership` that supplied the matched role), `approvers` from `grant.approval` when present, the model-readable `detail`, `createdAt` and `expiresAt`. The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another. `create` is idempotent per token: a repeated call for a pending or resolved request keeps the existing record, and only an expired record is replaced, so an agent loop that asks twice never resets an approval to pending.
 - `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`. When `approvers` is set, the approver must belong to the request tenant and match `by`; `approvers.distinct` also refuses the principal. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
 - `cancel(filter, { by, note })` is optional. It marks matching pending requests `rejected` with `resolvedBy: 'system:<by>'` and does not run eligibility, because a rejection never grants. `cancelApprovals` in `permdock/approvals` calls it, or falls back to `list` plus a system `resolve`.
 - `list({ tenant })` scopes the approver inbox to one tenant, which is how a tenant admin sees only their organisation's pending requests; `approvalsHandler` applies it from the approver's active tenant and the approver must hold a membership there ([tenancy](/docs/concepts/tenancy)).
-- `consume` is the atomic step that makes an approval single-use: it sets `consumedAt` on an approved, unexpired, unconsumed request and returns it, or returns `null`. Two concurrent calls never both succeed. Adapters call it when a resume enforces the call (`protect`, tool execution, MCP); the decision endpoint only inspects. A store without `consume` cannot resume ([ADR 0051](/docs/decisions/0051-approval-lifecycle)).
+- `consume` is the atomic step that makes an approval single-use: it sets `consumedAt` on an approved, unexpired, unconsumed request and returns it, or returns `null`. Two concurrent calls never both succeed. Adapters call it when a resume enforces the call (`protect`, tool execution, MCP); the decision endpoint only inspects. A store without `consume` cannot resume.
 - A request with a tenant can be resolved only by an approver with a membership in that tenant, whether or not the grant names `approvers`. `assertApprover(request, by, requireDistinct)` applies these checks and throws `ApprovalError`; custom stores call it in `resolve`.
 - `list` powers the approver UI and the `permdock/terminal` interactive prompt. `approvalsHandler`'s pending inbox lists the requested tenant, else the active tenant, else every tenant the approver holds a membership in; requests without a tenant appear only in the last case.
 - `expire` is called opportunistically by adapters and by `approvalsHandler`; a scheduled job may call it as well.
 - `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
-- `signer` (optional, a `TokenSigner` such as `joseTokenSigner` from `permdock/jwt`) makes `approvalsHandler` return, on approve, a compact JWS with `typ: permdock-approval+jwt` alongside the bare token: registered claims `iss`, `aud`, `sub` (the principal), `iat`, `exp` (= the request's `expiresAt`), `jti`, and `{ token, permission, resource, status }` under the `approval` claim ([wire formats](/docs/concepts/wire-formats)). It exists for a resume that crosses services or trust domains, where the resuming side wants proof of who resolved the request before it spends a `decide`. The bound hash `token` stays the thing that is compared ([ADR 0022](/docs/decisions/0022-approvals-are-pluggable)): the adapter verifies the JWS with its `verifier`, extracts `approval.token`, and then runs the unchanged step 5 below. `PermDock-Approval` carries either form; the kernel tells them apart by the `pd1.` prefix versus the three-segment JWS shape.
+- `signer` (optional, a `TokenSigner` such as `joseTokenSigner` from `permdock/jwt`) makes `approvalsHandler` return, on approve, a compact JWS with `typ: permdock-approval+jwt` alongside the bare token: registered claims `iss`, `aud`, `sub` (the principal), `iat`, `exp` (= the request's `expiresAt`), `jti`, and `{ token, permission, resource, status }` under the `approval` claim ([wire formats](/docs/concepts/wire-formats)). It exists for a resume that crosses services or trust domains, where the resuming side wants proof of who resolved the request before it spends a `decide`. The bound hash `token` stays the thing that is compared: the adapter verifies the JWS with its `verifier`, extracts `approval.token`, and then runs the unchanged step 5 below. `PermDock-Approval` carries either form; the kernel tells them apart by the `pd1.` prefix versus the three-segment JWS shape.
 
 `approvalsHandler` routes, all Fetch `Request` to `Response`:
 
@@ -79,7 +76,7 @@ Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token
 - The approver comes from `subject` in `approvalsHandler` options or from the adapter's verified session, never from the approve request body.
 - The approver is not the request's actor, and optionally not its principal.
 - Status transitions: only `pending` can become `approved` or `rejected`; `expired` is terminal; a second resolve is a `409`.
-- Tokens on resume: a token only applies to the call it was issued for. On that call, unknown, pending, rejected, expired, consumed or mismatched tokens are `denied` with reason kind `approval`; on any other call, or when the decision needs no approval, the token is ignored. No token is ever accepted without a fresh `decide`. Agent adapters read it from the `permdockApproval` context key.
+- Tokens on resume: a token only applies to the call it was issued for. On that call, unknown, pending, rejected, expired, consumed or mismatched tokens are `denied` with reason kind `approval`; on any other call, or when the decision needs no approval, the token is ignored. No token is ever accepted without a fresh `decide`. Agent adapters read it from the `permdockApproval` context key. Approvals are per call; a session-scoped approval such as Eve's `once()` helper is not expressible in the store.
 - `memoryApprovalStore` is per process. The adapter logs a development warning when it is used in a serverless runtime, because a request that resumes on another instance will not find its record.
 
 ## How denials surface
@@ -90,7 +87,7 @@ Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token
 
 ## Recipe: a Drizzle-backed store
 
-The interface is small enough that persistence is a short file. This is documentation, not a shipped entry; PermDock Cloud implements the same interface over its API. The same code (`tests/integration/fixtures/approval-store/drizzle.ts`) runs against Postgres under `testApprovalStore(store, { reopen })`, so it holds the idempotent `create`, single-use `consume`, tenant-bound `resolve` and resume-after-restart rules.
+The interface is small enough that persistence is a short file. This is documentation, not a package entry; PermDock Cloud implements the same interface over its API. The same code (`tests/integration/fixtures/approval-store/drizzle.ts`) runs against Postgres under `testApprovalStore(store, { reopen })`, so it holds the idempotent `create`, single-use `consume`, tenant-bound `resolve` and resume-after-restart rules.
 
 ```ts
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -250,7 +247,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
 
 ## Recipes for other stores
 
-The Drizzle store above is the template; every other backing store is the same methods over a different driver, and none is a package ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem)):
+The Drizzle store above is the template; every other backing store is the same methods over a different driver, and none is a package:
 
 | Runtime or store | `ApprovalStore` | Notes |
 | --- | --- | --- |
@@ -258,14 +255,14 @@ The Drizzle store above is the template; every other backing store is the same m
 | Cloudflare D1, Turso, SQLite | The Drizzle store with the `sqlite` dialect | `expiresAt` comparisons in the query; a scheduled job or the read path sweeps expired rows |
 | Redis, Upstash, Vercel KV | Hash per `token` with `EXPIRE` set to `expiresAt`; `resolve` is a `WATCH` or Lua script so two approvers cannot both win | Good for serverless functions; `list` needs a secondary index (a sorted set per subject) |
 | Postgres, Neon, Supabase | The Drizzle store with the `pg` dialect, or the equivalent Prisma or Kysely queries | Row-level security on the approvals table can restrict `list` to the approver's tenant using the same generated policies as the rest of the schema |
-| Durable execution (Inngest, Vercel Workflow, LangGraph checkpointer) | The framework's own durable step or state holds the pending request; `resolve` is the event that resumes it | The token check still runs in the adapter on resume ([agent frameworks](/docs/research/agent-frameworks)) |
+| Durable execution (Inngest, Vercel Workflow, LangGraph checkpointer) | The framework's own durable step or state holds the pending request; `resolve` is the event that resumes it | The token check still runs in the adapter on resume ([ecosystem index](/docs/research/ecosystem-index)) |
 | PermDock Cloud | `cloud().approvals` | The hosted implementation of the same interface ([Cloud adapter](/docs/adapters/cloud)) |
 
 Whatever the store, `permdock doctor` warns when `memoryApprovalStore()` is the configured store in a serverless or edge target, because a cold start would lose pending approvals ([installation](/docs/getting-started/installation), runtimes).
 
 ## Delivery
 
-A store holds the pending request; something still has to tell a human. Delivery is a recipe over the `approval` event that fires when a request is created (`permdock.on('approval')`, or the same event arriving at a `DecisionSink`), never a package, and the approver's identity always comes from the surface that authenticated them, never from the message ([ADR 0023](/docs/decisions/0023-compose-openapi-ecosystem), [threat model](/docs/security/threat-model)). The reference recipe is the [Vercel Chat SDK](https://chat-sdk.dev), because it is the one surface that is durable, signature-verified and reaches Slack, Microsoft Teams and Discord from one call; it is also what the PermDock Cloud inbox uses for its Slack and Teams delivery, so self-hosters and Cloud users run the same code path.
+A store holds the pending request; something still has to tell a human. Delivery is a recipe over the `approval` event that fires when a request is created (`permdock.on('approval')`, or the same event arriving at a `DecisionSink`), never a package, and the approver's identity always comes from the surface that authenticated them, never from the message ([adapters](/docs/adapters), [threat model](/docs/security/threat-model)). The reference recipe is the [Vercel Chat SDK](https://chat-sdk.dev), because it is the one surface that is durable, signature-verified and reaches Slack, Microsoft Teams and Discord from one call; it is also what the PermDock Cloud inbox uses for its Slack and Teams delivery, so self-hosters and Cloud users run the same code path. Neither the store nor the adapters have a `notify` hook: the `approval` event already reaches every listener and sink, so delivery needs no new interface method.
 
 ```ts
 import { requestApproval } from 'chat/workflow'
@@ -304,7 +301,7 @@ Other surfaces implement the same three steps (send, wait, resolve with a verifi
 | Temporal, Restate, Inngest, Cloudflare Workflows | Signals, awakeables, `step.waitForEvent`, `waitForEvent` | The event's sender as authenticated by your HTTP layer | The durable step holds the wait; the store record holds the request |
 | n8n | AI Agent tool "Require approval" and the "Send and Wait for Response" node (Slack, Teams, Gmail, Telegram, Discord, WhatsApp) | n8n's own credential for the channel; map the responder in the workflow | No-code delivery for agents that run inside n8n; the tools themselves are guarded through `permdock/mcp` |
 | Eve | `approval.response` receives the authenticated `responder` | Eve | The adapter already does this; no delivery code needed ([Eve adapter](/docs/adapters/eve)) |
-| Email and notification infrastructure (Resend, Knock, Novu, Courier, Twilio) | Send a message with a link to `approvalsHandler` | The approver's session on the approval page | A channel only; a link is never an approval by itself (open question below) |
+| Email and notification infrastructure (Resend, Knock, Novu, Courier, Twilio) | Send a message with a link to `approvalsHandler` | The approver's session on the approval page | A channel only; a link is never an approval by itself, and the approver always authenticates on the page |
 | PermDock Cloud | Inbox UI plus Slack and Teams through the Chat SDK recipe above | Cloud authentication and the platform signature | The hosted implementation of the same store and the same recipe ([Cloud adapter](/docs/adapters/cloud)) |
 
 ## Example app
@@ -318,12 +315,3 @@ None of its own. `apps/examples/ai-sdk-agent`, `apps/examples/eve-agent` and `ap
 - [Audit and observability](/docs/concepts/audit-and-observability): `approval` events and the `DecisionSink`.
 - [Problem Details](/docs/standards/problem-details): the `403` bodies.
 - [Cloud adapter](/docs/adapters/cloud): the hosted store with an inbox UI.
-- [ADR 0022](/docs/decisions/0022-approvals-are-pluggable).
-
-## Open questions
-
-- Whether `list` needs cursor pagination in the interface or whether the Cloud store may add it as an extension.
-- Whether `once()`-style session-scoped approvals (Eve's helper) should be expressible as a store policy or stay a runtime concern.
-- Whether an emailed link can carry an approval without a session on the approver side, and how it would bind to an identity. Slack, Teams and Discord are no longer part of this question: the Chat SDK verifies the platform signature and returns the responder, so the "Delivery" recipe covers them.
-
-Resolved: notification delivery. It was an open question whether a `notify` hook on the store or the adapter was the right seam. The answer is neither: delivery is a recipe over the `approval` event that already fires on `on('approval')` and reaches every sink, the Chat SDK recipe above is the reference, and the Cloud inbox uses the same recipe for Slack and Teams. No new interface method.

@@ -24,7 +24,7 @@ function pending(
   overrides: Partial<ApprovalRequest> = {},
 ): ApprovalRequest {
   return {
-    v: 2,
+    v: 1,
     token,
     permission: 'post.delete',
     scope: 'post:delete',

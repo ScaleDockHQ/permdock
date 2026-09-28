@@ -3,9 +3,6 @@ title: usage
 description: Report permissions that are defined but never used, used but never granted, or granted by no role.
 ---
 
-Status: shipped
-Phase: 1
-
 `permdock usage` cross-references three sets: the permissions the definition declares, the permissions the code checks, and the permissions the policy grants. Gaps between them are either dead code or security bugs, and both are cheap to catch in CI.
 
 ## Usage
@@ -53,7 +50,7 @@ permdock usage
 
 ## How grants are read
 
-`usage` imports the policy module and inspects `policy.roles` as data ([0010](/docs/decisions/0010-policy-as-data-portable-conditions)). Roles are arrays of grants, so no subject is needed and no condition is evaluated. Closures are counted as grants; their conditions are opaque to this command. The policy module runs in the CLI process only, never in a client build.
+`usage` imports the policy module and inspects `policy.roles` as data. Roles are arrays of grants, so no subject is needed and no condition is evaluated. Closures are counted as grants; their conditions are opaque to this command. The policy module runs in the CLI process only, never in a client build.
 
 ## Dynamic usages
 
@@ -66,11 +63,6 @@ Permissions resolved through `findPermission(permissions, someString)` cannot be
 ```
 
 Recommended together with `collect --check`: `collect` guarantees the catalog reflects the code, `usage` guarantees the code and the policy agree.
-
-## Open questions
-
-- Whether `usage` should also flag grants whose portable condition references a field that the resource schema does not declare (currently a type error at policy definition time, which covers the common case).
-- Whether snapshot scoping (`snapshot({ include })`) should be checked for client routes that use permissions outside the included subtree.
 
 ## Related
 

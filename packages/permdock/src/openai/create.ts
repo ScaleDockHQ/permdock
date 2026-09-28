@@ -10,7 +10,7 @@ import type {
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
+import type { Delegation, Principal } from '../core/subject.ts';
 
 import { approvalTokenOf, createAgentKernel } from '../agent/kernel.ts';
 import { memoryApprovalStore } from '../approvals/store.ts';
@@ -32,6 +32,9 @@ export type OpenAiRunContext = {
 export type OpenAiPermDockOptions<TUser = unknown> = {
   readonly subject: (context: OpenAiContext) => TUser | Promise<TUser>;
   readonly actor?: (context: OpenAiContext) => unknown;
+  readonly delegation?: (
+    context: OpenAiContext,
+  ) => Delegation | undefined | Promise<Delegation | undefined>;
   readonly tenant?:
     | string
     | ((
@@ -130,6 +133,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const kernel = createAgentKernel(policy, {
     ...compact({
       actor: options.actor,
+      delegation: options.delegation,
       tenant: options.tenant,
       memberships: options.memberships,
       customRoles: options.customRoles,

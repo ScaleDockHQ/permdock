@@ -80,6 +80,13 @@ async function chat(request: Request): Promise<Response> {
   const permdock = createPermDock(saasPolicy, {
     subject: () => subject,
     actor: () => ({ id: 'chat-assistant', kind: 'ai-sdk' }),
+    delegation: () => ({
+      scopes: [
+        p.project.list.scope,
+        p.project.delete.scope,
+        p.apiKey.revokeAll.scope,
+      ],
+    }),
     tenant: ORG,
     tools: {
       list_projects: { permission: p.project.list },

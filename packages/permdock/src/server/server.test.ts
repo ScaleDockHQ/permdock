@@ -194,7 +194,7 @@ describe('permdock/server', () => {
       throw new Error('expected approval-required');
     }
     store.create({
-      v: 2,
+      v: 1,
       token: required.token,
       permission: 'post.delete',
       scope: permissions.post.delete.scope,

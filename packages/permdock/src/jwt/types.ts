@@ -7,7 +7,7 @@ import type {
   TokenFailureCause,
   TokenVerifier,
 } from '../core/interfaces.ts';
-import type { Actor, Binding, Principal, Subject } from '../core/subject.ts';
+import type { Actor, Principal, Subject } from '../core/subject.ts';
 
 export type JwtAlgorithm =
   | 'ES256'
@@ -121,5 +121,3 @@ export type DpopProofResult =
   | { readonly ok: false; readonly cause: TokenFailureCause };
 
 export type MappedSubject = Subject<JwtPrincipal>;
-
-export type BindingTarget = Binding;

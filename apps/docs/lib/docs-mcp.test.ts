@@ -18,10 +18,10 @@ const pages: readonly DocsPageSummary[] = [
     slugs: ['adapters', 'hono'],
   },
   {
-    title: 'Quota grants',
+    title: 'Extension interfaces',
     description: 'LimitStore and exhausted quotas',
-    url: '/docs/decisions/0034-quota-grants',
-    slugs: ['decisions', '0034-quota-grants'],
+    url: '/docs/concepts/extension-interfaces',
+    slugs: ['concepts', 'extension-interfaces'],
   },
   {
     title: 'Naming',
@@ -127,11 +127,13 @@ describe('handleMcpBody', () => {
         jsonrpc: '2.0',
         id: 3,
         method: 'tools/call',
-        params: { name: 'search_docs', arguments: { query: 'quota' } },
+        params: { name: 'search_docs', arguments: { query: 'extension' } },
       },
       tools,
     );
-    expect(JSON.stringify(search.body)).toContain('0034-quota-grants');
+    expect(JSON.stringify(search.body)).toContain(
+      'concepts/extension-interfaces',
+    );
 
     const page = await handleMcpBody(
       {

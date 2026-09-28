@@ -3,14 +3,11 @@ title: AuthZEN
 description: permdock/authzen serves the OpenID AuthZEN Authorization API 1.0 (evaluation, evaluations, search, discovery) from a PermDock policy so the decision endpoint is a standard PDP.
 ---
 
-Status: shipped
-Phase: 2
-
 `permdock/authzen` exposes a PermDock policy as an AuthZEN Policy Decision Point. One `handler` serves the evaluation, batched evaluations, search and discovery endpoints. The React decision endpoint (`permdockHandler` in `permdock/next`, the `endpoint` option of `PermDockProvider`) and the [pdp provider](/docs/adapters/pdp) use the same request and response schemas, so PermDock speaks one wire format whether it is the PDP or the PEP.
 
 ## Purpose
 
-The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (final January 2026) standardises how a PEP asks a PDP "may this subject perform this action on this resource in this context". It defines `/access/v1/evaluation`, batched `/access/v1/evaluations` (boxcar), `/access/v1/search/subject`, `/search/resource`, `/search/action`, and a `.well-known/authzen-configuration` metadata document, plus a [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels. Keycloak and the NLgov profile implement it. PermDock adopts it instead of a bespoke format ([decision 0011](/docs/decisions/0011-authzen-wire-format)). In-repo tests cover all four shapes; **external certification is the remaining 1.0 gate**.
+The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (final January 2026) standardises how a PEP asks a PDP "may this subject perform this action on this resource in this context". It defines `/access/v1/evaluation`, batched `/access/v1/evaluations` (boxcar), `/access/v1/search/subject`, `/search/resource`, `/search/action`, and a `.well-known/authzen-configuration` metadata document, plus a [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels. Keycloak and the NLgov profile implement it. PermDock adopts it instead of a bespoke format. In-repo tests cover all four shapes.
 
 ## API
 
@@ -19,7 +16,7 @@ import { createPermDock } from 'permdock/authzen'
 
 export const { handler } = createPermDock(policy, {
   subject: fromBearer,                          // (request) => principal | null; MUST be real authentication
-  resources: { post: { load: (id) => loadPost(id), list: (where) => db.posts.where(where) } },
+  resources: { post: { load: (id) => loadPost(id), list: ({ where }) => db.posts.where(where) } },
 })
 
 // Fetch-first: mount under /access/v1 and /.well-known
@@ -37,7 +34,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 | `GET /.well-known/authzen-configuration` | PDP metadata: endpoint URLs, supported features | Discovery |
 
 - `handler` is a Fetch handler (`Request` to `Response`), so it mounts on Hono, Next.js route handlers, Node and any [server kernel](/docs/adapters/server-kernel) adapter.
-- The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `Decision` under `context.permdock` that the embedded engine produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [ADR 0021](/docs/decisions/0021-embedded-pdp-hosted-ads)).
+- The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `Decision` under `context.permdock` that the embedded engine produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [PermDock Cloud](/docs/adapters/cloud)).
 - `resources` tells the handler how to load an instance by id (for `where` conditions on instance actions) and how to enumerate for resource search.
 - `subject` authenticates the calling PEP or end user; see "decision endpoint auth" below.
 - `trustedPep(pep)` is the allow-list of authenticated PEPs that may evaluate on behalf of another subject. It is off by default; a missing predicate, `false`, a non-function value or a throw means the request-body subject, actor and delegation are ignored.
@@ -64,14 +61,14 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 - Request bodies against the AuthZEN schemas; malformed requests get `400` with Problem Details.
 - `resource.properties` against the resource's Standard Schema when they are used as the instance (boundary validation): a PEP is a trust boundary. When the handler loads the row itself, no validation runs.
 - Unknown `resource.type` or `action.name`: `decision: false` with a `context.reason` of `unknown-permission`; never an exception.
-- Decision-endpoint authentication must be real authentication (bearer tokens, mTLS, session), not a shared static secret; Kilpi's public-secret obfuscation is an explicit anti-pattern ([threat model](/docs/security/threat-model)). In-app, `subject` reads the application's session or a `subjectFromJwt` result; on the hosted ADS, callers present a Vercel OIDC token or an OAuth client-credentials token verified with `permdock/jwt`. This closes roadmap open question 8.
+- Decision-endpoint authentication must be real authentication (bearer tokens, mTLS, session), not a shared static secret; Kilpi's public-secret obfuscation is an explicit anti-pattern ([threat model](/docs/security/threat-model)). In-app, `subject` reads the application's session or a `subjectFromJwt` result; on the hosted ADS, callers present a Vercel OIDC token or an OAuth client-credentials token verified with `permdock/jwt`.
 
 ## How denials surface
 
 - `evaluation`: `{ "decision": false, "context": { "outcome": "denied", "denials": [...], "alternatives": [...] } }`. The `context` member is optional in AuthZEN and PermDock always fills it so a PEP can explain the refusal.
-- `approval-required`: `decision: false` with `context.outcome: 'approval-required'` and `context.token`; the PEP decides how to obtain approval. AuthZEN has no third outcome, so this is a `false` with a reason.
+- `approval-required`: `decision: false` with `context.outcome: 'approval-required'` and `context.token`; the PEP decides how to obtain approval. AuthZEN has no third outcome, so this is a `false` with a reason in `context`, not a profile-specific extension.
 - `evaluations`: one result per item, in order; a batch never fails partially because one item is denied.
-- Search endpoints return the permitted subset; an empty page is the denial. Pagination follows the AuthZEN `page` object.
+- Search endpoints return the permitted subset; an empty page is the denial. Resource search returns the rows `resources.<type>.list` yields, filtered in memory, so the loader decides whether they are ids or full records. Pagination follows the AuthZEN `page` object with an offset `next_token`.
 - Transport errors use RFC 9457 Problem Details (`400`, `401`, `413` for oversized batches).
 
 ## Example app
@@ -83,11 +80,3 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 - [AuthZEN](/docs/standards/authzen): request and response schemas, search semantics, discovery, certification levels.
 - [Wire formats](/docs/concepts/wire-formats): the PermDock Decision embedded in `context`.
 - [Problem Details](/docs/standards/problem-details): transport errors.
-- [Decision 0011](/docs/decisions/0011-authzen-wire-format): why AuthZEN rather than a bespoke format.
-
-## Open questions
-
-- How `approval-required` should be signalled given AuthZEN's boolean `decision`: `false` plus `context` (current) versus a profile-specific extension.
-- Whether resource search should return ids only or full `properties`, and how large results are paginated for `where` compilers that produce SQL.
-- How the React decision endpoint's batching and per-permission cache keys map onto `evaluations` without over-fetching.
-- Certification: which external interop-suite vectors Search and Discovery still require beyond the in-repo request shapes.

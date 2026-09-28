@@ -6,15 +6,17 @@ export function coveredByDelegation(
   permission: Permission,
   delegation: Delegation | undefined,
   resourceId?: string,
+  hasActor = false,
 ): DenialReason | undefined {
+  const unscoped = hasActor ? 'no-delegation' : undefined;
   if (delegation === undefined) {
-    return undefined;
+    return unscoped;
   }
   const hasScopes = delegation.scopes !== undefined;
   const hasDetails = delegation.authorizationDetails !== undefined;
   const hasAccess = delegation.access !== undefined;
   if (!hasScopes && !hasDetails && !hasAccess) {
-    return undefined;
+    return unscoped;
   }
   const emptyScopes = hasScopes && (delegation.scopes?.length ?? 0) === 0;
   const emptyAccess = hasAccess && (delegation.access?.length ?? 0) === 0;
@@ -31,6 +33,12 @@ export function coveredByDelegation(
   const detailOk =
     delegation.authorizationDetails?.some((detail) => {
       if (detail.type !== permission.resource) {
+        return false;
+      }
+      if (
+        typeof detail.identifier === 'string' &&
+        detail.identifier !== resourceId
+      ) {
         return false;
       }
       if (detail.actions === undefined) {
