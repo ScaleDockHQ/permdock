@@ -25,11 +25,11 @@ jobs:
           cache: true
           require-lockfile: true
 
-      - name: Check
-        run: pnpm run check
-
       - name: Build
         run: pnpm run build
+
+      - name: Check
+        run: pnpm run check
 
       - name: Test
         run: pnpm run test
@@ -37,7 +37,8 @@ jobs:
       - name: Create release pull request or publish
         uses: changesets/action@v2
         with:
-          publish-script: pnpm exec changeset publish
+          # Publishing to npm is opt-in: set the repository variable NPM_PUBLISH to 'true'.
+          publish-script: ${{ vars.NPM_PUBLISH == 'true' && 'pnpm exec changeset publish' || '' }}
           pr-title: 'chore: version packages'
           commit-message: 'chore: version packages'
           github-token: ${{ secrets.GITHUB_TOKEN }}
