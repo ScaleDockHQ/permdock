@@ -2,8 +2,15 @@ import type { DenialReason } from './decision.ts';
 import type { Permission } from './permissions.ts';
 import type { Delegation, GnapAccess } from './subject.ts';
 
+type DelegatedPermission = Pick<Permission, 'scope' | 'resource' | 'action'>;
+
+/**
+ * Whether a delegated caller may use a permission its principal holds, through
+ * OAuth `scopes`, RFC 9396 `authorizationDetails` or GNAP `access`.
+ * `undefined` means covered; otherwise the denial reason `decide` would add.
+ */
 export function coveredByDelegation(
-  permission: Permission,
+  permission: DelegatedPermission,
   delegation: Delegation | undefined,
   resourceId?: string,
   hasActor = false,
@@ -54,7 +61,7 @@ export function coveredByDelegation(
 }
 
 function accessCovers(
-  permission: Permission,
+  permission: DelegatedPermission,
   access: readonly GnapAccess[] | undefined,
   resourceId: string | undefined,
 ): boolean {
