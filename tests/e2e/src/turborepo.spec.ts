@@ -23,11 +23,15 @@ const fixture = join(
 
 test.describe.configure({ mode: 'serial' });
 
+/** Playwright only waits for the web port; the API can still be refusing connections. */
 test.beforeAll(async ({ request }) => {
   await expect
-    .poll(async () => (await request.get(`${api}/api/health`)).status(), {
-      timeout: 30_000,
-    })
+    .poll(
+      async () =>
+        (await request.get(`${api}/api/health`).catch(() => null))?.status() ??
+        0,
+      { timeout: 30_000 },
+    )
     .toBe(200);
 });
 

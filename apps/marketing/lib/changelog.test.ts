@@ -54,8 +54,12 @@ describe('parseChangelog', () => {
       expect(releases).toEqual([]);
       return;
     }
+    const { version } = JSON.parse(
+      readFileSync(join(root, 'packages/permdock/package.json'), 'utf8'),
+    ) as { readonly version: string };
     const permdock = parseChangelog(readFileSync(path, 'utf8'), 'permdock');
     expect(permdock.length).toBeGreaterThan(0);
+    expect(permdock[0]?.version).toBe(version);
     expect(latestReleases(permdock, 3).length).toBeGreaterThan(0);
   });
 });

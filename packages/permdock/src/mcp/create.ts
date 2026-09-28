@@ -212,6 +212,47 @@ function throwRefusal(refusal: Refusal): never {
   throw new Error(refusal.text);
 }
 
+function challengeFor(
+  permission: Permission,
+  own: ScopeChallengeHandler | undefined,
+): ScopeChallengeHandler {
+  return async (context) => {
+    const first = await own?.(context);
+    if (first !== undefined) {
+      return first;
+    }
+    const authInfo = context.authInfo;
+    if (authInfo === undefined || hasScope(authInfo, permission.scope)) {
+      return undefined;
+    }
+    return {
+      scopes: scopesWith(authInfo, permission.scope) as [string, ...string[]],
+    } satisfies ScopeChallenge;
+  };
+}
+
+function guardUpdates(
+  registered: Registered,
+  wrap: (callback: Handler) => Handler,
+  rename?: (from: string, to: string | null) => void,
+  currentName?: () => string,
+): void {
+  const update = registered.update.bind(registered);
+  registered.update = (updates): void => {
+    const next: Record<string, unknown> = { ...updates };
+    if (typeof updates.callback === 'function') {
+      next.callback = wrap(updates.callback as Handler);
+    }
+    if (rename !== undefined && currentName !== undefined) {
+      const to = updates.name;
+      if (typeof to === 'string' || to === null) {
+        rename(currentName(), to);
+      }
+    }
+    update(next);
+  };
+}
+
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: McpPermDockOptions<TUser>,
@@ -375,23 +416,66 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }
   };
 
-  const challengeFor =
+  const visible = async (
+    context: Context,
+    permissionOf: (key: string) => Permission | undefined,
+    keys: readonly string[],
+  ): Promise<ReadonlySet<string>> => {
+    const authInfo = context.http?.authInfo;
+    const shown = new Set<string>();
+    const guarded: {
+      readonly key: string;
+      readonly permission: Permission;
+    }[] = [];
+    for (const key of keys) {
+      const permission = permissionOf(key);
+      if (permission === undefined) {
+        shown.add(key);
+      } else if (reachable(authInfo, permission)) {
+        guarded.push({ key, permission });
+      }
+    }
+    if (guarded.length === 0) {
+      return shown;
+    }
+    let dock: PermDock;
+    try {
+      dock = await instanceFor(authInfo);
+    } catch {
+      // A subject that cannot be built sees no guarded entry.
+      return shown;
+    }
+    for (const entry of guarded) {
+      if (mayUse(dock, entry.permission)) {
+        shown.add(entry.key);
+      }
+    }
+    return shown;
+  };
+
+  const guard =
     (
       permission: Permission,
-      own: ScopeChallengeHandler | undefined,
-    ): ScopeChallengeHandler =>
-    async (context) => {
-      const first = await own?.(context);
-      if (first !== undefined) {
-        return first;
-      }
-      const authInfo = context.authInfo;
-      if (authInfo === undefined || hasScope(authInfo, permission.scope)) {
-        return undefined;
-      }
-      return {
-        scopes: scopesWith(authInfo, permission.scope) as [string, ...string[]],
-      } satisfies ScopeChallenge;
+      load: ((...args: unknown[]) => unknown) | undefined,
+      handler: Handler,
+      dataArgs: (params: readonly unknown[]) => readonly unknown[],
+      onRefusal: (refusal: Refusal) => unknown,
+      after?: (context: Context) => Promise<void>,
+    ): Handler =>
+    async (...params: unknown[]): Promise<unknown> => {
+      const context = contextOf(params.at(-1));
+      const checked = await check(
+        permission,
+        load === undefined
+          ? undefined
+          : (): unknown => load(...dataArgs(params)),
+        context,
+      );
+      const result = checked.ok
+        ? await handler(...params)
+        : onRefusal(checked.refusal);
+      await after?.(context);
+      return result;
     };
 
   const protectServer = (server: McpServer): GuardedMcpServer => {
@@ -403,43 +487,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       readonly permission: Permission;
     }[] = [];
     const lastListed = boundedMap<string, string>(SESSIONS_PER_SERVER);
-
-    const visible = async (
-      context: Context,
-      permissionOf: (key: string) => Permission | undefined,
-      keys: readonly string[],
-    ): Promise<ReadonlySet<string>> => {
-      const authInfo = context.http?.authInfo;
-      const shown = new Set<string>();
-      const guarded: {
-        readonly key: string;
-        readonly permission: Permission;
-      }[] = [];
-      for (const key of keys) {
-        const permission = permissionOf(key);
-        if (permission === undefined) {
-          shown.add(key);
-        } else if (reachable(authInfo, permission)) {
-          guarded.push({ key, permission });
-        }
-      }
-      if (guarded.length === 0) {
-        return shown;
-      }
-      let dock: PermDock;
-      try {
-        dock = await instanceFor(authInfo);
-      } catch {
-        // A subject that cannot be built sees no guarded entry.
-        return shown;
-      }
-      for (const entry of guarded) {
-        if (mayUse(dock, entry.permission)) {
-          shown.add(entry.key);
-        }
-      }
-      return shown;
-    };
 
     const toolPermission = (name: string): Permission | undefined =>
       tools.get(name);
@@ -560,31 +607,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
     };
 
-    const guard =
-      (
-        permission: Permission,
-        load: ((...args: unknown[]) => unknown) | undefined,
-        handler: Handler,
-        dataArgs: (params: readonly unknown[]) => readonly unknown[],
-        onRefusal: (refusal: Refusal) => unknown,
-        after?: (context: Context) => Promise<void>,
-      ): Handler =>
-      async (...params: unknown[]): Promise<unknown> => {
-        const context = contextOf(params.at(-1));
-        const checked = await check(
-          permission,
-          load === undefined
-            ? undefined
-            : (): unknown => load(...dataArgs(params)),
-          context,
-        );
-        const result = checked.ok
-          ? await handler(...params)
-          : onRefusal(checked.refusal);
-        await after?.(context);
-        return result;
-      };
-
     const guardTool = (
       permission: Permission,
       load: ((args: unknown) => unknown) | undefined,
@@ -598,28 +620,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         toolRefusal,
         announce,
       );
-
-    const guardUpdates = (
-      registered: Registered,
-      wrap: (callback: Handler) => Handler,
-      rename?: (from: string, to: string | null) => void,
-      currentName?: () => string,
-    ): void => {
-      const update = registered.update.bind(registered);
-      registered.update = (updates): void => {
-        const next: Record<string, unknown> = { ...updates };
-        if (typeof updates.callback === 'function') {
-          next.callback = wrap(updates.callback as Handler);
-        }
-        if (rename !== undefined && currentName !== undefined) {
-          const to = updates.name;
-          if (typeof to === 'string' || to === null) {
-            rename(currentName(), to);
-          }
-        }
-        update(next);
-      };
-    };
 
     // oxlint-disable-next-line typescript/no-deprecated -- bind() resolves to the raw-shape overload
     const originalTool = server.registerTool.bind(server) as unknown as (

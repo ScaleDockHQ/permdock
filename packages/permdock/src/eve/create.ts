@@ -201,6 +201,25 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     adapter: 'eve',
   });
 
+  // The responder is mapped by the same `subject` as an initiator, so the
+  // approver carries the memberships and tenant the grant's `by` checks.
+  const approverOf = async (
+    responder: EvePrincipal,
+    sessionId: string,
+  ): Promise<Principal | null> => {
+    try {
+      const dock = await kernel.instance({
+        session: {
+          id: sessionId,
+          auth: { initiator: responder, current: responder },
+        },
+      });
+      return dock.subject.principal ?? null;
+    } catch {
+      return null;
+    }
+  };
+
   const pairFor = (
     bindingFor: (toolName: string) => ToolBinding | undefined,
   ): EveApprovalPair => {
@@ -242,25 +261,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         },
         callId: ctx.request.callId,
       });
-    };
-
-    // The responder is mapped by the same `subject` as an initiator, so the
-    // approver carries the memberships and tenant the grant's `by` checks.
-    const approverOf = async (
-      responder: EvePrincipal,
-      sessionId: string,
-    ): Promise<Principal | null> => {
-      try {
-        const dock = await kernel.instance({
-          session: {
-            id: sessionId,
-            auth: { initiator: responder, current: responder },
-          },
-        });
-        return dock.subject.principal ?? null;
-      } catch {
-        return null;
-      }
     };
 
     const response = async (

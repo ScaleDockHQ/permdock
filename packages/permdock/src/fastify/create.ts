@@ -78,6 +78,18 @@ function breakEncapsulation(plugin: FastifyPluginAsync): FastifyPluginAsync {
   return plugin;
 }
 
+function decorate(
+  request: FastifyRequest,
+  instance: PermDock,
+  data?: unknown,
+): void {
+  const scoped = request as PermDockRequest;
+  scoped.permdock = instance;
+  if (data !== undefined) {
+    scoped.permdockData = data;
+  }
+}
+
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: FastifyPermDockOptions<TUser>,
@@ -116,18 +128,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const scopeOf = (request: FastifyRequest): Promise<TenantScope> =>
     tenantScope(options.tenant, request);
-
-  const decorate = (
-    request: FastifyRequest,
-    instance: PermDock,
-    data?: unknown,
-  ): void => {
-    const scoped = request as PermDockRequest;
-    scoped.permdock = instance;
-    if (data !== undefined) {
-      scoped.permdockData = data;
-    }
-  };
 
   const permdock = breakEncapsulation((app) => {
     app.decorateRequest('permdock', null);

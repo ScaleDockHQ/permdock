@@ -76,6 +76,25 @@ function run(work: () => Promise<void>, next: (err?: unknown) => void): void {
   work().catch(next);
 }
 
+const errorHandler = (): ErrorRequestHandler => (err, _req, res, next) => {
+  const problem = problemFromError(err);
+  if (problem === undefined) {
+    next(err);
+    return;
+  }
+  run(async () => {
+    await sendResponse(res, problem);
+  }, next);
+};
+
+const handler =
+  (fn: (req: PermDockRequest, res: Response) => unknown): RequestHandler =>
+  (req, res, next) => {
+    run(async () => {
+      await fn(req as PermDockRequest, res);
+    }, next);
+  };
+
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: ExpressPermDockOptions<TUser>,
@@ -154,17 +173,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }, next);
     };
 
-  const errorHandler = (): ErrorRequestHandler => (err, _req, res, next) => {
-    const problem = problemFromError(err);
-    if (problem === undefined) {
-      next(err);
-      return;
-    }
-    run(async () => {
-      await sendResponse(res, problem);
-    }, next);
-  };
-
   const permdockHandler = (): Router => {
     const { POST, GET } = kernel.handler((request) => {
       const req = contexts.get(request);
@@ -183,14 +191,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     });
     return router;
   };
-
-  const handler =
-    (fn: (req: PermDockRequest, res: Response) => unknown): RequestHandler =>
-    (req, res, next) => {
-      run(async () => {
-        await fn(req as PermDockRequest, res);
-      }, next);
-    };
 
   return {
     permdock,

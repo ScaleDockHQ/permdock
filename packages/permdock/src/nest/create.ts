@@ -198,6 +198,29 @@ function rulesOf(target: object): readonly ProtectRule[] {
   return found as ProtectRule[];
 }
 
+const Protect: NestProtect = (permission, loadData, protectOptions) => {
+  const rule = compact<ProtectRule>({
+    permission,
+    loadData,
+    options: protectOptions,
+  });
+  return ((
+    target: object,
+    _propertyKey?: string | symbol,
+    descriptor?: PropertyDescriptor,
+  ): void => {
+    const store: unknown = descriptor === undefined ? target : descriptor.value;
+    if (
+      typeof store !== 'function' &&
+      (typeof store !== 'object' || store === null)
+    ) {
+      throw new TypeError('Protect requires a class or method');
+    }
+    const existing = rulesOf(store);
+    reflectMeta().defineMetadata(PROTECT_KEY, [...existing, rule], store);
+  }) as ClassDecorator & MethodDecorator;
+};
+
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: NestPermDockOptions<TUser>,
@@ -434,30 +457,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     ],
     exports: [PermDockGuard, PermDockExceptionFilter],
   })(PermDockRoot);
-
-  const Protect: NestProtect = (permission, loadData, protectOptions) => {
-    const rule = compact<ProtectRule>({
-      permission,
-      loadData,
-      options: protectOptions,
-    });
-    return ((
-      target: object,
-      _propertyKey?: string | symbol,
-      descriptor?: PropertyDescriptor,
-    ): void => {
-      const store: unknown =
-        descriptor === undefined ? target : descriptor.value;
-      if (
-        typeof store !== 'function' &&
-        (typeof store !== 'object' || store === null)
-      ) {
-        throw new TypeError('Protect requires a class or method');
-      }
-      const existing = rulesOf(store);
-      reflectMeta().defineMetadata(PROTECT_KEY, [...existing, rule], store);
-    }) as ClassDecorator & MethodDecorator;
-  };
 
   const injectPermDock = createParamDecorator(
     (_data: unknown, ctx: ExecutionContext): PermDock | undefined => {
