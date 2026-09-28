@@ -22,6 +22,8 @@ export type CloudOptions = CloudEndpointOptions & {
   readonly key?: string;
   readonly fetch?: typeof fetch;
   readonly flushAt?: number;
+  /** Most events the sink holds while the Cloud is unreachable (default 10 000); the oldest are dropped first. */
+  readonly capacity?: number;
   readonly waitUntil?: (task: Promise<void>) => void;
   /**
    * Verifies the environment's signed policy document, typically

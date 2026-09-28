@@ -239,6 +239,46 @@ describe('cloud', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('bounds the re-queue while the Cloud is unreachable, oldest first', async () => {
+    let online = false;
+    const delivered: SinkEvent[][] = [];
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      flushAt: 1,
+      capacity: 3,
+      fetch: async (input, init) => {
+        if (!online) {
+          throw new Error('offline');
+        }
+        const body = (await new Request(input, init).json()) as {
+          readonly events: SinkEvent[];
+        };
+        delivered.push(body.events);
+        return new Response(null, { status: 204 });
+      },
+    });
+    const event = (id: string): SinkEvent => ({
+      type: 'directory',
+      at: new Date().toISOString(),
+      source: 'scim',
+      operation: 'create',
+      tenant: 'o_acme',
+      resource: { type: 'User', id },
+      credential: { kind: 'token' },
+    });
+    for (const id of ['u_1', 'u_2', 'u_3', 'u_4', 'u_5']) {
+      await client.sink.write([event(id)]);
+    }
+    online = true;
+    await client.sink.flush?.();
+    expect(
+      delivered
+        .flat()
+        .map((item) => (item.type === 'directory' ? item.resource.id : '')),
+    ).toEqual(['u_3', 'u_4', 'u_5']);
+  });
+
   it('flushes decision batches and reads snapshots', async () => {
     const backend = fakeCloud();
     const client = cloud({

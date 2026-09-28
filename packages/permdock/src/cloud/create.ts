@@ -261,7 +261,13 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     },
   };
 
+  const capacity = options.capacity ?? 10_000;
   const pending: SinkEvent[] = [];
+  const bound = (): void => {
+    if (pending.length > capacity) {
+      pending.splice(0, pending.length - capacity);
+    }
+  };
 
   const flush = async (): Promise<void> => {
     if (pending.length === 0) {
@@ -279,11 +285,13 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     } catch {
       pending.unshift(...events);
     }
+    bound();
   };
 
   const sink: DecisionSink = {
     write(events: readonly SinkEvent[]): Promise<void> | void {
       pending.push(...events);
+      bound();
       if (pending.length >= flushAt) {
         return flush();
       }
