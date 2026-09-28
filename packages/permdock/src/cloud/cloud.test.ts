@@ -8,7 +8,7 @@ import { isApprovalError } from '../approvals/errors.ts';
 import { memoryApprovalStore } from '../approvals/store.ts';
 import { joseTokenSigner } from '../jwt/signer.ts';
 import { joseTokenVerifier } from '../jwt/verifier.ts';
-import { cloud } from './create.ts';
+import { cloud, cloudEndpoints } from './create.ts';
 
 const CLOUD_URL = 'https://cloud.permdock.test';
 const KEY = 'env-key';
@@ -389,10 +389,18 @@ describe('cloud', () => {
       alg: 'Ed25519',
     };
     const { d: _d, ...publicJwk } = PRIVATE_JWK;
+    const ENV_URL = `${CLOUD_URL}/v1/environments/production`;
     const signer = joseTokenSigner({
       key: { ...PRIVATE_JWK },
       alg: 'Ed25519',
       kid: '2026-09',
+      issuer: ENV_URL,
+    });
+    const foreign = joseTokenSigner({
+      key: { ...PRIVATE_JWK },
+      alg: 'Ed25519',
+      kid: '2026-09',
+      issuer: 'https://elsewhere.example',
     });
     const policy = {
       v: 1,
@@ -404,13 +412,27 @@ describe('cloud', () => {
     };
     const good = await signer.sign(
       { policy },
-      { typ: 'permdock-policy+jwt', audience: 'https://app.example.com' },
+      { typ: 'permdock-policy+jwt', audience: ENV_URL },
     );
     const wrongTyp = await signer.sign(
       { policy: { ...policy, id: 'doc_2' } },
-      { typ: 'permdock-snapshot+jwt', audience: 'https://app.example.com' },
+      { typ: 'permdock-snapshot+jwt', audience: ENV_URL },
     );
-    const bodies = [good, wrongTyp, JSON.stringify(policy)];
+    const appAudience = await signer.sign(
+      { policy: { ...policy, id: 'doc_3' } },
+      { typ: 'permdock-policy+jwt', audience: 'https://app.example.com' },
+    );
+    const wrongIssuer = await foreign.sign(
+      { policy: { ...policy, id: 'doc_4' } },
+      { typ: 'permdock-policy+jwt', audience: ENV_URL },
+    );
+    const bodies = [
+      good,
+      wrongTyp,
+      appAudience,
+      wrongIssuer,
+      JSON.stringify(policy),
+    ];
     const paths: string[] = [];
     const fetchImpl: typeof fetch = (input, init) => {
       const request = new Request(input, init);
@@ -428,21 +450,28 @@ describe('cloud', () => {
       key: KEY,
       fetch: fetchImpl,
       verifier,
-      audience: 'https://app.example.com',
     });
-    expect(client.jwks).toBe(`${CLOUD_URL}/.well-known/jwks.json`);
+    expect(client.issuer).toBe(ENV_URL);
+    expect(client.jwks).toBe(`${ENV_URL}/.well-known/jwks.json`);
     expect(client.policies.current()).toBeNull();
     await client.policies.refresh();
     expect(client.policies.current()?.id).toBe('doc_1');
-    await client.policies.refresh();
-    expect(client.policies.current()?.id).toBe('doc_1');
-    await client.policies.refresh();
-    expect(client.policies.current()?.id).toBe('doc_1');
-    expect(paths).toEqual([
-      '/v1/environments/production/policy',
-      '/v1/environments/production/policy',
-      '/v1/environments/production/policy',
-    ]);
+    for (let index = 0; index < 4; index += 1) {
+      await client.policies.refresh();
+      expect(client.policies.current()?.id).toBe('doc_1');
+    }
+    expect(paths).toEqual(
+      Array.from({ length: 5 }, () => '/v1/environments/production/policy'),
+    );
+  });
+
+  it('resolves the environment endpoints like cloud()', () => {
+    expect(
+      cloudEndpoints({ url: `${CLOUD_URL}/`, environment: 'pre view' }),
+    ).toEqual({
+      issuer: `${CLOUD_URL}/v1/environments/pre%20view`,
+      jwks: `${CLOUD_URL}/v1/environments/pre%20view/.well-known/jwks.json`,
+    });
   });
 
   it('never applies a policy document without a verifier', async () => {

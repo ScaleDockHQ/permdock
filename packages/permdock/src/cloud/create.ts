@@ -12,7 +12,12 @@ import type {
   Snapshot,
   SnapshotSource,
 } from '../core/interfaces.ts';
-import type { CloudClient, CloudOptions } from './types.ts';
+import type {
+  CloudClient,
+  CloudEndpointOptions,
+  CloudEndpoints,
+  CloudOptions,
+} from './types.ts';
 
 import { ApprovalError } from '../approvals/errors.ts';
 import { compact } from '../core/compact.ts';
@@ -66,24 +71,38 @@ function approvalErrorFromStatus(status: number): ApprovalError {
   return new ApprovalError('approval-not-found', 'approval was not found');
 }
 
-export function cloud(options: CloudOptions = {}): CloudClient {
+/**
+ * The environment URL and JWK Set URL `cloud()` uses, resolved with the same
+ * fallbacks (`PERMDOCK_CLOUD_URL`; `PERMDOCK_CLOUD_ENV`, `VERCEL_ENV`, `production`).
+ */
+export function cloudEndpoints(
+  options: CloudEndpointOptions = {},
+): CloudEndpoints {
   const url = trimSlash(
     firstNonEmpty(options.url, readEnv('PERMDOCK_CLOUD_URL')),
   );
-  const key = firstNonEmpty(options.key, readEnv('PERMDOCK_CLOUD_KEY'));
+  if (url === '') {
+    throw new Error('PermDock: cloud() requires url and key.');
+  }
   const environment = firstNonEmpty(
     options.environment,
     readEnv('PERMDOCK_CLOUD_ENV'),
     readEnv('VERCEL_ENV'),
     'production',
   );
-  if (url === '' || key === '') {
+  const issuer = `${url}/v1/environments/${encodeURIComponent(environment)}`;
+  return Object.freeze({ issuer, jwks: `${issuer}/.well-known/jwks.json` });
+}
+
+export function cloud(options: CloudOptions = {}): CloudClient {
+  const key = firstNonEmpty(options.key, readEnv('PERMDOCK_CLOUD_KEY'));
+  if (key === '') {
     throw new Error('PermDock: cloud() requires url and key.');
   }
+  const { issuer: root, jwks } = cloudEndpoints(options);
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
   const flushAt = options.flushAt ?? 32;
   const waitUntil = options.waitUntil;
-  const root = `${url}/v1/environments/${encodeURIComponent(environment)}`;
 
   const headers = (): Headers => {
     const next = new Headers();
@@ -298,10 +317,11 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       if (!isCompactJws(token)) {
         return;
       }
-      const verified = await verifier.verify(
-        token,
-        compact({ typ: 'permdock-policy+jwt', audience: options.audience }),
-      );
+      const verified = await verifier.verify(token, {
+        typ: 'permdock-policy+jwt',
+        issuer: root,
+        audience: root,
+      });
       if (!verified.ok) {
         return;
       }
@@ -320,6 +340,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     sink,
     snapshots,
     policies,
-    jwks: `${url}/.well-known/jwks.json`,
+    issuer: root,
+    jwks,
   });
 }

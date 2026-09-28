@@ -68,18 +68,17 @@ Two modes exist because two kinds of team ask for opposite things. Teams without
 
 A Cloud admin can write grants such as "the `pro` plan may read audit logs" without a deploy, bounded by the code policy:
 
-- The Cloud publishes portable grants as a `PolicyDocument` (`v: 1`, [wire formats](/docs/concepts/wire-formats)) under the `policy` claim of a compact JWS with `typ: permdock-policy+jwt`, signed by the environment key. `cloud().policies.refresh()` fetches it, verifies it with the `verifier` and `audience` you pass to `cloud()`, and keeps it. An unsigned, wrongly typed or unverifiable document is absent, never partially applied, and the last verified document stays; without a `verifier` the source never holds a document.
+- The Cloud publishes portable grants as a `PolicyDocument` (`v: 1`, [wire formats](/docs/concepts/wire-formats)) under the `policy` claim of a compact JWS with `typ: permdock-policy+jwt`, signed by the environment key. `cloud().policies.refresh()` fetches it, verifies it with the `verifier` you pass to `cloud()` (checking `typ`, `exp`, and `iss` and `aud` against the environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>`), and keeps it. The Cloud sets `exp` to 24 hours after issue, so an instance that stops refreshing falls back to its code policy. An unsigned, wrongly typed or unverifiable document is absent, never partially applied, and the last verified document stays; without a `verifier` the source never holds a document.
 - `cloud().policies` is a `PolicySource`. `createPermDock` reads its `current()` document once per instance; the application calls `refresh()` on its own schedule (an interval, a cron, or the `catalog` webhook), so no check waits on the Cloud.
 - Hosted grants apply only to permissions the policy marks `hostable`, target only declared roles, plans and relations, never override a code deny and never remove an `approval` a code grant requires. The merge rules are on [policies](/docs/concepts/policies) and the interface on [extension interfaces](/docs/concepts/extension-interfaces).
 - A decision matched by a hosted grant records the document fingerprint and grant id in `matched.hosted`, so the decision log can answer which hosted grant allowed it.
 
 ```ts
+import { cloud, cloudEndpoints } from 'permdock/cloud'
 import { joseTokenVerifier } from 'permdock/jwt'
 
-const url = process.env.PERMDOCK_CLOUD_URL
 const pd = cloud({
-  verifier: joseTokenVerifier({ jwks: `${url}/.well-known/jwks.json`, algorithms: ['Ed25519', 'ES256'] }),
-  audience: 'https://app.example.com',
+  verifier: joseTokenVerifier({ jwks: cloudEndpoints().jwks, algorithms: ['Ed25519', 'ES256'] }),
 })
 await pd.policies.refresh()
 setInterval(() => void pd.policies.refresh(), 60_000)
@@ -126,9 +125,9 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 })
 ```
 
-- `cloud()` returns a frozen object; `approvals`, `sink`, `snapshots` and `policies` are the interfaces, and `jwks` is the environment's JWK Set URL. There is no `decide` on it.
+- `cloud()` returns a frozen object; `approvals`, `sink`, `snapshots` and `policies` are the interfaces, `issuer` is the environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` and `jwks` is the environment's JWK Set URL. `cloudEndpoints()` returns the same `issuer` and `jwks` without a key, for building a verifier first. There is no `decide` on it.
 - `verifyWebhook(request, { jwks, audience, replay })` and `parseCloudEvent` verify the Cloud's signed webhook deliveries ([Cloud integrations](/docs/adapters/cloud-integrations)); there is no unsigned mode.
-- `policies` holds the last verified policy document ([hosted grants](#hosted-grants)). It needs `verifier` (a `TokenVerifier` over `jwks`) and `audience` (the `aud` your application expects); without a verifier `current()` stays `null`.
+- `policies` holds the last verified policy document ([hosted grants](#hosted-grants)). It needs `verifier` (a `TokenVerifier` over `jwks`); the expected `iss` and `aud` are the environment URL, so there is no audience to configure. Without a verifier `current()` stays `null`.
 - `sink` batches events in memory and flushes on an interval, on size, and at the end of a request when the runtime exposes `waitUntil`. Every event is written; sampling is opt-in and never applies to the evidence log. Delivery failure never affects a decision and is reported through `on('error')`. The Cloud's export endpoint serves the same events back as signed batches (`permdock-decisions+jwt`), OCSF or CSV. The sink does not accept `permdock/otel` spans: traces go to your collector (the Cloud can export a copy of the log to it as OTLP) and evidence goes to the sink ([audit and observability](/docs/concepts/audit-and-observability)).
 - `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store (`v: 1`, with the optional `approvers` and `subject.session`); a Cloud inbox rejects an unknown major rather than approve without checking eligibility. The inbox UI, Slack, Teams and email delivery, and approver groups are Cloud features layered on the same records. Slack and Teams delivery is the Vercel Chat SDK recipe from the [approvals adapter](/docs/adapters/approvals) "Delivery" section, run by the Cloud instead of by your application; a self-hoster who copies that recipe gets identical cards and the same signature-verified responder.
 - `snapshots` lets clients fetch a scoped snapshot from the Cloud edge instead of from the application server, and honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)). Everything the Cloud serves is signed: a compact JWS with `typ: permdock-snapshot+jwt` and the unchanged Snapshot object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats)).

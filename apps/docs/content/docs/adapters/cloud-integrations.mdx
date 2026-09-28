@@ -88,17 +88,17 @@ Webhooks are the generic escape hatch: anything not listed on this page receives
 | --- | --- | --- | --- |
 | HTTP webhook | CloudEvents 1.0 events in a batch signed as a compact JWS with `typ: permdock-decisions+jwt` under the `events` claim, posted as `application/jwt` ([wire formats](/docs/concepts/wire-formats) "Signed outputs"); there is no unsigned mode | Events of type `dev.permdock.decision`, `dev.permdock.approval`, `dev.permdock.directory` (a SCIM operation replayed), `dev.permdock.membership` (a role change) and `dev.permdock.catalog` (a policy publish or a drift finding); `source` is the emitting service, `subject` the permission key, resource id or principal id | Deliver an approval resolution: a webhook tells a receiver that an approval is pending or resolved, and the receiver cannot answer it |
 
-A receiver verifies the JWS against `<PERMDOCK_CLOUD_URL>/.well-known/jwks.json` with `aud` equal to itself and `exp`; the batch `jti` and each event `id` make replay detectable. Retries use exponential backoff with the same `jti` and `id`, so a receiver deduplicates on them. A TypeScript receiver uses `verifyWebhook` from `permdock/cloud`; any other language uses its JOSE library the same way.
+A receiver verifies the JWS against the environment's JWK Set, `<PERMDOCK_CLOUD_URL>/v1/environments/<env>/.well-known/jwks.json` (`cloudEndpoints().jwks` from `permdock/cloud`), with `aud` equal to itself and `exp`; the batch `jti` and each event `id` make replay detectable. Retries use exponential backoff with the same `jti` and `id`, so a receiver deduplicates on them. A TypeScript receiver uses `verifyWebhook` from `permdock/cloud`; any other language uses its JOSE library the same way.
 
 ```ts
-import { verifyWebhook } from 'permdock/cloud'
+import { cloudEndpoints, verifyWebhook } from 'permdock/cloud'
 import { memoryReplayStore } from 'permdock/ssf'
 
 const replay = memoryReplayStore()
 
 export async function POST(request: Request) {
   const delivery = await verifyWebhook(request, {
-    jwks: `${process.env.PERMDOCK_CLOUD_URL}/.well-known/jwks.json`,
+    jwks: cloudEndpoints().jwks,
     audience: 'https://app.example.com/api/permdock-webhook',
     replay,
   })

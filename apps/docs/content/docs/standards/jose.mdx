@@ -79,7 +79,7 @@ Every output is compact JWS, signed through a `TokenSigner`, with a registered `
 | Signed snapshot | `permdock-snapshot+jwt` | `iss`, `aud`, `sub` (= `principal.id`), `iat`, `exp` (= `expiresAt`), `jti`, `snapshot` (the unchanged snapshot object, `v: 1`) | `permdock.snapshot({ signer })`, `SnapshotSource` implementations, `permdock/cloud` |
 | Signed approval token | `permdock-approval+jwt` | `iss`, `aud`, `sub`, `iat`, `exp`, `jti`, `approval` (the bound hash token and its request id) | `approvalsHandler({ signer })` for cross-service resume |
 | Signed decision export | `permdock-decisions+jwt` | `iss`, `iat`, `jti`, `events` (an array of CloudEvents-shaped decision events) | A `DecisionSink` option for batch export and `permdock/cloud` |
-| Signed policy document | `permdock-policy+jwt` | `iss`, `aud`, `iat`, `exp`, `jti`, `policy` (a PolicyDocument, `v: 1`) | PermDock Cloud for hosted grants; verified by `cloud().policies` with `aud` checked |
+| Signed policy document | `permdock-policy+jwt` | `iss` and `aud` (both the Cloud environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>`), `iat`, `exp` (= `iat` + 24 hours), `jti`, `policy` (a PolicyDocument, `v: 1`) | PermDock Cloud for hosted grants; verified by `cloud().policies` with `iss` and `aud` checked against the environment URL |
 
 The specification of each payload is on [wire formats](/docs/concepts/wire-formats); the four `typ` values are listed on the [OpenAPI registry](/docs/standards/openapi-registry) page next to the `x-permdock-*` extensions so they are registered together.
 
@@ -100,7 +100,7 @@ The specification of each payload is on [wire formats](/docs/concepts/wire-forma
 | `alg` allow-list | `algorithms` option; `PS256`, `ES256`, `Ed25519` (+ `RS256` outside `fapi2`) |
 | `kid` | Key selection in the JWKS cache; `kid` on signed outputs |
 | `typ` | `accept` option (`at+jwt`, `JWT`, or ID token rules); `permdock-*+jwt` on outputs |
-| JWK Set | `jwks` option, Discovery `jwks_uri`, Cloud `/.well-known/jwks.json` |
+| JWK Set | `jwks` option, Discovery `jwks_uri`, Cloud environment `/v1/environments/<env>/.well-known/jwks.json` |
 | JWE (`alg` + `enc`) | Accepted only with `decryptionKeys`; nested JWS-in-JWE with `cty: JWT`; never produced, because a snapshot carries nothing secret ([snapshots](/docs/concepts/snapshots)) |
 | `x5c` certificate chains | Ignored by `joseTokenVerifier`; an issuer that publishes only certificates needs a custom `TokenVerifier` |
 | `cnf` (`jkt`, `x5t#S256`, `jwk`, `kid`) | `Binding` on `principal` or `actor` |
