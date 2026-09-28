@@ -16,6 +16,9 @@
     "generator": {
       "type": "string"
     },
+    "fingerprint": {
+      "type": "string"
+    },
     "resources": {
       "type": "object"
     },
@@ -48,6 +51,25 @@
         "properties": {
           "hostable": {
             "const": true
+          },
+          "approvals": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "const": "human"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "by": {},
+                    "distinct": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              ]
+            }
           }
         }
       }

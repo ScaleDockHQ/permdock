@@ -1,8 +1,9 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-09-28T12:11:02.007Z",
+  "generatedAt": "2026-09-28T17:49:55.559Z",
   "generator": "@permdock/cli@0.0.0",
+  "fingerprint": "QD-YrP6wPqaN_lKe3dwEfjX_wQq6Dwxa-M34yMHUqEs",
   "resources": {
     "post": {
       "id": "id",
@@ -156,6 +157,9 @@
           "line": 20,
           "call": "allow"
         }
+      ],
+      "approvals": [
+        "human"
       ]
     },
     {

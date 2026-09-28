@@ -188,6 +188,8 @@ export type {
   SignDecisionBatchOptions,
 } from './core/sink.ts';
 export { OCSF_VERSION, toOcsf } from './core/ocsf.ts';
+export { CSV_COLUMNS, toCsvRow } from './core/csv.ts';
+export { catalogFingerprint } from './core/catalog-fingerprint.ts';
 export type { OcsfAuthorizeSession } from './core/ocsf.ts';
 export type {
   Actor,

@@ -388,6 +388,7 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
   "version": 1,
   "generatedAt": "2026-09-06T10:15:00Z",
   "generator": "@permdock/cli@0.1.0",
+  "fingerprint": "1jqQg7VKp6ix0_g5wSeOLvfUOEsELf0m-_v4rPKvGxc",
   "resources": {
     "post": {
       "id": "id",
@@ -404,14 +405,18 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
     { "key": "post.create", "scope": "post:create", "resource": "post", "action": "create", "arity": "collection",
       "meta": {}, "usages": [] },
     { "key": "auditLog.read", "scope": "auditLog:read", "resource": "auditLog", "action": "read", "arity": "instance",
-      "meta": {}, "usages": [], "hostable": true }
+      "meta": {}, "usages": [], "hostable": true },
+    { "key": "invoice.refund", "scope": "invoice:refund", "resource": "invoice", "action": "refund", "arity": "instance",
+      "meta": {}, "usages": [], "approvals": ["human"] }
   ],
   "roles": [{ "key": "admin", "on": "tenant", "assignable": true }, { "key": "member", "on": "tenant", "assignable": true }],
   "plans": [{ "key": "pro" }]
 }
 ```
 
-`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, each role also carries `on` (`tenant`, `team` or `resource`, omitted for a global role) and `assignable`, and a permission the policy lists in `hostable` carries `hostable: true`; PermDock Cloud reads these to offer only assignable roles and only hostable permissions. `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file byte-for-byte with a fresh run.
+`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, each role also carries `on` (`tenant`, `team` or `resource`, omitted for a global role) and `assignable`, a permission the policy lists in `hostable` carries `hostable: true`, and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by, distinct? }`), absent when none requires one. PermDock Cloud reads these to offer only assignable roles and only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`). `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`.
+
+`fingerprint` identifies the catalog's contract and is what a hosted policy document pins as `catalog`. It is `catalogFingerprint(catalog)` from `permdock`: the base64url SHA-256 of the canonical JSON (object keys sorted by UTF-16 code unit, no whitespace, as in RFC 8785) of the document without `generatedAt`, `generator`, `fingerprint` and every `permissions[].usages`. The clock, the CLI version and call sites therefore never change it; any change to a permission, resource, role, plan, `hostable` or `approvals` does. A reader recomputes it with the same function and rejects a document whose `fingerprint` disagrees.
 
 ### `x-permdock-catalog` in OpenAPI documents
 

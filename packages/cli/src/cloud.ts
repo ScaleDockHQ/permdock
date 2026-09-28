@@ -1,10 +1,9 @@
 import type { Grant, Policy, SnapshotGrant } from 'permdock';
 
-import { createHash } from 'node:crypto';
+import { catalogFingerprint } from 'permdock';
 
 import type { CatalogDocument, CliIo, PermDockConfig } from './types.ts';
 
-import { catalogForCompare } from './catalog-doc.ts';
 import { runCatalog } from './catalog.ts';
 import { loadConfiguredPolicy } from './load.ts';
 
@@ -28,13 +27,6 @@ function firstNonEmpty(...values: readonly (string | undefined)[]): string {
     }
   }
   return '';
-}
-
-/** base64url SHA-256 of the catalog without `generatedAt`; what hosted documents pin as `catalog`. */
-export function catalogFingerprint(document: CatalogDocument): string {
-  return createHash('sha256')
-    .update(catalogForCompare(document))
-    .digest('base64url');
 }
 
 function pushedGrant(grant: Grant): PushedPolicy['grants'][number] {
