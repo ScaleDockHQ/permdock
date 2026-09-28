@@ -92,6 +92,56 @@ describe('verifyWebhook', () => {
     ).toBe('cat_1');
   });
 
+  it('accepts typed drift findings and rejects free-text ones', async () => {
+    const drift = (findings: readonly unknown[]) =>
+      signer.sign(
+        {
+          events: [
+            {
+              specversion: '1.0',
+              type: CLOUD_EVENT_TYPES.catalog,
+              source: 'https://api.permdock.test',
+              subject: 'cat_2',
+              id: 'evt_drift',
+              time: '2026-09-28T10:00:00.000Z',
+              datacontenttype: 'application/json',
+              data: {
+                kind: 'drift',
+                fingerprint: 'cat_2',
+                previous: 'cat_1',
+                findings,
+              },
+            },
+          ],
+        },
+        { typ: 'permdock-decisions+jwt', audience: RECEIVER },
+      );
+    const typed = await verifyWebhook(
+      delivery(
+        await drift([
+          { code: 'not-hostable', permission: 'auditLog.read', grant: 'g_1' },
+          { code: 'permission-removed', permission: 'invoice.export' },
+        ]),
+      ),
+      { jwks: JWKS, audience: RECEIVER },
+    );
+    expect(
+      typed.ok && typed.events[0]?.type === 'dev.permdock.catalog'
+        ? typed.events[0].data.findings?.[0]?.code
+        : undefined,
+    ).toBe('not-hostable');
+    const text = await verifyWebhook(
+      delivery(await drift(['auditLog.read is no longer hostable'])),
+      { jwks: JWKS, audience: RECEIVER },
+    );
+    expect(text.ok).toBe(false);
+    const unknown = await verifyWebhook(
+      delivery(await drift([{ code: 'renamed', permission: 'a.b' }])),
+      { jwks: JWKS, audience: RECEIVER },
+    );
+    expect(unknown.ok).toBe(false);
+  });
+
   it('has no unsigned mode', async () => {
     const plain = JSON.stringify([toCloudEvent(membership)]);
     const result = await verifyWebhook(delivery(plain), {

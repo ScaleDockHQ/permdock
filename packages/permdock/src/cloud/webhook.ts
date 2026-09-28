@@ -5,7 +5,11 @@ import type {
   TokenFailureCause,
   TokenVerifier,
 } from '../core/interfaces.ts';
-import type { CatalogEventData, CloudEventType } from '../core/sink.ts';
+import type {
+  CatalogEventData,
+  CatalogFindingCode,
+  CloudEventType,
+} from '../core/sink.ts';
 import type { JsonWebKeySet } from '../jwt/types.ts';
 import type { ReplayStore } from '../ssf/types.ts';
 
@@ -80,6 +84,22 @@ function hasUnsafeKey(value: unknown): boolean {
   );
 }
 
+const FINDING_CODES: ReadonlySet<unknown> = new Set<CatalogFindingCode>([
+  'permission-removed',
+  'not-hostable',
+  'grantee-removed',
+  'approval-tightened',
+]);
+
+function isFinding(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    FINDING_CODES.has(value.code) &&
+    typeof value.permission === 'string' &&
+    (value.grant === undefined || typeof value.grant === 'string')
+  );
+}
+
 function validData(
   type: CloudEventType,
   data: Record<string, unknown>,
@@ -102,8 +122,7 @@ function validData(
         typeof data.fingerprint === 'string' &&
         (data.previous === undefined || typeof data.previous === 'string') &&
         (data.findings === undefined ||
-          (Array.isArray(data.findings) &&
-            data.findings.every((item) => typeof item === 'string')))
+          (Array.isArray(data.findings) && data.findings.every(isFinding)))
       );
     default: {
       const exhaustive: never = type;

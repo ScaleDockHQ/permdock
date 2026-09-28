@@ -173,9 +173,15 @@ The CloudEvents `type` values are a closed list, exported as `CLOUD_EVENT_TYPES`
 | `dev.permdock.approval` | An approval event (`phase: requested` or `phase: resolved`) with the `ApprovalRequest` below | Every `DecisionSink`; the Cloud webhook and paging connectors |
 | `dev.permdock.directory` | A `directory` event: the SCIM operation (`User` or `Group`, method, tenant, the affected `id`s, `active` after the change) with no attribute values beyond identifiers | `scimHandler` through its `sink`; the Cloud relay's sync log ([SCIM adapter](/docs/adapters/scim)) |
 | `dev.permdock.membership` | A `membership` event: who gained or lost roles, from SCIM, Better Auth, Clerk or the app | `membershipEvent()`, `scimHandler` group changes, `onRoleChange({ sink })` |
-| `dev.permdock.catalog` | `{ kind: 'publish' \| 'drift', fingerprint, previous?, findings? }`: a catalog publish (the new fingerprint and the one it replaced) or a drift finding (`findings` as the `permdock collect --check` lines) | The Cloud on `permdock cloud push` and on scheduled drift checks ([Cloud integrations](/docs/adapters/cloud-integrations)) |
+| `dev.permdock.catalog` | `{ kind: 'publish' \| 'drift', fingerprint, previous?, findings? }`: a catalog publish (the new fingerprint and the one it replaced) or the drift that publish caused against live hosted grants, with `findings` as `CatalogFinding` objects `{ code, permission, grant? }` (below) | The Cloud on `permdock cloud push` and on scheduled drift checks ([Cloud integrations](/docs/adapters/cloud-integrations)) |
 
 Changing either projection is a wire-format change and follows the versioning rule below.
+
+A drift `finding` names why a published catalog broke a hosted grant, which the Cloud then suspends and leaves out of the next policy document. `code` is a closed list, exported as `CatalogFindingCode`: `permission-removed` (the key is gone), `not-hostable` (the key is no longer `hostable`), `grantee-removed` (a role, plan or relation the grant targets is no longer declared) and `approval-tightened` (a code allow now requires an approval the hosted grant does not meet). `permission` is the key and `grant` the hosted grant id when one broke. `parseCloudEvent` rejects any other code and the earlier free-text form.
+
+```json
+{ "kind": "drift", "fingerprint": "1jqQ…", "previous": "QD-Y…", "findings": [{ "code": "not-hostable", "permission": "auditLog.read", "grant": "hg_01J8…" }] }
+```
 
 ## Membership event
 

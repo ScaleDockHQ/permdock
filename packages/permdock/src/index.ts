@@ -181,6 +181,8 @@ export {
 } from './core/sink.ts';
 export type {
   CatalogEventData,
+  CatalogFinding,
+  CatalogFindingCode,
   CloudEvent,
   CloudEventType,
   MemorySink,
