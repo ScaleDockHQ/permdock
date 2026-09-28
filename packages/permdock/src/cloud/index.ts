@@ -1,5 +1,10 @@
-export { cloud } from './create.ts';
-export type { CloudClient, CloudOptions } from './types.ts';
+export { cloud, cloudEndpoints } from './create.ts';
+export type {
+  CloudClient,
+  CloudEndpointOptions,
+  CloudEndpoints,
+  CloudOptions,
+} from './types.ts';
 export { parseCloudEvent, verifyWebhook } from './webhook.ts';
 export type {
   PermDockCloudEvent,

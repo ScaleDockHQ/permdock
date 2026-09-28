@@ -25,14 +25,27 @@ export const CLOUD_EVENT_TYPES: {
 export type CloudEventType =
   (typeof CLOUD_EVENT_TYPES)[keyof typeof CLOUD_EVENT_TYPES];
 
-/** `data` of a `dev.permdock.catalog` event: a `permdock cloud push` or a scheduled drift check. */
+/** Why a published catalog broke a live hosted grant, which the Cloud then suspends. */
+export type CatalogFindingCode =
+  | 'permission-removed'
+  | 'not-hostable'
+  | 'grantee-removed'
+  | 'approval-tightened';
+
+/** One drift finding: the permission key and, when one broke, the hosted grant id. */
+export type CatalogFinding = {
+  readonly code: CatalogFindingCode;
+  readonly permission: string;
+  readonly grant?: string;
+};
+
+/** `data` of a `dev.permdock.catalog` event: a `permdock cloud push` or a drift against live hosted grants. */
 export type CatalogEventData = {
   readonly kind: 'publish' | 'drift';
   /** The catalog fingerprint after the publish, or the one drift was measured against. */
   readonly fingerprint: string;
   readonly previous?: string;
-  /** Drift findings, one line each, as `permdock collect --check` reports them. */
-  readonly findings?: readonly string[];
+  readonly findings?: readonly CatalogFinding[];
 };
 
 export type CloudEvent = {

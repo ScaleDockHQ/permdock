@@ -565,8 +565,14 @@ describe('conformance runners', () => {
       algorithms: ['Ed25519'],
     }).verify(fixtures['permdock-policy+jwt'] ?? '', {
       typ: 'permdock-policy+jwt',
-      audience: 'https://app.example.com',
+      issuer: 'https://api.permdock.test/v1/environments/production',
+      audience: 'https://api.permdock.test/v1/environments/production',
     });
+    expect(
+      verified.ok
+        ? Number(verified.claims.exp) - Number(verified.claims.iat)
+        : 0,
+    ).toBe(86_400);
     expect(verified.ok).toBe(true);
     const document = parsePolicyDocument(
       verified.ok ? verified.claims.policy : null,

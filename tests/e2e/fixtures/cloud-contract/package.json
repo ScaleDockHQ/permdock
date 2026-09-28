@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./contract-env": "./src/contract-env.ts"
+  },
   "scripts": {
     "serve": "node scripts/serve.ts",
     "typecheck": "tsc --noEmit"

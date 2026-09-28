@@ -16,6 +16,7 @@ It is an open-source entry first so that self-hosters get the feature, and so th
 ```ts
 import { scimHandler, memoryDirectoryStore, directoryMembershipSource } from 'permdock/scim'
 import { joseTokenVerifier } from 'permdock/jwt'
+import { cloudEndpoints } from 'permdock/cloud'
 import { createPermDock } from 'permdock/hono'
 
 const directory = memoryDirectoryStore()            // default; replace with a store over your tables
@@ -25,7 +26,8 @@ export const scim = scimHandler({
   tenant: (request) => tenantFromPath(request),      // '/scim/v2/:tenant' or a lookup on the credential; never the body
   token: { hash: 'sha256', lookup: (tenant) => db.scimTokens.hashFor(tenant) },   // static bearer per tenant (Okta, Entra ID)
   verifier: joseTokenVerifier({                       // or an RFC 7523 JWT bearer (the Cloud relay, IPSIE AL1)
-    jwks: `${process.env.PERMDOCK_CLOUD_URL}/.well-known/jwks.json`,
+    jwks: cloudEndpoints().jwks,                      // the Cloud environment's JWK Set
+    issuer: cloudEndpoints().issuer,
     audience: 'https://app.example.com/scim/v2',
   }),
   groupRoles: { 'g_9f2c…': ['editor'], 'g_0e6f…': ['admin'] },   // optional static map; the extension attribute wins when present

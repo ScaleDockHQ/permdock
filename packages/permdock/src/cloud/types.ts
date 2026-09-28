@@ -6,28 +6,36 @@ import type {
   TokenVerifier,
 } from '../core/interfaces.ts';
 
-export type CloudOptions = {
+export type CloudEndpointOptions = {
   readonly url?: string;
-  readonly key?: string;
   readonly environment?: string;
+};
+
+export type CloudEndpoints = {
+  /** The environment URL, `<url>/v1/environments/<env>`: `iss` and `aud` of the policy document. */
+  readonly issuer: string;
+  /** The environment's JWK Set URL, for `joseTokenVerifier({ jwks })`. */
+  readonly jwks: string;
+};
+
+export type CloudOptions = CloudEndpointOptions & {
+  readonly key?: string;
   readonly fetch?: typeof fetch;
   readonly flushAt?: number;
+  /** Most events the sink holds while the Cloud is unreachable (default 10 000); the oldest are dropped first. */
+  readonly capacity?: number;
   readonly waitUntil?: (task: Promise<void>) => void;
   /**
    * Verifies the environment's signed policy document, typically
-   * `joseTokenVerifier({ jwks: cloud.jwks })`. Without one, `policies.current()`
-   * stays `null`: an unverifiable document is never applied.
+   * `joseTokenVerifier({ jwks: cloudEndpoints().jwks })`. Without one,
+   * `policies.current()` stays `null`: an unverifiable document is never applied.
    */
   readonly verifier?: TokenVerifier;
-  /** The `aud` the policy document must carry; your application's identifier. */
-  readonly audience?: string | readonly string[];
 };
 
-export type CloudClient = {
+export type CloudClient = CloudEndpoints & {
   readonly approvals: ApprovalStore;
   readonly sink: DecisionSink;
   readonly snapshots: SnapshotSource;
   readonly policies: PolicySource;
-  /** The environment's JWK Set URL, for `joseTokenVerifier({ jwks })`. */
-  readonly jwks: string;
 };

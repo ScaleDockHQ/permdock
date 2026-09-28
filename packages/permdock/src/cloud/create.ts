@@ -1,4 +1,6 @@
 import type {
+  ApprovalCancelMeta,
+  ApprovalListFilter,
   ApprovalListQuery,
   ApprovalPage,
   ApprovalRequest,
@@ -9,16 +11,19 @@ import type { PolicyDocument, PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   SinkEvent,
-  Snapshot,
   SnapshotSource,
 } from '../core/interfaces.ts';
-import type { CloudClient, CloudOptions } from './types.ts';
+import type {
+  CloudClient,
+  CloudEndpointOptions,
+  CloudEndpoints,
+  CloudOptions,
+} from './types.ts';
 
 import { ApprovalError } from '../approvals/errors.ts';
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { parsePolicyDocument } from '../core/hosted.ts';
-import { parseSnapshot } from '../core/snapshot.ts';
 
 function readEnv(name: string): string {
   const runtime = globalThis as {
@@ -66,24 +71,38 @@ function approvalErrorFromStatus(status: number): ApprovalError {
   return new ApprovalError('approval-not-found', 'approval was not found');
 }
 
-export function cloud(options: CloudOptions = {}): CloudClient {
+/**
+ * The environment URL and JWK Set URL `cloud()` uses, resolved with the same
+ * fallbacks (`PERMDOCK_CLOUD_URL`; `PERMDOCK_CLOUD_ENV`, `VERCEL_ENV`, `production`).
+ */
+export function cloudEndpoints(
+  options: CloudEndpointOptions = {},
+): CloudEndpoints {
   const url = trimSlash(
     firstNonEmpty(options.url, readEnv('PERMDOCK_CLOUD_URL')),
   );
-  const key = firstNonEmpty(options.key, readEnv('PERMDOCK_CLOUD_KEY'));
+  if (url === '') {
+    throw new Error('PermDock: cloud() requires url and key.');
+  }
   const environment = firstNonEmpty(
     options.environment,
     readEnv('PERMDOCK_CLOUD_ENV'),
     readEnv('VERCEL_ENV'),
     'production',
   );
-  if (url === '' || key === '') {
+  const issuer = `${url}/v1/environments/${encodeURIComponent(environment)}`;
+  return Object.freeze({ issuer, jwks: `${issuer}/.well-known/jwks.json` });
+}
+
+export function cloud(options: CloudOptions = {}): CloudClient {
+  const key = firstNonEmpty(options.key, readEnv('PERMDOCK_CLOUD_KEY'));
+  if (key === '') {
     throw new Error('PermDock: cloud() requires url and key.');
   }
+  const { issuer: root, jwks } = cloudEndpoints(options);
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
   const flushAt = options.flushAt ?? 32;
   const waitUntil = options.waitUntil;
-  const root = `${url}/v1/environments/${encodeURIComponent(environment)}`;
 
   const headers = (): Headers => {
     const next = new Headers();
@@ -92,11 +111,16 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     return next;
   };
 
-  const request = (path: string, init: RequestInit = {}): Promise<Response> => {
-    return fetchFn(`${root}${path}`, {
-      ...init,
-      headers: headers(),
-    });
+  const request = (
+    path: string,
+    init: RequestInit = {},
+    accept?: string,
+  ): Promise<Response> => {
+    const next = headers();
+    if (accept !== undefined) {
+      next.set('accept', accept);
+    }
+    return fetchFn(`${root}${path}`, { ...init, headers: next });
   };
 
   const approvals: ApprovalStore = {
@@ -199,6 +223,23 @@ export function cloud(options: CloudOptions = {}): CloudClient {
         return { items: [] };
       }
     },
+    async cancel(
+      filter: ApprovalListFilter,
+      meta: ApprovalCancelMeta,
+    ): Promise<number> {
+      const response = await request('/approvals/cancel', {
+        method: 'POST',
+        body: JSON.stringify(compact({ filter, by: meta.by, note: meta.note })),
+      });
+      if (!response.ok) {
+        throw new Error('PermDock Cloud rejected the approval cancel');
+      }
+      const body: unknown = await response.json();
+      if (!isRecord(body) || typeof body.cancelled !== 'number') {
+        throw new Error('PermDock Cloud returned an unknown cancel shape');
+      }
+      return body.cancelled;
+    },
     async expire(now?: Date): Promise<number> {
       try {
         const response = await request('/approvals/expire', {
@@ -223,7 +264,13 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     },
   };
 
+  const capacity = options.capacity ?? 10_000;
   const pending: SinkEvent[] = [];
+  const bound = (): void => {
+    if (pending.length > capacity) {
+      pending.splice(0, pending.length - capacity);
+    }
+  };
 
   const flush = async (): Promise<void> => {
     if (pending.length === 0) {
@@ -241,11 +288,13 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     } catch {
       pending.unshift(...events);
     }
+    bound();
   };
 
   const sink: DecisionSink = {
     write(events: readonly SinkEvent[]): Promise<void> | void {
       pending.push(...events);
+      bound();
       if (pending.length >= flushAt) {
         return flush();
       }
@@ -257,16 +306,16 @@ export function cloud(options: CloudOptions = {}): CloudClient {
   };
 
   const snapshots: SnapshotSource = {
-    async get(): Promise<Snapshot | string> {
-      const response = await request('/snapshot');
+    async get(): Promise<string> {
+      const response = await request('/snapshot', {}, 'application/jwt');
       if (!response.ok) {
         throw new Error('PermDock Cloud snapshot request failed');
       }
-      const text = await response.text();
-      if (isCompactJws(text)) {
-        return text;
+      const text = (await response.text()).trim();
+      if (!isCompactJws(text)) {
+        throw new Error('PermDock Cloud served an unsigned snapshot');
       }
-      return parseSnapshot(text);
+      return text;
     },
   };
 
@@ -298,10 +347,11 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       if (!isCompactJws(token)) {
         return;
       }
-      const verified = await verifier.verify(
-        token,
-        compact({ typ: 'permdock-policy+jwt', audience: options.audience }),
-      );
+      const verified = await verifier.verify(token, {
+        typ: 'permdock-policy+jwt',
+        issuer: root,
+        audience: root,
+      });
       if (!verified.ok) {
         return;
       }
@@ -320,6 +370,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     sink,
     snapshots,
     policies,
-    jwks: `${url}/.well-known/jwks.json`,
+    issuer: root,
+    jwks,
   });
 }

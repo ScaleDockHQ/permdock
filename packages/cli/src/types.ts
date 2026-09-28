@@ -90,7 +90,13 @@ export type CatalogPermission = {
   readonly usages: readonly CatalogUsage[];
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
+  /** The approvals code allows on this permission require; a hosted grant must meet each. */
+  readonly approvals?: readonly CatalogApproval[];
 };
+
+export type CatalogApproval =
+  | 'human'
+  | { readonly by?: unknown; readonly distinct?: boolean };
 
 export type CatalogResource = {
   readonly id: string;
@@ -112,6 +118,8 @@ export type CatalogDocument = {
   readonly version: 1 | 2;
   readonly generatedAt: string;
   readonly generator: string;
+  /** `catalogFingerprint` of this document; what hosted documents pin as `catalog`. */
+  readonly fingerprint?: string;
   readonly resources: Readonly<Record<string, CatalogResource>>;
   readonly permissions: readonly CatalogPermission[];
   readonly roles?: readonly CatalogRole[];

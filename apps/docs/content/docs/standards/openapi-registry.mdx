@@ -102,7 +102,7 @@ These are not OpenAPI extensions but they are the other namespace PermDock write
 | `permdock-snapshot+jwt` | `snapshot` (snapshot `v: 1`) | `permdock.snapshot({ signer })`, `permdock/cloud` snapshots |
 | `permdock-approval+jwt` | `approval` | `approvalsHandler({ signer })` |
 | `permdock-decisions+jwt` | `events` | A `DecisionSink` with `signer`, `permdock/cloud` export |
-| `permdock-policy+jwt` | `policy` (policy document `v: 1`) | PermDock Cloud hosted grants, read by `cloud().policies` |
+| `permdock-policy+jwt` | `policy` (policy document `v: 1`); `iss` = `aud` = the Cloud environment URL, `exp` = `iat` + 24 hours | PermDock Cloud hosted grants, read by `cloud().policies` |
 
 The `+jwt` structured syntax suffix is registered (RFC 8417 section 7.2), so any JOSE library treats these as JWTs. Each `typ` is the short form of a media type, and the full names are the media types PermDock documents:
 

@@ -5,9 +5,14 @@ import type {
   ResourceNode,
 } from 'permdock';
 
-import { getResource, listPermissions } from 'permdock';
+import { catalogFingerprint, getResource, listPermissions } from 'permdock';
 
-import type { CatalogDocument, CatalogUsage, ScanResult } from './types.ts';
+import type {
+  CatalogApproval,
+  CatalogDocument,
+  CatalogUsage,
+  ScanResult,
+} from './types.ts';
 
 import { CATALOG_SCHEMA, generatorBanner } from './version.ts';
 
@@ -41,6 +46,7 @@ export function buildCatalog(
           },
     );
   }
+  const approvals = codeApprovals(policy);
   const permissions = listPermissions(tree)
     .map((leaf) =>
       withDefined({
@@ -52,14 +58,11 @@ export function buildCatalog(
         meta: metaRecord(leaf.meta),
         usages: scan.usages[leaf.key] ?? [],
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
+        approvals: approvals.get(leaf.key),
       }),
     )
     .toSorted((a, b) => a.key.localeCompare(b.key));
-  return {
-    $schema: CATALOG_SCHEMA,
-    version: 1,
-    generatedAt,
-    generator: generatorBanner(),
+  const body = {
     resources,
     permissions,
     ...catalogRoles(scan.roleNames, policy),
@@ -67,6 +70,51 @@ export function buildCatalog(
       ? {}
       : { plans: scan.planNames.map((key) => ({ key })) }),
   };
+  const head = {
+    $schema: CATALOG_SCHEMA,
+    version: 1 as const,
+    generatedAt,
+    generator: generatorBanner(),
+  };
+  return {
+    ...head,
+    fingerprint: catalogFingerprint({ ...head, ...body }),
+    ...body,
+  };
+}
+
+/** Per permission key, the distinct approvals the code allows require, in policy order. */
+function codeApprovals(
+  policy: Policy | undefined,
+): ReadonlyMap<string, readonly CatalogApproval[]> {
+  const out = new Map<string, CatalogApproval[]>();
+  const seen = new Set<string>();
+  for (const grant of policy?.grants ?? []) {
+    if (
+      grant.effect !== 'allow' ||
+      grant.hosted !== undefined ||
+      grant.approval === undefined
+    ) {
+      continue;
+    }
+    const approval: CatalogApproval =
+      grant.approval === 'human'
+        ? 'human'
+        : withDefined({
+            by: grant.approval.by,
+            distinct: grant.approval.distinct,
+          });
+    const id = `${grant.permission.key}\u0000${JSON.stringify(approval)}`;
+    if (seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    out.set(grant.permission.key, [
+      ...(out.get(grant.permission.key) ?? []),
+      approval,
+    ]);
+  }
+  return out;
 }
 
 function catalogRoles(
@@ -176,7 +224,7 @@ export function formatCatalogJson(doc: CatalogDocument): string {
 }
 
 export function catalogForCompare(doc: CatalogDocument): string {
-  const { generatedAt: _generatedAt, ...rest } = doc;
+  const { generatedAt: _generatedAt, generator: _generator, ...rest } = doc;
   return `${JSON.stringify(rest, null, 2)}\n`;
 }
 
@@ -224,6 +272,7 @@ export function catalogSchemaDocument(): unknown {
       version: { const: 1 },
       generatedAt: { type: 'string' },
       generator: { type: 'string' },
+      fingerprint: { type: 'string' },
       resources: { type: 'object' },
       roles: {
         type: 'array',
@@ -243,7 +292,21 @@ export function catalogSchemaDocument(): unknown {
         items: {
           type: 'object',
           required: ['key', 'resource', 'action', 'arity', 'scope'],
-          properties: { hostable: { const: true } },
+          properties: {
+            hostable: { const: true },
+            approvals: {
+              type: 'array',
+              items: {
+                oneOf: [
+                  { const: 'human' },
+                  {
+                    type: 'object',
+                    properties: { by: {}, distinct: { type: 'boolean' } },
+                  },
+                ],
+              },
+            },
+          },
         },
       },
     },

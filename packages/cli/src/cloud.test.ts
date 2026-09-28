@@ -1,6 +1,7 @@
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { catalogFingerprint } from 'permdock';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { CliIo } from './types.ts';
@@ -24,7 +25,10 @@ function appCopy(): string {
 import { permissions } from './permissions.ts';
 
 export const policy = definePolicy(permissions, {
-  roles: [role('member', [allow(permissions.post.read)])],
+  roles: [
+    role('member', [allow(permissions.post.read)]),
+    role('editor', [allow(permissions.post.publish, { approval: 'human' })]),
+  ],
   subject: () => null,
   hostable: [permissions.post.publish],
 });
@@ -96,15 +100,27 @@ describe('permdock cloud push', () => {
     const body = (await request?.json()) as {
       readonly fingerprint: string;
       readonly catalog: {
+        readonly fingerprint: string;
         readonly permissions: readonly {
           readonly key: string;
           readonly hostable?: true;
+          readonly approvals?: readonly unknown[];
         }[];
         readonly roles: readonly { readonly key: string }[];
       };
       readonly policy?: { readonly grants: readonly unknown[] };
     };
     expect(body.fingerprint).toBe(summary.fingerprint);
+    expect(body.catalog.fingerprint).toBe(body.fingerprint);
+    expect(catalogFingerprint(body.catalog)).toBe(body.fingerprint);
+    expect(
+      body.catalog.permissions.find((item) => item.key === 'post.publish')
+        ?.approvals,
+    ).toEqual(['human']);
+    expect(
+      body.catalog.permissions.find((item) => item.key === 'post.read')
+        ?.approvals,
+    ).toBeUndefined();
     expect(
       body.catalog.permissions.find((item) => item.key === 'post.publish')
         ?.hostable,
@@ -119,6 +135,13 @@ describe('permdock cloud push', () => {
         effect: 'allow',
         role: 'member',
         to: { kind: 'role', role: 'member', scope: 'global' },
+      },
+      {
+        permission: 'post.publish',
+        effect: 'allow',
+        role: 'editor',
+        to: { kind: 'role', role: 'editor', scope: 'global' },
+        approval: 'human',
       },
     ]);
   });

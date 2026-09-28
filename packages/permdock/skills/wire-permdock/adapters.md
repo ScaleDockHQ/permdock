@@ -505,7 +505,7 @@ The handler writes users and groups. It never decides. Unknown or non-assignable
 
 ## Cloud — `permdock/cloud`
 
-No factory for a `PermDock`. `cloud({ url, key })` returns `approvals`, `sink`, `snapshots` and `policies` to pass into any adapter, plus the `jwks` URL. It never implements `MembershipSource` or `RoleSource` and never decides.
+No factory for a `PermDock`. `cloud({ url, key, environment })` returns `approvals`, `sink`, `snapshots` and `policies` to pass into any adapter, plus the environment `issuer` (`<url>/v1/environments/<environment>`) and its `jwks` URL; `cloudEndpoints({ url, environment })` computes the same two without a key. It never implements `MembershipSource` or `RoleSource` and never decides.
 
 ```ts
 import { cloud } from 'permdock/cloud';
@@ -523,7 +523,7 @@ export const { getPermDock } = createPermDock(policy, {
 });
 ```
 
-Hosted grants are opt-in per permission. List the permissions a Cloud admin may grant in `definePolicy(..., { hostable: [permissions.auditLog.read] })`, pass `verifier: joseTokenVerifier({ jwks: pd.jwks })` and `audience` to `cloud()`, forward `policies: pd.policies`, and call `pd.policies.refresh()` on a timer. Never mark a permission `hostable` when `permdock rls` compiles its table (`permdock doctor` PD020).
+Hosted grants are opt-in per permission. List the permissions a Cloud admin may grant in `definePolicy(..., { hostable: [permissions.auditLog.read] })`, pass `verifier: joseTokenVerifier({ jwks: cloudEndpoints({ url, environment }).jwks })` to `cloud()` (the policy document's issuer and audience are both the environment URL), forward `policies: pd.policies`, and call `pd.policies.refresh()` on a timer. Never mark a permission `hostable` when `permdock rls` compiles its table (`permdock doctor` PD020).
 
 `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are server-only. Production `PERMDOCK_CLOUD_URL` is `https://api.permdock.com`. The dashboard is `https://app.permdock.com`; the read-only MCP server is `https://mcp.permdock.com`. A Cloud outage leaves directory memberships at their last synced state.
 

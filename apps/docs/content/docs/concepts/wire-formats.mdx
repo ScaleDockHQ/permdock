@@ -162,7 +162,8 @@ Emitted by `on('decision')`. See [audit and observability](/docs/concepts/audit-
 Two documented projections leave the event unchanged and exist so `DecisionSink` implementations agree with each other ([audit and observability](/docs/concepts/audit-and-observability)):
 
 - **OCSF.** `toOcsf(event)` from `permdock` maps a decision or approval event onto the [OCSF](https://schema.ocsf.io/) 1.3.0 Authorize Session class (`class_uid` 3003, category Identity and Access Management, `activity_id` 1, `type_uid` 300301), pinned as `OCSF_VERSION`. `outcome` sets `status_id` (1 `Success` for `granted`, 2 `Failure` for `denied`, 99 `Other` for `approval-required`); `status_detail` is the comma-joined `denials[].reason` or `approval-required`; `permission` is the one entry in `privileges`; `subject.principal.id` is `user.uid` and `actor.user.uid`; `subject.actor.id` is `actor.app_name`; `adapter` is `metadata.product.feature.name`; `tenant` is `metadata.tenant_uid`; the approval `token` is `metadata.correlation_uid`. Authorize Session has no resource object, so `scope`, `resource`, `source`, `phase`, `matched.role` and `via` travel under `unmapped`. A version bump of the projection is a wire-format change.
-- **CloudEvents 1.0 envelope.** On the wire, each event is `{ specversion: '1.0', type: '<type>', source: '<service>', subject: '<permission key or resource id>', id, time, datacontenttype: 'application/json', data: <event> }`. The PermDock Cloud sink, its webhooks and any queue or HTTP sink use it. `source` is the emitting service (the application's `source` on the event, or the Cloud environment URL); `subject` is the permission key for decision and approval events, the SCIM resource id for directory events, the principal id for membership events and the catalog fingerprint for catalog events.
+- **CSV.** `toCsvRow(event)` from `permdock` writes the columns in `CSV_COLUMNS` (`time`, `principal`, `actor`, `tenant`, `permission`, `outcome`, `matched.role`, `via`, `denials.reason` joined with `;`, `token`), absent values empty and RFC 4180 quoting ([audit and observability](/docs/concepts/audit-and-observability) "Exports").
+- **CloudEvents 1.0 envelope.** On the wire, each event is `{ specversion: '1.0', type: '<type>', source: '<service>', subject: '<permission key or resource id>', id, time, datacontenttype: 'application/json', data: <event> }`. PermDock Cloud webhooks, its exports and any queue or HTTP sink that forwards events to another system use it. The `permdock/cloud` sink itself posts the raw events (`{ events: SinkEvent[] }`, unsigned, to `POST /v1/environments/:env/decisions`), and the Cloud wraps each one in this envelope when it stores, exports or delivers it, so `id` and `source` are the Cloud's. `source` is the emitting service (the application's `source` on the event, or the Cloud environment URL); `subject` is the permission key for decision and approval events, the SCIM resource id for directory events, the principal id for membership events and the catalog fingerprint for catalog events.
 
 The CloudEvents `type` values are a closed list, exported as `CLOUD_EVENT_TYPES` from `permdock` with `CatalogEventData` for the catalog payload; adding one is a wire-format change:
 
@@ -172,9 +173,15 @@ The CloudEvents `type` values are a closed list, exported as `CLOUD_EVENT_TYPES`
 | `dev.permdock.approval` | An approval event (`phase: requested` or `phase: resolved`) with the `ApprovalRequest` below | Every `DecisionSink`; the Cloud webhook and paging connectors |
 | `dev.permdock.directory` | A `directory` event: the SCIM operation (`User` or `Group`, method, tenant, the affected `id`s, `active` after the change) with no attribute values beyond identifiers | `scimHandler` through its `sink`; the Cloud relay's sync log ([SCIM adapter](/docs/adapters/scim)) |
 | `dev.permdock.membership` | A `membership` event: who gained or lost roles, from SCIM, Better Auth, Clerk or the app | `membershipEvent()`, `scimHandler` group changes, `onRoleChange({ sink })` |
-| `dev.permdock.catalog` | `{ kind: 'publish' \| 'drift', fingerprint, previous?, findings? }`: a catalog publish (the new fingerprint and the one it replaced) or a drift finding (`findings` as the `permdock collect --check` lines) | The Cloud on `permdock cloud push` and on scheduled drift checks ([Cloud integrations](/docs/adapters/cloud-integrations)) |
+| `dev.permdock.catalog` | `{ kind: 'publish' \| 'drift', fingerprint, previous?, findings? }`: a catalog publish (the new fingerprint and the one it replaced) or the drift that publish caused against live hosted grants, with `findings` as `CatalogFinding` objects `{ code, permission, grant? }` (below) | The Cloud on `permdock cloud push` and on scheduled drift checks ([Cloud integrations](/docs/adapters/cloud-integrations)) |
 
 Changing either projection is a wire-format change and follows the versioning rule below.
+
+A drift `finding` names why a published catalog broke a hosted grant, which the Cloud then suspends and leaves out of the next policy document. `code` is a closed list, exported as `CatalogFindingCode`: `permission-removed` (the key is gone), `not-hostable` (the key is no longer `hostable`), `grantee-removed` (a role, plan or relation the grant targets is no longer declared) and `approval-tightened` (a code allow now requires an approval the hosted grant does not meet). `permission` is the key and `grant` the hosted grant id when one broke. `parseCloudEvent` rejects any other code and the earlier free-text form.
+
+```json
+{ "kind": "drift", "fingerprint": "1jqQ…", "previous": "QD-Y…", "findings": [{ "code": "not-hostable", "permission": "auditLog.read", "grant": "hg_01J8…" }] }
+```
 
 ## Membership event
 
@@ -194,7 +201,7 @@ A `membership` event records a role change that is not a SCIM resource write. Ap
 }
 ```
 
-`source` is `scim`, `better-auth`, `clerk`, `app`, or another string. `via` is `group:<id>` when the change came from a group. See [audit and observability](/docs/concepts/audit-and-observability).
+`source` is `scim`, `better-auth`, `clerk`, `app`, `cloud` (an assignment in the PermDock Cloud directory, with `by` set to the Cloud admin who made it), or another string. `via` is `group:<id>` when the change came from a group. See [audit and observability](/docs/concepts/audit-and-observability).
 
 ## Approval request
 
@@ -272,7 +279,7 @@ The envelope is the same for all four:
 | `permdock-snapshot+jwt` | `snapshot`: a Snapshot object | `permdock.snapshot({ signer, audience })`; a `SnapshotSource` (`permdock/cloud` always signs) | The client `PermDockProvider` through `joseTokenVerifier`, or any JOSE library |
 | `permdock-approval+jwt` | `approval`: `{ "token": "pd1.…", "permission", "resource": { "type", "id" }, "status" }` | `approvalsHandler({ signer })` on resolve, for a resume that crosses services | The resuming adapter, which still re-runs `decide` and recomputes the bound `token` |
 | `permdock-decisions+jwt` | `events`: an array of CloudEvents-enveloped events (decision and approval from a sink; any of the five types in a Cloud webhook delivery) | A `DecisionSink` with a `signer` (`memorySink({ signer })` or `signDecisionBatch`) ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline |
-| `permdock-policy+jwt` | `policy`: a PolicyDocument | PermDock Cloud, for each published hosted-grant revision | `cloud().policies.refresh()` through the application's `TokenVerifier`, with `aud` checked |
+| `permdock-policy+jwt` | `policy`: a PolicyDocument | PermDock Cloud, for each published hosted-grant revision | `cloud().policies.refresh()` through the application's `TokenVerifier`, with `iss` and `aud` checked against the environment URL |
 
 Signed snapshot, decoded:
 
@@ -299,8 +306,8 @@ Rules that hold for every signed output:
 - `sub` is redundant with `snapshot.subject.principal.id` by design: a consumer can route or cache on registered claims without parsing the private claim.
 - A signed approval never replaces the bound hash `token`: the resuming adapter verifies the JWS, then compares `approval.token` with a freshly recomputed token exactly as it would for a bare `PermDock-Approval` header. The JWS proves who resolved it; the token proves what was approved.
 - A signed decision batch is evidence, not input: no PermDock code path reads `events` back to make a decision.
-- A signed policy document is the one signed input. It reaches a decision only through `PolicySource.current()`, only for `hostable` permissions, and only after `aud` and `typ` verify; an unverifiable document is absent.
-- Keys are published as a JWK Set at `/.well-known/jwks.json` by any signer that serves consumers outside its process; `permdock/cloud` does. Rotation is the JWKS rule consumers already apply to identity providers: publish the new `kid`, keep the old key until every artefact signed with it has expired.
+- A signed policy document is the one signed input. It reaches a decision only through `PolicySource.current()`, only for `hostable` permissions, and only after `typ`, `iss`, `aud` and `exp` verify; an unverifiable document is absent. Its `iss` and `aud` are both the Cloud environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` (the document is addressed to every instance of the environment, not to one application), and `exp` is `iat` plus 24 hours: an instance that stops refreshing falls back to its code policy within a day.
+- Keys are published as a JWK Set at `/.well-known/jwks.json` by any signer that serves consumers outside its process; PermDock Cloud publishes one per environment at `<PERMDOCK_CLOUD_URL>/v1/environments/<env>/.well-known/jwks.json` (`cloud().jwks`), which verifies every artefact that environment signs. Rotation is the JWKS rule consumers already apply to identity providers: publish the new `kid`, keep the old key until every artefact signed with it has expired.
 - These four `typ` values are recorded on [OpenAPI registry](/docs/standards/openapi-registry); an artefact is never emitted with a `typ` that page does not list.
 
 JWE is not used for any output: snapshots are UI-only and contain nothing the subject may not see, approval tokens are bound hashes, decision batches go to destinations that already hold the events, and a policy document holds grants the application's own code bounds. A team that needs confidentiality wraps the JWS in JWE on its own transport.
@@ -388,6 +395,7 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
   "version": 1,
   "generatedAt": "2026-09-06T10:15:00Z",
   "generator": "@permdock/cli@0.1.0",
+  "fingerprint": "1jqQg7VKp6ix0_g5wSeOLvfUOEsELf0m-_v4rPKvGxc",
   "resources": {
     "post": {
       "id": "id",
@@ -404,14 +412,18 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
     { "key": "post.create", "scope": "post:create", "resource": "post", "action": "create", "arity": "collection",
       "meta": {}, "usages": [] },
     { "key": "auditLog.read", "scope": "auditLog:read", "resource": "auditLog", "action": "read", "arity": "instance",
-      "meta": {}, "usages": [], "hostable": true }
+      "meta": {}, "usages": [], "hostable": true },
+    { "key": "invoice.refund", "scope": "invoice:refund", "resource": "invoice", "action": "refund", "arity": "instance",
+      "meta": {}, "usages": [], "approvals": ["human"] }
   ],
   "roles": [{ "key": "admin", "on": "tenant", "assignable": true }, { "key": "member", "on": "tenant", "assignable": true }],
   "plans": [{ "key": "pro" }]
 }
 ```
 
-`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, each role also carries `on` (`tenant`, `team` or `resource`, omitted for a global role) and `assignable`, and a permission the policy lists in `hostable` carries `hostable: true`; PermDock Cloud reads these to offer only assignable roles and only hostable permissions. `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file byte-for-byte with a fresh run.
+`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, each role also carries `on` (`tenant`, `team` or `resource`, omitted for a global role) and `assignable`, a permission the policy lists in `hostable` carries `hostable: true`, and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by, distinct? }`), absent when none requires one. PermDock Cloud reads these to offer only assignable roles and only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`). `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`.
+
+`fingerprint` identifies the catalog's contract and is what a hosted policy document pins as `catalog`. It is `catalogFingerprint(catalog)` from `permdock`: the base64url SHA-256 of the canonical JSON (object keys sorted by UTF-16 code unit, no whitespace, as in RFC 8785) of the document without `generatedAt`, `generator`, `fingerprint` and every `permissions[].usages`. The clock, the CLI version and call sites therefore never change it; any change to a permission, resource, role, plan, `hostable` or `approvals` does. A reader recomputes it with the same function and rejects a document whose `fingerprint` disagrees.
 
 ### `x-permdock-catalog` in OpenAPI documents
 

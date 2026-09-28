@@ -8,7 +8,7 @@ import { isApprovalError } from '../approvals/errors.ts';
 import { memoryApprovalStore } from '../approvals/store.ts';
 import { joseTokenSigner } from '../jwt/signer.ts';
 import { joseTokenVerifier } from '../jwt/verifier.ts';
-import { cloud } from './create.ts';
+import { cloud, cloudEndpoints } from './create.ts';
 
 const CLOUD_URL = 'https://cloud.permdock.test';
 const KEY = 'env-key';
@@ -94,6 +94,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
           principalId: url.searchParams.get('principalId') ?? undefined,
           actorId: url.searchParams.get('actorId') ?? undefined,
           tenant: url.searchParams.get('tenant') ?? undefined,
+          session: url.searchParams.get('session') ?? undefined,
           limit:
             url.searchParams.get('limit') === null
               ? undefined
@@ -101,6 +102,21 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
           cursor: url.searchParams.get('cursor') ?? undefined,
         }),
       );
+    }
+    if (method === 'POST' && path === '/approvals/cancel') {
+      const body = (await request.json()) as {
+        readonly filter: Parameters<typeof store.cancel>[0];
+        readonly by: string;
+        readonly note?: string;
+      };
+      return json({
+        cancelled: store.cancel(
+          body.filter,
+          body.note === undefined
+            ? { by: body.by }
+            : { by: body.by, note: body.note },
+        ),
+      });
     }
     if (method === 'POST' && path === '/approvals/expire') {
       const body = (await request.json()) as { readonly now?: string };
@@ -115,6 +131,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       return new Response(null, { status: 204 });
     }
     if (method === 'GET' && path === '/snapshot') {
+      expect(request.headers.get('accept')).toBe('application/jwt');
       if (typeof snapshot === 'string') {
         return new Response(snapshot, { status: 200 });
       }
@@ -223,7 +240,47 @@ describe('cloud', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('flushes decision batches and reads snapshots', async () => {
+  it('bounds the re-queue while the Cloud is unreachable, oldest first', async () => {
+    let online = false;
+    const delivered: SinkEvent[][] = [];
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      flushAt: 1,
+      capacity: 3,
+      fetch: async (input, init) => {
+        if (!online) {
+          throw new Error('offline');
+        }
+        const body = (await new Request(input, init).json()) as {
+          readonly events: SinkEvent[];
+        };
+        delivered.push(body.events);
+        return new Response(null, { status: 204 });
+      },
+    });
+    const event = (id: string): SinkEvent => ({
+      type: 'directory',
+      at: new Date().toISOString(),
+      source: 'scim',
+      operation: 'create',
+      tenant: 'o_acme',
+      resource: { type: 'User', id },
+      credential: { kind: 'token' },
+    });
+    for (const id of ['u_1', 'u_2', 'u_3', 'u_4', 'u_5']) {
+      await client.sink.write([event(id)]);
+    }
+    online = true;
+    await client.sink.flush?.();
+    expect(
+      delivered
+        .flat()
+        .map((item) => (item.type === 'directory' ? item.resource.id : '')),
+    ).toEqual(['u_3', 'u_4', 'u_5']);
+  });
+
+  it('flushes decision batches and refuses an unsigned snapshot', async () => {
     const backend = fakeCloud();
     const client = cloud({
       url: `${CLOUD_URL}/`,
@@ -242,7 +299,7 @@ describe('cloud', () => {
     };
     await client.sink.write([event]);
     expect(backend.decisions).toEqual([[event]]);
-    expect(await client.snapshots.get()).toEqual(SNAPSHOT);
+    await expect(client.snapshots.get()).rejects.toThrow(/unsigned/);
   });
 
   it('returns a compact JWS snapshot unchanged', async () => {
@@ -349,6 +406,49 @@ describe('cloud', () => {
     expect(expired).toBeGreaterThanOrEqual(1);
   });
 
+  it('filters by session and cancels pending approvals over HTTP', async () => {
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: fakeCloud().fetch,
+    });
+    const pending = (token: string, session: string): ApprovalRequest => ({
+      v: 1,
+      token,
+      permission: 'post.delete',
+      scope: 'post:delete',
+      resource: { type: 'post', id: token },
+      subject: { principal: { id: 'u_1', roles: ['member'] }, session },
+      detail: 'post.delete requires human approval.',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      status: 'pending',
+    });
+    await client.approvals.create(pending('t_a', 'sid-a'));
+    await client.approvals.create(pending('t_b', 'sid-b'));
+    const bySession = await client.approvals.list({ session: 'sid-a' });
+    expect(bySession.items.map((item) => item.token)).toEqual(['t_a']);
+    expect(
+      await client.approvals.cancel?.(
+        { session: 'sid-a' },
+        { by: 'system:ssf', note: 'session revoked' },
+      ),
+    ).toBe(1);
+    expect((await client.approvals.get('t_a'))?.status).toBe('rejected');
+    expect((await client.approvals.get('t_b'))?.status).toBe('pending');
+  });
+
+  it('throws when the Cloud rejects a cancel', async () => {
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: () => Promise.resolve(new Response(null, { status: 500 })),
+    });
+    await expect(
+      client.approvals.cancel?.({ tenant: 'o_1' }, { by: 'admin' }),
+    ).rejects.toThrow(/cancel/);
+  });
+
   it('resumes an approval once through the Cloud store', async () => {
     const client = cloud({
       url: CLOUD_URL,
@@ -389,10 +489,18 @@ describe('cloud', () => {
       alg: 'Ed25519',
     };
     const { d: _d, ...publicJwk } = PRIVATE_JWK;
+    const ENV_URL = `${CLOUD_URL}/v1/environments/production`;
     const signer = joseTokenSigner({
       key: { ...PRIVATE_JWK },
       alg: 'Ed25519',
       kid: '2026-09',
+      issuer: ENV_URL,
+    });
+    const foreign = joseTokenSigner({
+      key: { ...PRIVATE_JWK },
+      alg: 'Ed25519',
+      kid: '2026-09',
+      issuer: 'https://elsewhere.example',
     });
     const policy = {
       v: 1,
@@ -404,13 +512,27 @@ describe('cloud', () => {
     };
     const good = await signer.sign(
       { policy },
-      { typ: 'permdock-policy+jwt', audience: 'https://app.example.com' },
+      { typ: 'permdock-policy+jwt', audience: ENV_URL },
     );
     const wrongTyp = await signer.sign(
       { policy: { ...policy, id: 'doc_2' } },
-      { typ: 'permdock-snapshot+jwt', audience: 'https://app.example.com' },
+      { typ: 'permdock-snapshot+jwt', audience: ENV_URL },
     );
-    const bodies = [good, wrongTyp, JSON.stringify(policy)];
+    const appAudience = await signer.sign(
+      { policy: { ...policy, id: 'doc_3' } },
+      { typ: 'permdock-policy+jwt', audience: 'https://app.example.com' },
+    );
+    const wrongIssuer = await foreign.sign(
+      { policy: { ...policy, id: 'doc_4' } },
+      { typ: 'permdock-policy+jwt', audience: ENV_URL },
+    );
+    const bodies = [
+      good,
+      wrongTyp,
+      appAudience,
+      wrongIssuer,
+      JSON.stringify(policy),
+    ];
     const paths: string[] = [];
     const fetchImpl: typeof fetch = (input, init) => {
       const request = new Request(input, init);
@@ -428,21 +550,28 @@ describe('cloud', () => {
       key: KEY,
       fetch: fetchImpl,
       verifier,
-      audience: 'https://app.example.com',
     });
-    expect(client.jwks).toBe(`${CLOUD_URL}/.well-known/jwks.json`);
+    expect(client.issuer).toBe(ENV_URL);
+    expect(client.jwks).toBe(`${ENV_URL}/.well-known/jwks.json`);
     expect(client.policies.current()).toBeNull();
     await client.policies.refresh();
     expect(client.policies.current()?.id).toBe('doc_1');
-    await client.policies.refresh();
-    expect(client.policies.current()?.id).toBe('doc_1');
-    await client.policies.refresh();
-    expect(client.policies.current()?.id).toBe('doc_1');
-    expect(paths).toEqual([
-      '/v1/environments/production/policy',
-      '/v1/environments/production/policy',
-      '/v1/environments/production/policy',
-    ]);
+    for (let index = 0; index < 4; index += 1) {
+      await client.policies.refresh();
+      expect(client.policies.current()?.id).toBe('doc_1');
+    }
+    expect(paths).toEqual(
+      Array.from({ length: 5 }, () => '/v1/environments/production/policy'),
+    );
+  });
+
+  it('resolves the environment endpoints like cloud()', () => {
+    expect(
+      cloudEndpoints({ url: `${CLOUD_URL}/`, environment: 'pre view' }),
+    ).toEqual({
+      issuer: `${CLOUD_URL}/v1/environments/pre%20view`,
+      jwks: `${CLOUD_URL}/v1/environments/pre%20view/.well-known/jwks.json`,
+    });
   });
 
   it('never applies a policy document without a verifier', async () => {

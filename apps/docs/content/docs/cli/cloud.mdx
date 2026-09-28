@@ -3,7 +3,7 @@ title: cloud
 description: permdock cloud push publishes the catalog (permissions, hostable flags, roles, plans and relations) to a PermDock Cloud environment so its dashboard and hosted grants follow the code.
 ---
 
-`permdock cloud push` builds the same catalog as [collect](/docs/cli/collect), with the policy's `hostable` flags and each role's `on` and `assignable`, and posts it to a PermDock Cloud environment. The Cloud reads it to offer only declared roles and plans, to hand out only `assignable` roles, to let an admin author hosted grants only on `hostable` permissions, and to serve the hosted AuthZEN endpoint for the published policy ([PermDock Cloud](/docs/adapters/cloud)).
+`permdock cloud push` builds the same catalog as [collect](/docs/cli/collect), with the policy's `hostable` flags, each permission's code `approvals`, and each role's `on` and `assignable`, and posts it to a PermDock Cloud environment. The Cloud reads it to offer only declared roles and plans, to hand out only `assignable` roles, to let an admin author hosted grants only on `hostable` permissions, and to serve the hosted AuthZEN endpoint for the published policy ([PermDock Cloud](/docs/adapters/cloud)).
 
 ## Usage
 
@@ -19,9 +19,9 @@ permdock cloud push --dry-run --json        # print the fingerprint and summary;
 | `--url` | Base URL of the Cloud API; defaults to `PERMDOCK_CLOUD_URL` |
 | `--environment` | The environment name; defaults to `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production` |
 | `--dry-run` | Build the catalog and print its fingerprint without posting it |
-| `--json` | Print `{ fingerprint, permissions, hostable, roles, plans, environment, status }` |
+| `--json` | Print `{ fingerprint, permissions, hostable, roles, plans, grants, environment, status }`; `hostable` is the list of hostable permission keys, the others are counts |
 
-The request is `POST /v1/environments/:env/catalog` with `authorization: Bearer <PERMDOCK_CLOUD_KEY>` and the body `{ fingerprint, catalog, policy }`. `fingerprint` is the base64url SHA-256 of the catalog without `generatedAt`, so two runs over the same code produce the same value. A hosted policy document names the catalog it was authored against in its `catalog` field ([wire formats](/docs/concepts/wire-formats)).
+The request is `POST /v1/environments/:env/catalog` with `authorization: Bearer <PERMDOCK_CLOUD_KEY>` and the body `{ fingerprint, catalog, policy }`. `fingerprint` is `catalogFingerprint(catalog)` from `permdock` and equals the catalog's own `fingerprint` field ([wire formats](/docs/concepts/wire-formats) "Catalog"): the clock, the CLI version and call sites never change it, so two runs over the same contract produce the same value. The Cloud recomputes it and rejects a mismatch. A hosted policy document names the catalog it was authored against in its `catalog` field ([wire formats](/docs/concepts/wire-formats)).
 
 `policy` is present when `permdock.config.ts` names one: `{ fingerprint, scopes, grants }`, where `fingerprint` is the code policy's, `scopes` is its tenant and team keys, and each grant has the snapshot grant shape (`permission` key, `effect`, `role`, `to`, `where`, `check`, `approval`, `scope`, `fields`) plus `limit`. It is what the hosted AuthZEN endpoint evaluates. A closure grant travels as `portable: false` without its function, and the hosted endpoint denies it, so a permission that depends on a closure should be decided in the application.
 
