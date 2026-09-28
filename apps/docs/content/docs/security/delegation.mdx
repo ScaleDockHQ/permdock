@@ -34,6 +34,15 @@ A call with no `actor` is a human call and behaves exactly as `createPermDock(po
 5. **Deny is not delegable away.** A `deny` grant applies regardless of delegation; an agent cannot be delegated around a deny.
 6. **Fail closed on unknowns.** An `authorization_details` type PermDock does not recognise, a scope that matches no permission, or a malformed chain contributes nothing; it never widens.
 
+## Coverage check
+
+`decide`, `snapshot` and the agent kernel share one coverage check, exported from `permdock` as `coveredByDelegation(permission, delegation, resourceId?, hasActor?)`. `permission` needs only `scope`, `resource` and `action`, so a leaf that crossed a serialisation boundary works. It returns `undefined` when the delegation covers the permission, and otherwise the denial reason `decide` adds:
+
+- `no-delegation` when `hasActor` is `true` and there is no delegation, a delegation with no `scopes`, `authorizationDetails` or `access`, or only empty `scopes` and `access` lists.
+- `not-delegated` when no scope equals the permission's `scope`, no `authorizationDetails` entry has `type` equal to the resource with a matching `actions` list and `identifier`, and no GNAP `access` entry matches (a reference string equal to the scope, or an object whose `type` is the resource or ends in `/<resource>`).
+
+A PDP outside PermDock core, such as the PermDock Cloud AuthZEN endpoint, calls it to stay identical to local decisions instead of reimplementing the rules. It narrows only; the principal's grants still decide.
+
 ## How adapters fill `actor` and `delegation`
 
 | Adapter | `actor` | `delegation` |
