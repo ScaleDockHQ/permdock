@@ -325,7 +325,7 @@ describe('permdock rls import of field views', () => {
 });
 
 describe('permdock doctor field views', () => {
-  it('PD028 warns while field-limited columns stay readable on the base table', async () => {
+  it('PD030 warns while field-limited columns stay readable on the base table', async () => {
     const findings = async (rls: string): Promise<readonly string[]> => {
       const cwd = appCopy();
       writeFileSync(
@@ -337,7 +337,7 @@ describe('permdock doctor field views', () => {
 };
 `,
       );
-      const result = await run(['doctor', '--json', '--only', 'PD028'], {
+      const result = await run(['doctor', '--json', '--only', 'PD030'], {
         cwd,
       });
       const report = JSON.parse(result.stdout) as {

@@ -156,7 +156,7 @@ from "invoice";
 - **Field-only grants** (a read deny with `fields`, an allow with an empty list) leave the row policy, because in the application they never decide the row; they live in the masks.
 - **Cost.** Each mask term is the row policy's own uncorrelated helper call, so the helpers still run once per statement, never once per row.
 
-A view alone protects nothing while the table returns the columns to anyone who selects it, so the command warns and doctor PD028 flags it. `--revoke-columns` (`rls.revokeColumns: true`) closes the table: `anon` and `authenticated` keep `select` on only the unrestricted columns and the key. A `security_invoker` view cannot read a column its caller has lost, so the restricted columns come from a companion, `<table>_visible_fields`, which runs with its owner's rights:
+A view alone protects nothing while the table returns the columns to anyone who selects it, so the command warns and doctor PD030 flags it. `--revoke-columns` (`rls.revokeColumns: true`) closes the table: `anon` and `authenticated` keep `select` on only the unrestricted columns and the key. A `security_invoker` view cannot read a column its caller has lost, so the restricted columns come from a companion, `<table>_visible_fields`, which runs with its owner's rights:
 
 ```sql
 create or replace view "invoice_visible_fields" with (security_barrier = true) as

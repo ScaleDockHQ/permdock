@@ -206,7 +206,7 @@ A read deny with `fields` and a read allow with an empty list only shape columns
 
 Without `--revoke-columns` the table still returns every column to a direct read, and the command prints which. With it, the `sql` target replaces the table-level `select` grant by `grant select (<unrestricted columns and key>)` for each role and adds `revoke select (<restricted columns>) ... from anon, authenticated`; `insert`, `update` and `delete` keep their table-level grants, so `returning *` and `select *` on the table fail with `42501` and clients read through the view. `drizzle` and `prisma` put the views and the column statements in the migration comment. With `--force` the companion's owner is subject to the table's policies, which target only `anon` and `authenticated`, so it needs `BYPASSRLS` or every restricted column reads as `null`; the command warns.
 
-Doctor PD028 warns while field-limited columns stay readable on the table ([doctor](/docs/cli/doctor)).
+Doctor PD030 warns while field-limited columns stay readable on the table ([doctor](/docs/cli/doctor)).
 
 ## import
 
