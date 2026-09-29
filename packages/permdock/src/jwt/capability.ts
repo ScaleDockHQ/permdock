@@ -1,4 +1,8 @@
-import type { LinkPrincipal } from '../core/capability.ts';
+import type {
+  Capability,
+  LinkPolicy,
+  LinkPrincipal,
+} from '../core/capability.ts';
 import type {
   AuthEvent,
   TokenFailureCause,
@@ -10,6 +14,7 @@ import type { JoseTokenVerifierOptions } from './types.ts';
 
 import {
   capabilitySubject,
+  linkPolicyViolation,
   parseCapability,
   redeemerAllows,
 } from '../core/capability.ts';
@@ -23,7 +28,8 @@ export type CapabilityFailureCause =
   | TokenFailureCause
   | 'capability-revoked'
   | 'capability-replayed'
-  | 'redeemer-mismatch';
+  | 'redeemer-mismatch'
+  | 'link-policy';
 
 export type CapabilitySubjectOptions = Omit<
   JoseTokenVerifierOptions,
@@ -34,6 +40,17 @@ export type CapabilitySubjectOptions = Omit<
   /** The application the capability was signed for (`aud`); required. */
   readonly audience: string | readonly string[];
   readonly verifier?: TokenVerifier;
+  /**
+   * The link policies of the scope instances the linked resource sits in
+   * (its tenant, its customer); every one must hold. A throw denies.
+   */
+  readonly linkPolicy?: (
+    capability: Capability,
+  ) =>
+    | LinkPolicy
+    | readonly LinkPolicy[]
+    | undefined
+    | Promise<LinkPolicy | readonly LinkPolicy[] | undefined>;
   /** `true` when the application revoked the link id (`sub`); a throw denies. */
   readonly revoked?: (id: string) => boolean | Promise<boolean>;
   /** Claims the `jti` of a one-time capability; a one-time capability without it is refused. */
@@ -89,11 +106,22 @@ async function claimOnce(
 
 async function stores(
   options: CapabilitySubjectOptions,
-  id: string,
+  capability: Capability,
+  issuedAt: number | undefined,
   once: { readonly key: string; readonly expiresAt: number } | undefined,
 ): Promise<Outcome | CapabilityFailureCause> {
   try {
-    if (options.revoked !== undefined && (await options.revoked(id))) {
+    const policy = await options.linkPolicy?.(capability);
+    if (
+      policy !== undefined &&
+      linkPolicyViolation(capability, policy, issuedAt) !== undefined
+    ) {
+      return 'link-policy';
+    }
+    if (
+      options.revoked !== undefined &&
+      (await options.revoked(capability.id))
+    ) {
       return 'capability-revoked';
     }
     if (
@@ -185,9 +213,11 @@ export async function subjectFromCapability(
   ) {
     return deny('invalid-claims');
   }
+  const iat = verified.claims.iat;
   const checked = await stores(
     options,
-    capability.id,
+    capability,
+    typeof iat === 'number' ? iat : undefined,
     capability.once === true
       ? {
           key: `capability\u0000${options.issuer}\u0000${String(jti)}`,

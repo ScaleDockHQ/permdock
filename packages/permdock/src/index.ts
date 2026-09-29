@@ -217,6 +217,7 @@ export { catalogFingerprint } from './core/catalog-fingerprint.ts';
 export { coveredByDelegation } from './core/delegation.ts';
 export {
   capabilitySubject,
+  linkPolicyViolation,
   parseCapability,
   signCapability,
 } from './core/capability.ts';
@@ -224,6 +225,8 @@ export type {
   Capability,
   CapabilityInput,
   CapabilityRedeemer,
+  LinkPolicy,
+  LinkPolicyViolation,
   LinkPrincipal,
   SignCapabilityOptions,
 } from './core/capability.ts';

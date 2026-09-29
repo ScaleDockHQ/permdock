@@ -7,6 +7,7 @@ import type { Subject } from './subject.ts';
 import {
   capabilityOf,
   capabilitySubject,
+  linkPolicyViolation,
   parseCapability,
   redeemerAllows,
   signCapability,
@@ -352,5 +353,98 @@ describe('signCapability', () => {
         expiresAt: future(),
       }),
     ).toThrow(/invalid capability/u);
+  });
+});
+
+describe('linkPolicyViolation', () => {
+  const issuedAt = 1_900_000_000;
+  const base = capabilityOf({
+    id: 'lnk_1',
+    on: { resource: permissions.quote, id: 'q_1' },
+    roles: ['guest'],
+    expiresAt: issuedAt + 7 * 86_400,
+  });
+
+  it('passes a link inside every policy', () => {
+    expect(
+      linkPolicyViolation(
+        base,
+        [{ maxLifetime: 30 * 86_400 }, { redeemers: ['anyone', 'user'] }],
+        issuedAt,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('refuses a link that outlives the maximum lifetime', () => {
+    expect(linkPolicyViolation(base, { maxLifetime: 86_400 }, issuedAt)).toBe(
+      'lifetime',
+    );
+  });
+
+  it('fails closed on an unknown issue time or a malformed maximum', () => {
+    expect(
+      linkPolicyViolation(base, { maxLifetime: 30 * 86_400 }, undefined),
+    ).toBe('lifetime');
+    expect(
+      linkPolicyViolation(base, { maxLifetime: Number.NaN }, issuedAt),
+    ).toBe('lifetime');
+    expect(linkPolicyViolation(base, { maxLifetime: -1 }, issuedAt)).toBe(
+      'lifetime',
+    );
+  });
+
+  it('refuses a redeemer kind the policy does not allow', () => {
+    expect(
+      linkPolicyViolation(base, { redeemers: ['signed-in'] }, issuedAt),
+    ).toBe('redeemer');
+    expect(linkPolicyViolation(base, { redeemers: [] }, issuedAt)).toBe(
+      'redeemer',
+    );
+    const scoped = { ...base, redeemer: { scope: 'organization', id: 'o_1' } };
+    expect(
+      linkPolicyViolation(scoped, { redeemers: ['scope'] }, issuedAt),
+    ).toBeUndefined();
+  });
+
+  it('requires one-time links when the policy says so', () => {
+    expect(linkPolicyViolation(base, { once: true }, issuedAt)).toBe('once');
+    expect(
+      linkPolicyViolation({ ...base, once: true }, { once: true }, issuedAt),
+    ).toBeUndefined();
+  });
+
+  it('applies the strictest of several scope policies', () => {
+    expect(
+      linkPolicyViolation(base, [{}, { maxLifetime: 3600 }], issuedAt),
+    ).toBe('lifetime');
+  });
+
+  it('refuses to sign a link the policy would refuse', async () => {
+    const signer: TokenSigner = { sign: () => Promise.resolve('jws') };
+    await expect(
+      signCapability(
+        {
+          id: 'lnk_1',
+          on: { resource: permissions.quote, id: 'q_1' },
+          roles: ['guest'],
+          expiresAt: future(),
+        },
+        signer,
+        { linkPolicy: { once: true } },
+      ),
+    ).rejects.toThrow(/link policy \(once\)/u);
+    await expect(
+      signCapability(
+        {
+          id: 'lnk_1',
+          on: { resource: permissions.quote, id: 'q_1' },
+          roles: ['guest'],
+          once: true,
+          expiresAt: future(),
+        },
+        signer,
+        { linkPolicy: { once: true, maxLifetime: 2 * HOUR } },
+      ),
+    ).resolves.toBe('jws');
   });
 });

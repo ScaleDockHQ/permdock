@@ -269,6 +269,50 @@ describe('subjectFromCapability', () => {
     expect(signedIn.subject.principal?.kind).toBe('link');
   });
 
+  it("refuses a link the linked scope's policy forbids", async () => {
+    const token = await link();
+    const seen: string[] = [];
+    const strict = await resolve(token, {
+      linkPolicy: (capability) => {
+        seen.push(capability.on.id);
+        return [{ maxLifetime: 30 * 86_400 }, { once: true }];
+      },
+    });
+    expect(seen).toEqual(['q_1']);
+    expect(strict.subject.principal).toBeNull();
+    expect(strict.events[0]?.cause).toBe('link-policy');
+    const short = await resolve(token, {
+      linkPolicy: () => Promise.resolve({ maxLifetime: 60 }),
+    });
+    expect(short.events[0]?.cause).toBe('link-policy');
+    const allowed = await resolve(token, {
+      linkPolicy: () => ({ maxLifetime: 2 * 3600, redeemers: ['anyone'] }),
+    });
+    expect(allowed.subject.principal?.id).toBe('lnk_1');
+    const none = await resolve(token, { linkPolicy: () => undefined });
+    expect(none.subject.principal?.id).toBe('lnk_1');
+  });
+
+  it('fails closed when the link policy lookup throws', async () => {
+    const { subject, events } = await resolve(await link(), {
+      linkPolicy: () => Promise.reject(new Error('db down')),
+    });
+    expect(subject.principal).toBeNull();
+    expect(events[0]).toMatchObject({ reason: 'source-threw' });
+  });
+
+  it('does not burn a one-time link its policy refuses', async () => {
+    const token = await link({ once: true });
+    const replay = memoryReplayStore();
+    const refused = await resolve(token, {
+      replay,
+      linkPolicy: () => ({ redeemers: ['signed-in'] }),
+    });
+    expect(refused.events[0]?.cause).toBe('link-policy');
+    const later = await resolve(token, { replay });
+    expect(later.subject.principal?.id).toBe('lnk_1');
+  });
+
   it('is anonymous when issuer or audience is missing', async () => {
     const token = await link();
     const noIssuer = await resolve(token, { issuer: '' });

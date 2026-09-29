@@ -1,7 +1,7 @@
 {
-  ".": 57623,
+  ".": 58021,
   "./approvals": 16359,
-  "./jwt": 19675,
+  "./jwt": 20137,
   "./react": 33237,
   "./react-native": 34347,
   "./next": 67506,
@@ -33,7 +33,7 @@
   "./drizzle": 10628,
   "./prisma": 10298,
   "./kysely": 10480,
-  "./supabase": 10963,
+  "./supabase": 11347,
   "./supabase/middleware": 62538,
   "./ssf": 23601,
   "./better-auth": 24328,
@@ -43,7 +43,7 @@
   "./testing": 95653,
   "./testing/saas": 55916,
   "./testing/saas/permissions": 49806,
-  "./cli": 223188,
+  "./cli": 223572,
   "./unplugin": 58534,
   "./next/plugin": 57805
 }

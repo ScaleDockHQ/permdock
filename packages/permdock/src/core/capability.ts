@@ -58,9 +58,73 @@ export type CapabilityInput = {
   readonly expiresAt: number;
 };
 
+/**
+ * What one scope instance (a tenant, a customer) allows for links on its
+ * resources. Every field only tightens; several policies must all hold.
+ */
+export type LinkPolicy = {
+  /** Longest a link may live, in seconds from when it was issued. */
+  readonly maxLifetime?: number;
+  /** Redeemer kinds allowed; `anyone` also covers a capability without `redeemer`. */
+  readonly redeemers?: readonly ('anyone' | 'signed-in' | 'user' | 'scope')[];
+  /** Every link must be one-time. */
+  readonly once?: boolean;
+};
+
+export type LinkPolicyViolation = 'lifetime' | 'redeemer' | 'once';
+
 export type SignCapabilityOptions = {
   readonly audience?: string | readonly string[];
+  /** Refuse to sign a link these policies would refuse at resolution. */
+  readonly linkPolicy?: LinkPolicy | readonly LinkPolicy[];
 };
+
+function redeemerKind(
+  redeemer: CapabilityRedeemer | undefined,
+): 'anyone' | 'signed-in' | 'user' | 'scope' {
+  if (redeemer === undefined || typeof redeemer === 'string') {
+    return redeemer ?? 'anyone';
+  }
+  return 'user' in redeemer ? 'user' : 'scope';
+}
+
+/**
+ * The first rule of `policy` the capability breaks, or `undefined`. A
+ * lifetime rule without a known `issuedAt`, or one that is not a finite
+ * non-negative number, is broken: the check fails closed.
+ */
+export function linkPolicyViolation(
+  capability: Capability,
+  policy: LinkPolicy | readonly LinkPolicy[],
+  issuedAt: number | undefined,
+): LinkPolicyViolation | undefined {
+  const policies: readonly LinkPolicy[] = Array.isArray(policy)
+    ? policy
+    : [policy as LinkPolicy];
+  for (const item of policies) {
+    const max = item.maxLifetime;
+    if (
+      max !== undefined &&
+      (typeof max !== 'number' ||
+        !Number.isFinite(max) ||
+        max < 0 ||
+        issuedAt === undefined ||
+        capability.expiresAt - issuedAt > max)
+    ) {
+      return 'lifetime';
+    }
+    if (
+      item.redeemers !== undefined &&
+      !item.redeemers.includes(redeemerKind(capability.redeemer))
+    ) {
+      return 'redeemer';
+    }
+    if (item.once === true && capability.once !== true) {
+      return 'once';
+    }
+  }
+  return undefined;
+}
 
 const MAX_ID = 256;
 const MAX_ENTRIES = 64;
@@ -212,6 +276,19 @@ export function signCapability(
   options: SignCapabilityOptions = {},
 ): Promise<string> {
   const capability = capabilityOf(input);
+  const violation =
+    options.linkPolicy === undefined
+      ? undefined
+      : linkPolicyViolation(
+          capability,
+          options.linkPolicy,
+          Math.floor(Date.now() / 1000),
+        );
+  if (violation !== undefined) {
+    return Promise.reject(
+      new Error(`PermDock: capability breaks the link policy (${violation})`),
+    );
+  }
   return signer.sign(
     { capability, sub: capability.id },
     compact<Parameters<TokenSigner['sign']>[1]>({
