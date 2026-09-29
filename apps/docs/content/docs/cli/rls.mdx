@@ -85,7 +85,7 @@ rls: {
 }
 ```
 
-`tenant` and `team` on a table are shorthands for the first and second scope's column, so `{ table, tenant: 'org_id', user, role }` keeps working. `via` names the column holding the membership kind (`Membership.via`): when a role declares `for`, the helpers count it only on rows whose kind is listed, and a table without a `via` column holds such a role for nothing. In `jwt` mode the kind is the membership entry's `via`, and a role with `for` in the global role claim grants nothing.
+`tenant` and `team` on a table are shorthands for the first and second scope's column, so `{ table, tenant: 'org_id', user, role }` keeps working. `via` names the column holding the membership kind (`Membership.via`): when a role declares `for`, the helpers and the `exists` checks on resource and nested-scope membership tables count it only on rows whose kind is listed, and a table without a `via` column holds such a role for nothing. In `jwt` mode the kind is the membership entry's `via`, and a role with `for` in the global role claim grants nothing.
 
 ### Suspension
 

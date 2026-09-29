@@ -161,3 +161,57 @@ describe('rls generate --capabilities', () => {
     expect(anonNames(['link'])).toContain('quote_select_anon');
   });
 });
+
+describe('rls generate with resource roles that set for', () => {
+  const members = (via?: string) => ({
+    table: 'folder_members',
+    id: 'folder_id',
+    user: 'user_id',
+    role: 'role',
+    ...(via === undefined ? {} : { via }),
+  });
+  const select = (via?: string) =>
+    generate({
+      ...base,
+      memberships: {
+        resource: {
+          quote: { ...members(via), table: 'quote_members', id: 'quote_id' },
+          folder: members(via),
+        },
+      },
+      ownership: {
+        kinds: { commenter: ['staff'] },
+        assigns: [],
+        counted: [],
+      },
+    }).policies.find((item) => item.name === 'file_select')?.using;
+
+  it('checks the membership kind column', () => {
+    expect(select('via')).toContain(
+      `coalesce(m."via"::text, '') = any(array['staff']::text[])`,
+    );
+  });
+
+  it('holds the role for nothing without a kind column', () => {
+    expect(select()).toContain(`coalesce(null::text, '')`);
+  });
+
+  it('leaves a resource role without for unfiltered', () => {
+    const quote = generate({
+      ...base,
+      memberships: {
+        resource: {
+          quote: { ...members('via'), table: 'quote_members', id: 'quote_id' },
+          folder: members('via'),
+        },
+      },
+      ownership: {
+        kinds: { commenter: ['staff'] },
+        assigns: [],
+        counted: [],
+      },
+    }).policies.find((item) => item.name === 'quote_select')?.using;
+    expect(quote).toContain('quote_members');
+    expect(quote).not.toContain('coalesce');
+  });
+});

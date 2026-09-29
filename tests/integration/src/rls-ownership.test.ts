@@ -2,11 +2,13 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createPermDock } from 'permdock';
 import { run } from 'permdock/cli';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Postgres } from './support/postgres.ts';
 
+import { permissions, policy } from '../fixtures/ownership/policy.ts';
 import { startPostgres } from './support/postgres.ts';
 
 const FIXTURE = join(
@@ -22,7 +24,19 @@ create table org_members (org_id text not null, user_id text not null, role text
 create table payment (id text primary key, org_id text not null);
 insert into org_members values
   ('o1', 'u1', 'primary'), ('o1', 'u2', 'approver'), ('o1', 'u3', 'approver');
+create table ledger (id text primary key);
+create table ledger_members (ledger_id text not null, user_id text not null, role text not null, via text);
+insert into ledger values ('l1'), ('l2');
+insert into ledger_members values
+  ('l1', 'u1', 'reviewer', 'staff'), ('l1', 'u2', 'reviewer', 'link'), ('l1', 'u3', 'reviewer', null);
+grant select on ledger, ledger_members to authenticated;
 `;
+
+const LEDGER_MEMBERS: Readonly<Record<string, string | undefined>> = {
+  u1: 'staff',
+  u2: 'link',
+  u3: undefined,
+};
 
 describe('ownership triggers in generated RLS', () => {
   let db: Postgres | undefined;
@@ -111,4 +125,34 @@ describe('ownership triggers in generated RLS', () => {
     expect(await can('u2', 'approver')).toBe(false);
     expect(await can('', 'approver')).toBe(false);
   });
+
+  it.each(Object.entries(LEDGER_MEMBERS))(
+    'agrees with can() on a resource role with for (%s)',
+    async (user, via) => {
+      const dock = await createPermDock(policy, {
+        id: user,
+        memberships: [
+          {
+            on: { resource: 'ledger', id: 'l1' },
+            roles: ['reviewer'],
+            ...(via === undefined ? {} : { via }),
+          },
+        ],
+      });
+      const visible = await db!.as(
+        { role: 'authenticated', settings: { 'app.user_id': user } },
+        async () =>
+          (
+            await db!.tester.query<{ readonly id: string }>(
+              'select id from ledger order by id',
+            )
+          ).rows.map((row) => row.id),
+      );
+      const expected = ['l1', 'l2'].filter((id) =>
+        dock.can(permissions.ledger.read, { id }),
+      );
+      expect(visible).toEqual(expected);
+      expect(visible).toEqual(via === 'staff' ? ['l1'] : []);
+    },
+  );
 });
