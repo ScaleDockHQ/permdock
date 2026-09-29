@@ -93,7 +93,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `{ check }` | Portable condition on the next row (RLS `WITH CHECK`) for `create` and `update` |
 | `{ where, check }` | Both, for `update` |
 | `(data, ctx) => boolean` | Closure: runtime only, branded non-portable |
-| `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person other than the actor and the principal approve. `{ by }` names eligible approvers with the same grantee selectors as `to`. `distinct` defaults to `true`; `distinct: false` lets the principal approve their own request (doctor PD024 lists each one) |
+| `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person other than the actor and the principal approve. `{ by }` names eligible approvers with the same grantee selectors as `to`. `distinct` defaults to `true`; `distinct: false` lets the principal approve their own request (doctor PD024 lists each one). `staleOn: 'resource-change'` binds the approval to the row's `version` field, so it no longer applies once the row changes ([approval security](/docs/security/approvals#approvals-that-go-stale)) |
 | `{ ..., limit: { count, per, mode?, alertAt? } }` | Quota grant: non-portable, needs a `LimitStore`. `mode: 'hard'` (default) denies past `count`; `mode: 'soft'` grants with an `over-limit` obligation; `alertAt` adds a `near-limit` obligation |
 | `{ ..., fields: ['title', 'body'] }` | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches |
 

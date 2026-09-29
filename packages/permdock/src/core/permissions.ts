@@ -65,6 +65,11 @@ export type ResourceOptions<
   readonly collection?: C;
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
+  /**
+   * The row field that changes whenever the row does (`updatedAt`, a revision
+   * counter). An `approval: { staleOn: 'resource-change' }` binds to its value.
+   */
+  readonly version?: string;
 };
 
 export type ResourceInit<
@@ -84,6 +89,7 @@ export type ResourceNode<T = unknown> = {
   readonly id: string;
   readonly parent: ResourceParent | undefined;
   readonly relations: Readonly<Record<string, ResourceRelation>>;
+  readonly version: string | undefined;
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
 };
@@ -325,6 +331,10 @@ function materialiseResource(
       throw new Error(`PermDock: resource '${name}' cannot parent itself`);
     }
   }
+  const version = init.options.version;
+  if (version !== undefined) {
+    assertSafeKey(version, 'version field');
+  }
   const relations: Record<string, ResourceRelation> = {};
   for (const [relationName, spec] of Object.entries(
     init.options.relations ?? {},
@@ -342,6 +352,7 @@ function materialiseResource(
     id: init.options.id ?? 'id',
     parent: parent === undefined ? undefined : freezeDeep({ ...parent }),
     relations: freezeDeep(relations),
+    version,
     instanceActions: instanceSet,
     collectionActions: collectionSet,
   });

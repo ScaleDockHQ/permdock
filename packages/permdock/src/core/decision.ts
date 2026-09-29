@@ -29,6 +29,7 @@ export type DenialReason =
   | 'not-allowed-for-membership'
   | 'conflicting-role'
   | 'approval'
+  | 'stale-approval'
   | 'pdp-denied'
   | 'pdp-unavailable'
   | 'pdp-invalid-response'

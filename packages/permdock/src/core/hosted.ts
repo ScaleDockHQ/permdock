@@ -208,18 +208,23 @@ export function isPortableCondition(value: unknown): value is Condition {
   }
 }
 
-function approvalRank(
-  approval: Grant['approval'],
-): { readonly by?: string; readonly distinct: boolean } | undefined {
+function approvalRank(approval: Grant['approval']):
+  | {
+      readonly by?: string;
+      readonly distinct: boolean;
+      readonly stale: boolean;
+    }
+  | undefined {
   if (approval === undefined) {
     return undefined;
   }
   if (approval === 'human') {
-    return { distinct: true };
+    return { distinct: true, stale: false };
   }
   return {
     by: JSON.stringify(approval.by),
     distinct: approval.distinct !== false,
+    stale: approval.staleOn === 'resource-change',
   };
 }
 
@@ -238,6 +243,9 @@ function approvalAtLeast(
       return false;
     }
     if (theirs.distinct && !mine.distinct) {
+      return false;
+    }
+    if (theirs.stale && !mine.stale) {
       return false;
     }
     if (theirs.by !== undefined && mine.by !== theirs.by) {
@@ -293,6 +301,14 @@ function approvalAcceptable(
   if (
     approval.distinct !== undefined &&
     typeof approval.distinct !== 'boolean'
+  ) {
+    return false;
+  }
+  if (
+    approval.staleOn !== undefined &&
+    (approval.staleOn !== 'resource-change' ||
+      getResource(policy.permissions, permissionResource)?.version ===
+        undefined)
   ) {
     return false;
   }

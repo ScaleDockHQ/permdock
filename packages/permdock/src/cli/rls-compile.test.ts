@@ -217,7 +217,10 @@ describe('tenant claim casts', () => {
 describe('compileGrants approval grants', () => {
   it('skips every grant that requires approval, not only human', () => {
     const tree = definePermissions({
-      invoice: resource({ actions: ['read', 'pay', 'void'] }),
+      invoice: resource({
+        actions: ['read', 'pay', 'void', 'close'],
+        version: 'updatedAt',
+      }),
     });
     const withApprovals = definePolicy(tree, {
       subject: () => null,
@@ -226,6 +229,9 @@ describe('compileGrants approval grants', () => {
           allow(tree.invoice.read),
           allow(tree.invoice.pay, { approval: 'human' }),
           allow(tree.invoice.void, { approval: { distinct: false } }),
+          allow(tree.invoice.close, {
+            approval: { staleOn: 'resource-change' },
+          }),
         ]),
       ],
     });
@@ -243,6 +249,7 @@ describe('compileGrants approval grants', () => {
     expect(warnings).toEqual([
       'skipped approval grant clerk/invoice.pay',
       'skipped approval grant clerk/invoice.void',
+      'skipped approval grant clerk/invoice.close',
     ]);
   });
 });

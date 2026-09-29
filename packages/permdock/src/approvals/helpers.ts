@@ -96,6 +96,7 @@ export async function requestApproval(
       : compact<ApprovalApprovers>({
           by: approval.by,
           distinct: approval.distinct,
+          staleOn: approval.staleOn,
         });
   const request = freezeDeep(
     compact<ApprovalRequest>({
@@ -192,11 +193,58 @@ function approvalDenied(
   };
 }
 
+function staleOnChange(
+  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
+): boolean {
+  const approval = decision.grant.approval;
+  return (
+    approval !== undefined &&
+    approval !== 'human' &&
+    approval.staleOn === 'resource-change'
+  );
+}
+
+/**
+ * True when `token` names a pending or approved request for this permission,
+ * resource and principal: the same request, issued while the row had another
+ * `version`.
+ */
+async function isStaleToken(
+  store: ApprovalStore,
+  token: string,
+  input: {
+    readonly permission: { readonly key: string };
+    readonly resource: { readonly type: string; readonly id?: string };
+    readonly subject: Subject;
+  },
+): Promise<boolean> {
+  const principal = input.subject.principal;
+  if (principal === null) {
+    return false;
+  }
+  let request: ApprovalRequest | null;
+  try {
+    request = await store.get(token);
+  } catch {
+    return false;
+  }
+  return (
+    request !== null &&
+    (request.status === 'approved' || request.status === 'pending') &&
+    request.permission === input.permission.key &&
+    request.resource.type === input.resource.type &&
+    request.resource.id === input.resource.id &&
+    request.subject.principal?.id === principal.id
+  );
+}
+
 /**
  * Applies a resume token to a decision. The token only matters when the
  * decision is `approval-required` and the token is the one this call was
  * issued; otherwise a new approval is requested. A matching token is consumed
- * unless `consume` is `false`, so an approval resumes exactly one call.
+ * unless `consume` is `false`, so an approval resumes exactly one call. Under
+ * `staleOn: 'resource-change'`, a token issued for an earlier version of the
+ * same row denies with `stale-approval`; the next call without it asks again.
  */
 export async function resumeDecision(input: {
   readonly decision: Decision;
@@ -221,6 +269,18 @@ export async function resumeDecision(input: {
     return decision;
   }
   if (token === undefined || token !== decision.token) {
+    if (
+      store !== undefined &&
+      token !== undefined &&
+      staleOnChange(decision) &&
+      (await isStaleToken(store, token, input))
+    ) {
+      return {
+        outcome: 'denied',
+        denials: [{ role: null, reason: 'stale-approval' }],
+        alternatives: [],
+      };
+    }
     if (store !== undefined) {
       await requestApproval(
         store,

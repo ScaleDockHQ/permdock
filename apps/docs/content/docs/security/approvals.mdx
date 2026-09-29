@@ -32,9 +32,27 @@ Properties:
 - Deterministic for the same inputs, so a resumed request can recompute and compare.
 - Includes `actor`, so an approval obtained by one agent cannot be spent by another.
 - Does not include a timestamp; expiry lives on the `ApprovalRequest` record in the store, not in the token.
+- Includes the row's `version` field only for a grant with `approval: { staleOn: 'resource-change' }` (below).
 - Carries no secret material and reveals nothing beyond what the caller already knows.
 
 On resume, the adapter recomputes the token from the actual call being made and compares it with the approved token. A mismatch is `denied` with a reason of kind `approval`. A signed `permdock-approval+jwt` never replaces this comparison: it proves who resolved the request, the token proves what was approved.
+
+## Approvals that go stale
+
+By default the token binds the row's id, not its content: an approval for "pay invoice inv_1" stays valid if the amount changes between the ask and the resume. For actions where the approver approves the content (a payment amount, a contract text, a deploy target), the grant binds the approval to the row's version:
+
+```ts
+const permissions = definePermissions({
+  invoice: resource(Invoice, { actions: ['pay'], version: 'updatedAt' }),
+})
+
+allow(permissions.invoice.pay, { approval: { by: roles.finance, staleOn: 'resource-change' } })
+```
+
+- `version` on `resource()` names the row field that changes whenever the row does: an `updatedAt` timestamp or a revision counter. Its value (a `Date` as ISO text, a string, a number) joins the token input; a row without the field hashes as `null`.
+- `staleOn: 'resource-change'` needs an instance action on a resource that declares `version`. `definePolicy` throws otherwise, and a hosted grant that sets it on such a resource is dropped as `invalid`.
+- On resume, `decide` runs on the current row, so a changed version recomputes a different token and the approval no longer applies. When the presented token names a pending or approved request for the same permission, resource and principal, the resume is `denied` with reason `stale-approval`, and the old record is not consumed. The next call without that token is a new `approval-required` with a new token, and the approver sees the row as it is now.
+- Grants without `staleOn` hash exactly what they hashed before, so their tokens do not change.
 
 ## The store
 
@@ -103,6 +121,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 
 ## Why
 
+- **Approvals can bind content, not only identity.** An approval is a person's judgement about what they saw. When the row can change between the ask and the resume, someone could get a small refund approved and then raise the amount before the retry. The version field is the cheapest stable signal of "the row changed" that every database already has, and putting it in the token reuses the existing comparison instead of adding a second check. It is opt-in per grant because most approvals are about the action on a row ("delete this post"), and forcing re-approval on every unrelated edit would train approvers to click yes. The resume says `stale-approval` rather than a generic mismatch, so the client can tell the user to ask again instead of retrying the same token.
 - **Four eyes is the default, not an option.** A user who can approve their own request turns an approval into a confirmation dialog: the person who wants the refund is the person who says yes. So the principal is refused unless the grant opts out. Where a confirmation is what the product wants (the user approving their own agent's call in a chat), `approval: { distinct: false }` says so on the grant and PD024 keeps the list visible in review. Separation between the agent and its user was already guaranteed by the actor rule; this closes the one between the user and themselves.
 
 ## Sources

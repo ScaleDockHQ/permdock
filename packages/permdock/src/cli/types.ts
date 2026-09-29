@@ -132,7 +132,11 @@ export type CatalogPermission = {
 
 export type CatalogApproval =
   | 'human'
-  | { readonly by?: unknown; readonly distinct?: boolean };
+  | {
+      readonly by?: unknown;
+      readonly distinct?: boolean;
+      readonly staleOn?: 'resource-change';
+    };
 
 export type CatalogResource = {
   readonly id: string;
@@ -141,6 +145,8 @@ export type CatalogResource = {
   readonly relations?: Readonly<
     Record<string, { readonly field: string; readonly memberOf?: string }>
   >;
+  /** The row field an `approval: { staleOn: 'resource-change' }` binds to. */
+  readonly version?: string;
 };
 
 export type CatalogRole = {

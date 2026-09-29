@@ -119,6 +119,7 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'not-allowed-for-membership':
       case 'conflicting-role':
       case 'approval':
+      case 'stale-approval':
       case 'undocumented':
       case 'unsupported':
         return true;

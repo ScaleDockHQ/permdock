@@ -30,7 +30,7 @@ import {
 import { scopeList, tenantOf } from './scopes.ts';
 import { inTeam, matchScopedMembership, nowSeconds } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
-import { decisionToken } from './token.ts';
+import { decisionToken, versionOf } from './token.ts';
 import { validateBoundary } from './validation.ts';
 import { listRoles } from './vocabulary.ts';
 
@@ -694,6 +694,14 @@ export function evaluate(
             (current as Record<string, unknown>)[resource?.id ?? 'id'] ?? '*',
           )
         : '*';
+  const approval = matchedAllow.grant.approval;
+  const version =
+    approval !== undefined &&
+    approval !== 'human' &&
+    approval.staleOn === 'resource-change' &&
+    resource?.version !== undefined
+      ? versionOf(current, resource.version)
+      : undefined;
   const token = env.simulated
     ? 'pd1.simulated'
     : decisionToken({
@@ -702,6 +710,7 @@ export function evaluate(
         principal: subject.principal,
         actor: subject.actor,
         fingerprint: policy.fingerprint,
+        version,
       });
   const matched = compact<MatchedGrant>({
     role: matchedAllow.grant.role,

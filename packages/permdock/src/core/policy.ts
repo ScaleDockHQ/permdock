@@ -74,6 +74,8 @@ export type ApprovalRequirement = {
   readonly by: Grantee | readonly Grantee[];
   /** `false` lets the request's principal approve it; absent means `true`. */
   readonly distinct?: boolean;
+  /** `'resource-change'` binds the approval to the row's `version` field. */
+  readonly staleOn?: 'resource-change';
 };
 
 export type ApprovalOption =
@@ -82,6 +84,12 @@ export type ApprovalOption =
       readonly by?: GranteeInput;
       /** `false` lets the request's principal approve it; absent means `true`. */
       readonly distinct?: boolean;
+      /**
+       * `'resource-change'`: the approval covers the row as it was when it was
+       * requested. The resource must declare `version`; once that field
+       * changes, resuming denies with `stale-approval`.
+       */
+      readonly staleOn?: 'resource-change';
     };
 
 /**
@@ -235,13 +243,26 @@ export function normalizeApproval(
   if (approval === 'human') {
     return 'human';
   }
+  if (
+    approval.staleOn !== undefined &&
+    approval.staleOn !== 'resource-change'
+  ) {
+    throw new Error(
+      `PermDock: approval staleOn must be 'resource-change', got '${String(approval.staleOn)}'`,
+    );
+  }
   const by = approval.by === undefined ? undefined : asGrantee(approval.by);
-  if (by === undefined && approval.distinct === undefined) {
+  if (
+    by === undefined &&
+    approval.distinct === undefined &&
+    approval.staleOn === undefined
+  ) {
     return 'human';
   }
   return compact<ApprovalRequirement>({
     by: by ?? authenticated(),
     distinct: approval.distinct,
+    staleOn: approval.staleOn,
   });
 }
 
@@ -664,6 +685,37 @@ function assertScopeKeys(
   }
 }
 
+/**
+ * A stale-on-change approval needs a row to version: an instance permission
+ * whose resource declares `version`.
+ */
+function assertApprovalVersions(
+  grants: readonly Grant[],
+  resources: ReadonlyMap<string, ResourceNode>,
+): void {
+  for (const grant of grants) {
+    const approval = grant.approval;
+    if (
+      approval === undefined ||
+      approval === 'human' ||
+      approval.staleOn === undefined
+    ) {
+      continue;
+    }
+    if (grant.permission.kind !== 'instance') {
+      throw new Error(
+        `PermDock: approval staleOn on '${grant.permission.key}' needs an instance action; a collection action has no row to version`,
+      );
+    }
+    const node = resources.get(grant.permission.resource);
+    if (node?.version === undefined) {
+      throw new Error(
+        `PermDock: approval staleOn on '${grant.permission.key}' needs resource(..., { version: '<field>' }) on '${grant.permission.resource}'`,
+      );
+    }
+  }
+}
+
 function isVocabularyInput(value: unknown): value is PolicyVocabulary {
   return (
     value !== null &&
@@ -807,6 +859,7 @@ export function definePolicy<
     .map((grant) => rescopeGrant(grant, scopes));
   const grants = [...fromBindings, ...fromGrants];
   assertScopeKeys(grants, scopes, resources);
+  assertApprovalVersions(grants, resources);
   const fingerprint = bytesToBase64Url(sha256(canonicalGrants(grants)));
   const hostable = [
     ...new Set(
