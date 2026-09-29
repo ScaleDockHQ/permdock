@@ -119,7 +119,11 @@ describe('react-server build', () => {
   });
 
   it('marks every React client entry with "use client"', () => {
-    for (const entry of ['./react', './react-native'] as const) {
+    for (const entry of [
+      './react',
+      './react-native',
+      './next/client',
+    ] as const) {
       expect(isClientBoundary(join(DIST, ENTRIES[entry]))).toBe(true);
     }
   });

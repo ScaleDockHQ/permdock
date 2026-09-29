@@ -63,6 +63,10 @@
       "types": "./dist/next/plugin.d.ts",
       "default": "./dist/next/plugin.js"
     },
+    "./next/client": {
+      "types": "./dist/next/client.d.ts",
+      "default": "./dist/next/client.js"
+    },
     "./server": {
       "types": "./dist/server/index.d.ts",
       "default": "./dist/server/index.js"

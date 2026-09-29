@@ -92,6 +92,7 @@ export default defineConfig({
     'src/react-native/index.ts',
     'src/next/index.ts',
     'src/next/plugin.ts',
+    'src/next/client.tsx',
     'src/server/index.ts',
     'src/hono/index.ts',
     'src/express/index.ts',
