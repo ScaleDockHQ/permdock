@@ -35,6 +35,8 @@ export {
   PermDockValidationError,
 } from './core/errors.ts';
 export type { ProblemDetails, RevokedCode } from './core/errors.ts';
+export { parsePermDockDigest } from './core/digest.ts';
+export type { PermDockDigest } from './core/digest.ts';
 export { memoryRevocationFeed } from './core/revocations.ts';
 export type {
   RevocationEvent,

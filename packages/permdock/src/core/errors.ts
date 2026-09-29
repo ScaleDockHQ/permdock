@@ -4,6 +4,7 @@ import type { Decision } from './decision.ts';
 import type { Subject } from './subject.ts';
 
 import { compact } from './compact.ts';
+import { approvalDigest, deniedDigest } from './digest.ts';
 
 /** Where and how a human approves; carries no secret. */
 export type ApprovalHint = {
@@ -40,6 +41,8 @@ export class PermDockDeniedError extends Error {
   public readonly scope: string;
   public readonly resource: { readonly type: string; readonly id?: string };
   public readonly subject: Subject;
+  /** `PERMDOCK_DENIED;<permission>`; survives the Server Component boundary (`parsePermDockDigest`). */
+  public readonly digest: string;
 
   public constructor(input: {
     readonly decision: Extract<Decision, { readonly outcome: 'denied' }>;
@@ -55,6 +58,7 @@ export class PermDockDeniedError extends Error {
     this.scope = input.scope;
     this.resource = input.resource;
     this.subject = input.subject;
+    this.digest = deniedDigest(input.permission);
   }
 
   public toProblemDetails(options?: {
@@ -86,6 +90,8 @@ export class PermDockApprovalRequiredError extends Error {
   public readonly resource: { readonly type: string; readonly id?: string };
   public readonly token: string;
   public readonly reason: string;
+  /** `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`; the token is already bound to this subject. */
+  public readonly digest: string;
 
   public constructor(input: {
     readonly decision: Extract<
@@ -104,6 +110,7 @@ export class PermDockApprovalRequiredError extends Error {
     this.resource = input.resource;
     this.token = input.decision.token;
     this.reason = input.decision.reason;
+    this.digest = approvalDigest(input.permission, input.decision.token);
   }
 
   public toProblemDetails(options?: {
