@@ -1,12 +1,12 @@
 import type { PermDock, Snapshot, Subject } from 'permdock';
 
+import { createPermDock, memoryRoleSource, snapshotFor } from 'permdock';
 import {
   SAAS_TOKEN_TTL_SECONDS,
   saasPolicy,
   signSaasToken,
   verifySaasSession,
-} from '@permdock/testing/saas';
-import { createPermDock, memoryRoleSource, snapshotFor } from 'permdock';
+} from 'permdock/testing/saas';
 
 import { findOrg, membershipsOf } from './store.ts';
 

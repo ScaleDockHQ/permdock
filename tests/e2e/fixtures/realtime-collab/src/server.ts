@@ -9,11 +9,11 @@ import {
   readSession,
   saasSubject,
 } from '@permdock/e2e-saas-kit';
-import { saasPermissions as p, saasPolicy } from '@permdock/testing/saas';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { type CustomRole, type Decision, memoryRevocationFeed } from 'permdock';
 import { createPermDock } from 'permdock/hono';
+import { saasPermissions as p, saasPolicy } from 'permdock/testing/saas';
 import { WebSocketServer } from 'ws';
 
 import { editsOf, findDoc, resetDocs, textOf, writeText } from './docs.ts';

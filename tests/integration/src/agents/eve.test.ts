@@ -1,7 +1,6 @@
 import type { ModelMessage } from 'ai';
 import type { EvePermDock, EvePrincipal } from 'permdock/eve';
 
-import { saasPolicy } from '@permdock/testing/saas';
 import {
   jsonSchema,
   simulateReadableStream,
@@ -11,6 +10,7 @@ import {
 } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { createPermDock } from 'permdock/eve';
+import { saasPolicy } from 'permdock/testing/saas';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { AgentDb } from '../support/agents.ts';

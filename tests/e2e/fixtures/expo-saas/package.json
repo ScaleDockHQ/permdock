@@ -13,7 +13,6 @@
     "@expo/log-box": "catalog:",
     "@expo/metro-runtime": "catalog:",
     "@permdock/e2e-saas-kit": "workspace:*",
-    "@permdock/testing": "workspace:*",
     "@react-native-async-storage/async-storage": "catalog:",
     "@react-native/metro-config": "catalog:",
     "babel-preset-expo": "catalog:",

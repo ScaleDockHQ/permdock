@@ -1,7 +1,7 @@
 import type { ApprovalStore } from 'permdock/approvals';
 
-import { testApprovalStore } from '@permdock/testing';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { testApprovalStore } from 'permdock/testing';
 import { Client } from 'pg';
 import { afterAll, beforeAll, describe } from 'vitest';
 

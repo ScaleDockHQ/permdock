@@ -75,7 +75,7 @@ None. Kysely is covered by `tests/integration/src/orm-parity.test.ts` (`ormParit
 
 ## Why
 
-- **No `createPolicyTester` twin.** Kysera's database-less tester evaluates policies without a query. In PermDock, `describePolicy` from `@permdock/testing` already does that: it runs the policy matrix, rows included, against the in-memory evaluator, which is the evaluator `toWhere` is proven against. `ormParity` then runs the same conditions through Kysely against SQLite or Postgres. A third tester would be a second in-memory evaluator to keep in step ([testing](/docs/adapters/testing)).
+- **No `createPolicyTester` twin.** Kysera's database-less tester evaluates policies without a query. In PermDock, `describePolicy` from `permdock/testing` already does that: it runs the policy matrix, rows included, against the in-memory evaluator, which is the evaluator `toWhere` is proven against. `ormParity` then runs the same conditions through Kysely against SQLite or Postgres. A third tester would be a second in-memory evaluator to keep in step ([testing](/docs/adapters/testing)).
 
 ## Related standards
 

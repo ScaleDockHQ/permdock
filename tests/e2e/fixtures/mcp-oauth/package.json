@@ -10,7 +10,6 @@
   "dependencies": {
     "@modelcontextprotocol/server": "catalog:",
     "@permdock/e2e-saas-kit": "workspace:*",
-    "@permdock/testing": "workspace:*",
     "jose": "catalog:",
     "permdock": "workspace:*",
     "zod": "catalog:"

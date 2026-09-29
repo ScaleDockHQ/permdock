@@ -202,10 +202,10 @@ Use a closure when the check needs something a portable condition cannot express
 
 ## Testing a policy
 
-`@permdock/testing` renders a matrix of roles by permissions with the outcome for representative fixtures, and snapshots it:
+`permdock/testing` renders a matrix of roles by permissions with the outcome for representative fixtures, and snapshots it:
 
 ```ts
-import { policyMatrix } from '@permdock/testing'
+import { policyMatrix } from 'permdock/testing'
 
 test('policy matrix', () => {
   expect(policyMatrix(policy, { fixtures: { post: [ownPost, otherPost] } })).toMatchSnapshot()

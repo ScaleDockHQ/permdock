@@ -1,10 +1,10 @@
 import type { FastifyRequest } from 'fastify';
 
 import multipart from '@fastify/multipart';
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import Fastify from 'fastify';
 import { createPermDock, type PermDockRequest } from 'permdock/fastify';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 
 import { forward } from '../support/listen.ts';
 

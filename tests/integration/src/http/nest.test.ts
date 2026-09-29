@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import type { INestApplication, Type } from '@nestjs/common';
-import type { HttpMounted, HttpScenarioDomain } from '@permdock/testing';
 import type { FastifyRequest } from 'fastify';
 import type { NestRequest } from 'permdock/nest';
+import type { HttpMounted, HttpScenarioDomain } from 'permdock/testing';
 
 import multipart from '@fastify/multipart';
 import {
@@ -23,9 +23,9 @@ import {
   FastifyAdapter,
   type NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import { createPermDock } from 'permdock/nest';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 
 import { forward } from '../support/listen.ts';
 

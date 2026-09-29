@@ -1,13 +1,13 @@
 import type { Membership } from 'permdock';
 
+import { createLocalJWKSet, jwtVerify } from 'jose';
 import {
   SAAS_TOKEN_TTL_SECONDS,
   saasAudience,
   saasIssuer,
   saasJwks,
   signSaasToken,
-} from '@permdock/testing/saas';
-import { createLocalJWKSet, jwtVerify } from 'jose';
+} from 'permdock/testing/saas';
 
 import type { SessionClaims } from '../policy.ts';
 

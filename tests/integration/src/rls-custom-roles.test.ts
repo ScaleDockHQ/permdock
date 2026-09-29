@@ -1,13 +1,13 @@
 import type { CustomRole } from 'permdock';
 
 import { run } from '@permdock/cli';
-import { rlsParity } from '@permdock/testing';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { customRoleClaim } from 'permdock';
 import { authorizeSql } from 'permdock/supabase';
+import { rlsParity } from 'permdock/testing';
 import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 

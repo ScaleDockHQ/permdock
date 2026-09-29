@@ -1,4 +1,4 @@
-import { signSaasToken } from '@permdock/testing/saas';
+import { signSaasToken } from 'permdock/testing/saas';
 
 import { PEP_TOKEN } from './app.ts';
 

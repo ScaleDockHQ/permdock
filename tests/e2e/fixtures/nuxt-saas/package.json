@@ -9,7 +9,6 @@
   },
   "devDependencies": {
     "@permdock/e2e-saas-kit": "workspace:*",
-    "@permdock/testing": "workspace:*",
     "@types/node": "catalog:",
     "nuxt": "catalog:",
     "permdock": "workspace:*",

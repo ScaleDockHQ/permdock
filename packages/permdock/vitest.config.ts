@@ -64,6 +64,12 @@ export default defineConfig({
           functions: 100,
           branches: 93,
         },
+        'src/testing/**': {
+          statements: 94,
+          lines: 94,
+          functions: 95,
+          branches: 78,
+        },
       },
     },
   },

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SaasProject } from '@permdock/testing/saas';
+  import type { SaasProject } from 'permdock/testing/saas';
 
   import { invalidateAll } from '$app/navigation';
   import { permissions } from '@permdock/e2e-saas-kit/nav';

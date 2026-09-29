@@ -1,6 +1,6 @@
-import type { HttpMounted } from '@permdock/testing';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type { HttpMounted } from 'permdock/testing';
 
 /** Replays a runner request against a real origin, with the body as bytes. */
 export async function forward(

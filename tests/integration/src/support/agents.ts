@@ -1,12 +1,12 @@
 import type { ApprovalStore } from 'permdock/approvals';
 
+import { drizzle } from 'drizzle-orm/node-postgres';
 import {
   saasPermissions as p,
   saasPrincipal,
   saasSchemaSql,
   saasSeedSql,
-} from '@permdock/testing/saas';
-import { drizzle } from 'drizzle-orm/node-postgres';
+} from 'permdock/testing/saas';
 import { Client } from 'pg';
 
 import type { Postgres } from './postgres.ts';

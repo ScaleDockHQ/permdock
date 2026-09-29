@@ -1,6 +1,6 @@
 import type { Permission } from 'permdock';
 
-import { saasPermissions as p } from '@permdock/testing/saas/permissions';
+import { saasPermissions as p } from 'permdock/testing/saas/permissions';
 
 export type NavItem = {
   readonly id: string;
@@ -79,4 +79,4 @@ export const loginUsers = [
   'mallory',
 ] as const;
 
-export { saasPermissions as permissions } from '@permdock/testing/saas/permissions';
+export { saasPermissions as permissions } from 'permdock/testing/saas/permissions';

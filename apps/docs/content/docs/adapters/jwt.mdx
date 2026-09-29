@@ -181,7 +181,7 @@ const signer = joseTokenSigner({ key: privateJwk, alg: 'Ed25519', kid: '2026-09'
 const jws = await signer.sign(payload, { typ: 'permdock-snapshot+jwt', expiresAt })
 ```
 
-`verify` never throws; every failure is the same `{ ok: false, reason, cause }` shape the behaviour table lists. `sign` produces compact JWS with the header `alg`, `kid`, `typ` and nothing else. The conformance runner `testTokenVerifier` in `@permdock/testing` checks a custom verifier against the behaviour table with the fixture tokens it ships.
+`verify` never throws; every failure is the same `{ ok: false, reason, cause }` shape the behaviour table lists. `sign` produces compact JWS with the header `alg`, `kid`, `typ` and nothing else. The conformance runner `testTokenVerifier` in `permdock/testing` checks a custom verifier against the behaviour table with the fixture tokens it ships.
 
 ### Signed outputs
 

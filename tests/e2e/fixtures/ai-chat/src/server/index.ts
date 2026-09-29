@@ -9,8 +9,6 @@ import {
   removeProject,
   saasSubject,
 } from '@permdock/e2e-saas-kit';
-import { saasPolicy } from '@permdock/testing/saas';
-import { saasPermissions as p } from '@permdock/testing/saas/permissions';
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -31,6 +29,8 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPermDock } from 'permdock/ai-sdk';
 import { approvalsHandler, memoryApprovalStore } from 'permdock/approvals';
+import { saasPolicy } from 'permdock/testing/saas';
+import { saasPermissions as p } from 'permdock/testing/saas/permissions';
 import { z } from 'zod';
 
 import { scriptedModel } from './model.ts';

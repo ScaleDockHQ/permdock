@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SaasProject } from '@permdock/testing/saas';
+import type { SaasProject } from 'permdock/testing/saas';
 
 const route = useRoute();
 const org = computed(() => String(route.params.org));

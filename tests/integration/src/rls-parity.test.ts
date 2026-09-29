@@ -1,9 +1,9 @@
 import { run } from '@permdock/cli';
-import { rlsParity } from '@permdock/testing';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rlsParity } from 'permdock/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Postgres } from './support/postgres.ts';

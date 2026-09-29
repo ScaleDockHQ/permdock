@@ -1,12 +1,12 @@
-import type { HttpCall, HttpResult } from '@permdock/testing';
 import type { Server } from 'node:http';
+import type { HttpCall, HttpResult } from 'permdock/testing';
 
 import { createAdaptorServer } from '@hono/node-server';
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import { createTRPCClient, httpBatchLink, TRPCClientError } from '@trpc/client';
 import { initTRPC } from '@trpc/server';
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 import { createPermDock, errorFormatter } from 'permdock/trpc';
 import { z } from 'zod';
 

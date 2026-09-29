@@ -3,11 +3,19 @@ import type { Permission, Principal, WhereResult } from 'permdock';
 import type { MembershipsMapping } from 'permdock/drizzle';
 
 import { PGlite } from '@electric-sql/pglite';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
+import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import { Kysely, PostgresDialect } from 'kysely';
+import { memoryRoleSource } from 'permdock';
+import { toWhere as drizzleWhere } from 'permdock/drizzle';
+import { toWhere as kyselyWhere } from 'permdock/kysely';
+import { permdockExtension, toWhere as prismaWhere } from 'permdock/prisma';
 import {
   type OrmParityCase,
   type OrmParityScenario,
   ormParity,
-} from '@permdock/testing';
+} from 'permdock/testing';
 import {
   saasCustomRoles,
   saasMemberships as saasMembershipsOf,
@@ -18,15 +26,7 @@ import {
   saasSeed,
   saasSeedSql,
   saasUsers,
-} from '@permdock/testing/saas';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
-import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
-import { Kysely, PostgresDialect } from 'kysely';
-import { memoryRoleSource } from 'permdock';
-import { toWhere as drizzleWhere } from 'permdock/drizzle';
-import { toWhere as kyselyWhere } from 'permdock/kysely';
-import { permdockExtension, toWhere as prismaWhere } from 'permdock/prisma';
+} from 'permdock/testing/saas';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 

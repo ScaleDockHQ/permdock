@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@permdock/testing": "workspace:*",
     "jose": "catalog:",
     "next": "catalog:",
     "permdock": "workspace:*",

@@ -9,7 +9,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const files: readonly { readonly file: string; readonly name: string }[] = [
   { file: 'packages/permdock/CHANGELOG.md', name: 'permdock' },
   { file: 'packages/cli/CHANGELOG.md', name: '@permdock/cli' },
-  { file: 'packages/testing/CHANGELOG.md', name: '@permdock/testing' },
 ];
 
 export function loadChangelogs(): ChangelogRelease[] {

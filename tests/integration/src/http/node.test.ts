@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Permission } from 'permdock';
 
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import { createServer } from 'node:http';
 import { createPermDock, toRequest } from 'permdock/node';
 import { problemFromError } from 'permdock/server';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 
 import { listen } from '../support/listen.ts';
 

@@ -11,11 +11,11 @@ PermDock is pre-release; the first published version will be `0.1.0`. See the [r
 | --- | --- | --- |
 | `permdock` | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...) | Yes |
 | `@permdock/cli` | `permdock collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills` | Optional, dev only |
-| `@permdock/testing` | Policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners | Optional, dev only |
+| `permdock/testing` | Subpath of `permdock`: policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners; Vitest is an optional peer | Tests only |
 
 ```bash
 pnpm add permdock
-pnpm add -D @permdock/cli @permdock/testing
+pnpm add -D @permdock/cli
 ```
 
 npm and yarn work the same way; the repository itself uses pnpm workspaces.
@@ -113,7 +113,7 @@ Core runs in browsers, React Native, edge functions, serverless functions, MCP s
 - No serialiser. Conditions and snapshots are plain JSON with tagged ISO date strings, one format that works in Postgres, snapshots and catalogs, so there is no `superjson`.
 - No telemetry. OpenTelemetry lives in `permdock/otel` behind a type-only `Tracer` interface rather than as a required peer.
 - ESM only. The target runtimes are ESM, and a dual CommonJS build would double the test matrix and bring the dual-package hazard.
-- Heavy tooling lives elsewhere: the JavaScript and Postgres parsers are in `@permdock/cli`, and test-framework dependencies are in `@permdock/testing`.
+- Heavy tooling lives elsewhere: the JavaScript and Postgres parsers are in `@permdock/cli`, and test-framework dependencies are in `permdock/testing`.
 
 There is no size cap chosen in advance. `tests/bundle` measures the min+gzip size of every entry, and the measured size is the regression baseline: a test compares every entry against the recorded baseline, so a size change fails CI until the baseline is updated in the same PR, where review sees it. Core stays small because of the rules above, not because of a number picked from a competitor's bundle, so features such as the condition AST or the `Decision` shape are never cut to meet a guess.
 

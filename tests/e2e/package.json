@@ -54,11 +54,11 @@
     "@permdock/example-trpc": "workspace:*",
     "@permdock/example-vue": "workspace:*",
     "@permdock/example-webmcp": "workspace:*",
-    "@permdock/testing": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "marketing": "workspace:*",
+    "permdock": "workspace:*",
     "typescript": "catalog:"
   }
 }

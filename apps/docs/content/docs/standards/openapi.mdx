@@ -152,7 +152,7 @@ Rules:
 
 ### The pin
 
-`x-permdock-catalog.drafts` records every draft revision the output depends on: `oas` is the `v3.3-dev` commit, `securityProfiles` the discussion and date of the implemented design, and `overlay` joins it with `--overlay 1.2`. `permdock openapi emit --check` fails when a committed document's `drafts` differ from what the installed CLI would write, and `permdock doctor` warns on the same condition ([CLI: doctor](/docs/cli/doctor)). Bumping the pin updates this page, the emitter's name map and patch schema, the `@permdock/testing` fixtures, and a changeset.
+`x-permdock-catalog.drafts` records every draft revision the output depends on: `oas` is the `v3.3-dev` commit, `securityProfiles` the discussion and date of the implemented design, and `overlay` joins it with `--overlay 1.2`. `permdock openapi emit --check` fails when a committed document's `drafts` differ from what the installed CLI would write, and `permdock doctor` warns on the same condition ([CLI: doctor](/docs/cli/doctor)). Bumping the pin updates this page, the emitter's name map and patch schema, the `permdock/testing` fixtures, and a changeset.
 
 When 3.3.0 is released, `--target 3.3` emits the released construct in the next minor and drops the draft shape. If field names changed, the importer reads both forms for one minor and `--check` flags documents still carrying the draft. `x-permdock-securityProfile` stays on 3.1 and 3.2 output and remains the 3.3 twin for one minor, then becomes opt-in there. The default target moves to 3.3 no earlier than one minor after release. If the Initiative drops Security Profiles, `--target 3.3` falls back to the 3.2 shape plus the extension, and documents already emitted keep validating against the pinned patch schema.
 

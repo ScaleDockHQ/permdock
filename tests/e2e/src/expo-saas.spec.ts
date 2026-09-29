@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
-import { saasPrivateJwk } from '@permdock/testing/saas';
 import { expect, test } from '@playwright/test';
+import { saasPrivateJwk } from 'permdock/testing/saas';
 
 const origin = 'http://127.0.0.1:3504';
 

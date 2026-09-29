@@ -4,8 +4,8 @@ import type {
 } from '@modelcontextprotocol/server';
 
 import { OAuthError, OAuthErrorCode } from '@modelcontextprotocol/server';
-import { saasJwks, signSaasToken } from '@permdock/testing/saas';
 import { joseTokenVerifier } from 'permdock/jwt';
+import { saasJwks, signSaasToken } from 'permdock/testing/saas';
 
 import {
   CLIENTS,

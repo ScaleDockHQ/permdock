@@ -49,6 +49,9 @@ export const ENTRIES = {
   './clerk': 'clerk/index.js',
   './convex': 'convex/index.js',
   './pdp': 'pdp/index.js',
+  './testing': 'testing/index.js',
+  './testing/saas': 'testing/saas/index.js',
+  './testing/saas/permissions': 'testing/saas/permissions.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;

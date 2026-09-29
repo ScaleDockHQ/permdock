@@ -1,6 +1,6 @@
-import type { HttpCall, HttpResult } from '@permdock/testing';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type { HttpCall, HttpResult } from 'permdock/testing';
 
 import { createAdaptorServer } from '@hono/node-server';
 import { createORPCClient, ORPCError } from '@orpc/client';
@@ -9,9 +9,9 @@ import { BatchLinkPlugin } from '@orpc/client/plugins';
 import { os, type RouterClient } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { BatchHandlerPlugin } from '@orpc/server/plugins';
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import { createPermDock } from 'permdock/orpc';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 import { z } from 'zod';
 
 import { listen } from '../support/listen.ts';

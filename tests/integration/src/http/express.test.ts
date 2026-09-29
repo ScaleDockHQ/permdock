@@ -1,11 +1,11 @@
 import type { Request } from 'express';
 
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import express from 'express';
 import multer from 'multer';
 import { createServer } from 'node:http';
 import { createPermDock, type PermDockRequest } from 'permdock/express';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 
 import { listen } from '../support/listen.ts';
 

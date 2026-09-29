@@ -1,7 +1,6 @@
 ---
 '@permdock/cli': minor
 'permdock': minor
-'@permdock/testing': minor
 ---
 
 `permdock rls generate` compiles role checks to per-statement helpers. Policies call `permdock_has('<grant key>')` for global roles and `"<tenant col>" in (select permitted_tenant_ids('<grant key>'))` (or `permitted_team_ids`) for scoped roles: `security definer`, `search_path = ''` SQL functions over a seeded `role_permissions (role, permission, grant_key, scope, effect)` table, which Postgres evaluates once per statement (an InitPlan or hashed SubPlan) instead of once per row. `--authorize database|jwt` now drives them for every dialect. Tenant grants with only a claim and global grants with no condition no longer skip the role check.

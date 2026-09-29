@@ -15,7 +15,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@permdock/testing": "workspace:*",
     "permdock": "workspace:*"
   },
   "devDependencies": {

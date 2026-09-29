@@ -14,6 +14,8 @@ const out = join(
   dirname(fileURLToPath(import.meta.url)),
   '..',
   'packages',
+  'permdock',
+  'src',
   'testing',
   'fixtures',
   'authzen',

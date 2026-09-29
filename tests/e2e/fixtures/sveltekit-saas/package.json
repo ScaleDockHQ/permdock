@@ -10,7 +10,6 @@
   },
   "devDependencies": {
     "@permdock/e2e-saas-kit": "workspace:*",
-    "@permdock/testing": "workspace:*",
     "@sveltejs/adapter-node": "catalog:",
     "@sveltejs/kit": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",

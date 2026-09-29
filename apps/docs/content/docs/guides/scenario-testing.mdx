@@ -1,13 +1,13 @@
 ---
 title: Scenario testing
-description: How PermDock tests itself against one realistic multi-tenant SaaS, which runners in @permdock/testing to reuse in your own suites, and how to add a fixture app to the repository.
+description: How PermDock tests itself against one realistic multi-tenant SaaS, which runners in permdock/testing to reuse in your own suites, and how to add a fixture app to the repository.
 ---
 
-Unit tests prove that a function does what its author thought. Scenario tests prove that an application built the way the docs say behaves the way the docs say: the right org, the right role, the right status code, the right rows, the right button. PermDock's own suites run one shared SaaS domain through every surface it ships, and the runners that do it are public in `@permdock/testing`, so an application can hold its own wiring to the same standard.
+Unit tests prove that a function does what its author thought. Scenario tests prove that an application built the way the docs say behaves the way the docs say: the right org, the right role, the right status code, the right rows, the right button. PermDock's own suites run one shared SaaS domain through every surface it ships, and the runners that do it are public in `permdock/testing`, so an application can hold its own wiring to the same standard.
 
 ## The domain
 
-`@permdock/testing/saas` is one multi-tenant SaaS ([testing adapter](/docs/adapters/testing)):
+`permdock/testing/saas` is one multi-tenant SaaS ([testing adapter](/docs/adapters/testing)):
 
 - orgs `acme` (free plan, custom role `contractor`) and `globex` (pro plan), plus `org-1` and `tenant-1`, whose ids a loose comparison would confuse;
 - `project` and `doc` rows with tenant and team relations, collection actions (members, settings, billing, audit, SSO), plan-gated analytics, and `apiKey` with a daily quota and an owner approval;
@@ -23,7 +23,7 @@ The expectations are never computed by the engine. Every suite runs the same cas
 | Runner | What it proves | Where PermDock runs it |
 | --- | --- | --- |
 | `describePolicy` | Every permission has a cell per subject and fixture; a new permission cannot ship untested | Every example app |
-| `testClientParity` | `fromSnapshot` never grants what the server denies, per membership and tenant | `packages/testing` over the saas domain |
+| `testClientParity` | `fromSnapshot` never grants what the server denies, per membership and tenant | `packages/permdock/src/testing` over the saas domain |
 | `testClientStore` | A client store's tenant switch, refresh races, stale snapshots, signed refreshes and cache | `permdock/react-native` `createNativeStore` |
 | `testHttpAdapter` | 14 HTTP scenarios over a real server: tenant from the path, per-org roles, custom roles, quotas, approvals, Problem Details | `tests/integration/src/http`, one file per adapter |
 | `ormParity` | `toWhere(where())` on a real database returns exactly the rows `filter()` keeps in memory | Drizzle, Kysely and Prisma 7 in `tests/integration` |
@@ -51,7 +51,7 @@ An application does not need the saas domain to use them. `describePolicy`, `orm
 
 ## Adding a fixture app
 
-1. Create `tests/e2e/fixtures/<name>` as a private package named `@permdock/e2e-<name>`. Import the domain from `@permdock/testing/saas` (client bundles that cannot tree-shake use `@permdock/testing/saas/permissions`), and a UI fixture reuses `saas-kit` for routes, sessions and the store.
+1. Create `tests/e2e/fixtures/<name>` as a private package named `@permdock/e2e-<name>`. Import the domain from `permdock/testing/saas` (client bundles that cannot tree-shake use `permdock/testing/saas/permissions`), and a UI fixture reuses `saas-kit` for routes, sessions and the store.
 2. Give it a `serve` script that builds once, serves the production output on a fixed port and answers `GET /api/health`. Test-only control routes (reset, set role, set plan) live under `/api/test/`.
 3. Add it to `tests/e2e/package.json` as a dev dependency and to the project map in `tests/e2e/playwright.config.ts` with `fixtureServer('<name>', port)`, so a run starts only the servers its projects need.
 4. Write `tests/e2e/src/<name>.spec.ts`. A SaaS UI calls `saasUiScenarios`, which pins the DOM contract; anything else states its scenarios as numbered, serial tests with hand-written expectations. Assert denials by reason, not only by status.
