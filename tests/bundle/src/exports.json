@@ -18,6 +18,7 @@
     "coveredByDelegation",
     "createPermDock",
     "crud",
+    "customRoleClaim",
     "definePermissions",
     "definePlans",
     "definePolicy",
