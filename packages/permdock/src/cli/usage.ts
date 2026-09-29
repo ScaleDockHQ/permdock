@@ -279,6 +279,13 @@ function conditionFields(
       conditionFields(condition.twin, out);
       break;
     }
+    case 'related': {
+      add(condition.field);
+      if (condition.restricted !== undefined) {
+        add(condition.restricted);
+      }
+      break;
+    }
     case 'opaque': {
       break;
     }

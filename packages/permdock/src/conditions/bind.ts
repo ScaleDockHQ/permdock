@@ -108,6 +108,7 @@ export function bindConditionRefs(
       };
     case 'isNull':
     case 'memberOf':
+    case 'related':
     case 'opaque':
       return condition;
     default: {

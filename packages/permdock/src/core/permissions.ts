@@ -46,13 +46,60 @@ export type ResourceParent = {
   readonly resource: string;
 };
 
-export type ResourceRelation = {
+/** The row's `field` holds the principal id (or, with `memberOf`, a scope id). */
+export type FieldRelation = {
   readonly field: string;
   /** A declared scope name (or the `tenant` / `team` alias): the field holds that scope's id. */
   readonly memberOf?: string;
 };
 
+/** One row per holder in an edge table: `object` holds the resource id, `subject` the principal id. */
+export type EdgeRelation = {
+  readonly edge: string;
+  /** Default `<resource>_id`. */
+  readonly object?: string;
+  /** Default `user_id`. */
+  readonly subject?: string;
+  /** A timestamp column; an edge whose value has passed does not match. */
+  readonly expiresAt?: string;
+};
+
+/** On a principal resource: the row's `principal` column holds the principal who holds the relation over it. */
+export type PrincipalRelation = {
+  readonly principal: string;
+  /** Timestamp columns bounding when the relation holds; `null` leaves that side open. */
+  readonly period?: {
+    readonly startsAt?: string;
+    readonly expiresAt?: string;
+  };
+};
+
+export type ResourceRelation = FieldRelation | EdgeRelation | PrincipalRelation;
+
 export type ResourceRelationInput = string | ResourceRelation;
+
+export function isFieldRelation(
+  relation: ResourceRelation | undefined,
+): relation is FieldRelation {
+  return relation !== undefined && 'field' in relation;
+}
+
+export function isEdgeRelation(
+  relation: ResourceRelation | undefined,
+): relation is EdgeRelation {
+  return relation !== undefined && 'edge' in relation;
+}
+
+export function isPrincipalRelation(
+  relation: ResourceRelation | undefined,
+): relation is PrincipalRelation {
+  return relation !== undefined && 'principal' in relation;
+}
+
+/** Whether `node` names itself as its parent (nested folders, sub-teams, reporting lines). */
+export function isSelfParented(node: ResourceNode | undefined): boolean {
+  return node?.parent !== undefined && node.parent.resource === node.name;
+}
 
 export type ActionList = readonly string[] | Record<string, ActionMeta>;
 
@@ -70,6 +117,11 @@ export type ResourceOptions<
    * counter). An `approval: { staleOn: 'resource-change' }` binds to its value.
    */
   readonly version?: string;
+  /**
+   * A boolean column: a row where it is `true` is reached only by grants on
+   * itself, never by relations held on its ancestors.
+   */
+  readonly restricted?: string;
 };
 
 export type ResourceInit<
@@ -90,6 +142,7 @@ export type ResourceNode<T = unknown> = {
   readonly parent: ResourceParent | undefined;
   readonly relations: Readonly<Record<string, ResourceRelation>>;
   readonly version: string | undefined;
+  readonly restricted: string | undefined;
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
 };
@@ -256,6 +309,51 @@ export function resource(
   );
 }
 
+const EDGE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/u;
+
+function normaliseRelation(
+  resourceName: string,
+  relationName: string,
+  spec: ResourceRelationInput,
+): ResourceRelation {
+  if (typeof spec === 'string') {
+    assertSafeKey(spec, 'relation field');
+    return { field: spec };
+  }
+  const kinds = ['field', 'edge', 'principal'].filter((kind) => kind in spec);
+  if (kinds.length !== 1) {
+    throw new Error(
+      `PermDock: relation '${relationName}' on '${resourceName}' needs exactly one of field, edge or principal`,
+    );
+  }
+  if (isEdgeRelation(spec)) {
+    if (!EDGE_TABLE.test(spec.edge)) {
+      throw new Error(
+        `PermDock: relation '${relationName}' on '${resourceName}' has an unsafe edge table '${spec.edge}'`,
+      );
+    }
+    for (const column of [spec.object, spec.subject, spec.expiresAt]) {
+      if (column !== undefined) {
+        assertSafeKey(column, 'edge column');
+      }
+    }
+    return { ...spec };
+  }
+  if (isPrincipalRelation(spec)) {
+    assertSafeKey(spec.principal, 'relation principal');
+    for (const column of [spec.period?.startsAt, spec.period?.expiresAt]) {
+      if (column !== undefined) {
+        assertSafeKey(column, 'relation period');
+      }
+    }
+    return spec.period === undefined
+      ? { principal: spec.principal }
+      : { principal: spec.principal, period: { ...spec.period } };
+  }
+  assertSafeKey(spec.field, 'relation field');
+  return { ...spec };
+}
+
 function materialiseResource(
   init: ResourceInit,
   path: readonly string[],
@@ -327,23 +425,23 @@ function materialiseResource(
   if (parent !== undefined) {
     assertSafeKey(parent.field, 'parent field');
     assertSafeKey(parent.resource, 'parent resource');
-    if (parent.resource === name) {
-      throw new Error(`PermDock: resource '${name}' cannot parent itself`);
-    }
   }
   const version = init.options.version;
   if (version !== undefined) {
     assertSafeKey(version, 'version field');
+  }
+  const restricted = init.options.restricted;
+  if (restricted !== undefined) {
+    assertSafeKey(restricted, 'restricted field');
   }
   const relations: Record<string, ResourceRelation> = {};
   for (const [relationName, spec] of Object.entries(
     init.options.relations ?? {},
   )) {
     assertSafeKey(relationName, 'relation');
-    const normalised: ResourceRelation =
-      typeof spec === 'string' ? { field: spec } : { ...spec };
-    assertSafeKey(normalised.field, 'relation field');
-    relations[relationName] = freezeDeep(normalised);
+    relations[relationName] = freezeDeep(
+      normaliseRelation(name, relationName, spec),
+    );
   }
   const resourceNode: ResourceNode = Object.freeze({
     name,
@@ -353,6 +451,7 @@ function materialiseResource(
     parent: parent === undefined ? undefined : freezeDeep({ ...parent }),
     relations: freezeDeep(relations),
     version,
+    restricted,
     instanceActions: instanceSet,
     collectionActions: collectionSet,
   });

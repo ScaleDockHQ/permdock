@@ -41,6 +41,7 @@ export function buildCatalog(
             schema: node === undefined ? null : jsonSchemaOf(node),
             relations: node?.relations,
             version: node?.version,
+            restricted: node?.restricted,
           }
         : {
             id: node?.id ?? 'id',
@@ -48,6 +49,7 @@ export function buildCatalog(
             definedIn,
             relations: node?.relations,
             version: node?.version,
+            restricted: node?.restricted,
           },
     );
   }
@@ -208,6 +210,7 @@ function compactResource(resource: {
   readonly definedIn?: string;
   readonly relations?: CatalogDocument['resources'][string]['relations'];
   readonly version?: string | undefined;
+  readonly restricted?: string | undefined;
 }): CatalogDocument['resources'][string] {
   const relations =
     resource.relations !== undefined &&
@@ -221,6 +224,7 @@ function compactResource(resource: {
       definedIn: resource.definedIn,
       relations,
       version: resource.version,
+      restricted: resource.restricted,
     }),
   };
 }

@@ -3,6 +3,8 @@ import type {
   AuthEvent,
   DecisionSink,
   LimitStore,
+  MembershipSource,
+  RelationSource,
   RoleSource,
   Snapshot,
 } from './interfaces.ts';
@@ -12,6 +14,7 @@ import type { Grant, Policy } from './policy.ts';
 import type { CustomRole, Membership, Principal, Subject } from './subject.ts';
 import type { Role } from './vocabulary.ts';
 
+import { hasConditionOp } from '../conditions/ast.ts';
 import {
   type ArazzoPlan,
   type ArazzoSimulateInput,
@@ -48,8 +51,17 @@ import {
   roleMeta,
   usesAssigns,
 } from './ownership.ts';
-import { getResource, listPermissions } from './permissions.ts';
+import {
+  getResource,
+  isPrincipalRelation,
+  listPermissions,
+} from './permissions.ts';
 import { grantList } from './policy.ts';
+import {
+  type RelationCache,
+  pendingRelations,
+  relationReader,
+} from './relations.ts';
 import {
   normalizeMemberships,
   resolveScope,
@@ -68,6 +80,21 @@ import {
 } from './tenancy.ts';
 import { findRole, listRoles, synthesiseRole } from './vocabulary.ts';
 import { whereFromGrants } from './where-scope.ts';
+import { whoCan } from './who-can.ts';
+
+const LOAD_ROUNDS = 6;
+
+/** A grant on a relation with a `period` is decided on the server, where the clock is. */
+function periodBound(policy: Policy, grant: Grant): boolean {
+  const relations = policy.resources.get(grant.permission.resource)?.relations;
+  return flattenGrantee(grant.to).some((item) => {
+    if (item.kind !== 'relation') {
+      return false;
+    }
+    const spec = relations?.[item.relation];
+    return isPrincipalRelation(spec) && spec.period !== undefined;
+  });
+}
 
 function includePrefixes(
   include:
@@ -146,6 +173,23 @@ function roleLeaf(policy: Policy, name: string): Role {
 }
 
 /**
+ * The grant with its grantee's row condition. A graph relation needs the
+ * `RelationSource`, which snapshots and `where()` do not carry, so the grant
+ * becomes server-only (`portable: false`) there.
+ */
+function graphAware(grant: Grant, where: Grant['where']): Grant {
+  const combined = combineWhere(grant.where, where);
+  const graph = hasConditionOp(combined, 'related');
+  return freezeDeep(
+    compact({
+      ...grant,
+      where: combined,
+      portable: graph ? false : grant.portable,
+    }),
+  );
+}
+
+/**
  * Every grant the subject may reach, once per membership that holds all of
  * its scoped roles, so a client can check that membership's tenant, team or
  * resource. A scoped role held only globally reaches nothing.
@@ -188,7 +232,14 @@ export function collectSnapshotGrants(
   const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
   for (const grant of grantList(policy)) {
     const resource = getResource(policy.permissions, grant.permission.resource);
-    const match = matchGrantee(grant.to, subject, now, resource, scopes);
+    const match = matchGrantee(
+      grant.to,
+      subject,
+      now,
+      resource,
+      scopes,
+      policy.resources,
+    );
     if (!match.matched) {
       continue;
     }
@@ -204,12 +255,7 @@ export function collectSnapshotGrants(
     if (!globalOk) {
       continue;
     }
-    const merged: Grant = freezeDeep(
-      compact({
-        ...grant,
-        where: combineWhere(grant.where, match.where),
-      }),
-    );
+    const merged: Grant = graphAware(grant, match.where);
     const scoped = roleItems.filter((item) => item.scope !== 'global');
     if (scoped.length === 0) {
       out.push({ grant: merged });
@@ -229,16 +275,18 @@ export function collectSnapshotGrants(
       continue;
     }
     const resource = getResource(policy.permissions, grant.permission.resource);
-    const match = matchGrantee(grant.to, subject, now, resource, scopes);
+    const match = matchGrantee(
+      grant.to,
+      subject,
+      now,
+      resource,
+      scopes,
+      policy.resources,
+    );
     if (!match.matched) {
       continue;
     }
-    const merged: Grant = freezeDeep(
-      compact({
-        ...grant,
-        where: combineWhere(grant.where, match.where),
-      }),
-    );
+    const merged: Grant = graphAware(grant, match.where);
     for (const entry of holders) {
       out.push({ grant: merged, membership: entry.membership });
     }
@@ -425,6 +473,12 @@ export function snapshotOf(
         options.customRoles,
         now,
         customGrants,
+      ).map((item) =>
+        periodBound(policy, item.grant)
+          ? Object.assign({}, item, {
+              grant: freezeDeep({ ...item.grant, portable: false }),
+            })
+          : item,
       ),
       include: includePrefixes(options.include),
       tenants: options.tenants,
@@ -486,6 +540,11 @@ export function buildInstance(
     readonly queuedAuth: readonly AuthEvent[];
     /** Errors from building the instance (a dropped hosted grant), replayed to `on('error')`. */
     readonly queuedErrors?: readonly unknown[];
+    readonly relations?: RelationSource;
+    /** Relation facts read so far; shared by the instances `tenant()`, `team()` and `simulate()` derive. */
+    readonly relationCache?: RelationCache;
+    /** The membership source, for `whoCan`'s member lists. */
+    readonly memberships?: MembershipSource;
   },
   team?: string,
 ): PermDock {
@@ -493,6 +552,8 @@ export function buildInstance(
   const queuedAuth = [...envBase.queuedAuth];
   const queuedErrors = [...(envBase.queuedErrors ?? [])];
   const customGrants = customGrantsFor(policy, envBase.customRoles);
+  const relationCache: RelationCache = envBase.relationCache ?? new Map();
+  const relations = relationReader(envBase.relations, relationCache);
   const assignableAt = (tenant: string | undefined): Assignable =>
     assignableIn(
       policy,
@@ -513,6 +574,7 @@ export function buildInstance(
     limits: envBase.limits,
     limitCache: envBase.limitCache,
     team,
+    relations,
   });
 
   const decideImpl = (
@@ -741,6 +803,49 @@ export function buildInstance(
             : [];
       return leaves.filter((item) => canImpl(item, data, options) === true);
     },
+    async loadRelations(
+      permission: Permission,
+      rows: readonly unknown[],
+    ): Promise<void> {
+      if (envBase.relations === undefined) {
+        return;
+      }
+      const quiet: EvalEnv = {
+        ...envFor(false),
+        simulated: true,
+        skipAlternatives: true,
+      };
+      for (let round = 0; round < LOAD_ROUNDS; round += 1) {
+        for (const row of rows) {
+          evaluate(
+            policy,
+            subject,
+            permission,
+            row,
+            { source: 'simulate', trusted: true },
+            quiet,
+          );
+        }
+        const pending = pendingRelations(relationCache);
+        if (pending.length === 0) {
+          return;
+        }
+        // oxlint-disable-next-line no-await-in-loop -- each round's reads depend on the answers of the one before
+        await Promise.all(pending);
+      }
+    },
+    whoCan(permission: Permission, row: unknown) {
+      return whoCan({
+        policy,
+        permission,
+        row,
+        memberships: envBase.memberships,
+        reader: relations,
+        cache: relationCache,
+        customGrants,
+        team,
+      });
+    },
     simulate: ((
       input:
         | readonly (readonly [Permission, unknown?])[]
@@ -821,7 +926,7 @@ export function buildInstance(
       return buildInstance(
         policy,
         previewSubject,
-        { ...envBase, simulated: true },
+        { ...envBase, simulated: true, relationCache },
         team,
       );
     }) as PermDock['simulate'],
@@ -870,7 +975,12 @@ export function buildInstance(
     },
     tenant(id: string): PermDock {
       if (subject.principal === null) {
-        return buildInstance(policy, subject, envBase, team);
+        return buildInstance(
+          policy,
+          subject,
+          { ...envBase, relationCache },
+          team,
+        );
       }
       const next = freezeDeep(
         compact<Subject>({
@@ -885,10 +995,10 @@ export function buildInstance(
           }),
         }),
       );
-      return buildInstance(policy, next, envBase, team);
+      return buildInstance(policy, next, { ...envBase, relationCache }, team);
     },
     team(id: string): PermDock {
-      return buildInstance(policy, subject, envBase, id);
+      return buildInstance(policy, subject, { ...envBase, relationCache }, id);
     },
     memberships(): readonly Membership[] {
       return subject.principal?.memberships ?? [];

@@ -7,6 +7,7 @@ export type {
   ConditionValue,
   MemberOfCondition,
   MemberOfParent,
+  RelatedCondition,
   SqlFunctionArg,
   SqlFunctionCondition,
 } from './conditions/ast.ts';
@@ -58,6 +59,9 @@ export {
 export { fromStripeEntitlements } from './core/stripe-entitlements.ts';
 export type { StripeEntitlementsClient } from './core/stripe-entitlements.ts';
 export { memoryLimitStore } from './core/limits.ts';
+export { memoryRelations } from './core/relations.ts';
+export type { MemoryEdge, MemoryRelationsData } from './core/relations.ts';
+export type { Holder, HoldingVia, WhoCan } from './core/who-can.ts';
 export {
   isPortableCondition,
   memoryPolicySource,
@@ -87,6 +91,9 @@ export type {
   EntitlementSource,
   MemberEntry,
   MembershipSource,
+  RelationChain,
+  RelationHolder,
+  RelationSource,
   RoleSource,
   SettingsSource,
   Snapshot,
@@ -150,6 +157,9 @@ export type {
   ResourceInit,
   ResourceNode,
   ResourceOptions,
+  EdgeRelation,
+  FieldRelation,
+  PrincipalRelation,
   ResourceParent,
   ResourceRelation,
   ResourceRelationInput,
@@ -193,7 +203,7 @@ export {
   plan,
   relation,
 } from './core/grantee.ts';
-export type { Grantee, GranteeInput } from './core/grantee.ts';
+export type { Grantee, GranteeInput, RelationGrantee } from './core/grantee.ts';
 export type {
   PolicyScopesInput,
   Scope,

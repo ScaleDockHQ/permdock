@@ -9,6 +9,7 @@ import type {
 import type { DecideOptions } from './permdock.ts';
 import type { Permission } from './permissions.ts';
 import type { Policy } from './policy.ts';
+import type { RelationReader } from './relations.ts';
 import type { CustomRole, Membership, Subject } from './subject.ts';
 
 import { compact } from './compact.ts';
@@ -65,6 +66,8 @@ export type EvalEnv = {
   readonly limits: LimitStore | undefined;
   readonly limitCache: Map<string, number>;
   readonly team: string | undefined;
+  /** Relation facts, read through the instance's per-request cache. */
+  readonly relations?: RelationReader;
 };
 
 function credentialRef(

@@ -40,6 +40,10 @@ export function assertPortableTwin(condition: Condition, depth = 0): void {
       throw new Error('PermDock: sqlFunction twin must not be opaque');
     case 'sqlFunction':
       throw new Error('PermDock: sqlFunction twin must not nest sqlFunction');
+    case 'related':
+      throw new Error(
+        'PermDock: sqlFunction twin must not read the relation graph',
+      );
     case 'and':
     case 'or':
       for (const child of condition.conditions) {

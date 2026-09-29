@@ -1,3 +1,4 @@
+import type { RelatedCondition } from '../conditions/ast.ts';
 import type {
   Decision,
   Denial,
@@ -8,6 +9,7 @@ import type {
 import type { AuthEvent, DecisionEvent, RoleSource } from './interfaces.ts';
 import type { DecideOptions, RowPair } from './permdock.ts';
 import type { Permission } from './permissions.ts';
+import type { RelationReader } from './relations.ts';
 import type { CustomRole, Membership, Subject } from './subject.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
@@ -27,6 +29,7 @@ import {
   type Grant,
   type Policy,
 } from './policy.ts';
+import { resolveRelated } from './relations.ts';
 import { scopeList, tenantOf } from './scopes.ts';
 import { inTeam, matchScopedMembership, nowSeconds } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
@@ -198,11 +201,27 @@ function evaluateGrantCondition(
   subject: Subject,
   now: number,
   scopes: Policy['scopes'],
+  relations: RelationReader | undefined,
 ): {
   readonly matched: boolean;
   readonly reason?: DenialReason;
   readonly cause?: unknown;
 } {
+  // Any graph read the instance could not answer fails the grant, whatever the
+  // rest of the condition says, so `not` and `or` cannot turn it into a match.
+  let unknown: 'relation-depth' | 'relation-unavailable' | undefined;
+  const related = (condition: RelatedCondition, row: unknown): boolean => {
+    if (relations === undefined) {
+      unknown ??= 'relation-unavailable';
+      return false;
+    }
+    const verdict = resolveRelated(condition, row, subject, now, relations);
+    if (verdict === 'relation-depth' || verdict === 'relation-unavailable') {
+      unknown ??= verdict;
+      return false;
+    }
+    return verdict;
+  };
   if (!grant.portable && grant.closure !== undefined) {
     try {
       const result = grant.closure(next ?? current, {
@@ -229,7 +248,18 @@ function evaluateGrantCondition(
     if (grant.where.op === 'opaque' || grant.check?.op === 'opaque') {
       return { matched: false, reason: 'opaque-condition' };
     }
-    if (!evaluateCondition(grant.where, current, subject, now, scopes)) {
+    const matched = evaluateCondition(
+      grant.where,
+      current,
+      subject,
+      now,
+      scopes,
+      related,
+    );
+    if (unknown !== undefined) {
+      return { matched: false, reason: unknown };
+    }
+    if (!matched) {
       return { matched: false, reason: 'condition' };
     }
   }
@@ -242,11 +272,26 @@ function evaluateGrantCondition(
     if (next === undefined) {
       return { matched: false, reason: 'condition' };
     }
-    if (!evaluateCondition(checkCondition, next, subject, now, scopes)) {
+    const matched = evaluateCondition(
+      checkCondition,
+      next,
+      subject,
+      now,
+      scopes,
+      related,
+    );
+    if (unknown !== undefined) {
+      return { matched: false, reason: unknown };
+    }
+    if (!matched) {
       return { matched: false, reason: 'condition' };
     }
   }
   return { matched: true };
+}
+
+function isGraphUnknown(reason: DenialReason | undefined): boolean {
+  return reason === 'relation-depth' || reason === 'relation-unavailable';
 }
 
 function shouldConsumeQuota(
@@ -447,7 +492,14 @@ export function evaluate(
 
   for (const { grant, custom } of candidates) {
     const displayRole = grant.role;
-    const granteeMatch = matchGrantee(grant.to, subject, now, resource, scopes);
+    const granteeMatch = matchGrantee(
+      grant.to,
+      subject,
+      now,
+      resource,
+      scopes,
+      policy.resources,
+    );
     if (!granteeMatch.matched) {
       denials.push({
         role: displayRole,
@@ -534,7 +586,35 @@ export function evaluate(
       subject,
       now,
       scopes,
+      env.relations,
     );
+    if (
+      !condition.matched &&
+      grant.effect === 'deny' &&
+      isGraphUnknown(condition.reason)
+    ) {
+      const decision: Decision = freezeDeep({
+        outcome: 'denied',
+        denials: [
+          {
+            role: displayRole,
+            reason: condition.reason ?? 'relation-unavailable',
+          },
+        ],
+        alternatives: [],
+      });
+      finish(
+        policy,
+        subject,
+        permission,
+        current,
+        decision,
+        options,
+        env,
+        trusted,
+      );
+      return decision;
+    }
     if (!condition.matched) {
       if (condition.reason === 'closure-error') {
         emitSafe(

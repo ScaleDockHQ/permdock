@@ -1,8 +1,13 @@
-import type { Condition } from '../conditions/ast.ts';
+import type {
+  Condition,
+  ConditionValue,
+  RelatedCondition,
+} from '../conditions/ast.ts';
 import type { DenialReason } from './decision.ts';
 import type {
   Permission,
   PermissionTree,
+  PrincipalRelation,
   ResourceNode,
 } from './permissions.ts';
 import type { Subject } from './subject.ts';
@@ -10,7 +15,13 @@ import type { Plan, Role } from './vocabulary.ts';
 
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
-import { listPermissions } from './permissions.ts';
+import {
+  isEdgeRelation,
+  isFieldRelation,
+  isPrincipalRelation,
+  isSelfParented,
+  listPermissions,
+} from './permissions.ts';
 import {
   type Scope,
   activeFor,
@@ -33,7 +44,14 @@ export type RelationGrantee = {
   readonly kind: 'relation';
   readonly resource: string;
   readonly relation: string;
+  /** Follow the row's `parent` chain upward to `resource`, then its own parents. */
+  readonly through?: 'parent';
+  /** Parent hops walked above the first `resource` instance; absent means `DEFAULT_RELATION_DEPTH`. */
+  readonly depth?: number;
 };
+
+export const DEFAULT_RELATION_DEPTH = 16;
+export const MAX_RELATION_DEPTH = 32;
 export type PlanGrantee = { readonly kind: 'plan'; readonly plan: string };
 export type ActorGrantee = { readonly kind: 'actor'; readonly actor: string };
 export type AssuranceGrantee = {
@@ -85,17 +103,39 @@ export function authenticated(): AuthenticatedGrantee {
 export function relation(
   resource: Permission | PermissionTree,
   name: string,
+  options?: { readonly through?: 'parent'; readonly depth?: number },
 ): RelationGrantee {
   const leaves = listPermissions(resource);
   const resourceName = leaves[0]?.resource;
   if (resourceName === undefined) {
     throw new Error('PermDock: relation() requires a resource tree');
   }
-  return freezeDeep({
-    kind: 'relation' as const,
-    resource: resourceName,
-    relation: name,
-  });
+  const through = options?.through;
+  if (through !== undefined && through !== 'parent') {
+    throw new Error(
+      `PermDock: relation() through must be 'parent' (got '${String(through)}')`,
+    );
+  }
+  const depth = options?.depth;
+  if (depth !== undefined) {
+    if (through === undefined) {
+      throw new Error("PermDock: relation() depth needs through: 'parent'");
+    }
+    if (!Number.isInteger(depth) || depth < 0 || depth > MAX_RELATION_DEPTH) {
+      throw new Error(
+        `PermDock: relation() depth must be an integer from 0 to ${MAX_RELATION_DEPTH}`,
+      );
+    }
+  }
+  return freezeDeep(
+    compact<RelationGrantee>({
+      kind: 'relation' as const,
+      resource: resourceName,
+      relation: name,
+      through,
+      depth,
+    }),
+  );
 }
 
 export function plan(name: Plan | string): PlanGrantee {
@@ -217,14 +257,137 @@ export function hasAnyone(
  * tenant"; on any other scope, "the subject holds a membership in the row's
  * instance of it". Shared with the RLS compiler.
  */
+export type RelationConditionOptions = {
+  /** The policy's resource graph, for a relation declared on the row's parent resource. */
+  readonly resources?: ReadonlyMap<string, ResourceNode> | undefined;
+  /** The instant a principal relation's `period` is compared against: a date in process, `{ ref: 'now' }` in SQL. */
+  readonly now?: ConditionValue;
+};
+
+/**
+ * Where a graph relation starts on the row: its own id when the relation is
+ * on the row's resource, the parent field when it is on the parent resource.
+ * `undefined` when `through` cannot reach the relation's resource.
+ */
+export function relationStart(
+  grantee: RelationGrantee,
+  resource: ResourceNode | undefined,
+  target: ResourceNode | undefined,
+):
+  | {
+      readonly field: string;
+      readonly parent: boolean;
+      readonly depth: number;
+    }
+  | undefined {
+  if (resource === undefined || target === undefined) {
+    return undefined;
+  }
+  const walks = grantee.through === 'parent' && isSelfParented(target);
+  const depth = walks ? (grantee.depth ?? DEFAULT_RELATION_DEPTH) : 0;
+  if (target.name === resource.name) {
+    return { field: resource.id, parent: false, depth };
+  }
+  if (
+    grantee.through === 'parent' &&
+    resource.parent?.resource === target.name
+  ) {
+    return { field: resource.parent.field, parent: true, depth };
+  }
+  return undefined;
+}
+
+/** Whether the grantee needs the relation graph: a `through` walk or an edge table. */
+export function isGraphRelation(
+  grantee: RelationGrantee,
+  resources: ReadonlyMap<string, ResourceNode> | undefined,
+): boolean {
+  if (grantee.through !== undefined) {
+    return true;
+  }
+  return isEdgeRelation(
+    resources?.get(grantee.resource)?.relations[grantee.relation],
+  );
+}
+
+function periodConditions(
+  spec: PrincipalRelation,
+  now: ConditionValue,
+): readonly Condition[] {
+  const out: Condition[] = [];
+  const startsAt = spec.period?.startsAt;
+  if (startsAt !== undefined) {
+    out.push({
+      op: 'or',
+      conditions: [
+        { op: 'isNull', field: startsAt, value: true },
+        { op: 'lte', field: startsAt, value: now },
+      ],
+    });
+  }
+  const expiresAt = spec.period?.expiresAt;
+  if (expiresAt !== undefined) {
+    out.push({
+      op: 'or',
+      conditions: [
+        { op: 'isNull', field: expiresAt, value: true },
+        { op: 'gt', field: expiresAt, value: now },
+      ],
+    });
+  }
+  return out;
+}
+
 export function relationCondition(
   grantee: RelationGrantee,
   resource: ResourceNode | undefined,
   scopes: readonly Scope[] = scopeList(undefined),
+  options: RelationConditionOptions = {},
 ): Condition | undefined {
+  const target =
+    grantee.resource === resource?.name
+      ? resource
+      : options.resources?.get(grantee.resource);
+  if (isGraphRelation(grantee, options.resources ?? targetMap(target))) {
+    const spec = target?.relations[grantee.relation];
+    if (
+      spec === undefined ||
+      (isFieldRelation(spec) && spec.memberOf !== undefined)
+    ) {
+      return undefined;
+    }
+    const start = relationStart(grantee, resource, target);
+    if (start === undefined || target === undefined) {
+      return undefined;
+    }
+    return compact<RelatedCondition>({
+      op: 'related',
+      resource: target.name,
+      relation: grantee.relation,
+      field: start.field,
+      depth: start.depth,
+      parent: start.parent ? true : undefined,
+      restricted:
+        start.parent || start.depth > 0 ? resource?.restricted : undefined,
+    });
+  }
   const spec = resource?.relations?.[grantee.relation];
-  if (spec === undefined) {
+  if (spec === undefined || isEdgeRelation(spec)) {
     return undefined;
+  }
+  if (isPrincipalRelation(spec)) {
+    const owner: Condition = {
+      op: 'eq',
+      field: spec.principal,
+      value: { ref: 'principal.id' },
+    };
+    const period = periodConditions(
+      spec,
+      options.now ?? { date: new Date().toISOString() },
+    );
+    return period.length === 0
+      ? owner
+      : { op: 'and', conditions: [owner, ...period] };
   }
   if (spec.memberOf !== undefined) {
     const scope = resolveScope(scopes, spec.memberOf);
@@ -245,6 +408,12 @@ export function relationCondition(
     field: spec.field,
     value: { ref: 'principal.id' },
   };
+}
+
+function targetMap(
+  target: ResourceNode | undefined,
+): ReadonlyMap<string, ResourceNode> | undefined {
+  return target === undefined ? undefined : new Map([[target.name, target]]);
 }
 
 export function combineWhere(
@@ -284,6 +453,7 @@ function matchOne(
   now: number,
   resource: ResourceNode | undefined,
   scopes: readonly Scope[] | undefined,
+  resources: ReadonlyMap<string, ResourceNode> | undefined,
 ): GranteeMatch {
   switch (grantee.kind) {
     case 'anyone':
@@ -348,7 +518,10 @@ function matchOne(
       if (subject.principal === null) {
         return { matched: false, reason: 'anonymous' };
       }
-      const where = relationCondition(grantee, resource, scopes);
+      const where = relationCondition(grantee, resource, scopes, {
+        resources,
+        now: { date: new Date(now * 1000).toISOString() },
+      });
       if (where === undefined && resource !== undefined) {
         return { matched: false, reason: 'condition' };
       }
@@ -373,6 +546,7 @@ export function matchGrantee(
   now: number,
   resource: ResourceNode | undefined,
   scopes?: readonly Scope[],
+  resources?: ReadonlyMap<string, ResourceNode>,
 ): GranteeMatch {
   const items = flattenGrantee(to);
   if (items.length === 0) {
@@ -380,7 +554,7 @@ export function matchGrantee(
   }
   let where: Condition | undefined;
   for (const item of items) {
-    const result = matchOne(item, subject, now, resource, scopes);
+    const result = matchOne(item, subject, now, resource, scopes, resources);
     if (!result.matched) {
       return result;
     }

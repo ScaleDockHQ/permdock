@@ -17,6 +17,8 @@ import {
   asGrantee,
   authenticated,
   flattenGrantee,
+  isGraphRelation,
+  relationStart,
   roleNameOf,
   roleScopeOf,
 } from './grantee.ts';
@@ -28,7 +30,9 @@ import {
   type PermissionTree,
   type ResourceNode,
   getRegistry,
+  isFieldRelation,
   isRegistryTree,
+  isSelfParented,
   listPermissions,
 } from './permissions.ts';
 import {
@@ -597,6 +601,54 @@ function assertParentGraph(resources: ReadonlyMap<string, ResourceNode>): void {
   }
 }
 
+/**
+ * Graph relation grantees must reach their resource: `through: 'parent'` from
+ * the row to its parent resource or along its own self-parent, and never over
+ * a `memberOf` relation, which is tenancy, not the object graph.
+ */
+function assertRelationGrants(
+  grants: readonly Grant[],
+  resources: ReadonlyMap<string, ResourceNode>,
+): void {
+  for (const grant of grants) {
+    for (const item of flattenGrantee(grant.to)) {
+      if (item.kind !== 'relation' || !isGraphRelation(item, resources)) {
+        continue;
+      }
+      const label = `grant ${grant.permission.key} relation '${item.relation}'`;
+      const target = resources.get(item.resource);
+      const spec = target?.relations[item.relation];
+      if (target === undefined || spec === undefined) {
+        throw new Error(
+          `PermDock: ${label}: ${item.resource} does not declare it`,
+        );
+      }
+      if (isFieldRelation(spec) && spec.memberOf !== undefined) {
+        throw new Error(
+          `PermDock: ${label} is a memberOf relation; through walks the object graph, not scopes`,
+        );
+      }
+      const row = resources.get(grant.permission.resource);
+      if (
+        item.through === 'parent' &&
+        target.name === row?.name &&
+        !isSelfParented(target)
+      ) {
+        throw new Error(
+          `PermDock: ${label}: through: 'parent' needs ${target.name} to parent itself`,
+        );
+      }
+      if (relationStart(item, row, target) === undefined) {
+        throw new Error(
+          item.through === undefined
+            ? `PermDock: ${label} is on ${target.name}, not ${grant.permission.resource}; add through: 'parent'`
+            : `PermDock: ${label}: ${grant.permission.resource} has no parent on ${target.name}`,
+        );
+      }
+    }
+  }
+}
+
 function scopeOfGrant(
   scope: Grant['scope'],
   declared: readonly Scope[],
@@ -868,6 +920,7 @@ export function definePolicy<
   const grants = [...fromBindings, ...fromGrants];
   assertScopeKeys(grants, scopes, resources);
   assertApprovalVersions(grants, resources);
+  assertRelationGrants(grants, resources);
   const fingerprint = bytesToBase64Url(sha256(canonicalGrants(grants)));
   const hostable = [
     ...new Set(

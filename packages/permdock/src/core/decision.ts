@@ -15,6 +15,8 @@ export type DenialReason =
   | 'insufficient-user-authentication'
   | 'limit'
   | 'limit-unavailable'
+  | 'relation-depth'
+  | 'relation-unavailable'
   | 'validation'
   | 'tenant-mismatch'
   | 'no-membership'
