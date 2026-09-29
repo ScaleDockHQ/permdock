@@ -448,8 +448,7 @@ export function fromJunction(
 
 export const AUTHZ_VERSION_TABLE = 'permdock_authz_version';
 
-/** The default size budget, in bytes of JSON, for the hook's `memberships` claim. */
-export const supabaseMembershipsBudget = 1024;
+export { supabaseMembershipsBudget } from './budget.ts';
 
 /**
  * Reads the authorization version `permdock supabase hook generate` keeps in

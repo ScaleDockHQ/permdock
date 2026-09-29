@@ -123,4 +123,4 @@ export const supabaseClaimFixtures: Readonly<
  * Suggested ceiling for the `memberships` claim in bytes of JSON: about 15 UUID-keyed
  * single-role memberships. `permdock supabase hook generate` truncates at it by default.
  */
-export { supabaseMembershipsBudget } from '../supabase/sources.ts';
+export { supabaseMembershipsBudget } from '../supabase/budget.ts';

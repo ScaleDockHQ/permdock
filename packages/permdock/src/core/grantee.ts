@@ -11,8 +11,13 @@ import type { Plan, Role } from './vocabulary.ts';
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { listPermissions } from './permissions.ts';
-import { type Scope, resolveScope, rootScope, scopeList } from './scopes.ts';
-import { activeFor } from './tenancy.ts';
+import {
+  type Scope,
+  activeFor,
+  resolveScope,
+  rootScope,
+  scopeList,
+} from './scopes.ts';
 import { isPlan, isRole } from './vocabulary.ts';
 
 export type RoleGrantee = {

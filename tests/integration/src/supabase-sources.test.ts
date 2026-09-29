@@ -303,9 +303,10 @@ describe('permdock supabase hook generate against Postgres', () => {
       `update memberships set via = 'staff' where user_id = '${OWNER}' and scope_id = 'T'`,
     );
     const stale = await dockFor(before);
-    expect(stale.decide(permissions.quote.delete, quote).denials).toEqual([
-      { role: null, reason: 'stale-credentials' },
-    ]);
+    expect(stale.decide(permissions.quote.delete, quote)).toMatchObject({
+      outcome: 'denied',
+      denials: [{ role: null, reason: 'stale-credentials' }],
+    });
     expect(stale.can(permissions.quote.read, quote)).toBe(true);
     const after = await mint(OWNER);
     expect(after['authz_ver']).toBeGreaterThan(before['authz_ver'] as number);

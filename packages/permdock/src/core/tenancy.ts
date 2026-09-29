@@ -4,6 +4,7 @@ import type { Membership, Principal, Subject } from './subject.ts';
 
 import {
   type Scope,
+  activeFor,
   findScope,
   resolveScope,
   rootScope,
@@ -11,6 +12,8 @@ import {
   scopeIdOf,
   tenantOf,
 } from './scopes.ts';
+
+export { activeFor };
 
 export function nowSeconds(now?: number): number {
   return now ?? Date.now() / 1000;
@@ -104,26 +107,6 @@ export function partitionsOf(
         relatesTo(resource, scope.key, scope.name, scopes),
     )
     .map((scope) => scope.name);
-}
-
-/**
- * Whether a named membership applies under the active tenant: a membership
- * whose chain includes the first scope counts only inside the active tenant.
- */
-export function activeFor(
-  membership: Membership,
-  scopes: readonly Scope[],
-  active: string | undefined,
-): boolean {
-  const root = rootScope(scopes);
-  if (
-    root === undefined ||
-    membership.scope === undefined ||
-    !scopeChain(scopes, membership.scope).includes(root)
-  ) {
-    return true;
-  }
-  return active !== undefined && scopeIdOf(membership, root) === active;
 }
 
 export type RowScope =

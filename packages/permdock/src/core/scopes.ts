@@ -360,3 +360,23 @@ export function subjectMemberships(
   );
   return legacy ? normalizeMemberships(list, scopes) : list;
 }
+
+/**
+ * Whether a named membership applies under the active tenant: a membership
+ * whose chain includes the first scope counts only inside the active tenant.
+ */
+export function activeFor(
+  membership: Membership,
+  scopes: readonly Scope[],
+  active: string | undefined,
+): boolean {
+  const root = rootScope(scopes);
+  if (
+    root === undefined ||
+    membership.scope === undefined ||
+    !scopeChain(scopes, membership.scope).includes(root)
+  ) {
+    return true;
+  }
+  return active !== undefined && scopeIdOf(membership, root) === active;
+}
