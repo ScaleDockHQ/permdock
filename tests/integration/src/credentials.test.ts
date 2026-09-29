@@ -1,8 +1,8 @@
 import type {
   Credential,
   MembershipSource,
+  Principal,
   SettingsSource,
-  Subject,
   TenantSettings,
 } from 'permdock';
 import type { StoredCredential } from 'permdock/server';
@@ -37,7 +37,7 @@ const { repo } = permissions;
 const policy = definePolicy(
   { permissions },
   {
-    subject: (user: Subject) => user,
+    subject: (user: Principal | null) => user,
     scopes: { organization: { key: 'orgId' } },
     roles: [
       role('admin', [allow(repo.read), allow(repo.write), allow(repo.delete)], {
