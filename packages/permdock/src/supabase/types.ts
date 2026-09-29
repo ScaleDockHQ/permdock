@@ -28,6 +28,12 @@ export type AuthorizeSqlOptions = {
   readonly authorize?: 'database' | 'jwt';
   /** Membership table for tenant requests in `database` mode; without one they deny. */
   readonly tenant?: boolean | SupabaseMembershipTable;
+  /**
+   * Tenant requests also answer from custom roles, through the `permdock_custom_keys` function
+   * `permdock rls generate --custom-roles` emits: the `custom_role_*` tables in `database` mode,
+   * the `memberships[].grants` claim in `jwt` mode. `declared` role names never resolve as custom.
+   */
+  readonly customRoles?: { readonly declared: readonly string[] };
 };
 
 export type SupabaseRlsOptions = {

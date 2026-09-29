@@ -51,9 +51,80 @@ function qualifiedTable(name: string): string {
   return table(name.includes('.') ? name : `public.${name}`);
 }
 
+function literal(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function textArray(values: readonly string[]): string {
+  return values.length === 0
+    ? `'{}'::text[]`
+    : `array[${values.map(literal).join(', ')}]::text[]`;
+}
+
+function claimEntries(where: string, value: string): string {
+  return `array(select ${value} from jsonb_array_elements_text(cg.g) e where ${where})`;
+}
+
+/** A custom role's keys hold `requested_permission` in the tenant scope. */
+function customHolds(
+  q: (name: string) => string,
+  allows: string,
+  denies: string,
+  includes: string,
+): string {
+  return `exists (
+          select 1 from ${q('role_permissions')} rp
+          where rp.permission = requested_permission::text
+            and rp.scope = 'tenant'
+            and rp.effect = 'allow'
+            and rp.grant_key in (select ${q('permdock_custom_keys')}(
+              ${allows},
+              ${denies},
+              ${includes},
+              'tenant'
+            ))
+        )`;
+}
+
+function customDatabaseBranch(
+  q: (name: string) => string,
+  memberships: SupabaseMembershipTable & { readonly tenant: string },
+  declared: readonly string[],
+): string {
+  const match = `c.tenant_id::text = requested_tenant and c.team_id is null and c.role = m.${ident(memberships.role)}::text`;
+  const rows = (source: string, value: string, extra: string): string =>
+    `array(select c.${value} from ${q(source)} c where ${match}${extra})`;
+  return ` or exists (
+      select 1
+      from ${qualifiedTable(memberships.table)} m
+      where m.${ident(memberships.user)}::text = uid::text
+        and m.${ident(memberships.tenant)}::text = requested_tenant
+        and not (m.${ident(memberships.role)}::text = any(${textArray(declared)}))${
+          memberships.expiresAt === undefined
+            ? ''
+            : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
+        }
+        and ${customHolds(
+          q,
+          rows(
+            'custom_role_permissions',
+            'permission',
+            " and c.effect = 'allow'",
+          ),
+          rows(
+            'custom_role_permissions',
+            'permission',
+            " and c.effect = 'deny'",
+          ),
+          rows('custom_role_includes', 'include_role', ''),
+        )}
+    )`;
+}
+
 function databaseBody(
   q: (name: string) => string,
   memberships: SupabaseMembershipTable | undefined,
+  custom: AuthorizeSqlOptions['customRoles'],
 ): string {
   const tenantColumn = memberships?.tenant;
   const tenantBranch =
@@ -75,7 +146,7 @@ function databaseBody(
             ? ''
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
         }
-    );
+    )${custom === undefined ? '' : customDatabaseBranch(q, { ...memberships, tenant: tenantColumn }, custom.declared)};
   end if;`;
   return `declare
   uid uuid := (select auth.uid());
@@ -96,7 +167,37 @@ ${tenantBranch}
 end;`;
 }
 
-function jwtBody(q: (name: string) => string): string {
+function jwtBody(
+  q: (name: string) => string,
+  custom: AuthorizeSqlOptions['customRoles'],
+): string {
+  const memberships = `jsonb_array_elements(
+        case jsonb_typeof(coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships'))
+          when 'array' then coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships')
+          else '[]'::jsonb
+        end
+      ) m
+      cross join lateral jsonb_array_elements_text(
+        case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+      ) r(role)`;
+  const customBranch =
+    custom === undefined
+      ? ''
+      : ` or exists (
+      select 1
+      from ${memberships}
+      cross join lateral (select m -> 'grants' -> r.role as g) cg
+      where m ->> 'tenant' = requested_tenant
+        and m ->> 'team' is null
+        and jsonb_typeof(cg.g) = 'array'
+        and not (r.role = any(${textArray(custom.declared)}))
+        and ${customHolds(
+          q,
+          claimEntries("left(e, 1) not in ('-', '@')", 'e'),
+          claimEntries("left(e, 1) = '-'", 'substr(e, 2)'),
+          claimEntries("left(e, 1) = '@'", 'substr(e, 2)'),
+        )}
+    )`;
   return `declare
   claims jsonb := (select auth.jwt());
   role_claim jsonb;
@@ -121,7 +222,7 @@ begin
         and rp.permission = requested_permission::text
         and rp.scope = 'tenant'
         and rp.effect = 'allow'
-    );
+    )${customBranch};
   end if;
   -- a top-level null (no role row) falls back to app_metadata, like subjectFromSupabase
   role_claim := coalesce(nullif(claims -> 'user_role', 'null'::jsonb), claims -> 'app_metadata' -> 'user_role');
@@ -157,7 +258,9 @@ export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
   const memberships =
     typeof options.tenant === 'object' ? options.tenant : undefined;
   const body =
-    options.authorize === 'jwt' ? jwtBody(q) : databaseBody(q, memberships);
+    options.authorize === 'jwt'
+      ? jwtBody(q, options.customRoles)
+      : databaseBody(q, memberships, options.customRoles);
   return `create or replace function ${q('authorize')}(
   requested_permission ${q('app_permission')},
   requested_tenant text default null
