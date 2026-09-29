@@ -7,6 +7,7 @@ import type {
 import type { Grant, PolicyVocabulary } from './policy.ts';
 import type { Delegation, Membership, Subject } from './subject.ts';
 
+import { bindConditionRefs } from '../conditions/bind.ts';
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { isForbiddenKey } from './paths.ts';
@@ -38,6 +39,32 @@ export function snapshotGrant(
     fields: grant.fields,
   });
   return freezeDeep(entry);
+}
+
+/** Claim refs: the snapshot principal does not carry `claims`, so they are bound to the subject's values. */
+function isClaimRef(ref: string): boolean {
+  return (
+    ref.startsWith('principal.claim.') || ref.startsWith('principal.claims.')
+  );
+}
+
+function bindClaims(grant: SnapshotGrant, subject: Subject): SnapshotGrant {
+  if (grant.where === undefined && grant.check === undefined) {
+    return grant;
+  }
+  return freezeDeep(
+    compact<SnapshotGrant>({
+      ...grant,
+      where:
+        grant.where === undefined
+          ? undefined
+          : bindConditionRefs(grant.where, subject, isClaimRef),
+      check:
+        grant.check === undefined
+          ? undefined
+          : bindConditionRefs(grant.check, subject, isClaimRef),
+    }),
+  );
 }
 
 export function buildSnapshot(input: {
@@ -77,7 +104,9 @@ export function buildSnapshot(input: {
     );
   const grants = input.grants
     .filter((item) => included(item.grant.permission))
-    .map((item) => snapshotGrant(item.grant, item.membership));
+    .map((item) =>
+      bindClaims(snapshotGrant(item.grant, item.membership), input.subject),
+    );
   const assignableFor = input.assignable;
   const assignable =
     assignableFor === undefined
