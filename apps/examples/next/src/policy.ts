@@ -1,44 +1,56 @@
-import { allow, definePolicy, deny, principal, relation, role } from 'permdock';
+import type { Membership } from 'permdock';
+
+import { allow, definePolicy, role } from 'permdock';
 
 import { permissions, roles } from './permissions.ts';
 
 export type User = {
   readonly id: string;
-  readonly orgId: string;
-  readonly roles: readonly string[];
+  readonly name: string;
+  readonly memberships: readonly Membership[];
 };
 
-const member = role(roles.member, [
-  allow(permissions.post.read),
-  allow(permissions.post.list),
-  allow(permissions.post.create),
-  allow(permissions.post.update, {
-    to: relation(permissions.post, 'author'),
-  }),
-  allow(permissions.post.delete, {
-    where: { authorId: principal.id },
-    approval: 'human',
-  }),
-]);
-
-const admin = role(roles.admin, [
-  ...member.grants,
-  allow(permissions.post.update),
-  allow(permissions.post.delete),
-  allow(permissions.post.publish),
-  deny(permissions.post.publish, { where: { published: true } }),
-]);
+const staffCanRead = [
+  allow(permissions.quote.read),
+  allow(permissions.quote.list),
+  allow(permissions.member.list),
+];
 
 export const policy = definePolicy(
   { permissions, roles },
   {
-    roles: [member, admin],
+    scopes: {
+      organization: { key: 'organization_id' },
+      customer: { key: 'customer_id', within: 'organization' },
+    },
+    roles: [
+      role(
+        roles.admin,
+        [
+          ...staffCanRead,
+          allow(permissions.quote.approve, { where: { status: 'sent' } }),
+          allow(permissions.quote.delete),
+          allow(permissions.member.manage),
+        ],
+        { on: 'organization' },
+      ),
+      role(roles.member, staffCanRead, { on: 'organization' }),
+      role(
+        roles.contact,
+        [
+          allow(permissions.quote.read, {
+            where: { status: { in: ['sent', 'approved'] } },
+          }),
+          allow(permissions.quote.list),
+          allow(permissions.quote.approve, { where: { status: 'sent' } }),
+        ],
+        { on: 'customer' },
+      ),
+    ],
     principal: (user: User | null) =>
       user === null
         ? null
-        : { id: user.id, orgId: user.orgId, roles: user.roles },
+        : { id: user.id, roles: [], memberships: user.memberships },
     validate: 'boundary',
   },
 );
-
-export const memberUser: User = { id: 'u1', orgId: 'o1', roles: ['member'] };

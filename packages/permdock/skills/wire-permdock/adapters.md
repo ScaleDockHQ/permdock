@@ -10,13 +10,18 @@ File: `src/permdock/server.ts`
 import { createPermDock } from 'permdock/next';
 import { policy } from '../policy';
 
-export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
-  createPermDock(policy, {
-    subject: async () => getUser(),
-  });
+export const {
+  getPermDock,
+  getPermission,
+  requireAccess,
+  PermDockProvider,
+  permdockHandler,
+} = createPermDock(policy, {
+  subject: async () => getUser(),
+});
 ```
 
-Guard with `getPermission(permissions.post.update, post)` or `assert`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise` and only permission hooks suspend.
+Needs Next.js 16.3 or later. Guard with `getPermission(permissions.post.update, post)` or `assert`. For a page or Server Action that must stop on a denial, `await requireAccess({ permission, data, tenant })` calls `forbidden()` (or `unauthorized()` for a signed-out user); enable `experimental.authInterrupts` and add `app/forbidden.tsx` and `app/unauthorized.tsx`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise` and only permission hooks suspend.
 
 With `cacheComponents`, when permission UI (nav items, row actions) must be prefetched, the app owns the cache. Never put `'use cache'` inside PermDock calls, and never read `headers()` / `cookies()` in a function you mean to cache outside `'use cache: private'`:
 
@@ -39,7 +44,7 @@ export async function loadSnapshot(org: string) {
 <PermDockProvider snapshotPromise={params.then(({ org }) => loadSnapshot(org))}>
 ```
 
-After a role change: `updateTag('permdock:<user>')` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. Guide: https://permdock.com/docs/guides/next-cache-components.
+After a role change: `updateTag('permdock:<user>')` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler (not `'max'`, which would keep serving the revoked grant). Pages whose permission UI must be instant export `instant = true`; a rarely visited admin page exports `prefetch = 'force-disabled'`. Resource links that should carry their gated actions use `<Link prefetch={true}>` with the check in a `'use cache: private'` function keyed on the resource id. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. Guide: https://permdock.com/docs/guides/next-cache-components.
 
 ## Hono — `permdock/hono`
 

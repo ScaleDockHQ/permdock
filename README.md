@@ -147,13 +147,14 @@ Also `usePermissions`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useA
 ```ts
 // src/permdock/server.ts
 import { createPermDock } from 'permdock/next'
-export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
+export const { getPermDock, getPermission, requireAccess, PermDockProvider, permdockHandler } = createPermDock(policy, {
   subject: async () => getUser(await cookies()),
 })
 
 // app/posts/[id]/page.tsx
 const permdock = await getPermDock()
 permdock.assert(permissions.post.update, post)
+await requireAccess({ permission: permissions.post.update, data: post })   // forbidden() / unauthorized() on a denial
 
 // app/api/permdock/route.ts
 export const { POST } = permdockHandler()

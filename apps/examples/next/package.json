@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev -p 3485",
-    "start": "next start -p 3485",
+    "dev": "next dev -p 3485 -H 127.0.0.1",
+    "start": "next start -p 3485 -H 127.0.0.1",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

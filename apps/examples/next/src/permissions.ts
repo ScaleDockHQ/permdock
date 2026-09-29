@@ -1,37 +1,48 @@
 import { definePermissions, defineRoles, resource } from 'permdock';
 import { z } from 'zod';
 
-export const Post = z.object({
+export const QuoteSchema = z.object({
   id: z.string(),
-  authorId: z.string(),
-  orgId: z.string(),
-  published: z.boolean(),
+  organization_id: z.string(),
+  customer_id: z.string(),
+  title: z.string(),
+  status: z.enum(['draft', 'sent', 'approved']),
+  total: z.number(),
 });
 
+export type Quote = z.infer<typeof QuoteSchema>;
+
+export const MemberSchema = z.object({
+  id: z.string(),
+  organization_id: z.string(),
+});
+
+const inOrganization = {
+  organization: { field: 'organization_id', memberOf: 'organization' },
+} as const;
+
 export const permissions = definePermissions({
-  post: resource(Post, {
+  quote: resource(QuoteSchema, {
     id: 'id',
-    actions: ['read', 'update', 'delete', 'publish'],
-    collection: ['create', 'list'],
-    relations: { author: 'authorId' },
+    actions: ['read', 'approve', 'delete'],
+    collection: ['list'],
+    relations: {
+      ...inOrganization,
+      customer: { field: 'customer_id', memberOf: 'customer' },
+    },
+  }),
+  member: resource(MemberSchema, {
+    id: 'id',
+    actions: [],
+    collection: ['list', 'manage'],
+    relations: inOrganization,
   }),
 });
 
 export const roles = defineRoles({
-  member: {},
   admin: {},
+  member: {},
+  contact: {},
 });
 
-export const ownPost = {
-  id: 'p1',
-  authorId: 'u1',
-  orgId: 'o1',
-  published: false,
-};
-
-export const otherPost = {
-  id: 'p2',
-  authorId: 'u2',
-  orgId: 'o1',
-  published: false,
-};
+export type RoleName = keyof typeof roles;

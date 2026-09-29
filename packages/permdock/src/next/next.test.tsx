@@ -1,9 +1,11 @@
+import { redirect } from 'next/navigation';
 import { renderToString } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { memoryApprovalStore, resolveApproval } from '../approvals/index.ts';
 import { APPROVAL_HEADER } from '../approvals/types.ts';
+import { PermDockApprovalRequiredError } from '../core/errors.ts';
 import {
   adminUser,
   memberUser,
@@ -30,6 +32,15 @@ async function json(response: Response): Promise<unknown> {
 }
 
 describe('permdock/next', () => {
+  beforeAll(() => {
+    // What `experimental.authInterrupts` sets at build time.
+    vi.stubEnv('__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS', 'true');
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('exposes the documented factory surface without a module singleton', async () => {
     const first = createPermDock(policy, {
       subject: () => memberUser,
@@ -44,6 +55,7 @@ describe('permdock/next', () => {
         'getPermDock',
         'getPermission',
         'permdockHandler',
+        'requireAccess',
       ].toSorted(),
     );
 
@@ -114,6 +126,86 @@ describe('permdock/next', () => {
       /post.publish/,
     );
     expect(seen).toEqual(['denied']);
+  });
+
+  it('resolves requireAccess to the granted decision', async () => {
+    const { requireAccess } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const decision = await requireAccess({
+      permission: permissions.post.update,
+      data: ownPost,
+    });
+    expect(decision.outcome).toBe('granted');
+  });
+
+  it('interrupts a denial with forbidden for a subject and unauthorized for anonymous', async () => {
+    const seen: string[] = [];
+    const member = createPermDock(policy, {
+      subject: () => memberUser,
+      onDenied: () => {
+        seen.push('factory');
+      },
+    });
+    const anonymous = createPermDock(policy, { subject: () => null });
+
+    await expect(
+      member.requireAccess({
+        permission: permissions.post.update,
+        data: otherPost,
+      }),
+    ).rejects.toMatchObject({ digest: 'NEXT_HTTP_ERROR_FALLBACK;403' });
+    await expect(
+      anonymous.requireAccess({ permission: permissions.post.read }),
+    ).rejects.toMatchObject({ digest: 'NEXT_HTTP_ERROR_FALLBACK;401' });
+    expect(seen).toEqual([]);
+  });
+
+  it('throws the approval error from requireAccess instead of forbidden', async () => {
+    const { requireAccess } = createPermDock(policy, {
+      subject: () => memberUser,
+      store: memoryApprovalStore(),
+    });
+    await expect(
+      requireAccess({ permission: permissions.post.delete, data: ownPost }),
+    ).rejects.toBeInstanceOf(PermDockApprovalRequiredError);
+  });
+
+  it('rethrows a Next.js interrupt from the subject resolver instead of going anonymous', async () => {
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => redirect('/login'),
+    });
+    await expect(getPermDock()).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    });
+
+    const failing = createPermDock(policy, {
+      subject: () => {
+        throw new Error('no session');
+      },
+    });
+    expect((await failing.getPermDock()).subject.principal).toBeNull();
+  });
+
+  it('still writes decisions to the sink outside a request scope', async () => {
+    const written: unknown[] = [];
+    let flushed = 0;
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+      sink: {
+        write: async (events) => {
+          written.push(...events);
+        },
+        flush: async () => {
+          flushed += 1;
+        },
+      },
+    });
+    const dock = await getPermDock();
+    dock.decide(permissions.post.update, ownPost);
+    await Promise.resolve();
+    expect(written).toHaveLength(1);
+    expect(flushed).toBe(0);
   });
 
   it('answers AuthZEN evaluations from the session subject, not the body', async () => {

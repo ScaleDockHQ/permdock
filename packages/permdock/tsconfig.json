@@ -3,7 +3,12 @@
   "compilerOptions": {
     "rootDir": "src",
     "jsx": "react-jsx",
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "next/cache": ["./node_modules/next/cache.d.ts"],
+      "next/navigation": ["./node_modules/next/navigation.d.ts"],
+      "next/server": ["./node_modules/next/server.d.ts"]
+    }
   },
   "include": ["src"],
   "exclude": [

@@ -1,5 +1,5 @@
 import { registerHooks } from 'node:module';
 
-import { load } from './client-reference-loader.ts';
+import { load, resolve } from './client-reference-loader.ts';
 
-registerHooks({ load });
+registerHooks({ load, resolve });
