@@ -25,6 +25,7 @@ import { jsonSchemaOf } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { commandFor, tableFor } from './rls-compile.ts';
+import { graphPlan } from './rls-graph.ts';
 import { contextRefs } from './rls-sql.ts';
 import { runUsage } from './usage.ts';
 
@@ -808,6 +809,90 @@ export async function pd030(input: {
         severity: 'warning',
         message: `${table}_visible masks ${columns.join(', ')}, but ${table} still returns them to a direct read`,
         fix: `set rls.revokeColumns: true (--revoke-columns) so clients read ${columns.join(', ')} only through ${table}_visible`,
+      });
+    }
+  }
+  return findings;
+}
+
+/**
+ * A self-parented resource no `through` grant walks, or a `restricted`
+ * column no graph grant reaches: the declaration has no effect on any
+ * decision, and `rls generate` keeps no closure for it.
+ */
+export async function pd031(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const plan = graphPlan(policy);
+  const findings: DoctorFinding[] = [];
+  for (const node of policy.resources.values()) {
+    const walked = plan.get(node.name)?.closure !== undefined;
+    if (node.parent?.resource === node.name && !walked) {
+      findings.push({
+        code: 'PD031',
+        severity: 'warning',
+        message: `${node.name} parents itself through ${node.parent.field}, but no grant walks it with relation(..., { through: 'parent' }): its ancestors grant nothing and rls generate keeps no closure for it`,
+        fix: `grant through the chain (relation(permissions.${node.name}, '<relation>', { through: 'parent', depth: 16 })) or drop the self-parent`,
+      });
+    }
+    const reached = [...plan.values()].some(
+      (entry) =>
+        entry.node.name === node.name ||
+        (node.parent?.resource === entry.node.name &&
+          entry.node.name !== node.name),
+    );
+    if (node.restricted !== undefined && !reached) {
+      findings.push({
+        code: 'PD031',
+        severity: 'warning',
+        message: `${node.name} declares restricted: '${node.restricted}', but no graph grant reaches ${node.name} rows, so the column keeps nothing out`,
+        fix: `add a relation(..., { through: 'parent' }) grant that reaches ${node.name}, or remove restricted`,
+      });
+    }
+  }
+  return findings;
+}
+
+/**
+ * Under an `rls` config, a graph resource `rls generate` cannot name a helper
+ * for: one that shares a scope's name (its `permitted_<name>_ids` would
+ * replace the scope helper) or is not a lowercase SQL name.
+ */
+export async function pd032(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const scopes = scopeList(policy.scopes);
+  const findings: DoctorFinding[] = [];
+  for (const name of graphPlan(policy).keys()) {
+    if (scopes.some((scope) => scope.name === name)) {
+      findings.push({
+        code: 'PD032',
+        severity: 'error',
+        message: `graph resource ${name} shares its name with the ${name} scope: permitted_${name}_ids would replace the scope helper, so rls generate refuses it`,
+        fix: `rename the resource (for example ${name}s or ${name}_node) or the scope`,
+      });
+    } else if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
+      findings.push({
+        code: 'PD032',
+        severity: 'error',
+        message: `graph resource ${name} is not a lowercase SQL name, so rls generate cannot name permitted_${name}_ids`,
+        fix: 'rename the resource to lowercase letters, digits and underscores',
       });
     }
   }

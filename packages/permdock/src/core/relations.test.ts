@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import type { RelationSource } from './interfaces.ts';
 
+import { testRelationSource } from '../testing/conformance.ts';
 import { fromSnapshot } from './from-snapshot.ts';
 import { relation } from './grantee.ts';
 import { mayAccess } from './may-access.ts';
@@ -507,5 +508,27 @@ describe('relationship graph', () => {
     expect(owners.holders[0]?.via).toEqual([
       { kind: 'relation', resource: 'doc', relation: 'owner', id: 'd1' },
     ]);
+  });
+});
+
+describe('memoryRelations conformance', () => {
+  testRelationSource(source, {
+    objects: [
+      { resource: 'folder', id: 'deeper', relation: 'viewer' },
+      { resource: 'folder', id: 'payroll', relation: 'viewer' },
+      { resource: 'folder', id: 'root', relation: 'viewer' },
+      { resource: 'folder', id: 'eng', relation: 'owner' },
+    ],
+    expect: {
+      ancestors: {
+        'folder:deeper': ['deep', 'platform', 'eng', 'root'],
+        'folder:payroll': ['hr'],
+        'folder:root': [],
+      },
+      holders: {
+        'folder:root#viewer': ['vera'],
+        'folder:eng#owner': ['olga'],
+      },
+    },
   });
 });

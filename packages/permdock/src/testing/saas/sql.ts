@@ -41,6 +41,24 @@ create table doc (
 );
 alter table doc enable row level security;
 alter table doc force row level security;
+create table folder (
+  id text primary key,
+  "orgId" text not null references org (id),
+  "parentId" text references folder (id),
+  name text not null,
+  restricted boolean not null default false
+);
+alter table folder enable row level security;
+alter table folder force row level security;
+create table folder_share (
+  folder_id text not null references folder (id) on delete cascade,
+  user_id text not null,
+  expires_at timestamptz
+);
+create table folder_editor (
+  folder_id text not null references folder (id) on delete cascade,
+  user_id text not null
+);
 `;
 
 function literal(value: string | number | boolean | null | undefined): string {
@@ -112,6 +130,41 @@ export function saasSeedSql(seed: SaasSeed = saasSeed): string {
           row.title,
           row.locked,
         ]),
+      )};`,
+    );
+  }
+  if (seed.folders.length > 0) {
+    statements.push(
+      `insert into folder (id, "orgId", "parentId", name, restricted) values\n  ${values(
+        seed.folders.map((row) => [
+          row.id,
+          row.orgId,
+          row.parentId,
+          row.name,
+          row.restricted,
+        ]),
+      )};`,
+    );
+  }
+  const viewers = seed.shares.filter((share) => share.relation === 'viewer');
+  if (viewers.length > 0) {
+    statements.push(
+      `insert into folder_share (folder_id, user_id, expires_at) values\n  ${values(
+        viewers.map((share) => [share.folder, share.user, null]),
+      )};`,
+      ...viewers
+        .filter((share) => share.expiresAt !== undefined)
+        .map(
+          (share) =>
+            `update folder_share set expires_at = to_timestamp(${String(share.expiresAt)}) where folder_id = ${literal(share.folder)} and user_id = ${literal(share.user)};`,
+        ),
+    );
+  }
+  const editors = seed.shares.filter((share) => share.relation === 'editor');
+  if (editors.length > 0) {
+    statements.push(
+      `insert into folder_editor (folder_id, user_id) values\n  ${values(
+        editors.map((share) => [share.folder, share.user]),
       )};`,
     );
   }

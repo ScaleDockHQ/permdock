@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-09-29T10:50:47.119Z",
-  "generator": "permdock@0.1.0-next.1",
-  "fingerprint": "ItWWJ-Tdgy_ra60cazII4EI-x_TCDWYZ2TE-8cd3hPo",
+  "generatedAt": "2026-09-29T19:34:50.581Z",
+  "generator": "permdock@0.1.0-next.2",
+  "fingerprint": "Ea9Za8tg7QsF0EhbV3a2BCgd0-H5BSSRAnQ0fjOcWRQ",
   "resources": {
     "project": {
       "id": "id",
@@ -28,6 +28,26 @@
           "memberOf": "team"
         }
       }
+    },
+    "folder": {
+      "id": "id",
+      "schema": null,
+      "relations": {
+        "org": {
+          "field": "orgId",
+          "memberOf": "tenant"
+        },
+        "viewer": {
+          "edge": "folder_share",
+          "object": "folder_id",
+          "expiresAt": "expires_at"
+        },
+        "editor": {
+          "edge": "folder_editor",
+          "object": "folder_id"
+        }
+      },
+      "restricted": "restricted"
     },
     "member": {
       "id": "id",
@@ -174,6 +194,59 @@
       "key": "doc.update",
       "scope": "doc:update",
       "resource": "doc",
+      "action": "update",
+      "arity": "instance",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "folder.create",
+      "scope": "folder:create",
+      "resource": "folder",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": []
+    },
+    {
+      "key": "folder.delete",
+      "scope": "folder:delete",
+      "resource": "folder",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {
+        "tags": [
+          "destructive"
+        ]
+      },
+      "usages": []
+    },
+    {
+      "key": "folder.list",
+      "scope": "folder:list",
+      "resource": "folder",
+      "action": "list",
+      "arity": "collection",
+      "meta": {
+        "readOnly": true
+      },
+      "usages": []
+    },
+    {
+      "key": "folder.read",
+      "scope": "folder:read",
+      "resource": "folder",
+      "action": "read",
+      "arity": "instance",
+      "meta": {
+        "readOnly": true
+      },
+      "usages": []
+    },
+    {
+      "key": "folder.update",
+      "scope": "folder:update",
+      "resource": "folder",
       "action": "update",
       "arity": "instance",
       "meta": {},

@@ -1,5 +1,5 @@
 import type { Permission } from '../../index.ts';
-import type { SaasDoc, SaasProject } from './permissions.ts';
+import type { SaasDoc, SaasFolder, SaasProject } from './permissions.ts';
 
 import { saasPermissions as p } from './permissions.ts';
 import { saasSeed } from './seed.ts';
@@ -12,7 +12,7 @@ export type SaasScenario = {
   /** The requested tenant, as a route or header would pass it. */
   readonly tenant?: string;
   readonly permission: Permission;
-  readonly row?: SaasProject | SaasDoc;
+  readonly row?: SaasProject | SaasDoc | SaasFolder;
   readonly expected: {
     readonly outcome: SaasOutcome;
     /** One reason that must appear among the denials. */
@@ -45,6 +45,80 @@ export function saasDoc(id: string): SaasDoc {
   }
   return row;
 }
+
+export function saasFolder(id: string): SaasFolder {
+  const row = saasSeed.folders.find((folder) => folder.id === id);
+  if (row === undefined) {
+    throw new Error(`unknown fixture folder ${id}`);
+  }
+  return row;
+}
+
+/**
+ * The folder tree, decided with `createPermDock({ relations: saasRelations() })`.
+ * A snapshot carries no graph, so every graph grant is server-only on a client.
+ */
+export const saasFolderScenarios: readonly SaasScenario[] = Object.freeze([
+  {
+    name: 'a viewer of the root reads a folder three levels down',
+    user: 'bob',
+    tenant: 'acme',
+    permission: p.folder.read,
+    row: saasFolder('infra'),
+    expected: { outcome: 'granted' },
+    clientOutcome: 'denied',
+  },
+  {
+    name: 'a viewer of the root does not reach a restricted branch',
+    user: 'bob',
+    tenant: 'acme',
+    permission: p.folder.read,
+    row: saasFolder('payroll'),
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'a viewer of the restricted folder reads inside it',
+    user: 'hank',
+    tenant: 'acme',
+    permission: p.folder.read,
+    row: saasFolder('payroll'),
+    expected: { outcome: 'granted' },
+    clientOutcome: 'denied',
+  },
+  {
+    name: 'an editor of a folder updates its descendants but not its parent',
+    user: 'gina',
+    tenant: 'acme',
+    permission: p.folder.update,
+    row: saasFolder('platform'),
+    expected: { outcome: 'granted' },
+    clientOutcome: 'denied',
+  },
+  {
+    name: 'an editor does not update above the shared folder',
+    user: 'gina',
+    tenant: 'acme',
+    permission: p.folder.update,
+    row: saasFolder('root'),
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'an expired share reaches nothing',
+    user: 'frank',
+    tenant: 'acme',
+    permission: p.folder.read,
+    row: saasFolder('eng'),
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'an admin reads every folder in the org, restricted or not',
+    user: 'alice',
+    tenant: 'acme',
+    permission: p.folder.read,
+    row: saasFolder('payroll'),
+    expected: { outcome: 'granted' },
+  },
+]);
 
 /**
  * Hand-written expectations. Never derive `expected` from the engine: the

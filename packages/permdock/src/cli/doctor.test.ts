@@ -772,6 +772,63 @@ export const policy = definePolicy(permissions, {
     ]);
   });
 
+  it('PD031 and PD032 flag graph declarations that do nothing or cannot compile', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/graph.ts'),
+      `import { allow, definePermissions, definePolicy, relation, resource } from 'permdock';
+
+export const permissions = definePermissions({
+  folder: resource({
+    actions: ['read'],
+    parent: { field: 'parentId', resource: 'folder' },
+    restricted: 'restricted',
+  }),
+  team: resource({
+    actions: ['read'],
+    parent: { field: 'parentId', resource: 'team' },
+    relations: { lead: { edge: 'team_leads' } },
+  }),
+});
+
+export const policy = definePolicy(permissions, {
+  grants: [
+    allow(permissions.team.read, {
+      to: relation(permissions.team, 'lead', { through: 'parent' }),
+    }),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/graph.ts',
+  policy: './src/graph.ts',
+  rls: { dialect: 'supabase' },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'graph'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly severity: string;
+        readonly message: string;
+      }[];
+    };
+    expect(
+      report.findings.map((item) => [item.code, item.message.split(' ')[0]]),
+    ).toEqual([
+      ['PD031', 'folder'],
+      ['PD031', 'folder'],
+      ['PD032', 'graph'],
+    ]);
+    expect(report.findings[2]?.severity).toBe('error');
+    expect(result.code).toBe(1);
+  });
+
   it('PD029 warns on API keys that never expire and policies that allow them', async () => {
     const cwd = appCopy();
     const base = {
