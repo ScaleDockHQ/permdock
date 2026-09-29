@@ -1,0 +1,202 @@
+import type { CompiledBranch, CompiledPolicy } from './rls-compile.ts';
+
+import { branchClauses } from './rls-compile.ts';
+
+export type PolicyShape = {
+  /** One policy per role and permission (the pre-helper layout) instead of one per table and command. */
+  readonly perRole: boolean;
+  /** Name template: `{table}`, `{op}`, `{role}`, `{permission}`. */
+  readonly name?: string;
+};
+
+export const DEFAULT_POLICY_NAME = '{table}_{op}';
+export const DEFAULT_PER_ROLE_NAME = '{role}_{permission}';
+
+const PLACEHOLDER = /\{(table|op|role|permission)\}/gu;
+
+function sanitize(name: string): string {
+  return name.replaceAll(/[^A-Za-z0-9_]/g, '_');
+}
+
+function render(
+  template: string,
+  values: Readonly<Record<'table' | 'op' | 'role' | 'permission', string>>,
+): string {
+  return sanitize(
+    template.replaceAll(
+      PLACEHOLDER,
+      (_match, key: keyof typeof values) => values[key],
+    ),
+  );
+}
+
+/** Rejects a template that cannot name every policy of the chosen shape uniquely. */
+export function assertPolicyName(template: string, perRole: boolean): void {
+  if (!perRole && /\{(role|permission)\}/u.test(template)) {
+    throw new Error(
+      'PermDock CLI: --policy-name {role} and {permission} need --policy-per-role; a collapsed policy covers several roles',
+    );
+  }
+  if (
+    !perRole &&
+    !(template.includes('{table}') && template.includes('{op}'))
+  ) {
+    throw new Error(
+      'PermDock CLI: --policy-name needs {table} and {op} so each table and command gets its own policy',
+    );
+  }
+}
+
+function orSql(parts: readonly string[]): string {
+  const distinct = [...new Set(parts)];
+  if (distinct.includes('true')) {
+    return 'true';
+  }
+  return distinct.length === 1
+    ? distinct[0]!
+    : distinct.map((part) => `(${part})`).join(' or ');
+}
+
+function negate(sql: string | undefined): string | undefined {
+  return sql === undefined ? undefined : `not (${sql})`;
+}
+
+function policyOf(
+  name: string,
+  branch: CompiledBranch,
+  using: string | undefined,
+  check: string | undefined,
+): CompiledPolicy {
+  const deny = branch.effect === 'deny';
+  const policy: {
+    -readonly [K in keyof CompiledPolicy]: CompiledPolicy[K];
+  } = {
+    name,
+    table: branch.table,
+    command: branch.command,
+    effect: branch.effect,
+    roles: branch.roles,
+  };
+  const finalUsing = deny ? negate(using) : using;
+  const finalCheck = deny ? negate(check) : check;
+  if (finalUsing !== undefined) {
+    policy.using = finalUsing;
+  }
+  if (finalCheck !== undefined) {
+    policy.check = finalCheck;
+  }
+  return policy;
+}
+
+function uniqueName(names: Map<string, number>, name: string): string {
+  const seen = names.get(name) ?? 0;
+  names.set(name, seen + 1);
+  return seen === 0 ? name : `${name}_${seen + 1}`;
+}
+
+function perRolePolicies(
+  branches: readonly CompiledBranch[],
+  template: string,
+): CompiledPolicy[] {
+  const names = new Map<string, number>();
+  return branches.map((branch) => {
+    const clauses = branchClauses(branch);
+    const deny = branch.effect === 'deny';
+    const base = render(template, {
+      table: branch.table,
+      op: branch.command,
+      role: branch.label,
+      permission: branch.permissionKey,
+    });
+    const name = `${deny ? 'deny_' : ''}${base}${branch.coverage === true ? '_select_coverage' : ''}`;
+    return policyOf(
+      uniqueName(names, name),
+      branch,
+      clauses.using,
+      clauses.check,
+    );
+  });
+}
+
+/**
+ * Branches of one grant-key group share their row condition, so the group
+ * becomes one OR branch whose access ORs the helper calls of each scope.
+ */
+function mergeGroups(branches: readonly CompiledBranch[]): CompiledBranch[] {
+  const merged: CompiledBranch[] = [];
+  const byKey = new Map<string, number>();
+  for (const branch of branches) {
+    if (branch.grantKey === undefined) {
+      merged.push(branch);
+      continue;
+    }
+    const id = `${branch.table}\u0000${branch.command}\u0000${branch.grantKey}\u0000${branch.coverage === true}`;
+    const at = byKey.get(id);
+    if (at === undefined) {
+      byKey.set(id, merged.length);
+      merged.push(branch);
+      continue;
+    }
+    const first = merged[at]!;
+    const accesses = [first.access, branch.access].filter(
+      (item): item is string => item !== undefined,
+    );
+    merged[at] = { ...first, access: orSql(accesses) };
+  }
+  return merged;
+}
+
+function collapsedPolicies(
+  branches: readonly CompiledBranch[],
+  template: string,
+): CompiledPolicy[] {
+  const groups = new Map<string, CompiledBranch[]>();
+  for (const branch of mergeGroups(branches)) {
+    const id = `${branch.table}\u0000${branch.command}\u0000${branch.effect}\u0000${branch.roles.join(',')}`;
+    groups.set(id, [...(groups.get(id) ?? []), branch]);
+  }
+  const names = new Map<string, number>();
+  return [...groups.values()].map((group) => {
+    const first = group[0]!;
+    const deny = first.effect === 'deny';
+    const clauses = group.map(branchClauses);
+    const usings = clauses.flatMap((item) =>
+      item.using === undefined ? [] : [item.using],
+    );
+    const checks = clauses.flatMap((item) =>
+      item.check === undefined ? [] : [item.check],
+    );
+    const using = usings.length === 0 ? undefined : orSql(usings);
+    const check = checks.length === 0 ? undefined : orSql(checks);
+    const base = render(template, {
+      table: first.table,
+      op: first.command,
+      role: first.label,
+      permission: first.permissionKey,
+    });
+    const anon = first.roles.includes('anon') ? '_anon' : '';
+    return policyOf(
+      uniqueName(names, `${deny ? 'deny_' : ''}${base}${anon}`),
+      first,
+      using,
+      check,
+    );
+  });
+}
+
+/**
+ * Assembles policies. The default is one PERMISSIVE policy per table,
+ * command and audience (Splinter `multiple_permissive_policies` stays
+ * quiet), with denies in one RESTRICTIVE policy per table and command.
+ */
+export function assemblePolicies(
+  branches: readonly CompiledBranch[],
+  shape: PolicyShape,
+): CompiledPolicy[] {
+  const template =
+    shape.name ?? (shape.perRole ? DEFAULT_PER_ROLE_NAME : DEFAULT_POLICY_NAME);
+  assertPolicyName(template, shape.perRole);
+  return shape.perRole
+    ? perRolePolicies(branches, template)
+    : collapsedPolicies(branches, template);
+}

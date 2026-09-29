@@ -17,6 +17,12 @@ export type RlsSqlContext = {
   readonly tenantClaim: string;
   readonly gucPrefix: string;
   readonly inlineFunctions?: boolean;
+  /** Schema of `role_permissions` and the `permdock_*` helpers. Default `public`. */
+  readonly schema?: string;
+  /** Where the helpers read roles and memberships: tables (`database`) or claims (`jwt`, the default). */
+  readonly authorize?: 'database' | 'jwt';
+  /** Claim holding the global role (string or array). Default `user_role`. */
+  readonly roleClaim?: string;
 };
 
 export function quoteIdent(name: string): string {
@@ -60,6 +66,25 @@ export function subjectClaimSql(ctx: RlsSqlContext, claim: string): string {
       return `((select auth.session()) ->> ${quoteLiteral(claim)})`;
     case 'guc':
       return `current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true)`;
+    default: {
+      const exhaustive: never = ctx.dialect;
+      return exhaustive;
+    }
+  }
+}
+
+/** A claim as `jsonb`; the `guc` dialect stores JSON text in `<prefix>.<claim>`. */
+export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
+  if (!CLAIM.test(claim)) {
+    throw new Error(`PermDock CLI: unsafe claim name '${claim}'`);
+  }
+  switch (ctx.dialect) {
+    case 'supabase':
+      return `((select auth.jwt()) -> ${quoteLiteral(claim)})`;
+    case 'neon':
+      return `((select auth.session()) -> ${quoteLiteral(claim)})`;
+    case 'guc':
+      return `nullif(current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true), '')::jsonb`;
     default: {
       const exhaustive: never = ctx.dialect;
       return exhaustive;
@@ -145,12 +170,14 @@ function existsSql(
   ctx: RlsSqlContext,
   tenantColumn?: string,
 ): string {
-  const roleList = roles.map((role) => role.replaceAll("'", "''")).join(',');
   const parts = [
     `m.${quoteIdent(rowColumn)} = ${quoteIdent(rowField)}`,
     `m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`,
-    `m.${quoteIdent(table.role)} = any('{${roleList}}')`,
   ];
+  if (roles.length > 0) {
+    const roleList = roles.map((role) => role.replaceAll("'", "''")).join(',');
+    parts.push(`m.${quoteIdent(table.role)} = any('{${roleList}}')`);
+  }
   if (table.expiresAt !== undefined) {
     parts.push(
       `(m.${quoteIdent(table.expiresAt)} is null or m.${quoteIdent(table.expiresAt)} > now())`,

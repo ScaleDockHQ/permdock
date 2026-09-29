@@ -1,18 +1,38 @@
-import type { Condition, Grant, Policy, ResourceNode } from 'permdock';
+import type { Condition, Policy, ResourceNode } from 'permdock';
 
 import { hasConditionOp } from 'permdock';
 
 import type { RlsGrant } from './rls-grants.ts';
+import type { RolePermission } from './rls-helpers.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
-import { authorizeCall } from './rls-rbac.ts';
-import {
-  andConditions,
-  compileConditionSql,
-  sqlFunctionNames,
-} from './rls-sql.ts';
+import { collectGrants } from './rls-grants.ts';
+import { accessSql } from './rls-helpers.ts';
+import { compileConditionSql, sqlFunctionNames } from './rls-sql.ts';
 
 export type SqlCommand = 'select' | 'insert' | 'update' | 'delete';
+
+/**
+ * One grant (or one grant-key group) on one table and command, before
+ * policies are assembled. `access` is the helper call or membership join;
+ * `using` and `check` hold only the portable row condition.
+ */
+export type CompiledBranch = {
+  readonly table: string;
+  readonly command: SqlCommand;
+  readonly effect: 'allow' | 'deny';
+  /** Postgres roles the policy targets: `authenticated`, plus `anon` for `anyone()`. */
+  readonly roles: readonly string[];
+  /** Role name, `anyone` or `authenticated`. */
+  readonly label: string;
+  readonly permissionKey: string;
+  readonly grantKey?: string;
+  readonly access?: string;
+  readonly using?: string;
+  readonly check?: string;
+  /** Added only so `update` / `delete` can see their rows. */
+  readonly coverage?: true;
+};
 
 export type CompiledPolicy = {
   readonly name: string;
@@ -22,14 +42,16 @@ export type CompiledPolicy = {
   readonly roles: readonly string[];
   readonly using?: string;
   readonly check?: string;
-  readonly permissionKey: string;
 };
 
-function grantRoleName(grant: Grant): string {
-  return grant.role ?? 'grant';
-}
+export type CompiledGrants = {
+  readonly branches: readonly CompiledBranch[];
+  readonly rolePermissions: readonly RolePermission[];
+  /** Tables and columns that row conditions filter on, for index suggestions. */
+  readonly filtered: readonly string[];
+};
 
-function commandFor(action: string): SqlCommand | undefined {
+export function commandFor(action: string): SqlCommand | undefined {
   switch (action) {
     case 'read':
     case 'list':
@@ -51,67 +73,6 @@ export function tableFor(
   tables: Readonly<Record<string, string>> | undefined,
 ): string {
   return tables?.[resource] ?? resource;
-}
-
-function scopeCondition(
-  grant: Grant,
-  policy: Policy,
-  ctx: RlsSqlContext,
-): Condition | undefined {
-  if (grant.scope === 'global') {
-    return undefined;
-  }
-  if (grant.scope === 'tenant') {
-    const field = policy.scopes.tenant?.key;
-    if (field === undefined) {
-      throw new Error(
-        'PermDock CLI: tenant-scoped grant needs definePolicy({ scopes.tenant })',
-      );
-    }
-    return {
-      op: 'memberOf',
-      scope: 'tenant',
-      field,
-      roles: grant.role === null ? [] : [grant.role],
-    };
-  }
-  if (grant.scope === 'team') {
-    const field = policy.scopes.team?.key;
-    if (field === undefined) {
-      throw new Error(
-        'PermDock CLI: team-scoped grant needs definePolicy({ scopes.team })',
-      );
-    }
-    return {
-      op: 'memberOf',
-      scope: 'team',
-      field,
-      roles: grant.role === null ? [] : [grant.role],
-    };
-  }
-  // Mirrors `matchResourceMembership`: a membership on the role's resource or
-  // one of its ancestors, keyed by the row field that holds that resource's id.
-  const roleResource = grant.scope.resource;
-  const target = policy.resources.get(grant.permission.resource);
-  const holders = [roleResource, ...ancestorsOf(policy, roleResource)];
-  const hops: Condition[] = [];
-  for (const [index, holder] of holders.entries()) {
-    const field = membershipField(policy, target, holder);
-    if (field === undefined) {
-      continue;
-    }
-    if (index > 0 && ctx.memberships?.resource?.[holder] === undefined) {
-      continue;
-    }
-    hops.push({
-      op: 'memberOf',
-      scope: 'resource',
-      field,
-      roles: grant.role === null ? [] : [grant.role],
-      resource: holder,
-    });
-  }
-  return hops.length === 1 ? hops[0] : { op: 'or', conditions: hops };
 }
 
 function ancestorsOf(policy: Policy, name: string): readonly string[] {
@@ -150,49 +111,70 @@ function membershipField(
   return undefined;
 }
 
-function policyRoles(item: RlsGrant): readonly string[] {
-  return item.access.kind === 'anyone'
-    ? ['anon', 'authenticated']
-    : ['authenticated'];
-}
-
-function policyName(
-  role: string,
-  resource: string,
-  action: string,
-  effect: 'allow' | 'deny',
-): string {
-  const prefix = effect === 'deny' ? 'deny_' : '';
-  return `${prefix}${role}_${resource}_${action}`.replaceAll(
-    /[^A-Za-z0-9_]/g,
-    '_',
-  );
-}
-
-export function compileGrant(
+// Mirrors `matchResourceMembership`: a membership on the role's resource or
+// one of its ancestors, keyed by the row field that holds that resource's id.
+export function resourceCondition(
   item: RlsGrant,
   policy: Policy,
   ctx: RlsSqlContext,
+): Condition {
+  if (item.access.kind !== 'resource') {
+    throw new Error('PermDock CLI: resourceCondition needs a resource role');
+  }
+  const { role, resource: roleResource } = item.access;
+  const target = policy.resources.get(item.grant.permission.resource);
+  const holders = [roleResource, ...ancestorsOf(policy, roleResource)];
+  const hops: Condition[] = [];
+  for (const [index, holder] of holders.entries()) {
+    const field = membershipField(policy, target, holder);
+    if (field === undefined) {
+      continue;
+    }
+    if (index > 0 && ctx.memberships?.resource?.[holder] === undefined) {
+      continue;
+    }
+    hops.push({
+      op: 'memberOf',
+      scope: 'resource',
+      field,
+      roles: [role],
+      resource: holder,
+    });
+  }
+  return hops.length === 1 ? hops[0]! : { op: 'or', conditions: hops };
+}
+
+type Prepared = {
+  readonly item: RlsGrant;
+  readonly command: SqlCommand;
+  readonly table: string;
+  /** Row condition on the current row (`USING`). */
+  readonly using?: Condition;
+  /** Row condition on the proposed row (`WITH CHECK`). */
+  readonly check?: Condition;
+};
+
+function prepare(
+  item: RlsGrant,
   tables: Readonly<Record<string, string>> | undefined,
-  rbac: { readonly schema: string } | undefined,
   warnings: string[],
   skipClosures: boolean,
-): CompiledPolicy | undefined {
-  const grant = item.grant;
+): Prepared | undefined {
+  const { grant, label } = item;
   if (grant.closure !== undefined || grant.portable === false) {
     if (skipClosures) {
       warnings.push(
-        `skipped non-portable grant ${grantRoleName(grant)}/${grant.permission.key}`,
+        `skipped non-portable grant ${label}/${grant.permission.key}`,
       );
       return undefined;
     }
     throw new Error(
-      `PermDock CLI: closure grant ${grantRoleName(grant)}/${grant.permission.key} is not portable; rewrite it or pass --skip-closures`,
+      `PermDock CLI: closure grant ${label}/${grant.permission.key} is not portable; rewrite it or pass --skip-closures`,
     );
   }
   if (grant.approval === 'human') {
     warnings.push(
-      `skipped approval:human grant ${grantRoleName(grant)}/${grant.permission.key}`,
+      `skipped approval:human grant ${label}/${grant.permission.key}`,
     );
     return undefined;
   }
@@ -203,112 +185,235 @@ export function compileGrant(
     );
     return undefined;
   }
-  const scoped = andConditions(scopeCondition(grant, policy, ctx), item.where);
-  const check = grant.check ?? (command === 'update' ? item.where : undefined);
-  let using =
+  const table = tableFor(grant.permission.resource, tables);
+  const using = command === 'insert' ? undefined : item.where;
+  const check =
     command === 'insert'
-      ? undefined
-      : scoped === undefined
-        ? 'true'
-        : compileConditionSql(scoped, ctx);
-  let withCheck =
-    command === 'insert' || command === 'update'
-      ? check === undefined && scoped === undefined
-        ? 'true'
-        : compileConditionSql(
-            check ?? scoped ?? { op: 'eq', field: '_', value: true },
-            ctx,
-          )
-      : undefined;
-  if (command === 'insert' && scoped !== undefined && check === undefined) {
-    withCheck = compileConditionSql(scoped, ctx);
-  }
-  const functionNames = [
-    ...sqlFunctionNames(scoped),
-    ...sqlFunctionNames(check),
-  ];
-  if (functionNames.length > 0) {
-    warnings.push(
-      `sqlFunction ${[...new Set(functionNames)].join(', ')} on ${grantRoleName(grant)}/${grant.permission.key} is portable via twin`,
-    );
-  }
-  if (hasConditionOp(scoped, 'opaque') || hasConditionOp(check, 'opaque')) {
-    warnings.push(
-      `opaque SQL on ${grantRoleName(grant)}/${grant.permission.key} is untestable app-side`,
-    );
-  }
-  if (rbac !== undefined) {
-    const call = authorizeCall(
-      rbac.schema,
-      grant.permission.key,
-      grant.scope === 'tenant' ? policy.scopes.tenant?.key : undefined,
-    );
-    if (command !== 'insert') {
-      using =
-        using === undefined || using === 'true'
-          ? call
-          : `${call} and (${using})`;
-    }
-    if (withCheck !== undefined) {
-      withCheck = withCheck === 'true' ? call : `${call} and (${withCheck})`;
-    }
-  }
-  if (grant.effect === 'deny') {
-    if (using !== undefined) {
-      using = `not (${using})`;
-    }
-    if (withCheck !== undefined) {
-      withCheck = `not (${withCheck})`;
-    }
-  }
+      ? (grant.check ?? item.where)
+      : command === 'update'
+        ? (grant.check ?? item.where)
+        : undefined;
   return {
-    name: policyName(
-      grantRoleName(grant),
-      grant.permission.resource,
-      grant.permission.action,
-      grant.effect,
-    ),
-    table: tableFor(grant.permission.resource, tables),
+    item,
     command,
-    effect: grant.effect,
-    roles: policyRoles(item),
+    table,
     ...(using === undefined ? {} : { using }),
-    ...(withCheck === undefined ? {} : { check: withCheck }),
-    permissionKey: grant.permission.key,
+    ...(check === undefined ? {} : { check }),
   };
 }
 
-export function ensureSelectCoverage(
-  policies: CompiledPolicy[],
-  warnings: string[],
-): CompiledPolicy[] {
-  const extra: CompiledPolicy[] = [];
-  const seen = new Set(
-    policies
-      .filter((item) => item.command === 'select')
-      .map((item) => `${item.table}:${item.roles.join(',')}`),
-  );
-  for (const item of policies) {
-    if (item.command !== 'update' && item.command !== 'delete') {
+function signature(entry: Prepared): string {
+  return JSON.stringify([
+    entry.item.grant.effect,
+    entry.using ?? null,
+    entry.check ?? null,
+  ]);
+}
+
+/**
+ * Grant keys per permission: the key is the permission, split into
+ * `permission#n` when role grants carry different portable conditions (or
+ * effects), one key per condition group.
+ */
+function assignKeys(entries: readonly Prepared[]): Map<Prepared, string> {
+  const groups = new Map<string, Map<string, Prepared[]>>();
+  for (const entry of entries) {
+    if (entry.item.access.kind !== 'role') {
       continue;
     }
-    const key = `${item.table}:${item.roles.join(',')}`;
-    if (seen.has(key)) {
-      continue;
+    const key = entry.item.grant.permission.key;
+    const byCondition = groups.get(key) ?? new Map<string, Prepared[]>();
+    const sig = signature(entry);
+    byCondition.set(sig, [...(byCondition.get(sig) ?? []), entry]);
+    groups.set(key, byCondition);
+  }
+  const keys = new Map<Prepared, string>();
+  for (const [permission, byCondition] of groups) {
+    const lists = [...byCondition.values()];
+    for (const [index, list] of lists.entries()) {
+      const grantKey =
+        lists.length === 1 ? permission : `${permission}#${index + 1}`;
+      for (const entry of list) {
+        keys.set(entry, grantKey);
+      }
     }
-    seen.add(key);
-    extra.push({
-      name: `${item.name}_select_coverage`,
-      table: item.table,
-      command: 'select',
-      effect: 'allow',
-      roles: item.roles,
-      using: item.using ?? 'true',
-      permissionKey: item.permissionKey,
-    });
+  }
+  return keys;
+}
+
+function compileOptional(
+  condition: Condition | undefined,
+  ctx: RlsSqlContext,
+): string | undefined {
+  return condition === undefined
+    ? undefined
+    : compileConditionSql(condition, ctx);
+}
+
+function noteConditions(entry: Prepared, warnings: string[]): void {
+  const { label, grant } = entry.item;
+  const names = [
+    ...sqlFunctionNames(entry.using),
+    ...sqlFunctionNames(entry.check),
+  ];
+  if (names.length > 0) {
     warnings.push(
-      `added SELECT coverage for ${item.table} (${item.permissionKey})`,
+      `sqlFunction ${[...new Set(names)].join(', ')} on ${label}/${grant.permission.key} is portable via twin`,
     );
   }
-  return [...policies, ...extra];
+  if (
+    hasConditionOp(entry.using, 'opaque') ||
+    hasConditionOp(entry.check, 'opaque')
+  ) {
+    warnings.push(
+      `opaque SQL on ${label}/${grant.permission.key} is untestable app-side`,
+    );
+  }
+}
+
+/**
+ * Compiles every grant (role and top-level) to branches whose role check is
+ * a helper call keyed by grant key. Nothing in a branch is per-row except the
+ * portable row condition and resource-membership joins.
+ */
+export function compileGrants(
+  policy: Policy,
+  ctx: RlsSqlContext,
+  tables: Readonly<Record<string, string>> | undefined,
+  warnings: string[],
+  skipClosures: boolean,
+): CompiledGrants {
+  const entries = collectGrants(policy).flatMap((item) => {
+    const entry = prepare(item, tables, warnings, skipClosures);
+    return entry === undefined ? [] : [entry];
+  });
+  const keys = assignKeys(entries);
+  const rows = new Map<string, RolePermission>();
+  const branches: CompiledBranch[] = [];
+  const filtered = new Set<string>();
+  for (const entry of entries) {
+    const { item, command, table } = entry;
+    const { grant, access, label } = item;
+    noteConditions(entry, warnings);
+    for (const condition of [entry.using, entry.check]) {
+      if (condition !== undefined && 'field' in condition) {
+        filtered.add(`${table}.${condition.field}`);
+      }
+    }
+    const grantKey = keys.get(entry);
+    let accessExpr: string | undefined;
+    if (access.kind === 'role' && grantKey !== undefined) {
+      const column =
+        access.scope === 'tenant'
+          ? policy.scopes.tenant?.key
+          : access.scope === 'team'
+            ? policy.scopes.team?.key
+            : undefined;
+      accessExpr = accessSql(ctx, access.scope, grantKey, column);
+      const row: RolePermission = {
+        role: access.role,
+        permission: grant.permission.key,
+        grantKey,
+        scope: access.scope,
+        effect: grant.effect,
+      };
+      rows.set(`${row.role}\u0000${row.grantKey}\u0000${row.scope}`, row);
+    } else if (access.kind === 'resource') {
+      accessExpr = compileConditionSql(
+        resourceCondition(item, policy, ctx),
+        ctx,
+      );
+    }
+    const using = compileOptional(entry.using, ctx);
+    const check = compileOptional(entry.check, ctx);
+    branches.push({
+      table,
+      command,
+      effect: grant.effect,
+      roles:
+        access.kind === 'anyone'
+          ? ['anon', 'authenticated']
+          : ['authenticated'],
+      label,
+      permissionKey: grant.permission.key,
+      ...(grantKey === undefined ? {} : { grantKey }),
+      ...(accessExpr === undefined ? {} : { access: accessExpr }),
+      ...(using === undefined ? {} : { using }),
+      ...(check === undefined ? {} : { check }),
+    });
+  }
+  return {
+    branches: ensureSelectCoverage(branches, warnings),
+    rolePermissions: [...rows.values()],
+    filtered: [...filtered],
+  };
+}
+
+/**
+ * Postgres needs SELECT access to find rows for UPDATE / DELETE and for
+ * RETURNING, so a table with only update or delete grants gets matching
+ * SELECT branches.
+ */
+export function ensureSelectCoverage(
+  branches: readonly CompiledBranch[],
+  warnings: string[],
+): CompiledBranch[] {
+  const extra: CompiledBranch[] = [];
+  const readable = new Set(
+    branches
+      .filter((item) => item.command === 'select' && item.effect === 'allow')
+      .map((item) => item.table),
+  );
+  const covered = new Set<string>();
+  for (const item of branches) {
+    if (
+      item.effect !== 'allow' ||
+      (item.command !== 'update' && item.command !== 'delete') ||
+      readable.has(item.table)
+    ) {
+      continue;
+    }
+    const { check: _check, ...rest } = item;
+    extra.push({ ...rest, command: 'select', coverage: true });
+    if (!covered.has(item.table)) {
+      covered.add(item.table);
+      warnings.push(
+        `added SELECT coverage for ${item.table} (${item.permissionKey})`,
+      );
+    }
+  }
+  return [...branches, ...extra];
+}
+
+export function andSql(
+  ...parts: readonly (string | undefined)[]
+): string | undefined {
+  const present = parts.filter(
+    (part): part is string => part !== undefined && part !== 'true',
+  );
+  if (present.length === 0) {
+    return undefined;
+  }
+  return present.length === 1
+    ? present[0]
+    : present.map((part) => `(${part})`).join(' and ');
+}
+
+/** `USING` and `WITH CHECK` for a branch: its access check ANDed with its row conditions. */
+export function branchClauses(branch: CompiledBranch): {
+  readonly using?: string;
+  readonly check?: string;
+} {
+  const using =
+    branch.command === 'insert'
+      ? undefined
+      : (andSql(branch.access, branch.using) ?? 'true');
+  const check =
+    branch.command === 'insert' || branch.command === 'update'
+      ? (andSql(branch.access, branch.check) ?? 'true')
+      : undefined;
+  return {
+    ...(using === undefined ? {} : { using }),
+    ...(check === undefined ? {} : { check }),
+  };
 }

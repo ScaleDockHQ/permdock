@@ -23,26 +23,129 @@ create table if not exists "app"."user_roles" (
   primary key (user_id, role)
 );
 
-create table if not exists "app"."role_permissions" (
-  role "app"."app_role" not null,
-  permission "app"."app_permission" not null,
-  primary key (role, permission)
+alter table "app"."user_roles" enable row level security;
+
+-- permdock helpers (jwt: reads the role and memberships claims)
+-- policies call them uncorrelated, so Postgres evaluates each once per statement
+
+create schema if not exists "app";
+grant usage on schema "app" to authenticated;
+
+create table if not exists "app".role_permissions (
+  role text not null,
+  permission text not null,
+  grant_key text not null,
+  scope text not null check (scope in ('global', 'tenant', 'team')),
+  effect text not null default 'allow' check (effect in ('allow', 'deny')),
+  primary key (role, grant_key, scope)
+);
+alter table "app".role_permissions enable row level security;
+revoke all on table "app".role_permissions from anon, authenticated, public;
+
+insert into "app".role_permissions (role, permission, grant_key, scope, effect) values
+  ('admin', 'post.read', 'post.read', 'global', 'allow'),
+  ('admin', 'post.update', 'post.update#1', 'global', 'allow'),
+  ('admin', 'post.delete', 'post.delete', 'global', 'allow'),
+  ('admin', 'post.create', 'post.create', 'global', 'allow'),
+  ('admin', 'post.list', 'post.list', 'global', 'allow'),
+  ('member', 'post.read', 'post.read', 'tenant', 'allow'),
+  ('member', 'post.list', 'post.list', 'tenant', 'allow'),
+  ('member', 'post.create', 'post.create', 'tenant', 'allow'),
+  ('member', 'post.update', 'post.update#2', 'tenant', 'allow')
+on conflict (role, grant_key, scope) do update
+  set permission = excluded.permission, effect = excluded.effect;
+delete from "app".role_permissions
+where (role, grant_key, scope) not in (values
+  ('admin', 'post.read', 'global'),
+  ('admin', 'post.update#1', 'global'),
+  ('admin', 'post.delete', 'global'),
+  ('admin', 'post.create', 'global'),
+  ('admin', 'post.list', 'global'),
+  ('member', 'post.read', 'tenant'),
+  ('member', 'post.list', 'tenant'),
+  ('member', 'post.create', 'tenant'),
+  ('member', 'post.update#2', 'tenant')
 );
 
-alter table "app"."user_roles" enable row level security;
-alter table "app"."role_permissions" enable row level security;
+create or replace function "app".permdock_has(p_grant text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce((select auth.uid())::text, '') <> '' and exists (
+    select 1
+    from jsonb_array_elements_text(
+      case jsonb_typeof(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
+        when 'array' then coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role')
+        when 'string' then jsonb_build_array(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
+        else '[]'::jsonb
+      end
+    ) r(role)
+    join "app".role_permissions rp on rp.role = r.role
+    where rp.grant_key = p_grant
+      and rp.scope = 'global'
+  )
+$$;
+revoke execute on function "app".permdock_has(text) from public, anon;
+grant execute on function "app".permdock_has(text) to authenticated;
 
-insert into "app"."role_permissions" (role, permission) values ('admin', 'post.read') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('admin', 'post.update') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('admin', 'post.delete') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('admin', 'post.publish') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('admin', 'post.archive') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('admin', 'post.create') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('admin', 'post.list') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('member', 'post.read') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('member', 'post.list') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('member', 'post.create') on conflict do nothing;
-insert into "app"."role_permissions" (role, permission) values ('member', 'post.update') on conflict do nothing;
+create or replace function "app".permdock_tenants_with(p_grant text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select (m ->> 'tenant')::text
+  from jsonb_array_elements(
+      case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+    ) m
+    cross join lateral jsonb_array_elements_text(
+      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+    ) r(role)
+  join "app".role_permissions rp on rp.role = r.role
+  where coalesce((select auth.uid())::text, '') <> ''
+    and rp.grant_key = p_grant
+    and rp.scope = 'tenant'
+    and m ->> 'tenant' is not null
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'tenant' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and case jsonb_typeof(m -> 'expiresAt')
+      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+      else true
+    end
+$$;
+revoke execute on function "app".permdock_tenants_with(text) from public, anon;
+grant execute on function "app".permdock_tenants_with(text) to authenticated;
+
+create or replace function "app".permdock_teams_with(p_grant text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select (m ->> 'team')::text
+  from jsonb_array_elements(
+      case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+    ) m
+    cross join lateral jsonb_array_elements_text(
+      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+    ) r(role)
+  join "app".role_permissions rp on rp.role = r.role
+  where coalesce((select auth.uid())::text, '') <> ''
+    and rp.grant_key = p_grant
+    and rp.scope = 'team'
+    and m ->> 'team' is not null
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'tenant' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and case jsonb_typeof(m -> 'expiresAt')
+      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+      else true
+    end
+$$;
+revoke execute on function "app".permdock_teams_with(text) from public, anon;
+grant execute on function "app".permdock_teams_with(text) to authenticated;
 
 create or replace function "app"."authorize"(
   requested_permission "app"."app_permission",
@@ -73,9 +176,11 @@ begin
       cross join lateral jsonb_array_elements_text(
         case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
       ) r(role)
-      join "app"."role_permissions" rp on rp.role::text = r.role
+      join "app"."role_permissions" rp on rp.role = r.role
       where m ->> 'tenant' = requested_tenant
-        and rp.permission = requested_permission
+        and rp.permission = requested_permission::text
+        and rp.scope = 'tenant'
+        and rp.effect = 'allow'
     );
   end if;
   -- a top-level null (no role row) falls back to app_metadata, like subjectFromSupabase
@@ -89,8 +194,10 @@ begin
         else '[]'::jsonb
       end
     ) r(role)
-    join "app"."role_permissions" rp on rp.role::text = r.role
-    where rp.permission = requested_permission
+    join "app"."role_permissions" rp on rp.role = r.role
+    where rp.permission = requested_permission::text
+      and rp.scope = 'global'
+      and rp.effect = 'allow'
   );
 end;
 $$;
@@ -124,7 +231,6 @@ grant execute on function "app"."custom_access_token_hook"(jsonb) to supabase_au
 revoke execute on function "app"."custom_access_token_hook"(jsonb) from authenticated, anon, public;
 grant select on table "app"."user_roles" to supabase_auth_admin;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
-revoke all on table "app"."role_permissions" from authenticated, anon, public;
 drop policy if exists "Allow auth admin to read user roles" on "app"."user_roles";
 create policy "Allow auth admin to read user roles" on "app"."user_roles"
   as permissive for select
@@ -141,7 +247,7 @@ create policy "admin_post_read"
   as permissive
   for select
   to authenticated
-  using ((select "app".authorize('post.read')));
+  using ((select "app".permdock_has('post.read')));
 
 drop policy if exists "admin_post_update" on "post";
 create policy "admin_post_update"
@@ -149,8 +255,8 @@ create policy "admin_post_update"
   as permissive
   for update
   to authenticated
-  using ((select "app".authorize('post.update')))
-  with check ((select "app".authorize('post.update')));
+  using ((select "app".permdock_has('post.update#1')))
+  with check ((select "app".permdock_has('post.update#1')));
 
 drop policy if exists "admin_post_delete" on "post";
 create policy "admin_post_delete"
@@ -158,7 +264,7 @@ create policy "admin_post_delete"
   as permissive
   for delete
   to authenticated
-  using ((select "app".authorize('post.delete')));
+  using ((select "app".permdock_has('post.delete')));
 
 drop policy if exists "admin_post_create" on "post";
 create policy "admin_post_create"
@@ -166,7 +272,7 @@ create policy "admin_post_create"
   as permissive
   for insert
   to authenticated
-  with check ((select "app".authorize('post.create')));
+  with check ((select "app".permdock_has('post.create')));
 
 drop policy if exists "admin_post_list" on "post";
 create policy "admin_post_list"
@@ -174,7 +280,7 @@ create policy "admin_post_list"
   as permissive
   for select
   to authenticated
-  using ((select "app".authorize('post.list')));
+  using ((select "app".permdock_has('post.list')));
 
 drop policy if exists "member_post_read" on "post";
 create policy "member_post_read"
@@ -182,7 +288,7 @@ create policy "member_post_read"
   as permissive
   for select
   to authenticated
-  using ((select "app".authorize('post.read', "orgId"::text)) and (exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{member}'))));
+  using ("orgId" in (select "app".permdock_tenants_with('post.read')));
 
 drop policy if exists "member_post_list" on "post";
 create policy "member_post_list"
@@ -190,7 +296,7 @@ create policy "member_post_list"
   as permissive
   for select
   to authenticated
-  using ((select "app".authorize('post.list', "orgId"::text)) and (exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{member}'))));
+  using ("orgId" in (select "app".permdock_tenants_with('post.list')));
 
 drop policy if exists "member_post_create" on "post";
 create policy "member_post_create"
@@ -198,7 +304,7 @@ create policy "member_post_create"
   as permissive
   for insert
   to authenticated
-  with check ((select "app".authorize('post.create', "orgId"::text)) and (exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{member}'))));
+  with check ("orgId" in (select "app".permdock_tenants_with('post.create')));
 
 drop policy if exists "member_post_update" on "post";
 create policy "member_post_update"
@@ -206,5 +312,5 @@ create policy "member_post_update"
   as permissive
   for update
   to authenticated
-  using ((select "app".authorize('post.update', "orgId"::text)) and ((exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{member}')) and "authorId" = (select auth.uid()))))
-  with check ((select "app".authorize('post.update', "orgId"::text)) and ("authorId" = (select auth.uid())));
+  using (("orgId" in (select "app".permdock_tenants_with('post.update#2'))) and ("authorId" = (select auth.uid())))
+  with check (("orgId" in (select "app".permdock_tenants_with('post.update#2'))) and ("authorId" = (select auth.uid())));

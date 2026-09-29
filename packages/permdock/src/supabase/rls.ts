@@ -64,10 +64,12 @@ function databaseBody(
     return exists (
       select 1
       from ${qualifiedTable(memberships.table)} m
-      join ${q('role_permissions')} rp on rp.role::text = m.${ident(memberships.role)}::text
+      join ${q('role_permissions')} rp on rp.role = m.${ident(memberships.role)}::text
       where m.${ident(memberships.user)}::text = uid::text
         and m.${ident(tenantColumn)}::text = requested_tenant
-        and rp.permission = requested_permission${
+        and rp.permission = requested_permission::text
+        and rp.scope = 'tenant'
+        and rp.effect = 'allow'${
           memberships.expiresAt === undefined
             ? ''
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
@@ -84,9 +86,11 @@ ${tenantBranch}
   return exists (
     select 1
     from ${q('user_roles')} ur
-    join ${q('role_permissions')} rp on rp.role = ur.role
+    join ${q('role_permissions')} rp on rp.role = ur.role::text
     where ur.user_id = uid
-      and rp.permission = requested_permission
+      and rp.permission = requested_permission::text
+      and rp.scope = 'global'
+      and rp.effect = 'allow'
   );
 end;`;
 }
@@ -111,9 +115,11 @@ begin
       cross join lateral jsonb_array_elements_text(
         case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
       ) r(role)
-      join ${q('role_permissions')} rp on rp.role::text = r.role
+      join ${q('role_permissions')} rp on rp.role = r.role
       where m ->> 'tenant' = requested_tenant
-        and rp.permission = requested_permission
+        and rp.permission = requested_permission::text
+        and rp.scope = 'tenant'
+        and rp.effect = 'allow'
     );
   end if;
   -- a top-level null (no role row) falls back to app_metadata, like subjectFromSupabase
@@ -127,17 +133,22 @@ begin
         else '[]'::jsonb
       end
     ) r(role)
-    join ${q('role_permissions')} rp on rp.role::text = r.role
-    where rp.permission = requested_permission
+    join ${q('role_permissions')} rp on rp.role = r.role
+    where rp.permission = requested_permission::text
+      and rp.scope = 'global'
+      and rp.effect = 'allow'
   );
 end;`;
 }
 
 /**
  * `authorize(requested_permission, requested_tenant text default null)` for Supabase's RBAC
- * scaffold. `database` reads `user_roles` (and the memberships table for a tenant) on every call;
- * `jwt` reads the hook-injected `user_role` and `memberships` claims. A tenant request with no
- * memberships source is denied, never answered from global roles.
+ * scaffold, over the `role_permissions (role, permission, grant_key, scope, effect)` table that
+ * `permdock rls generate` seeds. `database` reads `user_roles` (and the memberships table for a
+ * tenant) on every call; `jwt` reads the hook-injected `user_role` and `memberships` claims. A
+ * tenant request with no memberships source is denied, never answered from global roles. It
+ * answers "does a role hold this permission", ignoring row conditions and denies: generated
+ * policies call the per-statement `permdock_*` helpers instead.
  */
 export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
   const schema = options.schema ?? 'public';

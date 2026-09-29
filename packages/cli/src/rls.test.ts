@@ -165,8 +165,14 @@ export const policy = definePolicy(permissions, {
     );
     expect(result.code).toBe(0);
     const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
-    expect(sql).toContain('exists (select 1 from "organization_members"');
-    expect(sql).toContain('m."organization_id" = "orgId"');
+    expect(sql).toContain('from "public"."organization_members" m');
+    expect(sql).toContain(
+      `"orgId" in (select "public".permdock_tenants_with('post.read'))`,
+    );
+    expect(sql).toContain('security definer');
+    expect(sql).toContain(
+      'grant execute on function "public".permdock_tenants_with(text) to authenticated;',
+    );
     expect(sql).not.toMatch(/service_role/i);
   });
 
@@ -197,7 +203,8 @@ export const policy = definePolicy(permissions, {
     expect(sql).toContain(
       'grant usage on schema "public" to supabase_auth_admin;',
     );
-    expect(sql).toContain('(select "public".authorize(\'post.read\'))');
+    expect(sql).toContain(`(select "public".permdock_has('post.read'))`);
+    expect(sql).not.toMatch(/using \([^\n]*authorize\(/u);
     expect(sql).not.toMatch(/service_role/i);
   });
 
@@ -414,7 +421,7 @@ export const policy = definePolicy(permissions, {
     );
   });
 
-  it('compiles tenant memberOf to the jwt claim when no table is mapped', async () => {
+  it('reads tenant memberships from the jwt claim when no table is mapped', async () => {
     const cwd = appCopy();
     writeFileSync(
       join(cwd, 'src/tenant-policy.ts'),
@@ -443,9 +450,11 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     expect(result.code).toBe(0);
-    expect(readFileSync(join(cwd, 'rls.sql'), 'utf8')).toContain(
-      `"orgId" = ((select auth.jwt()) ->> 'tenant_id')`,
+    const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
+    expect(sql).toContain(
+      `"orgId" in (select "public".permdock_tenants_with('post.read'))`,
     );
+    expect(sql).toContain("(select auth.jwt()) -> 'memberships'");
   });
 
   it('rejects an unknown generate target and import without --sql', async () => {
