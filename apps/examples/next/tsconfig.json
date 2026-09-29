@@ -1,11 +1,9 @@
 {
-  "extends": "@permdock/typescript-config/base.json",
+  "extends": "@permdock/typescript-config/next.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false,
-    "jsx": "react-jsx",
-    "lib": ["ES2024", "DOM", "DOM.Iterable"]
+    "noUncheckedIndexedAccess": false
   },
-  "include": ["src", "next.config.ts"]
+  "include": ["next-env.d.ts", "src", "next.config.ts", ".next/types/**/*.ts"]
 }

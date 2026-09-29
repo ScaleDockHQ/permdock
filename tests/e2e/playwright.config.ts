@@ -112,6 +112,16 @@ const marketingServer: Server = {
   env: envWith({ CI: '1', PORT: '3487' }),
 };
 
+// `instant()` measures prefetches, which only `next start` performs.
+const nextExampleServer: Server = {
+  command: 'node --run build && node --run start',
+  cwd: join(root, 'apps/examples/next'),
+  url: 'http://127.0.0.1:3485/api/health',
+  reuseExistingServer: !inCi,
+  timeout: 600_000,
+  env: envWith({ CI: '1', NEXT_E2E: '1', NEXT_TELEMETRY_DISABLED: '1' }),
+};
+
 // Builds once, then serves JWT mode on 3490, database mode on 3491 and the
 // no-private-cache negative variant on 3492.
 const saasServer: Server = {
@@ -154,7 +164,7 @@ const projectTable: readonly Project[] = [
   {
     name: 'next',
     port: 3485,
-    servers: [uiServer('apps/examples/next', 3485)],
+    servers: [nextExampleServer],
   },
   {
     name: 'expo',
