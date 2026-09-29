@@ -4,6 +4,7 @@ import type { PermDock } from './permdock.ts';
 import type { Permission } from './permissions.ts';
 import type { Membership, Principal } from './subject.ts';
 
+import { pushedPolicy } from '../cli/cloud.ts';
 import { evaluateCondition } from '../conditions/evaluate.ts';
 import {
   assets,
@@ -209,6 +210,44 @@ describe('named scopes: the scenario', () => {
         conditions: [],
       });
     }
+  });
+});
+
+describe('named scopes: snapshot scope list', () => {
+  it('denies a scoped grant whose scope the snapshot does not list', async () => {
+    const dock = await dockFor(personas.privateContact);
+    const snapshot = dock.snapshot();
+    if (snapshot instanceof Promise) {
+      throw new TypeError('expected an unsigned snapshot');
+    }
+    const { scopes: _dropped, ...stripped } = snapshot;
+    const client = fromSnapshot(parseSnapshot(JSON.stringify(stripped)));
+    expect(client.can(permissions.quote.read, documents[0]!)).toBe(false);
+    expect(client.where(permissions.quote.read).condition).toEqual({
+      op: 'or',
+      conditions: [],
+    });
+    expect(
+      fromSnapshot(parseSnapshot(JSON.stringify(snapshot))).can(
+        permissions.quote.read,
+        documents[0]!,
+      ),
+    ).toBe(true);
+  });
+
+  it('pushes the scopes to the Cloud as a snapshot carries them', async () => {
+    const dock = await dockFor(personas.owner);
+    const snapshot = dock.snapshot();
+    if (snapshot instanceof Promise) {
+      throw new TypeError('expected an unsigned snapshot');
+    }
+    expect(pushedPolicy(policy).scopes).toEqual(snapshot.scopes);
+    expect(pushedPolicy(policy).scopes?.[1]).toEqual({
+      name: 'customer',
+      key: 'customer_id',
+      within: 'organization',
+      resources: ['quote', 'invoice', 'asset'],
+    });
   });
 });
 

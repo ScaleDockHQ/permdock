@@ -218,6 +218,7 @@ export function matchScopedMembership(
     }
     if (typeof scope === 'string') {
       if (
+        findScope(scopes, scope) === undefined ||
         membership.scope !== scope ||
         !inTeam(membership, scopes, team) ||
         !activeFor(membership, scopes, principal.tenant)

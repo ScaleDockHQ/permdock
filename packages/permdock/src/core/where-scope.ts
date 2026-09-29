@@ -41,6 +41,7 @@ function namedFilters(
   scope: WhereScope,
 ): Condition[] | null {
   if (
+    findScope(scope.scopes, membership.scope ?? '') === undefined ||
     !inTeam(membership, scope.scopes, scope.team) ||
     !activeFor(membership, scope.scopes, scope.tenant) ||
     membership.scope === undefined

@@ -84,7 +84,11 @@ function scopeOk(
   }
   if (typeof scope === 'string') {
     const scopes = scopeList(snapshot.scopes);
-    if (membership.scope !== scope) {
+    // A scope the snapshot does not list has no row keys to check: fail closed.
+    if (
+      membership.scope !== scope ||
+      !scopes.some((entry) => entry.name === scope)
+    ) {
       return { ok: false, reason: 'scope' };
     }
     if (!activeFor(membership, scopes, principal.tenant)) {

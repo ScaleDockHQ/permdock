@@ -387,7 +387,8 @@ export function snapshotOf(
   );
 }
 
-function snapshotScopes(policy: Policy): Snapshot['scopes'] {
+/** The policy's scopes as snapshots and `permdock cloud push` carry them, with the resources each partitions. */
+export function snapshotScopes(policy: Policy): Snapshot['scopes'] {
   if (policy.scopes.length === 0) {
     return undefined;
   }
