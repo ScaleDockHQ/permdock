@@ -78,6 +78,8 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 | `externally-managed` | The target's membership is owned by the identity provider (`managedBy: 'idp'`, from SCIM); the application cannot change it (only from `decideRoleChange`) |
 | `approval` | A resume token was unknown, pending, rejected, expired, consumed or for another call; `detail` names which ([approvals](/docs/adapters/approvals)) |
 | `stale-approval` | A resume token approved an earlier `version` of the row under `approval: { staleOn: 'resource-change' }`; ask again without it ([approval security](/docs/security/approvals#approvals-that-go-stale)) |
+| `exceeds-creator` | `decideCredential` only: the key would hold more than its creator may hand out (a role or permission outside the creator's `assignableRoles` / `assignablePermissions`, a tenant the creator is not in, a permission outside the creator's delegation), or the creator is a link or a credential; `detail` names the role, permission, tenant or creator ([API keys](/docs/concepts/credentials)) |
+| `credential-policy` | `decideCredential` only: the tenant's `credentials` settings refuse the key; `detail.rule` is `kind`, `no-expiry`, `ttl` or `unavailable` (the settings source threw) |
 
 This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant.
 

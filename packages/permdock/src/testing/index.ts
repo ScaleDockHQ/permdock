@@ -63,6 +63,7 @@ export type {
 export type { ApprovalStoreOptions } from './conformance.ts';
 export {
   testApprovalStore,
+  testCredentialVerifier,
   testDecisionSink,
   testEntitlementSource,
   testLimitStore,
@@ -72,6 +73,7 @@ export {
   testMembershipSource,
   testPolicySource,
   testRoleSource,
+  testSettingsSource,
   testSnapshotSource,
   testSubjectResolver,
   testTokenSigner,

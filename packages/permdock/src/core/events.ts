@@ -67,6 +67,22 @@ export type EvalEnv = {
   readonly team: string | undefined;
 };
 
+function credentialRef(
+  subject: Subject,
+): NonNullable<DecisionEvent['subject']['credential']> | undefined {
+  const value = subject.principal?.credential;
+  if (value === null || typeof value !== 'object') {
+    return undefined;
+  }
+  const { id, kind } = value as {
+    readonly id?: unknown;
+    readonly kind?: unknown;
+  };
+  return typeof id === 'string' && (kind === 'user' || kind === 'service')
+    ? { id, kind }
+    : undefined;
+}
+
 export function finish(
   policy: Policy,
   subject: Subject,
@@ -122,6 +138,7 @@ export function finish(
                 scopes: subject.delegation.scopes,
                 authorizationDetails: subject.delegation.authorizationDetails,
               }),
+        credential: credentialRef(subject),
       }),
       tenant: subject.principal?.tenant,
       membership,

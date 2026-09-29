@@ -11,6 +11,21 @@ export type {
   ConnectionData,
   ConnectionOptions,
 } from './connection.ts';
+export {
+  apiKeyVerifier,
+  generateApiKey,
+  hashApiKey,
+  memoryCredentials,
+  parseApiKey,
+  subjectFromApiKey,
+} from './credentials.ts';
+export type {
+  ApiKeyFailureCause,
+  ApiKeyParts,
+  ApiKeySubjectOptions,
+  MemoryCredentials,
+  StoredCredential,
+} from './credentials.ts';
 export { createEvaluationsHandler } from './evaluations.ts';
 export { problemFromError } from './map-error.ts';
 export {

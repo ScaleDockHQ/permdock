@@ -1,4 +1,6 @@
+import type { Credential } from './credential.ts';
 import type {
+  CredentialEvent,
   DecisionSink,
   MembershipEvent,
   SinkEvent,
@@ -14,12 +16,14 @@ export const CLOUD_EVENT_TYPES: {
   readonly directory: 'dev.permdock.directory';
   readonly membership: 'dev.permdock.membership';
   readonly catalog: 'dev.permdock.catalog';
+  readonly credential: 'dev.permdock.credential';
 } = Object.freeze({
   decision: 'dev.permdock.decision',
   approval: 'dev.permdock.approval',
   directory: 'dev.permdock.directory',
   membership: 'dev.permdock.membership',
   catalog: 'dev.permdock.catalog',
+  credential: 'dev.permdock.credential',
 });
 
 export type CloudEventType =
@@ -82,6 +86,8 @@ function cloudEventType(event: SinkEvent): CloudEventType {
       return CLOUD_EVENT_TYPES.directory;
     case 'membership':
       return CLOUD_EVENT_TYPES.membership;
+    case 'credential':
+      return CLOUD_EVENT_TYPES.credential;
     case 'decision':
       if (event.phase === 'requested' || event.phase === 'resolved') {
         return CLOUD_EVENT_TYPES.approval;
@@ -101,7 +107,49 @@ function cloudEventSubject(event: SinkEvent): string {
   if (event.type === 'membership') {
     return event.principal.id;
   }
+  if (event.type === 'credential') {
+    return event.credential.id;
+  }
   return event.permission;
+}
+
+/**
+ * A `credential` sink event for `credential`. `sample` belongs on `used`
+ * events only and must be in `(0, 1]`.
+ */
+export function credentialEvent(input: {
+  readonly operation: CredentialEvent['operation'];
+  readonly credential: Credential;
+  readonly source?: string;
+  readonly by?: CredentialEvent['by'];
+  readonly sample?: number;
+  readonly at?: string;
+}): CredentialEvent {
+  const sample = input.sample;
+  if (
+    sample !== undefined &&
+    (input.operation !== 'used' ||
+      !Number.isFinite(sample) ||
+      sample <= 0 ||
+      sample > 1)
+  ) {
+    throw new RangeError(
+      'PermDock: sample is a number in (0, 1] on used events only',
+    );
+  }
+  const { credential } = input;
+  return compact<CredentialEvent>({
+    type: 'credential',
+    at: input.at ?? new Date().toISOString(),
+    source: input.source ?? 'permdock',
+    operation: input.operation,
+    credential: { id: credential.id, kind: credential.kind },
+    principal: { id: credential.principal },
+    tenant: credential.tenant,
+    expiresAt: credential.expiresAt,
+    by: input.by,
+    sample,
+  });
 }
 
 export function membershipEvent(input: {

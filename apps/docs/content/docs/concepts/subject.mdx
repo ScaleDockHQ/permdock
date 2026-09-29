@@ -161,7 +161,7 @@ A backend job or a partner service is a principal with roles of its own, created
 | `kind` | Who | `principal.id` | Typical material |
 | --- | --- | --- | --- |
 | `'user'` (default) | A human | The identity provider's `sub` | Session, ID token, access token |
-| `'service'` | An application-level service account or API-key owner | Your service account id | API key lookup, client-credentials token with a `sub` you assigned |
+| `'service'` | An application-level service account | Your service account id | A service key verified by `subjectFromApiKey` (one tenant membership, `via: 'credential'`, [API keys](/docs/concepts/credentials)), a client-credentials token with a `sub` you assigned |
 | `'workload'` | A running workload with a platform identity | A SPIFFE ID (`spiffe://trust-domain/ns/prod/sa/reports`) or the WIMSE workload identifier | Client-credentials token, SPIFFE SVID over mTLS, transaction token |
 | `'link'` | Whoever holds a share link | The link id (`capability.id`) | A `permdock-capability+jwt` verified by `subjectFromCapability`; the principal holds one resource membership and no roles ([link capabilities](/docs/concepts/capabilities)) |
 

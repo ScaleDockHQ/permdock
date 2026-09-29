@@ -159,6 +159,8 @@ export type SupabaseConfig = {
 export type DoctorConfig = {
   readonly sensitiveActions?: readonly string[];
   readonly memberships?: string;
+  /** A JSON fixture `{ credentials?, settings? }` of API-key credentials and per-tenant settings (the `memorySettings` input) for PD029. */
+  readonly credentials?: string;
   /** Globs or directories whose files are client entries for PD001, for frameworks with no `'use client'` convention. */
   readonly clientEntries?: readonly string[];
   /** Globs or directories of SQL migrations PD022 scans for views; defaults to the usual migration folders. */

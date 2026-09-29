@@ -71,7 +71,7 @@ Done when every policy, list query and custom store has its runner, or a finding
 Map the inventory onto [OWASP Agentic](https://permdock.dev/docs/security/owasp-agentic):
 
 - **ASI02** (tool misuse): unmapped tools, collection permission on a row handler, missing `approval: 'human'`, capability lists that include denied tools.
-- **ASI03** (identity and privilege abuse): model-supplied subject or actor, actor used as approver, principal allowed to approve (`distinct: false`) on a sensitive action, resume token not rebound to permission + resource + subject + actor.
+- **ASI03** (identity and privilege abuse): model-supplied subject or actor, actor used as approver, principal allowed to approve (`distinct: false`) on a sensitive action, resume token not rebound to permission + resource + subject + actor, API keys stored in plain text or created outside `decideCredential`, keys without expiry (doctor PD029), and a `memberships` source applied to service-key subjects.
 
 Done when each agent adapter in the app has an ASI02 line and an ASI03 line.
 

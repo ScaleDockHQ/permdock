@@ -771,4 +771,61 @@ export const policy = definePolicy(permissions, {
       'unknown',
     ]);
   });
+
+  it('PD029 warns on API keys that never expire and policies that allow them', async () => {
+    const cwd = appCopy();
+    const base = {
+      v: 1,
+      kind: 'user',
+      principal: 'u_1',
+      permissions: [{ permission: 'post.read' }],
+      createdBy: 'u_1',
+      createdAt: 1_790_000_000,
+    };
+    const fixture = {
+      credentials: [
+        { ...base, id: 'expiring', expiresAt: 1_790_086_400 },
+        { ...base, id: 'forever' },
+        { ...base, id: 'broken', kind: 'robot' },
+      ],
+      settings: {
+        acme: { credentials: { maxTtl: 86_400 } },
+        globex: { credentials: { allowNoExpiry: true } },
+      },
+    };
+    writeFileSync(join(cwd, 'credentials.json'), JSON.stringify(fixture));
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  doctor: { credentials: './credentials.json' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'credentials'], {
+      cwd,
+    });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly severity: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings.map((item) => item.code)).toEqual([
+      'PD029',
+      'PD029',
+      'PD029',
+    ]);
+    expect(report.findings.every((item) => item.severity === 'warning')).toBe(
+      true,
+    );
+    expect(report.findings.map((item) => item.message)).toEqual([
+      'API key forever never expires',
+      'credentials[2] is not a valid v1 credential, so it verifies to no subject',
+      'tenant globex allows API keys that never expire',
+    ]);
+  });
 });

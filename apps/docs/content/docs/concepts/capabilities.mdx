@@ -168,7 +168,7 @@ A resource role with no memberships table (a role only links hold, such as `gues
 
 ## Reserved: user-bound keys
 
-`holder: 'key'` is reserved for credentials bound to a user, such as a calendar feed key whose access is its scope intersected with its owner's live rights. The type and the wire format already carry it; the resolver refuses it until that credential kind ships.
+`holder: 'key'` stays reserved and the resolver refuses it. User-bound and service API keys shipped as opaque `pdk_` keys that the application looks up on every use, so revocation, a tightened tenant rule and the owner's current rights always apply ([API keys](/docs/concepts/credentials)); they are not capabilities and add no token format. `key` remains free for a stateless key, such as a calendar feed URL, should one ever be needed.
 
 ## Why
 
