@@ -209,6 +209,14 @@ function prepare(
   skipClosures: boolean,
 ): Prepared | undefined {
   const { grant, label } = item;
+  if (grant.breakGlass !== undefined) {
+    // Break-glass never becomes a policy: the generated security definer
+    // function reads restricted rows instead, so plain RLS keeps denying them.
+    warnings.push(
+      `break-glass grant ${label}/${grant.permission.key} reads through permdock_break_glass_${grant.permission.resource}, not a policy`,
+    );
+    return undefined;
+  }
   if (grant.closure !== undefined || grant.portable === false) {
     if (skipClosures) {
       warnings.push(

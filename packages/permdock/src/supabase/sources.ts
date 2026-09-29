@@ -35,6 +35,12 @@ export type MembershipTableOptions = Common & {
     readonly role?: string;
     readonly via?: string;
     readonly expiresAt?: string;
+    /** The principal id that wrote the membership (`grantedBy`). */
+    readonly grantedBy?: string;
+    /** Free-text justification recorded on the membership (`reason`). */
+    readonly reason?: string;
+    /** A subgroup column filling `member.group`. */
+    readonly group?: string;
     /** A text column; the value `idp` marks the row as owned by the identity provider. */
     readonly managedBy?: string;
     /** A `text[]` column of seats. */
@@ -56,6 +62,12 @@ export type MembershipJunctionOptions = Common & {
   /** The membership kind every row has (`contact`, `staff`, `partner`). */
   readonly via?: string;
   readonly expiresAt?: string;
+  /** The principal id that wrote the membership (`grantedBy`). */
+  readonly grantedBy?: string;
+  /** Free-text justification recorded on the membership (`reason`). */
+  readonly reason?: string;
+  /** A subgroup filling `member.group`: a fixed name every row has, or a column. */
+  readonly group?: string | { readonly column: string };
   /** `idp` when the identity provider owns every row, or a text column holding `idp` per row. */
   readonly managedBy?: 'idp' | { readonly column: string };
   /** A `text[]` column of seats. */
@@ -141,6 +153,9 @@ type Shape = {
   readonly roles: string;
   readonly via: string;
   readonly expiresAt: string | undefined;
+  readonly grantedBy: string;
+  readonly reason: string;
+  readonly memberGroup: string;
   readonly managed: string;
   readonly managedColumn: string | undefined;
   readonly seats: string;
@@ -182,6 +197,9 @@ function selectOf(
     `${shape.roles} as roles`,
     `${shape.via} as via`,
     `${shape.expiresAt === undefined ? 'null::bigint' : `floor(extract(epoch from ${col(shape.expiresAt)}))::bigint`} as expires_at`,
+    `${shape.grantedBy} as granted_by`,
+    `${shape.reason} as reason`,
+    `${shape.memberGroup} as member_group`,
     `${shape.managed} as managed_by`,
     `${shape.seats} as seats`,
   ];
@@ -271,6 +289,18 @@ function membershipOf(row: Record<string, unknown>): Membership | undefined {
     roles: [...roles].toSorted(),
     via: typeof row.via === 'string' ? row.via : undefined,
     expiresAt: Number.isFinite(expires) ? expires : undefined,
+    grantedBy:
+      typeof row.granted_by === 'string' && row.granted_by !== ''
+        ? row.granted_by
+        : undefined,
+    reason:
+      typeof row.reason === 'string' && row.reason !== ''
+        ? row.reason
+        : undefined,
+    member:
+      typeof row.member_group === 'string' && row.member_group !== ''
+        ? { group: row.member_group }
+        : undefined,
     managedBy: row.managed_by === 'idp' ? 'idp' : undefined,
     entitlements: seats.length === 0 ? undefined : seats,
   });
@@ -336,6 +366,9 @@ export function fromTable(
     roles: `jsonb_agg(distinct ${col(c.role ?? 'role')}::text order by ${col(c.role ?? 'role')}::text)`,
     via: optional(c.via, 'text'),
     expiresAt: c.expiresAt,
+    grantedBy: optional(c.grantedBy, 'text'),
+    reason: optional(c.reason, 'text'),
+    memberGroup: optional(c.group, 'text'),
     managed: optional(c.managedBy, 'text'),
     managedColumn: c.managedBy,
     seats: c.seats === undefined ? 'null::jsonb' : `to_jsonb(${col(c.seats)})`,
@@ -345,7 +378,15 @@ export function fromTable(
       scope,
       id,
       ...(c.within === undefined ? [] : [within]),
-      ...[c.via, c.expiresAt, c.managedBy, c.seats]
+      ...[
+        c.via,
+        c.expiresAt,
+        c.grantedBy,
+        c.reason,
+        c.group,
+        c.managedBy,
+        c.seats,
+      ]
         .filter((name): name is string => name !== undefined)
         .map(col),
     ],
@@ -377,6 +418,10 @@ export function fromJunction(
       : options.managedBy === 'idp'
         ? ''
         : options.managedBy.column;
+  const groupColumn =
+    options.group === undefined || typeof options.group === 'string'
+      ? undefined
+      : options.group.column;
   const shape: Shape = {
     table: options.table,
     user: options.user ?? 'user_id',
@@ -395,6 +440,20 @@ export function fromJunction(
         ? 'null::text'
         : `${literal(options.via)}::text`,
     expiresAt: options.expiresAt,
+    grantedBy:
+      options.grantedBy === undefined
+        ? 'null::text'
+        : `${col(options.grantedBy)}::text`,
+    reason:
+      options.reason === undefined
+        ? 'null::text'
+        : `${col(options.reason)}::text`,
+    memberGroup:
+      options.group === undefined
+        ? 'null::text'
+        : typeof options.group === 'string'
+          ? `${literal(options.group)}::text`
+          : `${col(options.group.column)}::text`,
     managed:
       managedColumn === undefined
         ? 'null::text'
@@ -418,6 +477,9 @@ export function fromJunction(
       ...withinEntries.map(([, column]) => col(column)),
       ...[
         options.expiresAt,
+        options.grantedBy,
+        options.reason,
+        groupColumn,
         managedColumn === '' ? undefined : managedColumn,
         options.seats,
       ]

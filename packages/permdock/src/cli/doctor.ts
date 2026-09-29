@@ -23,6 +23,9 @@ import {
   pd030,
   pd031,
   pd032,
+  pd033,
+  pd034,
+  pd035,
 } from './doctor-collect.ts';
 import { pd005, pd006, pd009, pd012, pd022, pd028 } from './doctor-project.ts';
 import {
@@ -188,6 +191,15 @@ export async function runDoctor(input: {
   }
   if (include('graph') || include('rls') || include('PD032')) {
     findings.push(...(await pd032(input)));
+  }
+  if (include('activation') || include('PD033')) {
+    findings.push(...(await pd033(input)));
+  }
+  if (include('break-glass') || include('PD034')) {
+    findings.push(...(await pd034(input)));
+  }
+  if (include('support') || include('PD035')) {
+    findings.push(...(await pd035(input)));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

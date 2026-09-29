@@ -274,6 +274,14 @@ export function fromSnapshot(
         denials: [{ role: null, reason: 'unsupported' as const }],
       });
     },
+    activate() {
+      // Activation is a server decision: a snapshot carries no activation rules.
+      return freezeDeep({
+        outcome: 'denied' as const,
+        denials: [{ role: null, reason: 'unsupported' as const }],
+        alternatives: [],
+      });
+    },
     assignableRoles(query?: { readonly tenant?: string }) {
       const tenant = query?.tenant ?? subject.principal?.tenant;
       const tree = snapshot.vocabulary?.roles;

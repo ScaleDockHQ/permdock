@@ -898,3 +898,141 @@ export async function pd032(input: {
   }
   return findings;
 }
+
+/** Reads the doctor memberships fixture, if one is configured and parseable. */
+function membershipsFixture(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): MembershipsFixture {
+  const fixturePath = input.config.doctor?.memberships;
+  if (fixturePath === undefined) {
+    return {};
+  }
+  const absolute = resolve(input.cwd, fixturePath);
+  if (!existsSync(absolute)) {
+    return {};
+  }
+  try {
+    return asMembershipsFixture(JSON.parse(readFileSync(absolute, 'utf8')));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * PD033: a role activation without a `maxDuration` (an elevation with no
+ * ceiling never expires on its own), and an activation role that a fixture
+ * membership also holds standing (an eligible-only role must never be held
+ * directly).
+ */
+export async function pd033(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  const activation = new Set<string>();
+  for (const binding of policy.roles) {
+    if (binding.activation === undefined) {
+      continue;
+    }
+    activation.add(binding.name);
+    if (binding.activation.maxDuration === undefined) {
+      findings.push({
+        code: 'PD033',
+        severity: 'warning',
+        message: `role '${binding.name}' has activation without maxDuration: an elevation never expires on its own`,
+        fix: `set activation: { maxDuration: '4h', ... } on role '${binding.name}'`,
+      });
+    }
+  }
+  const fixture = membershipsFixture(input);
+  const standing = new Set<string>();
+  const eligible = new Set<string>();
+  for (const membership of fixture.memberships ?? []) {
+    for (const name of membership.roles ?? []) {
+      standing.add(name);
+    }
+    for (const name of membership.eligible ?? []) {
+      eligible.add(name);
+    }
+  }
+  for (const name of activation) {
+    if (standing.has(name)) {
+      findings.push({
+        code: 'PD033',
+        severity: 'warning',
+        message: `activation role '${name}' is held standing by a fixture membership: an eligible-only role must never be held directly`,
+        fix: `list '${name}' under eligible, never roles, and activate it with permdock.activate`,
+      });
+    } else {
+      void eligible;
+    }
+  }
+  return findings;
+}
+
+/**
+ * PD034: a break-glass grant under an `rls` config. RLS never compiles a
+ * break-glass override; the server must read through a `security definer`
+ * function that checks a signed break-glass session and writes an audit row.
+ */
+export async function pd034(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.policy === undefined || input.config.rls === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const keys = new Set<string>();
+  for (const grant of policy.grants) {
+    if (grant.breakGlass !== undefined) {
+      keys.add(grant.permission.key);
+    }
+  }
+  return [...keys].map((key) => ({
+    code: 'PD034',
+    severity: 'warning' as const,
+    message: `break-glass grant on ${key} cannot be compiled to RLS: it would leak the override into a database policy`,
+    fix: 'read break-glass rows through a security definer function that checks a signed break-glass session and writes an audit row',
+  }));
+}
+
+/**
+ * PD035: a `supportAccess` role without `actorRequired`. Support access is
+ * impersonation; without an actor the session is unattributed.
+ */
+export async function pd035(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  for (const binding of policy.roles) {
+    if (binding.support !== undefined && !binding.support.actorRequired) {
+      findings.push({
+        code: 'PD035',
+        severity: 'warning',
+        message: `support access role '${binding.name}' has actorRequired: false: a support session then runs as the tenant, unattributed`,
+        fix: `set actorRequired: true on supportAccess({ role: '${binding.name}', ... })`,
+      });
+    }
+  }
+  return findings;
+}

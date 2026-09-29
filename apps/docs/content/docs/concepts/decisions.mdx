@@ -62,7 +62,9 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 | `opaque-condition` | An imported opaque condition cannot be evaluated in memory |
 | `anonymous` | No principal |
 | `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
-| `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge |
+| `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge; also a break-glass or activation `assurance` that was not met ([elevated access](/docs/concepts/elevated-access)) |
+| `purpose`, `reason-required` | A break-glass grant was engaged (`context.purpose`) but the asserted purpose was not one it lists, or it requires a reason and `context.reason` was missing ([elevated access](/docs/concepts/elevated-access)); `role` is `null` |
+| `actor-required` | The subject holds a `supportAccess` membership with `actorRequired` but carries no `act`; support access is impersonation and must be attributed ([elevated access](/docs/concepts/elevated-access)); `role` is `null` |
 | `limit` | Quota exhausted |
 | `limit-unavailable` | No `LimitStore`, the store threw, or `consume` / `remaining` returned a thenable |
 | `relation-depth` | A graph grant's parent chain has a cycle, or goes on past its `depth` with no holder within it ([relationships](/docs/concepts/relationships)) |

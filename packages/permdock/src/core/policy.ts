@@ -108,6 +108,99 @@ export type GrantLimit = {
   readonly alertAt?: number;
 };
 
+/** How fresh the subject's authentication must be for an elevated grant. */
+export type AssuranceRequirement = {
+  /** Seconds since the subject last authenticated (`assurance.authTime`). */
+  readonly maxAge?: number;
+  /** Authentication context class references, any of which satisfies it. */
+  readonly acr?: readonly string[];
+  /** Authentication methods, all of which must be present. */
+  readonly amr?: readonly string[];
+};
+
+/**
+ * Time-boxed role activation. A role with `activation` is never held
+ * directly: a membership lists it under `eligible`, and `permdock.activate`
+ * mints the elevated membership to write.
+ */
+export type ActivationOption = {
+  /** The longest an activation may last, as a duration (`'4h'`, `'30m'`). */
+  readonly maxDuration?: string;
+  /** `'required'` denies an activation without a reason. */
+  readonly justification?: 'required' | 'optional';
+  /** When set, `activate` returns `approval-required` before the membership can be written. */
+  readonly approval?: ApprovalOption;
+  /** How fresh the activator's authentication must be. */
+  readonly assurance?: AssuranceRequirement;
+};
+
+export type ActivationSpec = {
+  readonly maxDuration?: string;
+  readonly justification: 'required' | 'optional';
+  readonly approval?: 'human' | ApprovalRequirement;
+  readonly assurance?: AssuranceRequirement;
+};
+
+/** What a break-glass grant demands before it overrides a deny. */
+export type BreakGlassRequirements = {
+  /** Purposes of use (`context.purpose`), any of which engages break-glass. */
+  readonly purpose?: readonly string[];
+  /** `true` denies unless the caller supplies `context.reason`. */
+  readonly reason?: boolean;
+  readonly assurance?: AssuranceRequirement;
+};
+
+export type BreakGlassOptions = {
+  /** Names of the deny grants this override lifts; every other deny still wins. */
+  readonly overrides?: readonly string[];
+  readonly requires?: BreakGlassRequirements;
+  /** The longest a break-glass session may last, as a duration. */
+  readonly maxDuration?: string;
+  /** Follow-ups the grant owes: each becomes an obligation on the decision. */
+  readonly obligations?: readonly ('notify' | 'review')[];
+};
+
+/** The normalized break-glass spec carried on a grant. */
+export type BreakGlassSpec = {
+  readonly overrides: readonly string[];
+  readonly purpose?: readonly string[];
+  readonly reason: boolean;
+  readonly assurance?: AssuranceRequirement;
+  readonly maxDuration?: string;
+  readonly obligations: readonly ('notify' | 'review')[];
+};
+
+/** How a tenant consents to support access, and for how long. */
+export type SupportConsent = {
+  readonly by: GranteeInput;
+  /** The durations a tenant owner may pick, as duration strings. */
+  readonly durations: readonly string[];
+};
+
+export type SupportAccessOptions<S extends string = string> = {
+  /** The role a consented support membership holds. */
+  readonly role: string;
+  /** The scope the support membership sits in; defaults to the first scope. */
+  readonly on?: S;
+  /** Every decision under the support membership denies with `actor-required` without an `act`. */
+  readonly actorRequired?: boolean;
+  readonly consent: SupportConsent;
+  /** Permissions a support session never reaches, compiled to deny grants scoped to `via: 'support'`. */
+  readonly forbid?: readonly (Permission | PermissionTree)[];
+  /** The subgroup a consented membership records under `member.group`. */
+  readonly group?: string;
+};
+
+export type SupportSpec = {
+  readonly role: string;
+  readonly actorRequired: boolean;
+  readonly consent: {
+    readonly by: Grantee | readonly Grantee[];
+    readonly durations: readonly string[];
+  };
+  readonly group: string;
+};
+
 export type GrantOptions<T = Record<string, unknown>> = {
   readonly to?: GranteeInput;
   readonly where?: WhereShorthand<T> | Condition;
@@ -116,6 +209,10 @@ export type GrantOptions<T = Record<string, unknown>> = {
   readonly limit?: GrantLimit;
   readonly reason?: string;
   readonly fields?: readonly (keyof T & string)[];
+  /** A name a `breakGlass` override may lift; only meaningful on a deny. */
+  readonly name?: string;
+  /** Purposes of use (`context.purpose`) that make the grant apply; non-portable. */
+  readonly purpose?: readonly string[];
 };
 
 /** A declared scope name (or the `tenant` / `team` alias), or the resource a role is held on. */
@@ -144,8 +241,8 @@ export type RoleOptions<S extends string = string> = {
   /** Membership kinds (`via`) that may hold the role; others hold it for nothing. */
   readonly for?: readonly string[];
   readonly meta?: RoleMeta;
-  /** Reserved for time-boxed role activation; setting it throws until it ships. */
-  readonly activation?: never;
+  /** Time-boxed activation: the role becomes eligible-only and `activate` mints its membership. */
+  readonly activation?: ActivationOption;
   /** Reserved for restricted credentials; setting it throws until it ships. */
   readonly restricted?: never;
 };
@@ -166,6 +263,14 @@ export type Grant = {
   readonly limit?: GrantLimit;
   readonly fields?: readonly string[];
   readonly scope: GrantScope;
+  /** A name a `breakGlass` override may lift; only meaningful on a deny. */
+  readonly name?: string;
+  /** Purposes of use that make the grant apply (`context.purpose`); non-portable. */
+  readonly purpose?: readonly string[];
+  /** Set on a break-glass allow: it overrides named denies and carries obligations. */
+  readonly breakGlass?: BreakGlassSpec;
+  /** The membership kind (`via`) this grant applies under; others never match it. */
+  readonly viaOnly?: string;
   /** Set only on a grant merged from a hosted policy document. */
   readonly hosted?: HostedGrantRef;
 };
@@ -188,6 +293,10 @@ export type RoleBinding<S extends string = string> = {
   readonly assigns?: readonly string[];
   readonly for?: readonly string[];
   readonly meta?: RoleMeta;
+  /** Time-boxed activation: the role is eligible-only, and `activate` mints its membership. */
+  readonly activation?: ActivationSpec;
+  /** Support access: consent and `actorRequired` for a vendor-support membership. */
+  readonly support?: SupportSpec;
 };
 
 export type ValidateMode = 'boundary' | 'always' | 'never';
@@ -355,7 +464,11 @@ function makeGrant(
   const check =
     checkInput === undefined ? undefined : normalizeWhere(checkInput);
   assertLimit(condition?.limit, permission.key);
-  const portable = condition?.limit === undefined;
+  const purpose =
+    condition?.purpose === undefined || condition.purpose.length === 0
+      ? undefined
+      : Object.freeze([...new Set(condition.purpose)]);
+  const portable = condition?.limit === undefined && purpose === undefined;
   return compact<Omit<Grant, 'role' | 'scope'>>({
     permission,
     effect,
@@ -366,6 +479,8 @@ function makeGrant(
     portable,
     limit: normalizeLimit(condition?.limit),
     fields: sanitizeFields(condition?.fields),
+    name: condition?.name,
+    purpose,
   });
 }
 
@@ -448,10 +563,8 @@ export function role(
   grants: RoleGrants,
   options?: RoleOptions,
 ): RoleBinding {
-  for (const reserved of ['activation', 'restricted'] as const) {
-    if (options !== undefined && Object.hasOwn(options, reserved)) {
-      throw new Error(`PermDock: role option '${reserved}' is reserved`);
-    }
+  if (options !== undefined && Object.hasOwn(options, 'restricted')) {
+    throw new Error(`PermDock: role option 'restricted' is reserved`);
   }
   const leaf = isRole(name) ? name : undefined;
   const roleName = leaf?.key ?? (name as string);
@@ -459,6 +572,7 @@ export function role(
   const assignable =
     options?.assignable ?? leaf?.assignable ?? scope !== 'global';
   const rules = roleRules(roleName, scope, options);
+  const activation = normalizeActivation(roleName, options?.activation);
   const roleGrantee = asGrantee(
     freezeDeep({
       kind: 'role' as const,
@@ -488,8 +602,58 @@ export function role(
       exclusiveWith: options?.exclusiveWith,
       ...rules,
       meta: options?.meta ?? leaf?.meta,
+      activation,
     }),
   );
+}
+
+/**
+ * A role with `activation` is eligible-only: it needs a positive `maxDuration`
+ * (Doctor PD033 warns without one). `justification` defaults to `'optional'`.
+ */
+export function normalizeActivation(
+  roleName: string,
+  option: ActivationOption | undefined,
+): ActivationSpec | undefined {
+  if (option === undefined) {
+    return undefined;
+  }
+  const justification = option.justification ?? 'optional';
+  if (justification !== 'required' && justification !== 'optional') {
+    throw new Error(
+      `PermDock: role '${roleName}' activation justification must be 'required' or 'optional'`,
+    );
+  }
+  return compact<ActivationSpec>({
+    maxDuration: option.maxDuration,
+    justification,
+    approval: normalizeApproval(option.approval),
+    assurance: normalizeAssurance(option.assurance),
+  });
+}
+
+export function normalizeAssurance(
+  input: AssuranceRequirement | undefined,
+): AssuranceRequirement | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+  const acr =
+    input.acr === undefined || input.acr.length === 0
+      ? undefined
+      : Object.freeze([...input.acr]);
+  const amr =
+    input.amr === undefined || input.amr.length === 0
+      ? undefined
+      : Object.freeze([...input.amr]);
+  const maxAge =
+    typeof input.maxAge === 'number' && input.maxAge >= 0
+      ? input.maxAge
+      : undefined;
+  if (acr === undefined && amr === undefined && maxAge === undefined) {
+    return undefined;
+  }
+  return compact<AssuranceRequirement>({ maxAge, acr, amr });
 }
 
 type RoleRules = Pick<
@@ -584,6 +748,10 @@ function canonicalGrants(grants: readonly Grant[]): string {
     portable: grant.portable,
     fields: grant.fields,
     scope: grant.scope,
+    name: grant.name,
+    purpose: grant.purpose,
+    breakGlass: grant.breakGlass,
+    viaOnly: grant.viaOnly,
   }));
   return JSON.stringify(payload);
 }
@@ -823,6 +991,8 @@ function mergeBindings(items: readonly RoleBinding[]): {
           assigns: existing.assigns ?? item.assigns,
           for: existing.for ?? item.for,
           meta: existing.meta ?? item.meta,
+          activation: existing.activation ?? item.activation,
+          support: existing.support ?? item.support,
         }),
       ),
     );

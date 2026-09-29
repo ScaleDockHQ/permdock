@@ -885,4 +885,100 @@ export const policy = definePolicy(permissions, {
       'tenant globex allows API keys that never expire',
     ]);
   });
+
+  it('PD033 warns on an activation without maxDuration', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/act-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  scopes: { tenant: { key: 'orgId' } },
+  roles: [
+    role('admin', [allow(permissions.post.update)], {
+      on: 'tenant',
+      activation: { justification: 'required' },
+    }),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/act-policy.ts',
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD033'], { cwd });
+    expect(codes(result.stdout)).toContain('PD033');
+  });
+
+  it('PD034 flags a break-glass grant under an rls config', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/bg-policy.ts'),
+      `import { breakGlass, definePolicy } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  grants: [
+    breakGlass(permissions.post.read, {
+      overrides: ['restricted'],
+      requires: { purpose: ['BTG'], reason: true },
+    }),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/bg-policy.ts',
+  collect: { srcPath: ['./src'] },
+  rls: { rbac: { authorize: 'database' } },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD034'], { cwd });
+    expect(codes(result.stdout)).toContain('PD034');
+  });
+
+  it('PD035 warns on support access without actorRequired', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/support-policy.ts'),
+      `import { definePolicy, supportAccess } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  scopes: { tenant: { key: 'orgId' } },
+  roles: [
+    supportAccess({
+      role: 'support',
+      consent: { by: 'owner', durations: ['1d'] },
+    }),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/support-policy.ts',
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD035'], { cwd });
+    expect(codes(result.stdout)).toContain('PD035');
+  });
 });

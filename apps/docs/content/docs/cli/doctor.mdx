@@ -52,6 +52,9 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD030` | Under an `rls` config, a read grant limits `fields`, but the table still returns those columns to a direct read | warning |
 | `PD031` | A resource parents itself but no `through: 'parent'` grant walks it, or declares `restricted` but no graph grant reaches its rows | warning |
 | `PD032` | Under an `rls` config, a graph resource shares its name with a scope or is not a lowercase SQL name, so `rls generate` cannot name its `permitted_<resource>_ids` helper | error |
+| `PD033` | A role `activation` has no `maxDuration` (the elevation never expires on its own), or an activation role is held standing by a `doctor.memberships` fixture | warning |
+| `PD034` | Under an `rls` config, a `breakGlass` grant would be compiled: RLS never compiles a break-glass override, so it reads through the generated `permdock_break_glass_<resource>` function instead | warning |
+| `PD035` | A `supportAccess` role has `actorRequired: false`, so a support session runs as the tenant, unattributed | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -205,6 +208,18 @@ A self-parent is what makes a chain, and `restricted` is what stops one, but onl
 ### PD032: graph resources RLS cannot name
 
 With an `rls` config, every resource a graph grant reads gets a `permitted_<resource>_ids` helper. A resource named like a scope (a `team` resource for sub-teams next to the `team` scope) would replace the scope helper of the same name and signature, and a name outside lowercase letters, digits and underscores is not a safe SQL name, so `rls generate` refuses both; the check reports them before it runs. Rename the resource.
+
+### PD033: activation without a ceiling, or held standing
+
+A role `activation` with no `maxDuration` mints an elevation that never expires on its own, so it leans entirely on a revocation the app might forget; set a `maxDuration`. The check also reads the `doctor.memberships` fixture and names any activation role a membership holds under `roles` rather than `eligible`: an activation role is eligible-only and must never be held directly ([elevated access](/docs/concepts/elevated-access)). `--only activation` runs PD033.
+
+### PD034: break-glass under an RLS config
+
+A `breakGlass` grant is the one deny override, and it is non-portable on purpose: RLS never compiles it. Under an `rls` config the check names each break-glass permission so it is clear the database side reads through the generated `permdock_break_glass_<resource>` `security definer` function (which checks a signed break-glass session and writes an audit row), never a policy, so plain RLS keeps denying the restricted rows ([elevated access](/docs/concepts/elevated-access)). `--only break-glass` runs PD034.
+
+### PD035: support access without an actor
+
+`supportAccess` is impersonation: a vendor acts inside a tenant. With `actorRequired: false` the session runs as the tenant with no `act`, so the audit log cannot tell the vendor apart from the customer. The check names each support role that omits it; set `actorRequired: true` ([elevated access](/docs/concepts/elevated-access)). `--only support` runs PD035.
 
 ## Why
 

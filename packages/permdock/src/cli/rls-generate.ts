@@ -14,6 +14,7 @@ import type {
 import { scopeList } from '../core/scopes.ts';
 import { listRoles } from '../index.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
+import { breakGlassEntries, breakGlassSql } from './rls-break-glass.ts';
 import { compileGrants } from './rls-compile.ts';
 import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
 import { fieldViews, rowBranches } from './rls-fields.ts';
@@ -239,6 +240,7 @@ export async function runRlsGenerate(input: {
   }
   const owned = ownershipSql(ctx);
   const graphed = graphSql(ctx, graph, rls?.tables);
+  const breakGlass = breakGlassSql(ctx, breakGlassEntries(policy, rls?.tables));
   const preamble = [
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, {
@@ -247,6 +249,7 @@ export async function runRlsGenerate(input: {
     }),
     owned === '' ? undefined : owned,
     graphed === '' ? undefined : graphed,
+    breakGlass === '' ? undefined : breakGlass,
     rbac?.tail,
   ]
     .filter((part): part is string => part !== undefined)

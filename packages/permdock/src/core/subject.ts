@@ -40,8 +40,16 @@ export type Membership = {
   readonly within?: Readonly<Record<string, string>>;
   readonly on?: { readonly resource: string; readonly id: string };
   readonly roles: readonly string[];
+  /** Roles the holder may activate here but does not hold; `permdock.activate` writes an elevated membership. */
+  readonly eligible?: readonly string[];
   readonly via?: string;
   readonly expiresAt?: number;
+  /** The principal id that wrote this membership: who elevated, consented to or granted the access. */
+  readonly grantedBy?: string;
+  /** Free text recording why the membership was written: the activation or consent justification. */
+  readonly reason?: string;
+  /** A subgroup the holder belongs to inside the instance (`vendor-support`); a `fromJunction` group column fills it. */
+  readonly member?: { readonly group: string };
   /** `idp`: the identity provider (SCIM) owns this membership; the application must not edit it. */
   readonly managedBy?: 'idp';
   /** Seats this membership holds (`dev-mode`, `editor`); `plan()` grantees match them inside the active tenant. */

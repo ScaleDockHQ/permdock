@@ -209,6 +209,17 @@ export type CatalogPermission = {
   readonly hostable?: true;
   /** The approvals code allows on this permission require; a hosted grant must meet each. */
   readonly approvals?: readonly CatalogApproval[];
+  /** Present when a `breakGlass` override targets this permission. */
+  readonly breakGlass?: CatalogBreakGlass;
+};
+
+/** A break-glass override as the catalog carries it. */
+export type CatalogBreakGlass = {
+  readonly overrides: readonly string[];
+  readonly purpose?: readonly string[];
+  readonly reason: boolean;
+  readonly maxDuration?: string;
+  readonly obligations: readonly string[];
 };
 
 export type CatalogApproval =
@@ -244,6 +255,29 @@ export type CatalogRole = {
   readonly for?: readonly string[];
   readonly exclusiveWith?: readonly string[];
   readonly audience?: string;
+  /** Present when the role is eligible-only and activated with `permdock.activate`. */
+  readonly activation?: CatalogActivation;
+  /** Present when the role is a `supportAccess` role. */
+  readonly supportAccess?: CatalogSupportAccess;
+};
+
+/** A role activation as the catalog carries it. */
+export type CatalogActivation = {
+  readonly maxDuration?: string;
+  readonly justification: 'required' | 'optional';
+  readonly approval?: boolean;
+  readonly assurance?: {
+    readonly maxAge?: number;
+    readonly acr?: readonly string[];
+    readonly amr?: readonly string[];
+  };
+};
+
+/** A support-access role as the catalog carries it. */
+export type CatalogSupportAccess = {
+  readonly actorRequired: boolean;
+  readonly group: string;
+  readonly durations: readonly string[];
 };
 
 /** One declared scope, in declaration order. */

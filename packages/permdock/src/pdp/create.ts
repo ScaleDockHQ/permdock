@@ -104,6 +104,9 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'closure-error':
       case 'opaque-condition':
       case 'insufficient-user-authentication':
+      case 'purpose':
+      case 'reason-required':
+      case 'actor-required':
       case 'limit':
       case 'limit-unavailable':
       case 'relation-depth':
@@ -355,6 +358,7 @@ function wrap(
     decideRoleChange: dock.decideRoleChange.bind(dock),
     loadRelations: dock.loadRelations.bind(dock),
     whoCan: dock.whoCan.bind(dock),
+    activate: dock.activate.bind(dock),
     permissions: dock.permissions,
     roles: dock.roles,
     plans: dock.plans,

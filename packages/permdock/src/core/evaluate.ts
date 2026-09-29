@@ -5,6 +5,7 @@ import type {
   DenialReason,
   GrantedDecision,
   MatchedGrant,
+  Obligation,
 } from './decision.ts';
 import type { AuthEvent, DecisionEvent, RoleSource } from './interfaces.ts';
 import type { DecideOptions, RowPair } from './permdock.ts';
@@ -16,6 +17,12 @@ import { evaluateCondition } from '../conditions/evaluate.ts';
 import { compact } from './compact.ts';
 import { isCustomRoleName, holdsCustomRole } from './custom-roles.ts';
 import { coveredByDelegation, resourceIdOf } from './delegation.ts';
+import {
+  actorRequiredVias,
+  evaluateBreakGlass,
+  isSupportMembership,
+  purposesOf,
+} from './elevated.ts';
 import { PermDockValidationError } from './errors.ts';
 import { type EvalEnv, emitSafe, finish } from './events.ts';
 import { grantCoversField } from './fields.ts';
@@ -31,7 +38,12 @@ import {
 } from './policy.ts';
 import { resolveRelated } from './relations.ts';
 import { scopeList, tenantOf } from './scopes.ts';
-import { inTeam, matchScopedMembership, nowSeconds } from './tenancy.ts';
+import {
+  inTeam,
+  isMembershipExpired,
+  matchScopedMembership,
+  nowSeconds,
+} from './tenancy.ts';
 import { isThenable } from './thenable.ts';
 import { decisionToken, versionOf } from './token.ts';
 import { validateBoundary } from './validation.ts';
@@ -452,8 +464,12 @@ export function evaluate(
   }
 
   const denials: Denial[] = [];
-  const allows: { readonly grant: Grant; readonly membership?: Membership }[] =
-    [];
+  const allows: {
+    readonly grant: Grant;
+    readonly membership?: Membership;
+    readonly obligations?: readonly Obligation[];
+    readonly breakGlass?: true;
+  }[] = [];
   const matchingRoles = new Set<string>(globalNames.roles);
 
   for (const membership of subject.principal?.memberships ?? []) {
@@ -474,15 +490,83 @@ export function evaluate(
     }
   }
 
+  const supports = policy.roles.flatMap((binding) =>
+    binding.support === undefined ? [] : [binding.support],
+  );
+  const actorVias = actorRequiredVias(supports);
+  if (
+    actorVias.size > 0 &&
+    subject.actor === undefined &&
+    (subject.principal?.memberships ?? []).some(
+      (membership) =>
+        isSupportMembership(membership, actorVias) &&
+        !isMembershipExpired(membership, now) &&
+        inTeam(membership, scopes, env.team),
+    )
+  ) {
+    const decision: Decision = freezeDeep({
+      outcome: 'denied',
+      denials: [{ role: null, reason: 'actor-required' }],
+      alternatives: [],
+    });
+    finish(
+      policy,
+      subject,
+      permission,
+      current,
+      decision,
+      options,
+      env,
+      trusted,
+    );
+    return decision;
+  }
+
+  const purposes = purposesOf(subject);
+
   const candidates: { readonly grant: Grant; readonly custom?: CustomRole }[] =
     grantList(policy)
-      .filter((grant) => grant.permission.key === permission.key)
+      .filter(
+        (grant) =>
+          grant.permission.key === permission.key &&
+          grant.breakGlass === undefined,
+      )
       .map((grant) => ({ grant }));
   for (const item of env.customGrants) {
     if (item.grant.permission.key === permission.key) {
       candidates.push({ grant: item.grant, custom: item.role });
     }
   }
+
+  let breakGlassGrant: Grant | undefined;
+  let breakGlassObligations: readonly Obligation[] = [];
+  const breakGlassOverrides = new Set<string>();
+  let breakGlassDenial: DenialReason | undefined;
+  for (const grant of grantList(policy)) {
+    if (
+      grant.permission.key !== permission.key ||
+      grant.breakGlass === undefined
+    ) {
+      continue;
+    }
+    if (!matchGrantee(grant.to, subject, now, resource, scopes).matched) {
+      continue;
+    }
+    const result = evaluateBreakGlass(grant.breakGlass, subject, now);
+    if (result.kind === 'inactive') {
+      continue;
+    }
+    for (const name of grant.breakGlass.overrides) {
+      breakGlassOverrides.add(name);
+    }
+    if (result.kind === 'granted') {
+      breakGlassGrant = grant;
+      breakGlassObligations = result.obligations;
+      break;
+    }
+    breakGlassDenial ??= result.reason;
+  }
+
   const holdsCustom = (custom: CustomRole): boolean =>
     (subject.principal?.memberships ?? []).some(
       (membership) =>
@@ -492,6 +576,23 @@ export function evaluate(
 
   for (const { grant, custom } of candidates) {
     const displayRole = grant.role;
+    if (
+      grant.viaOnly !== undefined &&
+      !(subject.principal?.memberships ?? []).some(
+        (membership) =>
+          membership.via === grant.viaOnly &&
+          !isMembershipExpired(membership, now) &&
+          inTeam(membership, scopes, env.team),
+      )
+    ) {
+      continue;
+    }
+    if (
+      grant.purpose !== undefined &&
+      !purposes.some((purpose) => grant.purpose!.includes(purpose))
+    ) {
+      continue;
+    }
     const granteeMatch = matchGrantee(
       grant.to,
       subject,
@@ -634,6 +735,31 @@ export function evaluate(
       continue;
     }
     if (grant.effect === 'deny') {
+      if (grant.name !== undefined && breakGlassOverrides.has(grant.name)) {
+        if (breakGlassGrant !== undefined) {
+          continue;
+        }
+        if (breakGlassDenial !== undefined) {
+          const decision: Decision = freezeDeep({
+            outcome: 'denied',
+            denials: [{ role: null, reason: breakGlassDenial }],
+            alternatives: env.skipAlternatives
+              ? []
+              : alternativesFor(policy, permission, subject, env),
+          });
+          finish(
+            policy,
+            subject,
+            permission,
+            current,
+            decision,
+            options,
+            env,
+            trusted,
+          );
+          return decision;
+        }
+      }
       const decision: Decision = freezeDeep({
         outcome: 'denied',
         denials: [{ role: displayRole, reason: 'deny' }],
@@ -658,6 +784,16 @@ export function evaluate(
         ? { grant: merged }
         : { grant: merged, membership: scopeMembership },
     );
+  }
+
+  if (breakGlassGrant !== undefined) {
+    allows.push({
+      grant: breakGlassGrant,
+      obligations: breakGlassObligations,
+      breakGlass: true,
+    });
+  } else if (breakGlassDenial !== undefined) {
+    denials.unshift({ role: null, reason: breakGlassDenial });
   }
 
   if (allows.length === 0) {
@@ -819,7 +955,12 @@ export function evaluate(
     check: matchedAllow.grant.check,
     approval: matchedAllow.grant.approval,
     hosted: matchedAllow.grant.hosted,
+    breakGlass: matchedAllow.breakGlass,
   });
+  const obligations = [
+    ...(quotaState.obligations ?? []),
+    ...(matchedAllow.obligations ?? []),
+  ];
   const decision: Decision = requiresApproval(matchedAllow.grant.approval)
     ? freezeDeep({
         outcome: 'approval-required',
@@ -833,6 +974,7 @@ export function evaluate(
         matched,
         token,
         ...quotaState,
+        ...(obligations.length === 0 ? {} : { obligations }),
       });
   finish(
     policy,
