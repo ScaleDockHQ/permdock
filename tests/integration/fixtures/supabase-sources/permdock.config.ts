@@ -6,7 +6,7 @@ export default {
   supabase: {
     hook: {
       memberships: sources(),
-      profile: { table: 'profiles', columns: ['locale', 'timezone'] },
+      attrs: { table: 'profiles', columns: ['locale', 'timezone'] },
       suspension,
     },
   },

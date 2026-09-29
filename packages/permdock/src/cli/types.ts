@@ -130,9 +130,14 @@ export type SupabaseHookConfig = {
   readonly activeFrom?:
     | string
     | { readonly table: string; readonly id?: string; readonly column: string };
-  /** Profile columns copied into the `attrs` claim, allow-listed. */
-  readonly profile?: {
-    readonly table: string;
+  /**
+   * The `attrs` claim, for attribute conditions such as
+   * `principal.claims.attrs.region`: allow-listed columns of a server-owned
+   * table (`table`, joined on `id`), and `app_metadata.<key>` entries. Never
+   * `user_metadata`; the migration fails when clients can write a column.
+   */
+  readonly attrs?: {
+    readonly table?: string;
     readonly id?: string;
     readonly columns: readonly string[];
   };

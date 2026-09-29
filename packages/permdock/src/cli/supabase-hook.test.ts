@@ -69,7 +69,7 @@ export default {
 describe('permdock supabase hook generate', () => {
   it('emits the hook, the grants, the version table and the config.toml block', async () => {
     const { code, output, sql } = await generate(
-      `{ memberships: [${SOURCES}], profile: { table: 'profiles', columns: ['locale', 'timezone'] } }`,
+      `{ memberships: [${SOURCES}], attrs: { table: 'profiles', columns: ['locale', 'timezone', 'app_metadata.plan'] } }`,
     );
     expect(code).toBe(0);
     expect(output).toContain('jwt_expiry = 900');
@@ -90,6 +90,12 @@ describe('permdock supabase hook generate', () => {
       `claims := jsonb_set(claims, '{tenant_id}', to_jsonb(active));`,
     );
     expect(sql).toContain(`'locale', to_jsonb(p."locale")`);
+    expect(sql).toContain(`'plan', u.raw_app_meta_data -> 'plan'`);
+    expect(sql).toContain(
+      `where has_column_privilege(r.role, '"public"."profiles"', c.name, 'INSERT')`,
+    );
+    expect(sql).toContain('+ used > budget');
+    expect(sql).not.toMatch(/user_meta/iu);
     expect(sql).toContain(`from "public"."customer_contacts" m`);
     expect(sql).toContain(`jsonb_build_array('contact')`);
     expect(sql).toContain(
@@ -160,6 +166,33 @@ describe('permdock supabase hook generate', () => {
       (await generate(`{ memberships: [fromTable({ table: 'x; drop' })] }`))
         .code,
     ).toBe(2);
+  });
+
+  it('refuses attrs that are not server-owned', async () => {
+    const attrs = async (value: string) =>
+      generate(`{ memberships: [${SOURCES}], attrs: ${value} }`);
+    for (const [value, message] of [
+      [`{ table: 'profiles', columns: ['user_metadata'] }`, 'user-editable'],
+      [
+        `{ table: 'profiles', columns: ['raw_user_meta_data'] }`,
+        'user-editable',
+      ],
+      [`{ columns: ['user_metadata.region'] }`, 'user-editable'],
+      [`{ table: 'auth.users', columns: ['email'] }`, 'auth.users'],
+      [`{ table: 'profiles', columns: ['__proto__'] }`, 'prototype key'],
+      [
+        `{ table: 'profiles', columns: ['region', 'app_metadata.region'] }`,
+        'twice',
+      ],
+      [`{ columns: ['region'] }`, 'without a table'],
+    ] as const) {
+      const result = await attrs(value);
+      expect(result.code).toBe(2);
+      expect(result.output).toContain(message);
+    }
+    const meta = await attrs(`{ columns: ['app_metadata.plan'] }`);
+    expect(meta.code).toBe(0);
+    expect(meta.sql).not.toContain('has_column_privilege');
   });
 
   it('gives suspended users empty claims', async () => {

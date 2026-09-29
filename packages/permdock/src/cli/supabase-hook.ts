@@ -42,6 +42,84 @@ permdock_authz_version table and its triggers. Never grants anything to service_
 `;
 
 export const MANAGED_TRIGGER = 'permdock_protect_managed';
+
+const CLAIM_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+const PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const USER_EDITABLE = /^(raw_)?user_meta(_)?data$/iu;
+
+export type AttrsPlan = {
+  readonly table?: string;
+  readonly id: string;
+  /** Columns of `table`, each also the claim key. */
+  readonly columns: readonly string[];
+  /** `app_metadata` keys, each also the claim key. */
+  readonly meta: readonly string[];
+  readonly errors: readonly string[];
+};
+
+/**
+ * Splits `supabase.hook.attrs` into table columns and `app_metadata` keys and
+ * lists what cannot be compiled: `user_metadata` (the user can edit it), a
+ * direct `auth.users` column, an unsafe or prototype key, a duplicate key,
+ * or a table column without a table.
+ */
+export function attrsPlan(
+  attrs: NonNullable<SupabaseHookConfig['attrs']>,
+): AttrsPlan {
+  const errors: string[] = [];
+  const columns: string[] = [];
+  const meta: string[] = [];
+  const seen = new Set<string>();
+  const tableName = attrs.table?.replaceAll('"', '').toLowerCase();
+  if (tableName === 'auth.users') {
+    errors.push(
+      'supabase.hook.attrs.table cannot be auth.users: list app_metadata.<key> entries instead',
+    );
+  }
+  for (const entry of attrs.columns) {
+    const [head = '', ...rest] = entry.split('.');
+    const isMeta = head === 'app_metadata' || head === 'raw_app_meta_data';
+    const key = isMeta ? rest.join('.') : entry;
+    if (
+      USER_EDITABLE.test(head) ||
+      USER_EDITABLE.test(key) ||
+      /user_?meta/iu.test(entry)
+    ) {
+      errors.push(
+        `supabase.hook.attrs lists ${entry}: user_metadata is user-editable and never becomes a claim`,
+      );
+      continue;
+    }
+    if (!CLAIM_KEY.test(key) || PROTOTYPE_KEYS.has(key)) {
+      errors.push(
+        `supabase.hook.attrs lists ${entry}: a key must match ${CLAIM_KEY.source} and not be a prototype key`,
+      );
+      continue;
+    }
+    if (seen.has(key)) {
+      errors.push(`supabase.hook.attrs names the key ${key} twice`);
+      continue;
+    }
+    seen.add(key);
+    if (isMeta) {
+      meta.push(key);
+    } else {
+      columns.push(key);
+    }
+  }
+  if (columns.length > 0 && attrs.table === undefined) {
+    errors.push(
+      `supabase.hook.attrs lists ${columns.join(', ')} without a table`,
+    );
+  }
+  return {
+    ...(attrs.table === undefined ? {} : { table: attrs.table }),
+    id: attrs.id ?? 'id',
+    columns,
+    meta,
+    errors,
+  };
+}
 export const VERSION_TRIGGER = 'permdock_authz_version';
 
 type Parts = {
@@ -56,6 +134,7 @@ type Parts = {
   readonly users: RlsActiveRow | undefined;
   readonly hook: SupabaseHookConfig;
   readonly active: string;
+  readonly attrs: AttrsPlan | undefined;
 };
 
 function table(name: string): string {
@@ -179,21 +258,45 @@ function hookSql(parts: Parts): string {
     into held
     from ${table(rolesTable.table)} r
     where r.${quoteIdent(rolesTable.user ?? 'user_id')}::text = uid;`;
-  const profile = parts.hook.profile;
-  const attrs =
-    profile === undefined
+  const plan = parts.attrs;
+  const fromTable =
+    plan === undefined || plan.columns.length === 0 || plan.table === undefined
       ? ''
       : `
-  select jsonb_strip_nulls(jsonb_build_object(${profile.columns
+  select jsonb_strip_nulls(jsonb_build_object(${plan.columns
     .map(
       (column) => `${quoteLiteral(column)}, to_jsonb(p.${quoteIdent(column)})`,
     )
     .join(', ')}))
     into attrs
-    from ${table(profile.table)} p
-    where p.${quoteIdent(profile.id ?? 'id')}::text = uid;
+    from ${table(plan.table)} p
+    where p.${quoteIdent(plan.id)}::text = uid;`;
+  const fromMeta =
+    plan === undefined || plan.meta.length === 0
+      ? ''
+      : `
+  attrs := coalesce(attrs, '{}'::jsonb) || coalesce((
+    select jsonb_strip_nulls(jsonb_build_object(${plan.meta
+      .map(
+        (key) =>
+          `${quoteLiteral(key)}, u.raw_app_meta_data -> ${quoteLiteral(key)}`,
+      )
+      .join(', ')}))
+    from auth.users u
+    where u.id = uid::uuid
+  ), '{}'::jsonb);`;
+  const attrs =
+    plan === undefined
+      ? ''
+      : `${fromTable}${fromMeta}
   if attrs is not null and attrs <> '{}'::jsonb then
-    claims := jsonb_set(claims, '{attrs}', attrs);
+    used := octet_length(attrs::text);
+    if used > budget then
+      truncated := true;
+      used := 0;
+    else
+      claims := jsonb_set(claims, '{attrs}', attrs);
+    end if;
   end if;`;
   const versionTable = `${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)}`;
   const version = parts.version
@@ -206,7 +309,7 @@ function hookSql(parts: Parts): string {
       ? ''
       : `
   if not ${activeRowSql(parts.users, 'uid::uuid')} then
-    claims := claims - 'memberships_truncated' - ${quoteLiteral(parts.tenantClaim)};
+    claims := claims - 'memberships_truncated' - 'attrs' - ${quoteLiteral(parts.tenantClaim)};
     claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);${version}
     return jsonb_set(event, '{claims}', claims);
   end if;`;
@@ -225,8 +328,10 @@ declare
   truncated boolean := false;
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
-  item record;${profile === undefined ? '' : '\n  attrs jsonb;'}${parts.version ? '\n  ver bigint;' : ''}
+  used integer := 0;
+  item record;${plan === undefined ? '' : '\n  attrs jsonb;'}${parts.version ? '\n  ver bigint;' : ''}
 begin${suspended}
+  claims := claims - 'attrs';
 ${roles}
   claims := jsonb_set(claims, '{roles}', held);
   if jsonb_array_length(held) = 1 then
@@ -234,7 +339,7 @@ ${roles}
   elsif jsonb_array_length(held) > 1 then
     claims := jsonb_set(claims, '{user_role}', held);
   end if;
-  active := ${parts.active};
+  active := ${parts.active};${attrs}
   for item in
     select x.entry, x.tenant is not distinct from active as current
     from (
@@ -242,7 +347,7 @@ ${entriesSql(parts).replaceAll(/^/gmu, '      ')}
     ) x
     order by (x.tenant is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
   loop
-    if octet_length((kept || jsonb_build_array(item.entry))::text) > budget then
+    if octet_length((kept || jsonb_build_array(item.entry))::text) + used > budget then
       truncated := true;
       exit;
     end if;
@@ -257,7 +362,7 @@ ${entriesSql(parts).replaceAll(/^/gmu, '      ')}
   end if;
   if in_active then
     claims := jsonb_set(claims, ${quoteLiteral(`{${parts.tenantClaim}}`)}, to_jsonb(active));
-  end if;${attrs}${version}
+  end if;${version}
   return jsonb_set(event, '{claims}', claims);
 end;
 $$;
@@ -284,11 +389,8 @@ function readsSql(parts: Parts): string {
   if (rolesTable !== undefined) {
     reads.set(rolesTable, reads.get(rolesTable) ?? 'roles');
   }
-  if (parts.hook.profile !== undefined) {
-    reads.set(
-      parts.hook.profile.table,
-      reads.get(parts.hook.profile.table) ?? 'profile',
-    );
+  if (parts.attrs?.table !== undefined && parts.attrs.columns.length > 0) {
+    reads.set(parts.attrs.table, reads.get(parts.attrs.table) ?? 'attrs');
   }
   if (parts.users !== undefined) {
     reads.set(
@@ -364,6 +466,35 @@ end;
 $$;
 revoke execute on function ${bump}() from public, anon, authenticated;
 ${triggers}`;
+}
+
+/**
+ * Fails the migration when a client role can write an `attrs` column: a
+ * claim the user can set is not a server-owned attribute.
+ */
+function attrsGuardSql(plan: AttrsPlan | undefined): string {
+  if (plan?.table === undefined || plan.columns.length === 0) {
+    return '';
+  }
+  const target = quoteLiteral(table(plan.table));
+  const columns = plan.columns
+    .map((column) => `(${quoteLiteral(column)})`)
+    .join(', ');
+  return `-- attrs must be server-owned: refuse columns anon or authenticated can insert or update
+do $$
+begin
+  if exists (
+    select 1
+    from (values ${columns}) c(name)
+    cross join (values ('anon'), ('authenticated')) r(role)
+    where has_column_privilege(r.role, ${target}, c.name, 'INSERT')
+       or has_column_privilege(r.role, ${target}, c.name, 'UPDATE')
+  ) then
+    raise exception 'PermDock: an attrs column of % is writable by anon or authenticated; revoke insert and update on it before it becomes a claim', ${target}
+      using errcode = '42501';
+  end if;
+end
+$$;`;
 }
 
 function managedSql(parts: Parts): string {
@@ -456,7 +587,11 @@ export function supabaseHookSql(
     users: suspension?.users,
     hook,
     active: activeFromSql(overrides.activeFrom ?? hook.activeFrom, root),
+    attrs: hook.attrs === undefined ? undefined : attrsPlan(hook.attrs),
   };
+  if (parts.attrs !== undefined && parts.attrs.errors.length > 0) {
+    throw new Error(`PermDock CLI: ${parts.attrs.errors.join('; ')}`);
+  }
   quoteIdent(parts.tenantClaim);
   const warnings = checkSources({
     sources: parts.sources,
@@ -469,9 +604,10 @@ export function supabaseHookSql(
     .join('\n');
   const sql = [
     `-- permdock supabase hook: custom_access_token_hook(jsonb)
--- claims: user_role, roles, memberships (active ${root} first, at most ${String(parts.budget)} bytes; memberships_truncated when cut), ${parts.tenantClaim}${hook.profile === undefined ? '' : ', attrs'}${parts.version ? ', authz_ver' : ''}
+-- claims: user_role, roles, memberships (active ${root} first, at most ${String(parts.budget)} bytes; memberships_truncated when cut), ${parts.tenantClaim}${parts.attrs === undefined ? '' : ', attrs (counted in the budget)'}${parts.version ? ', authz_ver' : ''}
 -- supabase/config.toml:
 ${toml}`,
+    attrsGuardSql(parts.attrs),
     hookSql(parts),
     readsSql(parts),
     versionSql(parts),
