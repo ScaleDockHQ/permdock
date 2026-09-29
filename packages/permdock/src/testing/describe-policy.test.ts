@@ -396,6 +396,41 @@ describePolicy(quotaPolicy, {
   },
 });
 
+const softQuotaPolicy = definePolicy(quotaPermissions, {
+  roles: [
+    role('member', [
+      allow(quotaPermissions.report.export, {
+        limit: { count: 1, per: 'hour', mode: 'soft', alertAt: 1 },
+      }),
+    ]),
+    role('capped', [
+      allow(quotaPermissions.report.export, {
+        limit: { count: 5, per: 'hour' },
+      }),
+    ]),
+  ],
+  subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>
+    user,
+});
+
+describePolicy(softQuotaPolicy, {
+  exhaustive: false,
+  options: { limits: memoryLimitStore() },
+  subjects: {
+    member: { id: 'u1', roles: ['member'] },
+    capped: { id: 'u2', roles: ['capped'] },
+  },
+  fixtures: { report: { id: 'r1' } },
+  matrix: {
+    [quotaPermissions.report.export.key]: {
+      report: {
+        member: { outcome: 'granted', obligations: ['near-limit'] },
+        capped: { outcome: 'granted', obligations: [] },
+      },
+    },
+  },
+});
+
 describePolicy(policy, {
   exhaustive: false,
   options: {

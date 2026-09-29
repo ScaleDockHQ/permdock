@@ -1,5 +1,6 @@
+import type { Obligation, Quota } from './decision.ts';
 import type { LimitStore } from './interfaces.ts';
-import type { Grant } from './policy.ts';
+import type { Grant, GrantLimit } from './policy.ts';
 
 const UNIT_SECONDS: Record<string, number> = {
   s: 1,
@@ -54,7 +55,7 @@ export function limitWindowSeconds(per: string): number | undefined {
 
 /** Throws at definition time for a `limit` no store could count. */
 export function assertLimit(
-  limit: { readonly count: number; readonly per: string } | undefined,
+  limit: GrantLimit | undefined,
   permissionKey: string,
 ): void {
   if (limit === undefined) {
@@ -70,6 +71,39 @@ export function assertLimit(
       `PermDock: limit per '${limit.per}' on '${permissionKey}' is not a duration such as 'hour' or '15 min'`,
     );
   }
+  if (
+    limit.mode !== undefined &&
+    limit.mode !== 'hard' &&
+    limit.mode !== 'soft'
+  ) {
+    throw new Error(
+      `PermDock: limit mode on '${permissionKey}' must be 'hard' or 'soft'`,
+    );
+  }
+  if (
+    limit.alertAt !== undefined &&
+    (typeof limit.alertAt !== 'number' ||
+      !(limit.alertAt > 0 && limit.alertAt <= 1))
+  ) {
+    throw new Error(
+      `PermDock: limit alertAt on '${permissionKey}' must be a fraction above 0 and at most 1`,
+    );
+  }
+}
+
+/** The declared fields of a validated `limit`, so extra keys never reach the grant. */
+export function normalizeLimit(
+  limit: GrantLimit | undefined,
+): GrantLimit | undefined {
+  if (limit === undefined) {
+    return undefined;
+  }
+  return {
+    count: limit.count,
+    per: limit.per,
+    ...(limit.mode === undefined ? {} : { mode: limit.mode }),
+    ...(limit.alertAt === undefined ? {} : { alertAt: limit.alertAt }),
+  };
 }
 
 export function limitWindowId(per: string, now: number): string | undefined {
@@ -163,8 +197,48 @@ export function memoryLimitStore(): LimitStore & {
 }
 
 export type QuotaVerdict =
-  | { readonly ok: true }
+  | {
+      readonly ok: true;
+      readonly quota?: Quota;
+      readonly obligations?: readonly Obligation[];
+    }
   | { readonly ok: false; readonly reason: 'limit' | 'limit-unavailable' };
+
+/**
+ * `left` is what remains once this call counts: the store's answer after
+ * `consume`, or one less than `remaining` when only peeking. Below zero the
+ * call is past the count.
+ */
+function verdictFor(
+  limit: GrantLimit,
+  left: number,
+  now: number,
+): QuotaVerdict {
+  const seconds = limitWindowSeconds(limit.per);
+  if (seconds === undefined) {
+    return { ok: false, reason: 'limit-unavailable' };
+  }
+  const resetsAt = (Math.floor(now / seconds) + 1) * seconds;
+  if (left < 0) {
+    return limit.mode === 'soft'
+      ? {
+          ok: true,
+          quota: { remaining: 0, resetsAt },
+          obligations: [{ kind: 'over-limit' }],
+        }
+      : { ok: false, reason: 'limit' };
+  }
+  const near =
+    limit.alertAt !== undefined &&
+    (limit.count - left) / limit.count >= limit.alertAt;
+  return near
+    ? {
+        ok: true,
+        quota: { remaining: left, resetsAt },
+        obligations: [{ kind: 'near-limit' }],
+      }
+    : { ok: true, quota: { remaining: left, resetsAt } };
+}
 
 export function applyQuota(input: {
   readonly store: LimitStore | undefined;
@@ -202,9 +276,7 @@ export function applyQuota(input: {
         return { ok: false, reason: 'limit-unavailable' };
       }
       if (peeked !== undefined) {
-        return peeked.remaining > 0
-          ? { ok: true }
-          : { ok: false, reason: 'limit' };
+        return verdictFor(limit, peeked.remaining - 1, input.now);
       }
     } catch {
       return { ok: false, reason: 'limit-unavailable' };
@@ -213,7 +285,7 @@ export function applyQuota(input: {
     if (cached === undefined) {
       return { ok: false, reason: 'limit-unavailable' };
     }
-    return cached > 0 ? { ok: true } : { ok: false, reason: 'limit' };
+    return verdictFor(limit, cached - 1, input.now);
   }
   try {
     const consumed = input.store.consume(payload);
@@ -221,10 +293,7 @@ export function applyQuota(input: {
       return { ok: false, reason: 'limit-unavailable' };
     }
     input.cache.set(cacheKey, consumed.remaining);
-    if (consumed.remaining < 0) {
-      return { ok: false, reason: 'limit' };
-    }
-    return { ok: true };
+    return verdictFor(limit, consumed.remaining, input.now);
   } catch {
     return { ok: false, reason: 'limit-unavailable' };
   }

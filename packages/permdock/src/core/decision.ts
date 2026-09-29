@@ -54,11 +54,27 @@ export type MatchedGrant = {
   readonly hosted?: HostedGrantRef;
 };
 
+/**
+ * Something the caller owes alongside a granted action. `over-limit`: a soft
+ * `limit` was past its count; `near-limit`: usage reached `alertAt`.
+ */
+export type Obligation = {
+  readonly kind: 'over-limit' | 'near-limit';
+};
+
+/** What is left of the `limit` that applied; `resetsAt` is Unix seconds. */
+export type Quota = {
+  readonly remaining: number;
+  readonly resetsAt: number;
+};
+
 export type GrantedDecision = {
   readonly outcome: 'granted';
   readonly subject: Subject;
   readonly matched: MatchedGrant;
   readonly token: string;
+  readonly obligations?: readonly Obligation[];
+  readonly quota?: Quota;
 };
 
 export type DeniedDecision = {

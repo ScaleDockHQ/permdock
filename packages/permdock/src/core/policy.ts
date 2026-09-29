@@ -20,7 +20,7 @@ import {
   roleNameOf,
   roleScopeOf,
 } from './grantee.ts';
-import { assertLimit } from './limits.ts';
+import { assertLimit, normalizeLimit } from './limits.ts';
 import { isForbiddenKey } from './paths.ts';
 import {
   type Permission,
@@ -84,12 +84,24 @@ export type ApprovalOption =
       readonly distinct?: boolean;
     };
 
+/**
+ * A quota on a grant. `hard` (the default) denies past `count`; `soft` grants
+ * with an `over-limit` obligation. `alertAt` (a fraction of `count`, above 0
+ * and at most 1) adds a `near-limit` obligation once usage reaches it.
+ */
+export type GrantLimit = {
+  readonly count: number;
+  readonly per: string;
+  readonly mode?: 'hard' | 'soft';
+  readonly alertAt?: number;
+};
+
 export type GrantOptions<T = Record<string, unknown>> = {
   readonly to?: GranteeInput;
   readonly where?: WhereShorthand<T> | Condition;
   readonly check?: WhereShorthand<T> | Condition;
   readonly approval?: ApprovalOption;
-  readonly limit?: { readonly count: number; readonly per: string };
+  readonly limit?: GrantLimit;
   readonly reason?: string;
   readonly fields?: readonly (keyof T & string)[];
 };
@@ -139,7 +151,7 @@ export type Grant = {
   readonly approval?: 'human' | ApprovalRequirement;
   readonly portable: boolean;
   readonly closure?: ClosureGrantFn;
-  readonly limit?: { readonly count: number; readonly per: string };
+  readonly limit?: GrantLimit;
   readonly fields?: readonly string[];
   readonly scope: GrantScope;
   /** Set only on a grant merged from a hosted policy document. */
@@ -325,7 +337,7 @@ function makeGrant(
     check,
     approval: normalizeApproval(condition?.approval),
     portable,
-    limit: condition?.limit,
+    limit: normalizeLimit(condition?.limit),
     fields: sanitizeFields(condition?.fields),
   });
 }

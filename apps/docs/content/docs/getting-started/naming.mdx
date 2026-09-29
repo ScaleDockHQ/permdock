@@ -74,6 +74,9 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `SubjectResolver` | The generic type of every `subjectFrom*` function: verified input in, `Subject` out, never throws | A class hierarchy |
 | `memoryRoleSource` | The in-process `RoleSource` over a static `CustomRole[]` | Production storage |
 | `LimitStore`, `memoryLimitStore`, `limits` | The quota counter for `limit` grants, its in-process default, and the `createPermDock` option (core, every HTTP and agent adapter) | Auto-installing a store; a thenable `consume` as granted |
+| `GrantLimit`, `mode`, `alertAt` | The `limit` grant option `{ count, per, mode?, alertAt? }`: `mode` is `'hard'` (default) or `'soft'`, `alertAt` a fraction of `count` in `(0, 1]` ([limits](/docs/concepts/policies#limits)) | A soft limit that grants when the store is unreachable |
+| `Quota`, `quota` | `{ remaining, resetsAt }` on a `granted` decision under a `limit`; `resetsAt` is Unix seconds | A snapshot field; a denial |
+| `Obligation`, `obligations`, `over-limit`, `near-limit` | What a `granted` decision says the caller owes, as `{ kind }` objects; the kinds so far are `over-limit` (a soft limit past its count) and `near-limit` (usage reached `alertAt`) | A fourth outcome; an obligation on `denied` or `approval-required` |
 | `pdp` | The HTTP adapter and kernel option taking `createPermDock` from `permdock/pdp`, so `protect` decides delegated permissions remotely | Making the request-scoped instance async |
 | `ProtectOptions`, `trusted` | The third argument of every `protect` (`{ trusted: false }` validates what the loader returns) | A per-route `validate` mode |
 | `request` | The `permdock/trpc` and `permdock/orpc` option mapping a context to its Web `Request`, and the `permdock/nest` option mapping a non-HTTP `ExecutionContext` | Reading a subject from it directly |

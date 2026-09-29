@@ -2,6 +2,7 @@ import type {
   Decision,
   Denial,
   DenialReason,
+  GrantedDecision,
   MatchedGrant,
 } from './decision.ts';
 import type { AuthEvent, DecisionEvent, RoleSource } from './interfaces.ts';
@@ -636,6 +637,7 @@ export function evaluate(
 
   const quotaDenials: Denial[] = [];
   let matchedAllow: (typeof allows)[number] | undefined;
+  let quotaState: Pick<GrantedDecision, 'quota' | 'obligations'> = {};
   for (const candidate of allows) {
     const consume =
       !requiresApproval(candidate.grant.approval) &&
@@ -652,6 +654,10 @@ export function evaluate(
     });
     if (quota.ok) {
       matchedAllow = candidate;
+      quotaState = compact({
+        quota: quota.quota,
+        obligations: quota.obligations,
+      });
       break;
     }
     quotaDenials.push({
@@ -718,6 +724,7 @@ export function evaluate(
         subject,
         matched,
         token,
+        ...quotaState,
       });
   finish(
     policy,

@@ -27,6 +27,8 @@ export type {
   DeniedDecision,
   GrantedDecision,
   MatchedGrant,
+  Obligation,
+  Quota,
 } from './core/decision.ts';
 export {
   PermDockApprovalRequiredError,
@@ -151,6 +153,7 @@ export type {
   ClosureGrantFn,
   Grant,
   GrantCondition,
+  GrantLimit,
   GrantOptions,
   GrantScope,
   HostedGrantRef,

@@ -9,7 +9,7 @@ description: decide returns a discriminated Decision with three outcomes, matche
 
 ```ts
 type Decision =
-  | { outcome: 'granted';           subject: Subject; matched: Grant; token: string }
+  | { outcome: 'granted';           subject: Subject; matched: Grant; token: string; quota?: Quota; obligations?: Obligation[] }
   | { outcome: 'denied';            denials: Array<{ role: string | null; reason: string }>; alternatives: Permission[] }
   | { outcome: 'approval-required'; grant: Grant; reason: string; token: string }
 ```
@@ -35,6 +35,8 @@ if (decision.outcome === 'granted') {
 ```
 
 `matched` is the grant that produced the outcome: the role name, the permission key and the normalised condition. It is JSON, so it can be logged as the justification for the action.
+
+When the matched allow has a `limit`, the decision also carries `quota: { remaining, resetsAt }`, and it may carry `obligations`: `{ kind: 'over-limit' }` when a soft limit granted past its count, `{ kind: 'near-limit' }` when usage reached `alertAt` ([limits](/docs/concepts/policies#limits)). An obligation never turns `granted` into another outcome; the caller acts on it (warn, bill, notify) and proceeds.
 
 ### denied
 

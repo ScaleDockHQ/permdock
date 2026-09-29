@@ -126,6 +126,12 @@ The return value of `decide`, and the payload inside AuthZEN `context` and Probl
 ```
 
 ```json
+{ "outcome": "granted", "matched": { "role": "member", "permission": "report.export" }, "token": "pd1.…",
+  "subject": { "principal": { "id": "u_1", "roles": ["member"] } },
+  "quota": { "remaining": 0, "resetsAt": 1789002000 }, "obligations": [{ "kind": "over-limit" }] }
+```
+
+```json
 { "outcome": "denied",
   "denials": [{ "role": "member", "reason": "condition" }, { "role": null, "reason": "not-delegated" }],
   "alternatives": ["post.read"] }
@@ -136,7 +142,7 @@ The return value of `decide`, and the payload inside AuthZEN `context` and Probl
   "reason": "human", "token": "pd1.…" }
 ```
 
-In JSON, `alternatives` is an array of permission keys; in memory it is an array of leaves. Remote PDP denials use `pdp-denied`, `pdp-unavailable` or `pdp-invalid-response`. A remote grant sets `matched.provider` to `pdp`. Quota denials use `limit` (exhausted) or `limit-unavailable` (no store, throw, or thenable). An Arazzo hole uses `undocumented` (missing operation or no `x-permdock-permissions`) or `unsupported` (AsyncAPI source).
+In JSON, `alternatives` is an array of permission keys; in memory it is an array of leaves. Remote PDP denials use `pdp-denied`, `pdp-unavailable` or `pdp-invalid-response`. A remote grant sets `matched.provider` to `pdp`. Quota denials use `limit` (exhausted) or `limit-unavailable` (no store, throw, or thenable). A `granted` decision whose matched allow has a `limit` carries `quota`: `remaining` is what is left once this call counts (for `can`, `filter` and `simulate`, which only peek, what it would leave), and `resetsAt` is the Unix second the window ends. It may also carry `obligations`, an array of `{ kind }` objects the caller owes alongside the action: `over-limit` when a `mode: 'soft'` limit granted past its count (`remaining` is then `0`), and `near-limit` when usage reached the limit's `alertAt` fraction. Both fields are absent otherwise, and only `granted` carries them. Snapshots never carry `quota`, because it is live store state. An Arazzo hole uses `undocumented` (missing operation or no `x-permdock-permissions`) or `unsupported` (AsyncAPI source).
 
 ## Decision event
 

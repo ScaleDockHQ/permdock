@@ -20,6 +20,8 @@ export type MatrixCell =
         readonly reason: string;
       }[];
       readonly alternatives?: readonly string[];
+      /** Obligation kinds a granted decision carries, in order; `[]` asserts none. */
+      readonly obligations?: readonly string[];
     };
 
 export type DescribePolicyConfig<TSubject> = {
@@ -45,7 +47,10 @@ function isOutcomeCell(value: unknown): value is MatrixCell {
     value === 'approval-required' ||
     (value !== null &&
       typeof value === 'object' &&
-      ('denials' in value || 'outcome' in value || 'alternatives' in value))
+      ('denials' in value ||
+        'outcome' in value ||
+        'alternatives' in value ||
+        'obligations' in value))
   );
 }
 
@@ -77,6 +82,15 @@ function assertCell(decision: Decision, cell: MatrixCell): void {
   ) {
     expect(decision.alternatives.map((leaf) => leaf.key)).toEqual(
       cell.alternatives,
+    );
+  }
+  if (
+    typeof cell === 'object' &&
+    cell.obligations !== undefined &&
+    decision.outcome === 'granted'
+  ) {
+    expect((decision.obligations ?? []).map((item) => item.kind)).toEqual(
+      cell.obligations,
     );
   }
 }
