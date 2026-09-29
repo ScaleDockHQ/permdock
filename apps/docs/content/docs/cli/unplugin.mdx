@@ -3,7 +3,7 @@ title: Unplugin
 description: createPermDockUnplugin runs permdock collect in Vite, Rollup, webpack, Rspack and esbuild so Nuxt, Astro, React Router, TanStack Start and Effect apps stay catalog-fresh without a per-vendor package.
 ---
 
-`createPermDockUnplugin` is exported from `permdock/unplugin`. It is the same collect-only hook as [`createPermDockPlugin`](/docs/cli/next-plugin), built with [unplugin](https://unplugin.unjs.io) so one implementation covers Vite, Rollup, webpack, Rspack and esbuild. It never aliases modules, never creates a `PermDock`, and never belongs on a request path.
+`createPermDockUnplugin` is exported from `permdock/unplugin`. It is the same collect-only hook as [`createPermDockPlugin`](/docs/cli/next-plugin), built with [unplugin](https://unplugin.unjs.io) so one implementation covers Vite, Rollup, webpack, Rspack and esbuild. It never aliases modules, never creates a `PermDock`, and never belongs on a request path. `unplugin` is an optional peer of `permdock`: add it with `pnpm add -D unplugin` (importing `permdock/unplugin` without it throws that install line).
 
 There is no `permdock/nuxt`, `permdock/astro`, `permdock/react-router`, `permdock/tanstack-start` or `permdock/effect`. Runtime wiring uses the UI and HTTP adapters; this hook only keeps the catalog honest.
 

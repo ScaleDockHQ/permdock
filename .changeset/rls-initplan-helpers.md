@@ -1,5 +1,4 @@
 ---
-'@permdock/cli': minor
 'permdock': minor
 ---
 

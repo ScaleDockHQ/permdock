@@ -23,7 +23,7 @@
   "./openai": 48516,
   "./mcp": 58097,
   "./authzen": 54957,
-  "./openapi": 5949,
+  "./openapi": 6156,
   "./terminal": 45550,
   "./webmcp": 10505,
   "./a2a": 49495,
@@ -33,7 +33,7 @@
   "./drizzle": 7730,
   "./prisma": 7399,
   "./kysely": 7581,
-  "./supabase": 4633,
+  "./supabase": 4783,
   "./supabase/middleware": 57367,
   "./ssf": 20638,
   "./better-auth": 18951,
@@ -42,5 +42,8 @@
   "./pdp": 47481,
   "./testing": 90270,
   "./testing/saas": 50698,
-  "./testing/saas/permissions": 44615
+  "./testing/saas/permissions": 44615,
+  "./cli": 209488,
+  "./unplugin": 53242,
+  "./next/plugin": 52515
 }

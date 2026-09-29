@@ -414,5 +414,8 @@
     "saasPlans",
     "saasRoles",
     "saasTenantRoleNames"
-  ]
+  ],
+  "./cli": ["defineConfig", "run"],
+  "./unplugin": ["createPermDockUnplugin"],
+  "./next/plugin": ["createPermDockPlugin"]
 }
