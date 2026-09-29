@@ -5,13 +5,13 @@ Thanks for contributing to PermDock. This repository is a pnpm 12 + Turborepo mo
 ## Requirements
 
 - Node.js 24 or later (24 LTS is what CI runs)
-- pnpm 12.6.0 or later
+- pnpm 12.8.1 or later
 
 npm and Yarn are not supported. Enable pnpm 12 with Corepack:
 
 ```bash
 corepack enable
-corepack prepare pnpm@12.6.0 --activate
+corepack prepare pnpm@12.8.1 --activate
 ```
 
 If Corepack cannot resolve pnpm 12:
