@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import type { CustomRole, Membership, Policy } from '../index.ts';
+import type {
+  CustomRole,
+  Membership,
+  Policy,
+  TenantSettings,
+} from '../index.ts';
 import type { DoctorFinding } from './doctor-types.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
@@ -12,6 +17,7 @@ import {
 } from '../core/scopes.ts';
 import {
   hasConditionOp,
+  parseCredential,
   separationConflicts,
   validateCustomRole,
 } from '../index.ts';
@@ -557,6 +563,81 @@ export async function pd023(input: {
             : entry.reason === 'condition-not-allowed'
               ? 'remove the condition; custom-role grants inherit the declared grant condition'
               : 'use a declared permission key or assignable role name',
+      });
+    }
+  }
+  return findings;
+}
+
+function readJson(cwd: string, path: string | undefined): unknown {
+  if (path === undefined) {
+    return undefined;
+  }
+  const absolute = resolve(cwd, path);
+  if (!existsSync(absolute)) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(readFileSync(absolute, 'utf8')) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function listField(value: unknown, field: string): readonly unknown[] {
+  if (value === null || typeof value !== 'object') {
+    return [];
+  }
+  const list = (value as Record<string, unknown>)[field];
+  return Array.isArray(list) ? list : [];
+}
+
+/** Fixture API keys that never expire, credential policies that allow it, and records that are not v1 credentials. */
+export function pd029(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): readonly DoctorFinding[] {
+  const parsed = readJson(input.cwd, input.config.doctor?.credentials);
+  const findings: DoctorFinding[] = [];
+  for (const [index, record] of listField(parsed, 'credentials').entries()) {
+    const credential = parseCredential(record);
+    if (credential === undefined) {
+      findings.push({
+        code: 'PD029',
+        severity: 'warning',
+        message: `credentials[${String(index)}] is not a valid v1 credential, so it verifies to no subject`,
+        fix: 'give it v: 1, id, kind, principal, permissions, createdBy and createdAt; a service key also needs tenant and roles',
+      });
+      continue;
+    }
+    if (credential.expiresAt === undefined) {
+      findings.push({
+        code: 'PD029',
+        severity: 'warning',
+        message: `API key ${credential.id} never expires`,
+        fix: 'set expiresAt and rotate the key before it; a leaked key without expiry stays live until someone revokes it',
+      });
+    }
+  }
+  const settings =
+    parsed !== null && typeof parsed === 'object'
+      ? (parsed as { readonly settings?: unknown }).settings
+      : undefined;
+  const tenants =
+    settings !== null && typeof settings === 'object'
+      ? Object.entries(settings as Record<string, unknown>)
+      : [];
+  for (const [tenant, value] of tenants) {
+    const policy =
+      value !== null && typeof value === 'object'
+        ? (value as TenantSettings).credentials
+        : undefined;
+    if (policy?.allowNoExpiry === true) {
+      findings.push({
+        code: 'PD029',
+        severity: 'warning',
+        message: `tenant ${tenant} allows API keys that never expire`,
+        fix: 'drop allowNoExpiry and set maxTtl, or keep it only for a tenant that rotates keys on its own schedule',
       });
     }
   }

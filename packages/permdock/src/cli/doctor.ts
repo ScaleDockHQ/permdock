@@ -19,6 +19,7 @@ import {
   pd025,
   pd026,
   pd027,
+  pd029,
 } from './doctor-collect.ts';
 import { pd005, pd006, pd009, pd012, pd022, pd028 } from './doctor-project.ts';
 import {
@@ -172,6 +173,9 @@ export async function runDoctor(input: {
   }
   if (include('attrs') || include('supabase') || include('PD028')) {
     findings.push(...pd028(input.cwd, input.config, attrsPlan));
+  }
+  if (include('credentials') || include('PD029')) {
+    findings.push(...pd029(input));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;
