@@ -123,7 +123,7 @@ The UI entries expose the same surface under each framework's idiom. A hook that
 | `usePermDock` | yes | yes | composable | context getter | yes | internal |
 | `usePermission`, `usePermissions` | yes | yes (`getPermission` on the server) | composables | `permission`, `permissions` stores | signal accessors | tool filter |
 | `useFilter` | yes | yes | composable | derived store | signal accessor | — |
-| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles` | yes | yes (`getPermDock().tenants()` on the server) | composables | stores | signal accessors | `registerTools({ tenant })` |
+| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useAssignablePermissions` | yes | yes (`getPermDock().tenants()` on the server) | composables | stores | signal accessors | `registerTools({ tenant })` |
 | `useApproval` | yes | yes | composable | store | signal accessor | — |
 | `useSubject` | yes | yes | composable | store | signal accessor | — |
 | `Protected` (with `fallback`, `tenant`) | yes | yes | component | component | component | — |

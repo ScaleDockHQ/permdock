@@ -1,4 +1,9 @@
-import type { Snapshot, SnapshotGrant, TokenSigner } from './interfaces.ts';
+import type {
+  Snapshot,
+  SnapshotAssignable,
+  SnapshotGrant,
+  TokenSigner,
+} from './interfaces.ts';
 import type { Grant, PolicyVocabulary } from './policy.ts';
 import type { Delegation, Membership, Subject } from './subject.ts';
 
@@ -47,6 +52,7 @@ export function buildSnapshot(input: {
   readonly now?: number;
   readonly vocabulary?: PolicyVocabulary;
   readonly scopes?: Snapshot['scopes'];
+  readonly assignable?: (tenant: string) => SnapshotAssignable;
 }): Snapshot {
   const now = input.now ?? Math.floor(Date.now() / 1000);
   const principal = input.subject.principal;
@@ -58,19 +64,29 @@ export function buildSnapshot(input: {
         ? []
         : [principal.tenant];
   const include = input.include;
+  const included = (permission: Grant['permission']): boolean =>
+    include === undefined ||
+    include.length === 0 ||
+    include.some(
+      (prefix) =>
+        permission.key === prefix ||
+        permission.key.startsWith(`${prefix}.`) ||
+        permission.resource === prefix,
+    );
   const grants = input.grants
-    .filter((item) => {
-      if (include === undefined || include.length === 0) {
-        return true;
-      }
-      return include.some(
-        (prefix) =>
-          item.grant.permission.key === prefix ||
-          item.grant.permission.key.startsWith(`${prefix}.`) ||
-          item.grant.permission.resource === prefix,
-      );
-    })
+    .filter((item) => included(item.grant.permission))
     .map((item) => snapshotGrant(item.grant, item.membership));
+  const assignableFor = input.assignable;
+  const assignable =
+    assignableFor === undefined
+      ? []
+      : tenants.map((tenant) => {
+          const entry = assignableFor(tenant);
+          return {
+            ...entry,
+            permissions: entry.permissions.filter(included),
+          };
+        });
   const snapshot = freezeDeep(
     compact<Snapshot>({
       v: 1 as const,
@@ -96,6 +112,7 @@ export function buildSnapshot(input: {
       simulated: input.simulated === true ? true : undefined,
       expiresAt: input.subject.expiresAt,
       scopes: input.scopes,
+      assignable: assignable.length > 0 ? assignable : undefined,
       vocabulary:
         input.vocabulary === undefined
           ? undefined

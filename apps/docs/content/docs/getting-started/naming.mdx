@@ -9,7 +9,7 @@ PermDock has one naming rule: the brand is the noun. The decision object is a `P
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
-| `PermDock` | type | The immutable, request-scoped decision object returned by `createPermDock`. Methods: `can`, `decide`, `assert`, `filter`, `pick`, `where`, `simulate`, `snapshot`, `on`, `actions`; tenancy: `tenant`, `team` (derived instances), `memberships`, `tenants`, `heldRoles`, `assignableRoles` (read-only). Vocabulary trees: `permissions`, `roles`, `plans`. |
+| `PermDock` | type | The immutable, request-scoped decision object returned by `createPermDock`. Methods: `can`, `decide`, `assert`, `filter`, `pick`, `where`, `simulate`, `snapshot`, `on`, `actions`; tenancy: `tenant`, `team` (derived instances), `memberships`, `tenants`, `heldRoles`, `assignableRoles`, `assignablePermissions` (read-only). Vocabulary trees: `permissions`, `roles`, `plans`. |
 | `permdock` | variable | The conventional name for a `PermDock` instance, and the npm package name. Also the CLI binary (`permdock collect`). |
 | `createPermDock` | function | Exported by core and by every server and agent adapter. Core returns a `PermDock`; adapters return a framework-shaped object. |
 
@@ -31,7 +31,7 @@ React reads permissions synchronously from a snapshot; servers resolve them asyn
 | `usePermDock()` | `await getPermDock()` | A `PermDock` (snapshot-backed on the client, full policy on the server) |
 | `usePermission(permission, data?)` | `await getPermission(permission, data?)` | `{ allowed, status }` on the client; the same shape awaited on the server |
 | `usePermissions([...], data?)`, `useFilter(permission, rows)` | `(await getPermDock()).decide` per reference, `.filter` | One entry per reference; the rows the subject may act on |
-| `useTenant()`, `useMemberships()`, `useRoles()`, `useAssignableRoles()` | `(await getPermDock()).tenants()`, `.memberships()`, `.heldRoles()`, `.assignableRoles()` | The active tenant with `switchTo`; the membership list; `Role[]` held in a tenant; `Role[]` the subject may hand out |
+| `useTenant()`, `useMemberships()`, `useRoles()`, `useAssignableRoles()`, `useAssignablePermissions()` | `(await getPermDock()).tenants()`, `.memberships()`, `.heldRoles()`, `.assignableRoles()`, `.assignablePermissions()` | The active tenant with `switchTo`; the membership list; `Role[]` held in a tenant; `Role[]` the subject may hand out; `Permission[]`, the custom-role ceiling the subject may hand out |
 | `useApproval(decision)`, `useSubject()` | the [`ApprovalStore`](/docs/adapters/approvals) and the subject on the server | Client-side request-access flow; the snapshot's principal, actor and delegation |
 | `<PermDockProvider snapshot endpoint tenant>` | `<PermDockProvider>` from the factory result | Client context; the server variant loads the snapshot once per request and serialises it |
 
@@ -54,7 +54,11 @@ The client hooks and `<Protected>` are direct exports with no factory: the permi
 | `to`, `anyone`, `authenticated`, `relation`, `plan`, `actor`, `assurance` | Grantee selectors on `allow` / `deny`. `anyone()` is the only selector that evaluates for `principal: null`; an array in `to` means every selector must match | A second permission check; `hasRole` |
 | `scopes` | The `definePolicy` option naming the tenant and team key fields on rows (`{ tenant: { key: 'orgId' }, team: { key: 'teamId' } }`) | Permission scopes (`.scope` is the colon string form) |
 | `tenant`, `team`, `on` | The three shapes of a `Membership` (tenant role, team role, resource role) and the `on` option of `role` | `org`, `organization`, `workspace`, `group` as identifiers; those are provider vocabulary the mapper translates |
-| `Membership`, `CustomRole` | The wire types for a scoped role assignment and a tenant-defined role composed of declared `assignable` roles | Classes; both are plain JSON |
+| `Membership`, `CustomRole`, `CustomRoleGrant` | The wire types for a scoped role assignment, a tenant-defined role (`includes` declared roles, `grants` of declared permission keys, optional `team`) and one of its `{ permission, effect? }` entries | Classes; a condition, approval or limit on a custom-role grant; all are plain JSON |
+| `resolveCustomRole`, `validateCustomRole` | The one resolver of a custom role against the ceiling of assignable declared roles (`{ grants, dropped }`), and its summary `{ ok, permissions, dropped }` for a save action and `permdock doctor` PD023 ([custom roles](/docs/concepts/custom-roles)) | Widening a role; resolving a name a declared role already uses |
+| `CustomRoleDrop`, `CustomRoleDropReason` | Why a custom-role entry was left out: `unknown-permission`, `outside-ceiling`, `condition-not-allowed`, or `{ role, reason: 'unknown-role' }` for an include | Denial reasons; a drop is never a `Decision` |
+| `meta.manageRoles` | On a `Role` or a permission leaf: holding the role, or being granted the permission, makes the full ceiling assignable instead of only what the subject holds | A grant; a bypass of `RoleSource.assignable` |
+| `SnapshotAssignable` | One `{ tenant, roles, permissions }` entry of a snapshot's `assignable` list | A second snapshot format |
 | `MembershipSource`, `RoleSource` | The two subject-input interfaces (`membershipsFor`, `rolesFor` / `assignable`) passed as `memberships` and `customRoles` to every `createPermDock` | Stores; PermDock never writes a membership or role |
 | `SubjectResolver` | The generic type of every `subjectFrom*` function: verified input in, `Subject` out, never throws | A class hierarchy |
 | `memoryRoleSource` | The in-process `RoleSource` over a static `CustomRole[]` | Production storage |
@@ -171,7 +175,7 @@ These never appear as public identifiers, for the reasons given:
 | `Can`, `Guard`, `Access` | Component names used by CASL and Kilpi; the PermDock component is `<Protected>`, and it is the only component. |
 | `org`, `organization`, `workspace`, `account`, `group` as PermDock identifiers | Every provider picks a different noun for the same thing. PermDock uses `tenant` and `team` in its own API and lets the `subjectFrom*` mapper translate (Clerk organization to `tenant`, SCIM group to `team`). |
 | `useOrganization`, `useTeam`, `TenantProvider` | The tenant is a property of the one snapshot, not a second provider; `useTenant` and `useMemberships` read it. |
-| `hasRole`, `isAdmin`, `roleGuard` | Role checks in application code bypass the permission model; check a permission, and read roles only for display (`useRoles`) or assignment (`useAssignableRoles`). |
+| `hasRole`, `isAdmin`, `roleGuard` | Role checks in application code bypass the permission model; check a permission, and read roles only for display (`useRoles`) or assignment (`useAssignableRoles`, `useAssignablePermissions`). |
 | `who` | Reserved for a directory-backed "who may X this row" verb; not exported. |
 | `SnapshotV2` | The format major lives in `v`; the type is `Snapshot`. |
 | `scope(...)` as a derived instance | Derived instances are `tenant(id)` and `team(id)`, one method per scope kind. |
@@ -205,7 +209,7 @@ These never appear as public identifiers, for the reasons given:
 
 These entries deliberately do not export `createPermDock`:
 
-- `permdock/react` and `permdock/react-native` export `PermDockProvider`, `usePermDock`, `usePermission`, `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject` and `<Protected>` directly. `permdock/vue` exports `permdockPlugin` plus the same composable names and `<Protected>`. `permdock/svelte` and `permdock/solid` keep the same surface under each framework's idiom.
+- `permdock/react` and `permdock/react-native` export `PermDockProvider`, `usePermDock`, `usePermission`, `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useAssignablePermissions`, `useApproval`, `useSubject` and `<Protected>` directly. `permdock/vue` exports `permdockPlugin` plus the same composable names and `<Protected>`. `permdock/svelte` and `permdock/solid` keep the same surface under each framework's idiom.
 - `permdock/better-auth`, `permdock/clerk` and `permdock/supabase` export their `subjectFrom*` mapper and, where the provider stores roles, a `<provider>RoleSource`; both are values you pass to a factory.
 - `permdock/webmcp` exports `registerTools(document.modelContext, group, { permdock })` because it consumes a client `PermDock` rather than creating one. `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` export `toWhere`. `permdock/prisma` also exports `permdockExtension`. `permdock/kysely` also exports `withSubject`. `permdock/jwt` exports `subjectFromJwt`, `createJwtSubjectResolver`, `verifyDpopProof`, `joseTokenVerifier` and `joseTokenSigner` because it produces subjects, verifiers and signers for a factory, not an instance. Structurally typed providers (`permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex`, `permdock/prisma`, `permdock/mcp`, `permdock/react-native`) declare **no peer dependency**: they duck-type the SDK you already installed. `permdock/supabase/middleware` is the exception on the Supabase side: it calls `defineMiddleware`, so `@supabase/middleware` is its optional peer, while `@supabase/server`'s `JWTClaims` is still duck-typed.
 - `permdock/approvals` exports `memoryApprovalStore` and `approvalsHandler`, and `permdock/cloud` exports `cloud`; both produce values you pass *to* a factory (`store`, `sink`, `snapshots`) rather than a `PermDock`.

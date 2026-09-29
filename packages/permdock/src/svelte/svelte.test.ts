@@ -15,6 +15,7 @@ import { protectedView } from './protected.ts';
 import {
   approvalFor,
   assignableFor,
+  assignablePermissionsFor,
   filteredFor,
   membershipsFor,
   permissionFor,
@@ -78,6 +79,7 @@ describe('permdock/svelte', () => {
     expect(subject.simulated).toBe(false);
     expect(dock.status()).toBe('ready');
     expect(get(assignableFor(store))).toEqual([]);
+    expect(get(assignablePermissionsFor(store))).toEqual([]);
     expect(get(approvalFor(store, () => canEdit.decision)).state).toBe(
       'not-needed',
     );

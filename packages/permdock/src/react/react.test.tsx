@@ -12,8 +12,10 @@ import {
   permissions,
   policy,
 } from '../fixtures/quick-start.ts';
+import { alice, policy as saasPolicy } from '../fixtures/saas.ts';
 import { approvalHeaders } from './headers.ts';
 import {
+  useAssignablePermissions,
   useFilter,
   useMemberships,
   usePermDock,
@@ -50,6 +52,34 @@ function Probe(): string {
   const dock = usePermDock();
   return `${allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.map((item) => item.key).join(',')}:${subject.simulated}:${dock.status()}`;
 }
+
+function AssignableProbe(): string {
+  const leaves = useAssignablePermissions();
+  const other = useAssignablePermissions({ tenant: 'globex' });
+  return `${leaves.map((leaf) => leaf.key).join(',')}|${other.length}`;
+}
+
+describe('useAssignablePermissions', () => {
+  it('reads the custom-role ceiling the subject may hand out from the snapshot', async () => {
+    const server = await createPermDock(saasPolicy, alice, { tenant: 'acme' });
+    const snapshot = server.snapshot({ tenants: 'all' });
+    if (snapshot instanceof Promise) {
+      throw new Error('expected JSON snapshot');
+    }
+    const html = renderToStaticMarkup(
+      <PermDockProvider snapshot={snapshot}>
+        <AssignableProbe />
+      </PermDockProvider>,
+    );
+    const [acme = '', globex] = html.split('|');
+    expect(acme.split(',')).toContain('project.update');
+    expect(acme.split(',')).not.toContain('billing.read');
+    expect(Number(globex)).toBeGreaterThan(0);
+    expect(acme.split(',')).toEqual(
+      server.assignablePermissions().map((leaf) => leaf.key),
+    );
+  });
+});
 
 describe('permdock/react', () => {
   it('renders portable grants from the snapshot without flashing deny', async () => {

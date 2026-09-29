@@ -162,6 +162,13 @@ export function useAssignableRoles(): ComputedRef<readonly Role[]> {
   return computed(() => dock.value.assignableRoles());
 }
 
+export function useAssignablePermissions(
+  options: { readonly tenant?: string } = {},
+): ComputedRef<readonly Permission[]> {
+  const dock = useTick(useStore());
+  return computed(() => dock.value.assignablePermissions(options));
+}
+
 export function useSubject(): ComputedRef<SubjectView> {
   const dock = useTick(useStore());
   return computed(() => {

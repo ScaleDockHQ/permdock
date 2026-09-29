@@ -1,6 +1,6 @@
 ---
 title: Building UI with PermDock
-description: Hidden versus disabled, menus, filtered lists, tenant switchers, role chips, request-access buttons, impersonation banners, view-as previews and role editors, built from the snapshot-backed client instance with usePermission, usePermissions, useFilter, useTenant, useMemberships, useRoles, useAssignableRoles, useApproval, useSubject and describe(decision); the same names in React, React Native, Vue, Svelte and Solid.
+description: Hidden versus disabled, menus, filtered lists, tenant switchers, role chips, request-access buttons, impersonation banners, view-as previews and role editors, built from the snapshot-backed client instance with usePermission, usePermissions, useFilter, useTenant, useMemberships, useRoles, useAssignableRoles, useAssignablePermissions, useApproval, useSubject and describe(decision); the same names in React, React Native, Vue, Svelte and Solid.
 ---
 
 The UI half of PermDock has one job: render what the current subject may do, in the active tenant, without a round trip per element and without a second copy of the policy. Everything on this page is built on the snapshot-backed client instance ([snapshots](/docs/concepts/snapshots)): a `PermDock` with the same `can`, `decide`, `filter` and `pick` as the server, evaluated against the same portable conditions, plus the tenancy introspection from [tenancy](/docs/concepts/tenancy). Client answers are hints; the server adapter that performs a mutation checks again ([threat model](/docs/security/threat-model)). Use `pick` after `filter` when a grant lists `fields`.
@@ -114,11 +114,11 @@ The provider renders from it like any snapshot, `useSubject().simulated` is `tru
 
 ## Role editor recipe
 
-A tenant admin composes a custom role from assignable declared roles. The pieces are already there:
+A tenant admin composes a custom role from assignable declared roles, single permissions, or both. The pieces are already there:
 
 1. `permdock catalog --format json` gives the assignable roles with `meta.title`, `meta.description` and the permissions each contains; render it as the palette.
-2. `useAssignableRoles()` returns the intersection of `RoleSource.assignable(activeTenant)` and the roles the current subject holds there, so a viewer cannot compose an admin.
-3. The form submits `{ tenant, name, includes }` to a server action that validates it against the published Standard JSON Schema for `CustomRole` (`includes` typed as `z.enum` of assignable role keys), checks `permissions.member.assignRole` plus `permdock.assignableRoles()` again on the server, and writes to the app's own `RoleSource` backing table.
+2. `useAssignableRoles()` and `useAssignablePermissions()` return the roles and the ceiling permissions the current subject may hand out in the active tenant: the ceiling of assignable declared roles, narrowed by `RoleSource.assignable(activeTenant)`, intersected with what the subject holds there. A viewer cannot compose an admin; a role marked `meta.manageRoles` lifts the intersection.
+3. The form submits `{ tenant, name, includes, grants }` to a server action that validates it against the published Standard JSON Schema for `CustomRole`, checks `permissions.member.assignRole`, runs `validateCustomRole(policy, role)` and compares it with `permdock.assignablePermissions()` again on the server, shows any `dropped` keys, and writes to the app's own `RoleSource` backing table. [Custom roles](/docs/concepts/custom-roles) has the matrix-editor code.
 4. Assigning the role to a member is a write to the auth provider's membership (Better Auth `member.role`, Clerk organization membership, your table) followed by `refresh()` on the affected client, or a CAEP event when the provider emits one.
 
 A hosted editor over the same shape is a PermDock Cloud candidate; the open-source recipe is complete without it.

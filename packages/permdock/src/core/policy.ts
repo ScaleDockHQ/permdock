@@ -598,6 +598,13 @@ export function exclusivePairs(
   return pairs;
 }
 
+export function grantList(policy: Policy): readonly Grant[] {
+  if (policy.grants !== undefined && policy.grants.length > 0) {
+    return policy.grants;
+  }
+  return policy.roles.flatMap((binding) => binding.grants);
+}
+
 export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
   const names = new Set(policy.roles.map((item) => item.name));
   for (const leaf of listRoles(policy.vocabulary.roles)) {

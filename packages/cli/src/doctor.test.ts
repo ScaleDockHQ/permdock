@@ -473,4 +473,60 @@ export const policy = definePolicy(permissions, {
     expect(result.stdout).toContain('ghost');
     expect(result.stdout).toContain('staff');
   });
+
+  it('PD023 warns on custom-role keys the ceiling drops', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/tenant-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  scopes: { tenant: { key: 'orgId' } },
+  roles: [
+    role('viewer', [allow(permissions.post.read)], { on: 'tenant' }),
+    role('owner', [allow(permissions.post.update)], { on: 'tenant', assignable: false }),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    const fixture = {
+      customRoles: [
+        {
+          tenant: 'o1',
+          name: 'reader',
+          grants: [{ permission: 'post.read' }],
+        },
+        {
+          tenant: 'o1',
+          name: 'grabby',
+          includes: ['ghost'],
+          grants: [{ permission: 'post.update' }, { permission: 'nope.read' }],
+        },
+      ],
+    };
+    writeFileSync(join(cwd, 'memberships.json'), JSON.stringify(fixture));
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/tenant-policy.ts',
+  doctor: { memberships: './memberships.json' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD023'], {
+      cwd,
+    });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly { readonly message: string }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      'custom role grabby in o1 drops include ghost (unknown-role)',
+      'custom role grabby in o1 drops permission post.update (outside-ceiling)',
+      'custom role grabby in o1 drops permission nope.read (unknown-permission)',
+    ]);
+  });
 });

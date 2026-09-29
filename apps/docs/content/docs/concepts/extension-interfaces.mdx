@@ -120,7 +120,7 @@ interface RoleSource {
 }
 ```
 
-Both are documented with their evaluation rules on the [tenancy](/docs/concepts/tenancy) page. They are read-only from PermDock's point of view: PermDock never creates, updates or deletes a membership or a custom role, so a source is a query, not a repository. A source that throws yields no memberships or no custom roles for that request (fewer grants, never more) and an `on('auth')` event; it never fails the request.
+Both are documented with their evaluation rules on the [tenancy](/docs/concepts/tenancy) page. They are read-only from PermDock's point of view: PermDock never creates, updates or deletes a membership or a custom role, so a source is a query, not a repository. A source that throws yields no memberships or no custom roles for that request (fewer grants, never more) and an `on('auth')` event; it never fails the request. A throwing `assignable` makes nothing assignable in that tenant. What a custom role may grant is bounded by the ceiling of assignable declared roles whatever the source returns ([custom roles](/docs/concepts/custom-roles)).
 
 ### DirectoryStore
 
@@ -235,7 +235,7 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testTokenVerifier` | Never throws; every fixture token in the behaviour table produces the listed `cause` (`alg: none`, wrong `typ`, `jku` header ignored, JWE without keys, `EdDSA` on a non-Ed25519 key, expired, wrong audience, unknown `kid`); a valid `at+jwt` returns `ok: true` with the fixture claims and header; `RSA1_5` and `none` are rejected regardless of configuration |
 | `testTokenSigner` | Output is compact JWS whose protected header has exactly `alg`, `kid`, `typ`; `alg` is in the allow-list; `iat`, `jti` and `iss` are set; the supplied verifier accepts it with the same `typ`; `jwks()` when present contains the signing key's public half |
 | `testMembershipSource` | Returns only well-formed memberships (one scope shape each); a throw yields an empty list; results are JSON |
-| `testRoleSource` | Every `includes` entry is a declared assignable role or is dropped; `assignable` is a subset of the declared assignable roles; unknown tenants yield an empty list |
+| `testRoleSource` | Every custom role belongs to the requested tenant; every `includes` entry is a declared role; with `{ policy }`, `validateCustomRole` drops nothing (every `grants` key is inside the ceiling); `assignable` is a subset of the declared roles |
 | `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user; `scimHandler` over the store publishes `session-revoked` into a `RevocationFeed` and `onChange` when a `PATCH` deactivates a user |
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; a repeated `create` keeps the record; concurrent `consume` succeeds once; an approver from another tenant is refused; with `{ reopen }`, an approval resumes after a restart; the token is opaque to the store |
 | `testDecisionSink` | Accepts batches including a `membership` event; `flush` is idempotent; a throw never propagates to the caller |

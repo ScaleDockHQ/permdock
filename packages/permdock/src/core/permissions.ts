@@ -17,6 +17,11 @@ export type ActionMeta = {
   readonly description?: string;
   readonly tags?: readonly string[];
   readonly readOnly?: boolean;
+  /**
+   * On a role, or on a permission the subject is granted: whoever holds it may
+   * assign the whole custom-role ceiling, not only what they hold themselves.
+   */
+  readonly manageRoles?: boolean;
   /** Set by a generator (`permdock openapi import`) to the operation an action was inferred from. */
   readonly inferredFrom?: string;
 };

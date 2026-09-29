@@ -25,6 +25,7 @@ import {
   memoryRevocationFeed,
   mergeHostedGrants,
   parsePolicyDocument,
+  validateCustomRole,
 } from 'permdock';
 import {
   directoryMembershipSource,
@@ -94,6 +95,8 @@ export function testRoleSource(
   options: {
     readonly tenant: string;
     readonly declared: readonly (string | Role)[];
+    /** When set, every custom role's `grants` must resolve inside the ceiling. */
+    readonly policy?: Policy;
   },
 ): void {
   it('only resolves declared role names', async () => {
@@ -102,8 +105,12 @@ export function testRoleSource(
     );
     const roles = await source.rolesFor(options.tenant);
     for (const role of roles) {
-      for (const included of role.includes) {
+      expect(role.tenant).toBe(options.tenant);
+      for (const included of role.includes ?? []) {
         expect(declared).toContain(included);
+      }
+      if (options.policy !== undefined) {
+        expect(validateCustomRole(options.policy, role).dropped).toEqual([]);
       }
     }
     if (source.assignable !== undefined) {
