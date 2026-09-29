@@ -5,9 +5,9 @@ import type { ApprovalRequirement, Grant, Policy } from './policy.ts';
 import { normalizeWhere } from '../conditions/normalize.ts';
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
-import { flattenGrantee } from './grantee.ts';
+import { MAX_RELATION_DEPTH, flattenGrantee } from './grantee.ts';
 import { isForbiddenKey, splitPath } from './paths.ts';
-import { findPermission, getResource } from './permissions.ts';
+import { findPermission, getResource, isSelfParented } from './permissions.ts';
 import {
   allow,
   completeGrant,
@@ -272,7 +272,17 @@ function declaredGrantee(
         grantee.resource === permissionResource &&
         getResource(policy.permissions, grantee.resource)?.relations[
           grantee.relation
-        ] !== undefined
+        ] !== undefined &&
+        (grantee.through === undefined ||
+          (grantee.through === 'parent' &&
+            isSelfParented(
+              getResource(policy.permissions, grantee.resource),
+            ))) &&
+        (grantee.depth === undefined ||
+          (grantee.through === 'parent' &&
+            Number.isInteger(grantee.depth) &&
+            grantee.depth >= 0 &&
+            grantee.depth <= MAX_RELATION_DEPTH))
       );
     case 'anyone':
     case 'authenticated':

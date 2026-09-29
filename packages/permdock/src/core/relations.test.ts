@@ -6,6 +6,7 @@ import type { RelationSource } from './interfaces.ts';
 import { testRelationSource } from '../testing/conformance.ts';
 import { fromSnapshot } from './from-snapshot.ts';
 import { relation } from './grantee.ts';
+import { mergeHostedGrants, parsePolicyDocument } from './hosted.ts';
 import { mayAccess } from './may-access.ts';
 import { createPermDock } from './permdock.ts';
 import { definePermissions, resource } from './permissions.ts';
@@ -508,6 +509,50 @@ describe('relationship graph', () => {
     expect(owners.holders[0]?.via).toEqual([
       { kind: 'relation', resource: 'doc', relation: 'owner', id: 'd1' },
     ]);
+  });
+});
+
+describe('hosted graph grants', () => {
+  it('accepts a bounded walk on the permission resource and drops an unbounded one', async () => {
+    const hostable = definePolicy(permissions, {
+      subject: (user: { readonly id: string }) => ({ id: user.id, roles: [] }),
+      hostable: [permissions.folder.read],
+    });
+    const grant = (id: string, extra: Record<string, unknown>) => ({
+      id,
+      permission: 'folder.read',
+      to: {
+        kind: 'relation',
+        resource: 'folder',
+        relation: 'viewer',
+        ...extra,
+      },
+    });
+    const merged = mergeHostedGrants(
+      hostable,
+      parsePolicyDocument({
+        v: 1,
+        id: 'doc',
+        fingerprint: 'fp',
+        catalog: 'cat',
+        issuedAt: 1,
+        grants: [
+          grant('ok', { through: 'parent', depth: 3 }),
+          grant('deep', { through: 'parent', depth: 99 }),
+          grant('sideways', { through: 'sideways' }),
+        ],
+      }),
+    );
+    expect(merged.dropped.map((item) => [item.grant, item.reason])).toEqual([
+      ['deep', 'unknown-grantee'],
+      ['sideways', 'unknown-grantee'],
+    ]);
+    const vera = await createPermDock(
+      merged.policy,
+      { id: 'vera' },
+      { relations: source },
+    );
+    expect(vera.can(permissions.folder.read, folders[2])).toBe(true);
   });
 });
 

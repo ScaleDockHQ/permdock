@@ -284,7 +284,12 @@ export function relationStart(
     return undefined;
   }
   const walks = grantee.through === 'parent' && isSelfParented(target);
-  const depth = walks ? (grantee.depth ?? DEFAULT_RELATION_DEPTH) : 0;
+  const requested = grantee.depth ?? DEFAULT_RELATION_DEPTH;
+  const depth = walks
+    ? Number.isInteger(requested)
+      ? Math.min(Math.max(requested, 0), MAX_RELATION_DEPTH)
+      : 0
+    : 0;
   if (target.name === resource.name) {
     return { field: resource.id, parent: false, depth };
   }
