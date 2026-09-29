@@ -145,22 +145,63 @@ function quoteIdent(name: string): string {
   return `"${name}"`;
 }
 
-function statementSql(action: string, table: string): string {
+type Statement = { readonly sql: string; readonly values: readonly unknown[] };
+
+function columnsOf(row: unknown): readonly (readonly [string, unknown])[] {
+  return isRecord(row)
+    ? Object.entries(row).filter(
+        ([, value]) => value !== undefined && typeof value !== 'object',
+      )
+    : [];
+}
+
+/** The statement a fixture runs: `create` inserts the whole row, `update` writes `newRow` when given. */
+function statementFor(
+  fixture: RlsFixture,
+  action: string,
+  table: string,
+): Statement {
   const quoted = quoteIdent(table);
   const id = quoteIdent('id');
+  const key = rowId(fixture.row);
   switch (action) {
     case 'read':
     case 'list':
     case 'get':
-      return `select * from ${quoted} where ${id} = $1`;
-    case 'update':
-      return `update ${quoted} set ${id} = ${id} where ${id} = $1 returning *`;
-    case 'create':
-      return `insert into ${quoted} (${id}) values ($1) returning *`;
+      return { sql: `select * from ${quoted} where ${id} = $1`, values: [key] };
+    case 'update': {
+      const next = columnsOf(fixture.newRow).filter(([name]) => name !== 'id');
+      const sets =
+        next.length === 0
+          ? `${id} = ${id}`
+          : next
+              .map(([name], index) => `${quoteIdent(name)} = $${index + 2}`)
+              .join(', ');
+      return {
+        sql: `update ${quoted} set ${sets} where ${id} = $1 returning *`,
+        values: [key, ...next.map(([, value]) => value)],
+      };
+    }
+    case 'create': {
+      const cols = columnsOf(fixture.row);
+      if (cols.length === 0) {
+        return {
+          sql: `insert into ${quoted} (${id}) values ($1) returning *`,
+          values: [key],
+        };
+      }
+      return {
+        sql: `insert into ${quoted} (${cols.map(([name]) => quoteIdent(name)).join(', ')}) values (${cols.map((_, index) => `$${index + 1}`).join(', ')}) returning *`,
+        values: cols.map(([, value]) => value),
+      };
+    }
     case 'delete':
-      return `delete from ${quoted} where ${id} = $1 returning *`;
+      return {
+        sql: `delete from ${quoted} where ${id} = $1 returning *`,
+        values: [key],
+      };
     default:
-      return `select * from ${quoted} where ${id} = $1`;
+      return { sql: `select * from ${quoted} where ${id} = $1`, values: [key] };
   }
 }
 
@@ -222,26 +263,31 @@ async function bindSubject(
   dialect: RlsDialect,
   gucPrefix: string,
   tenantClaim: string,
+  roleClaim: string,
 ): Promise<void> {
   await query('set local role "authenticated"');
+  const roles = fixture.subject.roles ?? [];
+  const memberships = fixture.subject.memberships ?? [];
   if (dialect === 'guc') {
-    await query('select set_config($1, $2, true)', [
-      `${gucPrefix}.user_id`,
-      fixture.subject.id,
-    ]);
+    const settings: [string, string][] = [
+      [`${gucPrefix}.user_id`, fixture.subject.id],
+      [`${gucPrefix}.${roleClaim}`, roles.join(',')],
+      [`${gucPrefix}.memberships`, JSON.stringify(memberships)],
+    ];
     if (fixture.subject.tenant !== undefined) {
-      await query('select set_config($1, $2, true)', [
-        `${gucPrefix}.${tenantClaim}`,
-        fixture.subject.tenant,
-      ]);
+      settings.push([`${gucPrefix}.${tenantClaim}`, fixture.subject.tenant]);
+    }
+    for (const [name, value] of settings) {
+      await query('select set_config($1, $2, true)', [name, value]);
     }
     return;
   }
   const claims = {
     sub: fixture.subject.id,
     role: 'authenticated',
+    [roleClaim]: roles.length === 1 ? roles[0] : roles,
     [tenantClaim]: fixture.subject.tenant,
-    memberships: fixture.subject.memberships,
+    memberships,
   };
   await query('select set_config($1, $2, true)', [
     'request.jwt.claims',
@@ -276,6 +322,7 @@ async function verifyAgainstDatabase(input: {
   const dialect = input.config.rls?.dialect ?? 'supabase';
   const gucPrefix = input.config.rls?.gucPrefix ?? 'app';
   const tenantClaim = input.config.rls?.tenantClaim ?? 'tenant_id';
+  const roleClaim = input.config.rls?.roleClaim ?? 'user_role';
   const query: QueryFn = async (sql, values) => {
     try {
       const result = await client.query(
@@ -317,10 +364,16 @@ async function verifyAgainstDatabase(input: {
         input.config.rls?.tables?.[permission.resource] ?? permission.resource;
       await query('begin');
       try {
-        await bindSubject(query, fixture, dialect, gucPrefix, tenantClaim);
-        const result = await query(statementSql(permission.action, table), [
-          rowId(fixture.row),
-        ]);
+        await bindSubject(
+          query,
+          fixture,
+          dialect,
+          gucPrefix,
+          tenantClaim,
+          roleClaim,
+        );
+        const statement = statementFor(fixture, permission.action, table);
+        const result = await query(statement.sql, statement.values);
         const count = result.rowCount ?? result.rows.length;
         const database =
           result.code === '42501'
@@ -393,7 +446,13 @@ export async function runRlsVerify(input: {
     }
     const kind = grantKind(policy, fixture.action);
     const dock = await createPermDock(policy, toSubject(fixture.subject));
-    const granted = canFixture(dock, permission, fixture.row);
+    const granted = canFixture(
+      dock,
+      permission,
+      fixture.newRow === undefined || permission.kind === 'collection'
+        ? fixture.row
+        : { current: fixture.row, next: fixture.newRow },
+    );
     const outcome = granted ? 'granted' : 'denied';
     if (fixture.expected !== undefined && fixture.expected !== outcome) {
       mismatches.push(

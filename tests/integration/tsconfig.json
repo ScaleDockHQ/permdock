@@ -6,5 +6,5 @@
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src", "fixtures", "vitest.config.ts"]
+  "include": ["src", "bench", "fixtures", "vitest.config.ts"]
 }
