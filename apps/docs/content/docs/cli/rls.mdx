@@ -16,6 +16,8 @@ permdock rls generate --target sql --dialect supabase --memberships organization
 permdock rls generate --target sql --policy-per-role --out migrations/rls.sql   # one policy per role and permission
 permdock rls generate --target sql --inline-functions --out migrations/rls.sql
 permdock rls generate --target sql --force --out migrations/rls.sql   # also FORCE ROW LEVEL SECURITY
+permdock rls generate --target sql --fields views --out migrations/rls.sql   # plus <table>_visible field views
+permdock rls generate --target sql --fields views --revoke-columns --out migrations/rls.sql   # and close restricted columns on the table
 ```
 
 Inputs: the policy module from `permdock.config.ts` (roles as data) and a mapping from resources to tables. The mapping is read from `--from drizzle` (table names and columns from the Drizzle schema, resource schemas via `drizzle-zod`) or declared in the config as `rls.tables`.
@@ -48,7 +50,7 @@ Every generated file starts with the helper functions and the table they read, a
 | `permdock_has(p_grant text) returns boolean` | Does the subject hold a global role with this grant key |
 | `permitted_<scope>_ids(p_grant text) returns setof <scope type>` | Which instances of the scope the subject holds this grant key in, through memberships of exactly that scope (no cascade) |
 
-The helpers are `language sql stable security definer set search_path = ''` with fully qualified names; `execute` is revoked from `public` and `anon` and granted to `authenticated`. Policies call them uncorrelated, so Postgres evaluates each call once per statement instead of once per row:
+The helpers are `language sql stable security definer set search_path = ''` with fully qualified names; `execute` is revoked from `public` and `anon` and granted to `authenticated`, except that `anon` also gets it when a [field view](#field-views) that `anon` reads calls them. Policies call them uncorrelated, so Postgres evaluates each call once per statement instead of once per row:
 
 ```sql
 create policy "post_select" on "post" as permissive for select to authenticated
@@ -125,6 +127,8 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 | `--policy-per-role` | flag | `rls.policyPerRole`, off | One policy per role and permission (`{role}_{permission}`, the layout before the helpers), each still calling the helpers. |
 | `--policy-name` | template | `{table}_{op}`, or `{role}_{permission}` with `--policy-per-role` | Policy names from `{table}`, `{op}`, `{role}` and `{permission}`. A collapsed layout needs `{table}` and `{op}` and rejects `{role}` and `{permission}`. |
 | `--custom-roles` | flag | `rls.customRoles`, off | The scope helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles), always intersected with the generated `permdock_ceiling` view. `database` mode adds the `custom_role_permissions` and `custom_role_includes` tables; `jwt` mode reads the `memberships[].grants` claim. With `--rbac`, `authorize()` answers tenant requests from custom roles too. |
+| `--fields` | `views` | `rls.fields`, off | Emit one `security_invoker` view `<table>_visible` per table whose read grants limit `fields` ([field views](#field-views)). Any other value exits 2. |
+| `--revoke-columns` | flag | `rls.revokeColumns`, off | With `--fields views`, grant `anon` and `authenticated` `select` on only the unrestricted columns of each such table, so restricted columns are read through `<table>_visible`. Breaks `select *` on the table. Without `--fields views` it exits 2. |
 | `--capabilities` | flag | `rls.capabilities`, off | [Link capabilities](/docs/concepts/capabilities) reach resource-scoped grants: adds `permdock_capability_ids(p_resource, p_role, p_permission)`, which reads the `capability` claim `exchangeCapability` mints, and one `anon` policy per resource-scoped grant. A resource role with no memberships table gets only the `anon` policy, with a warning, instead of failing. |
 
 `--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
@@ -176,6 +180,34 @@ In `jwt` mode each membership may carry `grants`, a map from custom role name to
 
 The claim is the `Capability` object ([wire formats](/docs/concepts/wire-formats)) inside a short-lived Supabase access token with `role: 'anon'`, which the application's server mints with `exchangeCapability` after `subjectFromCapability` verified the link; no policy trusts a capability the server did not exchange. Privileges follow the policies: `anon` gets only the commands it has a policy for.
 
+### Field views
+
+`--fields views` (or `rls.fields: 'views'`) adds, after the policies, one view per table whose read grants (`read`, `get`, `list`) carry `fields`:
+
+| Object | What it holds |
+| --- | --- |
+| `<table>_visible` | `with (security_invoker = true)`: every column of the resource schema in order. A column some read allow leaves out of its list, or some read deny lists, is `case when <permitted> then "<col>" end`; every other column, and the row key, is the table's column unchanged. Granted `select` to `authenticated`, plus `anon` when an `anyone()` or link branch reads the table |
+| `<table>_visible_fields` | With `--revoke-columns` only: `with (security_barrier = true)`, owned by whoever runs the migration. The row key as `permdock_key` and each restricted column masked the same way, for the rows where one of them is readable. `<table>_visible` reads the table's rows as the caller and left-joins it on the key. Commented `permdock:field-companion <table>_visible` |
+
+`<permitted>` for a column is `can(permission, row, { field })` in SQL: the OR of the branches of read allows whose `fields` include the column (or have none), ANDed with `not` of the OR of covering read denies. Each branch is the row policy's own clause: the uncorrelated helper call (`permitted_<scope>_ids` or `permdock_has`) and the grant's row condition, so the helpers still run once per statement. A branch with no helper call (an `authenticated()` grant) adds the signed-in check its `to authenticated` policy gave it. Grant keys also split by field set, so `invoice.read#2` (finance, four fields) and `invoice.read#1` (admin, every field) reach different columns.
+
+```sql
+create or replace view "invoice_visible" with (security_invoker = true) as
+select
+  "id",
+  case when ("orgId" in (select "public".permitted_tenant_ids('invoice.read#1')))
+         or ("orgId" in (select "public".permitted_tenant_ids('invoice.read#2')))
+    then "amount" end as "amount",
+  "title"
+from "invoice";
+```
+
+A read deny with `fields` and a read allow with an empty list only shape columns, as in the application (a field-only deny does not deny the row), so they leave the row policy and live in the masks. The resource needs a schema with Standard JSON Schema output to list its columns; without one the command fails with the resource named.
+
+Without `--revoke-columns` the table still returns every column to a direct read, and the command prints which. With it, the `sql` target replaces the table-level `select` grant by `grant select (<unrestricted columns and key>)` for each role and adds `revoke select (<restricted columns>) ... from anon, authenticated`; `insert`, `update` and `delete` keep their table-level grants, so `returning *` and `select *` on the table fail with `42501` and clients read through the view. `drizzle` and `prisma` put the views and the column statements in the migration comment. With `--force` the companion's owner is subject to the table's policies, which target only `anon` and `authenticated`, so it needs `BYPASSRLS` or every restricted column reads as `null`; the command warns.
+
+Doctor PD028 warns while field-limited columns stay readable on the table ([doctor](/docs/cli/doctor)).
+
 ## import
 
 ```bash
@@ -188,6 +220,8 @@ permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts --from
 
 The output is a deterministic `definePermissions()` module with a `// @generated` header: one resource per table with its actions derived from the policy commands, resource schemas emitted for the validator chosen with `--schema zod|valibot|arktype` from the table's columns, or referencing existing Drizzle tables through `drizzle-zod` with `--from drizzle`. Conditions are emitted as a role fragment alongside, so the generated file can be merged with hand-written definitions and policy fragments ([Larger apps](/docs/getting-started/larger-apps)).
 
+Field views are read back too. A `security_invoker` view named `<table>_visible` in the generated shape, inline or joined to its `<table>_visible_fields` companion, becomes an entry of a `fieldViews` export: `{ view, table, companion?, passthrough, restricted: [{ column, grants, denies }] }`, where `grants` and `denies` are the helper branches of the column's mask in the same `{ key, permission, scope, roles, where? }` form, and the command prints which columns are field-limited. With `--db` the views come from `pg_get_viewdef` and `pg_class.reloptions`. Other views are ignored.
+
 No other tool imports RLS into application permissions; Kysera's `@kysera/rls` is the only dual-mode prior art and does not read from the database.
 
 ## verify
@@ -199,6 +233,8 @@ permdock rls verify --fixtures rls.fixtures.json --format pgtap > tests/rls.sql
 ```
 
 `verify` runs a parity test for every (subject, permission, row) triple in the fixtures: `can()` in-process against the PermDock policy, then, with `--db` (optional `pg` peer), the same operation in the database under `set local role authenticated` with the subject's claims in `request.jwt.claims` (Supabase) or the GUCs (`guc`): `sub`, the tenant claim, the role claim and `memberships`, so `jwt`-mode helpers see the fixture's subject. A `create` fixture inserts every column of `row`; an `update` fixture with `newRow` writes its columns and compares against `can()` on the `{ current, next }` pair. A fixture file may be `{ fixtures, customRoles }`: the custom roles resolve in-process through a `RoleSource`, travel in the `memberships[].grants` claim, and, with `rls.customRoles` and `rls.authorize: 'database'`, are written to the custom-role tables inside each fixture's rolled-back transaction, so connect as a role that owns those tables. Outcomes per row are `allowed`, `filtered` (the row disappears from a `SELECT`) or `rejected` (error `42501`). Disagreements are listed with the grant; the exit code is `1`. Opaque grants are reported as untestable app-side. `sqlFunction` grants compare the twin in memory with the live function and are reported as verified through twin.
+
+With `rls.fields: 'views'`, every instance read fixture also reads its row from `<table>_visible` (or the table itself when no view exists) and compares the columns that hold a value with those `pick` keeps, plus the key, which always passes through; a denied row must return nothing. Fixture rows are compared column by column, so give each read fixture the whole row as the database holds it. Statements read back only the key (`returning "id"`), so a table closed with `--revoke-columns` does not reject them.
 
 Tests can be emitted as pgTAP (`--format pgtap`) for teams that run database tests in CI, or executed directly from Node using the connection string. `permdock/testing` exposes the same runner for Vitest.
 
