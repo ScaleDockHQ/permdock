@@ -1,7 +1,6 @@
 import type { Condition, Grant, Grantee, Policy } from '../index.ts';
 
 import { listRoles } from '../index.ts';
-
 import { andConditions } from './rls-sql.ts';
 
 /** Who a grant reaches before any row condition applies. */

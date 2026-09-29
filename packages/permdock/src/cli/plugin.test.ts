@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createPermDockPlugin, runPluginCollect } from './plugin.ts';
 import { createPermDockUnplugin } from '../unplugin/index.ts';
+import { createPermDockPlugin, runPluginCollect } from './plugin.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, './fixtures/mini-app');

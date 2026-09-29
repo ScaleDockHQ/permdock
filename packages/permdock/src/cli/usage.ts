@@ -1,9 +1,7 @@
-import type { Condition, Policy } from '../index.ts';
-
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { getResource } from '../index.ts';
 
+import type { Condition, Policy } from '../index.ts';
 import type {
   CatalogUsage,
   CliIo,
@@ -11,6 +9,7 @@ import type {
   ScanResult,
 } from './types.ts';
 
+import { getResource } from '../index.ts';
 import { jsonSchemaOf } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
 import { isClientSource } from './doctor-source.ts';

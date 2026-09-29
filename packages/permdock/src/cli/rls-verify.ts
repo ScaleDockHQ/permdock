@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import type {
   CustomRole,
   PermDock,
@@ -5,9 +8,8 @@ import type {
   Policy,
   Subject,
 } from '../index.ts';
+import type { CliIo, PermDockConfig, RlsDialect } from './types.ts';
 
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   createPermDock,
   customRoleClaim,
@@ -15,9 +17,6 @@ import {
   hasConditionOp,
   memoryRoleSource,
 } from '../index.ts';
-
-import type { CliIo, PermDockConfig, RlsDialect } from './types.ts';
-
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { requirePeer } from './peer.ts';
 
@@ -290,7 +289,7 @@ function emitPgtap(
   return `${lines.join('\n')}\n`;
 }
 
-async function loadPg(): Promise<typeof import('pg')> {
+function loadPg(): Promise<typeof import('pg')> {
   return requirePeer(() => import('pg'), 'pg', 'permdock rls verify --db');
 }
 

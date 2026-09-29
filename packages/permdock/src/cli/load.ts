@@ -1,7 +1,8 @@
-import type { Permission, PermissionTree, Policy } from '../index.ts';
-
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import type { Permission, PermissionTree, Policy } from '../index.ts';
+
 import { listPermissions } from '../index.ts';
 
 export async function loadModule(

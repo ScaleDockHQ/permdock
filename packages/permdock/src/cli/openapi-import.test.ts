@@ -1,5 +1,3 @@
-import type { Permission } from '../index.ts';
-
 import {
   mkdirSync,
   mkdtempSync,
@@ -9,9 +7,11 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { listPermissions } from '../index.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { Permission } from '../index.ts';
+
+import { listPermissions } from '../index.ts';
 import { run } from './run.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));

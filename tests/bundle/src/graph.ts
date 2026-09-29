@@ -92,6 +92,16 @@ export const TOOLING_PACKAGES = [
   'vitest',
 ] as const;
 
+const COMMENT_LINE = /^\s*(?:\*|\/\/|\/\*)/u;
+
+/** A chunk's source without comment lines: bundled JSDoc names `import('./types')`. */
+function codeOf(file: string): string {
+  return readFileSync(file, 'utf8')
+    .split('\n')
+    .filter((line) => !COMMENT_LINE.test(line))
+    .join('\n');
+}
+
 const BARE_IMPORT =
   /(?:^|[;\s])(?:import|export)\s[^'"]*?from\s*['"]([^./'"][^'"]*)['"]|import\s*\(\s*['"]([^./'"][^'"]*)['"]\s*\)/gmu;
 
@@ -138,16 +148,6 @@ const NODE_SPECIFIER =
 // `process?.getBuiltinModule?.()` result is optional, not a hard dependency.
 const NODE_GLOBAL =
   /(?<![.\w])(?:process\.|AsyncLocalStorage|createRequire|__dirname|__filename)\b/u;
-
-const COMMENT_LINE = /^\s*(?:\*|\/\/|\/\*)/u;
-
-/** A chunk's source without comment lines: bundled JSDoc names `import('./types')`. */
-function codeOf(file: string): string {
-  return readFileSync(file, 'utf8')
-    .split('\n')
-    .filter((line) => !COMMENT_LINE.test(line))
-    .join('\n');
-}
 
 export function walk(entryFile: string): readonly string[] {
   const seen = new Set<string>();

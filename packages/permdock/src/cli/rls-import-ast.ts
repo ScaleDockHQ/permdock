@@ -1,8 +1,7 @@
-import type { Condition, ConditionValue, SqlFunctionArg } from '../index.ts';
-
 import { createHash } from 'node:crypto';
 import { deparse, parse } from 'pgsql-parser';
 
+import type { Condition, ConditionValue, SqlFunctionArg } from '../index.ts';
 import type { HelperScope, RolePermission } from './rls-helpers.ts';
 import type { RlsFunctionMapping, RlsMemberships } from './types.ts';
 

@@ -1,3 +1,7 @@
+import { describe, expect, it } from 'vitest';
+
+import type { RlsSqlContext } from './rls-sql.ts';
+
 import {
   allow,
   anyone,
@@ -8,10 +12,6 @@ import {
   resource,
   role,
 } from '../index.ts';
-import { describe, expect, it } from 'vitest';
-
-import type { RlsSqlContext } from './rls-sql.ts';
-
 import { compileGrants } from './rls-compile.ts';
 import { assemblePolicies } from './rls-policies.ts';
 

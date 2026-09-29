@@ -1,11 +1,11 @@
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { catalogFingerprint } from '../index.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { CliIo } from './types.ts';
 
+import { catalogFingerprint } from '../index.ts';
 import { run } from './run.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));

@@ -1,12 +1,11 @@
-import type { Policy } from '../index.ts';
-
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { definePolicy, findPermission, getResource } from '../index.ts';
-import { createPermDock } from '../openapi/index.ts';
 
+import type { Policy } from '../index.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
+import { definePolicy, findPermission, getResource } from '../index.ts';
+import { createPermDock } from '../openapi/index.ts';
 import { asPermissionTree, asPolicy, loadModule, pickNamed } from './load.ts';
 import { validateOpenapi, validateOverlay } from './openapi-schema.ts';
 

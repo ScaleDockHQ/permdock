@@ -1,11 +1,10 @@
-import type { PermissionTree } from '../index.ts';
-
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { arazzoFindings } from '../index.ts';
 
+import type { PermissionTree } from '../index.ts';
 import type { PermDockConfig } from './types.ts';
 
+import { arazzoFindings } from '../index.ts';
 import { asPermissionTree, loadModule, pickNamed } from './load.ts';
 
 export async function runArazzo(input: {

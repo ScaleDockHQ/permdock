@@ -1,12 +1,11 @@
 import type { Condition, ConditionValue } from '../index.ts';
-
-import { isSqlFunctionField } from '../index.ts';
-
 import type {
   RlsDialect,
   RlsMembershipTable,
   RlsMemberships,
 } from './types.ts';
+
+import { isSqlFunctionField } from '../index.ts';
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const CLAIM = /^[A-Za-z_][A-Za-z0-9_]*$/;

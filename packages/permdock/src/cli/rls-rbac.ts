@@ -1,9 +1,7 @@
 import type { Policy } from '../index.ts';
-
-import { authorizeSql } from '../supabase/index.ts';
-
 import type { RlsMembershipTable } from './types.ts';
 
+import { authorizeSql } from '../supabase/index.ts';
 import { roleNames } from './rls-grants.ts';
 import { quoteIdent, quoteLiteral, quoteTable } from './rls-sql.ts';
 

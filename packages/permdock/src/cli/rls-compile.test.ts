@@ -1,3 +1,7 @@
+import { describe, expect, it } from 'vitest';
+
+import type { RlsSqlContext } from './rls-sql.ts';
+
 import {
   allow,
   definePermissions,
@@ -6,10 +10,6 @@ import {
   resource,
   role,
 } from '../index.ts';
-import { describe, expect, it } from 'vitest';
-
-import type { RlsSqlContext } from './rls-sql.ts';
-
 import { branchClauses, compileGrants } from './rls-compile.ts';
 import { compileConditionSql } from './rls-sql.ts';
 

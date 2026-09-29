@@ -1,11 +1,9 @@
 import type { Condition, Policy, ResourceNode } from '../index.ts';
-
-import { hasConditionOp } from '../index.ts';
-
 import type { RlsGrant } from './rls-grants.ts';
 import type { RolePermission } from './rls-helpers.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
+import { hasConditionOp } from '../index.ts';
 import { collectGrants } from './rls-grants.ts';
 import { accessSql } from './rls-helpers.ts';
 import { compileConditionSql, sqlFunctionNames } from './rls-sql.ts';

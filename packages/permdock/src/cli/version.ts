@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { packageRoot } from './package-root.ts';
 
 export function cliVersion(): string {
-  const raw = JSON.parse(readFileSync(join(packageRoot(), 'package.json'), 'utf8')) as {
+  const raw = JSON.parse(
+    readFileSync(join(packageRoot(), 'package.json'), 'utf8'),
+  ) as {
     readonly version: string;
   };
   return raw.version;

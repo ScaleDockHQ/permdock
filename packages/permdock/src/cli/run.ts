@@ -78,7 +78,9 @@ export async function run(
       case 'collect': {
         const src = flagList(args.flags, 'src');
         const out = flagString(args.flags, 'out');
-        const result = await (await import('./collect.ts')).runCollect({
+        const result = await (
+          await import('./collect.ts')
+        ).runCollect({
           cwd,
           config,
           collect: {
@@ -102,7 +104,9 @@ export async function run(
           writeErr('catalog --format must be json, schema or markdown');
           return finish(2, stdoutChunks, stderrChunks);
         }
-        const result = await (await import('./catalog.ts')).runCatalog({
+        const result = await (
+          await import('./catalog.ts')
+        ).runCatalog({
           cwd,
           config,
           format: formatFlag,
@@ -115,7 +119,9 @@ export async function run(
         return finish(result.code, stdoutChunks, stderrChunks);
       }
       case 'usage': {
-        const result = await (await import('./usage.ts')).runUsage({
+        const result = await (
+          await import('./usage.ts')
+        ).runUsage({
           cwd,
           config,
           ignore: flagList(args.flags, 'ignore'),
@@ -129,7 +135,9 @@ export async function run(
         return finish(result.code, stdoutChunks, stderrChunks);
       }
       case 'doctor': {
-        const result = await (await import('./doctor.ts')).runDoctor({
+        const result = await (
+          await import('./doctor.ts')
+        ).runDoctor({
           cwd,
           config,
           only: flagList(args.flags, 'only'),
@@ -165,7 +173,9 @@ export async function run(
             writeErr('openapi --doc is required');
             return finish(2, stdoutChunks, stderrChunks);
           }
-          const result = await (await import('./openapi-import.ts')).runOpenapiImport({
+          const result = await (
+            await import('./openapi-import.ts')
+          ).runOpenapiImport({
             cwd,
             doc,
             out: flagString(args.flags, 'out'),
@@ -201,7 +211,9 @@ export async function run(
           writeErr('openapi --profile must be fapi2');
           return finish(2, stdoutChunks, stderrChunks);
         }
-        const result = await (await import('./openapi.ts')).runOpenapi({
+        const result = await (
+          await import('./openapi.ts')
+        ).runOpenapi({
           cwd,
           config,
           rest: args.rest,
@@ -230,7 +242,9 @@ export async function run(
         return finish(result.code, stdoutChunks, stderrChunks);
       }
       case 'arazzo': {
-        const result = await (await import('./arazzo.ts')).runArazzo({
+        const result = await (
+          await import('./arazzo.ts')
+        ).runArazzo({
           cwd,
           config,
           rest: args.rest,
@@ -249,7 +263,9 @@ export async function run(
           writeErr(`rls generate --rbac must be supabase, got '${rbacFlag}'`);
           return finish(2, stdoutChunks, stderrChunks);
         }
-        const result = await (await import('./rls.ts')).runRls({
+        const result = await (
+          await import('./rls.ts')
+        ).runRls({
           cwd,
           config,
           rest: args.rest,
@@ -283,7 +299,9 @@ export async function run(
         return finish(result.code, stdoutChunks, stderrChunks);
       }
       case 'cloud': {
-        const result = await (await import('./cloud.ts')).runCloud({
+        const result = await (
+          await import('./cloud.ts')
+        ).runCloud({
           cwd,
           config,
           rest: args.rest,

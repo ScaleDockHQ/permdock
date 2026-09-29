@@ -4,9 +4,6 @@ import type {
   Policy,
   ResourceNode,
 } from '../index.ts';
-
-import { catalogFingerprint, getResource, listPermissions } from '../index.ts';
-
 import type {
   CatalogApproval,
   CatalogDocument,
@@ -14,6 +11,7 @@ import type {
   ScanResult,
 } from './types.ts';
 
+import { catalogFingerprint, getResource, listPermissions } from '../index.ts';
 import { CATALOG_SCHEMA, generatorBanner } from './version.ts';
 
 /** With `policy`, permissions carry `hostable` and roles carry `on` and `assignable`. */

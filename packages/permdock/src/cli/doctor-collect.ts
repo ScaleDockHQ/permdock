@@ -1,16 +1,15 @@
-import type { CustomRole, Policy } from '../index.ts';
-
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+import type { CustomRole, Policy } from '../index.ts';
+import type { DoctorFinding } from './doctor-types.ts';
+import type { CliIo, PermDockConfig } from './types.ts';
+
 import {
   hasConditionOp,
   separationConflicts,
   validateCustomRole,
 } from '../index.ts';
-
-import type { DoctorFinding } from './doctor-types.ts';
-import type { CliIo, PermDockConfig } from './types.ts';
-
 import { runCollect } from './collect.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { runUsage } from './usage.ts';

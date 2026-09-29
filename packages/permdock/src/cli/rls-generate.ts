@@ -1,9 +1,7 @@
-import type { Policy } from '../index.ts';
-
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { listRoles } from '../index.ts';
 
+import type { Policy } from '../index.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 import type {
   CliIo,
@@ -13,6 +11,7 @@ import type {
   RlsTarget,
 } from './types.ts';
 
+import { listRoles } from '../index.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { compileGrants } from './rls-compile.ts';
 import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';

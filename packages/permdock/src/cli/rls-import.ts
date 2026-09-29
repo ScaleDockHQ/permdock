@@ -10,6 +10,7 @@ import {
   emptySchema,
   isSchemaKind,
 } from './generate.ts';
+import { requirePeer } from './peer.ts';
 import {
   canonicalDump,
   conditionFromAst,
@@ -19,7 +20,6 @@ import {
   seedsFromSql,
 } from './rls-import-ast.ts';
 import { parseMembershipsFlag } from './rls-sql.ts';
-import { requirePeer } from './peer.ts';
 
 export type ImportOutcome = {
   readonly code: 0 | 1 | 2;
@@ -162,7 +162,7 @@ function assertNoServiceRole(sql: string): void {
   }
 }
 
-async function loadPg(): Promise<typeof import('pg')> {
+function loadPg(): Promise<typeof import('pg')> {
   return requirePeer(() => import('pg'), 'pg', 'permdock rls import --db');
 }
 

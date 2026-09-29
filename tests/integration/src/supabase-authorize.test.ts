@@ -1,10 +1,10 @@
 import type { Client } from 'pg';
 
-import { run } from 'permdock/cli';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { run } from 'permdock/cli';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Postgres } from './support/postgres.ts';

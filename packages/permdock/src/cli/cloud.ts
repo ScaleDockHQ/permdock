@@ -1,9 +1,7 @@
 import type { Grant, Policy, SnapshotGrant } from '../index.ts';
-
-import { catalogFingerprint } from '../index.ts';
-
 import type { CatalogDocument, CliIo, PermDockConfig } from './types.ts';
 
+import { catalogFingerprint } from '../index.ts';
 import { runCatalog } from './catalog.ts';
 import { loadConfiguredPolicy } from './load.ts';
 

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   allow,
   anyone,
@@ -10,8 +12,6 @@ import {
   resource,
   role,
 } from '../index.ts';
-import { describe, expect, it } from 'vitest';
-
 import { collectGrants, roleNames } from './rls-grants.ts';
 
 const permissions = definePermissions({
