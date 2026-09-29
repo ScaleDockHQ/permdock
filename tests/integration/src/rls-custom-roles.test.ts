@@ -1,11 +1,11 @@
 import type { CustomRole } from 'permdock';
 
-import { run } from '@permdock/cli';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { customRoleClaim } from 'permdock';
+import { run } from 'permdock/cli';
 import { authorizeSql } from 'permdock/supabase';
 import { rlsParity } from 'permdock/testing';
 import { Client } from 'pg';

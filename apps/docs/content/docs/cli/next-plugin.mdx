@@ -36,7 +36,7 @@ export default permdockPlugin(withOtherPlugin({ /* your Next.js config */ }))
 | `next build` | Runs `collect --check`. A stale catalog fails the build with the diff, so a deployment can never ship a catalog that disagrees with the code. `PERMDOCK_COLLECT=write` switches to writing instead of checking for build pipelines that commit generated files. |
 | `next start`, `next export` | Nothing. |
 
-The plugin resolves `@permdock/cli` from the app's `node_modules` and runs it in-process; the CLI package must be a dev dependency. When it is missing, the plugin logs one warning and does nothing, so `permdock/next/plugin` can be imported in a project that has not installed the CLI yet.
+The plugin runs `collect` in-process from the same `permdock` package the app already depends on, so there is nothing else to install.
 
 ## What it does not do
 

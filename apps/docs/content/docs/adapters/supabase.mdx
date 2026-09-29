@@ -13,7 +13,7 @@ Supabase apps have two enforcement points, the application and Postgres RLS, and
 
 ```ts
 import { createPermDock } from 'permdock'
-import { defineConfig } from '@permdock/cli'
+import { defineConfig } from 'permdock/cli'
 import { subjectFromSupabase, supabaseRls } from 'permdock/supabase'
 
 // server: from claims the Supabase client verified (JWKS locally with asymmetric keys, Auth server with the legacy secret)

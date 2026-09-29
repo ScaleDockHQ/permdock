@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next';
 
-import { createPermDockPlugin } from '@permdock/cli/plugin';
+import { createPermDockPlugin } from 'permdock/next/plugin';
 
 const drift = process.env.PERMDOCK_E2E_DRIFT === '1';
 

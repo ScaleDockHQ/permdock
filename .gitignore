@@ -19,7 +19,7 @@ coverage/
 # `prisma generate` output
 tests/integration/src/support/prisma/
 apps/examples/prisma/src/generated/
-packages/cli/tmp/
+packages/permdock/tmp/
 playwright-report/
 test-results/
 blob-report/

@@ -28,7 +28,6 @@
     "@commitlint/cli": "catalog:",
     "@commitlint/config-conventional": "catalog:",
     "@commitlint/types": "catalog:",
-    "@permdock/cli": "workspace:*",
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
@@ -36,6 +35,7 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "permdock": "workspace:*",
     "turbo": "catalog:",
     "typescript": "catalog:"
   },

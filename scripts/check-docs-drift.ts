@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = join(ROOT, 'apps', 'docs', 'content', 'docs');
-const CLI_SRC = join(ROOT, 'packages', 'cli', 'src');
+const CLI_SRC = join(ROOT, 'packages', 'permdock', 'src', 'cli');
 
 function walk(dir: string, keep: (file: string) => boolean): string[] {
   const out: string[] = [];

@@ -584,9 +584,6 @@ importers:
       '@commitlint/types':
         specifier: 'catalog:'
         version: 21.2.3
-      '@permdock/cli':
-        specifier: workspace:*
-        version: link:packages/cli
       '@permdock/ox-config':
         specifier: workspace:*
         version: link:packages/ox-config
@@ -608,6 +605,9 @@ importers:
       oxlint-tsgolint:
         specifier: 'catalog:'
         version: 7.0.2002
+      permdock:
+        specifier: workspace:*
+        version: link:packages/permdock
       turbo:
         specifier: 'catalog:'
         version: 2.11.3
@@ -1081,9 +1081,6 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@permdock/cli':
-        specifier: workspace:*
-        version: link:../../../packages/cli
       '@permdock/typescript-config':
         specifier: workspace:*
         version: link:../../../packages/typescript-config
@@ -1373,9 +1370,6 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@permdock/cli':
-        specifier: workspace:*
-        version: link:../../../packages/cli
       '@permdock/typescript-config':
         specifier: workspace:*
         version: link:../../../packages/typescript-config
@@ -1602,61 +1596,6 @@ importers:
         specifier: 'catalog:'
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(@vitest/coverage-v8@5.0.1)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0))
 
-  packages/cli:
-    dependencies:
-      ajv:
-        specifier: 'catalog:'
-        version: 8.20.0
-      oxc-parser:
-        specifier: 'catalog:'
-        version: 0.151.0
-      pgsql-parser:
-        specifier: 'catalog:'
-        version: 18.2.8
-      unplugin:
-        specifier: 'catalog:'
-        version: 3.4.0(esbuild@0.28.2)(rolldown@1.2.7)(rollup@4.63.5)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      yaml:
-        specifier: 'catalog:'
-        version: 2.9.1
-    devDependencies:
-      '@arethetypeswrong/cli':
-        specifier: 'catalog:'
-        version: 0.18.5
-      '@permdock/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.6.2
-      '@types/pg':
-        specifier: 'catalog:'
-        version: 8.23.1
-      '@vitest/coverage-v8':
-        specifier: 'catalog:'
-        version: 5.0.1(vitest@5.0.1)
-      permdock:
-        specifier: workspace:*
-        version: link:../permdock
-      pg:
-        specifier: 'catalog:'
-        version: 8.23.0
-      publint:
-        specifier: 'catalog:'
-        version: 0.3.24
-      tsdown:
-        specifier: 'catalog:'
-        version: 0.23.0(@arethetypeswrong/core@0.18.5)(publint@0.3.24)(typescript@7.0.2)
-      typescript:
-        specifier: 'catalog:'
-        version: 7.0.2
-      vitest:
-        specifier: 'catalog:'
-        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(@vitest/coverage-v8@5.0.1)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      zod:
-        specifier: 'catalog:'
-        version: 4.6.5
-
   packages/ox-config:
     dependencies:
       oxfmt:
@@ -1684,6 +1623,9 @@ importers:
       drizzle-orm:
         specifier: catalog:peers
         version: 0.45.3(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2))(typescript@7.0.2))(@types/pg@8.23.1)(kysely@0.29.6)(mysql2@3.15.3)(pg@8.23.0)(postgres@3.4.7)(prisma@7.10.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2))
+      oxc-parser:
+        specifier: 'catalog:'
+        version: 0.151.0
     devDependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 'catalog:'
@@ -1730,6 +1672,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.2
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.23.1
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
@@ -1742,6 +1687,9 @@ importers:
       ai:
         specifier: 'catalog:'
         version: 7.0.112(zod@4.6.5)
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       arktype:
         specifier: 'catalog:'
         version: 2.2.3
@@ -1772,6 +1720,12 @@ importers:
       next:
         specifier: 'catalog:'
         version: 16.3.6(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@26.6.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.0
+      pgsql-parser:
+        specifier: 'catalog:'
+        version: 18.2.8
       publint:
         specifier: 'catalog:'
         version: 0.3.24
@@ -1799,6 +1753,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      unplugin:
+        specifier: 'catalog:'
+        version: 3.4.0(esbuild@0.28.2)(rolldown@1.2.7)(rollup@4.63.5)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@7.0.2)
@@ -1808,6 +1765,9 @@ importers:
       vue:
         specifier: 'catalog:'
         version: 3.5.43(typescript@7.0.2)
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -1821,7 +1781,7 @@ importers:
         version: link:../../packages/typescript-config
       '@sveltejs/vite-plugin-svelte':
         specifier: 'catalog:'
-        version: 7.3.1(svelte@5.57.1)(vite@8.3.0(@types/node@26.6.2))
+        version: 7.3.1(svelte@5.57.1)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.2
@@ -1854,7 +1814,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(@vitest/coverage-v8@5.0.1)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2))
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(@vitest/coverage-v8@5.0.1)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       vue:
         specifier: 'catalog:'
         version: 3.5.43(typescript@7.0.2)
@@ -2103,9 +2063,6 @@ importers:
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.1.1(hono@4.13.8)
-      '@permdock/cli':
-        specifier: workspace:*
-        version: link:../../../../packages/cli
       '@permdock/e2e-saas-kit':
         specifier: workspace:*
         version: link:../saas-kit
@@ -2458,15 +2415,15 @@ importers:
         specifier: workspace:*
         version: link:apps/worker
     devDependencies:
-      '@permdock/cli':
-        specifier: workspace:*
-        version: link:../../../../packages/cli
       '@permdock/typescript-config':
         specifier: workspace:*
         version: link:../../../../packages/typescript-config
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.2
+      permdock:
+        specifier: workspace:*
+        version: link:../../../../packages/permdock
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -2526,9 +2483,6 @@ importers:
         specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
     devDependencies:
-      '@permdock/cli':
-        specifier: workspace:*
-        version: link:../../../../../../packages/cli
       '@permdock/typescript-config':
         specifier: workspace:*
         version: link:../../../../../../packages/typescript-config
@@ -2615,9 +2569,6 @@ importers:
       '@orpc/server':
         specifier: 'catalog:'
         version: 2.0.0-beta.39(crossws@0.4.12)(fastify@5.12.5)
-      '@permdock/cli':
-        specifier: workspace:*
-        version: link:../../packages/cli
       '@permdock/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -18888,15 +18839,6 @@ snapshots:
       vite: 8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
       vitefu: 1.1.3(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
 
-  '@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.0(@types/node@26.6.2))':
-    dependencies:
-      deepmerge: 4.3.1
-      magic-string: 1.4.2
-      obug: 2.1.4
-      svelte: 5.57.1
-      vite: 8.3.0(@types/node@26.6.2)
-      vitefu: 1.1.3(vite@8.3.0(@types/node@26.6.2))
-
   '@swc/helpers@0.5.23':
     dependencies:
       tslib: 2.8.1
@@ -28130,10 +28072,6 @@ snapshots:
   vitefu@1.1.3(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)):
     optionalDependencies:
       vite: 8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
-
-  vitefu@1.1.3(vite@8.3.0(@types/node@26.6.2)):
-    optionalDependencies:
-      vite: 8.3.0(@types/node@26.6.2)
 
   vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(@vitest/coverage-v8@5.0.1)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0)):
     dependencies:

@@ -15,9 +15,9 @@
     "@permdock/e2e-turbo-worker": "workspace:*"
   },
   "devDependencies": {
-    "@permdock/cli": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "permdock": "workspace:*",
     "typescript": "catalog:"
   }
 }

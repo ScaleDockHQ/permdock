@@ -52,12 +52,79 @@ export const ENTRIES = {
   './testing': 'testing/index.js',
   './testing/saas': 'testing/saas/index.js',
   './testing/saas/permissions': 'testing/saas/permissions.js',
+  './cli': 'cli/index.js',
+  './unplugin': 'unplugin/index.js',
+  './next/plugin': 'next/plugin.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
 
-/** Entries that are Node-only by design: a terminal CLI helper. */
-export const NODE_ONLY_ENTRIES = ['./terminal'] as const;
+/** Entries that are Node-only by design: a terminal CLI helper and the build tooling. */
+export const NODE_ONLY_ENTRIES = [
+  './terminal',
+  './cli',
+  './unplugin',
+  './next/plugin',
+] as const;
+
+/** Build- and test-time entries; every other entry is a runtime entry. */
+export const TOOLING_ENTRIES = [
+  './cli',
+  './unplugin',
+  './next/plugin',
+  './testing',
+  './testing/saas',
+  './testing/saas/permissions',
+] as const;
+
+export const RUNTIME_ENTRIES = (Object.keys(ENTRIES) as Entry[]).filter(
+  (entry) => !(TOOLING_ENTRIES as readonly string[]).includes(entry),
+);
+
+/** Packages only the CLI and the test runners may load. */
+export const TOOLING_PACKAGES = [
+  'oxc-parser',
+  'pgsql-parser',
+  'pg',
+  'unplugin',
+  'ajv',
+  'yaml',
+  'vitest',
+] as const;
+
+const COMMENT_LINE = /^\s*(?:\*|\/\/|\/\*)/u;
+
+/** A chunk's source without comment lines: bundled JSDoc names `import('./types')`. */
+function codeOf(file: string): string {
+  return readFileSync(file, 'utf8')
+    .split('\n')
+    .filter((line) => !COMMENT_LINE.test(line))
+    .join('\n');
+}
+
+const BARE_IMPORT =
+  /(?:^|[;\s])(?:import|export)\s[^'"]*?from\s*['"]([^./'"][^'"]*)['"]|import\s*\(\s*['"]([^./'"][^'"]*)['"]\s*\)/gmu;
+
+function packageName(specifier: string): string {
+  const parts = specifier.split('/');
+  return specifier.startsWith('@')
+    ? parts.slice(0, 2).join('/')
+    : (parts[0] ?? specifier);
+}
+
+/** Packages a graph imports, by name; `node:` built-ins excluded. */
+export function packageImports(files: readonly string[]): readonly string[] {
+  const found = new Set<string>();
+  for (const file of files) {
+    for (const match of codeOf(file).matchAll(BARE_IMPORT)) {
+      const specifier = match[1] ?? match[2];
+      if (specifier !== undefined && !specifier.startsWith('node:')) {
+        found.add(packageName(specifier));
+      }
+    }
+  }
+  return [...found].toSorted();
+}
 
 export const WINTERTC_ENTRIES = (Object.keys(ENTRIES) as Entry[]).filter(
   (entry) => !(NODE_ONLY_ENTRIES as readonly string[]).includes(entry),
@@ -91,7 +158,7 @@ export function walk(entryFile: string): readonly string[] {
       continue;
     }
     seen.add(file);
-    const source = readFileSync(file, 'utf8');
+    const source = codeOf(file);
     const dir = dirname(file);
     for (const match of source.matchAll(RELATIVE_IMPORT)) {
       const spec = match[1] ?? match[2];
@@ -164,7 +231,7 @@ export function clientApiLeaks(entryFile: string): readonly string[] {
       continue;
     }
     seen.add(file);
-    const source = readFileSync(file, 'utf8');
+    const source = codeOf(file);
     if (USE_CLIENT.test(source)) {
       continue;
     }

@@ -12,7 +12,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@permdock/cli": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "typescript": "catalog:"
   }

@@ -1,7 +1,7 @@
 {
   "name": "permdock",
   "version": "0.1.0-next.1",
-  "description": "Typed permissions for TypeScript apps, APIs, databases, and AI agents.",
+  "description": "Typed permissions for TypeScript apps, APIs, databases, and AI agents, with the permdock CLI and test runners.",
   "keywords": [
     "ai-agents",
     "authorization",
@@ -14,16 +14,21 @@
   ],
   "homepage": "https://permdock.dev",
   "bugs": {
-    "url": "https://github.com/ScaleDockHQ/PermDock/issues"
+    "url": "https://github.com/ScaleDockHQ/permdock/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ScaleDockHQ/PermDock.git",
+    "url": "git+https://github.com/ScaleDockHQ/permdock.git",
     "directory": "packages/permdock"
+  },
+  "bin": {
+    "permdock": "./dist/cli/bin.js"
   },
   "files": [
     "dist",
+    "schemas",
+    "rulesets",
     "skills",
     "LICENSE"
   ],
@@ -210,6 +215,14 @@
     "./testing/saas/permissions": {
       "types": "./dist/testing/saas/permissions.d.ts",
       "default": "./dist/testing/saas/permissions.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/index.d.ts",
+      "default": "./dist/cli/index.js"
+    },
+    "./unplugin": {
+      "types": "./dist/unplugin/index.d.ts",
+      "default": "./dist/unplugin/index.js"
     }
   },
   "publishConfig": {
@@ -223,7 +236,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@standard-schema/spec": "catalog:"
+    "@standard-schema/spec": "catalog:",
+    "oxc-parser": "catalog:"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
@@ -241,10 +255,12 @@
     "@trpc/server": "catalog:",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "ai": "catalog:",
+    "ajv": "catalog:",
     "arktype": "catalog:",
     "elysia": "catalog:",
     "eve": "catalog:",
@@ -255,6 +271,8 @@
     "jose": "catalog:",
     "kysely": "catalog:",
     "next": "catalog:",
+    "pg": "catalog:",
+    "pgsql-parser": "catalog:",
     "publint": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -264,9 +282,11 @@
     "svelte": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
+    "unplugin": "catalog:",
     "valibot": "catalog:",
     "vitest": "catalog:",
     "vue": "catalog:",
+    "yaml": "catalog:",
     "zod": "catalog:"
   },
   "peerDependencies": {
@@ -290,11 +310,14 @@
     "jose": "catalog:peers",
     "kysely": "catalog:peers",
     "next": "catalog:peers",
+    "pg": "catalog:peers",
+    "pgsql-parser": "catalog:peers",
     "react": "catalog:peers",
     "reflect-metadata": "catalog:peers",
     "rxjs": "catalog:peers",
     "solid-js": "catalog:peers",
     "svelte": "catalog:peers",
+    "unplugin": "catalog:peers",
     "vitest": "catalog:peers",
     "vue": "catalog:peers"
   },
@@ -378,6 +401,15 @@
       "optional": true
     },
     "vitest": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    },
+    "pgsql-parser": {
+      "optional": true
+    },
+    "unplugin": {
       "optional": true
     }
   },

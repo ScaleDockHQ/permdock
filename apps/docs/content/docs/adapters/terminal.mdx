@@ -3,11 +3,11 @@ title: Terminal (your own CLI)
 description: permdock/terminal puts permission checks inside command-line tools you build with commander, citty, oclif, yargs, clack or Ink, with verified subjects from device flow, keychain, env or CI tokens, sysexits exit codes and Problem Details on --json.
 ---
 
-Not to be confused with `@permdock/cli`. That package is PermDock's own developer tool (`permdock collect`, `permdock doctor`); this page is about the library entry you import when the command-line tool is yours and its commands need to be authorised.
+Not to be confused with the `permdock` binary. That is PermDock's own developer tool (`permdock collect`, `permdock doctor`); this page is about the library entry you import when the command-line tool is yours and its commands need to be authorised.
 
-| | `permdock/terminal` (this page) | `@permdock/cli` |
+| | `permdock/terminal` (this page) | The `permdock` binary |
 |---|---|---|
-| What it is | A subpath of the `permdock` package, imported by the CLI you ship to your users | A separate dev-dependency with the `permdock` binary, run by you and your CI |
+| What it is | A subpath of the `permdock` package, imported by the CLI you ship to your users | The `bin` of the same `permdock` package, run by you and your CI |
 | What it does | Resolves a verified subject for the process, guards command actions, filters help output, formats denials, sets exit codes | Scans source, writes catalogs, checks OpenAPI and RLS drift; never evaluates a policy against a real subject ([CLI](/docs/cli)) |
 
 ## Purpose
@@ -89,7 +89,7 @@ Codes follow the BSD `sysexits.h` conventions so shell scripts and agents can br
 | `77` | `EX_NOPERM` | `denied`, including anonymous subjects and a declined approval prompt |
 | `78` | `EX_CONFIG` | The adapter is misconfigured: no verifier, unreachable authorization server metadata, async schema at a boundary |
 
-Failures inside your action keep whatever code your framework assigns; the adapter only sets codes for outcomes it produced. This is a different contract from the `0` / `1` / `2` codes of [`@permdock/cli`](/docs/cli), which reports findings, not permissions.
+Failures inside your action keep whatever code your framework assigns; the adapter only sets codes for outcomes it produced. This is a different contract from the `0` / `1` / `2` codes of the [`permdock` binary](/docs/cli), which reports findings, not permissions.
 
 ## Filtering help output
 
@@ -241,7 +241,7 @@ Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, p
 
 ## Why
 
-- The keychain peer is injected, not imported. `permdock` has no runtime dependencies (invariant 12), and a dynamic import of an optional native module breaks bundlers and single-file CLI builds. Passing `Entry` keeps the choice and the native build in the consumer's `package.json`.
+- The keychain peer is injected, not imported. `permdock`'s runtime entries import nothing but `@standard-schema/spec` (invariant 12), and a dynamic import of an optional native module breaks bundlers and single-file CLI builds. Passing `Entry` keeps the choice and the native build in the consumer's `package.json`.
 - `@napi-rs/keyring` is the recommendation because it ships prebuilt binaries for macOS Keychain, Windows Credential Manager and the Linux Secret Service, needs no `node-gyp` step, and replaced the archived `keytar`. Any class with the same `getPassword` / `setPassword` / `deletePassword` shape works.
 - The mode-0600 file stays as the fallback. Containers, CI runners and headless Linux have no secret service, and a CLI that cannot log in there is worse than one that stores a refreshable token in a file only its user can read. A successful keychain write removes the file copy for that profile.
 - `approval.at` and `hint` are shared with the HTTP adapters rather than terminal-only fields, so one client that reads `approval-required` Problem Details handles both a CLI's `--json` output and a 403 body.
@@ -258,4 +258,4 @@ Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, p
 - [MCP](/docs/adapters/mcp): `list_tools` filtering that `filterCommands` mirrors.
 - [Approvals](/docs/security/approvals): the replay-safe `token` and resume flow.
 - [Errors](/docs/concepts/errors): error classes and the Problem Details shape.
-- [CLI](/docs/cli): `@permdock/cli`, the developer tool this adapter is not.
+- [CLI](/docs/cli): the `permdock` binary, the developer tool this adapter is not.

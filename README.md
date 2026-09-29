@@ -10,7 +10,7 @@
 
 Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
 
-> **Status: pre-release.** Nothing is published yet; the first release of `permdock`, `@permdock/cli` and `permdock/testing` will be `0.1.0`. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
+> **Status: pre-release.** Nothing is published yet; the first release of `permdock` (one package: core, adapters, the `permdock` CLI and `permdock/testing`) will be `0.1.0`. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
 ## Why PermDock
 
@@ -34,13 +34,14 @@ Permission logic in a typical TypeScript app is spread across `if (user.role ===
 ## Install
 
 ```bash
-pnpm add permdock            # core + every adapter as subpath exports
-pnpm add -D @permdock/cli    # collect, catalog, usage, openapi, rls, doctor, skills
+pnpm add permdock   # core, every adapter as a subpath export, and the permdock CLI
 ```
+
+The `permdock` binary (collect, catalog, usage, openapi, rls, doctor, skills) ships in the same package.
 
 Test runners ship in the same package as `permdock/testing` (Vitest is an optional peer).
 
-ESM-only. TypeScript 5.9, 6 and 7 are tested. Core has no runtime dependencies other than `@standard-schema/spec`.
+ESM-only. TypeScript 5.9, 6 and 7 are tested. Runtime entries depend on `@standard-schema/spec` only; the CLI's one dependency, `oxc-parser`, never reaches them.
 
 ## Quick start
 
@@ -239,7 +240,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 | UI | `permdock/react` `react-vite` · `permdock/react-native` `expo` · `permdock/vue` `vue` · `permdock/svelte` `svelte` · `permdock/solid` `solid` |
 | Full-stack | `permdock/next` `next` |
 | HTTP | `permdock/server` kernel · `permdock/hono` `hono` · `permdock/express` `express` · `permdock/fastify` `fastify` · `permdock/elysia` `elysia` · `permdock/nest` `nest` · `permdock/node` |
-| Terminal | `permdock/terminal` `terminal` for your own commander / citty / oclif / yargs / Ink CLI (not `@permdock/cli`) |
+| Terminal | `permdock/terminal` `terminal` for your own commander / citty / oclif / yargs / Ink CLI (not the `permdock` binary) |
 | RPC | `permdock/trpc` `trpc` · `permdock/orpc` `orpc` |
 | Agents | `permdock/mcp` `mcp-server` · `permdock/ai-sdk` `ai-sdk-agent` · `permdock/claude-agent` `claude-agent` · `permdock/eve` `eve-agent` · `permdock/openai` `openai-agent` · `permdock/webmcp` `webmcp` · `permdock/a2a` `a2a-agent` |
 | Decision plane | `permdock/authzen` `authzen-pdp` · `permdock/approvals` (`ApprovalStore`, `approvalsHandler`) · `permdock/cloud` (optional PermDock Cloud client) · `permdock/scim` (`scimHandler`, `DirectoryStore`) · `permdock/ssf` · `permdock/openapi` (3.2 document or Overlay) · `permdock/otel` · `permdock/pdp` |
@@ -249,7 +250,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 
 Full matrix with related standards: [Adapters](./apps/docs/content/docs/adapters/index.mdx).
 
-Nuxt, Astro, React Router, TanStack Start and Effect use the existing adapters plus `@permdock/cli/unplugin` ([unplugin recipes](./apps/docs/content/docs/cli/unplugin.mdx)); there is no `permdock/nuxt` or other per-vendor package ([adapters](./apps/docs/content/docs/adapters/index.mdx)).
+Nuxt, Astro, React Router, TanStack Start and Effect use the existing adapters plus `permdock/unplugin` ([unplugin recipes](./apps/docs/content/docs/cli/unplugin.mdx)); there is no `permdock/nuxt` or other per-vendor package ([adapters](./apps/docs/content/docs/adapters/index.mdx)).
 
 Around the OpenAPI output, PermDock composes with the tools you already run rather than wrapping them: next-openapi-gen (Next.js, TanStack Start, React Router, SvelteKit, Nuxt, Astro), Redocly CLI, Bump.sh and Speakeasy apply the Overlay; Hey API, Orval, Kubb, Scalar, Mintlify, Fern and OpenAPI-to-MCP bridges read the result as standard `security`; Schemathesis and oasdiff turn it into CI checks. The same rule covers MCP hosting (`mcp-handler`), approval delivery (Vercel Chat SDK to Slack and Teams), identity providers and observability sinks. Recipes on the [OpenAPI adapter](./apps/docs/content/docs/adapters/openapi.mdx) and [approvals](./apps/docs/content/docs/adapters/approvals.mdx) pages; every named tool in the [ecosystem index](./apps/docs/content/docs/research/ecosystem-index.mdx); the rule on the [adapters](./apps/docs/content/docs/adapters/index.mdx) page.
 

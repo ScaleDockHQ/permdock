@@ -91,7 +91,7 @@ permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay
     {
       "target": "$",
       "description": "Catalog fingerprint for permdock openapi --check",
-      "update": { "x-permdock-catalog": { "v": 1, "generator": "@permdock/cli", "catalog": "sha256:..." } }
+      "update": { "x-permdock-catalog": { "v": 1, "generator": "permdock/openapi", "catalog": "sha256:..." } }
     }
   ]
 }
@@ -157,7 +157,7 @@ The 1.2 form differs from the 1.1 form in exactly one way: every operation `upda
       "update": {
         "x-permdock-catalog": {
           "v": 1,
-          "generator": "@permdock/cli",
+          "generator": "permdock/openapi",
           "catalog": "sha256:...",
           "drafts": { "overlay": "1.2-dev@<commit>" }
         }
