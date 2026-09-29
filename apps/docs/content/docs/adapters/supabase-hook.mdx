@@ -72,7 +72,7 @@ export default defineConfig({
   supabase: {
     hook: {
       memberships: sources(),
-      profile: { table: 'profiles', columns: ['locale', 'timezone'] },
+      attrs: { table: 'profiles', columns: ['region', 'clearance', 'app_metadata.regions'] },
     },
   },
 })
@@ -90,9 +90,9 @@ The output is one idempotent migration:
   - `roles` (every global role) and `user_role` (a string for one role, an array for several; absent for none, so `app_metadata` still applies) from `supabase.hook.roles`, by default `<schema>.user_roles (user_id, role)`;
   - `memberships`: a `union all` over every source, in the canonical `{ scope, id, within?, roles, via?, expiresAt?, managedBy?, entitlements? }` form;
   - the active tenant claim (`rls.tenantClaim`, default `tenant_id`), only when the user holds a membership in it. The active first-scope id comes from `app_metadata.active_<first scope>` by default; `--active-from` (or `supabase.hook.activeFrom`) takes `app_metadata.<key>`, `<table>.<column>` joined on `id`, or `{ table, id, column }`;
-  - `attrs`: the allow-listed `profile.columns`, never other columns;
+  - `attrs`: the allow-listed attribute columns and `app_metadata` keys (below), never other columns;
   - `authz_ver`: the user's authorization version (below).
-- The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, roles, profile, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
+- The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, roles, the `attrs` table, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
 - `permdock_authz_version (user_id, version)` and the `permdock_bump_authz_version` trigger on every source table and the roles table.
 - The `permdock_protect_managed` trigger on sources with `managedBy`.
 - The `config.toml` block, printed and repeated as a comment:
@@ -108,9 +108,25 @@ uri = "pg-functions://postgres/public/custom_access_token_hook"
 
 `jwt_expiry = 900` bounds how long a demotion can take to reach a token: 15 minutes, set with `supabase.hook.jwtExpiry`. The command refuses a source whose scope the policy does not declare, a single-scope source without a `within` column for every ancestor (such a membership grants nothing), a non-positive budget and unsafe identifiers.
 
+## Attributes
+
+`supabase.hook.attrs` fills the `attrs` claim that [attribute conditions](/docs/adapters/rls#subject-attributes-abac) read: `where: { region: principal.claims.attrs.region }` compiles to `region = ((select auth.jwt()) -> 'attrs' ->> 'region')` in RLS and reads `principal.claims.attrs.region` from `subjectFromSupabase` in the app, from the same claim.
+
+```ts
+attrs: {
+  table: 'profiles',          // joined on `id` (set `id` for another column)
+  columns: ['region', 'clearance', 'app_metadata.regions'],
+}
+```
+
+- A plain entry is a column of `table`; `app_metadata.<key>` reads `auth.users.raw_app_meta_data`, which only the server writes. Each entry's last segment is the claim key, and must match `^[A-Za-z_][A-Za-z0-9_]*$` so a nested ref can name it.
+- Only server-owned values may become attributes. `generate` refuses `user_metadata` and `raw_user_meta_data` in any form, `auth.users` as the table (use `app_metadata.<key>`), prototype keys and a key named twice.
+- The migration starts with a guard: when `anon` or `authenticated` can insert or update any listed column (`has_column_privilege`, which counts table-level and `public` grants), it raises `42501` and installs nothing. Grant clients column-level `update` on other columns only. `permdock doctor` PD028 reports the same from your migrations, before you run them.
+- The hook drops any `attrs` the incoming claims carry and writes its own, so an attribute is never whatever the client sent.
+
 ## Size budget
 
-Claims travel in the session cookie and on every request. The hook adds memberships in order, the active tenant's first, then source order, and stops before the `memberships` array would exceed `supabaseMembershipsBudget` bytes of JSON (1024 by default, measured with `octet_length`; set with `--budget` or `supabase.hook.budget`). When it stops early it sets `memberships_truncated: true`.
+Claims travel in the session cookie and on every request. The budget, `supabaseMembershipsBudget` bytes of JSON (1024 by default, measured with `octet_length`; set with `--budget` or `supabase.hook.budget`), covers `attrs` and `memberships` together. `attrs` is sized first: when it alone exceeds the budget it is left out whole and `memberships_truncated: true` is set, so attribute conditions deny rather than read half an object. The hook then adds memberships in order, the active tenant's first, then source order, and stops before the two together would exceed the budget, again setting `memberships_truncated: true`.
 
 `subjectFromSupabase` surfaces the flag as `principal.membershipsTruncated`. With `claimsFirst`, the subject then reads every membership from the sources, so a user in 40 organizations still gets all 40 on the server while the token stays small. RLS in `jwt` mode only sees the kept entries; use `database` mode ([RLS](/docs/cli/rls)) when members routinely exceed the budget.
 
@@ -142,6 +158,7 @@ A seat belongs to one membership, not the tenant: a Dev Mode seat in one organiz
 - **One definition, two readers.** The sources run the exact `select` the hook compiles, and the integration suite checks that the claim equals what `composeMemberships` returns for the same user. A hand-written hook next to a hand-written source is two definitions of who belongs where.
 - **The active scope first, then truncation.** A token that cannot hold every membership should hold the ones the next request needs. Truncating silently would turn a large customer into a user with random missing access; the flag makes the server read the rest.
 - **A version, not a shorter expiry, for sensitive verbs.** Dropping `jwt_expiry` to a minute taxes every request to protect a few. The version costs one indexed lookup per request that uses `claimsFirst` with `version`, and only `fresh` permissions depend on it. Missing either side counts as stale, because a check that passes when it cannot compare fails open.
+- **Attributes are server-owned or absent.** An attribute that decides row access and that the user can edit is a self-grant. Refusing `user_metadata` catches the obvious case; the migration guard catches a `profiles` table with a broad `update` grant, which is the common one.
 - **IdP ownership is enforced where edits happen.** The member list, `decideRoleChange` and the database all refuse, so a client that skips the UI still cannot edit a SCIM-provisioned row.
 - **Plans from billing, seats per membership.** Stripe recommends reading entitlements as a projection of billing state; a per-membership seat keeps "which products this person uses here" apart from permissions and from other tenants.
 
