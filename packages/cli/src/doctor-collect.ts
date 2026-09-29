@@ -236,6 +236,38 @@ export async function pd017(input: {
   return findings;
 }
 
+export async function pd024(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  for (const grant of policy.grants) {
+    const approval = grant.approval;
+    if (
+      grant.effect !== 'allow' ||
+      approval === undefined ||
+      approval === 'human' ||
+      approval.distinct !== false
+    ) {
+      continue;
+    }
+    findings.push({
+      code: 'PD024',
+      severity: 'warning',
+      message: `${grant.permission.key}${grant.role === null ? '' : ` (role ${grant.role})`} sets approval.distinct: false, so the requester can approve their own request`,
+      fix: 'remove distinct: false unless the requester confirming their own call (an agent asking its user) is the intent',
+    });
+  }
+  return findings;
+}
+
 type MembershipsFixture = {
   readonly customRoles?: readonly CustomRole[];
   readonly memberships?: readonly {

@@ -75,7 +75,7 @@ if (pending.length === 0) result = await run(agent, state) // every interruption
 | unmapped tool, validation error, thrown resolver | `true` then reject | Fail closed |
 
 4. The application persists `result.state.toString()` and shows the pending requests (its own UI, `approvalsHandler`, or the PermDock Cloud inbox). The token lives only in the store; it is not placed inside `RunState`, because serialised state travels with the request and may be logged.
-5. A person resolves the request; the store records the approver. The actor (the agent) cannot approve its own call.
+5. A person resolves the request; the store records the approver. The actor (the agent) cannot approve its own call, and the principal cannot either unless the grant sets `approval: { distinct: false }`.
 6. The application restores `RunState` with a fresh context, calls `resolveInterruptions`, and resumes with `run(agent, state)` once nothing is pending. The adapter re-runs `decide` and recomputes `token`: an approved record resumes one call and is consumed, so restoring the same state again rejects the call; another principal's resume never matches the token.
 7. Every step emits `on('decision')`; ask, answer and resumed decision share `token`.
 

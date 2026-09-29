@@ -208,6 +208,26 @@ describe('hosted grants', () => {
     expect(dock.can(permissions.invoice.read, unlocked)).toBe(true);
   });
 
+  it('drops a hosted approval that lets the requester approve a human grant', async () => {
+    const { errors } = await withDocument(member, [
+      {
+        id: 'g_self',
+        permission: 'invoice.delete',
+        to: { kind: 'role', role: 'auditor', scope: 'global' },
+        approval: { distinct: false },
+      },
+      {
+        id: 'g_human',
+        permission: 'invoice.delete',
+        to: { kind: 'role', role: 'auditor', scope: 'global' },
+        approval: 'human',
+      },
+    ]);
+    expect(
+      errors.map((error) => (error as { readonly reason: string }).reason),
+    ).toEqual(['weaker-approval']);
+  });
+
   it('drops a grant on a permission the policy does not mark hostable', () => {
     const narrow = definePolicy(permissions, {
       roles: [role('member', [])],

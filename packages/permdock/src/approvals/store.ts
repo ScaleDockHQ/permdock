@@ -140,7 +140,7 @@ export function assertApprover(
     );
   }
   const distinct =
-    requireDistinctApprover || request.approvers?.distinct === true;
+    requireDistinctApprover || request.approvers?.distinct !== false;
   if (
     distinct &&
     request.subject.principal !== null &&

@@ -12,6 +12,7 @@ export type ApprovalsHandlerOptions = {
   readonly subject: (
     request: Request,
   ) => Subject | null | undefined | Promise<Subject | null | undefined>;
+  /** Refuse the principal even on grants that set `approval: { distinct: false }`. */
   readonly requireDistinctApprover?: boolean;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];

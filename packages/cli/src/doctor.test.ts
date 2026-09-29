@@ -418,6 +418,54 @@ export const policy = definePolicy(permissions, {
     expect(codes(result.stdout)).toContain('PD017');
   });
 
+  it('PD024 warns on each approval that lets the requester approve', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/self-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.delete, { approval: { distinct: false } }),
+      allow(permissions.post.update, { approval: 'human' }),
+    ]),
+    role('admin', [
+      allow(permissions.post.delete, { approval: { by: 'admin', distinct: true } }),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/self-policy.ts',
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'self-approval'], {
+      cwd,
+    });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings).toEqual([
+      expect.objectContaining({
+        code: 'PD024',
+        message:
+          'post.delete (role member) sets approval.distinct: false, so the requester can approve their own request',
+      }),
+    ]);
+  });
+
   it('PD019 warns when JWT-mode authorize() outlives an hour with sensitive grants', async () => {
     const jwt = await runPd019('jwt', 86_400);
     expect(codes(jwt.stdout)).toContain('PD019');

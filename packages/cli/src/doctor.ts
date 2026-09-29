@@ -15,6 +15,7 @@ import {
   pd020,
   pd021,
   pd023,
+  pd024,
 } from './doctor-collect.ts';
 import { pd005, pd006, pd009, pd012, pd022 } from './doctor-project.ts';
 import {
@@ -152,6 +153,9 @@ export async function runDoctor(input: {
   }
   if (include('custom-roles') || include('PD023')) {
     findings.push(...(await pd023(input)));
+  }
+  if (include('self-approval') || include('PD024')) {
+    findings.push(...(await pd024(input)));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

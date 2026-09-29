@@ -640,6 +640,45 @@ export function testApprovalStore(
       ),
     ).rejects.toThrow(/eligible|not pending|not found/);
   });
+
+  it('refuses the principal as approver unless the grant sets distinct: false', async () => {
+    const principal: Subject = {
+      principal: { id: 'u_1', roles: ['admin'] },
+      context: {},
+    };
+    const admin = {
+      kind: 'role' as const,
+      role: 'admin',
+      scope: 'global' as const,
+    };
+    const shapes = [
+      ['self-human', undefined],
+      ['self-by', { by: admin }],
+      ['self-distinct', { by: admin, distinct: true }],
+    ] as const;
+    for (const [token, approvers] of shapes) {
+      await store.create(
+        approvers === undefined
+          ? sampleApproval(token)
+          : { ...sampleApproval(token), approvers },
+      );
+      await expect(
+        Promise.resolve().then(() =>
+          store.resolve(token, { status: 'approved', by: principal }),
+        ),
+      ).rejects.toThrow(/principal/u);
+      expect((await store.get(token))?.status).toBe('pending');
+    }
+    await store.create({
+      ...sampleApproval('self-optout'),
+      approvers: { by: admin, distinct: false },
+    });
+    const resolved = await store.resolve('self-optout', {
+      status: 'approved',
+      by: principal,
+    });
+    expect(resolved.resolvedBy).toBe('u_1');
+  });
 }
 
 function decodeHeader(token: string): Record<string, unknown> {
