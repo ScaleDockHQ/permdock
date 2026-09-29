@@ -124,6 +124,8 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'stale-approval':
       case 'undocumented':
       case 'unsupported':
+      case 'exceeds-creator':
+      case 'credential-policy':
         return true;
       default: {
         const exhaustive: never = denial.reason;

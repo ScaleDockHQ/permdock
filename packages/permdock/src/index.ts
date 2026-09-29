@@ -48,6 +48,7 @@ export type {
 export {
   memoryEntitlementSource,
   memoryRoleSource,
+  memorySettings,
 } from './core/interfaces.ts';
 export {
   claimsFirst,
@@ -72,6 +73,8 @@ export type {
 } from './core/hosted.ts';
 export type {
   AuthEvent,
+  CredentialEvent,
+  CredentialVerifier,
   DecisionEvent,
   DecisionProvider,
   DecisionSink,
@@ -85,12 +88,14 @@ export type {
   MemberEntry,
   MembershipSource,
   RoleSource,
+  SettingsSource,
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
   SnapshotScope,
   SnapshotSource,
   SubjectResolver,
+  TenantSettings,
   TokenFailureCause,
   TokenSigner,
   TokenVerifier,
@@ -219,6 +224,7 @@ export type {
 } from './core/ownership.ts';
 export {
   CLOUD_EVENT_TYPES,
+  credentialEvent,
   membershipEvent,
   memorySink,
   signDecisionBatch,
@@ -253,6 +259,25 @@ export type {
   LinkPrincipal,
   SignCapabilityOptions,
 } from './core/capability.ts';
+export {
+  credentialDelegation,
+  credentialPolicyViolation,
+  credentialSubject,
+  decideCredential,
+  parseCredential,
+} from './core/credential.ts';
+export type {
+  Credential,
+  CredentialDecision,
+  CredentialKind,
+  CredentialPermission,
+  CredentialPermissionInput,
+  CredentialPolicy,
+  CredentialPolicyViolation,
+  CredentialPrincipal,
+  CredentialRequest,
+  DecideCredentialOptions,
+} from './core/credential.ts';
 export type { OcsfAuthorizeSession } from './core/ocsf.ts';
 export type {
   Actor,

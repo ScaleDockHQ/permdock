@@ -130,7 +130,7 @@ const MAX_ID = 256;
 const MAX_ENTRIES = 64;
 
 /** A copy holding only own enumerable properties, so a prototype never supplies a field. */
-function ownRecord(value: unknown): Record<string, unknown> | undefined {
+export function ownRecord(value: unknown): Record<string, unknown> | undefined {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;
   }
@@ -143,13 +143,13 @@ function ownRecord(value: unknown): Record<string, unknown> | undefined {
   return record;
 }
 
-function isId(value: unknown): value is string {
+export function isId(value: unknown): value is string {
   return (
     typeof value === 'string' && value.length > 0 && value.length <= MAX_ID
   );
 }
 
-function idList(value: unknown): readonly string[] | undefined {
+export function idList(value: unknown): readonly string[] | undefined {
   if (
     !Array.isArray(value) ||
     value.length === 0 ||

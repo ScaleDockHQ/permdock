@@ -116,6 +116,19 @@ function validData(
       return data.type === 'directory' && typeof data.tenant === 'string';
     case 'dev.permdock.membership':
       return data.type === 'membership' && isRecord(data.principal);
+    case 'dev.permdock.credential':
+      return (
+        data.type === 'credential' &&
+        isRecord(data.credential) &&
+        typeof data.credential.id === 'string' &&
+        (data.credential.kind === 'user' ||
+          data.credential.kind === 'service') &&
+        isRecord(data.principal) &&
+        (data.operation === 'created' ||
+          data.operation === 'used' ||
+          data.operation === 'rotated' ||
+          data.operation === 'revoked')
+      );
     case 'dev.permdock.catalog':
       return (
         (data.kind === 'publish' || data.kind === 'drift') &&

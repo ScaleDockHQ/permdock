@@ -1,4 +1,9 @@
 import type { Condition } from '../conditions/ast.ts';
+import type {
+  Credential,
+  CredentialKind,
+  CredentialPolicy,
+} from './credential.ts';
 import type { Decision } from './decision.ts';
 import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
@@ -311,7 +316,39 @@ export type MembershipEvent = {
   readonly by?: { readonly id: string; readonly kind: string };
 };
 
-export type SinkEvent = DecisionEvent | DirectoryEvent | MembershipEvent;
+/**
+ * An API key's lifecycle: `created`, `rotated` and `revoked` from the
+ * application or a credential store, `used` from `subjectFromApiKey`. A
+ * `used` event carries `sample`, the fraction of uses reported.
+ */
+export type CredentialEvent = {
+  readonly type: 'credential';
+  readonly at: string;
+  readonly source: string;
+  readonly operation: 'created' | 'used' | 'rotated' | 'revoked';
+  readonly credential: { readonly id: string; readonly kind: CredentialKind };
+  readonly principal: { readonly id: string };
+  readonly tenant?: string;
+  readonly expiresAt?: number;
+  readonly by?: { readonly id: string; readonly kind: string };
+  readonly sample?: number;
+};
+
+export type SinkEvent =
+  | DecisionEvent
+  | DirectoryEvent
+  | MembershipEvent
+  | CredentialEvent;
+
+/**
+ * Looks up the credential an API key stands for. `null` for a key that is
+ * malformed, unknown, revoked or whose secret does not match; never throws
+ * for bad input. Verification is the application's (or `apiKeyVerifier`'s),
+ * never core's.
+ */
+export type CredentialVerifier = {
+  verify(secret: string): Credential | null | Promise<Credential | null>;
+};
 
 export type DecisionEvent = {
   readonly type: 'decision';
@@ -330,6 +367,11 @@ export type DecisionEvent = {
     readonly delegation?: {
       readonly scopes?: readonly string[];
       readonly authorizationDetails?: readonly unknown[];
+    };
+    /** The API key the subject came from. */
+    readonly credential?: {
+      readonly id: string;
+      readonly kind: CredentialKind;
     };
   };
   readonly tenant?: string;
@@ -381,6 +423,33 @@ export type AuthEvent = {
   readonly issuer?: string;
   readonly requestId?: string;
 };
+
+/** What one tenant configures for itself. Every field only tightens. */
+export type TenantSettings = {
+  /** Rules for API keys created in, or used against, this tenant. */
+  readonly credentials?: CredentialPolicy;
+};
+
+/**
+ * Per-tenant settings, a subject input like `RoleSource`: they tighten what
+ * a key may be and never grant. A throw denies.
+ */
+export type SettingsSource = {
+  settingsFor(
+    tenant: string,
+  ): TenantSettings | undefined | Promise<TenantSettings | undefined>;
+};
+
+export function memorySettings(
+  settings: Readonly<Record<string, TenantSettings>>,
+): SettingsSource {
+  const byTenant = new Map(Object.entries(settings));
+  return Object.freeze({
+    settingsFor(tenant: string): TenantSettings | undefined {
+      return byTenant.get(tenant);
+    },
+  });
+}
 
 export function memoryRoleSource(
   customRoles: readonly CustomRole[],
