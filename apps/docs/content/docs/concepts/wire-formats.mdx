@@ -273,15 +273,35 @@ Hosted grants travel as a `PolicyDocument` under the `policy` claim of a `permdo
 
 `effect` defaults to `allow`. `to` is one grantee or an array (an intersection) of `role`, `plan` and `relation` grantees; `where` and `check` are portable conditions only; `approval` is `"human"` or the object form, with `distinct` defaulting to `true` as on a code grant, so a hosted `distinct: false` on a permission a code allow guards with an approval is dropped as `weaker-approval`; `fields` is an optional string list. `catalog` is the fingerprint of the `permdock collect` catalog the document was authored against, and `fingerprint` is what `matched.hosted.document` records. `parsePolicyDocument` rejects a `v` other than `1`, a missing envelope field and any `__proto__`, `constructor` or `prototype` key; grant-level problems drop only that grant.
 
+## Capability
+
+A share link travels as a `Capability` under the `capability` claim of a `permdock-capability+jwt` ([link capabilities](/docs/concepts/capabilities)). `on` has the shape of a resource membership's `on`, and the resolver turns the object into exactly that membership.
+
+```json
+{
+  "v": 1,
+  "id": "lnk_01J8…",
+  "holder": "link",
+  "on": { "resource": "quote", "id": "q_1" },
+  "roles": ["guest"],
+  "permissions": ["quote.read"],
+  "redeemer": "anyone",
+  "once": true,
+  "expiresAt": 1791600000
+}
+```
+
+`id` is the link id and equals the token's `sub`; `holder` is `link` or the reserved `key`; `roles` holds 1 to 64 role names and `permissions`, when present, 1 to 64 permission keys; `redeemer` is `"anyone"`, `"signed-in"`, `{ "user": "<id>" }` or `{ "scope": "<name>", "id": "<id>" }`; `once` is `true` or absent; `expiresAt` is NumericDate seconds. `parseCapability` rejects a `v` other than `1`, a wrong type in any of these fields, and reads own properties only (never `__proto__`, `constructor` or `prototype`); unknown fields are dropped. The same object is the `capability` claim of the Supabase access token `exchangeCapability` mints, which the generated `permdock_capability_ids` helper reads.
+
 ## Signed outputs
 
-Four artefacts can leave the process as compact JWS (RFC 7515) signed by a `TokenSigner` ([extension interfaces](/docs/concepts/extension-interfaces), [JOSE](/docs/standards/jose)). Signing is additive: the JSON object above is placed unchanged under one private claim next to registered JWT claims, so no `v` changes and a reader that already understands the JSON form understands the payload. Anything that can verify a JWS against a JWK Set, in any language, can verify these.
+Five artefacts can leave the process as compact JWS (RFC 7515) signed by a `TokenSigner` ([extension interfaces](/docs/concepts/extension-interfaces), [JOSE](/docs/standards/jose)). Signing is additive: the JSON object above is placed unchanged under one private claim next to registered JWT claims, so no `v` changes and a reader that already understands the JSON form understands the payload. Anything that can verify a JWS against a JWK Set, in any language, can verify these.
 
-The envelope is the same for all four:
+The envelope is the same for all five:
 
-- **Header**: exactly `alg`, `kid` and `typ`. `alg` is one of the [`permdock/jwt`](/docs/adapters/jwt) allow-list (`ES256`, `PS256`, `Ed25519`; `RS256` outside `profile: 'fapi2'`); never `none`. `kid` names a key in the signer's JWK Set. `typ` is one of the four values below and a verifier rejects any other. No `crit`, no `jku`, no `x5u`, no embedded `jwk`: the verifier is configured with the key set, never told where to fetch it by the token.
-- **Registered claims**: `iss` (the signing service's URL), `aud` (the intended consumer), `iat`, `exp`, `jti` (RFC 7519 section 4.1). `sub` is present when the artefact is about one principal and equals `subject.principal.id`. All times are NumericDate seconds.
-- **One private claim** carrying the artefact: `snapshot`, `approval`, `events` or `policy`. Nothing PermDock-specific appears at the top level; PermDock never registers a claim name in the IANA JWT registry for these.
+- **Header**: exactly `alg`, `kid` and `typ`. `alg` is one of the [`permdock/jwt`](/docs/adapters/jwt) allow-list (`ES256`, `PS256`, `Ed25519`; `RS256` outside `profile: 'fapi2'`); never `none`. `kid` names a key in the signer's JWK Set. `typ` is one of the five values below and a verifier rejects any other. No `crit`, no `jku`, no `x5u`, no embedded `jwk`: the verifier is configured with the key set, never told where to fetch it by the token.
+- **Registered claims**: `iss` (the signing service's URL), `aud` (the intended consumer), `iat`, `exp`, `jti` (RFC 7519 section 4.1). `sub` is present when the artefact is about one principal and equals `subject.principal.id` (for a capability, the link id, which becomes the link principal's id). All times are NumericDate seconds.
+- **One private claim** carrying the artefact: `snapshot`, `approval`, `events`, `policy` or `capability`. Nothing PermDock-specific appears at the top level; PermDock never registers a claim name in the IANA JWT registry for these.
 
 | `typ` | Private claim | Producer | Consumer |
 | --- | --- | --- | --- |
@@ -289,6 +309,7 @@ The envelope is the same for all four:
 | `permdock-approval+jwt` | `approval`: `{ "token": "pd1.…", "permission", "resource": { "type", "id" }, "status" }` | `approvalsHandler({ signer })` on resolve, for a resume that crosses services | The resuming adapter, which still re-runs `decide` and recomputes the bound `token` |
 | `permdock-decisions+jwt` | `events`: an array of CloudEvents-enveloped events (decision and approval from a sink; any of the five types in a Cloud webhook delivery) | A `DecisionSink` with a `signer` (`memorySink({ signer })` or `signDecisionBatch`) ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline |
 | `permdock-policy+jwt` | `policy`: a PolicyDocument | PermDock Cloud, for each published hosted-grant revision | `cloud().policies.refresh()` through the application's `TokenVerifier`, with `iss` and `aud` checked against the environment URL |
+| `permdock-capability+jwt` | `capability`: a Capability | `signCapability(input, signer, { audience })` in the application | `subjectFromCapability` in `permdock/jwt`, with `iss` and `aud` required |
 
 Signed snapshot, decoded:
 
@@ -310,16 +331,17 @@ Signed snapshot, decoded:
 
 Rules that hold for every signed output:
 
-- `exp` equals the artefact's own expiry (`snapshot.expiresAt`, `approval` request `expiresAt`) when it has one; otherwise the signer's default (one hour for `permdock-decisions+jwt`). A verifier applies `exp` before reading the private claim.
+- `exp` equals the artefact's own expiry (`snapshot.expiresAt`, `approval` request `expiresAt`, `capability.expiresAt`) when it has one; otherwise the signer's default (one hour for `permdock-decisions+jwt`). A verifier applies `exp` before reading the private claim.
 - `iat` equals `snapshot.issuedAt` for snapshots. A tampered persisted snapshot fails signature verification, so `issuedAt` needs no separate protection.
 - `sub` is redundant with `snapshot.subject.principal.id` by design: a consumer can route or cache on registered claims without parsing the private claim.
 - A signed approval never replaces the bound hash `token`: the resuming adapter verifies the JWS, then compares `approval.token` with a freshly recomputed token exactly as it would for a bare `PermDock-Approval` header. The JWS proves who resolved it; the token proves what was approved.
 - A signed decision batch is evidence, not input: no PermDock code path reads `events` back to make a decision.
-- A signed policy document is the one signed input. It reaches a decision only through `PolicySource.current()`, only for `hostable` permissions, and only after `typ`, `iss`, `aud` and `exp` verify; an unverifiable document is absent. Its `iss` and `aud` are both the Cloud environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` (the document is addressed to every instance of the environment, not to one application), and `exp` is `iat` plus 24 hours: an instance that stops refreshing falls back to its code policy within a day.
+- A signed capability is a subject input, like a verified access token: it reaches a decision only as the link subject `subjectFromCapability` returns, after `typ`, `iss`, `aud`, `exp`, the `sub` binding, revocation and one-time use are checked, and it can only ever hold resource-scoped roles on its one resource.
+- A signed policy document is the one signed policy input. It reaches a decision only through `PolicySource.current()`, only for `hostable` permissions, and only after `typ`, `iss`, `aud` and `exp` verify; an unverifiable document is absent. Its `iss` and `aud` are both the Cloud environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` (the document is addressed to every instance of the environment, not to one application), and `exp` is `iat` plus 24 hours: an instance that stops refreshing falls back to its code policy within a day.
 - Keys are published as a JWK Set at `/.well-known/jwks.json` by any signer that serves consumers outside its process; PermDock Cloud publishes one per environment at `<PERMDOCK_CLOUD_URL>/v1/environments/<env>/.well-known/jwks.json` (`cloud().jwks`), which verifies every artefact that environment signs. Rotation is the JWKS rule consumers already apply to identity providers: publish the new `kid`, keep the old key until every artefact signed with it has expired.
-- These four `typ` values are recorded on [OpenAPI registry](/docs/standards/openapi-registry); an artefact is never emitted with a `typ` that page does not list.
+- These five `typ` values are recorded on [OpenAPI registry](/docs/standards/openapi-registry); an artefact is never emitted with a `typ` that page does not list.
 
-JWE is not used for any output: snapshots are UI-only and contain nothing the subject may not see, approval tokens are bound hashes, decision batches go to destinations that already hold the events, and a policy document holds grants the application's own code bounds. A team that needs confidentiality wraps the JWS in JWE on its own transport.
+JWE is not used for any output: snapshots are UI-only and contain nothing the subject may not see, approval tokens are bound hashes, decision batches go to destinations that already hold the events, a policy document holds grants the application's own code bounds, and a capability names only a resource id and role names the link holder is meant to use. A team that needs confidentiality wraps the JWS in JWE on its own transport.
 
 `permdock/testing` ships one fixture per `typ` (a key pair, the signed compact form, the decoded payload) and `testTokenSigner` asserts that a custom signer's output for the fixture payload verifies with the fixture public key and carries exactly the three header parameters.
 
@@ -513,7 +535,7 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 
 ## Versioning
 
-- The snapshot `v`, the approval request `v`, the policy document `v` and the catalog `version` follow the format, not the package version, and are all `1`. Before the first release a format changes in place and stays at `1`; after it, a breaking change to a shape bumps the major. Readers reject unknown majors.
+- The snapshot `v`, the approval request `v`, the policy document `v`, the capability `v` and the catalog `version` follow the format, not the package version, and are all `1`. Before the first release a format changes in place and stays at `1`; after it, a breaking change to a shape bumps the major. Readers reject unknown majors.
 - The JWS envelope of a signed output is versioned by its `typ`: a change to the header set, the registered claims or the private claim name is a new `typ` (`permdock-snapshot.v2+jwt`), never a silent change, so a verifier configured for one `typ` keeps rejecting what it does not understand.
 - Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning. New condition `op` values (such as `sqlFunction`) are additive; readers that do not know an op deny.
 - AuthZEN messages follow the 1.0 spec; PermDock-specific data lives only under the evaluation `context.permdock`: from `permdock/authzen`, `outcome`, `denials` as `{ role, reason }`, `token` on `approval-required`, and `reason: 'unknown-permission'`; from the application's own decision endpoint (`permdockHandler`), the full Decision. `alternatives` reach another PEP only through `search/action`.

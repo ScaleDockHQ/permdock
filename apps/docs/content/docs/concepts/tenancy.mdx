@@ -109,6 +109,8 @@ const editor = role('editor', [allow([permissions.document.update, permissions.f
 
 An `editor` membership on folder `f_1` matches `document.update` for a document whose `folderId` is `f_1`. Matching is keyed by the membership's resource: the row's own id field identifies it only when the row is of that resource, and a descendant row matches through the parent field of that resource on its chain, so a document whose `id` happens to be `f_1` does not match. A membership on the role's resource or one of its ancestors counts (a project editor edits the documents of its folders when the document row carries `projectId`); a membership on an unrelated resource never does. The chain is finite because it is typed: document to folder to project, three hops, declared once. `parent.resource` is the parent **name string**, not a reference; a resource declares at most one parent; the name is resolved at `definePolicy` after any `mergePermissions`. Self-referential parents (folders in folders) are deliberately not expressible; that is the Zanzibar case and the [pdp adapter](/docs/adapters/pdp) bridges it ([roadmap](/docs/roadmap) non-goals). The row must carry the parent field; a missing parent field is a non-match, never a walk-up query.
 
+A share link is a principal holding exactly one such membership, `{ on, roles, via: 'link' }`, from a signed capability ([link capabilities](/docs/concepts/capabilities)).
+
 ### Grants over several references
 
 `allow` and `deny` accept an array of references so a role does not repeat a condition per action:
@@ -196,6 +198,7 @@ Every adapter's `createPermDock` accepts `memberships` (a `MembershipSource`) an
 | [JWT issuers](/docs/adapters/jwt) | `claims.tenant` (`org_id`, `tid`, `hd`, ...) | RFC 9068 `roles`; per-tenant objects such as Descope `tenants.<id>.roles` through a claim path | RFC 9068 `groups` become memberships of the active tenant with `via: 'group:<value>'` and `groupRoles` | Keyed on SCIM `value`, never `display` |
 | [PermDock Cloud](/docs/adapters/cloud) (Cloud-native directory) | The `tenant` claim on the Cloud-issued token, kept only with a matching membership | The `memberships` claim, `[{ scope, id, within?, roles, via?, expiresAt? }]` (the `{ tenant, team? }` form is still accepted), minted from declared `assignable` roles | A membership of the second scope, or `groups` | Read through `subjectFromJwt` with `claims: { tenant: 'tenant', memberships: 'memberships' }`; never a `MembershipSource` |
 | Your own tables | Whatever you store | `context` or a `MembershipSource` | Same | The common case for resource roles (`document_members`) |
+| [Share links](/docs/concepts/capabilities) | None: a link is never in a tenant | None | One resource membership `{ on, roles, via: 'link' }` from the verified capability | `subjectFromCapability`; a role named in the link applies only if it is declared on that resource |
 
 The [authentication](/docs/concepts/authentication) page carries the full provider table; each provider page has a "Memberships" section.
 

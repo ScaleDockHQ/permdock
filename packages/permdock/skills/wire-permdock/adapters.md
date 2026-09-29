@@ -625,6 +625,28 @@ No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL 
 
 `claims` is whatever Supabase verified: `data.claims` from `supabase.auth.getClaims()` on an `@supabase/ssr` server client, or `jwtClaims` from `@supabase/server` (`ctx.jwtClaims` in `withSupabase`, `c.var.supabaseContext.jwtClaims` in its Hono adapter). Pass `null` for anonymous callers; never `getSession().access_token` (unverified). An API-key auth mode (`secret`, `publishable`) has `jwtClaims: null` and is the anonymous subject, not a user.
 
+Share links reach RLS through an exchange, never through the link token itself:
+
+```ts
+import { subjectFromCapability } from 'permdock/jwt';
+import { exchangeCapability } from 'permdock/supabase';
+
+const link = await subjectFromCapability(url.searchParams.get('token'), {
+  jwks,
+  issuer,
+  audience,
+  revoked,
+});
+const accessToken = await exchangeCapability(link, {
+  key: signingJwk,
+  alg: 'ES256',
+  kid: 'permdock-links',
+  ttl: 300,
+});
+```
+
+`accessToken` is `role: 'anon'` with a `capability` claim and no `sub`, or `undefined` for anything but a live link. Generate the matching policies with `permdock rls generate --capabilities`.
+
 ## Supabase middleware pipeline — `permdock/supabase/middleware`
 
 ```ts

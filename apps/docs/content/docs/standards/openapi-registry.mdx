@@ -103,6 +103,7 @@ These are not OpenAPI extensions but they are the other namespace PermDock write
 | `permdock-approval+jwt` | `approval` | `approvalsHandler({ signer })` |
 | `permdock-decisions+jwt` | `events` | A `DecisionSink` with `signer`, `permdock/cloud` export |
 | `permdock-policy+jwt` | `policy` (policy document `v: 1`); `iss` = `aud` = the Cloud environment URL, `exp` = `iat` + 24 hours | PermDock Cloud hosted grants, read by `cloud().policies` |
+| `permdock-capability+jwt` | `capability` (capability `v: 1`); `sub` = the link id, `exp` = `capability.expiresAt` | `signCapability`, read by `subjectFromCapability` |
 
 The `+jwt` structured syntax suffix is registered (RFC 8417 section 7.2), so any JOSE library treats these as JWTs. Each `typ` is the short form of a media type, and the full names are the media types PermDock documents:
 
@@ -112,6 +113,7 @@ The `+jwt` structured syntax suffix is registered (RFC 8417 section 7.2), so any
 | `application/permdock-approval+jwt` | `permdock-approval+jwt` | A signed approval request handed to a delivery surface |
 | `application/permdock-decisions+jwt` | `permdock-decisions+jwt` | A signed event batch: a sink export or a Cloud webhook delivery |
 | `application/permdock-policy+jwt` | `permdock-policy+jwt` | The hosted-grants policy document from `GET /policy` |
+| `application/permdock-capability+jwt` | `permdock-capability+jwt` | A link capability, usually in a URL query parameter |
 
 On the wire PermDock sends and accepts `application/jwt` as the `Content-Type` of every one of them, because a receiver checks `typ` after verifying and `application/jwt` is registered (RFC 7519 section 10.3.1); the specific names identify the envelope in documentation, in OpenAPI `content` keys a team writes for its own endpoints, and in the `typ` check. They are not registered with IANA, unlike `at+jwt` (RFC 9068), `secevent+jwt` (RFC 8417) and `logout+jwt` (Back-Channel Logout); until they are, the names are safe because a verifier only accepts the `typ` it was configured for. A breaking change to an envelope is a new `typ` value and a new row, never a changed row. Fixtures in `permdock/testing` assert the set of `typ` values the package can emit equals this table.
 
@@ -151,7 +153,7 @@ These steps happen outside this repository. Remove the `Status: planned` line at
 
 1. Namespace: open the pull request against [OAI/spec.openapis.org](https://github.com/OAI/spec.openapis.org/) that adds `registries/_namespace/permdock.md` with prefix `x-permdock-`, a link to this page and the maintainers' contact; record the PR link here.
 2. Extensions: after the namespace merges, nothing further is needed per field; the table above is the description the registry entry links to.
-3. Media types: decide whether to request IANA registration of the four `application/permdock-*+jwt` types (a specification-required registration under RFC 6838 section 3.1 needs a published document; this page and [wire formats](/docs/concepts/wire-formats) are the candidate). Until then the table above is the only definition.
+3. Media types: decide whether to request IANA registration of the five `application/permdock-*+jwt` types (a specification-required registration under RFC 6838 section 3.1 needs a published document; this page and [wire formats](/docs/concepts/wire-formats) are the candidate). Until then the table above is the only definition.
 
 ## Why
 
@@ -169,7 +171,7 @@ These steps happen outside this repository. Remove the `Status: planned` line at
 | Extension Registry, no entry for `oauth2MetadataUrl` | `x-permdock-oauth2MetadataUrl` |
 | Format, Tag Kind, Draft Feature, Alternative Schema registries | Not used; PermDock emits standard JSON Schema formats and no draft features |
 | Media Type registry, IANA media types | `application/permdock-*+jwt`, documented above; not registered |
-| (JOSE, not OAI) JWS `typ` header values | `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`, `permdock-policy+jwt`, the closed list above |
+| (JOSE, not OAI) JWS `typ` header values | `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`, `permdock-policy+jwt`, `permdock-capability+jwt`, the closed list above |
 
 ## Sources
 

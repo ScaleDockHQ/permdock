@@ -107,6 +107,7 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 | `--policy-per-role` | flag | `rls.policyPerRole`, off | One policy per role and permission (`{role}_{permission}`, the layout before the helpers), each still calling the helpers. |
 | `--policy-name` | template | `{table}_{op}`, or `{role}_{permission}` with `--policy-per-role` | Policy names from `{table}`, `{op}`, `{role}` and `{permission}`. A collapsed layout needs `{table}` and `{op}` and rejects `{role}` and `{permission}`. |
 | `--custom-roles` | flag | `rls.customRoles`, off | The scope helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles), always intersected with the generated `permdock_ceiling` view. `database` mode adds the `custom_role_permissions` and `custom_role_includes` tables; `jwt` mode reads the `memberships[].grants` claim. With `--rbac`, `authorize()` answers tenant requests from custom roles too. |
+| `--capabilities` | flag | `rls.capabilities`, off | [Link capabilities](/docs/concepts/capabilities) reach resource-scoped grants: adds `permdock_capability_ids(p_resource, p_role, p_permission)`, which reads the `capability` claim `exchangeCapability` mints, and one `anon` policy per resource-scoped grant. A resource role with no memberships table gets only the `anon` policy, with a warning, instead of failing. |
 
 `--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
 
@@ -126,6 +127,17 @@ With `--rbac`, the command prints the `config.toml` stanza that enables the hook
 The membership table (or claim) holds the custom role's name like any role; a declared role name never resolves as custom. Each `permitted_<scope>_ids` unions the declared branch with the custom one, so a policy needs no change. Both tables have RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; the application writes them from its own server connection, the same data its `RoleSource` reads. A row naming a permission outside the ceiling reaches no key, so writing to the tables directly can never widen access.
 
 In `jwt` mode each membership may carry `grants`, a map from custom role name to compact entries: `key` allows, `-key` denies, `@role` includes. A custom role rides the membership of the scope it is held at. `customRoleClaim(roles)` from `permdock` builds the map for a token hook; the claim is read only with `--custom-roles`, and it adds a few bytes per entry to every token.
+
+### Link capabilities
+
+`--capabilities` (or `rls.capabilities: true`) adds one helper and one `anon` branch per resource-scoped grant:
+
+| Object | What it does |
+| --- | --- |
+| `permdock_capability_ids(p_resource text, p_role text, p_permission text)` | `stable`, `search_path = ''`, executable by `anon` and `authenticated`. Returns the resource id in the `capability` claim when its `v` is `1`, `holder` is `link`, `on.resource` is `p_resource`, `roles` includes `p_role`, `permissions` (when present) includes `p_permission` and `expiresAt` is in the future; nothing otherwise. |
+| `<table>_<op>_anon` policies | `to anon`: `"<field>"::text in (select permdock_capability_ids('<resource>', '<role>', '<permission>'))`, ANDed with the grant's row condition. `<field>` is the row's id for a role on the row's own resource, or the parent field for a role on an ancestor, exactly as `can()` matches a resource membership. |
+
+The claim is the `Capability` object ([wire formats](/docs/concepts/wire-formats)) inside a short-lived Supabase access token with `role: 'anon'`, which the application's server mints with `exchangeCapability` after `subjectFromCapability` verified the link; no policy trusts a capability the server did not exchange. Privileges follow the policies: `anon` gets only the commands it has a policy for.
 
 ## import
 

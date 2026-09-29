@@ -25,7 +25,7 @@ type Subject = {
 type Principal = {
   id: string                                  // `sub`, a user id, a client id or a SPIFFE ID
   issuer?: string                             // `iss`; identity is issuer + id, always set by subjectFrom*
-  kind?: 'user' | 'service' | 'workload'      // default 'user'
+  kind?: 'user' | 'service' | 'workload' | 'link'  // default 'user'
   roles?: string[]                            // global roles
   memberships?: Membership[]                  // roles held in a tenant, a team or on one resource
   tenant?: string                             // the active tenant for this request; never defaulted
@@ -156,13 +156,14 @@ A backend job or a partner service is a principal with roles of its own, created
 
 ## Workload principals
 
-`principal.kind` distinguishes three kinds of caller that act on their own authority:
+`principal.kind` distinguishes four kinds of caller that act on their own authority:
 
 | `kind` | Who | `principal.id` | Typical material |
 | --- | --- | --- | --- |
 | `'user'` (default) | A human | The identity provider's `sub` | Session, ID token, access token |
 | `'service'` | An application-level service account or API-key owner | Your service account id | API key lookup, client-credentials token with a `sub` you assigned |
 | `'workload'` | A running workload with a platform identity | A SPIFFE ID (`spiffe://trust-domain/ns/prod/sa/reports`) or the WIMSE workload identifier | Client-credentials token, SPIFFE SVID over mTLS, transaction token |
+| `'link'` | Whoever holds a share link | The link id (`capability.id`) | A `permdock-capability+jwt` verified by `subjectFromCapability`; the principal holds one resource membership and no roles ([link capabilities](/docs/concepts/capabilities)) |
 
 The WIMSE architecture treats workloads as principals in their own right: a workload has an identity, obtains credentials, and is the subject that security context is propagated for ([WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch)). PermDock follows that: a workload calling on its own behalf is a principal with roles, exactly like a service account, and `kind: 'workload'` exists so policies can say `where: { subject: { kind: 'workload' } }` or audit can separate human from machine traffic.
 

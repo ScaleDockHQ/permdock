@@ -80,6 +80,8 @@ When the product nests tenants (organizations and their customers, workspaces in
 
 When tenant admins define their own roles, keep declared roles small and `assignable`: they are the ceiling a custom role can never exceed. Pass a `RoleSource` as `customRoles`; a `CustomRole` lists `includes` (declared roles) and `grants` (`{ permission, effect? }`, no conditions). Build the editor from `useAssignablePermissions()` and save through a server action that runs `validateCustomRole(policy, role)` and compares it with `permdock.assignablePermissions()` ([custom roles](https://permdock.dev/docs/concepts/custom-roles)).
 
+When the product has share links (guest quote pages, file or thread links, pre-boarding forms), declare the link's roles on the resource (`role('guest', [allow(permissions.quote.read, { where: { status: 'sent' } })], { on: permissions.quote })`), mint links with `signCapability({ id, on: { resource: permissions.quote, id }, roles: ['guest'], expiresAt }, signer, { audience })` behind a guard of its own (`quote.share`), and resolve them with `subjectFromCapability(token, { jwks, issuer, audience, revoked, replay, viewer })` from `permdock/jwt`. Never an unguessable id without expiry, and never a security-definer RPC for the guest page: with Supabase, `exchangeCapability(subject, { key, alg, kid })` from `permdock/supabase` plus `permdock rls generate --capabilities` lets RLS serve the link ([link capabilities](https://permdock.dev/docs/concepts/capabilities)).
+
 Done when at least one role grants the first guard's permission, and `policy.ts` is not imported from a client entry.
 
 ## 4. Factory
