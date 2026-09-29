@@ -29,6 +29,7 @@ class PermDockDeniedError extends Error {
   readonly scope: string               // 'post:delete'
   readonly resource: { type: string; id?: string }
   readonly subject: Subject            // principal may be null
+  readonly digest: string              // 'PERMDOCK_DENIED;post.delete'
   toProblemDetails(options?: { instance?: string }): ProblemDetails
 }
 ```
@@ -58,11 +59,16 @@ class PermDockApprovalRequiredError extends Error {
   readonly resource: { type: string; id?: string }
   readonly token: string               // bind the approval reply to these arguments
   readonly reason: string              // 'human'
+  readonly digest: string              // 'PERMDOCK_APPROVAL_REQUIRED;post.delete;pd1.…'
   toProblemDetails(options?: { instance?: string }): ProblemDetails
 }
 ```
 
 It is a distinct class rather than a flag on the denied error because callers handle it differently: a denial ends the request, an approval requirement starts a workflow. The AI SDK adapter turns it into `user-approval`, MCP into an elicitation, `WorkflowAgent` into a durable suspend, and HTTP into a 403 with the token. See [approvals](/docs/security/approvals).
+
+### The digest
+
+Both classes set `digest`, the property React keeps when an error crosses from a Server Component to the client, where production builds replace the message with a generic one. The format is stable: `PERMDOCK_DENIED;<permission>` and `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`. `parsePermDockDigest(error.digest)` from `permdock` returns `{ outcome, permission, token? }` or `null` for any other error, so a client error boundary or an `error.tsx` can tell a refusal from a crash. The digest names the permission key, which the catalog already publishes, and the approval token, which is bound to the same subject and actor and approves nothing by itself; it never carries denials, alternatives, the resource or the subject. Next.js still logs the error on the server. [`PermissionBoundary`](/docs/adapters/next#permissionboundary) from `permdock/next/client` is built on it.
 
 ## PermDockValidationError
 

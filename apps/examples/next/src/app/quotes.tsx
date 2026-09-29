@@ -5,7 +5,7 @@ import type { Quote } from '../permissions.ts';
 
 import { quoteAccess, visibleQuotes } from '../lib/access.ts';
 import { customers } from '../lib/store.ts';
-import { approveQuote, deleteQuote } from './actions.ts';
+import { approveQuote } from './actions.ts';
 
 const money = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -88,13 +88,6 @@ export async function QuoteView(props: {
           <form action={approveQuote.bind(null, org, quote.id)}>
             <button type="submit" data-action="approve">
               Approve quote
-            </button>
-          </form>
-        ) : null}
-        {access.delete ? (
-          <form action={deleteQuote.bind(null, org, quote.id)}>
-            <button type="submit" data-action="delete">
-              Delete quote
             </button>
           </form>
         ) : null}

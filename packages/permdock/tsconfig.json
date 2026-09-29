@@ -6,6 +6,7 @@
     "types": ["node"],
     "paths": {
       "next/cache": ["./node_modules/next/cache.d.ts"],
+      "next/error": ["./node_modules/next/error.d.ts"],
       "next/navigation": ["./node_modules/next/navigation.d.ts"],
       "next/server": ["./node_modules/next/server.d.ts"]
     }

@@ -21,7 +21,7 @@ export const {
 });
 ```
 
-Needs Next.js 16.3 or later. Guard with `getPermission(permissions.post.update, post)` or `assert`. For a page or Server Action that must stop on a denial, `await requireAccess({ permission, data, tenant })` calls `forbidden()` (or `unauthorized()` for a signed-out user); enable `experimental.authInterrupts` and add `app/forbidden.tsx` and `app/unauthorized.tsx`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise` and only permission hooks suspend.
+Needs Next.js 16.3 or later. Guard with `getPermission(permissions.post.update, post)` or `assert`. For a page or Server Action that must stop on a denial, `await requireAccess({ permission, data, tenant })` calls `forbidden()` (or `unauthorized()` for a signed-out user); enable `experimental.authInterrupts` and add `app/forbidden.tsx` and `app/unauthorized.tsx`. When only part of a page is gated, let a Server Component `assert` inside `<PermissionBoundary denied={...} approval={...}>` from `permdock/next/client` (with a `Suspense` inside it); `usePermissionBoundary()` in the fallback gives the permission, the approval `token` and `retry()`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise` and only permission hooks suspend.
 
 With `cacheComponents`, when permission UI (nav items, row actions) must be prefetched, the app owns the cache. Never put `'use cache'` inside PermDock calls, and never read `headers()` / `cookies()` in a function you mean to cache outside `'use cache: private'`:
 

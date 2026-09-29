@@ -141,6 +141,6 @@ Every hook returns `status` from the same vocabulary (`ready`, `pending`, `stale
 
 ## What PermDock does not ship
 
-- Components beyond `<Protected>`: no `<Can>`, no tenant-switcher dropdown, no role badge, no approval dialog. Hooks return data; your design system renders it ([tenancy](/docs/concepts/tenancy) alternatives). The [devtools panel](/devtools) on the docs site is a canned explorer, not a package export ([devtools](/docs/getting-started/devtools)).
+- Components beyond `<Protected>` (and, in Next.js, the `<PermissionBoundary>` error boundary from `permdock/next/client`): no `<Can>`, no tenant-switcher dropdown, no role badge, no approval dialog. Hooks return data; your design system renders it ([tenancy](/docs/concepts/tenancy) alternatives). The [devtools panel](/devtools) on the docs site is a canned explorer, not a package export ([devtools](/docs/getting-started/devtools)).
 - Tenant display names, logos or invitation flows: the auth provider owns them.
 - A client-side copy of the policy: conditions travel in the snapshot, closures stay on the server.

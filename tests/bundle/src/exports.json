@@ -55,6 +55,7 @@
     "normalizeApproval",
     "opaque",
     "parseCapability",
+    "parsePermDockDigest",
     "parsePolicyDocument",
     "parseSnapshot",
     "plan",
@@ -423,5 +424,6 @@
   ],
   "./cli": ["defineConfig", "run"],
   "./unplugin": ["createPermDockUnplugin"],
-  "./next/plugin": ["createPermDockPlugin"]
+  "./next/plugin": ["createPermDockPlugin"],
+  "./next/client": ["PermissionBoundary", "usePermissionBoundary"]
 }

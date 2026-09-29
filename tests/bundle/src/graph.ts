@@ -55,6 +55,7 @@ export const ENTRIES = {
   './cli': 'cli/index.js',
   './unplugin': 'unplugin/index.js',
   './next/plugin': 'next/plugin.js',
+  './next/client': 'next/client.js',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -136,6 +137,7 @@ export const CLIENT_ENTRIES = [
   './svelte',
   './solid',
   './webmcp',
+  './next/client',
 ] as const;
 
 const RELATIVE_IMPORT =
@@ -283,9 +285,15 @@ export function policyChunks(files: readonly string[]): readonly string[] {
 }
 
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
-  return files.filter((file) =>
-    /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud|drizzle|prisma|kysely|supabase|ssf|better-auth|clerk|convex|pdp)[/\\]/u.test(
-      file,
-    ),
+  // The client half of a server adapter lives in the adapter's folder.
+  const clientHalves = new Set(
+    [ENTRIES['./next/client']].map((file) => join(DIST, file)),
+  );
+  return files.filter(
+    (file) =>
+      !clientHalves.has(file) &&
+      /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud|drizzle|prisma|kysely|supabase|ssf|better-auth|clerk|convex|pdp)[/\\]/u.test(
+        file,
+      ),
   );
 }

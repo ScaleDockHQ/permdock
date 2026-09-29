@@ -61,7 +61,6 @@ export async function visibleQuotes(organization: string): Promise<Quote[]> {
 export type QuoteAccess = {
   readonly quote: Quote | null;
   readonly approve: boolean;
-  readonly delete: boolean;
 };
 
 /**
@@ -78,11 +77,7 @@ export async function quoteAccess(
   cacheTag(userTag(permdock.subject.principal?.id), orgTag(organization));
   const quote = await findQuote(organization, id);
   if (quote === null || !permdock.can(permissions.quote.read, quote)) {
-    return { quote: null, approve: false, delete: false };
+    return { quote: null, approve: false };
   }
-  return {
-    quote,
-    approve: permdock.can(permissions.quote.approve, quote),
-    delete: permdock.can(permissions.quote.delete, quote),
-  };
+  return { quote, approve: permdock.can(permissions.quote.approve, quote) };
 }
