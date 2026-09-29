@@ -392,6 +392,109 @@ export const policy = definePolicy(permissions, {
     expect(generated).toContain('principal.id');
   });
 
+  for (const shape of ['collapsed', 'per-role'] as const) {
+    it(`import reads the ${shape} helper shape back to roles and memberOf`, async () => {
+      const cwd = appCopy();
+      writeFileSync(
+        join(cwd, 'src/scoped-policy.ts'),
+        `import { allow, definePolicy, principal, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+const { post } = permissions;
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('staff', [allow(post.read)]),
+    role('admin', [allow([post.read, post.update])], { on: 'tenant' }),
+    role(
+      'member',
+      [allow(post.read), allow(post.update, { where: { authorId: principal.id } })],
+      { on: 'tenant' },
+    ),
+  ],
+  scopes: { tenant: { key: 'orgId' } },
+  subject: () => null,
+});
+`,
+      );
+      writeFileSync(
+        join(cwd, 'permdock.config.ts'),
+        `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/scoped-policy.ts',
+};
+`,
+      );
+      const generated = await run(
+        [
+          'rls',
+          'generate',
+          '--out',
+          'schema.sql',
+          ...(shape === 'per-role' ? ['--policy-per-role'] : []),
+        ],
+        { cwd },
+      );
+      expect(generated.code).toBe(0);
+      const imported = await run(
+        ['rls', 'import', '--sql', 'schema.sql', '--out', 'src/gen.ts'],
+        { cwd },
+      );
+      expect(imported.code).toBe(0);
+      const text = readFileSync(join(cwd, 'src/gen.ts'), 'utf8');
+      const json = /export const catalog = ([\s\S]*?) as const/u.exec(
+        text,
+      )?.[1];
+      const catalog = JSON.parse(json ?? '[]') as readonly {
+        readonly cmd: string;
+        readonly condition: unknown;
+        readonly grants?: readonly {
+          readonly key: string;
+          readonly permission: string;
+          readonly scope: string;
+          readonly roles: readonly string[];
+          readonly where?: unknown;
+        }[];
+      }[];
+      const grants = catalog.flatMap((entry) =>
+        (entry.grants ?? []).map((grant) =>
+          Object.assign({ cmd: entry.cmd }, grant),
+        ),
+      );
+      const summary = [
+        ...new Set(
+          grants.map(
+            (grant) =>
+              `${grant.cmd} ${grant.permission} ${grant.scope} ${grant.roles.join('+')}${grant.where === undefined ? '' : ' where'}`,
+          ),
+        ),
+      ].toSorted();
+      expect(summary).toEqual([
+        'SELECT post.read global staff',
+        'SELECT post.read tenant admin+member',
+        'UPDATE post.update tenant admin',
+        'UPDATE post.update tenant member where',
+      ]);
+      const member = grants.find(
+        (grant) => grant.cmd === 'UPDATE' && grant.roles.includes('member'),
+      );
+      expect(member?.key).toBe('post.update#2');
+      expect(member?.where).toEqual({
+        op: 'eq',
+        field: 'authorId',
+        value: { ref: 'principal.id' },
+      });
+      const selects = catalog
+        .filter((entry) => entry.cmd === 'SELECT')
+        .map((entry) => JSON.stringify(entry.condition))
+        .join('\n');
+      expect(selects).toContain(
+        '{"op":"memberOf","scope":"tenant","field":"orgId","roles":["admin","member"]}',
+      );
+      expect(selects).toContain(`permdock_has('post.read')`);
+    });
+  }
+
   it('verify fixtures carry memberships and tenant and match can()', async () => {
     const cwd = appCopy();
     writeFileSync(

@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
+import type { RolePermission } from './rls-helpers.ts';
+import type { ImportedGrant } from './rls-import-ast.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
 import {
@@ -12,6 +14,9 @@ import {
   canonicalDump,
   conditionFromAst,
   fingerprintSql,
+  helperGrants,
+  seedFromRow,
+  seedsFromSql,
 } from './rls-import-ast.ts';
 import { parseMembershipsFlag } from './rls-sql.ts';
 
@@ -38,6 +43,8 @@ type CatalogEntry = {
   readonly condition: unknown;
   readonly fingerprint: string;
   readonly sourceSql: string;
+  /** Role-gated branches read back from `permdock_*` helper calls and the `role_permissions` seeds. */
+  readonly grants?: readonly ImportedGrant[];
 };
 
 const POLICY_RE =
@@ -165,9 +172,37 @@ async function loadPg(): Promise<typeof import('pg')> {
   }
 }
 
+async function seedsFromDb(
+  query: (sql: string) => Promise<{ readonly rows: readonly unknown[] }>,
+): Promise<readonly RolePermission[]> {
+  const tables = await query(
+    `select table_schema from information_schema.tables where table_name = 'role_permissions' order by table_schema = 'public' desc, table_schema limit 1`,
+  );
+  const first = tables.rows[0] as
+    | { readonly table_schema?: unknown }
+    | undefined;
+  const schema = first?.table_schema;
+  if (typeof schema !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(schema)) {
+    return [];
+  }
+  try {
+    const rows = await query(
+      `select role::text, permission::text, grant_key, scope, effect from "${schema}".role_permissions`,
+    );
+    return rows.rows.flatMap((row) => {
+      const seed = seedFromRow(row as Readonly<Record<string, unknown>>);
+      return seed === undefined ? [] : [seed];
+    });
+  } catch {
+    // A pre-helper `role_permissions` (no grant_key) has nothing to map.
+    return [];
+  }
+}
+
 async function policiesFromDb(db: string): Promise<{
   readonly policies: ImportedPolicy[];
   readonly bodies: Map<string, string>;
+  readonly seeds: readonly RolePermission[];
 }> {
   const pg = await loadPg();
   const client = new pg.Client({ connectionString: db });
@@ -191,6 +226,7 @@ async function policiesFromDb(db: string): Promise<{
     for (const row of procs.rows) {
       bodies.set(row.proname, row.prosrc);
     }
+    const seeds = await seedsFromDb((sql) => client.query(sql));
     const policies: ImportedPolicy[] = [];
     for (const row of result.rows) {
       const roles = Array.isArray(row.roles)
@@ -218,7 +254,7 @@ async function policiesFromDb(db: string): Promise<{
         });
       }
     }
-    return { policies, bodies };
+    return { policies, bodies, seeds };
   } finally {
     await client.end();
   }
@@ -236,6 +272,7 @@ export async function runRlsImport(input: {
 }): Promise<ImportOutcome> {
   let policies: ImportedPolicy[] = [];
   let bodies = new Map<string, string>();
+  let seeds: readonly RolePermission[] = [];
   if (input.sql !== undefined) {
     const sqlPath = resolve(input.cwd, input.sql);
     if (!existsSync(sqlPath)) {
@@ -246,6 +283,7 @@ export async function runRlsImport(input: {
     }
     const sql = readFileSync(sqlPath, 'utf8');
     assertNoServiceRole(sql);
+    seeds = await seedsFromSql(sql);
     const canonical = await canonicalDump(sql);
     policies = splitPolicies(canonical ?? sql);
     if (policies.length === 0) {
@@ -256,6 +294,7 @@ export async function runRlsImport(input: {
       const fromDb = await policiesFromDb(input.db);
       policies = fromDb.policies;
       bodies = fromDb.bodies;
+      seeds = fromDb.seeds;
     } catch (cause) {
       return {
         code: 2,
@@ -282,6 +321,13 @@ export async function runRlsImport(input: {
       functions,
       unmapped,
       joins,
+      seeds,
+    );
+    const grants = await helperGrants(
+      item.using ?? item.check,
+      memberships,
+      functions,
+      seeds,
     );
     catalog.push({
       table: item.table,
@@ -291,6 +337,7 @@ export async function runRlsImport(input: {
       condition,
       fingerprint: await fingerprintSql(sourceSql),
       sourceSql,
+      ...(grants.length === 0 ? {} : { grants }),
     });
   }
   const outRel = input.out ?? 'src/permissions.generated.ts';
