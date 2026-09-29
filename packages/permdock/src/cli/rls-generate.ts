@@ -18,12 +18,14 @@ import { compileGrants } from './rls-compile.ts';
 import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
 import { fieldViews, rowBranches } from './rls-fields.ts';
 import { roleNames } from './rls-grants.ts';
+import { closureDepths, graphPlan, graphSql } from './rls-graph.ts';
 import { helpersSql } from './rls-helpers.ts';
 import { ownershipRules, ownershipSql } from './rls-ownership.ts';
 import { assemblePolicies } from './rls-policies.ts';
 import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
 import {
   checkSuspension,
+  graphHelper,
   parseMembershipsFlag,
   scopeTable,
 } from './rls-sql.ts';
@@ -144,6 +146,7 @@ export async function runRlsGenerate(input: {
   const scopes = scopeList(policy.scopes);
   const suspension = checkSuspension(rls?.suspension, scopes);
   const ownership = ownershipRules(policy, scopes);
+  const graph = graphPlan(policy);
   const ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
@@ -166,6 +169,7 @@ export async function runRlsGenerate(input: {
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
     ...(fieldsMode === undefined ? {} : { fields: fieldsMode }),
+    ...(graph.size === 0 ? {} : { graph: { closures: closureDepths(graph) } }),
   };
   const warnings: string[] = [];
   if (authorize === 'database') {
@@ -234,6 +238,7 @@ export async function runRlsGenerate(input: {
     );
   }
   const owned = ownershipSql(ctx);
+  const graphed = graphSql(ctx, graph, rls?.tables);
   const preamble = [
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, {
@@ -241,10 +246,23 @@ export async function runRlsGenerate(input: {
       anonExecute: views.some((view) => view.roles.includes('anon')),
     }),
     owned === '' ? undefined : owned,
+    graphed === '' ? undefined : graphed,
     rbac?.tail,
   ]
     .filter((part): part is string => part !== undefined)
     .join('\n');
+  if (force) {
+    for (const entry of graph.values()) {
+      const own = [...entry.relations].filter(
+        (name) => !('edge' in (entry.node.relations[name] ?? {})),
+      );
+      if (own.length > 0) {
+        warnings.push(
+          `--force: ${entry.node.name} relations ${own.join(', ')} are read from the ${entry.node.name} table itself, so ${graphHelper(entry.node.name)} would recurse through its own policy; keep ${entry.node.name} unforced or move them to edge tables`,
+        );
+      }
+    }
+  }
   if (force && input.target !== 'sql') {
     warnings.push(
       `--force: ${input.target} has no FORCE ROW LEVEL SECURITY option; run the commented statements in a migration`,

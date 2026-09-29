@@ -6,9 +6,10 @@ import type { PolicySource } from '../core/hosted.ts';
 export type { ApprovalHint };
 import type {
   DecisionSink,
-  LimitStore,
   EntitlementSource,
+  LimitStore,
   MembershipSource,
+  RelationSource,
   RoleSource,
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
@@ -97,6 +98,8 @@ export type TerminalPermDockOptions<TUser = unknown> = {
   readonly actor?: (context: TokenContext) => unknown;
   readonly tenant?: string;
   readonly memberships?: MembershipSource | readonly MembershipSource[];
+  /** The object graph for relation grants that walk a parent chain; without it they deny. */
+  readonly relations?: RelationSource;
   readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */

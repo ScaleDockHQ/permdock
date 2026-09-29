@@ -1,0 +1,155 @@
+---
+title: Relationships
+description: Object hierarchies (nested folders, sub-teams, reporting lines, account delegates) as relation grants that walk a parent chain, decided in process through a RelationSource and in Postgres through a closure table.
+---
+
+[Named scopes](/docs/concepts/scopes) are tenancy: an organization, a workspace, a team, each a fixed level with its own memberships. Relationships are the object graph under them: folders inside folders, sub-teams, the manager of an employee, a delegate who acts for an account holder for a while. The graph has no fixed depth, so it is not a scope; a grant reaches an object because the subject holds a relation on it or on one of its ancestors.
+
+## Declaring the graph
+
+A resource names its `parent`, the relations principals hold on it, and optionally a `restricted` column:
+
+```ts
+import { allow, definePermissions, definePolicy, relation, resource } from 'permdock'
+
+export const permissions = definePermissions({
+  doc: resource(Doc, {
+    actions: ['read', 'update'],
+    parent: { field: 'folderId', resource: 'folder' },
+    relations: { owner: 'ownerId' },
+  }),
+  folder: resource(Folder, {
+    actions: ['read', 'share'],
+    parent: { field: 'parentId', resource: 'folder' },
+    relations: {
+      editor: { edge: 'folder_editors' },
+      viewer: { edge: 'folder_viewers', expiresAt: 'expires_at' },
+    },
+    restricted: 'restricted',
+  }),
+})
+```
+
+A resource may parent itself (`folder` above): that is what makes a chain. Every walk over a chain has a depth, 16 unless the grant sets one, and never more than 32.
+
+| Relation | Declared as | Held when |
+| --- | --- | --- |
+| Field | `owner: 'ownerId'` or `{ field }` | the row's field is the principal's id |
+| Edge table | `{ edge, object?, subject?, expiresAt? }` | a row of `edge` has the object id in `object` (default `<resource>_id`) and the principal id in `subject` (default `user_id`), and `expiresAt`, when named, is null or in the future |
+| Principal | `{ principal, period? }` on a principal resource | the row's `principal` column is the principal's id and now is inside `period` (`startsAt`, `expiresAt` timestamp columns, `null` leaves a side open) |
+| Scope | `{ field, memberOf }` | tenancy, not the graph: a `through` grant never walks it |
+
+`restricted` names a boolean column. A restricted object is reached only by grants on itself, never by relations held on its ancestors, and nothing below it is reached through it. Grants on the restricted object still reach its descendants.
+
+## Granting through the graph
+
+`relation(resource, name, options?)` keeps its signature. Without options the relation must be declared on the row's own resource and reads only the row. With `through: 'parent'` the grant follows the row's parent chain upward: to the parent resource when the relation is declared there, then along that resource's self-parent for up to `depth` hops.
+
+```ts
+export const policy = definePolicy(permissions, {
+  grants: [
+    allow(permissions.doc.read, { to: relation(permissions.doc, 'owner') }),
+    allow(permissions.doc.read, {
+      to: relation(permissions.folder, 'viewer', { through: 'parent', depth: 16 }),
+    }),
+    allow(permissions.doc.update, {
+      to: relation(permissions.folder, 'editor', { through: 'parent', depth: 4 }),
+    }),
+  ],
+  subject: (user) => ({ id: user.id }),
+})
+```
+
+An array in `to:` is an intersection, as everywhere in PermDock: `to: [relation(permissions.doc, 'owner'), relation(permissions.folder, 'viewer', { through: 'parent' })]` requires both. Two `allow` grants, as above, OR together. `definePolicy` rejects a `through` grant that cannot reach its resource (the row has no parent there, or a `through` on a resource that does not parent itself), a `through` over a `memberOf` relation, and an edge relation declared on another resource without `through`.
+
+Reporting lines and delegates are the same two tools:
+
+```ts
+const people = definePermissions({
+  employee: resource(Employee, {
+    actions: ['review'],
+    parent: { field: 'managerId', resource: 'employee' },
+    relations: { manager: { principal: 'managerId' } },
+  }),
+  account: resource(Account, {
+    actions: ['act'],
+    relations: {
+      delegate: {
+        principal: 'delegateId',
+        period: { startsAt: 'delegateFrom', expiresAt: 'delegateUntil' },
+      },
+    },
+  }),
+})
+
+allow(people.employee.review, {
+  to: relation(people.employee, 'manager', { through: 'parent', depth: 8 }),
+})
+allow(people.account.act, { to: relation(people.account, 'delegate') })
+```
+
+The manager of an employee holds `manager` on it; walking the chain, the manager's manager holds `manager` on the manager, so skip-level managers reach the employee too. The delegate holds `delegate` only inside the period.
+
+## Evaluation
+
+A graph grant reads facts the row does not carry, so the instance asks a `RelationSource`:
+
+```ts
+type RelationSource = {
+  ancestors(query: { resource: string; id: string; through: 'parent'; depth: number }):
+    RelationChain | Promise<RelationChain>
+  related(query: { resource: string; id: string; relation: string }):
+    RelationHolder[] | Promise<RelationHolder[]>
+}
+
+createPermDock(policy, user, { relations: source })
+```
+
+`ancestors` returns the chain nearest first, at most `depth` entries, each with its own `restricted` flag, plus `truncated` when the chain goes on. `related` returns the principals holding a relation on one object, with optional `startsAt` / `expiresAt` in seconds. `memoryRelations(permissions, { rows, edges })` is the in-process source; `testRelationSource` in `permdock/testing` checks any other ([extension interfaces](/docs/concepts/extension-interfaces)).
+
+Answers are cached per instance, never at module level: a request's `can`, `filter`, `whoCan` and the instances `tenant()`, `team()` and `simulate()` derive share one cache, and the next request starts empty. Evaluation stays synchronous. A source that answers synchronously is used directly; a Promise the instance has not loaded yet denies, and `await permdock.loadRelations(permission, rows)` loads what those rows need first:
+
+```ts
+const permdock = await getPermDock()
+await permdock.loadRelations(permissions.doc.read, docs)
+const visible = permdock.filter(permissions.doc.read, docs)
+```
+
+| Denial reason | When |
+| --- | --- |
+| `relation-depth` | The chain has a cycle, or it goes on past `depth` and no holder was found within it |
+| `relation-unavailable` | No `relations` source, a call that threw or rejected, an answer that is not a chain or a holder list, or a Promise `loadRelations` did not load |
+
+A graph read that fails fails the whole grant, whatever the rest of its condition says. On a `deny`, it denies the decision: a deny the graph cannot evaluate is never skipped.
+
+## Snapshots, clients and where()
+
+Snapshots carry no graph. A grant whose condition needs the graph, or whose relation has a `period`, is server-only in the snapshot (`portable: false`, no `where`), so a client check returns `opaque-condition` and the client stores (React, React Native, Vue, Svelte, Solid) route it to the decision endpoint, as they do for every server-only grant; `refresh` never carries relation facts. `mayAccess` stays an optimistic hint and answers `true` for a graph allow. `permdock.where()` leaves graph grants out and reports `partial: true`, and the Drizzle, Prisma and Kysely compilers refuse a `related` node ([conditions](/docs/concepts/conditions)): the database side is the closure table below.
+
+## whoCan
+
+`await permdock.whoCan(permission, row)` lists who holds a permission on one object and how, for share dialogs and access reviews:
+
+```ts
+const { holders, complete } = await permdock.whoCan(permissions.folder.read, folder)
+// holders: [{ principal: { id: 'u_vera' }, via: [{ kind: 'share', resource: 'folder', relation: 'viewer', id: 'root' }] }]
+```
+
+`via` is `role` (with the membership, from `MembershipSource.list`), `relation` (a field or principal relation, on the object or an ancestor) or `share` (an edge-table row, with its `expiresAt`). Each candidate is confirmed with a full decision, so a deny, a restricted branch or an expired share removes them. It lists and never grants. `complete` is `false` whenever a grantee cannot be enumerated: a global role, a plan, `anyone`, `authenticated`, an assurance or actor grantee, a custom-role grant, a membership source without `list`, or a relation the source could not answer. A `false` list may miss holders, and is never presented as complete.
+
+## Row-level security
+
+`permdock rls generate` emits `<schema>.permdock_closure(resource, ancestor, descendant, depth)`, kept current by statement triggers on each self-parented table the policy walks, and compiles a graph grant to one uncorrelated subquery over it. See [closure table](/docs/adapters/rls#closure-table) and `permdock rls verify --tree`.
+
+## External graphs
+
+OpenFGA and SpiceDB are recipes, not package entries ([ecosystem index](/docs/research/ecosystem-index)). A `RelationSource` over either answers `related` with a read of the tuples on one object (OpenFGA `read`, SpiceDB `ReadRelationships`) and `ancestors` with the parent tuples walked up to `depth`; the model keeps the graph, PermDock keeps the decision, and RLS still needs the rows in Postgres. To hand the whole decision to the external engine instead, `permdock/pdp` ships `openfga()` and `spicedb()` decision providers.
+
+## Why
+
+- **Parent chains, not a tuple store.** A Zanzibar-style relation store leaves the subset the database can enforce. A parent pointer on the row and relations on the resource node compile to a closure table and one subquery, so the same grant is enforced by `can`, by the database and by `rls verify`. Teams that already run OpenFGA or SpiceDB plug them in as a source.
+- **Depth is bounded, and past it means denied.** A chain with no bound is a denial-of-service vector and a cycle is an infinite loop. The walk reads at most `depth` ancestors (16 by default, 32 at most); a holder within them grants, anything beyond is never read, and when nothing within them holds the relation the denial says `relation-depth` so an operator can tell a cut-off chain from a missing share. A cycle always denies. In Postgres the triggers refuse a write that makes a row its own ancestor, so the database never holds a cycle to disagree about.
+- **Restricted stops inheritance at the row.** The common need is a folder inside a shared tree that only its own members see (HR under the company root). Stopping the walk at the restricted row, after reading its own relations, gives that without a deny, and the closure triggers stop at the same row, so the database agrees.
+- **Evaluation stays synchronous.** `can` runs on every render and inside `filter`; making it async for one grant kind would split every adapter. The limit store set the precedent: a Promise is never awaited on the decision path. `loadRelations` is the explicit async step, and it only fills the cache.
+- **Graph facts stay on the server.** A snapshot that listed every folder a user can see would be a cache that goes stale on every share and leaks the tree's shape, so graph grants resolve on the server. Relation periods follow them, since a client clock is not the server's.
+- **whoCan says when it is incomplete.** An access review that silently drops holders is worse than none. Global roles and plans are not enumerable from a row, so the list says `complete: false` instead of guessing.

@@ -28,7 +28,7 @@ Specifications PermDock follows without code, including GNAP, carry a build, nam
 - Requiring a network call to decide. PermDock is a PDP you embed; PermDock Cloud is optional, and every hosted capability (approvals, decision log, snapshot distribution) has an in-process default behind the same interface. `permdock/pdp` is the only opt-in exception.
 - A policy DSL; policies are TypeScript data.
 - Replacing authentication or issuing tokens.
-- Zanzibar-scale relation graphs; bridge to OpenFGA or SpiceDB through a provider. Resource roles follow declared, finite `parent` chains only; self-referential hierarchies (folders in folders) are the bridge's job ([tenancy](/docs/concepts/tenancy)).
+- Zanzibar-scale relation graphs; bridge to OpenFGA or SpiceDB through a provider or a `RelationSource`. Object hierarchies (folders in folders, sub-teams, reporting lines) are relation grants that walk a parent chain to a bounded depth ([relationships](/docs/concepts/relationships)); resource roles follow declared, typed `parent` chains ([tenancy](/docs/concepts/tenancy)).
 - Tenant, team, invitation, membership or custom-role storage and management APIs. PermDock reads memberships and custom roles through `MembershipSource` and `RoleSource`; the auth provider or the application owns the tables and the invitation flow.
 - UI components beyond `<Protected>` and the Next.js `<PermissionBoundary>` error boundary: no tenant-switcher dropdown, role badge or approval dialog. Hooks return data; the design system renders it ([UI](/docs/concepts/ui)).
 - CommonJS output or Node versions older than the ESM-only baseline.

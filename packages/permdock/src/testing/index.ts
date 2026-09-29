@@ -72,6 +72,7 @@ export {
   testReplayStore,
   testRevocationFeed,
   testMembershipSource,
+  testRelationSource,
   testPolicySource,
   testRoleSource,
   testSettingsSource,

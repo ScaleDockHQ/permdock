@@ -40,7 +40,10 @@ function relationWhere(
   grantee: Extract<Grantee, { readonly kind: 'relation' }>,
 ): Condition {
   const node = policy.resources.get(grant.permission.resource);
-  const where = relationCondition(grantee, node, scopeList(policy.scopes));
+  const where = relationCondition(grantee, node, scopeList(policy.scopes), {
+    resources: policy.resources,
+    now: { ref: 'now' },
+  });
   if (where === undefined) {
     throw new Error(
       `PermDock CLI: grant ${grant.permission.key} names relation '${grantee.relation}', which ${grant.permission.resource} does not declare`,

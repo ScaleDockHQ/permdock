@@ -21,6 +21,8 @@ import {
   pd027,
   pd029,
   pd030,
+  pd031,
+  pd032,
 } from './doctor-collect.ts';
 import { pd005, pd006, pd009, pd012, pd022, pd028 } from './doctor-project.ts';
 import {
@@ -180,6 +182,12 @@ export async function runDoctor(input: {
   }
   if (include('fields') || include('PD030')) {
     findings.push(...(await pd030(input)));
+  }
+  if (include('graph') || include('PD031')) {
+    findings.push(...(await pd031(input)));
+  }
+  if (include('graph') || include('rls') || include('PD032')) {
+    findings.push(...(await pd032(input)));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

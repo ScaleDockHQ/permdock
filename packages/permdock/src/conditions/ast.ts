@@ -83,6 +83,29 @@ export function parentHop(parent: MemberOfParent): {
   return typeof parent === 'string' ? { field: parent } : parent;
 }
 
+/**
+ * The subject holds `relation` on the `resource` instance whose id the row's
+ * `field` holds, or on one of its ancestors within `depth` parent hops.
+ * Evaluated through a `RelationSource` in process and the closure table in
+ * RLS; `toWhere` compilers treat it as non-portable.
+ */
+export type RelatedCondition = {
+  readonly op: 'related';
+  readonly resource: string;
+  readonly relation: string;
+  /** The row's own id field, or (with `parent`) the field holding its parent's id. */
+  readonly field: string;
+  /** Parent hops walked above the first instance; `0` reads only that instance. */
+  readonly depth: number;
+  /** The row is a child of `resource`, reached through `field`. */
+  readonly parent?: true;
+  /**
+   * The row's boolean column that keeps ancestor grants out: with `parent`, a
+   * restricted row matches nothing; without, the walk stops at the row.
+   */
+  readonly restricted?: string;
+};
+
 export type OpaqueCondition = {
   readonly op: 'opaque';
   readonly sql: string;
@@ -110,6 +133,7 @@ export type Condition =
   | OrCondition
   | NotCondition
   | MemberOfCondition
+  | RelatedCondition
   | OpaqueCondition
   | SqlFunctionCondition;
 
@@ -182,6 +206,7 @@ export function hasConditionOp(
     case 'notIn':
     case 'isNull':
     case 'memberOf':
+    case 'related':
     case 'opaque':
       return false;
     default: {

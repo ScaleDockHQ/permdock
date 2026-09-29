@@ -38,8 +38,10 @@ export const SAAS_API_KEY_LIMIT = 5;
 
 /**
  * The shared multi-tenant SaaS policy: four tenant roles, a team role, a
- * resource-scoped role, plan-gated features, a closure deny, a quota and an
- * approval. Row conditions and relations are portable; the closure is not.
+ * resource-scoped role, plan-gated features, a closure deny, a quota, an
+ * approval and a folder tree shared through edges. Row conditions and
+ * relations are portable; the closure is not, and the folder grants need
+ * a `RelationSource` (`saasRelations()`).
  */
 type SaasVocabulary = {
   readonly permissions: typeof saasPermissions;
@@ -111,6 +113,13 @@ export const saasPolicy: Policy<
       deny(p.project.delete, { to: anyone(), where: { archived: true } }),
       ...each(readers, (to) => allow(p.doc.read, { to })),
       allow(p.doc.update, { to: relation(p.doc, 'team') }),
+      ...each(admins, (to) => allow(p.folder.read, { to })),
+      allow(p.folder.read, {
+        to: relation(p.folder, 'viewer', { through: 'parent', depth: 8 }),
+      }),
+      allow(p.folder.update, {
+        to: relation(p.folder, 'editor', { through: 'parent', depth: 8 }),
+      }),
     ],
   },
 );

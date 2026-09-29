@@ -14,6 +14,7 @@ import {
   isConditionDate,
   isConditionRef,
   type MemberOfParent,
+  type RelatedCondition,
   parentHop,
 } from './ast.ts';
 import { resolveConditionRef } from './refs.ts';
@@ -243,21 +244,28 @@ function evaluateMemberOf(
   return false;
 }
 
+/** Answers a `related` node on one row; without one, `related` never matches. */
+export type RelatedResolver = (
+  condition: RelatedCondition,
+  data: unknown,
+) => boolean;
+
 export function evaluateCondition(
   condition: Condition,
   data: unknown,
   subject: Subject,
   now: number = Date.now() / 1000,
   scopes: readonly Scope[] = scopeList(undefined),
+  related?: RelatedResolver,
 ): boolean {
   switch (condition.op) {
     case 'and':
       return condition.conditions.every((child) =>
-        evaluateCondition(child, data, subject, now, scopes),
+        evaluateCondition(child, data, subject, now, scopes, related),
       );
     case 'or':
       return condition.conditions.some((child) =>
-        evaluateCondition(child, data, subject, now, scopes),
+        evaluateCondition(child, data, subject, now, scopes, related),
       );
     case 'not':
       return !evaluateCondition(
@@ -266,6 +274,7 @@ export function evaluateCondition(
         subject,
         now,
         scopes,
+        related,
       );
     case 'isNull': {
       if (data === null || typeof data !== 'object') {
@@ -316,8 +325,17 @@ export function evaluateCondition(
     }
     case 'memberOf':
       return evaluateMemberOf(condition, data, subject, now, scopes);
+    case 'related':
+      return related?.(condition, data) === true;
     case 'sqlFunction':
-      return evaluateCondition(condition.twin, data, subject, now, scopes);
+      return evaluateCondition(
+        condition.twin,
+        data,
+        subject,
+        now,
+        scopes,
+        related,
+      );
     case 'opaque':
       return false;
     default: {

@@ -2,6 +2,7 @@ import type { ResourceNode } from './permissions.ts';
 import type { GrantScope } from './policy.ts';
 import type { Membership, Principal, Subject } from './subject.ts';
 
+import { isFieldRelation } from './permissions.ts';
 import {
   type Scope,
   activeFor,
@@ -89,6 +90,7 @@ export function relatesTo(
   }
   return Object.values(resource.relations).some(
     (relation) =>
+      isFieldRelation(relation) &&
       relation.field === field &&
       relation.memberOf !== undefined &&
       resolveScope(scopes, relation.memberOf) === scope,

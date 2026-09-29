@@ -12,9 +12,11 @@ import {
 } from '../../index.ts';
 import {
   saasCustomRoles,
+  saasFolderScenarios,
   saasPermissions,
   saasPolicy,
   saasPrincipal,
+  saasRelations,
   saasScenarios,
   saasSchemaSql,
   saasSeed,
@@ -28,6 +30,7 @@ async function instanceFor(user: string, tenant: string | undefined) {
     ...(tenant === undefined ? {} : { tenant }),
     customRoles: memoryRoleSource(saasCustomRoles),
     limits: memoryLimitStore(),
+    relations: saasRelations(),
   });
 }
 
@@ -67,6 +70,28 @@ describe('saas scenarios', () => {
   }
 });
 
+describe('saas folder tree', () => {
+  for (const scenario of saasFolderScenarios) {
+    it(`server: ${scenario.name}`, () => checkServer(scenario));
+    it(`client: ${scenario.name}`, () => checkClient(scenario));
+  }
+
+  it('lists who reads a folder and how', async () => {
+    const permdock = await instanceFor('carol', 'acme');
+    const result = await permdock.whoCan(
+      saasPermissions.folder.read,
+      saasSeed.folders.find((folder) => folder.id === 'platform'),
+    );
+    expect(result.holders.map((holder) => holder.principal.id)).toContain(
+      'bob',
+    );
+    expect(result.holders.map((holder) => holder.principal.id)).not.toContain(
+      'hank',
+    );
+    expect(result.complete).toBe(false);
+  });
+});
+
 describe('saas seed', () => {
   it('lists every user once, including one without memberships', () => {
     expect(new Set(saasUsers).size).toBe(saasUsers.length);
@@ -75,7 +100,11 @@ describe('saas seed', () => {
 
   it('keeps every row inside a seeded org', () => {
     const orgs = new Set(saasSeed.orgs.map((org) => org.id));
-    for (const row of [...saasSeed.projects, ...saasSeed.docs]) {
+    for (const row of [
+      ...saasSeed.projects,
+      ...saasSeed.docs,
+      ...saasSeed.folders,
+    ]) {
       expect(orgs.has(row.orgId)).toBe(true);
     }
   });

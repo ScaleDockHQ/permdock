@@ -1,3 +1,4 @@
+import type { ResourceRelation } from '../core/permissions.ts';
 import type { SqlMembershipSource } from '../supabase/sources.ts';
 
 export type CollectConfig = {
@@ -222,11 +223,11 @@ export type CatalogResource = {
   readonly id: string;
   readonly schema: unknown;
   readonly definedIn?: string;
-  readonly relations?: Readonly<
-    Record<string, { readonly field: string; readonly memberOf?: string }>
-  >;
+  readonly relations?: Readonly<Record<string, ResourceRelation>>;
   /** The row field an `approval: { staleOn: 'resource-change' }` binds to. */
   readonly version?: string;
+  /** The boolean column that keeps ancestor grants out of a row. */
+  readonly restricted?: string;
 };
 
 export type CatalogRole = {

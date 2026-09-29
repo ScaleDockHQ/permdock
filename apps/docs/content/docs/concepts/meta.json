@@ -10,6 +10,7 @@
     "tenancy",
     "custom-roles",
     "ownership",
+    "relationships",
     "capabilities",
     "credentials",
     "authentication",

@@ -5,9 +5,10 @@ import type { Decision } from '../core/decision.ts';
 import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
-  LimitStore,
   EntitlementSource,
+  LimitStore,
   MembershipSource,
+  RelationSource,
   RoleSource,
   SnapshotSource,
 } from '../core/interfaces.ts';
@@ -25,6 +26,8 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = {
     | (() => string | undefined | Promise<string | undefined>);
   readonly onDenied?: (decision: Decision) => never | void;
   readonly memberships?: MembershipSource | readonly MembershipSource[];
+  /** The object graph for relation grants that walk a parent chain; without it they deny. */
+  readonly relations?: RelationSource;
   readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */

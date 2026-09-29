@@ -253,6 +253,19 @@ export function fromSnapshot(
       }
       return out;
     },
+    loadRelations() {
+      // A snapshot carries no graph: graph grants go to the decision endpoint.
+      return Promise.resolve();
+    },
+    whoCan(permission) {
+      return Promise.resolve(
+        freezeDeep({
+          permission: permission.key,
+          holders: [],
+          complete: false,
+        }),
+      );
+    },
     decideRoleChange(change) {
       // Role changes are server decisions: the snapshot carries no holder counts or rules.
       return freezeDeep({

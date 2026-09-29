@@ -1,5 +1,13 @@
-import type { CustomRole, Membership, Principal } from '../../index.ts';
-import type { SaasDoc, SaasProject } from './permissions.ts';
+import type {
+  CustomRole,
+  Membership,
+  Principal,
+  RelationSource,
+} from '../../index.ts';
+import type { SaasDoc, SaasFolder, SaasProject } from './permissions.ts';
+
+import { memoryRelations } from '../../index.ts';
+import { saasPermissions } from './permissions.ts';
 
 export type SaasPlan = 'free' | 'pro';
 
@@ -20,11 +28,21 @@ export type SaasMember = {
   readonly expiresAt?: number;
 };
 
+/** One edge-table row: `user` holds `relation` on `folder`. */
+export type SaasShare = {
+  readonly folder: string;
+  readonly user: string;
+  readonly relation: 'viewer' | 'editor';
+  readonly expiresAt?: number;
+};
+
 export type SaasSeed = {
   readonly orgs: readonly SaasOrg[];
   readonly members: readonly SaasMember[];
   readonly projects: readonly SaasProject[];
   readonly docs: readonly SaasDoc[];
+  readonly folders: readonly SaasFolder[];
+  readonly shares: readonly SaasShare[];
 };
 
 /** Epoch seconds in the past, so the membership is expired for any clock. */
@@ -43,6 +61,10 @@ export const SAAS_EXPIRED_AT = 1_000_000_000;
  * - hank: viewer in acme, `collaborator` on project p3 only
  * - `user-2` and `2`: members of `org-1`; `Date.parse` maps both ids to one instant
  * - tina: member of `tenant-1`; `Date.parse('org-1') === Date.parse('tenant-1')`
+ *
+ * Acme's folders: `root` ─ `eng` ─ `platform` ─ `infra`, and `root` ─ `hr`
+ * (restricted) ─ `payroll`. bob views `root`, hank views `hr`, gina edits
+ * `eng`, frank's view of `root` expired.
  */
 export const saasSeed: SaasSeed = Object.freeze({
   orgs: [
@@ -158,7 +180,89 @@ export const saasSeed: SaasSeed = Object.freeze({
       locked: false,
     },
   ],
+  folders: [
+    {
+      id: 'root',
+      orgId: 'acme',
+      parentId: null,
+      name: 'Acme',
+      restricted: false,
+    },
+    {
+      id: 'eng',
+      orgId: 'acme',
+      parentId: 'root',
+      name: 'Engineering',
+      restricted: false,
+    },
+    {
+      id: 'platform',
+      orgId: 'acme',
+      parentId: 'eng',
+      name: 'Platform',
+      restricted: false,
+    },
+    {
+      id: 'infra',
+      orgId: 'acme',
+      parentId: 'platform',
+      name: 'Infra',
+      restricted: false,
+    },
+    {
+      id: 'hr',
+      orgId: 'acme',
+      parentId: 'root',
+      name: 'People',
+      restricted: true,
+    },
+    {
+      id: 'payroll',
+      orgId: 'acme',
+      parentId: 'hr',
+      name: 'Payroll',
+      restricted: false,
+    },
+    {
+      id: 'globex-root',
+      orgId: 'globex',
+      parentId: null,
+      name: 'Globex',
+      restricted: false,
+    },
+  ],
+  shares: [
+    { folder: 'root', user: 'bob', relation: 'viewer' },
+    { folder: 'hr', user: 'hank', relation: 'viewer' },
+    { folder: 'eng', user: 'gina', relation: 'editor' },
+    {
+      folder: 'root',
+      user: 'frank',
+      relation: 'viewer',
+      expiresAt: SAAS_EXPIRED_AT,
+    },
+  ],
 });
+
+/** The seed's folder tree and shares as a `RelationSource`, for `createPermDock({ relations })`. */
+export function saasRelations(seed: SaasSeed = saasSeed): RelationSource {
+  const edges = (relation: SaasShare['relation']) =>
+    seed.shares
+      .filter((share) => share.relation === relation)
+      .map((share) =>
+        share.expiresAt === undefined
+          ? { id: share.folder, principal: share.user }
+          : {
+              id: share.folder,
+              principal: share.user,
+              expiresAt: share.expiresAt,
+            },
+      );
+  return memoryRelations(saasPermissions, {
+    rows: { folder: seed.folders },
+    edges: { folder: { viewer: edges('viewer'), editor: edges('editor') } },
+  });
+}
 
 /** Every user id in the seed. */
 export const saasUsers: readonly string[] = [

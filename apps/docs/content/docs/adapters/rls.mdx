@@ -24,7 +24,7 @@ A permission such as `allow(permissions.post.update, { to: relation(permissions.
 ```bash
 permdock rls generate --target drizzle|sql|prisma --dialect supabase|neon|guc [--rbac supabase] [--authorize database|jwt] [--memberships <table>[:tenant_col,user_col,role_col]] [--tenant-type uuid] [--policy-per-role] [--policy-name '{table}_{op}'] [--fields views [--revoke-columns]] [--out <path>]
 permdock rls import   --db $DATABASE_URL | --sql schema.sql --out src/permissions.generated.ts [--schema zod|valibot|arktype] [--from drizzle]
-permdock rls verify   --db $DATABASE_URL [--fixtures rls.fixtures.ts] [--format pgtap|node]
+permdock rls verify   --db $DATABASE_URL [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
 ```
 
 Semantics the generator applies:
@@ -39,6 +39,7 @@ Semantics the generator applies:
 | `deny` | `AS RESTRICTIVE` with `NOT (cond)`, one policy per table and command (`deny_{table}_{op}`) |
 | global role | `(select <schema>.permdock_has('<grant key>'))` |
 | role on a named scope | `"<scope key>" in (select <schema>.permitted_<scope>_ids('<grant key>'))` |
+| relation through the parent chain | `"<field>" in (select descendant from <schema>.permdock_closure where resource = '<resource>' and ancestor = any (array(select <schema>.permitted_<resource>_ids('<relation>'))))` ([closure table](#closure-table)) |
 | role, no public grant | `TO authenticated` (default) |
 | `anyone()` grant | `TO anon, authenticated`, in its own `{table}_{op}_anon` policy |
 | `service_role` | never emitted: it bypasses RLS |
@@ -111,6 +112,8 @@ Portable subset compiled by `generate` and recognised by `import`:
 | `memberOf(tenant, row.org_id, roles)` in a condition, with a membership table (`supabaseRls({ memberships })` or `--memberships <table>`) | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any('{admin,viewer}'))` | same | same, user from the GUC |
 | `memberOf(<scope>, row.team_id, roles)` for a scope under the first | `exists (select 1 from team_members m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = any(...))`, over that scope's table, plus the active-tenant equality on its first-scope column | same | same |
 | `memberOf(resource, row.id, roles)` with declared parents | A resource role: one `exists (...)` per mapped resource on the chain, each over that resource's membership table and keyed by the row field holding its id (`id` for the resource itself, `folder_id`, `project_id` for ancestors); a resource with no mapped table contributes nothing | same | same |
+| `related(folder.viewer, row.folderId, depth 16)` (a `through: 'parent'` grant) | `"folderId" in (select descendant::uuid from public.permdock_closure where resource = 'folder' and ancestor = any (array(select public.permitted_folder_ids('viewer'))))`; `and depth <= n` when the grant's depth is below the deepest walk of that resource; `and "restricted" is not true` when the row reaches the folder through its parent and declares `restricted` | same, subject from `auth.user_id()` | same, subject from the GUC |
+| `related(folder.editor, row.id, depth 0)` (an edge relation on the row's own resource) | `"id" in (select p.id::uuid from public.permitted_folder_ids('editor') as p(id))` | same | same |
 | `(select authorize('channels.delete'))` in a hand-written policy (with `--rbac supabase`) | imported as `opaque` | opaque | opaque |
 | literals, `isNull`, boolean columns, `and` / `or` / `not` | literal SQL | literal SQL | literal SQL |
 
@@ -130,6 +133,18 @@ Attribute conditions compare a row column with a claim: `where: { region: princi
 Only server-set claims belong in these conditions. On Supabase that is a claim the custom access token hook adds or `app_metadata`, never `user_metadata`, which the user can edit. `tests/integration/src/rls-abac.test.ts` runs a region and clearance matrix through `rlsParity` on the `supabase`, `neon` and `guc` dialects, against `can` and the snapshot client.
 
 Anything else (`now()` arithmetic, `CASE`, multi-join subqueries, unmapped custom functions) becomes `opaque({ sql, fingerprint })`: kept verbatim for regeneration, flagged in the catalog, unusable for app-side `can`. Named helpers listed in `rls.functions` become `sqlFunction` instead.
+
+## Closure table
+
+Graph grants ([relationships](/docs/concepts/relationships)) compile against a closure table instead of a recursive query per row. When a policy has `through: 'parent'` grants, `generate` emits:
+
+- `<schema>.permitted_<resource>_ids(p_relation text)` for every resource a graph grant reads: a `security definer` helper that returns, as text, the ids of that resource the subject holds `p_relation` on (all graph relations when it is `null`). An edge relation reads its table (`object`, `subject` and, when named, `expiresAt > now()`); a field or principal relation reads the resource's own table, with the principal relation's `period` against `now()`. It is keyed by relation, not by permission key, so a grant on `viewer` never matches an `editor` edge.
+- `<schema>.permdock_closure(resource, ancestor, descendant, depth)`, one row per ancestor a row reaches within the deepest `depth` any grant walks for that resource, including the row itself at depth `0`. The walk from a row stops after a restricted row, so an ancestor above a restricted row never appears for anything at or below it. RLS is enabled on it, and `authenticated` reads only rows whose ancestor its own `permitted_<resource>_ids(null)` returns, so the table does not expose other tenants' trees.
+- Per self-parented table, four statement triggers (`after insert`, `after update`, `after delete` with transition tables, `after truncate`) that call `<schema>.permdock_closure_<resource>(ids)`. It refuses a write that makes a row its own ancestor (`check_violation`), recomputes the closure for the changed rows and their descendants within the depth, and runs once over the whole table when the migration is applied.
+
+A graph grant then compiles to the subquery in the table above. The helper sits in `array(select ...)` so Postgres runs it once per statement as an InitPlan; the outer `in (select descendant ...)` is a hashed subplan, also once per statement. Row ids are compared in the column's type from the resource schema (`descendant::uuid`); a column with no schema type is compared as text. `--force` on a table whose field or principal relations the helper reads from that same table is reported, since the helper would recurse through the table's own policy.
+
+`permdock rls verify --tree --db <url>` checks parity on a generated graph instead of fixtures: for each walked resource it seeds two chains one level past the depth, side branches that alternate restricted, child rows of every resource that parents to it and edges or relation columns for a few generated principals, then compares `can()` with what each principal selects under RLS, and rolls everything back. Connect as a role that owns the tables (or bypasses RLS) and is a member of `authenticated`. The output counts checks and granted checks, so a tree nobody reaches cannot pass by agreeing. `tests/integration/src/rls-graph.test.ts` runs it, and a fixed tree through moves, restriction changes and a refused cycle, on Postgres.
 
 ## Field security
 
@@ -239,6 +254,8 @@ The in-process side answers with a [Decision](/docs/concepts/decisions), so a `d
 - **Role checks are helper functions, not inline joins.** An inline `exists` over the membership table per role, or `authorize(perm, "org_id")`, repeats the role lookup for every row; one `security definer` helper per scope answers it once per statement and keeps the grant-to-role mapping in one seeded table that `import` can read back. Collapsing to one policy per table and command keeps the plan to one filter, and `--policy-per-role` remains for teams that review policies per role.
 - **Attribute claims are typed by the resource schema, not by a flag.** A claim is text after `->>`, and comparing text with a numeric or date column is a type error at query time, or worse, a text comparison where `'10' < '9'`. The resource schema already says what each column is, so the generator reads it instead of asking for a per-column flag. Numbers and booleans also check the claim's JSON kind: a cast would turn the string `"3"` into `3` and grant a row the in-memory evaluator denies, and parity between `can` and the database is the point of generating the policy. Array claims use `array(select ...)` rather than a row-by-row `jsonb_array_elements` so the claim is expanded once per statement, like the role helpers.
 - **Tenant claims are cast to the column type.** `((select auth.jwt()) ->> 'tenant_id')` is `text`; comparing it to a `uuid` column either fails or casts the column, which cannot use its index. `--tenant-type` (default `uuid`) casts the claim instead.
+- **Graph grants read a trigger-maintained closure, not a recursive query.** A recursive CTE in a policy runs per row; the closure turns reachability into an indexed lookup, and statement triggers keep it current in the same transaction as the write, so a moved folder is visible or hidden as soon as it commits. The triggers stop at the same restricted rows and depth as `can`, and refuse cycles, so the database and the evaluator agree by construction and `rls verify --tree` checks it.
+- **`ancestor = any (array(select ...))`, not `ancestor in (select ...)`.** Postgres pulls a plain `in` subquery into a semi join, and with a set-returning helper on the inner side it can rescan the helper for every closure row. The array form is always an InitPlan, run once per statement.
 - **`rls import` proposes, never assumes, a membership table.** An `EXISTS` join over a table that `rls.memberships` does not name stays `opaque`, and the command prints a commented stanza to paste. Guessing that a table holds memberships would turn an unknown join into a grant.
 
 ## Related standards

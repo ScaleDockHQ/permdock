@@ -73,6 +73,47 @@ export type MembershipSource = {
   readonly claimsFirst?: boolean;
 };
 
+/** An object's parent chain, as `RelationSource.ancestors` returns it. */
+export type RelationChain = {
+  /** Whether the object itself is restricted: nothing above it reaches it. */
+  readonly restricted?: boolean;
+  /** Ancestors nearest first, at most `depth`; a restricted one ends the walk after itself. */
+  readonly ancestors: readonly {
+    readonly id: string;
+    readonly restricted?: boolean;
+  }[];
+  /** The chain goes on above the last entry. */
+  readonly truncated?: boolean;
+};
+
+/** One principal holding a relation on an object, as `RelationSource.related` returns it. */
+export type RelationHolder = {
+  readonly principal: { readonly id: string };
+  /** Seconds since the epoch; before it the relation does not hold yet. */
+  readonly startsAt?: number;
+  /** Seconds since the epoch; from it on the relation no longer holds. */
+  readonly expiresAt?: number;
+};
+
+/**
+ * The object graph: parent chains and who holds a relation on an object.
+ * A source answers facts and never decides; a thrown or rejected call, or a
+ * Promise the instance has not loaded, denies with `relation-unavailable`.
+ */
+export type RelationSource = {
+  ancestors(query: {
+    readonly resource: string;
+    readonly id: string;
+    readonly through: 'parent';
+    readonly depth: number;
+  }): RelationChain | Promise<RelationChain>;
+  related(query: {
+    readonly resource: string;
+    readonly id: string;
+    readonly relation: string;
+  }): RelationHolder[] | Promise<RelationHolder[]>;
+};
+
 /** Plan and seat names a principal holds in a tenant, from billing (Stripe Entitlements, a table). */
 export type EntitlementSource = {
   entitlementsFor(

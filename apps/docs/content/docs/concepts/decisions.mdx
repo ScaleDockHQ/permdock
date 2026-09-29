@@ -65,6 +65,8 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 | `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge |
 | `limit` | Quota exhausted |
 | `limit-unavailable` | No `LimitStore`, the store threw, or `consume` / `remaining` returned a thenable |
+| `relation-depth` | A graph grant's parent chain has a cycle, or goes on past its `depth` with no holder within it ([relationships](/docs/concepts/relationships)) |
+| `relation-unavailable` | A graph grant could not read the `RelationSource`: none configured, a throw or rejection, a malformed answer, or a Promise `loadRelations` did not load. On a `deny` it denies the decision |
 | `validation` | Boundary validation failed ([validation](/docs/concepts/validation)) |
 | `unknown-role` | A role name on the principal or a membership is not declared |
 | `pdp-denied` | The remote PDP answered `decision: false` |

@@ -31,6 +31,23 @@ export const SaasDocSchema: StandardSchemaV1<SaasDoc> = rowSchema({
   locked: 'boolean',
 });
 
+export const SaasFolderSchema: StandardSchemaV1<SaasFolder> = rowSchema({
+  id: 'string',
+  orgId: 'string',
+  parentId: 'nullable-string',
+  name: 'string',
+  restricted: 'boolean',
+});
+
+/** A folder in an org's tree; `restricted` keeps grants held on its ancestors out. */
+export type SaasFolder = {
+  readonly id: string;
+  readonly orgId: string;
+  readonly parentId: string | null;
+  readonly name: string;
+  readonly restricted: boolean;
+};
+
 export type SaasProject = {
   readonly id: string;
   readonly orgId: string;
@@ -58,6 +75,7 @@ type Collection<C extends readonly string[]> = ResourceInit<
 type SaasDefinition = {
   readonly project: ResourceInit<SaasProject, CrudActions, CrudCollection>;
   readonly doc: ResourceInit<SaasDoc, CrudActions, CrudCollection>;
+  readonly folder: ResourceInit<SaasFolder, CrudActions, CrudCollection>;
   readonly member: Collection<readonly ['list', 'invite', 'assignRole']>;
   readonly settings: Collection<readonly ['manage']>;
   readonly billing: Collection<readonly ['read', 'manage']>;
@@ -80,6 +98,22 @@ export const saasPermissions: InferPermissionTree<SaasDefinition> =
         relations: {
           org: { field: 'orgId', memberOf: 'tenant' },
           team: { field: 'teamId', memberOf: 'team' },
+        },
+      }),
+    ),
+    folder: resource(
+      SaasFolderSchema,
+      crud({
+        parent: { field: 'parentId', resource: 'folder' },
+        restricted: 'restricted',
+        relations: {
+          org: { field: 'orgId', memberOf: 'tenant' },
+          viewer: {
+            edge: 'folder_share',
+            object: 'folder_id',
+            expiresAt: 'expires_at',
+          },
+          editor: { edge: 'folder_editor', object: 'folder_id' },
         },
       }),
     ),

@@ -54,6 +54,13 @@ import {
 } from './conformance.ts';
 import { describePolicy } from './describe-policy.ts';
 import { jwtFixtureJwks } from './jwt-fixtures.ts';
+import {
+  saasFolder,
+  saasPermissions,
+  saasPolicy,
+  saasPrincipal,
+  saasRelations,
+} from './saas/index.ts';
 import { snapshotFixture } from './snapshot-fixture.ts';
 
 const Post = z.object({
@@ -793,6 +800,37 @@ describePolicy(selectorPolicy, {
     [selectorPermissions.post.publish.key]: {
       ownPost: { agent: 'granted', member: 'denied' },
       otherPost: { agent: 'denied' },
+    },
+  },
+});
+
+describePolicy(saasPolicy, {
+  exhaustive: false,
+  options: { tenant: 'acme', relations: saasRelations() },
+  subjects: {
+    viewer: saasPrincipal('bob', 'acme'),
+    restrictedViewer: saasPrincipal('hank', 'acme'),
+    expired: saasPrincipal('frank', 'acme'),
+  },
+  fixtures: {
+    infra: saasFolder('infra'),
+    payroll: saasFolder('payroll'),
+  },
+  matrix: {
+    [saasPermissions.folder.read.key]: {
+      infra: {
+        viewer: 'granted',
+        restrictedViewer: {
+          outcome: 'denied',
+          denials: [{ reason: 'condition' }],
+        },
+        expired: 'denied',
+      },
+      payroll: {
+        viewer: 'denied',
+        restrictedViewer: 'granted',
+        expired: 'denied',
+      },
     },
   },
 });

@@ -11,6 +11,7 @@ import type {
   Policy,
   PolicyDocument,
   PolicySource,
+  RelationSource,
   RevocationEvent,
   RevocationFeed,
   Role,
@@ -146,6 +147,118 @@ export function testMembershipSource(
       }
     });
   }
+}
+
+/**
+ * A `RelationSource` answers facts only: well-formed chains nearest first and
+ * no longer than `depth`, holders with principal ids and numeric instants, a
+ * `truncated` chain only when more ancestors exist, and empty answers (never
+ * a throw) for an object it does not know. `expect` pins the chains and
+ * holders for `objects`, keyed `resource:id` and `resource:id#relation`.
+ */
+export function testRelationSource(
+  source: RelationSource,
+  options: {
+    readonly objects: readonly {
+      readonly resource: string;
+      readonly id: string;
+      readonly relation?: string;
+    }[];
+    readonly expect?: {
+      readonly ancestors?: Readonly<Record<string, readonly string[]>>;
+      readonly holders?: Readonly<Record<string, readonly string[]>>;
+    };
+  },
+): void {
+  it('returns chains nearest first, within depth, and truncated only when more exist', async () => {
+    for (const object of options.objects) {
+      const full = await source.ancestors({
+        resource: object.resource,
+        id: object.id,
+        through: 'parent',
+        depth: 32,
+      });
+      expect(Array.isArray(full.ancestors)).toBe(true);
+      for (const ancestor of full.ancestors) {
+        expect(typeof ancestor.id).toBe('string');
+        expect(ancestor.id).not.toBe('');
+      }
+      expect(full.ancestors.length).toBeLessThanOrEqual(32);
+      const expected =
+        options.expect?.ancestors?.[`${object.resource}:${object.id}`];
+      if (expected !== undefined) {
+        expect(full.ancestors.map((ancestor) => ancestor.id)).toEqual(expected);
+      }
+      if (full.ancestors.length > 1) {
+        const short = await source.ancestors({
+          resource: object.resource,
+          id: object.id,
+          through: 'parent',
+          depth: 1,
+        });
+        expect(short.ancestors.map((ancestor) => ancestor.id)).toEqual([
+          full.ancestors[0]?.id,
+        ]);
+        expect(short.truncated).toBe(true);
+      }
+      const none = await source.ancestors({
+        resource: object.resource,
+        id: object.id,
+        through: 'parent',
+        depth: 0,
+      });
+      expect(none.ancestors).toEqual([]);
+    }
+  });
+
+  it('returns well-formed holders', async () => {
+    for (const object of options.objects) {
+      if (object.relation === undefined) {
+        continue;
+      }
+      const holders = await source.related({
+        resource: object.resource,
+        id: object.id,
+        relation: object.relation,
+      });
+      expect(Array.isArray(holders)).toBe(true);
+      for (const holder of holders) {
+        expect(typeof holder.principal.id).toBe('string');
+        for (const instant of [holder.startsAt, holder.expiresAt]) {
+          expect(
+            instant === undefined ||
+              (typeof instant === 'number' && Number.isFinite(instant)),
+          ).toBe(true);
+        }
+      }
+      const expected =
+        options.expect?.holders?.[
+          `${object.resource}:${object.id}#${object.relation}`
+        ];
+      if (expected !== undefined) {
+        expect(holders.map((holder) => holder.principal.id).toSorted()).toEqual(
+          [...expected].toSorted(),
+        );
+      }
+    }
+  });
+
+  it('answers an unknown object with nothing instead of throwing', async () => {
+    const first = options.objects[0];
+    if (first === undefined) {
+      return;
+    }
+    const missing = { resource: first.resource, id: 'permdock-missing-object' };
+    expect(
+      (await source.ancestors({ ...missing, through: 'parent', depth: 16 }))
+        .ancestors,
+    ).toEqual([]);
+    if (first.relation !== undefined) {
+      expect(
+        await source.related({ ...missing, relation: first.relation }),
+      ).toEqual([]);
+    }
+  });
 }
 
 export function testEntitlementSource(

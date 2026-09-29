@@ -64,7 +64,7 @@ describe('permissions', () => {
     );
   });
 
-  it('rejects forbidden keys, empty resources, root resources and self-parents', () => {
+  it('rejects forbidden keys, empty resources and root resources', () => {
     expect(() =>
       definePermissions({
         constructor: resource({ actions: ['read'] }),
@@ -76,14 +76,50 @@ describe('permissions', () => {
     expect(() => definePermissions(resource({ actions: ['read'] }))).toThrow(
       /cannot be the root/,
     );
+  });
+
+  it('accepts a self-parent and checks relation shapes', () => {
+    const tree = definePermissions({
+      folder: resource({
+        actions: ['read'],
+        parent: { field: 'parentId', resource: 'folder' },
+        restricted: 'restricted',
+        relations: {
+          viewer: { edge: 'folder_viewers', expiresAt: 'expires_at' },
+          owner: 'ownerId',
+        },
+      }),
+    });
+    const node = getResource(tree, 'folder');
+    expect(node?.parent).toEqual({ field: 'parentId', resource: 'folder' });
+    expect(node?.restricted).toBe('restricted');
+    expect(node?.relations.viewer).toEqual({
+      edge: 'folder_viewers',
+      expiresAt: 'expires_at',
+    });
     expect(() =>
       definePermissions({
-        post: resource({
+        folder: resource({
           actions: ['read'],
-          parent: { field: 'parentId', resource: 'post' },
+          relations: {
+            viewer: { edge: 'folder_viewers', field: 'x' } as never,
+          },
         }),
       }),
-    ).toThrow(/cannot parent itself/);
+    ).toThrow(/exactly one of field, edge or principal/);
+    expect(() =>
+      definePermissions({
+        folder: resource({
+          actions: ['read'],
+          relations: { viewer: { edge: 'viewers; drop table x' } },
+        }),
+      }),
+    ).toThrow(/unsafe edge table/);
+    expect(() =>
+      definePermissions({
+        folder: resource({ actions: ['read'], restricted: '__proto__' }),
+      }),
+    ).toThrow(/forbidden/);
   });
 
   it('caps group depth at 10', () => {

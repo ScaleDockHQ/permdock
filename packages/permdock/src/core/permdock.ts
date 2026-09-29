@@ -8,6 +8,7 @@ import type {
   LimitStore,
   EntitlementSource,
   MembershipSource,
+  RelationSource,
   RoleSource,
   Snapshot,
   TokenSigner,
@@ -26,6 +27,7 @@ import type {
 } from './subject.ts';
 import type { Boundary } from './validation.ts';
 import type { PlanTree, Role, RoleTree } from './vocabulary.ts';
+import type { WhoCan } from './who-can.ts';
 
 import { compact } from './compact.ts';
 import { describe } from './describe.ts';
@@ -36,6 +38,7 @@ import {
   mergeHostedGrants,
 } from './hosted.ts';
 import { buildInstance } from './instance.ts';
+import { asMembershipSource } from './memberships.ts';
 import { resolveSubject } from './resolve-subject.ts';
 import { scopeList } from './scopes.ts';
 import { parseSnapshot } from './snapshot.ts';
@@ -177,6 +180,25 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * RLS triggers re-check the holder counts at commit.
    */
   readonly decideRoleChange: (change: RoleChange) => RoleChangeDecision;
+  /**
+   * Loads the relation facts `permission` needs for `rows` into this
+   * instance's cache, so `can`, `decide` and `filter` answer synchronously
+   * over an async `RelationSource`. It never grants; a failed load leaves
+   * the checks denied with `relation-unavailable`.
+   */
+  readonly loadRelations: (
+    permission: Permission,
+    rows: readonly unknown[],
+  ) => Promise<void>;
+  /**
+   * Who holds `permission` on `resource` and how (role, relation or share),
+   * from `MembershipSource.list` and `RelationSource.related`. It lists and
+   * never grants; `complete: false` means some holders could not be listed.
+   */
+  readonly whoCan: (
+    permission: Permission<string, unknown, 'instance'>,
+    resource: unknown,
+  ) => Promise<WhoCan>;
   readonly roles: V['roles'] extends RoleTree ? V['roles'] : RoleTree;
   readonly plans: V['plans'] extends PlanTree ? V['plans'] : PlanTree;
   readonly permissions: V['permissions'] extends Policy['permissions']
@@ -200,6 +222,8 @@ export type CreatePermDockOptions = {
   readonly expiresAt?: number;
   /** Hosted grants; `current()` is read once, when the instance is created. */
   readonly policies?: PolicySource;
+  /** The object graph for `through` and edge-table relations; without it they deny with `relation-unavailable`. */
+  readonly relations?: RelationSource;
 };
 
 function hostedPolicy(
@@ -246,6 +270,11 @@ function instantiate(
         assignable: names,
         queuedAuth: auth,
         queuedErrors: errors,
+        relations: options.relations,
+        memberships:
+          options.memberships === undefined
+            ? undefined
+            : asMembershipSource(options.memberships),
       }),
     );
   if (isThenable(customRoles) || isThenable(assignable)) {

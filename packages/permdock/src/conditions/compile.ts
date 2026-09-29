@@ -578,6 +578,10 @@ function compileNode(
       return compileNode(condition.twin, options);
     case 'memberOf':
       return compileMemberOf(condition, options);
+    case 'related':
+      throw nonPortable(
+        'related (the relation graph; RLS compiles it over the closure table)',
+      );
     case 'eq':
     case 'ne':
     case 'gt':

@@ -3,9 +3,10 @@ import type { ProblemDetails } from '../core/errors.ts';
 import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
-  LimitStore,
   EntitlementSource,
+  LimitStore,
   MembershipSource,
+  RelationSource,
   RoleSource,
   SnapshotSource,
 } from '../core/interfaces.ts';
@@ -78,6 +79,8 @@ export type A2APermDockOptions<TUser = unknown> = {
     | string
     | ((auth: A2AAuth) => string | undefined | Promise<string | undefined>);
   readonly memberships?: MembershipSource | readonly MembershipSource[];
+  /** The object graph for relation grants that walk a parent chain; without it they deny. */
+  readonly relations?: RelationSource;
   readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
