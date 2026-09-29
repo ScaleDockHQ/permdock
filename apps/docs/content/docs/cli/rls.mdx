@@ -12,6 +12,8 @@ permdock rls generate --target drizzle --dialect supabase --out src/db/policies.
 permdock rls generate --target sql     --dialect neon     --out migrations/0007_rls.sql
 permdock rls generate --target prisma  --dialect guc      --out prisma/policies.prisma
 permdock rls generate --target sql --dialect supabase --rbac-scaffold   # also emit Supabase's authorize() RBAC tables
+permdock rls generate --target sql --dialect supabase --memberships organization_members:organization_id,user_id,role --tenant-type uuid
+permdock rls generate --target sql --policy-per-role --out migrations/rls.sql   # one policy per role and permission
 permdock rls generate --target sql --inline-functions --out migrations/rls.sql
 permdock rls generate --target sql --force --out migrations/rls.sql   # also FORCE ROW LEVEL SECURITY
 ```
@@ -34,21 +36,61 @@ Dialects decide how the subject reaches SQL:
 | `neon` | `(select auth.user_id())` | JWT claims via `pg_session_jwt` |
 | `guc` | `current_setting('app.user_id', true)` | `current_setting('app.<claim>', true)`; the prefix is configurable with `--guc-prefix` |
 
-Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH CHECK`, `update` becomes `FOR UPDATE USING (where) WITH CHECK (check)`, `delete` becomes `FOR DELETE USING`; `allow` grants are `PERMISSIVE`, `deny` grants are `RESTRICTIVE` with `NOT (condition)`; a `SELECT` policy is emitted whenever `UPDATE` or `DELETE` is, because Postgres needs it; the default target role is `authenticated`; `service_role` is never emitted.
+Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH CHECK`, `update` becomes `FOR UPDATE USING (where) WITH CHECK (check)`, `delete` becomes `FOR DELETE USING`; `allow` grants are `PERMISSIVE`, `deny` grants are `RESTRICTIVE` with `NOT (condition)`; a `SELECT` policy is emitted whenever `UPDATE` or `DELETE` is, because Postgres needs it; the default target role is `authenticated` (`anyone()` grants also target `anon`); `service_role` is never emitted. Grants come from `definePolicy({ roles })` and from top-level `definePolicy({ grants })`; a grant limited to a grantee Postgres cannot see (`plan()`, `actor()`, `assurance()`) or to several roles at once fails the command with the permission named.
+
+### Role checks: per-statement helpers
+
+Every generated file starts with three helper functions and the table they read, all in one schema (`--rbac-schema`, `rls.schema`, default `public`):
+
+| Object | What it answers |
+| --- | --- |
+| `role_permissions (role, permission, grant_key, scope, effect)` | Which declared role holds which grant key at which scope (`global`, `tenant`, `team`). Seeded by `generate` with an upsert; rows it no longer emits are deleted. |
+| `permdock_has(p_grant text) returns boolean` | Does the subject hold a global role with this grant key |
+| `permitted_tenant_ids(p_grant text) returns setof <tenant type>` | Which tenants the subject holds this grant key in |
+| `permitted_team_ids(p_grant text) returns setof <team type>` | Which teams the subject holds this grant key in |
+
+The helpers are `language sql stable security definer set search_path = ''` with fully qualified names; `execute` is revoked from `public` and `anon` and granted to `authenticated`. Policies call them uncorrelated, so Postgres evaluates each call once per statement instead of once per row:
+
+```sql
+create policy "post_select" on "post" as permissive for select to authenticated
+  using ((select "public".permdock_has('post.read'))
+      or ("orgId" in (select "public".permitted_tenant_ids('post.read'))));
+```
+
+A grant key is the permission key. When roles grant one permission with different portable conditions (or effects), each condition group gets its own key, `post.update#1`, `post.update#2`, and becomes one OR branch with its condition ANDed on. Row conditions (`where`, `relation`, `principal.id`) stay in the policy; resource-scoped roles keep their `exists` join over the mapped membership table.
+
+`--authorize` chooses where the helpers read roles and memberships:
+
+| Mode | Global roles | Tenant and team memberships |
+| --- | --- | --- |
+| `database` | `<schema>.user_roles (user_id, role)`: the RBAC scaffold's table, or one `generate` creates | The `--memberships` / `rls.memberships.tenant` (and `.team`) table; without one, the helper returns no rows and the command warns |
+| `jwt` | The `rls.roleClaim` claim (default `user_role`, a string or an array; Supabase falls back to `app_metadata`) | The `memberships` claim, `[{ tenant, team?, roles, expiresAt? }]` |
+
+With the `guc` dialect the claims are settings: `<prefix>.user_role` holds a comma-separated role list and `<prefix>.memberships` holds the JSON array. When the active-tenant claim is set, the tenant and team helpers only return that tenant.
+
+### Policy layout
+
+The default is one `PERMISSIVE` policy per table, command and audience, named `{table}_{op}` (`post_select`, `post_update`), so Splinter's `multiple_permissive_policies` lint stays quiet; `anyone()` grants get their own `{table}_{op}_anon` policy for `anon, authenticated`, and denies are one `RESTRICTIVE` `deny_{table}_{op}` policy.
+
+The tenant claim is cast to the tenant column's type wherever it meets a column (`"orgId" = ((select auth.jwt()) ->> 'tenant_id')::uuid`), and the tenant helper returns that type, so the comparison can use the column's index.
 
 Only portable conditions compile: equality against the subject, `in` / `notIn` membership (emitted as `IN (select ...)`), literal columns, `and` / `or` / `not`, `memberOf`, and `sqlFunction`. A `sqlFunction` grant emits `name(args)` so the database keeps its helper; `--inline-functions` (or `rls.inlineFunctions`) compiles the twin instead. Generate reports those grants as portable via twin. A closure grant fails generation with the grant's location and the message that the grant must be rewritten as a portable condition or excluded with `--skip-closures`. Grants with `approval: 'human'` are skipped with a warning, because RLS has no approval step; the table stays closed for that permission.
 
-With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `user_roles`, `role_permissions` and `authorize('permission')` function, and policies call `authorize('post.delete')` instead of inlining role checks, so the named-permission catalog exists in the database too.
+With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `app_role` / `app_permission` enums, `user_roles`, the custom access token hook and the `authorize('permission', tenant)` function over the shared `role_permissions`, so the named-permission catalog exists in the database too. Generated policies still call the helpers, never `authorize()` per row; `authorize()` is there for hand-written policies and RPCs, and it answers "does a role hold this permission" without row conditions or denies.
 
 | Flag | Values | Default | Effect |
 |---|---|---|---|
 | `--rbac` | `supabase` | off | Emit the RBAC scaffold (`--rbac-scaffold` is an equivalent spelling). Any other value exits 2; so does a dialect other than `supabase`. |
-| `--rbac-schema` | a Postgres identifier | `public`, or `rls.rbac.schema` | Schema for the enums, tables, `authorize()` and the hook. Policies call `<schema>.authorize(...)`. |
-| `--authorize` | `database`, `jwt` | `database`, or `rls.rbac.authorize` | `database` reads `user_roles` and the `--memberships` table on every call. `jwt` reads the hook-injected `user_role` and `memberships` claims: no query, stale until the token refreshes (doctor PD019). |
+| `--rbac-schema` | a Postgres identifier | `rls.schema`, `rls.rbac.schema`, or `public` | Schema for `role_permissions`, the helpers, and the RBAC scaffold. |
+| `--authorize` | `database`, `jwt` | `rls.authorize`, `rls.rbac.authorize`, else `database` with `--rbac` or a memberships table and `jwt` otherwise | Where the helpers (and `authorize()`) read roles and memberships. `jwt` needs no query but stays stale until the token refreshes (doctor PD019). |
+| `--memberships` | `<table>:tenant,user,role[,expires_at]` | `rls.memberships.tenant` | The tenant memberships table `database` mode reads. |
+| `--tenant-type` | a Postgres type | `rls.tenantType`, or `uuid` | Type of tenant columns: the tenant claim is cast to it and `permitted_tenant_ids` returns it. `rls.teamType` does the same for teams and defaults to the tenant type. |
+| `--policy-per-role` | flag | `rls.policyPerRole`, off | One policy per role and permission (`{role}_{permission}`, the layout before the helpers), each still calling the helpers. |
+| `--policy-name` | template | `{table}_{op}`, or `{role}_{permission}` with `--policy-per-role` | Policy names from `{table}`, `{op}`, `{role}` and `{permission}`. A collapsed layout needs `{table}` and `{op}` and rejects `{role}` and `{permission}`. |
 
 `--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
 
-Tenant-scoped grants call `authorize('perm', "<tenant column>"::text)`. In `database` mode they need `--memberships`, otherwise they deny and the command warns. The command prints the `config.toml` stanza that enables the hook.
+With `--rbac`, the command prints the `config.toml` stanza that enables the hook.
 
 ## import
 
@@ -58,7 +100,7 @@ permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts --sche
 permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts --from drizzle
 ```
 
-`import` reads `pg_policies` (with `--db`, optional `pg` peer) or a SQL dump (`--sql`), parses each `USING` and `WITH CHECK` expression with `pgsql-parser` (libpg_query compiled to WASM) and pattern-matches the AST against the portable subset, recognising the `EXISTS` form of membership, the Supabase `auth.uid()` / `auth.jwt()` idioms, and `FuncCall` names listed in `rls.functions`. Recognised expressions become portable conditions; mapped functions become `sqlFunction` with the configured twin; everything else becomes `opaque({ sql, fingerprint })`, where `fingerprint` is a hash of the deparsed AST so formatting changes do not register as drift. Unmapped functions print `add rls.functions.<name>` and, with `--db`, a slice of `pg_proc.prosrc`. An `EXISTS` or `IN` subquery over a table that `rls.memberships` does not name stays opaque, and the command prints a commented `rls.memberships.tenant` stanza for that table with the default column names to edit; it never assumes the table holds memberships.
+`import` reads `pg_policies` (with `--db`, optional `pg` peer) or a SQL dump (`--sql`), parses each `USING` and `WITH CHECK` expression with `pgsql-parser` (libpg_query compiled to WASM) and pattern-matches the AST against the portable subset, recognising the `EXISTS` form of membership, the Supabase `auth.uid()` / `auth.jwt()` idioms, and `FuncCall` names listed in `rls.functions`. Recognised expressions become portable conditions; mapped functions become `sqlFunction` with the configured twin; everything else becomes `opaque({ sql, fingerprint })`, where `fingerprint` is a hash of the deparsed AST so formatting changes do not register as drift. Unmapped functions print `add rls.functions.<name>` and, with `--db`, a slice of `pg_proc.prosrc`. Calls to the generated helpers are read back in both layouts: `"<col>" in (select permitted_tenant_ids('<key>'))` and the team form become `memberOf` with the roles that `role_permissions` (the seeds in a dump, or the live table with `--db`) lists for that key, and `(select permdock_has('<key>'))` stays `opaque` in the condition, because a global role has no row form. Each catalog entry lists those branches under `grants` as `{ key, permission, scope, roles, where? }`, so the imported file still names which roles each policy admits. An `EXISTS` or `IN` subquery over a table that `rls.memberships` does not name stays opaque, and the command prints a commented `rls.memberships.tenant` stanza for that table with the default column names to edit; it never assumes the table holds memberships.
 
 The output is a deterministic `definePermissions()` module with a `// @generated` header: one resource per table with its actions derived from the policy commands, resource schemas emitted for the validator chosen with `--schema zod|valibot|arktype` from the table's columns, or referencing existing Drizzle tables through `drizzle-zod` with `--from drizzle`. Conditions are emitted as a role fragment alongside, so the generated file can be merged with hand-written definitions and policy fragments ([Larger apps](/docs/getting-started/larger-apps)).
 
@@ -72,7 +114,7 @@ permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
 permdock rls verify --fixtures rls.fixtures.json --format pgtap > tests/rls.sql
 ```
 
-`verify` runs a parity test for every (subject, permission, row) triple in the fixtures: `can()` in-process against the PermDock policy, then, with `--db` (optional `pg` peer), the same operation in the database under `set local role authenticated` with the subject's claims in `request.jwt.claims` (Supabase) or the GUCs (`guc`). Outcomes per row are `allowed`, `filtered` (the row disappears from a `SELECT`) or `rejected` (error `42501`). Disagreements are listed with the grant; the exit code is `1`. Opaque grants are reported as untestable app-side. `sqlFunction` grants compare the twin in memory with the live function and are reported as verified through twin.
+`verify` runs a parity test for every (subject, permission, row) triple in the fixtures: `can()` in-process against the PermDock policy, then, with `--db` (optional `pg` peer), the same operation in the database under `set local role authenticated` with the subject's claims in `request.jwt.claims` (Supabase) or the GUCs (`guc`): `sub`, the tenant claim, the role claim and `memberships`, so `jwt`-mode helpers see the fixture's subject. A `create` fixture inserts every column of `row`; an `update` fixture with `newRow` writes its columns and compares against `can()` on the `{ current, next }` pair. Outcomes per row are `allowed`, `filtered` (the row disappears from a `SELECT`) or `rejected` (error `42501`). Disagreements are listed with the grant; the exit code is `1`. Opaque grants are reported as untestable app-side. `sqlFunction` grants compare the twin in memory with the live function and are reported as verified through twin.
 
 Tests can be emitted as pgTAP (`--format pgtap`) for teams that run database tests in CI, or executed directly from Node using the connection string. `@permdock/testing` exposes the same runner for Vitest.
 

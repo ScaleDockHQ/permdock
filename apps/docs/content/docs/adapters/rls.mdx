@@ -22,7 +22,7 @@ A permission such as `allow(permissions.post.update, { to: relation(permissions.
 ## API
 
 ```bash
-permdock rls generate --target drizzle|sql|prisma --dialect supabase|neon|guc [--rbac supabase] [--memberships <table>[:tenant_col,user_col,role_col]] [--out <path>]
+permdock rls generate --target drizzle|sql|prisma --dialect supabase|neon|guc [--rbac supabase] [--authorize database|jwt] [--memberships <table>[:tenant_col,user_col,role_col]] [--tenant-type uuid] [--policy-per-role] [--policy-name '{table}_{op}'] [--out <path>]
 permdock rls import   --db $DATABASE_URL | --sql schema.sql --out src/permissions.generated.ts [--schema zod|valibot|arktype] [--from drizzle]
 permdock rls verify   --db $DATABASE_URL [--fixtures rls.fixtures.ts] [--format pgtap|node]
 ```
@@ -35,13 +35,55 @@ Semantics the generator applies:
 | `create` (collection action with `check`) | `FOR INSERT WITH CHECK (cond on new row)` |
 | `update` | `FOR UPDATE USING (where on current row) WITH CHECK (check on new row; defaults to where)` |
 | `delete` | `FOR DELETE USING (cond)` |
-| `allow` | `AS PERMISSIVE` |
-| `deny` | `AS RESTRICTIVE` with `NOT (cond)` |
+| `allow` | `AS PERMISSIVE`, one policy per table and command (`{table}_{op}`) |
+| `deny` | `AS RESTRICTIVE` with `NOT (cond)`, one policy per table and command (`deny_{table}_{op}`) |
+| global role | `(select <schema>.permdock_has('<grant key>'))` |
+| tenant or team role | `"<tenant col>" in (select <schema>.permitted_tenant_ids('<grant key>'))` (or `permitted_team_ids`) |
 | role, no public grant | `TO authenticated` (default) |
-| anonymous grant | `TO anon, authenticated` |
+| `anyone()` grant | `TO anon, authenticated`, in its own `{table}_{op}_anon` policy |
 | `service_role` | never emitted: it bypasses RLS |
 
-Additional rules: a `SELECT` policy is generated (or its coverage asserted) whenever `update` or `delete` grants exist, because Postgres requires SELECT access to filter and for `RETURNING`; `ENABLE ROW LEVEL SECURITY` is always emitted; `REVOKE ALL ... FROM anon, authenticated` followed by the exact `GRANT`s is emitted next to the policies, because a missing grant raises `42501` and masquerades as a policy denial; helper calls are wrapped as `(select auth.uid())` so they run once per statement; an index suggestion is printed for every filtered column.
+Additional rules: a `SELECT` policy is generated (or its coverage asserted) whenever `update` or `delete` grants exist, because Postgres requires SELECT access to filter and for `RETURNING`; `ENABLE ROW LEVEL SECURITY` is always emitted; `REVOKE ALL ... FROM anon, authenticated` followed by the exact `GRANT`s is emitted next to the policies, because a missing grant raises `42501` and masquerades as a policy denial; helper calls are wrapped as `(select auth.uid())` so they run once per statement; an index suggestion is printed for every filtered column. Grants come from `definePolicy({ roles })` and top-level `definePolicy({ grants })` alike, and a grant Postgres cannot enforce (a `plan()`, `actor()` or `assurance()` grantee) fails generation with the permission named.
+
+## Per-statement helpers (InitPlan)
+
+The role check of every grant lives in one of three generated functions, never in the per-row part of a policy:
+
+- `<schema>.permdock_has(p_grant text) returns boolean`: the subject holds a global role with the grant key.
+- `<schema>.permitted_tenant_ids(p_grant text) returns setof <tenant type>`: the tenants in which the subject holds it.
+- `<schema>.permitted_team_ids(p_grant text) returns setof <team type>`: the teams in which the subject holds it.
+
+They join the subject's roles (the `user_roles` table in `database` mode, the role claim in `jwt` mode) or memberships (the memberships table, or the `memberships` claim) with a generated `<schema>.role_permissions (role, permission, grant_key, scope, effect)` table that `generate` seeds from the policy. The grant key is the permission key; roles that grant one permission under different portable conditions get one key per condition group (`post.update#1`, `post.update#2`), and each group is one OR branch of the policy with its condition ANDed on. `relation`, `principal.id` and `where` conditions stay in the policy because they depend on the row.
+
+Postgres plans an uncorrelated scalar subquery as an **InitPlan** and an uncorrelated `IN (select ...)` as a **hashed SubPlan**: both run once per statement and the per-row filter only reads the result. Any expression that mentions a column of the row, such as `authorize('post.read', "orgId"::text)`, is correlated and runs once per row, however it is wrapped. On 10,000 rows across 20 tenants, as a member of one tenant, the benchmark in `tests/integration/bench` measures (Postgres 16):
+
+```text
+-- before: per-row authorize() plus a membership join per role
+Seq Scan on post (actual rows=500 loops=1)
+  Filter: ($0 OR $1 OR ((SubPlan 3) AND (hashed SubPlan 9)) OR ...)
+  SubPlan 3
+    ->  Result (actual rows=1 loops=10000)       -- authorize(..., "orgId"::text), per row
+Execution Time: ~1600 ms
+
+-- after: helper calls, uncorrelated
+Seq Scan on post (actual rows=500 loops=1)
+  Filter: ($0 OR (hashed SubPlan 2) OR $2 OR (hashed SubPlan 4))
+  InitPlan 1 (returns $0)
+    ->  Result (actual rows=1 loops=1)           -- permdock_has('post.read')
+  SubPlan 2
+    ->  ProjectSet (actual rows=1 loops=1)       -- permitted_tenant_ids('post.read')
+Execution Time: ~1 ms
+```
+
+The benchmark asserts on `EXPLAIN (ANALYZE, FORMAT JSON)` that every node calling a helper has `loops = 1` (whether Postgres labels it an InitPlan or a hashed SubPlan), that both shapes return the same rows, and that the helper shape is at least 5x faster with an absolute ceiling.
+
+Security notes on the helpers:
+
+- They are `security definer` so they can read `role_permissions`, `user_roles` and the memberships table, which `authenticated` cannot select; the policy never needs a grant on those tables, and their own RLS does not recurse into the helper.
+- `set search_path = ''` and fully qualified names stop a caller from shadowing a table or function through `search_path`.
+- They are `stable`, take only the grant key, and read the subject from `auth.uid()` / the claims inside the function: a caller cannot pass another user's id.
+- `execute` is revoked from `public` and `anon` and granted to `authenticated`, so `anon` policies (`anyone()` grants) never reference them.
+- `role_permissions` has RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; it changes only through a migration that re-runs `generate`.
 
 Portable subset compiled by `generate` and recognised by `import`:
 
@@ -52,11 +94,13 @@ Portable subset compiled by `generate` and recognised by `import`:
 | `eq(principal.claim.user_role, 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | claim function | GUC read |
 | membership (`in(row.id, context.teamIds)`) | `id in (select team_id from team_user where user_id = (select auth.uid()))` | same | same |
 | `sqlFunction('job_permitted', { args, twin })` | `job_permitted("id")` (`--inline-functions` emits the twin) | same | same |
-| `memberOf(tenant, row.org_id, roles)` from a tenant-scoped role, active tenant in a claim | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = org_id` |
-| `memberOf(tenant, row.org_id, roles)` with a membership table (`supabaseRls({ memberships })` or `--memberships <table>`) | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any('{admin,viewer}'))` | same | same, user from the GUC |
+| A tenant-scoped role's grant | `org_id in (select public.permitted_tenant_ids('post.read'))`; the helper reads the membership table (`database`) or the `memberships` claim (`jwt`) | same | same, user and claims from GUCs |
+| A global role's grant | `(select public.permdock_has('post.read'))`; the helper reads `user_roles` (`database`) or the role claim (`jwt`) | same | same |
+| `memberOf(tenant, row.org_id, roles)` in a condition, no membership table | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` (cast to `--tenant-type`) | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = org_id` |
+| `memberOf(tenant, row.org_id, roles)` in a condition, with a membership table (`supabaseRls({ memberships })` or `--memberships <table>`) | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any('{admin,viewer}'))` | same | same, user from the GUC |
 | `memberOf(team, row.team_id, roles)` | `exists (select 1 from team_members m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = any(...))`, plus the active-tenant equality | same | same |
 | `memberOf(resource, row.id, roles)` with declared parents | A resource role: one `exists (...)` per mapped resource on the chain, each over that resource's membership table and keyed by the row field holding its id (`id` for the resource itself, `folder_id`, `project_id` for ancestors); a resource with no mapped table contributes nothing | same | same |
-| `hasPermission('channels.delete')` (with `--rbac supabase`) | `(select authorize('channels.delete'))` | opaque | opaque |
+| `(select authorize('channels.delete'))` in a hand-written policy (with `--rbac supabase`) | imported as `opaque` | opaque | opaque |
 | literals, `isNull`, boolean columns, `and` / `or` / `not` | literal SQL | literal SQL | literal SQL |
 
 `memberOf` is the node a tenant-, team- or resource-scoped role produces ([tenancy](/docs/concepts/tenancy)); it is portable only when the generator knows where memberships live. The dialect option `memberships` names the table and columns per scope kind (`{ tenant: { table, tenant, user, role }, team: {...}, resource: { document: {...} } }`); with an active-tenant claim configured and no table, tenant scopes compile to the claim equality and team or resource scopes are reported as non-portable. `import` recognises both the claim equality and the `exists` join and maps them back to `memberOf` when the table matches a configured mapping, otherwise to the older `in(...)` membership form. Expired memberships (`expiresAt`) compile to `and (m.expires_at is null or m.expires_at > now())` when the mapping names an `expiresAt` column.
@@ -69,10 +113,11 @@ Anything else (`now()` arithmetic, `CASE`, multi-join subqueries, unmapped custo
 
 `generate`:
 
-1. Load `definePolicy` output; group grants by resource table and action.
-2. Flatten allows and denies per (table, command, role class) into permissive and restrictive policies.
-3. Compile each condition with the dialect; emit `pgPolicy(...)` entries (Drizzle, using `authenticatedRole` and `authUid` from `drizzle-orm/supabase`), an idempotent migration (`sql`: `drop policy if exists` + `create policy`, grants, `enable row level security`), or Prisma 8 `policy_*` blocks with `@@rls`.
-4. With `--rbac supabase`, also emit the `user_roles` / `role_permissions` tables, the `custom_access_token_hook`, and the `authorize()` function; named permissions compile to `authorize('key')` ([Supabase provider](/docs/adapters/supabase)).
+1. Load `definePolicy` output; collect role and top-level grants and group them by resource table and action.
+2. Assign grant keys (one per permission and condition group) and seed `role_permissions`; emit the helpers.
+3. Flatten allows and denies per (table, command, audience) into one permissive and one restrictive policy (`--policy-per-role` keeps one per role and permission).
+4. Compile each condition with the dialect; emit `pgPolicy(...)` entries (Drizzle, using `authenticatedRole` and `authUid` from `drizzle-orm/supabase`, with the helpers in a migration comment), an idempotent migration (`sql`: helpers, `drop policy if exists` + `create policy`, grants, `enable row level security`), or Prisma 8 `policy_*` blocks with `@@rls`.
+5. With `--rbac supabase`, also emit the `app_role` / `app_permission` enums, `user_roles`, the `custom_access_token_hook`, and an `authorize()` function over the same `role_permissions` for hand-written policies ([Supabase provider](/docs/adapters/supabase)).
 
 `import`:
 
@@ -84,7 +129,7 @@ Anything else (`now()` arithmetic, `CASE`, multi-join subqueries, unmapped custo
 
 `verify`:
 
-1. For each fixture `{ subject, row, newRow?, action }` compute the in-process outcome with `can`. A fixture subject may carry `memberships` and `tenant`; the runner writes the memberships into the configured membership table inside the transaction so the `exists` join sees the same state the evaluator does.
+1. For each fixture `{ subject, row, newRow?, action }` compute the in-process outcome with `can`. A fixture subject may carry `roles`, `memberships` and `tenant`; the runner puts them in the claims (or GUCs), which is what `jwt`-mode helpers read. In `database` mode the helpers read `user_roles` and the membership table, so the database under test holds the same memberships as the fixtures.
 2. In a `BEGIN ... ROLLBACK` transaction run `set local role`, `set_config('request.jwt.claims', ..., true)` (including the tenant claim), `set_config('request.jwt.claim.sub', ..., true)` (or the GUC equivalents), execute the statement with `RETURNING`, and classify: `allowed` (rows returned), `filtered` (zero rows), `rejected` (SQLSTATE `42501`).
 3. Compare: `granted` must be `allowed`; `denied` must be `filtered` (for `USING`) or `rejected` (for `WITH CHECK` and missing grants). `sqlFunction` grants compare `can()` on the twin with the database executing the real function. Emit as pgTAP files for `supabase test db` or run directly from Node with the optional `pg` peer (`--db`).
 
@@ -92,7 +137,7 @@ The preamble in step 2 is the one PostgREST runs and the one `withPostgresClient
 
 ## What it validates
 
-- `generate`: every `update` / `delete` grant has SELECT coverage; no table ends with zero permissive policies for a role and command it grants; no `service_role` policies; non-portable grants are reported with their role and grant so the author can choose `opaque` or a rewrite.
+- `generate`: every `update` / `delete` grant has SELECT coverage; no table ends with zero permissive policies for a role and command it grants; one permissive policy per table and command, so Splinter's `multiple_permissive_policies` has nothing to report; role checks run once per statement, so `auth_rls_initplan` has nothing to report either; no `service_role` policies; non-portable grants are reported with their role and grant so the author can choose `opaque` or a rewrite.
 - `import`: fingerprints of previously imported policies; a changed fingerprint is reported as drift rather than silently overwritten; Splinter-style findings (`auth_rls_initplan`, `multiple_permissive_policies`, `rls_enabled_no_policy`) are surfaced when the database exposes them.
 - `verify`: mismatches fail the run; opaque policies are reported as untestable app-side; `sqlFunction` grants are reported as verified through twin; SQL three-valued logic risks (`auth.uid()` NULL, nullable columns) are called out when a fixture row has nulls in filtered columns.
 
@@ -123,6 +168,8 @@ The in-process side answers with a [Decision](/docs/concepts/decisions), so a `d
 - **`REVOKE` / `GRANT` is always emitted, with no `--grants` flag.** The `sql` target revokes table privileges from `anon` and `authenticated` and grants back only the commands the policy uses. A policy without the matching grant fails with `42501`, and a grant without a policy is the open-by-default mistake RLS exists to prevent. Making the pair optional would allow either half to go missing.
 - **The `neon` dialect is pinned to `auth.user_id()`.** That is the helper `pg_session_jwt` installs, and the generated SQL calls it through `(select ...)` so Postgres evaluates it once per statement. Claims go through `auth.session()`. A different helper name is a `guc` dialect with `--guc-prefix`.
 - **App roles are claims, not Postgres roles.** Every generated policy targets `authenticated`. Roles, tenants and memberships reach the policy as JWT claims or GUCs, or through the membership table for `memberOf`. PermDock never generates a Postgres role per tenant or per app role: the number of Postgres roles would grow with the customer count, `GRANT` changes would need DDL at request time, and connection pools hold one role per connection. A deployment that already uses per-tenant Postgres roles makes each one a member of `authenticated` (`grant authenticated to tenant_a`), so the generated policies apply to it, and the policies still read the tenant from the claim.
+- **Role checks are helper functions, not inline joins.** An inline `exists` over the membership table per role, or `authorize(perm, "org_id")`, repeats the role lookup for every row; one `security definer` helper per scope answers it once per statement and keeps the grant-to-role mapping in one seeded table that `import` can read back. Collapsing to one policy per table and command keeps the plan to one filter, and `--policy-per-role` remains for teams that review policies per role.
+- **Tenant claims are cast to the column type.** `((select auth.jwt()) ->> 'tenant_id')` is `text`; comparing it to a `uuid` column either fails or casts the column, which cannot use its index. `--tenant-type` (default `uuid`) casts the claim instead.
 - **`rls import` proposes, never assumes, a membership table.** An `EXISTS` join over a table that `rls.memberships` does not name stays `opaque`, and the command prints a commented stanza to paste. Guessing that a table holds memberships would turn an unknown join into a grant.
 
 ## Related standards
