@@ -39,10 +39,15 @@ export type CustomGrant = {
 
 const GRANT_KEYS = new Set(['permission', 'effect']);
 
-export function customRoleScope(
-  role: Pick<CustomRole, 'team'>,
-): 'tenant' | 'team' {
+/** A named membership scope a custom-role ceiling is keyed by. */
+export type CeilingScope = 'tenant' | 'team';
+
+export function customRoleScope(role: Pick<CustomRole, 'team'>): CeilingScope {
   return role.team === undefined ? 'tenant' : 'team';
+}
+
+function isCeilingScope(scope: Grant['scope']): scope is CeilingScope {
+  return scope === 'tenant' || scope === 'team';
 }
 
 function soleRole(grant: Grant): string | undefined {
@@ -72,34 +77,45 @@ export function isAssignableRole(policy: Policy, name: string): boolean {
 }
 
 /**
- * The code allows of declared `assignable` roles in `scope`: everything a
- * custom role of that scope may ever reach. Hosted grants never widen it.
- * `assignable` narrows it to those role names (`RoleSource.assignable`).
+ * Every scope's ceiling, keyed by scope name: the code allows of declared
+ * `assignable` roles in that scope, everything a custom role of the scope may
+ * ever reach. Hosted grants never widen it. `assignable` narrows it to those
+ * role names (`RoleSource.assignable`).
  */
-export function ceilingGrants(
+export function ceilings(
   policy: Policy,
-  scope: 'tenant' | 'team',
   assignable?: readonly string[],
-): readonly Grant[] {
+): ReadonlyMap<CeilingScope, readonly Grant[]> {
   const allowed = assignable === undefined ? undefined : new Set(assignable);
-  return grantList(policy).filter((grant) => {
+  const byScope = new Map<CeilingScope, Grant[]>();
+  for (const grant of grantList(policy)) {
     const name = soleRole(grant);
-    return (
-      grant.effect === 'allow' &&
-      grant.hosted === undefined &&
-      grant.scope === scope &&
-      name !== undefined &&
-      isAssignableRole(policy, name) &&
-      (allowed === undefined || allowed.has(name))
-    );
-  });
+    if (
+      grant.effect !== 'allow' ||
+      grant.hosted !== undefined ||
+      !isCeilingScope(grant.scope) ||
+      name === undefined ||
+      !isAssignableRole(policy, name) ||
+      (allowed !== undefined && !allowed.has(name))
+    ) {
+      continue;
+    }
+    const list = byScope.get(grant.scope) ?? [];
+    list.push(grant);
+    byScope.set(grant.scope, list);
+  }
+  return byScope;
 }
 
-function retarget(
-  grant: Grant,
-  role: CustomRole,
-  scope: 'tenant' | 'team',
-): Grant {
+export function ceilingGrants(
+  policy: Policy,
+  scope: CeilingScope,
+  assignable?: readonly string[],
+): readonly Grant[] {
+  return ceilings(policy, assignable).get(scope) ?? [];
+}
+
+function retarget(grant: Grant, role: CustomRole, scope: CeilingScope): Grant {
   const grantee: RoleGrantee = { kind: 'role', role: role.name, scope };
   const others = flattenGrantee(grant.to).filter(
     (item) => item.kind !== 'role',
