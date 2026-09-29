@@ -74,7 +74,10 @@ export type TokenFailureCause =
   | 'invalid-chain'
   | 'jwks-unavailable'
   | 'discovery-unavailable'
-  | 'discovery-mismatch';
+  | 'discovery-mismatch'
+  | 'capability-revoked'
+  | 'capability-replayed'
+  | 'redeemer-mismatch';
 
 export type VerifiedToken<TClaims extends JwtClaims = JwtClaims> = {
   readonly ok: true;
@@ -112,7 +115,8 @@ export type TokenSigner = {
         | 'permdock-snapshot+jwt'
         | 'permdock-approval+jwt'
         | 'permdock-decisions+jwt'
-        | 'permdock-policy+jwt';
+        | 'permdock-policy+jwt'
+        | 'permdock-capability+jwt';
       readonly audience?: string | readonly string[];
       readonly expiresAt?: number;
     },

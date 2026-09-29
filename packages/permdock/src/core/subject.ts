@@ -75,7 +75,7 @@ export type CustomRole = {
 export type Principal = {
   readonly id: string;
   readonly issuer?: string;
-  readonly kind?: 'user' | 'service' | 'workload';
+  readonly kind?: 'user' | 'service' | 'workload' | 'link';
   readonly roles?: readonly string[];
   readonly plans?: readonly string[];
   readonly memberships?: readonly Membership[];
@@ -139,6 +139,7 @@ export function isPrincipal(value: unknown): value is Principal {
     record.kind === 'user' ||
     record.kind === 'service' ||
     record.kind === 'workload' ||
+    record.kind === 'link' ||
     typeof record.issuer === 'string'
   );
 }
