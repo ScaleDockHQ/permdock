@@ -144,7 +144,10 @@ export type Snapshot = {
     readonly delegation?: Subject['delegation'];
     readonly context: Readonly<Record<string, unknown>>;
   };
+  /** Roles held in the active tenant, in rank order. */
   readonly roles: readonly string[];
+  /** The distinct `meta.audience` values of `roles`, in rank order; absent when none has one. */
+  readonly audiences?: readonly string[];
   readonly grants: readonly SnapshotGrant[];
   readonly tenants: readonly string[];
   readonly include?: readonly string[];

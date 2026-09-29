@@ -6,12 +6,21 @@ import { assertSafeKey, isForbiddenKey, ownKeys } from './paths.ts';
 export const ROLE_KIND = 'role' as const;
 export const PLAN_KIND = 'plan' as const;
 
+/**
+ * A role's metadata. `audience` names the surface its holders use (`'staff'`,
+ * `'portal'`, `'platform'`); `permdock.audiences()` lists the distinct
+ * audiences of the roles held in the active scope.
+ */
+export type RoleMeta = ActionMeta & {
+  readonly audience?: string;
+};
+
 export type Role<K extends string = string> = {
   readonly key: K;
   /** A declared scope name, or the `tenant` / `team` alias. */
   readonly on?: string;
   readonly assignable: boolean;
-  readonly meta: ActionMeta;
+  readonly meta: RoleMeta;
   readonly kind: typeof ROLE_KIND;
 };
 
@@ -25,7 +34,7 @@ export type RoleInit = {
   /** A declared scope name, or the `tenant` / `team` alias. */
   readonly on?: string;
   readonly assignable?: boolean;
-  readonly meta?: ActionMeta;
+  readonly meta?: RoleMeta;
 };
 
 export type PlanInit = {
@@ -172,11 +181,20 @@ export function synthesiseRole(
     /** A declared scope name, or the `tenant` / `team` alias. */
     readonly on?: string;
     readonly assignable?: boolean;
+    readonly meta?: RoleMeta;
   },
 ): Role {
   const on = options?.on;
+  const assignable = options?.assignable ?? false;
+  const meta = options?.meta;
   if (on === undefined) {
-    return makeRole(key, { assignable: options?.assignable ?? false });
+    return makeRole(
+      key,
+      meta === undefined ? { assignable } : { assignable, meta },
+    );
   }
-  return makeRole(key, { on, assignable: options?.assignable ?? false });
+  return makeRole(
+    key,
+    meta === undefined ? { on, assignable } : { on, assignable, meta },
+  );
 }

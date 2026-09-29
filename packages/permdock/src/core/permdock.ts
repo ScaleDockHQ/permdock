@@ -11,6 +11,7 @@ import type {
   Snapshot,
   TokenSigner,
 } from './interfaces.ts';
+import type { RoleChange, RoleChangeDecision } from './ownership.ts';
 import type { Permission } from './permissions.ts';
 import type { Policy, PolicyVocabulary } from './policy.ts';
 import type { Scope } from './scopes.ts';
@@ -149,9 +150,18 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly team: (id: string) => PermDock;
   readonly memberships: () => readonly Membership[];
   readonly tenants: () => readonly string[];
+  /**
+   * Roles held in a tenant (the active one by default), or only on the
+   * memberships of one `scope` (and instance `id`). Ordered by rank: a role
+   * comes before the roles its `assigns` lists.
+   */
   readonly heldRoles: (options?: {
     readonly tenant?: string;
+    readonly scope?: string;
+    readonly id?: string;
   }) => readonly Role[];
+  /** The distinct `meta.audience` values of the roles held in the active tenant, in rank order. */
+  readonly audiences: () => readonly string[];
   readonly assignableRoles: (options?: {
     readonly tenant?: string;
   }) => readonly Role[];
@@ -159,6 +169,13 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly assignablePermissions: (options?: {
     readonly tenant?: string;
   }) => readonly Permission[];
+  /**
+   * Whether the subject may assign, revoke or transfer a role in one scope
+   * instance: `assigns`, the ceiling, `for`, `exclusiveWith`, `min`, `max`
+   * and `transferOnly`. It never writes; the application does, and generated
+   * RLS triggers re-check the holder counts at commit.
+   */
+  readonly decideRoleChange: (change: RoleChange) => RoleChangeDecision;
   readonly roles: V['roles'] extends RoleTree ? V['roles'] : RoleTree;
   readonly plans: V['plans'] extends PlanTree ? V['plans'] : PlanTree;
   readonly permissions: V['permissions'] extends Policy['permissions']

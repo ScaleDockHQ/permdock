@@ -219,14 +219,47 @@ export function fromSnapshot(
     tenants() {
       return snapshot.tenants;
     },
-    heldRoles(query?: { readonly tenant?: string }) {
+    heldRoles(query?: {
+      readonly tenant?: string;
+      readonly scope?: string;
+      readonly id?: string;
+    }) {
       const names = heldRoleNames(
         subject,
         query?.tenant ?? subject.principal?.tenant,
         scopeList(snapshot.scopes),
+        compact({ scope: query?.scope, id: query?.id, rank: snapshot.roles }),
       );
       const tree = snapshot.vocabulary?.roles;
       return names.map((name) => findRole(tree, name) ?? synthesiseRole(name));
+    },
+    audiences() {
+      const tenant = subject.principal?.tenant;
+      if (tenant === snapshot.subject.principal?.tenant) {
+        return snapshot.audiences ?? [];
+      }
+      const tree = snapshot.vocabulary?.roles;
+      const out: string[] = [];
+      for (const name of heldRoleNames(
+        subject,
+        tenant,
+        scopeList(snapshot.scopes),
+        { rank: snapshot.roles },
+      )) {
+        const audience = findRole(tree, name)?.meta.audience;
+        if (typeof audience === 'string' && !out.includes(audience)) {
+          out.push(audience);
+        }
+      }
+      return out;
+    },
+    decideRoleChange(change) {
+      // Role changes are server decisions: the snapshot carries no holder counts or rules.
+      return freezeDeep({
+        outcome: 'denied' as const,
+        change,
+        denials: [{ role: null, reason: 'unsupported' as const }],
+      });
     },
     assignableRoles(query?: { readonly tenant?: string }) {
       const tenant = query?.tenant ?? subject.principal?.tenant;

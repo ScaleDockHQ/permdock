@@ -285,8 +285,8 @@ describe('named scopes: no implicit cascade', () => {
       id: 'u_alias',
       tenant: 'T',
       memberships: [
-        { tenant: 'T', team: 'A', roles: ['contact'] },
-        { tenant: 'T', roles: ['viewer'] },
+        { tenant: 'T', team: 'A', roles: ['contact'], via: 'contact' },
+        { tenant: 'T', roles: ['viewer'], via: 'staff' },
       ],
     });
     expect(dock.memberships()).toEqual([
@@ -295,8 +295,9 @@ describe('named scopes: no implicit cascade', () => {
         id: 'A',
         within: { organization: 'T' },
         roles: ['contact'],
+        via: 'contact',
       },
-      { scope: 'organization', id: 'T', roles: ['viewer'] },
+      { scope: 'organization', id: 'T', roles: ['viewer'], via: 'staff' },
     ]);
     const aliased = definePolicy(permissions, {
       scopes: {

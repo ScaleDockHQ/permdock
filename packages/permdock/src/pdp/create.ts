@@ -111,6 +111,13 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'scope':
       case 'expired-membership':
       case 'unknown-role':
+      case 'last-holder':
+      case 'max-holders':
+      case 'transfer-only':
+      case 'not-assignable-by':
+      case 'self-demotion':
+      case 'not-allowed-for-membership':
+      case 'conflicting-role':
       case 'approval':
       case 'undocumented':
       case 'unsupported':
@@ -335,8 +342,10 @@ function wrap(
     memberships: dock.memberships.bind(dock),
     tenants: dock.tenants.bind(dock),
     heldRoles: dock.heldRoles.bind(dock),
+    audiences: dock.audiences.bind(dock),
     assignableRoles: dock.assignableRoles.bind(dock),
     assignablePermissions: dock.assignablePermissions.bind(dock),
+    decideRoleChange: dock.decideRoleChange.bind(dock),
     permissions: dock.permissions,
     roles: dock.roles,
     plans: dock.plans,

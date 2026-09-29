@@ -191,9 +191,15 @@ export type {
   Plan,
   PlanTree,
   Role,
+  RoleMeta,
   RoleTree,
   Vocabulary,
 } from './core/vocabulary.ts';
+export type {
+  RoleChange,
+  RoleChangeDecision,
+  RoleChangeTarget,
+} from './core/ownership.ts';
 export {
   CLOUD_EVENT_TYPES,
   membershipEvent,
