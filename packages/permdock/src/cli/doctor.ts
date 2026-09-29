@@ -20,7 +20,7 @@ import {
   pd026,
   pd027,
 } from './doctor-collect.ts';
-import { pd005, pd006, pd009, pd012, pd022 } from './doctor-project.ts';
+import { pd005, pd006, pd009, pd012, pd022, pd028 } from './doctor-project.ts';
 import {
   pd001,
   pd007,
@@ -33,6 +33,7 @@ import {
 } from './doctor-source.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
 import { runSkillsInstall } from './skills.ts';
+import { attrsPlan } from './supabase-hook.ts';
 import { DOCTOR_REPORT_SCHEMA } from './version.ts';
 
 export type { DoctorFinding, DoctorSeverity } from './doctor-types.ts';
@@ -168,6 +169,9 @@ export async function runDoctor(input: {
   }
   if (include('rls') || include('context-refs') || include('PD027')) {
     findings.push(...(await pd027(input)));
+  }
+  if (include('attrs') || include('supabase') || include('PD028')) {
+    findings.push(...pd028(input.cwd, input.config, attrsPlan));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

@@ -232,3 +232,115 @@ export function pd022(
       fix: `create the view with (security_invoker = true), or alter view ${key} set (security_invoker = true); Postgres 15 or later`,
     }));
 }
+
+const GRANT =
+  /\b(grant|revoke)\s+([\s\S]+?)\s+on\s+(?:table\s+)?([\w."]+)\s+(?:to|from)\s+([\w\s,"]+?)(?:\s+with\s+grant\s+option|\s+cascade|\s+restrict)?\s*;/giu;
+const CLIENT_ROLES = new Set(['anon', 'authenticated', 'public']);
+
+function applyPrivilege(
+  writable: Set<string>,
+  verb: string,
+  part: string,
+): void {
+  const match =
+    /^\s*(all(?:\s+privileges)?|insert|update)\s*(?:\(([^)]*)\))?\s*$/iu.exec(
+      part,
+    );
+  if (match === null) {
+    return;
+  }
+  const columns =
+    match[2] === undefined
+      ? ['*']
+      : match[2].split(',').map((column) => column.trim().replaceAll('"', ''));
+  for (const column of columns) {
+    if (verb.toLowerCase() === 'grant') {
+      writable.add(column);
+    } else if (column === '*') {
+      writable.clear();
+    } else {
+      writable.delete(column);
+    }
+  }
+}
+
+/** Columns of `table` a client role may insert or update, per the migrations; `*` for every column. */
+function clientWritable(
+  cwd: string,
+  config: PermDockConfig,
+  target: string,
+): Set<string> {
+  const writable = new Set<string>();
+  for (const file of sqlFiles(
+    cwd,
+    config.doctor?.migrations ?? MIGRATION_DIRS,
+  )) {
+    const text = readFileSync(file, 'utf8')
+      .replaceAll(/--[^\n]*/gu, '')
+      .replaceAll(/\/\*[\s\S]*?\*\//gu, '');
+    for (const [
+      ,
+      verb = '',
+      privileges = '',
+      name = '',
+      roles = '',
+    ] of text.matchAll(GRANT)) {
+      if (viewKey(name) !== target) {
+        continue;
+      }
+      const clients = roles
+        .split(',')
+        .map((role) => role.trim().replaceAll('"', '').toLowerCase())
+        .some((role) => CLIENT_ROLES.has(role));
+      if (!clients) {
+        continue;
+      }
+      for (const part of privileges.split(/,(?![^(]*\))/u)) {
+        applyPrivilege(writable, verb, part);
+      }
+    }
+  }
+  return writable;
+}
+
+/** `attrs` claims must come from server-owned columns: never `user_metadata`, never a column clients can write. */
+export function pd028(
+  cwd: string,
+  config: PermDockConfig,
+  plan: (
+    attrs: NonNullable<
+      NonNullable<NonNullable<PermDockConfig['supabase']>['hook']>['attrs']
+    >,
+  ) => {
+    readonly table?: string;
+    readonly columns: readonly string[];
+    readonly errors: readonly string[];
+  },
+): readonly DoctorFinding[] {
+  const attrs = config.supabase?.hook?.attrs;
+  if (attrs === undefined) {
+    return [];
+  }
+  const planned = plan(attrs);
+  const findings: DoctorFinding[] = planned.errors.map((message) => ({
+    code: 'PD028',
+    severity: 'error',
+    message,
+    fix: 'list server-owned columns or app_metadata.<key> entries; user_metadata is user-editable',
+  }));
+  if (planned.table !== undefined && planned.columns.length > 0) {
+    const writable = clientWritable(cwd, config, viewKey(planned.table));
+    const exposed = planned.columns.filter(
+      (column) => writable.has('*') || writable.has(column),
+    );
+    if (exposed.length > 0) {
+      findings.push({
+        code: 'PD028',
+        severity: 'warning',
+        message: `attrs reads ${exposed.join(', ')} from ${viewKey(planned.table)}, which the migrations let anon or authenticated insert or update: a user could set their own attribute`,
+        fix: `revoke insert, update on ${viewKey(planned.table)} from anon, authenticated, and grant column-level update only on columns that are not attributes; the generated hook migration refuses to install otherwise`,
+      });
+    }
+  }
+  return findings;
+}

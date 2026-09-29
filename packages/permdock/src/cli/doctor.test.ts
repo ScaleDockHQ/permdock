@@ -245,6 +245,57 @@ create materialized view mat as select 1;
     ]);
   });
 
+  it('PD028 flags attrs a user could set', async () => {
+    const findings = async (columns: string) => {
+      const cwd = appCopy();
+      mkdirSync(join(cwd, 'supabase/migrations'), { recursive: true });
+      writeFileSync(
+        join(cwd, 'supabase/migrations/001_profiles.sql'),
+        `create table public.profiles (id uuid primary key, region text, bio text, locale text);
+grant select, update on public.profiles to authenticated;
+revoke update on public.profiles from authenticated;
+grant update (bio, region) on public.profiles to authenticated;
+revoke update (bio) on profiles from authenticated;
+-- grant update on public.profiles to anon;
+`,
+      );
+      writeFileSync(
+        join(cwd, 'permdock.config.ts'),
+        `export default {
+  permissions: './src/permissions.ts',
+  supabase: { hook: { memberships: [], attrs: { table: 'profiles', columns: ${columns} } } },
+};
+`,
+      );
+      const result = await run(['doctor', '--json', '--only', 'PD028'], {
+        cwd,
+      });
+      return (
+        JSON.parse(result.stdout) as {
+          readonly findings: readonly {
+            readonly severity: string;
+            readonly message: string;
+          }[];
+        }
+      ).findings;
+    };
+    expect(await findings(`['region', 'locale']`)).toEqual([
+      expect.objectContaining({
+        severity: 'warning',
+        message: expect.stringContaining(
+          'attrs reads region from public.profiles',
+        ),
+      }),
+    ]);
+    expect(await findings(`['locale', 'user_metadata.plan']`)).toEqual([
+      expect.objectContaining({
+        severity: 'error',
+        message: expect.stringContaining('user-editable'),
+      }),
+    ]);
+    expect(await findings(`['locale', 'bio']`)).toEqual([]);
+  });
+
   it('PD016 warns on opaque grants under an rls config', async () => {
     const cwd = appCopy();
     writeFileSync(
