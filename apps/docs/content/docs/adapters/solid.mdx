@@ -36,7 +36,7 @@ function PostActions(props: { post: Post }) {
 | `usePermission` | Takes the reference and an accessor for the resource; returns an accessor of `allowed`, `status`, `decision`. Tracks the resource `id`, so a new post re-evaluates. |
 | `Protected` | Guard component with `permission`, `data`, optional `tenant`, `pending`, `fallback` props; children may be a function receiving the granted `Decision`. |
 | `usePermissions`, `useFilter` | Accessor-returning counterparts of the React hooks: several references against one accessor, and `filter` over an accessor of rows. |
-| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles` | Accessors for the active tenant (`tenant()`, `tenants()`, `switchTo`), the membership list, roles held in a tenant and roles the subject may hand out ([UI](/docs/concepts/ui), [tenancy](/docs/concepts/tenancy)). |
+| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useAssignablePermissions` | Accessors for the active tenant (`tenant()`, `tenants()`, `switchTo`), the membership list, roles held in a tenant, roles the subject may hand out and the custom-role ceiling permissions it may hand out ([UI](/docs/concepts/ui), [tenancy](/docs/concepts/tenancy)). |
 | `useApproval`, `useSubject` | The `approval-required` flow as an accessor of `{ state, token }` with `request()`, and the snapshot's subject summary (`simulated` included). |
 
 The hooks keep the React names with accessor-returning semantics, and `usePermission` returns one accessor rather than a tuple. For SolidStart the snapshot is loaded in a server function from a request-scoped `PermDock` and the decision endpoint is an API route built on the [server kernel](/docs/adapters/server-kernel); there is no `permdock/solid-start` entry.

@@ -7,6 +7,7 @@
     "conditions",
     "subject",
     "tenancy",
+    "custom-roles",
     "authentication",
     "decisions",
     "snapshots",

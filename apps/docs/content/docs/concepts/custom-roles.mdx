@@ -1,0 +1,128 @@
+---
+title: Custom roles
+description: Tenant-defined roles composed from declared roles and single permissions, bounded by a ceiling of assignable declared roles; how grants inherit declared conditions, how denies subtract, what assignableRoles and assignablePermissions return, how snapshots carry the result, and a matrix-editor recipe.
+---
+
+A custom role is a role a tenant admin defines at runtime. It is data from a `RoleSource`, never code, and it can only reach what the code already declared: every permission it grants is bounded by a **ceiling** built from the declared roles marked `assignable`.
+
+```ts
+type CustomRole = {
+  tenant: string
+  team?: string                // set for a team-scoped custom role
+  name: string                 // unique within the tenant; a declared role name always wins
+  includes?: string[]          // declared roles to start from
+  grants?: { permission: string; effect?: 'allow' | 'deny' }[]   // declared permission keys
+  meta?: Record<string, unknown>
+}
+```
+
+```ts
+const billingManager: CustomRole = {
+  tenant: 'o_acme',
+  name: 'billing-manager',
+  includes: ['billing'],
+  grants: [
+    { permission: 'post.read' },
+    { permission: 'invoice.refund', effect: 'deny' },
+  ],
+}
+```
+
+A member holds it like any role: `{ tenant: 'o_acme', roles: ['billing-manager'] }`. [Tenancy](/docs/concepts/tenancy) covers memberships and the `RoleSource` interface.
+
+## The ceiling
+
+The ceiling of a scope is the set of code allows of every declared role marked `assignable` in that scope: tenant roles for a custom role without `team`, team roles for one with `team`. Global roles, resource roles and non-assignable roles such as `owner` are outside every ceiling. Grants merged from a hosted policy document never widen it, so the ceiling is exactly what was reviewed in code.
+
+`permdock catalog` lists the assignable roles with the permissions each contains; the permission keys of the ceiling are what a role editor offers.
+
+## Resolution
+
+`resolveCustomRole(policy, role)` is the one resolver behind evaluation, `snapshot()`, `snapshotFor()` and `validateCustomRole()`, so they cannot disagree. It returns `{ grants, dropped }`:
+
+1. Start from the grants of each role in `includes`. An allow that is itself a ceiling grant is kept as is. An allow from a non-assignable or other-scope role whose permission is in the ceiling is replaced by the ceiling's grants for that permission; one whose permission is outside the ceiling is dropped. An included role's `deny` grants always come along.
+2. Add each own `allow`. Its permission must be a declared key in the ceiling. It inherits every ceiling grant of that permission, together with the `deny` grants of the roles those grants belong to. When an included assignable role already grants the permission, the included grant is kept and the own allow adds nothing.
+3. Remove every permission named by an own `deny`, whether it came from an include or an own allow.
+4. Re-target the result to the custom role: each grant keeps its permission, `where`, `check`, `approval`, `limit` and `fields`, and its grantee becomes the custom role in its scope. Other grantee items, such as a plan gate, stay.
+
+A custom-role grant never carries a condition or an approval of its own. Where the permission exists on an included role, it inherits that role's condition; otherwise it inherits the condition of each assignable declared grant of that permission, OR-ed like any allows. An own allow of `post.update`, where `editor` allows it on the author's own posts and `admin` allows it on any post, therefore reaches any post, exactly as far as the ceiling does. To keep "own posts only", include `editor` instead.
+
+Deny overrides allow inside the role: an own deny removes the permission even when an include or an own allow grants it, and the declared denies of the source roles keep applying (a `billing` deny on refunds above 1000 still denies them through a custom role that allows `invoice.refund`). An own deny subtracts from this custom role only. It is not a policy `deny`, so it does not take away a grant the member holds through another role. Deny the permission in code when it must win across roles.
+
+### Dropped entries
+
+Nothing that fails resolution widens a role. `dropped` names each entry that was left out:
+
+| Reason | Meaning |
+| --- | --- |
+| `unknown-permission` | The key is not a declared permission |
+| `outside-ceiling` | The permission is declared but no assignable declared role of the scope allows it |
+| `condition-not-allowed` | The entry carries a field other than `permission` and `effect` (a `where`, an `approval`, a `limit`), or an unknown `effect`. The permission is still removed, as if denied |
+| `unknown-role` | An `includes` entry names no declared role; reported as `{ role, reason }` |
+
+`validateCustomRole(policy, role)` returns `{ ok, permissions, dropped }`, where `permissions` is the sorted list of keys the role allows after the ceiling. Call it in the server action that saves a custom role. `permdock doctor` PD023 runs it over the `customRoles` of the `doctor.memberships` fixture ([doctor](/docs/cli/doctor)).
+
+## Who may assign what
+
+```ts
+permdock.assignableRoles({ tenant? })        // Role[]
+permdock.assignablePermissions({ tenant? })  // Permission[]
+```
+
+Both answer for the active tenant unless `tenant` is passed, and both follow the rule that you cannot hand out what you do not hold:
+
+- `assignablePermissions` is the tenant ceiling intersected with the permissions the subject holds in that tenant, through declared roles, custom roles or global grants. It is empty without a tenant.
+- `assignableRoles` lists the declared assignable roles the subject holds there, plus those whose every allow the subject holds. A role without allows is assignable only by its holders, because hosted grants may give it permissions later.
+- `RoleSource.assignable(tenant)`, when the source implements it, narrows both to those role names. A source that throws assigns nothing and emits `on('auth')` with `source-threw`.
+- Holding a declared role with `meta.manageRoles: true`, or being granted a permission with `meta.manageRoles: true` (typically `member.assignRole`), lifts the intersection: the full ceiling, narrowed by `RoleSource.assignable`, is assignable.
+
+`RoleSource.assignable` shapes what the editor offers and what a server action accepts. Evaluation always uses the declared ceiling, so a custom role saved before a plan downgrade keeps working until the application edits it.
+
+## Snapshots
+
+`snapshot()` and `snapshotFor(policy, user, { customRoles, assignable? })` carry the resolved custom-role grants as ordinary `grants` entries: `role` is the custom role name and `membership` is the membership that holds it, so `fromSnapshot` scopes them to the right tenant or team. `include` trims them like any grant. `snapshotFor` takes `assignable` as a record of role names per tenant, the values `RoleSource.assignable` would return.
+
+Snapshots also carry `assignable`: one `{ tenant, roles, permissions }` entry per tenant in `tenants`, where `roles` are role names and `permissions` are permission leaves, trimmed by `include`. The snapshot-backed instance reads them for `assignableRoles()` and `assignablePermissions()`, and `useAssignablePermissions()` reads them on the client. The format stays Snapshot `v: 1` ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
+
+For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide` agree; the parity suite checks includes, own allows, inherited denies, own denies, dropped keys and team scope.
+
+## Recipe: a permission matrix editor
+
+A matrix editor shows permissions as rows and custom roles as columns, and saves each column as a `CustomRole`.
+
+```tsx
+'use client'
+import { useAssignablePermissions } from 'permdock/react'
+
+export function RoleColumn({ role, onToggle }: { role: CustomRole; onToggle: (key: string, on: boolean) => void }) {
+  const offered = useAssignablePermissions()          // the ceiling this admin may hand out
+  const granted = new Set((role.grants ?? []).filter((g) => g.effect !== 'deny').map((g) => g.permission))
+  return offered.map((leaf) => (
+    <label key={leaf.key}>
+      <input type="checkbox" checked={granted.has(leaf.key)} onChange={(e) => onToggle(leaf.key, e.target.checked)} />
+      {leaf.meta.title ?? leaf.key}
+    </label>
+  ))
+}
+```
+
+```ts
+'use server'
+import { validateCustomRole } from 'permdock'
+
+export async function saveRole(input: unknown) {
+  const permdock = await getPermDock()
+  permdock.assert(permissions.member.assignRole)
+  const role = CustomRoleSchema.parse(input)           // boundary data: validate it
+  const offered = new Set(permdock.assignablePermissions({ tenant: role.tenant }).map((leaf) => leaf.key))
+  const result = validateCustomRole(policy, role)
+  const beyond = result.permissions.filter((key) => !offered.has(key))
+  if (!result.ok || beyond.length > 0) return { dropped: result.dropped, beyond }
+  await db.customRoles.upsert(role)                    // the table your RoleSource reads
+  return { saved: true }
+}
+```
+
+- Render `dropped` next to the column so the admin sees why a key did not stick, instead of silently losing it.
+- Save through the application's own table; PermDock never writes a custom role. The `RoleSource` reads the same table on the next request.
+- Include a declared role (`includes`) when the admin wants its conditions, such as "own posts only"; toggle single permissions (`grants`) for everything else.
