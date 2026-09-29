@@ -12,6 +12,7 @@ import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { listPermissions } from './permissions.ts';
 import { type Scope, resolveScope, rootScope, scopeList } from './scopes.ts';
+import { activeFor } from './tenancy.ts';
 import { isPlan, isRole } from './vocabulary.ts';
 
 export type RoleGrantee = {
@@ -254,6 +255,24 @@ export function combineWhere(
   return { op: 'and', conditions: [left, right] };
 }
 
+/** Seats (`Membership.entitlements`) held through memberships that apply under the active tenant. */
+function seatsInTenant(
+  subject: Subject,
+  scopes: readonly Scope[] | undefined,
+): readonly string[] {
+  const principal = subject.principal;
+  if (principal === null) {
+    return [];
+  }
+  const list = scopeList(scopes);
+  return (principal.memberships ?? []).flatMap((membership) =>
+    membership.entitlements !== undefined &&
+    activeFor(membership, list, principal.tenant)
+      ? membership.entitlements
+      : [],
+  );
+}
+
 function matchOne(
   grantee: Grantee,
   subject: Subject,
@@ -273,7 +292,8 @@ function matchOne(
         return { matched: false, reason: 'anonymous' };
       }
       const plans = subject.principal.plans ?? [];
-      return plans.includes(grantee.plan)
+      return plans.includes(grantee.plan) ||
+        seatsInTenant(subject, scopes).includes(grantee.plan)
         ? { matched: true }
         : { matched: false, reason: 'no-grant' };
     }

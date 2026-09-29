@@ -3,6 +3,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -37,7 +38,8 @@ export type AuthzenPermDockOptions<TUser = unknown> = {
       | readonly AuthzenSubjectRecord[]
       | Promise<readonly AuthzenSubjectRecord[]>;
   };
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;

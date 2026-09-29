@@ -20,6 +20,7 @@ export type DenialReason =
   | 'no-membership'
   | 'scope'
   | 'expired-membership'
+  | 'stale-credentials'
   | 'unknown-role'
   | 'last-holder'
   | 'max-holders'

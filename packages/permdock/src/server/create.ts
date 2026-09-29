@@ -5,6 +5,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -41,7 +42,8 @@ export type ServerPermDockOptions<TUser = unknown> = {
   readonly tenant?:
     | string
     | ((request: Request) => string | undefined | Promise<string | undefined>);
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;
@@ -269,6 +271,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
     const coreOptions = compact({
       tenant,
       memberships: options.memberships,
+      entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,
       sink: options.sink,

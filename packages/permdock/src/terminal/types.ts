@@ -7,6 +7,7 @@ export type { ApprovalHint };
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
 } from '../core/interfaces.ts';
@@ -95,7 +96,8 @@ export type TerminalPermDockOptions<TUser = unknown> = {
   readonly subject: (context: TokenContext) => TUser | Promise<TUser>;
   readonly actor?: (context: TokenContext) => unknown;
   readonly tenant?: string;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;

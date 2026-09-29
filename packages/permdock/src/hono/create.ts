@@ -8,6 +8,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -43,7 +44,8 @@ import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
 export type HonoPermDockOptions<TUser = unknown> = {
   readonly subject: (c: Context) => TUser | Promise<TUser>;
   readonly tenant?: TenantOption<Context>;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;
@@ -200,6 +202,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return c === undefined ? null : options.subject(c);
       },
       memberships: options.memberships,
+      entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,
       store: options.store,

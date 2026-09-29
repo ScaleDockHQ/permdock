@@ -4,6 +4,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -28,7 +29,8 @@ export type AgentKernelOptions<TContext, TUser = unknown> = {
     | string
     | ((context: TContext) => string | undefined | Promise<string | undefined>);
   readonly tools: ToolMap;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;

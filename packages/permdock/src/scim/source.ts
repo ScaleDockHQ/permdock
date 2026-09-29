@@ -104,6 +104,7 @@ export function directoryMembershipSource(
               options.onUnknownRole,
             ),
             via: `group:${group.id}`,
+            managedBy: 'idp',
           }),
         );
       }

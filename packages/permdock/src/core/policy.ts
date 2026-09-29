@@ -230,6 +230,8 @@ export type Policy<
   readonly providers?: readonly DecisionProvider[];
   /** Permission keys a hosted policy document may grant or deny; empty by default. */
   readonly hostable: readonly string[];
+  /** Permission keys that deny with `stale-credentials` when the subject's token is behind the source. */
+  readonly fresh?: readonly string[];
 };
 
 export { requiresApproval } from './approval-required.ts';
@@ -808,6 +810,12 @@ export type DefinePolicyOptions<
    * The default is none, so a policy without it ignores every hosted grant.
    */
   readonly hostable?: readonly (Permission | PermissionTree)[];
+  /**
+   * Sensitive permissions that need an up-to-date token: when the subject's
+   * memberships come from a token behind the `MembershipSource` version, they
+   * deny with `stale-credentials`.
+   */
+  readonly fresh?: readonly (Permission | PermissionTree)[];
 };
 
 export function definePolicy<
@@ -868,6 +876,13 @@ export function definePolicy<
       ),
     ),
   ].toSorted();
+  const fresh = [
+    ...new Set(
+      (options.fresh ?? []).flatMap((item) =>
+        flattenPermissions(item).map((leaf) => leaf.key),
+      ),
+    ),
+  ].toSorted();
   return freezeDeep({
     permissions: tree,
     roles,
@@ -884,6 +899,7 @@ export function definePolicy<
     resources,
     providers: options.providers,
     hostable,
+    fresh,
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }
 

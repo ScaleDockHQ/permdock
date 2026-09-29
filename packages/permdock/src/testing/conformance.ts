@@ -3,6 +3,7 @@ import { expect, it, vi } from 'vitest';
 import type { ApprovalRequest, ApprovalStore } from '../approvals/index.ts';
 import type {
   DecisionSink,
+  EntitlementSource,
   LimitStore,
   Membership,
   MembershipSource,
@@ -99,6 +100,70 @@ export function testMembershipSource(
         expect(memberships).toEqual(expected);
       }
     }
+  });
+  if (source.list !== undefined) {
+    it('lists every member of an instance it returns a membership for', async () => {
+      for (const principal of options.principals) {
+        let memberships: Membership[] = [];
+        try {
+          memberships = await source.membershipsFor(principal, {});
+        } catch {
+          continue;
+        }
+        for (const membership of memberships) {
+          if (membership.scope === undefined || membership.id === undefined) {
+            continue;
+          }
+          const members =
+            (await source.list?.({
+              scope: membership.scope,
+              id: membership.id,
+            })) ?? [];
+          expect(
+            members.some(
+              (entry) =>
+                entry.principal.id === principal.id &&
+                entry.membership.scope === membership.scope &&
+                entry.membership.id === membership.id,
+            ),
+          ).toBe(true);
+        }
+      }
+    });
+  }
+  if (source.version !== undefined) {
+    it('reports a finite version or none', async () => {
+      for (const principal of options.principals) {
+        const version = await source.version?.({ id: principal.id });
+        expect(
+          version === undefined ||
+            (typeof version === 'number' && Number.isFinite(version)),
+        ).toBe(true);
+      }
+    });
+  }
+}
+
+export function testEntitlementSource(
+  source: EntitlementSource,
+  options: {
+    readonly principal: { readonly id: string };
+    readonly tenant: string;
+    readonly expect?: readonly string[];
+  },
+): void {
+  it('returns plan names for a tenant and none without one', async () => {
+    const found = await source.entitlementsFor(options.principal, {
+      tenant: options.tenant,
+    });
+    expect(Array.isArray(found)).toBe(true);
+    for (const name of found) {
+      expect(typeof name).toBe('string');
+    }
+    if (options.expect !== undefined) {
+      expect([...found].toSorted()).toEqual([...options.expect].toSorted());
+    }
+    expect(await source.entitlementsFor(options.principal, {})).toEqual([]);
   });
 }
 
@@ -429,6 +494,7 @@ export function testDirectoryStore(
         tenant: home,
         roles: ['editor'],
         via: `group:${group.id}`,
+        managedBy: 'idp',
       },
     ]);
     await store.patchGroup(home, group.id, [

@@ -10,6 +10,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -50,7 +51,8 @@ export type TrpcPermDockOptions<TCtx = object, TUser = unknown> = {
   readonly tenant?: TenantOption<TrpcMiddlewareOpts<TCtx>>;
   /** The Web `Request` behind a context; defaults to `ctx.request` or `ctx.req`. */
   readonly request?: (ctx: TCtx) => Request | null | undefined;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;
@@ -239,6 +241,7 @@ export function createPermDock<
         return opts === undefined ? null : options.subject(opts);
       },
       memberships: options.memberships,
+      entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,
       store: options.store,

@@ -6,6 +6,7 @@ import { compact } from './compact.ts';
 import { sanitizeContext } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { applyRoleKinds } from './ownership.ts';
+import { asMembershipSource } from './memberships.ts';
 import { normalizeMemberships, scopeList } from './scopes.ts';
 import {
   type Actor,
@@ -35,6 +36,8 @@ function assemblePrincipal(
   readonly session: string | undefined;
   readonly expiresAt: number | undefined;
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
+  /** The memberships came from a live `MembershipSource` call, not from the token. */
+  readonly live: boolean;
 } {
   let principal: Principal | null;
   let context: Readonly<Record<string, unknown>> = {};
@@ -63,9 +66,19 @@ function assemblePrincipal(
   const contextResult = resolveContext(policy, user, context, auth);
   let memberships: readonly Membership[] | Promise<readonly Membership[]> =
     principal?.memberships ?? [];
-  if (principal !== null && options.memberships !== undefined) {
+  let live = false;
+  const source =
+    options.memberships === undefined
+      ? undefined
+      : asMembershipSource(options.memberships);
+  const fromClaims =
+    source?.claimsFirst === true &&
+    principal?.memberships !== undefined &&
+    principal.membershipsTruncated !== true;
+  if (principal !== null && source !== undefined && !fromClaims) {
+    live = true;
     try {
-      memberships = options.memberships.membershipsFor(
+      memberships = source.membershipsFor(
         compact({ id: principal.id, kind: principal.kind }),
         compact({ tenant: options.tenant }),
       );
@@ -82,6 +95,7 @@ function assemblePrincipal(
     session,
     expiresAt,
     memberships,
+    live,
   };
 }
 
@@ -91,6 +105,7 @@ function finishSubject(
   context: Readonly<Record<string, unknown>>,
   input: readonly Membership[],
   options: CreatePermDockOptions,
+  extra: { readonly stale: boolean; readonly plans: readonly string[] },
 ): Subject {
   if (assembled.principal === null) {
     return freezeDeep(
@@ -109,16 +124,16 @@ function finishSubject(
     assembled.principal.roles,
     normalizeMemberships(input, scopes),
   );
+  const plans = [
+    ...new Set([...(assembled.principal.plans ?? []), ...extra.plans]),
+  ];
   const withMemberships: Principal = freezeDeep(
     compact<Principal>({
       ...assembled.principal,
       roles,
       memberships,
-      tenant: resolveActiveTenant(
-        { ...assembled.principal, memberships },
-        options.tenant ?? assembled.principal.tenant,
-        scopes,
-      ),
+      plans: plans.length === 0 ? assembled.principal.plans : plans,
+      tenant: activeTenantOf(policy, assembled, memberships, options),
     }),
   );
   return freezeDeep(
@@ -129,8 +144,115 @@ function finishSubject(
       context: freezeDeep({ ...context }),
       session: assembled.session,
       expiresAt: assembled.expiresAt,
+      stale: extra.stale ? (true as const) : undefined,
     }),
   );
+}
+
+function activeTenantOf(
+  policy: Policy,
+  assembled: ReturnType<typeof assemblePrincipal>,
+  memberships: readonly Membership[],
+  options: CreatePermDockOptions,
+): string | undefined {
+  if (assembled.principal === null) {
+    return undefined;
+  }
+  return resolveActiveTenant(
+    { ...assembled.principal, memberships },
+    options.tenant ?? assembled.principal.tenant,
+    scopeList(policy.scopes),
+  );
+}
+
+function settle<T>(
+  value: T | Promise<T>,
+  fallback: T,
+  onError: () => void,
+): T | Promise<T> {
+  if (isThenable(value)) {
+    return Promise.resolve(value).catch(() => {
+      onError();
+      return fallback;
+    });
+  }
+  return value;
+}
+
+/**
+ * Whether the token's memberships are behind the source for `fresh`
+ * permissions. Live memberships are never stale; token memberships are stale
+ * unless a source reports a version the token's `authzVersion` has reached.
+ */
+function staleness(
+  policy: Policy,
+  assembled: ReturnType<typeof assemblePrincipal>,
+  options: CreatePermDockOptions,
+  auth: AuthEvent[],
+): boolean | Promise<boolean> {
+  const principal = assembled.principal;
+  if (
+    (policy.fresh ?? []).length === 0 ||
+    principal === null ||
+    assembled.live
+  ) {
+    return false;
+  }
+  const source =
+    options.memberships === undefined
+      ? undefined
+      : asMembershipSource(options.memberships);
+  const claimed = principal.authzVersion;
+  if (source?.version === undefined || typeof claimed !== 'number') {
+    return true;
+  }
+  const compare = (current: number | undefined): boolean =>
+    current === undefined || claimed < current;
+  try {
+    const current = source.version({ id: principal.id });
+    return isThenable(current)
+      ? settle(Promise.resolve(current).then(compare), true, () => {
+          auth.push({ reason: 'source-threw', source: 'memberships' });
+        })
+      : compare(current);
+  } catch {
+    auth.push({ reason: 'source-threw', source: 'memberships' });
+    return true;
+  }
+}
+
+function cleanNames(list: unknown): readonly string[] {
+  return Array.isArray(list)
+    ? list.filter(
+        (item): item is string => typeof item === 'string' && item !== '',
+      )
+    : [];
+}
+
+function entitlementsOf(
+  assembled: ReturnType<typeof assemblePrincipal>,
+  tenant: string | undefined,
+  options: CreatePermDockOptions,
+  auth: AuthEvent[],
+): readonly string[] | Promise<readonly string[]> {
+  const source = options.entitlements;
+  if (source === undefined || assembled.principal === null) {
+    return [];
+  }
+  try {
+    const found = source.entitlementsFor(
+      { id: assembled.principal.id },
+      compact({ tenant }),
+    );
+    return isThenable(found)
+      ? settle(Promise.resolve(found).then(cleanNames), [], () => {
+          auth.push({ reason: 'source-threw', source: 'entitlements' });
+        })
+      : cleanNames(found);
+  } catch {
+    auth.push({ reason: 'source-threw', source: 'entitlements' });
+    return [];
+  }
 }
 
 function resolveContext(
@@ -169,22 +291,63 @@ export function resolveSubject(
   auth: AuthEvent[],
 ): Subject | Promise<Subject> {
   const assembled = assemblePrincipal(policy, user, options, auth);
-  if (isThenable(assembled.context) || isThenable(assembled.memberships)) {
+  const memberships = settle(assembled.memberships, [], () => {
+    auth.push({ reason: 'source-threw', source: 'memberships' });
+  });
+  const stale = staleness(policy, assembled, options, auth);
+  const withPlans = (
+    resolved: readonly Membership[],
+  ): readonly string[] | Promise<readonly string[]> =>
+    entitlementsOf(
+      assembled,
+      activeTenantOf(
+        policy,
+        assembled,
+        applyRoleKinds(
+          policy,
+          assembled.principal?.roles,
+          normalizeMemberships(resolved, scopeList(policy.scopes)),
+        ).memberships,
+        options,
+      ),
+      options,
+      auth,
+    );
+  if (
+    isThenable(assembled.context) ||
+    isThenable(memberships) ||
+    isThenable(stale)
+  ) {
     return Promise.all([
       Promise.resolve(assembled.context),
-      Promise.resolve(assembled.memberships).catch(() => {
-        auth.push({ reason: 'source-threw', source: 'memberships' });
-        return [] as Membership[];
+      Promise.resolve(memberships),
+      Promise.resolve(stale),
+    ]).then(async ([context, resolved, isStale]) =>
+      finishSubject(policy, assembled, context, resolved, options, {
+        stale: isStale,
+        plans: await withPlans(resolved),
       }),
-    ]).then(([context, memberships]) =>
-      finishSubject(policy, assembled, context, memberships, options),
+    );
+  }
+  const plans = withPlans(memberships);
+  if (isThenable(plans)) {
+    return Promise.resolve(plans).then((resolved) =>
+      finishSubject(
+        policy,
+        assembled,
+        assembled.context as Readonly<Record<string, unknown>>,
+        memberships,
+        options,
+        { stale, plans: resolved },
+      ),
     );
   }
   return finishSubject(
     policy,
     assembled,
     assembled.context,
-    assembled.memberships,
+    memberships,
     options,
+    { stale, plans },
   );
 }
