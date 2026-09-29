@@ -1,5 +1,5 @@
 import type { Decision } from './decision.ts';
-import type { Snapshot } from './interfaces.ts';
+import type { Snapshot, SnapshotAssignable } from './interfaces.ts';
 import type { DecideOptions, PermDock } from './permdock.ts';
 import type { Permission } from './permissions.ts';
 import type { Membership } from './subject.ts';
@@ -32,6 +32,16 @@ function resourceRef(
   return id === undefined || id === '*'
     ? { type: permission.resource }
     : { type: permission.resource, id };
+}
+
+function assignableEntry(
+  snapshot: Snapshot,
+  tenant: string | undefined,
+): SnapshotAssignable | undefined {
+  if (tenant === undefined) {
+    return undefined;
+  }
+  return snapshot.assignable?.find((entry) => entry.tenant === tenant);
 }
 
 export function fromSnapshot(
@@ -212,11 +222,24 @@ export function fromSnapshot(
       const tree = snapshot.vocabulary?.roles;
       return names.map((name) => findRole(tree, name) ?? synthesiseRole(name));
     },
-    assignableRoles() {
-      const names = new Set(heldRoleNames(subject, subject.principal?.tenant));
-      return listRoles(snapshot.vocabulary?.roles).filter(
+    assignableRoles(query?: { readonly tenant?: string }) {
+      const tenant = query?.tenant ?? subject.principal?.tenant;
+      const tree = snapshot.vocabulary?.roles;
+      if (snapshot.assignable !== undefined) {
+        const entry = assignableEntry(snapshot, tenant);
+        return (entry?.roles ?? []).map(
+          (name) =>
+            findRole(tree, name) ?? synthesiseRole(name, { assignable: true }),
+        );
+      }
+      const names = new Set(heldRoleNames(subject, tenant));
+      return listRoles(tree).filter(
         (leaf) => leaf.assignable && names.has(leaf.key),
       );
+    },
+    assignablePermissions(query?: { readonly tenant?: string }) {
+      const tenant = query?.tenant ?? subject.principal?.tenant;
+      return assignableEntry(snapshot, tenant)?.permissions ?? [];
     },
     subject,
   };

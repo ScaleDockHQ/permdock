@@ -135,7 +135,7 @@ The [policy rules](/docs/concepts/policies) gain one step between collecting gra
 ```mermaid
 flowchart LR
   Provider["subjectFrom* / subject() / context()"] --> Memberships["principal.roles + memberships"]
-  RoleSource["RoleSource: custom roles -> assignable declared roles"] --> Memberships
+  RoleSource["RoleSource: custom roles, bounded by the assignable ceiling"] --> Memberships
   Memberships --> Collect["collect candidate grants"]
   ActiveTenant["active tenant (request)"] --> Scope["scope match: tenant / team / resource + parents"]
   Collect --> Scope
@@ -148,21 +148,25 @@ flowchart LR
 
 ## Tenant-defined custom roles
 
-A tenant admin wants a "Billing Manager" role. The policy did not declare it and must not have to. A custom role is data:
+A tenant admin wants a "Billing Manager" role. The policy did not declare it and must not have to. A custom role is data, composed from declared roles, from single permissions, or both:
 
 ```ts
 type CustomRole = {
   tenant: string
+  team?: string                // a team-scoped custom role
   name: string                 // 'billing-manager'; unique within the tenant
-  includes: string[]           // declared roles marked assignable: ['billing-viewer', 'invoice-payer']
+  includes?: string[]          // declared roles: ['billing-viewer', 'invoice-payer']
+  grants?: { permission: string; effect?: 'allow' | 'deny' }[]   // declared permission keys
   meta?: Record<string, unknown>
 }
 ```
 
-- At evaluation time a membership role name that no `role()` declared is looked up through the `RoleSource` for that tenant and replaced by the declared roles it `includes`. Names that resolve to nothing are dropped (fewer grants, never more). A custom role therefore can never exceed the union of the tenant's assignable roles, and it can never carry a condition of its own; conditions live on declared grants that were reviewed in code.
-- Declared roles are the vocabulary. Small, composable, `assignable` roles (`billing-viewer`, `invoice-payer`, `member-inviter`) make good building blocks; a monolithic `admin` makes a poor one. `permdock catalog` lists assignable roles with their `meta.title` and the permissions each contains, which is what a role editor renders.
+- A custom role never exceeds its **ceiling**: the allows of the declared roles marked `assignable` in its scope (tenant, or team when `team` is set). Its effective grants are its included roles' grants plus its own allows, minus its own denies, intersected with the ceiling. Anything outside is dropped (fewer grants, never more), and `validateCustomRole` and `permdock doctor` PD023 name each dropped key.
+- A custom-role grant carries no condition, approval or limit of its own. It inherits those of the declared grant it comes from, so every condition was reviewed in code.
 - `RoleSource.assignable(tenant)` may return a subset of the declared assignable roles: a Starter plan without `billing-manager`, a regulated tenant without `data-exporter`. This is Clerk's role-set idea and the entitlements-are-roles rule applied to assignability; the plan is an input, PermDock never reads billing.
-- Who may hand out which role is itself a permission (`permissions.member.assignRole`) plus the rule that you cannot hand out what you do not hold: `permdock.assignableRoles()` returns the intersection of `RoleSource.assignable(activeTenant)` and the roles the current subject holds there, and the app's server action checks both before writing.
+- Who may hand out which role is itself a permission (`permissions.member.assignRole`) plus the rule that you cannot hand out what you do not hold: `permdock.assignableRoles()` and `permdock.assignablePermissions()` intersect the ceiling (narrowed by `RoleSource.assignable`) with what the subject holds there. Holding a role or a permission marked `meta.manageRoles: true` lifts that intersection.
+
+[Custom roles](/docs/concepts/custom-roles) has the resolution rules, the ceiling, the matrix-editor recipe and how snapshots carry the result.
 
 ### Interfaces
 
@@ -207,9 +211,10 @@ permdock.tenants()                 // string[]               tenants the subject
 permdock.heldRoles({ tenant: 'o_acme' })  // Role[]        roles held there, custom roles resolved
 permdock.heldRoles({ tenant })     // Role[]                roles held in a tenant
 permdock.assignableRoles()         // Role[]                roles the subject may hand out in the active tenant
+permdock.assignablePermissions()   // Permission[]          the custom-role ceiling the subject may hand out there
 ```
 
-`tenant()` and `team()` return new frozen instances (invariant 7); they never mutate the original and they re-run nothing, because memberships were loaded once. Switching a tenant the subject does not belong to yields an instance where every tenant-scoped check is `denied` with `no-membership`. On the client the same methods exist on the snapshot-backed instance and back `useTenant`, `useMemberships`, `useRoles` and `useAssignableRoles` ([UI](/docs/concepts/ui)).
+`tenant()` and `team()` return new frozen instances (invariant 7); they never mutate the original and they re-run nothing, because memberships were loaded once. Switching a tenant the subject does not belong to yields an instance where every tenant-scoped check is `denied` with `no-membership`. On the client the same methods exist on the snapshot-backed instance and back `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles` and `useAssignablePermissions` ([UI](/docs/concepts/ui)).
 
 ## Portable compilation
 

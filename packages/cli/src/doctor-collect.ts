@@ -2,7 +2,11 @@ import type { CustomRole, Policy } from 'permdock';
 
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { hasConditionOp, separationConflicts } from 'permdock';
+import {
+  hasConditionOp,
+  separationConflicts,
+  validateCustomRole,
+} from 'permdock';
 
 import type { DoctorFinding } from './doctor-types.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
@@ -232,6 +236,21 @@ export async function pd017(input: {
   return findings;
 }
 
+type MembershipsFixture = {
+  readonly customRoles?: readonly CustomRole[];
+  readonly memberships?: readonly {
+    readonly principal?: string;
+    readonly tenant?: string;
+    readonly roles: readonly string[];
+  }[];
+};
+
+function asMembershipsFixture(parsed: unknown): MembershipsFixture {
+  return parsed !== null && typeof parsed === 'object'
+    ? (parsed as MembershipsFixture)
+    : {};
+}
+
 export async function pd018(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -283,20 +302,14 @@ export async function pd018(input: {
     });
     return findings;
   }
-  const record =
-    parsed !== null && typeof parsed === 'object'
-      ? (parsed as {
-          readonly customRoles?: readonly CustomRole[];
-          readonly memberships?: readonly {
-            readonly principal?: string;
-            readonly tenant?: string;
-            readonly roles: readonly string[];
-          }[];
-        })
-      : {};
+  const record = asMembershipsFixture(parsed);
   for (const custom of record.customRoles ?? []) {
     const conflicts = separationConflicts(policy, [
-      { principal: custom.name, tenant: custom.tenant, roles: custom.includes },
+      {
+        principal: custom.name,
+        tenant: custom.tenant,
+        roles: custom.includes ?? [],
+      },
     ]);
     for (const conflict of conflicts) {
       findings.push({
@@ -439,4 +452,49 @@ export async function pd019(input: {
       fix: "set rls.authorize: 'database', or lower [auth] jwt_expiry in supabase/config.toml to 3600 or less",
     },
   ];
+}
+
+export async function pd023(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  const fixturePath = input.config.doctor?.memberships;
+  if (input.config.policy === undefined || fixturePath === undefined) {
+    return [];
+  }
+  const absolute = resolve(input.cwd, fixturePath);
+  if (!existsSync(absolute)) {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(absolute, 'utf8')) as unknown;
+  } catch {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  for (const custom of asMembershipsFixture(parsed).customRoles ?? []) {
+    for (const entry of validateCustomRole(policy, custom).dropped) {
+      const what =
+        'role' in entry
+          ? `include ${entry.role}`
+          : `permission ${entry.permission}`;
+      findings.push({
+        code: 'PD023',
+        severity: 'warning',
+        message: `custom role ${custom.name} in ${custom.tenant} drops ${what} (${entry.reason})`,
+        fix:
+          entry.reason === 'outside-ceiling'
+            ? 'grant it to a declared assignable role, or remove it from the custom role'
+            : entry.reason === 'condition-not-allowed'
+              ? 'remove the condition; custom-role grants inherit the declared grant condition'
+              : 'use a declared permission key or assignable role name',
+      });
+    }
+  }
+  return findings;
 }

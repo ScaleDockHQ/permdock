@@ -1,6 +1,6 @@
 ---
 title: React
-description: permdock/react gives client components a snapshot-backed PermDock through PermDockProvider, usePermDock, usePermission, usePermissions, useFilter, useTenant, useMemberships, useRoles, useAssignableRoles, useApproval, useSubject and Protected, with a batched decision endpoint for closure grants.
+description: permdock/react gives client components a snapshot-backed PermDock through PermDockProvider, usePermDock, usePermission, usePermissions, useFilter, useTenant, useMemberships, useRoles, useAssignableRoles, useAssignablePermissions, useApproval, useSubject and Protected, with a batched decision endpoint for closure grants.
 ---
 
 ## Purpose
@@ -14,7 +14,7 @@ This replaces two permix patterns that failed in practice: hydration that collap
 ```tsx
 import {
   PermDockProvider, usePermDock, usePermission, usePermissions, useFilter,
-  useTenant, useMemberships, useRoles, useAssignableRoles, useApproval, useSubject, Protected,
+  useTenant, useMemberships, useRoles, useAssignableRoles, useAssignablePermissions, useApproval, useSubject, Protected,
 } from 'permdock/react'
 import { describe } from 'permdock'         // pure helper, client-safe
 import { permissions } from '@/permissions' // definition only: client-safe
@@ -38,6 +38,7 @@ const { tenant, tenants, switchTo } = useTenant()
 const memberships = useMemberships()                    // Membership[] for org lists and role chips
 const roles = useRoles({ tenant })                      // roles held in the active tenant, custom roles resolved
 const assignable = useAssignableRoles()                 // what this user may hand out here
+const ceiling = useAssignablePermissions()              // permissions a custom role may get from this user
 const approval = useApproval(decision)                  // { state, request, token } for approval-required
 const { principal, actor, simulated } = useSubject()
 
@@ -50,12 +51,12 @@ const { principal, actor, simulated } = useSubject()
 | Export | Role |
 |---|---|
 | `PermDockProvider` | Takes `snapshot` (from the server) or `snapshotPromise` (an unawaited `Promise<Snapshot>` from a Server Component), an optional `endpoint` and an optional initial `tenant`. Holds one snapshot-backed `PermDock` in an external store and exposes it through context. With `snapshotPromise`, hooks suspend through `use()` until it resolves and a new promise replaces the snapshot; a rejected promise reaches the nearest error boundary. A resolved JWS goes through `verifier` like `snapshot`. Accepts `fetch` and `headers` options for the endpoint call. |
-| `usePermDock` | Returns the snapshot-backed instance: `can`, `decide`, `filter`, `actions`, `status`, `invalidate`, `refresh`, plus `tenant()`, `team()`, `memberships()`, `tenants()`, `heldRoles()`, `assignableRoles()`. Subscribes with `useSyncExternalStore`, so every consumer re-renders when the snapshot or an endpoint answer changes. |
+| `usePermDock` | Returns the snapshot-backed instance: `can`, `decide`, `filter`, `actions`, `status`, `invalidate`, `refresh`, plus `tenant()`, `team()`, `memberships()`, `tenants()`, `heldRoles()`, `assignableRoles()`, `assignablePermissions()`. Subscribes with `useSyncExternalStore`, so every consumer re-renders when the snapshot or an endpoint answer changes. |
 | `usePermission` | Returns `allowed`, `status` and the full `decision` for one permission and, for instance actions, one resource. Refetches when the resource `id` changes, not only when the reference changes. |
 | `usePermissions` | Several references at once against one resource; one entry per reference from a single snapshot pass. The menu and toolbar hook. |
 | `useFilter` | `filter` against the snapshot, memoised on row identities; the rows the subject may act on. |
 | `useTenant` | `{ tenant, tenants, switchTo, status }`. `switchTo` is local when the snapshot was issued with `tenants: 'all'`, otherwise it calls `refresh({ tenant })` and the server answers from the subject's memberships ([tenancy](/docs/concepts/tenancy)). |
-| `useMemberships`, `useRoles`, `useAssignableRoles` | Read-only introspection from the snapshot: the membership list, `Role[]` held in a tenant (custom roles resolved to their name and `meta.title`), and the intersection of assignable roles with what the subject holds. Display and assignment data, never a substitute for a permission check. |
+| `useMemberships`, `useRoles`, `useAssignableRoles`, `useAssignablePermissions` | Read-only introspection from the snapshot: the membership list, `Role[]` held in a tenant (custom roles resolved to their name and `meta.title`), the assignable roles the subject may hand out, and `Permission[]`, the custom-role ceiling the subject may hand out (`useAssignablePermissions({ tenant? })`, from the snapshot's `assignable` entry). Display and assignment data, never a substitute for a permission check ([custom roles](/docs/concepts/custom-roles)). |
 | `useApproval` | Drives the `approval-required` outcome: `request()` posts to `approvalsHandler`, `state` moves through `pending`, `approved`, `denied`, `expired`, and `token` is ready for the `PermDock-Approval` retry ([approvals](/docs/adapters/approvals)). |
 | `useSubject` | The snapshot's subject summary: `principal` (id, kind, roles, tenant), `actor`, `delegation`, `expiresAt`, `simulated`. |
 | `Protected` | Component form of `usePermission`. `pending` renders while the answer is in flight, and is also the Suspense fallback while a `snapshotPromise` resolves; `fallback` renders when denied or approval-required. Accepts `tenant` to render against a derived instance. Children may be a render function receiving the granted `Decision` with a narrowed subject. |

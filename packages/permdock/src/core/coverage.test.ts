@@ -157,7 +157,13 @@ describe('coverage edges', () => {
     expect(json.expiresAt).toBe(9_999_999_999);
     expect(permdock.memberships()).toEqual([]);
     expect(permdock.heldRoles().map((item) => item.key)).toEqual(['member']);
-    expect(permdock.assignableRoles()).toEqual([]);
+    // Every scoped role grants only post.read, which the global member holds.
+    expect(permdock.assignableRoles().map((item) => item.key)).toEqual([
+      'viewer',
+      'lead',
+      'owner',
+    ]);
+    expect(permdock.assignablePermissions()).toEqual([]);
     expect(
       permdock
         .team('t1')

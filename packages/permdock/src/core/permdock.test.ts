@@ -328,7 +328,7 @@ describe('createPermDock', () => {
     ).toBe(true);
   });
 
-  it('resolves custom roles through memoryRoleSource', async () => {
+  it('bounds custom roles by the tenant ceiling', async () => {
     const permdock = await createPermDock(
       policy,
       {
@@ -360,7 +360,8 @@ describe('createPermDock', () => {
         ]),
       },
     );
-    expect(withMembership.can(permissions.post.read, ownPost)).toBe(true);
+    // `member` is a global, non-assignable role: outside every tenant ceiling.
+    expect(withMembership.can(permissions.post.read, ownPost)).toBe(false);
   });
 
   it('throws PermDockDeniedError from assert', async () => {

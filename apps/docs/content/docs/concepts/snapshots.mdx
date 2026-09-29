@@ -31,6 +31,7 @@ const snapshot = snapshotFor(policy, claims, {
   tenant: org,                    // the org in the URL; ignored without a matching membership
   plans: [orgPlan],               // plans are per tenant; pass the active org's plan
   customRoles: orgRoles,          // CustomRole[] loaded by the app, filtered to the subject's orgs
+  assignable: { [org]: offered }, // optional: RoleSource.assignable per tenant
   memberships: rowsFromDatabase,  // database mode: replaces the memberships in the claims
 })
 ```
@@ -57,11 +58,12 @@ The TypeScript type is `Snapshot`; `v` is the format major, `1`, and `parseSnaps
 | --- | --- |
 | `v` | Format major, `1`. Readers reject unknown majors. |
 | `subject` | The frozen principal (including `memberships` and the active `tenant`), delegation and context the conditions reference. The actor's secrets are never included. |
-| `roles` | The role names that were applied, custom roles resolved to declared names. |
+| `roles` | The role names the subject holds in the active tenant, custom role names included. |
 | `grants` | One entry per grant, keyed by permission `key`; conditions in the [portable JSON form](/docs/concepts/conditions); `to` is the grantee union. |
 | `vocabulary` | The declared roles and plans (`vocabulary.roles`, `vocabulary.plans`), so the client renders titles without the catalog. |
 | `scope`, `membership` | On grants from scoped roles: the scope kind and the membership that supplied the role, so the client evaluates the scope match exactly as the server did ([tenancy](/docs/concepts/tenancy)). Absent on global grants. |
 | `portable: false` | The grant exists but uses a closure or an opaque condition; the client must ask the server. |
+| `assignable` | One `{ tenant, roles, permissions }` entry per tenant in `tenants`: what the subject may hand out there, read by `assignableRoles`, `assignablePermissions` and `useAssignablePermissions` ([custom roles](/docs/concepts/custom-roles)). |
 | `tenants` | The tenants whose grants are present: the active tenant by default, every membership tenant with `tenants: 'all'`. |
 | `simulated` | `true` when produced by `simulate`; the decision endpoint refuses it. |
 | `include` | Present on scoped snapshots so the client knows which groups are authoritative. |
@@ -185,7 +187,7 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 
 - Closures and opaque conditions: only their existence (`portable: false`).
 - Grants of roles the subject does not have, and grants of tenants outside `tenants` (the active one by default).
-- Tenant-defined custom role names: they are resolved to declared roles before serialisation, so a snapshot never carries a name RLS could not.
+- Custom-role definitions: only their resolved grants, each bounded by the ceiling and carrying the custom role name as `role` ([custom roles](/docs/concepts/custom-roles)).
 - Quota state for `limit` grants; those are always `server-only` (`portable: false`).
 - Anything from the actor beyond what appears in `delegation`.
 

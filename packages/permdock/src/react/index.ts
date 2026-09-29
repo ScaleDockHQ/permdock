@@ -4,6 +4,7 @@ export { describe } from '../core/describe.ts';
 export { approvalHeaders } from './headers.ts';
 export {
   useApproval,
+  useAssignablePermissions,
   useAssignableRoles,
   useFilter,
   useMemberships,

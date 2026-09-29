@@ -42,6 +42,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD020` | A permission the policy marks `hostable` sits on a resource the `rls` config compiles | warning |
 | `PD021` | The policy lists `hostable` permissions but `PERMDOCK_CLOUD_URL` or `PERMDOCK_CLOUD_KEY` is unset | warning |
 | `PD022` | A SQL migration creates a view without `security_invoker`, so it reads past row level security | warning |
+| `PD023` | A custom role in the `doctor.memberships` fixture names a permission or include its ceiling drops | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -156,6 +157,10 @@ A policy with `hostable` permissions expects hosted grants, which need `permdock
 ### PD022: views without `security_invoker`
 
 A Postgres view runs with its owner's rights unless it is created `with (security_invoker = true)`, so a view over an RLS table returns every row to every caller. With an `rls` config or `doctor.migrations`, the check reads the `.sql` files under `doctor.migrations` (default `supabase/migrations`, `migrations`, `drizzle`, `prisma/migrations`, `db/migrations`) in name order and warns on each `create view` that neither sets `security_invoker` nor gets it from a later `alter view ... set (security_invoker = true)`. Materialized views are skipped: Postgres does not apply RLS to them at read time. `--only views` runs this check.
+
+### PD023: custom-role keys outside the ceiling
+
+When `doctor.memberships` points at a JSON fixture with a `customRoles` array, the check runs `validateCustomRole` on each custom role and warns once per dropped entry: a permission no assignable declared role of the role's scope allows (`outside-ceiling`), an unknown permission key or include (`unknown-permission`, `unknown-role`), or a grant carrying a condition (`condition-not-allowed`). Evaluation already drops these, so the warning is about intent: the tenant admin expected the key to stick. Fix it by granting the permission to a declared `assignable` role, or by removing it from the custom role ([custom roles](/docs/concepts/custom-roles)). `--only custom-roles` runs this check.
 
 ## Why
 

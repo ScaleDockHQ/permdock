@@ -11,6 +11,7 @@ export { setPermDock } from './stores.ts';
 export {
   approval,
   assignable,
+  assignablePermissions,
   filtered,
   getPermDock,
   memberships,

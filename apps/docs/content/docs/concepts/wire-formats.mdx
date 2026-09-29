@@ -83,11 +83,15 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
       "to": { "kind": "role", "role": "member", "scope": "tenant" } }
   ],
   "tenants": ["o_1"],
-  "include": ["post"]
+  "include": ["post"],
+  "assignable": [
+    { "tenant": "o_1", "roles": ["member"],
+      "permissions": [{ "key": "post.read", "resource": "post", "action": "read", "scope": "post:read", "meta": {} }] }
+  ]
 }
 ```
 
-A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [policies](/docs/concepts/policies) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (`"tenant"`, `"team"` or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. A snapshot has one entry per membership that holds a scoped grant's roles, and a client denies when a `portable: false` deny applies. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
+A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [policies](/docs/concepts/policies) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (`"tenant"`, `"team"` or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. A snapshot has one entry per membership that holds a scoped grant's roles, and a client denies when a `portable: false` deny applies. A resolved [custom-role](/docs/concepts/custom-roles) grant is an ordinary entry whose `role` is the custom role name, whose `to` is that role in its scope, and whose `membership` is the membership holding it. `assignable` has one `{ tenant, roles, permissions }` entry per tenant in `tenants`: the declared role names and the permission leaves the subject may hand out there, with `permissions` trimmed by `include`; it is absent when `tenants` is empty. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
 
 ## Membership and custom role
 
@@ -102,10 +106,10 @@ Carried inside the principal and exchanged with `MembershipSource` and `RoleSour
 ```
 
 ```json
-{ "tenant": "o_1", "name": "billing-manager", "includes": ["billing-viewer", "invoice-payer"], "meta": { "title": "Billing Manager" } }
+{ "tenant": "o_1", "name": "billing-manager", "includes": ["billing-viewer"], "grants": [{ "permission": "invoice.pay" }, { "permission": "invoice.refund", "effect": "deny" }], "meta": { "title": "Billing Manager" } }
 ```
 
-Exactly one of `tenant`-only, `tenant` plus `team`, or `on` applies to a membership; a `CustomRole.includes` entry names a declared role marked `assignable`.
+Exactly one of `tenant`-only, `tenant` plus `team`, or `on` applies to a membership. A custom role has `tenant`, `name`, optional `team` (a team-scoped custom role), `includes` (declared role names) and `grants` (declared permission keys with `effect` `allow`, the default, or `deny`, and no other field). Both are bounded by the ceiling of assignable declared roles in the role's scope; entries outside it are dropped, never widened ([custom roles](/docs/concepts/custom-roles)).
 
 ## Decision
 

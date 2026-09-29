@@ -24,8 +24,9 @@ import type {
 import type { Boundary } from './validation.ts';
 import type { PlanTree, Role, RoleTree } from './vocabulary.ts';
 
+import { compact } from './compact.ts';
 import { describe } from './describe.ts';
-import { customRolesFor } from './evaluate.ts';
+import { assignableNamesFor, customRolesFor } from './evaluate.ts';
 import {
   type PolicyDocument,
   type PolicySource,
@@ -147,7 +148,13 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly heldRoles: (options?: {
     readonly tenant?: string;
   }) => readonly Role[];
-  readonly assignableRoles: () => readonly Role[];
+  readonly assignableRoles: (options?: {
+    readonly tenant?: string;
+  }) => readonly Role[];
+  /** The tenant custom-role ceiling the subject may hand out; empty without a tenant. */
+  readonly assignablePermissions: (options?: {
+    readonly tenant?: string;
+  }) => readonly Permission[];
   readonly roles: V['roles'] extends RoleTree ? V['roles'] : RoleTree;
   readonly plans: V['plans'] extends PlanTree ? V['plans'] : PlanTree;
   readonly permissions: V['permissions'] extends Policy['permissions']
@@ -196,21 +203,32 @@ function instantiate(
   const { policy, errors } = hostedPolicy(codePolicy, options.policies);
   const tenants = tenantsOf(subject.principal);
   const customRoles = customRolesFor(options.customRoles, tenants, auth);
-  const build = (roles: readonly CustomRole[]): PermDock =>
-    buildInstance(policy, subject, {
-      customRoles: roles,
-      sink: options.sink,
-      limits: options.limits,
-      limitCache: new Map<string, number>(),
-      simulated: false,
-      roleSource: options.customRoles,
-      queuedAuth: auth,
-      queuedErrors: errors,
-    });
-  if (isThenable(customRoles)) {
-    return customRoles.then(build);
+  const assignable = assignableNamesFor(options.customRoles, tenants, auth);
+  const build = (
+    roles: readonly CustomRole[],
+    names: ReadonlyMap<string, readonly string[]> | undefined,
+  ): PermDock =>
+    buildInstance(
+      policy,
+      subject,
+      compact<Parameters<typeof buildInstance>[2]>({
+        customRoles: roles,
+        sink: options.sink,
+        limits: options.limits,
+        limitCache: new Map<string, number>(),
+        simulated: false,
+        roleSource: options.customRoles,
+        assignable: names,
+        queuedAuth: auth,
+        queuedErrors: errors,
+      }),
+    );
+  if (isThenable(customRoles) || isThenable(assignable)) {
+    return Promise.all([customRoles, assignable]).then(([roles, names]) =>
+      build(roles, names),
+    );
   }
-  return build(customRoles);
+  return build(customRoles, assignable);
 }
 
 export function createPermDock<

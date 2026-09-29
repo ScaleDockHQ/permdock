@@ -11,6 +11,7 @@ import type { CustomRole, Membership, Subject } from './subject.ts';
 
 import { evaluateCondition } from '../conditions/evaluate.ts';
 import { compact } from './compact.ts';
+import { isCustomRoleName, holdsCustomRole } from './custom-roles.ts';
 import { coveredByDelegation, resourceIdOf } from './delegation.ts';
 import { PermDockValidationError } from './errors.ts';
 import { type EvalEnv, emitSafe, finish } from './events.ts';
@@ -19,7 +20,12 @@ import { freezeDeep } from './freeze.ts';
 import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
 import { applyQuota } from './limits.ts';
 import { getResource, listPermissions } from './permissions.ts';
-import { requiresApproval, type Grant, type Policy } from './policy.ts';
+import {
+  grantList,
+  requiresApproval,
+  type Grant,
+  type Policy,
+} from './policy.ts';
 import { matchScopedMembership, nowSeconds } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
 import { decisionToken } from './token.ts';
@@ -85,10 +91,53 @@ export function customRolesFor(
   return (loaded as CustomRole[][]).flat();
 }
 
+function stringList(value: unknown): readonly string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
 /**
- * Declared names pass through; a custom role expands to its declared
- * includes, and only a custom role of `tenant` (a tenant's role never
- * expands inside another tenant, nor for a membership without one).
+ * `RoleSource.assignable` per tenant; `undefined` when the source has no
+ * `assignable`. A tenant whose call throws or answers junk assigns nothing.
+ */
+export function assignableNamesFor(
+  source: RoleSource | undefined,
+  tenants: readonly string[],
+  auth: AuthEvent[],
+):
+  | ReadonlyMap<string, readonly string[]>
+  | Promise<ReadonlyMap<string, readonly string[]>>
+  | undefined {
+  if (source?.assignable === undefined) {
+    return undefined;
+  }
+  const failed = (): string[] => {
+    auth.push({ reason: 'source-threw', source: 'customRoles' });
+    return [];
+  };
+  const loaded = tenants.map((tenant) => {
+    try {
+      return source.assignable?.(tenant) ?? [];
+    } catch {
+      return failed();
+    }
+  });
+  const toMap = (lists: readonly unknown[]): Map<string, readonly string[]> =>
+    new Map(tenants.map((tenant, index) => [tenant, stringList(lists[index])]));
+  if (loaded.some((item) => isThenable(item))) {
+    return Promise.all(
+      loaded.map((item) => Promise.resolve(item).catch(failed)),
+    ).then(toMap);
+  }
+  return toMap(loaded);
+}
+
+/**
+ * The declared role names among `names`. A custom role of `tenant` is known
+ * but contributes no declared name: its grants are resolved separately
+ * (`customGrantsFor`), bounded by the ceiling. A tenant's custom role is
+ * unknown inside another tenant and for a membership without one.
  */
 export function expandRoleNames(
   names: readonly string[],
@@ -101,20 +150,8 @@ export function expandRoleNames(
   for (const name of names) {
     if (declared.has(name)) {
       resolved.add(name);
-      continue;
-    }
-    const customRole =
-      tenant === undefined
-        ? undefined
-        : custom.find((item) => item.name === name && item.tenant === tenant);
-    if (customRole === undefined) {
+    } else if (!isCustomRoleName(name, custom, tenant)) {
       unknown.push(name);
-      continue;
-    }
-    for (const included of customRole.includes) {
-      if (declared.has(included)) {
-        resolved.add(included);
-      }
     }
   }
   return { roles: [...resolved], unknown };
@@ -126,13 +163,6 @@ export function declaredRoleNames(policy: Policy): Set<string> {
     names.add(leaf.key);
   }
   return names;
-}
-
-export function grantList(policy: Policy): readonly Grant[] {
-  if (policy.grants !== undefined && policy.grants.length > 0) {
-    return policy.grants;
-  }
-  return policy.roles.flatMap((role) => role.grants);
 }
 
 function alternativesFor(
@@ -395,10 +425,23 @@ export function evaluate(
     }
   }
 
-  for (const grant of grantList(policy)) {
-    if (grant.permission.key !== permission.key) {
-      continue;
+  const candidates: { readonly grant: Grant; readonly custom?: CustomRole }[] =
+    grantList(policy)
+      .filter((grant) => grant.permission.key === permission.key)
+      .map((grant) => ({ grant }));
+  for (const item of env.customGrants) {
+    if (item.grant.permission.key === permission.key) {
+      candidates.push({ grant: item.grant, custom: item.role });
     }
+  }
+  const holdsCustom = (custom: CustomRole): boolean =>
+    (subject.principal?.memberships ?? []).some(
+      (membership) =>
+        (env.team === undefined || membership.team === env.team) &&
+        holdsCustomRole(membership, custom),
+    );
+
+  for (const { grant, custom } of candidates) {
     const displayRole = grant.role;
     const granteeMatch = matchGrantee(grant.to, subject, now, resource);
     if (!granteeMatch.matched) {
@@ -421,9 +464,11 @@ export function evaluate(
       let allHeld = true;
       for (const roleItem of roleItems) {
         const held =
-          roleItem.scope === 'global'
-            ? globalNames.roles.includes(roleItem.role)
-            : matchingRoles.has(roleItem.role);
+          custom === undefined
+            ? roleItem.scope === 'global'
+              ? globalNames.roles.includes(roleItem.role)
+              : matchingRoles.has(roleItem.role)
+            : holdsCustom(custom);
         if (!held) {
           allHeld = false;
           break;
@@ -438,13 +483,17 @@ export function evaluate(
             resource,
             policy.resources,
             now,
-            (membership) =>
-              expandRoleNames(
-                membership.roles,
-                declared,
-                env.customRoles,
-                membership.tenant,
-              ).roles,
+            (membership) => {
+              if (custom === undefined) {
+                return expandRoleNames(
+                  membership.roles,
+                  declared,
+                  env.customRoles,
+                  membership.tenant,
+                ).roles;
+              }
+              return holdsCustomRole(membership, custom) ? [custom.name] : [];
+            },
           );
         const scopeMatch = matchWriteScope(
           matchRow,

@@ -76,6 +76,8 @@ export const policy = definePolicy(
 
 Workflow verbs on money or filing resources (`prepare`, `approve`, `pay`, `settle`, `submit`) are separate leaves. Put `approval: { by }` on `approve` / `pay` (PD017 warns when those actions have neither approval nor a matching deny). Use `exclusiveWith` on `role()` so a preparer cannot also be the approver (PD018). Hardware-key step-up is `assurance({ amr: ['hwk'], maxAge: 300 })` and renders `/step-up-required`.
 
+When tenant admins define their own roles, keep declared roles small and `assignable`: they are the ceiling a custom role can never exceed. Pass a `RoleSource` as `customRoles`; a `CustomRole` lists `includes` (declared roles) and `grants` (`{ permission, effect? }`, no conditions). Build the editor from `useAssignablePermissions()` and save through a server action that runs `validateCustomRole(policy, role)` and compares it with `permdock.assignablePermissions()` ([custom roles](https://permdock.dev/docs/concepts/custom-roles)).
+
 Done when at least one role grants the first guard's permission, and `policy.ts` is not imported from a client entry.
 
 ## 4. Factory

@@ -37,10 +37,22 @@ export type Membership = {
   readonly expiresAt?: number;
 };
 
+/**
+ * One permission a custom role adds or removes. It names a declared
+ * permission key and carries no condition, approval or limit of its own.
+ */
+export type CustomRoleGrant = {
+  readonly permission: string;
+  readonly effect?: 'allow' | 'deny';
+};
+
 export type CustomRole = {
   readonly tenant: string;
+  /** Set for a team-scoped custom role; its ceiling is the assignable team roles. */
+  readonly team?: string;
   readonly name: string;
-  readonly includes: readonly string[];
+  readonly includes?: readonly string[];
+  readonly grants?: readonly CustomRoleGrant[];
   readonly meta?: Readonly<Record<string, unknown>>;
 };
 

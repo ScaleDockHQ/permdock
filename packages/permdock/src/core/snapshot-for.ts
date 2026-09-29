@@ -16,6 +16,8 @@ export type SnapshotForOptions = {
   readonly memberships?: readonly Membership[];
   /** The tenant's custom roles, typically from a shared, tagged cache. */
   readonly customRoles?: readonly CustomRole[];
+  /** Per tenant, the role names `RoleSource.assignable` returns; narrows `assignable`. */
+  readonly assignable?: Readonly<Record<string, readonly string[]>>;
   /** Plans of the active tenant; replaces `principal.plans`. */
   readonly plans?: readonly string[];
   readonly include?: SnapshotInclude;
@@ -81,11 +83,22 @@ export function snapshotFor<
   const customRoles = (options.customRoles ?? []).filter((item) =>
     tenants.has(item.tenant),
   );
+  const names = options.assignable;
+  const assignable =
+    names === undefined
+      ? undefined
+      : new Map(
+          [...tenants].map((tenant) => [
+            tenant,
+            Object.hasOwn(names, tenant) ? (names[tenant] ?? []) : [],
+          ]),
+        );
   return snapshotOf(
     policy as unknown as Policy,
     subject,
     compact<Parameters<typeof snapshotOf>[2]>({
       customRoles,
+      assignable,
       include: options.include,
       tenants: options.tenants,
       now: options.now,

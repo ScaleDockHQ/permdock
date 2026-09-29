@@ -108,6 +108,7 @@ The names below are rules. The full inventory of exports, options, flags and rea
 - A field a specification already names keeps the spec's name; add a row to the "Spec names" table on `getting-started/naming.mdx` before adding it.
 - Approvals resume one call: `ApprovalStore.consume` sets `consumedAt`. The HTTP resume header is `PermDock-Approval` ([approvals](apps/docs/content/docs/adapters/approvals.mdx)).
 - Snapshots: `snapshotFor` and `mayAccess` are the cache building blocks. PermDock never adds `'use cache'` or calls `headers()` / `cookies()`; `tenants: 'all'` is opt-in ([Next.js Cache Components](apps/docs/content/docs/guides/next-cache-components.mdx)).
+- Custom roles: `CustomRole.grants` entries are `{ permission, effect? }` and carry no condition, approval or limit. `resolveCustomRole` is the only resolver (evaluation, `snapshot`, `snapshotFor`, `validateCustomRole`, doctor PD023); the ceiling is the code allows of declared `assignable` roles in the role's scope, never hosted grants. `assignablePermissions` / `useAssignablePermissions` sit next to `assignableRoles`; `meta.manageRoles` on a role or permission lifts the held-grant intersection ([custom roles](apps/docs/content/docs/concepts/custom-roles.mdx)).
 - Streams and sockets: `connection(...)` returns a frozen `Connection`. `RevocationFeed` (`memoryRevocationFeed()`) ends or revalidates a connection and never grants. `PermDockRevokedError` is only a connection signal. An abort adds no denial reason ([streams](apps/docs/content/docs/concepts/streams.mdx)).
 
 | Area | Owning page |

@@ -14,6 +14,7 @@ import {
   pd019,
   pd020,
   pd021,
+  pd023,
 } from './doctor-collect.ts';
 import { pd005, pd006, pd009, pd012, pd022 } from './doctor-project.ts';
 import {
@@ -148,6 +149,9 @@ export async function runDoctor(input: {
   }
   if (include('views') || include('PD022')) {
     findings.push(...pd022(input.cwd, input.config));
+  }
+  if (include('custom-roles') || include('PD023')) {
+    findings.push(...(await pd023(input)));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

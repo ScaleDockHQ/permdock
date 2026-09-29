@@ -142,6 +142,12 @@ export function useAssignableRoles(): readonly Role[] {
   return usePermDock().assignableRoles();
 }
 
+export function useAssignablePermissions(
+  options: { readonly tenant?: string } = {},
+): readonly Permission[] {
+  return usePermDock().assignablePermissions(options);
+}
+
 export function useSubject(): SubjectView {
   const dock = usePermDock();
   const snapshot = dock.snapshot();

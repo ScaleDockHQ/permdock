@@ -135,6 +135,13 @@ export function useAssignableRoles(): Accessor<readonly Role[]> {
   return createMemo(() => dock.assignableRoles());
 }
 
+export function useAssignablePermissions(
+  options: { readonly tenant?: string } = {},
+): Accessor<readonly Permission[]> {
+  const dock = usePermDock();
+  return createMemo(() => dock.assignablePermissions(options));
+}
+
 export function useSubject(): Accessor<SubjectView> {
   const dock = usePermDock();
   return createMemo(() => {
