@@ -5,7 +5,7 @@ description: permdock/next wires one explicit server factory into Server Compone
 
 ## Purpose
 
-`permdock/next` is the full-stack adapter for Next.js 16.3 and later (the `next` peer range is `>=16.3`). One `createPermDock` call in a server-only file returns the async server API (`getPermDock`, `getPermission`, `requireAccess`), a Server Component provider that serialises the snapshot for `permdock/react`, and a Route Handler for the batched decision endpoint. The design goals come from [Next.js 16.3 Instant Navigations](/docs/guides/next-cache-components#why-this-shape): permission-gated UI must land in the prefetched App Shell, never block a navigation, and refresh when roles change. The end-to-end pattern for a multi-org app is the [Next.js Cache Components guide](/docs/guides/next-cache-components).
+`permdock/next` is the full-stack adapter for Next.js 16.3 and later (the `next` peer range is `>=16.3`); its client half, `permdock/next/client`, holds `PermissionBoundary`. One `createPermDock` call in a server-only file returns the async server API (`getPermDock`, `getPermission`, `requireAccess`), a Server Component provider that serialises the snapshot for `permdock/react`, and a Route Handler for the batched decision endpoint. The design goals come from [Next.js 16.3 Instant Navigations](/docs/guides/next-cache-components#why-this-shape): permission-gated UI must land in the prefetched App Shell, never block a navigation, and refresh when roles change. The end-to-end pattern for a multi-org app is the [Next.js Cache Components guide](/docs/guides/next-cache-components).
 
 ## API
 
@@ -56,6 +56,37 @@ import { usePermission, useTenant, useFilter, Protected } from 'permdock/react'
 | `cacheLifeFor` | `cacheLifeFor(snapshot, { min, max, now })` returns `{ stale }` for `cacheLife()`: `max` (300) when the snapshot never expires, otherwise the seconds until `expiresAt` clamped to `min` (30). Below `min` it returns the real remainder, so Next.js leaves a nearly expired snapshot out of prefetches. It reads `issuedAt` from the snapshot, not the clock. |
 | `permdockHandler` | Returns `POST` (and `GET` for `.well-known` discovery) implementing the AuthZEN-shaped decision endpoint on top of the same subject resolver; also serves `refresh({ tenant })` snapshot requests, answering from the subject's memberships. |
 | `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots` | The shared adapter options: how the active tenant is resolved, a `MembershipSource`, a `RoleSource`, and the three hosted-capability interfaces ([adapters](/docs/adapters), [extension interfaces](/docs/concepts/extension-interfaces)). Every `sink.write` that returns a promise, and one `sink.flush()` per render, are handed to `after()`, so a serverless function stays alive until decision events are delivered; outside a request scope (tests, scripts) the sink behaves as in core. |
+
+### PermissionBoundary
+
+`requireAccess` replaces a whole segment with `forbidden.tsx`. When only part of a page is gated, and the rest should keep rendering, let the check throw and catch it with `PermissionBoundary` from `permdock/next/client`, a `'use client'` entry built on `catchError` from `next/error`:
+
+```tsx
+// app/[org]/quotes/[id]/page.tsx (Server Component)
+import { PermissionBoundary } from 'permdock/next/client'
+
+<PermissionBoundary denied={<p>Only staff can delete quotes.</p>} approval={<ApprovalNotice />}>
+  <Suspense fallback={null}>
+    <DeleteZone params={params} />   {/* awaits getPermDock(), then permdock.assert(permissions.quote.delete, quote) */}
+  </Suspense>
+</PermissionBoundary>
+
+// approval-notice.tsx
+'use client'
+import { usePermissionBoundary } from 'permdock/next/client'
+
+export function ApprovalNotice() {
+  const state = usePermissionBoundary()   // { outcome, permission, token?, retry }
+  if (state?.outcome !== 'approval-required') return null
+  return <button onClick={() => state.retry()}>I have approval, try again</button>
+}
+```
+
+- It recognises `PermDockDeniedError` and `PermDockApprovalRequiredError` by their `digest` ([errors](/docs/concepts/errors#the-digest)), which is the only part of a Server Component error that reaches the client in production. Every other error, and `forbidden()`, `notFound()` and `redirect()`, passes to the next boundary up.
+- `denied` renders for a denial; `approval` for an approval request, defaulting to `denied`. Both are React nodes, so a Server Component can pass them.
+- `usePermissionBoundary()` inside a fallback returns the permission key, the approval `token` for a request-access flow, and `retry()`, which re-fetches and re-renders the boundary's children, for example after the approval is granted or a role changes.
+- Put a `Suspense` inside the boundary: during server rendering an error goes to the nearest `Suspense`, and the boundary catches it when the client renders.
+- The boundary never decides; the check that threw did. Keep the enforcement in the Server Action as well.
 
 ### Active tenant from a root segment
 
@@ -217,7 +248,7 @@ How `permdock/next` relates to each function in the [Next.js functions reference
 | `next/root-params` | app | The generated getter is a `tenant` resolver ([above](#active-tenant-from-a-root-segment)) |
 | `generateStaticParams` | app | Required for a root segment under Cache Components |
 | `notFound`, `redirect`, `permanentRedirect` | app | `notFound()` hides a row the subject may not read; `redirect()` from `onDenied` |
-| `catchError` | not used yet | See [Why](#why) |
+| `catchError` | adapter | `PermissionBoundary` in `permdock/next/client` ([above](#permissionboundary)) |
 | `useOffline` | app | An offline badge; snapshot-backed `<Protected>` and `usePermission` keep answering offline |
 | `useRouter`, `useParams`, `usePathname`, `useSearchParams`, `useSelectedLayoutSegment(s)`, `useLinkStatus` | app | Plain navigation UI; never a source of subject or tenant facts |
 | `unstable_cache`, `unstable_noStore`, `revalidatePath`, `fetch`, `draftMode` | not relevant | `'use cache'` and tags replace them; no decision makes a network call |
@@ -228,10 +259,11 @@ How `permdock/next` relates to each function in the [Next.js functions reference
 `apps/examples/next` is a field-service app on named scopes: organizations (`acme`, `globex`) with staff roles, and customers inside them whose portal contacts see only their own quotes. It turns on `cacheComponents`, `partialPrefetching`, `experimental.authInterrupts` and `experimental.useOffline`.
 
 - `src/permdock/server.ts` calls `createPermDock` from `permdock/next`; `src/lib/access.ts` holds the app-owned caches: `loadSnapshot` (private, `cacheLifeFor`), `visibleQuotes` (private, `permdock.filter`), and `quoteAccess` (private, keyed on the quote id).
+- The staff quote page wraps a request-time delete check in `PermissionBoundary`: a member sees an approval notice with a retry button, a contact sees the denied fallback, and the quote itself keeps rendering.
 - `/[org]` pages and the portal export `instant = true`; `/[org]/settings` exports `prefetch = 'force-disabled'` and `instant = false` and calls `requireAccess`.
 - Quote links use `<Link prefetch={true}>`; Server Actions call `requireAccess` and then `updateTag`.
 
-`tests/e2e/src/next.spec.ts` builds it and runs `@next/playwright` `instant()` against `next start`: navigating between organization pages and switching organizations shows the gated nav instantly; a `prefetch={true}` quote link renders its gated actions with no fallback; a demotion through a Server Action with `updateTag` removes the gated UI; a portal contact moves between their quotes instantly and never sees another customer's; `requireAccess` renders the forbidden and unauthorized pages; and the gates keep answering offline. Removing `'use cache: private'` from `quoteAccess` makes the second scenario fail (a manual negative control), which shows the spec measures the prefetch and not the network.
+`tests/e2e/src/next.spec.ts` builds it and runs `@next/playwright` `instant()` against `next start`: navigating between organization pages and switching organizations shows the gated nav instantly; a `prefetch={true}` quote link renders its gated actions with no fallback; a demotion through a Server Action with `updateTag` removes the gated UI; a portal contact moves between their quotes instantly and never sees another customer's; `requireAccess` renders the forbidden and unauthorized pages; the gates keep answering offline; and `PermissionBoundary` renders the approval and denied fallbacks and recovers with `retry()` after a promotion. Removing `'use cache: private'` from `quoteAccess` makes the second scenario fail (a manual negative control), which shows the spec measures the prefetch and not the network.
 
 To check a route by hand, open the Next.js DevTools in `next dev`, select Navigation Inspector, turn on Pause on navigations, then refresh (the static shell) or click a link (the prefetched UI) and confirm the gated nav and actions are already there. Prefetching happens only under `next start`, so confirm the result with `pnpm --filter @permdock/example-next build` and `start`.
 
@@ -243,7 +275,7 @@ The multi-org pattern with JWT and database membership modes, a refresh signal a
 - **`io()`, never `connection()`.** Both keep the clock read out of the static shell, but `connection()` waits for a real request and so blocks every prefetch of a gated page. `io()` suspends only the prerender and resolves at once inside a cache scope, which is where prefetchable permission UI lives.
 - **`{ expire: 0 }`, not `'max'`, for revocations.** `'max'` is Next.js's recommended stale-while-revalidate default for content; for a permission it means one more visit with the revoked grant.
 - **No `scopeFromRootParams()` export.** `next/root-params` generates one getter per root segment, named after the folder, so a library cannot import it. The getter is already a `tenant` resolver.
-- **No `PermissionBoundary` yet.** A client boundary built on `catchError` sees a Server Component error only through its `digest`; Next.js keeps a pre-set digest, but PermDock's errors do not set one today, so the boundary could not tell an approval-required error from any other failure in production. `requireAccess` and the `forbidden.tsx` / `unauthorized.tsx` conventions cover denial; a component-level approval boundary waits for a digest on `PermDockApprovalRequiredError`.
+- **`PermissionBoundary` reads a digest.** A client boundary sees a Server Component error in production only through its `digest`, and Next.js keeps a digest the error already carries. So the denial and approval errors set a stable one in core, where every adapter throws them, and the boundary parses it instead of matching messages or class names. It is an error boundary, not a gate: a second way to hide UI on a client-side check would compete with `<Protected>`.
 - **`requireAccess` takes an object.** A collection permission has no row, and a positional `requireAccess(p, undefined, { tenant })` placeholder is easy to misread; the object form states the tenant where it is used.
 
 ## Related standards

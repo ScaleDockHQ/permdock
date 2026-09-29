@@ -90,7 +90,7 @@ The [shared adapter contract](/docs/adapters) applies, with these client-side sp
 ## How denials surface
 
 - `usePermission` returns `allowed: false` and the `decision` (`denied` with `denials` and `alternatives`, or `approval-required` with `reason`). The hook never throws and never suspends.
-- `Protected` renders `fallback`. When `fallback` is a function it receives the `Decision`, so a "request access" button can be shown for `approval-required`. `Protected` and its function-child form are the only components; there is no CASL-style `Can`.
+- `Protected` renders `fallback`. When `fallback` is a function it receives the `Decision`, so a "request access" button can be shown for `approval-required`. `Protected` and its function-child form are the only components in `permdock/react`; there is no CASL-style `Can`. Next.js apps also get the `PermissionBoundary` error boundary from `permdock/next/client` ([Next.js](/docs/adapters/next#permissionboundary)).
 - Endpoint failures (network, 401 from an expired session) leave the hook in `pending` and then `server-only`; `allowed` stays `false`.
 
 ## Example app
