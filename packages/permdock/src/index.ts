@@ -91,7 +91,11 @@ export type {
 export { emptySnapshot, fromSnapshot } from './core/from-snapshot.ts';
 export { createPermDock, parseSnapshot } from './core/permdock.ts';
 export { mayAccess } from './core/may-access.ts';
-export { resolveCustomRole, validateCustomRole } from './core/custom-roles.ts';
+export {
+  customRoleClaim,
+  resolveCustomRole,
+  validateCustomRole,
+} from './core/custom-roles.ts';
 export type {
   CustomRoleDrop,
   CustomRoleDropReason,

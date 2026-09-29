@@ -1,9 +1,10 @@
 import type { RoleGrantee } from './grantee.ts';
 import type { Grant, Policy } from './policy.ts';
-import type { CustomRole, Membership } from './subject.ts';
+import type { CustomRole, CustomRoleGrant, Membership } from './subject.ts';
 
 import { freezeDeep } from './freeze.ts';
 import { flattenGrantee } from './grantee.ts';
+import { isForbiddenKey } from './paths.ts';
 import { findPermission } from './permissions.ts';
 import { declaredRoleNames, grantList } from './policy.ts';
 import { findRole } from './vocabulary.ts';
@@ -175,7 +176,10 @@ export function resolveCustomRole(
       }
       const key = grant.permission.key;
       if (grant.effect === 'deny') {
-        included.push(grant);
+        // Only denies of the role's own scope: RLS evaluates each scope's keys separately.
+        if (grant.scope === scope) {
+          included.push(grant);
+        }
       } else if (ceilingSet.has(grant)) {
         included.push(grant);
         includedKeys.add(key);
@@ -336,4 +340,37 @@ export function isCustomRoleName(
         wellFormed(item) && item.name === name && item.tenant === tenant,
     )
   );
+}
+
+/**
+ * The compact JWT form of custom roles for the `memberships[].grants` claim
+ * RLS reads in `jwt` mode: role name to entries, where `key` allows, `-key`
+ * denies and `@role` includes. Put a team custom role on its team membership.
+ */
+export function customRoleClaim(
+  roles: readonly CustomRole[],
+): Readonly<Record<string, readonly string[]>> {
+  const claim: Record<string, string[]> = {};
+  for (const role of roles) {
+    if (!wellFormed(role) || isForbiddenKey(role.name)) {
+      continue;
+    }
+    const entries = claim[role.name] ?? [];
+    const includes: readonly string[] = Array.isArray(role.includes)
+      ? role.includes
+      : [];
+    const grants: readonly CustomRoleGrant[] = Array.isArray(role.grants)
+      ? role.grants
+      : [];
+    for (const name of includes) {
+      entries.push(`@${name}`);
+    }
+    for (const grant of grants) {
+      entries.push(
+        grant.effect === 'deny' ? `-${grant.permission}` : grant.permission,
+      );
+    }
+    claim[role.name] = entries;
+  }
+  return freezeDeep(claim);
 }

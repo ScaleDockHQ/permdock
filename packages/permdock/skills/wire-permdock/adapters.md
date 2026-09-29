@@ -703,11 +703,11 @@ pnpm exec permdock rls verify --fixtures rls.fixtures.json
 pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
 ```
 
-Generated policies call `permdock_has('<key>')` and `permitted_tenant_ids('<key>')` / `permitted_team_ids('<key>')`, which Postgres runs once per statement; set `--tenant-type` (or `rls.tenantType`) to the tenant column's type. `--policy-per-role` keeps one policy per role for review.
+Generated policies call `permdock_has('<key>')` and `permitted_tenant_ids('<key>')` / `permitted_team_ids('<key>')`, which Postgres runs once per statement; set `--tenant-type` (or `rls.tenantType`) to the tenant column's type. `--policy-per-role` keeps one policy per role for review. With tenant-defined custom roles, add `--custom-roles` (or `rls.customRoles: true`): write `custom_role_permissions` / `custom_role_includes` from the server in `database` mode, or put `customRoleClaim(roles)` on each membership's `grants` in the token in `jwt` mode. Both stay inside the `permdock_ceiling` view.
 
 When SQL is the authority, skip `generate`. Map helpers in `rls.functions`, write `sqlFunction` twins, and fail CI on `verify --db`. `--inline-functions` inlines the twin for generate targets that cannot call a SQL function.
 
-Never emit `service_role`. Fixtures may carry `memberships` and `tenant`.
+Never emit `service_role`. Fixtures may carry `memberships` and `tenant`, and a fixture file may add `customRoles`.
 
 Add `--force` (or `rls.force: true`) only when the application connects as the table owner; it emits `FORCE ROW LEVEL SECURITY`. Create views over RLS tables `with (security_invoker = true)`; `permdock doctor` PD022 warns on views that are not. When `rls import` prints a commented `rls.memberships.tenant` stanza, confirm the table holds memberships before pasting it.
 

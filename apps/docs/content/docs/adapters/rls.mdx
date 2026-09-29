@@ -85,6 +85,10 @@ Security notes on the helpers:
 - `execute` is revoked from `public` and `anon` and granted to `authenticated`, so `anon` policies (`anyone()` grants) never reference them.
 - `role_permissions` has RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; it changes only through a migration that re-runs `generate`.
 
+### Custom roles
+
+With `--custom-roles`, the tenant and team helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles). In `database` mode they read `custom_role_permissions (tenant_id, team_id, role, permission, effect)` and `custom_role_includes (tenant_id, team_id, role, include_role)`; in `jwt` mode, the `grants` map on each membership of the `memberships` claim. Either way, `permdock_custom_keys` turns the custom role into grant keys through the `permdock_ceiling` view, which holds only the keys of declared `assignable` roles and those roles' denies: allowed rows are unioned, denied permissions subtracted, included roles contribute their ceiling keys, and a row outside the ceiling reaches nothing. The resolution is the same one `resolveCustomRole` runs in the application, so `decide` and the database agree; `tests/integration/src/rls-custom-roles.test.ts` checks it in both modes with `permdock rls verify --db` and `rlsParity`.
+
 Portable subset compiled by `generate` and recognised by `import`:
 
 | Portable node | `supabase` | `neon` | `guc` |
@@ -96,6 +100,7 @@ Portable subset compiled by `generate` and recognised by `import`:
 | `sqlFunction('job_permitted', { args, twin })` | `job_permitted("id")` (`--inline-functions` emits the twin) | same | same |
 | A tenant-scoped role's grant | `org_id in (select public.permitted_tenant_ids('post.read'))`; the helper reads the membership table (`database`) or the `memberships` claim (`jwt`) | same | same, user and claims from GUCs |
 | A global role's grant | `(select public.permdock_has('post.read'))`; the helper reads `user_roles` (`database`) or the role claim (`jwt`) | same | same |
+| A custom role (`--custom-roles`) | No policy change: `permitted_tenant_ids` / `permitted_team_ids` also return the tenants or teams where a held custom role's keys, bounded by `permdock_ceiling`, include the grant key | same | same |
 | `memberOf(tenant, row.org_id, roles)` in a condition, no membership table | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` (cast to `--tenant-type`) | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = org_id` |
 | `memberOf(tenant, row.org_id, roles)` in a condition, with a membership table (`supabaseRls({ memberships })` or `--memberships <table>`) | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any('{admin,viewer}'))` | same | same, user from the GUC |
 | `memberOf(team, row.team_id, roles)` | `exists (select 1 from team_members m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = any(...))`, plus the active-tenant equality | same | same |

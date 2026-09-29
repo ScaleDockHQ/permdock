@@ -87,10 +87,26 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 | `--tenant-type` | a Postgres type | `rls.tenantType`, or `uuid` | Type of tenant columns: the tenant claim is cast to it and `permitted_tenant_ids` returns it. `rls.teamType` does the same for teams and defaults to the tenant type. |
 | `--policy-per-role` | flag | `rls.policyPerRole`, off | One policy per role and permission (`{role}_{permission}`, the layout before the helpers), each still calling the helpers. |
 | `--policy-name` | template | `{table}_{op}`, or `{role}_{permission}` with `--policy-per-role` | Policy names from `{table}`, `{op}`, `{role}` and `{permission}`. A collapsed layout needs `{table}` and `{op}` and rejects `{role}` and `{permission}`. |
+| `--custom-roles` | flag | `rls.customRoles`, off | The tenant and team helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles), always intersected with the generated `permdock_ceiling` view. `database` mode adds the `custom_role_permissions` and `custom_role_includes` tables; `jwt` mode reads the `memberships[].grants` claim. With `--rbac`, `authorize()` answers tenant requests from custom roles too. |
 
 `--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
 
 With `--rbac`, the command prints the `config.toml` stanza that enables the hook.
+
+### Custom roles
+
+`--custom-roles` (or `rls.customRoles: true`) adds, next to the helpers:
+
+| Object | What it holds |
+| --- | --- |
+| `custom_role_permissions (tenant_id, team_id, role, permission, effect)` | `database` mode: one row per `CustomRole.grants` entry; `team_id` is null for a tenant custom role, `effect` is `allow` or `deny` |
+| `custom_role_includes (tenant_id, team_id, role, include_role)` | `database` mode: one row per `CustomRole.includes` entry |
+| `permdock_ceiling` (view) | The `role_permissions` rows of declared roles marked `assignable`, in the tenant and team scopes, plus those roles' denies on the same permissions |
+| `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)` | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does |
+
+The membership table (or claim) holds the custom role's name like any role; a declared role name never resolves as custom. `permitted_tenant_ids` and `permitted_team_ids` union the declared branch with the custom one, so a policy needs no change. Both tables have RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; the application writes them from its own server connection, the same data its `RoleSource` reads. A row naming a permission outside the ceiling reaches no key, so writing to the tables directly can never widen access.
+
+In `jwt` mode each membership may carry `grants`, a map from custom role name to compact entries: `key` allows, `-key` denies, `@role` includes. A tenant custom role rides a membership without `team`, a team custom role its team membership. `customRoleClaim(roles)` from `permdock` builds the map for a token hook; the claim is read only with `--custom-roles`, and it adds a few bytes per entry to every token.
 
 ## import
 
@@ -114,7 +130,7 @@ permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
 permdock rls verify --fixtures rls.fixtures.json --format pgtap > tests/rls.sql
 ```
 
-`verify` runs a parity test for every (subject, permission, row) triple in the fixtures: `can()` in-process against the PermDock policy, then, with `--db` (optional `pg` peer), the same operation in the database under `set local role authenticated` with the subject's claims in `request.jwt.claims` (Supabase) or the GUCs (`guc`): `sub`, the tenant claim, the role claim and `memberships`, so `jwt`-mode helpers see the fixture's subject. A `create` fixture inserts every column of `row`; an `update` fixture with `newRow` writes its columns and compares against `can()` on the `{ current, next }` pair. Outcomes per row are `allowed`, `filtered` (the row disappears from a `SELECT`) or `rejected` (error `42501`). Disagreements are listed with the grant; the exit code is `1`. Opaque grants are reported as untestable app-side. `sqlFunction` grants compare the twin in memory with the live function and are reported as verified through twin.
+`verify` runs a parity test for every (subject, permission, row) triple in the fixtures: `can()` in-process against the PermDock policy, then, with `--db` (optional `pg` peer), the same operation in the database under `set local role authenticated` with the subject's claims in `request.jwt.claims` (Supabase) or the GUCs (`guc`): `sub`, the tenant claim, the role claim and `memberships`, so `jwt`-mode helpers see the fixture's subject. A `create` fixture inserts every column of `row`; an `update` fixture with `newRow` writes its columns and compares against `can()` on the `{ current, next }` pair. A fixture file may be `{ fixtures, customRoles }`: the custom roles resolve in-process through a `RoleSource`, travel in the `memberships[].grants` claim, and, with `rls.customRoles` and `rls.authorize: 'database'`, are written to the custom-role tables inside each fixture's rolled-back transaction, so connect as a role that owns those tables. Outcomes per row are `allowed`, `filtered` (the row disappears from a `SELECT`) or `rejected` (error `42501`). Disagreements are listed with the grant; the exit code is `1`. Opaque grants are reported as untestable app-side. `sqlFunction` grants compare the twin in memory with the live function and are reported as verified through twin.
 
 Tests can be emitted as pgTAP (`--format pgtap`) for teams that run database tests in CI, or executed directly from Node using the connection string. `@permdock/testing` exposes the same runner for Vitest.
 

@@ -1,5 +1,8 @@
 import {
   createPermDock,
+  customRoleClaim,
+  memoryRoleSource,
+  type CustomRole,
   type Permission,
   type Policy,
   type Subject,
@@ -48,6 +51,12 @@ export type RlsParityOptions = {
   /** Claim (or `guc` setting) the RLS helpers read global roles from. Default `user_role`. */
   readonly roleClaim?: string;
   readonly role?: 'authenticated' | 'anon';
+  /**
+   * Tenant-defined roles the subjects' memberships may hold. `decide` resolves them through a
+   * `RoleSource`; each membership's claim carries them as the compact `grants` map, which the
+   * helpers read in `jwt` mode. Seeding the `database`-mode tables is the caller's job.
+   */
+  readonly customRoles?: readonly CustomRole[];
 };
 
 export type RlsParityCase = {
@@ -95,31 +104,51 @@ function setting(name: string, value: string): Setting {
  * The session state the generated helpers read: JWT claims for `supabase`,
  * GUCs for `guc` (roles as a comma list, memberships as JSON).
  */
+function claimMemberships(
+  subject: RlsParitySubject,
+  customRoles: readonly CustomRole[],
+): readonly Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  for (const membership of subject.memberships ?? []) {
+    const held = customRoles.filter(
+      (role) =>
+        role.tenant === membership.tenant &&
+        role.team === membership.team &&
+        membership.roles.includes(role.name),
+    );
+    out.push(
+      held.length === 0
+        ? membership
+        : { ...membership, grants: customRoleClaim(held) },
+    );
+  }
+  return out;
+}
+
 function subjectSettings(
   dialect: 'supabase' | 'guc',
   subject: RlsParitySubject,
   gucPrefix: string,
   tenantClaim: string,
   roleClaim: string,
+  customRoles: readonly CustomRole[],
 ): readonly Setting[] {
   const roles = subject.roles ?? [];
+  const memberships = claimMemberships(subject, customRoles);
   if (dialect === 'supabase') {
     const claims = {
       sub: subject.id,
       role: 'authenticated',
       [roleClaim]: roles.length === 1 ? roles[0] : roles,
       [tenantClaim]: subject.tenant,
-      memberships: subject.memberships ?? [],
+      memberships,
     };
     return [setting('request.jwt.claims', JSON.stringify(claims))];
   }
   const settings = [
     setting(`${gucPrefix}.user_id`, subject.id),
     setting(`${gucPrefix}.${roleClaim}`, roles.join(',')),
-    setting(
-      `${gucPrefix}.memberships`,
-      JSON.stringify(subject.memberships ?? []),
-    ),
+    setting(`${gucPrefix}.memberships`, JSON.stringify(memberships)),
   ];
   return subject.tenant === undefined
     ? settings
@@ -162,11 +191,13 @@ export async function rlsParity<TUser>(
   const tenantClaim = options.tenantClaim ?? 'tenant_id';
   const roleClaim = options.roleClaim ?? 'user_role';
   const role = options.role ?? 'authenticated';
+  const customRoles = options.customRoles ?? [];
 
   async function runCase(fixture: RlsParityFixture): Promise<RlsParityCase> {
     const dock = await createPermDock(
       policy,
       toSubject(fixture.subject) as TUser,
+      { customRoles: memoryRoleSource(customRoles) },
     );
     const granted =
       fixture.permission.kind === 'collection'
@@ -187,6 +218,7 @@ export async function rlsParity<TUser>(
         gucPrefix,
         tenantClaim,
         roleClaim,
+        customRoles,
       )) {
         await options.query(item.sql, item.values);
       }

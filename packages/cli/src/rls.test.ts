@@ -197,6 +197,150 @@ export const policy = definePolicy(permissions, {
     expect(sql).not.toMatch(/service_role/i);
   });
 
+  it('resolves custom roles only with --custom-roles, bounded by the ceiling view', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/tenant-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('admin', [allow(permissions.post.read)], { on: 'tenant' }),
+    role('owner', [allow(permissions.post.delete)], { on: 'tenant', assignable: false }),
+  ],
+  scopes: { tenant: { key: 'orgId' } },
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/tenant-policy.ts',
+};
+`,
+    );
+    const generate = async (extra: readonly string[]): Promise<string> => {
+      const result = await run(
+        [
+          'rls',
+          'generate',
+          '--target',
+          'sql',
+          '--dialect',
+          'supabase',
+          ...extra,
+          '--out',
+          'rls.sql',
+        ],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      return readFileSync(join(cwd, 'rls.sql'), 'utf8');
+    };
+    const plain = await generate([
+      '--memberships',
+      'organization_members:organization_id,user_id,role',
+    ]);
+    expect(plain).not.toContain('permdock_ceiling');
+    expect(plain).not.toContain('custom_role_permissions');
+    const database = await generate([
+      '--custom-roles',
+      '--memberships',
+      'organization_members:organization_id,user_id,role',
+    ]);
+    expect(database).toContain(
+      'create table if not exists "public".custom_role_permissions',
+    );
+    expect(database).toContain(
+      'create table if not exists "public".custom_role_includes',
+    );
+    expect(database).toContain("and rp.role = any(array['admin']::text[])");
+    expect(database).toContain(
+      "and not (m.\"role\"::text = any(array['admin', 'owner']::text[]))",
+    );
+    expect(database).toContain(
+      'revoke execute on function "public".permdock_custom_keys(text[], text[], text[], text) from public, anon, authenticated;',
+    );
+    const jwt = await generate(['--custom-roles', '--authorize', 'jwt']);
+    expect(jwt).toContain('create or replace view "public".permdock_ceiling');
+    expect(jwt).toContain(
+      "cross join lateral (select m -> 'grants' -> r.role as g) cg",
+    );
+    expect(jwt).not.toContain('custom_role_permissions');
+    expect(jwt).not.toMatch(/service_role/i);
+  });
+
+  it('verify resolves the fixture file customRoles in-process', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/tenant-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [role('admin', [allow(permissions.post.read), allow(permissions.post.update)], { on: 'tenant' })],
+  scopes: { tenant: { key: 'orgId' } },
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/tenant-policy.ts',
+};
+`,
+    );
+    const subject = {
+      id: 'user-1',
+      tenant: 'org-1',
+      memberships: [{ tenant: 'org-1', roles: ['reader'] }],
+    };
+    const row = {
+      id: 'p1',
+      authorId: 'user-9',
+      orgId: 'org-1',
+      published: true,
+    };
+    writeFileSync(
+      join(cwd, 'rls.fixtures.json'),
+      JSON.stringify({
+        customRoles: [
+          {
+            tenant: 'org-1',
+            name: 'reader',
+            grants: [
+              { permission: 'post.read' },
+              { permission: 'post.delete' },
+            ],
+          },
+        ],
+        fixtures: [
+          { subject, row, action: 'post.read', expected: 'granted' },
+          { subject, row, action: 'post.update', expected: 'denied' },
+          { subject, row, action: 'post.delete', expected: 'denied' },
+        ],
+      }),
+    );
+    const result = await run(
+      ['rls', 'verify', '--fixtures', 'rls.fixtures.json'],
+      { cwd },
+    );
+    expect(result.stdout).toContain('verified 3 fixture(s)');
+    expect(result.code).toBe(0);
+    const pgtap = await run(
+      ['rls', 'verify', '--fixtures', 'rls.fixtures.json', '--format', 'pgtap'],
+      { cwd },
+    );
+    expect(pgtap.stdout).toContain(
+      '\\"grants\\":{\\"reader\\":[\\"post.read\\",\\"post.delete\\"]}',
+    );
+  });
+
   it('emits the custom access token hook and authorize() with --rbac-scaffold', async () => {
     const cwd = appCopy();
     const result = await run(

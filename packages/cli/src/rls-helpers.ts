@@ -19,6 +19,14 @@ export const HELPERS = {
   teams: 'permitted_team_ids',
 } as const;
 
+/** Objects `--custom-roles` adds next to the helpers. Names are part of the SQL contract. */
+export const CUSTOM_ROLES = {
+  permissions: 'custom_role_permissions',
+  includes: 'custom_role_includes',
+  ceiling: 'permdock_ceiling',
+  keys: 'permdock_custom_keys',
+} as const;
+
 export type HelperScope = 'global' | 'tenant' | 'team';
 
 /** One `role_permissions` row: `role` holds `grant_key`, which is `permission` or `permission#n`. */
@@ -145,6 +153,37 @@ function hasBody(ctx: RlsSqlContext): string {
   )`;
 }
 
+function memberColumn(name: string): string {
+  return `m.${quoteIdent(name)}`;
+}
+
+/** Entries of a compact custom-role claim (`cg.g`) that match `where`. */
+function claimEntries(where: string, value: string): string {
+  return `array(select ${value} from jsonb_array_elements_text(cg.g) e where ${where})`;
+}
+
+function textArray(values: readonly string[]): string {
+  return values.length === 0
+    ? `'{}'::text[]`
+    : `array[${values.map(quoteLiteral).join(', ')}]::text[]`;
+}
+
+/** `p_grant in (select permdock_custom_keys(allows, denies, includes, scope))`. */
+function customKeysSql(
+  ctx: RlsSqlContext,
+  scope: 'tenant' | 'team',
+  allows: string,
+  denies: string,
+  includes: string,
+): string {
+  return `    and p_grant in (select ${qualified(ctx, CUSTOM_ROLES.keys)}(
+      ${allows},
+      ${denies},
+      ${includes},
+      '${scope}'
+    ))`;
+}
+
 function tableBody(
   ctx: RlsSqlContext,
   scope: 'tenant' | 'team',
@@ -156,24 +195,58 @@ function tableBody(
     return `  select null::${type} where false -- no ${scope} memberships table configured`;
   }
   const tenantColumn = scope === 'tenant' ? column : table.tenant;
-  const lines = [
-    `  select m.${quoteIdent(column)}::${type}`,
-    `  from ${membershipTable(table.table)} m`,
-    `  join ${qualified(ctx, 'role_permissions')} rp on rp.role = m.${quoteIdent(table.role)}::text`,
-    `  where m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`,
-    '    and rp.grant_key = p_grant',
-    `    and rp.scope = '${scope}'`,
+  const filters = [
+    `  where ${memberColumn(table.user)} = ${subjectIdSql(ctx)}`,
   ];
   if (table.expiresAt !== undefined) {
-    const expires = `m.${quoteIdent(table.expiresAt)}`;
-    lines.push(`    and (${expires} is null or ${expires} > now())`);
+    const expires = memberColumn(table.expiresAt);
+    filters.push(`    and (${expires} is null or ${expires} > now())`);
   }
   if (tenantColumn !== undefined) {
-    lines.push(
-      `    and (${activeTenant(ctx)} is null or m.${quoteIdent(tenantColumn)}::text = ${activeTenant(ctx)})`,
+    filters.push(
+      `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
     );
   }
-  return lines.join('\n');
+  const [owner, ...rest] = filters;
+  const lines = [
+    `  select ${memberColumn(column)}::${type}`,
+    `  from ${membershipTable(table.table)} m`,
+    `  join ${qualified(ctx, 'role_permissions')} rp on rp.role = ${memberColumn(table.role)}::text`,
+    owner ?? '',
+    '    and rp.grant_key = p_grant',
+    `    and rp.scope = '${scope}'`,
+    ...rest,
+  ];
+  const custom = ctx.customRoles;
+  if (custom === undefined) {
+    return lines.join('\n');
+  }
+  const match = [
+    scope === 'tenant'
+      ? `c.tenant_id::text = ${memberColumn(column)}::text and c.team_id is null`
+      : `c.team_id::text = ${memberColumn(column)}::text`,
+    ...(scope === 'team' && table.tenant !== undefined
+      ? [`c.tenant_id::text = ${memberColumn(table.tenant)}::text`]
+      : []),
+    `c.role = ${memberColumn(table.role)}::text`,
+  ].join(' and ');
+  const rows = (source: string, value: string, extra: string): string =>
+    `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
+  return [
+    ...lines,
+    '  union',
+    `  select ${memberColumn(column)}::${type}`,
+    `  from ${membershipTable(table.table)} m`,
+    ...filters,
+    `    and not (${memberColumn(table.role)}::text = any(${textArray(custom.declared)}))`,
+    customKeysSql(
+      ctx,
+      scope,
+      rows(CUSTOM_ROLES.permissions, 'permission', " and c.effect = 'allow'"),
+      rows(CUSTOM_ROLES.permissions, 'permission', " and c.effect = 'deny'"),
+      rows(CUSTOM_ROLES.includes, 'include_role', ''),
+    ),
+  ].join('\n');
 }
 
 function claimBody(
@@ -181,18 +254,153 @@ function claimBody(
   scope: 'tenant' | 'team',
   type: string,
 ): string {
-  return `  select (m ->> '${scope}')::${type}
-  from ${membershipRows(ctx)}
-  join ${qualified(ctx, 'role_permissions')} rp on rp.role = r.role
-  where ${signedIn(ctx)}
-    and rp.grant_key = p_grant
-    and rp.scope = '${scope}'
-    and m ->> '${scope}' is not null
+  const filters = `    and m ->> '${scope}' is not null
     and (${activeTenant(ctx)} is null or m ->> 'tenant' = ${activeTenant(ctx)})
     and case jsonb_typeof(m -> 'expiresAt')
       when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
       else true
     end`;
+  const declared = `  select (m ->> '${scope}')::${type}
+  from ${membershipRows(ctx)}
+  join ${qualified(ctx, 'role_permissions')} rp on rp.role = r.role
+  where ${signedIn(ctx)}
+    and rp.grant_key = p_grant
+    and rp.scope = '${scope}'
+${filters}`;
+  const custom = ctx.customRoles;
+  if (custom === undefined) {
+    return declared;
+  }
+  // A tenant custom role rides a tenant membership; a team custom role its team membership.
+  return `${declared}
+  union
+  select (m ->> '${scope}')::${type}
+  from ${membershipRows(ctx)}
+  cross join lateral (select m -> 'grants' -> r.role as g) cg
+  where ${signedIn(ctx)}
+    and jsonb_typeof(cg.g) = 'array'
+    and not (r.role = any(${textArray(custom.declared)}))
+    and m ->> 'team' is ${scope === 'tenant' ? 'null' : 'not null'}
+${filters}
+${customKeysSql(
+  ctx,
+  scope,
+  claimEntries("left(e, 1) not in ('-', '@')", 'e'),
+  claimEntries("left(e, 1) = '-'", 'substr(e, 2)'),
+  claimEntries("left(e, 1) = '@'", 'substr(e, 2)'),
+)}`;
+}
+
+/**
+ * The custom-role objects: the tables (`database` mode), the ceiling view
+ * over the `assignable` declared roles, and `permdock_custom_keys`, which
+ * resolves one custom role to the grant keys it holds in a scope. A row in
+ * the tables can never reach a key outside the view.
+ */
+function customRolesSql(ctx: RlsSqlContext): string {
+  const custom = ctx.customRoles;
+  if (custom === undefined) {
+    return '';
+  }
+  const rp = qualified(ctx, 'role_permissions');
+  const ceiling = qualified(ctx, CUSTOM_ROLES.ceiling);
+  const keys = qualified(ctx, CUSTOM_ROLES.keys);
+  const chunks: string[] = [];
+  if (ctx.authorize === 'database') {
+    const tenantType = tenantTypeOf(ctx);
+    const teamType = teamTypeOf(ctx);
+    for (const [name, column, check] of [
+      [
+        CUSTOM_ROLES.permissions,
+        'permission',
+        `,
+  effect text not null default 'allow' check (effect in ('allow', 'deny'))`,
+      ],
+      [CUSTOM_ROLES.includes, 'include_role', ''],
+    ] as const) {
+      const table = qualified(ctx, name);
+      const unique = `${column}${name === CUSTOM_ROLES.permissions ? ', effect' : ''}`;
+      chunks.push(`create table if not exists ${table} (
+  tenant_id ${tenantType} not null,
+  team_id ${teamType},
+  role text not null,
+  ${column} text not null${check}
+);
+create unique index if not exists ${quoteIdent(`${name}_key`)}
+  on ${table} (tenant_id, coalesce(team_id::text, ''), role, ${unique});
+alter table ${table} enable row level security;
+revoke all on table ${table} from anon, authenticated, public;`);
+    }
+  }
+  chunks.push(`-- the ceiling: keys of assignable declared roles, and the denies of those roles on the same permissions
+create or replace view ${ceiling} with (security_invoker = true) as
+select rp.scope, rp.role, rp.permission, rp.grant_key, rp.effect
+from ${rp} rp
+where rp.scope in ('tenant', 'team')
+  and rp.role = any(${textArray(custom.assignable)})
+  and exists (
+    select 1 from ${rp} a
+    where a.role = rp.role
+      and a.permission = rp.permission
+      and a.scope = rp.scope
+      and a.effect = 'allow'
+  );
+revoke all on table ${ceiling} from anon, authenticated, public;`);
+  chunks.push(`-- one custom role: included ceiling keys and same-scope denies, plus every ceiling key of an allowed permission, minus denied permissions
+create or replace function ${keys}(p_allow text[], p_deny text[], p_include text[], p_scope text)
+returns setof text
+language sql
+stable
+set search_path = ''
+as $$
+  with ceiling as (
+    select c.role, c.permission, c.grant_key, c.effect
+    from ${ceiling} c
+    where c.scope = p_scope
+  ),
+  included as (
+    select rp.role, rp.permission, rp.grant_key, rp.scope, rp.effect
+    from ${rp} rp
+    where rp.role = any(coalesce(p_include, '{}'::text[]))
+  ),
+  kept as (
+    select i.permission, i.grant_key
+    from included i
+    where i.effect = 'allow'
+      and i.scope = p_scope
+      and exists (
+        select 1 from ceiling c
+        where c.role = i.role and c.grant_key = i.grant_key and c.effect = 'allow'
+      )
+  ),
+  wanted as (
+    select unnest(coalesce(p_allow, '{}'::text[])) as permission
+    union
+    select i.permission
+    from included i
+    where i.effect = 'allow'
+      and not (i.scope = p_scope and exists (
+        select 1 from ceiling c
+        where c.role = i.role and c.grant_key = i.grant_key and c.effect = 'allow'
+      ))
+  ),
+  allowed as (
+    select w.permission
+    from wanted w
+    where not (w.permission = any(coalesce(p_deny, '{}'::text[])))
+      and not exists (select 1 from kept k where k.permission = w.permission)
+  )
+  select k.grant_key from kept k
+  where not (k.permission = any(coalesce(p_deny, '{}'::text[])))
+  union
+  select i.grant_key from included i
+  where i.effect = 'deny' and i.scope = p_scope
+  union
+  select c.grant_key from ceiling c
+  where c.permission in (select a.permission from allowed a)
+$$;
+revoke execute on function ${keys}(text[], text[], text[], text) from public, anon, authenticated;`);
+  return chunks.join('\n\n');
 }
 
 function scopedBody(
@@ -306,6 +514,10 @@ revoke all on table ${rp} from anon, authenticated, public;`);
 );
 alter table ${ur} enable row level security;
 revoke all on table ${ur} from anon, authenticated, public;`);
+  }
+  const custom = customRolesSql(ctx);
+  if (custom !== '') {
+    chunks.push(custom);
   }
   chunks.push(helperFunction(ctx, HELPERS.has, 'boolean', hasBody(ctx)));
   chunks.push(

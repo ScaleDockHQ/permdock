@@ -191,4 +191,30 @@ describe('supabaseRls and authorizeSql', () => {
     expect(jwt).not.toContain('user_roles');
     expect(() => authorizeSql({ schema: 'app; drop' })).toThrow(TypeError);
   });
+
+  it('answers tenant requests from custom roles only when asked', () => {
+    const tenant = {
+      table: 'organization_members',
+      tenant: 'organization_id',
+      user: 'user_id',
+      role: 'role',
+    };
+    expect(authorizeSql({ tenant })).not.toContain('permdock_custom_keys');
+    const database = authorizeSql({
+      tenant,
+      customRoles: { declared: ['admin', "o'wner"] },
+    });
+    expect(database).toContain('"public"."custom_role_permissions" c');
+    expect(database).toContain('"public"."custom_role_includes" c');
+    expect(database).toContain("any(array['admin', 'o''wner']::text[])");
+    expect(database).toContain('"public"."permdock_custom_keys"(');
+    const jwt = authorizeSql({
+      authorize: 'jwt',
+      customRoles: { declared: [] },
+    });
+    expect(jwt).toContain("(select m -> 'grants' -> r.role as g) cg");
+    expect(jwt).toContain("and m ->> 'team' is null");
+    expect(jwt).toContain("any('{}'::text[])");
+    expect(jwt).not.toContain('custom_role_permissions');
+  });
 });

@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import type { CustomRole, Membership } from './subject.ts';
 
 import { principal } from '../conditions/refs.ts';
-import { resolveCustomRole, validateCustomRole } from './custom-roles.ts';
+import {
+  customRoleClaim,
+  resolveCustomRole,
+  validateCustomRole,
+} from './custom-roles.ts';
 import { fromSnapshot } from './from-snapshot.ts';
 import { memoryRoleSource } from './interfaces.ts';
 import { createPermDock } from './permdock.ts';
@@ -189,6 +193,36 @@ describe('resolveCustomRole', () => {
         grants: [{ permission: 'invoice.void' }],
       }).ok,
     ).toBe(false);
+  });
+
+  it('keeps only the included denies of its own scope', () => {
+    const resolved = resolveCustomRole(policy, {
+      tenant: 'acme',
+      team: 't1',
+      name: 'team-billing',
+      includes: ['billing', 'lead'],
+    });
+    expect(resolved.grants.map((grant) => grant.permission.key)).toEqual([
+      'board.read',
+      'board.edit',
+    ]);
+  });
+
+  it('customRoleClaim writes the compact grants map', () => {
+    expect(
+      customRoleClaim([
+        {
+          tenant: 'acme',
+          name: 'clerk',
+          includes: ['billing'],
+          grants: [
+            { permission: 'post.read' },
+            { permission: 'invoice.refund', effect: 'deny' },
+          ],
+        },
+        { tenant: 'acme', name: '__proto__', grants: [] },
+      ]),
+    ).toEqual({ clerk: ['@billing', 'post.read', '-invoice.refund'] });
   });
 
   it('bounds a team custom role by the team ceiling', () => {
