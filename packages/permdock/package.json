@@ -14,12 +14,12 @@
   ],
   "homepage": "https://permdock.dev",
   "bugs": {
-    "url": "https://github.com/ScaleDockHQ/PermDock/issues"
+    "url": "https://github.com/ScaleDockHQ/permdock/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ScaleDockHQ/PermDock.git",
+    "url": "git+https://github.com/ScaleDockHQ/permdock.git",
     "directory": "packages/permdock"
   },
   "bin": {
