@@ -95,6 +95,7 @@ export async function runRlsGenerate(input: {
   readonly policyName?: string;
   readonly tenantType?: string;
   readonly customRoles?: boolean;
+  readonly capabilities?: boolean;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
   const policy = await loadPolicy(input.cwd, input.config, input.from);
@@ -130,6 +131,9 @@ export async function runRlsGenerate(input: {
     ...(memberships === undefined ? {} : { memberships }),
     ...(input.customRoles === true || rls?.customRoles === true
       ? { customRoles: customRoleNames(policy) }
+      : {}),
+    ...(input.capabilities === true || rls?.capabilities === true
+      ? { capabilities: true as const }
       : {}),
   };
   const warnings: string[] = [];

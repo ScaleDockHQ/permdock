@@ -72,6 +72,12 @@ export type RlsConfig = {
    * always intersected with the `permdock_ceiling` view. Off by default.
    */
   readonly customRoles?: boolean;
+  /**
+   * Let link capabilities reach resource-scoped grants: `anon` policies that call
+   * `permdock_capability_ids`, which reads the `capability` claim `exchangeCapability`
+   * mints. Off by default.
+   */
+  readonly capabilities?: boolean;
   /** Policy name template: `{table}`, `{op}`, plus `{role}` and `{permission}` with `policyPerRole`. */
   readonly policyName?: string;
   /** `rls generate --rbac supabase` defaults; flags override. */

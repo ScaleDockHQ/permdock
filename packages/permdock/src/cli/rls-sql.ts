@@ -41,6 +41,8 @@ export type RlsSqlContext = {
     readonly declared: readonly string[];
     readonly assignable: readonly string[];
   };
+  /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
+  readonly capabilities?: true;
 };
 
 const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;

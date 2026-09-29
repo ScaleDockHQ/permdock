@@ -293,6 +293,7 @@ export async function run(
           policyName: flagString(args.flags, 'policy-name'),
           tenantType: flagString(args.flags, 'tenant-type'),
           customRoles: flagBool(args.flags, 'custom-roles'),
+          capabilities: flagBool(args.flags, 'capabilities'),
           io,
         });
         writeOut(result.output);

@@ -5,7 +5,7 @@ import type { RlsSqlContext } from './rls-sql.ts';
 
 import { hasConditionOp } from '../index.ts';
 import { collectGrants } from './rls-grants.ts';
-import { accessSql } from './rls-helpers.ts';
+import { accessSql, capabilityAccessSql } from './rls-helpers.ts';
 import { compileConditionSql, sqlFunctionNames } from './rls-sql.ts';
 
 export type SqlCommand = 'select' | 'insert' | 'update' | 'delete';
@@ -140,6 +140,42 @@ export function resourceCondition(
     });
   }
   return hops.length === 1 ? hops[0]! : { op: 'or', conditions: hops };
+}
+
+/**
+ * The access a link capability has to a resource-scoped grant, over the same
+ * holders as `resourceCondition`. It reads the claim, so ancestor hops need
+ * no memberships table. `undefined` when no holder is on the row's chain.
+ */
+function capabilityAccess(
+  item: RlsGrant,
+  policy: Policy,
+  ctx: RlsSqlContext,
+): string | undefined {
+  if (item.access.kind !== 'resource') {
+    return undefined;
+  }
+  const { role, resource: roleResource } = item.access;
+  const target = policy.resources.get(item.grant.permission.resource);
+  const hops: string[] = [];
+  for (const holder of [roleResource, ...ancestorsOf(policy, roleResource)]) {
+    const field = membershipField(policy, target, holder);
+    if (field !== undefined) {
+      hops.push(
+        capabilityAccessSql(
+          ctx,
+          field,
+          holder,
+          role,
+          item.grant.permission.key,
+        ),
+      );
+    }
+  }
+  if (hops.length === 0) {
+    return undefined;
+  }
+  return hops.length === 1 ? hops[0] : hops.map(wrapSql).join(' or ');
 }
 
 type Prepared = {
@@ -314,29 +350,58 @@ export function compileGrants(
         effect: grant.effect,
       };
       rows.set(`${row.role}\u0000${row.grantKey}\u0000${row.scope}`, row);
-    } else if (access.kind === 'resource') {
+    }
+    const linkOnly =
+      access.kind === 'resource' &&
+      ctx.capabilities === true &&
+      ctx.memberships?.resource?.[access.resource] === undefined;
+    if (access.kind === 'resource' && !linkOnly) {
       accessExpr = compileConditionSql(
         resourceCondition(item, policy, ctx),
         ctx,
       );
     }
+    if (linkOnly) {
+      warnings.push(
+        `no ${access.resource} memberships table: only link capabilities reach ${label}/${grant.permission.key}`,
+      );
+    }
     const using = compileOptional(entry.using, ctx);
     const check = compileOptional(entry.check, ctx);
-    branches.push({
-      table,
-      command,
-      effect: grant.effect,
-      roles:
-        access.kind === 'anyone'
-          ? ['anon', 'authenticated']
-          : ['authenticated'],
-      label,
-      permissionKey: grant.permission.key,
-      ...(grantKey === undefined ? {} : { grantKey }),
-      ...(accessExpr === undefined ? {} : { access: accessExpr }),
-      ...(using === undefined ? {} : { using }),
-      ...(check === undefined ? {} : { check }),
-    });
+    if (!linkOnly) {
+      branches.push({
+        table,
+        command,
+        effect: grant.effect,
+        roles:
+          access.kind === 'anyone'
+            ? ['anon', 'authenticated']
+            : ['authenticated'],
+        label,
+        permissionKey: grant.permission.key,
+        ...(grantKey === undefined ? {} : { grantKey }),
+        ...(accessExpr === undefined ? {} : { access: accessExpr }),
+        ...(using === undefined ? {} : { using }),
+        ...(check === undefined ? {} : { check }),
+      });
+    }
+    const linked =
+      ctx.capabilities === true
+        ? capabilityAccess(item, policy, ctx)
+        : undefined;
+    if (linked !== undefined) {
+      branches.push({
+        table,
+        command,
+        effect: grant.effect,
+        roles: ['anon'],
+        label,
+        permissionKey: grant.permission.key,
+        access: linked,
+        ...(using === undefined ? {} : { using }),
+        ...(check === undefined ? {} : { check }),
+      });
+    }
   }
   return {
     branches: ensureSelectCoverage(branches, warnings),
