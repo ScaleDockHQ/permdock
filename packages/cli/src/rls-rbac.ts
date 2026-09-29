@@ -4,6 +4,7 @@ import { authorizeSql } from 'permdock/supabase';
 
 import type { RlsMembershipTable } from './types.ts';
 
+import { collectGrants, roleNames } from './rls-grants.ts';
 import { quoteIdent, quoteLiteral, quoteTable } from './rls-sql.ts';
 
 export type RbacAuthorizeMode = 'database' | 'jwt';
@@ -65,18 +66,16 @@ function roleAndPermissionNames(policy: Policy): {
   readonly permissions: readonly string[];
   readonly seeds: readonly (readonly [string, string])[];
 } {
-  const roles = [...new Set(policy.roles.map((role) => role.name))];
+  const roles = roleNames(policy);
   const permissions = new Set<string>();
   const seeds = new Map<string, readonly [string, string]>();
-  for (const role of policy.roles) {
-    for (const grant of role.grants) {
-      permissions.add(grant.permission.key);
-      if (grant.effect === 'allow') {
-        seeds.set(`${role.name}\u0000${grant.permission.key}`, [
-          role.name,
-          grant.permission.key,
-        ]);
-      }
+  for (const { grant, access } of collectGrants(policy)) {
+    permissions.add(grant.permission.key);
+    if (grant.effect === 'allow' && access.kind === 'role') {
+      seeds.set(`${access.role}\u0000${grant.permission.key}`, [
+        access.role,
+        grant.permission.key,
+      ]);
     }
   }
   return { roles, permissions: [...permissions], seeds: [...seeds.values()] };

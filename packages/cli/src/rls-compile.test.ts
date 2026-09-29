@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { compileGrant } from './rls-compile.ts';
+import { collectGrants } from './rls-grants.ts';
 import { compileConditionSql } from './rls-sql.ts';
 
 const permissions = definePermissions({
@@ -49,9 +50,9 @@ const ctx = {
 } as const;
 
 function usingFor(key: string): string | undefined {
-  const grant = policy.roles
-    .flatMap((held) => held.grants)
-    .find((candidate) => candidate.permission.key === key);
+  const grant = collectGrants(policy).find(
+    (candidate) => candidate.grant.permission.key === key,
+  );
   if (grant === undefined) {
     throw new Error(`no grant for ${key}`);
   }
@@ -82,7 +83,7 @@ const chainedPolicy = definePolicy(
 
 describe('compileGrant resource scope', () => {
   it('ors the role resource and each mapped ancestor by its row field', () => {
-    const grant = chainedPolicy.roles[0]!.grants[0]!;
+    const grant = collectGrants(chainedPolicy)[0]!;
     const withProject = {
       ...ctx,
       memberships: {

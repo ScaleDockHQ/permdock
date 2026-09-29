@@ -16,6 +16,7 @@ import type {
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { compileGrant, ensureSelectCoverage, tableFor } from './rls-compile.ts';
 import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
+import { collectGrants } from './rls-grants.ts';
 import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
 import { parseMembershipsFlag } from './rls-sql.ts';
 
@@ -88,29 +89,26 @@ export async function runRlsGenerate(input: {
     input.rbac &&
     authorize === 'database' &&
     memberships?.tenant === undefined &&
-    policy.roles.some((role) =>
-      role.grants.some((grant) => grant.scope === 'tenant'),
-    )
+    policy.grants.some((grant) => grant.scope === 'tenant')
   ) {
     warnings.push(
       'tenant-scoped grants call authorize(perm, tenant): database mode needs --memberships <table>:tenant,user,role, otherwise they deny',
     );
   }
+  const grants = collectGrants(policy);
   const compiled: CompiledPolicy[] = [];
-  for (const role of policy.roles) {
-    for (const grant of role.grants) {
-      const item = compileGrant(
-        grant,
-        policy,
-        ctx,
-        input.config.rls?.tables,
-        rbacCall,
-        warnings,
-        input.skipClosures,
-      );
-      if (item !== undefined) {
-        compiled.push(item);
-      }
+  for (const grant of grants) {
+    const item = compileGrant(
+      grant,
+      policy,
+      ctx,
+      input.config.rls?.tables,
+      rbacCall,
+      warnings,
+      input.skipClosures,
+    );
+    if (item !== undefined) {
+      compiled.push(item);
     }
   }
   const withSelect = ensureSelectCoverage(compiled, warnings);
@@ -151,14 +149,11 @@ export async function runRlsGenerate(input: {
     }
   }
   const columns = new Set<string>();
-  for (const role of policy.roles) {
-    for (const grant of role.grants) {
-      const where = grant.where;
-      if (where !== undefined && 'field' in where) {
-        columns.add(
-          `${tableFor(grant.permission.resource, input.config.rls?.tables)}.${where.field}`,
-        );
-      }
+  for (const { grant, where } of grants) {
+    if (where !== undefined && 'field' in where) {
+      columns.add(
+        `${tableFor(grant.permission.resource, input.config.rls?.tables)}.${where.field}`,
+      );
     }
   }
   for (const column of columns) {

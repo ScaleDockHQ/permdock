@@ -2,6 +2,7 @@ import type { Condition, Grant, Policy, ResourceNode } from 'permdock';
 
 import { hasConditionOp } from 'permdock';
 
+import type { RlsGrant } from './rls-grants.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
 import { authorizeCall } from './rls-rbac.ts';
@@ -149,11 +150,10 @@ function membershipField(
   return undefined;
 }
 
-function policyRoles(roleName: string): readonly string[] {
-  if (roleName === 'anonymous' || roleName === 'anon') {
-    return ['anon', 'authenticated'];
-  }
-  return ['authenticated'];
+function policyRoles(item: RlsGrant): readonly string[] {
+  return item.access.kind === 'anyone'
+    ? ['anon', 'authenticated']
+    : ['authenticated'];
 }
 
 function policyName(
@@ -170,7 +170,7 @@ function policyName(
 }
 
 export function compileGrant(
-  grant: Grant,
+  item: RlsGrant,
   policy: Policy,
   ctx: RlsSqlContext,
   tables: Readonly<Record<string, string>> | undefined,
@@ -178,6 +178,7 @@ export function compileGrant(
   warnings: string[],
   skipClosures: boolean,
 ): CompiledPolicy | undefined {
+  const grant = item.grant;
   if (grant.closure !== undefined || grant.portable === false) {
     if (skipClosures) {
       warnings.push(
@@ -202,8 +203,8 @@ export function compileGrant(
     );
     return undefined;
   }
-  const scoped = andConditions(scopeCondition(grant, policy, ctx), grant.where);
-  const check = grant.check ?? (command === 'update' ? grant.where : undefined);
+  const scoped = andConditions(scopeCondition(grant, policy, ctx), item.where);
+  const check = grant.check ?? (command === 'update' ? item.where : undefined);
   let using =
     command === 'insert'
       ? undefined
@@ -270,7 +271,7 @@ export function compileGrant(
     table: tableFor(grant.permission.resource, tables),
     command,
     effect: grant.effect,
-    roles: policyRoles(grantRoleName(grant)),
+    roles: policyRoles(item),
     ...(using === undefined ? {} : { using }),
     ...(withCheck === undefined ? {} : { check: withCheck }),
     permissionKey: grant.permission.key,
