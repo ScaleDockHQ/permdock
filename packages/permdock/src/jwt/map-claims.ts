@@ -168,19 +168,48 @@ function bindingOf(claims: JwtClaims): Binding | undefined {
   return Object.keys(binding).length === 0 ? undefined : binding;
 }
 
+/** Group roles hold in the active tenant; the group itself is only the `via`. */
 function membershipsFromGroups(
   groups: readonly string[],
   groupRoles: Readonly<Record<string, readonly string[]>> | undefined,
   tenant: string | undefined,
 ): Membership[] {
-  return groups.map((team) =>
+  if (tenant === undefined) {
+    return [];
+  }
+  return groups.map((group) =>
     compact<Membership>({
       tenant,
-      team,
-      roles: groupRoles?.[team] ?? [],
-      via: `group:${team}`,
+      roles: groupRoles?.[group] ?? [],
+      via: `group:${group}`,
     }),
   );
+}
+
+function stringRecord(
+  value: unknown,
+): Readonly<Record<string, string>> | undefined {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const out: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item === 'string') {
+      out[key] = item;
+    }
+  }
+  return out;
+}
+
+function claimExtras(record: Record<string, unknown>): {
+  readonly via?: string;
+  readonly expiresAt?: number;
+} {
+  return compact({
+    via: typeof record.via === 'string' ? record.via : undefined,
+    expiresAt:
+      typeof record.expiresAt === 'number' ? record.expiresAt : undefined,
+  });
 }
 
 function membershipsFromClaim(value: unknown): Membership[] {
@@ -191,6 +220,17 @@ function membershipsFromClaim(value: unknown): Membership[] {
     return [];
   }
   const record = value as Record<string, unknown>;
+  if (typeof record.scope === 'string' && typeof record.id === 'string') {
+    return [
+      compact<Membership>({
+        scope: record.scope,
+        id: record.id,
+        within: stringRecord(record.within),
+        roles: asStringArray(record.roles),
+        ...claimExtras(record),
+      }),
+    ];
+  }
   if (typeof record.tenant === 'string' || typeof record.org_id === 'string') {
     return [
       compact<Membership>({
@@ -200,6 +240,7 @@ function membershipsFromClaim(value: unknown): Membership[] {
             : String(record.org_id),
         roles: asStringArray(record.roles),
         team: typeof record.team === 'string' ? record.team : undefined,
+        ...claimExtras(record),
       }),
     ];
   }

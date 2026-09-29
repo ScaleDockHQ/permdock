@@ -8,5 +8,8 @@ export const Post = z.object({
 });
 
 export const permissions = definePermissions({
-  post: resource(Post, crud()),
+  post: resource(
+    Post,
+    crud({ relations: { org: { field: 'orgId', memberOf: 'tenant' } } }),
+  ),
 });

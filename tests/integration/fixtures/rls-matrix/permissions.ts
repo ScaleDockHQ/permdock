@@ -18,9 +18,11 @@ export const permissions = definePermissions({
   project: resource(Project, {
     actions: ['read', 'update', 'delete'],
     collection: ['list', 'create'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
   }),
   task: resource(Task, {
     actions: ['read', 'update', 'delete'],
     collection: ['list', 'create'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
   }),
 });

@@ -186,7 +186,7 @@ describe('kernel connection', () => {
     const membership = setup({
       id: 'u1',
       roles: ['member'],
-      memberships: [{ roles: ['member'], expiresAt: now + 5 }],
+      memberships: [{ tenant: 'o1', roles: ['member'], expiresAt: now + 5 }],
     });
     await membership.open();
     expect(membership.reads()).toBe(1);

@@ -1,8 +1,12 @@
+import { membershipsClaim } from '../core/custom-roles.ts';
+import { type Scope, scopeList } from '../core/scopes.ts';
 import {
   createPermDock,
-  customRoleClaim,
+  fromSnapshot,
   memoryRoleSource,
+  parseSnapshot,
   type CustomRole,
+  type Membership,
   type Permission,
   type Policy,
   type Subject,
@@ -16,11 +20,7 @@ export type RlsParitySubject = {
   readonly id: string;
   readonly roles?: readonly string[];
   readonly tenant?: string;
-  readonly memberships?: readonly {
-    readonly tenant?: string;
-    readonly team?: string;
-    readonly roles: readonly string[];
-  }[];
+  readonly memberships?: readonly Membership[];
 };
 
 export type RlsParityFixture = {
@@ -57,12 +57,16 @@ export type RlsParityOptions = {
    * helpers read in `jwt` mode. Seeding the `database`-mode tables is the caller's job.
    */
   readonly customRoles?: readonly CustomRole[];
+  /** Also decide each case from the subject's serialized snapshot (`fromSnapshot`); it must agree. */
+  readonly snapshot?: boolean;
 };
 
 export type RlsParityCase = {
   readonly name: string;
   readonly granted: boolean;
   readonly database: RlsDbOutcome;
+  /** The snapshot's decision, with `snapshot: true`. */
+  readonly snapshot?: boolean;
   readonly ok: boolean;
 };
 
@@ -104,27 +108,6 @@ function setting(name: string, value: string): Setting {
  * The session state the generated helpers read: JWT claims for `supabase`,
  * GUCs for `guc` (roles as a comma list, memberships as JSON).
  */
-function claimMemberships(
-  subject: RlsParitySubject,
-  customRoles: readonly CustomRole[],
-): readonly Record<string, unknown>[] {
-  const out: Record<string, unknown>[] = [];
-  for (const membership of subject.memberships ?? []) {
-    const held = customRoles.filter(
-      (role) =>
-        role.tenant === membership.tenant &&
-        role.team === membership.team &&
-        membership.roles.includes(role.name),
-    );
-    out.push(
-      held.length === 0
-        ? membership
-        : { ...membership, grants: customRoleClaim(held) },
-    );
-  }
-  return out;
-}
-
 function subjectSettings(
   dialect: 'supabase' | 'guc',
   subject: RlsParitySubject,
@@ -132,9 +115,14 @@ function subjectSettings(
   tenantClaim: string,
   roleClaim: string,
   customRoles: readonly CustomRole[],
+  scopes: readonly Scope[],
 ): readonly Setting[] {
   const roles = subject.roles ?? [];
-  const memberships = claimMemberships(subject, customRoles);
+  const memberships = membershipsClaim(
+    subject.memberships ?? [],
+    customRoles,
+    scopes,
+  );
   if (dialect === 'supabase') {
     const claims = {
       sub: subject.id,
@@ -192,6 +180,7 @@ export async function rlsParity<TUser>(
   const roleClaim = options.roleClaim ?? 'user_role';
   const role = options.role ?? 'authenticated';
   const customRoles = options.customRoles ?? [];
+  const scopes = scopeList(policy.scopes);
 
   async function runCase(fixture: RlsParityFixture): Promise<RlsParityCase> {
     const dock = await createPermDock(
@@ -209,6 +198,17 @@ export async function rlsParity<TUser>(
             fixture.permission as Permission<string, unknown, 'instance'>,
             fixture.row,
           );
+    let fromClient: boolean | undefined;
+    if (options.snapshot === true) {
+      const snapshot = dock.snapshot();
+      if (typeof snapshot !== 'object' || snapshot instanceof Promise) {
+        throw new TypeError('PermDock: rlsParity needs an unsigned snapshot');
+      }
+      fromClient = fromSnapshot(parseSnapshot(JSON.stringify(snapshot))).can(
+        fixture.permission as Permission<string, unknown, 'instance'>,
+        fixture.row,
+      );
+    }
     await options.query('begin');
     try {
       await options.query(`set local role ${quoteIdent(role)}`);
@@ -219,6 +219,7 @@ export async function rlsParity<TUser>(
         tenantClaim,
         roleClaim,
         customRoles,
+        scopes,
       )) {
         await options.query(item.sql, item.values);
       }
@@ -227,10 +228,13 @@ export async function rlsParity<TUser>(
         [rowId(fixture.row)],
       );
       const database = dbOutcome(result);
-      const ok = granted
+      const agrees = granted
         ? database === 'allowed'
         : database === 'filtered' || database === 'rejected';
-      return { name: fixture.name, granted, database, ok };
+      const ok = agrees && (fromClient === undefined || fromClient === granted);
+      return fromClient === undefined
+        ? { name: fixture.name, granted, database, ok }
+        : { name: fixture.name, granted, database, snapshot: fromClient, ok };
     } finally {
       await options.query('rollback');
     }

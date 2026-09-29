@@ -16,6 +16,7 @@ import {
 import { pickVisible } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { listPermissions } from './permissions.ts';
+import { normalizeMemberships, scopeList } from './scopes.ts';
 import {
   evaluateSnapshot,
   rowId,
@@ -185,8 +186,12 @@ export function fromSnapshot(
                   ...snapshot.subject.principal,
                   roles: previewRoles ?? snapshot.subject.principal.roles,
                   memberships:
-                    preview.memberships ??
-                    snapshot.subject.principal.memberships,
+                    preview.memberships === undefined
+                      ? snapshot.subject.principal.memberships
+                      : normalizeMemberships(
+                          preview.memberships,
+                          scopeList(snapshot.scopes),
+                        ),
                   tenant: preview.tenant ?? snapshot.subject.principal.tenant,
                 }),
         },
@@ -218,6 +223,7 @@ export function fromSnapshot(
       const names = heldRoleNames(
         subject,
         query?.tenant ?? subject.principal?.tenant,
+        scopeList(snapshot.scopes),
       );
       const tree = snapshot.vocabulary?.roles;
       return names.map((name) => findRole(tree, name) ?? synthesiseRole(name));
@@ -232,7 +238,9 @@ export function fromSnapshot(
             findRole(tree, name) ?? synthesiseRole(name, { assignable: true }),
         );
       }
-      const names = new Set(heldRoleNames(subject, tenant));
+      const names = new Set(
+        heldRoleNames(subject, tenant, scopeList(snapshot.scopes)),
+      );
       return listRoles(tree).filter(
         (leaf) => leaf.assignable && names.has(leaf.key),
       );

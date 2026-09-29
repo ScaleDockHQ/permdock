@@ -31,7 +31,7 @@ create table if not exists "public".role_permissions (
   role text not null,
   permission text not null,
   grant_key text not null,
-  scope text not null check (scope in ('global', 'tenant', 'team')),
+  scope text not null check (scope ~ '^[a-z][a-z0-9_]*$'),
   effect text not null default 'allow' check (effect in ('allow', 'deny')),
   primary key (role, grant_key, scope)
 );
@@ -99,18 +99,6 @@ as $$
 $$;
 revoke execute on function "public".permitted_tenant_ids(text) from public, anon;
 grant execute on function "public".permitted_tenant_ids(text) to authenticated;
-
-create or replace function "public".permitted_team_ids(p_grant text)
-returns setof uuid
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select null::uuid where false -- no team memberships table configured
-$$;
-revoke execute on function "public".permitted_team_ids(text) from public, anon;
-grant execute on function "public".permitted_team_ids(text) to authenticated;
 
 create or replace function "public"."authorize"(
   requested_permission "public"."app_permission",

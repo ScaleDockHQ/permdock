@@ -34,6 +34,9 @@ export const policy = definePolicy(permissions, {
     role('viewer', [allow([project.read, task.read])], { on: 'tenant' }),
     role('lead', [allow([board.read, board.update])], { on: 'team' }),
   ],
-  scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+  scopes: {
+    tenant: { key: 'orgId' },
+    team: { key: 'teamId', within: 'tenant' },
+  },
   subject: () => null,
 });

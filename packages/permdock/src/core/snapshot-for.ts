@@ -6,6 +6,7 @@ import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { type SnapshotInclude, snapshotOf } from './instance.ts';
 import { resolveSubject } from './resolve-subject.ts';
+import { scopeList } from './scopes.ts';
 import { tenantsOf } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
 
@@ -79,7 +80,9 @@ export function snapshotFor<
     );
   }
   const subject = withPlans(resolved, options.plans);
-  const tenants = new Set(tenantsOf(subject.principal));
+  const tenants = new Set(
+    tenantsOf(subject.principal, scopeList(policy.scopes as Policy['scopes'])),
+  );
   const customRoles = (options.customRoles ?? []).filter((item) =>
     tenants.has(item.tenant),
   );

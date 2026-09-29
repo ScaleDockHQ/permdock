@@ -64,6 +64,7 @@ const permissions = definePermissions({
     id: 'id',
     actions: ['read', 'update', 'delete', 'publish'],
     collection: ['create', 'list'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
   }),
 });
 
@@ -464,6 +465,30 @@ describe('conformance runners', () => {
     {
       principals: [{ id: 'alice' }],
       expect: { alice: [{ tenant: 'o1', roles: ['viewer'] }] },
+    },
+  );
+
+  testMembershipSource(
+    {
+      membershipsFor: () => [
+        { scope: 'organization', id: 'o1', roles: ['viewer'] },
+        {
+          scope: 'customer',
+          id: 'c1',
+          within: { organization: 'o1' },
+          roles: ['contact'],
+        },
+      ],
+    },
+    {
+      principals: [{ id: 'carol' }],
+      policy: definePolicy(definePermissions({}), {
+        scopes: {
+          organization: { key: 'organization_id' },
+          customer: { key: 'customer_id', within: 'organization' },
+        },
+        subject: () => null,
+      }),
     },
   );
 

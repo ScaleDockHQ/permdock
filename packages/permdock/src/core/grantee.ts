@@ -11,12 +11,14 @@ import type { Plan, Role } from './vocabulary.ts';
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { listPermissions } from './permissions.ts';
+import { type Scope, resolveScope, rootScope, scopeList } from './scopes.ts';
 import { isPlan, isRole } from './vocabulary.ts';
 
 export type RoleGrantee = {
   readonly kind: 'role';
   readonly role: string;
-  readonly scope: 'global' | 'tenant' | 'team' | { readonly resource: string };
+  /** `'global'`, a scope name, or one resource. */
+  readonly scope: string | { readonly resource: string };
 };
 
 export type AnyoneGrantee = { readonly kind: 'anyone' };
@@ -129,13 +131,7 @@ export function assurance(options: {
 }
 
 function resolveRoleScope(on: Role['on'] | undefined): RoleGrantee['scope'] {
-  if (on === undefined) {
-    return 'global';
-  }
-  if (on === 'tenant' || on === 'team') {
-    return on;
-  }
-  return 'global';
+  return typeof on === 'string' ? on : 'global';
 }
 
 export function asGrantee(input: GranteeInput): Grantee | readonly Grantee[] {
@@ -210,28 +206,33 @@ export function hasAnyone(
   return flattenGrantee(to).some((item) => item.kind === 'anyone');
 }
 
-function relationCondition(
+/**
+ * A `memberOf` relation on the first scope means "the row is in the active
+ * tenant"; on any other scope, "the subject holds a membership in the row's
+ * instance of it". Shared with the RLS compiler.
+ */
+export function relationCondition(
   grantee: RelationGrantee,
   resource: ResourceNode | undefined,
+  scopes: readonly Scope[] = scopeList(undefined),
 ): Condition | undefined {
   const spec = resource?.relations?.[grantee.relation];
   if (spec === undefined) {
     return undefined;
   }
-  if (spec.memberOf === 'tenant') {
-    return {
-      op: 'eq',
-      field: spec.field,
-      value: { ref: 'principal.tenant' },
-    };
-  }
-  if (spec.memberOf === 'team') {
-    return {
-      op: 'memberOf',
-      scope: 'team',
-      field: spec.field,
-      roles: [],
-    };
+  if (spec.memberOf !== undefined) {
+    const scope = resolveScope(scopes, spec.memberOf);
+    if (scope === undefined) {
+      return { op: 'or', conditions: [] };
+    }
+    if (scope === rootScope(scopes)) {
+      return {
+        op: 'eq',
+        field: spec.field,
+        value: { ref: 'principal.tenant' },
+      };
+    }
+    return { op: 'memberOf', scope, field: spec.field, roles: [] };
   }
   return {
     op: 'eq',
@@ -258,6 +259,7 @@ function matchOne(
   subject: Subject,
   now: number,
   resource: ResourceNode | undefined,
+  scopes: readonly Scope[] | undefined,
 ): GranteeMatch {
   switch (grantee.kind) {
     case 'anyone':
@@ -321,7 +323,7 @@ function matchOne(
       if (subject.principal === null) {
         return { matched: false, reason: 'anonymous' };
       }
-      const where = relationCondition(grantee, resource);
+      const where = relationCondition(grantee, resource, scopes);
       if (where === undefined && resource !== undefined) {
         return { matched: false, reason: 'condition' };
       }
@@ -345,6 +347,7 @@ export function matchGrantee(
   subject: Subject,
   now: number,
   resource: ResourceNode | undefined,
+  scopes?: readonly Scope[],
 ): GranteeMatch {
   const items = flattenGrantee(to);
   if (items.length === 0) {
@@ -352,7 +355,7 @@ export function matchGrantee(
   }
   let where: Condition | undefined;
   for (const item of items) {
-    const result = matchOne(item, subject, now, resource);
+    const result = matchOne(item, subject, now, resource, scopes);
     if (!result.matched) {
       return result;
     }

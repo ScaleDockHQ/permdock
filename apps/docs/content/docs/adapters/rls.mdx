@@ -38,7 +38,7 @@ Semantics the generator applies:
 | `allow` | `AS PERMISSIVE`, one policy per table and command (`{table}_{op}`) |
 | `deny` | `AS RESTRICTIVE` with `NOT (cond)`, one policy per table and command (`deny_{table}_{op}`) |
 | global role | `(select <schema>.permdock_has('<grant key>'))` |
-| tenant or team role | `"<tenant col>" in (select <schema>.permitted_tenant_ids('<grant key>'))` (or `permitted_team_ids`) |
+| role on a named scope | `"<scope key>" in (select <schema>.permitted_<scope>_ids('<grant key>'))` |
 | role, no public grant | `TO authenticated` (default) |
 | `anyone()` grant | `TO anon, authenticated`, in its own `{table}_{op}_anon` policy |
 | `service_role` | never emitted: it bypasses RLS |
@@ -47,11 +47,10 @@ Additional rules: a `SELECT` policy is generated (or its coverage asserted) when
 
 ## Per-statement helpers (InitPlan)
 
-The role check of every grant lives in one of three generated functions, never in the per-row part of a policy:
+The role check of every grant lives in a generated function, never in the per-row part of a policy:
 
 - `<schema>.permdock_has(p_grant text) returns boolean`: the subject holds a global role with the grant key.
-- `<schema>.permitted_tenant_ids(p_grant text) returns setof <tenant type>`: the tenants in which the subject holds it.
-- `<schema>.permitted_team_ids(p_grant text) returns setof <team type>`: the teams in which the subject holds it.
+- `<schema>.permitted_<scope>_ids(p_grant text) returns setof <scope type>`, one per [named scope](/docs/concepts/scopes) the policy declares (`permitted_tenant_ids` and `permitted_team_ids` when it declares none): the instances of that scope in which the subject holds it, through memberships of exactly that scope.
 
 They join the subject's roles (the `user_roles` table in `database` mode, the role claim in `jwt` mode) or memberships (the memberships table, or the `memberships` claim) with a generated `<schema>.role_permissions (role, permission, grant_key, scope, effect)` table that `generate` seeds from the policy. The grant key is the permission key; roles that grant one permission under different portable conditions get one key per condition group (`post.update#1`, `post.update#2`), and each group is one OR branch of the policy with its condition ANDed on. `relation`, `principal.id` and `where` conditions stay in the policy because they depend on the row.
 
@@ -87,7 +86,7 @@ Security notes on the helpers:
 
 ### Custom roles
 
-With `--custom-roles`, the tenant and team helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles). In `database` mode they read `custom_role_permissions (tenant_id, team_id, role, permission, effect)` and `custom_role_includes (tenant_id, team_id, role, include_role)`; in `jwt` mode, the `grants` map on each membership of the `memberships` claim. Either way, `permdock_custom_keys` turns the custom role into grant keys through the `permdock_ceiling` view, which holds only the keys of declared `assignable` roles and those roles' denies: allowed rows are unioned, denied permissions subtracted, included roles contribute their ceiling keys, and a row outside the ceiling reaches nothing. The resolution is the same one `resolveCustomRole` runs in the application, so `decide` and the database agree; `tests/integration/src/rls-custom-roles.test.ts` checks it in both modes with `permdock rls verify --db` and `rlsParity`.
+With `--custom-roles`, the scope helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles). In `database` mode they read `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` and `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`; in `jwt` mode, the `grants` map on each membership of the `memberships` claim. Either way, `permdock_custom_keys` turns the custom role into grant keys through the `permdock_ceiling` view, which holds only the keys of declared `assignable` roles and those roles' denies: allowed rows are unioned, denied permissions subtracted, included roles contribute their ceiling keys, and a row outside the ceiling reaches nothing. The resolution is the same one `resolveCustomRole` runs in the application, so `decide` and the database agree; `tests/integration/src/rls-custom-roles.test.ts` checks it in both modes with `permdock rls verify --db` and `rlsParity`.
 
 Portable subset compiled by `generate` and recognised by `import`:
 
@@ -98,12 +97,12 @@ Portable subset compiled by `generate` and recognised by `import`:
 | `eq(principal.claim.user_role, 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | claim function | GUC read |
 | membership (`in(row.id, context.teamIds)`) | `id in (select team_id from team_user where user_id = (select auth.uid()))` | same | same |
 | `sqlFunction('job_permitted', { args, twin })` | `job_permitted("id")` (`--inline-functions` emits the twin) | same | same |
-| A tenant-scoped role's grant | `org_id in (select public.permitted_tenant_ids('post.read'))`; the helper reads the membership table (`database`) or the `memberships` claim (`jwt`) | same | same, user and claims from GUCs |
+| A scoped role's grant | `org_id in (select public.permitted_tenant_ids('post.read'))`, `customer_id in (select public.permitted_customer_ids('quote.read'))`; the helper reads that scope's membership table (`database`) or the `memberships` claim (`jwt`) | same | same, user and claims from GUCs |
 | A global role's grant | `(select public.permdock_has('post.read'))`; the helper reads `user_roles` (`database`) or the role claim (`jwt`) | same | same |
-| A custom role (`--custom-roles`) | No policy change: `permitted_tenant_ids` / `permitted_team_ids` also return the tenants or teams where a held custom role's keys, bounded by `permdock_ceiling`, include the grant key | same | same |
+| A custom role (`--custom-roles`) | No policy change: each `permitted_<scope>_ids` also returns the instances where a held custom role's keys, bounded by `permdock_ceiling`, include the grant key | same | same |
 | `memberOf(tenant, row.org_id, roles)` in a condition, no membership table | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` (cast to `--tenant-type`) | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = org_id` |
 | `memberOf(tenant, row.org_id, roles)` in a condition, with a membership table (`supabaseRls({ memberships })` or `--memberships <table>`) | `exists (select 1 from organization_members m where m.organization_id = org_id and m.user_id = (select auth.uid()) and m.role = any('{admin,viewer}'))` | same | same, user from the GUC |
-| `memberOf(team, row.team_id, roles)` | `exists (select 1 from team_members m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = any(...))`, plus the active-tenant equality | same | same |
+| `memberOf(<scope>, row.team_id, roles)` for a scope under the first | `exists (select 1 from team_members m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = any(...))`, over that scope's table, plus the active-tenant equality on its first-scope column | same | same |
 | `memberOf(resource, row.id, roles)` with declared parents | A resource role: one `exists (...)` per mapped resource on the chain, each over that resource's membership table and keyed by the row field holding its id (`id` for the resource itself, `folder_id`, `project_id` for ancestors); a resource with no mapped table contributes nothing | same | same |
 | `(select authorize('channels.delete'))` in a hand-written policy (with `--rbac supabase`) | imported as `opaque` | opaque | opaque |
 | literals, `isNull`, boolean columns, `and` / `or` / `not` | literal SQL | literal SQL | literal SQL |

@@ -16,6 +16,7 @@ import { resumeDecision } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import { coveredByDelegation } from '../core/delegation.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
+import { scopeList, tenantOf } from '../core/scopes.ts';
 import { modelReason, thrownReason, unmappedReason } from './reason.ts';
 
 function asActor(value: unknown): Actor | undefined {
@@ -146,12 +147,17 @@ export function mayUse(dock: PermDock, permission: Permission): boolean {
       return false;
     }
     const tenant = dock.subject.principal?.tenant;
-    const grants = snapshot.grants.filter(
-      (grant) =>
-        grant.permission === permission.key &&
-        (grant.membership?.tenant === undefined ||
-          grant.membership.tenant === tenant),
-    );
+    const scopes = scopeList(snapshot.scopes);
+    const grants = snapshot.grants.filter((grant) => {
+      if (grant.permission !== permission.key) {
+        return false;
+      }
+      const owner =
+        grant.membership === undefined
+          ? undefined
+          : tenantOf(grant.membership, scopes);
+      return owner === undefined || owner === tenant;
+    });
     if (grants.some(blocksEveryRow)) {
       return false;
     }

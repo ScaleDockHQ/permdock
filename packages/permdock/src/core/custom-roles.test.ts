@@ -55,7 +55,10 @@ const roles = defineRoles({
 const policy = definePolicy(
   { permissions, roles },
   {
-    scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+    scopes: {
+      tenant: { key: 'orgId' },
+      team: { key: 'teamId', within: 'tenant' },
+    },
     subject: (user: { readonly id: string } | null) =>
       user === null ? null : { id: user.id },
     roles: [
@@ -651,7 +654,7 @@ describe('snapshot parity', () => {
       expect.objectContaining({
         permission: 'invoice.read',
         role: 'c',
-        membership: { tenant: 'acme', roles: ['steward', 'c'] },
+        membership: { scope: 'tenant', id: 'acme', roles: ['steward', 'c'] },
       }),
     );
   });

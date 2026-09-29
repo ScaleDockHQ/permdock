@@ -1,3 +1,4 @@
+import type { Scope } from '../core/scopes.ts';
 import type { Condition, ConditionValue } from '../index.ts';
 import type {
   RlsDialect,
@@ -5,6 +6,8 @@ import type {
   RlsMemberships,
 } from './types.ts';
 
+import { scopeColumn, scopeMembershipTable } from '../conditions/compile.ts';
+import { resolveScope, rootScope, scopeChain } from '../core/scopes.ts';
 import { isSqlFunctionField } from '../index.ts';
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -12,6 +15,8 @@ const CLAIM = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export type RlsSqlContext = {
   readonly dialect: RlsDialect;
+  /** The policy's scopes in order (the implicit `tenant` / `team` pair when it declares none). */
+  readonly scopes: readonly Scope[];
   readonly memberships?: RlsMemberships;
   readonly tenantClaim: string;
   readonly gucPrefix: string;
@@ -26,6 +31,8 @@ export type RlsSqlContext = {
   readonly tenantType?: string;
   /** Postgres type of the team column. Defaults to `tenantType`. */
   readonly teamType?: string;
+  /** Postgres type of each scope's id column; overrides `tenantType` / `teamType`. */
+  readonly scopeTypes?: Readonly<Record<string, string>>;
   /**
    * Set when custom roles compile: the helpers also resolve tenant-defined
    * roles, bounded by the ceiling of `assignable` declared roles.
@@ -52,6 +59,54 @@ export function tenantTypeOf(ctx: RlsSqlContext): string {
 export function teamTypeOf(ctx: RlsSqlContext): string {
   return sqlType(ctx.teamType ?? ctx.tenantType ?? 'uuid');
 }
+
+/** Postgres type of scope `name`'s id: `scopeTypes`, then the tenant / team type by position. */
+export function scopeTypeOf(ctx: RlsSqlContext, name: string): string {
+  const declared = ctx.scopeTypes?.[name];
+  if (declared !== undefined) {
+    return sqlType(declared);
+  }
+  return name === ctx.scopes[1]?.name ? teamTypeOf(ctx) : tenantTypeOf(ctx);
+}
+
+/** The helper returning the ids of scope `name` a grant key reaches. */
+export function permittedIdsHelper(name: string): string {
+  if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
+    throw new Error(`PermDock CLI: unsafe scope name '${name}'`);
+  }
+  return `permitted_${name}_ids`;
+}
+
+/** The membership table mapped for scope `name`, with the column of its id and of the first scope's id. */
+export function scopeTable(
+  ctx: RlsSqlContext,
+  name: string,
+):
+  | {
+      readonly table: RlsMembershipTable;
+      readonly column: string;
+      readonly tenantColumn?: string;
+    }
+  | undefined {
+  const table = scopeMembershipTable(ctx.memberships, ctx.scopes, name);
+  if (table === undefined) {
+    return undefined;
+  }
+  const column = scopeColumn(table, ctx.scopes, name);
+  if (column === undefined) {
+    return undefined;
+  }
+  const root = rootScope(ctx.scopes);
+  const tenantColumn =
+    root !== undefined && scopeChain(ctx.scopes, name).includes(root)
+      ? scopeColumn(table, ctx.scopes, root)
+      : undefined;
+  return tenantColumn === undefined
+    ? { table, column }
+    : { table, column, tenantColumn };
+}
+
+export { resolveScope };
 
 /** The active-tenant claim cast to the tenant column's type, so the comparison uses the column's index. */
 export function tenantClaimSql(ctx: RlsSqlContext): string {
@@ -226,26 +281,33 @@ function compileMemberOf(
   condition: Extract<Condition, { readonly op: 'memberOf' }>,
   ctx: RlsSqlContext,
 ): string {
-  const mapping =
+  const scope =
     condition.scope === 'resource'
+      ? undefined
+      : resolveScope(ctx.scopes, condition.scope);
+  if (condition.scope !== 'resource' && scope === undefined) {
+    throw new Error(
+      `PermDock CLI: memberOf ${condition.scope} names a scope the policy does not declare`,
+    );
+  }
+  const mapping =
+    scope === undefined
       ? condition.resource === undefined
         ? undefined
         : ctx.memberships?.resource?.[condition.resource]
-      : ctx.memberships?.[condition.scope];
+      : scopeMembershipTable(ctx.memberships, ctx.scopes, scope);
   if (mapping !== undefined) {
-    const rowColumn =
-      condition.scope === 'tenant'
-        ? mapping.tenant
-        : condition.scope === 'team'
-          ? mapping.team
-          : mapping.id;
+    const named = scope === undefined ? undefined : scopeTable(ctx, scope);
+    const rowColumn = scope === undefined ? mapping.id : named?.column;
     if (rowColumn === undefined) {
       throw new Error(
         `PermDock CLI: memberships mapping for ${condition.scope} is missing the row column`,
       );
     }
     const tenantColumn =
-      condition.scope === 'team' ? mapping.tenant : undefined;
+      scope === undefined || scope === rootScope(ctx.scopes)
+        ? undefined
+        : named?.tenantColumn;
     const primary = existsSql(
       mapping,
       rowColumn,
@@ -285,7 +347,7 @@ function compileMemberOf(
     });
     return `(${[primary, ...extras].join(' or ')})`;
   }
-  if (condition.scope === 'tenant') {
+  if (scope !== undefined && scope === rootScope(ctx.scopes)) {
     return `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`;
   }
   throw new Error(

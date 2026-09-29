@@ -10,6 +10,7 @@ import type { Delegation, Membership, Subject } from './subject.ts';
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { isForbiddenKey } from './paths.ts';
+import { scopeList } from './scopes.ts';
 import { tenantsOf } from './tenancy.ts';
 import { listPlans, listRoles } from './vocabulary.ts';
 
@@ -20,7 +21,7 @@ export function snapshotGrant(
   const scope =
     grant.scope === 'global'
       ? undefined
-      : grant.scope === 'tenant' || grant.scope === 'team'
+      : typeof grant.scope === 'string'
         ? grant.scope
         : { resource: grant.scope.resource };
   const entry = compact<SnapshotGrant>({
@@ -56,7 +57,7 @@ export function buildSnapshot(input: {
 }): Snapshot {
   const now = input.now ?? Math.floor(Date.now() / 1000);
   const principal = input.subject.principal;
-  const allTenants = tenantsOf(principal);
+  const allTenants = tenantsOf(principal, scopeList(input.scopes));
   const tenants =
     input.tenants === 'all'
       ? allTenants

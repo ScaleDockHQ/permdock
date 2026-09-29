@@ -436,6 +436,7 @@ describe('createPermDock', () => {
       post: resource({
         actions: ['read'],
         collection: ['list'],
+        relations: { org: { field: 'orgId', memberOf: 'tenant' } },
       }),
     });
     const scopedPolicy = definePolicy(scoped, {

@@ -25,7 +25,11 @@ export const permissions = definePermissions({
     Project,
     crud({ relations: { org: { field: 'orgId', memberOf: 'tenant' } } }),
   ),
-  member: resource({ actions: ['assignRole'], collection: ['list', 'invite'] }),
+  member: resource({
+    actions: ['assignRole'],
+    collection: ['list', 'invite'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+  }),
   billing: resource({ collection: ['read', 'manage'] }),
   settings: resource({ collection: ['manage'] }),
   audit: resource({ collection: ['read'] }),

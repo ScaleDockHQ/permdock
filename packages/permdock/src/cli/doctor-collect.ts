@@ -1,10 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import type { CustomRole, Policy } from '../index.ts';
+import type { CustomRole, Membership, Policy } from '../index.ts';
 import type { DoctorFinding } from './doctor-types.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
+import { normalizeMemberships, scopeList } from '../core/scopes.ts';
 import {
   hasConditionOp,
   separationConflicts,
@@ -269,11 +270,9 @@ export async function pd024(input: {
 
 type MembershipsFixture = {
   readonly customRoles?: readonly CustomRole[];
-  readonly memberships?: readonly {
+  readonly memberships?: readonly (Membership & {
     readonly principal?: string;
-    readonly tenant?: string;
-    readonly roles: readonly string[];
-  }[];
+  })[];
 };
 
 function asMembershipsFixture(parsed: unknown): MembershipsFixture {
@@ -526,6 +525,48 @@ export async function pd023(input: {
               : 'use a declared permission key or assignable role name',
       });
     }
+  }
+  return findings;
+}
+
+/** Fixture memberships the policy's scopes would drop: an undeclared scope, a missing parent id, mixed shapes. */
+export async function pd025(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  const fixturePath = input.config.doctor?.memberships;
+  if (input.config.policy === undefined || fixturePath === undefined) {
+    return [];
+  }
+  const absolute = resolve(input.cwd, fixturePath);
+  if (!existsSync(absolute)) {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(absolute, 'utf8')) as unknown;
+  } catch {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const scopes = scopeList(policy.scopes);
+  const names = scopes.map((scope) => scope.name).join(', ');
+  const findings: DoctorFinding[] = [];
+  for (const [index, membership] of (
+    asMembershipsFixture(parsed).memberships ?? []
+  ).entries()) {
+    if (normalizeMemberships([membership], scopes).length > 0) {
+      continue;
+    }
+    findings.push({
+      code: 'PD025',
+      severity: 'warning',
+      message: `membership ${membership.principal ?? String(index)} grants nothing: its scope is not one of ${names}, a parent id is missing from within, or it mixes shapes`,
+      fix: 'use { scope, id, within: { <parent>: id }, roles } with a declared scope, or { on: { resource, id }, roles }',
+    });
   }
   return findings;
 }

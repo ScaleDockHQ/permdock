@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import type { Scope } from '../core/scopes.ts';
 import type {
   CustomRole,
+  Membership,
   PermDock,
   Permission,
   Policy,
@@ -10,9 +12,10 @@ import type {
 } from '../index.ts';
 import type { CliIo, PermDockConfig, RlsDialect } from './types.ts';
 
+import { customRoleScope, membershipsClaim } from '../core/custom-roles.ts';
+import { scopeList } from '../core/scopes.ts';
 import {
   createPermDock,
-  customRoleClaim,
   findPermission,
   hasConditionOp,
   memoryRoleSource,
@@ -30,11 +33,7 @@ export type RlsFixture = {
     readonly id: string;
     readonly roles?: readonly string[];
     readonly tenant?: string;
-    readonly memberships?: readonly {
-      readonly tenant?: string;
-      readonly team?: string;
-      readonly roles: readonly string[];
-    }[];
+    readonly memberships?: readonly Membership[];
   };
   readonly row: unknown;
   readonly newRow?: unknown;
@@ -115,22 +114,15 @@ async function loadFixtures(cwd: string, path: string): Promise<FixtureFile> {
   };
 }
 
-/** Each membership's custom roles as the compact `grants` claim RLS reads in `jwt` mode. */
-function withCustomGrants(
-  memberships: RlsFixture['subject']['memberships'] & object,
-  customRoles: readonly CustomRole[],
-): readonly Record<string, unknown>[] {
-  return memberships.map((membership) => {
-    const held = customRoles.filter(
-      (role) =>
-        role.tenant === membership.tenant &&
-        role.team === membership.team &&
-        membership.roles.includes(role.name),
-    );
-    return held.length === 0
-      ? membership
-      : { ...membership, grants: customRoleClaim(held) };
-  });
+/** A custom role's scope and pinned instance, as the `custom_role_*` tables store them. */
+function customRoleAt(
+  role: CustomRole,
+  scopes: readonly Scope[],
+): { readonly scope: string | undefined; readonly id: string | undefined } {
+  return {
+    scope: customRoleScope(role, scopes),
+    id: role.scope === undefined ? role.team : role.id,
+  };
 }
 
 function canFixture(
@@ -262,6 +254,7 @@ function rowId(row: unknown): unknown {
 function emitPgtap(
   fixtures: readonly RlsFixture[],
   customRoles: readonly CustomRole[],
+  scopes: readonly Scope[],
 ): string {
   const lines = [
     'begin;',
@@ -273,9 +266,10 @@ function emitPgtap(
       sub: fixture.subject.id,
       role: 'authenticated',
       tenant_id: fixture.subject.tenant ?? null,
-      memberships: withCustomGrants(
+      memberships: membershipsClaim(
         fixture.subject.memberships ?? [],
         customRoles,
+        scopes,
       ),
     });
     lines.push(
@@ -307,6 +301,7 @@ async function seedCustomRoles(
   query: QueryFn,
   schema: string,
   customRoles: readonly CustomRole[],
+  scopes: readonly Scope[],
 ): Promise<void> {
   const table = (name: string): string =>
     `${quoteIdent(schema)}.${quoteIdent(name)}`;
@@ -322,12 +317,17 @@ async function seedCustomRoles(
     }
   };
   for (const role of customRoles) {
+    const at = customRoleAt(role, scopes);
+    if (at.scope === undefined) {
+      continue;
+    }
     for (const grant of role.grants ?? []) {
       await write(
-        `insert into ${table('custom_role_permissions')} (tenant_id, team_id, role, permission, effect) values ($1, $2, $3, $4, $5)`,
+        `insert into ${table('custom_role_permissions')} (tenant_id, scope, scope_id, role, permission, effect) values ($1, $2, $3, $4, $5, $6)`,
         [
           role.tenant,
-          role.team ?? null,
+          at.scope,
+          at.id ?? null,
           role.name,
           grant.permission,
           grant.effect ?? 'allow',
@@ -336,8 +336,8 @@ async function seedCustomRoles(
     }
     for (const name of role.includes ?? []) {
       await write(
-        `insert into ${table('custom_role_includes')} (tenant_id, team_id, role, include_role) values ($1, $2, $3, $4)`,
-        [role.tenant, role.team ?? null, role.name, name],
+        `insert into ${table('custom_role_includes')} (tenant_id, scope, scope_id, role, include_role) values ($1, $2, $3, $4, $5)`,
+        [role.tenant, at.scope, at.id ?? null, role.name, name],
       );
     }
   }
@@ -351,12 +351,14 @@ async function bindSubject(
   tenantClaim: string,
   roleClaim: string,
   customRoles: readonly CustomRole[],
+  scopes: readonly Scope[],
 ): Promise<void> {
   await query('set local role "authenticated"');
   const roles = fixture.subject.roles ?? [];
-  const memberships = withCustomGrants(
+  const memberships = membershipsClaim(
     fixture.subject.memberships ?? [],
     customRoles,
+    scopes,
   );
   if (dialect === 'guc') {
     const settings: [string, string][] = [
@@ -419,6 +421,7 @@ async function verifyAgainstDatabase(input: {
     rls?.customRoles === true &&
     (rls.authorize ?? rls.rbac?.authorize ?? 'jwt') === 'database';
   const schema = rls?.schema ?? rls?.rbac?.schema ?? 'public';
+  const scopes = scopeList(input.policy.scopes);
   const query: QueryFn = async (sql, values) => {
     try {
       const result = await client.query(
@@ -461,7 +464,7 @@ async function verifyAgainstDatabase(input: {
       await query('begin');
       try {
         if (seedsTables) {
-          await seedCustomRoles(query, schema, input.customRoles);
+          await seedCustomRoles(query, schema, input.customRoles, scopes);
         }
         await bindSubject(
           query,
@@ -471,6 +474,7 @@ async function verifyAgainstDatabase(input: {
           tenantClaim,
           roleClaim,
           input.customRoles,
+          scopes,
         );
         const statement = statementFor(fixture, permission.action, table);
         const result = await query(statement.sql, statement.values);
@@ -524,7 +528,10 @@ export async function runRlsVerify(input: {
     input.fixtures ?? input.config.rls?.fixtures ?? 'rls.fixtures.json';
   const { fixtures, customRoles } = await loadFixtures(input.cwd, fixturesPath);
   if (input.format === 'pgtap') {
-    return { code: 0, output: emitPgtap(fixtures, customRoles) };
+    return {
+      code: 0,
+      output: emitPgtap(fixtures, customRoles, scopeList(policy.scopes)),
+    };
   }
   const mismatches: string[] = [];
   const notes: string[] = [];

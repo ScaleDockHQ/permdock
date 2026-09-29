@@ -59,7 +59,8 @@ export type NotCondition = {
 
 export type MemberOfCondition = {
   readonly op: 'memberOf';
-  readonly scope: 'tenant' | 'team' | 'resource';
+  /** A declared scope name (or the `tenant` / `team` alias), or `'resource'`. */
+  readonly scope: string;
   readonly field: string;
   readonly roles: readonly string[];
   readonly resource?: string;

@@ -58,12 +58,12 @@ const editor = role('editor', [allow(permissions.document.update)], { on: permis
 
 export const policy = definePolicy(permissions, {
   roles: [viewer, lead, editor, admin],
-  scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+  scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId', within: 'tenant' } },
   subject: subjectFromClerk,
 })
 ```
 
-`scopes.tenant.key` names the field every tenant-owned resource carries; it replaces `where: { orgId: principal.orgId }` on each grant and is checked against every scoped resource's schema at compile time. `assignable` (default `true` for scoped roles) marks roles a tenant admin may hand out and compose into tenant-defined custom roles. The full model, memberships, evaluation rules, custom roles and the `RoleSource` and `MembershipSource` interfaces, is on [tenants, teams and scoped roles](/docs/concepts/tenancy).
+`scopes` declares the policy's [named scopes](/docs/concepts/scopes) in order; each `key` names the row field holding that scope's id, and every resource a scoped grant touches declares it as a `memberOf` relation. It replaces `where: { orgId: principal.orgId }` on each grant. `assignable` (default `true` for scoped roles) marks roles a tenant admin may hand out and compose into tenant-defined custom roles. The full model, memberships, evaluation rules, custom roles and the `RoleSource` and `MembershipSource` interfaces, is on [tenants, teams and scoped roles](/docs/concepts/tenancy).
 
 ### Spreading grants
 
@@ -123,7 +123,7 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 - `allow(permissions.post.archive)` fails to compile if `archive` was never defined.
 - `allow(permissions.post.update, { where: { autorId: principal.id } })` fails to compile: `autorId` is not a field of `Post`.
 - `roles: user.roles` where `roles` contains a name no `role()` declared is a runtime deny for that role plus a `permdock doctor` warning, not a throw. On a membership, such a name is first resolved as a tenant-defined custom role through the `RoleSource` and dropped if that fails ([tenancy](/docs/concepts/tenancy)).
-- `role('viewer', [...], { on: 'tenant' })` with a grant on a resource whose schema lacks `scopes.tenant.key` fails to compile.
+- `role('viewer', [...], { on: 'customers' })` fails to compile when the policy declares `customer`, and `definePolicy` throws when a resource a scoped grant touches has no `memberOf` relation on the scope's key.
 - `definePolicy` returns `Policy<TUser, TPrincipal>`, typed from the `principal` mapper. `createPermDock` in core and in every adapter is generic over both, so a typed policy passes to any adapter without a cast, and the adapter's `subject` option is checked against `TUser`. `Policy.subject` and `Policy.context` are declared as methods so a typed policy stays assignable to helpers that only read roles and grants. `TUser` never defaults to `any`, which would hide real mismatches.
 
 ### Evaluation is synchronous

@@ -41,7 +41,7 @@ export const policy = definePolicy(permissions, {
     role('member', [allow(permissions.post.update, { where: { authorId: principal.id } })], { on: 'tenant' }),  // fragment merges by name
     role('support', [allow(permissions.post.read)]),                             // global: admin plugin role
   ],
-  scopes: { tenant: { key: 'organizationId' }, team: { key: 'teamId' } },
+  scopes: { tenant: { key: 'organizationId' }, team: { key: 'teamId', within: 'tenant' } },
 })
 ```
 

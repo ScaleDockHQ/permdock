@@ -577,4 +577,59 @@ export const policy = definePolicy(permissions, {
       'custom role grabby in o1 drops permission nope.read (unknown-permission)',
     ]);
   });
+
+  it('PD025 warns on fixture memberships the named scopes drop', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/scoped-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  scopes: {
+    tenant: { key: 'orgId' },
+    team: { key: 'teamId', within: 'tenant' },
+  },
+  roles: [role('viewer', [allow(permissions.post.read)], { on: 'tenant' })],
+  subject: () => null,
+});
+`,
+    );
+    const fixture = {
+      memberships: [
+        { principal: 'ok', scope: 'tenant', id: 'o1', roles: ['viewer'] },
+        { principal: 'alias', tenant: 'o1', team: 't1', roles: ['viewer'] },
+        { principal: 'orphan', scope: 'team', id: 't1', roles: ['viewer'] },
+        { principal: 'unknown', scope: 'region', id: 'eu', roles: ['viewer'] },
+      ],
+    };
+    writeFileSync(join(cwd, 'memberships.json'), JSON.stringify(fixture));
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/scoped-policy.ts',
+  doctor: { memberships: './memberships.json' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'scopes'], {
+      cwd,
+    });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings.map((item) => item.code)).toEqual([
+      'PD025',
+      'PD025',
+    ]);
+    expect(report.findings.map((item) => item.message.split(' ')[1])).toEqual([
+      'orphan',
+      'unknown',
+    ]);
+  });
 });

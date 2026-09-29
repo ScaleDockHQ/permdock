@@ -1,22 +1,25 @@
 import type { RlsSqlContext } from './rls-sql.ts';
-import type { RlsMembershipTable } from './types.ts';
 
 import {
+  permittedIdsHelper,
   quoteIdent,
   quoteLiteral,
   quoteTable,
+  scopeTable,
+  scopeTypeOf,
   subjectClaimJsonSql,
   subjectClaimSql,
   subjectIdSql,
-  teamTypeOf,
   tenantTypeOf,
 } from './rls-sql.ts';
 
-/** The per-statement helpers every generated policy calls. Names are part of the SQL contract. */
+/**
+ * The per-statement helpers every generated policy calls: `permdock_has` for
+ * global roles and one `permitted_<scope>_ids` per scope
+ * (`permittedIdsHelper`). Names are part of the SQL contract.
+ */
 export const HELPERS = {
   has: 'permdock_has',
-  tenants: 'permitted_tenant_ids',
-  teams: 'permitted_team_ids',
 } as const;
 
 /** Objects `--custom-roles` adds next to the helpers. Names are part of the SQL contract. */
@@ -27,7 +30,8 @@ export const CUSTOM_ROLES = {
   keys: 'permdock_custom_keys',
 } as const;
 
-export type HelperScope = 'global' | 'tenant' | 'team';
+/** `'global'` or a scope name. */
+export type HelperScope = string;
 
 /** One `role_permissions` row: `role` holds `grant_key`, which is `permission` or `permission#n`. */
 export type RolePermission = {
@@ -58,24 +62,15 @@ export function accessSql(
   column: string | undefined,
 ): string {
   const key = quoteLiteral(grantKey);
-  switch (scope) {
-    case 'global':
-      return `(select ${qualified(ctx, HELPERS.has)}(${key}))`;
-    case 'tenant':
-    case 'team': {
-      if (column === undefined) {
-        throw new Error(
-          `PermDock CLI: ${scope}-scoped grant needs definePolicy({ scopes.${scope} })`,
-        );
-      }
-      const helper = scope === 'tenant' ? HELPERS.tenants : HELPERS.teams;
-      return `${quoteIdent(column)} in (select ${qualified(ctx, helper)}(${key}))`;
-    }
-    default: {
-      const exhaustive: never = scope;
-      return exhaustive;
-    }
+  if (scope === 'global') {
+    return `(select ${qualified(ctx, HELPERS.has)}(${key}))`;
   }
+  if (column === undefined) {
+    throw new Error(
+      `PermDock CLI: ${scope}-scoped grant needs definePolicy({ scopes.${scope} })`,
+    );
+  }
+  return `${quoteIdent(column)} in (select ${qualified(ctx, permittedIdsHelper(scope))}(${key}))`;
 }
 
 function membershipTable(name: string): string {
@@ -88,6 +83,29 @@ function signedIn(ctx: RlsSqlContext): string {
 
 function activeTenant(ctx: RlsSqlContext): string {
   return `nullif(${subjectClaimSql(ctx, ctx.tenantClaim)}, '')`;
+}
+
+function rootName(ctx: RlsSqlContext): string {
+  return ctx.scopes[0]?.name ?? 'tenant';
+}
+
+/** Whether the active tenant narrows memberships of `scope`: the first scope is on its chain. */
+function underRoot(ctx: RlsSqlContext, scope: string): boolean {
+  const root = ctx.scopes[0]?.name;
+  let current = ctx.scopes.find((item) => item.name === scope);
+  const seen = new Set<string>();
+  while (current !== undefined && !seen.has(current.name)) {
+    if (current.name === root) {
+      return true;
+    }
+    seen.add(current.name);
+    const parent: string | undefined = current.within;
+    current =
+      parent === undefined
+        ? undefined
+        : ctx.scopes.find((item) => item.name === parent);
+  }
+  return false;
 }
 
 function roleRows(ctx: RlsSqlContext): string {
@@ -171,7 +189,7 @@ function textArray(values: readonly string[]): string {
 /** `p_grant in (select permdock_custom_keys(allows, denies, includes, scope))`. */
 function customKeysSql(
   ctx: RlsSqlContext,
-  scope: 'tenant' | 'team',
+  scope: string,
   allows: string,
   denies: string,
   includes: string,
@@ -180,21 +198,16 @@ function customKeysSql(
       ${allows},
       ${denies},
       ${includes},
-      '${scope}'
+      ${quoteLiteral(scope)}
     ))`;
 }
 
-function tableBody(
-  ctx: RlsSqlContext,
-  scope: 'tenant' | 'team',
-  table: RlsMembershipTable | undefined,
-  type: string,
-): string {
-  const column = scope === 'tenant' ? table?.tenant : table?.team;
-  if (table === undefined || column === undefined) {
+function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
+  const mapped = scopeTable(ctx, scope);
+  if (mapped === undefined) {
     return `  select null::${type} where false -- no ${scope} memberships table configured`;
   }
-  const tenantColumn = scope === 'tenant' ? column : table.tenant;
+  const { table, column, tenantColumn } = mapped;
   const filters = [
     `  where ${memberColumn(table.user)} = ${subjectIdSql(ctx)}`,
   ];
@@ -214,20 +227,19 @@ function tableBody(
     `  join ${qualified(ctx, 'role_permissions')} rp on rp.role = ${memberColumn(table.role)}::text`,
     owner ?? '',
     '    and rp.grant_key = p_grant',
-    `    and rp.scope = '${scope}'`,
+    `    and rp.scope = ${quoteLiteral(scope)}`,
     ...rest,
   ];
   const custom = ctx.customRoles;
   if (custom === undefined) {
     return lines.join('\n');
   }
+  // A custom role belongs to a tenant, is held at one scope, and may be pinned to one instance of it.
+  const tenantOf = tenantColumn ?? column;
   const match = [
-    scope === 'tenant'
-      ? `c.tenant_id::text = ${memberColumn(column)}::text and c.team_id is null`
-      : `c.team_id::text = ${memberColumn(column)}::text`,
-    ...(scope === 'team' && table.tenant !== undefined
-      ? [`c.tenant_id::text = ${memberColumn(table.tenant)}::text`]
-      : []),
+    `c.tenant_id::text = ${memberColumn(tenantOf)}::text`,
+    `c.scope = ${quoteLiteral(scope)}`,
+    `(c.scope_id is null or c.scope_id = ${memberColumn(column)}::text)`,
     `c.role = ${memberColumn(table.role)}::text`,
   ].join(' and ');
   const rows = (source: string, value: string, extra: string): string =>
@@ -249,38 +261,45 @@ function tableBody(
   ].join('\n');
 }
 
-function claimBody(
-  ctx: RlsSqlContext,
-  scope: 'tenant' | 'team',
-  type: string,
-): string {
-  const filters = `    and m ->> '${scope}' is not null
-    and (${activeTenant(ctx)} is null or m ->> 'tenant' = ${activeTenant(ctx)})
+/** The membership's instance of the first scope, from the canonical claim. */
+function claimTenant(ctx: RlsSqlContext, scope: string): string {
+  const root = rootName(ctx);
+  return scope === root
+    ? `m ->> 'id'`
+    : `m -> 'within' ->> ${quoteLiteral(root)}`;
+}
+
+function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
+  const narrow = underRoot(ctx, scope)
+    ? `
+    and (${activeTenant(ctx)} is null or ${claimTenant(ctx, scope)} = ${activeTenant(ctx)})`
+    : '';
+  const filters = `    and m ->> 'scope' = ${quoteLiteral(scope)}
+    and m ->> 'id' is not null${narrow}
     and case jsonb_typeof(m -> 'expiresAt')
       when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
       else true
     end`;
-  const declared = `  select (m ->> '${scope}')::${type}
+  const declared = `  select (m ->> 'id')::${type}
   from ${membershipRows(ctx)}
   join ${qualified(ctx, 'role_permissions')} rp on rp.role = r.role
   where ${signedIn(ctx)}
     and rp.grant_key = p_grant
-    and rp.scope = '${scope}'
+    and rp.scope = ${quoteLiteral(scope)}
 ${filters}`;
   const custom = ctx.customRoles;
   if (custom === undefined) {
     return declared;
   }
-  // A tenant custom role rides a tenant membership; a team custom role its team membership.
+  // A custom role rides the membership of the scope it is held at.
   return `${declared}
   union
-  select (m ->> '${scope}')::${type}
+  select (m ->> 'id')::${type}
   from ${membershipRows(ctx)}
   cross join lateral (select m -> 'grants' -> r.role as g) cg
   where ${signedIn(ctx)}
     and jsonb_typeof(cg.g) = 'array'
     and not (r.role = any(${textArray(custom.declared)}))
-    and m ->> 'team' is ${scope === 'tenant' ? 'null' : 'not null'}
 ${filters}
 ${customKeysSql(
   ctx,
@@ -308,7 +327,6 @@ function customRolesSql(ctx: RlsSqlContext): string {
   const chunks: string[] = [];
   if (ctx.authorize === 'database') {
     const tenantType = tenantTypeOf(ctx);
-    const teamType = teamTypeOf(ctx);
     for (const [name, column, check] of [
       [
         CUSTOM_ROLES.permissions,
@@ -322,12 +340,13 @@ function customRolesSql(ctx: RlsSqlContext): string {
       const unique = `${column}${name === CUSTOM_ROLES.permissions ? ', effect' : ''}`;
       chunks.push(`create table if not exists ${table} (
   tenant_id ${tenantType} not null,
-  team_id ${teamType},
+  scope text not null default ${quoteLiteral(rootName(ctx))},
+  scope_id text,
   role text not null,
   ${column} text not null${check}
 );
 create unique index if not exists ${quoteIdent(`${name}_key`)}
-  on ${table} (tenant_id, coalesce(team_id::text, ''), role, ${unique});
+  on ${table} (tenant_id, scope, coalesce(scope_id, ''), role, ${unique});
 alter table ${table} enable row level security;
 revoke all on table ${table} from anon, authenticated, public;`);
     }
@@ -336,7 +355,7 @@ revoke all on table ${table} from anon, authenticated, public;`);
 create or replace view ${ceiling} with (security_invoker = true) as
 select rp.scope, rp.role, rp.permission, rp.grant_key, rp.effect
 from ${rp} rp
-where rp.scope in ('tenant', 'team')
+where rp.scope <> 'global'
   and rp.role = any(${textArray(custom.assignable)})
   and exists (
     select 1 from ${rp} a
@@ -403,13 +422,9 @@ revoke execute on function ${keys}(text[], text[], text[], text) from public, an
   return chunks.join('\n\n');
 }
 
-function scopedBody(
-  ctx: RlsSqlContext,
-  scope: 'tenant' | 'team',
-  type: string,
-): string {
+function scopedBody(ctx: RlsSqlContext, scope: string, type: string): string {
   return ctx.authorize === 'database'
-    ? tableBody(ctx, scope, ctx.memberships?.[scope], type)
+    ? tableBody(ctx, scope, type)
     : claimBody(ctx, scope, type);
 }
 
@@ -483,8 +498,6 @@ export function helpersSql(
   const schema = helperSchema(ctx);
   const s = quoteIdent(schema);
   const rp = qualified(ctx, 'role_permissions');
-  const tenantType = tenantTypeOf(ctx);
-  const teamType = teamTypeOf(ctx);
   const chunks = [
     `-- permdock helpers (${ctx.authorize === 'database' ? 'database: reads the membership and user_roles tables' : 'jwt: reads the role and memberships claims'})
 -- policies call them uncorrelated, so Postgres evaluates each once per statement`,
@@ -498,7 +511,7 @@ export function helpersSql(
   role text not null,
   permission text not null,
   grant_key text not null,
-  scope text not null check (scope in ('global', 'tenant', 'team')),
+  scope text not null check (scope ~ '^[a-z][a-z0-9_]*$'),
   effect text not null default 'allow' check (effect in ('allow', 'deny')),
   primary key (role, grant_key, scope)
 );
@@ -520,21 +533,16 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     chunks.push(custom);
   }
   chunks.push(helperFunction(ctx, HELPERS.has, 'boolean', hasBody(ctx)));
-  chunks.push(
-    helperFunction(
-      ctx,
-      HELPERS.tenants,
-      `setof ${tenantType}`,
-      scopedBody(ctx, 'tenant', tenantType),
-    ),
-  );
-  chunks.push(
-    helperFunction(
-      ctx,
-      HELPERS.teams,
-      `setof ${teamType}`,
-      scopedBody(ctx, 'team', teamType),
-    ),
-  );
+  for (const scope of ctx.scopes) {
+    const type = scopeTypeOf(ctx, scope.name);
+    chunks.push(
+      helperFunction(
+        ctx,
+        permittedIdsHelper(scope.name),
+        `setof ${type}`,
+        scopedBody(ctx, scope.name, type),
+      ),
+    );
+  }
   return `${chunks.join('\n\n')}\n`;
 }

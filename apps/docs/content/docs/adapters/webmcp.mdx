@@ -60,7 +60,7 @@ function PostTools() {
 - The `tools` Permissions-Policy: `registerTools` is a no-op with a development warning when `document.modelContext` is absent (policy denied, unsupported browser, or the polyfill not loaded).
 - Snapshot freshness: tools are registered from the snapshot's `status`; a `server-only` permission (closure grant) is not registered until the decision endpoint has answered.
 - Nothing about the user's identity: the snapshot is issued by the server and is the only source of grants.
-- Tenant arguments: if the resource schema carries the `scopes.tenant.key` field (`orgId`), the adapter fills it from the active tenant and rejects a differing value supplied by the agent before the handler runs (`tenant-mismatch`), so a browser agent cannot address another tenant's rows through a tool it holds legitimately.
+- Tenant arguments: if the resource schema carries the first scope's key field (`orgId`), the adapter fills it from the active tenant and rejects a differing value supplied by the agent before the handler runs (`tenant-mismatch`), so a browser agent cannot address another tenant's rows through a tool it holds legitimately.
 
 ## How denials surface
 

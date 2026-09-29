@@ -302,11 +302,9 @@ export function compileGrants(
     let accessExpr: string | undefined;
     if (access.kind === 'role' && grantKey !== undefined) {
       const column =
-        access.scope === 'tenant'
-          ? policy.scopes.tenant?.key
-          : access.scope === 'team'
-            ? policy.scopes.team?.key
-            : undefined;
+        access.scope === 'global'
+          ? undefined
+          : policy.scopes.find((scope) => scope.name === access.scope)?.key;
       accessExpr = accessSql(ctx, access.scope, grantKey, column);
       const row: RolePermission = {
         role: access.role,

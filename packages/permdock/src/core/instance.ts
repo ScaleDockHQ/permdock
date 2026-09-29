@@ -40,10 +40,17 @@ import { freezeDeep } from './freeze.ts';
 import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
 import { getResource, listPermissions } from './permissions.ts';
 import { grantList } from './policy.ts';
+import {
+  normalizeMemberships,
+  rootScope,
+  scopeList,
+  tenantOf,
+} from './scopes.ts';
 import { buildSnapshot, signSnapshot, snapshotGrant } from './snapshot.ts';
 import {
   isMembershipExpired,
   nowSeconds,
+  partitionsOf,
   relatesTo,
   resolveActiveTenant,
   tenantsOf,
@@ -74,13 +81,18 @@ function includePrefixes(
   });
 }
 
-function heldRoleNames(subject: Subject, tenant?: string): readonly string[] {
+function heldRoleNames(
+  policy: Policy,
+  subject: Subject,
+  tenant?: string,
+): readonly string[] {
   if (subject.principal === null) {
     return [];
   }
+  const scopes = scopeList(policy.scopes);
   const names = new Set<string>(subject.principal.roles ?? []);
   for (const membership of subject.principal.memberships ?? []) {
-    if (membership.tenant !== tenant) {
+    if (tenantOf(membership, scopes) !== tenant) {
       continue;
     }
     for (const role of membership.roles) {
@@ -102,6 +114,7 @@ export function collectSnapshotGrants(
   now: number = nowSeconds(),
   customGrants: readonly CustomGrant[] = customGrantsFor(policy, customRoles),
 ): readonly { readonly grant: Grant; readonly membership?: Membership }[] {
+  const scopes = scopeList(policy.scopes);
   const declared = declaredRoleNames(policy);
   const global = expandRoleNames(
     subject.principal?.roles ?? [],
@@ -116,14 +129,23 @@ export function collectSnapshotGrants(
         membership.roles,
         declared,
         customRoles,
-        membership.tenant,
+        tenantOf(membership, scopes),
       ).roles,
     ),
   }));
+  // No cascade: a scoped role counts only on a membership of its own scope.
+  const holds = (
+    entry: (typeof held)[number],
+    item: { readonly role: string; readonly scope: Grant['scope'] },
+  ): boolean =>
+    entry.roles.has(item.role) &&
+    (typeof item.scope === 'string'
+      ? entry.membership.scope === item.scope
+      : entry.membership.on !== undefined);
   const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
   for (const grant of grantList(policy)) {
     const resource = getResource(policy.permissions, grant.permission.resource);
-    const match = matchGrantee(grant.to, subject, now, resource);
+    const match = matchGrantee(grant.to, subject, now, resource, scopes);
     if (!match.matched) {
       continue;
     }
@@ -151,20 +173,20 @@ export function collectSnapshotGrants(
       continue;
     }
     for (const entry of held) {
-      if (scoped.every((item) => entry.roles.has(item.role))) {
+      if (scoped.every((item) => item.kind === 'role' && holds(entry, item))) {
         out.push({ grant: merged, membership: entry.membership });
       }
     }
   }
   for (const { grant, role } of customGrants) {
     const holders = held.filter((entry) =>
-      holdsCustomRole(entry.membership, role),
+      holdsCustomRole(entry.membership, role, scopes),
     );
     if (holders.length === 0) {
       continue;
     }
     const resource = getResource(policy.permissions, grant.permission.resource);
-    const match = matchGrantee(grant.to, subject, now, resource);
+    const match = matchGrantee(grant.to, subject, now, resource, scopes);
     if (!match.matched) {
       continue;
     }
@@ -192,7 +214,7 @@ function assignableCandidates(policy: Policy): readonly Role[] {
     .map((binding) =>
       synthesiseRole(
         binding.name,
-        binding.on === 'tenant' || binding.on === 'team'
+        typeof binding.on === 'string'
           ? { on: binding.on, assignable: true }
           : { assignable: true },
       ),
@@ -224,6 +246,7 @@ export function assignableIn(
   if (principal === null) {
     return { roles: [], permissions: [] };
   }
+  const scopes = scopeList(policy.scopes);
   const scoped: Subject =
     tenant === undefined
       ? subject
@@ -232,7 +255,7 @@ export function assignableIn(
             ...subject,
             principal: compact<Principal>({
               ...principal,
-              tenant: resolveActiveTenant(principal, tenant),
+              tenant: resolveActiveTenant(principal, tenant, scopes),
             }),
           }),
         );
@@ -242,12 +265,12 @@ export function assignableIn(
         (item) =>
           item.grant.effect === 'allow' &&
           (item.membership === undefined ||
-            (item.membership.tenant === tenant &&
+            (tenantOf(item.membership, scopes) === tenant &&
               !isMembershipExpired(item.membership, now))),
       )
       .map((item) => item.grant.permission.key),
   );
-  const heldNames = heldRoleNames(subject, tenant);
+  const heldNames = heldRoleNames(policy, subject, tenant);
   const quiet: EvalEnv = {
     emit: false,
     simulated: true,
@@ -292,8 +315,9 @@ export function assignableIn(
         const keys = [...roleAllowKeys(policy, leaf.key)];
         return keys.length > 0 && keys.every((key) => heldKeys.has(key));
       });
+  const root = rootScope(scopes);
   const ceiling = new Set(
-    ceilingGrants(policy, 'tenant', allowed).map(
+    (root === undefined ? [] : ceilingGrants(policy, root, allowed)).map(
       (grant) => grant.permission.key,
     ),
   );
@@ -329,7 +353,7 @@ export function snapshotOf(
   return buildSnapshot(
     compact<Parameters<typeof buildSnapshot>[0]>({
       subject,
-      roles: heldRoleNames(subject, subject.principal?.tenant),
+      roles: heldRoleNames(policy, subject, subject.principal?.tenant),
       grants: collectSnapshotGrants(
         policy,
         subject,
@@ -364,31 +388,20 @@ export function snapshotOf(
 }
 
 function snapshotScopes(policy: Policy): Snapshot['scopes'] {
-  const { tenant, team } = policy.scopes;
-  if (tenant === undefined && team === undefined) {
+  if (policy.scopes.length === 0) {
     return undefined;
   }
-  const partitioned: Record<string, { tenant?: true; team?: true }> = {};
-  for (const node of policy.resources.values()) {
-    const entry = compact<{ tenant?: true; team?: true }>({
-      tenant:
-        tenant !== undefined && relatesTo(node, tenant.key, 'tenant')
-          ? true
-          : undefined,
-      team:
-        team !== undefined && relatesTo(node, team.key, 'team')
-          ? true
-          : undefined,
+  const resources = [...policy.resources.values()];
+  return policy.scopes.map((scope) => {
+    const partitioned = resources
+      .filter((node) => partitionsOf(node, policy.scopes).includes(scope.name))
+      .map((node) => node.name);
+    return compact<NonNullable<Snapshot['scopes']>[number]>({
+      name: scope.name,
+      key: scope.key ?? '',
+      within: scope.within,
+      resources: partitioned.length === 0 ? undefined : partitioned,
     });
-    if (entry.tenant === true || entry.team === true) {
-      partitioned[node.name] = entry;
-    }
-  }
-  return compact<NonNullable<Snapshot['scopes']>>({
-    tenant,
-    team,
-    partitioned:
-      Object.keys(partitioned).length === 0 ? undefined : partitioned,
   });
 }
 
@@ -631,7 +644,14 @@ export function buildInstance(
         compact({
           resource: permission.resource,
           resources: policy.resources,
-          scopes: snapshotScopes(policy),
+          scopes: scopeList(policy.scopes),
+          partitioned: (name: string, key: string) =>
+            relatesTo(
+              getResource(policy.permissions, permission.resource),
+              key,
+              name,
+              scopeList(policy.scopes),
+            ),
           tenant: subject.principal?.tenant,
           team,
           now: nowSeconds(),
@@ -708,7 +728,12 @@ export function buildInstance(
                 ...subject.principal,
                 roles: previewRoles ?? subject.principal.roles,
                 memberships:
-                  preview.memberships ?? subject.principal.memberships,
+                  preview.memberships === undefined
+                    ? subject.principal.memberships
+                    : normalizeMemberships(
+                        preview.memberships,
+                        scopeList(policy.scopes),
+                      ),
                 tenant: preview.tenant ?? subject.principal.tenant,
               }),
             );
@@ -775,7 +800,11 @@ export function buildInstance(
           ...subject,
           principal: compact<Principal>({
             ...subject.principal,
-            tenant: resolveActiveTenant(subject.principal, id),
+            tenant: resolveActiveTenant(
+              subject.principal,
+              id,
+              scopeList(policy.scopes),
+            ),
           }),
         }),
       );
@@ -788,10 +817,11 @@ export function buildInstance(
       return subject.principal?.memberships ?? [];
     },
     tenants(): readonly string[] {
-      return tenantsOf(subject.principal);
+      return tenantsOf(subject.principal, scopeList(policy.scopes));
     },
     heldRoles(options?: { readonly tenant?: string }): readonly Role[] {
       const names = heldRoleNames(
+        policy,
         subject,
         options?.tenant ?? subject.principal?.tenant,
       );

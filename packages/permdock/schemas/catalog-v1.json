@@ -32,10 +32,30 @@
             "type": "string"
           },
           "on": {
-            "enum": ["tenant", "team", "resource"]
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
           },
           "assignable": {
             "type": "boolean"
+          }
+        }
+      }
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "key"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "key": {
+            "type": "string"
+          },
+          "within": {
+            "type": "string"
           }
         }
       }

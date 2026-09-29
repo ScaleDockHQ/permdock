@@ -28,7 +28,7 @@ An object literal is an implicit `and` over its fields. A field value is either 
 | `isNull` | `true` or `false` | `IS NULL`, `IS NOT NULL` |
 | `contains` | array column contains value, or string contains substring (typed by the field) | `@>` or `LIKE` |
 | `and`, `or`, `not` | compound | `AND`, `OR`, `NOT` |
-| `memberOf` | the row's scope field names a tenant, team or resource where the subject holds one of the listed roles; emitted by scoped role declarations, not written by hand | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)` |
+| `memberOf` | the row's scope field names an instance of a named scope (or a resource) where the subject holds one of the listed roles, through a membership of exactly that scope; emitted by scoped role declarations, not written by hand | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)` |
 | `sqlFunction` | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run | `name(args)` (`--inline-functions` emits the twin instead) |
 
 That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/standards/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition. `sqlFunction` is the node for SQL-authority policies whose database helper is the source of truth:

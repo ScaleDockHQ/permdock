@@ -1,12 +1,18 @@
 import type { Condition } from '../conditions/ast.ts';
-import type { Snapshot, SnapshotGrant } from './interfaces.ts';
+import type { SnapshotGrant } from './interfaces.ts';
 import type { WhereResult } from './permdock.ts';
 import type { ResourceNode } from './permissions.ts';
 import type { Membership, Subject } from './subject.ts';
 
 import { bindConditionRefs } from '../conditions/bind.ts';
 import { freezeDeep } from './freeze.ts';
-import { isMembershipExpired, membershipField } from './tenancy.ts';
+import { type Scope, findScope, scopeChain, scopeIdOf } from './scopes.ts';
+import {
+  activeFor,
+  inTeam,
+  isMembershipExpired,
+  membershipField,
+} from './tenancy.ts';
 
 const ALWAYS: Condition = { op: 'eq', field: '_', value: true };
 
@@ -14,7 +20,9 @@ export type WhereScope = {
   readonly resource: string;
   /** The policy's resource graph; a snapshot carries none. */
   readonly resources?: ReadonlyMap<string, ResourceNode>;
-  readonly scopes: Snapshot['scopes'];
+  readonly scopes: readonly Scope[];
+  /** Whether `resource`'s rows are partitioned by the scope's key. */
+  readonly partitioned: (scope: string, key: string) => boolean;
   readonly tenant: string | undefined;
   readonly team: string | undefined;
   readonly now: number;
@@ -27,26 +35,24 @@ function eq(field: string, value: string | undefined): Condition {
     : { op: 'eq', field, value };
 }
 
-function tenantFilters(
+/** One equality per partitioning scope key on the membership's chain, outermost first. */
+function namedFilters(
   membership: Membership,
   scope: WhereScope,
-  withTeam: boolean,
 ): Condition[] | null {
-  if (scope.tenant === undefined || membership.tenant !== scope.tenant) {
+  if (
+    !inTeam(membership, scope.scopes, scope.team) ||
+    !activeFor(membership, scope.scopes, scope.tenant) ||
+    membership.scope === undefined
+  ) {
     return null;
   }
-  if (withTeam && scope.team !== undefined && membership.team !== scope.team) {
-    return null;
-  }
-  const partitioned = scope.scopes?.partitioned?.[scope.resource];
   const filters: Condition[] = [];
-  const tenantKey = scope.scopes?.tenant?.key;
-  if (partitioned?.tenant === true && tenantKey !== undefined) {
-    filters.push(eq(tenantKey, membership.tenant));
-  }
-  const teamKey = scope.scopes?.team?.key;
-  if (withTeam && partitioned?.team === true && teamKey !== undefined) {
-    filters.push(eq(teamKey, membership.team));
+  for (const name of scopeChain(scope.scopes, membership.scope).toReversed()) {
+    const key = findScope(scope.scopes, name)?.key;
+    if (key !== undefined && scope.partitioned(name, key)) {
+      filters.push(eq(key, scopeIdOf(membership, name)));
+    }
   }
   return filters;
 }
@@ -66,8 +72,10 @@ function scopeFilters(
   if (membership === undefined || isMembershipExpired(membership, scope.now)) {
     return null;
   }
-  if (grant.scope === 'tenant' || grant.scope === 'team') {
-    return tenantFilters(membership, scope, grant.scope === 'team');
+  if (typeof grant.scope === 'string') {
+    return membership.scope === grant.scope
+      ? namedFilters(membership, scope)
+      : null;
   }
   const on = membership.on;
   if (on === undefined) {
@@ -117,7 +125,11 @@ function scopedCondition(
 }
 
 /** Whether an unconditional `deny` removes every row `allow` could reach. */
-function covers(deny: SnapshotGrant, allow: SnapshotGrant): boolean {
+function covers(
+  deny: SnapshotGrant,
+  allow: SnapshotGrant,
+  scopes: readonly Scope[],
+): boolean {
   if (deny.where !== undefined) {
     return false;
   }
@@ -136,10 +148,14 @@ function covers(deny: SnapshotGrant, allow: SnapshotGrant): boolean {
       denied.on?.id === allowed.on?.id
     );
   }
+  if (typeof allow.scope !== 'string' || allowed.scope === undefined) {
+    return false;
+  }
+  // The deny's instance contains the allow's: same ids along the deny's chain.
+  const chain = scopeChain(scopes, deny.scope);
   return (
-    typeof allow.scope !== 'object' &&
-    denied.tenant === allowed.tenant &&
-    (deny.scope === 'tenant' || denied.team === allowed.team)
+    scopeChain(scopes, allowed.scope).includes(deny.scope) &&
+    chain.every((name) => scopeIdOf(allowed, name) === scopeIdOf(denied, name))
   );
 }
 
@@ -178,7 +194,7 @@ function collect(
     const condition = scopedCondition(grant, scope);
     if (
       condition === null ||
-      denies.some((deny) => covers(deny.grant, grant))
+      denies.some((deny) => covers(deny.grant, grant, scope.scopes))
     ) {
       continue;
     }
@@ -216,6 +232,10 @@ export function whereFromGrants(
   };
   Object.defineProperty(result, 'subject', {
     value: scope.subject,
+    enumerable: false,
+  });
+  Object.defineProperty(result, 'scopes', {
+    value: scope.scopes,
     enumerable: false,
   });
   return freezeDeep(result) as WhereResult;

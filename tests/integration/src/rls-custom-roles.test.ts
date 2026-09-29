@@ -516,7 +516,8 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
                 role: 'authenticated',
                 memberships: [
                   {
-                    tenant: 'acme',
+                    scope: 'tenant',
+                    id: 'acme',
                     roles: [role],
                     grants: customRoleClaim(held),
                   },

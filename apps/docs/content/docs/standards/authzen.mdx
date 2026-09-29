@@ -96,7 +96,7 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a t
 | --- | --- |
 | `subject.type`, `subject.id` | `principal` (`principal.id` in policy conditions) |
 | `subject.properties` | Principal fields returned by `definePolicy`'s `subject` function, plus `actor` |
-| `subject.properties.memberships` | `principal.memberships` (tenant, team and resource roles, [tenancy](/docs/concepts/tenancy)) |
+| `subject.properties.memberships` | `principal.memberships` (named-scope and resource roles, [tenancy](/docs/concepts/tenancy)) |
 | `context.tenant` | `principal.tenant`, the active tenant for this request; absent means no tenant, never a default |
 | `.well-known/authzen-configuration/<tenant>` | Per-tenant PDP metadata served by `handler` and the hosted ADS when the deployment is multi-tenant |
 | `action.name` | `permission.key` (`post.update`) resolved with `findPermission`, or the bare action (`update`) of the resource named by `resource.type` |

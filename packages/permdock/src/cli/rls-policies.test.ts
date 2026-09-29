@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { RlsSqlContext } from './rls-sql.ts';
 
+import { scopeList } from '../core/scopes.ts';
 import {
   allow,
   anyone,
@@ -19,6 +20,7 @@ const permissions = definePermissions({
   post: resource({
     actions: ['read', 'update', 'delete'],
     collection: ['list', 'create'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
   }),
 });
 const { post } = permissions;
@@ -45,6 +47,7 @@ const policy = definePolicy(permissions, {
 const ctx: RlsSqlContext = {
   dialect: 'supabase',
   tenantClaim: 'tenant_id',
+  scopes: scopeList(undefined),
   gucPrefix: 'app',
 };
 

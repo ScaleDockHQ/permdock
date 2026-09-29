@@ -10,6 +10,7 @@ export const permissions = definePermissions({
   post: resource(Post, {
     id: 'id',
     actions: ['read'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
   }),
 });
 

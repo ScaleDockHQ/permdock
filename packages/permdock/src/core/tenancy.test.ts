@@ -6,6 +6,7 @@ import { fromSnapshot } from './from-snapshot.ts';
 import { createPermDock } from './permdock.ts';
 import { definePermissions, resource } from './permissions.ts';
 import { allow, definePolicy, role } from './policy.ts';
+import { defineScopes, normalizeMemberships } from './scopes.ts';
 import { parseSnapshot } from './snapshot.ts';
 import {
   matchScopedMembership,
@@ -16,26 +17,37 @@ import { defineRoles } from './vocabulary.ts';
 
 describe('tenancy', () => {
   it('never defaults the active tenant', () => {
+    const scopes = defineScopes({ tenant: { key: 'orgId' } });
     const principal = {
       id: 'u1',
-      memberships: [{ tenant: 'o1', roles: ['viewer'] }],
+      memberships: normalizeMemberships(
+        [{ tenant: 'o1', roles: ['viewer'] }],
+        scopes,
+      ),
     };
-    expect(resolveActiveTenant(principal, 'o2')).toBeUndefined();
-    expect(resolveActiveTenant(principal, 'o1')).toBe('o1');
-    expect(tenantsOf(principal)).toEqual(['o1']);
+    expect(resolveActiveTenant(principal, 'o2', scopes)).toBeUndefined();
+    expect(resolveActiveTenant(principal, 'o1', scopes)).toBe('o1');
+    expect(tenantsOf(principal, scopes)).toEqual(['o1']);
   });
 
   it('matches tenant, team and expired memberships', () => {
     const now = 1000;
+    const scopes = defineScopes({
+      tenant: { key: 'orgId' },
+      team: { key: 'teamId', within: 'tenant' },
+    });
     const subject: Subject = {
       principal: {
         id: 'u1',
         tenant: 'o1',
-        memberships: [
-          { tenant: 'o1', roles: ['viewer'] },
-          { tenant: 'o1', team: 't1', roles: ['lead'] },
-          { tenant: 'o1', roles: ['stale'], expiresAt: 10 },
-        ],
+        memberships: normalizeMemberships(
+          [
+            { tenant: 'o1', roles: ['viewer'] },
+            { tenant: 'o1', team: 't1', roles: ['lead'] },
+            { tenant: 'o1', roles: ['stale'], expiresAt: 10 },
+          ],
+          scopes,
+        ),
       },
       context: {},
     };
@@ -45,7 +57,7 @@ describe('tenancy', () => {
         'tenant',
         'viewer',
         { orgId: 'o1' },
-        { tenant: { key: 'orgId' } },
+        scopes,
         undefined,
         new Map(),
         now,
@@ -56,19 +68,43 @@ describe('tenancy', () => {
         subject,
         'team',
         'lead',
-        { teamId: 't1' },
-        { team: { key: 'teamId' } },
+        { orgId: 'o1', teamId: 't1' },
+        scopes,
         undefined,
         new Map(),
         now,
       ).ok,
     ).toBe(true);
+    expect(
+      matchScopedMembership(
+        subject,
+        'team',
+        'lead',
+        { orgId: 'o2', teamId: 't1' },
+        scopes,
+        undefined,
+        new Map(),
+        now,
+      ),
+    ).toEqual({ ok: false, reason: 'tenant-mismatch' });
+    expect(
+      matchScopedMembership(
+        subject,
+        'tenant',
+        'lead',
+        { orgId: 'o1' },
+        scopes,
+        undefined,
+        new Map(),
+        now,
+      ).ok,
+    ).toBe(false);
     const expired = matchScopedMembership(
       subject,
       'tenant',
       'stale',
       { orgId: 'o1' },
-      { tenant: { key: 'orgId' } },
+      scopes,
       undefined,
       new Map(),
       now,

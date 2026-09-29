@@ -171,7 +171,7 @@ describe('RLS parity', () => {
           subject: {
             id: 'u1',
             roles: ['member'],
-            memberships: [{ team: 't1', roles: ['member'] }],
+            memberships: [{ tenant: 'o1', team: 't1', roles: ['member'] }],
           },
           permission: permissions.job.read,
           row: teamJob,
@@ -182,7 +182,7 @@ describe('RLS parity', () => {
           subject: {
             id: 'u1',
             roles: ['member'],
-            memberships: [{ team: 't1', roles: ['member'] }],
+            memberships: [{ tenant: 'o1', team: 't1', roles: ['member'] }],
           },
           permission: permissions.job.read,
           row: foreignJob,

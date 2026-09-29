@@ -213,7 +213,15 @@ describe('supabaseRls and authorizeSql', () => {
       customRoles: { declared: [] },
     });
     expect(jwt).toContain("(select m -> 'grants' -> r.role as g) cg");
-    expect(jwt).toContain("and m ->> 'team' is null");
+    expect(jwt).toContain("where m ->> 'scope' = 'tenant'");
+    expect(
+      authorizeSql({
+        authorize: 'jwt',
+        scope: 'organization',
+        customRoles: { declared: [] },
+      }),
+    ).toContain("rp.scope = 'organization'");
+    expect(() => authorizeSql({ scope: 'bad scope' })).toThrow(/unsafe scope/);
     expect(jwt).toContain("any('{}'::text[])");
     expect(jwt).not.toContain('custom_role_permissions');
   });

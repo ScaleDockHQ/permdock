@@ -1,6 +1,6 @@
 ---
 title: Supabase
-description: The permdock/supabase provider maps Supabase JWT claims to a PermDock subject, scaffolds the authorize() RBAC tables and hook, and pairs them with the per-statement RLS helpers (permdock_has, permitted_tenant_ids, permitted_team_ids) that generated policies call.
+description: The permdock/supabase provider maps Supabase JWT claims to a PermDock subject, scaffolds the authorize() RBAC tables and hook, and pairs them with the per-statement RLS helpers (permdock_has, one permitted_<scope>_ids per named scope) that generated policies call.
 ---
 
 `permdock/supabase` is a provider: it does not check permissions itself, it produces the subject PermDock checks against, from a Supabase session or access token. It also owns the Supabase-specific half of [RLS generation](/docs/adapters/rls): the `user_roles` / `authorize()` / hook scaffold from Supabase's RBAC guide, over the same `role_permissions` table the generated RLS helpers (`permdock_has`, `permitted_<scope>_ids`) read.
@@ -21,7 +21,7 @@ const { data, error } = await supabase.auth.getClaims()
 const permdock = await createPermDock(policy, subjectFromSupabase(error ? null : data.claims, {
   roles: 'user_role',                    // hook-injected; global roles
   tenant: 'tenant_id',                   // hook-injected; the active tenant
-  memberships: 'memberships',            // hook-injected [{ tenant, team?, roles }] from your tables, optional
+  memberships: 'memberships',            // hook-injected [{ scope, id, within?, roles }] from your tables, optional
 }))
 
 // permdock.config.ts: RLS compile hints (not on definePolicy)
@@ -35,7 +35,7 @@ export default defineConfig({
 })
 ```
 
-- `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from the configured role claim (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from the configured tenant claim (default `tenant_id`, hook-injected or under `app_metadata`); `memberships` comes from a hook-injected claim of `{ tenant, team?, roles }` entries when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
+- `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from the configured role claim (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from the configured tenant claim (default `tenant_id`, hook-injected or under `app_metadata`); `memberships` comes from a hook-injected claim of `{ scope, id, within?, roles, via?, expiresAt? }` entries (the [named scopes](/docs/concepts/scopes) form; `{ tenant, team? }` is still read) when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
 - `options.schema` (any Standard Schema, for example a Zod object) validates and types the custom claims before they reach `principal.claims`; an invalid claim set drops `claims` with a development warning, never the subject.
 - `supabaseRls(options)` is the `rls` value in `permdock.config.ts`. It tells `permdock rls` how `principal.id` (`(select auth.uid())`), `principal.claim.<name>` (`(select auth.jwt()) ->> 'claim'`), `principal.roles` (the `permdock_has` helper) and tenant-scoped roles (the `permitted_tenant_ids` helper, over the membership table or the `memberships` claim) compile; `tenantType` sets the tenant column type the claim is cast to (default `uuid`) ([tenancy](/docs/concepts/tenancy), portable compilation).
 - `authorizeSql({ schema, authorize, tenant })` is the `authorize(requested_permission, requested_tenant text default null)` function SQL. `authorize: 'database'` (the default) reads `user_roles`, and for a tenant request the membership table passed as `tenant`. `authorize: 'jwt'` reads the hook-injected `user_role` (falling back to `app_metadata.user_role` when the top-level claim is `null`) and `memberships` claims. A tenant request with no memberships source returns `false`; it is never answered from global roles. `permdock rls generate --rbac supabase` emits the same function. It reads `role_permissions` by `permission`, keeps only `effect = 'allow'` rows of the matching scope, and ignores row conditions: it is for hand-written policies and RPCs. With `customRoles: { declared }` (what `generate --rbac supabase --custom-roles` passes), a tenant request also answers from the membership's [custom roles](/docs/concepts/custom-roles): the `custom_role_*` tables in `database` mode, the `memberships[].grants` claim in `jwt` mode, both through the `permdock_custom_keys` function and the ceiling view the same command generates. `declared` role names never resolve as custom.
@@ -43,7 +43,7 @@ export default defineConfig({
   - re-runnable enums `app_role` and `app_permission`;
   - table `user_roles(user_id, role)` (a user may hold several roles), with RLS enabled and no client grants;
   - the shared `role_permissions(role, permission, grant_key, scope, effect)` table and its seed rows, from role grants and top-level `definePolicy({ grants })` alike (every `rls generate` emits these, with or without `--rbac`);
-  - the `permdock_has`, `permitted_tenant_ids` and `permitted_team_ids` helpers, `security definer` with `search_path = ''`, executable by `authenticated` only;
+  - the `permdock_has` helper and one `permitted_<scope>_ids` per declared scope, `security definer` with `search_path = ''`, executable by `authenticated` only;
   - `authorize()` as above, executable by `authenticated` only;
   - `custom_access_token_hook(event jsonb)` with `set search_path = ''`, writing `user_role` (a string, or an array for several roles) only when the user has a role row;
   - the `supabase_auth_admin` grants, revokes and read policy the hook needs.

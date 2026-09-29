@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { RlsSqlContext } from './rls-sql.ts';
 
+import { scopeList } from '../core/scopes.ts';
 import {
   allow,
   definePermissions,
@@ -170,6 +171,7 @@ describe('tenant claim casts', () => {
   const base = {
     dialect: 'supabase',
     tenantClaim: 'tenant_id',
+    scopes: scopeList(undefined),
     gucPrefix: 'app',
   } as const;
 

@@ -16,14 +16,22 @@ export type RlsMembershipTable = {
   readonly table: string;
   readonly user: string;
   readonly role: string;
+  /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
+  readonly columns?: Readonly<Record<string, string>>;
+  /** Column of the first scope's id; shorthand for `columns[<first scope>]`. */
   readonly tenant?: string;
+  /** Column of the second scope's id; shorthand for `columns[<second scope>]`. */
   readonly team?: string;
   readonly id?: string;
   readonly expiresAt?: string;
 };
 
 export type RlsMemberships = {
+  /** The membership table of each named scope. */
+  readonly scopes?: Readonly<Record<string, RlsMembershipTable>>;
+  /** The first scope's table; shorthand for `scopes[<first scope>]`. */
   readonly tenant?: RlsMembershipTable;
+  /** The second scope's table; shorthand for `scopes[<second scope>]`. */
   readonly team?: RlsMembershipTable;
   readonly resource?: Readonly<Record<string, RlsMembershipTable>>;
 };
@@ -47,6 +55,8 @@ export type RlsConfig = {
   readonly tenantType?: string;
   /** Postgres type of team columns; defaults to `tenantType`. */
   readonly teamType?: string;
+  /** Postgres type of each named scope's id column; overrides `tenantType` / `teamType`. */
+  readonly scopeTypes?: Readonly<Record<string, string>>;
   readonly roleClaim?: string;
   readonly gucPrefix?: string;
   readonly out?: string;
@@ -127,8 +137,16 @@ export type CatalogResource = {
 
 export type CatalogRole = {
   readonly key: string;
-  readonly on?: 'tenant' | 'team' | 'resource';
+  /** A declared scope name, or `resource`; absent for a global role. */
+  readonly on?: string;
   readonly assignable?: boolean;
+};
+
+/** One declared scope, in declaration order. */
+export type CatalogScope = {
+  readonly name: string;
+  readonly key: string;
+  readonly within?: string;
 };
 
 export type CatalogDocument = {
@@ -140,6 +158,8 @@ export type CatalogDocument = {
   readonly fingerprint?: string;
   readonly resources: Readonly<Record<string, CatalogResource>>;
   readonly permissions: readonly CatalogPermission[];
+  /** The policy's scopes in order; absent when it declares none. */
+  readonly scopes?: readonly CatalogScope[];
   readonly roles?: readonly CatalogRole[];
   readonly plans?: readonly { readonly key: string }[];
 };

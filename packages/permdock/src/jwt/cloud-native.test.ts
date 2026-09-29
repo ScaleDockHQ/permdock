@@ -35,10 +35,12 @@ const permissions = definePermissions({
   doc: resource(z.object({ id: z.string(), orgId: z.string() }), {
     id: 'id',
     actions: ['read', 'update'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
   }),
   report: resource(z.object({ id: z.string(), orgId: z.string() }), {
     id: 'id',
     actions: ['export'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
   }),
 });
 

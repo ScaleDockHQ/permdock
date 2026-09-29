@@ -9,6 +9,7 @@ import { flattenGrantee } from './grantee.ts';
 import { collectSnapshotGrants } from './instance.ts';
 import { grantList } from './policy.ts';
 import { resolveSubject } from './resolve-subject.ts';
+import { scopeList, tenantOf } from './scopes.ts';
 import { isThenable } from './thenable.ts';
 import { listPlans } from './vocabulary.ts';
 
@@ -80,12 +81,14 @@ export function mayAccess(
             principal: {
               ...principal,
               plans: policyPlans(policy),
-              memberships: (principal.memberships ?? []).filter(
-                (item) =>
+              memberships: (principal.memberships ?? []).filter((item) => {
+                const owner = tenantOf(item, scopeList(policy.scopes));
+                return (
                   tenant === undefined ||
-                  item.tenant === undefined ||
-                  item.tenant === tenant,
-              ),
+                  owner === undefined ||
+                  owner === tenant
+                );
+              }),
             },
           };
     const matched = collectSnapshotGrants(policy, subject, []).filter(

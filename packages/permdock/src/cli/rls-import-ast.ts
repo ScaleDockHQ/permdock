@@ -338,16 +338,17 @@ export type HelperCall = {
   readonly column?: string;
 };
 
-const HELPER_SCOPES: ReadonlyMap<string, HelperScope> = new Map([
-  [HELPERS.has, 'global'],
-  [HELPERS.tenants, 'tenant'],
-  [HELPERS.teams, 'team'],
-]);
+const PERMITTED = /^permitted_([a-z][a-z0-9_]*)_ids$/u;
 
 function helperScope(name: string | undefined): HelperScope | undefined {
-  return name === undefined
-    ? undefined
-    : HELPER_SCOPES.get(name.slice(name.lastIndexOf('.') + 1));
+  if (name === undefined) {
+    return undefined;
+  }
+  const bare = name.slice(name.lastIndexOf('.') + 1);
+  if (bare === HELPERS.has) {
+    return 'global';
+  }
+  return PERMITTED.exec(bare)?.[1];
 }
 
 function helperKey(call: unknown): string | undefined {
@@ -536,7 +537,7 @@ const SEED_COLUMNS = [
 ] as const;
 
 function asScope(value: unknown): HelperScope | undefined {
-  return value === 'global' || value === 'tenant' || value === 'team'
+  return typeof value === 'string' && /^[a-z][a-z0-9_]*$/u.test(value)
     ? value
     : undefined;
 }
@@ -662,6 +663,12 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
   }
   const table = membershipTable(node);
   if (table !== undefined) {
+    for (const [scope, mapped] of Object.entries(memberships?.scopes ?? {})) {
+      const column = mapped.columns?.[scope];
+      if (mapped.table === table && column !== undefined) {
+        return { op: 'memberOf', scope, field: column, roles: [] };
+      }
+    }
     if (memberships?.tenant?.table === table) {
       return {
         op: 'memberOf',

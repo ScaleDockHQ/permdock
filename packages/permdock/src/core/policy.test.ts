@@ -69,7 +69,7 @@ describe('policy', () => {
         ],
         subject: () => ({ id: 'u1' }),
       }),
-    ).toThrow(/scopes.tenant/);
+    ).toThrow(/must declare 'tenant'/);
   });
 
   it('keeps the on option of a role leaf on its grants', () => {

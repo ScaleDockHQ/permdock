@@ -28,13 +28,24 @@ export type Assurance = {
   readonly verified?: readonly VerifiedClaims[];
 };
 
+/**
+ * Roles held in one scope instance (`scope` + `id`, with the id of every
+ * ancestor scope in `within`) or on one resource (`on`). Evaluation only sees
+ * the canonical form; `tenant` / `team` are accepted as input for the first
+ * and second declared scope and normalised away.
+ */
 export type Membership = {
-  readonly tenant?: string;
-  readonly team?: string;
+  readonly scope?: string;
+  readonly id?: string;
+  readonly within?: Readonly<Record<string, string>>;
   readonly on?: { readonly resource: string; readonly id: string };
   readonly roles: readonly string[];
   readonly via?: string;
   readonly expiresAt?: number;
+  /** Input only: an instance of the first scope. */
+  readonly tenant?: string;
+  /** Input only: an instance of the second scope, inside `tenant`. */
+  readonly team?: string;
 };
 
 /**
@@ -47,8 +58,13 @@ export type CustomRoleGrant = {
 };
 
 export type CustomRole = {
+  /** The instance of the first scope that owns the role. */
   readonly tenant: string;
-  /** Set for a team-scoped custom role; its ceiling is the assignable team roles. */
+  /** The scope the role is held at; defaults to the first scope. Its ceiling is that scope's assignable roles. */
+  readonly scope?: string;
+  /** Pins the role to one instance of `scope`. */
+  readonly id?: string;
+  /** Input only: `scope` = the second scope, `id` = this team. */
   readonly team?: string;
   readonly name: string;
   readonly includes?: readonly string[];

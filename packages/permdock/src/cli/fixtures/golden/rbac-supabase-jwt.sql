@@ -35,7 +35,7 @@ create table if not exists "app".role_permissions (
   role text not null,
   permission text not null,
   grant_key text not null,
-  scope text not null check (scope in ('global', 'tenant', 'team')),
+  scope text not null check (scope ~ '^[a-z][a-z0-9_]*$'),
   effect text not null default 'allow' check (effect in ('allow', 'deny')),
   primary key (role, grant_key, scope)
 );
@@ -98,7 +98,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select (m ->> 'tenant')::uuid
+  select (m ->> 'id')::uuid
   from jsonb_array_elements(
       case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
     ) m
@@ -109,8 +109,9 @@ as $$
   where coalesce((select auth.uid())::text, '') <> ''
     and rp.grant_key = p_grant
     and rp.scope = 'tenant'
-    and m ->> 'tenant' is not null
-    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'tenant' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and m ->> 'scope' = 'tenant'
+    and m ->> 'id' is not null
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     and case jsonb_typeof(m -> 'expiresAt')
       when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
       else true
@@ -118,34 +119,6 @@ as $$
 $$;
 revoke execute on function "app".permitted_tenant_ids(text) from public, anon;
 grant execute on function "app".permitted_tenant_ids(text) to authenticated;
-
-create or replace function "app".permitted_team_ids(p_grant text)
-returns setof uuid
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select (m ->> 'team')::uuid
-  from jsonb_array_elements(
-      case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
-    ) m
-    cross join lateral jsonb_array_elements_text(
-      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
-    ) r(role)
-  join "app".role_permissions rp on rp.role = r.role
-  where coalesce((select auth.uid())::text, '') <> ''
-    and rp.grant_key = p_grant
-    and rp.scope = 'team'
-    and m ->> 'team' is not null
-    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'tenant' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
-    and case jsonb_typeof(m -> 'expiresAt')
-      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
-      else true
-    end
-$$;
-revoke execute on function "app".permitted_team_ids(text) from public, anon;
-grant execute on function "app".permitted_team_ids(text) to authenticated;
 
 create or replace function "app"."authorize"(
   requested_permission "app"."app_permission",
@@ -177,7 +150,8 @@ begin
         case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
       ) r(role)
       join "app"."role_permissions" rp on rp.role = r.role
-      where m ->> 'tenant' = requested_tenant
+      where m ->> 'scope' = 'tenant'
+        and m ->> 'id' = requested_tenant
         and rp.permission = requested_permission::text
         and rp.scope = 'tenant'
         and rp.effect = 'allow'

@@ -51,7 +51,7 @@ const subject = await subjectFromJwt(request, {
 | --- | --- | --- |
 | `sub` | The Cloud user id | `principal.id` |
 | `roles` | Declared global roles (no `on`) the principal holds in the active tenant, from assignments plus group memberships at issue time | `principal.roles` |
-| `memberships` | `[{ tenant, roles, team? }]` for declared `assignable` roles with `on: 'tenant'` or `'team'` | `principal.memberships` |
+| `memberships` | `[{ tenant, roles, team? }]` for declared `assignable` roles with `on: 'tenant'` or `'team'`, normalised to the [named scopes](/docs/concepts/scopes) form on read (the canonical `{ scope, id, within? }` form is planned for the Cloud) | `principal.memberships` |
 | The tenant claim (`org_id` unless the environment configures another name) | The active tenant of the exchange | The active tenant (`claims.tenant`), kept only when a membership matches it |
 | `groups` | Directory group ids | Team memberships through `groupRoles` or a `MembershipSource` |
 | `entitlements` | Plans held | `principal.plans` |

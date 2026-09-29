@@ -40,14 +40,13 @@ Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH 
 
 ### Role checks: per-statement helpers
 
-Every generated file starts with three helper functions and the table they read, all in one schema (`--rbac-schema`, `rls.schema`, default `public`):
+Every generated file starts with the helper functions and the table they read, all in one schema (`--rbac-schema`, `rls.schema`, default `public`): `permdock_has` for global roles and one `permitted_<scope>_ids` per [named scope](/docs/concepts/scopes) the policy declares (`permitted_tenant_ids` and `permitted_team_ids` for a policy that declares none):
 
 | Object | What it answers |
 | --- | --- |
-| `role_permissions (role, permission, grant_key, scope, effect)` | Which declared role holds which grant key at which scope (`global`, `tenant`, `team`). Seeded by `generate` with an upsert; rows it no longer emits are deleted. |
+| `role_permissions (role, permission, grant_key, scope, effect)` | Which declared role holds which grant key at which scope (`global` or a scope name). Seeded by `generate` with an upsert; rows it no longer emits are deleted. |
 | `permdock_has(p_grant text) returns boolean` | Does the subject hold a global role with this grant key |
-| `permitted_tenant_ids(p_grant text) returns setof <tenant type>` | Which tenants the subject holds this grant key in |
-| `permitted_team_ids(p_grant text) returns setof <team type>` | Which teams the subject holds this grant key in |
+| `permitted_<scope>_ids(p_grant text) returns setof <scope type>` | Which instances of the scope the subject holds this grant key in, through memberships of exactly that scope (no cascade) |
 
 The helpers are `language sql stable security definer set search_path = ''` with fully qualified names; `execute` is revoked from `public` and `anon` and granted to `authenticated`. Policies call them uncorrelated, so Postgres evaluates each call once per statement instead of once per row:
 
@@ -61,12 +60,32 @@ A grant key is the permission key. When roles grant one permission with differen
 
 `--authorize` chooses where the helpers read roles and memberships:
 
-| Mode | Global roles | Tenant and team memberships |
+| Mode | Global roles | Scope memberships |
 | --- | --- | --- |
-| `database` | `<schema>.user_roles (user_id, role)`: the RBAC scaffold's table, or one `generate` creates | The `--memberships` / `rls.memberships.tenant` (and `.team`) table; without one, the helper returns no rows and the command warns |
-| `jwt` | The `rls.roleClaim` claim (default `user_role`, a string or an array; Supabase falls back to `app_metadata`) | The `memberships` claim, `[{ tenant, team?, roles, expiresAt? }]` |
+| `database` | `<schema>.user_roles (user_id, role)`: the RBAC scaffold's table, or one `generate` creates | Each scope's table from `rls.memberships.scopes.<scope>` (`--memberships` and `rls.memberships.tenant` / `.team` for the first and second scope); without one, that helper returns no rows and the command warns |
+| `jwt` | The `rls.roleClaim` claim (default `user_role`, a string or an array; Supabase falls back to `app_metadata`) | The `memberships` claim, `[{ scope, id, within?, roles, expiresAt? }]`; each helper reads the entries whose `scope` is its own |
 
-With the `guc` dialect the claims are settings: `<prefix>.user_role` holds a comma-separated role list and `<prefix>.memberships` holds the JSON array. When the active-tenant claim is set, the tenant and team helpers only return that tenant.
+With the `guc` dialect the claims are settings: `<prefix>.user_role` holds a comma-separated role list and `<prefix>.memberships` holds the JSON array. When the active-tenant claim is set, the helper of every scope under the first only returns memberships inside that tenant (the membership's `id` for the first scope, its `within` entry for the others).
+
+A scope's membership table names the column of its own id and of each ancestor it carries:
+
+```ts
+rls: {
+  authorize: 'database',
+  scopeTypes: { organization: 'uuid', customer: 'uuid' },
+  memberships: {
+    scopes: {
+      organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } },
+      customer: {
+        table: 'customer_contacts', user: 'user_id', role: 'role',
+        columns: { customer: 'customer_id', organization: 'organization_id' },
+      },
+    },
+  },
+}
+```
+
+`tenant` and `team` on a table are shorthands for the first and second scope's column, so `{ table, tenant: 'org_id', user, role }` keeps working.
 
 ### Policy layout
 
@@ -83,11 +102,11 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 | `--rbac` | `supabase` | off | Emit the RBAC scaffold (`--rbac-scaffold` is an equivalent spelling). Any other value exits 2; so does a dialect other than `supabase`. |
 | `--rbac-schema` | a Postgres identifier | `rls.schema`, `rls.rbac.schema`, or `public` | Schema for `role_permissions`, the helpers, and the RBAC scaffold. |
 | `--authorize` | `database`, `jwt` | `rls.authorize`, `rls.rbac.authorize`, else `database` with `--rbac` or a memberships table and `jwt` otherwise | Where the helpers (and `authorize()`) read roles and memberships. `jwt` needs no query but stays stale until the token refreshes (doctor PD019). |
-| `--memberships` | `<table>:tenant,user,role[,expires_at]` | `rls.memberships.tenant` | The tenant memberships table `database` mode reads. |
-| `--tenant-type` | a Postgres type | `rls.tenantType`, or `uuid` | Type of tenant columns: the tenant claim is cast to it and `permitted_tenant_ids` returns it. `rls.teamType` does the same for teams and defaults to the tenant type. |
+| `--memberships` | `<table>:tenant,user,role[,expires_at]` | `rls.memberships.tenant` | The first scope's memberships table `database` mode reads. Other scopes come from `rls.memberships.scopes`. |
+| `--tenant-type` | a Postgres type | `rls.tenantType`, or `uuid` | Type of the first scope's columns: the tenant claim is cast to it and its helper returns it. `rls.teamType` does the same for the second scope and defaults to the tenant type; `rls.scopeTypes` sets any scope by name. |
 | `--policy-per-role` | flag | `rls.policyPerRole`, off | One policy per role and permission (`{role}_{permission}`, the layout before the helpers), each still calling the helpers. |
 | `--policy-name` | template | `{table}_{op}`, or `{role}_{permission}` with `--policy-per-role` | Policy names from `{table}`, `{op}`, `{role}` and `{permission}`. A collapsed layout needs `{table}` and `{op}` and rejects `{role}` and `{permission}`. |
-| `--custom-roles` | flag | `rls.customRoles`, off | The tenant and team helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles), always intersected with the generated `permdock_ceiling` view. `database` mode adds the `custom_role_permissions` and `custom_role_includes` tables; `jwt` mode reads the `memberships[].grants` claim. With `--rbac`, `authorize()` answers tenant requests from custom roles too. |
+| `--custom-roles` | flag | `rls.customRoles`, off | The scope helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles), always intersected with the generated `permdock_ceiling` view. `database` mode adds the `custom_role_permissions` and `custom_role_includes` tables; `jwt` mode reads the `memberships[].grants` claim. With `--rbac`, `authorize()` answers tenant requests from custom roles too. |
 
 `--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
 
@@ -99,14 +118,14 @@ With `--rbac`, the command prints the `config.toml` stanza that enables the hook
 
 | Object | What it holds |
 | --- | --- |
-| `custom_role_permissions (tenant_id, team_id, role, permission, effect)` | `database` mode: one row per `CustomRole.grants` entry; `team_id` is null for a tenant custom role, `effect` is `allow` or `deny` |
-| `custom_role_includes (tenant_id, team_id, role, include_role)` | `database` mode: one row per `CustomRole.includes` entry |
-| `permdock_ceiling` (view) | The `role_permissions` rows of declared roles marked `assignable`, in the tenant and team scopes, plus those roles' denies on the same permissions |
+| `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` | `database` mode: one row per `CustomRole.grants` entry; `scope` is the scope the role is held at (default the first), `scope_id` pins it to one instance or is null, `effect` is `allow` or `deny` |
+| `custom_role_includes (tenant_id, scope, scope_id, role, include_role)` | `database` mode: one row per `CustomRole.includes` entry |
+| `permdock_ceiling` (view) | The `role_permissions` rows of declared roles marked `assignable`, in every non-global scope, plus those roles' denies on the same permissions |
 | `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)` | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does |
 
-The membership table (or claim) holds the custom role's name like any role; a declared role name never resolves as custom. `permitted_tenant_ids` and `permitted_team_ids` union the declared branch with the custom one, so a policy needs no change. Both tables have RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; the application writes them from its own server connection, the same data its `RoleSource` reads. A row naming a permission outside the ceiling reaches no key, so writing to the tables directly can never widen access.
+The membership table (or claim) holds the custom role's name like any role; a declared role name never resolves as custom. Each `permitted_<scope>_ids` unions the declared branch with the custom one, so a policy needs no change. Both tables have RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; the application writes them from its own server connection, the same data its `RoleSource` reads. A row naming a permission outside the ceiling reaches no key, so writing to the tables directly can never widen access.
 
-In `jwt` mode each membership may carry `grants`, a map from custom role name to compact entries: `key` allows, `-key` denies, `@role` includes. A tenant custom role rides a membership without `team`, a team custom role its team membership. `customRoleClaim(roles)` from `permdock` builds the map for a token hook; the claim is read only with `--custom-roles`, and it adds a few bytes per entry to every token.
+In `jwt` mode each membership may carry `grants`, a map from custom role name to compact entries: `key` allows, `-key` denies, `@role` includes. A custom role rides the membership of the scope it is held at. `customRoleClaim(roles)` from `permdock` builds the map for a token hook; the claim is read only with `--custom-roles`, and it adds a few bytes per entry to every token.
 
 ## import
 

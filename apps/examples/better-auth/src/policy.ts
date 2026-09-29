@@ -28,6 +28,9 @@ export const policy = definePolicy(permissions, {
     role('support', [allow(permissions.post.read)]),
   ],
   subject: () => null,
-  scopes: { tenant: { key: 'organizationId' }, team: { key: 'teamId' } },
+  scopes: {
+    tenant: { key: 'organizationId' },
+    team: { key: 'teamId', within: 'tenant' },
+  },
   validate: 'boundary',
 });

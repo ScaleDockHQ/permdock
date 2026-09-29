@@ -26,6 +26,8 @@ export type AuthorizeSqlOptions = {
   readonly schema?: string;
   /** `database` (default) reads the tables on every call; `jwt` reads the hook-injected claims. */
   readonly authorize?: 'database' | 'jwt';
+  /** The policy's first scope, which `requested_tenant` is an instance of. Default `tenant`. */
+  readonly scope?: string;
   /** Membership table for tenant requests in `database` mode; without one they deny. */
   readonly tenant?: boolean | SupabaseMembershipTable;
   /**
