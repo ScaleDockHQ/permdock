@@ -5,6 +5,7 @@ export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
 export type ApprovalApprovers = {
   readonly by: Grantee | readonly Grantee[];
+  /** `false` lets the request's principal approve it; absent means `true`. */
   readonly distinct?: boolean;
 };
 

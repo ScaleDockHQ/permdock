@@ -112,6 +112,15 @@ describe('policy', () => {
       by: { kind: 'authenticated' },
       distinct: true,
     });
+    expect(normalizeApproval({})).toBe('human');
+    expect(normalizeApproval({ distinct: false })).toEqual({
+      by: { kind: 'authenticated' },
+      distinct: false,
+    });
+    expect(normalizeApproval({ by: 'admin', distinct: false })).toEqual({
+      by: { kind: 'role', role: 'admin', scope: 'global' },
+      distinct: false,
+    });
     const grant = allow(permissions.org.delete, {
       approval: { by: ['admin', assurance({ amr: 'mfa' })], distinct: true },
     });

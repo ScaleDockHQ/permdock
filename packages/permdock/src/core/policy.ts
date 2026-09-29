@@ -62,6 +62,7 @@ export type NonPortable<T> = T & { readonly [NON_PORTABLE]: true };
 
 export type ApprovalRequirement = {
   readonly by: Grantee | readonly Grantee[];
+  /** `false` lets the request's principal approve it; absent means `true`. */
   readonly distinct?: boolean;
 };
 
@@ -69,6 +70,7 @@ export type ApprovalOption =
   | 'human'
   | {
       readonly by?: GranteeInput;
+      /** `false` lets the request's principal approve it; absent means `true`. */
       readonly distinct?: boolean;
     };
 
@@ -186,12 +188,12 @@ export function normalizeApproval(
     return 'human';
   }
   const by = approval.by === undefined ? undefined : asGrantee(approval.by);
-  if (by === undefined && approval.distinct !== true) {
+  if (by === undefined && approval.distinct === undefined) {
     return 'human';
   }
   return compact<ApprovalRequirement>({
     by: by ?? authenticated(),
-    distinct: approval.distinct === true ? true : undefined,
+    distinct: approval.distinct,
   });
 }
 

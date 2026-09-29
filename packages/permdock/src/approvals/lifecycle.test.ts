@@ -282,6 +282,11 @@ describe('approval tenancy', () => {
     const store = memoryApprovalStore();
     store.create(pending('pd1.own', 'o_1'));
     store.create(
+      pending('pd1.optout', 'o_1', {
+        approvers: { by: { kind: 'authenticated' }, distinct: false },
+      }),
+    );
+    store.create(
       pending('pd1.owner', 'o_1', {
         subject: { principal: { id: 'u_2', roles: ['member'], tenant: 'o_1' } },
         approvers: { by: ['owner'] },
@@ -309,7 +314,92 @@ describe('approval tenancy', () => {
       return body.items.map((request) => request.token).toSorted();
     };
     expect(await inbox(true)).toEqual([]);
-    expect(await inbox(false)).toEqual(['pd1.own']);
+    expect(await inbox(false)).toEqual(['pd1.optout']);
+  });
+});
+
+describe('self-approval', () => {
+  const self = {
+    principal: {
+      id: 'u_1',
+      roles: ['member'],
+      memberships: [{ tenant: 'o_1', roles: ['admin'] }],
+    },
+    context: {},
+  } satisfies Subject;
+  const shapes = [
+    ['human', undefined],
+    ['by', { by: { kind: 'role', role: 'admin', scope: 'global' } }],
+    [
+      'by with distinct: true',
+      { by: { kind: 'role', role: 'admin', scope: 'global' }, distinct: true },
+    ],
+  ] as const;
+
+  for (const [name, approvers] of shapes) {
+    it(`refuses the principal on a ${name} approval`, async () => {
+      const store = memoryApprovalStore();
+      store.create(
+        pending(
+          'pd1.self',
+          'o_1',
+          approvers === undefined ? {} : { approvers },
+        ),
+      );
+      await expect(
+        resolveApproval(store, 'pd1.self', { status: 'approved', by: self }),
+      ).rejects.toMatchObject({ code: 'approver-is-principal' });
+      expect(() =>
+        store.resolve('pd1.self', { status: 'approved', by: self }),
+      ).toThrow(ApprovalError);
+      const fetch = approvalsHandler(store, { subject: () => self });
+      const response = await fetch(
+        new Request(
+          'https://api.example.com/permdock/approvals/pd1.self/approve',
+          { method: 'POST' },
+        ),
+      );
+      expect(response.status).toBe(403);
+      expect(store.get('pd1.self')?.status).toBe('pending');
+      await expect(
+        resolveApproval(store, 'pd1.self', {
+          status: 'approved',
+          by: approver('u_2', ['o_1']),
+        }),
+      ).resolves.toMatchObject({ status: 'approved', resolvedBy: 'u_2' });
+    });
+  }
+
+  it('lets the principal approve when the grant sets distinct: false', async () => {
+    const store = memoryApprovalStore();
+    store.create(
+      pending('pd1.optout', 'o_1', {
+        approvers: {
+          by: { kind: 'role', role: 'admin', scope: 'global' },
+          distinct: false,
+        },
+      }),
+    );
+    await expect(
+      resolveApproval(store, 'pd1.optout', { status: 'approved', by: self }),
+    ).resolves.toMatchObject({ status: 'approved', resolvedBy: 'u_1' });
+  });
+
+  it('keeps requireDistinctApprover as a floor over distinct: false', async () => {
+    const store = memoryApprovalStore();
+    store.create(
+      pending('pd1.floor', 'o_1', {
+        approvers: { by: { kind: 'authenticated' }, distinct: false },
+      }),
+    );
+    await expect(
+      resolveApproval(
+        store,
+        'pd1.floor',
+        { status: 'approved', by: self },
+        { requireDistinctApprover: true },
+      ),
+    ).rejects.toMatchObject({ code: 'approver-is-principal' });
   });
 });
 

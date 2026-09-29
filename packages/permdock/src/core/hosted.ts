@@ -215,11 +215,11 @@ function approvalRank(
     return undefined;
   }
   if (approval === 'human') {
-    return { distinct: false };
+    return { distinct: true };
   }
   return {
     by: JSON.stringify(approval.by),
-    distinct: approval.distinct === true,
+    distinct: approval.distinct !== false,
   };
 }
 
