@@ -8,6 +8,8 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: write
+  # npm trusted publishing: the registry exchanges the job's OIDC token, so
+  # the workflow holds no npm token. The trusted publisher is `release.yml`.
   id-token: write
   pull-requests: write
 
@@ -24,6 +26,18 @@ jobs:
           runtime: node@24
           cache: true
           require-lockfile: true
+
+      # The pnpm runtime ships Node without npm; trusted publishing needs npm
+      # 11.5.1 or later.
+      - name: npm
+        # `pnpm add npm@11` would set the package manager, hence the alias.
+        run: |
+          mkdir -p "$RUNNER_TEMP/npm"
+          pnpm --dir "$RUNNER_TEMP/npm" add "npm-cli@npm:npm@11"
+          echo "$RUNNER_TEMP/npm/node_modules/.bin" >> "$GITHUB_PATH"
+          version="$("$RUNNER_TEMP/npm/node_modules/.bin/npm" --version)"
+          echo "npm $version"
+          node -e "const [a,b,c]=process.argv[1].split('.').map(Number);process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)" "$version"
 
       - name: Build
         run: pnpm run build
@@ -43,5 +57,4 @@ jobs:
           commit-message: 'chore: version packages'
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
