@@ -9,14 +9,14 @@ PermDock is pre-release; the first published version will be `0.1.0`. See the [r
 
 | Package | Purpose | Required |
 | --- | --- | --- |
-| `permdock` | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...) | Yes |
-| `@permdock/cli` | `permdock collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills` | Optional, dev only |
+| `permdock` | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...), and the `permdock` binary (`collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills`) | Yes |
 | `permdock/testing` | Subpath of `permdock`: policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners; Vitest is an optional peer | Tests only |
 
 ```bash
 pnpm add permdock
-pnpm add -D @permdock/cli
 ```
+
+`permdock` is the only package. It is published by the `scaledockhq` npm organisation.
 
 npm and yarn work the same way; the repository itself uses pnpm workspaces.
 
@@ -25,7 +25,7 @@ npm and yarn work the same way; the repository itself uses pnpm workspaces.
 - TypeScript 5.9, 6 or 7. The type tests in `tests/types` run against all three, and the public API avoids template-literal unions so TypeScript 7 stays fast. Permissions are typed object references, not string unions.
 - ESM only. There is no CommonJS build. Your `tsconfig.json` needs a `moduleResolution` that understands package `exports` (`bundler`, `node16` or `nodenext`) so subpath imports such as `permdock/react` resolve.
 - A current Node.js LTS release for servers and the CLI. Browser and React Native bundles are produced from the same ESM entry points.
-- Zero runtime dependencies in core. `@standard-schema/spec` is the only regular dependency and it is types only.
+- Runtime entries depend on `@standard-schema/spec` only, and it is types only. The package's one other dependency, `oxc-parser`, belongs to the CLI and no runtime entry loads it.
 
 ## Runtimes
 
@@ -66,7 +66,7 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 | `permdock/react` | `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>` |
 | `permdock/next` | `createPermDock` returning `getPermDock`, `getPermission`, `PermDockProvider`, `permdockHandler` |
 | `permdock/next/plugin` | `createPermDockPlugin` (build-time `collect` hook only) |
-| `@permdock/cli/unplugin` | `createPermDockUnplugin` (the same `collect` hook for Vite, Rollup, webpack, Rspack and esbuild; recipes for TanStack Start, React Router, Nuxt, Astro, Effect) |
+| `permdock/unplugin` | `createPermDockUnplugin` (the same `collect` hook for Vite, Rollup, webpack, Rspack and esbuild; recipes for TanStack Start, React Router, Nuxt, Astro, Effect) |
 | `permdock/server` | Fetch-first kernel shared by the HTTP adapters |
 | `permdock/hono` | `createPermDock` returning `permdock` middleware and `protect` |
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | Same shape as `permdock/hono` |
@@ -96,7 +96,7 @@ The full matrix with example apps and related standards is on the [adapters inde
 
 ## Optional peers
 
-Core has no runtime dependencies. A few entries verify material or talk to a vendor SDK and declare an optional peer instead of bundling it:
+Runtime entries have no dependency beyond `@standard-schema/spec`. A few entries verify material or talk to a vendor SDK and declare an optional peer instead of bundling it, and a few CLI commands do the same:
 
 | Entry | Optional peer | Why |
 | --- | --- | --- |
@@ -104,16 +104,20 @@ Core has no runtime dependencies. A few entries verify material or talk to a ven
 | `permdock/otel` | `@opentelemetry/api` | Span and metric emission |
 | `permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex` | The provider SDK, at the call site | The adapters take the values the provider's own SDK returned and declare no peer themselves; session and claim verification stays with the provider; see [authentication](/docs/concepts/authentication) |
 | `permdock/terminal` | An OS keychain binding | Token storage; falls back to a mode-0600 file |
+| `permdock/testing` | `vitest` | `describePolicy` and the runners register Vitest tests |
+| `permdock rls import` | `pgsql-parser` | Parses Postgres policies (WASM, about 2.8 MB installed); the command prints the install line when it is missing |
+| `permdock rls import --db`, `permdock rls verify --db` | `pg` | Talks to a live database |
+| `permdock/unplugin` | `unplugin` | The bundler adapter layer for Vite, Rollup, webpack, Rspack and esbuild |
 
-### Why core has no dependencies
+### Why runtime entries have no dependencies
 
-Core runs in browsers, React Native, edge functions, serverless functions, MCP servers and Node, and every dependency it carries is paid by all of them. So `permdock` has exactly one regular dependency, `@standard-schema/spec`. It is types only, and it is a real dependency rather than vendored types because resource definitions take a `StandardSchemaV1`, which makes it part of the public API that should version with the spec.
+Core runs in browsers, React Native, edge functions, serverless functions, MCP servers and Node, and every dependency it carries is paid by all of them. So every runtime entry imports exactly one package, `@standard-schema/spec`. It is types only, and it is a real dependency rather than vendored types because resource definitions take a `StandardSchemaV1`, which makes it part of the public API that should version with the spec.
 
 - No validator. A bundled Zod would lock out Valibot and ArkType users and add tens of kilobytes to clients that never call it.
 - No serialiser. Conditions and snapshots are plain JSON with tagged ISO date strings, one format that works in Postgres, snapshots and catalogs, so there is no `superjson`.
 - No telemetry. OpenTelemetry lives in `permdock/otel` behind a type-only `Tracer` interface rather than as a required peer.
 - ESM only. The target runtimes are ESM, and a dual CommonJS build would double the test matrix and bring the dual-package hazard.
-- Heavy tooling lives elsewhere: the JavaScript and Postgres parsers are in `@permdock/cli`, and test-framework dependencies are in `permdock/testing`.
+- Tooling never reaches a runtime entry: the CLI and the test runners ship in the same package, but no runtime entry imports them. The one CLI dependency, `oxc-parser` (about 3.5 MB installed with one platform binding), is what `collect`, `doctor` and the build hooks need; `yaml` and `ajv` are bundled into the lazily loaded OpenAPI command chunks, and the Postgres parser, `pg`, `unplugin` and Vitest are optional peers.
 
 There is no size cap chosen in advance. `tests/bundle` measures the min+gzip size of every entry, and the measured size is the regression baseline: a test compares every entry against the recorded baseline, so a size change fails CI until the baseline is updated in the same PR, where review sees it. Core stays small because of the rules above, not because of a number picked from a competitor's bundle, so features such as the condition AST or the `Decision` shape are never cut to meet a guess.
 

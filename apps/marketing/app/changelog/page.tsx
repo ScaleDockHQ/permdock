@@ -13,7 +13,7 @@ import { loadChangelogs } from '@/lib/changelogs';
 
 export const metadata = {
   title: 'Changelog',
-  description: 'Releases from permdock and @permdock/cli.',
+  description: 'Releases of permdock.',
 };
 
 export default function ChangelogPage() {
@@ -23,8 +23,7 @@ export default function ChangelogPage() {
       <div className="mb-10 space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Changelog</h1>
         <p className="text-muted-foreground text-base leading-7">
-          Built at compile time from the packages/permdock and packages/cli
-          CHANGELOG.md files.
+          Built at compile time from the packages/permdock CHANGELOG.md file.
         </p>
       </div>
       {releases.length === 0 ? (

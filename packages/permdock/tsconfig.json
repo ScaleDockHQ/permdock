@@ -10,6 +10,7 @@
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/**/*.test-d.ts",
-    "src/fixtures/**"
+    "src/fixtures/**",
+    "src/cli/fixtures/**"
   ]
 }

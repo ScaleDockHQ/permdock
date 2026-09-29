@@ -5,7 +5,7 @@ description: Review an existing PermDock setup or a pull request that changes it
 
 # Audit PermDock
 
-Read the app's `permissions.ts`, `policy.ts`, factory file, and every adapter guard. Prefer `permdock usage --json` and `permdock doctor --json` when `@permdock/cli` is installed; otherwise walk those files and the catalog by hand.
+Read the app's `permissions.ts`, `policy.ts`, factory file, and every adapter guard. Prefer `permdock usage --json` and `permdock doctor --json` (the `permdock` binary ships in the `permdock` package); otherwise walk those files and the catalog by hand.
 
 Write the report as a Markdown checklist the user can turn into pull requests. Every finding names the file and the permission or role.
 

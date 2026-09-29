@@ -42,8 +42,8 @@ export default defineConfig({
         'src/**/*.test-d.ts',
         'src/**/index.ts',
         'src/fixtures/**',
-        // Build-time plugin: exercised by the CLI collect tests, not here.
-        'src/next/plugin.ts',
+        'src/cli/fixtures/**',
+        'src/cli/bin.ts',
         // Dynamic import of the optional `jose` peer.
         'src/jwt/load-jose.ts',
       ],
@@ -63,6 +63,12 @@ export default defineConfig({
           lines: 95,
           functions: 100,
           branches: 93,
+        },
+        'src/cli/**': {
+          statements: 70,
+          lines: 70,
+          functions: 70,
+          branches: 55,
         },
         'src/testing/**': {
           statements: 94,

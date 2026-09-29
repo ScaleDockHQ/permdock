@@ -19,7 +19,6 @@
     "@openai/agents": "catalog:",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
-    "@permdock/cli": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@prisma/adapter-pg": "catalog:",
     "@prisma/client": "catalog:",

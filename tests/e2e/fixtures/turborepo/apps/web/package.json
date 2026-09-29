@@ -16,7 +16,6 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@permdock/cli": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

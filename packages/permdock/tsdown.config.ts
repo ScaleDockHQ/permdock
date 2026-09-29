@@ -129,6 +129,9 @@ export default defineConfig({
     'src/clerk/index.ts',
     'src/convex/index.ts',
     'src/pdp/index.ts',
+    'src/cli/index.ts',
+    'src/cli/bin.ts',
+    'src/unplugin/index.ts',
     'src/testing/index.ts',
     'src/testing/saas/index.ts',
     'src/testing/saas/permissions.ts',
@@ -136,5 +139,18 @@ export default defineConfig({
   platform: 'neutral',
   dts: true,
   clean: true,
+  // Only the pure-JS CLI helpers may be inlined, into the lazily loaded
+  // command chunks; `oxc-parser` is a dependency and the other CLI packages
+  // are optional peers, so they stay external.
+  deps: {
+    onlyBundle: [
+      'ajv',
+      'fast-deep-equal',
+      'fast-uri',
+      'json-schema-traverse',
+      'require-from-string',
+      'yaml',
+    ],
+  },
   exports: false,
 });

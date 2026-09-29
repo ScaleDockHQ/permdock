@@ -1,4 +1,4 @@
-import { defineConfig } from '@permdock/cli';
+import { defineConfig } from 'permdock/cli';
 import { supabaseRls } from 'permdock/supabase';
 
 export default defineConfig({

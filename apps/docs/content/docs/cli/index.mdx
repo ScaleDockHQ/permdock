@@ -1,25 +1,26 @@
 ---
 title: CLI
-description: The @permdock/cli package, its commands, exit codes and how to run it in CI.
+description: The permdock CLI that ships in the permdock package, its commands, exit codes and how to run it in CI.
 ---
 
-`@permdock/cli` is the tooling companion to `permdock`. It is a separate package because it depends on `oxc-parser` (to scan TypeScript source) and `pgsql-parser` (to read Postgres policies), neither of which belongs in an application bundle. See [adapters](/docs/adapters).
+The `permdock` binary ships inside the `permdock` package, next to the runtime entries, and `permdock/cli` exports `defineConfig` and `run`. No runtime entry (`permdock`, `permdock/next`, `permdock/jwt`, ...) imports CLI code, so none of it reaches an application bundle. `oxc-parser` (to scan TypeScript source) is the one dependency the everyday commands need; `pgsql-parser` (`rls import`), `pg` (`rls import --db`, `rls verify --db`) and `unplugin` (`permdock/unplugin`) are optional peers the command loads only when it runs, failing with the install line when the peer is missing. See [adapters](/docs/adapters).
 
 The CLI never evaluates a policy against a real subject. Only `permdock cloud push` needs a secret, which it reads from `PERMDOCK_CLOUD_KEY`. It reads permission definitions, source files, OpenAPI documents and database catalogs, and writes generated files, reports and diffs.
 
 ## Install
 
 ```bash
-pnpm add -D @permdock/cli
+pnpm add permdock
+pnpm exec permdock doctor
 # or run without installing
-npx @permdock/cli doctor
+npx permdock doctor
 ```
 
 The binary is `permdock`. All commands accept `--cwd` and `--config permdock.config.ts`. A config file is optional; every option can be passed as a flag.
 
 ```ts
 // permdock.config.ts
-import { defineConfig } from '@permdock/cli'
+import { defineConfig } from 'permdock/cli'
 
 export default defineConfig({
   permissions: './src/permissions.ts',      // the merged definition module

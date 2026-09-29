@@ -182,7 +182,7 @@ These never appear as public identifiers, for the reasons given:
 | `who` | Reserved for a directory-backed "who may X this row" verb; not exported. |
 | `SnapshotV2` | The format major lives in `v`; the type is `Snapshot`. |
 | `scope(...)` as a derived instance | Derived instances are `tenant(id)` and `team(id)`, one method per scope kind. |
-| `@permdock/testing` | The test runners are the `permdock/testing` subpath of the one `permdock` package, so runners and core are always the same version. |
+| `@permdock/cli`, `@permdock/testing`, any `@permdock/*` package | `permdock` is the only published name, owned by the `scaledockhq` npm organisation. The CLI is its `bin` plus `permdock/cli`, `permdock/unplugin` and `permdock/next/plugin`; the runners are `permdock/testing`. One package keeps core, adapters, CLI and runners on the same version. |
 | `permdock/cloud-auth` | There is no such entry: PermDock Cloud identity is `subjectFromJwt({ discovery })` against the Cloud issuer. |
 
 ## What each adapter's createPermDock returns
@@ -195,7 +195,7 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/hono` | `{ permdock, protect, permdockHandler }` | `permdock()` is middleware; `protect(permission, load?, options?)` guards a route |
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect, permdockHandler }`, plus `errorHandler` (Express) and `send` (Node) | Same shape as Hono over the shared kernel |
 | `permdock/nest` | `{ PermDockModule, PermDockGuard, Protect, InjectPermDock, permdockHandler }` | Register `PermDockGuard` as `APP_GUARD` with `useExisting`; `permdockHandler({ path })` sets the controller path |
-| `permdock/terminal` | `{ permdock, protect, filterCommands, format, exitCode }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not `@permdock/cli` |
+| `permdock/terminal` | `{ permdock, protect, filterCommands, format, exitCode }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not the `permdock` binary or `permdock/cli` |
 | `permdock/trpc` | `{ permdock, protect, permdockHandler }` | `protect` is procedure middleware; denials throw `TRPCError` |
 | `permdock/orpc` | `{ permdock, protect, permdockHandler }` | `protect` is procedure middleware; denials throw `ORPCError` |
 | `permdock/mcp` | `{ protectServer }` | `protectServer(server).registerTool(name, { permission, data?, longRunning?, ... }, handler)`, plus `registerResource` and `registerPrompt`; options: `subject`, `requireAuthInfo`, `store`; also exports `subjectFromMcp`, `APPROVAL_META_KEY`, `McpPrincipal` |
@@ -218,7 +218,8 @@ These entries deliberately do not export `createPermDock`:
 - `permdock/webmcp` exports `registerTools(document.modelContext, group, { permdock })` because it consumes a client `PermDock` rather than creating one. `permdock/drizzle`, `permdock/prisma` and `permdock/kysely` export `toWhere`. `permdock/prisma` also exports `permdockExtension`. `permdock/kysely` also exports `withSubject`. `permdock/jwt` exports `subjectFromJwt`, `createJwtSubjectResolver`, `verifyDpopProof`, `joseTokenVerifier` and `joseTokenSigner` because it produces subjects, verifiers and signers for a factory, not an instance. Structurally typed providers (`permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex`, `permdock/prisma`, `permdock/mcp`, `permdock/react-native`) declare **no peer dependency**: they duck-type the SDK you already installed. `permdock/supabase/middleware` is the exception on the Supabase side: it calls `defineMiddleware`, so `@supabase/middleware` is its optional peer, while `@supabase/server`'s `JWTClaims` is still duck-typed.
 - `permdock/approvals` exports `memoryApprovalStore` and `approvalsHandler`, and `permdock/cloud` exports `cloud`; both produce values you pass *to* a factory (`store`, `sink`, `snapshots`) rather than a `PermDock`.
 - `permdock/testing`, `permdock/testing/saas` and `permdock/testing/saas/permissions` export the test runners (`describePolicy`, the `test<Interface>` runners, `rlsParity`, `ormParity`, `testClientParity`, `testHttpAdapter`, `testAuthZen`) and the shared SaaS domain. Test files import them; application entries never do, and Vitest is an optional peer.
-- Build hooks live in `@permdock/cli`, not in `permdock`: `permdock/next/plugin` exports `createPermDockPlugin` and `@permdock/cli/unplugin` exports `createPermDockUnplugin` (Vite, Rollup, webpack, Rspack, esbuild through [unplugin](https://unplugin.unjs.io)). Both run `collect` at build time and never wire runtime API. The `create` prefix and the `PermDock` noun follow the factory rule; the suffix names the host (`Plugin` for Next's config API, `Unplugin` for the bundler family).
+- `permdock/cli` exports `defineConfig` (for `permdock.config.ts`) and `run` (the `permdock` binary as a function) plus the config types. It is a build-time entry: no runtime entry imports it.
+- Build hooks: `permdock/next/plugin` exports `createPermDockPlugin` and `permdock/unplugin` exports `createPermDockUnplugin` (Vite, Rollup, webpack, Rspack, esbuild through [unplugin](https://unplugin.unjs.io)). Both run `collect` at build time and never wire runtime API. The `create` prefix and the `PermDock` noun follow the factory rule; the suffix names the host (`Plugin` for Next's config API, `Unplugin` for the bundler family).
 
 ## Spec names
 

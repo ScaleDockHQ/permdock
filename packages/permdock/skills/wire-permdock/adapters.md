@@ -421,7 +421,7 @@ export const { permdock, protect, filterCommands, format, exitCode } =
   });
 ```
 
-Not `@permdock/cli`. Never accept `--user` or `--actor` as identity.
+Not the `permdock` binary. Never accept `--user` or `--actor` as identity.
 
 ## WebMCP — `permdock/webmcp`
 
@@ -691,7 +691,7 @@ For OpenFGA or SpiceDB, use `openfga({ url, storeId, map })` or `spicedb({ url, 
 
 ## Collect-only frameworks (no package)
 
-Nuxt, Astro, React Router, TanStack Start and Effect have no `permdock/<name>` entry. Add `createPermDockUnplugin.vite()` from `@permdock/cli/unplugin` (or `.webpack` / `.esbuild`). Runtime is `permdock/server` or the matching HTTP adapter, plus `permdock/vue`, `permdock/react` or `permdock/svelte` on the client. Effect Schema is a Standard Schema; Effect HttpApi uses Overlay, not a hook.
+Nuxt, Astro, React Router, TanStack Start and Effect have no `permdock/<name>` entry. Add `createPermDockUnplugin.vite()` from `permdock/unplugin` (or `.webpack` / `.esbuild`). Runtime is `permdock/server` or the matching HTTP adapter, plus `permdock/vue`, `permdock/react` or `permdock/svelte` on the client. Effect Schema is a Standard Schema; Effect HttpApi uses Overlay, not a hook.
 
 Remaining work follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
 

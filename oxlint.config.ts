@@ -150,7 +150,10 @@ export default defineConfig({
       },
     },
     {
-      files: ['packages/cli/**/*.{ts,tsx}'],
+      files: [
+        'packages/permdock/src/cli/**/*.{ts,tsx}',
+        'packages/permdock/src/unplugin/**/*.ts',
+      ],
       rules: {
         'import/no-default-export': 'off',
         'eslint/max-lines': 'off',
