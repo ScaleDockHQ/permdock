@@ -17,6 +17,7 @@ import {
 } from '../index.ts';
 import { runCollect } from './collect.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
+import { contextRefs } from './rls-sql.ts';
 import { runUsage } from './usage.ts';
 
 export async function pd002(input: {
@@ -108,6 +109,35 @@ export async function pd004(input: {
       fix: 'pnpm exec permdock collect',
     },
   ];
+}
+
+export async function pd027(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  for (const grant of policy.grants) {
+    const refs = [
+      ...new Set([...contextRefs(grant.where), ...contextRefs(grant.check)]),
+    ];
+    if (refs.length === 0) {
+      continue;
+    }
+    findings.push({
+      code: 'PD027',
+      severity: 'warning',
+      message: `${grant.permission.key}${grant.role === null ? '' : ` (role ${grant.role})`} reads ${refs.join(', ')}: request context is not in the token, so permdock rls generate cannot compile it and the database cannot enforce it`,
+      fix: 'move the value to a server-set claim and compare with principal.claims.<name>, or keep the check API-side and pass --skip-closures to rls generate',
+    });
+  }
+  return findings;
 }
 
 export async function pd016(input: {

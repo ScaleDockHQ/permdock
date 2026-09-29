@@ -58,6 +58,8 @@ There is no `subject` builder: a ref whose path starts with `subject.` is not a 
 
 References are what make a condition portable. In memory they read from the frozen subject; in a snapshot they read from the client's copy of the subject; in SQL they become `(select auth.uid())`, `(select auth.jwt()) ->> 'orgId'` or a `current_setting()` GUC depending on the dialect. The type of a reference is checked against the field it is compared to.
 
+Token claims are `principal.claims.<path>`, and a path may be nested: `principal.claims.attrs.region`. `permdock rls generate` compiles a nested path to `(select auth.jwt()) -> 'attrs' ->> 'region'`, casts it to the column's type, and compiles `in` / `notIn` against an array claim ([subject attributes in RLS](/docs/adapters/rls#subject-attributes-abac)). A snapshot does not carry the claims; it carries each claim a grant reads as a literal in that grant's condition, bound when the snapshot is built. `context.*` refs are portable to snapshots and ORM `where` clauses but not to RLS, because the request context is not in the token (doctor PD027).
+
 ### Common patterns
 
 | Intent | Condition | Supabase RLS output |
