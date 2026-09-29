@@ -50,7 +50,7 @@ export type RlsConfig = {
   readonly roleClaim?: string;
   readonly gucPrefix?: string;
   readonly out?: string;
-  /** Schema of `role_permissions` and the `permdock_*` helpers (and the RBAC scaffold). Default `public`. */
+  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`) (and the RBAC scaffold). Default `public`. */
   readonly schema?: string;
   /** Where the helpers read roles and memberships: `database` tables or `jwt` claims. */
   readonly authorize?: 'database' | 'jwt';

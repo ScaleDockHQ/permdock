@@ -216,11 +216,11 @@ describe('rls helpers run once per statement (InitPlan)', () => {
     await db?.stop();
   });
 
-  it('calls permdock_tenants_with once, not once per row', () => {
+  it('calls permitted_tenant_ids once, not once per row', () => {
     const plan = helper?.plans[0]?.Plan;
     expect(plan).toBeDefined();
     const calls = nodes(plan!).filter((node) =>
-      callsHelper(node, 'permdock_tenants_with'),
+      callsHelper(node, 'permitted_tenant_ids'),
     );
     expect(calls.length).toBeGreaterThan(0);
     for (const node of calls) {

@@ -149,7 +149,7 @@ end;`;
  * tenant) on every call; `jwt` reads the hook-injected `user_role` and `memberships` claims. A
  * tenant request with no memberships source is denied, never answered from global roles. It
  * answers "does a role hold this permission", ignoring row conditions and denies: generated
- * policies call the per-statement `permdock_*` helpers instead.
+ * policies call the per-statement RLS helpers (`permdock_has`, `permitted_<scope>_ids`) instead.
  */
 export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
   const schema = options.schema ?? 'public';

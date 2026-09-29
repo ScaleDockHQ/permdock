@@ -66,11 +66,11 @@ describe('assemblePolicies', () => {
     ]);
     const select = policies.find((item) => item.name === 'post_select');
     expect(select?.using).toBe(
-      `((select "public".permdock_has('post.read')) or ("orgId" in (select "public".permdock_tenants_with('post.read')))) or (select "public".permdock_has('post.list'))`,
+      `((select "public".permdock_has('post.read')) or ("orgId" in (select "public".permitted_tenant_ids('post.read')))) or (select "public".permdock_has('post.list'))`,
     );
     const denied = policies.find((item) => item.name === 'deny_post_delete');
     expect(denied?.using).toBe(
-      `not (("orgId" in (select "public".permdock_tenants_with('post.delete#2'))) and ("locked" = true))`,
+      `not (("orgId" in (select "public".permitted_tenant_ids('post.delete#2'))) and ("locked" = true))`,
     );
   });
 

@@ -15,8 +15,8 @@ import {
 /** The per-statement helpers every generated policy calls. Names are part of the SQL contract. */
 export const HELPERS = {
   has: 'permdock_has',
-  tenants: 'permdock_tenants_with',
-  teams: 'permdock_teams_with',
+  tenants: 'permitted_tenant_ids',
+  teams: 'permitted_team_ids',
 } as const;
 
 export type HelperScope = 'global' | 'tenant' | 'team';

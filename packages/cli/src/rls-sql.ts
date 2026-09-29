@@ -17,7 +17,7 @@ export type RlsSqlContext = {
   readonly tenantClaim: string;
   readonly gucPrefix: string;
   readonly inlineFunctions?: boolean;
-  /** Schema of `role_permissions` and the `permdock_*` helpers. Default `public`. */
+  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `public`. */
   readonly schema?: string;
   /** Where the helpers read roles and memberships: tables (`database`) or claims (`jwt`, the default). */
   readonly authorize?: 'database' | 'jwt';

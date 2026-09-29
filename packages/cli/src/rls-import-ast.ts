@@ -332,7 +332,7 @@ type MapContext = {
   readonly seeds: readonly RolePermission[];
 };
 
-/** A call to one of the generated `permdock_*` helpers, in either policy shape. */
+/** A call to one of the generated RLS helpers (`permdock_has`, `permitted_<scope>_ids`), in either policy shape. */
 export type HelperCall = {
   readonly scope: HelperScope;
   readonly key: string;

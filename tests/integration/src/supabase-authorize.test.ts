@@ -135,7 +135,7 @@ describe('Supabase RBAC scaffold, database mode', () => {
   it('emits per-statement helper calls, never per-row authorize() or service_role', () => {
     expect(generated).not.toMatch(/service_role/iu);
     expect(generated).toContain(
-      `"orgId" in (select "public".permdock_tenants_with('post.update#2'))`,
+      `"orgId" in (select "public".permitted_tenant_ids('post.update#2'))`,
     );
     expect(generated).toContain(`(select "public".permdock_has('post.read'))`);
     expect(generated).not.toMatch(/using \([^\n]*authorize\(/u);

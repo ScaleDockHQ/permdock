@@ -91,7 +91,7 @@ $$;
 revoke execute on function "app".permdock_has(text) from public, anon;
 grant execute on function "app".permdock_has(text) to authenticated;
 
-create or replace function "app".permdock_tenants_with(p_grant text)
+create or replace function "app".permitted_tenant_ids(p_grant text)
 returns setof uuid
 language sql
 stable
@@ -116,10 +116,10 @@ as $$
       else true
     end
 $$;
-revoke execute on function "app".permdock_tenants_with(text) from public, anon;
-grant execute on function "app".permdock_tenants_with(text) to authenticated;
+revoke execute on function "app".permitted_tenant_ids(text) from public, anon;
+grant execute on function "app".permitted_tenant_ids(text) to authenticated;
 
-create or replace function "app".permdock_teams_with(p_grant text)
+create or replace function "app".permitted_team_ids(p_grant text)
 returns setof uuid
 language sql
 stable
@@ -144,8 +144,8 @@ as $$
       else true
     end
 $$;
-revoke execute on function "app".permdock_teams_with(text) from public, anon;
-grant execute on function "app".permdock_teams_with(text) to authenticated;
+revoke execute on function "app".permitted_team_ids(text) from public, anon;
+grant execute on function "app".permitted_team_ids(text) to authenticated;
 
 create or replace function "app"."authorize"(
   requested_permission "app"."app_permission",
@@ -247,7 +247,7 @@ create policy "post_select"
   as permissive
   for select
   to authenticated
-  using (((select "app".permdock_has('post.read')) or ("orgId" in (select "app".permdock_tenants_with('post.read')))) or ((select "app".permdock_has('post.list')) or ("orgId" in (select "app".permdock_tenants_with('post.list')))));
+  using (((select "app".permdock_has('post.read')) or ("orgId" in (select "app".permitted_tenant_ids('post.read')))) or ((select "app".permdock_has('post.list')) or ("orgId" in (select "app".permitted_tenant_ids('post.list')))));
 
 drop policy if exists "post_update" on "post";
 create policy "post_update"
@@ -255,8 +255,8 @@ create policy "post_update"
   as permissive
   for update
   to authenticated
-  using ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permdock_tenants_with('post.update#2'))) and ("authorId" = (select auth.uid()))))
-  with check ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permdock_tenants_with('post.update#2'))) and ("authorId" = (select auth.uid()))));
+  using ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))))
+  with check ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))));
 
 drop policy if exists "post_delete" on "post";
 create policy "post_delete"
@@ -272,4 +272,4 @@ create policy "post_insert"
   as permissive
   for insert
   to authenticated
-  with check ((select "app".permdock_has('post.create')) or ("orgId" in (select "app".permdock_tenants_with('post.create'))));
+  with check ((select "app".permdock_has('post.create')) or ("orgId" in (select "app".permitted_tenant_ids('post.create'))));

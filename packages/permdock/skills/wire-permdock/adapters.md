@@ -697,11 +697,13 @@ Remaining work follows the names on the adapter page under `/docs/adapters/<name
 
 ```bash
 pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql
-pnpm exec permdock rls generate --target sql --dialect supabase --rbac supabase --authorize database --memberships organization_members:organization_id,user_id,role
+pnpm exec permdock rls generate --target sql --dialect supabase --rbac supabase --authorize database --memberships organization_members:organization_id,user_id,role --tenant-type uuid
 pnpm exec permdock rls import --sql migrations/rls.sql --out src/permissions.generated.ts
 pnpm exec permdock rls verify --fixtures rls.fixtures.json
 pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
 ```
+
+Generated policies call `permdock_has('<key>')` and `permitted_tenant_ids('<key>')` / `permitted_team_ids('<key>')`, which Postgres runs once per statement; set `--tenant-type` (or `rls.tenantType`) to the tenant column's type. `--policy-per-role` keeps one policy per role for review.
 
 When SQL is the authority, skip `generate`. Map helpers in `rls.functions`, write `sqlFunction` twins, and fail CI on `verify --db`. `--inline-functions` inlines the twin for generate targets that cannot call a SQL function.
 

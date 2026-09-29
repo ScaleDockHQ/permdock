@@ -43,7 +43,7 @@ type CatalogEntry = {
   readonly condition: unknown;
   readonly fingerprint: string;
   readonly sourceSql: string;
-  /** Role-gated branches read back from `permdock_*` helper calls and the `role_permissions` seeds. */
+  /** Role-gated branches read back from RLS helper calls and the `role_permissions` seeds. */
   readonly grants?: readonly ImportedGrant[];
 };
 
