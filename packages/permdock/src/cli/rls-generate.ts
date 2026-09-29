@@ -16,6 +16,7 @@ import { listRoles } from '../index.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { compileGrants } from './rls-compile.ts';
 import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
+import { fieldViews, rowBranches } from './rls-fields.ts';
 import { roleNames } from './rls-grants.ts';
 import { helpersSql } from './rls-helpers.ts';
 import { ownershipRules, ownershipSql } from './rls-ownership.ts';
@@ -101,10 +102,29 @@ export async function runRlsGenerate(input: {
   readonly tenantType?: string;
   readonly customRoles?: boolean;
   readonly capabilities?: boolean;
+  readonly fields?: string;
+  readonly revokeColumns?: boolean;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
-  const policy = await loadPolicy(input.cwd, input.config, input.from);
   const rls = input.config.rls;
+  const fieldsMode = input.fields ?? rls?.fields;
+  if (fieldsMode !== undefined && fieldsMode !== 'views') {
+    return {
+      code: 2,
+      output: `rls generate --fields must be views (got ${fieldsMode})`,
+      text: '',
+    };
+  }
+  const revokeColumns =
+    input.revokeColumns === true || rls?.revokeColumns === true;
+  if (revokeColumns && fieldsMode === undefined) {
+    return {
+      code: 2,
+      output: 'rls generate --revoke-columns needs --fields views',
+      text: '',
+    };
+  }
+  const policy = await loadPolicy(input.cwd, input.config, input.from);
   const memberships: RlsMemberships | undefined =
     parseMembershipsFlag(input.memberships) ?? rls?.memberships;
   if (input.rbac && input.dialect !== 'supabase') {
@@ -145,6 +165,7 @@ export async function runRlsGenerate(input: {
       ? { capabilities: true as const }
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
+    ...(fieldsMode === undefined ? {} : { fields: fieldsMode }),
   };
   const warnings: string[] = [];
   if (authorize === 'database') {
@@ -164,11 +185,26 @@ export async function runRlsGenerate(input: {
     warnings,
     input.skipClosures,
   );
+  const views =
+    fieldsMode === undefined
+      ? []
+      : fieldViews(policy, ctx, compiled.branches, { revokeColumns }, warnings);
+  const force = input.force === true || rls?.force === true;
+  if (force && views.some((view) => view.companion !== undefined)) {
+    warnings.push(
+      '--force with --revoke-columns: each <table>_visible_fields companion reads as its owner, so its owner needs BYPASSRLS or the restricted columns read as null',
+    );
+  }
   const policyName = input.policyName ?? rls?.policyName;
-  const policies = assemblePolicies(compiled.branches, {
-    perRole: input.policyPerRole === true || rls?.policyPerRole === true,
-    ...(policyName === undefined ? {} : { name: policyName }),
-  });
+  const policies = assemblePolicies(
+    fieldsMode === undefined
+      ? compiled.branches
+      : rowBranches(compiled.branches),
+    {
+      perRole: input.policyPerRole === true || rls?.policyPerRole === true,
+      ...(policyName === undefined ? {} : { name: policyName }),
+    },
+  );
   const rootMapped =
     ctx.scopes[0] === undefined
       ? undefined
@@ -200,13 +236,15 @@ export async function runRlsGenerate(input: {
   const owned = ownershipSql(ctx);
   const preamble = [
     rbac?.head,
-    helpersSql(ctx, compiled.rolePermissions, { userRoles: !input.rbac }),
+    helpersSql(ctx, compiled.rolePermissions, {
+      userRoles: !input.rbac,
+      anonExecute: views.some((view) => view.roles.includes('anon')),
+    }),
     owned === '' ? undefined : owned,
     rbac?.tail,
   ]
     .filter((part): part is string => part !== undefined)
     .join('\n');
-  const force = input.force === true || rls?.force === true;
   if (force && input.target !== 'sql') {
     warnings.push(
       `--force: ${input.target} has no FORCE ROW LEVEL SECURITY option; run the commented statements in a migration`,
@@ -215,13 +253,13 @@ export async function runRlsGenerate(input: {
   let text: string;
   switch (input.target) {
     case 'sql':
-      text = emitSql(policies, preamble, force);
+      text = emitSql(policies, preamble, force, views);
       break;
     case 'drizzle':
-      text = emitDrizzle(policies, preamble, force);
+      text = emitDrizzle(policies, preamble, force, views);
       break;
     case 'prisma':
-      text = emitPrisma(policies, preamble, force);
+      text = emitPrisma(policies, preamble, force, views);
       break;
     default: {
       const exhaustive: never = input.target;

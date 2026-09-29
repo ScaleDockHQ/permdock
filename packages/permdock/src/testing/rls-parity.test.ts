@@ -336,3 +336,175 @@ describe('rlsParity relation grantee', () => {
     ]);
   });
 });
+
+const Invoice = z.object({
+  id: z.string(),
+  title: z.string(),
+  amount: z.number(),
+});
+
+const invoices = definePermissions({
+  invoice: resource(Invoice, {
+    id: 'id',
+    actions: ['read', 'update'],
+    collection: ['list'],
+  }),
+});
+
+const fieldPolicy = definePolicy(invoices, {
+  roles: [
+    role('admin', [allow([invoices.invoice.read, invoices.invoice.update])]),
+    role('finance', [
+      allow(invoices.invoice.read, { fields: ['id', 'title'] }),
+    ]),
+  ],
+  subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>
+    user,
+});
+
+const invoice = { id: 'i1', title: 'Rent', amount: 100 };
+
+type Answer = {
+  readonly rows: readonly Record<string, unknown>[];
+  readonly rowCount?: number;
+  readonly code?: string;
+};
+
+function fieldDb(view: (sql: string) => Answer): {
+  readonly sqls: string[];
+  readonly query: (sql: string) => Promise<Answer>;
+} {
+  const sqls: string[] = [];
+  return {
+    sqls,
+    query: async (sql) => {
+      sqls.push(sql);
+      if (sql.includes('"invoice_visible"')) {
+        return view(sql);
+      }
+      if (sql.startsWith('select * from "invoice"')) {
+        return { rows: [invoice], rowCount: 1 };
+      }
+      if (sql.startsWith('select "id" from "invoice"')) {
+        return { rows: [{ id: 'i1' }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    },
+  };
+}
+
+describe('rlsParity fieldViews', () => {
+  it('compares the view row with the columns pick keeps', async () => {
+    const db = fieldDb(() => ({
+      rows: [{ id: 'i1', title: 'Rent', amount: null }],
+      rowCount: 1,
+    }));
+    const report = await rlsParity(fieldPolicy, {
+      dialect: 'neon',
+      fieldViews: true,
+      fixtures: [
+        {
+          name: 'finance',
+          subject: { id: 'u1', roles: ['finance'] },
+          permission: invoices.invoice.read,
+          row: invoice,
+          table: 'invoice',
+        },
+        {
+          name: 'admin sees a masked amount',
+          subject: { id: 'u2', roles: ['admin'] },
+          permission: invoices.invoice.read,
+          row: invoice,
+          table: 'invoice',
+        },
+      ],
+      query: db.query,
+    });
+    expect(report.results).toEqual([
+      {
+        name: 'finance',
+        granted: true,
+        database: 'allowed',
+        fields: { app: ['id', 'title'], database: ['id', 'title'] },
+        ok: true,
+      },
+      {
+        name: 'admin sees a masked amount',
+        granted: true,
+        database: 'allowed',
+        fields: { app: ['amount', 'id', 'title'], database: ['id', 'title'] },
+        ok: false,
+      },
+    ]);
+    expect(db.sqls).toContain('select "id" from "invoice" where "id" = $1');
+    expect(
+      db.sqls.some(
+        (sql) =>
+          sql.includes('request.jwt.claims') ||
+          sql.startsWith('select set_config'),
+      ),
+    ).toBe(true);
+  });
+
+  it('reads the table when it has no view, and reports a failed view read', async () => {
+    const missing = fieldDb(() => ({ rows: [], code: '42P01' }));
+    const admin = {
+      name: 'admin',
+      subject: { id: 'u2', roles: ['admin'] },
+      permission: invoices.invoice.read,
+      row: invoice,
+      table: 'invoice',
+    };
+    const fallback = await rlsParity(fieldPolicy, {
+      fieldViews: true,
+      fixtures: [admin],
+      query: missing.query,
+    });
+    expect(fallback.results[0]?.fields).toEqual({
+      app: ['amount', 'id', 'title'],
+      database: ['amount', 'id', 'title'],
+    });
+    expect(fallback.ok).toBe(true);
+    expect(missing.sqls).toContain('rollback to savepoint permdock_fields');
+    const refused = await rlsParity(fieldPolicy, {
+      fieldViews: true,
+      fixtures: [admin],
+      query: fieldDb(() => ({ rows: [], code: '42501' })).query,
+    });
+    expect(refused.results[0]?.fields?.database).toBe('42501');
+    expect(refused.ok).toBe(false);
+  });
+
+  it('expects no columns for a denied row and skips writes', async () => {
+    const db = fieldDb(() => ({ rows: [], rowCount: 0 }));
+    const report = await rlsParity(fieldPolicy, {
+      fieldViews: true,
+      fixtures: [
+        {
+          name: 'stranger',
+          subject: { id: 'u3', roles: [] },
+          permission: invoices.invoice.read,
+          row: invoice,
+          table: 'invoice',
+        },
+        {
+          name: 'finance update',
+          subject: { id: 'u1', roles: ['finance'] },
+          permission: invoices.invoice.update,
+          row: invoice,
+          table: 'invoice',
+        },
+      ],
+      query: async (sql) =>
+        sql.startsWith('select "id"')
+          ? { rows: [], rowCount: 0 }
+          : db.query(sql),
+    });
+    expect(report.results[0]?.fields).toEqual({ app: [], database: [] });
+    expect(report.results[1]?.fields).toBeUndefined();
+    expect(report.ok).toBe(true);
+    expect(db.sqls).toContain(
+      'update "invoice" set "id" = "id" where "id" = $1 returning "id"',
+    );
+  });
+});

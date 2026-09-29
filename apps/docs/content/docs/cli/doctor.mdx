@@ -49,6 +49,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD027` | Under an `rls` config, a grant's `where` or `check` reads `context.*`, which RLS cannot evaluate | warning |
 | `PD028` | `supabase.hook.attrs` lists `user_metadata` or another value the hook cannot use (error), or a column your migrations let `anon` or `authenticated` insert or update (warning) | error, warning |
 | `PD029` | An API key in the `doctor.credentials` fixture never expires or is not a valid v1 credential, or a tenant's settings allow keys without expiry | warning |
+| `PD030` | Under an `rls` config, a read grant limits `fields`, but the table still returns those columns to a direct read | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -162,7 +163,7 @@ A policy with `hostable` permissions expects hosted grants, which need `permdock
 
 ### PD022: views without `security_invoker`
 
-A Postgres view runs with its owner's rights unless it is created `with (security_invoker = true)`, so a view over an RLS table returns every row to every caller. With an `rls` config or `doctor.migrations`, the check reads the `.sql` files under `doctor.migrations` (default `supabase/migrations`, `migrations`, `drizzle`, `prisma/migrations`, `db/migrations`) in name order and warns on each `create view` that neither sets `security_invoker` nor gets it from a later `alter view ... set (security_invoker = true)`. Materialized views are skipped: Postgres does not apply RLS to them at read time. `--only views` runs this check.
+A Postgres view runs with its owner's rights unless it is created `with (security_invoker = true)`, so a view over an RLS table returns every row to every caller. With an `rls` config or `doctor.migrations`, the check reads the `.sql` files under `doctor.migrations` (default `supabase/migrations`, `migrations`, `drizzle`, `prisma/migrations`, `db/migrations`) in name order and warns on each `create view` that neither sets `security_invoker` nor gets it from a later `alter view ... set (security_invoker = true)`. Materialized views are skipped: Postgres does not apply RLS to them at read time. The `<table>_visible` views `permdock rls generate --fields views` writes are `security_invoker` and pass; the `<table>_visible_fields` companion `--revoke-columns` adds reads as its owner on purpose, and its `comment on view ... is 'permdock:field-companion ...'` exempts it. `--only views` runs this check.
 
 ### PD023: custom-role keys outside the ceiling
 
@@ -191,10 +192,15 @@ The Supabase token hook copies `supabase.hook.attrs` into the `attrs` claim, whi
 
 When `doctor.credentials` points at a JSON fixture `{ credentials?, settings? }` (a sample of the API-key records the application stores, and per-tenant settings in the `memorySettings` shape), the check warns on every credential without `expiresAt`, every record `parseCredential` rejects (it would verify to no subject), and every tenant whose `credentials` settings set `allowNoExpiry`. A key that never expires stays live after it leaks until someone revokes it, so each opt-in should be deliberate ([API keys](/docs/concepts/credentials)). `--only credentials` runs this check.
 
+### PD030: field-limited columns the database still returns
+
+`fields` on a read grant redact in the application (`pick`), but a row policy returns every column of the rows it admits. With an `rls` config, the check lists, per resource, the columns a read allow's `fields` leave out or a read deny's `fields` name (the row key excepted). Without `rls.fields: 'views'` it warns that RLS is row-level and any direct read of the table returns them; with field views but without `rls.revokeColumns: true` it warns that `<table>_visible` masks them while the table still returns them. Fix it with `permdock rls generate --fields views --revoke-columns` so clients read the columns only through the view, or keep reads of the table server-side and redact with `pick` ([field security](/docs/adapters/rls#field-security)). `--only fields` runs this check.
+
 ## Why
 
 - **PD001 reads direct imports, not an import graph.** A graph needs module resolution for every bundler's aliases, and a wrong resolution produces a false path to a server module. The bundle measurement already fails on a server import reachable from a client entry; `doctor` catches the common case, a client file importing a server entry, in milliseconds. `doctor.clientEntries` replaces guessing client roots from folder names.
-- **`security_invoker` is a warning, not generated SQL.** `permdock rls` generates policies for tables, not views; a view is application SQL, and some views are meant to bypass RLS (a public aggregate). The warning names the view so the choice is explicit.
+- **`security_invoker` is a warning, not generated SQL.** A view over application data is application SQL, and some views are meant to bypass RLS (a public aggregate), so the warning names the view and the choice stays explicit. The only views `permdock rls` writes are the opt-in field views, which are `security_invoker`, and their owner-rights companion, which is marked so the check can tell it apart.
+- **PD030 is a warning, not an error.** Many apps never expose a table to clients (a server-only connection, no Data API), and there `pick` is the whole control. Where clients do read the table, the warning names each column so the fix is one flag.
 - **Docs drift is a maintainer check, not a `doctor` check.** Whether the PermDock docs list every CLI flag and public export is a property of this repository; `scripts/check-docs-drift.ts` runs it in the PermDock CI, and `doctor` stays about the consumer's project.
 
 ## Related

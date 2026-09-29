@@ -12,6 +12,7 @@ import type { DoctorFinding } from './doctor-types.ts';
 import type { PermDockConfig } from './types.ts';
 
 import { rel } from './files.ts';
+import { FIELD_VIEWS } from './rls-fields.ts';
 
 export function pd005(cwd: string): readonly DoctorFinding[] {
   const lockPath = join(cwd, '.permdock/skills-lock.json');
@@ -170,6 +171,10 @@ const ALTER_VIEW = new RegExp(
 );
 const INVOKER =
   /\bsecurity_invoker\s*(?:=\s*(?:true|on|'true'|'on'|1)\b|[,)]|$)/iu;
+const COMPANION = new RegExp(
+  String.raw`\bcomment\s+on\s+view\s+${VIEW_NAME}\s+is\s+'${FIELD_VIEWS.comment}\b`,
+  'giu',
+);
 
 function sqlFiles(cwd: string, entries: readonly string[]): string[] {
   const files = new Set<string>();
@@ -191,7 +196,12 @@ function viewKey(name: string): string {
     .toLowerCase();
 }
 
-/** Views run as their owner unless `security_invoker` is set, so they read past RLS on the tables beneath them. */
+/**
+ * Views run as their owner unless `security_invoker` is set, so they read
+ * past RLS on the tables beneath them. The `<table>_visible_fields`
+ * companion `rls generate --revoke-columns` writes reads as its owner on
+ * purpose and carries a comment that says so.
+ */
 export function pd022(
   cwd: string,
   config: PermDockConfig,
@@ -201,11 +211,13 @@ export function pd022(
   }
   const created = new Map<string, string>();
   const invoker = new Set<string>();
+  const companions = new Set<string>();
   for (const file of sqlFiles(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    const text = readFileSync(file, 'utf8')
+    const raw = readFileSync(file, 'utf8');
+    const text = raw
       .replaceAll(/--[^\n]*/gu, '')
       .replaceAll(/\/\*[\s\S]*?\*\//gu, '');
     for (const [, name = '', options = ''] of text.matchAll(CREATE_VIEW)) {
@@ -222,14 +234,17 @@ export function pd022(
         invoker.add(viewKey(name));
       }
     }
+    for (const [, name = ''] of raw.matchAll(COMPANION)) {
+      companions.add(viewKey(name));
+    }
   }
   return [...created]
-    .filter(([key]) => !invoker.has(key))
+    .filter(([key]) => !invoker.has(key) && !companions.has(key))
     .map(([key, file]) => ({
       code: 'PD022',
       severity: 'warning',
       message: `view ${key} in ${file} is not security_invoker, so it reads past row level security`,
-      fix: `create the view with (security_invoker = true), or alter view ${key} set (security_invoker = true); Postgres 15 or later`,
+      fix: `create the view with (security_invoker = true), or alter view ${key} set (security_invoker = true); Postgres 15 or later. For column-level reads, generate field views with permdock rls generate --fields views`,
     }));
 }
 

@@ -29,8 +29,11 @@ export type CompiledBranch = {
   readonly roles: readonly string[];
   /** Role name, `anyone` or `authenticated`. */
   readonly label: string;
+  readonly resource?: string;
   readonly permissionKey: string;
   readonly grantKey?: string;
+  /** The grant's `fields`; absent means every field. */
+  readonly fields?: readonly string[];
   readonly access?: string;
   readonly using?: string;
   readonly check?: string;
@@ -259,20 +262,27 @@ function prepare(
   };
 }
 
-function signature(entry: Prepared): string {
-  return JSON.stringify([
+function signature(entry: Prepared, byFields: boolean): string {
+  const base = [
     entry.item.grant.effect,
     entry.using ?? null,
     entry.check ?? null,
-  ]);
+  ];
+  return JSON.stringify(
+    byFields ? [...base, entry.item.grant.fields ?? null] : base,
+  );
 }
 
 /**
  * Grant keys per permission: the key is the permission, split into
  * `permission#n` when role grants carry different portable conditions (or
- * effects), one key per condition group.
+ * effects), one key per condition group. With field views, grants that differ
+ * only in `fields` get their own keys too, so a view can tell them apart.
  */
-function assignKeys(entries: readonly Prepared[]): Map<Prepared, string> {
+function assignKeys(
+  entries: readonly Prepared[],
+  byFields: boolean,
+): Map<Prepared, string> {
   const groups = new Map<string, Map<string, Prepared[]>>();
   for (const entry of entries) {
     if (entry.item.access.kind !== 'role') {
@@ -280,7 +290,7 @@ function assignKeys(entries: readonly Prepared[]): Map<Prepared, string> {
     }
     const key = entry.item.grant.permission.key;
     const byCondition = groups.get(key) ?? new Map<string, Prepared[]>();
-    const sig = signature(entry);
+    const sig = signature(entry, byFields);
     byCondition.set(sig, [...(byCondition.get(sig) ?? []), entry]);
     groups.set(key, byCondition);
   }
@@ -344,7 +354,7 @@ export function compileGrants(
     const entry = prepare(item, tables, warnings, skipClosures);
     return entry === undefined ? [] : [entry];
   });
-  const keys = assignKeys(entries);
+  const keys = assignKeys(entries, ctx.fields === 'views');
   const rows = new Map<string, RolePermission>();
   const branches: CompiledBranch[] = [];
   const filtered = new Set<string>();
@@ -405,6 +415,7 @@ export function compileGrants(
     }
     const using = compileOptional(entry.using, rowCtx);
     const check = compileOptional(entry.check, rowCtx);
+    const fields = grant.fields === undefined ? {} : { fields: grant.fields };
     if (!linkOnly) {
       branches.push({
         table,
@@ -415,7 +426,9 @@ export function compileGrants(
             ? ['anon', 'authenticated']
             : ['authenticated'],
         label,
+        resource: grant.permission.resource,
         permissionKey: grant.permission.key,
+        ...fields,
         ...(grantKey === undefined ? {} : { grantKey }),
         ...(accessExpr === undefined ? {} : { access: accessExpr }),
         ...(using === undefined ? {} : { using }),
@@ -433,7 +446,9 @@ export function compileGrants(
         effect: grant.effect,
         roles: ['anon'],
         label,
+        resource: grant.permission.resource,
         permissionKey: grant.permission.key,
+        ...fields,
         access: linked,
         ...(using === undefined ? {} : { using }),
         ...(check === undefined ? {} : { check }),

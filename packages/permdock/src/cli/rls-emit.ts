@@ -1,6 +1,13 @@
 import type { CompiledPolicy, SqlCommand } from './rls-compile.ts';
+import type { FieldView } from './rls-fields.ts';
 import type { RlsTarget } from './types.ts';
 
+import {
+  columnGrantSql,
+  columnRevokeSql,
+  fieldViewsSql,
+  revokeColumnsSql,
+} from './rls-fields.ts';
 import { quoteIdent, quoteTable } from './rls-sql.ts';
 
 const HEADER =
@@ -29,10 +36,18 @@ function migrationComment(sqlText: string): string[] {
   return sqlText === '' ? [] : ['/* run in a migration:', sqlText, '*/', ''];
 }
 
+/** The field views and, for targets without grants, the `--revoke-columns` statements. */
+function fieldsMigration(views: readonly FieldView[]): string {
+  return [revokeColumnsSql(views), fieldViewsSql(views)]
+    .filter((part) => part !== '')
+    .join('\n\n');
+}
+
 export function emitSql(
   policies: readonly CompiledPolicy[],
   preamble: string,
   force = false,
+  views: readonly FieldView[] = [],
 ): string {
   const tables = [...new Set(policies.map((item) => item.table))];
   const chunks: string[] = [HEADER];
@@ -40,6 +55,9 @@ export function emitSql(
     chunks.push(preamble);
   }
   for (const table of tables) {
+    const closed = views.find(
+      (view) => view.table === table && view.companion !== undefined,
+    );
     chunks.push(
       `revoke all on table ${quoteTable(table)} from anon, authenticated;`,
     );
@@ -54,14 +72,22 @@ export function emitSql(
           )
           .map((item) => item.command),
       );
-      const grants = ['select', 'insert', 'update', 'delete'].filter((cmd) =>
-        cmds.has(cmd as SqlCommand),
+      const grants = ['select', 'insert', 'update', 'delete'].filter(
+        (cmd) =>
+          cmds.has(cmd as SqlCommand) &&
+          (closed === undefined || cmd !== 'select'),
       );
       if (grants.length > 0) {
         chunks.push(
           `grant ${grants.join(', ')} on table ${quoteTable(table)} to ${role};`,
         );
       }
+      if (closed !== undefined && cmds.has('select')) {
+        chunks.push(columnGrantSql(closed, role));
+      }
+    }
+    if (closed !== undefined) {
+      chunks.push(columnRevokeSql(closed));
     }
     chunks.push(`alter table ${quoteTable(table)} enable row level security;`);
     if (force) {
@@ -88,6 +114,9 @@ export function emitSql(
     }
     chunks.push(`${lines.join('\n')};\n`);
   }
+  if (views.length > 0) {
+    chunks.push(fieldViewsSql(views));
+  }
   const text = `${chunks.join('\n').trim()}\n`;
   assertNoServiceRole(text);
   return text;
@@ -103,6 +132,7 @@ export function emitDrizzle(
   policies: readonly CompiledPolicy[],
   preamble: string,
   force = false,
+  views: readonly FieldView[] = [],
 ): string {
   const anon = policies.some((item) => item.roles.includes('anon'));
   const lines = [
@@ -118,6 +148,7 @@ export function emitDrizzle(
   if (force) {
     lines.push(...migrationComment(forceSql(policies)));
   }
+  lines.push(...migrationComment(fieldsMigration(views)));
   for (const item of policies) {
     const as = item.effect === 'deny' ? 'restrictive' : 'permissive';
     const using =
@@ -142,6 +173,7 @@ export function emitPrisma(
   policies: readonly CompiledPolicy[],
   preamble: string,
   force = false,
+  views: readonly FieldView[] = [],
 ): string {
   const byTable = new Map<string, CompiledPolicy[]>();
   for (const item of policies) {
@@ -160,6 +192,7 @@ export function emitPrisma(
   if (force) {
     lines.push(...migrationComment(forceSql(policies)));
   }
+  lines.push(...migrationComment(fieldsMigration(views)));
   for (const [table, items] of byTable) {
     const model = table.charAt(0).toUpperCase() + table.slice(1);
     lines.push(`model ${model} {`);

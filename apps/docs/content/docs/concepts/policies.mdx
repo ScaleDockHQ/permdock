@@ -190,7 +190,7 @@ Quotas in SaaS plans are often soft: the customer keeps working past the include
 - `permdock.pick(permission, row)` returns the own keys the subject may read; a denied row yields an empty object. Redact with `pick` after `filter`.
 - Collection grants take no `fields`, and there are no `*` or `**` patterns.
 
-`fields` is plain JSON on the grant and in the snapshot, so a client can redact without asking the server. `where` and generated RLS stay row-level. A permission per field (`post.read.title`) was rejected because it multiplies catalog and RLS keys and `post.read` would stop meaning the row; CASL-style globs were rejected because they are string keys that can grant fields nobody listed, when the schema already names them.
+`fields` is plain JSON on the grant and in the snapshot, so a client can redact without asking the server. `where` stays row-level, and so does generated RLS by default. `permdock rls generate --fields views` adds a `security_invoker` view `<table>_visible` whose restricted columns are `case when <permitted> then col end`, the database form of `pick`; `--revoke-columns` also closes those columns on the table itself, so a client that skips the view cannot read them ([field security](/docs/adapters/rls#field-security)). Postgres column privileges were rejected for this: they belong to a database role, not to a row or a tenant, so they cannot say that finance reads `amount` only in its own organization. A permission per field (`post.read.title`) was rejected because it multiplies catalog and RLS keys and `post.read` would stop meaning the row; CASL-style globs were rejected because they are string keys that can grant fields nobody listed, when the schema already names them.
 
 ## definePolicy options
 
