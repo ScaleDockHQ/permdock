@@ -4,6 +4,7 @@ export { authorizeSql, supabaseRls } from './rls.ts';
 export { subjectFromSupabase, subjectFromSupabaseSession } from './subject.ts';
 export type {
   AuthorizeSqlOptions,
+  SupabaseActiveRow,
   SupabaseInclude,
   SupabaseMembershipTable,
   SupabasePrincipal,
@@ -11,4 +12,5 @@ export type {
   SupabaseSessionLike,
   SupabaseRlsOptions,
   SupabaseSubjectOptions,
+  SupabaseSuspension,
 } from './types.ts';

@@ -113,12 +113,16 @@ In `database` mode each helper reads its scope's membership table (`rls.membersh
 
 ## Suspension
 
-A disabled organization or user is a subject input, like a membership. A `MembershipSource` (or the `subject` function) leaves out every membership of a suspended scope instance and returns no roles for a suspended user; `decide`, `where()`, snapshots and `filter` then deny every path, the portal contact's included. RLS in `database` mode does not know the status yet; filtering a status column inside the generated helpers is a follow-up.
+A disabled organization or user is a subject input, like a membership. A `MembershipSource` (or the `subject` function) leaves out every membership of a suspended scope instance and returns no roles for a suspended user; `decide`, `where()`, snapshots and `filter` then deny every path, the portal contact's included.
+
+RLS reads the same status from the database. `rls.suspension` names a users table and a table per scope, each with a `disabledAt` timestamp or a `status` column. The generated helpers then drop a suspended user's roles, and every membership whose instance or ancestor instance is suspended, in `database` and `jwt` mode alike. A missing status row counts as suspended. The Supabase token hook applies the same filter when it writes the `memberships` claim ([RLS](/docs/cli/rls)).
 
 ## Why
 
 Real SaaS products nest tenants: organizations and their customers, districts and schools, workspaces and projects. A fixed tenant-and-team pair forced the second level to be either a team (roles cascade up to the tenant) or a hand-written condition on every grant. Named scopes keep the shape declared once and ordered, which is also what RLS needs to generate one helper per level.
 
 No implicit cascade is the rule every access-control incident in multi-level tenancy argues for: an organization admin who can open a customer portal "because they are above it" leaks the portal's scoping, and a customer contact who inherits an organization role is worse. CentraKit, the field-service product this page's example comes from, had to route its portal through security-definer RPCs because staff table policies could not express contact access; per-scope helpers remove that workaround. Requiring each resource to declare every scope key it carries turns a silent parity gap (a row checked in memory but not narrowed by `where()` or RLS) into a definition-time error.
+
+Suspension is checked live in `jwt` mode too, even though the helpers otherwise trust the token. A disabled organization is an incident response, and waiting up to an hour for every member's token to refresh is the wrong default. The cost is one indexed lookup per helper call, still once per statement. A missing status row suspends because the alternative (a row nobody created grants access) fails open.
 
 A single tree rooted at the first scope keeps "the active tenant" meaningful: every nested membership lives inside exactly one instance of the first scope, so tenant switching, per-tenant snapshots and the active-tenant claim need no per-scope variant.

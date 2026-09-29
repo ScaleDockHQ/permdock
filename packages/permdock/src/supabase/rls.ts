@@ -1,8 +1,10 @@
 import type {
   AuthorizeSqlOptions,
+  SupabaseActiveRow,
   SupabaseMembershipTable,
   SupabaseRlsConfig,
   SupabaseRlsOptions,
+  SupabaseSuspension,
 } from './types.ts';
 
 import { compact } from '../core/compact.ts';
@@ -30,6 +32,7 @@ export function supabaseRls(
     tenantClaim: options.tenantClaim ?? 'tenant_id',
     tenantType: options.tenantType,
     memberships,
+    suspension: options.suspension,
   });
 }
 
@@ -59,6 +62,49 @@ function textArray(values: readonly string[]): string {
   return values.length === 0
     ? `'{}'::text[]`
     : `array[${values.map(literal).join(', ')}]::text[]`;
+}
+
+function activeRow(row: SupabaseActiveRow, id: string, text = false): string {
+  const parts = [`s.${ident(row.id)}${text ? '::text' : ''} = ${id}`];
+  if (row.disabledAt !== undefined) {
+    parts.push(`s.${ident(row.disabledAt)} is null`);
+  }
+  if (row.status !== undefined) {
+    if (row.active === undefined || row.active.length === 0) {
+      throw new TypeError(
+        'PermDock: a suspension status column needs its active values',
+      );
+    }
+    parts.push(`s.${ident(row.status)}::text = any(${textArray(row.active)})`);
+  }
+  if (row.disabledAt === undefined && row.status === undefined) {
+    throw new TypeError(
+      'PermDock: a suspension table needs disabledAt or status',
+    );
+  }
+  return `exists (select 1 from ${qualifiedTable(row.table)} s where ${parts.join(' and ')})`;
+}
+
+/** Early `return false` for a suspended user, or a tenant request for a suspended instance. */
+function suspendedGuards(
+  suspension: SupabaseSuspension | undefined,
+  scope: string,
+  uid: string,
+): string {
+  const lines: string[] = [];
+  const users = suspension?.users;
+  if (users !== undefined) {
+    lines.push(`  if not ${activeRow(users, uid)} then
+    return false; -- suspended user
+  end if;`);
+  }
+  const tenant = suspension?.scopes?.[scope];
+  if (tenant !== undefined) {
+    lines.push(`  if requested_tenant is not null and not ${activeRow(tenant, 'requested_tenant', true)} then
+    return false; -- suspended ${scope}
+  end if;`);
+  }
+  return lines.map((line) => `\n${line}`).join('');
 }
 
 function claimEntries(where: string, value: string): string {
@@ -129,6 +175,7 @@ function databaseBody(
   scope: string,
   memberships: SupabaseMembershipTable | undefined,
   custom: AuthorizeSqlOptions['customRoles'],
+  suspension: SupabaseSuspension | undefined,
 ): string {
   const tenantColumn = memberships?.tenant;
   const tenantBranch =
@@ -157,7 +204,7 @@ function databaseBody(
 begin
   if uid is null then
     return false;
-  end if;
+  end if;${suspendedGuards(suspension, scope, 'uid')}
 ${tenantBranch}
   return exists (
     select 1
@@ -175,6 +222,7 @@ function jwtBody(
   q: (name: string) => string,
   scope: string,
   custom: AuthorizeSqlOptions['customRoles'],
+  suspension: SupabaseSuspension | undefined,
 ): string {
   const memberships = `jsonb_array_elements(
         case jsonb_typeof(coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships'))
@@ -210,7 +258,7 @@ function jwtBody(
 begin
   if claims is null or (select auth.uid()) is null then
     return false;
-  end if;
+  end if;${suspendedGuards(suspension, scope, '(select auth.uid())')}
   if requested_tenant is not null then
     return exists (
       select 1
@@ -270,8 +318,14 @@ export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
   }
   const body =
     options.authorize === 'jwt'
-      ? jwtBody(q, scope, options.customRoles)
-      : databaseBody(q, scope, memberships, options.customRoles);
+      ? jwtBody(q, scope, options.customRoles, options.suspension)
+      : databaseBody(
+          q,
+          scope,
+          memberships,
+          options.customRoles,
+          options.suspension,
+        );
   return `create or replace function ${q('authorize')}(
   requested_permission ${q('app_permission')},
   requested_tenant text default null

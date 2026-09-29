@@ -38,6 +38,25 @@ export type RlsMemberships = {
   readonly resource?: Readonly<Record<string, RlsMembershipTable>>;
 };
 
+/** A table whose row says whether a user or a scope instance is active. A missing row counts as suspended. */
+export type RlsActiveRow = {
+  readonly table: string;
+  /** Column holding the user id or the scope instance id. */
+  readonly id: string;
+  /** Nullable timestamp column; a row with a value is suspended. */
+  readonly disabledAt?: string;
+  /** Status column; only a row whose value is in `active` counts as active. */
+  readonly status?: string;
+  readonly active?: readonly string[];
+};
+
+export type RlsSuspension = {
+  /** A suspended user holds no role and no membership. */
+  readonly users?: RlsActiveRow;
+  /** Per scope name: a suspended instance voids its memberships and every membership nested under it. */
+  readonly scopes?: Readonly<Record<string, RlsActiveRow>>;
+};
+
 export type RlsFunctionMapping = {
   readonly twin: unknown;
   readonly args?: readonly string[];
@@ -47,6 +66,8 @@ export type RlsConfig = {
   readonly tables?: Readonly<Record<string, string>>;
   readonly dialect?: RlsDialect;
   readonly memberships?: RlsMemberships;
+  /** Tables the helpers, `authorize()` and the token hook read to drop suspended users and scope instances. */
+  readonly suspension?: RlsSuspension;
   readonly functions?: Readonly<Record<string, RlsFunctionMapping>>;
   readonly inlineFunctions?: boolean;
   /** Emit FORCE ROW LEVEL SECURITY so the table owner is subject to the policies. */

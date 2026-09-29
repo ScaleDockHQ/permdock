@@ -5,11 +5,13 @@ export type {
   CatalogDocument,
   CollectConfig,
   PermDockConfig,
+  RlsActiveRow,
   RlsConfig,
   RlsDialect,
   RlsFunctionMapping,
   RlsMemberships,
   RlsMembershipTable,
+  RlsSuspension,
   RlsTarget,
   RunResult,
 } from './types.ts';

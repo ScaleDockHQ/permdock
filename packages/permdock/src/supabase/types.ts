@@ -15,10 +15,39 @@ export type SupabaseMembershipTable = {
   readonly table: string;
   readonly user: string;
   readonly role: string;
+  /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
+  readonly columns?: Readonly<Record<string, string>>;
   readonly tenant?: string;
   readonly team?: string;
   readonly id?: string;
   readonly expiresAt?: string;
+};
+
+/** A table whose row says whether a user or a scope instance is active. A missing row counts as suspended. */
+export type SupabaseActiveRow = {
+  readonly table: string;
+  /** Column holding the user id or the scope instance id. */
+  readonly id: string;
+  /** Nullable timestamp column; a row with a value is suspended. */
+  readonly disabledAt?: string;
+  /** Status column; only a row whose value is in `active` counts as active. */
+  readonly status?: string;
+  readonly active?: readonly string[];
+};
+
+export type SupabaseSuspension = {
+  /** A suspended user holds no role and no membership. */
+  readonly users?: SupabaseActiveRow;
+  /** Per scope name: a suspended instance voids its memberships and every membership nested under it. */
+  readonly scopes?: Readonly<Record<string, SupabaseActiveRow>>;
+};
+
+type SupabaseMemberships = {
+  /** The membership table of each named scope. */
+  readonly scopes?: Readonly<Record<string, SupabaseMembershipTable>>;
+  readonly tenant?: SupabaseMembershipTable;
+  readonly team?: SupabaseMembershipTable;
+  readonly resource?: Readonly<Record<string, SupabaseMembershipTable>>;
 };
 
 export type AuthorizeSqlOptions = {
@@ -36,6 +65,8 @@ export type AuthorizeSqlOptions = {
    * the `memberships[].grants` claim in `jwt` mode. `declared` role names never resolve as custom.
    */
   readonly customRoles?: { readonly declared: readonly string[] };
+  /** A suspended user, or a suspended instance of `scope` for a tenant request, answers `false`. */
+  readonly suspension?: SupabaseSuspension;
 };
 
 export type SupabaseRlsOptions = {
@@ -43,13 +74,8 @@ export type SupabaseRlsOptions = {
   readonly tenantClaim?: string;
   /** Postgres type of tenant columns; the tenant claim is cast to it. `rls generate` defaults to `uuid`. */
   readonly tenantType?: string;
-  readonly memberships?:
-    | SupabaseMembershipTable
-    | {
-        readonly tenant?: SupabaseMembershipTable;
-        readonly team?: SupabaseMembershipTable;
-        readonly resource?: Readonly<Record<string, SupabaseMembershipTable>>;
-      };
+  readonly memberships?: SupabaseMembershipTable | SupabaseMemberships;
+  readonly suspension?: SupabaseSuspension;
 };
 
 export type SupabaseRlsConfig = {
@@ -57,11 +83,8 @@ export type SupabaseRlsConfig = {
   readonly roleClaim: string;
   readonly tenantClaim: string;
   readonly tenantType?: string;
-  readonly memberships?: {
-    readonly tenant?: SupabaseMembershipTable;
-    readonly team?: SupabaseMembershipTable;
-    readonly resource?: Readonly<Record<string, SupabaseMembershipTable>>;
-  };
+  readonly memberships?: SupabaseMemberships;
+  readonly suspension?: SupabaseSuspension;
 };
 
 /**
