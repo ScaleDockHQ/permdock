@@ -1,0 +1,5 @@
+---
+'permdock': minor
+---
+
+`permdock/next` targets Next.js 16.3 (the `next` peer range is now `>=16.3`). `createPermDock` also returns `requireAccess(permission, data?, { tenant }?)`, which resolves to the granted `Decision` and interrupts a denial with `unauthorized()` for an anonymous subject or `forbidden()` otherwise (`experimental.authInterrupts`); approval-required and boundary validation still throw `PermDockApprovalRequiredError` and `PermDockValidationError`. The request-scoped instance is created after `await io()`, so decisions that read the clock no longer trip the "`Date.now()` while prerendering" error under Cache Components, and never block a prefetch the way `connection()` would. A `redirect()`, `notFound()` or other Next.js interrupt thrown by the `subject` or `tenant` resolver now propagates (`unstable_rethrow`) instead of turning the request anonymous. Sink writes and one `flush()` per render run inside `after()`, so a serverless function stays alive until buffered decision events are delivered.

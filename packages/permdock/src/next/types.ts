@@ -67,6 +67,16 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     permission: Permission,
     data?: unknown,
   ) => Promise<ServerPermissionState>;
+  /**
+   * Resolves to the granted `Decision`. A denial calls `unauthorized()` for an
+   * anonymous subject and `forbidden()` otherwise (`experimental.authInterrupts`);
+   * approval-required and boundary validation throw as from `assert`.
+   */
+  readonly requireAccess: (
+    permission: Permission,
+    data?: unknown,
+    query?: GetPermDockQuery,
+  ) => Promise<Extract<Decision, { readonly outcome: 'granted' }>>;
   /** Never awaits: passes an unawaited snapshot to the client provider, whose hooks suspend. */
   readonly PermDockProvider: (
     props: ServerPermDockProviderProps,

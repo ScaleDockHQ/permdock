@@ -1,7 +1,7 @@
 // Module hooks that stand in for the RSC bundler: a module whose source
 // starts with "use client" is replaced by client references, the job
 // `react-server-dom-webpack/node-loader` does for a real Flight server.
-import type { LoadHookSync } from 'node:module';
+import type { LoadHookSync, ResolveHookSync } from 'node:module';
 
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +28,16 @@ function exportNames(source: string): readonly string[] {
   }
   return names;
 }
+
+// Next's server-layer alias for the fully specified import (`createAppRouterApiAliases`),
+// pointed at the CommonJS build because `next/dist/api` is bundler-only ESM.
+const SERVER_LAYER_ALIASES: Readonly<Record<string, string>> = {
+  'next/navigation.js':
+    'next/dist/client/components/navigation.react-server.js',
+};
+
+export const resolve: ResolveHookSync = (specifier, context, nextResolve) =>
+  nextResolve(SERVER_LAYER_ALIASES[specifier] ?? specifier, context);
 
 export const load: LoadHookSync = (url, context, nextLoad) => {
   const result = nextLoad(url, context);
