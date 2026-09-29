@@ -251,9 +251,15 @@ export type MembershipEvent = {
   readonly source: string;
   readonly operation: 'added' | 'removed' | 'changed';
   readonly principal: { readonly id: string };
-  readonly tenant?: string;
-  readonly team?: string;
+  /** A declared scope name, or the `tenant` / `team` alias; absent for a global role change. */
+  readonly scope?: string;
+  /** The scope instance; present exactly when `scope` is. */
+  readonly id?: string;
+  /** The id of every ancestor scope, keyed by scope name. */
+  readonly within?: Readonly<Record<string, string>>;
   readonly via?: string;
+  /** When the membership lapses, in seconds since the epoch. */
+  readonly expiresAt?: number;
   readonly roles: {
     readonly added: readonly string[];
     readonly removed: readonly string[];

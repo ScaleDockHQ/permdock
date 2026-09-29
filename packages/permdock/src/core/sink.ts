@@ -108,22 +108,34 @@ export function membershipEvent(input: {
   readonly source: string;
   readonly operation: MembershipEvent['operation'];
   readonly principal: MembershipEvent['principal'];
-  readonly tenant?: string;
-  readonly team?: string;
+  readonly scope?: string;
+  readonly id?: string;
+  readonly within?: MembershipEvent['within'];
   readonly via?: string;
+  readonly expiresAt?: number;
   readonly roles: MembershipEvent['roles'];
   readonly by?: MembershipEvent['by'];
   readonly at?: string;
 }): MembershipEvent {
+  if ((input.scope === undefined) !== (input.id === undefined)) {
+    throw new TypeError(
+      'PermDock: membershipEvent needs scope and id together',
+    );
+  }
+  if (input.scope === undefined && input.within !== undefined) {
+    throw new TypeError('PermDock: membershipEvent within needs a scope');
+  }
   return compact<MembershipEvent>({
     type: 'membership',
     at: input.at ?? new Date().toISOString(),
     source: input.source,
     operation: input.operation,
     principal: input.principal,
-    tenant: input.tenant,
-    team: input.team,
+    scope: input.scope,
+    id: input.id,
+    within: input.within,
     via: input.via,
+    expiresAt: input.expiresAt,
     roles: input.roles,
     by: input.by,
   });

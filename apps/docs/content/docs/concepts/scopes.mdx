@@ -96,6 +96,7 @@ Collection actions (`quote.create`, `quote.list`) have no row: they need a membe
 | Custom roles | `CustomRole.scope` (default the first scope) and optional `id`; the ceiling is keyed by scope name ([custom roles](/docs/concepts/custom-roles)) |
 | RLS | One `permitted_<scope>_ids(p_grant)` helper per declared scope, applied to that scope's key ([Postgres RLS](/docs/standards/postgres-rls)) |
 | Catalog | `scopes[]` in order and `roles[].on` as a scope name or `resource` |
+| Membership events | `scope`, `id` and `within`, like a membership, so a role change at any depth is recorded ([wire formats](/docs/concepts/wire-formats)) |
 
 ## RLS
 

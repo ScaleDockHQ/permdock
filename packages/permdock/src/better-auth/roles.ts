@@ -100,6 +100,21 @@ export function betterAuthRoleSource(
   };
 }
 
+/** A team role sits in the second scope inside its organization; an organization role in the first. */
+function scopeOfChange(event: BetterAuthRoleChangeEvent): {
+  readonly scope?: string;
+  readonly id?: string;
+  readonly within?: Readonly<Record<string, string>>;
+} {
+  const tenant = event.organizationId;
+  if (tenant === undefined) {
+    return {};
+  }
+  return event.teamId === undefined
+    ? { scope: 'tenant', id: tenant }
+    : { scope: 'team', id: event.teamId, within: { tenant } };
+}
+
 export function onRoleChange(
   refresh: (event: BetterAuthRoleChangeEvent) => void | Promise<void>,
   options: { readonly sink?: DecisionSink } = {},
@@ -131,8 +146,7 @@ export function onRoleChange(
             source: 'better-auth',
             operation,
             principal: { id: event.userId },
-            tenant: event.organizationId,
-            team: event.teamId,
+            ...scopeOfChange(event),
             roles: { added, removed },
             by: event.by,
           }),
