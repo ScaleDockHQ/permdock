@@ -107,6 +107,10 @@ Carried inside the principal and exchanged with `MembershipSource` and `RoleSour
 ```
 
 ```json
+{ "scope": "organization", "id": "o_1", "roles": ["member"], "via": "group:g_eng", "managedBy": "idp", "entitlements": ["dev-mode"] }
+```
+
+```json
 { "on": { "resource": "document", "id": "d_9" }, "roles": ["editor"] }
 ```
 
@@ -115,6 +119,8 @@ Carried inside the principal and exchanged with `MembershipSource` and `RoleSour
 ```
 
 A membership names one scope instance (`scope`, `id`, and in `within` the id of every ancestor scope) or one resource (`on`). Readers also accept the input form `{ tenant, team? }` for the first and second scope and normalise it; everything PermDock writes (snapshots, claims, events) uses the canonical form. The same shape is the `memberships` claim RLS reads in `jwt` mode, with a membership's custom roles as an optional compact `grants` map ([custom roles](/docs/concepts/custom-roles)). A custom role has `tenant` (the owning instance of the first scope), `name`, optional `scope` (the scope it is held at, default the first) and `id` (one instance of it), `includes` (declared role names) and `grants` (declared permission keys with `effect` `allow`, the default, or `deny`, and no other field). Both are bounded by the ceiling of assignable declared roles in the role's scope; entries outside it are dropped, never widened ([custom roles](/docs/concepts/custom-roles)).
+
+`via` is the membership kind (`staff`, `contact`, `group:<id>`) and `expiresAt` its expiry in seconds since the epoch; both round-trip through the claim, `subjectFromSupabase` and the snapshot, so a client can show "invited, expires in 3 days". `managedBy: "idp"` marks a membership the identity provider owns (the application must not edit it), and `entitlements` lists the seats it holds; `plan()` grantees match a seat only inside the active tenant. The Supabase token hook adds three top-level claims next to `memberships`: `memberships_truncated: true` when the size budget cut the list, `authz_ver` (the principal's authorization version, an integer) and `attrs` (allow-listed profile columns). `subjectFromSupabase` maps the first two to `principal.membershipsTruncated` and `principal.authzVersion`; `attrs` stays under `principal.claims` ([Supabase token hook](/docs/adapters/supabase-hook)).
 
 ## Decision
 

@@ -47,6 +47,7 @@
     "rls",
     "---Providers---",
     "supabase",
+    "supabase-hook",
     "better-auth",
     "clerk",
     "convex",

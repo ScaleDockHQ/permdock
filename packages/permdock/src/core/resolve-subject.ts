@@ -5,8 +5,8 @@ import type { Policy } from './policy.ts';
 import { compact } from './compact.ts';
 import { sanitizeContext } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
-import { applyRoleKinds } from './ownership.ts';
 import { asMembershipSource } from './memberships.ts';
+import { applyRoleKinds } from './ownership.ts';
 import { normalizeMemberships, scopeList } from './scopes.ts';
 import {
   type Actor,

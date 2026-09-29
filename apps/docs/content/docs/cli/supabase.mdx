@@ -1,0 +1,22 @@
+---
+title: supabase
+description: permdock supabase hook generate compiles the app's fromTable and fromJunction membership sources into a Supabase Custom Access Token Hook migration.
+---
+
+```bash
+permdock supabase hook generate [--out supabase/permdock-hook.sql] [--check]
+                                [--active-from app_metadata.active_<scope>|<table>.<column>]
+                                [--budget 1024] [--schema public]
+```
+
+Reads `supabase.hook` from `permdock.config.ts` and the policy's scopes, and writes one idempotent SQL migration: `custom_access_token_hook(jsonb)`, the `supabase_auth_admin` grants and revokes, the `permdock_authz_version` table with its triggers, and the `permdock_protect_managed` trigger for IdP-owned rows. It prints the `config.toml` block (`jwt_expiry = 900` and the hook `uri`) to add. It never grants anything to `service_role`. The [Supabase token hook](/docs/adapters/supabase-hook) page covers the claims and the runtime side.
+
+| Flag | Values | Default | Effect |
+| --- | --- | --- | --- |
+| `--out` | a path | `supabase.hook.out`, else `supabase/permdock-hook.sql` | Where the migration is written |
+| `--check` | flag | off | Exit `1` when the file on disk differs from what would be written |
+| `--active-from` | `app_metadata.<key>`, `<table>.<column>` | `supabase.hook.activeFrom`, else `app_metadata.active_<first scope>` | Where the active first-scope id comes from; its memberships go first and it becomes the tenant claim when the user holds one there |
+| `--budget` | a positive integer | `supabase.hook.budget`, else `supabaseMembershipsBudget` (1024) | Bytes of JSON the `memberships` claim may use before it is truncated and `memberships_truncated: true` is set |
+| `--schema` | a Postgres identifier | `supabase.hook.schema`, `rls.schema`, else `public` | Schema of the hook, its trigger functions and the version table |
+
+`supabase.hook` also takes `memberships` (the sources, required), `roles` (the global roles table, `false` for none), `profile` (`{ table, id?, columns }` copied into `attrs`), `version: false` (no `authz_ver`), `jwtExpiry` and `suspension` (defaults to `rls.suspension`; a suspended user gets empty claims). Exit `2` on a missing `supabase.hook`, a source whose scope the policy does not declare, a single-scope source missing an ancestor's `within` column, a non-positive budget or an unsafe identifier.

@@ -45,6 +45,7 @@ export default defineConfig({
 | `permdock doctor` | Check wiring, imports, references, catalog freshness, skills, TypeScript version, sensitive verbs (PD017), static separation of duty (PD018), hosted-grant wiring (PD020, PD021), custom roles outside their ceiling (PD023) and approvals the requester can give (PD024) | [doctor](/docs/cli/doctor) |
 | `permdock skills` | Install or update the `wire-permdock` and `audit-permissions` Agent Skills | [skills](/docs/cli/skills) |
 | `permdock cloud push` | Publish the catalog, `hostable` flags and role assignability to a PermDock Cloud environment; `--dry-run`, `--url`, `--environment` | [cloud](/docs/cli/cloud) |
+| `permdock supabase hook generate` | Compile the app's `fromTable` / `fromJunction` membership sources into a Supabase Custom Access Token Hook migration with a size budget, `authz_ver` and IdP-row protection; `--check` for CI | [supabase](/docs/cli/supabase) |
 
 The Next.js build hook `createPermDockPlugin` is documented on [Next.js plugin](/docs/cli/next-plugin). The same collect hook for Vite, Rollup, webpack, Rspack and esbuild is `createPermDockUnplugin` ([unplugin](/docs/cli/unplugin)): Nuxt, Astro, React Router, TanStack Start and Effect apps use it; there is no per-vendor package.
 

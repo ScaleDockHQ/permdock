@@ -1,0 +1,153 @@
+---
+title: Supabase token hook
+description: permdock supabase hook generate compiles the app's membership sources into one custom_access_token_hook, with the active scope first, a size budget, an authorization version for sensitive permissions, and protection for memberships the identity provider owns.
+---
+
+A Supabase app usually reads memberships in two places: the server asks its tables on every request, and the access token carries a copy so RLS and the browser do not have to. The two drift apart as soon as they are written by hand. `permdock supabase hook generate` removes the second copy of the logic: the app declares its membership sources once, passes them to `createPermDock` as `memberships`, and the generator compiles the same sources into the Custom Access Token Hook.
+
+## Sources
+
+`permdock/supabase` exports two SQL membership sources. Each one runs a single parameterised `select` at runtime and hands the same `select` to the generator, so the claim the hook writes and the memberships the server reads come from identical SQL.
+
+```ts
+// src/memberships.ts
+import { fromJunction, fromTable, type SqlQuery } from 'permdock/supabase'
+
+const suspension = {
+  users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' },
+  scopes: { organization: { table: 'organizations', id: 'id', disabledAt: 'disabled_at' } },
+}
+
+export function sources(query?: SqlQuery) {
+  const shared = query === undefined ? { suspension } : { query, suspension }
+  return [
+    // one row per user, scope, instance and role
+    fromTable({
+      table: 'memberships',
+      columns: { via: 'via', expiresAt: 'expires_at', managedBy: 'managed_by', seats: 'seats' },
+      ...shared,
+    }),
+    // portal contacts: every row is a customer membership with the fixed role `contact`
+    fromJunction({
+      table: 'customer_contacts',
+      scope: 'customer',
+      within: { organization: 'organization_id' },
+      roles: ['contact'],
+      via: 'contact',
+      ...shared,
+    }),
+  ]
+}
+```
+
+- `fromTable({ table, columns?, query?, suspension? })` reads a table that holds every scope. `columns.user`, `scope`, `id` and `role` default to `user_id`, `scope`, `scope_id` and `role`. `within` names a `jsonb` column of ancestor ids; `via`, `expiresAt`, `managedBy` (a text column where `idp` marks an IdP-owned row) and `seats` (a `text[]` column) are optional. Rows for the same instance, kind, expiry, owner and seats merge into one membership with every role.
+- `fromJunction({ table, scope, roles, user?, id?, within?, via?, expiresAt?, managedBy?, seats?, query?, suspension? })` reads a table of one scope. `roles` is a role column or fixed roles (`['contact']`), so a contact table needs no role column. `id` defaults to `<scope>_id`, `within` maps each ancestor scope to its column, `via` is the kind every row has, and `managedBy` is `'idp'` (every row) or `{ column }`.
+- `query(text, values)` runs one statement: `pg`'s `client.query` and `postgres`'s `sql.unsafe` both fit. Without it a source only describes SQL, which is all `permdock.config.ts` needs.
+- `suspension` has the shape of [`rls.suspension`](/docs/cli/rls): rows of a suspended user, instance or ancestor instance are left out, and a missing status row counts as suspended.
+- Each source also implements `list({ scope, id })`, which returns every member of one instance for member lists, share dialogs and access reviews.
+
+On the server, pass the sources as an array. `createPermDock` composes them with `composeMemberships`: memberships are merged and de-duplicated, entries that differ in `via`, expiry, owner or seats stay separate, and a source that throws makes the whole lookup fail closed.
+
+```ts
+import { claimsFirst, createPermDock } from 'permdock'
+import { authzVersion, subjectFromSupabase } from 'permdock/supabase'
+
+const query: SqlQuery = async (text, values) => (await pool.query(text, [...values])).rows
+const memberships = claimsFirst(sources(query), { version: authzVersion({ query }) })
+
+const { data } = await supabase.auth.getClaims()
+const permdock = await createPermDock(policy, subjectFromSupabase(data?.claims ?? null), { memberships })
+```
+
+`claimsFirst(sources, { version? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`). Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
+
+## Generate
+
+```ts
+// permdock.config.ts
+import { sources } from './src/memberships.ts'
+
+export default defineConfig({
+  policy: './src/policy.ts',
+  supabase: {
+    hook: {
+      memberships: sources(),
+      profile: { table: 'profiles', columns: ['locale', 'timezone'] },
+    },
+  },
+})
+```
+
+```bash
+permdock supabase hook generate --out supabase/migrations/20260929_permdock_hook.sql
+permdock supabase hook generate --active-from profiles.active_organization_id --budget 2048
+permdock supabase hook generate --check
+```
+
+The output is one idempotent migration:
+
+- `custom_access_token_hook(event jsonb)`, `stable`, `search_path = ''`, which writes:
+  - `roles` (every global role) and `user_role` (a string for one role, an array for several; absent for none, so `app_metadata` still applies) from `supabase.hook.roles`, by default `<schema>.user_roles (user_id, role)`;
+  - `memberships`: a `union all` over every source, in the canonical `{ scope, id, within?, roles, via?, expiresAt?, managedBy?, entitlements? }` form;
+  - the active tenant claim (`rls.tenantClaim`, default `tenant_id`), only when the user holds a membership in it. The active first-scope id comes from `app_metadata.active_<first scope>` by default; `--active-from` (or `supabase.hook.activeFrom`) takes `app_metadata.<key>`, `<table>.<column>` joined on `id`, or `{ table, id, column }`;
+  - `attrs`: the allow-listed `profile.columns`, never other columns;
+  - `authz_ver`: the user's authorization version (below).
+- The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, roles, profile, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
+- `permdock_authz_version (user_id, version)` and the `permdock_bump_authz_version` trigger on every source table and the roles table.
+- The `permdock_protect_managed` trigger on sources with `managedBy`.
+- The `config.toml` block, printed and repeated as a comment:
+
+```toml
+[auth]
+jwt_expiry = 900
+
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
+```
+
+`jwt_expiry = 900` bounds how long a demotion can take to reach a token: 15 minutes, set with `supabase.hook.jwtExpiry`. The command refuses a source whose scope the policy does not declare, a single-scope source without a `within` column for every ancestor (such a membership grants nothing), a non-positive budget and unsafe identifiers.
+
+## Size budget
+
+Claims travel in the session cookie and on every request. The hook adds memberships in order, the active tenant's first, then source order, and stops before the `memberships` array would exceed `supabaseMembershipsBudget` bytes of JSON (1024 by default, measured with `octet_length`; set with `--budget` or `supabase.hook.budget`). When it stops early it sets `memberships_truncated: true`.
+
+`subjectFromSupabase` surfaces the flag as `principal.membershipsTruncated`. With `claimsFirst`, the subject then reads every membership from the sources, so a user in 40 organizations still gets all 40 on the server while the token stays small. RLS in `jwt` mode only sees the kept entries; use `database` mode ([RLS](/docs/cli/rls)) when members routinely exceed the budget.
+
+## Authorization version
+
+A token is a copy, and a copy can be stale: a demoted admin keeps their token until it expires. For most permissions `jwt_expiry` bounds that. For sensitive ones (removing a member, creating a payout), list them in the policy:
+
+```ts
+definePolicy(permissions, {
+  fresh: [permissions.member.remove, permissions.payout.create],
+  // ...
+})
+```
+
+The generated triggers bump `permdock_authz_version.version` for the affected user on every insert, update or delete in a source table or the roles table, and the hook writes the current value as `authz_ver`. `authzVersion({ query })` reads the same table. When the subject's memberships come from the token (`claimsFirst` without truncation), `createPermDock` compares the two. If the token is behind, or either side is missing, the subject is `stale` and every `fresh` permission denies with reason `stale-credentials`; other permissions still use the token. Memberships read live from a source are never stale. A stale subject's snapshot omits allows for `fresh` permissions, so the browser denies them too. A suspension change does not bump the version; RLS checks suspension live instead ([RLS](/docs/cli/rls)).
+
+## Memberships the identity provider owns
+
+A membership provisioned by SCIM belongs to the IdP: an edit in the app would be undone by the next sync. Such memberships carry `managedBy: 'idp'`. [`directoryMembershipSource`](/docs/adapters/scim) sets it on every group membership, and the SQL sources read it from `managedBy`. `isExternallyManaged(membership)` tells a member list to render the row read-only, and [`decideRoleChange`](/docs/concepts/ownership) refuses a change whose `target.managedBy` is `idp` with reason `externally-managed`. In the database, `permdock_protect_managed` raises `42501` when `anon` or `authenticated` inserts, updates or deletes an IdP-owned row; the server and the SCIM relay, which connect with their own role, are unaffected.
+
+## Plans and seats
+
+`entitlements` on `createPermDock` is an `EntitlementSource`: `entitlementsFor(principal, { tenant })` returns plan names for the active tenant, merged into `principal.plans`, so `plan('<name>')` grants apply. It is read for the validated active tenant only; a requested tenant without a membership gets none. `fromStripeEntitlements({ stripe, customer })` reads Stripe's active entitlements (`stripe.entitlements.activeEntitlements.list`, every page) for the tenant's Stripe customer and returns their `lookup_key`s. `memoryEntitlementSource` is the in-process default.
+
+A seat belongs to one membership, not the tenant: a Dev Mode seat in one organization says nothing about another. `Membership.entitlements` holds seats (from the sources' `seats` column), and a `plan()` grantee matches a seat only through a membership that applies under the active tenant.
+
+## Why
+
+- **One definition, two readers.** The sources run the exact `select` the hook compiles, and the integration suite checks that the claim equals what `composeMemberships` returns for the same user. A hand-written hook next to a hand-written source is two definitions of who belongs where.
+- **The active scope first, then truncation.** A token that cannot hold every membership should hold the ones the next request needs. Truncating silently would turn a large customer into a user with random missing access; the flag makes the server read the rest.
+- **A version, not a shorter expiry, for sensitive verbs.** Dropping `jwt_expiry` to a minute taxes every request to protect a few. The version costs one indexed lookup per request that uses `claimsFirst` with `version`, and only `fresh` permissions depend on it. Missing either side counts as stale, because a check that passes when it cannot compare fails open.
+- **IdP ownership is enforced where edits happen.** The member list, `decideRoleChange` and the database all refuse, so a client that skips the UI still cannot edit a SCIM-provisioned row.
+- **Plans from billing, seats per membership.** Stripe recommends reading entitlements as a projection of billing state; a per-membership seat keeps "which products this person uses here" apart from permissions and from other tenants.
+
+## Related
+
+- [Supabase provider](/docs/adapters/supabase): `subjectFromSupabase`, `supabaseRls`, the RBAC scaffold.
+- [RLS](/docs/cli/rls): helpers, `jwt` and `database` modes, suspension.
+- [Tenancy](/docs/concepts/tenancy) and [scopes](/docs/concepts/scopes): memberships, sources, the active tenant.
+- [supabase CLI command](/docs/cli/supabase).
