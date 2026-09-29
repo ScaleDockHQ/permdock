@@ -38,7 +38,7 @@ body:
     id: pnpm
     attributes:
       label: pnpm
-      placeholder: '12.6.0'
+      placeholder: '12.8.1'
     validations:
       required: true
   - type: input

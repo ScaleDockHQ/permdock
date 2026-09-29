@@ -3,7 +3,7 @@
     "docs": {
       "root": "apps/docs",
       "framework": "nextjs",
-      "installCommand": "corepack enable && corepack prepare pnpm@12.6.0 --activate && corepack pnpm@12.6.0 install",
+      "installCommand": "corepack enable && corepack prepare pnpm@12.8.1 --activate && corepack pnpm@12.8.1 install",
       "buildCommand": "(cd ../../packages/permdock && node --run build) && next build",
       "rewrites": [
         {
@@ -15,7 +15,7 @@
     "marketing": {
       "root": "apps/marketing",
       "framework": "nextjs",
-      "installCommand": "corepack enable && corepack prepare pnpm@12.6.0 --activate && corepack pnpm@12.6.0 install",
+      "installCommand": "corepack enable && corepack prepare pnpm@12.8.1 --activate && corepack pnpm@12.8.1 install",
       "buildCommand": "(cd ../../packages/permdock && node --run build) && next build"
     }
   },
