@@ -40,7 +40,7 @@ The ceiling of a scope is the set of code allows of every declared role marked `
 
 `resolveCustomRole(policy, role)` is the one resolver behind evaluation, `snapshot()`, `snapshotFor()` and `validateCustomRole()`, so they cannot disagree. It returns `{ grants, dropped }`:
 
-1. Start from the grants of each role in `includes`. An allow that is itself a ceiling grant is kept as is. An allow from a non-assignable or other-scope role whose permission is in the ceiling is replaced by the ceiling's grants for that permission; one whose permission is outside the ceiling is dropped. An included role's `deny` grants always come along.
+1. Start from the grants of each role in `includes`. An allow that is itself a ceiling grant is kept as is. An allow from a non-assignable or other-scope role whose permission is in the ceiling is replaced by the ceiling's grants for that permission; one whose permission is outside the ceiling is dropped. An included role's `deny` grants in the custom role's scope come along.
 2. Add each own `allow`. Its permission must be a declared key in the ceiling. It inherits every ceiling grant of that permission, together with the `deny` grants of the roles those grants belong to. When an included assignable role already grants the permission, the included grant is kept and the own allow adds nothing.
 3. Remove every permission named by an own `deny`, whether it came from an include or an own allow.
 4. Re-target the result to the custom role: each grant keeps its permission, `where`, `check`, `approval`, `limit` and `fields`, and its grantee becomes the custom role in its scope. Other grantee items, such as a plan gate, stay.
@@ -85,6 +85,17 @@ Both answer for the active tenant unless `tenant` is passed, and both follow the
 Snapshots also carry `assignable`: one `{ tenant, roles, permissions }` entry per tenant in `tenants`, where `roles` are role names and `permissions` are permission leaves, trimmed by `include`. The snapshot-backed instance reads them for `assignableRoles()` and `assignablePermissions()`, and `useAssignablePermissions()` reads them on the client. The format stays Snapshot `v: 1` ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
 
 For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide` agree; the parity suite checks includes, own allows, inherited denies, own denies, dropped keys and team scope.
+
+## Row level security
+
+`permdock rls generate --custom-roles` resolves custom roles inside the generated helpers, with the same rules and the same ceiling ([RLS](/docs/adapters/rls)):
+
+- `database` mode reads `custom_role_permissions (tenant_id, team_id, role, permission, effect)` and `custom_role_includes (tenant_id, team_id, role, include_role)`, written by the application from the same data its `RoleSource` reads.
+- `jwt` mode reads a compact `grants` map on each membership of the `memberships` claim, `{ "billing-manager": ["@billing", "post.read", "-invoice.refund"] }`, built with `customRoleClaim(roles)`. It is off unless `--custom-roles` is set, and it grows every token.
+- Both intersect with the generated `permdock_ceiling` view, so a row or claim entry naming a permission outside the ceiling reaches nothing.
+- With `--rbac supabase`, `authorize(permission, tenant)` answers from custom roles too.
+
+The parity suite runs `permdock rls verify --db` over every custom role, table and command in both modes, including a custom role that adds one permission and denies one.
 
 ## Recipe: a permission matrix editor
 
