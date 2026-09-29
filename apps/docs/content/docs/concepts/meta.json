@@ -11,6 +11,7 @@
     "custom-roles",
     "ownership",
     "relationships",
+    "elevated-access",
     "capabilities",
     "credentials",
     "authentication",
