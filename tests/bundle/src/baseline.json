@@ -40,10 +40,10 @@
   "./clerk": 3724,
   "./convex": 53048,
   "./pdp": 60626,
-  "./testing": 115293,
+  "./testing": 115825,
   "./testing/saas": 64291,
   "./testing/saas/permissions": 58182,
-  "./cli": 257684,
+  "./cli": 265152,
   "./unplugin": 67533,
   "./next/plugin": 66803,
   "./next/client": 1022
