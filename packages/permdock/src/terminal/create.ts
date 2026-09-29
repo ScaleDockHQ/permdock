@@ -203,6 +203,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         actor,
         delegation,
         memberships: options.memberships,
+        relations: options.relations,
         entitlements: options.entitlements,
         customRoles: options.customRoles,
         policies: options.policies,

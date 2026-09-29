@@ -3,9 +3,10 @@ import type { ApprovalRequest, ApprovalStore } from '../approvals/types.ts';
 import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
-  LimitStore,
   EntitlementSource,
+  LimitStore,
   MembershipSource,
+  RelationSource,
   RoleSource,
   SnapshotSource,
 } from '../core/interfaces.ts';
@@ -81,6 +82,8 @@ export type EvePermDockOptions<TUser = unknown> = {
   readonly tools: ToolMap;
   readonly approvers?: EveApprovers;
   readonly memberships?: MembershipSource | readonly MembershipSource[];
+  /** The object graph for relation grants that walk a parent chain; without it they deny. */
+  readonly relations?: RelationSource;
   readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
@@ -192,6 +195,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       tenant: options.tenant,
       delegation: options.delegation,
       memberships: options.memberships,
+      relations: options.relations,
       entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,
