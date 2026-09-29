@@ -66,7 +66,6 @@ test('2. a prefetch={true} quote link renders its gated actions without a fallba
     await page.locator('[data-quote="q-101"]').click();
     await page.waitForURL('**/acme/quotes/q-101');
     await expect(page.locator('[data-action="approve"]')).toBeVisible(INSTANT);
-    await expect(page.locator('[data-action="delete"]')).toBeVisible(INSTANT);
     await expect(page.getByTestId('quote-skeleton')).toHaveCount(0, INSTANT);
   });
 });
@@ -145,4 +144,34 @@ test('6. gates keep answering from the snapshot while offline', async ({
   await expect(nav(page, 'settings')).toBeVisible();
   await context.setOffline(false);
   await expect(page.getByTestId('offline')).toHaveCount(0);
+});
+
+test('7. a PermissionBoundary turns a thrown denial or approval request into a fallback and retries', async ({
+  page,
+  browser,
+}) => {
+  await signIn(page, 'Max', '**/acme');
+  await page.goto('/acme/quotes/q-101');
+  await expect(page.getByTestId('quote')).toBeVisible();
+  const approval = page.getByTestId('delete-approval');
+  await expect(approval).toBeVisible();
+  await expect(approval).toHaveAttribute('data-permission', 'quote.delete');
+  await expect(page.locator('[data-action="delete"]')).toHaveCount(0);
+
+  const admin = await (await browser.newContext()).newPage();
+  await signIn(admin, 'Olivia', '**/acme');
+  await admin.goto('/acme/members');
+  await admin.locator('[data-change-role="max"]').click();
+  await expect(admin.locator('[data-role="max"]')).toHaveText('admin');
+
+  await page.getByTestId('delete-retry').click();
+  await expect(page.locator('[data-action="delete"]')).toBeVisible();
+  await expect(approval).toHaveCount(0);
+
+  const contact = await (await browser.newContext()).newPage();
+  await signIn(contact, 'Carol', '**/portal/acme');
+  await contact.goto('/acme/quotes/q-101');
+  await expect(contact.getByTestId('quote')).toBeVisible();
+  await expect(contact.getByTestId('delete-denied')).toBeVisible();
+  await expect(contact.locator('[data-action="delete"]')).toHaveCount(0);
 });

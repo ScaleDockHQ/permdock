@@ -34,7 +34,14 @@ export const policy = definePolicy(
         ],
         { on: 'organization' },
       ),
-      role(roles.member, staffCanRead, { on: 'organization' }),
+      role(
+        roles.member,
+        [
+          ...staffCanRead,
+          allow(permissions.quote.delete, { approval: 'human' }),
+        ],
+        { on: 'organization' },
+      ),
       role(
         roles.contact,
         [
