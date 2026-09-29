@@ -2,6 +2,7 @@ import { expect, it, vi } from 'vitest';
 
 import type { ApprovalRequest, ApprovalStore } from '../approvals/index.ts';
 import type {
+  CredentialVerifier,
   DecisionSink,
   EntitlementSource,
   LimitStore,
@@ -14,6 +15,7 @@ import type {
   RevocationFeed,
   Role,
   RoleSource,
+  SettingsSource,
   SnapshotSource,
   Subject,
   SubjectResolver,
@@ -28,6 +30,7 @@ import { normalizeMemberships, scopeList } from '../core/scopes.ts';
 import {
   memoryRevocationFeed,
   mergeHostedGrants,
+  parseCredential,
   parsePolicyDocument,
   validateCustomRole,
 } from '../index.ts';
@@ -36,6 +39,7 @@ import {
   scimHandler,
   sha256Hex,
 } from '../scim/index.ts';
+import { parseApiKey } from '../server/credentials.ts';
 import {
   jwtFixtureAudience,
   jwtFixtureIssuer,
@@ -810,6 +814,103 @@ export function testTokenVerifier(
       }
     }
   });
+}
+
+/** Settings for `tenant`, or `undefined`; a thrown source fails the runner. */
+export function testSettingsSource(
+  source: SettingsSource,
+  options: { readonly tenant: string; readonly unknown?: string },
+): void {
+  it('answers per tenant with plain settings and nothing for an unknown tenant', async () => {
+    const settings = await source.settingsFor(options.tenant);
+    if (settings !== undefined) {
+      expect(typeof settings).toBe('object');
+      const credentials = settings.credentials;
+      if (credentials !== undefined) {
+        expect(
+          credentials.maxTtl === undefined ||
+            (Number.isFinite(credentials.maxTtl) && credentials.maxTtl >= 0),
+        ).toBe(true);
+        expect(
+          credentials.kinds === undefined ||
+            credentials.kinds.every(
+              (kind) => kind === 'user' || kind === 'service',
+            ),
+        ).toBe(true);
+      }
+      expect(JSON.parse(JSON.stringify(settings))).toEqual(settings);
+    }
+    expect(
+      await source.settingsFor(options.unknown ?? '__permdock_unknown__'),
+    ).toBeUndefined();
+  });
+}
+
+function flipLast(value: string): string {
+  const last = value.at(-1);
+  return `${value.slice(0, -1)}${last === 'A' ? 'B' : 'A'}`;
+}
+
+/**
+ * `key` is a live key the verifier knows, or a function issuing one (called
+ * once). `revoke`, when given, revokes it; the runner then expects the key
+ * to stop verifying.
+ */
+export function testCredentialVerifier(
+  verifier: CredentialVerifier,
+  options: {
+    readonly key: string | (() => string | Promise<string>);
+    readonly revoke?: () => void | Promise<void>;
+  },
+): void {
+  let issued: Promise<string> | undefined;
+  const live = (): Promise<string> => {
+    const source = options.key;
+    issued ??= Promise.resolve(typeof source === 'string' ? source : source());
+    return issued;
+  };
+
+  it('verifies the live key to a v1 credential with the key id', async () => {
+    const key = await live();
+    const parts = parseApiKey(key);
+    expect(parts).toBeDefined();
+    const credential = parseCredential(await verifier.verify(key));
+    expect(credential).toBeDefined();
+    expect(credential?.id).toBe(parts?.id);
+    expect(parseCredential(await verifier.verify(key))).toEqual(credential);
+  });
+
+  it('never throws and answers null for every other key', async () => {
+    const key = await live();
+    const parts = parseApiKey(key);
+    const others = [
+      '',
+      'garbage',
+      'pdk_',
+      `${key}x`,
+      flipLast(key),
+      `pdk_${parts?.id ?? 'x'}-other_${parts?.secret ?? ''}`,
+      key.replace(/^pdk_/u, 'sk_'),
+    ];
+    for (const other of others) {
+      let result: Awaited<ReturnType<CredentialVerifier['verify']>>;
+      try {
+        result = await verifier.verify(other);
+      } catch {
+        throw new Error('CredentialVerifier must not throw');
+      }
+      expect(result).toBeNull();
+    }
+  });
+
+  if (options.revoke !== undefined) {
+    const revoke = options.revoke;
+    it('stops verifying a revoked key', async () => {
+      const key = await live();
+      await revoke();
+      expect(await verifier.verify(key)).toBeNull();
+    });
+  }
 }
 
 export function testTokenSigner(
