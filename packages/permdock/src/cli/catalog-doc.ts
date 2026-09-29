@@ -6,6 +6,7 @@ import type {
 } from '../index.ts';
 import type {
   CatalogApproval,
+  CatalogBreakGlass,
   CatalogDocument,
   CatalogUsage,
   ScanResult,
@@ -54,6 +55,7 @@ export function buildCatalog(
     );
   }
   const approvals = codeApprovals(policy);
+  const breakGlass = codeBreakGlass(policy);
   const permissions = listPermissions(tree)
     .map((leaf) =>
       withDefined({
@@ -66,6 +68,7 @@ export function buildCatalog(
         usages: scan.usages[leaf.key] ?? [],
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
         approvals: approvals.get(leaf.key),
+        breakGlass: breakGlass.get(leaf.key),
       }),
     )
     .toSorted((a, b) => a.key.localeCompare(b.key));
@@ -122,6 +125,29 @@ function codeApprovals(
       ...(out.get(grant.permission.key) ?? []),
       approval,
     ]);
+  }
+  return out;
+}
+
+/** Per permission key, the break-glass override a `breakGlass` grant declares. */
+function codeBreakGlass(
+  policy: Policy | undefined,
+): ReadonlyMap<string, CatalogBreakGlass> {
+  const out = new Map<string, CatalogBreakGlass>();
+  for (const grant of policy?.grants ?? []) {
+    if (grant.breakGlass === undefined) {
+      continue;
+    }
+    out.set(
+      grant.permission.key,
+      withDefined({
+        overrides: grant.breakGlass.overrides,
+        purpose: grant.breakGlass.purpose,
+        reason: grant.breakGlass.reason,
+        maxDuration: grant.breakGlass.maxDuration,
+        obligations: grant.breakGlass.obligations,
+      }),
+    );
   }
   return out;
 }
@@ -184,6 +210,24 @@ function catalogRoles(
         for: binding.for,
         exclusiveWith: binding.exclusiveWith,
         audience,
+        activation:
+          binding.activation === undefined
+            ? undefined
+            : withDefined({
+                maxDuration: binding.activation.maxDuration,
+                justification: binding.activation.justification,
+                approval:
+                  binding.activation.approval === undefined ? undefined : true,
+                assurance: binding.activation.assurance,
+              }),
+        supportAccess:
+          binding.support === undefined
+            ? undefined
+            : {
+                actorRequired: binding.support.actorRequired,
+                group: binding.support.group,
+                durations: binding.support.consent.durations,
+              },
       });
     }),
   };
