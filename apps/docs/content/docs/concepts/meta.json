@@ -11,6 +11,7 @@
     "custom-roles",
     "ownership",
     "capabilities",
+    "credentials",
     "authentication",
     "decisions",
     "snapshots",

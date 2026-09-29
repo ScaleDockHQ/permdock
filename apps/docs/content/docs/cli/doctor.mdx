@@ -48,6 +48,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD026` | No role on a scope sets `min`, so every instance of it can lose its last manager | warning |
 | `PD027` | Under an `rls` config, a grant's `where` or `check` reads `context.*`, which RLS cannot evaluate | warning |
 | `PD028` | `supabase.hook.attrs` lists `user_metadata` or another value the hook cannot use (error), or a column your migrations let `anon` or `authenticated` insert or update (warning) | error, warning |
+| `PD029` | An API key in the `doctor.credentials` fixture never expires or is not a valid v1 credential, or a tenant's settings allow keys without expiry | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -185,6 +186,10 @@ A condition that reads `context.*` (`where: { region: context.region }`) is eval
 ### PD028: attributes a user could set
 
 The Supabase token hook copies `supabase.hook.attrs` into the `attrs` claim, which attribute conditions and RLS read ([Supabase token hook](/docs/adapters/supabase-hook#attributes)). An error names an entry `generate` refuses: `user_metadata` or `raw_user_meta_data`, an `auth.users` column, a prototype key or a duplicate. A warning names listed columns that the SQL files under `doctor.migrations` (default `supabase/migrations`, `migrations`, `drizzle`) grant `insert`, `update` or `all` on to `anon`, `authenticated` or `public`, table-wide or by column, net of later `revoke`s. Fix it by revoking those grants and granting column-level `update` on non-attribute columns only; the generated migration refuses to install until you do. `--only attrs` (or `--only supabase`) runs this check.
+
+### PD029: API keys that never expire
+
+When `doctor.credentials` points at a JSON fixture `{ credentials?, settings? }` (a sample of the API-key records the application stores, and per-tenant settings in the `memorySettings` shape), the check warns on every credential without `expiresAt`, every record `parseCredential` rejects (it would verify to no subject), and every tenant whose `credentials` settings set `allowNoExpiry`. A key that never expires stays live after it leaks until someone revokes it, so each opt-in should be deliberate ([API keys](/docs/concepts/credentials)). `--only credentials` runs this check.
 
 ## Why
 

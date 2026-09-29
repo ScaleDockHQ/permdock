@@ -81,13 +81,14 @@ The `subject` resolver is the kernel's trust boundary. `createPermDock(policy, {
 |---|---|
 | `null` or `undefined` | Builds an anonymous instance; no roles, no grants |
 | A principal object (`{ id, roles, ... }`) | Uses it as `principal`; `actor` and `delegation` come from the `actor` option, Web Bot Auth or nothing |
-| A full `Subject` (`principal`, `actor?`, `delegation?`, `expiresAt?`) as returned by `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth` | Uses all parts as given; `binding` on principal or actor is passed through to the instance and audit events unchanged |
+| A full `Subject` (`principal`, `actor?`, `delegation?`, `expiresAt?`) as returned by `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromApiKey` | Uses all parts as given; `binding` on principal or actor is passed through to the instance and audit events unchanged |
 | A thrown error | Caught; treated as `null` and reported through `on('auth')` with the error, so a broken resolver denies rather than crashes the route |
 
 Three consequences:
 
 - A resolver that decodes a JWT without verifying it, or reads a `X-User-Id` header, has turned unverified input into a principal, and nothing downstream can detect it. Use a `subjectFrom*` function or the framework's session API as the last step of the resolver.
 - MCP servers do not go through this resolver: `permdock/mcp` receives `authInfo` from the SDK's bearer middleware and hands the principal mapping the same verified object ([MCP adapter](/docs/adapters/mcp)). The shape of the trust boundary is the same; only the carrier differs.
+- API keys resolve through `subjectFromApiKey(options)`, exported here next to its helpers (`apiKeyVerifier`, `memoryCredentials`, `generateApiKey`, `hashApiKey`, `parseApiKey`). It is itself a `SubjectResolver`, so a resolver that reads a `pdk_` bearer calls it and returns the subject; a service key's membership comes from the credential, so skip the `memberships` source for it ([API keys](/docs/concepts/credentials)).
 - `binding` is pass-through. The kernel records the `cnf` object (`jkt` or `x5t#S256`) but does not check proof-of-possession; that is done by the resolver (`verifyDpopProof` in `permdock/jwt`) or by the TLS terminator for mTLS. An adapter that can forward the client certificate thumbprint passes it to the resolver as the second argument.
 
 ### Connections
