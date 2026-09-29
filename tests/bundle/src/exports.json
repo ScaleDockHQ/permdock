@@ -13,6 +13,7 @@
     "arazzoFindings",
     "assurance",
     "authenticated",
+    "capabilitySubject",
     "catalogFingerprint",
     "context",
     "coveredByDelegation",
@@ -52,6 +53,7 @@
     "mergePermissions",
     "normalizeApproval",
     "opaque",
+    "parseCapability",
     "parsePolicyDocument",
     "parseSnapshot",
     "plan",
@@ -63,6 +65,7 @@
     "resource",
     "role",
     "separationConflicts",
+    "signCapability",
     "signDecisionBatch",
     "simulateArazzo",
     "snapshotFor",
@@ -95,6 +98,7 @@
     "createJwtSubjectResolver",
     "joseTokenSigner",
     "joseTokenVerifier",
+    "subjectFromCapability",
     "subjectFromIntrospection",
     "subjectFromJwt",
     "verifyDpopProof"
@@ -324,6 +328,7 @@
   "./kysely": ["toWhere", "withSubject"],
   "./supabase": [
     "authorizeSql",
+    "exchangeCapability",
     "subjectFromSupabase",
     "subjectFromSupabaseSession",
     "supabaseRls"
