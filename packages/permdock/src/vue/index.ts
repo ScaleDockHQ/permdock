@@ -2,6 +2,7 @@ export { describe } from '../core/describe.ts';
 export { approvalHeaders } from '../react/headers.ts';
 export {
   useApproval,
+  useAssignablePermissions,
   useAssignableRoles,
   useFilter,
   useMemberships,
