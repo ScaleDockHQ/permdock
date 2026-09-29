@@ -24,6 +24,7 @@ import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { requirePeer } from './peer.ts';
 import { commandFor } from './rls-compile.ts';
 import { FIELD_VIEWS, viewName } from './rls-fields.ts';
+import { verifyTree } from './rls-verify-tree.ts';
 
 export type VerifyOutcome = {
   readonly code: 0 | 1 | 2;
@@ -601,6 +602,80 @@ async function verifyAgainstDatabase(input: {
   return { mismatches, notes };
 }
 
+/** `--tree`: seeds a generated object graph in a rolled-back transaction and compares `can()` with RLS. */
+async function verifyTreeAgainstDatabase(
+  db: string,
+  policy: Policy,
+  config: PermDockConfig,
+): Promise<VerifyOutcome> {
+  const pg = await loadPg();
+  const client = new pg.Client({ connectionString: db });
+  try {
+    await client.connect();
+  } catch (cause) {
+    throw new Error('PermDock CLI: rls verify --db could not connect', {
+      cause,
+    });
+  }
+  const scopes = scopeList(policy.scopes);
+  const query = async (
+    sql: string,
+    values?: readonly unknown[],
+  ): Promise<{ readonly rows: readonly Record<string, unknown>[] }> => {
+    const result = await client.query(
+      sql,
+      values === undefined ? [] : [...values],
+    );
+    return { rows: result.rows };
+  };
+  const loose: QueryFn = async (sql, values) => {
+    await query(sql, values);
+    return { rows: [] };
+  };
+  try {
+    await query('begin');
+    const result = await verifyTree({
+      policy,
+      config,
+      query,
+      bind: (subject) =>
+        bindSubject(
+          loose,
+          { subject: { id: subject }, row: {}, action: 'read' },
+          config.rls?.dialect ?? 'supabase',
+          config.rls?.gucPrefix ?? 'app',
+          config.rls?.tenantClaim ?? 'tenant_id',
+          config.rls?.roleClaim ?? 'user_role',
+          [],
+          scopes,
+        ),
+    });
+    if (result.mismatches.length > 0) {
+      return {
+        code: 1,
+        output: [...result.mismatches, ...result.notes].join('\n'),
+      };
+    }
+    const verified = `verified ${String(result.checked)} tree check(s) against the database (${String(result.granted)} granted)`;
+    return {
+      code: 0,
+      output:
+        result.notes.length === 0
+          ? verified
+          : `${verified}\n${result.notes.join('\n')}`,
+    };
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    return {
+      code: 2,
+      output: `PermDock CLI: rls verify --tree could not seed the tree (${message}); connect as a role that owns the tables and is a member of authenticated`,
+    };
+  } finally {
+    await client.query('rollback').catch(() => undefined);
+    await client.end();
+  }
+}
+
 export async function runRlsVerify(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -608,6 +683,8 @@ export async function runRlsVerify(input: {
   readonly db?: string;
   readonly from?: string;
   readonly format: 'node' | 'pgtap';
+  /** Check a generated tree with restricted branches instead of fixtures; needs `db`. */
+  readonly tree?: boolean;
   readonly io: CliIo;
 }): Promise<VerifyOutcome> {
   const policyPath = input.from ?? input.config.policy;
@@ -620,6 +697,22 @@ export async function runRlsVerify(input: {
   const policy: Policy = asPolicy(
     pickNamed(await loadModule(resolve(input.cwd, policyPath)), ['policy']),
   );
+  if (input.tree === true) {
+    if (input.db === undefined) {
+      return {
+        code: 2,
+        output: 'PermDock CLI: rls verify --tree needs --db',
+      };
+    }
+    try {
+      return await verifyTreeAgainstDatabase(input.db, policy, input.config);
+    } catch (cause) {
+      return {
+        code: 2,
+        output: cause instanceof Error ? cause.message : String(cause),
+      };
+    }
+  }
   const fixturesPath =
     input.fixtures ?? input.config.rls?.fixtures ?? 'rls.fixtures.json';
   const { fixtures, customRoles } = await loadFixtures(input.cwd, fixturesPath);

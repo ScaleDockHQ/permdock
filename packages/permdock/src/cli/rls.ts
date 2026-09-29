@@ -15,7 +15,7 @@ export const RLS_HELP = `permdock rls generate | import | verify
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
-  verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node]
+  verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
 
 Never emits service_role. memberOf compiles through the dialect memberships mapping.
 `;
@@ -49,6 +49,7 @@ export type RlsRunInput = {
   readonly capabilities: boolean;
   readonly fields: string | undefined;
   readonly revokeColumns: boolean;
+  readonly tree: boolean;
   readonly io: CliIo;
 };
 
@@ -168,6 +169,7 @@ export async function runRls(
         cwd: input.cwd,
         config: input.config,
         format,
+        tree: input.tree,
         io: input.io,
         ...(input.fixtures === undefined ? {} : { fixtures: input.fixtures }),
         ...(input.db === undefined ? {} : { db: input.db }),

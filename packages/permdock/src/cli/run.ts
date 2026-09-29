@@ -297,6 +297,7 @@ export async function run(
           capabilities: flagBool(args.flags, 'capabilities'),
           fields: flagString(args.flags, 'fields'),
           revokeColumns: flagBool(args.flags, 'revoke-columns'),
+          tree: flagBool(args.flags, 'tree'),
           io,
         });
         writeOut(result.output);

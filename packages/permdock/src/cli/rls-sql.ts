@@ -1,3 +1,4 @@
+import type { RelatedCondition } from '../conditions/ast.ts';
 import type { Scope } from '../core/scopes.ts';
 import type { Condition, ConditionValue } from '../index.ts';
 import type {
@@ -58,6 +59,10 @@ export type RlsSqlContext = {
   readonly suspension?: RlsSuspension;
   /** Set when field views compile: grant keys also split by field set. */
   readonly fields?: 'views';
+  /** Graph grants: the closure depth kept for each walked resource. */
+  readonly graph?: {
+    readonly closures: Readonly<Record<string, number>>;
+  };
 };
 
 /** The policy's role ownership rules as the SQL generator needs them. */
@@ -220,6 +225,16 @@ export function globalKindFilterSql(
   return roles.length === 0
     ? undefined
     : `not (${roleExpr} = any(array[${roles.map(quoteLiteral).join(', ')}]::text[]))`;
+}
+
+/** The closure table graph grants read. Part of the SQL contract. */
+export const CLOSURE = {
+  table: 'permdock_closure',
+} as const;
+
+/** The helper returning the ids of `resource` the subject holds a relation on. */
+export function graphHelper(resource: string): string {
+  return permittedIdsHelper(resource);
 }
 
 /** The helper returning the ids of scope `name` a grant key reaches. */
@@ -572,6 +587,10 @@ function compileRef(ref: string, ctx: RlsSqlContext, field?: string): string {
   if (ref === 'principal.id') {
     return subjectIdSql(ctx);
   }
+  // Only relation periods compile with it; conditions on the wire carry no clock ref.
+  if (ref === 'now') {
+    return 'now()';
+  }
   const path = claimPath(ref);
   if (
     ref === 'principal.tenant' ||
@@ -798,6 +817,8 @@ export function compileConditionSql(
       return `not (${compileConditionSql(condition.condition, ctx)})`;
     case 'memberOf':
       return compileMemberOf(condition, ctx);
+    case 'related':
+      return compileRelatedSql(condition, ctx);
     case 'sqlFunction':
       if (ctx.inlineFunctions === true) {
         return compileConditionSql(condition.twin, ctx);
@@ -898,6 +919,7 @@ export function contextRefs(
       ];
     case 'isNull':
     case 'memberOf':
+    case 'related':
     case 'opaque':
       return [];
     default: {
@@ -932,6 +954,7 @@ export function sqlFunctionNames(
     case 'notIn':
     case 'isNull':
     case 'memberOf':
+    case 'related':
     case 'opaque':
       return [];
     default: {
@@ -939,4 +962,41 @@ export function sqlFunctionNames(
       return exhaustive;
     }
   }
+}
+
+/**
+ * A `related` condition as uncorrelated subqueries, so Postgres runs the
+ * helper once per statement: the row's field in the closure's descendants of
+ * the ids the subject holds the relation on (or those ids alone at depth 0).
+ * The helper sits in `array(...)` so it stays an InitPlan; a plain `in` gets
+ * pulled into a join that can rescan it per closure row.
+ */
+export function compileRelatedSql(
+  condition: RelatedCondition,
+  ctx: RlsSqlContext,
+): string {
+  const type = ctx.columnTypes?.[condition.field];
+  const cast = type === undefined || type === 'text' ? '' : `::${type}`;
+  const column =
+    type === undefined
+      ? `${quoteIdent(condition.field)}::text`
+      : quoteIdent(condition.field);
+  const helper = `${`${quoteIdent(ctx.schema ?? 'public')}.${graphHelper(condition.resource)}`}(${quoteLiteral(condition.relation)})`;
+  const cap = ctx.graph?.closures[condition.resource];
+  let inner: string;
+  if (condition.depth > 0 && cap !== undefined) {
+    const depth =
+      condition.depth < cap ? ` and depth <= ${String(condition.depth)}` : '';
+    inner = `select descendant${cast} from ${`${quoteIdent(ctx.schema ?? 'public')}.${CLOSURE.table}`} where resource = ${quoteLiteral(condition.resource)}${depth} and ancestor = any (array(select ${helper}))`;
+  } else {
+    inner =
+      cast === ''
+        ? `select ${helper}`
+        : `select p.id${cast} from ${helper} as p(id)`;
+  }
+  const reach = `${column} in (${inner})`;
+  if (condition.parent === true && condition.restricted !== undefined) {
+    return `(${reach} and ${quoteIdent(condition.restricted)} is not true)`;
+  }
+  return reach;
 }
