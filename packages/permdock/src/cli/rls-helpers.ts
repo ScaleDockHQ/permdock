@@ -1,8 +1,11 @@
 import type { RlsSqlContext } from './rls-sql.ts';
 
+import { scopeColumn } from '../conditions/compile.ts';
+import { scopeChain } from '../core/scopes.ts';
 import {
   globalKindFilterSql,
   kindFilterSql,
+  activeRowSql,
   permittedIdsHelper,
   quoteIdent,
   quoteLiteral,
@@ -161,6 +164,44 @@ function underRoot(ctx: RlsSqlContext, scope: string): boolean {
   return false;
 }
 
+/** `and exists (...)` lines for an active user; empty without `rls.suspension.users`. */
+function userActive(ctx: RlsSqlContext, indent: string): string[] {
+  const row = ctx.suspension?.users;
+  return row === undefined
+    ? []
+    : [`${indent}and ${activeRowSql(row, subjectIdSql(ctx))}`];
+}
+
+/**
+ * `and exists (...)` lines for every suspendable instance on the chain of
+ * `scope`'s membership: its own and each ancestor's. `idOf` gives the SQL for
+ * the id the membership holds for a scope on that chain.
+ */
+export function instancesActive(
+  ctx: RlsSqlContext,
+  scope: string,
+  idOf: (name: string) => string | undefined,
+  indent: string,
+): string[] {
+  const lines: string[] = [];
+  for (const name of scopeChain(ctx.scopes, scope)) {
+    const row = ctx.suspension?.scopes?.[name];
+    if (row === undefined) {
+      continue;
+    }
+    const id = idOf(name);
+    if (id === undefined) {
+      throw new Error(
+        `PermDock CLI: rls.suspension.scopes.${name} needs the ${name} id on ${scope} memberships: add columns.${name} to the ${scope} memberships table`,
+      );
+    }
+    lines.push(
+      `${indent}and ${activeRowSql(row, `(${id})::${scopeTypeOf(ctx, name)}`)}`,
+    );
+  }
+  return lines;
+}
+
 export function roleRows(ctx: RlsSqlContext): string {
   const claim = ctx.roleClaim ?? 'user_role';
   switch (ctx.dialect) {
@@ -209,6 +250,9 @@ function andLine(indent: string, condition: string | undefined): string {
 
 function hasBody(ctx: RlsSqlContext): string {
   const rp = qualified(ctx, 'role_permissions');
+  const active = userActive(ctx, '      ')
+    .map((line) => `\n${line}`)
+    .join('');
   if (ctx.authorize === 'database') {
     return `  select exists (
     select 1
@@ -216,7 +260,7 @@ function hasBody(ctx: RlsSqlContext): string {
     join ${rp} rp on rp.role = ur.role::text
     where ur.user_id = ${subjectIdSql(ctx)}
       and rp.grant_key = p_grant
-      and rp.scope = 'global'${andLine('      ', globalKindFilterSql(ctx, 'ur.role::text'))}
+      and rp.scope = 'global'${andLine('      ', globalKindFilterSql(ctx, 'ur.role::text'))}${active}
   )`;
   }
   return `  select ${signedIn(ctx)} and exists (
@@ -224,7 +268,7 @@ function hasBody(ctx: RlsSqlContext): string {
     from ${roleRows(ctx)}
     join ${rp} rp on rp.role = r.role
     where rp.grant_key = p_grant
-      and rp.scope = 'global'${andLine('      ', globalKindFilterSql(ctx, 'r.role'))}
+      and rp.scope = 'global'${andLine('      ', globalKindFilterSql(ctx, 'r.role'))}${active}
   )`;
 }
 
@@ -277,6 +321,18 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
       `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
     );
   }
+  filters.push(
+    ...userActive(ctx, '    '),
+    ...instancesActive(
+      ctx,
+      scope,
+      (name) => {
+        const held = scopeColumn(table, ctx.scopes, name);
+        return held === undefined ? undefined : memberColumn(held);
+      },
+      '    ',
+    ),
+  );
   const [owner, ...rest] = filters;
   const kind = kindFilterSql(
     ctx,
@@ -342,7 +398,20 @@ function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
     and case jsonb_typeof(m -> 'expiresAt')
       when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
       else true
-    end`;
+    end${[
+      ...userActive(ctx, '    '),
+      ...instancesActive(
+        ctx,
+        scope,
+        (name) =>
+          name === scope
+            ? `m ->> 'id'`
+            : `m -> 'within' ->> ${quoteLiteral(name)}`,
+        '    ',
+      ),
+    ]
+      .map((line) => `\n${line}`)
+      .join('')}`;
   const declared = `  select (m ->> 'id')::${type}
   from ${membershipRows(ctx)}
   join ${qualified(ctx, 'role_permissions')} rp on rp.role = r.role

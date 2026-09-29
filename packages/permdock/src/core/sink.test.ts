@@ -103,12 +103,56 @@ describe('signDecisionBatch', () => {
     ]);
   });
 
+  it('builds membership events for scopes below the second level', () => {
+    expect(
+      membershipEvent({
+        source: 'cloud',
+        operation: 'added',
+        principal: { id: 'u_3' },
+        scope: 'site',
+        id: 's_1',
+        within: { organization: 'o_1', customer: 'c_1' },
+        via: 'contact',
+        expiresAt: 1_790_000_000,
+        roles: { added: ['technician'], removed: [] },
+        at: '2026-09-29T10:00:00.000Z',
+      }),
+    ).toEqual({
+      type: 'membership',
+      at: '2026-09-29T10:00:00.000Z',
+      source: 'cloud',
+      operation: 'added',
+      principal: { id: 'u_3' },
+      scope: 'site',
+      id: 's_1',
+      within: { organization: 'o_1', customer: 'c_1' },
+      via: 'contact',
+      expiresAt: 1_790_000_000,
+      roles: { added: ['technician'], removed: [] },
+    });
+    const base = {
+      source: 'app',
+      operation: 'changed',
+      principal: { id: 'u_3' },
+      roles: { added: [], removed: [] },
+    } as const;
+    expect(() => membershipEvent({ ...base, scope: 'site' })).toThrow(
+      TypeError,
+    );
+    expect(() => membershipEvent({ ...base, id: 's_1' })).toThrow(TypeError);
+    expect(() =>
+      membershipEvent({ ...base, within: { organization: 'o_1' } }),
+    ).toThrow(TypeError);
+    expect(membershipEvent({ ...base, at: 'x' })).not.toHaveProperty('scope');
+  });
+
   it('envelopes membership events with principal id as subject', async () => {
     const membership = membershipEvent({
       source: 'app',
       operation: 'changed',
       principal: { id: 'u_2' },
-      tenant: 'o_1',
+      scope: 'tenant',
+      id: 'o_1',
       roles: { added: ['admin'], removed: ['member'] },
     });
     let captured: readonly unknown[] = [];

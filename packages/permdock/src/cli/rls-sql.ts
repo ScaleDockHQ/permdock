@@ -1,9 +1,11 @@
 import type { Scope } from '../core/scopes.ts';
 import type { Condition, ConditionValue } from '../index.ts';
 import type {
+  RlsActiveRow,
   RlsDialect,
   RlsMembershipTable,
   RlsMemberships,
+  RlsSuspension,
 } from './types.ts';
 
 import { scopeColumn, scopeMembershipTable } from '../conditions/compile.ts';
@@ -52,6 +54,8 @@ export type RlsSqlContext = {
    * that type; a column without an entry compares as text.
    */
   readonly columnTypes?: Readonly<Record<string, string>>;
+  /** Active-row tables; scope keys are declared names (`checkSuspension` resolves aliases). */
+  readonly suspension?: RlsSuspension;
 };
 
 /** The policy's role ownership rules as the SQL generator needs them. */
@@ -73,6 +77,76 @@ export type RlsOwnership = {
     readonly transferOnly: boolean;
   }[];
 };
+
+function checkActiveRow(label: string, row: RlsActiveRow): void {
+  quoteTable(row.table);
+  quoteIdent(row.id);
+  if (row.disabledAt !== undefined) {
+    quoteIdent(row.disabledAt);
+  }
+  if (row.status !== undefined) {
+    quoteIdent(row.status);
+    if (row.active === undefined || row.active.length === 0) {
+      throw new Error(
+        `PermDock CLI: ${label}.status needs the active values in ${label}.active`,
+      );
+    }
+  }
+  if (row.disabledAt === undefined && row.status === undefined) {
+    throw new Error(
+      `PermDock CLI: ${label} needs disabledAt or status to tell an active row`,
+    );
+  }
+}
+
+/** Validates `rls.suspension` and keys its scopes by declared name. */
+export function checkSuspension(
+  suspension: RlsSuspension | undefined,
+  scopes: readonly Scope[],
+): RlsSuspension | undefined {
+  if (suspension === undefined) {
+    return undefined;
+  }
+  if (suspension.users !== undefined) {
+    checkActiveRow('rls.suspension.users', suspension.users);
+  }
+  const byName: Record<string, RlsActiveRow> = {};
+  for (const [key, row] of Object.entries(suspension.scopes ?? {})) {
+    const name = resolveScope(scopes, key);
+    if (name === undefined) {
+      throw new Error(
+        `PermDock CLI: rls.suspension.scopes.${key} names a scope the policy does not declare`,
+      );
+    }
+    checkActiveRow(`rls.suspension.scopes.${key}`, row);
+    byName[name] = row;
+  }
+  return {
+    ...(suspension.users === undefined ? {} : { users: suspension.users }),
+    ...(Object.keys(byName).length === 0 ? {} : { scopes: byName }),
+  };
+}
+
+/**
+ * `exists` over an active row whose id column equals `id`: a missing row is
+ * suspended, so the check fails closed.
+ */
+export function activeRowSql(row: RlsActiveRow, id: string): string {
+  const table = quoteTable(
+    row.table.includes('.') ? row.table : `public.${row.table}`,
+  );
+  const parts = [`s.${quoteIdent(row.id)} = ${id}`];
+  if (row.disabledAt !== undefined) {
+    parts.push(`s.${quoteIdent(row.disabledAt)} is null`);
+  }
+  if (row.status !== undefined) {
+    const values = (row.active ?? []).map(quoteLiteral).join(', ');
+    parts.push(
+      `s.${quoteIdent(row.status)}::text = any(array[${values}]::text[])`,
+    );
+  }
+  return `exists (select 1 from ${table} s where ${parts.join(' and ')})`;
+}
 
 const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;
 

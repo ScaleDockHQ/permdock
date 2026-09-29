@@ -188,6 +188,8 @@ as $$
 declare
   claims jsonb := event -> 'claims';
   held jsonb;
+  uid text := event ->> 'user_id';
+  members jsonb;
 begin
   select case count(*) when 0 then null when 1 then to_jsonb(min(ur.role::text)) else jsonb_agg(ur.role::text order by ur.role::text) end
     into held
@@ -196,6 +198,19 @@ begin
   if held is not null then
     claims := jsonb_set(claims, '{user_role}', held);
   end if;
+  select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'id', x.entry::text), '[]'::jsonb)
+    into members
+    from (
+      select 0 as ord, jsonb_strip_nulls(jsonb_build_object(
+          'scope', 'tenant',
+          'id', m."organization_id"::text,
+          'roles', jsonb_agg(distinct m."role"::text order by m."role"::text)
+        )) as entry
+      from "public"."organization_members" m
+      where m."user_id"::text = uid
+      group by m."organization_id"
+    ) x;
+  claims := jsonb_set(claims, '{memberships}', members);
   return jsonb_set(event, '{claims}', claims);
 end;
 $$;
@@ -207,6 +222,12 @@ grant select on table "app"."user_roles" to supabase_auth_admin;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 drop policy if exists "Allow auth admin to read user roles" on "app"."user_roles";
 create policy "Allow auth admin to read user roles" on "app"."user_roles"
+  as permissive for select
+  to supabase_auth_admin
+  using (true);
+grant select on table "public"."organization_members" to supabase_auth_admin;
+drop policy if exists "permdock_auth_admin_read_memberships" on "public"."organization_members";
+create policy "permdock_auth_admin_read_memberships" on "public"."organization_members"
   as permissive for select
   to supabase_auth_admin
   using (true);

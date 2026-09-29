@@ -21,7 +21,11 @@ import { helpersSql } from './rls-helpers.ts';
 import { ownershipRules, ownershipSql } from './rls-ownership.ts';
 import { assemblePolicies } from './rls-policies.ts';
 import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
-import { parseMembershipsFlag, scopeTable } from './rls-sql.ts';
+import {
+  checkSuspension,
+  parseMembershipsFlag,
+  scopeTable,
+} from './rls-sql.ts';
 
 export type GenerateOutcome = {
   readonly code: 0 | 1 | 2;
@@ -117,10 +121,12 @@ export async function runRlsGenerate(input: {
     rls?.authorize ??
     rls?.rbac?.authorize ??
     defaultAuthorize(input.rbac, memberships);
-  const ownership = ownershipRules(policy, scopeList(policy.scopes));
+  const scopes = scopeList(policy.scopes);
+  const suspension = checkSuspension(rls?.suspension, scopes);
+  const ownership = ownershipRules(policy, scopes);
   const ctx: RlsSqlContext = {
     dialect: input.dialect,
-    scopes: scopeList(policy.scopes),
+    scopes,
     tenantClaim: rls?.tenantClaim ?? 'tenant_id',
     gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? 'app',
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
@@ -131,6 +137,7 @@ export async function runRlsGenerate(input: {
     ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(memberships === undefined ? {} : { memberships }),
+    ...(suspension === undefined ? {} : { suspension }),
     ...(input.customRoles === true || rls?.customRoles === true
       ? { customRoles: customRoleNames(policy) }
       : {}),
@@ -179,8 +186,12 @@ export async function runRlsGenerate(input: {
         ...(ctx.customRoles === undefined
           ? {}
           : { customRoles: { declared: ctx.customRoles.declared } }),
+        context: ctx,
       })
     : undefined;
+  if (rbac !== undefined) {
+    warnings.push(...rbac.warnings);
+  }
   if (input.rbac) {
     warnings.push(
       `enable the hook: [auth.hook.custom_access_token] enabled = true, uri = "${hookUri(schema)}"`,

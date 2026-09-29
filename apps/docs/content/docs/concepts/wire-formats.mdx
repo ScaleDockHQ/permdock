@@ -209,12 +209,15 @@ A `membership` event records a role change that is not a SCIM resource write. Ap
   "source": "better-auth",
   "operation": "changed",
   "principal": { "id": "u_1" },
-  "tenant": "o_1",
-  "team": "t_1",
+  "scope": "team",
+  "id": "t_1",
+  "within": { "tenant": "o_1" },
   "roles": { "added": ["admin"], "removed": ["member"] },
   "by": { "id": "u_9", "kind": "user" }
 }
 ```
+
+The event names the scope instance the roles are held in, the same way a [membership](#membership-and-custom-role) does. `scope` is a declared scope name (or the `tenant` / `team` alias, which readers resolve against the policy's scopes). `id` is the instance, and `within` holds the id of every ancestor scope. `scope` and `id` appear together or not at all; without them the event records a change to global roles. `expiresAt` (seconds since the epoch) is set when the membership lapses on its own. A contact added to a site three levels down is `{ "scope": "site", "id": "s_1", "within": { "organization": "o_1", "customer": "c_1" } }`. `membershipEvent()` throws a `TypeError` when `scope` comes without `id`, `id` without `scope`, or `within` without either.
 
 `source` is `scim`, `better-auth`, `clerk`, `app`, `cloud` (an assignment in the PermDock Cloud directory, with `by` set to the Cloud admin who made it), or another string. `via` is `group:<id>` when the change came from a group. See [audit and observability](/docs/concepts/audit-and-observability).
 
@@ -546,5 +549,6 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 
 - The snapshot `v`, the approval request `v`, the policy document `v`, the capability `v` and the catalog `version` follow the format, not the package version, and are all `1`. Before the first release a format changes in place and stays at `1`; after it, a breaking change to a shape bumps the major. Readers reject unknown majors.
 - The JWS envelope of a signed output is versioned by its `typ`: a change to the header set, the registered claims or the private claim name is a new `typ` (`permdock-snapshot.v2+jwt`), never a silent change, so a verifier configured for one `typ` keeps rejecting what it does not understand.
+- Everything PermDock writes names a scope instance the same way: `scope`, `id` and `within`. Memberships, snapshot grants, the `memberships` claim and `membership` events all use this shape. A fixed `tenant` / `team` pair could not describe a third level, and one shape lets the Cloud and a sink join an event to the membership it changed without a per-format mapping. Only input readers (`subject`, a `MembershipSource`) still accept `{ tenant, team }`.
 - Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning. New condition `op` values (such as `sqlFunction`) are additive; readers that do not know an op deny.
 - AuthZEN messages follow the 1.0 spec; PermDock-specific data lives only under the evaluation `context.permdock`: from `permdock/authzen`, `outcome`, `denials` as `{ role, reason }`, `token` on `approval-required`, and `reason: 'unknown-permission'`; from the application's own decision endpoint (`permdockHandler`), the full Decision. `alternatives` reach another PEP only through `search/action`.

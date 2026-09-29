@@ -87,6 +87,24 @@ rls: {
 
 `tenant` and `team` on a table are shorthands for the first and second scope's column, so `{ table, tenant: 'org_id', user, role }` keeps working. `via` names the column holding the membership kind (`Membership.via`): when a role declares `for`, the helpers count it only on rows whose kind is listed, and a table without a `via` column holds such a role for nothing. In `jwt` mode the kind is the membership entry's `via`, and a role with `for` in the global role claim grants nothing.
 
+### Suspension
+
+`rls.suspension` names the tables that say whether a user or a scope instance is active. Each entry is `{ table, id, disabledAt?, status?, active? }`: `id` is the column holding the user or instance id, `disabledAt` a nullable timestamp that suspends the row when set, and `status` a column whose value must be one of `active`. An entry needs `disabledAt`, `status` or both.
+
+```ts
+rls: {
+  suspension: {
+    users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' },
+    scopes: {
+      organization: { table: 'organizations', id: 'id', disabledAt: 'disabled_at' },
+      customer: { table: 'customers', id: 'id', status: 'status', active: ['active', 'prospect'] },
+    },
+  },
+}
+```
+
+With `users`, `permdock_has` and every `permitted_<scope>_ids` return nothing for a suspended user. With `scopes.<scope>`, a helper drops each membership whose own instance or any ancestor instance is suspended: a disabled organization voids its staff memberships and every customer contact inside it. The check is `exists (select 1 from <table> s where s.<id> = <membership id> and <active>)`, so a missing row counts as suspended. It runs inside the helpers in both modes. In `jwt` mode that is one indexed lookup per helper call, and a suspension applies on the next statement even though the token still carries the membership. In `database` mode the membership table of a nested scope must carry the id column of every suspendable ancestor (`columns.organization` on the customer table); otherwise `generate` fails. Scope keys accept the `tenant` / `team` aliases. The in-process side reads suspension through the `MembershipSource` ([scopes](/docs/concepts/scopes)).
+
 ### Policy layout
 
 The default is one `PERMISSIVE` policy per table, command and audience, named `{table}_{op}` (`post_select`, `post_update`), so Splinter's `multiple_permissive_policies` lint stays quiet; `anyone()` grants get their own `{table}_{op}_anon` policy for `anon, authenticated`, and denies are one `RESTRICTIVE` `deny_{table}_{op}` policy.
@@ -95,7 +113,7 @@ The tenant claim is cast to the tenant column's type wherever it meets a column 
 
 Only portable conditions compile: equality against the subject, `in` / `notIn` membership (emitted as `IN (select ...)`), literal columns, `and` / `or` / `not`, `memberOf`, and `sqlFunction`. A `sqlFunction` grant emits `name(args)` so the database keeps its helper; `--inline-functions` (or `rls.inlineFunctions`) compiles the twin instead. Generate reports those grants as portable via twin. A closure grant fails generation with the grant's location and the message that the grant must be rewritten as a portable condition or excluded with `--skip-closures`. Grants with `approval: 'human'` are skipped with a warning, because RLS has no approval step; the table stays closed for that permission.
 
-With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `app_role` / `app_permission` enums, `user_roles`, the custom access token hook and the `authorize('permission', tenant)` function over the shared `role_permissions`, so the named-permission catalog exists in the database too. Generated policies still call the helpers, never `authorize()` per row; `authorize()` is there for hand-written policies and RPCs, and it answers "does a role hold this permission" without row conditions or denies.
+With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `app_role` / `app_permission` enums, `user_roles`, the custom access token hook and the `authorize('permission', tenant)` function over the shared `role_permissions`, so the named-permission catalog exists in the database too. In `jwt` mode the hook also writes the canonical `memberships` claim from every scope table in `rls.memberships`; with `rls.suspension` it leaves out suspended instances and gives a suspended user empty `user_role` and `memberships` claims ([Supabase provider](/docs/adapters/supabase)). Generated policies still call the helpers, never `authorize()` per row; `authorize()` is there for hand-written policies and RPCs, and it answers "does a role hold this permission" without row conditions or denies.
 
 | Flag | Values | Default | Effect |
 |---|---|---|---|

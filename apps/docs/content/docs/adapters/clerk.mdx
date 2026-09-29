@@ -81,7 +81,7 @@ Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`
 1. Clerk middleware authenticates the request and populates `auth()` with `userId`, `orgId`, `orgRole`, `orgPermissions` and session claims.
 2. `subjectFromClerk` maps these to the PermDock subject; the active organization defines `principal.tenant` and its membership.
 3. `createPermDock` builds the request-scoped instance; `getPermDock()` / `getPermission()` and the snapshot resolver use it.
-4. On organization switch or role change, Clerk emits a new session token; the app calls `updateTag` for the user (Clerk webhooks `organizationMembership.updated` are the server trigger) and the client `invalidate()` runs on `useOrganization` change. From those webhooks, emit `membershipEvent({ source: 'clerk', operation, principal: { id: data.public_user_id }, tenant: data.organization.id, roles: { added, removed } })` to the same sink used for decisions. There is no Clerk package entry for this.
+4. On organization switch or role change, Clerk emits a new session token; the app calls `updateTag` for the user (Clerk webhooks `organizationMembership.updated` are the server trigger) and the client `invalidate()` runs on `useOrganization` change. From those webhooks, emit `membershipEvent({ source: 'clerk', operation, principal: { id: data.public_user_id }, scope: 'tenant', id: data.organization.id, roles: { added, removed } })` to the same sink used for decisions. There is no Clerk package entry for this.
 
 On Expo, Clerk's SDK feeds the same snapshot path through [React Native](/docs/adapters/react-native); there is no Clerk-specific persisted-snapshot helper.
 
@@ -96,7 +96,8 @@ await sink.write([
     source: 'clerk',
     operation: event.type.endsWith('deleted') ? 'removed' : event.type.endsWith('created') ? 'added' : 'changed',
     principal: { id: data.public_user_id },
-    tenant: data.organization.id,
+    scope: 'tenant',
+    id: data.organization.id,
     roles: { added: data.role ? [data.role] : [], removed: [] },
   }),
 ])
