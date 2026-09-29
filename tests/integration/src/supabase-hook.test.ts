@@ -53,17 +53,17 @@ grant usage on schema auth to authenticated, anon, supabase_auth_admin;
 grant execute on all functions in schema auth to authenticated, anon, supabase_auth_admin;
 grant usage on schema public to authenticated, anon;
 insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(', ')};
-create table organization_users (organization_id text not null, user_id uuid not null, role text not null);
+create table organization_users (organization_id text not null, user_id uuid not null, role text not null, via text);
 create table customer_contacts (
   customer_id text not null, organization_id text not null, user_id uuid not null, role text not null,
-  expires_at timestamptz
+  via text, expires_at timestamptz
 );
 insert into organization_users values
-  ('T', '${OWNER}', 'owner'), ('B', '${OWNER}', 'owner'),
-  ('T', '${STAFF}', 'member'), ('T', '${SUSPENDED}', 'admin');
+  ('T', '${OWNER}', 'owner', 'staff'), ('B', '${OWNER}', 'owner', 'staff'),
+  ('T', '${STAFF}', 'member', 'staff'), ('T', '${SUSPENDED}', 'admin', 'staff');
 insert into customer_contacts values
-  ('A', 'T', '${PRIVATE}', 'contact', null), ('G', 'T', '${BUSINESS}', 'contact', null),
-  ('C', 'B', '${STAFF}', 'contact', null), ('A', 'T', '${LAPSED}', 'contact', now() - interval '1 day');
+  ('A', 'T', '${PRIVATE}', 'contact', 'contact', null), ('G', 'T', '${BUSINESS}', 'contact', 'contact', null),
+  ('C', 'B', '${STAFF}', 'contact', 'contact', null), ('A', 'T', '${LAPSED}', 'contact', 'contact', now() - interval '1 day');
 create table organization (id text primary key, disabled_at timestamptz);
 insert into organization values ('T', null), ('B', now());
 create table customer (id text primary key, status text);
@@ -157,10 +157,10 @@ describe('Supabase token hook with named scopes (jwt mode)', () => {
 
   it('writes the canonical memberships claim, without suspended or lapsed entries', async () => {
     expect((await mint(OWNER))['memberships']).toEqual([
-      { scope: 'organization', id: 'T', roles: ['owner'] },
+      { scope: 'organization', id: 'T', roles: ['owner'], via: 'staff' },
     ]);
     expect((await mint(STAFF))['memberships']).toEqual([
-      { scope: 'organization', id: 'T', roles: ['member'] },
+      { scope: 'organization', id: 'T', roles: ['member'], via: 'staff' },
     ]);
     expect((await mint(PRIVATE))['memberships']).toEqual([
       {
@@ -168,6 +168,7 @@ describe('Supabase token hook with named scopes (jwt mode)', () => {
         id: 'A',
         within: { organization: 'T' },
         roles: ['contact'],
+        via: 'contact',
       },
     ]);
     expect((await mint(BUSINESS))['memberships']).toEqual([]);

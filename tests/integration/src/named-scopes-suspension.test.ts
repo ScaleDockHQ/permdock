@@ -34,16 +34,16 @@ create role authenticated nologin;
 create role anon nologin;
 grant authenticated to tester;
 grant usage on schema public to authenticated, anon;
-create table organization_users (organization_id text not null, user_id text not null, role text not null);
+create table organization_users (organization_id text not null, user_id text not null, role text not null, via text);
 create table customer_contacts (
-  customer_id text not null, organization_id text not null, user_id text not null, role text not null
+  customer_id text not null, organization_id text not null, user_id text not null, role text not null, via text
 );
 insert into organization_users values
-  ('T', 'u_owner', 'owner'), ('B', 'u_owner', 'owner'),
-  ('B', 'u_viewer', 'viewer'), ('T', 'u_staff_contact', 'member');
+  ('T', 'u_owner', 'owner', 'staff'), ('B', 'u_owner', 'owner', 'staff'),
+  ('B', 'u_viewer', 'viewer', 'staff'), ('T', 'u_staff_contact', 'member', 'staff');
 insert into customer_contacts values
-  ('A', 'T', 'u_private', 'contact'), ('G', 'T', 'u_business', 'contact'),
-  ('C', 'B', 'u_staff_contact', 'contact');
+  ('A', 'T', 'u_private', 'contact', 'contact'), ('G', 'T', 'u_business', 'contact', 'contact'),
+  ('C', 'B', 'u_staff_contact', 'contact', 'contact');
 create table organization (id text primary key, disabled_at timestamptz);
 insert into organization values ('T', null), ('B', now());
 create table customer (id text primary key, status text);

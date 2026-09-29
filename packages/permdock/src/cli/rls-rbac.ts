@@ -109,9 +109,11 @@ function claimEntriesSql(
   }
   const expires =
     table.expiresAt === undefined ? undefined : col(table.expiresAt);
+  const via = table.via === undefined ? undefined : col(table.via);
   const keys = [
     col(column),
     ...ancestors,
+    ...(via === undefined ? [] : [via]),
     ...(expires === undefined ? [] : [expires]),
   ];
   const fields = [
@@ -121,6 +123,7 @@ function claimEntriesSql(
       ? []
       : [`'within', jsonb_build_object(${within.join(', ')})`]),
     `'roles', jsonb_agg(distinct ${col(table.role)}::text order by ${col(table.role)}::text)`,
+    ...(via === undefined ? [] : [`'via', ${via}::text`]),
     ...(expires === undefined
       ? []
       : [`'expiresAt', floor(extract(epoch from ${expires}))::bigint`]),
