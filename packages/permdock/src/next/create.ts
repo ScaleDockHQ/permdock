@@ -1,6 +1,6 @@
-import { io } from 'next/cache.js';
-import { forbidden, unauthorized, unstable_rethrow } from 'next/navigation.js';
-import { after } from 'next/server.js';
+import { io } from 'next/cache';
+import { forbidden, unauthorized, unstable_rethrow } from 'next/navigation';
+import { after } from 'next/server';
 import { cache, type ReactElement } from 'react';
 
 import type { Decision } from '../core/decision.ts';
@@ -14,6 +14,7 @@ import type {
   NextPermDock,
   NextPermDockOptions,
   NextSubjectInput,
+  RequireAccessInput,
   ServerPermissionState,
   ServerPermDockProviderProps,
 } from './types.ts';
@@ -201,17 +202,17 @@ export function createPermDock<
   };
 
   const requireAccess = async (
-    permission: Permission,
-    data?: unknown,
-    query?: GetPermDockQuery,
+    input: RequireAccessInput,
   ): Promise<GrantedDecision> => {
-    const dock = await getPermDock(query);
+    const dock = await getPermDock(
+      input.tenant === undefined ? undefined : { tenant: input.tenant },
+    );
     const assert = dock.assert as (
       next: Permission,
       row?: unknown,
       nextOptions?: DecideOptions,
     ) => GrantedDecision;
-    return assert(permission, data, {
+    return assert(input.permission, input.data, {
       onDenied: (decision) => {
         if (
           decision.outcome !== 'denied' ||

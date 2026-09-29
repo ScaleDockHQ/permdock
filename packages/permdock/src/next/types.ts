@@ -39,6 +39,14 @@ export type GetPermDockQuery = {
   readonly tenant?: string;
 };
 
+export type RequireAccessInput = {
+  readonly permission: Permission;
+  /** The row for an instance permission; omit it for a collection permission. */
+  readonly data?: unknown;
+  /** The active tenant, as for `getPermDock({ tenant })`; defaults to the factory's `tenant`. */
+  readonly tenant?: string;
+};
+
 export type ServerPermissionState = {
   readonly allowed: boolean;
   readonly status: 'ready';
@@ -73,9 +81,7 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * approval-required and boundary validation throw as from `assert`.
    */
   readonly requireAccess: (
-    permission: Permission,
-    data?: unknown,
-    query?: GetPermDockQuery,
+    input: RequireAccessInput,
   ) => Promise<Extract<Decision, { readonly outcome: 'granted' }>>;
   /** Never awaits: passes an unawaited snapshot to the client provider, whose hooks suspend. */
   readonly PermDockProvider: (

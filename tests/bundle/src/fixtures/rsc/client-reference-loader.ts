@@ -29,11 +29,13 @@ function exportNames(source: string): readonly string[] {
   return names;
 }
 
-// Next's server-layer alias for the fully specified import (`createAppRouterApiAliases`),
-// pointed at the CommonJS build because `next/dist/api` is bundler-only ESM.
+// What Next's bundler does for `permdock/next`'s bare `next/*` imports in the
+// server layer: `next` has no exports map, so plain Node needs the file, and
+// `next/navigation` resolves to its react-server build.
 const SERVER_LAYER_ALIASES: Readonly<Record<string, string>> = {
-  'next/navigation.js':
-    'next/dist/client/components/navigation.react-server.js',
+  'next/cache': 'next/cache.js',
+  'next/server': 'next/server.js',
+  'next/navigation': 'next/dist/client/components/navigation.react-server.js',
 };
 
 export const resolve: ResolveHookSync = (specifier, context, nextResolve) =>

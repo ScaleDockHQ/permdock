@@ -132,7 +132,10 @@ describe('permdock/next', () => {
     const { requireAccess } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const decision = await requireAccess(permissions.post.update, ownPost);
+    const decision = await requireAccess({
+      permission: permissions.post.update,
+      data: ownPost,
+    });
     expect(decision.outcome).toBe('granted');
   });
 
@@ -147,10 +150,13 @@ describe('permdock/next', () => {
     const anonymous = createPermDock(policy, { subject: () => null });
 
     await expect(
-      member.requireAccess(permissions.post.update, otherPost),
+      member.requireAccess({
+        permission: permissions.post.update,
+        data: otherPost,
+      }),
     ).rejects.toMatchObject({ digest: 'NEXT_HTTP_ERROR_FALLBACK;403' });
     await expect(
-      anonymous.requireAccess(permissions.post.read),
+      anonymous.requireAccess({ permission: permissions.post.read }),
     ).rejects.toMatchObject({ digest: 'NEXT_HTTP_ERROR_FALLBACK;401' });
     expect(seen).toEqual([]);
   });
@@ -161,7 +167,7 @@ describe('permdock/next', () => {
       store: memoryApprovalStore(),
     });
     await expect(
-      requireAccess(permissions.post.delete, ownPost),
+      requireAccess({ permission: permissions.post.delete, data: ownPost }),
     ).rejects.toBeInstanceOf(PermDockApprovalRequiredError);
   });
 
