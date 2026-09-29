@@ -150,7 +150,10 @@ jobs:
           - name: ui-examples
             projects: >-
               --project=react-vite --project=vue --project=svelte --project=solid
-              --project=webmcp --project=next --project=expo --project=marketing
+              --project=webmcp --project=expo --project=marketing
+          # next build && next start, then @next/playwright instant().
+          - name: next-example
+            projects: --project=next
           - name: next-saas
             projects: --project=next-saas
           - name: vite-saas
