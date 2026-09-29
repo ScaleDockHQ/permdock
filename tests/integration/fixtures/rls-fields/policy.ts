@@ -1,8 +1,25 @@
-import { allow, anyone, definePolicy, deny, principal, role } from 'permdock';
+import type { z } from 'zod';
 
-import { permissions } from './permissions.ts';
+import {
+  allow,
+  anyone,
+  definePolicy,
+  deny,
+  type GrantOptions,
+  principal,
+  role,
+} from 'permdock';
+
+import { type Invoice, permissions } from './permissions.ts';
 
 const { invoice } = permissions;
+
+// A `where` shorthand next to `fields` would infer the row type from the shorthand alone.
+const publicRead: GrantOptions<z.infer<typeof Invoice>> = {
+  to: anyone(),
+  where: { orgId: 'public' },
+  fields: ['id', 'title'],
+};
 
 export const policy = definePolicy(permissions, {
   roles: [
@@ -25,13 +42,7 @@ export const policy = definePolicy(permissions, {
       deny(invoice.read, { fields: ['note'] }),
     ]),
   ],
-  grants: [
-    allow(invoice.read, {
-      to: anyone(),
-      where: { orgId: 'public' },
-      fields: ['id', 'title'],
-    }),
-  ],
+  grants: [allow(invoice.read, publicRead)],
   scopes: { tenant: { key: 'orgId' } },
   subject: () => null,
 });
