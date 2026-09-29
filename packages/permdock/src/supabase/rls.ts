@@ -28,6 +28,7 @@ export function supabaseRls(
     dialect: 'supabase',
     roleClaim: options.roleClaim ?? 'user_role',
     tenantClaim: options.tenantClaim ?? 'tenant_id',
+    tenantType: options.tenantType,
     memberships,
   });
 }

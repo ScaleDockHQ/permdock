@@ -43,6 +43,10 @@ export type RlsConfig = {
   readonly force?: boolean;
   readonly fixtures?: string;
   readonly tenantClaim?: string;
+  /** Postgres type of tenant columns (`uuid` by default); the tenant claim and helper results are cast to it. */
+  readonly tenantType?: string;
+  /** Postgres type of team columns; defaults to `tenantType`. */
+  readonly teamType?: string;
   readonly roleClaim?: string;
   readonly gucPrefix?: string;
   readonly out?: string;

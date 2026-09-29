@@ -92,13 +92,13 @@ revoke execute on function "app".permdock_has(text) from public, anon;
 grant execute on function "app".permdock_has(text) to authenticated;
 
 create or replace function "app".permdock_tenants_with(p_grant text)
-returns setof text
+returns setof uuid
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select (m ->> 'tenant')::text
+  select (m ->> 'tenant')::uuid
   from jsonb_array_elements(
       case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
     ) m
@@ -120,13 +120,13 @@ revoke execute on function "app".permdock_tenants_with(text) from public, anon;
 grant execute on function "app".permdock_tenants_with(text) to authenticated;
 
 create or replace function "app".permdock_teams_with(p_grant text)
-returns setof text
+returns setof uuid
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select (m ->> 'team')::text
+  select (m ->> 'team')::uuid
   from jsonb_array_elements(
       case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
     ) m

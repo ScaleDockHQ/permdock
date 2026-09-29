@@ -285,6 +285,7 @@ export async function run(
           gucPrefix: flagString(args.flags, 'guc-prefix'),
           policyPerRole: flagBool(args.flags, 'policy-per-role'),
           policyName: flagString(args.flags, 'policy-name'),
+          tenantType: flagString(args.flags, 'tenant-type'),
           io,
         });
         writeOut(result.output);

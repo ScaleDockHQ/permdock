@@ -165,3 +165,49 @@ describe('compileGrant resource scope', () => {
     expect(sql).not.toContain('"orgId"');
   });
 });
+
+describe('tenant claim casts', () => {
+  const base = {
+    dialect: 'supabase',
+    tenantClaim: 'tenant_id',
+    gucPrefix: 'app',
+  } as const;
+
+  it('casts the tenant claim to the column type, uuid by default', () => {
+    const condition = {
+      op: 'eq',
+      field: 'orgId',
+      value: { ref: 'principal.tenant' },
+    } as const;
+    expect(compileConditionSql(condition, base)).toBe(
+      `"orgId" = ((select auth.jwt()) ->> 'tenant_id')::uuid`,
+    );
+    expect(
+      compileConditionSql(
+        { ...condition, value: { ref: 'principal.claim.tenant_id' } },
+        { ...base, dialect: 'guc', tenantType: 'bigint' },
+      ),
+    ).toBe(`"orgId" = current_setting('app.tenant_id', true)::bigint`);
+    expect(
+      compileConditionSql(
+        { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: [] },
+        { ...base, tenantType: 'text' },
+      ),
+    ).toBe(`"orgId" = ((select auth.jwt()) ->> 'tenant_id')::text`);
+  });
+
+  it('leaves other claims as text and rejects an unsafe type', () => {
+    expect(
+      compileConditionSql(
+        { op: 'eq', field: 'plan', value: { ref: 'principal.claim.plan' } },
+        base,
+      ),
+    ).toBe(`"plan" = ((select auth.jwt()) ->> 'plan')`);
+    expect(() =>
+      compileConditionSql(
+        { op: 'eq', field: 'orgId', value: { ref: 'principal.tenant' } },
+        { ...base, tenantType: 'uuid; drop table x' },
+      ),
+    ).toThrow(/unsafe SQL type/u);
+  });
+});

@@ -8,6 +8,8 @@ import {
   subjectClaimJsonSql,
   subjectClaimSql,
   subjectIdSql,
+  teamTypeOf,
+  tenantTypeOf,
 } from './rls-sql.ts';
 
 /** The per-statement helpers every generated policy calls. Names are part of the SQL contract. */
@@ -66,15 +68,6 @@ export function accessSql(
       return exhaustive;
     }
   }
-}
-
-const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;
-
-export function sqlType(name: string): string {
-  if (!SQL_TYPE.test(name)) {
-    throw new Error(`PermDock CLI: unsafe SQL type '${name}'`);
-  }
-  return name;
 }
 
 function membershipTable(name: string): string {
@@ -268,8 +261,6 @@ ${keys}
 export type HelpersOptions = {
   /** Emit a `user_roles` table for `database` mode; off when the RBAC scaffold owns it. */
   readonly userRoles: boolean;
-  readonly tenantType: string;
-  readonly teamType: string;
 };
 
 /**
@@ -284,8 +275,8 @@ export function helpersSql(
   const schema = helperSchema(ctx);
   const s = quoteIdent(schema);
   const rp = qualified(ctx, 'role_permissions');
-  const tenantType = sqlType(options.tenantType);
-  const teamType = sqlType(options.teamType);
+  const tenantType = tenantTypeOf(ctx);
+  const teamType = teamTypeOf(ctx);
   const chunks = [
     `-- permdock helpers (${ctx.authorize === 'database' ? 'database: reads the membership and user_roles tables' : 'jwt: reads the role and memberships claims'})
 -- policies call them uncorrelated, so Postgres evaluates each once per statement`,

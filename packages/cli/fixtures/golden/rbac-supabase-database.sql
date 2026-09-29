@@ -83,13 +83,13 @@ revoke execute on function "public".permdock_has(text) from public, anon;
 grant execute on function "public".permdock_has(text) to authenticated;
 
 create or replace function "public".permdock_tenants_with(p_grant text)
-returns setof text
+returns setof uuid
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select m."organization_id"::text
+  select m."organization_id"::uuid
   from "public"."organization_members" m
   join "public".role_permissions rp on rp.role = m."role"::text
   where m."user_id" = (select auth.uid())
@@ -101,13 +101,13 @@ revoke execute on function "public".permdock_tenants_with(text) from public, ano
 grant execute on function "public".permdock_tenants_with(text) to authenticated;
 
 create or replace function "public".permdock_teams_with(p_grant text)
-returns setof text
+returns setof uuid
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select null::text where false -- no team memberships table configured
+  select null::uuid where false -- no team memberships table configured
 $$;
 revoke execute on function "public".permdock_teams_with(text) from public, anon;
 grant execute on function "public".permdock_teams_with(text) to authenticated;

@@ -73,6 +73,7 @@ export async function runRlsGenerate(input: {
   readonly gucPrefix?: string;
   readonly policyPerRole?: boolean;
   readonly policyName?: string;
+  readonly tenantType?: string;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
   const policy = await loadPolicy(input.cwd, input.config, input.from);
@@ -101,6 +102,8 @@ export async function runRlsGenerate(input: {
     schema,
     authorize,
     roleClaim: rls?.roleClaim ?? 'user_role',
+    tenantType: input.tenantType ?? rls?.tenantType ?? 'uuid',
+    ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
     ...(memberships === undefined ? {} : { memberships }),
   };
   const warnings: string[] = [];
@@ -146,11 +149,7 @@ export async function runRlsGenerate(input: {
   }
   const preamble = [
     rbac?.head,
-    helpersSql(ctx, compiled.rolePermissions, {
-      userRoles: !input.rbac,
-      tenantType: 'text',
-      teamType: 'text',
-    }),
+    helpersSql(ctx, compiled.rolePermissions, { userRoles: !input.rbac }),
     rbac?.tail,
   ]
     .filter((part): part is string => part !== undefined)
