@@ -403,7 +403,8 @@ export async function pd019(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
 }): Promise<readonly DoctorFinding[]> {
-  if (input.config.rls?.rbac?.authorize !== 'jwt') {
+  const rls = input.config.rls;
+  if ((rls?.authorize ?? rls?.rbac?.authorize) !== 'jwt') {
     return [];
   }
   const expiry = supabaseJwtExpiry(input.cwd) ?? 3600;
@@ -434,8 +435,8 @@ export async function pd019(input: {
     {
       code: 'PD019',
       severity: 'warning',
-      message: `authorize() reads roles from the JWT and jwt_expiry is ${String(expiry)}s: a revoked role keeps ${keys.join(', ')} until the token expires`,
-      fix: "set rls.rbac.authorize: 'database', or lower [auth] jwt_expiry in supabase/config.toml to 3600 or less",
+      message: `the RLS helpers and authorize() read roles from the JWT and jwt_expiry is ${String(expiry)}s: a revoked role keeps ${keys.join(', ')} until the token expires`,
+      fix: "set rls.authorize: 'database', or lower [auth] jwt_expiry in supabase/config.toml to 3600 or less",
     },
   ];
 }

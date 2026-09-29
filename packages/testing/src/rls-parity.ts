@@ -45,6 +45,8 @@ export type RlsParityOptions = {
   readonly dialect?: 'supabase' | 'guc';
   readonly gucPrefix?: string;
   readonly tenantClaim?: string;
+  /** Claim (or `guc` setting) the RLS helpers read global roles from. Default `user_role`. */
+  readonly roleClaim?: string;
   readonly role?: 'authenticated' | 'anon';
 };
 
@@ -83,43 +85,45 @@ function rowId(row: Readonly<Record<string, unknown>>): unknown {
   return row.id;
 }
 
-function claimSql(
+type Setting = { readonly sql: string; readonly values: readonly unknown[] };
+
+function setting(name: string, value: string): Setting {
+  return { sql: 'select set_config($1, $2, true)', values: [name, value] };
+}
+
+/**
+ * The session state the generated helpers read: JWT claims for `supabase`,
+ * GUCs for `guc` (roles as a comma list, memberships as JSON).
+ */
+function subjectSettings(
   dialect: 'supabase' | 'guc',
   subject: RlsParitySubject,
   gucPrefix: string,
   tenantClaim: string,
-): { readonly sql: string; readonly values: readonly unknown[] } {
+  roleClaim: string,
+): readonly Setting[] {
+  const roles = subject.roles ?? [];
   if (dialect === 'supabase') {
     const claims = {
       sub: subject.id,
-      user_role: subject.roles?.[0],
+      role: 'authenticated',
+      [roleClaim]: roles.length === 1 ? roles[0] : roles,
       [tenantClaim]: subject.tenant,
-      memberships: subject.memberships,
+      memberships: subject.memberships ?? [],
     };
-    return {
-      sql: 'select set_config($1, $2, true)',
-      values: ['request.jwt.claims', JSON.stringify(claims)],
-    };
+    return [setting('request.jwt.claims', JSON.stringify(claims))];
   }
-  return {
-    sql: 'select set_config($1, $2, true)',
-    values: [`${gucPrefix}.user_id`, subject.id],
-  };
-}
-
-function tenantSql(
-  dialect: 'supabase' | 'guc',
-  subject: RlsParitySubject,
-  gucPrefix: string,
-  tenantClaim: string,
-): { readonly sql: string; readonly values: readonly unknown[] } | undefined {
-  if (dialect !== 'guc' || subject.tenant === undefined) {
-    return undefined;
-  }
-  return {
-    sql: 'select set_config($1, $2, true)',
-    values: [`${gucPrefix}.${tenantClaim}`, subject.tenant],
-  };
+  const settings = [
+    setting(`${gucPrefix}.user_id`, subject.id),
+    setting(`${gucPrefix}.${roleClaim}`, roles.join(',')),
+    setting(
+      `${gucPrefix}.memberships`,
+      JSON.stringify(subject.memberships ?? []),
+    ),
+  ];
+  return subject.tenant === undefined
+    ? settings
+    : [...settings, setting(`${gucPrefix}.${tenantClaim}`, subject.tenant)];
 }
 
 function statementSql(action: string, table: string): string {
@@ -156,6 +160,7 @@ export async function rlsParity<TUser>(
   const dialect = options.dialect ?? 'guc';
   const gucPrefix = options.gucPrefix ?? 'app';
   const tenantClaim = options.tenantClaim ?? 'tenant_id';
+  const roleClaim = options.roleClaim ?? 'user_role';
   const role = options.role ?? 'authenticated';
 
   async function runCase(fixture: RlsParityFixture): Promise<RlsParityCase> {
@@ -176,16 +181,14 @@ export async function rlsParity<TUser>(
     await options.query('begin');
     try {
       await options.query(`set local role ${quoteIdent(role)}`);
-      const claims = claimSql(dialect, fixture.subject, gucPrefix, tenantClaim);
-      await options.query(claims.sql, claims.values);
-      const tenant = tenantSql(
+      for (const item of subjectSettings(
         dialect,
         fixture.subject,
         gucPrefix,
         tenantClaim,
-      );
-      if (tenant !== undefined) {
-        await options.query(tenant.sql, tenant.values);
+        roleClaim,
+      )) {
+        await options.query(item.sql, item.values);
       }
       const result = await options.query(
         statementSql(fixture.permission.action, fixture.table),

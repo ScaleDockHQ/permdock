@@ -229,6 +229,47 @@ export const policy = definePolicy(permissions, {
     expect(sql).not.toMatch(/service_role/i);
   });
 
+  it('seeds top-level definePolicy({ grants }) into the rbac enums and role_permissions', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/top-level-policy.ts'),
+      `import { allow, definePolicy, plan } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  grants: [allow(permissions.post.read, { to: 'auditor' })],
+  subject: () => null,
+});
+
+export const planPolicy = definePolicy(permissions, {
+  grants: [allow(permissions.post.read, { to: plan('pro') })],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/top-level-policy.ts',
+};
+`,
+    );
+    const result = await run(
+      ['rls', 'generate', '--rbac', 'supabase', '--out', 'rls.sql'],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
+    expect(sql).toContain(`as enum ('auditor')`);
+    expect(sql).toContain(
+      `('auditor', 'post.read', 'post.read', 'global', 'allow')`,
+    );
+    expect(sql).toContain(
+      `using ((select "public".permdock_has('post.read')))`,
+    );
+  });
+
   it('rejects unknown --rbac values, bad --authorize and non-supabase dialects', async () => {
     const cwd = appCopy();
     const base = ['rls', 'generate', '--target', 'sql', '--out', 'rls.sql'];
