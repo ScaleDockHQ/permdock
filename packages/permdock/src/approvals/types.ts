@@ -7,6 +7,8 @@ export type ApprovalApprovers = {
   readonly by: Grantee | readonly Grantee[];
   /** `false` lets the request's principal approve it; absent means `true`. */
   readonly distinct?: boolean;
+  /** Set when the approval no longer applies once the row's `version` changes. */
+  readonly staleOn?: 'resource-change';
 };
 
 export type ApprovalSubjectSummary = {

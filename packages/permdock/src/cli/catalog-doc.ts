@@ -40,12 +40,14 @@ export function buildCatalog(
             id: node?.id ?? 'id',
             schema: node === undefined ? null : jsonSchemaOf(node),
             relations: node?.relations,
+            version: node?.version,
           }
         : {
             id: node?.id ?? 'id',
             schema: node === undefined ? null : jsonSchemaOf(node),
             definedIn,
             relations: node?.relations,
+            version: node?.version,
           },
     );
   }
@@ -107,6 +109,7 @@ function codeApprovals(
         : withDefined({
             by: grant.approval.by,
             distinct: grant.approval.distinct,
+            staleOn: grant.approval.staleOn,
           });
     const id = `${grant.permission.key}\u0000${JSON.stringify(approval)}`;
     if (seen.has(id)) {
@@ -204,29 +207,22 @@ function compactResource(resource: {
   readonly schema: unknown;
   readonly definedIn?: string;
   readonly relations?: CatalogDocument['resources'][string]['relations'];
+  readonly version?: string | undefined;
 }): CatalogDocument['resources'][string] {
   const relations =
     resource.relations !== undefined &&
     Object.keys(resource.relations).length > 0
       ? resource.relations
       : undefined;
-  if (resource.definedIn === undefined) {
-    return relations === undefined
-      ? { id: resource.id, schema: resource.schema }
-      : { id: resource.id, schema: resource.schema, relations };
-  }
-  return relations === undefined
-    ? {
-        id: resource.id,
-        schema: resource.schema,
-        definedIn: resource.definedIn,
-      }
-    : {
-        id: resource.id,
-        schema: resource.schema,
-        definedIn: resource.definedIn,
-        relations,
-      };
+  return {
+    id: resource.id,
+    schema: resource.schema,
+    ...withDefined({
+      definedIn: resource.definedIn,
+      relations,
+      version: resource.version,
+    }),
+  };
 }
 
 function metaRecord(meta: ActionMeta): Readonly<Record<string, unknown>> {

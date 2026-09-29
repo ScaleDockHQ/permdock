@@ -21,6 +21,12 @@ export type RlsParitySubject = {
   readonly roles?: readonly string[];
   readonly tenant?: string;
   readonly memberships?: readonly Membership[];
+  /**
+   * Extra token claims, read in memory as `principal.claims.*`. They join the
+   * JWT claims (`supabase`, `neon`); under `guc` each top-level claim is its
+   * own `<prefix>.<name>` setting, strings as is and anything else as JSON.
+   */
+  readonly claims?: Readonly<Record<string, unknown>>;
 };
 
 export type RlsParityFixture = {
@@ -45,7 +51,11 @@ export type RlsQueryFn = (
 export type RlsParityOptions = {
   readonly query: RlsQueryFn;
   readonly fixtures: readonly RlsParityFixture[];
-  readonly dialect?: 'supabase' | 'guc';
+  /**
+   * `supabase` and `neon` set `request.jwt.claims`; a test database stubs
+   * `auth.jwt()` / `auth.uid()` or `auth.session()` / `auth.user_id()` over it.
+   */
+  readonly dialect?: 'supabase' | 'neon' | 'guc';
   readonly gucPrefix?: string;
   readonly tenantClaim?: string;
   /** Claim (or `guc` setting) the RLS helpers read global roles from. Default `user_role`. */
@@ -89,6 +99,7 @@ function toSubject(input: RlsParitySubject): Subject {
       roles: input.roles ?? [],
       ...(input.tenant === undefined ? {} : { tenant: input.tenant }),
       memberships: input.memberships ?? [],
+      ...(input.claims === undefined ? {} : { claims: input.claims }),
     },
     context: {},
   };
@@ -109,7 +120,7 @@ function setting(name: string, value: string): Setting {
  * GUCs for `guc` (roles as a comma list, memberships as JSON).
  */
 function subjectSettings(
-  dialect: 'supabase' | 'guc',
+  dialect: 'supabase' | 'neon' | 'guc',
   subject: RlsParitySubject,
   gucPrefix: string,
   tenantClaim: string,
@@ -123,8 +134,9 @@ function subjectSettings(
     customRoles,
     scopes,
   );
-  if (dialect === 'supabase') {
+  if (dialect === 'supabase' || dialect === 'neon') {
     const claims = {
+      ...subject.claims,
       sub: subject.id,
       role: 'authenticated',
       [roleClaim]: roles.length === 1 ? roles[0] : roles,
@@ -134,6 +146,15 @@ function subjectSettings(
     return [setting('request.jwt.claims', JSON.stringify(claims))];
   }
   const settings = [
+    ...Object.entries(subject.claims ?? {}).map(([name, value]) => {
+      if (!IDENT.test(name)) {
+        throw new Error(`PermDock: unsafe claim name '${name}'`);
+      }
+      return setting(
+        `${gucPrefix}.${name}`,
+        typeof value === 'string' ? value : JSON.stringify(value),
+      );
+    }),
     setting(`${gucPrefix}.user_id`, subject.id),
     setting(`${gucPrefix}.${roleClaim}`, roles.join(',')),
     setting(`${gucPrefix}.memberships`, JSON.stringify(memberships)),

@@ -280,6 +280,53 @@ export const policy = definePolicy(permissions, {
     expect(codes(result.stdout)).toContain('PD016');
   });
 
+  it('PD027 names grants that read request context under an rls config', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/context-policy.ts'),
+      `import { allow, context, definePolicy, principal, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read, { where: { orgId: principal.claims.attrs.org } }),
+      allow(permissions.post.update, { where: { orgId: context.org } }),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/context-policy.ts',
+  rls: { dialect: 'supabase' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'context-refs'], {
+      cwd,
+    });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings).toEqual([
+      expect.objectContaining({
+        code: 'PD027',
+        message: expect.stringMatching(
+          /^post\.update \(role member\) reads context\.org: request context is not in the token/u,
+        ),
+      }),
+    ]);
+  });
+
   it('PD020 warns on hostable permissions compiled into RLS', async () => {
     const cwd = appCopy();
     writeFileSync(

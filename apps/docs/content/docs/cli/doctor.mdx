@@ -46,6 +46,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD024` | An `allow` sets `approval: { distinct: false }`, so the requester can approve their own request | warning |
 | `PD025` | A membership in the `doctor.memberships` fixture grants nothing under the policy's named scopes | warning |
 | `PD026` | No role on a scope sets `min`, so every instance of it can lose its last manager | warning |
+| `PD027` | Under an `rls` config, a grant's `where` or `check` reads `context.*`, which RLS cannot evaluate | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -176,6 +177,9 @@ When `doctor.memberships` points at a JSON fixture with a `memberships` array, t
 ### PD026: scopes nobody has to keep
 
 The check loads the policy and warns once per scope that has roles held on it but where none sets `min`: every organization can then lose its last owner, and nobody is left who may assign roles there. Set `min: 1` on the role that manages the scope (generated RLS then refuses to commit the removal of its last holder), or `min: 0` on any of the scope's roles to record that no holder must stay, as for a customer scope whose contacts come and go ([ownership](/docs/concepts/ownership)). `--only ownership` runs this check.
+### PD027: request context in an RLS policy
+
+A condition that reads `context.*` (`where: { region: context.region }`) is evaluated by `can` and compiled by the ORM adapters, which bind the request context. Postgres never sees that context: it is not in the JWT, so `permdock rls generate` refuses the grant (or skips it under `--skip-closures`) and the database cannot enforce the rule. With an `rls` config, the check names each such grant and the refs it reads. Fix it by moving the value into a server-set claim and comparing with `principal.claims.<name>`, which compiles, or by keeping the check in the application only ([subject attributes in RLS](/docs/adapters/rls#subject-attributes-abac)). `--only context-refs` (or `--only rls`) runs this check.
 
 ## Why
 

@@ -3,10 +3,16 @@ import type { RlsGrant } from './rls-grants.ts';
 import type { RolePermission } from './rls-helpers.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
-import { hasConditionOp } from '../index.ts';
+import { hasConditionOp, requiresApproval } from '../index.ts';
+import { jsonSchemaOf } from './catalog-doc.ts';
 import { collectGrants } from './rls-grants.ts';
 import { accessSql, capabilityAccessSql } from './rls-helpers.ts';
-import { compileConditionSql, sqlFunctionNames } from './rls-sql.ts';
+import {
+  columnTypesOf,
+  compileConditionSql,
+  contextRefs,
+  sqlFunctionNames,
+} from './rls-sql.ts';
 
 export type SqlCommand = 'select' | 'insert' | 'update' | 'delete';
 
@@ -211,10 +217,22 @@ function prepare(
       `PermDock CLI: closure grant ${label}/${grant.permission.key} is not portable; rewrite it or pass --skip-closures`,
     );
   }
-  if (grant.approval === 'human') {
-    warnings.push(
-      `skipped approval:human grant ${label}/${grant.permission.key}`,
+  const context = [
+    ...new Set([...contextRefs(item.where), ...contextRefs(grant.check)]),
+  ];
+  if (context.length > 0) {
+    if (skipClosures) {
+      warnings.push(
+        `skipped grant ${label}/${grant.permission.key}: it reads ${context.join(', ')}, which is not in the token`,
+      );
+      return undefined;
+    }
+    throw new Error(
+      `PermDock CLI: grant ${label}/${grant.permission.key} reads ${context.join(', ')}; request context is not in the token, so RLS cannot compile it. Move the value to a server-set claim (principal.claims.*) or pass --skip-closures (permdock doctor PD027)`,
     );
+  }
+  if (requiresApproval(grant.approval)) {
+    warnings.push(`skipped approval grant ${label}/${grant.permission.key}`);
     return undefined;
   }
   const command = commandFor(grant.permission.action);
@@ -330,8 +348,22 @@ export function compileGrants(
   const rows = new Map<string, RolePermission>();
   const branches: CompiledBranch[] = [];
   const filtered = new Set<string>();
+  const typed = new Map<string, RlsSqlContext>();
+  const contextFor = (name: string): RlsSqlContext => {
+    const known = typed.get(name);
+    if (known !== undefined) {
+      return known;
+    }
+    const node = policy.resources.get(name);
+    const columnTypes =
+      node === undefined ? {} : columnTypesOf(jsonSchemaOf(node));
+    const next = { ...ctx, columnTypes };
+    typed.set(name, next);
+    return next;
+  };
   for (const entry of entries) {
     const { item, command, table } = entry;
+    const rowCtx = contextFor(item.grant.permission.resource);
     const { grant, access, label } = item;
     noteConditions(entry, warnings);
     for (const condition of [entry.using, entry.check]) {
@@ -371,8 +403,8 @@ export function compileGrants(
         `no ${access.resource} memberships table: only link capabilities reach ${label}/${grant.permission.key}`,
       );
     }
-    const using = compileOptional(entry.using, ctx);
-    const check = compileOptional(entry.check, ctx);
+    const using = compileOptional(entry.using, rowCtx);
+    const check = compileOptional(entry.check, rowCtx);
     if (!linkOnly) {
       branches.push({
         table,

@@ -213,3 +213,43 @@ describe('tenant claim casts', () => {
     ).toThrow(/unsafe SQL type/u);
   });
 });
+
+describe('compileGrants approval grants', () => {
+  it('skips every grant that requires approval, not only human', () => {
+    const tree = definePermissions({
+      invoice: resource({
+        actions: ['read', 'pay', 'void', 'close'],
+        version: 'updatedAt',
+      }),
+    });
+    const withApprovals = definePolicy(tree, {
+      subject: () => null,
+      roles: [
+        role('clerk', [
+          allow(tree.invoice.read),
+          allow(tree.invoice.pay, { approval: 'human' }),
+          allow(tree.invoice.void, { approval: { distinct: false } }),
+          allow(tree.invoice.close, {
+            approval: { staleOn: 'resource-change' },
+          }),
+        ]),
+      ],
+    });
+    const warnings: string[] = [];
+    const { branches } = compileGrants(
+      withApprovals,
+      ctx,
+      undefined,
+      warnings,
+      false,
+    );
+    expect(branches.map((branch) => branch.permissionKey)).toEqual([
+      'invoice.read',
+    ]);
+    expect(warnings).toEqual([
+      'skipped approval grant clerk/invoice.pay',
+      'skipped approval grant clerk/invoice.void',
+      'skipped approval grant clerk/invoice.close',
+    ]);
+  });
+});

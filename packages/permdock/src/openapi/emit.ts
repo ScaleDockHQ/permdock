@@ -7,6 +7,7 @@ import type {
   OpenApiTarget,
 } from './types.ts';
 
+import { requiresApproval } from '../core/approval-required.ts';
 import { compact } from '../core/compact.ts';
 import { listPermissions } from '../core/permissions.ts';
 import { DRAFT_PINS, GNAP_RESERVED, PROFILE_NAMES } from './pins.ts';
@@ -166,7 +167,7 @@ export function describeOf(
   const conditions = grants
     .map((grant) => grant.where)
     .filter((where) => where !== undefined);
-  const approval = grants.some((grant) => grant.approval === 'human');
+  const approval = grants.some((grant) => requiresApproval(grant.approval));
   return compact<OpenApiDescribe>({
     security: securityOf(options, permissions, anyOf),
     'x-permdock-permissions': permissions.map((leaf) => leaf.key),

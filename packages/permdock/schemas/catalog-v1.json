@@ -117,6 +117,9 @@
                     "by": {},
                     "distinct": {
                       "type": "boolean"
+                    },
+                    "staleOn": {
+                      "const": "resource-change"
                     }
                   }
                 }

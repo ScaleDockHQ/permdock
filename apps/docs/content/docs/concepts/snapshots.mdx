@@ -189,7 +189,8 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 - Closures and opaque conditions: only their existence (`portable: false`).
 - Grants of roles the subject does not have, and grants of tenants outside `tenants` (the active one by default).
 - Custom-role definitions: only their resolved grants, each bounded by the ceiling and carrying the custom role name as `role` ([custom roles](/docs/concepts/custom-roles)).
-- Quota state for `limit` grants; those are always `server-only` (`portable: false`).
+- Quota state for `limit` grants; those are always `server-only` (`portable: false`), and no snapshot carries a decision's `quota`.
+- The principal's `claims`. A grant condition that reads `principal.claims.*` gets the subject's value as a literal when the snapshot is built, so the client evaluates the same attribute without holding the claim set. `principal.id`, `tenant` and the other fields the snapshot principal carries stay references.
 - Anything from the actor beyond what appears in `delegation`.
 
 ## Why

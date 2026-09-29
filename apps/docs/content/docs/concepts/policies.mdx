@@ -93,8 +93,8 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `{ check }` | Portable condition on the next row (RLS `WITH CHECK`) for `create` and `update` |
 | `{ where, check }` | Both, for `update` |
 | `(data, ctx) => boolean` | Closure: runtime only, branded non-portable |
-| `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person other than the actor and the principal approve. `{ by }` names eligible approvers with the same grantee selectors as `to`. `distinct` defaults to `true`; `distinct: false` lets the principal approve their own request (doctor PD024 lists each one) |
-| `{ ..., limit: { count, per } }` | Quota grant: non-portable, needs a `LimitStore` |
+| `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person other than the actor and the principal approve. `{ by }` names eligible approvers with the same grantee selectors as `to`. `distinct` defaults to `true`; `distinct: false` lets the principal approve their own request (doctor PD024 lists each one). `staleOn: 'resource-change'` binds the approval to the row's `version` field, so it no longer applies once the row changes ([approval security](/docs/security/approvals#approvals-that-go-stale)) |
+| `{ ..., limit: { count, per, mode?, alertAt? } }` | Quota grant: non-portable, needs a `LimitStore`. `mode: 'hard'` (default) denies past `count`; `mode: 'soft'` grants with an `over-limit` obligation; `alertAt` adds a `near-limit` obligation |
 | `{ ..., fields: ['title', 'body'] }` | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches |
 
 Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` (there is no current row). They may carry `check` on the proposed body; without a body a `check` grant does not match. Closures over `ctx` only remain valid on collection grants.
@@ -164,6 +164,20 @@ Three reasons to keep the split. The policy stays the single statement of who ma
 ## Limits
 
 `limit: { count, per }` is a quota grant. It is non-portable (it cannot appear as an evaluable snapshot grant or an RLS policy). Pass `limits: memoryLimitStore()` (or your store) to `createPermDock`. `can`, `filter` and `simulate` never consume; they peek `remaining`. `decide` and `assert` consume, except when the matched grant is `approval: 'human'`. Exhausted remaining is `denied` with reason `limit`. A missing store, a throw, or a thenable from `consume` / `remaining` is `limit-unavailable`. A Promise is never treated as granted. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case. See [extension interfaces](/docs/concepts/extension-interfaces).
+
+```ts
+allow(permissions.report.export, { limit: { count: 100, per: 'day', mode: 'soft', alertAt: 0.8 } })
+```
+
+- `mode` is `'hard'` (the default, the behaviour above) or `'soft'`. A soft limit grants past `count` and adds the obligation `{ kind: 'over-limit' }`, so the app can bill the overage, warn, or queue the work. The store still counts only up to `count`.
+- `alertAt` is a fraction of `count`, above `0` and at most `1`. Once this call brings usage to that fraction, the decision carries `{ kind: 'near-limit' }`. An `over-limit` call carries only `over-limit`.
+- A granted decision under a limit carries `quota: { remaining, resetsAt }`: what is left once this call counts, and the Unix second the window ends. `can`, `filter` and `simulate` report what the call would leave. `approval-required` and `denied` never carry `quota`.
+- A soft limit is still fail-closed: no store, a throw or a thenable denies with `limit-unavailable`, exactly as in hard mode.
+- An unknown `mode`, or an `alertAt` outside that range, throws when the grant is defined.
+
+### Why
+
+Quotas in SaaS plans are often soft: the customer keeps working past the included amount and pays for the overage, or gets a warning first. Modelling that as a second allow without a limit would grant silently, and the app could not tell an included call from an overage. An obligation on a `granted` decision keeps the three outcomes and says what the caller owes. The remaining count is already known to the `LimitStore`, so returning it costs nothing and lets an API send rate-limit headers without a second store read. The snapshot leaves it out because it changes on every call. Soft mode is not fail-open: it only changes what happens past the count, never what happens when the count cannot be read.
 
 ## Field-level grants
 

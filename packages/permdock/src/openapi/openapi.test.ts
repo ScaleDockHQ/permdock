@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { permissions, policy } from '../fixtures/quick-start.ts';
+import {
+  allow,
+  authenticated,
+  definePermissions,
+  definePolicy,
+  resource,
+  role,
+} from '../index.ts';
 import { createPermDock, DRAFT_PINS, GNAP_RESERVED } from './index.ts';
 
 describe('permdock/openapi', () => {
@@ -40,6 +48,48 @@ describe('permdock/openapi', () => {
     expect(describeOp(permissions.post.delete)['x-permdock-approval']).toBe(
       'human',
     );
+  });
+
+  it('marks every approval shape as requiring approval, not only human', () => {
+    const tree = definePermissions({
+      invoice: resource({
+        actions: ['read', 'pay', 'void', 'refund', 'close'],
+        version: 'updatedAt',
+      }),
+    });
+    const approvals = definePolicy(tree, {
+      roles: [
+        role('clerk', [
+          allow(tree.invoice.read),
+          allow(tree.invoice.pay, { approval: 'human' }),
+          allow(tree.invoice.void, { approval: { by: authenticated() } }),
+          allow(tree.invoice.refund, { approval: { distinct: false } }),
+          allow(tree.invoice.close, {
+            approval: { staleOn: 'resource-change' },
+          }),
+        ]),
+      ],
+      subject: () => null,
+    });
+    const { describe: describeOp } = createPermDock(approvals, {
+      scheme: { name: 'bearer', type: 'http' },
+      docsHints: { badges: true },
+    });
+    expect(describeOp(tree.invoice.read)).not.toHaveProperty(
+      'x-permdock-approval',
+    );
+    expect(describeOp(tree.invoice.read)).not.toHaveProperty('x-badges');
+    for (const leaf of [
+      tree.invoice.pay,
+      tree.invoice.void,
+      tree.invoice.refund,
+      tree.invoice.close,
+    ]) {
+      expect(describeOp(leaf)['x-permdock-approval']).toBe('human');
+      expect(describeOp(leaf)['x-badges']).toEqual([
+        { name: 'Approval required' },
+      ]);
+    }
   });
 
   it('throws for the reserved gnap scheme kind', () => {

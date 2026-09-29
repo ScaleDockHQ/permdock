@@ -378,3 +378,73 @@ describe('hosted grants', () => {
     );
   });
 });
+
+describe('hosted approvals that go stale on a resource change', () => {
+  const Filing = z.object({ id: z.string(), updatedAt: z.string() });
+  const tree = definePermissions({
+    filing: resource(Filing, {
+      actions: ['pay', 'close'],
+      version: 'updatedAt',
+    }),
+    note: resource(z.object({ id: z.string() }), { actions: ['pin'] }),
+  });
+  const versioned = definePolicy(tree, {
+    roles: [
+      role('clerk', [
+        allow(tree.filing.pay, { approval: { staleOn: 'resource-change' } }),
+      ]),
+      role('auditor', []),
+    ],
+    principal: (user: User) => user,
+    hostable: [tree.filing, tree.note],
+  });
+
+  async function reasons(grants: readonly unknown[]): Promise<unknown[]> {
+    const dock = await createPermDock(versioned, member, {
+      policies: memoryPolicySource(document(grants)),
+    });
+    const errors: unknown[] = [];
+    dock.on('error', (error) => {
+      errors.push(error);
+    });
+    return errors.map((error) => (error as { readonly reason: string }).reason);
+  }
+
+  it('drops a hosted approval that omits the staleOn a code allow requires', async () => {
+    expect(
+      await reasons([
+        {
+          id: 'g_weak',
+          permission: 'filing.pay',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: 'human',
+        },
+        {
+          id: 'g_same',
+          permission: 'filing.pay',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: { staleOn: 'resource-change' },
+        },
+      ]),
+    ).toEqual(['weaker-approval']);
+  });
+
+  it('drops staleOn on a resource without version or with an unknown value', async () => {
+    expect(
+      await reasons([
+        {
+          id: 'g_unversioned',
+          permission: 'note.pin',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: { staleOn: 'resource-change' },
+        },
+        {
+          id: 'g_unknown',
+          permission: 'filing.close',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: { staleOn: 'always' },
+        },
+      ]),
+    ).toEqual(['invalid', 'invalid']);
+  });
+});

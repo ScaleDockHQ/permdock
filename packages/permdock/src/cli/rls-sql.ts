@@ -7,6 +7,7 @@ import type {
 } from './types.ts';
 
 import { scopeColumn, scopeMembershipTable } from '../conditions/compile.ts';
+import { isForbiddenKey } from '../core/paths.ts';
 import { resolveScope, rootScope, scopeChain } from '../core/scopes.ts';
 import { isSqlFunctionField } from '../index.ts';
 
@@ -45,6 +46,12 @@ export type RlsSqlContext = {
   readonly capabilities?: true;
   /** Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when any role declares one. */
   readonly ownership?: RlsOwnership;
+  /**
+   * Postgres types of the current table's columns, read from the resource
+   * schema (`columnTypesOf`). A claim compared with a typed column is cast to
+   * that type; a column without an entry compares as text.
+   */
+  readonly columnTypes?: Readonly<Record<string, string>>;
 };
 
 /** The policy's role ownership rules as the SQL generator needs them. */
@@ -250,9 +257,219 @@ export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
   }
 }
 
-function sqlValue(value: ConditionValue, ctx: RlsSqlContext): string {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** The Postgres type a JSON Schema property compares as; `undefined` for text or an unknown shape. */
+function columnTypeOf(property: unknown): string | undefined {
+  if (!isRecord(property)) {
+    return undefined;
+  }
+  const variants = [property.anyOf, property.oneOf].find(Array.isArray) as
+    | readonly unknown[]
+    | undefined;
+  if (variants !== undefined) {
+    const present = variants.filter(
+      (item) => !(isRecord(item) && item.type === 'null'),
+    );
+    return present.length === 1 ? columnTypeOf(present[0]) : undefined;
+  }
+  const types = (
+    Array.isArray(property.type) ? property.type : [property.type]
+  ).filter((item) => item !== 'null');
+  if (types.length !== 1) {
+    return undefined;
+  }
+  switch (types[0]) {
+    case 'integer':
+    case 'number':
+      return 'numeric';
+    case 'boolean':
+      return 'boolean';
+    case 'string':
+      switch (property.format) {
+        case 'date-time':
+          return 'timestamptz';
+        case 'date':
+          return 'date';
+        case 'uuid':
+          return 'uuid';
+        default:
+          return undefined;
+      }
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Column types from a resource's JSON Schema (`~standard.jsonSchema`): numbers
+ * compare as `numeric`, booleans as `boolean`, and `date-time`, `date` and
+ * `uuid` strings as `timestamptz`, `date` and `uuid`. Other columns are left
+ * out and compare as text.
+ */
+export function columnTypesOf(
+  schema: unknown,
+): Readonly<Record<string, string>> {
+  const properties = isRecord(schema) ? schema.properties : undefined;
+  if (!isRecord(properties)) {
+    return {};
+  }
+  const types: Record<string, string> = {};
+  for (const [name, property] of Object.entries(properties)) {
+    const type = isForbiddenKey(name) ? undefined : columnTypeOf(property);
+    if (type !== undefined) {
+      types[name] = type;
+    }
+  }
+  return types;
+}
+
+const MAX_CLAIM_DEPTH = 8;
+
+/**
+ * The claim path of a `principal.claim.*` / `principal.claims.*` ref, one
+ * segment per JSON key; `undefined` for any other ref.
+ */
+export function claimPath(ref: string): readonly string[] | undefined {
+  const prefix = ['principal.claim.', 'principal.claims.'].find((item) =>
+    ref.startsWith(item),
+  );
+  if (prefix === undefined) {
+    return undefined;
+  }
+  const segments = ref.slice(prefix.length).split('.');
+  if (segments.length > MAX_CLAIM_DEPTH) {
+    throw new Error(
+      `PermDock CLI: claim path '${ref}' is deeper than ${MAX_CLAIM_DEPTH}`,
+    );
+  }
+  for (const segment of segments) {
+    if (!CLAIM.test(segment) || isForbiddenKey(segment)) {
+      throw new Error(`PermDock CLI: unsafe claim name '${segment}'`);
+    }
+  }
+  return segments;
+}
+
+function jsonPath(
+  base: string,
+  keys: readonly string[],
+  last: '->' | '->>',
+): string {
+  let sql = base;
+  for (const [index, key] of keys.entries()) {
+    sql += ` ${index === keys.length - 1 ? last : '->'} ${quoteLiteral(key)}`;
+  }
+  return sql;
+}
+
+/**
+ * The JSON document a claim path starts from and the keys to walk in it. The
+ * `guc` dialect keeps each top-level claim in its own setting as JSON text.
+ */
+function claimRoot(
+  ctx: RlsSqlContext,
+  path: readonly string[],
+): { readonly root: string; readonly keys: readonly string[] } {
+  const [head, ...rest] = path;
+  if (head === undefined) {
+    throw new Error('PermDock CLI: empty claim path');
+  }
+  switch (ctx.dialect) {
+    case 'supabase':
+      return { root: '(select auth.jwt())', keys: path };
+    case 'neon':
+      return { root: '(select auth.session())', keys: path };
+    case 'guc':
+      return { root: subjectClaimJsonSql(ctx, head), keys: rest };
+    default: {
+      const exhaustive: never = ctx.dialect;
+      return exhaustive;
+    }
+  }
+}
+
+/** The claim at `path` as `jsonb`. */
+export function claimJsonSql(
+  ctx: RlsSqlContext,
+  path: readonly string[],
+): string {
+  const { root, keys } = claimRoot(ctx, path);
+  return keys.length === 0 ? root : `(${jsonPath(root, keys, '->')})`;
+}
+
+/** The claim at `path` as text: `->>` on the last key, or the plain setting for a one-segment `guc` claim. */
+export function claimTextSql(
+  ctx: RlsSqlContext,
+  path: readonly string[],
+): string {
+  const [head] = path;
+  if (path.length === 1 && head !== undefined) {
+    return subjectClaimSql(ctx, head);
+  }
+  const { root, keys } = claimRoot(ctx, path);
+  return `(${jsonPath(root, keys, '->>')})`;
+}
+
+/** The JSON kind a claim must have to compare with a column of `type`. */
+function jsonKindOf(type: string | undefined): 'number' | 'boolean' | 'string' {
+  if (type === 'numeric') {
+    return 'number';
+  }
+  return type === 'boolean' ? 'boolean' : 'string';
+}
+
+/**
+ * A claim compared with a column of `type`. Numbers and booleans must be JSON
+ * of that kind (anything else is `null`, so the comparison is false, as in
+ * memory); other types cast the text form. A one-segment `guc` claim is text
+ * and is cast as is.
+ */
+export function typedClaimSql(
+  ctx: RlsSqlContext,
+  path: readonly string[],
+  type: string | undefined,
+): string {
+  const text = claimTextSql(ctx, path);
+  if (type === undefined || type === 'text') {
+    return text;
+  }
+  const cast = `${text}::${sqlType(type)}`;
+  const kind = jsonKindOf(type);
+  if (kind === 'string' || (ctx.dialect === 'guc' && path.length === 1)) {
+    return `(${cast})`;
+  }
+  return `(case when jsonb_typeof(${claimJsonSql(ctx, path)}) = '${kind}' then ${cast} end)`;
+}
+
+/**
+ * The elements of an array claim as a Postgres array of the column's type,
+ * built once per statement (an uncorrelated `array(select ...)` is an InitPlan).
+ * A missing or non-array claim is the empty array; elements of another JSON
+ * kind are left out.
+ */
+export function claimArraySql(
+  ctx: RlsSqlContext,
+  path: readonly string[],
+  type: string | undefined,
+): string {
+  const json = claimJsonSql(ctx, path);
+  const element =
+    type === undefined || type === 'text'
+      ? `(e #>> '{}')`
+      : `(e #>> '{}')::${sqlType(type)}`;
+  return `array(select ${element} from jsonb_array_elements(case when jsonb_typeof(${json}) = 'array' then ${json} else '[]'::jsonb end) e where jsonb_typeof(e) = '${jsonKindOf(type)}')`;
+}
+
+function sqlValue(
+  value: ConditionValue,
+  ctx: RlsSqlContext,
+  field?: string,
+): string {
   if (value !== null && typeof value === 'object' && 'ref' in value) {
-    return compileRef(value.ref, ctx);
+    return compileRef(value.ref, ctx, field);
   }
   if (value !== null && typeof value === 'object' && 'date' in value) {
     return quoteLiteral(value.date);
@@ -275,19 +492,28 @@ function sqlValue(value: ConditionValue, ctx: RlsSqlContext): string {
   throw new Error('PermDock CLI: non-portable condition value');
 }
 
-function compileRef(ref: string, ctx: RlsSqlContext): string {
+function compileRef(ref: string, ctx: RlsSqlContext, field?: string): string {
   if (ref === 'principal.id') {
     return subjectIdSql(ctx);
   }
-  const claim =
-    ref.startsWith('principal.claim.') || ref.startsWith('principal.claims.')
-      ? ref.slice(ref.indexOf('.', ref.indexOf('.') + 1) + 1)
-      : undefined;
-  if (ref === 'principal.tenant' || claim === ctx.tenantClaim) {
+  const path = claimPath(ref);
+  if (
+    ref === 'principal.tenant' ||
+    (path?.length === 1 && path[0] === ctx.tenantClaim)
+  ) {
     return tenantClaimSql(ctx);
   }
-  if (claim !== undefined) {
-    return subjectClaimSql(ctx, claim);
+  if (path !== undefined) {
+    return typedClaimSql(
+      ctx,
+      path,
+      field === undefined ? undefined : ctx.columnTypes?.[field],
+    );
+  }
+  if (ref === 'context' || ref.startsWith('context.')) {
+    throw new Error(
+      `PermDock CLI: '${ref}' is request context, which is not in the token; RLS cannot read it (permdock doctor PD027)`,
+    );
   }
   throw new Error(`PermDock CLI: non-portable subject ref '${ref}'`);
 }
@@ -440,7 +666,7 @@ export function compileConditionSql(
       return compareSql(
         condition.op,
         condition.field,
-        sqlValue(condition.value, ctx),
+        sqlValue(condition.value, ctx, condition.field),
       );
     case 'in':
     case 'notIn': {
@@ -450,9 +676,22 @@ export function compileConditionSql(
         typeof condition.value === 'object' &&
         'ref' in condition.value
       ) {
-        throw new Error(
-          `PermDock CLI: non-portable ${condition.op} against '${condition.value.ref}'`,
+        const path = claimPath(condition.value.ref);
+        if (path === undefined) {
+          compileRef(condition.value.ref, ctx);
+          throw new Error(
+            `PermDock CLI: non-portable ${condition.op} against '${condition.value.ref}'`,
+          );
+        }
+        const column = quoteIdent(condition.field);
+        const list = claimArraySql(
+          ctx,
+          path,
+          ctx.columnTypes?.[condition.field],
         );
+        return condition.op === 'in'
+          ? `${column} = any (${list})`
+          : `(${column} is not null and not (${column} = any (${list})))`;
       }
       const values = (condition.value as readonly ConditionValue[]).map(
         (item) => sqlValue(item, ctx),
@@ -523,6 +762,62 @@ export function andConditions(
     return left;
   }
   return { op: 'and', conditions: [left, right] };
+}
+
+function valueContextRefs(value: unknown): readonly string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(valueContextRefs);
+  }
+  if (
+    isRecord(value) &&
+    typeof value.ref === 'string' &&
+    (value.ref === 'context' || value.ref.startsWith('context.'))
+  ) {
+    return [value.ref];
+  }
+  return [];
+}
+
+/**
+ * The `context.*` refs a condition reads. The request context is not in the
+ * token, so RLS cannot evaluate them.
+ */
+export function contextRefs(
+  condition: Condition | undefined,
+): readonly string[] {
+  if (condition === undefined) {
+    return [];
+  }
+  switch (condition.op) {
+    case 'eq':
+    case 'ne':
+    case 'gt':
+    case 'gte':
+    case 'lt':
+    case 'lte':
+    case 'contains':
+    case 'in':
+    case 'notIn':
+      return valueContextRefs(condition.value);
+    case 'and':
+    case 'or':
+      return condition.conditions.flatMap((child) => contextRefs(child));
+    case 'not':
+      return contextRefs(condition.condition);
+    case 'sqlFunction':
+      return [
+        ...condition.args.flatMap(valueContextRefs),
+        ...contextRefs(condition.twin),
+      ];
+    case 'isNull':
+    case 'memberOf':
+    case 'opaque':
+      return [];
+    default: {
+      const exhaustive: never = condition;
+      return exhaustive;
+    }
+  }
 }
 
 export function sqlFunctionNames(
