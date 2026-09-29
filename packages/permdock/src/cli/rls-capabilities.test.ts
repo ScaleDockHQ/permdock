@@ -147,4 +147,17 @@ describe('rls generate --capabilities', () => {
     expect(helpers).not.toContain('permdock_capability_ids');
     expect(policies.every((item) => !item.roles.includes('anon'))).toBe(true);
   });
+
+  it('gives no link branch to a role whose for omits link', () => {
+    const anonNames = (kinds: readonly string[]) =>
+      generate({
+        ...base,
+        capabilities: true,
+        ownership: { kinds: { guest: kinds }, assigns: [], counted: [] },
+      })
+        .policies.filter((item) => item.roles.includes('anon'))
+        .map((item) => item.name);
+    expect(anonNames(['staff'])).not.toContain('quote_select_anon');
+    expect(anonNames(['link'])).toContain('quote_select_anon');
+  });
 });
