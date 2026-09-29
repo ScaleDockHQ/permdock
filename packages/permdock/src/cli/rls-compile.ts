@@ -3,7 +3,7 @@ import type { RlsGrant } from './rls-grants.ts';
 import type { RolePermission } from './rls-helpers.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
-import { hasConditionOp } from '../index.ts';
+import { hasConditionOp, requiresApproval } from '../index.ts';
 import { collectGrants } from './rls-grants.ts';
 import { accessSql, capabilityAccessSql } from './rls-helpers.ts';
 import { compileConditionSql, sqlFunctionNames } from './rls-sql.ts';
@@ -211,10 +211,8 @@ function prepare(
       `PermDock CLI: closure grant ${label}/${grant.permission.key} is not portable; rewrite it or pass --skip-closures`,
     );
   }
-  if (grant.approval === 'human') {
-    warnings.push(
-      `skipped approval:human grant ${label}/${grant.permission.key}`,
-    );
+  if (requiresApproval(grant.approval)) {
+    warnings.push(`skipped approval grant ${label}/${grant.permission.key}`);
     return undefined;
   }
   const command = commandFor(grant.permission.action);
