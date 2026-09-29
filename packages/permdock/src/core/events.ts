@@ -1,3 +1,4 @@
+import type { CustomGrant } from './custom-roles.ts';
 import type { Decision } from './decision.ts';
 import type {
   AuthEvent,
@@ -58,6 +59,7 @@ export type EvalEnv = {
   readonly simulated: boolean;
   readonly skipAlternatives: boolean;
   readonly customRoles: readonly CustomRole[];
+  readonly customGrants: readonly CustomGrant[];
   readonly listeners: ListenerMap;
   readonly sink: DecisionSink | undefined;
   readonly limits: LimitStore | undefined;

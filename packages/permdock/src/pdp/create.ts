@@ -336,6 +336,7 @@ function wrap(
     tenants: dock.tenants.bind(dock),
     heldRoles: dock.heldRoles.bind(dock),
     assignableRoles: dock.assignableRoles.bind(dock),
+    assignablePermissions: dock.assignablePermissions.bind(dock),
     permissions: dock.permissions,
     roles: dock.roles,
     plans: dock.plans,

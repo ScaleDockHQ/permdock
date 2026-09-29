@@ -20,25 +20,29 @@ import {
 } from './arazzo.ts';
 import { compact } from './compact.ts';
 import {
+  type CustomGrant,
+  ceilingGrants,
+  customGrantsFor,
+  holdsCustomRole,
+  roleAllowKeys,
+} from './custom-roles.ts';
+import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockValidationError,
   approvalMessage,
   deniedMessage,
 } from './errors.ts';
-import {
-  declaredRoleNames,
-  evaluate,
-  expandRoleNames,
-  grantList,
-} from './evaluate.ts';
+import { declaredRoleNames, evaluate, expandRoleNames } from './evaluate.ts';
 import { type EvalEnv, emitSafe, emptyListeners, finish } from './events.ts';
 import { pickVisible } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
 import { getResource, listPermissions } from './permissions.ts';
+import { grantList } from './policy.ts';
 import { buildSnapshot, signSnapshot, snapshotGrant } from './snapshot.ts';
 import {
+  isMembershipExpired,
   nowSeconds,
   relatesTo,
   resolveActiveTenant,
@@ -96,6 +100,7 @@ export function collectSnapshotGrants(
   subject: Subject,
   customRoles: readonly CustomRole[],
   now: number = nowSeconds(),
+  customGrants: readonly CustomGrant[] = customGrantsFor(policy, customRoles),
 ): readonly { readonly grant: Grant; readonly membership?: Membership }[] {
   const declared = declaredRoleNames(policy);
   const global = expandRoleNames(
@@ -151,7 +156,151 @@ export function collectSnapshotGrants(
       }
     }
   }
+  for (const { grant, role } of customGrants) {
+    const holders = held.filter((entry) =>
+      holdsCustomRole(entry.membership, role),
+    );
+    if (holders.length === 0) {
+      continue;
+    }
+    const resource = getResource(policy.permissions, grant.permission.resource);
+    const match = matchGrantee(grant.to, subject, now, resource);
+    if (!match.matched) {
+      continue;
+    }
+    const merged: Grant = freezeDeep(
+      compact({
+        ...grant,
+        where: combineWhere(grant.where, match.where),
+      }),
+    );
+    for (const entry of holders) {
+      out.push({ grant: merged, membership: entry.membership });
+    }
+  }
   return out;
+}
+
+/** Declared roles a tenant admin may hand out or compose, before any intersection. */
+function assignableCandidates(policy: Policy): readonly Role[] {
+  const fromVocab = listRoles(policy.vocabulary?.roles).filter(
+    (leaf) => leaf.assignable,
+  );
+  const seen = new Set(fromVocab.map((leaf) => leaf.key));
+  const fromBindings = policy.roles
+    .filter((binding) => binding.assignable && !seen.has(binding.name))
+    .map((binding) =>
+      synthesiseRole(
+        binding.name,
+        binding.on === 'tenant' || binding.on === 'team'
+          ? { on: binding.on, assignable: true }
+          : { assignable: true },
+      ),
+    );
+  return [...fromVocab, ...fromBindings];
+}
+
+export type Assignable = {
+  readonly roles: readonly Role[];
+  readonly permissions: readonly Permission[];
+};
+
+/**
+ * What the subject may hand out in `tenant`: declared assignable roles and the
+ * tenant custom-role ceiling, narrowed by `allowed` (`RoleSource.assignable`),
+ * then intersected with the permissions the subject holds there. Holding a
+ * role or a granted permission with `meta.manageRoles` lifts the intersection.
+ */
+export function assignableIn(
+  policy: Policy,
+  subject: Subject,
+  customRoles: readonly CustomRole[],
+  customGrants: readonly CustomGrant[],
+  tenant: string | undefined,
+  allowed: readonly string[] | undefined,
+  now: number = nowSeconds(),
+): Assignable {
+  const principal = subject.principal;
+  if (principal === null) {
+    return { roles: [], permissions: [] };
+  }
+  const scoped: Subject =
+    tenant === undefined
+      ? subject
+      : freezeDeep(
+          compact<Subject>({
+            ...subject,
+            principal: compact<Principal>({
+              ...principal,
+              tenant: resolveActiveTenant(principal, tenant),
+            }),
+          }),
+        );
+  const heldKeys = new Set(
+    collectSnapshotGrants(policy, scoped, customRoles, now, customGrants)
+      .filter(
+        (item) =>
+          item.grant.effect === 'allow' &&
+          (item.membership === undefined ||
+            (item.membership.tenant === tenant &&
+              !isMembershipExpired(item.membership, now))),
+      )
+      .map((item) => item.grant.permission.key),
+  );
+  const heldNames = heldRoleNames(subject, tenant);
+  const quiet: EvalEnv = {
+    emit: false,
+    simulated: true,
+    skipAlternatives: true,
+    customRoles,
+    customGrants,
+    listeners: emptyListeners(),
+    sink: undefined,
+    limits: undefined,
+    limitCache: new Map(),
+    team: undefined,
+  };
+  const manage =
+    heldNames.some(
+      (name) =>
+        findRole(policy.vocabulary?.roles, name)?.meta.manageRoles === true,
+    ) ||
+    listPermissions(policy.permissions).some(
+      (leaf) =>
+        leaf.meta.manageRoles === true &&
+        evaluate(
+          policy,
+          scoped,
+          leaf,
+          undefined,
+          { source: 'simulate', trusted: true, now },
+          quiet,
+        ).outcome === 'granted',
+    );
+  const narrowed = allowed === undefined ? undefined : new Set<string>(allowed);
+  const candidates = assignableCandidates(policy).filter(
+    (leaf) => narrowed === undefined || narrowed.has(leaf.key),
+  );
+  const held = new Set(heldNames);
+  const roles = manage
+    ? candidates
+    : candidates.filter((leaf) => {
+        if (held.has(leaf.key)) {
+          return true;
+        }
+        // A role with no allows yet may gain hosted grants later: only its holders assign it.
+        const keys = [...roleAllowKeys(policy, leaf.key)];
+        return keys.length > 0 && keys.every((key) => heldKeys.has(key));
+      });
+  const ceiling = new Set(
+    ceilingGrants(policy, 'tenant', allowed).map(
+      (grant) => grant.permission.key,
+    ),
+  );
+  const permissions = listPermissions(policy.permissions).filter(
+    (leaf) => ceiling.has(leaf.key) && (manage || heldKeys.has(leaf.key)),
+  );
+  return { roles, permissions };
 }
 
 export type SnapshotInclude = readonly (
@@ -165,6 +314,9 @@ export function snapshotOf(
   subject: Subject,
   options: {
     readonly customRoles: readonly CustomRole[];
+    readonly customGrants?: readonly CustomGrant[];
+    /** Role names `RoleSource.assignable` returned, per tenant. */
+    readonly assignable?: ReadonlyMap<string, readonly string[]>;
     readonly include?: SnapshotInclude;
     readonly tenants?: 'all';
     readonly simulated?: boolean;
@@ -172,17 +324,41 @@ export function snapshotOf(
   },
 ): Snapshot {
   const now = options.now ?? nowSeconds();
+  const customGrants =
+    options.customGrants ?? customGrantsFor(policy, options.customRoles);
   return buildSnapshot(
     compact<Parameters<typeof buildSnapshot>[0]>({
       subject,
       roles: heldRoleNames(subject, subject.principal?.tenant),
-      grants: collectSnapshotGrants(policy, subject, options.customRoles, now),
+      grants: collectSnapshotGrants(
+        policy,
+        subject,
+        options.customRoles,
+        now,
+        customGrants,
+      ),
       include: includePrefixes(options.include),
       tenants: options.tenants,
       simulated: options.simulated,
       now: Math.floor(now),
       vocabulary: policy.vocabulary,
       scopes: snapshotScopes(policy),
+      assignable: (tenant: string) => {
+        const found = assignableIn(
+          policy,
+          subject,
+          options.customRoles,
+          customGrants,
+          tenant,
+          options.assignable?.get(tenant),
+          now,
+        );
+        return {
+          tenant,
+          roles: found.roles.map((leaf) => leaf.key),
+          permissions: found.permissions,
+        };
+      },
     }),
   );
 }
@@ -226,6 +402,8 @@ export function buildInstance(
     readonly limitCache: Map<string, number>;
     readonly simulated: boolean;
     readonly roleSource: RoleSource | undefined;
+    /** `RoleSource.assignable` per tenant, loaded with the custom roles. */
+    readonly assignable?: ReadonlyMap<string, readonly string[]>;
     readonly queuedAuth: readonly AuthEvent[];
     /** Errors from building the instance (a dropped hosted grant), replayed to `on('error')`. */
     readonly queuedErrors?: readonly unknown[];
@@ -235,11 +413,22 @@ export function buildInstance(
   const listeners = emptyListeners();
   const queuedAuth = [...envBase.queuedAuth];
   const queuedErrors = [...(envBase.queuedErrors ?? [])];
+  const customGrants = customGrantsFor(policy, envBase.customRoles);
+  const assignableAt = (tenant: string | undefined): Assignable =>
+    assignableIn(
+      policy,
+      subject,
+      envBase.customRoles,
+      customGrants,
+      tenant,
+      tenant === undefined ? undefined : envBase.assignable?.get(tenant),
+    );
   const envFor = (emit: boolean): EvalEnv => ({
     emit,
     simulated: envBase.simulated,
     skipAlternatives: false,
     customRoles: envBase.customRoles,
+    customGrants,
     listeners,
     sink: envBase.sink,
     limits: envBase.limits,
@@ -428,7 +617,13 @@ export function buildInstance(
       });
     },
     where(permission: Permission): WhereResult {
-      const grants = collectSnapshotGrants(policy, subject, envBase.customRoles)
+      const grants = collectSnapshotGrants(
+        policy,
+        subject,
+        envBase.customRoles,
+        nowSeconds(),
+        customGrants,
+      )
         .filter((item) => item.grant.permission.key === permission.key)
         .map((item) => snapshotGrant(item.grant, item.membership));
       return whereFromGrants(
@@ -534,6 +729,8 @@ export function buildInstance(
         subject,
         compact<Parameters<typeof snapshotOf>[2]>({
           customRoles: envBase.customRoles,
+          customGrants,
+          assignable: envBase.assignable,
           include: options?.include,
           tenants: options?.tenants,
           simulated: envBase.simulated,
@@ -603,31 +800,14 @@ export function buildInstance(
           findRole(policy.vocabulary?.roles, name) ?? synthesiseRole(name),
       );
     },
-    assignableRoles(): readonly Role[] {
-      const tenant = subject.principal?.tenant;
-      const held = new Set(heldRoleNames(subject, tenant));
-      const fromVocab = listRoles(policy.vocabulary?.roles).filter(
-        (leaf) => leaf.assignable && held.has(leaf.key),
-      );
-      const seen = new Set(fromVocab.map((leaf) => leaf.key));
-      const fromBindings = policy.roles
-        .filter((role) => role.assignable && held.has(role.name))
-        .flatMap((role) => {
-          if (seen.has(role.name)) {
-            return [];
-          }
-          seen.add(role.name);
-          return [
-            findRole(policy.vocabulary?.roles, role.name) ??
-              synthesiseRole(
-                role.name,
-                role.on === 'tenant' || role.on === 'team'
-                  ? { on: role.on, assignable: true }
-                  : { assignable: true },
-              ),
-          ];
-        });
-      return [...fromVocab, ...fromBindings];
+    assignableRoles(options?: { readonly tenant?: string }): readonly Role[] {
+      return assignableAt(options?.tenant ?? subject.principal?.tenant).roles;
+    },
+    assignablePermissions(options?: {
+      readonly tenant?: string;
+    }): readonly Permission[] {
+      const tenant = options?.tenant ?? subject.principal?.tenant;
+      return tenant === undefined ? [] : assignableAt(tenant).permissions;
     },
     subject,
   };

@@ -162,6 +162,15 @@ export type Snapshot = {
       Record<string, { readonly tenant?: true; readonly team?: true }>
     >;
   };
+  /** One entry per tenant in `tenants`: what the subject may hand out there. Absent without tenants. */
+  readonly assignable?: readonly SnapshotAssignable[];
+};
+
+/** The declared roles and the custom-role ceiling the subject may assign in one tenant. */
+export type SnapshotAssignable = {
+  readonly tenant: string;
+  readonly roles: readonly string[];
+  readonly permissions: readonly Permission[];
 };
 
 export type SnapshotGrant = {

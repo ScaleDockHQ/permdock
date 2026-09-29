@@ -70,6 +70,7 @@ export type {
   MembershipSource,
   RoleSource,
   Snapshot,
+  SnapshotAssignable,
   SnapshotGrant,
   SnapshotSource,
   SubjectResolver,
@@ -90,6 +91,13 @@ export type {
 export { emptySnapshot, fromSnapshot } from './core/from-snapshot.ts';
 export { createPermDock, parseSnapshot } from './core/permdock.ts';
 export { mayAccess } from './core/may-access.ts';
+export { resolveCustomRole, validateCustomRole } from './core/custom-roles.ts';
+export type {
+  CustomRoleDrop,
+  CustomRoleDropReason,
+  CustomRoleValidation,
+  ResolvedCustomRole,
+} from './core/custom-roles.ts';
 export { snapshotFor } from './core/snapshot-for.ts';
 export type { SnapshotForOptions } from './core/snapshot-for.ts';
 export type {
@@ -200,6 +208,7 @@ export type {
   AuthorizationDetail,
   Binding,
   CustomRole,
+  CustomRoleGrant,
   Delegation,
   GnapAccess,
   Membership,
