@@ -38,7 +38,7 @@ This is the short product brief: what PermDock is, who it is for, the principles
 ## Non-goals
 
 - Requiring a network call to decide. PermDock is a decision point you embed; every hosted capability has an in-process default behind the same interface.
-- A policy language, an authentication product, token issuance, or Zanzibar-scale relationship graphs. PermDock bridges to OpenFGA or SpiceDB through a provider, and resource roles follow declared, finite `parent` chains only.
+- A policy language, an authentication product, token issuance, or Zanzibar-scale relationship graphs. PermDock bridges to OpenFGA or SpiceDB through a provider or a `RelationSource`; object hierarchies are relation grants that walk a parent chain to a bounded depth ([relationships](apps/docs/content/docs/concepts/relationships.mdx)), and resource roles follow declared, typed `parent` chains.
 - Storing or managing tenants, teams, invitations, memberships or custom roles. PermDock reads them through `MembershipSource` and `RoleSource`; the auth provider or the application owns the tables ([tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)).
 - UI components beyond `<Protected>`. Hooks return data and the application's design system renders it.
 

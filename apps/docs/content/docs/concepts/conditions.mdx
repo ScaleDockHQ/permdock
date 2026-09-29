@@ -30,6 +30,7 @@ An object literal is an implicit `and` over its fields. A field value is either 
 | `and`, `or`, `not` | compound | `AND`, `OR`, `NOT` |
 | `memberOf` | the row's scope field names an instance of a named scope (or a resource) where the subject holds one of the listed roles, through a membership of exactly that scope; emitted by scoped role declarations, not written by hand | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)` |
 | `sqlFunction` | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run | `name(args)` (`--inline-functions` emits the twin instead) |
+| `related` | the subject holds a relation on the object the row's field names, or on one of its ancestors within `depth` parent hops; emitted by `relation(..., { through: 'parent' })` and edge-table relations, not written by hand ([relationships](/docs/concepts/relationships)) | `field in (select descendant from permdock_closure where ... and ancestor = any (array(select permitted_<resource>_ids('<relation>'))))` |
 
 That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/standards/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition. `sqlFunction` is the node for SQL-authority policies whose database helper is the source of truth:
 
@@ -109,6 +110,7 @@ Conditions are plain JSON. No superjson, no class instances, no functions. The l
 - A literal value is a JSON literal.
 - A reference is `{ "ref": "principal.<path>" }` or `{ "ref": "context.<path>" }`; no other prefix resolves.
 - A scope test is `{ "op": "memberOf", "scope": "tenant" | "team" | "resource", "field": "<row field>", "roles": [...] }`, with `resource` and `parents` when the scope is a resource ([tenancy](/docs/concepts/tenancy)).
+- A graph test is `{ "op": "related", "resource": "<resource>", "relation": "<name>", "field": "<row field>", "depth": <0-32> }`, with `"parent": true` when the field holds the row's parent id and `restricted` naming the row's restricted column. It never appears in a snapshot: grants that need it are server-only there.
 - A date is a tagged ISO string `{ "date": "..." }`, so it survives JSON without superjson and compares correctly in memory and in SQL.
 - Nested `and` / `or` are flattened and single-child compounds collapsed at definition time, the same normalisation CASL's ucast applies.
 
@@ -126,6 +128,8 @@ One AST, several interpreters:
 | Drizzle | `toWhere(permdock.where(...), posts)` from `permdock/drizzle` | An SQL expression for `.where()`; empty allow is constant false; `memberOf` is equality, `inArray`, parent `or`, or `exists` |
 | Prisma | `toWhere(...)` from `permdock/prisma` | A `WhereInput` object; fail-closed as `{ OR: [] }` when nothing is allowed; `memberOf` uses frozen membership ids |
 | Kysely | `toWhere(...)` from `permdock/kysely` | An expression builder callback; empty allow is `eb.lit(false)`; `memberOf` matches Drizzle |
+
+`related` is not portable to the three query builders (`portable: false` for them): the graph lives in a `RelationSource` or the closure table, not in the row. `permdock.where()` leaves graph grants out and returns `partial: true`, so re-check rows with `filter` after `loadRelations`, or let RLS enforce them.
 | Postgres RLS | `permdock rls generate` | `CREATE POLICY` statements, Drizzle `pgPolicy` entries or Prisma 8 `policy_*` blocks |
 
 ```ts
@@ -172,4 +176,5 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 - Dates compare by instant. `{ date }` tags carry ISO strings with an offset; comparisons parse them once. A comparison is by instant only when one side is a `Date` or a `{ date }` tag, and the other side must then be a `Date`, epoch milliseconds or an ISO 8601 string (the Postgres text form included). Otherwise both sides must have the same primitive type: `'2'` never equals `2`, and ids such as `'user-2'`, `'org-1'` or `'acme-1'` are never read as dates.
 - Case and collation are the database's business. `contains` is one operator for both arrays and strings; on strings it is case-sensitive in memory and compiles to `LIKE`, not `ILIKE`.
 - Nested paths (`address.city`) and array-of-object fields are not supported. Conditions address top-level fields of the resource schema; relation data goes through `memberships` (roles held somewhere) or `context` (everything else).
+- `related` is evaluated through the instance's `RelationSource` cache. Any read it cannot answer fails the whole grant, including under `not` and `or`, and a deny that cannot be evaluated denies ([relationships](/docs/concepts/relationships)).
 - `memberOf` is evaluated against the frozen subject's memberships, so an expired membership or an active tenant with no membership makes it `false`, the same way a missing field does. It is generated from role declarations only; there is no hand-written `memberOf` in a `where`.

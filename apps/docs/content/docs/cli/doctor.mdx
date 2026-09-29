@@ -50,6 +50,8 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD028` | `supabase.hook.attrs` lists `user_metadata` or another value the hook cannot use (error), or a column your migrations let `anon` or `authenticated` insert or update (warning) | error, warning |
 | `PD029` | An API key in the `doctor.credentials` fixture never expires or is not a valid v1 credential, or a tenant's settings allow keys without expiry | warning |
 | `PD030` | Under an `rls` config, a read grant limits `fields`, but the table still returns those columns to a direct read | warning |
+| `PD031` | A resource parents itself but no `through: 'parent'` grant walks it, or declares `restricted` but no graph grant reaches its rows | warning |
+| `PD032` | Under an `rls` config, a graph resource shares its name with a scope or is not a lowercase SQL name, so `rls generate` cannot name its `permitted_<resource>_ids` helper | error |
 
 ### PD001: server-only imports in client entries
 
@@ -195,6 +197,14 @@ When `doctor.credentials` points at a JSON fixture `{ credentials?, settings? }`
 ### PD030: field-limited columns the database still returns
 
 `fields` on a read grant redact in the application (`pick`), but a row policy returns every column of the rows it admits. With an `rls` config, the check lists, per resource, the columns a read allow's `fields` leave out or a read deny's `fields` name (the row key excepted). Without `rls.fields: 'views'` it warns that RLS is row-level and any direct read of the table returns them; with field views but without `rls.revokeColumns: true` it warns that `<table>_visible` masks them while the table still returns them. Fix it with `permdock rls generate --fields views --revoke-columns` so clients read the columns only through the view, or keep reads of the table server-side and redact with `pick` ([field security](/docs/adapters/rls#field-security)). `--only fields` runs this check.
+
+### PD031: graph declarations that do nothing
+
+A self-parent is what makes a chain, and `restricted` is what stops one, but only a `relation(..., { through: 'parent' })` grant reads either. The check names each self-parented resource no such grant walks (its ancestors grant nothing, and `rls generate` keeps no closure for it) and each `restricted` column on a resource no graph grant reaches. Grant through the chain, or remove the declaration ([relationships](/docs/concepts/relationships)). `--only graph` runs PD031 and PD032.
+
+### PD032: graph resources RLS cannot name
+
+With an `rls` config, every resource a graph grant reads gets a `permitted_<resource>_ids` helper. A resource named like a scope (a `team` resource for sub-teams next to the `team` scope) would replace the scope helper of the same name and signature, and a name outside lowercase letters, digits and underscores is not a safe SQL name, so `rls generate` refuses both; the check reports them before it runs. Rename the resource.
 
 ## Why
 
