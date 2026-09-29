@@ -150,6 +150,36 @@ describe('ownership: membership kinds', () => {
     });
     expect(preview.can(permissions.quote.read, documents[0])).toBe(false);
   });
+
+  it('drops a resource role held through a kind its for omits', async () => {
+    const tree = definePermissions({
+      folder: resource({ actions: ['read'] }),
+    });
+    const shared = definePolicy(tree, {
+      subject: (user: Principal | null) => user,
+      roles: [
+        role('editor', [allow(tree.folder.read)], {
+          on: tree.folder,
+          for: ['staff'],
+        }),
+      ],
+    });
+    const holding = (via?: string) =>
+      createPermDock(shared, {
+        id: 'u_1',
+        memberships: [
+          {
+            on: { resource: 'folder', id: 'f_1' },
+            roles: ['editor'],
+            ...(via === undefined ? {} : { via }),
+          },
+        ],
+      });
+    const row = { id: 'f_1' };
+    expect((await holding('staff')).can(tree.folder.read, row)).toBe(true);
+    expect((await holding('link')).can(tree.folder.read, row)).toBe(false);
+    expect((await holding()).can(tree.folder.read, row)).toBe(false);
+  });
 });
 
 describe('ownership: decideRoleChange (CentraKit assertion 8)', () => {

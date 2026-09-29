@@ -635,6 +635,17 @@ function existsSql(
   if (roles.length > 0) {
     const roleList = roles.map((role) => role.replaceAll("'", "''")).join(',');
     parts.push(`m.${quoteIdent(table.role)} = any('{${roleList}}')`);
+    const via =
+      table.via === undefined
+        ? 'null::text'
+        : `m.${quoteIdent(table.via)}::text`;
+    const kind =
+      roles.length === 1
+        ? roleKindSql(ctx, roles[0]!, via)
+        : kindFilterSql(ctx, `m.${quoteIdent(table.role)}::text`, via);
+    if (kind !== undefined) {
+      parts.push(kind);
+    }
   }
   if (table.expiresAt !== undefined) {
     parts.push(
