@@ -71,6 +71,9 @@ export const roles = defineRoles({
 
 const visible = { status: { in: ['sent', 'accepted'] } } as const;
 
+/** Staff roles are held only through staff memberships, and every organization keeps an owner. */
+const staff = { for: ['staff'], meta: { audience: 'staff' } } as const;
+
 export const policy = definePolicy(
   { permissions, roles },
   {
@@ -93,7 +96,12 @@ export const policy = definePolicy(
             permissions.asset.delete,
           ]),
         ],
-        { on: 'organization' },
+        {
+          on: 'organization',
+          ...staff,
+          min: 1,
+          assigns: ['owner', 'admin', 'member', 'viewer', 'contact'],
+        },
       ),
       role(
         roles.admin,
@@ -107,7 +115,11 @@ export const policy = definePolicy(
             permissions.asset.delete,
           ]),
         ],
-        { on: 'organization' },
+        {
+          on: 'organization',
+          ...staff,
+          assigns: ['member', 'viewer', 'contact'],
+        },
       ),
       role(
         roles.member,
@@ -120,7 +132,7 @@ export const policy = definePolicy(
             permissions.asset.update,
           ]),
         ],
-        { on: 'organization' },
+        { on: 'organization', ...staff },
       ),
       role(
         roles.viewer,
@@ -131,7 +143,7 @@ export const policy = definePolicy(
             permissions.asset.read,
           ]),
         ],
-        { on: 'organization' },
+        { on: 'organization', ...staff },
       ),
       role(
         roles.contact,
@@ -142,18 +154,29 @@ export const policy = definePolicy(
           allow(permissions.invoice.pay, { where: { status: 'sent' } }),
           allow(permissions.asset.read),
         ],
-        { on: 'customer', assignable: false },
+        {
+          on: 'customer',
+          assignable: false,
+          for: ['contact'],
+          meta: { audience: 'portal' },
+        },
       ),
-      role(roles['platform-admin'], [
-        allow([
-          permissions.organization.list,
-          permissions.organization.read,
-          permissions.organization.disable,
-        ]),
-      ]),
-      role(roles['platform-support'], [
-        allow([permissions.organization.list, permissions.organization.read]),
-      ]),
+      role(
+        roles['platform-admin'],
+        [
+          allow([
+            permissions.organization.list,
+            permissions.organization.read,
+            permissions.organization.disable,
+          ]),
+        ],
+        { meta: { audience: 'platform' } },
+      ),
+      role(
+        roles['platform-support'],
+        [allow([permissions.organization.list, permissions.organization.read])],
+        { meta: { audience: 'platform' } },
+      ),
     ],
   },
 );
@@ -187,14 +210,17 @@ function principal(
 /** The personas; `tenant` is the organization the request is about. */
 export const personas = {
   owner: principal('u_owner', 'T', [
-    { scope: 'organization', id: 'T', roles: ['owner'] },
-    { scope: 'organization', id: 'B', roles: ['owner'] },
+    { scope: 'organization', id: 'T', roles: ['owner'], via: 'staff' },
+    { scope: 'organization', id: 'B', roles: ['owner'], via: 'staff' },
+  ]),
+  admin: principal('u_admin', 'T', [
+    { scope: 'organization', id: 'T', roles: ['admin'], via: 'staff' },
   ]),
   mechanic: principal('u_mechanic', 'T', [
-    { scope: 'organization', id: 'T', roles: ['mechanic'] },
+    { scope: 'organization', id: 'T', roles: ['mechanic'], via: 'staff' },
   ]),
   viewer: principal('u_viewer', 'B', [
-    { scope: 'organization', id: 'B', roles: ['viewer'] },
+    { scope: 'organization', id: 'B', roles: ['viewer'], via: 'staff' },
   ]),
   privateContact: principal('u_private', 'T', [
     {

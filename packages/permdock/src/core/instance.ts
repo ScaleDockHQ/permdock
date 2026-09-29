@@ -38,10 +38,21 @@ import { type EvalEnv, emitSafe, emptyListeners, finish } from './events.ts';
 import { pickVisible } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
+import {
+  type RoleChange,
+  type RoleChangeDecision,
+  applyRoleKinds,
+  audiencesOf,
+  decideRoleChange,
+  rankRoles,
+  roleMeta,
+  usesAssigns,
+} from './ownership.ts';
 import { getResource, listPermissions } from './permissions.ts';
 import { grantList } from './policy.ts';
 import {
   normalizeMemberships,
+  resolveScope,
   rootScope,
   scopeList,
   tenantOf,
@@ -81,25 +92,57 @@ function includePrefixes(
   });
 }
 
+/**
+ * Role names held in `tenant`, global roles included, in rank order. With
+ * `scope`, only the roles of that scope's memberships (and instance `id`).
+ */
 function heldRoleNames(
   policy: Policy,
   subject: Subject,
   tenant?: string,
+  only?: { readonly scope?: string; readonly id?: string },
 ): readonly string[] {
   if (subject.principal === null) {
     return [];
   }
   const scopes = scopeList(policy.scopes);
-  const names = new Set<string>(subject.principal.roles ?? []);
+  const scope =
+    only?.scope === undefined ? undefined : resolveScope(scopes, only.scope);
+  if (only?.scope !== undefined && scope === undefined) {
+    return [];
+  }
+  const names = new Set<string>(
+    scope === undefined ? (subject.principal.roles ?? []) : [],
+  );
   for (const membership of subject.principal.memberships ?? []) {
-    if (tenantOf(membership, scopes) !== tenant) {
+    const matches =
+      scope === undefined
+        ? tenantOf(membership, scopes) === tenant
+        : membership.scope === scope &&
+          (only?.id === undefined || membership.id === only.id);
+    if (!matches) {
       continue;
     }
     for (const role of membership.roles) {
       names.add(role);
     }
   }
-  return [...names];
+  return rankRoles(policy, [...names]);
+}
+
+function roleLeaf(policy: Policy, name: string): Role {
+  const binding = policy.rolesByName.get(name);
+  return (
+    findRole(policy.vocabulary?.roles, name) ??
+    synthesiseRole(
+      name,
+      compact({
+        on: typeof binding?.on === 'string' ? binding.on : undefined,
+        assignable: binding?.assignable,
+        meta: binding?.meta,
+      }),
+    )
+  );
 }
 
 /**
@@ -203,28 +246,32 @@ export function collectSnapshotGrants(
   return out;
 }
 
-/** Declared roles a tenant admin may hand out or compose, before any intersection. */
+/**
+ * Declared roles a tenant admin may hand out or compose, before any
+ * intersection: `assignable` roles, plus every role some `assigns` lists.
+ */
 function assignableCandidates(policy: Policy): readonly Role[] {
-  const fromVocab = listRoles(policy.vocabulary?.roles).filter(
-    (leaf) => leaf.assignable,
+  const listed = new Set(
+    policy.roles.flatMap((binding) => binding.assigns ?? []),
   );
-  const seen = new Set(fromVocab.map((leaf) => leaf.key));
-  const fromBindings = policy.roles
-    .filter((binding) => binding.assignable && !seen.has(binding.name))
-    .map((binding) =>
-      synthesiseRole(
-        binding.name,
-        typeof binding.on === 'string'
-          ? { on: binding.on, assignable: true }
-          : { assignable: true },
-      ),
-    );
-  return [...fromVocab, ...fromBindings];
+  const names = [
+    ...listRoles(policy.vocabulary?.roles)
+      .filter((leaf) => leaf.assignable || listed.has(leaf.key))
+      .map((leaf) => leaf.key),
+    ...policy.roles
+      .filter((binding) => binding.assignable || listed.has(binding.name))
+      .map((binding) => binding.name),
+  ];
+  return rankRoles(policy, [...new Set(names)]).map((name) =>
+    roleLeaf(policy, name),
+  );
 }
 
 export type Assignable = {
   readonly roles: readonly Role[];
   readonly permissions: readonly Permission[];
+  /** A `meta.manageRoles` role or permission lifted the intersection. */
+  readonly manage: boolean;
 };
 
 /**
@@ -244,7 +291,7 @@ export function assignableIn(
 ): Assignable {
   const principal = subject.principal;
   if (principal === null) {
-    return { roles: [], permissions: [] };
+    return { roles: [], permissions: [], manage: false };
   }
   const scopes = scopeList(policy.scopes);
   const scoped: Subject =
@@ -284,10 +331,7 @@ export function assignableIn(
     team: undefined,
   };
   const manage =
-    heldNames.some(
-      (name) =>
-        findRole(policy.vocabulary?.roles, name)?.meta.manageRoles === true,
-    ) ||
+    heldNames.some((name) => roleMeta(policy, name)?.manageRoles === true) ||
     listPermissions(policy.permissions).some(
       (leaf) =>
         leaf.meta.manageRoles === true &&
@@ -305,9 +349,20 @@ export function assignableIn(
     (leaf) => narrowed === undefined || narrowed.has(leaf.key),
   );
   const held = new Set(heldNames);
+  // An `assigns` graph is authoritative: held roles hand out exactly what they list.
+  const listed = usesAssigns(policy)
+    ? new Set(
+        heldNames.flatMap(
+          (name) => policy.rolesByName.get(name)?.assigns ?? [],
+        ),
+      )
+    : undefined;
   const roles = manage
     ? candidates
     : candidates.filter((leaf) => {
+        if (listed !== undefined) {
+          return listed.has(leaf.key);
+        }
         if (held.has(leaf.key)) {
           return true;
         }
@@ -324,7 +379,7 @@ export function assignableIn(
   const permissions = listPermissions(policy.permissions).filter(
     (leaf) => ceiling.has(leaf.key) && (manage || heldKeys.has(leaf.key)),
   );
-  return { roles, permissions };
+  return { roles, permissions, manage };
 }
 
 export type SnapshotInclude = readonly (
@@ -350,10 +405,13 @@ export function snapshotOf(
   const now = options.now ?? nowSeconds();
   const customGrants =
     options.customGrants ?? customGrantsFor(policy, options.customRoles);
+  const roles = heldRoleNames(policy, subject, subject.principal?.tenant);
+  const audiences = audiencesOf(policy, roles);
   return buildSnapshot(
     compact<Parameters<typeof buildSnapshot>[0]>({
       subject,
-      roles: heldRoleNames(policy, subject, subject.principal?.tenant),
+      roles,
+      audiences: audiences.length === 0 ? undefined : audiences,
       grants: collectSnapshotGrants(
         policy,
         subject,
@@ -721,20 +779,31 @@ export function buildInstance(
       const previewRoles = preview.roles?.map((item) =>
         typeof item === 'string' ? item : item.key,
       );
-      const previewPrincipal =
+      const kinds =
         subject.principal === null
+          ? undefined
+          : applyRoleKinds(
+              policy,
+              previewRoles ?? subject.principal.roles,
+              preview.memberships === undefined
+                ? (subject.principal.memberships ?? [])
+                : normalizeMemberships(
+                    preview.memberships,
+                    scopeList(policy.scopes),
+                  ),
+            );
+      const previewPrincipal =
+        subject.principal === null || kinds === undefined
           ? null
           : freezeDeep(
               compact<Principal>({
                 ...subject.principal,
-                roles: previewRoles ?? subject.principal.roles,
+                roles: kinds.roles,
                 memberships:
-                  preview.memberships === undefined
-                    ? subject.principal.memberships
-                    : normalizeMemberships(
-                        preview.memberships,
-                        scopeList(policy.scopes),
-                      ),
+                  preview.memberships === undefined &&
+                  subject.principal.memberships === undefined
+                    ? undefined
+                    : kinds.memberships,
                 tenant: preview.tenant ?? subject.principal.tenant,
               }),
             );
@@ -820,15 +889,25 @@ export function buildInstance(
     tenants(): readonly string[] {
       return tenantsOf(subject.principal, scopeList(policy.scopes));
     },
-    heldRoles(options?: { readonly tenant?: string }): readonly Role[] {
+    heldRoles(options?: {
+      readonly tenant?: string;
+      readonly scope?: string;
+      readonly id?: string;
+    }): readonly Role[] {
       const names = heldRoleNames(
         policy,
         subject,
         options?.tenant ?? subject.principal?.tenant,
+        options?.scope === undefined
+          ? undefined
+          : compact({ scope: options.scope, id: options.id }),
       );
-      return names.map(
-        (name) =>
-          findRole(policy.vocabulary?.roles, name) ?? synthesiseRole(name),
+      return names.map((name) => roleLeaf(policy, name));
+    },
+    audiences(): readonly string[] {
+      return audiencesOf(
+        policy,
+        heldRoleNames(policy, subject, subject.principal?.tenant),
       );
     },
     assignableRoles(options?: { readonly tenant?: string }): readonly Role[] {
@@ -839,6 +918,22 @@ export function buildInstance(
     }): readonly Permission[] {
       const tenant = options?.tenant ?? subject.principal?.tenant;
       return tenant === undefined ? [] : assignableAt(tenant).permissions;
+    },
+    decideRoleChange(change: RoleChange): RoleChangeDecision {
+      return decideRoleChange(
+        policy,
+        subject.principal,
+        scopeList(policy.scopes),
+        change,
+        (tenant) => {
+          const found = assignableAt(tenant);
+          return {
+            assignable: new Set(found.roles.map((leaf) => leaf.key)),
+            manage: found.manage,
+          };
+        },
+        nowSeconds(),
+      );
     },
     subject,
   };

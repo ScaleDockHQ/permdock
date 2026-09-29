@@ -37,6 +37,38 @@
           },
           "assignable": {
             "type": "boolean"
+          },
+          "min": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "max": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "transferOnly": {
+            "const": true
+          },
+          "assigns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "for": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exclusiveWith": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "audience": {
+            "type": "string"
           }
         }
       }

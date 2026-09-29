@@ -18,6 +18,7 @@ import { compileGrants } from './rls-compile.ts';
 import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
 import { roleNames } from './rls-grants.ts';
 import { helpersSql } from './rls-helpers.ts';
+import { ownershipRules, ownershipSql } from './rls-ownership.ts';
 import { assemblePolicies } from './rls-policies.ts';
 import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
 import { parseMembershipsFlag, scopeTable } from './rls-sql.ts';
@@ -116,6 +117,7 @@ export async function runRlsGenerate(input: {
     rls?.authorize ??
     rls?.rbac?.authorize ??
     defaultAuthorize(input.rbac, memberships);
+  const ownership = ownershipRules(policy, scopeList(policy.scopes));
   const ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes: scopeList(policy.scopes),
@@ -135,6 +137,7 @@ export async function runRlsGenerate(input: {
     ...(input.capabilities === true || rls?.capabilities === true
       ? { capabilities: true as const }
       : {}),
+    ...(ownership === undefined ? {} : { ownership }),
   };
   const warnings: string[] = [];
   if (authorize === 'database') {
@@ -183,9 +186,11 @@ export async function runRlsGenerate(input: {
       `enable the hook: [auth.hook.custom_access_token] enabled = true, uri = "${hookUri(schema)}"`,
     );
   }
+  const owned = ownershipSql(ctx);
   const preamble = [
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, { userRoles: !input.rbac }),
+    owned === '' ? undefined : owned,
     rbac?.tail,
   ]
     .filter((part): part is string => part !== undefined)

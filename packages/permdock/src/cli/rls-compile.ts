@@ -156,6 +156,11 @@ function capabilityAccess(
     return undefined;
   }
   const { role, resource: roleResource } = item.access;
+  // A capability's membership has kind `link`, so a role whose `for` omits it holds nothing through a link.
+  const kinds = ctx.ownership?.kinds[role];
+  if (kinds !== undefined && !kinds.includes('link')) {
+    return undefined;
+  }
   const target = policy.resources.get(item.grant.permission.resource);
   const hops: string[] = [];
   for (const holder of [roleResource, ...ancestorsOf(policy, roleResource)]) {

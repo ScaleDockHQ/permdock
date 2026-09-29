@@ -69,6 +69,9 @@ if (decision.outcome === 'granted') {
 | `pdp-unavailable` | The remote PDP timed out, returned a non-2xx, or `createPermDock` from core was used for a delegated permission |
 | `pdp-invalid-response` | The remote body was not an AuthZEN evaluation response |
 | `tenant-mismatch`, `no-membership`, `scope`, `expired-membership` | Tenancy misses ([tenancy](/docs/concepts/tenancy)) |
+| `last-holder`, `max-holders`, `transfer-only` | A role change would break the role's `min`, `max` or `transferOnly` (only from `decideRoleChange`, [ownership](/docs/concepts/ownership)) |
+| `not-assignable-by`, `self-demotion` | The subject may not make this role change, or it targets themselves ([ownership](/docs/concepts/ownership)) |
+| `not-allowed-for-membership`, `conflicting-role` | The target's membership kind is not in the role's `for`, or they hold a role in its `exclusiveWith` ([ownership](/docs/concepts/ownership)) |
 
 This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant.
 

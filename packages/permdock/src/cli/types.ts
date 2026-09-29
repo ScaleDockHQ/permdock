@@ -24,6 +24,8 @@ export type RlsMembershipTable = {
   readonly team?: string;
   readonly id?: string;
   readonly expiresAt?: string;
+  /** Column holding the membership kind (`Membership.via`); roles with `for` need it. */
+  readonly via?: string;
 };
 
 export type RlsMemberships = {
@@ -146,6 +148,15 @@ export type CatalogRole = {
   /** A declared scope name, or `resource`; absent for a global role. */
   readonly on?: string;
   readonly assignable?: boolean;
+  /** Fewest holders per scope instance; absent when 0. */
+  readonly min?: number;
+  readonly max?: number;
+  readonly transferOnly?: true;
+  readonly assigns?: readonly string[];
+  /** Membership kinds (`via`) that may hold the role. */
+  readonly for?: readonly string[];
+  readonly exclusiveWith?: readonly string[];
+  readonly audience?: string;
 };
 
 /** One declared scope, in declaration order. */

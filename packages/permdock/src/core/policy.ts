@@ -21,6 +21,7 @@ import {
   roleScopeOf,
 } from './grantee.ts';
 import { assertLimit } from './limits.ts';
+import { isForbiddenKey } from './paths.ts';
 import {
   type Permission,
   type PermissionKind,
@@ -42,6 +43,7 @@ import { relatesTo } from './tenancy.ts';
 import {
   type PlanTree,
   type Role as RoleLeaf,
+  type RoleMeta,
   type RoleTree,
   isRole,
   listRoles,
@@ -102,7 +104,22 @@ export type RoleScope<S extends string = string> =
 export type RoleOptions<S extends string = string> = {
   readonly on?: RoleScope<S>;
   readonly assignable?: boolean;
+  /** Roles nobody may hold together with this one in the same scope instance. */
   readonly exclusiveWith?: readonly string[];
+  /** Fewest holders a scope instance keeps (checked at commit); default 0. Needs a named-scope `on`. */
+  readonly min?: number;
+  /** Most holders a scope instance may have. Needs a named-scope `on`. */
+  readonly max?: number;
+  /** The holder count of a scope instance never changes: the role only moves by transfer. */
+  readonly transferOnly?: boolean;
+  /**
+   * Roles a holder may assign and revoke. Once any role declares `assigns`,
+   * a role nobody lists is assigned only by `meta.manageRoles` holders.
+   */
+  readonly assigns?: readonly string[];
+  /** Membership kinds (`via`) that may hold the role; others hold it for nothing. */
+  readonly for?: readonly string[];
+  readonly meta?: RoleMeta;
   /** Reserved for time-boxed role activation; setting it throws until it ships. */
   readonly activation?: never;
   /** Reserved for restricted credentials; setting it throws until it ships. */
@@ -141,6 +158,12 @@ export type RoleBinding<S extends string = string> = {
   readonly on?: RoleScope<S>;
   readonly assignable: boolean;
   readonly exclusiveWith?: readonly string[];
+  readonly min?: number;
+  readonly max?: number;
+  readonly transferOnly?: boolean;
+  readonly assigns?: readonly string[];
+  readonly for?: readonly string[];
+  readonly meta?: RoleMeta;
 };
 
 export type ValidateMode = 'boundary' | 'always' | 'never';
@@ -396,6 +419,7 @@ export function role(
   const scope = resolveRoleScope(options?.on ?? leaf?.on);
   const assignable =
     options?.assignable ?? leaf?.assignable ?? scope !== 'global';
+  const rules = roleRules(roleName, scope, options);
   const roleGrantee = asGrantee(
     freezeDeep({
       kind: 'role' as const,
@@ -423,8 +447,90 @@ export function role(
       on: options?.on ?? leaf?.on,
       assignable,
       exclusiveWith: options?.exclusiveWith,
+      ...rules,
+      meta: options?.meta ?? leaf?.meta,
     }),
   );
+}
+
+type RoleRules = Pick<
+  RoleBinding,
+  'min' | 'max' | 'transferOnly' | 'assigns' | 'for'
+>;
+
+function nameList(
+  roleName: string,
+  option: string,
+  value: unknown,
+): readonly string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (item) => typeof item !== 'string' || item === '' || isForbiddenKey(item),
+    )
+  ) {
+    throw new Error(
+      `PermDock: role '${roleName}' ${option} must be a list of names`,
+    );
+  }
+  return [...new Set(value as readonly string[])];
+}
+
+function holderCount(
+  roleName: string,
+  option: string,
+  value: unknown,
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new Error(
+      `PermDock: role '${roleName}' ${option} must be a whole number of holders`,
+    );
+  }
+  return value;
+}
+
+/** Ownership rules count holders per scope instance, so they need a named-scope role. */
+function roleRules(
+  roleName: string,
+  scope: Grant['scope'],
+  options: RoleOptions | undefined,
+): RoleRules {
+  const min = holderCount(roleName, 'min', options?.min);
+  const max = holderCount(roleName, 'max', options?.max);
+  const transferOnly = options?.transferOnly;
+  if (transferOnly !== undefined && typeof transferOnly !== 'boolean') {
+    throw new Error(
+      `PermDock: role '${roleName}' transferOnly must be a boolean`,
+    );
+  }
+  if (max !== undefined && max < 1) {
+    throw new Error(`PermDock: role '${roleName}' max must be at least 1`);
+  }
+  if (min !== undefined && max !== undefined && min > max) {
+    throw new Error(`PermDock: role '${roleName}' min must not exceed max`);
+  }
+  const counted =
+    (min !== undefined && min > 0) ||
+    max !== undefined ||
+    transferOnly === true;
+  if (counted && (typeof scope !== 'string' || scope === 'global')) {
+    throw new Error(
+      `PermDock: role '${roleName}' min, max and transferOnly need on: '<scope>'`,
+    );
+  }
+  return compact<RoleRules>({
+    min,
+    max,
+    transferOnly,
+    assigns: nameList(roleName, 'assigns', options?.assigns),
+    for: nameList(roleName, 'for', options?.for),
+  });
 }
 
 function canonicalGrants(grants: readonly Grant[]): string {
@@ -593,6 +699,12 @@ function mergeBindings(items: readonly RoleBinding[]): {
           on: existing.on,
           assignable: existing.assignable,
           exclusiveWith: existing.exclusiveWith ?? item.exclusiveWith,
+          min: existing.min ?? item.min,
+          max: existing.max ?? item.max,
+          transferOnly: existing.transferOnly ?? item.transferOnly,
+          assigns: existing.assigns ?? item.assigns,
+          for: existing.for ?? item.for,
+          meta: existing.meta ?? item.meta,
         }),
       ),
     );
@@ -662,6 +774,15 @@ export function definePolicy<
   const declared = new Set(roles.map((item) => item.name));
   for (const leaf of listRoles(vocabulary.roles)) {
     declared.add(leaf.key);
+  }
+  for (const binding of roles) {
+    for (const name of binding.assigns ?? []) {
+      if (!declared.has(name)) {
+        throw new Error(
+          `PermDock: role '${binding.name}' names undeclared role '${name}'`,
+        );
+      }
+    }
   }
   const fromBindings = roles.flatMap((item) => item.grants);
   const fromGrants = flattenGrants(

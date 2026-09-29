@@ -11,10 +11,15 @@ import type {
   ScanResult,
 } from './types.ts';
 
-import { catalogFingerprint, getResource, listPermissions } from '../index.ts';
+import {
+  catalogFingerprint,
+  findRole,
+  getResource,
+  listPermissions,
+} from '../index.ts';
 import { CATALOG_SCHEMA, generatorBanner } from './version.ts';
 
-/** With `policy`, permissions carry `hostable` and roles carry `on` and `assignable`. */
+/** With `policy`, permissions carry `hostable` and roles carry `on`, `assignable` and their ownership rules. */
 export function buildCatalog(
   tree: PermissionTree,
   scan: ScanResult,
@@ -151,18 +156,30 @@ function catalogRoles(
   return {
     roles: names.map((key) => {
       const binding = policy.rolesByName.get(key);
-      return binding === undefined
-        ? { key }
-        : withDefined({
-            key,
-            on:
-              binding.on === undefined
-                ? undefined
-                : typeof binding.on === 'string'
-                  ? binding.on
-                  : ('resource' as const),
-            assignable: binding.assignable,
-          });
+      if (binding === undefined) {
+        return { key };
+      }
+      const audience =
+        binding.meta?.audience ??
+        findRole(policy.vocabulary.roles, key)?.meta.audience;
+      return withDefined({
+        key,
+        on:
+          binding.on === undefined
+            ? undefined
+            : typeof binding.on === 'string'
+              ? binding.on
+              : ('resource' as const),
+        assignable: binding.assignable,
+        min: binding.min === 0 ? undefined : binding.min,
+        max: binding.max,
+        transferOnly:
+          binding.transferOnly === true ? (true as const) : undefined,
+        assigns: binding.assigns,
+        for: binding.for,
+        exclusiveWith: binding.exclusiveWith,
+        audience,
+      });
     }),
   };
 }
@@ -299,6 +316,13 @@ export function catalogSchemaDocument(): unknown {
             key: { type: 'string' },
             on: { type: 'string', pattern: '^[a-z][a-z0-9_]*$' },
             assignable: { type: 'boolean' },
+            min: { type: 'integer', minimum: 1 },
+            max: { type: 'integer', minimum: 1 },
+            transferOnly: { const: true },
+            assigns: { type: 'array', items: { type: 'string' } },
+            for: { type: 'array', items: { type: 'string' } },
+            exclusiveWith: { type: 'array', items: { type: 'string' } },
+            audience: { type: 'string' },
           },
         },
       },

@@ -58,7 +58,8 @@ The TypeScript type is `Snapshot`; `v` is the format major, `1`, and `parseSnaps
 | --- | --- |
 | `v` | Format major, `1`. Readers reject unknown majors. |
 | `subject` | The frozen principal (including `memberships` and the active `tenant`), delegation and context the conditions reference. The actor's secrets are never included. |
-| `roles` | The role names the subject holds in the active tenant, custom role names included. |
+| `roles` | The role names the subject holds in the active tenant, custom role names included, ranked by the policy's `assigns` graph when it has one. |
+| `audiences` | The distinct `meta.audience` values of those roles, in rank order (`["staff", "portal"]`); absent when no held role has one. Read by `audiences()` to pick a layout or landing page ([ownership](/docs/concepts/ownership)). |
 | `grants` | One entry per grant, keyed by permission `key`; conditions in the [portable JSON form](/docs/concepts/conditions); `to` is the grantee union. |
 | `vocabulary` | The declared roles and plans (`vocabulary.roles`, `vocabulary.plans`), so the client renders titles without the catalog. |
 | `scope`, `membership` | On grants from scoped roles: the scope kind and the membership that supplied the role, so the client evaluates the scope match exactly as the server did ([tenancy](/docs/concepts/tenancy)). Absent on global grants. |
@@ -107,7 +108,7 @@ permdock.tenants()                               // ['o_1'] or every membership 
 permdock.tenant('o_2').can(permissions.post.read) // derived instance; denied unless the snapshot carries o_2
 ```
 
-The client instance has the same `can`, `decide`, `filter`, `tenant`, `team`, `memberships`, `tenants`, `roles` and `assignable` as the server one, evaluated against the snapshot with the same in-memory evaluator. It adds `status`, `invalidate`, `refresh` and `subscribe`, and it consults the endpoint for anything the snapshot marks as `portable: false` or does not include. `usePermDock` subscribes through `useSyncExternalStore`, so a snapshot refresh re-renders exactly the components that read it. `refresh({ tenant })` asks the server for a snapshot with another active tenant; the server resolves it against the subject's memberships ([UI](/docs/concepts/ui) tenant switcher).
+The client instance has the same `can`, `decide`, `filter`, `tenant`, `team`, `memberships`, `tenants`, `roles`, `audiences` and `assignable` as the server one (`decideRoleChange` always denies with `unsupported` there: role changes are server decisions), evaluated against the snapshot with the same in-memory evaluator. It adds `status`, `invalidate`, `refresh` and `subscribe`, and it consults the endpoint for anything the snapshot marks as `portable: false` or does not include. `usePermDock` subscribes through `useSyncExternalStore`, so a snapshot refresh re-renders exactly the components that read it. `refresh({ tenant })` asks the server for a snapshot with another active tenant; the server resolves it against the subject's memberships ([UI](/docs/concepts/ui) tenant switcher).
 
 ### status
 

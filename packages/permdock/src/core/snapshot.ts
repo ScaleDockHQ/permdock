@@ -43,6 +43,7 @@ export function snapshotGrant(
 export function buildSnapshot(input: {
   readonly subject: Subject;
   readonly roles: readonly string[];
+  readonly audiences?: readonly string[];
   readonly grants: readonly {
     readonly grant: Grant;
     readonly membership?: Membership;
@@ -107,6 +108,7 @@ export function buildSnapshot(input: {
         context: input.subject.context,
       }),
       roles: input.roles,
+      audiences: input.audiences,
       grants,
       tenants,
       include,

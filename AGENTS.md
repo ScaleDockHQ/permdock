@@ -115,13 +115,14 @@ The names below are rules. The full inventory of exports, options, flags and rea
 - Approvals resume one call: `ApprovalStore.consume` sets `consumedAt`. The HTTP resume header is `PermDock-Approval` ([approvals](apps/docs/content/docs/adapters/approvals.mdx)).
 - Snapshots: `snapshotFor` and `mayAccess` are the cache building blocks. PermDock never adds `'use cache'` or calls `headers()` / `cookies()`; `tenants: 'all'` is opt-in ([Next.js Cache Components](apps/docs/content/docs/guides/next-cache-components.mdx)).
 - Custom roles: `CustomRole.grants` entries are `{ permission, effect? }` and carry no condition, approval or limit. `resolveCustomRole` is the only resolver (evaluation, `snapshot`, `snapshotFor`, `validateCustomRole`, doctor PD023); the ceiling is the code allows of declared `assignable` roles in the role's scope, never hosted grants. `assignablePermissions` / `useAssignablePermissions` sit next to `assignableRoles`; `meta.manageRoles` on a role or permission lifts the held-grant intersection ([custom roles](apps/docs/content/docs/concepts/custom-roles.mdx)).
+- Ownership: role options `min`, `max`, `transferOnly`, `assigns`, `for` and `meta.audience` (`RoleMeta`); `permdock.decideRoleChange(change)` answers `granted` / `denied` with the closed reasons `last-holder`, `max-holders`, `transfer-only`, `not-assignable-by`, `self-demotion`, `not-allowed-for-membership`, `conflicting-role`, takes the actor from the instance and fails closed without `holders`; a role held through a kind outside `for` is dropped at resolution; an `assigns` graph replaces the held-grant rule for `assignableRoles` and ranks `heldRoles`; `audiences()` / `snapshot.audiences` never grant. SQL objects are `permdock_can_assign`, `permdock_holders_<scope>` and `permdock_transfer_only_<scope>_*`; doctor PD026 ([ownership](apps/docs/content/docs/concepts/ownership.mdx)).
 - Streams and sockets: `connection(...)` returns a frozen `Connection`. `RevocationFeed` (`memoryRevocationFeed()`) ends or revalidates a connection and never grants. `PermDockRevokedError` is only a connection signal. An abort adds no denial reason ([streams](apps/docs/content/docs/concepts/streams.mdx)).
 
 | Area | Owning page |
 | --- | --- |
 | Every public identifier, Spec names table | `getting-started/naming.mdx` |
 | Instance methods, definitions, conditions | `concepts/policies.mdx`, `concepts/conditions.mdx` |
-| Tenancy, named scopes, memberships, roles, limits | `concepts/scopes.mdx`, `concepts/tenancy.mdx`, `concepts/extension-interfaces.mdx` |
+| Tenancy, named scopes, memberships, roles, ownership, limits | `concepts/scopes.mdx`, `concepts/tenancy.mdx`, `concepts/ownership.mdx`, `concepts/extension-interfaces.mdx` |
 | Share links, capabilities | `concepts/capabilities.mdx`, `adapters/jwt.mdx`, `adapters/supabase.mdx` |
 | Denial reasons, Decision shape | `concepts/decisions.mdx`, `concepts/wire-formats.mdx` |
 | Extension interfaces and runners | `concepts/extension-interfaces.mdx` |

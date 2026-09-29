@@ -14,7 +14,7 @@ type Membership = {
   within?: Record<string, string>        // the id of every ancestor scope: { organization: 'o_acme' }
   on?: { resource: string; id: string }  // a resource-scoped role: "editor on document d_123"
   roles: string[]                        // declared role names, or tenant-defined custom role names
-  via?: string                           // 'staff', 'contact', 'group:<scim id>'; audit and UI only
+  via?: string                           // the membership kind: 'staff', 'contact', 'group:<scim id>'; a role's `for` lists the kinds that hold it
   expiresAt?: number                     // Unix seconds; time-bound access
 }
 
@@ -213,10 +213,14 @@ permdock.team('t_design').can(permissions.post.publish)                    // sc
 permdock.memberships()             // Membership[]           for org lists and role chips
 permdock.tenants()                 // string[]               tenants the subject belongs to
 permdock.heldRoles({ tenant: 'o_acme' })  // Role[]        roles held there, custom roles resolved
-permdock.heldRoles({ tenant })     // Role[]                roles held in a tenant
+permdock.heldRoles({ scope: 'customer', id: 'c_7' })  // Role[]  roles on one scope instance's memberships
+permdock.audiences()               // string[]              meta.audience of the roles held in the active tenant
 permdock.assignableRoles()         // Role[]                roles the subject may hand out in the active tenant
 permdock.assignablePermissions()   // Permission[]          the custom-role ceiling the subject may hand out there
+permdock.decideRoleChange(change)  // RoleChangeDecision    may the subject assign, revoke or transfer this role
 ```
+
+`heldRoles` and `assignableRoles` are ranked by the policy's `assigns` graph, so a role chip list shows rank without hard-coded names. `decideRoleChange` and the ownership rules behind it are on [ownership](/docs/concepts/ownership).
 
 `tenant()` and `team()` return new frozen instances (invariant 7); they never mutate the original and they re-run nothing, because memberships were loaded once. Switching a tenant the subject does not belong to yields an instance where every tenant-scoped check is `denied` with `no-membership`. On the client the same methods exist on the snapshot-backed instance and back `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles` and `useAssignablePermissions` ([UI](/docs/concepts/ui)).
 

@@ -578,6 +578,47 @@ export const policy = definePolicy(permissions, {
     ]);
   });
 
+  it('PD026 warns on a scope no role keeps a holder of', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/owned-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  scopes: {
+    tenant: { key: 'orgId' },
+    team: { key: 'teamId', within: 'tenant' },
+  },
+  roles: [
+    role('owner', [allow(permissions.post.read)], { on: 'tenant', min: 1 }),
+    role('lead', [allow(permissions.post.create)], { on: 'team' }),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/owned-policy.ts',
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'ownership'], {
+      cwd,
+    });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings.map((item) => item.code)).toEqual(['PD026']);
+    expect(report.findings[0]?.message).toContain("scope 'team'");
+  });
+
   it('PD025 warns on fixture memberships the named scopes drop', async () => {
     const cwd = appCopy();
     writeFileSync(

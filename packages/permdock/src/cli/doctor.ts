@@ -17,6 +17,7 @@ import {
   pd023,
   pd024,
   pd025,
+  pd026,
 } from './doctor-collect.ts';
 import { pd005, pd006, pd009, pd012, pd022 } from './doctor-project.ts';
 import {
@@ -160,6 +161,9 @@ export async function runDoctor(input: {
   }
   if (include('scopes') || include('PD025')) {
     findings.push(...(await pd025(input)));
+  }
+  if (include('ownership') || include('PD026')) {
+    findings.push(...(await pd026(input)));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

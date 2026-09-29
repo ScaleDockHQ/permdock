@@ -5,6 +5,7 @@ import type { Policy } from './policy.ts';
 import { compact } from './compact.ts';
 import { sanitizeContext } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
+import { applyRoleKinds } from './ownership.ts';
 import { normalizeMemberships, scopeList } from './scopes.ts';
 import {
   type Actor,
@@ -103,10 +104,15 @@ function finishSubject(
     );
   }
   const scopes = scopeList(policy.scopes);
-  const memberships = normalizeMemberships(input, scopes);
+  const { roles, memberships } = applyRoleKinds(
+    policy,
+    assembled.principal.roles,
+    normalizeMemberships(input, scopes),
+  );
   const withMemberships: Principal = freezeDeep(
     compact<Principal>({
       ...assembled.principal,
+      roles,
       memberships,
       tenant: resolveActiveTenant(
         { ...assembled.principal, memberships },

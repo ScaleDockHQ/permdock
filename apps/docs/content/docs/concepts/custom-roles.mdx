@@ -74,7 +74,7 @@ permdock.assignablePermissions({ tenant? })  // Permission[]
 Both answer for the active tenant unless `tenant` is passed, and both follow the rule that you cannot hand out what you do not hold:
 
 - `assignablePermissions` is the tenant ceiling intersected with the permissions the subject holds in that tenant, through declared roles, custom roles or global grants. It is empty without a tenant.
-- `assignableRoles` lists the declared assignable roles the subject holds there, plus those whose every allow the subject holds. A role without allows is assignable only by its holders, because hosted grants may give it permissions later.
+- `assignableRoles` lists the declared assignable roles the subject holds there, plus those whose every allow the subject holds. A role without allows is assignable only by its holders, because hosted grants may give it permissions later. Once any role declares `assigns`, the graph replaces this rule: the list is exactly the roles the held roles' `assigns` name, in rank order ([ownership](/docs/concepts/ownership)).
 - `RoleSource.assignable(tenant)`, when the source implements it, narrows both to those role names. A source that throws assigns nothing and emits `on('auth')` with `source-threw`.
 - Holding a declared role with `meta.manageRoles: true`, or being granted a permission with `meta.manageRoles: true` (typically `member.assignRole`), lifts the intersection: the full ceiling, narrowed by `RoleSource.assignable`, is assignable.
 

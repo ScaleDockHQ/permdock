@@ -5,7 +5,11 @@ import type { CustomRole, Membership, Policy } from '../index.ts';
 import type { DoctorFinding } from './doctor-types.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
-import { normalizeMemberships, scopeList } from '../core/scopes.ts';
+import {
+  normalizeMemberships,
+  resolveScope,
+  scopeList,
+} from '../core/scopes.ts';
 import {
   hasConditionOp,
   separationConflicts,
@@ -530,6 +534,46 @@ export async function pd023(input: {
 }
 
 /** Fixture memberships the policy's scopes would drop: an undeclared scope, a missing parent id, mixed shapes. */
+/**
+ * A scope whose roles can all be removed can end up with nobody able to
+ * manage it. Setting `min` on any of its roles (even `min: 0`) records the
+ * decision and silences the warning.
+ */
+export async function pd026(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const scopes = scopeList(policy.scopes);
+  const findings: DoctorFinding[] = [];
+  for (const { name } of scopes) {
+    const held = policy.roles.filter(
+      (binding) =>
+        typeof binding.on === 'string' &&
+        resolveScope(scopes, binding.on) === name,
+    );
+    if (
+      held.length === 0 ||
+      held.some((binding) => binding.min !== undefined)
+    ) {
+      continue;
+    }
+    findings.push({
+      code: 'PD026',
+      severity: 'warning',
+      message: `no role on scope '${name}' keeps a holder: every ${name} can lose its last ${held.map((binding) => binding.name).join(' / ')}`,
+      fix: `set min: 1 on the role that manages a ${name} (role(..., { on: '${name}', min: 1 })), or min: 0 to record that none must stay`,
+    });
+  }
+  return findings;
+}
+
 export async function pd025(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
