@@ -1,5 +1,8 @@
 export { subjectFromCapability } from './capability.ts';
-export type { CapabilitySubjectOptions } from './capability.ts';
+export type {
+  CapabilityFailureCause,
+  CapabilitySubjectOptions,
+} from './capability.ts';
 export { verifyDpopProof } from './dpop.ts';
 export { subjectFromIntrospection } from './introspection.ts';
 export { joseTokenSigner } from './signer.ts';

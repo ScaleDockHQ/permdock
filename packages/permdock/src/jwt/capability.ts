@@ -18,6 +18,13 @@ import { anonymousSubject } from '../core/subject.ts';
 import { decodeHeader, normalizeTyp } from './header.ts';
 import { joseTokenVerifier } from './verifier.ts';
 
+/** `on('auth')` causes: a verification failure, or one of the three capability checks. */
+export type CapabilityFailureCause =
+  | TokenFailureCause
+  | 'capability-revoked'
+  | 'capability-replayed'
+  | 'redeemer-mismatch';
+
 export type CapabilitySubjectOptions = Omit<
   JoseTokenVerifierOptions,
   'typ' | 'issuer' | 'audience' | 'profile'
@@ -44,7 +51,7 @@ type Outcome =
 function emit(
   options: CapabilitySubjectOptions,
   reason: AuthEvent['reason'],
-  cause: TokenFailureCause | undefined,
+  cause: CapabilityFailureCause | undefined,
   token: string,
 ): void {
   if (options.onAuth === undefined) {
@@ -84,7 +91,7 @@ async function stores(
   options: CapabilitySubjectOptions,
   id: string,
   once: { readonly key: string; readonly expiresAt: number } | undefined,
-): Promise<Outcome | TokenFailureCause> {
+): Promise<Outcome | CapabilityFailureCause> {
   try {
     if (options.revoked !== undefined && (await options.revoked(id))) {
       return 'capability-revoked';
@@ -115,7 +122,7 @@ export async function subjectFromCapability(
     return anonymousSubject();
   }
   const deny = (
-    cause: TokenFailureCause | undefined,
+    cause: CapabilityFailureCause | undefined,
     reason: AuthEvent['reason'] = 'invalid-token',
   ): Subject => {
     emit(options, reason, cause, token);

@@ -74,10 +74,7 @@ export type TokenFailureCause =
   | 'invalid-chain'
   | 'jwks-unavailable'
   | 'discovery-unavailable'
-  | 'discovery-mismatch'
-  | 'capability-revoked'
-  | 'capability-replayed'
-  | 'redeemer-mismatch';
+  | 'discovery-mismatch';
 
 export type VerifiedToken<TClaims extends JwtClaims = JwtClaims> = {
   readonly ok: true;
