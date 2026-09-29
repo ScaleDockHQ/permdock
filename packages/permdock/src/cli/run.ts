@@ -17,6 +17,7 @@ Commands:
   rls generate|import|verify [--target sql|drizzle|prisma] [--dialect supabase|neon|guc]
   arazzo check --doc <arazzo.json> --openapi <doc.json> [--workflow <id>] [--from <module>]
   cloud push [--dry-run] [--url <url>] [--environment <env>]
+  supabase hook generate [--out <file>] [--check] [--active-from <source>] [--budget 1024]
 
 Global:
   --cwd <dir>   --config <file>   --json   --no-color
@@ -299,6 +300,29 @@ export async function run(
         writeOut(result.output);
         return finish(result.code, stdoutChunks, stderrChunks);
       }
+      case 'supabase': {
+        const result = await (
+          await import('./supabase-hook.ts')
+        ).runSupabase(
+          Object.fromEntries(
+            Object.entries({
+              cwd,
+              config,
+              rest: args.rest,
+              out: flagString(args.flags, 'out'),
+              check: flagBool(args.flags, 'check'),
+              activeFrom: flagString(args.flags, 'active-from'),
+              budget: flagString(args.flags, 'budget'),
+              schema: flagString(args.flags, 'schema'),
+              io,
+            }).filter(([, value]) => value !== undefined),
+          ) as Parameters<
+            (typeof import('./supabase-hook.ts'))['runSupabase']
+          >[0],
+        );
+        writeOut(result.output);
+        return finish(result.code, stdoutChunks, stderrChunks);
+      }
       case 'cloud': {
         const result = await (
           await import('./cloud.ts')
@@ -319,7 +343,7 @@ export async function run(
       }
       default:
         writeErr(
-          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills, openapi, rls, arazzo or cloud.`,
+          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills, openapi, rls, arazzo, cloud or supabase.`,
         );
         return finish(2, stdoutChunks, stderrChunks);
     }
