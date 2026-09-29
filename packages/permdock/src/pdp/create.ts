@@ -117,6 +117,7 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'transfer-only':
       case 'not-assignable-by':
       case 'self-demotion':
+      case 'externally-managed':
       case 'not-allowed-for-membership':
       case 'conflicting-role':
       case 'approval':

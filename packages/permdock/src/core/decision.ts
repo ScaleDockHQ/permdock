@@ -27,6 +27,7 @@ export type DenialReason =
   | 'transfer-only'
   | 'not-assignable-by'
   | 'self-demotion'
+  | 'externally-managed'
   | 'not-allowed-for-membership'
   | 'conflicting-role'
   | 'approval'

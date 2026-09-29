@@ -17,6 +17,8 @@ export type RoleChangeTarget = {
   readonly via?: string;
   /** The roles the target holds in the instance now. */
   readonly roles?: readonly string[];
+  /** `idp` when the identity provider owns the target's membership: the application cannot change it. */
+  readonly managedBy?: 'idp';
 };
 
 export type RoleChange = {
@@ -386,6 +388,10 @@ export function decideRoleChange(
         : Object.entries(change.within).find(
             ([key]) => resolveScope(scopes, key) === root,
           )?.[1];
+  if (target.managedBy === 'idp') {
+    deny('externally-managed');
+    return done(null);
+  }
   const self = target.id === principal.id;
   const targetRoles = Array.isArray(target.roles) ? target.roles : [];
   const already = targetRoles.includes(name);
