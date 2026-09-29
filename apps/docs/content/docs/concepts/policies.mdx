@@ -93,7 +93,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `{ check }` | Portable condition on the next row (RLS `WITH CHECK`) for `create` and `update` |
 | `{ where, check }` | Both, for `update` |
 | `(data, ctx) => boolean` | Closure: runtime only, branded non-portable |
-| `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person who is not the actor approve. `{ by }` names eligible approvers with the same grantee selectors as `to`; `distinct: true` also excludes the principal |
+| `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person other than the actor and the principal approve. `{ by }` names eligible approvers with the same grantee selectors as `to`. `distinct` defaults to `true`; `distinct: false` lets the principal approve their own request (doctor PD024 lists each one) |
 | `{ ..., limit: { count, per } }` | Quota grant: non-portable, needs a `LimitStore` |
 | `{ ..., fields: ['title', 'body'] }` | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches |
 
@@ -230,7 +230,7 @@ const permdock = await createPermDock(policy, user, { policies: pd.policies })
 Hosted grants arrive as a [`PolicyDocument`](/docs/concepts/wire-formats) through a [`PolicySource`](/docs/concepts/extension-interfaces) whose `current()` is read once by `createPermDock`, and merge under rules that keep code in charge:
 
 - Allows OR together and any matching deny wins, so a code deny always beats a hosted allow. A hosted grant may be a deny.
-- A hosted allow on a permission a code grant guards with `approval` must carry an approval at least as strict (the same `by`, and `distinct` when the code grant has it), or it is dropped as `weaker-approval`. Hosted grants can add friction, never remove it.
+- A hosted allow on a permission a code grant guards with `approval` must carry an approval at least as strict (the same `by`, and no `distinct: false` unless the code grant sets it too), or it is dropped as `weaker-approval`. Hosted grants can add friction, never remove it.
 - The grantee is a declared role, plan or relation on the permission's resource. `anyone()`, `authenticated()`, `actor()` and `assurance()` are code-only selectors; a hosted grant naming them, or an undeclared name, is dropped as `unknown-grantee`.
 - Only portable conditions are accepted: no closures, no `opaque`, no `sqlFunction`, no path through `__proto__`, `constructor` or `prototype` (`non-portable`).
 - A grant on a permission that is not `hostable` (`not-hostable`), on an unknown key (`unknown-permission`) or with a malformed shape (`invalid`) is dropped too. Each drop is a `hosted-grant-dropped` value on `on('error')` carrying the document fingerprint, the grant id and the reason; it never makes `can()` throw.

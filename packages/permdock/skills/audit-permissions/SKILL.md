@@ -28,6 +28,7 @@ For every tool map (`tools` on `permdock/ai-sdk`, `permdock/claude-agent`, `perm
 
 - Instance actions load a row through `data`. A collection permission (`list`, `create`) on a handler that reads `args.id` is a miss.
 - `delete`, `publish`, charge, and other destructive actions carry `approval: { by }` (or `'human'`) when a model can invoke them. `by` names eligible approvers; adapter `approvers` is an extra restriction. `permdock doctor` PD017 warns on sensitive verbs (`pay`, `approve`, `settle`, `submit`, `transfer`, `refund`, `disburse`) without approval.
+- Every approval refuses the requester by default. Each `approval: { distinct: false }` (PD024) lets a user approve their own request; it is a finding unless the grant is a deliberate "confirm your own agent's call" and no money, deletion or access change sits behind it.
 - Roles that must not be held together use `exclusiveWith`; PD018 and `separationConflicts` report fixture and custom-role collisions.
 - Custom roles: a save action that writes a `CustomRole` without `validateCustomRole` and an `assignablePermissions()` check is a finding. A monolithic assignable `admin` makes the ceiling too wide; split it into small assignable roles. PD023 reports fixture custom roles whose keys the ceiling drops.
 - `subject` and `actor` come from the host session or `subjectFrom*`, never from tool arguments or a model-supplied id.
@@ -69,7 +70,7 @@ Done when every policy, list query and custom store has its runner, or a finding
 Map the inventory onto [OWASP Agentic](https://permdock.dev/docs/security/owasp-agentic):
 
 - **ASI02** (tool misuse): unmapped tools, collection permission on a row handler, missing `approval: 'human'`, capability lists that include denied tools.
-- **ASI03** (identity and privilege abuse): model-supplied subject or actor, actor used as approver, resume token not rebound to permission + resource + subject + actor.
+- **ASI03** (identity and privilege abuse): model-supplied subject or actor, actor used as approver, principal allowed to approve (`distinct: false`) on a sensitive action, resume token not rebound to permission + resource + subject + actor.
 
 Done when each agent adapter in the app has an ASI02 line and an ASI03 line.
 

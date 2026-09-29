@@ -48,7 +48,7 @@ Done when every resource the first guard needs has a leaf, and instance actions 
 
 ## 3. Policy
 
-Create `src/policy.ts`. Server-only. Prefer `grants` with `to:` selectors (`anyone()`, `authenticated()`, `relation()`, a `Role` or `Plan` leaf, `actor()`, `assurance()`). `role(roles.member, …)` sugar still works. Portable `where` first; closures only when a portable operator cannot express the rule. Destructive agent-reachable actions take `approval: { by }` (or `'human'`). A `limit: { count, per }` grant needs `limits: memoryLimitStore()` (or your store) on `createPermDock`; `can` never consumes.
+Create `src/policy.ts`. Server-only. Prefer `grants` with `to:` selectors (`anyone()`, `authenticated()`, `relation()`, a `Role` or `Plan` leaf, `actor()`, `assurance()`). `role(roles.member, …)` sugar still works. Portable `where` first; closures only when a portable operator cannot express the rule. Destructive agent-reachable actions take `approval: { by }` (or `'human'`). The requester can never approve their own request; add `distinct: false` only when the user confirming their own agent's call is the intent (PD024 warns). A `limit: { count, per }` grant needs `limits: memoryLimitStore()` (or your store) on `createPermDock`; `can` never consumes.
 
 ```ts
 import { definePolicy, role, allow, principal, relation } from 'permdock';

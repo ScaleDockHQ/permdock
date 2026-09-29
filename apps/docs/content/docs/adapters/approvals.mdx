@@ -23,7 +23,7 @@ const { toolApproval } = createPermDock(policy, { subject, actor, tools, store }
 // Routes for approvers: list pending, approve, reject
 const handler = approvalsHandler(store, {
   subject: (request) => subjectFromJwt(request),   // the approver, from real authentication
-  requireDistinctApprover: false,                  // true = approver must differ from the principal too
+  requireDistinctApprover: false,                  // true = refuse the principal even where a grant sets distinct: false
 })
 app.all('/permdock/approvals/*', (c) => handler(c.req.raw))
 ```
@@ -42,7 +42,7 @@ interface ApprovalStore {
 ```
 
 - `create` is called by an adapter when `decide` returns `approval-required`; the record is an [approval request](/docs/concepts/wire-formats) (`v: 1`) and carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant`, `session` and the `membership` that supplied the matched role), `approvers` from `grant.approval` when present, the model-readable `detail`, `createdAt` and `expiresAt`. The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another. `create` is idempotent per token: a repeated call for a pending or resolved request keeps the existing record, and only an expired record is replaced, so an agent loop that asks twice never resets an approval to pending.
-- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`. When `approvers` is set, the approver must belong to the request tenant and match `by`; `approvers.distinct` also refuses the principal. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
+- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`, and one whose id equals the request's principal id unless `approvers.distinct` is `false` (`approver-is-principal`); a request without `approvers` (`approval: 'human'`) refuses the principal too. When `approvers` is set, the approver must belong to the request tenant and match `by`. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
 - `cancel(filter, { by, note })` is optional. It marks matching pending requests `rejected` with `resolvedBy: 'system:<by>'` and does not run eligibility, because a rejection never grants. `cancelApprovals` in `permdock/approvals` calls it, or falls back to `list` plus a system `resolve`.
 - `list` returns one page, oldest `createdAt` first (ties broken by `token`): `limit` is 1 to 200 and defaults to 50, `next` is present only when more requests match, and passing it back as `cursor` returns the following page. The cursor is opaque to callers; an unreadable one returns an empty last page, never the first page again. `testApprovalStore` checks the order, the page boundary and the unreadable cursor. `cancelApprovals` and other callers that need every match follow `next`.
 - `list({ tenant })` scopes the approver inbox to one tenant, which is how a tenant admin sees only their organisation's pending requests; `approvalsHandler` applies it from the approver's active tenant and the approver must hold a membership there ([tenancy](/docs/concepts/tenancy)).
@@ -59,7 +59,7 @@ interface ApprovalStore {
 | --- | --- | --- |
 | `GET /pending` | `{ items, next? }`: requests the authenticated approver may resolve, in the approver's active tenant (`?tenant=` must be one of the approver's memberships); `?limit=` and `?cursor=` page through the store, and a page may hold fewer items than `limit` after the eligibility filter | `401` without a subject; `403` for a tenant the approver does not belong to |
 | `GET /mine` | `{ items, next? }`: the authenticated principal's own requests, for `useApproval` polling, paged the same way | `401` without a subject |
-| `POST /:token/approve` | Marks approved, records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, the principal when `distinct` or `requireDistinctApprover` is set, or when `approvers.by` does not match (`approver-not-eligible`) |
+| `POST /:token/approve` | Marks approved, records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, the principal (unless the grant sets `distinct: false` and `requireDistinctApprover` is off), or when `approvers.by` does not match (`approver-not-eligible`) |
 | `POST /:token/reject` | Marks rejected with an optional `note` | Same |
 | `GET /:token` | One request, for a confirmation screen | `404` for unknown or foreign tokens |
 
@@ -335,6 +335,7 @@ Other surfaces implement the same three steps (send, wait, resolve with a verifi
 
 ## Why
 
+- **The requester never approves by default.** An approval exists so a second person looks at the call. If `approval: 'human'` let the principal approve, a user could ask their own agent to issue a refund and approve it themselves, and the approval would add a click, not a check. So every approval refuses the principal as well as the actor, and a grant that really wants the user to confirm their own agent's call says so with `approval: { distinct: false }`, which `permdock doctor` PD024 lists. `requireDistinctApprover` is a handler-wide floor, for an app where no grant may opt out.
 - **Keyset pages with an opaque cursor.** An inbox or an access review over a busy environment can hold thousands of requests, and an unbounded `list` makes every store load all of them. Offsets skip or repeat rows while `expire` and new asks change the set; ordering by `(createdAt, token)` and resuming after the last pair is stable under both, and every database the recipes target can index it. The cursor stays opaque so a store may encode its own position (the Cloud uses its own), and an unreadable one ends the listing instead of restarting it, so a tampered cursor can never loop a client.
 - **No approval without a session.** An emailed or chat link carries only the token and opens an authenticated page that calls `approvalsHandler`; the approver is whoever that page authenticated. A signed link that approves on its own would make possession of an email the approver's identity, bypass `approvers`, `distinct` and tenant membership, and turn every forwarded message or link-preview bot into an approver. The Chat SDK recipe below is the same rule: the platform's signature-verified user is mapped to an application subject, never read from the message.
 

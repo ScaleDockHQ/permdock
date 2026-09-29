@@ -211,7 +211,7 @@ export const permissions = definePermissions({
 Typical policy:
 
 - `allow(permissions.filing.prepare)` for the clerk role.
-- `allow(permissions.filing.approve, { approval: { by: roles.admin, distinct: true } })` so the actor cannot also be the approver.
+- `allow(permissions.filing.approve, { approval: { by: roles.admin } })` so an admin other than the requester approves; neither the principal nor the actor can approve their own request.
 - `allow(permissions.filing.pay, { to: [roles.admin, assurance({ amr: ['hwk'], maxAge: 300 })] })` so pay requires a hardware key within five minutes.
 - `role(roles.preparer, [allow(permissions.filing.prepare)], { exclusiveWith: ['approver'] })` so PD018 flags a custom role that includes both.
 
