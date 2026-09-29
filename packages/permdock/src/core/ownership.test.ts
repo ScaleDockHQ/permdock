@@ -254,6 +254,31 @@ describe('ownership: decideRoleChange (CentraKit assertion 8)', () => {
     ).toEqual(['not-assignable-by']);
   });
 
+  it('refuses to change a membership the identity provider owns', async () => {
+    const owner = await dockFor(personas.owner);
+    const managed = {
+      id: 'u_admin',
+      via: 'staff',
+      roles: ['member'],
+      managedBy: 'idp',
+    } as const;
+    expect(
+      owner.decideRoleChange(
+        inT({ kind: 'assign', role: 'admin', target: managed }),
+      ),
+    ).toMatchObject({
+      outcome: 'denied',
+      denials: [{ reason: 'externally-managed' }],
+    });
+    expect(
+      reasons(
+        owner.decideRoleChange(
+          inT({ kind: 'revoke', role: 'member', target: managed, holders: 3 }),
+        ),
+      ),
+    ).toEqual(['externally-managed']);
+  });
+
   it('keeps the contact role off staff memberships and admin off contacts', async () => {
     const owner = await dockFor(personas.owner);
     const contact = owner.decideRoleChange({

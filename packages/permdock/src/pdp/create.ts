@@ -110,12 +110,14 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'no-membership':
       case 'scope':
       case 'expired-membership':
+      case 'stale-credentials':
       case 'unknown-role':
       case 'last-holder':
       case 'max-holders':
       case 'transfer-only':
       case 'not-assignable-by':
       case 'self-demotion':
+      case 'externally-managed':
       case 'not-allowed-for-membership':
       case 'conflicting-role':
       case 'approval':

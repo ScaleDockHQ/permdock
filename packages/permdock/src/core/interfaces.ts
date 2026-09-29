@@ -37,12 +37,56 @@ export type RoleSource = {
   assignable?(tenant: string): string[] | Promise<string[]>;
 };
 
+/** One member of a scope instance, as `MembershipSource.list` returns it. */
+export type MemberEntry = {
+  readonly principal: { readonly id: string };
+  readonly membership: Membership;
+};
+
 export type MembershipSource = {
   membershipsFor(
     principal: { readonly id: string; readonly kind?: string },
     options: { readonly tenant?: string },
   ): Membership[] | Promise<Membership[]>;
+  /** Every membership held in one scope instance, for member lists and access reviews. */
+  list?(query: {
+    readonly scope: string;
+    readonly id: string;
+  }): MemberEntry[] | Promise<MemberEntry[]>;
+  /**
+   * The principal's current authorization version, bumped on every membership
+   * change. A token whose `authzVersion` is behind it is stale for the
+   * policy's `fresh` permissions.
+   */
+  version?(principal: {
+    readonly id: string;
+  }): number | undefined | Promise<number | undefined>;
+  /**
+   * Keep the memberships the verified token carries and read this source only
+   * when the token says they were truncated (`claimsFirst`).
+   */
+  readonly claimsFirst?: boolean;
 };
+
+/** Plan and seat names a principal holds in a tenant, from billing (Stripe Entitlements, a table). */
+export type EntitlementSource = {
+  entitlementsFor(
+    principal: { readonly id: string },
+    options: { readonly tenant?: string },
+  ): string[] | Promise<string[]>;
+};
+
+export function memoryEntitlementSource(
+  entries: Readonly<Record<string, readonly string[]>>,
+): EntitlementSource {
+  return {
+    entitlementsFor(_principal, options) {
+      return options.tenant === undefined
+        ? []
+        : [...(entries[options.tenant] ?? [])];
+    },
+  };
+}
 
 export type JwtClaims = {
   readonly iss?: string;

@@ -5,6 +5,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -40,7 +41,8 @@ export type ElysiaCtx = {
 export type ElysiaPermDockOptions<TUser = unknown> = {
   readonly subject: (ctx: ElysiaCtx) => TUser | Promise<TUser>;
   readonly tenant?: TenantOption<ElysiaCtx>;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;
@@ -104,6 +106,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return ctx === undefined ? null : options.subject(ctx);
       },
       memberships: options.memberships,
+      entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,
       store: options.store,

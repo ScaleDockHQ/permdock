@@ -243,6 +243,13 @@ export function collectSnapshotGrants(
       out.push({ grant: merged, membership: entry.membership });
     }
   }
+  const fresh = policy.fresh ?? [];
+  if (subject.stale === true && fresh.length > 0) {
+    return out.filter(
+      ({ grant }) =>
+        grant.effect === 'deny' || !fresh.includes(grant.permission.key),
+    );
+  }
   return out;
 }
 

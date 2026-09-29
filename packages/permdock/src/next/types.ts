@@ -6,6 +6,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -23,7 +24,8 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = {
     | string
     | (() => string | undefined | Promise<string | undefined>);
   readonly onDenied?: (decision: Decision) => never | void;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;

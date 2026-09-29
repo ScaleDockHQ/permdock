@@ -155,7 +155,7 @@ group by ${keys.join(', ')}`,
 }
 
 /** A read policy and `select` grant for `supabase_auth_admin` on a table the hook reads. */
-function authAdminRead(table: string, label: string): string {
+export function authAdminRead(table: string, label: string): string {
   const t = hookTable(table);
   const policy = quoteIdent(`permdock_auth_admin_read_${label}`);
   return `grant select on table ${t} to supabase_auth_admin;

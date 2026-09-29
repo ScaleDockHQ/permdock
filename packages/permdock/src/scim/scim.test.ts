@@ -201,6 +201,7 @@ describe('directoryMembershipSource', () => {
         tenant: TENANT,
         roles: ['editor'],
         via: 'group:g_editors',
+        managedBy: 'idp',
       },
     ]);
     expect(dropped).toEqual(['superadmin']);
@@ -328,6 +329,7 @@ describe('scimHandler', () => {
         tenant: TENANT,
         roles: ['editor'],
         via: `group:${String(group.id)}`,
+        managedBy: 'idp',
       },
     ]);
   });

@@ -181,12 +181,15 @@ interface RoleSource {
 
 interface MembershipSource {
   membershipsFor(principal: { id: string; kind?: string }, options: { tenant?: string }): Membership[] | Promise<Membership[]>
+  list?(query: { scope: string; id: string }): MemberEntry[] | Promise<MemberEntry[]>
+  version?(principal: { id: string }): number | undefined | Promise<number | undefined>
+  readonly claimsFirst?: boolean
 }
 ```
 
 Both are **subject inputs**, the same trust class as the policy's `subject` and `context` functions: they run once per `createPermDock`, their results are frozen into the subject, and they are the only two interfaces on the [extension interfaces](/docs/concepts/extension-interfaces) page that may influence an outcome. Neither is a store: PermDock never writes a membership or a custom role. `memoryRoleSource(customRoles)` and the default membership source (whatever `subject` and `context` returned) ship in the package. `permdock/cloud` does not implement either, so the Cloud never joins the decision path (invariant 15). Provider role sources: Better Auth `organizationRole` (`dynamicAccessControl`), a Supabase `role_permissions` table, WorkOS organization roles, Clerk custom roles and role sets, Auth0 Organization Roles, your own table; each is a `RoleSource` whose conformance the [testing](/docs/adapters/testing) runners check.
 
-Every adapter's `createPermDock` accepts `memberships` (a `MembershipSource`) and `customRoles` (a `RoleSource`) next to `store`, `sink` and `snapshots`; core takes `createPermDock(policy, user, { tenant, memberships, customRoles, actor, delegation })`.
+Every adapter's `createPermDock` accepts `memberships` (a `MembershipSource`, or an array composed and de-duplicated by `composeMemberships`), `customRoles` (a `RoleSource`) and `entitlements` (an `EntitlementSource` whose plan names join `principal.plans` for the active tenant) next to `store`, `sink` and `snapshots`. `claimsFirst(sources)` keeps the verified token's memberships and reads the sources only when the token was truncated; with a `version`, token memberships behind it deny the policy's `fresh` permissions with `stale-credentials`. A membership may carry `managedBy: 'idp'` (the identity provider owns it; `decideRoleChange` refuses to change it with `externally-managed`) and `entitlements` (seats that `plan()` grantees match inside the active tenant). The [Supabase token hook](/docs/adapters/supabase-hook) page shows the SQL sources and the claims they compile to; core takes `createPermDock(policy, user, { tenant, memberships, customRoles, actor, delegation })`.
 
 ## Where memberships come from
 
@@ -197,7 +200,7 @@ Every adapter's `createPermDock` accepts `memberships` (a `MembershipSource`) an
 | [Supabase](/docs/adapters/supabase) | A hook-injected `tenant_id` claim; the active tenant from the URL compared against the claim | A hook-injected role claim, or a `user_roles` table read in `context` | Your tables | Never `user_metadata`; RLS reads the same claim |
 | [JWT issuers](/docs/adapters/jwt) | `claims.tenant` (`org_id`, `tid`, `hd`, ...) | RFC 9068 `roles`; per-tenant objects such as Descope `tenants.<id>.roles` through a claim path | RFC 9068 `groups` become memberships of the active tenant with `via: 'group:<value>'` and `groupRoles` | Keyed on SCIM `value`, never `display` |
 | [PermDock Cloud](/docs/adapters/cloud) (Cloud-native directory) | The `tenant` claim on the Cloud-issued token, kept only with a matching membership | The `memberships` claim, `[{ scope, id, within?, roles, via?, expiresAt? }]` (the `{ tenant, team? }` form is still accepted), minted from declared `assignable` roles | A membership of the second scope, or `groups` | Read through `subjectFromJwt` with `claims: { tenant: 'tenant', memberships: 'memberships' }`; never a `MembershipSource` |
-| Your own tables | Whatever you store | `context` or a `MembershipSource` | Same | The common case for resource roles (`document_members`) |
+| Your own tables | Whatever you store | `context` or a `MembershipSource` | Same | The common case for resource roles (`document_members`); on Postgres, `fromTable` / `fromJunction` from `permdock/supabase`, which the token hook compiles too |
 | [Share links](/docs/concepts/capabilities) | None: a link is never in a tenant | None | One resource membership `{ on, roles, via: 'link' }` from the verified capability | `subjectFromCapability`; a role named in the link applies only if it is declared on that resource |
 
 The [authentication](/docs/concepts/authentication) page carries the full provider table; each provider page has a "Memberships" section.

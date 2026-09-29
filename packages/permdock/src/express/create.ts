@@ -13,6 +13,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -40,7 +41,8 @@ import { sendResponse, toRequest } from './http.ts';
 export type ExpressPermDockOptions<TUser = unknown> = {
   readonly subject: (req: Request) => TUser | Promise<TUser>;
   readonly tenant?: TenantOption<Request>;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;
@@ -112,6 +114,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return req === undefined ? null : options.subject(req);
       },
       memberships: options.memberships,
+      entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,
       store: options.store,

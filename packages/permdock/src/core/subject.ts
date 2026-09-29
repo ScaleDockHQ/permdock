@@ -42,6 +42,10 @@ export type Membership = {
   readonly roles: readonly string[];
   readonly via?: string;
   readonly expiresAt?: number;
+  /** `idp`: the identity provider (SCIM) owns this membership; the application must not edit it. */
+  readonly managedBy?: 'idp';
+  /** Seats this membership holds (`dev-mode`, `editor`); `plan()` grantees match them inside the active tenant. */
+  readonly entitlements?: readonly string[];
   /** Input only: an instance of the first scope. */
   readonly tenant?: string;
   /** Input only: an instance of the second scope, inside `tenant`. */
@@ -79,6 +83,10 @@ export type Principal = {
   readonly roles?: readonly string[];
   readonly plans?: readonly string[];
   readonly memberships?: readonly Membership[];
+  /** The token dropped memberships to stay under its size budget; a `claimsFirst` source reads the rest. */
+  readonly membershipsTruncated?: boolean;
+  /** The authorization version the token was minted at (`authz_ver`). */
+  readonly authzVersion?: number;
   readonly tenant?: string;
   readonly assurance?: Assurance;
   readonly binding?: Binding;
@@ -114,6 +122,8 @@ export type Subject<TPrincipal extends Principal = Principal> = {
   readonly context: Readonly<Record<string, unknown>>;
   readonly session?: string;
   readonly expiresAt?: number;
+  /** The token's memberships are behind the source's authorization version: `fresh` permissions deny. */
+  readonly stale?: true;
 };
 
 export function isPrincipal(value: unknown): value is Principal {

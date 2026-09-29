@@ -120,9 +120,7 @@ export const supabaseClaimFixtures: Readonly<
 };
 
 /**
- * Suggested ceiling for the `memberships` claim in bytes of JSON. Supabase sessions travel in
- * chunked cookies, and every claim is re-sent on each request: about 15 UUID-keyed single-role
- * memberships fit. Above it, use database mode (`authorize()` reads the table; pass
- * `memberships` to `snapshotFor`).
+ * Suggested ceiling for the `memberships` claim in bytes of JSON: about 15 UUID-keyed
+ * single-role memberships. `permdock supabase hook generate` truncates at it by default.
  */
-export const supabaseMembershipsBudget = 1024;
+export { supabaseMembershipsBudget } from '../supabase/budget.ts';

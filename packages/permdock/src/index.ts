@@ -45,7 +45,17 @@ export type {
   RevocationFeed,
   RevocationListener,
 } from './core/revocations.ts';
-export { memoryRoleSource } from './core/interfaces.ts';
+export {
+  memoryEntitlementSource,
+  memoryRoleSource,
+} from './core/interfaces.ts';
+export {
+  claimsFirst,
+  composeMemberships,
+  isExternallyManaged,
+} from './core/memberships.ts';
+export { fromStripeEntitlements } from './core/stripe-entitlements.ts';
+export type { StripeEntitlementsClient } from './core/stripe-entitlements.ts';
 export { memoryLimitStore } from './core/limits.ts';
 export {
   isPortableCondition,
@@ -71,6 +81,8 @@ export type {
   LimitRemaining,
   LimitStore,
   SinkEvent,
+  EntitlementSource,
+  MemberEntry,
   MembershipSource,
   RoleSource,
   Snapshot,

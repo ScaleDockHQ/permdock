@@ -152,6 +152,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         delegation: trusted ? delegationOf(item) : undefined,
         tenant: tenantOf(item),
         memberships: options.memberships,
+        entitlements: options.entitlements,
         customRoles: options.customRoles,
         policies: options.policies,
         sink: options.sink,

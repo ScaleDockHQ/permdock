@@ -23,6 +23,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -136,7 +137,8 @@ export type McpPermDockOptions<TUser = unknown> = {
       ) => string | undefined | Promise<string | undefined>);
   /** Deny every call and list nothing when the transport carries no auth info. */
   readonly requireAuthInfo?: boolean;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;

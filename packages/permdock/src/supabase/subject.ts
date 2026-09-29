@@ -119,6 +119,12 @@ function asMemberships(value: unknown): readonly Membership[] {
         via: typeof item.via === 'string' ? item.via : undefined,
         expiresAt:
           typeof item.expiresAt === 'number' ? item.expiresAt : undefined,
+        managedBy: item.managedBy === 'idp' ? 'idp' : undefined,
+        entitlements: Array.isArray(item.entitlements)
+          ? item.entitlements.filter(
+              (seat): seat is string => typeof seat === 'string',
+            )
+          : undefined,
       }),
     );
   }
@@ -178,12 +184,19 @@ function mapClaims(
   }
   const include = new Set(options.include ?? []);
   const tenantValue = readClaim(claims, tenantClaim);
+  const version = readClaim(claims, 'authz_ver');
   const principal = compact<SupabasePrincipal>({
     id,
     kind: 'user',
     roles: asRoles(readClaim(claims, roleClaim), options.declared),
     tenant: typeof tenantValue === 'string' ? tenantValue : undefined,
     memberships: asMemberships(readClaim(claims, membershipsClaim)),
+    membershipsTruncated:
+      readClaim(claims, 'memberships_truncated') === true ? true : undefined,
+    authzVersion:
+      typeof version === 'number' && Number.isInteger(version)
+        ? version
+        : undefined,
     issuer: typeof claims.iss === 'string' ? claims.iss : undefined,
     assurance: typeof claims.aal === 'string' ? { acr: claims.aal } : undefined,
     claims: Object.keys(extra).length === 0 ? undefined : extra,

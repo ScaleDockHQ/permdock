@@ -1,0 +1,182 @@
+import type { MemberEntry, MembershipSource } from './interfaces.ts';
+import type { Membership } from './subject.ts';
+
+import { isThenable } from './thenable.ts';
+
+/** Two memberships are the same row when everything but `roles` matches. */
+function identity(membership: Membership): string {
+  const within = Object.entries(membership.within ?? {}).toSorted(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  return JSON.stringify([
+    membership.scope ?? null,
+    membership.id ?? null,
+    within,
+    membership.on ?? null,
+    membership.tenant ?? null,
+    membership.team ?? null,
+    membership.via ?? null,
+    membership.expiresAt ?? null,
+    membership.managedBy ?? null,
+    [...(membership.entitlements ?? [])].toSorted(),
+  ]);
+}
+
+/**
+ * Merges memberships from several sources: entries naming the same instance
+ * with the same `via`, expiry, owner and seats become one entry with the union
+ * of their roles. Entries that differ in any of those stay separate, so a
+ * staff role and a contact role in one instance keep their own `via`.
+ */
+export function mergeMemberships(
+  lists: readonly (readonly Membership[])[],
+): Membership[] {
+  const merged = new Map<string, Membership>();
+  for (const list of lists) {
+    for (const membership of list) {
+      const key = identity(membership);
+      const found = merged.get(key);
+      merged.set(
+        key,
+        found === undefined
+          ? membership
+          : {
+              ...found,
+              roles: [...new Set([...found.roles, ...membership.roles])],
+            },
+      );
+    }
+  }
+  return [...merged.values()];
+}
+
+function all<T>(
+  values: readonly (T | Promise<T>)[],
+): readonly T[] | Promise<readonly T[]> {
+  return values.some((value) => isThenable(value))
+    ? Promise.all(values)
+    : (values as readonly T[]);
+}
+
+function then<T, R>(
+  value: T | Promise<T>,
+  next: (resolved: T) => R,
+): R | Promise<R> {
+  return isThenable(value) ? Promise.resolve(value).then(next) : next(value);
+}
+
+/**
+ * One `MembershipSource` over several: memberships are merged and
+ * de-duplicated, `list` concatenates the sources that can list, and `version`
+ * is the highest version any source reports. A source that throws makes the
+ * whole lookup throw, which the subject resolver turns into no memberships.
+ */
+export function composeMemberships(
+  sources: readonly MembershipSource[],
+): MembershipSource {
+  const listing = sources.filter((source) => source.list !== undefined);
+  const versioned = sources.filter((source) => source.version !== undefined);
+  return {
+    membershipsFor(principal, options) {
+      return then(
+        all(sources.map((source) => source.membershipsFor(principal, options))),
+        (lists) => mergeMemberships(lists),
+      ) as Membership[] | Promise<Membership[]>;
+    },
+    ...(listing.length === 0
+      ? {}
+      : {
+          list(query) {
+            return then(
+              all(listing.map((source) => source.list?.(query) ?? [])),
+              (lists) => {
+                const seen = new Map<string, MemberEntry>();
+                for (const entry of lists.flat()) {
+                  const key = `${entry.principal.id}\u0000${identity(entry.membership)}`;
+                  const found = seen.get(key);
+                  seen.set(
+                    key,
+                    found === undefined
+                      ? entry
+                      : {
+                          principal: entry.principal,
+                          membership: {
+                            ...found.membership,
+                            roles: [
+                              ...new Set([
+                                ...found.membership.roles,
+                                ...entry.membership.roles,
+                              ]),
+                            ],
+                          },
+                        },
+                  );
+                }
+                return [...seen.values()];
+              },
+            ) as MemberEntry[] | Promise<MemberEntry[]>;
+          },
+        }),
+    ...(versioned.length === 0
+      ? {}
+      : {
+          version(principal) {
+            return then(
+              all(versioned.map((source) => source.version?.(principal))),
+              (versions) => {
+                const known = versions.filter(
+                  (value): value is number =>
+                    typeof value === 'number' && Number.isFinite(value),
+                );
+                return known.length === 0 ? undefined : Math.max(...known);
+              },
+            );
+          },
+        }),
+  };
+}
+
+/** A single source, or several composed. */
+export function asMembershipSource(
+  input: MembershipSource | readonly MembershipSource[],
+): MembershipSource {
+  return Array.isArray(input)
+    ? composeMemberships(input)
+    : (input as MembershipSource);
+}
+
+/**
+ * Trust the memberships the verified token carries, and read `source` only
+ * when the token marks them truncated. With `version`, a token minted before
+ * the latest membership change is stale for the policy's `fresh` permissions.
+ */
+export function claimsFirst(
+  source: MembershipSource | readonly MembershipSource[],
+  options: {
+    readonly version?: MembershipSource['version'];
+  } = {},
+): MembershipSource {
+  const inner = asMembershipSource(source);
+  const version =
+    options.version ??
+    (inner.version === undefined
+      ? undefined
+      : (principal: {
+          readonly id: string;
+        }): ReturnType<NonNullable<MembershipSource['version']>> | undefined =>
+          inner.version?.(principal));
+  return {
+    membershipsFor: (principal, query) =>
+      inner.membershipsFor(principal, query),
+    ...(inner.list === undefined
+      ? {}
+      : { list: (query) => inner.list?.(query) ?? [] }),
+    ...(version === undefined ? {} : { version }),
+    claimsFirst: true,
+  };
+}
+
+/** Whether the identity provider owns `membership`: the application must not add, change or remove it. */
+export function isExternallyManaged(membership: Membership): boolean {
+  return membership.managedBy === 'idp';
+}

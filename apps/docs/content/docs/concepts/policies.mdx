@@ -140,6 +140,8 @@ Adapters translate this outcome: the Vercel AI SDK gets `user-approval`, `Workfl
 
 ## Feature flags and entitlements are context, not grants
 
+An `EntitlementSource` passed as `entitlements` to `createPermDock` (`fromStripeEntitlements` for Stripe) adds plan names for the active tenant to `principal.plans`, so `plan('<lookup_key>')` grantees apply without a hand-written `subject` step; seats on a membership (`Membership.entitlements`) match the same grantee inside the active tenant only ([Supabase token hook](/docs/adapters/supabase-hook)).
+
 Flags (Vercel Flags SDK, PostHog, LaunchDarkly) and billing entitlements (Stripe Entitlements, a `plan` column) answer "is this capability on for this subject", and it is tempting to make them grants. They are inputs to the subject instead. Resolve them in the policy's `subject` function (or `context` when they need a call) and let them select roles; the grants stay attached to roles:
 
 ```ts
@@ -201,6 +203,7 @@ Quotas in SaaS plans are often soft: the customer keeps working past the include
 | `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `context.<key>`. Declaring it makes `createPermDock` async. A thrown or rejected loader is fail-closed: empty context and an `on('auth')` event with `reason: 'source-threw'`. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them. |
 | `validate` | `'boundary'`, `'always'` or `'never'` | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation). |
 | `onDenied` | `(decision) => never \| void` | Optional default unauthorized handler for `assert`; runs last in the layered chain. |
+| `fresh` | `(Permission \| PermissionTree)[]` | Optional. Sensitive permissions that deny with `stale-credentials` when the subject's memberships come from a token behind the `MembershipSource` authorization version ([Supabase token hook](/docs/adapters/supabase-hook)). Live memberships are never stale. |
 
 The `principal` function is the only place PermDock touches your user object. It is called once per `createPermDock` and its return value is frozen. Anything not returned from it is invisible to conditions, which is deliberate: conditions can only reference values that also exist in the snapshot and in the SQL session.
 

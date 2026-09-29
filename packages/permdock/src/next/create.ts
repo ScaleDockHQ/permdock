@@ -164,6 +164,7 @@ export function createPermDock<
         compact({
           tenant,
           memberships: options.memberships,
+          entitlements: options.entitlements,
           customRoles: options.customRoles,
           policies: options.policies,
           sink,

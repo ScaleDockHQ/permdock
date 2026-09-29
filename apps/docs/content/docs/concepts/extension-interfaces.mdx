@@ -112,6 +112,13 @@ Two helper types cover the policy side: `PrincipalOf<typeof policy>` and `Subjec
 ```ts
 interface MembershipSource {
   membershipsFor(principal: { id: string; kind?: string }, options: { tenant?: string }): Membership[] | Promise<Membership[]>
+  list?(query: { scope: string; id: string }): MemberEntry[] | Promise<MemberEntry[]>   // { principal: { id }, membership }
+  version?(principal: { id: string }): number | undefined | Promise<number | undefined>
+  readonly claimsFirst?: boolean
+}
+
+interface EntitlementSource {
+  entitlementsFor(principal: { id: string }, options: { tenant?: string }): string[] | Promise<string[]>
 }
 
 interface RoleSource {
@@ -120,7 +127,11 @@ interface RoleSource {
 }
 ```
 
-Both are documented with their evaluation rules on the [tenancy](/docs/concepts/tenancy) page. They are read-only from PermDock's point of view: PermDock never creates, updates or deletes a membership or a custom role, so a source is a query, not a repository. A source that throws yields no memberships or no custom roles for that request (fewer grants, never more) and an `on('auth')` event; it never fails the request. A throwing `assignable` makes nothing assignable in that tenant. What a custom role may grant is bounded by the ceiling of assignable declared roles whatever the source returns ([custom roles](/docs/concepts/custom-roles)).
+Both are documented with their evaluation rules on the [tenancy](/docs/concepts/tenancy) page. They are read-only from PermDock's point of view: PermDock never creates, updates or deletes a membership or a custom role, so a source is a query, not a repository. A source that throws yields no memberships or no custom roles for that request (fewer grants, never more) and an `on('auth')` event; it never fails the request. A throwing `assignable` makes nothing assignable in that tenant.
+
+`memberships` also takes an array of sources: `composeMemberships` merges them, keeps entries that differ in `via`, expiry, `managedBy` or seats apart, lists across every source that can `list`, and reports the highest `version`. One throwing source fails the whole lookup closed. `list` returns every member of one scope instance for member lists and access reviews. `version` is the principal's authorization version: with the policy's `fresh` list, token memberships behind it are stale ([Supabase token hook](/docs/adapters/supabase-hook)). `claimsFirst(sources, { version? })` sets `claimsFirst`: the verified token's memberships are kept unless the principal says they were truncated. `fromTable` and `fromJunction` in `permdock/supabase` are SQL sources that implement all three.
+
+`EntitlementSource` is a subject input too: `entitlements` on `createPermDock` merges its plan names for the validated active tenant into `principal.plans`, so `plan()` grants apply. `memoryEntitlementSource(byTenant)` is the in-process default, and `fromStripeEntitlements({ stripe, customer })` reads Stripe Entitlements through a structural client. A throwing source adds no plans and an `on('auth')` event with `source: 'entitlements'`. What a custom role may grant is bounded by the ceiling of assignable declared roles whatever the source returns ([custom roles](/docs/concepts/custom-roles)).
 
 ### DirectoryStore
 
@@ -215,7 +226,7 @@ Handlers cannot change a `Decision`; they receive a frozen copy after the outcom
 `permdock/testing` ships one runner per interface so an implementation can prove it honours the contract before it is used:
 
 ```ts
-import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testPolicySource, testLimitStore, testReplayStore, testRevocationFeed, testWhereCompiler } from 'permdock/testing'
+import { testSubjectResolver, testTokenVerifier, testTokenSigner, testMembershipSource, testEntitlementSource, testRoleSource, testDirectoryStore, testApprovalStore, testDecisionSink, testSnapshotSource, testPolicySource, testLimitStore, testReplayStore, testRevocationFeed, testWhereCompiler } from 'permdock/testing'
 
 testSubjectResolver((claims) => subjectFromSupabase(claims, { schema }), { valid: [okClaims], invalid: [null, { role: 'anon' }] })
 testTokenVerifier(myVerifier, { jwks: fixtureJwks })          // runs the JWT adapter behaviour table against the fixture tokens
@@ -234,7 +245,8 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testSubjectResolver` | Never throws; invalid material yields the anonymous subject and an `auth` event; valid material yields a frozen principal whose fields match the base type and the schema; `tenant` is set only on a membership match |
 | `testTokenVerifier` | Never throws; every fixture token in the behaviour table produces the listed `cause` (`alg: none`, wrong `typ`, `jku` header ignored, JWE without keys, `EdDSA` on a non-Ed25519 key, expired, wrong audience, unknown `kid`); a valid `at+jwt` returns `ok: true` with the fixture claims and header; `RSA1_5` and `none` are rejected regardless of configuration |
 | `testTokenSigner` | Output is compact JWS whose protected header has exactly `alg`, `kid`, `typ`; `alg` is in the allow-list; `iat`, `jti` and `iss` are set; the supplied verifier accepts it with the same `typ`; `jwks()` when present contains the signing key's public half |
-| `testMembershipSource` | Returns only well-formed memberships (one shape each: a named scope instance, the `tenant` / `team` input form, or `on`); with `policy`, every membership normalises under its [named scopes](/docs/concepts/scopes); a throw yields an empty list; results are JSON |
+| `testMembershipSource` | Returns only well-formed memberships (one shape each: a named scope instance, the `tenant` / `team` input form, or `on`); with `policy`, every membership normalises under its [named scopes](/docs/concepts/scopes); a throw yields an empty list; results are JSON; with `list`, every instance a principal holds lists that principal; with `version`, the version is a finite number or absent |
+| `testEntitlementSource` | Returns plan names as strings for a tenant (matching `expect` when given) and none without a tenant |
 | `testRoleSource` | Every custom role belongs to the requested tenant; every `includes` entry is a declared role; with `{ policy }`, `validateCustomRole` drops nothing (every `grants` key is inside the ceiling); `assignable` is a subset of the declared roles |
 | `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user; `scimHandler` over the store publishes `session-revoked` into a `RevocationFeed` and `onChange` when a `PATCH` deactivates a user |
 | `testApprovalStore` | Create, get, resolve, list, expire round-trip; a resolved request cannot be resolved twice; a repeated `create` keeps the record; concurrent `consume` succeeds once; an approver from another tenant is refused; with `{ reopen }`, an approval resumes after a restart; the token is opaque to the store |

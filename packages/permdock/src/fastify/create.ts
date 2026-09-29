@@ -15,6 +15,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -44,7 +45,8 @@ const SKIP_OVERRIDE = Symbol.for('skip-override');
 export type FastifyPermDockOptions<TUser = unknown> = {
   readonly subject: (request: FastifyRequest) => TUser | Promise<TUser>;
   readonly tenant?: TenantOption<FastifyRequest>;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;
@@ -134,6 +136,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return req === undefined ? null : options.subject(req);
       },
       memberships: options.memberships,
+      entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,
       store: options.store,

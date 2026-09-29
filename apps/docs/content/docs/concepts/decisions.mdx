@@ -71,9 +71,11 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 | `pdp-unavailable` | The remote PDP timed out, returned a non-2xx, or `createPermDock` from core was used for a delegated permission |
 | `pdp-invalid-response` | The remote body was not an AuthZEN evaluation response |
 | `tenant-mismatch`, `no-membership`, `scope`, `expired-membership` | Tenancy misses ([tenancy](/docs/concepts/tenancy)) |
+| `stale-credentials` | The permission is in the policy's `fresh` list and the subject's memberships come from a token behind the `MembershipSource` authorization version, or either version is missing ([Supabase token hook](/docs/adapters/supabase-hook)); `role` is `null` |
 | `last-holder`, `max-holders`, `transfer-only` | A role change would break the role's `min`, `max` or `transferOnly` (only from `decideRoleChange`, [ownership](/docs/concepts/ownership)) |
 | `not-assignable-by`, `self-demotion` | The subject may not make this role change, or it targets themselves ([ownership](/docs/concepts/ownership)) |
 | `not-allowed-for-membership`, `conflicting-role` | The target's membership kind is not in the role's `for`, or they hold a role in its `exclusiveWith` ([ownership](/docs/concepts/ownership)) |
+| `externally-managed` | The target's membership is owned by the identity provider (`managedBy: 'idp'`, from SCIM); the application cannot change it (only from `decideRoleChange`) |
 | `approval` | A resume token was unknown, pending, rejected, expired, consumed or for another call; `detail` names which ([approvals](/docs/adapters/approvals)) |
 | `stale-approval` | A resume token approved an earlier `version` of the row under `approval: { staleOn: 'resource-change' }`; ask again without it ([approval security](/docs/security/approvals#approvals-that-go-stale)) |
 

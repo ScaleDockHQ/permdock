@@ -228,12 +228,28 @@ export function normalizeMembership(
   if (roles === undefined) {
     return undefined;
   }
-  const extra: { via?: string; expiresAt?: number } = {};
+  const extra: {
+    via?: string;
+    expiresAt?: number;
+    managedBy?: 'idp';
+    entitlements?: readonly string[];
+  } = {};
   if (typeof raw.via === 'string') {
     extra.via = raw.via;
   }
   if (typeof raw.expiresAt === 'number') {
     extra.expiresAt = raw.expiresAt;
+  }
+  if (raw.managedBy === 'idp') {
+    extra.managedBy = 'idp';
+  }
+  if (Array.isArray(raw.entitlements)) {
+    const seats = raw.entitlements.filter(
+      (item): item is string => typeof item === 'string' && item !== '',
+    );
+    if (seats.length > 0) {
+      extra.entitlements = Object.freeze(seats);
+    }
   }
   const named = raw.scope !== undefined || raw.id !== undefined;
   const legacy = raw.tenant !== undefined || raw.team !== undefined;
@@ -343,4 +359,24 @@ export function subjectMemberships(
       membership.tenant !== undefined || membership.team !== undefined,
   );
   return legacy ? normalizeMemberships(list, scopes) : list;
+}
+
+/**
+ * Whether a named membership applies under the active tenant: a membership
+ * whose chain includes the first scope counts only inside the active tenant.
+ */
+export function activeFor(
+  membership: Membership,
+  scopes: readonly Scope[],
+  active: string | undefined,
+): boolean {
+  const root = rootScope(scopes);
+  if (
+    root === undefined ||
+    membership.scope === undefined ||
+    !scopeChain(scopes, membership.scope).includes(root)
+  ) {
+    return true;
+  }
+  return active !== undefined && scopeIdOf(membership, root) === active;
 }

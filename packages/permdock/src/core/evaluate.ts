@@ -608,6 +608,25 @@ export function evaluate(
     return decision;
   }
 
+  if (subject.stale === true && (policy.fresh ?? []).includes(permission.key)) {
+    const decision: Decision = freezeDeep({
+      outcome: 'denied',
+      denials: [{ role: null, reason: 'stale-credentials' }],
+      alternatives: [],
+    });
+    finish(
+      policy,
+      subject,
+      permission,
+      current,
+      decision,
+      options,
+      env,
+      trusted,
+    );
+    return decision;
+  }
+
   const delegationMiss = coveredByDelegation(
     permission,
     subject.delegation,

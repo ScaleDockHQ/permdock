@@ -4,6 +4,7 @@ import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   SnapshotSource,
@@ -79,7 +80,8 @@ export type EvePermDockOptions<TUser = unknown> = {
       ) => string | undefined | Promise<string | undefined>);
   readonly tools: ToolMap;
   readonly approvers?: EveApprovers;
-  readonly memberships?: MembershipSource;
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
+  readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;
@@ -190,6 +192,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       tenant: options.tenant,
       delegation: options.delegation,
       memberships: options.memberships,
+      entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,
       sink: options.sink,

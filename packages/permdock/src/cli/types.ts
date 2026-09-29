@@ -1,3 +1,5 @@
+import type { SqlMembershipSource } from '../supabase/sources.ts';
+
 export type CollectConfig = {
   readonly srcPath?: readonly string[];
   readonly out?: string;
@@ -110,6 +112,50 @@ export type RlsConfig = {
   };
 };
 
+/** `permdock supabase hook generate` input. */
+export type SupabaseHookConfig = {
+  /** The same `fromTable` / `fromJunction` sources the app passes as `memberships`. */
+  readonly memberships: readonly SqlMembershipSource[];
+  /** Schema of the hook and the version table. Default `rls.schema`, else `public`. */
+  readonly schema?: string;
+  /** Global roles: `user_role` and `roles`. Default the `<schema>.user_roles (user_id, role)` table; `false` for none. */
+  readonly roles?:
+    | { readonly table: string; readonly user?: string; readonly role?: string }
+    | false;
+  /**
+   * Where the active first-scope id comes from: `app_metadata.<key>` (default
+   * `app_metadata.active_<first scope>`), `<table>.<column>` joined on `id`, or
+   * `{ table, id, column }`.
+   */
+  readonly activeFrom?:
+    | string
+    | { readonly table: string; readonly id?: string; readonly column: string };
+  /**
+   * The `attrs` claim, for attribute conditions such as
+   * `principal.claims.attrs.region`: allow-listed columns of a server-owned
+   * table (`table`, joined on `id`), and `app_metadata.<key>` entries. Never
+   * `user_metadata`; the migration fails when clients can write a column.
+   */
+  readonly attrs?: {
+    readonly table?: string;
+    readonly id?: string;
+    readonly columns: readonly string[];
+  };
+  /** Bytes of JSON the `memberships` claim may use. Default `supabaseMembershipsBudget` (1024). */
+  readonly budget?: number;
+  /** Keep `permdock_authz_version` and write the `authz_ver` claim. Default `true`. */
+  readonly version?: boolean;
+  /** The `jwt_expiry` the printed `config.toml` block sets. Default 900. */
+  readonly jwtExpiry?: number;
+  /** Suspended users get empty claims. Default `rls.suspension`. */
+  readonly suspension?: RlsSuspension;
+  readonly out?: string;
+};
+
+export type SupabaseConfig = {
+  readonly hook?: SupabaseHookConfig;
+};
+
 export type DoctorConfig = {
   readonly sensitiveActions?: readonly string[];
   readonly memberships?: string;
@@ -128,6 +174,7 @@ export type PermDockConfig = {
     readonly doc?: readonly string[];
   };
   readonly rls?: RlsConfig;
+  readonly supabase?: SupabaseConfig;
   readonly doctor?: DoctorConfig;
 };
 

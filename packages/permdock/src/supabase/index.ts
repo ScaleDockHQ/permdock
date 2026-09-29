@@ -1,6 +1,20 @@
 export { exchangeCapability } from './capability.ts';
 export type { ExchangeCapabilityOptions } from './capability.ts';
 export { authorizeSql, supabaseRls } from './rls.ts';
+export {
+  AUTHZ_VERSION_TABLE,
+  authzVersion,
+  fromJunction,
+  fromTable,
+  supabaseMembershipsBudget,
+} from './sources.ts';
+export type {
+  MembershipJunctionOptions,
+  MembershipSql,
+  MembershipTableOptions,
+  SqlMembershipSource,
+  SqlQuery,
+} from './sources.ts';
 export { subjectFromSupabase, subjectFromSupabaseSession } from './subject.ts';
 export type {
   AuthorizeSqlOptions,

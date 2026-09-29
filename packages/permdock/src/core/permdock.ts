@@ -6,6 +6,7 @@ import type {
   DecisionEvent,
   DecisionSink,
   LimitStore,
+  EntitlementSource,
   MembershipSource,
   RoleSource,
   Snapshot,
@@ -186,8 +187,11 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
 
 export type CreatePermDockOptions = {
   readonly tenant?: string;
-  readonly memberships?: MembershipSource;
+  /** One source, or several composed with `composeMemberships`. */
+  readonly memberships?: MembershipSource | readonly MembershipSource[];
   readonly customRoles?: RoleSource;
+  /** Plans and seats from billing, merged into `principal.plans` for the active tenant. */
+  readonly entitlements?: EntitlementSource;
   readonly actor?: Actor;
   readonly delegation?: Delegation;
   readonly sink?: DecisionSink;
