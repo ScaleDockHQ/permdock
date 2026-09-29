@@ -17,6 +17,10 @@ function identity(membership: Membership): string {
     membership.team ?? null,
     membership.via ?? null,
     membership.expiresAt ?? null,
+    membership.grantedBy ?? null,
+    membership.reason ?? null,
+    membership.member?.group ?? null,
+    [...(membership.eligible ?? [])].toSorted(),
     membership.managedBy ?? null,
     [...(membership.entitlements ?? [])].toSorted(),
   ]);

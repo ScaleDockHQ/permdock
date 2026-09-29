@@ -1,7 +1,7 @@
 import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
 import type { ApprovalRequirement, Grant, HostedGrantRef } from './policy.ts';
-import type { Subject } from './subject.ts';
+import type { Membership, Subject } from './subject.ts';
 
 export type DenialReason =
   | 'no-grant'
@@ -13,6 +13,9 @@ export type DenialReason =
   | 'not-delegated'
   | 'no-delegation'
   | 'insufficient-user-authentication'
+  | 'purpose'
+  | 'reason-required'
+  | 'actor-required'
   | 'limit'
   | 'limit-unavailable'
   | 'relation-depth'
@@ -59,15 +62,19 @@ export type MatchedGrant = {
   readonly provider?: string;
   /** The hosted policy document fingerprint and grant id, when a hosted grant matched. */
   readonly hosted?: HostedGrantRef;
+  /** A break-glass grant overrode a matching deny. */
+  readonly breakGlass?: true;
 };
 
 /**
  * Something the caller owes alongside a granted action. `over-limit`: a soft
  * `limit` was past its count; `near-limit`: usage reached `alertAt`.
+ * `notify` / `review`: a break-glass grant's declared follow-ups.
+ * `justify`: the break-glass reason, carried so audit records why.
  */
-export type Obligation = {
-  readonly kind: 'over-limit' | 'near-limit';
-};
+export type Obligation =
+  | { readonly kind: 'over-limit' | 'near-limit' | 'notify' | 'review' }
+  | { readonly kind: 'justify'; readonly reason: string };
 
 /** What is left of the `limit` that applied; `resetsAt` is Unix seconds. */
 export type Quota = {
@@ -82,6 +89,12 @@ export type GrantedDecision = {
   readonly token: string;
   readonly obligations?: readonly Obligation[];
   readonly quota?: Quota;
+  /**
+   * The membership `permdock.activate` produced for the app to write: an
+   * elevated, time-bound, attributed row. Set only by `activate`; a plain
+   * `decide` never writes memberships.
+   */
+  readonly elevation?: Membership;
 };
 
 export type DeniedDecision = {

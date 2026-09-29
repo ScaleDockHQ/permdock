@@ -169,13 +169,19 @@ export {
   definePolicy,
   deny,
   normalizeApproval,
+  normalizeAssurance,
   requiresApproval,
   role,
   separationConflicts,
 } from './core/policy.ts';
 export type {
+  ActivationOption,
   ApprovalOption,
   ApprovalRequirement,
+  AssuranceRequirement,
+  BreakGlassOptions,
+  BreakGlassRequirements,
+  BreakGlassSpec,
   ClosureContext,
   ClosureGrantFn,
   Grant,
@@ -193,8 +199,13 @@ export type {
   RoleOptions,
   RoleScope,
   SubjectOf,
+  SupportAccessOptions,
+  SupportConsent,
   ValidateMode,
 } from './core/policy.ts';
+export { breakGlass, supportAccess } from './core/elevated.ts';
+export type { ActivateInput } from './core/elevated.ts';
+export { parseDuration } from './core/duration.ts';
 export {
   actor,
   anyone,

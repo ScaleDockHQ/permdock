@@ -1,6 +1,7 @@
 import type { Condition } from '../conditions/ast.ts';
 import type { ArazzoPlan, ArazzoSimulateInput } from './arazzo.ts';
 import type { Decision } from './decision.ts';
+import type { ActivateInput } from './elevated.ts';
 import type {
   AuthEvent,
   DecisionEvent,
@@ -199,6 +200,13 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     permission: Permission<string, unknown, 'instance'>,
     resource: unknown,
   ) => Promise<WhoCan>;
+  /**
+   * Requests a just-in-time activation of an eligible role. It never writes:
+   * a granted decision carries the elevated membership under `elevation` for
+   * the app to write, and `approval-required` comes back first when the
+   * role's `activation` sets `approval`.
+   */
+  readonly activate: (input: ActivateInput) => Decision;
   readonly roles: V['roles'] extends RoleTree ? V['roles'] : RoleTree;
   readonly plans: V['plans'] extends PlanTree ? V['plans'] : PlanTree;
   readonly permissions: V['permissions'] extends Policy['permissions']

@@ -29,6 +29,7 @@ import {
   holdsCustomRole,
   roleAllowKeys,
 } from './custom-roles.ts';
+import { type ActivateInput, activate } from './elevated.ts';
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -1051,6 +1052,9 @@ export function buildInstance(
         },
         nowSeconds(),
       );
+    },
+    activate(input: ActivateInput): Decision {
+      return activate(policy, subject, input, nowSeconds());
     },
     subject,
   };

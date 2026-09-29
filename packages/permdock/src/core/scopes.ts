@@ -231,6 +231,10 @@ export function normalizeMembership(
   const extra: {
     via?: string;
     expiresAt?: number;
+    grantedBy?: string;
+    reason?: string;
+    eligible?: readonly string[];
+    member?: { readonly group: string };
     managedBy?: 'idp';
     entitlements?: readonly string[];
   } = {};
@@ -239,6 +243,25 @@ export function normalizeMembership(
   }
   if (typeof raw.expiresAt === 'number') {
     extra.expiresAt = raw.expiresAt;
+  }
+  if (typeof raw.grantedBy === 'string' && raw.grantedBy !== '') {
+    extra.grantedBy = raw.grantedBy;
+  }
+  if (typeof raw.reason === 'string' && raw.reason !== '') {
+    extra.reason = raw.reason;
+  }
+  const eligible = roleList(raw.eligible);
+  if (eligible !== undefined && eligible.length > 0) {
+    extra.eligible = Object.freeze([...eligible]);
+  }
+  const member =
+    raw.member !== null &&
+    typeof raw.member === 'object' &&
+    !Array.isArray(raw.member)
+      ? (raw.member as Record<string, unknown>).group
+      : undefined;
+  if (typeof member === 'string' && member !== '') {
+    extra.member = Object.freeze({ group: member });
   }
   if (raw.managedBy === 'idp') {
     extra.managedBy = 'idp';
