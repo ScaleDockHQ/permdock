@@ -153,6 +153,7 @@ export function finish(
               permission: decision.matched.permission,
               to: decision.matched.to,
               hosted: decision.matched.hosted,
+              breakGlass: decision.matched.breakGlass,
             })
           : decision.outcome === 'approval-required'
             ? compact({
@@ -162,6 +163,16 @@ export function finish(
                 hosted: decision.grant.hosted,
               })
             : undefined,
+      purpose:
+        Array.isArray(subject.context.purpose) &&
+        subject.context.purpose.length > 0
+          ? (subject.context.purpose as readonly string[])
+          : undefined,
+      reason:
+        typeof subject.context.reason === 'string' &&
+        subject.context.reason !== ''
+          ? subject.context.reason
+          : undefined,
       denials: decision.outcome === 'denied' ? decision.denials : undefined,
       alternatives:
         decision.outcome === 'denied'

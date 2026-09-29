@@ -14,7 +14,6 @@ import {
   type BreakGlassOptions,
   type BreakGlassSpec,
   type SupportAccessOptions,
-  deny,
   normalizeAssurance,
   role,
 } from './policy.ts';
@@ -89,21 +88,23 @@ export function supportAccess<S extends string = string>(
   const forbidden = (options.forbid ?? []).flatMap((item) =>
     flattenPermissions(item),
   );
-  const denies = forbidden.map((leaf) => {
-    const grant = deny(leaf) as Omit<Grant, 'role' | 'scope'>;
-    return freezeDeep(
-      compact<Omit<Grant, 'role' | 'scope'>>({
-        ...grant,
-        to: authenticated(),
-        viaOnly: via,
-        portable: false,
-      }),
-    );
-  });
-  const binding = role(options.role, denies, {
+  const binding = role(options.role, [], {
     on: options.on ?? 'tenant',
     for: [via],
   });
+  const denies = forbidden.map((leaf) =>
+    freezeDeep(
+      compact<Grant>({
+        permission: leaf,
+        effect: 'deny',
+        to: authenticated(),
+        role: options.role,
+        scope: 'global',
+        viaOnly: via,
+        portable: false,
+      }),
+    ),
+  );
   const support: SupportSpec = freezeDeep(
     compact<SupportSpec>({
       role: options.role,
@@ -115,7 +116,11 @@ export function supportAccess<S extends string = string>(
       group: options.group ?? 'vendor-support',
     }),
   );
-  return freezeDeep({ ...binding, support });
+  return freezeDeep({
+    ...binding,
+    grants: [...binding.grants, ...denies],
+    support,
+  });
 }
 
 /** Whether the subject's authentication is fresh enough for an elevated grant. */

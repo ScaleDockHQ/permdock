@@ -1,4 +1,5 @@
 import type {
+  AccessEvent,
   DecisionEvent,
   DirectoryEvent,
   MembershipEvent,
@@ -35,7 +36,10 @@ export type PermDockCloudEvent =
   | Envelope<'dev.permdock.approval', DecisionEvent>
   | Envelope<'dev.permdock.directory', DirectoryEvent>
   | Envelope<'dev.permdock.membership', MembershipEvent>
-  | Envelope<'dev.permdock.catalog', CatalogEventData>;
+  | Envelope<'dev.permdock.catalog', CatalogEventData>
+  | Envelope<'dev.permdock.access.started', AccessEvent>
+  | Envelope<'dev.permdock.access.ended', AccessEvent>
+  | Envelope<'dev.permdock.access.revoked', AccessEvent>;
 
 export type VerifyWebhookOptions = {
   /** Your receiver's URL; the batch `aud` must name it. */
@@ -136,6 +140,15 @@ function validData(
         (data.previous === undefined || typeof data.previous === 'string') &&
         (data.findings === undefined ||
           (Array.isArray(data.findings) && data.findings.every(isFinding)))
+      );
+    case 'dev.permdock.access.started':
+    case 'dev.permdock.access.ended':
+    case 'dev.permdock.access.revoked':
+      return (
+        data.type === 'access' &&
+        typeof data.tenant === 'string' &&
+        isRecord(data.principal) &&
+        typeof (data.principal as Record<string, unknown>).id === 'string'
       );
     default: {
       const exhaustive: never = type;

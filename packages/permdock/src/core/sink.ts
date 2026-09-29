@@ -1,5 +1,6 @@
 import type { Credential } from './credential.ts';
 import type {
+  AccessEvent,
   CredentialEvent,
   DecisionSink,
   MembershipEvent,
@@ -17,6 +18,9 @@ export const CLOUD_EVENT_TYPES: {
   readonly membership: 'dev.permdock.membership';
   readonly catalog: 'dev.permdock.catalog';
   readonly credential: 'dev.permdock.credential';
+  readonly accessStarted: 'dev.permdock.access.started';
+  readonly accessEnded: 'dev.permdock.access.ended';
+  readonly accessRevoked: 'dev.permdock.access.revoked';
 } = Object.freeze({
   decision: 'dev.permdock.decision',
   approval: 'dev.permdock.approval',
@@ -24,6 +28,9 @@ export const CLOUD_EVENT_TYPES: {
   membership: 'dev.permdock.membership',
   catalog: 'dev.permdock.catalog',
   credential: 'dev.permdock.credential',
+  accessStarted: 'dev.permdock.access.started',
+  accessEnded: 'dev.permdock.access.ended',
+  accessRevoked: 'dev.permdock.access.revoked',
 });
 
 export type CloudEventType =
@@ -88,6 +95,12 @@ function cloudEventType(event: SinkEvent): CloudEventType {
       return CLOUD_EVENT_TYPES.membership;
     case 'credential':
       return CLOUD_EVENT_TYPES.credential;
+    case 'access':
+      return event.operation === 'started'
+        ? CLOUD_EVENT_TYPES.accessStarted
+        : event.operation === 'ended'
+          ? CLOUD_EVENT_TYPES.accessEnded
+          : CLOUD_EVENT_TYPES.accessRevoked;
     case 'decision':
       if (event.phase === 'requested' || event.phase === 'resolved') {
         return CLOUD_EVENT_TYPES.approval;
@@ -104,7 +117,7 @@ function cloudEventSubject(event: SinkEvent): string {
   if (event.type === 'directory') {
     return event.resource.id;
   }
-  if (event.type === 'membership') {
+  if (event.type === 'membership' || event.type === 'access') {
     return event.principal.id;
   }
   if (event.type === 'credential') {
@@ -186,6 +199,42 @@ export function membershipEvent(input: {
     expiresAt: input.expiresAt,
     roles: input.roles,
     by: input.by,
+  });
+}
+
+/**
+ * A support-access lifecycle event. `started` on consent, `ended` when the
+ * session lapses, `revoked` when the tenant pulls consent early. It never
+ * decides; the app writes and revokes the membership.
+ */
+export function accessEvent(input: {
+  readonly source: string;
+  readonly operation: AccessEvent['operation'];
+  readonly tenant: string;
+  readonly principal: AccessEvent['principal'];
+  readonly via?: string;
+  readonly roles: readonly string[];
+  readonly member?: AccessEvent['member'];
+  readonly expiresAt?: number;
+  readonly grantedBy?: string;
+  readonly reason?: string;
+  readonly actor?: AccessEvent['actor'];
+  readonly at?: string;
+}): AccessEvent {
+  return compact<AccessEvent>({
+    type: 'access',
+    at: input.at ?? new Date().toISOString(),
+    source: input.source,
+    operation: input.operation,
+    tenant: input.tenant,
+    principal: input.principal,
+    via: input.via ?? 'support',
+    roles: input.roles,
+    member: input.member,
+    expiresAt: input.expiresAt,
+    grantedBy: input.grantedBy,
+    reason: input.reason,
+    actor: input.actor,
   });
 }
 

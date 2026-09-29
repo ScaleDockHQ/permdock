@@ -553,17 +553,18 @@ export function evaluate(
       continue;
     }
     const result = evaluateBreakGlass(grant.breakGlass, subject, now);
+    if (result.kind === 'inactive') {
+      continue;
+    }
+    for (const name of grant.breakGlass.overrides) {
+      breakGlassOverrides.add(name);
+    }
     if (result.kind === 'granted') {
       breakGlassGrant = grant;
       breakGlassObligations = result.obligations;
-      for (const name of grant.breakGlass.overrides) {
-        breakGlassOverrides.add(name);
-      }
       break;
     }
-    if (result.kind === 'denied') {
-      breakGlassDenial ??= result.reason;
-    }
+    breakGlassDenial ??= result.reason;
   }
 
   const holdsCustom = (custom: CustomRole): boolean =>
@@ -734,12 +735,30 @@ export function evaluate(
       continue;
     }
     if (grant.effect === 'deny') {
-      if (
-        breakGlassGrant !== undefined &&
-        grant.name !== undefined &&
-        breakGlassOverrides.has(grant.name)
-      ) {
-        continue;
+      if (grant.name !== undefined && breakGlassOverrides.has(grant.name)) {
+        if (breakGlassGrant !== undefined) {
+          continue;
+        }
+        if (breakGlassDenial !== undefined) {
+          const decision: Decision = freezeDeep({
+            outcome: 'denied',
+            denials: [{ role: null, reason: breakGlassDenial }],
+            alternatives: env.skipAlternatives
+              ? []
+              : alternativesFor(policy, permission, subject, env),
+          });
+          finish(
+            policy,
+            subject,
+            permission,
+            current,
+            decision,
+            options,
+            env,
+            trusted,
+          );
+          return decision;
+        }
       }
       const decision: Decision = freezeDeep({
         outcome: 'denied',

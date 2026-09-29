@@ -76,6 +76,7 @@ export type {
   PolicySource,
 } from './core/hosted.ts';
 export type {
+  AccessEvent,
   AuthEvent,
   CredentialEvent,
   CredentialVerifier,
@@ -245,6 +246,7 @@ export type {
 } from './core/ownership.ts';
 export {
   CLOUD_EVENT_TYPES,
+  accessEvent,
   credentialEvent,
   membershipEvent,
   memorySink,
@@ -261,7 +263,7 @@ export type {
   MemorySinkOptions,
   SignDecisionBatchOptions,
 } from './core/sink.ts';
-export { OCSF_VERSION, toOcsf } from './core/ocsf.ts';
+export { OCSF_VERSION, accessToOcsf, toOcsf } from './core/ocsf.ts';
 export { CSV_COLUMNS, toCsvRow } from './core/csv.ts';
 export { catalogFingerprint } from './core/catalog-fingerprint.ts';
 export { coveredByDelegation } from './core/delegation.ts';
@@ -299,7 +301,7 @@ export type {
   CredentialRequest,
   DecideCredentialOptions,
 } from './core/credential.ts';
-export type { OcsfAuthorizeSession } from './core/ocsf.ts';
+export type { OcsfAccountChange, OcsfAuthorizeSession } from './core/ocsf.ts';
 export type {
   Actor,
   Assurance,

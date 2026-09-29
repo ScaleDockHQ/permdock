@@ -1,4 +1,4 @@
-import type { DecisionEvent } from './interfaces.ts';
+import type { AccessEvent, DecisionEvent } from './interfaces.ts';
 
 import { compact } from './compact.ts';
 
@@ -11,7 +11,7 @@ export type OcsfAuthorizeSession = {
   readonly category_uid: 3;
   readonly activity_id: 1;
   readonly type_uid: 300301;
-  readonly severity_id: 1;
+  readonly severity_id: 1 | 4;
   readonly time: number;
   readonly status_id: 1 | 2 | 99;
   readonly status: 'Success' | 'Failure' | 'Other';
@@ -41,6 +41,10 @@ export type OcsfAuthorizeSession = {
     readonly phase?: DecisionEvent['phase'];
     readonly role?: string | null;
     readonly via?: string | null;
+    /** Set high-severity break-glass events apart in a SIEM. */
+    readonly breakGlass?: true;
+    readonly purpose?: readonly string[];
+    readonly reason?: string;
   };
 };
 
@@ -65,6 +69,7 @@ function status(
 export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
   const principal = event.subject.principal;
   const actor = event.subject.actor;
+  const breakGlass = event.matched?.breakGlass === true;
   const detail =
     event.outcome === 'approval-required'
       ? 'approval-required'
@@ -75,7 +80,7 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
     category_uid: 3,
     activity_id: 1,
     type_uid: 300301,
-    severity_id: 1,
+    severity_id: breakGlass ? 4 : 1,
     time: Number.isNaN(time) ? 0 : time,
     ...status(event.outcome),
     status_detail: detail === '' ? undefined : detail,
@@ -108,6 +113,69 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
       phase: event.phase,
       role: event.matched?.role,
       via: event.via,
+      breakGlass: breakGlass ? (true as const) : undefined,
+      purpose: event.purpose,
+      reason: event.reason,
+    }),
+  });
+}
+
+/**
+ * An OCSF Account Change (class 3001) event for a support-access lifecycle
+ * event: `started` enables the session, `ended` and `revoked` disable it.
+ * Support access is high severity, so a SIEM can alert on vendor access.
+ */
+export type OcsfAccountChange = {
+  readonly class_uid: 3001;
+  readonly category_uid: 3;
+  readonly activity_id: 1 | 4;
+  readonly severity_id: 4;
+  readonly time: number;
+  readonly message: string;
+  readonly user: { readonly uid: string };
+  readonly actor?: { readonly user?: { readonly uid: string } };
+  readonly metadata: {
+    readonly version: typeof OCSF_VERSION;
+    readonly product: {
+      readonly name: 'PermDock';
+      readonly vendor_name: 'PermDock';
+    };
+    readonly tenant_uid: string;
+  };
+  readonly unmapped: {
+    readonly operation: AccessEvent['operation'];
+    readonly via: string;
+    readonly roles: readonly string[];
+    readonly member?: { readonly group: string };
+    readonly grantedBy?: string;
+    readonly reason?: string;
+  };
+};
+
+export function accessToOcsf(event: AccessEvent): OcsfAccountChange {
+  const time = Date.parse(event.at);
+  return compact<OcsfAccountChange>({
+    class_uid: 3001,
+    category_uid: 3,
+    activity_id: event.operation === 'started' ? 1 : 4,
+    severity_id: 4,
+    time: Number.isNaN(time) ? 0 : time,
+    message: `support access ${event.operation}`,
+    user: { uid: event.principal.id },
+    actor:
+      event.actor === undefined ? undefined : { user: { uid: event.actor.id } },
+    metadata: {
+      version: OCSF_VERSION,
+      product: { name: 'PermDock' as const, vendor_name: 'PermDock' as const },
+      tenant_uid: event.tenant,
+    },
+    unmapped: compact({
+      operation: event.operation,
+      via: event.via,
+      roles: event.roles,
+      member: event.member,
+      grantedBy: event.grantedBy,
+      reason: event.reason,
     }),
   });
 }

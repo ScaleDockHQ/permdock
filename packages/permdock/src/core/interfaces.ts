@@ -379,7 +379,32 @@ export type SinkEvent =
   | DecisionEvent
   | DirectoryEvent
   | MembershipEvent
-  | CredentialEvent;
+  | CredentialEvent
+  | AccessEvent;
+
+/**
+ * A support-access session lifecycle event: a tenant consented to vendor
+ * support (`started`), the session lapsed (`ended`), or the tenant pulled
+ * consent early (`revoked`). It never decides; it records what happened for
+ * audit and revocation.
+ */
+export type AccessEvent = {
+  readonly type: 'access';
+  readonly at: string;
+  readonly source: string;
+  readonly operation: 'started' | 'ended' | 'revoked';
+  readonly tenant: string;
+  readonly principal: { readonly id: string };
+  /** The membership kind the session runs under (`support`). */
+  readonly via: string;
+  readonly roles: readonly string[];
+  readonly member?: { readonly group: string };
+  readonly expiresAt?: number;
+  /** The tenant principal that consented. */
+  readonly grantedBy?: string;
+  readonly reason?: string;
+  readonly actor?: { readonly id: string; readonly kind: string };
+};
 
 /**
  * Looks up the credential an API key stands for. `null` for a key that is
@@ -423,7 +448,12 @@ export type DecisionEvent = {
     readonly permission: string;
     readonly to?: Grantee | readonly Grantee[];
     readonly hosted?: HostedGrantRef;
+    readonly breakGlass?: true;
   };
+  /** Purposes of use the caller asserted (`context.purpose`); present when any was. */
+  readonly purpose?: readonly string[];
+  /** The justification the caller supplied (`context.reason`); present when set. */
+  readonly reason?: string;
   readonly denials?: readonly {
     readonly role: string | null;
     readonly reason: string;

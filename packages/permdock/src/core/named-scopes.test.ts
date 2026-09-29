@@ -382,10 +382,7 @@ describe('named scopes: definition', () => {
     ).toEqual(['organization', 'workspace']);
   });
 
-  it('reserves the activation and restricted role options', () => {
-    expect(() => role('x', [], { activation: undefined as never })).toThrow(
-      /reserved/,
-    );
+  it('reserves the restricted role option', () => {
     expect(() => role('x', [], { restricted: undefined as never })).toThrow(
       /reserved/,
     );
