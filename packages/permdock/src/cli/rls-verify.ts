@@ -22,6 +22,8 @@ import {
 } from '../index.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { requirePeer } from './peer.ts';
+import { commandFor } from './rls-compile.ts';
+import { FIELD_VIEWS, viewName } from './rls-fields.ts';
 
 export type VerifyOutcome = {
   readonly code: 0 | 1 | 2;
@@ -194,7 +196,11 @@ function columnsOf(row: unknown): readonly (readonly [string, unknown])[] {
     : [];
 }
 
-/** The statement a fixture runs: `create` inserts the whole row, `update` writes `newRow` when given. */
+/**
+ * The statement a fixture runs: `create` inserts the whole row, `update` writes
+ * `newRow` when given. Each reads back only the key, so `--revoke-columns`
+ * (which keeps only unrestricted columns readable) does not reject it.
+ */
 function statementFor(
   fixture: RlsFixture,
   action: string,
@@ -207,7 +213,10 @@ function statementFor(
     case 'read':
     case 'list':
     case 'get':
-      return { sql: `select * from ${quoted} where ${id} = $1`, values: [key] };
+      return {
+        sql: `select ${id} from ${quoted} where ${id} = $1`,
+        values: [key],
+      };
     case 'update': {
       const next = columnsOf(fixture.newRow).filter(([name]) => name !== 'id');
       const sets =
@@ -217,7 +226,7 @@ function statementFor(
               .map(([name], index) => `${quoteIdent(name)} = $${index + 2}`)
               .join(', ');
       return {
-        sql: `update ${quoted} set ${sets} where ${id} = $1 returning *`,
+        sql: `update ${quoted} set ${sets} where ${id} = $1 returning ${id}`,
         values: [key, ...next.map(([, value]) => value)],
       };
     }
@@ -225,22 +234,25 @@ function statementFor(
       const cols = columnsOf(fixture.row);
       if (cols.length === 0) {
         return {
-          sql: `insert into ${quoted} (${id}) values ($1) returning *`,
+          sql: `insert into ${quoted} (${id}) values ($1) returning ${id}`,
           values: [key],
         };
       }
       return {
-        sql: `insert into ${quoted} (${cols.map(([name]) => quoteIdent(name)).join(', ')}) values (${cols.map((_, index) => `$${index + 1}`).join(', ')}) returning *`,
+        sql: `insert into ${quoted} (${cols.map(([name]) => quoteIdent(name)).join(', ')}) values (${cols.map((_, index) => `$${index + 1}`).join(', ')}) returning ${id}`,
         values: cols.map(([, value]) => value),
       };
     }
     case 'delete':
       return {
-        sql: `delete from ${quoted} where ${id} = $1 returning *`,
+        sql: `delete from ${quoted} where ${id} = $1 returning ${id}`,
         values: [key],
       };
     default:
-      return { sql: `select * from ${quoted} where ${id} = $1`, values: [key] };
+      return {
+        sql: `select ${id} from ${quoted} where ${id} = $1`,
+        values: [key],
+      };
   }
 }
 
@@ -285,6 +297,85 @@ function emitPgtap(
 
 function loadPg(): Promise<typeof import('pg')> {
   return requirePeer(() => import('pg'), 'pg', 'permdock rls verify --db');
+}
+
+type InProcess = {
+  readonly action: string;
+  readonly granted: boolean;
+  readonly kind: 'opaque' | 'sqlFunction' | 'portable';
+  /** With field views: the columns `pick` keeps that hold a value, plus the key. */
+  readonly fields?: readonly string[];
+};
+
+/** Columns of `row` that hold a value; a masked column reads as null. */
+export function valuedColumns(row: unknown): readonly string[] {
+  return isRecord(row)
+    ? Object.keys(row)
+        .filter((name) => row[name] !== null && row[name] !== undefined)
+        .toSorted()
+    : [];
+}
+
+/**
+ * What a field view returns for a row: nothing for a denied row, otherwise
+ * `pick`'s columns with a value plus the key, which always passes through.
+ */
+export function expectedFields(
+  granted: boolean,
+  picked: unknown,
+  key: string,
+  row: unknown,
+): readonly string[] {
+  if (!granted) {
+    return [];
+  }
+  const kept = new Set(valuedColumns(picked));
+  if (isRecord(row) && row[key] !== null && row[key] !== undefined) {
+    kept.add(key);
+  }
+  return [...kept].toSorted();
+}
+
+function fieldsMismatch(
+  fixture: RlsFixture,
+  want: readonly string[],
+  seen: readonly string[] | string,
+): readonly string[] {
+  const kept = want.join(', ');
+  if (typeof seen === 'string') {
+    return [
+      `${fixture.action}: field view read failed (${seen}), pick keeps [${kept}]`,
+    ];
+  }
+  return seen.join(', ') === kept
+    ? []
+    : [
+        `${fixture.action} ${String(rowId(fixture.row))}: field view returns [${seen.join(', ')}], pick keeps [${kept}]`,
+      ];
+}
+
+/** The field view's columns for the fixture's row: the view, or the table itself when no grant limits its fields. */
+async function viewFields(
+  query: QueryFn,
+  table: string,
+  key: unknown,
+): Promise<readonly string[] | string> {
+  const view = quoteIdent(viewName(table, FIELD_VIEWS.view));
+  const id = quoteIdent('id');
+  await query('savepoint permdock_fields');
+  const result = await query(`select * from ${view} where ${id} = $1`, [key]);
+  if (result.code === undefined) {
+    return valuedColumns(result.rows[0]);
+  }
+  await query('rollback to savepoint permdock_fields');
+  if (result.code !== '42P01') {
+    return result.code;
+  }
+  const base = await query(
+    `select * from ${quoteIdent(table)} where ${id} = $1`,
+    [key],
+  );
+  return base.code ?? valuedColumns(base.rows[0]);
 }
 
 type QueryFn = (
@@ -397,11 +488,7 @@ async function verifyAgainstDatabase(input: {
   readonly fixtures: readonly RlsFixture[];
   readonly customRoles: readonly CustomRole[];
   readonly config: PermDockConfig;
-  readonly inProcess: readonly {
-    readonly action: string;
-    readonly granted: boolean;
-    readonly kind: 'opaque' | 'sqlFunction' | 'portable';
-  }[];
+  readonly inProcess: readonly InProcess[];
 }): Promise<{ readonly mismatches: string[]; readonly notes: string[] }> {
   const pg = await loadPg();
   const client = new pg.Client({ connectionString: input.db });
@@ -495,6 +582,15 @@ async function verifyAgainstDatabase(input: {
         } else if (status.kind === 'sqlFunction') {
           notes.push(`${fixture.action}: verified through twin`);
         }
+        mismatches.push(
+          ...(status.fields === undefined
+            ? []
+            : fieldsMismatch(
+                fixture,
+                status.fields,
+                await viewFields(query, table, rowId(fixture.row)),
+              )),
+        );
       } finally {
         await query('rollback');
       }
@@ -535,11 +631,8 @@ export async function runRlsVerify(input: {
   }
   const mismatches: string[] = [];
   const notes: string[] = [];
-  const inProcess: {
-    readonly action: string;
-    readonly granted: boolean;
-    readonly kind: 'opaque' | 'sqlFunction' | 'portable';
-  }[] = [];
+  const inProcess: InProcess[] = [];
+  const fieldsMode = input.config.rls?.fields === 'views';
   for (const fixture of fixtures) {
     const permission = findPermission(policy.permissions, fixture.action);
     if (permission === undefined) {
@@ -571,7 +664,27 @@ export async function runRlsVerify(input: {
     if (kind === 'opaque') {
       notes.push(`${fixture.action}: opaque grant untestable app-side`);
     }
-    inProcess.push({ action: fixture.action, granted, kind });
+    const reads =
+      fieldsMode &&
+      permission.kind === 'instance' &&
+      commandFor(permission.action) === 'select';
+    const fields = reads
+      ? expectedFields(
+          granted,
+          dock.pick(
+            permission as Permission<string, unknown, 'instance'>,
+            fixture.row,
+          ),
+          policy.resources.get(permission.resource)?.id ?? 'id',
+          fixture.row,
+        )
+      : undefined;
+    inProcess.push({
+      action: fixture.action,
+      granted,
+      kind,
+      ...(fields === undefined ? {} : { fields }),
+    });
   }
   if (input.db !== undefined) {
     try {

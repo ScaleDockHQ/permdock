@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 
 import type { RolePermission } from './rls-helpers.ts';
 import type { ImportedGrant } from './rls-import-ast.ts';
+import type { ImportedFieldView } from './rls-import-views.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
 import {
@@ -19,6 +20,7 @@ import {
   seedFromRow,
   seedsFromSql,
 } from './rls-import-ast.ts';
+import { fieldViewsFromSql, viewsSqlFromDb } from './rls-import-views.ts';
 import { parseMembershipsFlag } from './rls-sql.ts';
 
 export type ImportOutcome = {
@@ -132,6 +134,7 @@ function actionsFor(cmds: readonly string[]): {
 
 function emitGenerated(
   catalog: readonly CatalogEntry[],
+  fieldViews: readonly ImportedFieldView[],
   schema: string,
 ): string {
   const kind = isSchemaKind(schema) ? schema : 'zod';
@@ -139,7 +142,7 @@ function emitGenerated(
   return emitPermissionsModule({
     generator: 'rls import',
     schema: kind,
-    exports: { catalog },
+    exports: fieldViews.length === 0 ? { catalog } : { catalog, fieldViews },
     resources: tables.map((table) => {
       const { actions, collection } = actionsFor(
         catalog.filter((item) => item.table === table).map((item) => item.cmd),
@@ -197,6 +200,7 @@ async function policiesFromDb(db: string): Promise<{
   readonly policies: ImportedPolicy[];
   readonly bodies: Map<string, string>;
   readonly seeds: readonly RolePermission[];
+  readonly views: string;
 }> {
   const pg = await loadPg();
   const client = new pg.Client({ connectionString: db });
@@ -221,6 +225,7 @@ async function policiesFromDb(db: string): Promise<{
       bodies.set(row.proname, row.prosrc);
     }
     const seeds = await seedsFromDb((sql) => client.query(sql));
+    const views = await viewsSqlFromDb((sql) => client.query(sql));
     const policies: ImportedPolicy[] = [];
     for (const row of result.rows) {
       const roles = Array.isArray(row.roles)
@@ -248,7 +253,7 @@ async function policiesFromDb(db: string): Promise<{
         });
       }
     }
-    return { policies, bodies, seeds };
+    return { policies, bodies, seeds, views };
   } finally {
     await client.end();
   }
@@ -267,6 +272,7 @@ export async function runRlsImport(input: {
   let policies: ImportedPolicy[] = [];
   let bodies = new Map<string, string>();
   let seeds: readonly RolePermission[] = [];
+  let viewsSql = '';
   if (input.sql !== undefined) {
     const sqlPath = resolve(input.cwd, input.sql);
     if (!existsSync(sqlPath)) {
@@ -277,6 +283,7 @@ export async function runRlsImport(input: {
     }
     const sql = readFileSync(sqlPath, 'utf8');
     assertNoServiceRole(sql);
+    viewsSql = sql;
     seeds = await seedsFromSql(sql);
     const canonical = await canonicalDump(sql);
     policies = splitPolicies(canonical ?? sql);
@@ -289,6 +296,7 @@ export async function runRlsImport(input: {
       policies = fromDb.policies;
       bodies = fromDb.bodies;
       seeds = fromDb.seeds;
+      viewsSql = fromDb.views;
     } catch (cause) {
       return {
         code: 2,
@@ -334,14 +342,19 @@ export async function runRlsImport(input: {
       ...(grants.length === 0 ? {} : { grants }),
     });
   }
+  const fieldViews =
+    viewsSql === ''
+      ? []
+      : await fieldViewsFromSql(viewsSql, memberships, functions, seeds);
   const outRel = input.out ?? 'src/permissions.generated.ts';
   const outPath = resolve(input.cwd, outRel);
   mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, emitGenerated(catalog, input.schema));
+  writeFileSync(outPath, emitGenerated(catalog, fieldViews, input.schema));
   const unique = [...new Set(unmapped)];
   const hints = [
     ...uniqueHints(unique, bodies),
     ...[...new Set(joins)].map(membershipHint),
+    ...fieldViews.map(fieldViewHint),
   ];
   return {
     code: 0,
@@ -350,6 +363,10 @@ export async function runRlsImport(input: {
         ? `wrote ${outRel}`
         : `wrote ${outRel}\n${hints.join('\n')}`,
   };
+}
+
+function fieldViewHint(view: ImportedFieldView): string {
+  return `field view ${view.view} over ${view.table}: ${view.restricted.map((item) => item.column).join(', ')} are field-limited; set fields on the read grants that list them (fieldViews export)`;
 }
 
 function membershipHint(table: string): string {

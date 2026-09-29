@@ -565,8 +565,14 @@ function helperFunction(
   name: string,
   returns: string,
   body: string,
+  anonExecute: boolean,
 ): string {
   const fn = qualified(ctx, name);
+  const grants = anonExecute
+    ? `revoke execute on function ${fn}(text) from public;
+grant execute on function ${fn}(text) to anon, authenticated;`
+    : `revoke execute on function ${fn}(text) from public, anon;
+grant execute on function ${fn}(text) to authenticated;`;
   return `create or replace function ${fn}(p_grant text)
 returns ${returns}
 language sql
@@ -576,8 +582,7 @@ set search_path = ''
 as $$
 ${body}
 $$;
-revoke execute on function ${fn}(text) from public, anon;
-grant execute on function ${fn}(text) to authenticated;`;
+${grants}`;
 }
 
 function userIdType(ctx: RlsSqlContext): string {
@@ -616,6 +621,12 @@ ${keys}
 export type HelpersOptions = {
   /** Emit a `user_roles` table for `database` mode; off when the RBAC scaffold owns it. */
   readonly userRoles: boolean;
+  /**
+   * Let `anon` execute the helpers: a field view `anon` reads calls them, and
+   * Postgres checks `execute` on every function in a view before it runs. They
+   * find no subject for `anon` and return nothing.
+   */
+  readonly anonExecute?: boolean;
 };
 
 /**
@@ -664,7 +675,8 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   if (custom !== '') {
     chunks.push(custom);
   }
-  chunks.push(helperFunction(ctx, HELPERS.has, 'boolean', hasBody(ctx)));
+  const anon = options.anonExecute === true;
+  chunks.push(helperFunction(ctx, HELPERS.has, 'boolean', hasBody(ctx), anon));
   const capabilities = capabilitiesSql(ctx);
   if (capabilities !== '') {
     chunks.push(capabilities);
@@ -677,6 +689,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
         permittedIdsHelper(scope.name),
         `setof ${type}`,
         scopedBody(ctx, scope.name, type),
+        anon,
       ),
     );
   }

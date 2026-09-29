@@ -295,6 +295,8 @@ export async function run(
           tenantType: flagString(args.flags, 'tenant-type'),
           customRoles: flagBool(args.flags, 'custom-roles'),
           capabilities: flagBool(args.flags, 'capabilities'),
+          fields: flagString(args.flags, 'fields'),
+          revokeColumns: flagBool(args.flags, 'revoke-columns'),
           io,
         });
         writeOut(result.output);

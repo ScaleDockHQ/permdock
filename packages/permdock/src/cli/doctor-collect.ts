@@ -21,8 +21,10 @@ import {
   separationConflicts,
   validateCustomRole,
 } from '../index.ts';
+import { jsonSchemaOf } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
+import { commandFor, tableFor } from './rls-compile.ts';
 import { contextRefs } from './rls-sql.ts';
 import { runUsage } from './usage.ts';
 
@@ -722,6 +724,92 @@ export async function pd025(input: {
       message: `membership ${membership.principal ?? String(index)} grants nothing: its scope is not one of ${names}, a parent id is missing from within, or it mixes shapes`,
       fix: 'use { scope, id, within: { <parent>: id }, roles } with a declared scope, or { on: { resource, id }, roles }',
     });
+  }
+  return findings;
+}
+
+/** Columns of `resource` a field-limited read grant can hide: missing from an allow's list, or on a deny's. */
+function limitedColumns(policy: Policy, resource: string): readonly string[] {
+  const reads = policy.grants.filter(
+    (grant) =>
+      grant.permission.resource === resource &&
+      grant.fields !== undefined &&
+      commandFor(grant.permission.action) === 'select',
+  );
+  const node = policy.resources.get(resource);
+  const schema = node === undefined ? null : jsonSchemaOf(node);
+  const properties =
+    schema !== null && typeof schema === 'object'
+      ? (schema as { readonly properties?: unknown }).properties
+      : undefined;
+  const columns =
+    properties !== null && typeof properties === 'object'
+      ? Object.keys(properties)
+      : [...new Set(reads.flatMap((grant) => grant.fields ?? []))];
+  const key = node?.id ?? 'id';
+  return columns.filter(
+    (column) =>
+      column !== key &&
+      reads.some((grant) =>
+        grant.effect === 'deny'
+          ? (grant.fields ?? []).includes(column)
+          : !(grant.fields ?? []).includes(column),
+      ),
+  );
+}
+
+/**
+ * `fields` redact in the application; RLS is row-level unless field views
+ * compile, and a field view protects nothing while the base table still
+ * returns the columns to a direct read.
+ */
+export async function pd030(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  const rls = input.config.rls;
+  if (rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const resources = [
+    ...new Set(
+      policy.grants
+        .filter(
+          (grant) =>
+            grant.fields !== undefined &&
+            commandFor(grant.permission.action) === 'select',
+        )
+        .map((grant) => grant.permission.resource),
+    ),
+  ].toSorted();
+  const findings: DoctorFinding[] = [];
+  for (const resource of resources) {
+    const columns = limitedColumns(policy, resource);
+    if (columns.length === 0) {
+      continue;
+    }
+    const table = tableFor(resource, rls.tables);
+    if (rls.fields !== 'views') {
+      findings.push({
+        code: 'PD030',
+        severity: 'warning',
+        message: `read grants on ${resource} limit ${columns.join(', ')}, but RLS on ${table} is row-level: any client that reads ${table} directly gets those columns`,
+        fix: `set rls.fields: 'views' and rls.revokeColumns: true (permdock rls generate --fields views --revoke-columns), or keep direct reads server-side and redact with pick`,
+      });
+      continue;
+    }
+    if (rls.revokeColumns !== true) {
+      findings.push({
+        code: 'PD030',
+        severity: 'warning',
+        message: `${table}_visible masks ${columns.join(', ')}, but ${table} still returns them to a direct read`,
+        fix: `set rls.revokeColumns: true (--revoke-columns) so clients read ${columns.join(', ')} only through ${table}_visible`,
+      });
+    }
   }
   return findings;
 }

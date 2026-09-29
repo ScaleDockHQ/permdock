@@ -47,7 +47,7 @@ export function assertPolicyName(template: string, perRole: boolean): void {
   }
 }
 
-function orSql(parts: readonly string[]): string {
+export function orSql(parts: readonly string[]): string {
   const distinct = [...new Set(parts)];
   if (distinct.includes('true')) {
     return 'true';

@@ -56,6 +56,8 @@ export type RlsSqlContext = {
   readonly columnTypes?: Readonly<Record<string, string>>;
   /** Active-row tables; scope keys are declared names (`checkSuspension` resolves aliases). */
   readonly suspension?: RlsSuspension;
+  /** Set when field views compile: grant keys also split by field set. */
+  readonly fields?: 'views';
 };
 
 /** The policy's role ownership rules as the SQL generator needs them. */

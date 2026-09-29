@@ -21,6 +21,7 @@ export type {
 } from './client-store.ts';
 export type {
   RlsDbOutcome,
+  RlsFieldsOutcome,
   RlsParityCase,
   RlsParityFixture,
   RlsParityOptions,

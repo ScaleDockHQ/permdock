@@ -103,6 +103,16 @@ export type RlsConfig = {
    * mints. Off by default.
    */
   readonly capabilities?: boolean;
+  /**
+   * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
+   * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
+   */
+  readonly fields?: 'views';
+  /**
+   * With `fields: 'views'`, grant `anon` and `authenticated` only the unrestricted columns of
+   * the base table, so restricted columns are read through the view. Breaks `select *`.
+   */
+  readonly revokeColumns?: boolean;
   /** Policy name template: `{table}`, `{op}`, plus `{role}` and `{permission}` with `policyPerRole`. */
   readonly policyName?: string;
   /** `rls generate --rbac supabase` defaults; flags override. */
