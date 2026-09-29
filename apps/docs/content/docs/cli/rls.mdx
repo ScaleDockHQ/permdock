@@ -85,7 +85,7 @@ rls: {
 }
 ```
 
-`tenant` and `team` on a table are shorthands for the first and second scope's column, so `{ table, tenant: 'org_id', user, role }` keeps working.
+`tenant` and `team` on a table are shorthands for the first and second scope's column, so `{ table, tenant: 'org_id', user, role }` keeps working. `via` names the column holding the membership kind (`Membership.via`): when a role declares `for`, the helpers count it only on rows whose kind is listed, and a table without a `via` column holds such a role for nothing. In `jwt` mode the kind is the membership entry's `via`, and a role with `for` in the global role claim grants nothing.
 
 ### Policy layout
 
@@ -112,6 +112,25 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 `--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
 
 With `--rbac`, the command prints the `config.toml` stanza that enables the hook.
+
+### Ownership rules
+
+When a role declares [`min`, `max`, `transferOnly`, `assigns` or `for`](/docs/concepts/ownership), the output adds, next to the helpers:
+
+| Object | What it enforces |
+| --- | --- |
+| `permdock_holders_<scope>` (deferred constraint trigger and function) | `min` and `max` per instance of the scope, counted over live rows of its membership table (expiry and kind included), at commit. An instance with no membership rows left is being deleted and skips `min`. Errors are SQLSTATE `23514` with hint `last-holder` or `max-holders` |
+| `permdock_transfer_only_<scope>_insert` / `_update` / `_delete` (statement triggers over transition tables) | A `transferOnly` role's holder count in an instance that had holders before a statement and has some after it must not change: move it in one `UPDATE`, or delete the only holder and insert the next one in the same transaction. Hint `transfer-only` |
+| `permdock_can_assign(p_role text, p_scope_id text) returns boolean` | Whether the signed-in user holds, on a live membership of instance `p_scope_id` (the role's own scope or an ancestor's), a role whose `assigns` lists `p_role`; global assigners count everywhere. `stable security definer`, `search_path = ''`, `execute` for `authenticated` only |
+
+The triggers need the scope's membership table in `rls.memberships`; without one the output says so and only `decideRoleChange` checks the counts. PermDock generates no policies on your membership tables. Use the helper in your own:
+
+```sql
+create policy organization_users_insert on public.organization_users for insert to authenticated
+  with check ((select public.permdock_can_assign(role, organization_id::text)));
+create policy customer_contacts_insert on public.customer_contacts for insert to authenticated
+  with check ((select public.permdock_can_assign(role, organization_id::text)));
+```
 
 ### Custom roles
 

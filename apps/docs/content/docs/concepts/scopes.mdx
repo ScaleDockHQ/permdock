@@ -59,7 +59,7 @@ type Membership = {
   within?: Record<string, string>           // the id of every ancestor scope
   on?: { resource: string; id: string }     // or: a role on one resource
   roles: string[]
-  via?: string                              // 'staff', 'contact', 'group:<scim id>'; audit and UI only
+  via?: string                              // the membership kind: 'staff', 'contact', 'group:<scim id>'
   expiresAt?: number                        // Unix seconds
 }
 
@@ -69,6 +69,8 @@ memberships: [
   { scope: 'customer', id: 'C', within: { organization: 'B' }, roles: ['contact'], via: 'contact' },
 ]
 ```
+
+`via` is audit and UI data unless a role declares `for`: then only memberships of those kinds hold it, so `role(roles.admin, grants, { on: 'organization', for: ['staff'] })` never reaches a contact or guest membership, and a membership without `via` holds no role that declares `for` ([ownership](/docs/concepts/ownership)).
 
 Evaluation only sees this canonical form. Every entry is normalised when the subject is resolved (`createPermDock`, `snapshotFor`, `mayAccess`, `simulate`), whatever produced it: alias names resolve to declared names, the `{ tenant, team }` input shape becomes `{ scope, id, within }`, and anything else is dropped (fail-closed). A nested membership without the id of every ancestor in `within`, a scope the policy does not declare, or a mix of `scope`, `tenant` and `on` grants nothing. `permdock doctor` PD025 reports each such entry in the `doctor.memberships` fixture.
 

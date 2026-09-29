@@ -45,6 +45,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD023` | A custom role in the `doctor.memberships` fixture names a permission or include its ceiling drops | warning |
 | `PD024` | An `allow` sets `approval: { distinct: false }`, so the requester can approve their own request | warning |
 | `PD025` | A membership in the `doctor.memberships` fixture grants nothing under the policy's named scopes | warning |
+| `PD026` | No role on a scope sets `min`, so every instance of it can lose its last manager | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -171,6 +172,10 @@ Every approval refuses the request's principal as approver, so a user cannot app
 ### PD025: memberships the named scopes drop
 
 When `doctor.memberships` points at a JSON fixture with a `memberships` array, the check normalises each entry against the policy's [named scopes](/docs/concepts/scopes) and warns on every entry evaluation would drop: a `scope` the policy does not declare, a nested membership whose `within` lacks an ancestor's id, or an entry mixing `scope`, `tenant` and `on`. Such a membership fails closed, so the warning is about a provider mapping or seed that silently grants nothing. `--only scopes` runs this check.
+
+### PD026: scopes nobody has to keep
+
+The check loads the policy and warns once per scope that has roles held on it but where none sets `min`: every organization can then lose its last owner, and nobody is left who may assign roles there. Set `min: 1` on the role that manages the scope (generated RLS then refuses to commit the removal of its last holder), or `min: 0` on any of the scope's roles to record that no holder must stay, as for a customer scope whose contacts come and go ([ownership](/docs/concepts/ownership)). `--only ownership` runs this check.
 
 ## Why
 
