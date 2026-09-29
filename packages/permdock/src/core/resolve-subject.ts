@@ -5,6 +5,7 @@ import type { Policy } from './policy.ts';
 import { compact } from './compact.ts';
 import { sanitizeContext } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
+import { normalizeMemberships, scopeList } from './scopes.ts';
 import {
   type Actor,
   type Delegation,
@@ -84,9 +85,10 @@ function assemblePrincipal(
 }
 
 function finishSubject(
+  policy: Policy,
   assembled: ReturnType<typeof assemblePrincipal>,
   context: Readonly<Record<string, unknown>>,
-  memberships: readonly Membership[],
+  input: readonly Membership[],
   options: CreatePermDockOptions,
 ): Subject {
   if (assembled.principal === null) {
@@ -100,6 +102,8 @@ function finishSubject(
       }),
     );
   }
+  const scopes = scopeList(policy.scopes);
+  const memberships = normalizeMemberships(input, scopes);
   const withMemberships: Principal = freezeDeep(
     compact<Principal>({
       ...assembled.principal,
@@ -107,6 +111,7 @@ function finishSubject(
       tenant: resolveActiveTenant(
         { ...assembled.principal, memberships },
         options.tenant ?? assembled.principal.tenant,
+        scopes,
       ),
     }),
   );
@@ -166,10 +171,11 @@ export function resolveSubject(
         return [] as Membership[];
       }),
     ]).then(([context, memberships]) =>
-      finishSubject(assembled, context, memberships, options),
+      finishSubject(policy, assembled, context, memberships, options),
     );
   }
   return finishSubject(
+    policy,
     assembled,
     assembled.context,
     assembled.memberships,

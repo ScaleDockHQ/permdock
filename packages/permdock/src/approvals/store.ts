@@ -4,6 +4,7 @@ import type { Subject } from '../core/subject.ts';
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { flattenGrantee, matchGrantee } from '../core/grantee.ts';
+import { rootMembershipId } from '../core/scopes.ts';
 import { ApprovalError } from './errors.ts';
 import { pageOf } from './page.ts';
 import {
@@ -31,8 +32,9 @@ function membershipTenants(subject: Subject): readonly string[] {
     tenants.add(principal.tenant);
   }
   for (const membership of principal.memberships ?? []) {
-    if (membership.tenant !== undefined) {
-      tenants.add(membership.tenant);
+    const tenant = rootMembershipId(membership);
+    if (tenant !== undefined) {
+      tenants.add(tenant);
     }
   }
   return [...tenants];
@@ -54,7 +56,8 @@ function holdsRole(subject: Subject, role: string, tenant?: string): boolean {
     if (!membership.roles.includes(role)) {
       continue;
     }
-    if (tenant !== undefined && membership.tenant !== tenant) {
+    // No cascade: only a membership of the tenant itself makes an approver there.
+    if (tenant !== undefined && rootMembershipId(membership) !== tenant) {
       continue;
     }
     return true;

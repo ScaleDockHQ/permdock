@@ -43,7 +43,7 @@ The normalised form of `{ where: { authorId: principal.id, teamId: { in: context
 | Compound | `{ "op": "and" \| "or", "conditions": Condition[] }`, `{ "op": "not", "condition": Condition }` |
 | Reference | `{ "ref": "principal.<field>" }` or `{ "ref": "context.<key>" }`. No other prefix resolves. |
 | Date | `{ "date": "2026-09-06T10:15:00Z" }` |
-| Scope (from scoped roles) | `{ "op": "memberOf", "scope": "tenant" \| "team" \| "resource", "field": string, "roles": string[], "resource"?: string, "parents"?: (string \| { "field": string, "resource": string })[] }`. A keyed parent matches only a membership on that resource; a bare field name matches any ([tenancy](/docs/concepts/tenancy)) |
+| Scope (from scoped roles) | `{ "op": "memberOf", "scope": string, "field": string, "roles": string[], "resource"?: string, "parents"?: (string \| { "field": string, "resource": string })[] }`. `scope` is a declared scope name (or the `tenant` / `team` alias) or `"resource"`. A keyed parent matches only a membership on that resource; a bare field name matches any ([tenancy](/docs/concepts/tenancy)) |
 | SQL function | `{ "op": "sqlFunction", "name": string, "args": array, "twin": Condition }`. Each arg is a value or `{ "field": "id" }`. |
 | Opaque (imported) | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }` |
 
@@ -51,7 +51,7 @@ Literals are JSON literals. Single-child compounds are collapsed and nested same
 
 ## Snapshot
 
-Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). The TypeScript type is `Snapshot`; `v` is the format major, and `parseSnapshot` accepts only major 1. The subject carries `principal.memberships` and `principal.tenant`; each grant carries its grantee union `to`, a `scope` and a `membership`; the top level carries `tenants`, `simulated` and `vocabulary.roles` / `vocabulary.plans`. The optional `scopes` field holds the policy's row keys `scopes.tenant.key` and `scopes.team.key`, and `scopes.partitioned`, a map from resource name to `{ tenant?: true, team?: true }` for its `memberOf` relations. A client compares the row's tenant and team with each grant's `membership`, so a snapshot client never grants what the server denies.
+Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). The TypeScript type is `Snapshot`; `v` is the format major, and `parseSnapshot` accepts only major 1. The subject carries `principal.memberships` and `principal.tenant`; each grant carries its grantee union `to`, a `scope` and a `membership`; the top level carries `tenants`, `simulated` and `vocabulary.roles` / `vocabulary.plans`. The optional `scopes` field lists the policy's [named scopes](/docs/concepts/scopes) in declaration order, each `{ name, key, within?, resources? }`, where `resources` names the resources whose `memberOf` relations partition rows by that key (absent when the policy declares no scopes). A client checks the row against each grant's `membership` along the scope's chain, so a snapshot client never grants what the server denies.
 
 ```json
 {
@@ -61,8 +61,8 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
     "principal": {
       "id": "u_1", "roles": [], "plans": ["pro"], "tenant": "o_1",
       "memberships": [
-        { "tenant": "o_1", "roles": ["member"] },
-        { "tenant": "o_1", "team": "t_design", "roles": ["lead"], "via": "group:9f2c" }
+        { "scope": "tenant", "id": "o_1", "roles": ["member"] },
+        { "scope": "team", "id": "t_design", "within": { "tenant": "o_1" }, "roles": ["lead"], "via": "group:9f2c" }
       ]
     },
     "delegation": { "scopes": ["post:read", "post:update"] },
@@ -73,9 +73,14 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
     "roles": { "member": { "key": "member", "assignable": true }, "lead": { "key": "lead", "on": "team", "assignable": true } },
     "plans": { "pro": { "key": "pro" } }
   },
+  "scopes": [
+    { "name": "tenant", "key": "orgId", "resources": ["post"] },
+    { "name": "team", "key": "teamId", "within": "tenant" }
+  ],
   "grants": [
     { "permission": "post.read", "effect": "allow", "role": "member", "scope": "tenant",
-      "to": { "kind": "role", "role": "member", "scope": "tenant" } },
+      "to": { "kind": "role", "role": "member", "scope": "tenant" },
+      "membership": { "scope": "tenant", "id": "o_1", "roles": ["member"] } },
     { "permission": "post.update", "effect": "allow", "role": null,
       "to": { "kind": "relation", "resource": "post", "relation": "author" },
       "where": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } } },
@@ -91,14 +96,14 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
 }
 ```
 
-A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [policies](/docs/concepts/policies) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (`"tenant"`, `"team"` or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. A snapshot has one entry per membership that holds a scoped grant's roles, and a client denies when a `portable: false` deny applies. A resolved [custom-role](/docs/concepts/custom-roles) grant is an ordinary entry whose `role` is the custom role name, whose `to` is that role in its scope, and whose `membership` is the membership holding it. `assignable` has one `{ tenant, roles, permissions }` entry per tenant in `tenants`: the declared role names and the permission leaves the subject may hand out there, with `permissions` trimmed by `include`; it is absent when `tenants` is empty. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
+A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [policies](/docs/concepts/policies) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (a scope name or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque. A snapshot has one entry per membership of the grant's scope that holds its roles (no cascade between scopes), and a client denies when a `portable: false` deny applies. A resolved [custom-role](/docs/concepts/custom-roles) grant is an ordinary entry whose `role` is the custom role name, whose `to` is that role in its scope, and whose `membership` is the membership holding it. `assignable` has one `{ tenant, roles, permissions }` entry per tenant in `tenants`: the declared role names and the permission leaves the subject may hand out there, with `permissions` trimmed by `include`; it is absent when `tenants` is empty. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
 
 ## Membership and custom role
 
 Carried inside the principal and exchanged with `MembershipSource` and `RoleSource` implementations ([tenancy](/docs/concepts/tenancy)). PermDock publishes both as Standard JSON Schema for validating edits at a boundary.
 
 ```json
-{ "tenant": "o_1", "team": "t_design", "roles": ["lead"], "via": "group:9f2c", "expiresAt": 1789000000 }
+{ "scope": "customer", "id": "c_7", "within": { "organization": "o_1" }, "roles": ["contact"], "via": "contact", "expiresAt": 1789000000 }
 ```
 
 ```json
@@ -109,7 +114,7 @@ Carried inside the principal and exchanged with `MembershipSource` and `RoleSour
 { "tenant": "o_1", "name": "billing-manager", "includes": ["billing-viewer"], "grants": [{ "permission": "invoice.pay" }, { "permission": "invoice.refund", "effect": "deny" }], "meta": { "title": "Billing Manager" } }
 ```
 
-Exactly one of `tenant`-only, `tenant` plus `team`, or `on` applies to a membership. A custom role has `tenant`, `name`, optional `team` (a team-scoped custom role), `includes` (declared role names) and `grants` (declared permission keys with `effect` `allow`, the default, or `deny`, and no other field). Both are bounded by the ceiling of assignable declared roles in the role's scope; entries outside it are dropped, never widened ([custom roles](/docs/concepts/custom-roles)).
+A membership names one scope instance (`scope`, `id`, and in `within` the id of every ancestor scope) or one resource (`on`). Readers also accept the input form `{ tenant, team? }` for the first and second scope and normalise it; everything PermDock writes (snapshots, claims, events) uses the canonical form. The same shape is the `memberships` claim RLS reads in `jwt` mode, with a membership's custom roles as an optional compact `grants` map ([custom roles](/docs/concepts/custom-roles)). A custom role has `tenant` (the owning instance of the first scope), `name`, optional `scope` (the scope it is held at, default the first) and `id` (one instance of it), `includes` (declared role names) and `grants` (declared permission keys with `effect` `allow`, the default, or `deny`, and no other field). Both are bounded by the ceiling of assignable declared roles in the role's scope; entries outside it are dropped, never widened ([custom roles](/docs/concepts/custom-roles)).
 
 ## Decision
 
@@ -420,12 +425,13 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
     { "key": "invoice.refund", "scope": "invoice:refund", "resource": "invoice", "action": "refund", "arity": "instance",
       "meta": {}, "usages": [], "approvals": ["human"] }
   ],
+  "scopes": [{ "name": "tenant", "key": "orgId" }, { "name": "team", "key": "teamId", "within": "tenant" }],
   "roles": [{ "key": "admin", "on": "tenant", "assignable": true }, { "key": "member", "on": "tenant", "assignable": true }],
   "plans": [{ "key": "pro" }]
 }
 ```
 
-`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, each role also carries `on` (`tenant`, `team` or `resource`, omitted for a global role) and `assignable`, a permission the policy lists in `hostable` carries `hostable: true`, and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by, distinct? }`), absent when none requires one. PermDock Cloud reads these to offer only assignable roles and only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`). `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`.
+`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, the catalog lists the policy's `scopes` in order (`{ name, key, within? }`, omitted when it declares none), each role also carries `on` (a scope name or `resource`, omitted for a global role) and `assignable`, a permission the policy lists in `hostable` carries `hostable: true`, and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by, distinct? }`), absent when none requires one. PermDock Cloud reads these to offer only assignable roles and only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`). `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`.
 
 `fingerprint` identifies the catalog's contract and is what a hosted policy document pins as `catalog`. It is `catalogFingerprint(catalog)` from `permdock`: the base64url SHA-256 of the canonical JSON (object keys sorted by UTF-16 code unit, no whitespace, as in RFC 8785) of the document without `generatedAt`, `generator`, `fingerprint` and every `permissions[].usages`. The clock, the CLI version and call sites therefore never change it; any change to a permission, resource, role, plan, `hostable` or `approvals` does. A reader recomputes it with the same function and rejects a document whose `fingerprint` disagrees.
 

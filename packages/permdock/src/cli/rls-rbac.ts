@@ -16,6 +16,8 @@ export type RbacOptions = {
    */
   readonly authorize: RbacAuthorizeMode;
   readonly memberships?: RlsMembershipTable;
+  /** The policy's first scope; `authorize(permission, tenant)` answers for an instance of it. */
+  readonly scope?: string;
   /** Declared role names when custom roles compile; `authorize()` then answers from them too. */
   readonly customRoles?: { readonly declared: readonly string[] };
 };
@@ -77,6 +79,7 @@ export function rbacScaffold(
   const authorizeFn = authorizeSql({
     schema,
     authorize: options.authorize,
+    ...(options.scope === undefined ? {} : { scope: options.scope }),
     ...(options.memberships === undefined
       ? {}
       : { tenant: options.memberships }),

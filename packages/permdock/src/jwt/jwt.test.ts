@@ -335,7 +335,7 @@ describe('subjectFromJwt', () => {
     expect(subject.principal?.plans).toEqual(['billing']);
     expect(subject.principal?.tenant).toBe('o_1');
     expect(subject.principal?.memberships).toEqual([
-      { tenant: 'o_1', team: '9f2c', roles: ['lead'], via: 'group:9f2c' },
+      { tenant: 'o_1', roles: ['lead'], via: 'group:9f2c' },
     ]);
     expect(subject.principal?.assurance).toEqual({
       acr: 'urn:example:acr:2',

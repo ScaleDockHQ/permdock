@@ -129,6 +129,7 @@ describe('permdock cloud push', () => {
       key: 'member',
       assignable: false,
     });
+    expect(body.policy).not.toHaveProperty('scopes');
     expect(body.policy?.grants).toEqual([
       {
         permission: 'post.read',

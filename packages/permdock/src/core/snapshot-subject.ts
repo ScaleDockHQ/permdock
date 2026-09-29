@@ -3,6 +3,7 @@ import type { Principal, Subject } from './subject.ts';
 
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
+import { type Scope, scopeList, tenantOf } from './scopes.ts';
 import { resolveActiveTenant } from './tenancy.ts';
 
 export function subjectFromSnapshot(
@@ -21,6 +22,7 @@ export function subjectFromSnapshot(
               memberships: principal.memberships ?? [],
             }),
             tenant,
+            scopeList(snapshot.scopes),
           );
   return freezeDeep(
     compact<Subject>({
@@ -41,10 +43,11 @@ export function subjectFromSnapshot(
 export function heldRoleNames(
   subject: Subject,
   tenant: string | undefined,
+  scopes: readonly Scope[],
 ): string[] {
   const names = new Set<string>(subject.principal?.roles ?? []);
   for (const membership of subject.principal?.memberships ?? []) {
-    if (membership.tenant !== tenant) {
+    if (tenantOf(membership, scopes) !== tenant) {
       continue;
     }
     for (const role of membership.roles) {

@@ -48,7 +48,8 @@ export type ResourceParent = {
 
 export type ResourceRelation = {
   readonly field: string;
-  readonly memberOf?: 'tenant' | 'team';
+  /** A declared scope name (or the `tenant` / `team` alias): the field holds that scope's id. */
+  readonly memberOf?: string;
 };
 
 export type ResourceRelationInput = string | ResourceRelation;

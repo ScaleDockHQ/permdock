@@ -24,6 +24,7 @@ import {
   resource,
 } from './permissions.ts';
 import { allow, definePolicy, deny, role } from './policy.ts';
+import { defineScopes } from './scopes.ts';
 import { sha256, bytesToBase64Url } from './sha256.ts';
 import { memorySink } from './sink.ts';
 import { parseSnapshot } from './snapshot.ts';
@@ -41,6 +42,10 @@ const tree = definePermissions({
     actions: { read: { label: 'Read' }, update: {}, delete: {} },
     collection: ['create'],
     parent: { field: 'orgId', resource: 'org' },
+    relations: {
+      org: { field: 'orgId', memberOf: 'tenant' },
+      team: { field: 'teamId', memberOf: 'team' },
+    },
   }),
 });
 
@@ -59,7 +64,10 @@ const policy = definePolicy(tree, {
     role('lead', [allow(tree.post.read)], { on: 'team' }),
     role('owner', [allow(tree.post.read)], { on: tree.org.read }),
   ],
-  scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+  scopes: {
+    tenant: { key: 'orgId' },
+    team: { key: 'teamId', within: 'tenant' },
+  },
   subject: (user: { readonly id: string } | null) =>
     user === null ? null : { id: user.id, roles: ['member'] },
   context: (user) => (user === null ? {} : { teamIds: ['t1'] }),
@@ -207,7 +215,10 @@ describe('coverage edges', () => {
         role('lead', [allow(tree.post.read)], { on: 'team' }),
         role('owner', [allow(tree.post.read)], { on: tree.post }),
       ],
-      scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+      scopes: {
+        tenant: { key: 'orgId' },
+        team: { key: 'teamId', within: 'tenant' },
+      },
       subject: () => ({
         id: 'u1',
         memberships: [
@@ -514,7 +525,14 @@ describe('coverage edges', () => {
         {
           principal: {
             id: 'u1',
-            memberships: [{ team: 't9', roles: ['solo'] }],
+            memberships: [
+              {
+                scope: 'team',
+                id: 't9',
+                within: { tenant: 'o1' },
+                roles: ['solo'],
+              },
+            ],
           },
           context: {},
         },
@@ -676,7 +694,7 @@ describe('coverage edges', () => {
       principal: {
         id: 'u1',
         tenant: 'o1',
-        memberships: [{ tenant: 'o1', roles: ['viewer'] }],
+        memberships: [{ scope: 'tenant', id: 'o1', roles: ['viewer'] }],
       },
       context: {},
     };
@@ -686,7 +704,7 @@ describe('coverage edges', () => {
         'tenant',
         'viewer',
         { orgId: 'o2' },
-        { tenant: { key: 'orgId' } },
+        defineScopes({ tenant: { key: 'orgId' } }),
         undefined,
         new Map(),
         now,
@@ -698,7 +716,7 @@ describe('coverage edges', () => {
         'tenant',
         'viewer',
         {},
-        {},
+        [],
         undefined,
         new Map(),
         now,
@@ -710,14 +728,24 @@ describe('coverage edges', () => {
           principal: {
             id: 'u1',
             tenant: 'o1',
-            memberships: [{ tenant: 'o1', team: 't1', roles: ['lead'] }],
+            memberships: [
+              {
+                scope: 'team',
+                id: 't1',
+                within: { tenant: 'o1' },
+                roles: ['lead'],
+              },
+            ],
           },
           context: {},
         },
         'team',
         'lead',
         { teamId: 'other' },
-        { team: { key: 'teamId' } },
+        defineScopes({
+          tenant: { key: 'orgId' },
+          team: { key: 'teamId', within: 'tenant' },
+        }),
         undefined,
         new Map(),
         now,
@@ -729,7 +757,7 @@ describe('coverage edges', () => {
         { resource: 'post' },
         'viewer',
         { id: 'p1' },
-        {},
+        [],
         undefined,
         new Map(),
         now,
@@ -740,14 +768,16 @@ describe('coverage edges', () => {
         principal: {
           id: 'u1',
           tenant: 'gone',
-          memberships: [{ tenant: 'gone', roles: ['viewer'], expiresAt: 1 }],
+          memberships: [
+            { scope: 'tenant', id: 'gone', roles: ['viewer'], expiresAt: 1 },
+          ],
         },
         context: {},
       },
       'tenant',
       'viewer',
       {},
-      {},
+      [],
       undefined,
       new Map(),
       now,
@@ -780,7 +810,7 @@ describe('coverage edges', () => {
         roles: [role('lead', [allow(tree.post.read)], { on: 'team' })],
         subject: () => ({ id: 'u1' }),
       }),
-    ).toThrow(/scopes.team/);
+    ).toThrow(/must declare 'team'/);
     expect(() =>
       role('broken', [allow(tree.post.read)], {
         on: [tree.post.read, tree.org.read],
@@ -896,7 +926,7 @@ describe('coverage edges', () => {
         { resource: 'post' },
         'owner',
         { id: 'p1' },
-        {},
+        [],
         postNode,
         new Map(),
         now,
@@ -916,7 +946,7 @@ describe('coverage edges', () => {
         { resource: 'post' },
         'owner',
         null,
-        {},
+        [],
         undefined,
         new Map(),
         now,
@@ -936,7 +966,7 @@ describe('coverage edges', () => {
         { resource: 'post' },
         'owner',
         { id: 'p1', orgId: 'o9' },
-        {},
+        [],
         {
           name: 'post',
           path: 'post',
@@ -1051,7 +1081,10 @@ describe('coverage edges', () => {
     ).toEqual([]);
     const teamPolicy = definePolicy(tree, {
       roles: [role('lead', [allow(tree.post.read)], { on: 'team' })],
-      scopes: { team: { key: 'teamId' }, tenant: { key: 'orgId' } },
+      scopes: {
+        tenant: { key: 'orgId' },
+        team: { key: 'teamId', within: 'tenant' },
+      },
       subject: () => ({
         id: 'u1',
         memberships: [{ tenant: 'o1', team: 't1', roles: ['lead'] }],
@@ -1127,14 +1160,24 @@ describe('coverage edges', () => {
         {
           principal: {
             id: 'u1',
-            memberships: [{ tenant: 'o1', team: 't1', roles: ['lead'] }],
+            memberships: [
+              {
+                scope: 'team',
+                id: 't1',
+                within: { tenant: 'o1' },
+                roles: ['lead'],
+              },
+            ],
           },
           context: {},
         },
         'team',
         'lead',
         { teamId: 't1' },
-        { team: { key: 'teamId' } },
+        defineScopes({
+          tenant: { key: 'orgId' },
+          team: { key: 'teamId', within: 'tenant' },
+        }),
         undefined,
         1_700_000_000,
       ).ok,
@@ -1145,14 +1188,17 @@ describe('coverage edges', () => {
           principal: {
             id: 'u1',
             tenant: 'o1',
-            memberships: [{ tenant: 'o1', roles: ['viewer'] }],
+            memberships: [{ scope: 'tenant', id: 'o1', roles: ['viewer'] }],
           },
           context: {},
         },
         'team',
         'viewer',
         { teamId: 't1' },
-        { team: { key: 'teamId' } },
+        defineScopes({
+          tenant: { key: 'orgId' },
+          team: { key: 'teamId', within: 'tenant' },
+        }),
         undefined,
         1_700_000_000,
       ).ok,

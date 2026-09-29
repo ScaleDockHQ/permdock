@@ -72,6 +72,7 @@ export type {
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
+  SnapshotScope,
   SnapshotSource,
   SubjectResolver,
   TokenFailureCause,
@@ -149,13 +150,16 @@ export type {
   Grant,
   GrantCondition,
   GrantOptions,
+  GrantScope,
   HostedGrantRef,
   MembershipFixture,
   Policy,
   SeparationConflict,
   PrincipalOf,
+  PolicyScopes,
   RoleBinding,
   RoleOptions,
+  RoleScope,
   SubjectOf,
   ValidateMode,
 } from './core/policy.ts';
@@ -168,6 +172,12 @@ export {
   relation,
 } from './core/grantee.ts';
 export type { Grantee, GranteeInput } from './core/grantee.ts';
+export type {
+  PolicyScopesInput,
+  Scope,
+  ScopeDeclaration,
+  ScopeNames,
+} from './core/scopes.ts';
 export {
   definePlans,
   defineRoles,

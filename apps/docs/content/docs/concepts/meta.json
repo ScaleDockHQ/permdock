@@ -6,6 +6,7 @@
     "policies",
     "conditions",
     "subject",
+    "scopes",
     "tenancy",
     "custom-roles",
     "authentication",

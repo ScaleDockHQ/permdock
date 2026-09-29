@@ -98,7 +98,6 @@ export function directoryMembershipSource(
         memberships.push(
           compact<Membership>({
             tenant,
-            team: group.id,
             roles: allowedRoles(
               mapped,
               options.assignable,

@@ -1,19 +1,20 @@
 ---
 title: Tenants, teams and scoped roles
-description: Memberships put roles in a scope (a tenant, a team, one resource); scoped role declarations apply grants only inside that scope; tenant-defined custom roles compose declared roles and never widen them; RoleSource and MembershipSource are the only new inputs.
+description: Memberships put roles in a scope (an instance of a declared named scope, or one resource); scoped role declarations apply grants only inside that scope; tenant-defined custom roles compose declared roles and never widen them; RoleSource and MembershipSource are the only new inputs.
 ---
 
-A role in a real SaaS application is rarely global. Alice is an admin of Acme and a viewer of Globex; the design team edits everything in the design folder; Bob shared one document with Carol; Acme's admin invented a "Billing Manager" role nobody coded. PermDock models all four with one addition to the [subject](/docs/concepts/subject): a list of **memberships**, each naming a scope and the roles held there. Roles declared with `role()` say where they apply; grants stay exactly as they are; the tenant condition you used to repeat on every grant becomes part of the role. Authentication, tenant objects, invitations and membership storage stay with your auth provider; PermDock reads the result. [Why this model](#why-this-model) compares it with authorization engines and auth providers.
+A role in a real SaaS application is rarely global. Alice is an admin of Acme and a viewer of Globex; a portal contact sees only their own customer's invoices; the design team edits everything in the design folder; Bob shared one document with Carol; Acme's admin invented a "Billing Manager" role nobody coded. PermDock models all four with one addition to the [subject](/docs/concepts/subject): a list of **memberships**, each naming a scope and the roles held there. Roles declared with `role()` say where they apply; grants stay exactly as they are; the tenant condition you used to repeat on every grant becomes part of the role. Authentication, tenant objects, invitations and membership storage stay with your auth provider; PermDock reads the result. [Why this model](#why-this-model) compares it with authorization engines and auth providers.
 
 ## Memberships
 
 ```ts
 type Membership = {
-  tenant?: string                        // tenant or organisation id
-  team?: string                          // team or group id, inside `tenant` when both are set
+  scope?: string                         // a declared scope name: 'organization', 'customer'
+  id?: string                            // the instance of that scope
+  within?: Record<string, string>        // the id of every ancestor scope: { organization: 'o_acme' }
   on?: { resource: string; id: string }  // a resource-scoped role: "editor on document d_123"
   roles: string[]                        // declared role names, or tenant-defined custom role names
-  via?: string                           // 'team:t_1' or 'group:<scim id>' when inherited; audit only
+  via?: string                           // 'staff', 'contact', 'group:<scim id>'; audit and UI only
   expiresAt?: number                     // Unix seconds; time-bound access
 }
 
@@ -31,8 +32,8 @@ type Principal = {
 ```
 
 - `roles` on the principal keeps meaning global roles, so every existing sample and every single-tenant app is unchanged.
-- A membership with only `tenant` is a tenant role; with `tenant` and `team` a team role; with `on` a resource role. Exactly one of the three shapes applies per entry; a membership with none is ignored (fail-closed, reported by `permdock doctor`).
-- `tenant` on the principal is the **active tenant**: the one this request is about, taken from the URL, a header the server resolved, or the provider's active organisation. A value with no matching membership makes tenant-scoped roles contribute nothing. There is never a default tenant; an absent value means "no tenant", and tenant-scoped grants do not match ([threat model](/docs/security/threat-model)).
+- A membership names one instance of a [named scope](/docs/concepts/scopes) (`scope`, `id`, and the ancestors' ids in `within`) or one resource (`on`). The `{ tenant }` and `{ tenant, team }` input shapes still work: they are the first and second declared scope and are normalised when the subject is resolved. A malformed entry is dropped (fail-closed, reported by `permdock doctor` PD025).
+- `tenant` on the principal is the **active tenant**, an instance of the first scope: the one this request is about, taken from the URL, a header the server resolved, or the provider's active organisation. A value with no matching membership makes tenant-scoped roles contribute nothing. There is never a default tenant; an absent value means "no tenant", and tenant-scoped grants do not match ([threat model](/docs/security/threat-model)).
 - Memberships come only from verified material: a `subjectFrom*` provider, the policy's `subject` or `context` function, or a `MembershipSource`. Never from a model argument, an unsigned header, a request body or a CLI flag. This is invariant 13 extended to memberships.
 - Identifiers, never display names. A team id is the provider's or SCIM group `id`; a display name is editable by any group owner and not unique across tenants ([JWT authorization claims](/docs/standards/jwt-authorization-claims)).
 
@@ -43,9 +44,9 @@ type Principal = {
   roles: [],                                             // no global roles
   tenant: 'o_acme',                                      // active for this request
   memberships: [
-    { tenant: 'o_acme',   roles: ['admin'] },
-    { tenant: 'o_globex', roles: ['viewer'] },
-    { tenant: 'o_acme', team: 't_design', roles: ['lead'], via: 'group:9f2c' },
+    { scope: 'tenant', id: 'o_acme',   roles: ['admin'] },
+    { scope: 'tenant', id: 'o_globex', roles: ['viewer'] },
+    { scope: 'team', id: 't_design', within: { tenant: 'o_acme' }, roles: ['lead'], via: 'group:9f2c' },
     { on: { resource: 'document', id: 'd_123' }, roles: ['editor'], expiresAt: 1789000000 },
   ],
 }
@@ -68,8 +69,8 @@ const support = role('support', [allow(permissions.post.read)])                 
 export const policy = definePolicy(permissions, {
   roles: [viewer, admin, lead, editor, owner, support],
   scopes: {
-    tenant: { key: 'orgId' },          // the field on every tenant-scoped resource
-    team:   { key: 'teamId' },
+    tenant: { key: 'orgId' },                    // the first scope: what the active tenant selects
+    team:   { key: 'teamId', within: 'tenant' }, // every later scope names its parent
   },
   subject: subjectFromClerk,           // or your own mapper; see "Where memberships come from"
 })
@@ -78,18 +79,17 @@ export const policy = definePolicy(permissions, {
 | `on` | The role applies when | The grant's row must |
 | --- | --- | --- |
 | omitted | The name is in `principal.roles` | Nothing extra: global |
-| `'tenant'` | A membership with that `tenant` holds the role and the tenant is the active one | Have `scopes.tenant.key` equal to the membership's `tenant` |
-| `'team'` | A membership with that `team` holds the role, inside the active tenant | Have `scopes.team.key` equal to the membership's `team` |
+| a scope name (`'tenant'`, `'customer'`) | A membership of exactly that scope holds the role, inside the active tenant | Have the scope's key equal to the membership's `id`, and each declared ancestor key equal to its `within` entry |
 | a resource reference | A membership `on` that resource holds the role | Be that row (`id` equal), or a descendant through a declared `parent` |
 
-Two more options:
+Scope names, their order, the aliases and the no-cascade rule are on [named scopes](/docs/concepts/scopes). Two more options:
 
 - `assignable` (default `true` for scoped roles, `false` for global roles) marks a role a tenant admin may hand out and compose into custom roles. `owner` above is held but never handed out.
 - `exclusiveWith: ['approver']` is data on `role()` / `RoleBinding` (INCITS 359 static separation of duty). Evaluation does not change. `permdock doctor` check PD018 and `separationConflicts(policy, memberships)` report conflicts.
 
 ### Scope keys and typing
 
-`scopes.tenant.key` must be a field of `StandardSchemaV1.InferOutput` for every resource a tenant-scoped grant references; a missing field is a compile error on the grant, the same way `id` is checked. A resource without the key is global by construction (a `plan` catalogue everyone reads), and `permdock doctor` warns when tenant roles exist and a resource that looks tenant-owned lacks the key. Collection actions (`post.create`, `post.list`) have no row, so they require the active tenant to be one of the subject's memberships holding the role; that is what stops "create in a tenant I can see but do not belong to".
+Every resource an instance grant on scope S references declares a `memberOf: S` relation on the scope's key; `definePolicy` throws when one is missing, so `where()` and RLS always narrow the rows. A resource no scoped grant touches is global by construction (a `plan` catalogue everyone reads). Collection actions (`post.create`, `post.list`) have no row, so they require the active tenant to be one of the subject's memberships holding the role; that is what stops "create in a tenant I can see but do not belong to".
 
 The `where: { orgId: principal.orgId }` convention still works and still compiles; scoped roles are the shorter, un-forgettable form of the same condition. A grant may carry both (a tenant admin may only publish unpublished posts: `allow(permissions.post.publish, { where: { published: false } })` on a tenant-scoped role).
 
@@ -126,7 +126,7 @@ Each reference becomes its own grant in the normalised policy, the catalog and t
 The [policy rules](/docs/concepts/policies) gain one step between collecting grants and applying deny-overrides:
 
 1. Collect candidate grants: every grant of every global role in `principal.roles`, plus every grant of every scoped role held by a membership, plus the grants that custom roles resolve to (below).
-2. **Scope match.** Drop a grant whose role is scoped unless the membership's scope matches the request: the row's tenant key equals the membership `tenant` and the tenant is active; the row's team key equals the membership `team`; the row is the membership's resource or a descendant through declared parents. Expired memberships (`expiresAt` in the past) contribute nothing. For collection actions, the active tenant must be one of the membership tenants holding the role.
+2. **Scope match.** Drop a grant whose role is scoped unless a membership of exactly that scope matches the request (no cascade): the membership sits inside the active tenant; the row's key for the scope equals the membership `id` and each declared ancestor key equals its `within` entry; or, for a resource role, the row is the membership's resource or a descendant through declared parents. Expired memberships (`expiresAt` in the past) contribute nothing. For collection actions, the active tenant must be one of the membership tenants holding the role.
 3. Any matching `deny` wins. Deny overrides allow across scopes: a global `deny` beats a tenant `allow`; a tenant `deny` beats a team `allow`.
 4. Any matching `allow` grants (or `approval-required`). Allows OR together across scopes.
 5. Nothing matched: `denied`. Reasons gain `tenant-mismatch` (the row belongs to another tenant), `no-membership` (the active tenant is not one of the subject's), `scope` (the role is held but not for this row) and `expired-membership`.
@@ -152,8 +152,9 @@ A tenant admin wants a "Billing Manager" role. The policy did not declare it and
 
 ```ts
 type CustomRole = {
-  tenant: string
-  team?: string                // a team-scoped custom role
+  tenant: string               // the instance of the first scope that owns it
+  scope?: string               // the scope it is held at; default the first scope
+  id?: string                  // pins it to one instance of `scope`
   name: string                 // 'billing-manager'; unique within the tenant
   includes?: string[]          // declared roles: ['billing-viewer', 'invoice-payer']
   grants?: { permission: string; effect?: 'allow' | 'deny' }[]   // declared permission keys
@@ -161,7 +162,7 @@ type CustomRole = {
 }
 ```
 
-- A custom role never exceeds its **ceiling**: the allows of the declared roles marked `assignable` in its scope (tenant, or team when `team` is set). Its effective grants are its included roles' grants plus its own allows, minus its own denies, intersected with the ceiling. Anything outside is dropped (fewer grants, never more), and `validateCustomRole` and `permdock doctor` PD023 name each dropped key.
+- A custom role never exceeds its **ceiling**: the allows of the declared roles marked `assignable` in its scope (`scope`, the first scope by default; the input shape `team` means the second). Its effective grants are its included roles' grants plus its own allows, minus its own denies, intersected with the ceiling. Anything outside is dropped (fewer grants, never more), and `validateCustomRole` and `permdock doctor` PD023 name each dropped key.
 - A custom-role grant carries no condition, approval or limit of its own. It inherits those of the declared grant it comes from, so every condition was reviewed in code.
 - `RoleSource.assignable(tenant)` may return a subset of the declared assignable roles: a Starter plan without `billing-manager`, a regulated tenant without `data-exporter`. This is Clerk's role-set idea and the entitlements-are-roles rule applied to assignability; the plan is an input, PermDock never reads billing.
 - Who may hand out which role is itself a permission (`permissions.member.assignRole`) plus the rule that you cannot hand out what you do not hold: `permdock.assignableRoles()` and `permdock.assignablePermissions()` intersect the ceiling (narrowed by `RoleSource.assignable`) with what the subject holds there. Holding a role or a permission marked `meta.manageRoles: true` lifts that intersection.
@@ -192,8 +193,8 @@ Every adapter's `createPermDock` accepts `memberships` (a `MembershipSource`) an
 | [Clerk](/docs/adapters/clerk) | Organizations; the session's active organization | `org_role` (and `org_permissions`) mapped to declared roles | None | One membership for the active organization from the session; all organizations through the Backend API when `memberships: 'all'` |
 | [Better Auth](/docs/adapters/better-auth) | `organization` plugin; `activeOrganizationId` | `member.role`; `organizationRole` rows resolve through `RoleSource` | `teamMember` rows become team memberships | `subjectFromBetterAuth` is async because it reads the member and team rows |
 | [Supabase](/docs/adapters/supabase) | A hook-injected `tenant_id` claim; the active tenant from the URL compared against the claim | A hook-injected role claim, or a `user_roles` table read in `context` | Your tables | Never `user_metadata`; RLS reads the same claim |
-| [JWT issuers](/docs/adapters/jwt) | `claims.tenant` (`org_id`, `tid`, `hd`, ...) | RFC 9068 `roles`; per-tenant objects such as Descope `tenants.<id>.roles` through a claim path | RFC 9068 `groups` become `{ team: value }` memberships | Keyed on SCIM `value`, never `display` |
-| [PermDock Cloud](/docs/adapters/cloud) (Cloud-native directory) | The `tenant` claim on the Cloud-issued token, kept only with a matching membership | The `memberships` claim, `[{ tenant, roles, team? }]`, minted from declared `assignable` roles | `team` on a membership, or `groups` | Read through `subjectFromJwt` with `claims: { tenant: 'tenant', memberships: 'memberships' }`; never a `MembershipSource` |
+| [JWT issuers](/docs/adapters/jwt) | `claims.tenant` (`org_id`, `tid`, `hd`, ...) | RFC 9068 `roles`; per-tenant objects such as Descope `tenants.<id>.roles` through a claim path | RFC 9068 `groups` become memberships of the active tenant with `via: 'group:<value>'` and `groupRoles` | Keyed on SCIM `value`, never `display` |
+| [PermDock Cloud](/docs/adapters/cloud) (Cloud-native directory) | The `tenant` claim on the Cloud-issued token, kept only with a matching membership | The `memberships` claim, `[{ scope, id, within?, roles, via?, expiresAt? }]` (the `{ tenant, team? }` form is still accepted), minted from declared `assignable` roles | A membership of the second scope, or `groups` | Read through `subjectFromJwt` with `claims: { tenant: 'tenant', memberships: 'memberships' }`; never a `MembershipSource` |
 | Your own tables | Whatever you store | `context` or a `MembershipSource` | Same | The common case for resource roles (`document_members`) |
 
 The [authentication](/docs/concepts/authentication) page carries the full provider table; each provider page has a "Memberships" section.
@@ -221,8 +222,8 @@ permdock.assignablePermissions()   // Permission[]          the custom-role ceil
 Scope matching is data, so it compiles like any other condition (invariant 6). One node is added to the condition AST:
 
 ```json
-{ "op": "memberOf", "scope": "tenant", "field": "orgId", "roles": ["admin", "viewer"] }
-{ "op": "memberOf", "scope": "team",   "field": "teamId", "roles": ["lead"] }
+{ "op": "memberOf", "scope": "tenant",   "field": "orgId", "roles": ["admin", "viewer"] }
+{ "op": "memberOf", "scope": "customer", "field": "customer_id", "roles": ["contact"] }
 { "op": "memberOf", "scope": "resource", "resource": "folder", "field": "folderId", "roles": ["editor"], "parents": [{ "field": "projectId", "resource": "project" }] }
 ```
 
@@ -232,17 +233,17 @@ A `parents` entry is either keyed (`{ field, resource }`: only a membership on t
 | --- | --- |
 | In memory, `filter`, snapshot | The row's scope field is compared against the subject's memberships holding one of `roles`; expired memberships excluded |
 | Drizzle, Prisma, Kysely `toWhere` | Active-tenant-only: `eq(orgId, <active tenant>)`; with no active tenant, tenant- and team-scoped grants contribute nothing, so only unscoped grants match; team and resource scopes as `inArray` over the ids the subject holds, keyed parents over the ids held on that resource. With a memberships table (Drizzle, Kysely), an `exists` join with the role list, `expires_at > now` in bound Unix seconds, the active tenant, and the `resource` column when the table stores several resources |
-| RLS `supabase` | A tenant-scoped role: `org_id in (select public.permitted_tenant_ids('<grant key>'))`, a `security definer` helper that reads the membership table (`database`) or the `memberships` claim (`jwt`), narrowed to the active-tenant claim when set, and runs once per statement. A `memberOf` inside a condition: `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` (cast to `--tenant-type`) with no table, otherwise `exists (select 1 from <membership table> m where m.tenant_id = org_id and m.user_id = (select auth.uid()) and m.role = any(...))` |
+| RLS `supabase` | A scoped role: `org_id in (select public.permitted_<scope>_ids('<grant key>'))`, one helper per declared scope, a `security definer` helper that reads the membership table (`database`) or the `memberships` claim (`jwt`), narrowed to the active-tenant claim when set, and runs once per statement. A `memberOf` inside a condition: `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` (cast to `--tenant-type`) with no table, otherwise `exists (select 1 from <membership table> m where m.tenant_id = org_id and m.user_id = (select auth.uid()) and m.role = any(...))` |
 | RLS `neon`, `guc` | Same shape over `auth.session()` or `current_setting('app.tenant_id', true)`; Nile's tenant session variable is the `guc` dialect with a fixed name |
-| RLS, team and resource | `exists (select 1 from <membership table> ...)`; a resource role ORs one join per mapped resource on the chain (the role's resource and each ancestor), each keyed by the row field that holds that resource's id |
+| RLS, nested scope and resource | `exists (select 1 from <membership table> ...)`; a resource role ORs one join per mapped resource on the chain (the role's resource and each ancestor), each keyed by the row field that holds that resource's id |
 
-Membership checks have a dedicated `memberOf` AST node, and the membership table is a per-scope mapping on the [RLS adapter](/docs/adapters/rls), one table per scope and one per mapped resource (`tables: { tenant: 'org_member', team: 'team_member', resource: 'document_member' }`). `permdock rls import` recognises both `IN (select ...)` and `EXISTS (select 1 ...)` forms as `memberOf` when the subquery matches a declared mapping. Custom roles do not add a node: with `permdock rls generate --custom-roles`, the helpers resolve a custom role name to grant keys through the ceiling of assignable declared roles, so the generated policies stay a closed vocabulary ([custom roles](/docs/concepts/custom-roles)).
+Membership checks have a dedicated `memberOf` AST node, and the membership table is a per-scope mapping on the [RLS adapter](/docs/adapters/rls), one table per scope and one per mapped resource (`memberships: { scopes: { organization: ..., customer: ... }, resource: { document: ... } }`). `permdock rls import` recognises both `IN (select ...)` and `EXISTS (select 1 ...)` forms as `memberOf` when the subquery matches a declared mapping. Custom roles do not add a node: with `permdock rls generate --custom-roles`, the helpers resolve a custom role name to grant keys through the ceiling of assignable declared roles, so the generated policies stay a closed vocabulary ([custom roles](/docs/concepts/custom-roles)).
 
 ## Snapshots, decisions and the catalog
 
-- **The snapshot** carries `subject.memberships`, `subject.tenant`, `vocabulary.roles` / `vocabulary.plans`, and per grant `to` plus `scope` (`'tenant' | 'team' | { resource }`) and the membership it came from. A snapshot is scoped to the active tenant by default, so a member of ten organisations ships the grants of one; `snapshot({ tenants: 'all' })` opts into every membership for a local tenant switcher. `simulated: true` marks a snapshot produced by `simulate` so the decision endpoint refuses to act on its tokens ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
+- **The snapshot** carries `subject.memberships`, `subject.tenant`, `vocabulary.roles` / `vocabulary.plans`, the ordered `scopes`, and per grant `to` plus `scope` (a scope name or `{ resource }`) and the membership it came from. A snapshot is scoped to the active tenant by default, so a member of ten organisations ships the grants of one; `snapshot({ tenants: 'all' })` opts into every membership for a local tenant switcher. `simulated: true` marks a snapshot produced by `simulate` so the decision endpoint refuses to act on its tokens ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
 - **Decision events** gain `tenant`, `membership` (the matching entry) and `via`, so a sink can answer "which team grant let this happen" and a tenant-scoped audit log is a filter on `tenant` ([audit](/docs/concepts/audit-and-observability)).
-- **Catalog** entries gain `scope` and `assignable`, and the catalog lists the scope kinds a policy uses. `permdock usage` reports a scoped role that no membership source could ever fill (a team role with no team source configured).
+- **Catalog** roles carry `on` (a scope name or `resource`) and `assignable`, and the catalog lists the policy's `scopes` in order. `permdock usage` reports a scoped role that no membership source could ever fill (a team role with no team source configured).
 - **AuthZEN**: memberships travel under `subject.properties.memberships`, the active tenant under `context.tenant`; the `authzen` adapter and the hosted ADS publish per-tenant metadata at `/.well-known/authzen-configuration/<tenant>` ([AuthZEN](/docs/standards/authzen)).
 
 ## Validation and trust classes
@@ -259,7 +260,7 @@ Membership checks have a dedicated `memberOf` AST node, and the membership table
 | Feature | Where it lives | Recipe |
 | --- | --- | --- |
 | Invitations, default role per tenant, role priority, seat counting, tenant creation | Upstream: the auth provider or your tables | PermDock reads the resulting membership |
-| SSO and SCIM group-to-role | Upstream: IdP, auth layer or Directory Sync; or [`permdock/scim`](/docs/adapters/scim) writing a `DirectoryStore` you own (the PermDock Cloud relay feeds the same handler) | Group ids arrive as `groups` claims, synced rows or SCIM `Group` resources and become team memberships `{ tenant, team: group.id, roles, via: 'group:<id>' }` through `subjectFromJwt` or `directoryMembershipSource` ([authentication](/docs/concepts/authentication)) |
+| SSO and SCIM group-to-role | Upstream: IdP, auth layer or Directory Sync; or [`permdock/scim`](/docs/adapters/scim) writing a `DirectoryStore` you own (the PermDock Cloud relay feeds the same handler) | Group ids arrive as `groups` claims, synced rows or SCIM `Group` resources and become memberships of the tenant `{ tenant, roles, via: 'group:<id>' }` through `subjectFromJwt` or `directoryMembershipSource` ([authentication](/docs/concepts/authentication)) |
 | Impersonation and support access | Recipe | The customer is the `principal`, the support engineer the `actor` with a time-bound `delegation` naming the allowed scopes; every decision records both; the UI shows a banner from `useSubject()` |
 | Tenant-scoped service accounts and API keys | Recipe | A `kind: 'service'` principal with one tenant membership; the key store is yours ([subject](/docs/concepts/subject) service principals). A key attenuated below its owner is the owner as principal plus a `delegation` naming the key's scopes; `delegation` narrows a subject with or without an `actor` |
 | Platform super-admin | Recipe | A global role; document the blast radius, pair it with `deny` rows for destructive actions and `approval: 'human'` for the rest |

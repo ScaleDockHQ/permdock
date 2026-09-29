@@ -65,9 +65,10 @@ function claimEntries(where: string, value: string): string {
   return `array(select ${value} from jsonb_array_elements_text(cg.g) e where ${where})`;
 }
 
-/** A custom role's keys hold `requested_permission` in the tenant scope. */
+/** A custom role's keys hold `requested_permission` in the first scope. */
 function customHolds(
   q: (name: string) => string,
+  scope: string,
   allows: string,
   denies: string,
   includes: string,
@@ -75,23 +76,24 @@ function customHolds(
   return `exists (
           select 1 from ${q('role_permissions')} rp
           where rp.permission = requested_permission::text
-            and rp.scope = 'tenant'
+            and rp.scope = ${literal(scope)}
             and rp.effect = 'allow'
             and rp.grant_key in (select ${q('permdock_custom_keys')}(
               ${allows},
               ${denies},
               ${includes},
-              'tenant'
+              ${literal(scope)}
             ))
         )`;
 }
 
 function customDatabaseBranch(
   q: (name: string) => string,
+  scope: string,
   memberships: SupabaseMembershipTable & { readonly tenant: string },
   declared: readonly string[],
 ): string {
-  const match = `c.tenant_id::text = requested_tenant and c.team_id is null and c.role = m.${ident(memberships.role)}::text`;
+  const match = `c.tenant_id::text = requested_tenant and c.scope = ${literal(scope)} and c.scope_id is null and c.role = m.${ident(memberships.role)}::text`;
   const rows = (source: string, value: string, extra: string): string =>
     `array(select c.${value} from ${q(source)} c where ${match}${extra})`;
   return ` or exists (
@@ -106,6 +108,7 @@ function customDatabaseBranch(
         }
         and ${customHolds(
           q,
+          scope,
           rows(
             'custom_role_permissions',
             'permission',
@@ -123,6 +126,7 @@ function customDatabaseBranch(
 
 function databaseBody(
   q: (name: string) => string,
+  scope: string,
   memberships: SupabaseMembershipTable | undefined,
   custom: AuthorizeSqlOptions['customRoles'],
 ): string {
@@ -140,13 +144,13 @@ function databaseBody(
       where m.${ident(memberships.user)}::text = uid::text
         and m.${ident(tenantColumn)}::text = requested_tenant
         and rp.permission = requested_permission::text
-        and rp.scope = 'tenant'
+        and rp.scope = ${literal(scope)}
         and rp.effect = 'allow'${
           memberships.expiresAt === undefined
             ? ''
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
         }
-    )${custom === undefined ? '' : customDatabaseBranch(q, { ...memberships, tenant: tenantColumn }, custom.declared)};
+    )${custom === undefined ? '' : customDatabaseBranch(q, scope, { ...memberships, tenant: tenantColumn }, custom.declared)};
   end if;`;
   return `declare
   uid uuid := (select auth.uid());
@@ -169,6 +173,7 @@ end;`;
 
 function jwtBody(
   q: (name: string) => string,
+  scope: string,
   custom: AuthorizeSqlOptions['customRoles'],
 ): string {
   const memberships = `jsonb_array_elements(
@@ -187,12 +192,13 @@ function jwtBody(
       select 1
       from ${memberships}
       cross join lateral (select m -> 'grants' -> r.role as g) cg
-      where m ->> 'tenant' = requested_tenant
-        and m ->> 'team' is null
+      where m ->> 'scope' = ${literal(scope)}
+        and m ->> 'id' = requested_tenant
         and jsonb_typeof(cg.g) = 'array'
         and not (r.role = any(${textArray(custom.declared)}))
         and ${customHolds(
           q,
+          scope,
           claimEntries("left(e, 1) not in ('-', '@')", 'e'),
           claimEntries("left(e, 1) = '-'", 'substr(e, 2)'),
           claimEntries("left(e, 1) = '@'", 'substr(e, 2)'),
@@ -218,9 +224,10 @@ begin
         case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
       ) r(role)
       join ${q('role_permissions')} rp on rp.role = r.role
-      where m ->> 'tenant' = requested_tenant
+      where m ->> 'scope' = ${literal(scope)}
+        and m ->> 'id' = requested_tenant
         and rp.permission = requested_permission::text
-        and rp.scope = 'tenant'
+        and rp.scope = ${literal(scope)}
         and rp.effect = 'allow'
     )${customBranch};
   end if;
@@ -257,10 +264,14 @@ export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
   const q = (name: string): string => table(`${schema}.${name}`);
   const memberships =
     typeof options.tenant === 'object' ? options.tenant : undefined;
+  const scope = options.scope ?? 'tenant';
+  if (!/^[a-z][a-z0-9_]*$/u.test(scope)) {
+    throw new TypeError(`PermDock: unsafe scope name '${scope}'`);
+  }
   const body =
     options.authorize === 'jwt'
-      ? jwtBody(q, options.customRoles)
-      : databaseBody(q, memberships, options.customRoles);
+      ? jwtBody(q, scope, options.customRoles)
+      : databaseBody(q, scope, memberships, options.customRoles);
   return `create or replace function ${q('authorize')}(
   requested_permission ${q('app_permission')},
   requested_tenant text default null

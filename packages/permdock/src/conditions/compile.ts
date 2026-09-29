@@ -5,6 +5,15 @@ import { compact } from '../core/compact.ts';
 import { PermDockValidationError } from '../core/errors.ts';
 import { assertSafeKey } from '../core/paths.ts';
 import {
+  type Scope,
+  resolveScope,
+  rootScope,
+  scopeChain,
+  scopeList,
+  subjectMemberships,
+  tenantOf,
+} from '../core/scopes.ts';
+import {
   type Condition,
   type ConditionValue,
   isConditionDate,
@@ -17,7 +26,11 @@ export type MembershipTable = {
   readonly table: string;
   readonly user: string;
   readonly role: string;
+  /** Per scope name, the column holding that scope's id (the row's own scope and its ancestors). */
+  readonly columns?: Readonly<Record<string, string>>;
+  /** Column of the first scope's id; shorthand for `columns[<first scope>]`. */
   readonly tenant?: string;
+  /** Column of the second scope's id; shorthand for `columns[<second scope>]`. */
   readonly team?: string;
   readonly id?: string;
   /** Column naming the membership's resource, when one table holds several kinds. */
@@ -27,7 +40,11 @@ export type MembershipTable = {
 };
 
 export type MembershipsMapping = {
+  /** The membership table of each named scope. */
+  readonly scopes?: Readonly<Record<string, MembershipTable>>;
+  /** The first scope's table; shorthand for `scopes[<first scope>]`. */
   readonly tenant?: MembershipTable;
+  /** The second scope's table; shorthand for `scopes[<second scope>]`. */
   readonly team?: MembershipTable;
   readonly resource?: Readonly<Record<string, MembershipTable>>;
 };
@@ -36,7 +53,47 @@ export type CompileWhereOptions = {
   readonly subject?: Subject;
   readonly memberships?: MembershipsMapping;
   readonly now?: number;
+  /** The policy's scopes; `where()` results carry them. Defaults to the implicit `tenant` / `team` pair. */
+  readonly scopes?: readonly Scope[];
 };
+
+/** The membership table mapped for scope `name`, through the `tenant` / `team` shorthands. */
+export function scopeMembershipTable(
+  mapping: MembershipsMapping | undefined,
+  scopes: readonly Scope[],
+  name: string,
+): MembershipTable | undefined {
+  const table = mapping?.scopes?.[name];
+  if (table !== undefined) {
+    return table;
+  }
+  if (name === scopes[0]?.name) {
+    return mapping?.tenant;
+  }
+  if (name === scopes[1]?.name) {
+    return mapping?.team;
+  }
+  return undefined;
+}
+
+/** The column of `table` holding scope `name`'s id, through the `tenant` / `team` shorthands. */
+export function scopeColumn(
+  table: MembershipTable,
+  scopes: readonly Scope[],
+  name: string,
+): string | undefined {
+  const column = table.columns?.[name];
+  if (column !== undefined) {
+    return column;
+  }
+  if (name === scopes[0]?.name) {
+    return table.tenant;
+  }
+  if (name === scopes[1]?.name) {
+    return table.team;
+  }
+  return undefined;
+}
 
 export type CompiledCompare = {
   readonly kind: 'compare';
@@ -211,8 +268,12 @@ function matchingMemberships(
   condition: Extract<Condition, { readonly op: 'memberOf' }>,
   subject: Subject | undefined,
   now: number,
+  scopes: readonly Scope[],
 ): Membership[] {
-  const memberships = subject?.principal?.memberships ?? [];
+  const memberships = subjectMemberships(
+    subject?.principal?.memberships,
+    scopes,
+  );
   const wanted = new Set(condition.roles);
   return memberships.filter((membership) => {
     if (isExpired(membership, now)) {
@@ -251,14 +312,16 @@ function existsOn(
   rowField: string,
   scoped: {
     readonly now: number;
-    readonly tenant: boolean;
+    /** The column holding the first scope's id, when the active tenant narrows the membership. */
+    readonly tenantColumn: string | undefined;
     readonly resource: string | undefined;
   },
 ): CompiledExists {
   assertSafeKey(table.table, 'membership table');
   assertSafeKey(rowColumn, 'membership column');
   assertSafeKey(rowField, 'condition field');
-  const tenantValue = scoped.tenant ? activeTenant(subject) : undefined;
+  const tenantValue =
+    scoped.tenantColumn === undefined ? undefined : activeTenant(subject);
   return compact<CompiledExists>({
     kind: 'exists',
     table: table.table,
@@ -270,8 +333,8 @@ function existsOn(
     rowField,
     expiresAt: table.expiresAt,
     now: scoped.now,
-    tenantColumn: tenantValue === undefined ? undefined : table.tenant,
-    tenantValue: table.tenant === undefined ? undefined : tenantValue,
+    tenantColumn: tenantValue === undefined ? undefined : scoped.tenantColumn,
+    tenantValue,
     resourceColumn: scoped.resource === undefined ? undefined : table.resource,
     resourceValue: table.resource === undefined ? undefined : scoped.resource,
   });
@@ -283,6 +346,7 @@ function compileExists(
   subject: Subject | undefined,
   now: number,
   mappings: MembershipsMapping | undefined,
+  scopes: readonly Scope[],
 ): CompiledWhere {
   const userValue = subject?.principal?.id;
   if (
@@ -292,15 +356,16 @@ function compileExists(
   ) {
     return NEVER;
   }
+  const scope =
+    condition.scope === 'resource'
+      ? undefined
+      : resolveScope(scopes, condition.scope);
   const rowColumn =
-    condition.scope === 'tenant'
-      ? table.tenant
-      : condition.scope === 'team'
-        ? table.team
-        : table.id;
+    scope === undefined ? table.id : scopeColumn(table, scopes, scope);
   if (rowColumn === undefined) {
     return NEVER;
   }
+  const root = rootScope(scopes);
   const own = existsOn(
     table,
     subject,
@@ -309,7 +374,12 @@ function compileExists(
     condition.field,
     {
       now,
-      tenant: condition.scope !== 'resource',
+      tenantColumn:
+        scope !== undefined &&
+        root !== undefined &&
+        scopeChain(scopes, scope).includes(root)
+          ? scopeColumn(table, scopes, root)
+          : undefined,
       resource: condition.scope === 'resource' ? condition.resource : undefined,
     },
   );
@@ -325,7 +395,7 @@ function compileExists(
       if (hop.resource === undefined) {
         return existsOn(table, subject, condition.roles, rowColumn, hop.field, {
           now,
-          tenant: false,
+          tenantColumn: undefined,
           resource: undefined,
         });
       }
@@ -341,7 +411,7 @@ function compileExists(
         hop.field,
         {
           now,
-          tenant: false,
+          tenantColumn: undefined,
           resource: hop.resource,
         },
       );
@@ -355,12 +425,20 @@ function compileMemberOf(
 ): CompiledWhere {
   assertSafeKey(condition.field, 'condition field');
   const now = options.now ?? Date.now() / 1000;
-  const mapping =
+  const scopes = options.scopes ?? scopeList(undefined);
+  const scope =
     condition.scope === 'resource'
+      ? undefined
+      : resolveScope(scopes, condition.scope);
+  if (condition.scope !== 'resource' && scope === undefined) {
+    return NEVER;
+  }
+  const mapping =
+    scope === undefined
       ? condition.resource === undefined
         ? undefined
         : options.memberships?.resource?.[condition.resource]
-      : options.memberships?.[condition.scope];
+      : scopeMembershipTable(options.memberships, scopes, scope);
   if (mapping !== undefined) {
     // Integer seconds bind to a bigint column; rounding up expires a
     // membership up to a second early, never late.
@@ -370,36 +448,24 @@ function compileMemberOf(
       options.subject,
       Math.ceil(now),
       options.memberships,
+      scopes,
     );
   }
-  const matched = matchingMemberships(condition, options.subject, now);
+  const matched = matchingMemberships(condition, options.subject, now, scopes);
   const active = activeTenant(options.subject);
-  if (condition.scope === 'tenant') {
+  if (scope !== undefined) {
     return inList(
       condition.field,
-      matched.flatMap((membership) =>
-        membership.tenant === undefined ||
-        (active !== undefined && membership.tenant !== active)
+      matched.flatMap((membership) => {
+        if (membership.scope !== scope || membership.id === undefined) {
+          return [];
+        }
+        const tenant = tenantOf(membership, scopes);
+        return active !== undefined && tenant !== undefined && tenant !== active
           ? []
-          : [membership.tenant],
-      ),
+          : [membership.id];
+      }),
     );
-  }
-  if (condition.scope === 'team') {
-    const teams = matched.flatMap((membership) => {
-      if (membership.team === undefined) {
-        return [];
-      }
-      if (
-        active !== undefined &&
-        membership.tenant !== undefined &&
-        membership.tenant !== active
-      ) {
-        return [];
-      }
-      return [membership.team];
-    });
-    return inList(condition.field, teams);
   }
   const ids = matched.flatMap((membership) => {
     if (membership.on === undefined) {
@@ -533,13 +599,20 @@ function whereSubject(input: Condition | WhereResult): Subject | undefined {
   return 'partial' in input ? input.subject : undefined;
 }
 
+function whereScopes(
+  input: Condition | WhereResult,
+): readonly Scope[] | undefined {
+  return 'partial' in input ? input.scopes : undefined;
+}
+
 export function compileWhere(
   input: Condition | WhereResult,
   options: CompileWhereOptions = {},
 ): CompiledWhere {
   const subject = options.subject ?? whereSubject(input);
+  const scopes = options.scopes ?? whereScopes(input);
   return compileNode(
     asPortableCondition(input),
-    compact({ ...options, subject }),
+    compact({ ...options, subject, scopes }),
   );
 }

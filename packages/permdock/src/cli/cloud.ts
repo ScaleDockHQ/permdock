@@ -1,13 +1,15 @@
-import type { Grant, Policy, SnapshotGrant } from '../index.ts';
+import type { Grant, Policy, Snapshot, SnapshotGrant } from '../index.ts';
 import type { CatalogDocument, CliIo, PermDockConfig } from './types.ts';
 
+import { snapshotScopes } from '../core/instance.ts';
 import { catalogFingerprint } from '../index.ts';
 import { runCatalog } from './catalog.ts';
 import { loadConfiguredPolicy } from './load.ts';
 
 export type PushedPolicy = {
   readonly fingerprint: string;
-  readonly scopes: Policy['scopes'];
+  /** As a snapshot carries them: ordered `{ name, key, within?, resources? }`; absent without declared scopes. */
+  readonly scopes?: Snapshot['scopes'];
   readonly grants: readonly (SnapshotGrant & {
     readonly limit?: Grant['limit'];
   })[];
@@ -53,9 +55,10 @@ function pushedGrant(grant: Grant): PushedPolicy['grants'][number] {
 
 /** The code policy as the hosted AuthZEN endpoint evaluates it; closures travel as `portable: false` and deny there. */
 export function pushedPolicy(policy: Policy): PushedPolicy {
+  const scopes = snapshotScopes(policy);
   return {
     fingerprint: policy.fingerprint,
-    scopes: policy.scopes,
+    ...(scopes === undefined ? {} : { scopes }),
     grants: policy.grants
       .filter((grant) => grant.hosted === undefined)
       .map(pushedGrant),

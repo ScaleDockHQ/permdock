@@ -171,7 +171,7 @@ describe('memoryDirectoryStore', () => {
 });
 
 describe('directoryMembershipSource', () => {
-  it('returns team memberships and nothing for inactive users', async () => {
+  it('returns tenant memberships via groups and nothing for inactive users', async () => {
     const store = memoryDirectoryStore();
     const user = await store.putUser(TENANT, {
       id: 'u_ada',
@@ -199,7 +199,6 @@ describe('directoryMembershipSource', () => {
     ).toEqual([
       {
         tenant: TENANT,
-        team: 'g_editors',
         roles: ['editor'],
         via: 'group:g_editors',
       },
@@ -327,7 +326,6 @@ describe('scimHandler', () => {
     ).toEqual([
       {
         tenant: TENANT,
-        team: group.id,
         roles: ['editor'],
         via: `group:${String(group.id)}`,
       },
@@ -634,7 +632,11 @@ describe('scimHandler', () => {
       orgId: z.string(),
     });
     const permissions = definePermissions({
-      post: resource(Post, { id: 'id', actions: ['read'] }),
+      post: resource(Post, {
+        id: 'id',
+        actions: ['read'],
+        relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+      }),
     });
     const policy = definePolicy(permissions, {
       roles: [role('editor', [allow(permissions.post.read)], { on: 'tenant' })],

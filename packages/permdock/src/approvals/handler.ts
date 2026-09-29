@@ -3,6 +3,7 @@ import type { Subject } from '../core/subject.ts';
 import type { ApprovalRequest, ApprovalStore } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { rootMembershipId } from '../core/scopes.ts';
 import { isApprovalError } from './errors.ts';
 import { assertApprover } from './store.ts';
 
@@ -107,8 +108,9 @@ function membershipTenants(subject: Subject): readonly string[] {
     tenants.add(principal.tenant);
   }
   for (const membership of principal.memberships ?? []) {
-    if (membership.tenant !== undefined) {
-      tenants.add(membership.tenant);
+    const tenant = rootMembershipId(membership);
+    if (tenant !== undefined) {
+      tenants.add(tenant);
     }
   }
   return [...tenants];

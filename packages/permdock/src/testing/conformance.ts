@@ -23,6 +23,7 @@ import type {
 import type { DirectoryStore } from '../scim/index.ts';
 import type { ReplayStore } from '../ssf/index.ts';
 
+import { normalizeMemberships, scopeList } from '../core/scopes.ts';
 import {
   memoryRevocationFeed,
   mergeHostedGrants,
@@ -63,6 +64,8 @@ export function testMembershipSource(
       readonly kind?: string;
     }[];
     readonly expect?: Record<string, readonly Membership[]>;
+    /** With the policy, every membership must name one of its scopes and carry its parent ids. */
+    readonly policy?: Policy;
   },
 ): void {
   it('returns well-formed memberships and fails closed on throw', async () => {
@@ -74,13 +77,22 @@ export function testMembershipSource(
         memberships = [];
       }
       for (const membership of memberships) {
-        const flags = [
-          membership.tenant,
-          membership.team,
-          membership.on,
-        ].filter((value) => value !== undefined);
-        expect(flags.length).toBeLessThanOrEqual(2);
+        const named = membership.scope !== undefined;
+        const legacy =
+          membership.tenant !== undefined || membership.team !== undefined;
+        const shapes = [named, legacy, membership.on !== undefined].filter(
+          Boolean,
+        );
+        expect(shapes.length).toBe(1);
         expect(Array.isArray(membership.roles)).toBe(true);
+        if (options.policy !== undefined) {
+          expect(
+            normalizeMemberships(
+              [membership],
+              scopeList(options.policy.scopes),
+            ),
+          ).toHaveLength(1);
+        }
       }
       const expected = options.expect?.[principal.id];
       if (expected !== undefined) {
@@ -415,7 +427,6 @@ export function testDirectoryStore(
     ).toEqual([
       {
         tenant: home,
-        team: group.id,
         roles: ['editor'],
         via: `group:${group.id}`,
       },

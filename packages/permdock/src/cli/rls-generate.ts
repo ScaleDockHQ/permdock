@@ -11,6 +11,7 @@ import type {
   RlsTarget,
 } from './types.ts';
 
+import { scopeList } from '../core/scopes.ts';
 import { listRoles } from '../index.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { compileGrants } from './rls-compile.ts';
@@ -19,7 +20,7 @@ import { roleNames } from './rls-grants.ts';
 import { helpersSql } from './rls-helpers.ts';
 import { assemblePolicies } from './rls-policies.ts';
 import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
-import { parseMembershipsFlag } from './rls-sql.ts';
+import { parseMembershipsFlag, scopeTable } from './rls-sql.ts';
 
 export type GenerateOutcome = {
   readonly code: 0 | 1 | 2;
@@ -67,7 +68,9 @@ function defaultAuthorize(
   if (rbac) {
     return 'database';
   }
-  return memberships?.tenant !== undefined || memberships?.team !== undefined
+  return memberships?.tenant !== undefined ||
+    memberships?.team !== undefined ||
+    Object.keys(memberships?.scopes ?? {}).length > 0
     ? 'database'
     : 'jwt';
 }
@@ -114,6 +117,7 @@ export async function runRlsGenerate(input: {
     defaultAuthorize(input.rbac, memberships);
   const ctx: RlsSqlContext = {
     dialect: input.dialect,
+    scopes: scopeList(policy.scopes),
     tenantClaim: rls?.tenantClaim ?? 'tenant_id',
     gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? 'app',
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
@@ -122,6 +126,7 @@ export async function runRlsGenerate(input: {
     roleClaim: rls?.roleClaim ?? 'user_role',
     tenantType: input.tenantType ?? rls?.tenantType ?? 'uuid',
     ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
+    ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(memberships === undefined ? {} : { memberships }),
     ...(input.customRoles === true || rls?.customRoles === true
       ? { customRoles: customRoleNames(policy) }
@@ -129,15 +134,11 @@ export async function runRlsGenerate(input: {
   };
   const warnings: string[] = [];
   if (authorize === 'database') {
-    for (const scope of ['tenant', 'team'] as const) {
-      const needs = policy.grants.some((grant) => grant.scope === scope);
-      const column =
-        scope === 'tenant'
-          ? memberships?.tenant?.tenant
-          : memberships?.team?.team;
-      if (needs && column === undefined) {
+    for (const { name } of ctx.scopes) {
+      const needs = policy.grants.some((grant) => grant.scope === name);
+      if (needs && scopeTable(ctx, name) === undefined) {
         warnings.push(
-          `${scope}-scoped grants read the ${scope} memberships table in database mode: pass --memberships <table>:tenant,user,role (or rls.memberships.${scope}), otherwise they deny`,
+          `${name}-scoped grants read the ${name} memberships table in database mode: set rls.memberships.scopes.${name} (or --memberships for the first scope), otherwise they deny`,
         );
       }
     }
@@ -154,13 +155,20 @@ export async function runRlsGenerate(input: {
     perRole: input.policyPerRole === true || rls?.policyPerRole === true,
     ...(policyName === undefined ? {} : { name: policyName }),
   });
+  const rootMapped =
+    ctx.scopes[0] === undefined
+      ? undefined
+      : scopeTable(ctx, ctx.scopes[0].name);
+  const rootTable =
+    rootMapped === undefined
+      ? undefined
+      : { ...rootMapped.table, tenant: rootMapped.column };
   const rbac = input.rbac
     ? rbacScaffold(policy, {
         schema,
         authorize,
-        ...(memberships?.tenant === undefined
-          ? {}
-          : { memberships: memberships.tenant }),
+        ...(rootTable === undefined ? {} : { memberships: rootTable }),
+        ...(ctx.scopes[0] === undefined ? {} : { scope: ctx.scopes[0].name }),
         ...(ctx.customRoles === undefined
           ? {}
           : { customRoles: { declared: ctx.customRoles.declared } }),

@@ -13,6 +13,7 @@ import type {
 } from './interfaces.ts';
 import type { Permission } from './permissions.ts';
 import type { Policy, PolicyVocabulary } from './policy.ts';
+import type { Scope } from './scopes.ts';
 import type {
   Actor,
   CustomRole,
@@ -34,6 +35,7 @@ import {
 } from './hosted.ts';
 import { buildInstance } from './instance.ts';
 import { resolveSubject } from './resolve-subject.ts';
+import { scopeList } from './scopes.ts';
 import { parseSnapshot } from './snapshot.ts';
 import { tenantsOf } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
@@ -64,6 +66,8 @@ export type WhereResult = {
    * serialises with the result.
    */
   readonly subject?: Subject;
+  /** The policy's scopes, for `memberOf`; not enumerable either. */
+  readonly scopes?: readonly Scope[];
 };
 
 export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
@@ -201,7 +205,7 @@ function instantiate(
   auth: AuthEvent[],
 ): PermDock | Promise<PermDock> {
   const { policy, errors } = hostedPolicy(codePolicy, options.policies);
-  const tenants = tenantsOf(subject.principal);
+  const tenants = tenantsOf(subject.principal, scopeList(policy.scopes));
   const customRoles = customRolesFor(options.customRoles, tenants, auth);
   const assignable = assignableNamesFor(options.customRoles, tenants, auth);
   const build = (

@@ -47,7 +47,7 @@ const subject = await subjectFromJwt(token, {
 | Claim | Encoding accepted | Becomes | Rule |
 | --- | --- | --- | --- |
 | `roles` | `string[]` or SCIM complex values | `principal.roles` (global); an issuer that scopes roles to a tenant is read through a `claims.memberships` path, which yields memberships `{ tenant, roles }` | Names the policy never declared are dropped and reported once by `on('auth')`; a custom role name resolves through the `RoleSource` |
-| `groups` | `string[]` or SCIM complex values | `principal.memberships[]` entries `{ tenant, team: value, roles: [] }`, with `via: 'group:<value>'`; roles come from the resolver's `groupRoles` option (`{ '9f2c': ['lead'] }`, ids never names) or a `MembershipSource` | The `value` sub-attribute is the identifier; `display` is never used for matching |
+| `groups` | `string[]` or SCIM complex values | `principal.memberships[]` entries `{ tenant, roles: [] }` of the active tenant, with `via: 'group:<value>'`; roles come from the resolver's `groupRoles` option (`{ '9f2c': ['lead'] }`, ids never names) or a `MembershipSource` | The `value` sub-attribute is the identifier; `display` is never used for matching |
 | `entitlements` | `string[]` or SCIM complex values | `principal.plans`, selected by name | Same trust rule as `roles`; grant with `to: plans.pro`, not by stuffing the name into `principal.roles` |
 
 Reading SCIM complex values: `{ "value": "9f2c", "display": "Design", "type": "direct" }` contributes `9f2c`; `display` and `type` are not read. An Entra `_claim_names` / `_claim_sources` overflow (above roughly 200 groups) is not resolved. For large or nested directories, use app roles or a directory lookup in `context` ([authentication](/docs/concepts/authentication) single sign-on).

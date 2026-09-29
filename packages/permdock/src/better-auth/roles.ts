@@ -22,7 +22,7 @@ import {
   statementsCover,
 } from './parse.ts';
 
-export type SeededRoles = RoleBinding[] & {
+export type SeededRoles = RoleBinding<'tenant'>[] & {
   readonly unmatched: readonly BetterAuthUnmatchedStatement[];
 };
 
@@ -39,7 +39,7 @@ export function rolesFromAccessControl(
 ): SeededRoles {
   const leaves = listPermissions(permissions);
   const unmatched: BetterAuthUnmatchedStatement[] = [];
-  const roles: RoleBinding[] = [];
+  const roles: RoleBinding<'tenant'>[] = [];
   for (const [name, accessRole] of Object.entries(access.roles)) {
     const statements = statementsOf(accessRole);
     const grants = [];
@@ -56,11 +56,9 @@ export function rolesFromAccessControl(
       }
     }
     roles.push(
-      role(
-        name,
-        grants,
-        options.on === 'tenant' ? { on: 'tenant' } : undefined,
-      ),
+      options.on === 'tenant'
+        ? role(name, grants, { on: 'tenant' })
+        : role(name, grants),
     );
   }
   return Object.assign(roles, { unmatched });

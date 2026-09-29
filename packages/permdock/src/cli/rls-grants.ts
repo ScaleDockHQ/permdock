@@ -1,5 +1,7 @@
 import type { Condition, Grant, Grantee, Policy } from '../index.ts';
 
+import { relationCondition } from '../core/grantee.ts';
+import { scopeList } from '../core/scopes.ts';
 import { listRoles } from '../index.ts';
 import { andConditions } from './rls-sql.ts';
 
@@ -10,7 +12,8 @@ export type RlsAccess =
   | {
       readonly kind: 'role';
       readonly role: string;
-      readonly scope: 'global' | 'tenant' | 'team';
+      /** `'global'` or a scope name. */
+      readonly scope: string;
     }
   | {
       readonly kind: 'resource';
@@ -36,25 +39,14 @@ function relationWhere(
   grant: Grant,
   grantee: Extract<Grantee, { readonly kind: 'relation' }>,
 ): Condition {
-  const spec = policy.resources.get(grant.permission.resource)?.relations[
-    grantee.relation
-  ];
-  if (spec === undefined) {
+  const node = policy.resources.get(grant.permission.resource);
+  const where = relationCondition(grantee, node, scopeList(policy.scopes));
+  if (where === undefined) {
     throw new Error(
       `PermDock CLI: grant ${grant.permission.key} names relation '${grantee.relation}', which ${grant.permission.resource} does not declare`,
     );
   }
-  if (spec.memberOf === 'tenant') {
-    return {
-      op: 'eq',
-      field: spec.field,
-      value: { ref: 'principal.tenant' },
-    };
-  }
-  if (spec.memberOf === 'team') {
-    return { op: 'memberOf', scope: 'team', field: spec.field, roles: [] };
-  }
-  return { op: 'eq', field: spec.field, value: { ref: 'principal.id' } };
+  return where;
 }
 
 function accessOf(

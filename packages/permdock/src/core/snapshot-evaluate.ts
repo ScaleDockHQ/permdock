@@ -16,7 +16,14 @@ import { coveredByDelegation, resourceIdOf } from './delegation.ts';
 import { grantCoversField } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { matchGrantee } from './grantee.ts';
-import { isMembershipExpired, nowSeconds } from './tenancy.ts';
+import { type Scope, scopeList } from './scopes.ts';
+import {
+  activeFor,
+  inTeam,
+  isMembershipExpired,
+  nowSeconds,
+  rowInScope,
+} from './tenancy.ts';
 import { decisionToken } from './token.ts';
 import { whereFromGrants } from './where-scope.ts';
 
@@ -52,35 +59,6 @@ export function rowId(data: unknown): string {
   return typeof id === 'string' || typeof id === 'number' ? String(id) : '*';
 }
 
-function rowField(data: unknown, key: string | undefined): unknown {
-  if (key === undefined || data === null || typeof data !== 'object') {
-    return undefined;
-  }
-  return Object.hasOwn(data, key)
-    ? (data as Record<string, unknown>)[key]
-    : undefined;
-}
-
-function rowOutsideScope(
-  snapshot: Snapshot,
-  permission: Permission,
-  data: unknown,
-  kind: 'tenant' | 'team',
-  expected: string | undefined,
-): boolean {
-  if (
-    permission.kind !== 'instance' &&
-    (data === null || typeof data !== 'object')
-  ) {
-    return false;
-  }
-  const value = rowField(data, snapshot.scopes?.[kind]?.key);
-  const partitioned =
-    value !== undefined ||
-    snapshot.scopes?.partitioned?.[permission.resource]?.[kind] === true;
-  return partitioned && value !== expected;
-}
-
 function scopeOk(
   snapshot: Snapshot,
   grant: SnapshotGrant,
@@ -104,28 +82,38 @@ function scopeOk(
   if (isMembershipExpired(membership, now)) {
     return { ok: false, reason: 'expired-membership' };
   }
-  if (scope === 'tenant' || scope === 'team') {
-    if (principal.tenant === undefined) {
-      return { ok: false, reason: 'no-membership' };
+  if (typeof scope === 'string') {
+    const scopes = scopeList(snapshot.scopes);
+    // A scope the snapshot does not list has no row keys to check: fail closed.
+    if (
+      membership.scope !== scope ||
+      !scopes.some((entry) => entry.name === scope)
+    ) {
+      return { ok: false, reason: 'scope' };
     }
-    if (membership.tenant !== principal.tenant) {
-      return { ok: false, reason: 'tenant-mismatch' };
+    if (!activeFor(membership, scopes, principal.tenant)) {
+      return {
+        ok: false,
+        reason:
+          principal.tenant === undefined ? 'no-membership' : 'tenant-mismatch',
+      };
+    }
+    if (!inTeam(membership, scopes, team)) {
+      return { ok: false, reason: 'scope' };
     }
     if (
-      rowOutsideScope(snapshot, permission, data, 'tenant', membership.tenant)
+      permission.kind !== 'instance' &&
+      (data === null || typeof data !== 'object')
     ) {
-      return { ok: false, reason: 'tenant-mismatch' };
-    }
-    if (scope === 'tenant') {
       return { ok: true };
     }
-    if (team !== undefined && membership.team !== team) {
-      return { ok: false, reason: 'scope' };
-    }
-    if (rowOutsideScope(snapshot, permission, data, 'team', membership.team)) {
-      return { ok: false, reason: 'scope' };
-    }
-    return { ok: true };
+    const partitioned = (name: string): boolean =>
+      snapshot.scopes
+        ?.find((entry) => entry.name === name)
+        ?.resources?.includes(permission.resource) === true;
+    // An instance action with no row object still fails a partitioned scope.
+    const row: object = data !== null && typeof data === 'object' ? data : {};
+    return rowInScope(membership, scopes, row, partitioned);
   }
   const on = membership.on;
   // A snapshot carries no parent graph: only a row of the membership's own
@@ -150,6 +138,7 @@ function conditionOk(
   next: unknown,
   subject: Subject,
   now: number,
+  scopes: readonly Scope[],
 ): { readonly matched: boolean; readonly reason?: DenialReason } {
   if (grant.portable === false) {
     return { matched: false, reason: 'opaque-condition' };
@@ -161,7 +150,7 @@ function conditionOk(
     if (grant.where.op === 'opaque' || grant.check?.op === 'opaque') {
       return { matched: false, reason: 'opaque-condition' };
     }
-    if (!evaluateCondition(grant.where, current, subject, now)) {
+    if (!evaluateCondition(grant.where, current, subject, now, scopes)) {
       return { matched: false, reason: 'condition' };
     }
   }
@@ -173,7 +162,7 @@ function conditionOk(
     if (next === undefined) {
       return { matched: false, reason: 'condition' };
     }
-    if (!evaluateCondition(check, next, subject, now)) {
+    if (!evaluateCondition(check, next, subject, now, scopes)) {
       return { matched: false, reason: 'condition' };
     }
   }
@@ -258,6 +247,7 @@ export function evaluateSnapshot(
       next,
       subject,
       now,
+      scopeList(snapshot.scopes),
     );
     if (!condition.matched) {
       denials.push({
@@ -348,7 +338,11 @@ export function whereFromSnapshot(
     snapshot.grants.filter((grant) => grant.permission === permission.key),
     {
       resource: permission.resource,
-      scopes: snapshot.scopes,
+      scopes: scopeList(snapshot.scopes),
+      partitioned: (name) =>
+        snapshot.scopes
+          ?.find((entry) => entry.name === name)
+          ?.resources?.includes(permission.resource) === true,
       tenant: subject.principal?.tenant,
       team,
       now: nowSeconds(),

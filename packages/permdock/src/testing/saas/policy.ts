@@ -54,7 +54,10 @@ export const saasPolicy: Policy<
 > = definePolicy(
   { permissions: saasPermissions, roles: saasRoles, plans: saasPlans },
   {
-    scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+    scopes: {
+      tenant: { key: 'orgId' },
+      team: { key: 'teamId', within: 'tenant' },
+    },
     // A full `Subject` (with `expiresAt` or `session`) is used as is.
     subject: (user: Principal | Subject | null): Principal | null =>
       isSubject(user) ? user.principal : user,

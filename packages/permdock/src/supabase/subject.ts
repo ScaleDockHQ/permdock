@@ -81,6 +81,15 @@ function asMemberships(value: unknown): readonly Membership[] {
     if (roles.length === 0) {
       continue;
     }
+    const scope = typeof item.scope === 'string' ? item.scope : undefined;
+    const id = typeof item.id === 'string' ? item.id : undefined;
+    const within = isRecord(item.within)
+      ? Object.fromEntries(
+          Object.entries(item.within).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+          ),
+        )
+      : undefined;
     const tenant = typeof item.tenant === 'string' ? item.tenant : undefined;
     const team = typeof item.team === 'string' ? item.team : undefined;
     const onRecord = isRecord(item.on) ? item.on : undefined;
@@ -90,15 +99,26 @@ function asMemberships(value: unknown): readonly Membership[] {
       typeof onRecord.id === 'string'
         ? { resource: onRecord.resource, id: onRecord.id }
         : undefined;
-    if (tenant === undefined && team === undefined && on === undefined) {
+    if (
+      (scope === undefined || id === undefined) &&
+      tenant === undefined &&
+      team === undefined &&
+      on === undefined
+    ) {
       continue;
     }
     out.push(
       compact<Membership>({
         roles,
+        scope,
+        id,
+        within,
         tenant,
         team,
         on,
+        via: typeof item.via === 'string' ? item.via : undefined,
+        expiresAt:
+          typeof item.expiresAt === 'number' ? item.expiresAt : undefined,
       }),
     );
   }

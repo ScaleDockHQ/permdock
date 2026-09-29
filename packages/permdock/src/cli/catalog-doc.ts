@@ -63,6 +63,7 @@ export function buildCatalog(
   const body = {
     resources,
     permissions,
+    ...catalogScopes(policy),
     ...catalogRoles(scan.roleNames, policy),
     ...(scan.planNames.length === 0
       ? {}
@@ -113,6 +114,23 @@ function codeApprovals(
     ]);
   }
   return out;
+}
+
+function catalogScopes(
+  policy: Policy | undefined,
+): Pick<CatalogDocument, 'scopes'> {
+  const scopes = policy?.scopes ?? [];
+  return scopes.length === 0
+    ? {}
+    : {
+        scopes: scopes.map((scope) =>
+          withDefined({
+            name: scope.name,
+            key: scope.key ?? '',
+            within: scope.within,
+          }),
+        ),
+      };
 }
 
 function catalogRoles(
@@ -279,8 +297,20 @@ export function catalogSchemaDocument(): unknown {
           required: ['key'],
           properties: {
             key: { type: 'string' },
-            on: { enum: ['tenant', 'team', 'resource'] },
+            on: { type: 'string', pattern: '^[a-z][a-z0-9_]*$' },
             assignable: { type: 'boolean' },
+          },
+        },
+      },
+      scopes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['name', 'key'],
+          properties: {
+            name: { type: 'string', pattern: '^[a-z][a-z0-9_]*$' },
+            key: { type: 'string' },
+            within: { type: 'string' },
           },
         },
       },

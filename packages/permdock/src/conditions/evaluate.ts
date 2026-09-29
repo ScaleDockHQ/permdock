@@ -2,6 +2,13 @@ import type { Membership, Subject } from '../core/subject.ts';
 
 import { ownGet } from '../core/paths.ts';
 import {
+  type Scope,
+  resolveScope,
+  scopeList,
+  subjectMemberships,
+  tenantOf,
+} from '../core/scopes.ts';
+import {
   type Condition,
   type ConditionValue,
   isConditionDate,
@@ -173,6 +180,7 @@ function evaluateMemberOf(
   data: unknown,
   subject: Subject,
   now: number,
+  scopes: readonly Scope[],
 ): boolean {
   if (data === null || typeof data !== 'object') {
     return false;
@@ -181,10 +189,20 @@ function evaluateMemberOf(
   if (rowValue === undefined || rowValue === null) {
     return false;
   }
-  const memberships = subject.principal?.memberships ?? [];
+  const memberships = subjectMemberships(
+    subject.principal?.memberships,
+    scopes,
+  );
   const wanted = new Set(condition.roles);
   const active =
     subject.principal?.tenant === '' ? undefined : subject.principal?.tenant;
+  const scope =
+    condition.scope === 'resource'
+      ? undefined
+      : resolveScope(scopes, condition.scope);
+  if (condition.scope !== 'resource' && scope === undefined) {
+    return false;
+  }
   for (const membership of memberships) {
     if (isExpired(membership, now)) {
       continue;
@@ -192,25 +210,14 @@ function evaluateMemberOf(
     if (wanted.size > 0 && !membership.roles.some((role) => wanted.has(role))) {
       continue;
     }
-    if (condition.scope === 'tenant') {
-      // With an active tenant, only that tenant's membership counts.
-      if (
-        membership.tenant === rowValue &&
-        (active === undefined || membership.tenant === active)
-      ) {
-        return true;
-      }
-      continue;
-    }
-    if (condition.scope === 'team') {
-      if (membership.team !== rowValue) {
+    if (scope !== undefined) {
+      if (membership.scope !== scope || membership.id !== rowValue) {
         continue;
       }
-      if (
-        membership.tenant !== undefined &&
-        subject.principal?.tenant !== undefined
-      ) {
-        return membership.tenant === subject.principal.tenant;
+      // With an active tenant, only memberships inside it count.
+      const tenant = tenantOf(membership, scopes);
+      if (active !== undefined && tenant !== undefined && tenant !== active) {
+        continue;
       }
       return true;
     }
@@ -241,18 +248,25 @@ export function evaluateCondition(
   data: unknown,
   subject: Subject,
   now: number = Date.now() / 1000,
+  scopes: readonly Scope[] = scopeList(undefined),
 ): boolean {
   switch (condition.op) {
     case 'and':
       return condition.conditions.every((child) =>
-        evaluateCondition(child, data, subject, now),
+        evaluateCondition(child, data, subject, now, scopes),
       );
     case 'or':
       return condition.conditions.some((child) =>
-        evaluateCondition(child, data, subject, now),
+        evaluateCondition(child, data, subject, now, scopes),
       );
     case 'not':
-      return !evaluateCondition(condition.condition, data, subject, now);
+      return !evaluateCondition(
+        condition.condition,
+        data,
+        subject,
+        now,
+        scopes,
+      );
     case 'isNull': {
       if (data === null || typeof data !== 'object') {
         return false;
@@ -301,9 +315,9 @@ export function evaluateCondition(
       );
     }
     case 'memberOf':
-      return evaluateMemberOf(condition, data, subject, now);
+      return evaluateMemberOf(condition, data, subject, now, scopes);
     case 'sqlFunction':
-      return evaluateCondition(condition.twin, data, subject, now);
+      return evaluateCondition(condition.twin, data, subject, now, scopes);
     case 'opaque':
       return false;
     default: {

@@ -8,7 +8,8 @@ export const PLAN_KIND = 'plan' as const;
 
 export type Role<K extends string = string> = {
   readonly key: K;
-  readonly on?: 'tenant' | 'team';
+  /** A declared scope name, or the `tenant` / `team` alias. */
+  readonly on?: string;
   readonly assignable: boolean;
   readonly meta: ActionMeta;
   readonly kind: typeof ROLE_KIND;
@@ -21,7 +22,8 @@ export type Plan<K extends string = string> = {
 };
 
 export type RoleInit = {
-  readonly on?: 'tenant' | 'team';
+  /** A declared scope name, or the `tenant` / `team` alias. */
+  readonly on?: string;
   readonly assignable?: boolean;
   readonly meta?: ActionMeta;
 };
@@ -166,7 +168,11 @@ export function findRole(
 
 export function synthesiseRole(
   key: string,
-  options?: { readonly on?: 'tenant' | 'team'; readonly assignable?: boolean },
+  options?: {
+    /** A declared scope name, or the `tenant` / `team` alias. */
+    readonly on?: string;
+    readonly assignable?: boolean;
+  },
 ): Role {
   const on = options?.on;
   if (on === undefined) {

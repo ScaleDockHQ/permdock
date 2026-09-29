@@ -292,4 +292,47 @@ describe('rlsParity relation grantee', () => {
       { name: 'update other', granted: false, database: 'filtered', ok: true },
     ]);
   });
+
+  it('also decides from the serialized snapshot and flags a disagreement', async () => {
+    const report = await rlsParity(policy, {
+      dialect: 'supabase',
+      snapshot: true,
+      fixtures: [
+        {
+          name: 'read own',
+          subject: {
+            id: 'u1',
+            roles: ['member'],
+            tenant: 'o1',
+            memberships: [{ tenant: 'o1', roles: ['member'] }],
+          },
+          permission: permissions.post.read,
+          row: own,
+          table: 'post',
+        },
+      ],
+      query: async (sql, values) => {
+        if (sql.startsWith('select set_config')) {
+          const claims = JSON.parse(String(values?.[1])) as {
+            readonly memberships: readonly unknown[];
+          };
+          expect(claims.memberships).toEqual([
+            { scope: 'tenant', id: 'o1', roles: ['member'] },
+          ]);
+        }
+        return sql.startsWith('select *')
+          ? { rows: [own], rowCount: 1 }
+          : { rows: [], rowCount: 0 };
+      },
+    });
+    expect(report.results).toEqual([
+      {
+        name: 'read own',
+        granted: true,
+        database: 'allowed',
+        snapshot: true,
+        ok: true,
+      },
+    ]);
+  });
 });

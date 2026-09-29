@@ -29,7 +29,10 @@ const permissions = definePermissions({
     }),
   ),
   member: resource({ collection: ['list'] }),
-  note: resource({ actions: ['read'] }),
+  note: resource({
+    actions: ['read'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+  }),
 });
 
 const roles = defineRoles({
@@ -41,7 +44,10 @@ const roles = defineRoles({
 const policy = definePolicy(
   { permissions, roles },
   {
-    scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId' } },
+    scopes: {
+      tenant: { key: 'orgId' },
+      team: { key: 'teamId', within: 'tenant' },
+    },
     subject: (user: Principal | null) => user,
     roles: [
       role(roles.lead, [
@@ -180,9 +186,15 @@ describe('client parity', () => {
     expect(client.can(permissions.project.read, orphan)).toBe(false);
   });
 
-  it('lets a resource without a tenant relation pass without the field', async () => {
-    const { server } = await both(alice, 'globex');
-    expect(server.can(permissions.note.read, { id: 'n1' })).toBe(true);
+  it('rejects a tenant grant on a resource without the tenant key', () => {
+    const loose = definePermissions({ memo: resource({ actions: ['read'] }) });
+    expect(() =>
+      definePolicy(loose, {
+        scopes: { tenant: { key: 'orgId' } },
+        subject: (user: Principal | null) => user,
+        roles: [role('viewer', [allow(loose.memo.read)], { on: 'tenant' })],
+      }),
+    ).toThrow(/memo.read on 'tenant' roles/);
   });
 
   it('reports only global roles when no tenant is active', async () => {

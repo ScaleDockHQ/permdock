@@ -26,7 +26,8 @@ import {
   type Grant,
   type Policy,
 } from './policy.ts';
-import { matchScopedMembership, nowSeconds } from './tenancy.ts';
+import { scopeList, tenantOf } from './scopes.ts';
+import { inTeam, matchScopedMembership, nowSeconds } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
 import { decisionToken } from './token.ts';
 import { validateBoundary } from './validation.ts';
@@ -195,6 +196,7 @@ function evaluateGrantCondition(
   next: unknown,
   subject: Subject,
   now: number,
+  scopes: Policy['scopes'],
 ): {
   readonly matched: boolean;
   readonly reason?: DenialReason;
@@ -226,7 +228,7 @@ function evaluateGrantCondition(
     if (grant.where.op === 'opaque' || grant.check?.op === 'opaque') {
       return { matched: false, reason: 'opaque-condition' };
     }
-    if (!evaluateCondition(grant.where, current, subject, now)) {
+    if (!evaluateCondition(grant.where, current, subject, now, scopes)) {
       return { matched: false, reason: 'condition' };
     }
   }
@@ -239,7 +241,7 @@ function evaluateGrantCondition(
     if (next === undefined) {
       return { matched: false, reason: 'condition' };
     }
-    if (!evaluateCondition(checkCondition, next, subject, now)) {
+    if (!evaluateCondition(checkCondition, next, subject, now, scopes)) {
       return { matched: false, reason: 'condition' };
     }
   }
@@ -386,6 +388,7 @@ export function evaluate(
     return decision;
   }
 
+  const scopes = scopeList(policy.scopes);
   const declared = declaredRoleNames(policy);
   const principalRoles = subject.principal?.roles ?? [];
   const globalNames = expandRoleNames(
@@ -408,14 +411,14 @@ export function evaluate(
   const matchingRoles = new Set<string>(globalNames.roles);
 
   for (const membership of subject.principal?.memberships ?? []) {
-    if (env.team !== undefined && membership.team !== env.team) {
+    if (!inTeam(membership, scopes, env.team)) {
       continue;
     }
     const expanded = expandRoleNames(
       membership.roles,
       declared,
       env.customRoles,
-      membership.tenant,
+      tenantOf(membership, scopes),
     );
     for (const name of expanded.roles) {
       matchingRoles.add(name);
@@ -437,13 +440,13 @@ export function evaluate(
   const holdsCustom = (custom: CustomRole): boolean =>
     (subject.principal?.memberships ?? []).some(
       (membership) =>
-        (env.team === undefined || membership.team === env.team) &&
-        holdsCustomRole(membership, custom),
+        inTeam(membership, scopes, env.team) &&
+        holdsCustomRole(membership, custom, scopes),
     );
 
   for (const { grant, custom } of candidates) {
     const displayRole = grant.role;
-    const granteeMatch = matchGrantee(grant.to, subject, now, resource);
+    const granteeMatch = matchGrantee(grant.to, subject, now, resource, scopes);
     if (!granteeMatch.matched) {
       denials.push({
         role: displayRole,
@@ -479,7 +482,7 @@ export function evaluate(
             roleItem.scope,
             roleItem.role,
             row,
-            policy.scopes,
+            scopes,
             resource,
             policy.resources,
             now,
@@ -489,11 +492,14 @@ export function evaluate(
                   membership.roles,
                   declared,
                   env.customRoles,
-                  membership.tenant,
+                  tenantOf(membership, scopes),
                 ).roles;
               }
-              return holdsCustomRole(membership, custom) ? [custom.name] : [];
+              return holdsCustomRole(membership, custom, scopes)
+                ? [custom.name]
+                : [];
             },
+            env.team,
           );
         const scopeMatch = matchWriteScope(
           matchRow,
@@ -526,6 +532,7 @@ export function evaluate(
       next,
       subject,
       now,
+      scopes,
     );
     if (!condition.matched) {
       if (condition.reason === 'closure-error') {

@@ -1,5 +1,16 @@
 import type { ResourceNode } from './permissions.ts';
+import type { GrantScope } from './policy.ts';
 import type { Membership, Principal, Subject } from './subject.ts';
+
+import {
+  type Scope,
+  findScope,
+  resolveScope,
+  rootScope,
+  scopeChain,
+  scopeIdOf,
+  tenantOf,
+} from './scopes.ts';
 
 export function nowSeconds(now?: number): number {
   return now ?? Date.now() / 1000;
@@ -12,66 +23,153 @@ export function isMembershipExpired(
   return membership.expiresAt !== undefined && membership.expiresAt <= now;
 }
 
-export function membershipScopeKind(
-  membership: Membership,
-): 'tenant' | 'team' | 'resource' | 'invalid' {
-  const hasOn = membership.on !== undefined;
-  const hasTeam = membership.team !== undefined;
-  const hasTenant = membership.tenant !== undefined;
-  if (hasOn && !hasTeam && !hasTenant) {
-    return 'resource';
-  }
-  if (hasTeam && hasTenant && !hasOn) {
-    return 'team';
-  }
-  if (hasTenant && !hasTeam && !hasOn) {
-    return 'tenant';
-  }
-  return 'invalid';
-}
-
-export function tenantsOf(principal: Principal | null): readonly string[] {
+/** The instances of the first scope the subject holds any membership in. */
+export function tenantsOf(
+  principal: Principal | null,
+  scopes: readonly Scope[],
+): readonly string[] {
   if (principal === null) {
     return [];
   }
   const tenants = new Set<string>();
   for (const membership of principal.memberships ?? []) {
-    if (membership.tenant !== undefined) {
-      tenants.add(membership.tenant);
+    const tenant = tenantOf(membership, scopes);
+    if (tenant !== undefined) {
+      tenants.add(tenant);
     }
   }
   return [...tenants];
 }
 
+/** `requested` when a membership sits in that instance of the first scope; never a default. */
 export function resolveActiveTenant(
   principal: Principal,
   requested: string | undefined,
+  scopes: readonly Scope[],
 ): string | undefined {
   if (requested === undefined) {
     return principal.tenant;
   }
   const memberships = principal.memberships ?? [];
   const match = memberships.some(
-    (membership) => membership.tenant === requested,
+    (membership) => tenantOf(membership, scopes) === requested,
   );
   return match ? requested : undefined;
 }
 
+/** `permdock.team(id)`: only memberships inside that instance of the second scope. */
+export function inTeam(
+  membership: Membership,
+  scopes: readonly Scope[],
+  team: string | undefined,
+): boolean {
+  if (team === undefined) {
+    return true;
+  }
+  const second = scopes[1]?.name;
+  return second !== undefined && scopeIdOf(membership, second) === team;
+}
+
 /**
- * Whether `resource` declares a `memberOf` relation on `field`: its rows are
- * partitioned by that scope, so a row without the field matches no membership.
+ * Whether `resource` declares a `memberOf` relation to `scope` on `field`:
+ * its rows are partitioned by that scope, so a row without the field matches
+ * no membership.
  */
 export function relatesTo(
   resource: ResourceNode | undefined,
   field: string,
-  memberOf: 'tenant' | 'team',
+  scope: string,
+  scopes: readonly Scope[],
 ): boolean {
   if (resource === undefined) {
     return false;
   }
   return Object.values(resource.relations).some(
-    (relation) => relation.field === field && relation.memberOf === memberOf,
+    (relation) =>
+      relation.field === field &&
+      relation.memberOf !== undefined &&
+      resolveScope(scopes, relation.memberOf) === scope,
   );
+}
+
+/** The scopes whose key partitions `resource`, from its `memberOf` relations. */
+export function partitionsOf(
+  resource: ResourceNode,
+  scopes: readonly Scope[],
+): readonly string[] {
+  return scopes
+    .filter(
+      (scope) =>
+        scope.key !== undefined &&
+        relatesTo(resource, scope.key, scope.name, scopes),
+    )
+    .map((scope) => scope.name);
+}
+
+/**
+ * Whether a named membership applies under the active tenant: a membership
+ * whose chain includes the first scope counts only inside the active tenant.
+ */
+export function activeFor(
+  membership: Membership,
+  scopes: readonly Scope[],
+  active: string | undefined,
+): boolean {
+  const root = rootScope(scopes);
+  if (
+    root === undefined ||
+    membership.scope === undefined ||
+    !scopeChain(scopes, membership.scope).includes(root)
+  ) {
+    return true;
+  }
+  return active !== undefined && scopeIdOf(membership, root) === active;
+}
+
+export type RowScope =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'tenant-mismatch' | 'scope' };
+
+/**
+ * Whether `row` lies inside a named membership's instance: for the scope and
+ * each ancestor, outermost first, a row that carries the scope's key (or whose
+ * resource declares it) must hold the membership's id for it. There is no
+ * cascade: the membership's own scope is checked, never a scope below it.
+ */
+export function rowInScope(
+  membership: Membership,
+  scopes: readonly Scope[],
+  row: unknown,
+  partitioned: (scope: string, key: string) => boolean,
+): RowScope {
+  if (
+    membership.scope === undefined ||
+    row === null ||
+    typeof row !== 'object'
+  ) {
+    return { ok: true };
+  }
+  const root = rootScope(scopes);
+  const chain = scopeChain(scopes, membership.scope).toReversed();
+  for (const name of chain) {
+    const key = findScope(scopes, name)?.key;
+    if (key === undefined) {
+      continue;
+    }
+    const value = Object.hasOwn(row, key)
+      ? (row as Record<string, unknown>)[key]
+      : undefined;
+    if (
+      (value !== undefined || partitioned(name, key)) &&
+      value !== scopeIdOf(membership, name)
+    ) {
+      return {
+        ok: false,
+        reason: name === root ? 'tenant-mismatch' : 'scope',
+      };
+    }
+  }
+  return { ok: true };
 }
 
 export type ScopeMatch =
@@ -87,18 +185,16 @@ export type ScopeMatch =
 
 export function matchScopedMembership(
   subject: Subject,
-  scope: 'global' | 'tenant' | 'team' | { readonly resource: string },
+  scope: GrantScope,
   roleName: string,
   row: unknown,
-  scopes: {
-    readonly tenant?: { readonly key: string };
-    readonly team?: { readonly key: string };
-  },
+  scopes: readonly Scope[],
   resource: ResourceNode | undefined,
   resources: ReadonlyMap<string, ResourceNode>,
   now: number,
   rolesOf: (membership: Membership) => readonly string[] = (membership) =>
     membership.roles,
+  team?: string,
 ): ScopeMatch {
   if (scope === 'global') {
     return { ok: true };
@@ -108,6 +204,7 @@ export function matchScopedMembership(
     return { ok: false, reason: 'no-membership' };
   }
   const memberships = principal.memberships ?? [];
+  const root = rootScope(scopes);
   let sawExpired = false;
   let sawWrongScope = false;
   let sawTenantMismatch = false;
@@ -119,58 +216,29 @@ export function matchScopedMembership(
       sawExpired = true;
       continue;
     }
-    const kind = membershipScopeKind(membership);
-    if (kind === 'invalid') {
-      continue;
-    }
-    if (scope === 'tenant') {
-      if (kind !== 'tenant' && kind !== 'team') {
-        continue;
-      }
-      const active = principal.tenant;
-      if (active === undefined || membership.tenant !== active) {
-        continue;
-      }
+    if (typeof scope === 'string') {
       if (
-        row !== null &&
-        typeof row === 'object' &&
-        scopes.tenant !== undefined
+        findScope(scopes, scope) === undefined ||
+        membership.scope !== scope ||
+        !inTeam(membership, scopes, team) ||
+        !activeFor(membership, scopes, principal.tenant)
       ) {
-        const rowTenant = (row as Record<string, unknown>)[scopes.tenant.key];
-        const partitioned =
-          rowTenant !== undefined ||
-          relatesTo(resource, scopes.tenant.key, 'tenant');
-        if (partitioned && rowTenant !== membership.tenant) {
+        continue;
+      }
+      const inside = rowInScope(membership, scopes, row, (name, key) =>
+        relatesTo(resource, key, name, scopes),
+      );
+      if (!inside.ok) {
+        if (inside.reason === 'tenant-mismatch') {
           sawTenantMismatch = true;
-          continue;
-        }
-      }
-      return { ok: true, membership };
-    }
-    if (scope === 'team') {
-      if (kind !== 'team') {
-        continue;
-      }
-      const active = principal.tenant;
-      if (active === undefined || membership.tenant !== active) {
-        continue;
-      }
-      if (
-        row !== null &&
-        typeof row === 'object' &&
-        scopes.team !== undefined
-      ) {
-        const rowTeam = (row as Record<string, unknown>)[scopes.team.key];
-        const partitioned =
-          rowTeam !== undefined || relatesTo(resource, scopes.team.key, 'team');
-        if (partitioned && rowTeam !== membership.team) {
+        } else {
           sawWrongScope = true;
-          continue;
         }
+        continue;
       }
       return { ok: true, membership };
     }
-    if (kind !== 'resource' || membership.on === undefined) {
+    if (membership.on === undefined) {
       continue;
     }
     if (
@@ -186,15 +254,16 @@ export function matchScopedMembership(
     }
     sawWrongScope = true;
   }
-  if (scope === 'tenant' && principal.tenant !== undefined) {
-    const belongs = memberships.some(
+  if (
+    scope === root &&
+    principal.tenant !== undefined &&
+    !memberships.some(
       (membership) =>
-        membership.tenant === principal.tenant &&
+        tenantOf(membership, scopes) === principal.tenant &&
         !isMembershipExpired(membership, now),
-    );
-    if (!belongs) {
-      return { ok: false, reason: 'no-membership' };
-    }
+    )
+  ) {
+    return { ok: false, reason: 'no-membership' };
   }
   if (sawTenantMismatch) {
     return { ok: false, reason: 'tenant-mismatch' };

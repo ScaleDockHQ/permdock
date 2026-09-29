@@ -13,5 +13,6 @@ export const permissions = definePermissions({
     id: 'id',
     actions: ['read', 'update', 'delete', 'publish', 'archive'],
     collection: ['create', 'list'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
   }),
 });

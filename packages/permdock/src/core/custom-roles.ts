@@ -7,6 +7,13 @@ import { flattenGrantee } from './grantee.ts';
 import { isForbiddenKey } from './paths.ts';
 import { findPermission } from './permissions.ts';
 import { declaredRoleNames, grantList } from './policy.ts';
+import {
+  type Scope,
+  normalizeMemberships,
+  resolveScope,
+  scopeList,
+  tenantOf,
+} from './scopes.ts';
 import { findRole } from './vocabulary.ts';
 
 export type CustomRoleDropReason =
@@ -40,15 +47,31 @@ export type CustomGrant = {
 
 const GRANT_KEYS = new Set(['permission', 'effect']);
 
-/** A named membership scope a custom-role ceiling is keyed by. */
-export type CeilingScope = 'tenant' | 'team';
+/** The named scope a custom-role ceiling is keyed by. */
+export type CeilingScope = string;
 
-export function customRoleScope(role: Pick<CustomRole, 'team'>): CeilingScope {
-  return role.team === undefined ? 'tenant' : 'team';
+/**
+ * The scope a custom role is held at: `scope` (a name or alias), the second
+ * scope for the `team` input shape, else the first scope. `undefined` when
+ * the policy does not declare it; such a role resolves to nothing.
+ */
+export function customRoleScope(
+  role: Pick<CustomRole, 'scope' | 'team'>,
+  scopes: readonly Scope[],
+): CeilingScope | undefined {
+  if (role.scope !== undefined) {
+    return resolveScope(scopes, role.scope);
+  }
+  return resolveScope(scopes, role.team === undefined ? 'tenant' : 'team');
+}
+
+/** The instance of its scope a custom role is pinned to, if any. */
+function customRoleId(role: CustomRole): string | undefined {
+  return role.scope === undefined ? role.team : role.id;
 }
 
 function isCeilingScope(scope: Grant['scope']): scope is CeilingScope {
-  return scope === 'tenant' || scope === 'team';
+  return typeof scope === 'string' && scope !== 'global';
 }
 
 function soleRole(grant: Grant): string | undefined {
@@ -141,7 +164,10 @@ export function resolveCustomRole(
   policy: Policy,
   role: CustomRole,
 ): ResolvedCustomRole {
-  const scope = customRoleScope(role);
+  const scope = customRoleScope(role, scopeList(policy.scopes));
+  if (scope === undefined) {
+    return freezeDeep({ grants: [], dropped: [] });
+  }
   const ceiling = ceilingGrants(policy, scope);
   const ceilingSet = new Set(ceiling);
   const ceilingKeys = new Set(ceiling.map((grant) => grant.permission.key));
@@ -294,7 +320,9 @@ function wellFormed(role: CustomRole): boolean {
     typeof role === 'object' &&
     typeof role.name === 'string' &&
     typeof role.tenant === 'string' &&
-    (role.team === undefined || typeof role.team === 'string')
+    (role.team === undefined || typeof role.team === 'string') &&
+    (role.scope === undefined || typeof role.scope === 'string') &&
+    (role.id === undefined || typeof role.id === 'string')
   );
 }
 
@@ -316,14 +344,19 @@ export function customGrantsFor(
   return out;
 }
 
-/** A declared role name always wins over a custom role of the same name. */
+/** A membership at the role's scope, inside its tenant (and instance, when pinned), naming it. */
 export function holdsCustomRole(
   membership: Membership,
   role: CustomRole,
+  scopes: readonly Scope[],
 ): boolean {
+  const scope = customRoleScope(role, scopes);
+  const id = customRoleId(role);
   return (
-    membership.tenant === role.tenant &&
-    (role.team === undefined || membership.team === role.team) &&
+    scope !== undefined &&
+    membership.scope === scope &&
+    tenantOf(membership, scopes) === role.tenant &&
+    (id === undefined || membership.id === id) &&
     membership.roles.includes(role.name)
   );
 }
@@ -373,4 +406,27 @@ export function customRoleClaim(
     claim[role.name] = entries;
   }
   return freezeDeep(claim);
+}
+
+/**
+ * The `memberships` claim RLS reads in `jwt` mode: each membership canonical,
+ * with the custom roles it holds as the compact `grants` map.
+ */
+export function membershipsClaim(
+  memberships: readonly Membership[],
+  customRoles: readonly CustomRole[],
+  scopes: readonly Scope[],
+): readonly Readonly<Record<string, unknown>>[] {
+  const claim: Readonly<Record<string, unknown>>[] = [];
+  for (const membership of normalizeMemberships(memberships, scopes)) {
+    const held = customRoles.filter(
+      (role) => wellFormed(role) && holdsCustomRole(membership, role, scopes),
+    );
+    claim.push(
+      held.length === 0
+        ? membership
+        : Object.assign({}, membership, { grants: customRoleClaim(held) }),
+    );
+  }
+  return claim;
 }

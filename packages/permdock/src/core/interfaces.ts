@@ -153,17 +153,19 @@ export type Snapshot = {
     readonly roles?: Readonly<Record<string, Role>>;
     readonly plans?: Readonly<Record<string, Plan>>;
   };
-  /** The policy's row keys, so a client checks the row's tenant and team. */
-  readonly scopes?: {
-    readonly tenant?: { readonly key: string };
-    readonly team?: { readonly key: string };
-    /** Row fields that partition each resource, from its `memberOf` relations. */
-    readonly partitioned?: Readonly<
-      Record<string, { readonly tenant?: true; readonly team?: true }>
-    >;
-  };
+  /** The policy's scopes in order, so a client checks the row against each membership's instance. */
+  readonly scopes?: readonly SnapshotScope[];
   /** One entry per tenant in `tenants`: what the subject may hand out there. Absent without tenants. */
   readonly assignable?: readonly SnapshotAssignable[];
+};
+
+/** One declared scope as a snapshot carries it. */
+export type SnapshotScope = {
+  readonly name: string;
+  readonly key: string;
+  readonly within?: string;
+  /** Resources whose rows this scope's key partitions, from their `memberOf` relations. */
+  readonly resources?: readonly string[];
 };
 
 /** The declared roles and the custom-role ceiling the subject may assign in one tenant. */
@@ -181,7 +183,8 @@ export type SnapshotGrant = {
   readonly where?: Condition;
   readonly check?: Condition;
   readonly approval?: 'human' | ApprovalRequirement;
-  readonly scope?: 'tenant' | 'team' | { readonly resource: string };
+  /** A scope name or one resource; absent for a global grant. */
+  readonly scope?: string | { readonly resource: string };
   readonly membership?: Membership;
   readonly portable?: false;
   readonly fields?: readonly string[];
