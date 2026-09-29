@@ -43,6 +43,28 @@ export type RlsSqlContext = {
   };
   /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
   readonly capabilities?: true;
+  /** Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when any role declares one. */
+  readonly ownership?: RlsOwnership;
+};
+
+/** The policy's role ownership rules as the SQL generator needs them. */
+export type RlsOwnership = {
+  /** Role name to the membership kinds (`via`) that may hold it. */
+  readonly kinds: Readonly<Record<string, readonly string[]>>;
+  /** Who assigns what: the assigner's scope (or `global`) is the target role's scope or an ancestor of it. */
+  readonly assigns: readonly {
+    readonly assigner: string;
+    readonly scope: string;
+    readonly role: string;
+  }[];
+  /** Roles whose holder count per scope instance is constrained. */
+  readonly counted: readonly {
+    readonly role: string;
+    readonly scope: string;
+    readonly min: number;
+    readonly max?: number;
+    readonly transferOnly: boolean;
+  }[];
 };
 
 const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;
@@ -69,6 +91,52 @@ export function scopeTypeOf(ctx: RlsSqlContext, name: string): string {
     return sqlType(declared);
   }
   return name === ctx.scopes[1]?.name ? teamTypeOf(ctx) : tenantTypeOf(ctx);
+}
+
+/**
+ * A role with `for` counts only on a membership of one of those kinds:
+ * `case role when 'admin' then via = any(...) ... else true end`. A missing
+ * kind (`viaExpr` null) holds none of them. `undefined` when no role has `for`.
+ */
+export function kindFilterSql(
+  ctx: RlsSqlContext,
+  roleExpr: string,
+  viaExpr: string,
+): string | undefined {
+  const kinds = Object.entries(ctx.ownership?.kinds ?? {}).toSorted(
+    ([a], [b]) => a.localeCompare(b),
+  );
+  if (kinds.length === 0) {
+    return undefined;
+  }
+  const arms = kinds.map(
+    ([role, allowed]) =>
+      `when ${quoteLiteral(role)} then coalesce(${viaExpr}, '') = any(array[${allowed.map(quoteLiteral).join(', ')}]::text[])`,
+  );
+  return `case ${roleExpr} ${arms.join(' ')} else true end`;
+}
+
+/** The kind check for one known role; `undefined` when it has no `for`. */
+export function roleKindSql(
+  ctx: RlsSqlContext,
+  role: string,
+  viaExpr: string,
+): string | undefined {
+  const allowed = ctx.ownership?.kinds[role];
+  return allowed === undefined
+    ? undefined
+    : `coalesce(${viaExpr}, '') = any(array[${allowed.map(quoteLiteral).join(', ')}]::text[])`;
+}
+
+/** Roles with `for` held globally (no membership, so no kind) grant nothing. */
+export function globalKindFilterSql(
+  ctx: RlsSqlContext,
+  roleExpr: string,
+): string | undefined {
+  const roles = Object.keys(ctx.ownership?.kinds ?? {}).toSorted();
+  return roles.length === 0
+    ? undefined
+    : `not (${roleExpr} = any(array[${roles.map(quoteLiteral).join(', ')}]::text[]))`;
 }
 
 /** The helper returning the ids of scope `name` a grant key reaches. */

@@ -35,6 +35,8 @@ export type MembershipTable = {
   readonly id?: string;
   /** Column naming the membership's resource, when one table holds several kinds. */
   readonly resource?: string;
+  /** Column holding the membership kind (`Membership.via`); roles with `for` need it. */
+  readonly via?: string;
   /** Unix seconds, like `Membership.expiresAt`; `null` never expires. */
   readonly expiresAt?: string;
 };

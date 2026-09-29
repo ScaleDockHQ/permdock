@@ -36,20 +36,25 @@ grant usage on schema public to authenticated, anon;
 create table organization_users (
   organization_id text not null,
   user_id text not null,
-  role text not null
+  role text not null,
+  via text
 );
 create table customer_contacts (
   customer_id text not null,
   organization_id text not null,
   user_id text not null,
-  role text not null
+  role text not null,
+  via text
 );
 insert into organization_users values
-  ('T', 'u_owner', 'owner'), ('B', 'u_owner', 'owner'),
-  ('B', 'u_viewer', 'viewer'), ('T', 'u_staff_contact', 'member');
+  ('T', 'u_owner', 'owner', 'staff'), ('B', 'u_owner', 'owner', 'staff'),
+  ('T', 'u_admin', 'admin', 'staff'), ('B', 'u_viewer', 'viewer', 'staff'),
+  ('T', 'u_staff_contact', 'member', 'staff'),
+  ('T', 'u_sneaky', 'admin', 'contact');
 insert into customer_contacts values
-  ('A', 'T', 'u_private', 'contact'), ('G', 'T', 'u_business', 'contact'),
-  ('C', 'B', 'u_staff_contact', 'contact');
+  ('A', 'T', 'u_private', 'contact', 'contact'),
+  ('G', 'T', 'u_business', 'contact', 'contact'),
+  ('C', 'B', 'u_staff_contact', 'contact', 'contact');
 create table quote (
   id text primary key, organization_id text not null, customer_id text not null, status text not null
 );
@@ -77,9 +82,19 @@ function subjectOf(principal: Principal, tenant?: string): Subject {
   };
 }
 
+const sneaky: Principal = {
+  id: 'u_sneaky',
+  tenant: 'T',
+  memberships: [
+    { scope: 'organization', id: 'T', roles: ['admin'], via: 'contact' },
+  ],
+};
+
 const subjects: Readonly<Record<string, Subject>> = {
   owner: subjectOf(personas.owner),
   ownerInB: subjectOf(personas.owner, 'B'),
+  admin: subjectOf(personas.admin),
+  sneaky: subjectOf(sneaky),
   viewer: subjectOf(personas.viewer),
   privateContact: subjectOf(personas.privateContact),
   businessContact: subjectOf(personas.businessContact),
@@ -128,7 +143,7 @@ async function generate(cwd: string): Promise<string> {
 describe.each([
   { mode: 'database', cwd: FIXTURE },
   { mode: 'jwt', cwd: join(FIXTURE, 'jwt') },
-])('named scopes in generated RLS ($mode mode)', ({ cwd }) => {
+])('named scopes in generated RLS ($mode mode)', ({ mode, cwd }) => {
   let db: Postgres | undefined;
   let generated = '';
 
@@ -200,7 +215,81 @@ describe.each([
       'asset.read a_c_sent',
     ]);
     expect(allowed('platformAdmin')).toEqual([]);
+    expect(allowed('sneaky')).toEqual([]);
   });
+
+  const claimsOf = (principal: Principal): Record<string, string> => ({
+    'app.user_id': principal.id,
+    'app.user_role': '',
+    'app.tenant_id': principal.tenant ?? '',
+    'app.memberships': JSON.stringify(principal.memberships ?? []),
+  });
+
+  it('answers permdock_can_assign from the assigns graph', async () => {
+    const can = (principal: Principal, role: string, id: string) =>
+      db!.as(
+        { role: 'authenticated', settings: claimsOf(principal) },
+        async () =>
+          (
+            await db!.tester.query<{ readonly ok: boolean }>(
+              'select public.permdock_can_assign($1, $2) as ok',
+              [role, id],
+            )
+          ).rows[0]?.ok,
+      );
+    expect(await can(personas.owner, 'owner', 'T')).toBe(true);
+    expect(await can(personas.admin, 'owner', 'T')).toBe(false);
+    expect(await can(personas.admin, 'member', 'T')).toBe(true);
+    expect(await can(personas.admin, 'contact', 'T')).toBe(true);
+    expect(await can(personas.admin, 'member', 'B')).toBe(false);
+    expect(await can(personas.viewer, 'member', 'B')).toBe(false);
+    expect(await can(sneaky, 'member', 'T')).toBe(false);
+  });
+
+  it.runIf(mode === 'database')(
+    'keeps an owner per organization at commit and lets a transfer through',
+    async () => {
+      const admin = db!.admin;
+      const attempt = async (statements: string): Promise<string | null> => {
+        await admin.query('begin');
+        try {
+          await admin.query(statements);
+          await admin.query('set constraints all immediate');
+          return null;
+        } catch (error) {
+          return (error as { readonly hint?: string }).hint ?? String(error);
+        } finally {
+          await admin.query('rollback');
+        }
+      };
+      expect(
+        await attempt(
+          "delete from organization_users where organization_id = 'T' and role = 'owner'",
+        ),
+      ).toBe('last-holder');
+      expect(
+        await attempt(
+          "update organization_users set role = 'admin' where organization_id = 'T' and user_id = 'u_owner'",
+        ),
+      ).toBe('last-holder');
+      expect(
+        await attempt(`
+          update organization_users set role = 'owner' where organization_id = 'T' and user_id = 'u_admin';
+          update organization_users set role = 'admin' where organization_id = 'T' and user_id = 'u_owner';
+        `),
+      ).toBeNull();
+      expect(
+        await attempt(
+          "delete from organization_users where organization_id = 'B'",
+        ),
+      ).toBeNull();
+      expect(
+        await attempt(
+          "update organization_users set via = 'contact' where organization_id = 'T' and user_id = 'u_owner'",
+        ),
+      ).toBe('last-holder');
+    },
+  );
 
   it('gives an owner organization ids and no customer ids (no cascade)', async () => {
     if (db === undefined) {

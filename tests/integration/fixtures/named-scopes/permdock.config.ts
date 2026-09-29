@@ -11,12 +11,14 @@ export default {
           table: 'organization_users',
           user: 'user_id',
           role: 'role',
+          via: 'via',
           columns: { organization: 'organization_id' },
         },
         customer: {
           table: 'customer_contacts',
           user: 'user_id',
           role: 'role',
+          via: 'via',
           columns: {
             customer: 'customer_id',
             organization: 'organization_id',

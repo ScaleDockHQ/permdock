@@ -1,6 +1,8 @@
 import type { RlsSqlContext } from './rls-sql.ts';
 
 import {
+  globalKindFilterSql,
+  kindFilterSql,
   permittedIdsHelper,
   quoteIdent,
   quoteLiteral,
@@ -51,7 +53,7 @@ export function helperSchema(ctx: RlsSqlContext): string {
   return ctx.schema ?? 'public';
 }
 
-function qualified(ctx: RlsSqlContext, name: string): string {
+export function qualified(ctx: RlsSqlContext, name: string): string {
   return `${quoteIdent(helperSchema(ctx))}.${name}`;
 }
 
@@ -124,11 +126,11 @@ revoke execute on function ${fn}(text, text, text) from public;
 grant execute on function ${fn}(text, text, text) to anon, authenticated;`;
 }
 
-function membershipTable(name: string): string {
+export function membershipTable(name: string): string {
   return quoteTable(name.includes('.') ? name : `public.${name}`);
 }
 
-function signedIn(ctx: RlsSqlContext): string {
+export function signedIn(ctx: RlsSqlContext): string {
   return `coalesce(${subjectIdSql(ctx)}::text, '') <> ''`;
 }
 
@@ -159,7 +161,7 @@ function underRoot(ctx: RlsSqlContext, scope: string): boolean {
   return false;
 }
 
-function roleRows(ctx: RlsSqlContext): string {
+export function roleRows(ctx: RlsSqlContext): string {
   const claim = ctx.roleClaim ?? 'user_role';
   switch (ctx.dialect) {
     case 'guc':
@@ -187,7 +189,7 @@ function roleRows(ctx: RlsSqlContext): string {
   }
 }
 
-function membershipRows(ctx: RlsSqlContext): string {
+export function membershipRows(ctx: RlsSqlContext): string {
   const raw = subjectClaimJsonSql(ctx, 'memberships');
   const value =
     ctx.dialect === 'supabase'
@@ -201,6 +203,10 @@ function membershipRows(ctx: RlsSqlContext): string {
     ) r(role)`;
 }
 
+function andLine(indent: string, condition: string | undefined): string {
+  return condition === undefined ? '' : `\n${indent}and ${condition}`;
+}
+
 function hasBody(ctx: RlsSqlContext): string {
   const rp = qualified(ctx, 'role_permissions');
   if (ctx.authorize === 'database') {
@@ -210,7 +216,7 @@ function hasBody(ctx: RlsSqlContext): string {
     join ${rp} rp on rp.role = ur.role::text
     where ur.user_id = ${subjectIdSql(ctx)}
       and rp.grant_key = p_grant
-      and rp.scope = 'global'
+      and rp.scope = 'global'${andLine('      ', globalKindFilterSql(ctx, 'ur.role::text'))}
   )`;
   }
   return `  select ${signedIn(ctx)} and exists (
@@ -218,11 +224,11 @@ function hasBody(ctx: RlsSqlContext): string {
     from ${roleRows(ctx)}
     join ${rp} rp on rp.role = r.role
     where rp.grant_key = p_grant
-      and rp.scope = 'global'
+      and rp.scope = 'global'${andLine('      ', globalKindFilterSql(ctx, 'r.role'))}
   )`;
 }
 
-function memberColumn(name: string): string {
+export function memberColumn(name: string): string {
   return `m.${quoteIdent(name)}`;
 }
 
@@ -272,6 +278,11 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     );
   }
   const [owner, ...rest] = filters;
+  const kind = kindFilterSql(
+    ctx,
+    `${memberColumn(table.role)}::text`,
+    table.via === undefined ? 'null::text' : `${memberColumn(table.via)}::text`,
+  );
   const lines = [
     `  select ${memberColumn(column)}::${type}`,
     `  from ${membershipTable(table.table)} m`,
@@ -279,6 +290,7 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     owner ?? '',
     '    and rp.grant_key = p_grant',
     `    and rp.scope = ${quoteLiteral(scope)}`,
+    ...(kind === undefined ? [] : [`    and ${kind}`]),
     ...rest,
   ];
   const custom = ctx.customRoles;
@@ -336,7 +348,7 @@ function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
   join ${qualified(ctx, 'role_permissions')} rp on rp.role = r.role
   where ${signedIn(ctx)}
     and rp.grant_key = p_grant
-    and rp.scope = ${quoteLiteral(scope)}
+    and rp.scope = ${quoteLiteral(scope)}${andLine('    ', kindFilterSql(ctx, 'r.role', "m ->> 'via'"))}
 ${filters}`;
   const custom = ctx.customRoles;
   if (custom === undefined) {
