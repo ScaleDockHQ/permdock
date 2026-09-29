@@ -11,6 +11,7 @@ export const RLS_HELP = `permdock rls generate | import | verify
            [--rbac supabase] [--rbac-schema public] [--authorize database|jwt]
            [--memberships <table>:tenant,user,role]
            [--policy-per-role] [--policy-name '{table}_{op}'] [--tenant-type uuid] [--custom-roles]
+           [--capabilities]
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
@@ -45,6 +46,7 @@ export type RlsRunInput = {
   readonly policyName: string | undefined;
   readonly tenantType: string | undefined;
   readonly customRoles: boolean;
+  readonly capabilities: boolean;
   readonly io: CliIo;
 };
 
@@ -128,6 +130,7 @@ export async function runRls(
           ? {}
           : { tenantType: input.tenantType }),
         customRoles: input.customRoles,
+        capabilities: input.capabilities,
       });
       return generated;
     }

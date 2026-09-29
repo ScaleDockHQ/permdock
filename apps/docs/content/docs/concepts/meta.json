@@ -9,6 +9,7 @@
     "scopes",
     "tenancy",
     "custom-roles",
+    "capabilities",
     "authentication",
     "decisions",
     "snapshots",

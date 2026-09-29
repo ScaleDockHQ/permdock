@@ -29,7 +29,11 @@ import {
   mergeHostedGrants,
   parsePolicyDocument,
 } from '../index.ts';
-import { joseTokenSigner, joseTokenVerifier } from '../jwt/index.ts';
+import {
+  joseTokenSigner,
+  joseTokenVerifier,
+  subjectFromCapability,
+} from '../jwt/index.ts';
 import { memoryDirectoryStore } from '../scim/index.ts';
 import { memoryReplayStore } from '../ssf/index.ts';
 import {
@@ -572,10 +576,35 @@ describe('conformance runners', () => {
     ) as Record<string, string>;
     expect(Object.keys(fixtures).toSorted()).toEqual([
       'permdock-approval+jwt',
+      'permdock-capability+jwt',
       'permdock-decisions+jwt',
       'permdock-policy+jwt',
       'permdock-snapshot+jwt',
     ]);
+  });
+
+  it('resolves the capability fixture into a link subject', async () => {
+    const fixtures = JSON.parse(
+      readFileSync(
+        new URL('./fixtures/jwt/signed-outputs.json', import.meta.url),
+        'utf8',
+      ),
+    ) as Record<string, string>;
+    const subject = await subjectFromCapability(
+      fixtures['permdock-capability+jwt'],
+      {
+        jwks: jwtFixtureJwks,
+        algorithms: ['Ed25519'],
+        issuer: 'https://app.example.com',
+        audience: 'https://app.example.com',
+      },
+    );
+    expect(subject.principal).toMatchObject({
+      id: 'lnk_fixture',
+      kind: 'link',
+      memberships: [{ on: { resource: 'post', id: '42' }, roles: ['viewer'] }],
+    });
+    expect(subject.delegation).toEqual({ scopes: ['post:read'] });
   });
 
   it('verifies the policy fixture and parses its document', async () => {

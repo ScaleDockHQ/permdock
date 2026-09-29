@@ -215,6 +215,21 @@ export { OCSF_VERSION, toOcsf } from './core/ocsf.ts';
 export { CSV_COLUMNS, toCsvRow } from './core/csv.ts';
 export { catalogFingerprint } from './core/catalog-fingerprint.ts';
 export { coveredByDelegation } from './core/delegation.ts';
+export {
+  capabilitySubject,
+  linkPolicyViolation,
+  parseCapability,
+  signCapability,
+} from './core/capability.ts';
+export type {
+  Capability,
+  CapabilityInput,
+  CapabilityRedeemer,
+  LinkPolicy,
+  LinkPolicyViolation,
+  LinkPrincipal,
+  SignCapabilityOptions,
+} from './core/capability.ts';
 export type { OcsfAuthorizeSession } from './core/ocsf.ts';
 export type {
   Actor,

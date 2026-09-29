@@ -64,7 +64,7 @@ type VerificationFailure = { ok: false; reason: 'invalid-token'; cause: TokenFai
 ```ts
 interface TokenSigner {
   sign(payload: Record<string, unknown>, options: {
-    typ: 'permdock-snapshot+jwt' | 'permdock-approval+jwt' | 'permdock-decisions+jwt' | 'permdock-policy+jwt'
+    typ: 'permdock-snapshot+jwt' | 'permdock-approval+jwt' | 'permdock-decisions+jwt' | 'permdock-policy+jwt' | 'permdock-capability+jwt'
     audience?: string | string[]
     expiresAt?: number                   // NumericDate (Unix seconds); written as `exp`
   }): Promise<string>                    // compact JWS
@@ -73,7 +73,7 @@ interface TokenSigner {
 }
 ```
 
-`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iat` and `jti` itself and copies `iss` from its configuration, so the caller only supplies the format-specific claim (`snapshot`, `approval`, `events`) and optional `aud` / `exp`. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer })`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` returns the plain snapshot JSON ([wire formats](/docs/concepts/wire-formats)).
+`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iat` and `jti` itself and copies `iss` from its configuration, so the caller only supplies the format-specific claim (`snapshot`, `approval`, `events`, `policy`, `capability`) and optional `aud` / `exp`. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer })`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` returns the plain snapshot JSON ([wire formats](/docs/concepts/wire-formats)).
 
 ### Typed provider principals
 

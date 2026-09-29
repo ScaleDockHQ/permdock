@@ -112,7 +112,8 @@ export type TokenSigner = {
         | 'permdock-snapshot+jwt'
         | 'permdock-approval+jwt'
         | 'permdock-decisions+jwt'
-        | 'permdock-policy+jwt';
+        | 'permdock-policy+jwt'
+        | 'permdock-capability+jwt';
       readonly audience?: string | readonly string[];
       readonly expiresAt?: number;
     },
