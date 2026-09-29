@@ -2,6 +2,7 @@ import type { Policy } from 'permdock';
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { listRoles } from 'permdock';
 
 import type { RlsSqlContext } from './rls-sql.ts';
 import type {
@@ -15,6 +16,7 @@ import type {
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { compileGrants } from './rls-compile.ts';
 import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
+import { roleNames } from './rls-grants.ts';
 import { helpersSql } from './rls-helpers.ts';
 import { assemblePolicies } from './rls-policies.ts';
 import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
@@ -41,6 +43,22 @@ async function loadPolicy(
   return asPolicy(
     pickNamed(await loadModule(resolve(cwd, policyPath)), ['policy']),
   );
+}
+
+/** Declared role names, and those a tenant admin may compose into custom roles. */
+function customRoleNames(policy: Policy): {
+  readonly declared: readonly string[];
+  readonly assignable: readonly string[];
+} {
+  const declared = [...roleNames(policy)].toSorted();
+  const assignable = declared.filter(
+    (name) =>
+      policy.rolesByName.get(name)?.assignable ??
+      listRoles(policy.vocabulary.roles).some(
+        (leaf) => leaf.key === name && leaf.assignable,
+      ),
+  );
+  return { declared, assignable };
 }
 
 function defaultAuthorize(
@@ -74,6 +92,7 @@ export async function runRlsGenerate(input: {
   readonly policyPerRole?: boolean;
   readonly policyName?: string;
   readonly tenantType?: string;
+  readonly customRoles?: boolean;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
   const policy = await loadPolicy(input.cwd, input.config, input.from);
@@ -105,6 +124,9 @@ export async function runRlsGenerate(input: {
     tenantType: input.tenantType ?? rls?.tenantType ?? 'uuid',
     ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
     ...(memberships === undefined ? {} : { memberships }),
+    ...(input.customRoles === true || rls?.customRoles === true
+      ? { customRoles: customRoleNames(policy) }
+      : {}),
   };
   const warnings: string[] = [];
   if (authorize === 'database') {
@@ -140,6 +162,9 @@ export async function runRlsGenerate(input: {
         ...(memberships?.tenant === undefined
           ? {}
           : { memberships: memberships.tenant }),
+        ...(ctx.customRoles === undefined
+          ? {}
+          : { customRoles: { declared: ctx.customRoles.declared } }),
       })
     : undefined;
   if (input.rbac) {

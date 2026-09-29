@@ -18,6 +18,8 @@ export type RbacOptions = {
    */
   readonly authorize: RbacAuthorizeMode;
   readonly memberships?: RlsMembershipTable;
+  /** Declared role names when custom roles compile; `authorize()` then answers from them too. */
+  readonly customRoles?: { readonly declared: readonly string[] };
 };
 
 export type RbacScaffold = {
@@ -80,6 +82,9 @@ export function rbacScaffold(
     ...(options.memberships === undefined
       ? {}
       : { tenant: options.memberships }),
+    ...(options.customRoles === undefined
+      ? {}
+      : { customRoles: options.customRoles }),
   });
   const head = `-- rbac scaffold (Supabase Custom Claims and RBAC)
 -- authorize: ${options.authorize}${options.authorize === 'jwt' ? ' (reads the hook claims; stale until the token refreshes)' : ' (reads user_roles on every statement)'}

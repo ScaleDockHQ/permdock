@@ -1,8 +1,20 @@
-import type { PermDock, Permission, Policy, Subject } from 'permdock';
+import type {
+  CustomRole,
+  PermDock,
+  Permission,
+  Policy,
+  Subject,
+} from 'permdock';
 
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createPermDock, findPermission, hasConditionOp } from 'permdock';
+import {
+  createPermDock,
+  customRoleClaim,
+  findPermission,
+  hasConditionOp,
+  memoryRoleSource,
+} from 'permdock';
 
 import type { CliIo, PermDockConfig, RlsDialect } from './types.ts';
 
@@ -71,19 +83,54 @@ function asFixtures(value: unknown): readonly RlsFixture[] {
   });
 }
 
-async function loadFixtures(
-  cwd: string,
-  path: string,
-): Promise<readonly RlsFixture[]> {
+type FixtureFile = {
+  readonly fixtures: readonly RlsFixture[];
+  /** Tenant-defined roles the fixtures' memberships may hold. */
+  readonly customRoles: readonly CustomRole[];
+};
+
+function asCustomRoles(value: unknown): readonly CustomRole[] {
+  if (!isRecord(value) || value.customRoles === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value.customRoles)) {
+    throw new TypeError('PermDock CLI: fixtures customRoles must be an array');
+  }
+  return value.customRoles as readonly CustomRole[];
+}
+
+async function loadFixtures(cwd: string, path: string): Promise<FixtureFile> {
   const abs = resolve(cwd, path);
   if (!existsSync(abs)) {
     throw new Error(`PermDock CLI: fixtures not found: ${path}`);
   }
   if (abs.endsWith('.json')) {
-    return asFixtures(JSON.parse(readFileSync(abs, 'utf8')));
+    const parsed: unknown = JSON.parse(readFileSync(abs, 'utf8'));
+    return { fixtures: asFixtures(parsed), customRoles: asCustomRoles(parsed) };
   }
   const mod = await loadModule(abs);
-  return asFixtures(pickNamed(mod, ['fixtures', 'default']));
+  return {
+    fixtures: asFixtures(pickNamed(mod, ['fixtures', 'default'])),
+    customRoles: asCustomRoles(mod),
+  };
+}
+
+/** Each membership's custom roles as the compact `grants` claim RLS reads in `jwt` mode. */
+function withCustomGrants(
+  memberships: RlsFixture['subject']['memberships'] & object,
+  customRoles: readonly CustomRole[],
+): readonly Record<string, unknown>[] {
+  return memberships.map((membership) => {
+    const held = customRoles.filter(
+      (role) =>
+        role.tenant === membership.tenant &&
+        role.team === membership.team &&
+        membership.roles.includes(role.name),
+    );
+    return held.length === 0
+      ? membership
+      : { ...membership, grants: customRoleClaim(held) };
+  });
 }
 
 function canFixture(
@@ -212,7 +259,10 @@ function rowId(row: unknown): unknown {
   return undefined;
 }
 
-function emitPgtap(fixtures: readonly RlsFixture[]): string {
+function emitPgtap(
+  fixtures: readonly RlsFixture[],
+  customRoles: readonly CustomRole[],
+): string {
   const lines = [
     'begin;',
     `select plan(${fixtures.length});`,
@@ -223,7 +273,10 @@ function emitPgtap(fixtures: readonly RlsFixture[]): string {
       sub: fixture.subject.id,
       role: 'authenticated',
       tenant_id: fixture.subject.tenant ?? null,
-      memberships: fixture.subject.memberships ?? [],
+      memberships: withCustomGrants(
+        fixture.subject.memberships ?? [],
+        customRoles,
+      ),
     });
     lines.push(
       `-- ${fixture.action}`,
@@ -257,6 +310,47 @@ type QueryFn = (
   readonly code?: string;
 }>;
 
+/** Writes the custom roles into the `database`-mode tables; the fixture transaction rolls them back. */
+async function seedCustomRoles(
+  query: QueryFn,
+  schema: string,
+  customRoles: readonly CustomRole[],
+): Promise<void> {
+  const table = (name: string): string =>
+    `${quoteIdent(schema)}.${quoteIdent(name)}`;
+  const write = async (
+    sql: string,
+    values: readonly unknown[],
+  ): Promise<void> => {
+    const result = await query(sql, values);
+    if (result.code !== undefined) {
+      throw new Error(
+        `PermDock CLI: rls verify --db could not seed custom roles (${result.code}); connect as a role that owns the custom_role_* tables`,
+      );
+    }
+  };
+  for (const role of customRoles) {
+    for (const grant of role.grants ?? []) {
+      await write(
+        `insert into ${table('custom_role_permissions')} (tenant_id, team_id, role, permission, effect) values ($1, $2, $3, $4, $5)`,
+        [
+          role.tenant,
+          role.team ?? null,
+          role.name,
+          grant.permission,
+          grant.effect ?? 'allow',
+        ],
+      );
+    }
+    for (const name of role.includes ?? []) {
+      await write(
+        `insert into ${table('custom_role_includes')} (tenant_id, team_id, role, include_role) values ($1, $2, $3, $4)`,
+        [role.tenant, role.team ?? null, role.name, name],
+      );
+    }
+  }
+}
+
 async function bindSubject(
   query: QueryFn,
   fixture: RlsFixture,
@@ -264,10 +358,14 @@ async function bindSubject(
   gucPrefix: string,
   tenantClaim: string,
   roleClaim: string,
+  customRoles: readonly CustomRole[],
 ): Promise<void> {
   await query('set local role "authenticated"');
   const roles = fixture.subject.roles ?? [];
-  const memberships = fixture.subject.memberships ?? [];
+  const memberships = withCustomGrants(
+    fixture.subject.memberships ?? [],
+    customRoles,
+  );
   if (dialect === 'guc') {
     const settings: [string, string][] = [
       [`${gucPrefix}.user_id`, fixture.subject.id],
@@ -303,6 +401,7 @@ async function verifyAgainstDatabase(input: {
   readonly db: string;
   readonly policy: Policy;
   readonly fixtures: readonly RlsFixture[];
+  readonly customRoles: readonly CustomRole[];
   readonly config: PermDockConfig;
   readonly inProcess: readonly {
     readonly action: string;
@@ -323,6 +422,11 @@ async function verifyAgainstDatabase(input: {
   const gucPrefix = input.config.rls?.gucPrefix ?? 'app';
   const tenantClaim = input.config.rls?.tenantClaim ?? 'tenant_id';
   const roleClaim = input.config.rls?.roleClaim ?? 'user_role';
+  const rls = input.config.rls;
+  const seedsTables =
+    rls?.customRoles === true &&
+    (rls.authorize ?? rls.rbac?.authorize ?? 'jwt') === 'database';
+  const schema = rls?.schema ?? rls?.rbac?.schema ?? 'public';
   const query: QueryFn = async (sql, values) => {
     try {
       const result = await client.query(
@@ -364,6 +468,9 @@ async function verifyAgainstDatabase(input: {
         input.config.rls?.tables?.[permission.resource] ?? permission.resource;
       await query('begin');
       try {
+        if (seedsTables) {
+          await seedCustomRoles(query, schema, input.customRoles);
+        }
         await bindSubject(
           query,
           fixture,
@@ -371,6 +478,7 @@ async function verifyAgainstDatabase(input: {
           gucPrefix,
           tenantClaim,
           roleClaim,
+          input.customRoles,
         );
         const statement = statementFor(fixture, permission.action, table);
         const result = await query(statement.sql, statement.values);
@@ -422,9 +530,9 @@ export async function runRlsVerify(input: {
   );
   const fixturesPath =
     input.fixtures ?? input.config.rls?.fixtures ?? 'rls.fixtures.json';
-  const fixtures = await loadFixtures(input.cwd, fixturesPath);
+  const { fixtures, customRoles } = await loadFixtures(input.cwd, fixturesPath);
   if (input.format === 'pgtap') {
-    return { code: 0, output: emitPgtap(fixtures) };
+    return { code: 0, output: emitPgtap(fixtures, customRoles) };
   }
   const mismatches: string[] = [];
   const notes: string[] = [];
@@ -445,7 +553,9 @@ export async function runRlsVerify(input: {
       continue;
     }
     const kind = grantKind(policy, fixture.action);
-    const dock = await createPermDock(policy, toSubject(fixture.subject));
+    const dock = await createPermDock(policy, toSubject(fixture.subject), {
+      customRoles: memoryRoleSource(customRoles),
+    });
     const granted = canFixture(
       dock,
       permission,
@@ -470,6 +580,7 @@ export async function runRlsVerify(input: {
         db: input.db,
         policy,
         fixtures,
+        customRoles,
         config: input.config,
         inProcess,
       });

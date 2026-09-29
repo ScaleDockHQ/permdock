@@ -56,6 +56,12 @@ export type RlsConfig = {
   readonly authorize?: 'database' | 'jwt';
   /** One policy per role and permission instead of one per table and command. */
   readonly policyPerRole?: boolean;
+  /**
+   * Resolve tenant-defined custom roles in the helpers: `custom_role_permissions` and
+   * `custom_role_includes` in `database` mode, the `memberships[].grants` claim in `jwt` mode,
+   * always intersected with the `permdock_ceiling` view. Off by default.
+   */
+  readonly customRoles?: boolean;
   /** Policy name template: `{table}`, `{op}`, plus `{role}` and `{permission}` with `policyPerRole`. */
   readonly policyName?: string;
   /** `rls generate --rbac supabase` defaults; flags override. */

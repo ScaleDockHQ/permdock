@@ -27,6 +27,14 @@ export type RlsSqlContext = {
   readonly tenantType?: string;
   /** Postgres type of the team column. Defaults to `tenantType`. */
   readonly teamType?: string;
+  /**
+   * Set when custom roles compile: the helpers also resolve tenant-defined
+   * roles, bounded by the ceiling of `assignable` declared roles.
+   */
+  readonly customRoles?: {
+    readonly declared: readonly string[];
+    readonly assignable: readonly string[];
+  };
 };
 
 const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;
