@@ -99,7 +99,7 @@ The layout never awaits. `PermDockProvider` renders its children at once; only c
 | --- | --- | --- |
 | Memberships come from | a `memberships` claim written by the access-token hook | the app's membership table, read per snapshot and per action |
 | Snapshot cost | none beyond verifying the token | one query per private-cache miss |
-| Claim size | keep under 1 KB, about 15 orgs (`supabaseMembershipsBudget` in `@permdock/testing`) | unbounded |
+| Claim size | keep under 1 KB, about 15 orgs (`supabaseMembershipsBudget` in `permdock/testing`) | unbounded |
 | After a role change | stale until the token is re-issued | fresh on the next render or action |
 | Proxy redirects | precise: `mayAccess` sees the roles | optimistic: the token carries no memberships, so `mayAccess` answers `true` for tenant-scoped pages |
 

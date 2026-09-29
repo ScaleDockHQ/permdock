@@ -97,7 +97,7 @@ PermDock composes through wire formats and interfaces, and ships a package entry
 | Schemathesis `ignored_auth` | Property-based API tests; verifies protected operations reject anonymous calls | Recipe in CI | [CLI: openapi](/docs/cli/openapi) |
 | oasdiff | Breaking-change diff; `security` removals are breaking | Recipe in CI | [CLI: openapi](/docs/cli/openapi) |
 | Prism, Microcks | Mock servers honouring `security` | `security` | [OpenAPI adapter](/docs/adapters/openapi) |
-| MSW | Request mocking used by `@permdock/testing` fixtures | Recipe | [testing](/docs/adapters/testing) |
+| MSW | Request mocking used by `permdock/testing` fixtures | Recipe | [testing](/docs/adapters/testing) |
 
 ## Authorization engines, gateways and decision services
 
@@ -231,14 +231,14 @@ PermDock's agent adapters are thin translators from a `Decision` into a runtime'
 | Payload CMS | CMS with access-control functions returning `Where` | Tracking | [landscape](/docs/research/landscape) |
 | Cloudflare D1, Turso, SQLite | SQLite-family stores without RLS | Drizzle `sqlite` dialect; `ApprovalStore` recipe | [approvals adapter](/docs/adapters/approvals), [RLS adapter](/docs/adapters/rls) |
 
-Every sync-engine and MongoDB candidate is a compiler or generator in `@permdock/cli`, never a runtime dependency, and joins the parity suite in `@permdock/testing` before it ships. The RLS portable subset is the contract: an operator that does not compile to RLS will not compile to a sync engine either. Engine filters take subject material only from verified token claims, and they cover reads only; every write still passes through a route or mutator guarded by `protect`, so `approval-required` and closures keep working.
+Every sync-engine and MongoDB candidate is a compiler or generator in `@permdock/cli`, never a runtime dependency, and joins the parity suite in `permdock/testing` before it ships. The RLS portable subset is the contract: an operator that does not compile to RLS will not compile to a sync engine either. Engine filters take subject material only from verified token claims, and they cover reads only; every write still passes through a route or mutator guarded by `protect`, so `approval-required` and closures keep working.
 
 ## Testing and CI
 
 | Tool | What it is | Mechanism | Owning page |
 | --- | --- | --- | --- |
 | Playwright | Browser and API e2e runner | Recipe (`tests/e2e`, one spec per example) | [Testing adapter](/docs/adapters/testing) |
-| `@next/playwright` | Next.js Playwright helper; `instant()` asserts a navigation completed from prefetched UI | Recipe (`tests/e2e/src/next-saas.spec.ts`, no wrapper in `@permdock/testing`) | [Next.js Cache Components guide](/docs/guides/next-cache-components) |
+| `@next/playwright` | Next.js Playwright helper; `instant()` asserts a navigation completed from prefetched UI | Recipe (`tests/e2e/src/next-saas.spec.ts`, no wrapper in `permdock/testing`) | [Next.js Cache Components guide](/docs/guides/next-cache-components) |
 | testcontainers | Docker-backed Postgres for RLS parity | Recipe (`pnpm test:integration`) | [Testing adapter](/docs/adapters/testing), [RLS adapter](/docs/adapters/rls) |
 | Bun, Deno | JavaScript runtimes with a Web `fetch` server | WinterTC entries run unchanged; `tests/runtimes` smoke (kernel, Hono, AuthZEN, JWT; Elysia on Bun) | [Testing adapter](/docs/adapters/testing), [server kernel](/docs/adapters/server-kernel) |
 | workerd, Miniflare | Cloudflare Workers runtime and its local simulator | WinterTC entries without `nodejs_compat`; `tests/runtimes` smoke through Miniflare | [Testing adapter](/docs/adapters/testing), [server kernel](/docs/adapters/server-kernel) |
@@ -248,7 +248,7 @@ Every sync-engine and MongoDB candidate is a compiler or generator in `@permdock
 
 | Channel | What it is | Mechanism | Owning page |
 | --- | --- | --- | --- |
-| npm (`permdock`, `@permdock/cli`, `@permdock/testing`) | The packages | Install path | [installation](/docs/getting-started/installation) |
+| npm (`permdock`, `@permdock/cli`, `permdock/testing`) | The packages | Install path | [installation](/docs/getting-started/installation) |
 | Vercel Marketplace | Native integration listing for PermDock Cloud; `eve-agent` template | Cloud provisioning | [Cloud adapter](/docs/adapters/cloud), [landscape](/docs/research/landscape) |
 | Supabase partner marketplace, Convex components directory | Provider ecosystems | Distribution | [landscape](/docs/research/landscape) |
 | Cursor and Claude Code plugin marketplaces, skills.sh | Skills and a docs MCP | Distribution | [agent docs standards](/docs/standards/agent-docs-standards) |

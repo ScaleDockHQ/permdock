@@ -190,7 +190,7 @@ const subject = subjectFromSupabaseSession(session, { roles: 'user_role' })
 
 ### Claim size and membership mode
 
-Claims travel in the session cookie and on every request. Keep the hook's `memberships` claim under about 1 KB of JSON: about 15 UUID-keyed, single-role memberships. `@permdock/testing` exports this ceiling as `supabaseMembershipsBudget`, along with `supabaseClaimFixtures` in the hook's shape. Above the ceiling, or when a role change must apply before the next token refresh, switch to database mode. The hook writes no memberships, the helpers and `authorize()` read the membership table, and the app passes rows from its own query to `snapshotFor(policy, claims, { memberships })`. JWT mode costs a token refresh of staleness (`jwt_expiry`, 3600 s by default); database mode costs a query per snapshot.
+Claims travel in the session cookie and on every request. Keep the hook's `memberships` claim under about 1 KB of JSON: about 15 UUID-keyed, single-role memberships. `permdock/testing` exports this ceiling as `supabaseMembershipsBudget`, along with `supabaseClaimFixtures` in the hook's shape. Above the ceiling, or when a role change must apply before the next token refresh, switch to database mode. The hook writes no memberships, the helpers and `authorize()` read the membership table, and the app passes rows from its own query to `snapshotFor(policy, claims, { memberships })`. JWT mode costs a token refresh of staleness (`jwt_expiry`, 3600 s by default); database mode costs a query per snapshot.
 
 ### The Custom Access Token Hook
 

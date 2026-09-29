@@ -9,7 +9,6 @@
   },
   "devDependencies": {
     "@permdock/e2e-saas-kit": "workspace:*",
-    "@permdock/testing": "workspace:*",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-start": "catalog:",
     "@types/node": "catalog:",

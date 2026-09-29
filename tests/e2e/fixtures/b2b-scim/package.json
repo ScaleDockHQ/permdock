@@ -12,7 +12,6 @@
     "@electric-sql/pglite": "catalog:",
     "@hono/node-server": "catalog:",
     "@permdock/e2e-saas-kit": "workspace:*",
-    "@permdock/testing": "workspace:*",
     "hono": "catalog:",
     "jose": "catalog:",
     "permdock": "workspace:*"

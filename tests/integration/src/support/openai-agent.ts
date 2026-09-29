@@ -1,8 +1,8 @@
 import type { ApprovalStore } from 'permdock/approvals';
 
 import { Agent, tool, Usage } from '@openai/agents';
-import { saasPermissions as p, saasPolicy } from '@permdock/testing/saas';
 import { createPermDock } from 'permdock/openai';
+import { saasPermissions as p, saasPolicy } from 'permdock/testing/saas';
 import { z } from 'zod';
 
 import { agentDelegation, agentSubject, agentTools, TENANT } from './agents.ts';

@@ -83,7 +83,7 @@ export default defineConfig({
         '**/*.{test,spec}.{ts,tsx}',
         '**/*.test-d.ts',
         '**/fixtures/**/*.ts',
-        'packages/testing/src/**/*.ts',
+        'packages/permdock/src/testing/**/*.ts',
         'tests/**/support/**/*.ts',
         'tests/e2e/src/**/*.ts',
         'tests/e2e/playwright.config.ts',

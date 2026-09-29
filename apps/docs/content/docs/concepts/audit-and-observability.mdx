@@ -64,7 +64,7 @@ Implementations that ship or are documented:
 
 | Sink | Where | What it does |
 | --- | --- | --- |
-| `memorySink({ signer })` | core | Ring buffer; the default; optional `TokenSigner` signs each `write` (`typ: permdock-decisions+jwt`); what `@permdock/testing` asserts against |
+| `memorySink({ signer })` | core | Ring buffer; the default; optional `TokenSigner` signs each `write` (`typ: permdock-decisions+jwt`); what `permdock/testing` asserts against |
 | `permdock/otel` | optional entry | Spans and metrics from the same events (below) |
 | `permdock/cloud` | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud)) |
 | Your own | a few lines | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface |
@@ -189,4 +189,4 @@ Model-readable text: the `detail` strings are written for an LLM as much as for 
 | Who gave this person the editor role? | The `membership` event whose `roles.added` includes `editor`, filtered by `tenant`, joined on `via` when the change came from a group |
 | How often is `post.delete` denied per adapter? | The `permdock.checks` counter |
 | Why is this page slow? | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint |
-| What changed in who can do what? | `permdock usage` and the policy matrix snapshot in `@permdock/testing`, in review |
+| What changed in who can do what? | `permdock usage` and the policy matrix snapshot in `permdock/testing`, in review |

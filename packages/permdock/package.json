@@ -198,6 +198,18 @@
     "./pdp": {
       "types": "./dist/pdp/index.d.ts",
       "default": "./dist/pdp/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    },
+    "./testing/saas": {
+      "types": "./dist/testing/saas/index.d.ts",
+      "default": "./dist/testing/saas/index.js"
+    },
+    "./testing/saas/permissions": {
+      "types": "./dist/testing/saas/permissions.d.ts",
+      "default": "./dist/testing/saas/permissions.js"
     }
   },
   "publishConfig": {
@@ -283,6 +295,7 @@
     "rxjs": "catalog:peers",
     "solid-js": "catalog:peers",
     "svelte": "catalog:peers",
+    "vitest": "catalog:peers",
     "vue": "catalog:peers"
   },
   "peerDependenciesMeta": {
@@ -362,6 +375,9 @@
       "optional": true
     },
     "@opentelemetry/api": {
+      "optional": true
+    },
+    "vitest": {
       "optional": true
     }
   },

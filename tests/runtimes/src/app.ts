@@ -1,5 +1,11 @@
 import type { JsonWebKeySet } from 'permdock/jwt';
 
+import { Hono } from 'hono';
+import { memoryRoleSource } from 'permdock';
+import { createPermDock as createAuthzen } from 'permdock/authzen';
+import { createPermDock as createHono } from 'permdock/hono';
+import { createJwtSubjectResolver } from 'permdock/jwt';
+import { createPermDock as createKernel } from 'permdock/server';
 import {
   saasAudience,
   saasCustomRoles,
@@ -10,13 +16,7 @@ import {
   saasPolicy,
   saasPrincipal,
   saasSeed,
-} from '@permdock/testing/saas';
-import { Hono } from 'hono';
-import { memoryRoleSource } from 'permdock';
-import { createPermDock as createAuthzen } from 'permdock/authzen';
-import { createPermDock as createHono } from 'permdock/hono';
-import { createJwtSubjectResolver } from 'permdock/jwt';
-import { createPermDock as createKernel } from 'permdock/server';
+} from 'permdock/testing/saas';
 
 /** The only bearer the AuthZEN endpoint accepts: a test-only PEP credential. */
 export const PEP_TOKEN = 'runtimes-pep-bearer';

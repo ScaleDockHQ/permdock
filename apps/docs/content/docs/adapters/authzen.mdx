@@ -7,7 +7,7 @@ description: permdock/authzen serves the OpenID AuthZEN Authorization API 1.0 (e
 
 ## Purpose
 
-The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (final January 2026) standardises how a PEP asks a PDP "may this subject perform this action on this resource in this context". It defines `/access/v1/evaluation`, batched `/access/v1/evaluations` (boxcar), `/access/v1/search/subject`, `/search/resource`, `/search/action`, and a `.well-known/authzen-configuration` metadata document, plus a [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels. Keycloak and the NLgov profile implement it. PermDock adopts it instead of a bespoke format. In-repo tests cover all four shapes, and `testAuthZen` from `@permdock/testing` runs the official interop Todo vectors ([conformance](/docs/standards/authzen#conformance)).
+The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (final January 2026) standardises how a PEP asks a PDP "may this subject perform this action on this resource in this context". It defines `/access/v1/evaluation`, batched `/access/v1/evaluations` (boxcar), `/access/v1/search/subject`, `/search/resource`, `/search/action`, and a `.well-known/authzen-configuration` metadata document, plus a [certification programme](https://github.com/openid/authzen/issues/433) with Basic, Batch, Search and Discovery levels. Keycloak and the NLgov profile implement it. PermDock adopts it instead of a bespoke format. In-repo tests cover all four shapes, and `testAuthZen` from `permdock/testing` runs the official interop Todo vectors ([conformance](/docs/standards/authzen#conformance)).
 
 ## API
 

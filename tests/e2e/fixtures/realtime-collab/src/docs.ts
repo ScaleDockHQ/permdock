@@ -1,4 +1,4 @@
-import { type SaasDoc, saasSeed } from '@permdock/testing/saas';
+import { type SaasDoc, saasSeed } from 'permdock/testing/saas';
 
 export type Edit = { readonly docId: string; readonly by: string };
 

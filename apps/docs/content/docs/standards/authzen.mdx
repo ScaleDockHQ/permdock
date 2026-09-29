@@ -3,7 +3,7 @@ title: OpenID AuthZEN
 description: How PermDock speaks the OpenID AuthZEN Authorization API 1.0 as a policy decision point (permdock/authzen) and as a policy enforcement point (the pdp provider).
 ---
 
-`permdock/authzen` serves the full endpoint set, the React adapter's batched client speaks the same schemas, and the `pdp` provider calls a remote PDP. Basic, Batch, Search and Discovery conformance runs in the repository through `testAuthZen` from `@permdock/testing`, including the official interop Todo vectors; submitting for external certification is the last step ([checklist](#certification-checklist)).
+`permdock/authzen` serves the full endpoint set, the React adapter's batched client speaks the same schemas, and the `pdp` provider calls a remote PDP. Basic, Batch, Search and Discovery conformance runs in the repository through `testAuthZen` from `permdock/testing`, including the official interop Todo vectors; submitting for external certification is the last step ([checklist](#certification-checklist)).
 
 ## What it is
 
@@ -113,17 +113,17 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a t
 | `/search/subject` | Iterating the subjects returned by the `subjects.list` option; without it the route answers 404 and the metadata document omits `search_subject_endpoint` |
 | `/search/resource` as a claim source (AuthZEN claims draft) | `permdock.heldRoles({ tenant })` and `memberships()` for the authenticated subject ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) |
 | `.well-known` metadata | `.well-known/authzen-configuration` served by `handler` |
-| Certification levels Basic / Batch / Search / Discovery | `testAuthZen` from `@permdock/testing` over the interop Todo domain; external submission per the checklist below |
+| Certification levels Basic / Batch / Search / Discovery | `testAuthZen` from `permdock/testing` over the interop Todo domain; external submission per the checklist below |
 
 ## Conformance
 
-`testAuthZen(handler, { vectors })` from [`@permdock/testing`](/docs/adapters/testing) runs vectors in the interop harness layout (`evaluation` and `evaluations` arrays of `{ request, expected }`, and `search.subject`, `search.resource`, `search.action` lists compared order-insensitively) against any `(Request) => Promise<Response>`, and checks `/.well-known/authzen-configuration` names the same origin as every endpoint it lists. It works for PermDock's own `handler` and for any other AuthZEN PDP.
+`testAuthZen(handler, { vectors })` from [`permdock/testing`](/docs/adapters/testing) runs vectors in the interop harness layout (`evaluation` and `evaluations` arrays of `{ request, expected }`, and `search.subject`, `search.resource`, `search.action` lists compared order-insensitively) against any `(Request) => Promise<Response>`, and checks `/.well-known/authzen-configuration` names the same origin as every endpoint it lists. It works for PermDock's own `handler` and for any other AuthZEN PDP.
 
 The package ships the interop Todo domain as `authzenTodoPermissions`, `authzenTodoPolicy`, `authzenTodoUsers` and `authzenTodoData` (Rick is `admin` and `evil_genius`, Morty and Summer are `editor`, Beth and Jerry are `viewer`; editors update and delete only todos whose `ownerID` is their email), and `authzenTodoVectors()` generates PermDock's own vectors from those rules. The official vectors live in [openid/authzen](https://github.com/openid/authzen), which carries no licence file, so the repository does not vendor them: `pnpm authzen:vectors` (the root `scripts/fetch-authzen-vectors.ts`) fetches `decisions-authorization-api-1_0-02.json` at commit `78a5165a0048895a345e4ac5b0f2b9c7904bb110` into the gitignored `fixtures/authzen/`, and the suite runs it whenever the file is present.
 
 ### Certification checklist
 
-1. Fetch the official vectors and run `pnpm --filter @permdock/testing test`; every Basic and Batch vector passes against `permdock/authzen`.
+1. Fetch the official vectors and run `pnpm --filter permdock/testing test`; every Basic and Batch vector passes against `permdock/authzen`.
 2. Deploy the interop Todo PDP (the Todo policy behind `permdock/authzen`, with `trustedPep` for the harness) at a public HTTPS origin whose `/.well-known/authzen-configuration` lists evaluation, evaluations and the three search endpoints.
 3. Run the upstream `authzen-todo-backend` and `authzen-search-demo` harnesses against that origin and keep their reports.
 4. Add PermDock to the interop results in the openid/authzen repository and file the submission on the [certification programme](https://github.com/openid/authzen/issues/433) for Basic, Batch, Search and Discovery.

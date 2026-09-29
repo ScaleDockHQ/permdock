@@ -1,4 +1,4 @@
-import { saasPermissions } from '@permdock/testing/saas';
+import { saasPermissions } from 'permdock/testing/saas';
 
 import type { Session } from './session.ts';
 

@@ -1,4 +1,4 @@
-import type { SaasProject } from '@permdock/testing/saas';
+import type { SaasProject } from 'permdock/testing/saas';
 
 import { permissions } from '@permdock/e2e-saas-kit/nav';
 import { createFileRoute, useRouter } from '@tanstack/react-router';

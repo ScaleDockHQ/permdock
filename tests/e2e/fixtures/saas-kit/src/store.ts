@@ -1,7 +1,7 @@
-import type { SaasOrg, SaasPlan, SaasProject } from '@permdock/testing/saas';
 import type { Membership } from 'permdock';
+import type { SaasOrg, SaasPlan, SaasProject } from 'permdock/testing/saas';
 
-import { saasSeed } from '@permdock/testing/saas';
+import { saasSeed } from 'permdock/testing/saas';
 
 type MemberRow = {
   readonly user: string;

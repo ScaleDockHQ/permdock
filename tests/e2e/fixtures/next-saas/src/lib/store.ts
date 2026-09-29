@@ -1,7 +1,7 @@
-import type { SaasPlan } from '@permdock/testing/saas';
 import type { CustomRole, Membership } from 'permdock';
+import type { SaasPlan } from 'permdock/testing/saas';
 
-import { saasSeed } from '@permdock/testing/saas';
+import { saasSeed } from 'permdock/testing/saas';
 
 import type { Project } from '../permissions.ts';
 

@@ -2,16 +2,16 @@ import type { Server } from 'node:http';
 import type { PermDock, Permission } from 'permdock';
 
 import { createAdaptorServer } from '@hono/node-server';
-import { testHttpAdapter } from '@permdock/testing';
-import {
-  saasJwks,
-  saasPermissions as p,
-  saasPrincipal,
-} from '@permdock/testing/saas';
 import { pipeline } from '@supabase/middleware';
 import { withClaims } from '@supabase/server/middleware/claims';
 import { problemFromError } from 'permdock/server';
 import { createPermDock } from 'permdock/supabase/middleware';
+import { testHttpAdapter } from 'permdock/testing';
+import {
+  saasJwks,
+  saasPermissions as p,
+  saasPrincipal,
+} from 'permdock/testing/saas';
 
 import { listen } from '../support/listen.ts';
 

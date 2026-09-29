@@ -1,5 +1,5 @@
-import type { SaasProject } from '@permdock/testing/saas';
 import type { RouteSectionProps } from '@solidjs/router';
+import type { SaasProject } from 'permdock/testing/saas';
 
 import { permissions } from '@permdock/e2e-saas-kit/nav';
 import { createAsync, revalidate } from '@solidjs/router';

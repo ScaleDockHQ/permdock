@@ -220,7 +220,7 @@ Authoring and export routes, used by the dashboard, scripts and the contract tes
 
 ## Hosted Authorization Decision Service
 
-The Cloud runs the same `permdock/authzen` handler your app could run, against the policy you publish with [`permdock cloud push`](/docs/cli/cloud). Kong, Envoy, Tyk, Zuplo or a Go service calls `POST /access/v1/evaluation` and gets an AuthZEN answer whose `context` carries `outcome`, denial reasons and the approval `token` ([AuthZEN](/docs/standards/authzen)). Decision semantics are identical to the embedded engine because it is the same code; an `evaluations` batch of a policy matrix from `@permdock/testing` is the parity test.
+The Cloud runs the same `permdock/authzen` handler your app could run, against the policy you publish with [`permdock cloud push`](/docs/cli/cloud). Kong, Envoy, Tyk, Zuplo or a Go service calls `POST /access/v1/evaluation` and gets an AuthZEN answer whose `context` carries `outcome`, denial reasons and the approval `token` ([AuthZEN](/docs/standards/authzen)). Decision semantics are identical to the embedded engine because it is the same code; an `evaluations` batch of a policy matrix from `permdock/testing` is the parity test.
 
 Caller authentication is real authentication ([threat model](/docs/security/threat-model), invariant 9):
 

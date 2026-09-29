@@ -1,5 +1,5 @@
 import type { NavItem } from '@permdock/e2e-saas-kit/nav';
-import type { SaasProject } from '@permdock/testing/saas/permissions';
+import type { SaasProject } from 'permdock/testing/saas/permissions';
 
 import { navItems, permissions } from '@permdock/e2e-saas-kit/nav';
 import { Redirect } from 'expo-router';

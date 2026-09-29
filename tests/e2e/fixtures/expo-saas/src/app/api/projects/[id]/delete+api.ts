@@ -1,5 +1,5 @@
 import { findProject, removeProject } from '@permdock/e2e-saas-kit';
-import { saasPermissions as p } from '@permdock/testing/saas/permissions';
+import { saasPermissions as p } from 'permdock/testing/saas/permissions';
 
 import { server } from '../../../../lib/server';
 

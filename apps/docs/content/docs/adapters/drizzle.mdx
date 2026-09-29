@@ -73,7 +73,7 @@ For RLS, the same tree is compiled by the CLI at build time instead of per reque
 
 ## Example app
 
-`apps/examples/drizzle`: a Hono API over an in-process PGlite database. `GET /posts` selects through the list filter; `PATCH /posts/:id` updates through the update filter and answers `403` when no row matched. `tests/integration/src/orm-parity.test.ts` compares `filter` in memory with `toWhere` results on node-postgres and PGlite for every operator, NULL and negation case, reference, `memberOf` scope, parent hop and expired membership (`ormParity` in `@permdock/testing`).
+`apps/examples/drizzle`: a Hono API over an in-process PGlite database. `GET /posts` selects through the list filter; `PATCH /posts/:id` updates through the update filter and answers `403` when no row matched. `tests/integration/src/orm-parity.test.ts` compares `filter` in memory with `toWhere` results on node-postgres and PGlite for every operator, NULL and negation case, reference, `memberOf` scope, parent hop and expired membership (`ormParity` in `permdock/testing`).
 
 ## Why
 

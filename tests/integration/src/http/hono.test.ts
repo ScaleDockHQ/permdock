@@ -2,11 +2,11 @@ import type { Server } from 'node:http';
 import type { PermDock } from 'permdock';
 
 import { createAdaptorServer } from '@hono/node-server';
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { createPermDock } from 'permdock/hono';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 
 import { listen } from '../support/listen.ts';
 

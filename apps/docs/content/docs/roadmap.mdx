@@ -7,7 +7,7 @@ This page is the single place for what exists, what is planned and what is still
 
 ## Current scope
 
-The first release, `0.1.0`, ships three packages: `permdock`, `@permdock/cli` and `@permdock/testing`.
+The first release, `0.1.0`, ships three packages: `permdock`, `@permdock/cli` and `permdock/testing`.
 
 - **Core.** `definePermissions`, `resource` and typed permission references; `definePolicy`, `role`, `allow`, `deny` and portable conditions with an in-memory evaluator; the two-principal subject (`principal`, `actor`, `delegation`) with tenancy, memberships, scoped and custom roles; `createPermDock` with `can`, `decide`, `assert`, `filter`, `simulate`, `snapshot` and `on`; field-level grants, quota grants through `LimitStore`, approvals through `ApprovalStore`, decision events through `DecisionSink`, and connections that end on a `RevocationFeed`. See [concepts](/docs/concepts/permissions).
 - **Adapters.** UI adapters for React, React Native, Vue, Svelte and Solid; Next.js with Cache Components; server adapters for Hono, Express, Fastify, Elysia, Nest, Node, tRPC, oRPC and the Fetch kernel; your own CLI through `permdock/terminal`; agent adapters for MCP, the AI SDK, the Claude Agent SDK, Eve, OpenAI Agents, WebMCP and A2A; `where` compilers for Drizzle, Prisma and Kysely; providers for JWT and OIDC, Supabase, Better Auth, Clerk and Convex; AuthZEN as a PDP and as a PEP (`permdock/pdp`); approvals, SSF and CAEP, SCIM, OpenAPI, OpenTelemetry and the optional `permdock/cloud` client. See [adapters](/docs/adapters).
@@ -42,7 +42,7 @@ Specifications PermDock follows without code, including GNAP, carry a build, nam
 - Before `0.1.0`, the three packages publish prereleases (`0.1.0-next.N`) under the `next` npm dist-tag, so PermDock Cloud can build against a published contract; `latest` stays empty until `0.1.0`. Prereleases are still the baseline: formats change in place at `v1`.
 - From the first release (`0.1.0`), releases follow semver. A breaking change to a wire format bumps that format's major (`v: 2`) and the package major; a breaking change to a public identifier or a default is a major release with a migration note on each affected adapter page.
 - Any change to a public identifier, wire format or default behaviour starts as an RFC-lite issue and ends as an update to the owning page's Why section.
-- Adapters version with core; there is no independent adapter versioning. `@permdock/cli` and `@permdock/testing` share the major version of `permdock` and declare the compatible `permdock` range as a peer dependency.
+- Adapters version with core; there is no independent adapter versioning. `@permdock/cli` and `permdock/testing` share the major version of `permdock` and declare the compatible `permdock` range as a peer dependency.
 - Pinned draft revisions (OpenAPI 3.3 Security Profiles, Overlay 1.2, WebMCP, Web Bot Auth) are bumped with a changeset and recorded in `x-permdock-catalog.drafts`; see the [watch list](/docs/standards/watch-list).
 
 ## Open questions

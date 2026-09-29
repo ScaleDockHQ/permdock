@@ -162,10 +162,10 @@ A persisted snapshot is reported as `'stale'` until the refresh completes, which
 
 ## Testing with snapshots
 
-Snapshots are plain JSON, so UI tests do not need a server. `@permdock/testing` builds fixtures from a policy and a user:
+Snapshots are plain JSON, so UI tests do not need a server. `permdock/testing` builds fixtures from a policy and a user:
 
 ```ts
-import { snapshotFixture } from '@permdock/testing'
+import { snapshotFixture } from 'permdock/testing'
 import { render } from '@testing-library/react'
 
 const snapshot = snapshotFixture(policy, memberUser, { include: [permissions.post] })

@@ -3,8 +3,8 @@ import {
   ClientCredentialsProvider,
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
-import { signSaasToken } from '@permdock/testing/saas';
 import { expect, test } from '@playwright/test';
+import { signSaasToken } from 'permdock/testing/saas';
 
 const origin = 'http://127.0.0.1:3505';
 const resource = `${origin}/mcp`;

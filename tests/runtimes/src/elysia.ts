@@ -1,6 +1,6 @@
-import { saasPermissions as p, saasPolicy } from '@permdock/testing/saas';
 import { Elysia } from 'elysia';
 import { createPermDock } from 'permdock/elysia';
+import { saasPermissions as p, saasPolicy } from 'permdock/testing/saas';
 
 import { customRoles, projectOf, subjectOf } from './app.ts';
 

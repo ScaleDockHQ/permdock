@@ -8,9 +8,9 @@ import {
   projectsOf,
   removeProject,
 } from '@permdock/e2e-saas-kit';
-import { saasPolicy } from '@permdock/testing/saas';
-import { saasPermissions as p } from '@permdock/testing/saas/permissions';
 import { createPermDock, subjectFromMcp } from 'permdock/mcp';
+import { saasPolicy } from 'permdock/testing/saas';
+import { saasPermissions as p } from 'permdock/testing/saas/permissions';
 import { z } from 'zod';
 
 function tenantOf(authInfo: McpAuthInfo): string | undefined {

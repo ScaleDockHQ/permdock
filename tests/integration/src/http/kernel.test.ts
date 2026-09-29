@@ -1,16 +1,16 @@
-import type { HttpScenarioDomain } from '@permdock/testing';
 import type { Server } from 'node:http';
 import type { PermDock, Permission } from 'permdock';
 import type { ServerPermDock } from 'permdock/server';
+import type { HttpScenarioDomain } from 'permdock/testing';
 
 import { createAdaptorServer } from '@hono/node-server';
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import {
   createPermDock,
   PermDockRevokedError,
   problemFromError,
 } from 'permdock/server';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 
 import { listen } from '../support/listen.ts';
 

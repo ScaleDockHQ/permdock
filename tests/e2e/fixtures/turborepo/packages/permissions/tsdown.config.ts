@@ -7,6 +7,6 @@ export default defineConfig({
   platform: 'node',
   dts: false,
   clean: true,
-  deps: { neverBundle: ['permdock'], alwaysBundle: [/^@permdock\/testing/u] },
+  deps: { neverBundle: [/^permdock$/u], alwaysBundle: [/^permdock\/testing/u] },
   exports: false,
 });

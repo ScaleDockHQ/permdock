@@ -1,8 +1,8 @@
 import type { DirectoryStore, ScimFilter } from 'permdock/scim';
 
 import { PGlite } from '@electric-sql/pglite';
-import { testDirectoryStore } from '@permdock/testing';
 import { DirectoryUniquenessError, memoryDirectoryStore } from 'permdock/scim';
+import { testDirectoryStore } from 'permdock/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { pgDirectoryStore } from './pg-store.ts';

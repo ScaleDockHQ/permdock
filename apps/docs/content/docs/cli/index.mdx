@@ -82,4 +82,4 @@ Permission definitions are runtime values, so most commands import the definitio
 
 Modules are loaded with the project's own resolver (`tsx`-style on-the-fly transpilation), so `permissions.ts` may import schemas from Zod, Valibot or ArkType freely. The `policy` module is loaded only by `usage`, `rls` and `doctor`, and only in the process running the CLI.
 
-`permdock.config.ts` configures the CLI only. `@permdock/testing` fixtures are passed as arguments in the test files that use them.
+`permdock.config.ts` configures the CLI only. `permdock/testing` fixtures are passed as arguments in the test files that use them.

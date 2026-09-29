@@ -6,7 +6,6 @@ import {
   readCookie,
   readSession,
 } from '@permdock/e2e-saas-kit';
-import { saasPermissions as p, saasPolicy } from '@permdock/testing/saas';
 import { Hono } from 'hono';
 import { decodeJwt, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { createHash } from 'node:crypto';
@@ -14,6 +13,7 @@ import { type CustomRole, memoryRevocationFeed, type Subject } from 'permdock';
 import { directoryMembershipSource, scimHandler } from 'permdock/scim';
 import { createPermDock } from 'permdock/server';
 import { createPermDock as createSsf, memoryReplayStore } from 'permdock/ssf';
+import { saasPermissions as p, saasPolicy } from 'permdock/testing/saas';
 
 import { pgDirectoryStore } from './pg-store.ts';
 

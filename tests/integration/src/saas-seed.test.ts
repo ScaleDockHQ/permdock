@@ -1,4 +1,4 @@
-import { saasSchemaSql, saasSeed, saasSeedSql } from '@permdock/testing/saas';
+import { saasSchemaSql, saasSeed, saasSeedSql } from 'permdock/testing/saas';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Postgres } from './support/postgres.ts';

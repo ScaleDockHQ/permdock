@@ -316,7 +316,7 @@ Rules that hold for every signed output:
 
 JWE is not used for any output: snapshots are UI-only and contain nothing the subject may not see, approval tokens are bound hashes, decision batches go to destinations that already hold the events, and a policy document holds grants the application's own code bounds. A team that needs confidentiality wraps the JWS in JWE on its own transport.
 
-`@permdock/testing` ships one fixture per `typ` (a key pair, the signed compact form, the decoded payload) and `testTokenSigner` asserts that a custom signer's output for the fixture payload verifies with the fixture public key and carries exactly the three header parameters.
+`permdock/testing` ships one fixture per `typ` (a key pair, the signed compact form, the decoded payload) and `testTokenSigner` asserts that a custom signer's output for the fixture payload verifies with the fixture public key and carries exactly the three header parameters.
 
 ## AuthZEN
 

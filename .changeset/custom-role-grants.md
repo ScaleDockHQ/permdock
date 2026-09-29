@@ -1,7 +1,6 @@
 ---
 'permdock': minor
 '@permdock/cli': minor
-'@permdock/testing': minor
 ---
 
 Permission-level custom roles bounded by a ceiling. `CustomRole` gains `grants` (`{ permission, effect? }`, no conditions) and an optional `team`; `includes` is now optional. Every custom role resolves through `resolveCustomRole(policy, role)`: its included roles' grants plus its own allows, minus its own denies, intersected with the code allows of the declared `assignable` roles in its scope. Grants inherit the declared grant's condition, approval and limit, and keys outside the ceiling are dropped and reported by `validateCustomRole` and `permdock doctor` PD023.

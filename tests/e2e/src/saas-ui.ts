@@ -1,7 +1,7 @@
 import type { Browser, Page } from '@playwright/test';
 
-import { saasPrivateJwk } from '@permdock/testing/saas';
 import { expect, test } from '@playwright/test';
+import { saasPrivateJwk } from 'permdock/testing/saas';
 
 /**
  * The scenarios every SaaS UI fixture passes, against one DOM contract:

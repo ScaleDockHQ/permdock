@@ -10,7 +10,7 @@
 
 Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
 
-> **Status: pre-release.** Nothing is published yet; the first release of `permdock`, `@permdock/cli` and `@permdock/testing` will be `0.1.0`. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
+> **Status: pre-release.** Nothing is published yet; the first release of `permdock`, `@permdock/cli` and `permdock/testing` will be `0.1.0`. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
 
 ## Why PermDock
 
@@ -36,8 +36,9 @@ Permission logic in a typical TypeScript app is spread across `if (user.role ===
 ```bash
 pnpm add permdock            # core + every adapter as subpath exports
 pnpm add -D @permdock/cli    # collect, catalog, usage, openapi, rls, doctor, skills
-pnpm add -D @permdock/testing
 ```
+
+Test runners ship in the same package as `permdock/testing` (Vitest is an optional peer).
 
 ESM-only. TypeScript 5.9, 6 and 7 are tested. Core has no runtime dependencies other than `@standard-schema/spec`.
 
@@ -244,7 +245,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one i
 | Decision plane | `permdock/authzen` `authzen-pdp` · `permdock/approvals` (`ApprovalStore`, `approvalsHandler`) · `permdock/cloud` (optional PermDock Cloud client) · `permdock/scim` (`scimHandler`, `DirectoryStore`) · `permdock/ssf` · `permdock/openapi` (3.2 document or Overlay) · `permdock/otel` · `permdock/pdp` |
 | Data | `permdock/drizzle` `drizzle` · `permdock/prisma` `prisma` · `permdock/kysely` · `permdock rls` `supabase-rls` |
 | Auth and providers | `permdock/jwt` (OIDC Discovery, RFC 9068 roles and groups, `TokenVerifier` / `TokenSigner`) · `permdock/supabase` (tenant and memberships claims) · `permdock/supabase/middleware` `supabase-middleware` (`withPermDock` for the `@supabase/middleware` pipeline; `@supabase/server` and `@supabase/ssr` are recipes) · `permdock/better-auth` `better-auth` (organizations, teams, dynamic roles) · `permdock/clerk` `clerk` (organizations, custom roles) · `permdock/convex` `convex` |
-| Testing | `@permdock/testing` |
+| Testing | `permdock/testing` |
 
 Full matrix with related standards: [Adapters](./apps/docs/content/docs/adapters/index.mdx).
 

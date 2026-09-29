@@ -1,9 +1,9 @@
 import type { ElysiaContext } from 'permdock/elysia';
 
-import { testHttpAdapter } from '@permdock/testing';
-import { saasPermissions as p } from '@permdock/testing/saas';
 import { Elysia } from 'elysia';
 import { createPermDock } from 'permdock/elysia';
+import { testHttpAdapter } from 'permdock/testing';
+import { saasPermissions as p } from 'permdock/testing/saas';
 
 const scoped = (ctx: unknown) => ctx as ElysiaContext;
 
