@@ -106,6 +106,27 @@ describe('permdock rls', () => {
     expect(result.stdout).toMatch(/approval:human|skipped approval/i);
   });
 
+  it('collapses policies by default and keeps the per-role shape behind a flag', async () => {
+    const cwd = appCopy();
+    const base = ['rls', 'generate', '--target', 'sql'];
+    await run([...base, '--out', 'collapsed.sql'], { cwd });
+    const collapsed = readFileSync(join(cwd, 'collapsed.sql'), 'utf8');
+    expect(collapsed.match(/create policy "post_select"/gu)).toHaveLength(1);
+    expect(collapsed).not.toContain('member_post_read');
+    await run([...base, '--policy-per-role', '--out', 'per-role.sql'], {
+      cwd,
+    });
+    const perRole = readFileSync(join(cwd, 'per-role.sql'), 'utf8');
+    expect(perRole).toContain('create policy "member_post_read"');
+    expect(perRole).toContain('create policy "member_post_list"');
+    await run([...base, '--policy-name', 'pd_{table}_{op}', '--out', 'n.sql'], {
+      cwd,
+    });
+    expect(readFileSync(join(cwd, 'n.sql'), 'utf8')).toContain(
+      'create policy "pd_post_update"',
+    );
+  });
+
   it('generate --check reports drift then up to date', async () => {
     const cwd = appCopy();
     const missing = await run(
@@ -165,8 +186,14 @@ export const policy = definePolicy(permissions, {
     );
     expect(result.code).toBe(0);
     const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
-    expect(sql).toContain('exists (select 1 from "organization_members"');
-    expect(sql).toContain('m."organization_id" = "orgId"');
+    expect(sql).toContain('from "public"."organization_members" m');
+    expect(sql).toContain(
+      `"orgId" in (select "public".permitted_tenant_ids('post.read'))`,
+    );
+    expect(sql).toContain('security definer');
+    expect(sql).toContain(
+      'grant execute on function "public".permitted_tenant_ids(text) to authenticated;',
+    );
     expect(sql).not.toMatch(/service_role/i);
   });
 
@@ -197,8 +224,50 @@ export const policy = definePolicy(permissions, {
     expect(sql).toContain(
       'grant usage on schema "public" to supabase_auth_admin;',
     );
-    expect(sql).toContain('(select "public".authorize(\'post.read\'))');
+    expect(sql).toContain(`(select "public".permdock_has('post.read'))`);
+    expect(sql).not.toMatch(/using \([^\n]*authorize\(/u);
     expect(sql).not.toMatch(/service_role/i);
+  });
+
+  it('seeds top-level definePolicy({ grants }) into the rbac enums and role_permissions', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/top-level-policy.ts'),
+      `import { allow, definePolicy, plan } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  grants: [allow(permissions.post.read, { to: 'auditor' })],
+  subject: () => null,
+});
+
+export const planPolicy = definePolicy(permissions, {
+  grants: [allow(permissions.post.read, { to: plan('pro') })],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/top-level-policy.ts',
+};
+`,
+    );
+    const result = await run(
+      ['rls', 'generate', '--rbac', 'supabase', '--out', 'rls.sql'],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
+    expect(sql).toContain(`as enum ('auditor')`);
+    expect(sql).toContain(
+      `('auditor', 'post.read', 'post.read', 'global', 'allow')`,
+    );
+    expect(sql).toContain(
+      `using ((select "public".permdock_has('post.read')))`,
+    );
   });
 
   it('rejects unknown --rbac values, bad --authorize and non-supabase dialects', async () => {
@@ -323,6 +392,109 @@ export const policy = definePolicy(permissions, {
     expect(generated).toContain('principal.id');
   });
 
+  for (const shape of ['collapsed', 'per-role'] as const) {
+    it(`import reads the ${shape} helper shape back to roles and memberOf`, async () => {
+      const cwd = appCopy();
+      writeFileSync(
+        join(cwd, 'src/scoped-policy.ts'),
+        `import { allow, definePolicy, principal, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+const { post } = permissions;
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('staff', [allow(post.read)]),
+    role('admin', [allow([post.read, post.update])], { on: 'tenant' }),
+    role(
+      'member',
+      [allow(post.read), allow(post.update, { where: { authorId: principal.id } })],
+      { on: 'tenant' },
+    ),
+  ],
+  scopes: { tenant: { key: 'orgId' } },
+  subject: () => null,
+});
+`,
+      );
+      writeFileSync(
+        join(cwd, 'permdock.config.ts'),
+        `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/scoped-policy.ts',
+};
+`,
+      );
+      const generated = await run(
+        [
+          'rls',
+          'generate',
+          '--out',
+          'schema.sql',
+          ...(shape === 'per-role' ? ['--policy-per-role'] : []),
+        ],
+        { cwd },
+      );
+      expect(generated.code).toBe(0);
+      const imported = await run(
+        ['rls', 'import', '--sql', 'schema.sql', '--out', 'src/gen.ts'],
+        { cwd },
+      );
+      expect(imported.code).toBe(0);
+      const text = readFileSync(join(cwd, 'src/gen.ts'), 'utf8');
+      const json = /export const catalog = ([\s\S]*?) as const/u.exec(
+        text,
+      )?.[1];
+      const catalog = JSON.parse(json ?? '[]') as readonly {
+        readonly cmd: string;
+        readonly condition: unknown;
+        readonly grants?: readonly {
+          readonly key: string;
+          readonly permission: string;
+          readonly scope: string;
+          readonly roles: readonly string[];
+          readonly where?: unknown;
+        }[];
+      }[];
+      const grants = catalog.flatMap((entry) =>
+        (entry.grants ?? []).map((grant) =>
+          Object.assign({ cmd: entry.cmd }, grant),
+        ),
+      );
+      const summary = [
+        ...new Set(
+          grants.map(
+            (grant) =>
+              `${grant.cmd} ${grant.permission} ${grant.scope} ${grant.roles.join('+')}${grant.where === undefined ? '' : ' where'}`,
+          ),
+        ),
+      ].toSorted();
+      expect(summary).toEqual([
+        'SELECT post.read global staff',
+        'SELECT post.read tenant admin+member',
+        'UPDATE post.update tenant admin',
+        'UPDATE post.update tenant member where',
+      ]);
+      const member = grants.find(
+        (grant) => grant.cmd === 'UPDATE' && grant.roles.includes('member'),
+      );
+      expect(member?.key).toBe('post.update#2');
+      expect(member?.where).toEqual({
+        op: 'eq',
+        field: 'authorId',
+        value: { ref: 'principal.id' },
+      });
+      const selects = catalog
+        .filter((entry) => entry.cmd === 'SELECT')
+        .map((entry) => JSON.stringify(entry.condition))
+        .join('\n');
+      expect(selects).toContain(
+        '{"op":"memberOf","scope":"tenant","field":"orgId","roles":["admin","member"]}',
+      );
+      expect(selects).toContain(`permdock_has('post.read')`);
+    });
+  }
+
   it('verify fixtures carry memberships and tenant and match can()', async () => {
     const cwd = appCopy();
     writeFileSync(
@@ -414,7 +586,7 @@ export const policy = definePolicy(permissions, {
     );
   });
 
-  it('compiles tenant memberOf to the jwt claim when no table is mapped', async () => {
+  it('reads tenant memberships from the jwt claim when no table is mapped', async () => {
     const cwd = appCopy();
     writeFileSync(
       join(cwd, 'src/tenant-policy.ts'),
@@ -443,9 +615,11 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     expect(result.code).toBe(0);
-    expect(readFileSync(join(cwd, 'rls.sql'), 'utf8')).toContain(
-      `"orgId" = ((select auth.jwt()) ->> 'tenant_id')`,
+    const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
+    expect(sql).toContain(
+      `"orgId" in (select "public".permitted_tenant_ids('post.read'))`,
     );
+    expect(sql).toContain("(select auth.jwt()) -> 'memberships'");
   });
 
   it('rejects an unknown generate target and import without --sql', async () => {

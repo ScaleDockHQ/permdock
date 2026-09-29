@@ -17,7 +17,39 @@ export type RlsSqlContext = {
   readonly tenantClaim: string;
   readonly gucPrefix: string;
   readonly inlineFunctions?: boolean;
+  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `public`. */
+  readonly schema?: string;
+  /** Where the helpers read roles and memberships: tables (`database`) or claims (`jwt`, the default). */
+  readonly authorize?: 'database' | 'jwt';
+  /** Claim holding the global role (string or array). Default `user_role`. */
+  readonly roleClaim?: string;
+  /** Postgres type of the tenant column; the tenant claim is cast to it. Default `uuid`. */
+  readonly tenantType?: string;
+  /** Postgres type of the team column. Defaults to `tenantType`. */
+  readonly teamType?: string;
 };
+
+const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;
+
+export function sqlType(name: string): string {
+  if (!SQL_TYPE.test(name)) {
+    throw new Error(`PermDock CLI: unsafe SQL type '${name}'`);
+  }
+  return name;
+}
+
+export function tenantTypeOf(ctx: RlsSqlContext): string {
+  return sqlType(ctx.tenantType ?? 'uuid');
+}
+
+export function teamTypeOf(ctx: RlsSqlContext): string {
+  return sqlType(ctx.teamType ?? ctx.tenantType ?? 'uuid');
+}
+
+/** The active-tenant claim cast to the tenant column's type, so the comparison uses the column's index. */
+export function tenantClaimSql(ctx: RlsSqlContext): string {
+  return `${subjectClaimSql(ctx, ctx.tenantClaim)}::${tenantTypeOf(ctx)}`;
+}
 
 export function quoteIdent(name: string): string {
   if (!IDENT.test(name)) {
@@ -67,6 +99,25 @@ export function subjectClaimSql(ctx: RlsSqlContext, claim: string): string {
   }
 }
 
+/** A claim as `jsonb`; the `guc` dialect stores JSON text in `<prefix>.<claim>`. */
+export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
+  if (!CLAIM.test(claim)) {
+    throw new Error(`PermDock CLI: unsafe claim name '${claim}'`);
+  }
+  switch (ctx.dialect) {
+    case 'supabase':
+      return `((select auth.jwt()) -> ${quoteLiteral(claim)})`;
+    case 'neon':
+      return `((select auth.session()) -> ${quoteLiteral(claim)})`;
+    case 'guc':
+      return `nullif(current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true), '')::jsonb`;
+    default: {
+      const exhaustive: never = ctx.dialect;
+      return exhaustive;
+    }
+  }
+}
+
 function sqlValue(value: ConditionValue, ctx: RlsSqlContext): string {
   if (value !== null && typeof value === 'object' && 'ref' in value) {
     return compileRef(value.ref, ctx);
@@ -96,13 +147,13 @@ function compileRef(ref: string, ctx: RlsSqlContext): string {
   if (ref === 'principal.id') {
     return subjectIdSql(ctx);
   }
-  if (ref === 'principal.tenant') {
-    return subjectClaimSql(ctx, ctx.tenantClaim);
-  }
   const claim =
     ref.startsWith('principal.claim.') || ref.startsWith('principal.claims.')
       ? ref.slice(ref.indexOf('.', ref.indexOf('.') + 1) + 1)
       : undefined;
+  if (ref === 'principal.tenant' || claim === ctx.tenantClaim) {
+    return tenantClaimSql(ctx);
+  }
   if (claim !== undefined) {
     return subjectClaimSql(ctx, claim);
   }
@@ -145,21 +196,21 @@ function existsSql(
   ctx: RlsSqlContext,
   tenantColumn?: string,
 ): string {
-  const roleList = roles.map((role) => role.replaceAll("'", "''")).join(',');
   const parts = [
     `m.${quoteIdent(rowColumn)} = ${quoteIdent(rowField)}`,
     `m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`,
-    `m.${quoteIdent(table.role)} = any('{${roleList}}')`,
   ];
+  if (roles.length > 0) {
+    const roleList = roles.map((role) => role.replaceAll("'", "''")).join(',');
+    parts.push(`m.${quoteIdent(table.role)} = any('{${roleList}}')`);
+  }
   if (table.expiresAt !== undefined) {
     parts.push(
       `(m.${quoteIdent(table.expiresAt)} is null or m.${quoteIdent(table.expiresAt)} > now())`,
     );
   }
   if (tenantColumn !== undefined) {
-    parts.push(
-      `m.${quoteIdent(tenantColumn)} = ${subjectClaimSql(ctx, ctx.tenantClaim)}`,
-    );
+    parts.push(`m.${quoteIdent(tenantColumn)} = ${tenantClaimSql(ctx)}`);
   }
   return `exists (select 1 from ${quoteTable(table.table)} m where ${parts.join(' and ')})`;
 }
@@ -228,7 +279,7 @@ function compileMemberOf(
     return `(${[primary, ...extras].join(' or ')})`;
   }
   if (condition.scope === 'tenant') {
-    return `${quoteIdent(condition.field)} = ${subjectClaimSql(ctx, ctx.tenantClaim)}`;
+    return `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`;
   }
   throw new Error(
     `PermDock CLI: memberOf ${condition.scope} needs a memberships table mapping`,

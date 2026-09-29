@@ -283,6 +283,9 @@ export async function run(
           inlineFunctions: flagBool(args.flags, 'inline-functions'),
           force: flagBool(args.flags, 'force'),
           gucPrefix: flagString(args.flags, 'guc-prefix'),
+          policyPerRole: flagBool(args.flags, 'policy-per-role'),
+          policyName: flagString(args.flags, 'policy-name'),
+          tenantType: flagString(args.flags, 'tenant-type'),
           io,
         });
         writeOut(result.output);

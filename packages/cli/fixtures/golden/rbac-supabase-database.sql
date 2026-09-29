@@ -2,7 +2,7 @@
 -- fail-closed: never target a bypass role
 
 -- rbac scaffold (Supabase Custom Claims and RBAC)
--- authorize: database (reads user_roles on every call)
+-- authorize: database (reads user_roles on every statement)
 -- enable the hook in supabase/config.toml:
 --   [auth.hook.custom_access_token]
 --   enabled = true
@@ -22,26 +22,95 @@ create table if not exists "public"."user_roles" (
   primary key (user_id, role)
 );
 
-create table if not exists "public"."role_permissions" (
-  role "public"."app_role" not null,
-  permission "public"."app_permission" not null,
-  primary key (role, permission)
+alter table "public"."user_roles" enable row level security;
+
+-- permdock helpers (database: reads the membership and user_roles tables)
+-- policies call them uncorrelated, so Postgres evaluates each once per statement
+
+create table if not exists "public".role_permissions (
+  role text not null,
+  permission text not null,
+  grant_key text not null,
+  scope text not null check (scope in ('global', 'tenant', 'team')),
+  effect text not null default 'allow' check (effect in ('allow', 'deny')),
+  primary key (role, grant_key, scope)
+);
+alter table "public".role_permissions enable row level security;
+revoke all on table "public".role_permissions from anon, authenticated, public;
+
+insert into "public".role_permissions (role, permission, grant_key, scope, effect) values
+  ('admin', 'post.read', 'post.read', 'global', 'allow'),
+  ('admin', 'post.update', 'post.update#1', 'global', 'allow'),
+  ('admin', 'post.delete', 'post.delete', 'global', 'allow'),
+  ('admin', 'post.create', 'post.create', 'global', 'allow'),
+  ('admin', 'post.list', 'post.list', 'global', 'allow'),
+  ('member', 'post.read', 'post.read', 'tenant', 'allow'),
+  ('member', 'post.list', 'post.list', 'tenant', 'allow'),
+  ('member', 'post.create', 'post.create', 'tenant', 'allow'),
+  ('member', 'post.update', 'post.update#2', 'tenant', 'allow')
+on conflict (role, grant_key, scope) do update
+  set permission = excluded.permission, effect = excluded.effect;
+delete from "public".role_permissions
+where (role, grant_key, scope) not in (values
+  ('admin', 'post.read', 'global'),
+  ('admin', 'post.update#1', 'global'),
+  ('admin', 'post.delete', 'global'),
+  ('admin', 'post.create', 'global'),
+  ('admin', 'post.list', 'global'),
+  ('member', 'post.read', 'tenant'),
+  ('member', 'post.list', 'tenant'),
+  ('member', 'post.create', 'tenant'),
+  ('member', 'post.update#2', 'tenant')
 );
 
-alter table "public"."user_roles" enable row level security;
-alter table "public"."role_permissions" enable row level security;
+create or replace function "public".permdock_has(p_grant text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from "public".user_roles ur
+    join "public".role_permissions rp on rp.role = ur.role::text
+    where ur.user_id = (select auth.uid())
+      and rp.grant_key = p_grant
+      and rp.scope = 'global'
+  )
+$$;
+revoke execute on function "public".permdock_has(text) from public, anon;
+grant execute on function "public".permdock_has(text) to authenticated;
 
-insert into "public"."role_permissions" (role, permission) values ('admin', 'post.read') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('admin', 'post.update') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('admin', 'post.delete') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('admin', 'post.publish') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('admin', 'post.archive') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('admin', 'post.create') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('admin', 'post.list') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('member', 'post.read') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('member', 'post.list') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('member', 'post.create') on conflict do nothing;
-insert into "public"."role_permissions" (role, permission) values ('member', 'post.update') on conflict do nothing;
+create or replace function "public".permitted_tenant_ids(p_grant text)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select m."organization_id"::uuid
+  from "public"."organization_members" m
+  join "public".role_permissions rp on rp.role = m."role"::text
+  where m."user_id" = (select auth.uid())
+    and rp.grant_key = p_grant
+    and rp.scope = 'tenant'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+$$;
+revoke execute on function "public".permitted_tenant_ids(text) from public, anon;
+grant execute on function "public".permitted_tenant_ids(text) to authenticated;
+
+create or replace function "public".permitted_team_ids(p_grant text)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select null::uuid where false -- no team memberships table configured
+$$;
+revoke execute on function "public".permitted_team_ids(text) from public, anon;
+grant execute on function "public".permitted_team_ids(text) to authenticated;
 
 create or replace function "public"."authorize"(
   requested_permission "public"."app_permission",
@@ -63,18 +132,22 @@ begin
     return exists (
       select 1
       from "public"."organization_members" m
-      join "public"."role_permissions" rp on rp.role::text = m."role"::text
+      join "public"."role_permissions" rp on rp.role = m."role"::text
       where m."user_id"::text = uid::text
         and m."organization_id"::text = requested_tenant
-        and rp.permission = requested_permission
+        and rp.permission = requested_permission::text
+        and rp.scope = 'tenant'
+        and rp.effect = 'allow'
     );
   end if;
   return exists (
     select 1
     from "public"."user_roles" ur
-    join "public"."role_permissions" rp on rp.role = ur.role
+    join "public"."role_permissions" rp on rp.role = ur.role::text
     where ur.user_id = uid
-      and rp.permission = requested_permission
+      and rp.permission = requested_permission::text
+      and rp.scope = 'global'
+      and rp.effect = 'allow'
   );
 end;
 $$;
@@ -108,7 +181,6 @@ grant execute on function "public"."custom_access_token_hook"(jsonb) to supabase
 revoke execute on function "public"."custom_access_token_hook"(jsonb) from authenticated, anon, public;
 grant select on table "public"."user_roles" to supabase_auth_admin;
 revoke all on table "public"."user_roles" from authenticated, anon, public;
-revoke all on table "public"."role_permissions" from authenticated, anon, public;
 drop policy if exists "Allow auth admin to read user roles" on "public"."user_roles";
 create policy "Allow auth admin to read user roles" on "public"."user_roles"
   as permissive for select
@@ -119,76 +191,35 @@ revoke all on table "post" from anon, authenticated;
 grant select, insert, update, delete on table "post" to authenticated;
 alter table "post" enable row level security;
 
-drop policy if exists "admin_post_read" on "post";
-create policy "admin_post_read"
+drop policy if exists "post_select" on "post";
+create policy "post_select"
   on "post"
   as permissive
   for select
   to authenticated
-  using ((select "public".authorize('post.read')));
+  using (((select "public".permdock_has('post.read')) or ("orgId" in (select "public".permitted_tenant_ids('post.read')))) or ((select "public".permdock_has('post.list')) or ("orgId" in (select "public".permitted_tenant_ids('post.list')))));
 
-drop policy if exists "admin_post_update" on "post";
-create policy "admin_post_update"
+drop policy if exists "post_update" on "post";
+create policy "post_update"
   on "post"
   as permissive
   for update
   to authenticated
-  using ((select "public".authorize('post.update')))
-  with check ((select "public".authorize('post.update')));
+  using ((select "public".permdock_has('post.update#1')) or (("orgId" in (select "public".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))))
+  with check ((select "public".permdock_has('post.update#1')) or (("orgId" in (select "public".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))));
 
-drop policy if exists "admin_post_delete" on "post";
-create policy "admin_post_delete"
+drop policy if exists "post_delete" on "post";
+create policy "post_delete"
   on "post"
   as permissive
   for delete
   to authenticated
-  using ((select "public".authorize('post.delete')));
+  using ((select "public".permdock_has('post.delete')));
 
-drop policy if exists "admin_post_create" on "post";
-create policy "admin_post_create"
+drop policy if exists "post_insert" on "post";
+create policy "post_insert"
   on "post"
   as permissive
   for insert
   to authenticated
-  with check ((select "public".authorize('post.create')));
-
-drop policy if exists "admin_post_list" on "post";
-create policy "admin_post_list"
-  on "post"
-  as permissive
-  for select
-  to authenticated
-  using ((select "public".authorize('post.list')));
-
-drop policy if exists "member_post_read" on "post";
-create policy "member_post_read"
-  on "post"
-  as permissive
-  for select
-  to authenticated
-  using ((select "public".authorize('post.read', "orgId"::text)) and (exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{member}'))));
-
-drop policy if exists "member_post_list" on "post";
-create policy "member_post_list"
-  on "post"
-  as permissive
-  for select
-  to authenticated
-  using ((select "public".authorize('post.list', "orgId"::text)) and (exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{member}'))));
-
-drop policy if exists "member_post_create" on "post";
-create policy "member_post_create"
-  on "post"
-  as permissive
-  for insert
-  to authenticated
-  with check ((select "public".authorize('post.create', "orgId"::text)) and (exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{member}'))));
-
-drop policy if exists "member_post_update" on "post";
-create policy "member_post_update"
-  on "post"
-  as permissive
-  for update
-  to authenticated
-  using ((select "public".authorize('post.update', "orgId"::text)) and ((exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{member}')) and "authorId" = (select auth.uid()))))
-  with check ((select "public".authorize('post.update', "orgId"::text)) and ("authorId" = (select auth.uid())));
+  with check ((select "public".permdock_has('post.create')) or ("orgId" in (select "public".permitted_tenant_ids('post.create'))));

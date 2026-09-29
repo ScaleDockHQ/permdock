@@ -43,9 +43,21 @@ export type RlsConfig = {
   readonly force?: boolean;
   readonly fixtures?: string;
   readonly tenantClaim?: string;
+  /** Postgres type of tenant columns (`uuid` by default); the tenant claim and helper results are cast to it. */
+  readonly tenantType?: string;
+  /** Postgres type of team columns; defaults to `tenantType`. */
+  readonly teamType?: string;
   readonly roleClaim?: string;
   readonly gucPrefix?: string;
   readonly out?: string;
+  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`) (and the RBAC scaffold). Default `public`. */
+  readonly schema?: string;
+  /** Where the helpers read roles and memberships: `database` tables or `jwt` claims. */
+  readonly authorize?: 'database' | 'jwt';
+  /** One policy per role and permission instead of one per table and command. */
+  readonly policyPerRole?: boolean;
+  /** Policy name template: `{table}`, `{op}`, plus `{role}` and `{permission}` with `policyPerRole`. */
+  readonly policyName?: string;
   /** `rls generate --rbac supabase` defaults; flags override. */
   readonly rbac?: {
     readonly schema?: string;

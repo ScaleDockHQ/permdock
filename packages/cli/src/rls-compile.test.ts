@@ -8,7 +8,9 @@ import {
 } from 'permdock';
 import { describe, expect, it } from 'vitest';
 
-import { compileGrant } from './rls-compile.ts';
+import type { RlsSqlContext } from './rls-sql.ts';
+
+import { branchClauses, compileGrants } from './rls-compile.ts';
 import { compileConditionSql } from './rls-sql.ts';
 
 const permissions = definePermissions({
@@ -48,15 +50,29 @@ const ctx = {
   },
 } as const;
 
-function usingFor(key: string): string | undefined {
-  const grant = policy.roles
-    .flatMap((held) => held.grants)
-    .find((candidate) => candidate.permission.key === key);
-  if (grant === undefined) {
+function usingOf(
+  target: typeof policy | typeof chainedPolicy,
+  key: string,
+  context: RlsSqlContext,
+): string | undefined {
+  const branch = compileGrants(
+    target,
+    context,
+    undefined,
+    [],
+    false,
+  ).branches.find(
+    (candidate) =>
+      candidate.permissionKey === key && candidate.coverage === undefined,
+  );
+  if (branch === undefined) {
     throw new Error(`no grant for ${key}`);
   }
-  return compileGrant(grant, policy, ctx, undefined, undefined, [], false)
-    ?.using;
+  return branchClauses(branch).using;
+}
+
+function usingFor(key: string): string | undefined {
+  return usingOf(policy, key, ctx);
 }
 
 const chained = definePermissions({
@@ -82,7 +98,6 @@ const chainedPolicy = definePolicy(
 
 describe('compileGrant resource scope', () => {
   it('ors the role resource and each mapped ancestor by its row field', () => {
-    const grant = chainedPolicy.roles[0]!.grants[0]!;
     const withProject = {
       ...ctx,
       memberships: {
@@ -97,25 +112,16 @@ describe('compileGrant resource scope', () => {
         },
       },
     };
-    const sql = compileGrant(
-      grant,
-      chainedPolicy,
-      withProject,
-      undefined,
-      undefined,
-      [],
-      false,
-    )?.using;
+    const sql = usingOf(chainedPolicy, 'doc.read', withProject);
     expect(sql).toContain(
       '"folder_members" m where m."folder_id" = "folderId"',
     );
     expect(sql).toContain(
       '"project_members" m where m."project_id" = "projectId"',
     );
-    expect(
-      compileGrant(grant, chainedPolicy, ctx, undefined, undefined, [], false)
-        ?.using,
-    ).not.toContain('project_members');
+    expect(usingOf(chainedPolicy, 'doc.read', ctx)).not.toContain(
+      'project_members',
+    );
   });
 
   it('keys the role resource by its id and a child row by its parent field', () => {
@@ -157,5 +163,51 @@ describe('compileGrant resource scope', () => {
       '"project_members" m where m."project_id" = "projectId"',
     );
     expect(sql).not.toContain('"orgId"');
+  });
+});
+
+describe('tenant claim casts', () => {
+  const base = {
+    dialect: 'supabase',
+    tenantClaim: 'tenant_id',
+    gucPrefix: 'app',
+  } as const;
+
+  it('casts the tenant claim to the column type, uuid by default', () => {
+    const condition = {
+      op: 'eq',
+      field: 'orgId',
+      value: { ref: 'principal.tenant' },
+    } as const;
+    expect(compileConditionSql(condition, base)).toBe(
+      `"orgId" = ((select auth.jwt()) ->> 'tenant_id')::uuid`,
+    );
+    expect(
+      compileConditionSql(
+        { ...condition, value: { ref: 'principal.claim.tenant_id' } },
+        { ...base, dialect: 'guc', tenantType: 'bigint' },
+      ),
+    ).toBe(`"orgId" = current_setting('app.tenant_id', true)::bigint`);
+    expect(
+      compileConditionSql(
+        { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: [] },
+        { ...base, tenantType: 'text' },
+      ),
+    ).toBe(`"orgId" = ((select auth.jwt()) ->> 'tenant_id')::text`);
+  });
+
+  it('leaves other claims as text and rejects an unsafe type', () => {
+    expect(
+      compileConditionSql(
+        { op: 'eq', field: 'plan', value: { ref: 'principal.claim.plan' } },
+        base,
+      ),
+    ).toBe(`"plan" = ((select auth.jwt()) ->> 'plan')`);
+    expect(() =>
+      compileConditionSql(
+        { op: 'eq', field: 'orgId', value: { ref: 'principal.tenant' } },
+        { ...base, tenantType: 'uuid; drop table x' },
+      ),
+    ).toThrow(/unsafe SQL type/u);
   });
 });

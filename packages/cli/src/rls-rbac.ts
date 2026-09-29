@@ -4,6 +4,7 @@ import { authorizeSql } from 'permdock/supabase';
 
 import type { RlsMembershipTable } from './types.ts';
 
+import { roleNames } from './rls-grants.ts';
 import { quoteIdent, quoteLiteral, quoteTable } from './rls-sql.ts';
 
 export type RbacAuthorizeMode = 'database' | 'jwt';
@@ -12,11 +13,18 @@ export type RbacOptions = {
   /** Postgres schema for the enums, tables and functions. Default `public`. */
   readonly schema: string;
   /**
-   * `database` reads `user_roles` (and the memberships table) on every call: role changes apply
-   * immediately. `jwt` reads the hook-injected claims: no query, stale until the token refreshes.
+   * `database` reads `user_roles` (and the memberships table) on every statement: role changes
+   * apply immediately. `jwt` reads the hook-injected claims: no query, stale until the token refreshes.
    */
   readonly authorize: RbacAuthorizeMode;
   readonly memberships?: RlsMembershipTable;
+};
+
+export type RbacScaffold = {
+  /** Enums and `user_roles`: emitted before the helpers, which read `user_roles`. */
+  readonly head: string;
+  /** `authorize()`, the custom access token hook and the auth-admin grants. */
+  readonly tail: string;
 };
 
 export function parseRbacAuthorize(
@@ -31,17 +39,6 @@ export function parseRbacAuthorize(
   throw new Error(
     `PermDock CLI: --authorize must be database or jwt, got '${raw}'`,
   );
-}
-
-/** The expression a policy calls; `tenantColumn` passes the row's tenant for tenant-scoped grants. */
-export function authorizeCall(
-  schema: string,
-  permission: string,
-  tenantColumn: string | undefined,
-): string {
-  const tenant =
-    tenantColumn === undefined ? '' : `, ${quoteIdent(tenantColumn)}::text`;
-  return `(select ${quoteIdent(schema)}.authorize(${quoteLiteral(permission)}${tenant}))`;
 }
 
 export function hookUri(schema: string): string {
@@ -60,44 +57,23 @@ exception when duplicate_object then null;
 end $$;`;
 }
 
-function roleAndPermissionNames(policy: Policy): {
-  readonly roles: readonly string[];
-  readonly permissions: readonly string[];
-  readonly seeds: readonly (readonly [string, string])[];
-} {
-  const roles = [...new Set(policy.roles.map((role) => role.name))];
-  const permissions = new Set<string>();
-  const seeds = new Map<string, readonly [string, string]>();
-  for (const role of policy.roles) {
-    for (const grant of role.grants) {
-      permissions.add(grant.permission.key);
-      if (grant.effect === 'allow') {
-        seeds.set(`${role.name}\u0000${grant.permission.key}`, [
-          role.name,
-          grant.permission.key,
-        ]);
-      }
-    }
-  }
-  return { roles, permissions: [...permissions], seeds: [...seeds.values()] };
-}
-
 /**
- * Supabase's Custom Claims and RBAC scaffold, generated from the policy: enums, `user_roles`,
- * `role_permissions` with seeds, `authorize()`, the custom access token hook, and the
- * `supabase_auth_admin` grants the hook needs. Never grants anything to `service_role`.
+ * Supabase's Custom Claims and RBAC scaffold on top of the PermDock helpers:
+ * enums, `user_roles`, `authorize()` over the shared `role_permissions`, the
+ * custom access token hook, and the `supabase_auth_admin` grants the hook
+ * needs. Policies never call `authorize()` per row; they call the helpers.
+ * Never grants anything to `service_role`.
  */
-export function rbacScaffold(policy: Policy, options: RbacOptions): string {
+export function rbacScaffold(
+  policy: Policy,
+  options: RbacOptions,
+): RbacScaffold {
   const schema = options.schema;
   const q = (name: string): string => quoteTable(`${schema}.${name}`);
   const s = quoteIdent(schema);
-  const { roles, permissions, seeds } = roleAndPermissionNames(policy);
-  const seedRows = seeds
-    .map(
-      ([role, permission]) =>
-        `insert into ${q('role_permissions')} (role, permission) values (${quoteLiteral(role)}, ${quoteLiteral(permission)}) on conflict do nothing;`,
-    )
-    .join('\n');
+  const permissions = [
+    ...new Set(policy.grants.map((grant) => grant.permission.key)),
+  ];
   const authorizeFn = authorizeSql({
     schema,
     authorize: options.authorize,
@@ -105,13 +81,13 @@ export function rbacScaffold(policy: Policy, options: RbacOptions): string {
       ? {}
       : { tenant: options.memberships }),
   });
-  return `-- rbac scaffold (Supabase Custom Claims and RBAC)
--- authorize: ${options.authorize}${options.authorize === 'jwt' ? ' (reads the hook claims; stale until the token refreshes)' : ' (reads user_roles on every call)'}
+  const head = `-- rbac scaffold (Supabase Custom Claims and RBAC)
+-- authorize: ${options.authorize}${options.authorize === 'jwt' ? ' (reads the hook claims; stale until the token refreshes)' : ' (reads user_roles on every statement)'}
 -- enable the hook in supabase/config.toml:
 --   [auth.hook.custom_access_token]
 --   enabled = true
 --   uri = "${hookUri(schema)}"
-${schema === 'public' ? '' : `create schema if not exists ${s};\n`}${createEnum(schema, 'app_role', roles)}
+${schema === 'public' ? '' : `create schema if not exists ${s};\n`}${createEnum(schema, 'app_role', roleNames(policy))}
 ${createEnum(schema, 'app_permission', permissions)}
 
 create table if not exists ${q('user_roles')} (
@@ -120,18 +96,9 @@ create table if not exists ${q('user_roles')} (
   primary key (user_id, role)
 );
 
-create table if not exists ${q('role_permissions')} (
-  role ${q('app_role')} not null,
-  permission ${q('app_permission')} not null,
-  primary key (role, permission)
-);
-
 alter table ${q('user_roles')} enable row level security;
-alter table ${q('role_permissions')} enable row level security;
-
-${seedRows}
-
-${authorizeFn}
+`;
+  const tail = `${authorizeFn}
 revoke execute on function ${q('authorize')}(${q('app_permission')}, text) from public, anon;
 grant execute on function ${q('authorize')}(${q('app_permission')}, text) to authenticated;
 
@@ -161,11 +128,11 @@ grant execute on function ${q('custom_access_token_hook')}(jsonb) to supabase_au
 revoke execute on function ${q('custom_access_token_hook')}(jsonb) from authenticated, anon, public;
 grant select on table ${q('user_roles')} to supabase_auth_admin;
 revoke all on table ${q('user_roles')} from authenticated, anon, public;
-revoke all on table ${q('role_permissions')} from authenticated, anon, public;
 drop policy if exists "Allow auth admin to read user roles" on ${q('user_roles')};
 create policy "Allow auth admin to read user roles" on ${q('user_roles')}
   as permissive for select
   to supabase_auth_admin
   using (true);
 `;
+  return { head, tail };
 }

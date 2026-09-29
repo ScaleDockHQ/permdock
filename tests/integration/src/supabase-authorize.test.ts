@@ -132,11 +132,13 @@ describe('Supabase RBAC scaffold, database mode', () => {
     );
   }
 
-  it('emits schema-qualified, tenant-aware policies and never service_role', () => {
+  it('emits per-statement helper calls, never per-row authorize() or service_role', () => {
     expect(generated).not.toMatch(/service_role/iu);
     expect(generated).toContain(
-      `"public".authorize('post.update', "orgId"::text)`,
+      `"orgId" in (select "public".permitted_tenant_ids('post.update#2'))`,
     );
+    expect(generated).toContain(`(select "public".permdock_has('post.read'))`);
+    expect(generated).not.toMatch(/using \([^\n]*authorize\(/u);
     expect(generated).toContain("set search_path = ''");
     expect(generated).not.toMatch(/for insert\s+to authenticated\s+using/u);
   });

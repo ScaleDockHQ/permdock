@@ -3,7 +3,6 @@ import type { Policy } from 'permdock';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-import type { CompiledPolicy } from './rls-compile.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 import type {
   CliIo,
@@ -14,8 +13,10 @@ import type {
 } from './types.ts';
 
 import { asPolicy, loadModule, pickNamed } from './load.ts';
-import { compileGrant, ensureSelectCoverage, tableFor } from './rls-compile.ts';
+import { compileGrants } from './rls-compile.ts';
 import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
+import { helpersSql } from './rls-helpers.ts';
+import { assemblePolicies } from './rls-policies.ts';
 import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
 import { parseMembershipsFlag } from './rls-sql.ts';
 
@@ -42,6 +43,18 @@ async function loadPolicy(
   );
 }
 
+function defaultAuthorize(
+  rbac: boolean,
+  memberships: RlsMemberships | undefined,
+): RbacAuthorizeMode {
+  if (rbac) {
+    return 'database';
+  }
+  return memberships?.tenant !== undefined || memberships?.team !== undefined
+    ? 'database'
+    : 'jwt';
+}
+
 export async function runRlsGenerate(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -58,24 +71,15 @@ export async function runRlsGenerate(input: {
   readonly inlineFunctions: boolean;
   readonly force?: boolean;
   readonly gucPrefix?: string;
+  readonly policyPerRole?: boolean;
+  readonly policyName?: string;
+  readonly tenantType?: string;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
   const policy = await loadPolicy(input.cwd, input.config, input.from);
+  const rls = input.config.rls;
   const memberships: RlsMemberships | undefined =
-    parseMembershipsFlag(input.memberships) ?? input.config.rls?.memberships;
-  const ctx: RlsSqlContext = {
-    dialect: input.dialect,
-    tenantClaim: input.config.rls?.tenantClaim ?? 'tenant_id',
-    gucPrefix: input.gucPrefix ?? input.config.rls?.gucPrefix ?? 'app',
-    inlineFunctions:
-      input.inlineFunctions || input.config.rls?.inlineFunctions === true,
-    ...(memberships === undefined ? {} : { memberships }),
-  };
-  const warnings: string[] = [];
-  const rbacSchema =
-    input.rbacSchema ?? input.config.rls?.rbac?.schema ?? 'public';
-  const authorize =
-    input.authorize ?? input.config.rls?.rbac?.authorize ?? 'database';
+    parseMembershipsFlag(input.memberships) ?? rls?.memberships;
   if (input.rbac && input.dialect !== 'supabase') {
     return {
       code: 2,
@@ -83,52 +87,74 @@ export async function runRlsGenerate(input: {
       text: '',
     };
   }
-  const rbacCall = input.rbac ? { schema: rbacSchema } : undefined;
-  if (
-    input.rbac &&
-    authorize === 'database' &&
-    memberships?.tenant === undefined &&
-    policy.roles.some((role) =>
-      role.grants.some((grant) => grant.scope === 'tenant'),
-    )
-  ) {
-    warnings.push(
-      'tenant-scoped grants call authorize(perm, tenant): database mode needs --memberships <table>:tenant,user,role, otherwise they deny',
-    );
-  }
-  const compiled: CompiledPolicy[] = [];
-  for (const role of policy.roles) {
-    for (const grant of role.grants) {
-      const item = compileGrant(
-        grant,
-        policy,
-        ctx,
-        input.config.rls?.tables,
-        rbacCall,
-        warnings,
-        input.skipClosures,
-      );
-      if (item !== undefined) {
-        compiled.push(item);
+  const schema =
+    input.rbacSchema ?? rls?.schema ?? rls?.rbac?.schema ?? 'public';
+  const authorize =
+    input.authorize ??
+    rls?.authorize ??
+    rls?.rbac?.authorize ??
+    defaultAuthorize(input.rbac, memberships);
+  const ctx: RlsSqlContext = {
+    dialect: input.dialect,
+    tenantClaim: rls?.tenantClaim ?? 'tenant_id',
+    gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? 'app',
+    inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
+    schema,
+    authorize,
+    roleClaim: rls?.roleClaim ?? 'user_role',
+    tenantType: input.tenantType ?? rls?.tenantType ?? 'uuid',
+    ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
+    ...(memberships === undefined ? {} : { memberships }),
+  };
+  const warnings: string[] = [];
+  if (authorize === 'database') {
+    for (const scope of ['tenant', 'team'] as const) {
+      const needs = policy.grants.some((grant) => grant.scope === scope);
+      const column =
+        scope === 'tenant'
+          ? memberships?.tenant?.tenant
+          : memberships?.team?.team;
+      if (needs && column === undefined) {
+        warnings.push(
+          `${scope}-scoped grants read the ${scope} memberships table in database mode: pass --memberships <table>:tenant,user,role (or rls.memberships.${scope}), otherwise they deny`,
+        );
       }
     }
   }
-  const withSelect = ensureSelectCoverage(compiled, warnings);
+  const compiled = compileGrants(
+    policy,
+    ctx,
+    rls?.tables,
+    warnings,
+    input.skipClosures,
+  );
+  const policyName = input.policyName ?? rls?.policyName;
+  const policies = assemblePolicies(compiled.branches, {
+    perRole: input.policyPerRole === true || rls?.policyPerRole === true,
+    ...(policyName === undefined ? {} : { name: policyName }),
+  });
   const rbac = input.rbac
     ? rbacScaffold(policy, {
-        schema: rbacSchema,
+        schema,
         authorize,
         ...(memberships?.tenant === undefined
           ? {}
           : { memberships: memberships.tenant }),
       })
-    : '';
+    : undefined;
   if (input.rbac) {
     warnings.push(
-      `enable the hook: [auth.hook.custom_access_token] enabled = true, uri = "${hookUri(rbacSchema)}"`,
+      `enable the hook: [auth.hook.custom_access_token] enabled = true, uri = "${hookUri(schema)}"`,
     );
   }
-  const force = input.force === true || input.config.rls?.force === true;
+  const preamble = [
+    rbac?.head,
+    helpersSql(ctx, compiled.rolePermissions, { userRoles: !input.rbac }),
+    rbac?.tail,
+  ]
+    .filter((part): part is string => part !== undefined)
+    .join('\n');
+  const force = input.force === true || rls?.force === true;
   if (force && input.target !== 'sql') {
     warnings.push(
       `--force: ${input.target} has no FORCE ROW LEVEL SECURITY option; run the commented statements in a migration`,
@@ -137,34 +163,23 @@ export async function runRlsGenerate(input: {
   let text: string;
   switch (input.target) {
     case 'sql':
-      text = emitSql(withSelect, rbac, force);
+      text = emitSql(policies, preamble, force);
       break;
     case 'drizzle':
-      text = emitDrizzle(withSelect, rbac, force);
+      text = emitDrizzle(policies, preamble, force);
       break;
     case 'prisma':
-      text = emitPrisma(withSelect, rbac, force);
+      text = emitPrisma(policies, preamble, force);
       break;
     default: {
       const exhaustive: never = input.target;
       return exhaustive;
     }
   }
-  const columns = new Set<string>();
-  for (const role of policy.roles) {
-    for (const grant of role.grants) {
-      const where = grant.where;
-      if (where !== undefined && 'field' in where) {
-        columns.add(
-          `${tableFor(grant.permission.resource, input.config.rls?.tables)}.${where.field}`,
-        );
-      }
-    }
-  }
-  for (const column of columns) {
+  for (const column of compiled.filtered) {
     warnings.push(`index suggestion: create index on ${column}`);
   }
-  const outRel = input.out ?? input.config.rls?.out ?? defaultOut(input.target);
+  const outRel = input.out ?? rls?.out ?? defaultOut(input.target);
   const outPath = resolve(input.cwd, outRel);
   if (input.check) {
     if (!existsSync(outPath)) {

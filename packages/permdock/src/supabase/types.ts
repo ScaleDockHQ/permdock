@@ -33,6 +33,8 @@ export type AuthorizeSqlOptions = {
 export type SupabaseRlsOptions = {
   readonly roleClaim?: string;
   readonly tenantClaim?: string;
+  /** Postgres type of tenant columns; the tenant claim is cast to it. `rls generate` defaults to `uuid`. */
+  readonly tenantType?: string;
   readonly memberships?:
     | SupabaseMembershipTable
     | {
@@ -46,6 +48,7 @@ export type SupabaseRlsConfig = {
   readonly dialect: 'supabase';
   readonly roleClaim: string;
   readonly tenantClaim: string;
+  readonly tenantType?: string;
   readonly memberships?: {
     readonly tenant?: SupabaseMembershipTable;
     readonly team?: SupabaseMembershipTable;

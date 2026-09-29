@@ -182,6 +182,9 @@ describe('supabaseRls and authorizeSql', () => {
     });
     expect(database).toContain('create or replace function "app"."authorize"(');
     expect(database).toContain('m."organization_id"::text = requested_tenant');
+    expect(database).toContain('rp.permission = requested_permission::text');
+    expect(database).toContain("and rp.scope = 'tenant'");
+    expect(database).toContain("and rp.effect = 'allow'");
     const jwt = authorizeSql({ authorize: 'jwt' });
     expect(jwt).toContain("claims -> 'memberships'");
     expect(jwt).toContain("nullif(claims -> 'user_role', 'null'::jsonb)");
