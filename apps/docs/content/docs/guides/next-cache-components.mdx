@@ -164,7 +164,7 @@ The private cache and the proxy both verify the session on every prefetch. With 
 
 ## The proxy is a hint
 
-`mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy renders the page's forbidden state (`<Protected fallback>`) and gets a denied Server Action, never data. `forbidden()` from `next/navigation` is the alternative when `experimental.authInterrupts` is on.
+`mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy renders the page's forbidden state (`<Protected fallback>`) and gets a denied Server Action, never data. `requireAccess({ permission, tenant })` from `permdock/next` is the page-level alternative: it calls `forbidden()`, or `unauthorized()` for a signed-out user, when `experimental.authInterrupts` is on ([Next.js adapter](/docs/adapters/next)).
 
 ## Testing it
 
@@ -182,13 +182,14 @@ test('entering an org is instant with gates resolved', async ({ page }) => {
 })
 ```
 
-Run against `next build && next start` with `experimental.exposeTestingApiInProductionBuild` gated by an env flag. Keep a negative control: the fixture serves the same build with `PERMDOCK_E2E_NO_PRIVATE_CACHE=1`, which drops `'use cache: private'`. The test above must fail there, which shows it measures the prefetch and not the network. Scope locators to `:visible`, because Next keeps the previous org's layout mounted but hidden after a switch. The fixture also fails if `next build` prints a `blocking-prerender-*` or `instant-*` message.
+Run against `next build && next start` with `experimental.exposeTestingApiInProductionBuild` gated by an env flag. `apps/examples/next` applies the same pattern with named scopes (organizations and a customer portal), `instant = true` segments, `<Link prefetch={true}>` resource links and `requireAccess`, and `tests/e2e/src/next.spec.ts` asserts it the same way. Keep a negative control: the fixture serves the same build with `PERMDOCK_E2E_NO_PRIVATE_CACHE=1`, which drops `'use cache: private'`. The test above must fail there, which shows it measures the prefetch and not the network. Scope locators to `:visible`, because Next keeps the previous org's layout mounted but hidden after a switch. The fixture also fails if `next build` prints a `blocking-prerender-*` or `instant-*` message.
 
 ## Pitfalls
 
 - A synchronous layout must not read `cookies()` or `headers()`; pass promises down and read them inside the private cache.
 - `'use cache'` without `: private` must never read the session. Per-org data goes there; per-user data does not.
-- `updateTag` works only in Server Actions. Webhooks and other Route Handlers call `revalidateTag(tag, { expire: 0 })`.
+- `updateTag` works only in Server Actions. Webhooks and other Route Handlers call `revalidateTag(tag, { expire: 0 })`, never `'max'`, which would serve the revoked grant once more.
+- Bust `permdock:<sub>` on every input to the snapshot: role, membership and custom-role writes, a revocation-counter bump in the token, and entitlement or billing webhooks.
 - `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
 - A `stale` below 30 seconds silently drops the snapshot from per-link prefetches, and below 300 seconds from the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
 - Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.

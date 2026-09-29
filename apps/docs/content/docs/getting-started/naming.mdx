@@ -15,7 +15,7 @@ PermDock has one naming rule: the brand is the noun. The decision object is a `P
 
 ```ts
 import { createPermDock } from 'permdock'        // core: PermDock
-import { createPermDock } from 'permdock/next'   // Next.js: { getPermDock, getPermission, PermDockProvider, permdockHandler }
+import { createPermDock } from 'permdock/next'   // Next.js: { getPermDock, getPermission, requireAccess, PermDockProvider, permdockHandler }
 import { createPermDock } from 'permdock/hono'   // Hono: { permdock, protect }
 import { createPermDock } from 'permdock/mcp'    // MCP: { protectServer }
 ```
@@ -30,6 +30,7 @@ React reads permissions synchronously from a snapshot; servers resolve them asyn
 | --- | --- | --- |
 | `usePermDock()` | `await getPermDock()` | A `PermDock` (snapshot-backed on the client, full policy on the server) |
 | `usePermission(permission, data?)` | `await getPermission(permission, data?)` | `{ allowed, status }` on the client; the same shape awaited on the server |
+| `<Protected>` | `await requireAccess({ permission, data?, tenant? })` | Renders children or a fallback on the client; on the server, the granted `Decision`, or `forbidden()` / `unauthorized()` |
 | `usePermissions([...], data?)`, `useFilter(permission, rows)` | `(await getPermDock()).decide` per reference, `.filter` | One entry per reference; the rows the subject may act on |
 | `useTenant()`, `useMemberships()`, `useRoles()`, `useAssignableRoles()`, `useAssignablePermissions()` | `(await getPermDock()).tenants()`, `.memberships()`, `.heldRoles()`, `.assignableRoles()`, `.assignablePermissions()` | The active tenant with `switchTo`; the membership list; `Role[]` held in a tenant; `Role[]` the subject may hand out; `Permission[]`, the custom-role ceiling the subject may hand out |
 | `useApproval(decision)`, `useSubject()` | the [`ApprovalStore`](/docs/adapters/approvals) and the subject on the server | Client-side request-access flow; the snapshot's principal, actor and delegation |
@@ -203,7 +204,7 @@ These never appear as public identifiers, for the reasons given:
 | Import path | Returns | Notes |
 | --- | --- | --- |
 | `permdock` | `PermDock` | `await createPermDock(policy, user, { tenant?, memberships?, customRoles?, actor?, delegation? })`; sync when the policy declares no `context` and no async source |
-| `permdock/next` | `{ getPermDock, getPermission, PermDockProvider, permdockHandler }`, plus the standalone `cacheLifeFor(snapshot, { min, max, now })` | Options: `subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots`; never a cache directive or a `tag` option |
+| `permdock/next` | `{ getPermDock, getPermission, requireAccess, PermDockProvider, permdockHandler }`, plus the standalone `cacheLifeFor(snapshot, { min, max, now })` | Options: `subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots`; never a cache directive or a `tag` option; `requireAccess`, not `requirePermission` or `authorize`, because it maps a decision to the `forbidden()` / `unauthorized()` interrupts |
 | `permdock/server` | `{ permdock, protect, problem, openapi, handler }`, plus the standalone `problemFromError(error)` | The Fetch kernel every HTTP adapter wraps. Options: `subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `limits`, `pdp`, `snapshots` (accepted, not read), `otel`, `webBotAuth` |
 | `permdock/hono` | `{ permdock, protect, permdockHandler }` | `permdock()` is middleware; `protect(permission, load?, options?)` guards a route |
 | `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect, permdockHandler }`, plus `errorHandler` (Express) and `send` (Node) | Same shape as Hono over the shared kernel |
