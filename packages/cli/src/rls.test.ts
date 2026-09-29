@@ -106,6 +106,27 @@ describe('permdock rls', () => {
     expect(result.stdout).toMatch(/approval:human|skipped approval/i);
   });
 
+  it('collapses policies by default and keeps the per-role shape behind a flag', async () => {
+    const cwd = appCopy();
+    const base = ['rls', 'generate', '--target', 'sql'];
+    await run([...base, '--out', 'collapsed.sql'], { cwd });
+    const collapsed = readFileSync(join(cwd, 'collapsed.sql'), 'utf8');
+    expect(collapsed.match(/create policy "post_select"/gu)).toHaveLength(1);
+    expect(collapsed).not.toContain('member_post_read');
+    await run([...base, '--policy-per-role', '--out', 'per-role.sql'], {
+      cwd,
+    });
+    const perRole = readFileSync(join(cwd, 'per-role.sql'), 'utf8');
+    expect(perRole).toContain('create policy "member_post_read"');
+    expect(perRole).toContain('create policy "member_post_list"');
+    await run([...base, '--policy-name', 'pd_{table}_{op}', '--out', 'n.sql'], {
+      cwd,
+    });
+    expect(readFileSync(join(cwd, 'n.sql'), 'utf8')).toContain(
+      'create policy "pd_post_update"',
+    );
+  });
+
   it('generate --check reports drift then up to date', async () => {
     const cwd = appCopy();
     const missing = await run(

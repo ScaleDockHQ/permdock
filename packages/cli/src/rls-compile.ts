@@ -385,6 +385,33 @@ export function ensureSelectCoverage(
   return [...branches, ...extra];
 }
 
+/** True when `sql` is one parenthesised expression, so AND / OR need not wrap it again. */
+function isWrapped(sql: string): boolean {
+  if (!sql.startsWith('(') || !sql.endsWith(')')) {
+    return false;
+  }
+  let depth = 0;
+  let quoted = false;
+  for (let index = 0; index < sql.length; index += 1) {
+    const ch = sql[index];
+    if (ch === "'") {
+      quoted = !quoted;
+    } else if (!quoted && ch === '(') {
+      depth += 1;
+    } else if (!quoted && ch === ')') {
+      depth -= 1;
+      if (depth === 0 && index < sql.length - 1) {
+        return false;
+      }
+    }
+  }
+  return depth === 0;
+}
+
+export function wrapSql(sql: string): string {
+  return isWrapped(sql) ? sql : `(${sql})`;
+}
+
 export function andSql(
   ...parts: readonly (string | undefined)[]
 ): string | undefined {
@@ -394,9 +421,7 @@ export function andSql(
   if (present.length === 0) {
     return undefined;
   }
-  return present.length === 1
-    ? present[0]
-    : present.map((part) => `(${part})`).join(' and ');
+  return present.length === 1 ? present[0] : present.map(wrapSql).join(' and ');
 }
 
 /** `USING` and `WITH CHECK` for a branch: its access check ANDed with its row conditions. */

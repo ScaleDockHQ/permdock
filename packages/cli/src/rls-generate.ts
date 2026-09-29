@@ -71,6 +71,8 @@ export async function runRlsGenerate(input: {
   readonly inlineFunctions: boolean;
   readonly force?: boolean;
   readonly gucPrefix?: string;
+  readonly policyPerRole?: boolean;
+  readonly policyName?: string;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
   const policy = await loadPolicy(input.cwd, input.config, input.from);
@@ -123,7 +125,11 @@ export async function runRlsGenerate(input: {
     warnings,
     input.skipClosures,
   );
-  const policies = assemblePolicies(compiled.branches, { perRole: true });
+  const policyName = input.policyName ?? rls?.policyName;
+  const policies = assemblePolicies(compiled.branches, {
+    perRole: input.policyPerRole === true || rls?.policyPerRole === true,
+    ...(policyName === undefined ? {} : { name: policyName }),
+  });
   const rbac = input.rbac
     ? rbacScaffold(policy, {
         schema,

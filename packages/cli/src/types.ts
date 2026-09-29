@@ -50,6 +50,10 @@ export type RlsConfig = {
   readonly schema?: string;
   /** Where the helpers read roles and memberships: `database` tables or `jwt` claims. */
   readonly authorize?: 'database' | 'jwt';
+  /** One policy per role and permission instead of one per table and command. */
+  readonly policyPerRole?: boolean;
+  /** Policy name template: `{table}`, `{op}`, plus `{role}` and `{permission}` with `policyPerRole`. */
+  readonly policyName?: string;
   /** `rls generate --rbac supabase` defaults; flags override. */
   readonly rbac?: {
     readonly schema?: string;

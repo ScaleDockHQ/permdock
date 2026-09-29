@@ -1,6 +1,6 @@
 import type { CompiledBranch, CompiledPolicy } from './rls-compile.ts';
 
-import { branchClauses } from './rls-compile.ts';
+import { branchClauses, wrapSql } from './rls-compile.ts';
 
 export type PolicyShape = {
   /** One policy per role and permission (the pre-helper layout) instead of one per table and command. */
@@ -54,7 +54,7 @@ function orSql(parts: readonly string[]): string {
   }
   return distinct.length === 1
     ? distinct[0]!
-    : distinct.map((part) => `(${part})`).join(' or ');
+    : distinct.map(wrapSql).join(' or ');
 }
 
 function negate(sql: string | undefined): string | undefined {
@@ -123,27 +123,39 @@ function perRolePolicies(
  * becomes one OR branch whose access ORs the helper calls of each scope.
  */
 function mergeGroups(branches: readonly CompiledBranch[]): CompiledBranch[] {
-  const merged: CompiledBranch[] = [];
+  const merged: { branch: CompiledBranch; accesses: string[] }[] = [];
   const byKey = new Map<string, number>();
   for (const branch of branches) {
-    if (branch.grantKey === undefined) {
-      merged.push(branch);
-      continue;
-    }
-    const id = `${branch.table}\u0000${branch.command}\u0000${branch.grantKey}\u0000${branch.coverage === true}`;
-    const at = byKey.get(id);
+    const id =
+      branch.grantKey === undefined
+        ? undefined
+        : `${branch.table}\u0000${branch.command}\u0000${branch.grantKey}\u0000${branch.coverage === true}`;
+    const at = id === undefined ? undefined : byKey.get(id);
     if (at === undefined) {
-      byKey.set(id, merged.length);
-      merged.push(branch);
+      if (id !== undefined) {
+        byKey.set(id, merged.length);
+      }
+      merged.push({
+        branch,
+        accesses: branch.access === undefined ? [] : [branch.access],
+      });
       continue;
     }
-    const first = merged[at]!;
-    const accesses = [first.access, branch.access].filter(
-      (item): item is string => item !== undefined,
-    );
-    merged[at] = { ...first, access: orSql(accesses) };
+    const entry = merged[at]!;
+    if (
+      branch.access !== undefined &&
+      !entry.accesses.includes(branch.access)
+    ) {
+      entry.accesses.push(branch.access);
+    }
   }
-  return merged;
+  return merged.map(({ branch, accesses }) =>
+    accesses.length <= 1 ? branch : withAccess(branch, orSql(accesses)),
+  );
+}
+
+function withAccess(branch: CompiledBranch, access: string): CompiledBranch {
+  return { ...branch, access };
 }
 
 function collapsedPolicies(

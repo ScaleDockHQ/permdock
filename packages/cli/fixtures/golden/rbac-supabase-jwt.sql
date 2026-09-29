@@ -241,76 +241,35 @@ revoke all on table "post" from anon, authenticated;
 grant select, insert, update, delete on table "post" to authenticated;
 alter table "post" enable row level security;
 
-drop policy if exists "admin_post_read" on "post";
-create policy "admin_post_read"
+drop policy if exists "post_select" on "post";
+create policy "post_select"
   on "post"
   as permissive
   for select
   to authenticated
-  using ((select "app".permdock_has('post.read')));
+  using (((select "app".permdock_has('post.read')) or ("orgId" in (select "app".permdock_tenants_with('post.read')))) or ((select "app".permdock_has('post.list')) or ("orgId" in (select "app".permdock_tenants_with('post.list')))));
 
-drop policy if exists "admin_post_update" on "post";
-create policy "admin_post_update"
+drop policy if exists "post_update" on "post";
+create policy "post_update"
   on "post"
   as permissive
   for update
   to authenticated
-  using ((select "app".permdock_has('post.update#1')))
-  with check ((select "app".permdock_has('post.update#1')));
+  using ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permdock_tenants_with('post.update#2'))) and ("authorId" = (select auth.uid()))))
+  with check ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permdock_tenants_with('post.update#2'))) and ("authorId" = (select auth.uid()))));
 
-drop policy if exists "admin_post_delete" on "post";
-create policy "admin_post_delete"
+drop policy if exists "post_delete" on "post";
+create policy "post_delete"
   on "post"
   as permissive
   for delete
   to authenticated
   using ((select "app".permdock_has('post.delete')));
 
-drop policy if exists "admin_post_create" on "post";
-create policy "admin_post_create"
+drop policy if exists "post_insert" on "post";
+create policy "post_insert"
   on "post"
   as permissive
   for insert
   to authenticated
-  with check ((select "app".permdock_has('post.create')));
-
-drop policy if exists "admin_post_list" on "post";
-create policy "admin_post_list"
-  on "post"
-  as permissive
-  for select
-  to authenticated
-  using ((select "app".permdock_has('post.list')));
-
-drop policy if exists "member_post_read" on "post";
-create policy "member_post_read"
-  on "post"
-  as permissive
-  for select
-  to authenticated
-  using ("orgId" in (select "app".permdock_tenants_with('post.read')));
-
-drop policy if exists "member_post_list" on "post";
-create policy "member_post_list"
-  on "post"
-  as permissive
-  for select
-  to authenticated
-  using ("orgId" in (select "app".permdock_tenants_with('post.list')));
-
-drop policy if exists "member_post_create" on "post";
-create policy "member_post_create"
-  on "post"
-  as permissive
-  for insert
-  to authenticated
-  with check ("orgId" in (select "app".permdock_tenants_with('post.create')));
-
-drop policy if exists "member_post_update" on "post";
-create policy "member_post_update"
-  on "post"
-  as permissive
-  for update
-  to authenticated
-  using (("orgId" in (select "app".permdock_tenants_with('post.update#2'))) and ("authorId" = (select auth.uid())))
-  with check (("orgId" in (select "app".permdock_tenants_with('post.update#2'))) and ("authorId" = (select auth.uid())));
+  with check ((select "app".permdock_has('post.create')) or ("orgId" in (select "app".permdock_tenants_with('post.create'))));
