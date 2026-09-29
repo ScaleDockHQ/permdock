@@ -113,6 +113,7 @@ Option notes:
 - `revoked(id)` returns `true` for a link id (`sub`) the application revoked. A throw denies.
 - `replay` is a `ReplayStore` ([SSF adapter](/docs/adapters/ssf)). A one-time capability claims `capability`, the issuer and the `jti` in it and is refused without one.
 - `viewer` is the request's own verified subject, checked against the capability's `redeemer`; a link subject never satisfies it.
+- `linkPolicy(capability)` returns the `LinkPolicy` (or several) of the scope instances the linked resource sits in: `maxLifetime` from `iat`, allowed `redeemers`, required `once`. Every one must hold. A throw denies.
 
 The result is `{ principal: { id, kind: 'link', issuer, memberships: [{ on, roles, via: 'link', expiresAt }], capability }, delegation?, context: {}, expiresAt }`, with `expiresAt` the earlier of `exp` and `capability.expiresAt`. Failures report `source: 'capability'` on `on('auth')`, with the causes below in addition to the verification causes of the next table:
 
@@ -120,11 +121,12 @@ The result is `{ principal: { id, kind: 'link', issuer, memberships: [{ on, role
 |---|---|---|
 | `capability` claim is not a valid v1 object, its `id` is not `sub`, its `holder` is `key`, or a one-time capability arrives without `replay` or `jti` | anonymous | `invalid-token`, `invalid-claims` |
 | `redeemer` is `signed-in`, a user or a scope instance the `viewer` does not satisfy | anonymous | `invalid-token`, `redeemer-mismatch` |
+| A `linkPolicy` rule is broken (lifetime from `iat`, redeemer kind, one-time) | anonymous | `invalid-token`, `link-policy` |
 | `revoked(id)` returned `true` | anonymous | `invalid-token`, `capability-revoked` |
 | A one-time capability whose `jti` was already claimed | anonymous | `invalid-token`, `capability-replayed` |
-| `revoked` or `replay` threw | anonymous | `source-threw`, no cause |
+| `linkPolicy`, `revoked` or `replay` threw | anonymous | `source-threw`, no cause |
 
-`CapabilityFailureCause` is `TokenFailureCause` plus the three capability causes; a `TokenVerifier` never returns them.
+`CapabilityFailureCause` is `TokenFailureCause` plus the four capability causes; a `TokenVerifier` never returns them.
 
 ## Behaviour on invalid tokens
 

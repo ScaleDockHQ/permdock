@@ -103,7 +103,31 @@ The subject is:
 
 `delegation` appears only when the capability lists `permissions`; a check outside them is denied with `not-delegated`. The membership's `via: 'link'` tells audit and UI that the access came from a link. A link principal never satisfies another link's `redeemer`.
 
-The resolver refuses, in this order: a token that fails verification (`typ`, `iss`, `aud`, signature, `exp`), a `capability` claim that is not a valid v1 object or whose `id` is not `sub`, a `holder` other than `link`, an expiry in the past, a `redeemer` the `viewer` does not satisfy (`redeemer-mismatch`), a revoked id (`capability-revoked`) and a one-time token whose `jti` was already claimed (`capability-replayed`). A one-time capability without a `replay` store is refused, and a `revoked` callback or store that throws denies with reason `source-threw`. The one-time claim runs last, so a request refused for another reason does not burn the link ([JWT adapter](/docs/adapters/jwt)).
+The resolver refuses, in this order: a token that fails verification (`typ`, `iss`, `aud`, signature, `exp`), a `capability` claim that is not a valid v1 object or whose `id` is not `sub`, a `holder` other than `link`, an expiry in the past, a `redeemer` the `viewer` does not satisfy (`redeemer-mismatch`), a revoked id (`capability-revoked`) and a one-time token whose `jti` was already claimed (`capability-replayed`). A one-time capability without a `replay` store is refused, and a `revoked` callback or store that throws denies with reason `source-threw`. A link its scope's link policy refuses is `link-policy` (below). The one-time claim runs last, so a request refused for another reason does not burn the link ([JWT adapter](/docs/adapters/jwt)).
+
+## Link policy per scope
+
+A tenant can tighten what links on its resources may be, and resolution refuses a link that breaks the rules, including one issued before the tenant tightened them. A `LinkPolicy` has three optional rules, each of which only narrows:
+
+| Rule | Refuses |
+| --- | --- |
+| `maxLifetime` | A link whose `expiresAt` is more than this many seconds after it was issued (`iat`). A token without `iat`, or a value that is not a finite non-negative number, is refused. |
+| `redeemers` | A link whose redeemer kind (`anyone`, which also covers no `redeemer`, `signed-in`, `user` or `scope`) is not listed. An empty list refuses every link. |
+| `once` | A link that is not one-time. |
+
+The policy lives with the scope instance that owns it, in the application's tables, so the resolver asks for it through a callback that receives the verified capability. Return the policy of every scope instance the resource sits in (the organization and the customer, say); all of them must hold:
+
+```ts
+const subject = await subjectFromCapability(token, {
+  jwks, issuer, audience, revoked,
+  linkPolicy: async ({ on }) => {
+    const quote = await db.query.quotes.findFirst({ where: eq(quotes.id, on.id) })
+    return quote === undefined ? { redeemers: [] } : db.linkPoliciesFor([quote.organization_id, quote.customer_id])
+  },
+})
+```
+
+A refused link is anonymous with cause `link-policy`, and a callback that throws denies with reason `source-threw`. The check runs before revocation and one-time use, so a refused one-time link is not burned. Pass the same policies to `signCapability(input, signer, { linkPolicy })` and it rejects instead of signing a link resolution would refuse; `linkPolicyViolation(capability, policy, issuedAt)` returns the broken rule (`lifetime`, `redeemer` or `once`) for a UI that explains it.
 
 ## Snapshots and clients
 
@@ -150,6 +174,6 @@ A resource role with no memberships table (a role only links hold, such as `gues
 
 Share links are where most SaaS products leak: an unguessable URL with no expiry, no revocation and a hand-written RPC that bypasses row security. Modelling a link as a membership on one resource keeps it inside the same evaluation as everyone else, so a condition such as "only sent quotes" applies to guests without a second code path, and inheritance to child resources is the same parent walk a member gets. A link can never exercise a scope or global role, because it has no scope membership to match.
 
-The capability is a signed token rather than a database lookup so a link works where the application has no session, and so the same object feeds `can()`, the snapshot and RLS. Signing reuses the `TokenSigner` and JWK Set every other PermDock output uses, and the dedicated `typ` means a capability is never accepted as an access token and an access token is never accepted as a capability. Revocation keys on the link id rather than the token's `jti` because a product revokes the link, whichever token it was sent as. One-time use keys on the `jti`, so reissuing a one-time link produces a fresh use.
+The capability is a signed token rather than a database lookup so a link works where the application has no session, and so the same object feeds `can()`, the snapshot and RLS. Signing reuses the `TokenSigner` and JWK Set every other PermDock output uses, and the dedicated `typ` means a capability is never accepted as an access token and an access token is never accepted as a capability. The link policy is read at resolution rather than trusted from the token, because a tenant that tightens its rules means the links already out there too, and it is a callback because only the application knows which scope instances a resource sits in. Revocation keys on the link id rather than the token's `jti` because a product revokes the link, whichever token it was sent as. One-time use keys on the `jti`, so reissuing a one-time link produces a fresh use.
 
 For RLS the server exchanges the capability for a short-lived `anon` token signed with the project's key instead of calling a security-definer RPC per resource. The generated policies then read one claim through one helper, stay uncorrelated, and let the same `where` conditions that apply in memory narrow the rows; the database never has to trust anything PermDock did not sign through the project's own key. Keeping `holder` in the v1 format now lets user-bound keys arrive without another wire change.
