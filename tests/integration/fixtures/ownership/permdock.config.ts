@@ -14,6 +14,15 @@ export default {
           columns: { org: 'org_id' },
         },
       },
+      resource: {
+        ledger: {
+          table: 'ledger_members',
+          id: 'ledger_id',
+          user: 'user_id',
+          role: 'role',
+          via: 'via',
+        },
+      },
     },
   },
 };
