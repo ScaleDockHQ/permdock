@@ -1,6 +1,6 @@
 {
-  ".": 49908,
-  "./approvals": 13354,
+  ".": 50254,
+  "./approvals": 13506,
   "./jwt": 13935,
   "./react": 29332,
   "./react-native": 30444,
@@ -28,7 +28,7 @@
   "./webmcp": 10505,
   "./a2a": 49495,
   "./otel": 2897,
-  "./scim": 12666,
+  "./scim": 13139,
   "./cloud": 27327,
   "./drizzle": 7730,
   "./prisma": 7399,
@@ -39,5 +39,8 @@
   "./better-auth": 18951,
   "./clerk": 3718,
   "./convex": 40045,
-  "./pdp": 47481
+  "./pdp": 47481,
+  "./testing": 90270,
+  "./testing/saas": 50698,
+  "./testing/saas/permissions": 44615
 }
