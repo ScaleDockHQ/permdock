@@ -30,7 +30,7 @@ Targets:
 | `sql` | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` plus `CREATE POLICY` statements, the `REVOKE` / `GRANT` statements for the target role, one file, idempotent |
 | `prisma` | Prisma 8 native `policy_*` blocks in the schema |
 
-Dialects decide how the subject reaches SQL:
+Dialects decide how the subject reaches SQL. `--dialect` overrides `rls.dialect` from the config, and `supabase` is the default when neither is set:
 
 | `--dialect` | `principal.id` | claims / tenant |
 | --- | --- | --- |

@@ -47,6 +47,52 @@ describe('permdock rls', () => {
     expect(result.stdout).toContain('rls');
   });
 
+  it('generates for rls.dialect from the config, and --dialect overrides it', async () => {
+    const generate = async (
+      dialect: string,
+      extra: readonly string[],
+    ): Promise<{
+      readonly code: number;
+      readonly out: string;
+      sql: string;
+    }> => {
+      const cwd = appCopy();
+      writeFileSync(
+        join(cwd, 'permdock.config.ts'),
+        `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  rls: { dialect: '${dialect}' },
+};
+`,
+      );
+      const result = await run(
+        ['rls', 'generate', '--target', 'sql', '--out', 'rls.sql', ...extra],
+        { cwd },
+      );
+      let sql = '';
+      try {
+        sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
+      } catch {
+        sql = '';
+      }
+      return { code: result.code, out: result.stdout, sql };
+    };
+    const guc = await generate('guc', []);
+    expect(guc.code).toBe(0);
+    expect(guc.sql).toContain(`current_setting('app.user_id', true)`);
+    expect(guc.sql).not.toContain('auth.uid()');
+    const neon = await generate('neon', []);
+    expect(neon.sql).toContain('(select auth.user_id())');
+    expect(neon.sql).not.toContain('auth.uid()');
+    const override = await generate('guc', ['--dialect', 'supabase']);
+    expect(override.sql).toContain('(select auth.uid())');
+    expect(override.sql).not.toContain('current_setting');
+    const invalid = await generate('mysql', []);
+    expect(invalid.code).toBe(2);
+    expect(invalid.out).toContain('--dialect (or rls.dialect) must be');
+  });
+
   it('adds FORCE ROW LEVEL SECURITY only with --force', async () => {
     const cwd = appCopy();
     const generate = (out: string, target: string, extra: readonly string[]) =>

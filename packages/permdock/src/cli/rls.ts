@@ -86,7 +86,7 @@ export async function runRls(
   switch (action) {
     case 'generate': {
       const target = asTarget(input.target);
-      const dialect = asDialect(input.dialect);
+      const dialect = asDialect(input.dialect ?? input.config.rls?.dialect);
       if (target === undefined) {
         return {
           code: 2,
@@ -96,7 +96,8 @@ export async function runRls(
       if (dialect === undefined) {
         return {
           code: 2,
-          output: 'rls generate --dialect must be supabase, neon or guc',
+          output:
+            'rls generate --dialect (or rls.dialect) must be supabase, neon or guc',
         };
       }
       const generated = await runRlsGenerate({
