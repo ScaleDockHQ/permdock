@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { DoctorFinding } from './doctor-types.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
+import { supabaseTenantClaim } from '../supabase/budget.ts';
 import { runCollect } from './collect.ts';
 import {
   pd002,
@@ -38,6 +39,7 @@ import {
   pd013,
   pd014,
   pd015,
+  pd038,
 } from './doctor-source.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
 import { runSkillsInstall } from './skills.ts';
@@ -204,6 +206,19 @@ export async function runDoctor(input: {
   }
   if (include('supabase') || include('row-conditions') || include('PD037')) {
     findings.push(...(await pd037(input)));
+  }
+  if (
+    (input.config.rls !== undefined ||
+      input.config.supabase?.hook !== undefined) &&
+    (include('supabase') || include('tenant') || include('PD038'))
+  ) {
+    findings.push(
+      ...pd038(
+        sources,
+        input.config.rls?.tenantClaim ?? supabaseTenantClaim,
+        supabaseTenantClaim,
+      ),
+    );
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

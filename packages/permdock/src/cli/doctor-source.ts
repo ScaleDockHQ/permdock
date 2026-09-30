@@ -247,3 +247,92 @@ export function pd015(
   }
   return findings;
 }
+
+const SUPABASE_SUBJECT_CALL = /\bsubjectFromSupabase(?:Session)?\s*\(/gu;
+
+/** Top-level arguments of the call whose `(` ends at `open`, or undefined when unbalanced. */
+function callArguments(
+  text: string,
+  open: number,
+): readonly string[] | undefined {
+  const args: string[] = [];
+  let depth = 0;
+  let quote: string | undefined;
+  let start = open + 1;
+  for (let index = open + 1; index < text.length; index += 1) {
+    const char = text[index];
+    if (quote !== undefined) {
+      if (char === '\\') {
+        index += 1;
+      } else if (char === quote) {
+        quote = undefined;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+    } else if (char === '(' || char === '{' || char === '[') {
+      depth += 1;
+    } else if (char === ')' || char === '}' || char === ']') {
+      if (depth === 0) {
+        args.push(text.slice(start, index).trim());
+        return args.filter((arg) => arg !== '');
+      }
+      depth -= 1;
+    } else if (char === ',' && depth === 0) {
+      args.push(text.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  return undefined;
+}
+
+/** The claim a `subjectFromSupabase` call reads the tenant from, or undefined when the options are not a literal. */
+function readTenantClaim(
+  options: string | undefined,
+  fallback: string,
+): string | undefined {
+  if (options === undefined) {
+    return fallback;
+  }
+  if (!options.startsWith('{')) {
+    return undefined;
+  }
+  const tenant =
+    /(?:^|[{,\s])tenant\s*:\s*(?:'([^']*)'|"([^"]*)"|([^,}\s]+))/u.exec(
+      options,
+    );
+  if (tenant === null) {
+    return fallback;
+  }
+  return tenant[1] ?? tenant[2];
+}
+
+export function pd038(
+  sources: readonly DoctorSource[],
+  tenantClaim: string,
+  fallback: string,
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const source of sources) {
+    for (const match of source.text.matchAll(SUPABASE_SUBJECT_CALL)) {
+      const open = match.index + match[0].length - 1;
+      const args = callArguments(source.text, open);
+      if (args === undefined) {
+        continue;
+      }
+      const read = readTenantClaim(args[1], fallback);
+      if (read === undefined || read === tenantClaim) {
+        continue;
+      }
+      const line = source.text.slice(0, match.index).split('\n').length;
+      findings.push({
+        code: 'PD038',
+        severity: 'warning',
+        message: `${source.file}:${line} reads the tenant from '${read}', but rls.tenantClaim is '${tenantClaim}'`,
+        fix: `pass tenant: '${tenantClaim}' or set rls.tenantClaim to '${read}'`,
+      });
+    }
+  }
+  return findings;
+}

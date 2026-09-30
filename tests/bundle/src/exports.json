@@ -364,7 +364,8 @@
     "subjectFromSupabase",
     "subjectFromSupabaseSession",
     "supabaseMembershipsBudget",
-    "supabaseRls"
+    "supabaseRls",
+    "supabaseTenantClaim"
   ],
   "./supabase/middleware": ["createPermDock"],
   "./ssf": ["createPermDock", "memoryReplayStore"],

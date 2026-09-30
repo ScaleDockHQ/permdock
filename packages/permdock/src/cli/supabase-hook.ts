@@ -19,6 +19,7 @@ import {
 import {
   AUTHZ_VERSION_TABLE,
   supabaseMembershipsBudget,
+  supabaseTenantClaim,
 } from '../supabase/sources.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { authAdminRead, hookUri } from './rls-rbac.ts';
@@ -675,7 +676,7 @@ export function supabaseHookSql(
   const schema =
     overrides.schema ?? hook.schema ?? config.rls?.schema ?? 'public';
   quoteIdent(schema);
-  const tenantClaim = config.rls?.tenantClaim ?? 'tenant_id';
+  const tenantClaim = config.rls?.tenantClaim ?? supabaseTenantClaim;
   const extraPlan = extraClaimsPlan(hook.claims, tenantClaim);
   const parts: Parts = {
     schema,

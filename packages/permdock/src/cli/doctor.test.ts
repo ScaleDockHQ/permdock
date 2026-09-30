@@ -982,6 +982,42 @@ export const policy = definePolicy(permissions, {
     expect(codes(result.stdout)).toContain('PD035');
   });
 
+  it('PD038 warns when subjectFromSupabase reads a different tenant claim than the hook writes', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/subject.ts'),
+      `import { subjectFromSupabase, subjectFromSupabaseSession } from 'permdock/supabase';
+
+export const a = (claims: unknown) => subjectFromSupabase(claims);
+export const b = (claims: unknown) => subjectFromSupabase(claims, { tenant: 'org_id' });
+export const c = (session: never) =>
+  subjectFromSupabaseSession(session, { roles: 'user_role', tenant: "tenant_id" });
+export const d = (claims: unknown, options: never) => subjectFromSupabase(claims, options);
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  collect: { srcPath: ['./src'] },
+  rls: { tenantClaim: 'org_id' },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD038'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      "src/subject.ts:3 reads the tenant from 'tenant_id', but rls.tenantClaim is 'org_id'",
+      "src/subject.ts:6 reads the tenant from 'tenant_id', but rls.tenantClaim is 'org_id'",
+    ]);
+  });
+
   it('PD037 errors on a storage or realtime policy calling the helpers with a row-conditioned key', async () => {
     const cwd = appCopy();
     writeFileSync(

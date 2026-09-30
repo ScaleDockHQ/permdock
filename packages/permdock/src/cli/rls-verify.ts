@@ -20,6 +20,7 @@ import {
   hasConditionOp,
   memoryRoleSource,
 } from '../index.ts';
+import { supabaseTenantClaim } from '../supabase/budget.ts';
 import { rowConditionKeys } from './catalog-doc.ts';
 import {
   HELPER_TABLE_POLICIES_SQL,
@@ -508,7 +509,7 @@ async function verifyAgainstDatabase(input: {
   }
   const dialect = input.config.rls?.dialect ?? 'supabase';
   const gucPrefix = input.config.rls?.gucPrefix ?? 'app';
-  const tenantClaim = input.config.rls?.tenantClaim ?? 'tenant_id';
+  const tenantClaim = input.config.rls?.tenantClaim ?? supabaseTenantClaim;
   const roleClaim = input.config.rls?.roleClaim ?? 'user_role';
   const rls = input.config.rls;
   const seedsTables =
@@ -659,7 +660,7 @@ async function verifyTreeAgainstDatabase(
           { subject: { id: subject }, row: {}, action: 'read' },
           config.rls?.dialect ?? 'supabase',
           config.rls?.gucPrefix ?? 'app',
-          config.rls?.tenantClaim ?? 'tenant_id',
+          config.rls?.tenantClaim ?? supabaseTenantClaim,
           config.rls?.roleClaim ?? 'user_role',
           [],
           scopes,

@@ -10,6 +10,7 @@ import type {
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { anonymousSubject } from '../core/subject.ts';
+import { supabaseTenantClaim } from './budget.ts';
 
 const REGISTERED = new Set([
   'sub',
@@ -176,7 +177,7 @@ function mapClaims(
     return anonymousSubject();
   }
   const roleClaim = options.roles ?? 'user_role';
-  const tenantClaim = options.tenant ?? 'tenant_id';
+  const tenantClaim = options.tenant ?? supabaseTenantClaim;
   const membershipsClaim = options.memberships ?? 'memberships';
   let extra = extraClaims(claims);
   if (options.schema !== undefined) {

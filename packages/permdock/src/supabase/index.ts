@@ -7,6 +7,7 @@ export {
   fromJunction,
   fromTable,
   supabaseMembershipsBudget,
+  supabaseTenantClaim,
 } from './sources.ts';
 export type {
   MembershipJunctionOptions,

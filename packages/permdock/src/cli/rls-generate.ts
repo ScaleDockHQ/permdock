@@ -13,6 +13,7 @@ import type {
 
 import { scopeList } from '../core/scopes.ts';
 import { listRoles } from '../index.ts';
+import { supabaseTenantClaim } from '../supabase/budget.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { breakGlassEntries, breakGlassSql } from './rls-break-glass.ts';
 import { compileGrants } from './rls-compile.ts';
@@ -151,7 +152,7 @@ export async function runRlsGenerate(input: {
   const ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
-    tenantClaim: rls?.tenantClaim ?? 'tenant_id',
+    tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
     gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? 'app',
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
     schema,
