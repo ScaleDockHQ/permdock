@@ -38,6 +38,7 @@ export function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner {
       throw new TypeError('PermDock: HMAC keys cannot sign PermDock outputs.');
     }
     const jose = await loadJose();
+    // SAFETY: a non-Uint8Array key is the configured private JWK; importJWK validates it.
     return jose.importJWK(options.key as never, options.alg);
   };
 
@@ -76,6 +77,7 @@ export function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner {
       jwt.setIssuer(options.issuer);
     }
     if (signOptions.audience !== undefined) {
+      // SAFETY: setAudience only reads the list, so a readonly array is not mutated.
       jwt.setAudience(signOptions.audience as string | string[]);
     }
     jwt.setExpirationTime(signOptions.expiresAt ?? now + 3600);

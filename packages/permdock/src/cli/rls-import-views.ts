@@ -10,6 +10,7 @@ import { helperGrants } from './rls-import-ast.ts';
 type PgNode = Record<string, unknown>;
 
 function asNode(value: unknown): PgNode | undefined {
+  // SAFETY: checked to be a non-null, non-array object, which is all PgNode claims.
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as PgNode)
     : undefined;
@@ -215,6 +216,7 @@ async function grantsOf(
   if (expr === undefined) {
     return [];
   }
+  // SAFETY: expr is a node from pgsql-parser's own parse tree, which deparse accepts.
   return helperGrants(
     await deparse(expr as Parameters<typeof deparse>[0]),
     memberships,
@@ -279,6 +281,7 @@ export async function fieldViewsFromSql(
     }
     const passthrough: string[] = [];
     const restricted: ImportedFieldColumn[] = [];
+    // SAFETY: the loop above skipped this view when any target was undefined.
     for (const target of targets as readonly Target[]) {
       const fromCompanion =
         source.companion !== undefined &&

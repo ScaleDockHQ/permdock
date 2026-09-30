@@ -38,6 +38,7 @@ export function resourceIdOf(data: unknown, field = 'id'): string {
   if (data === null || typeof data !== 'object') {
     return '*';
   }
+  // SAFETY: data was checked to be a non-null object above; the value stays unknown.
   const id = Object.hasOwn(data, field)
     ? (data as Record<string, unknown>)[field]
     : undefined;

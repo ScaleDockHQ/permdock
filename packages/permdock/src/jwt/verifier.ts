@@ -38,6 +38,7 @@ function algorithmAllowed(
       key['crv'] === 'Ed25519'
     );
   }
+  // SAFETY: includes() only compares values; a header alg outside JwtAlgorithm is not found.
   return allowed.includes(alg as JwtAlgorithm);
 }
 
@@ -93,7 +94,7 @@ function mapJoseCause(error: unknown): VerificationFailure['cause'] {
   if (typeof error !== 'object' || error === null || !('code' in error)) {
     return 'invalid-signature';
   }
-  const code = String((error as { readonly code: unknown }).code);
+  const code = String(error.code);
   if (code === 'ERR_JWT_EXPIRED') {
     return 'expired';
   }
@@ -110,6 +111,7 @@ function mapJoseCause(error: unknown): VerificationFailure['cause'] {
     return 'encrypted-token';
   }
   if (code === 'ERR_JWT_CLAIM_VALIDATION_FAILED') {
+    // SAFETY: jose's JWTClaimValidationFailed, identified by this code, carries a string claim.
     const claim = (error as { readonly claim?: string }).claim;
     if (claim === 'aud') {
       return 'wrong-audience';
@@ -170,6 +172,7 @@ export function joseTokenVerifier(
       ? [...algorithms, 'EdDSA']
       : [...algorithms];
     try {
+      // SAFETY: keys is the configured JWKS key list; jose validates each JWK as it imports it.
       const getKey =
         keys instanceof Uint8Array
           ? keys
@@ -188,6 +191,7 @@ export function joseTokenVerifier(
           requiredClaims: securityEvent ? ['iat'] : ['exp'],
         }),
       );
+      // SAFETY: jwtVerify returns the verified JSON payload; JwtClaims types each claim optionally.
       const claims = result.payload as JwtClaims;
       if (!securityEvent && typeof claims.exp !== 'number') {
         return fail('expired');
@@ -232,6 +236,7 @@ export function joseTokenVerifier(
     const jose = await loadJose();
     try {
       const listed = options.decryptionKeys;
+      // SAFETY: checked to be an array; each entry's kty and k are checked before use.
       const rawKeys: readonly Record<string, unknown>[] =
         'keys' in listed && Array.isArray(listed.keys)
           ? (listed.keys as readonly Record<string, unknown>[])

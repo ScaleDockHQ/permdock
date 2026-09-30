@@ -145,7 +145,7 @@ async function jsonOf(response: Response | null): Promise<unknown> {
     return undefined;
   }
   try {
-    return (await response.json()) as unknown;
+    return await response.json();
   } catch {
     return null;
   }
@@ -306,7 +306,7 @@ export function spicedb(options: SpiceDbOptions): DecisionProvider {
           }
           let parsed: unknown;
           try {
-            parsed = JSON.parse(line) as unknown;
+            parsed = JSON.parse(line);
           } catch {
             return null;
           }

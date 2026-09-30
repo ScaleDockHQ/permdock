@@ -38,6 +38,7 @@ function keyToCnf(key: unknown): JwtClaims['cnf'] {
 
 function introspectionToClaims(body: Record<string, unknown>): JwtClaims {
   const cnf = keyToCnf(body['key']);
+  // SAFETY: the RFC 7662 response comes from the authorization server; aud is only compared by value.
   return compact<JwtClaims>({
     sub: typeof body['sub'] === 'string' ? body['sub'] : undefined,
     iss: typeof body['iss'] === 'string' ? body['iss'] : undefined,
@@ -115,6 +116,7 @@ export function subjectFromIntrospection(
     if (mapped.subject.principal === null) {
       return anonymousSubject();
     }
+    // SAFETY: a non-null principal from mapClaimsToSubject is a JwtPrincipal (checked above).
     return attachActor(
       mapped.subject as MappedSubject,
       response,

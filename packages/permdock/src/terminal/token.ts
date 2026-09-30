@@ -92,9 +92,9 @@ async function fromCiOidc(
         body !== null &&
         typeof body === 'object' &&
         'value' in body &&
-        typeof (body as { readonly value?: unknown }).value === 'string'
+        typeof body.value === 'string'
       ) {
-        return (body as { readonly value: string }).value;
+        return body.value;
       }
     } catch {
       return null;

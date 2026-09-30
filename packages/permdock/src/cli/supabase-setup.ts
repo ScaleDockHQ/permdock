@@ -126,6 +126,7 @@ function oversizedClaims(
       if (sample === null || typeof sample !== 'object') {
         continue;
       }
+      // SAFETY: sample was checked to be a non-null object above; the value stays unknown.
       const value: unknown = Object.hasOwn(sample, claim.name)
         ? (sample as Readonly<Record<string, unknown>>)[claim.name]
         : undefined;
@@ -152,6 +153,7 @@ function droppedMemberships(
     if (sample === null || typeof sample !== 'object') {
       continue;
     }
+    // SAFETY: sample was checked to be a non-null object above; the value stays unknown.
     const claim: unknown = Object.hasOwn(sample, 'memberships')
       ? (sample as Readonly<Record<string, unknown>>)['memberships']
       : undefined;

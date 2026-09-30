@@ -73,6 +73,7 @@ function mapEvaluationBody(
   subject: Subject,
   mapping: RemotePdpOptions['mapping'],
 ): Record<string, unknown> {
+  // SAFETY: data was checked to be a non-null object; the id stays unknown.
   const defaultId =
     data !== null && typeof data === 'object'
       ? (data as Record<string, unknown>)['id']
@@ -149,6 +150,7 @@ function parseRemoteDecision(
       if (!isRecord(item) || typeof item['reason'] !== 'string') {
         return [];
       }
+      // SAFETY: a string reason from the remote PDP inside a denial; the outcome stays denied.
       return [
         compact<Denial>({
           role: typeof item['role'] === 'string' ? item['role'] : null,

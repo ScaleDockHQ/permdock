@@ -105,9 +105,11 @@ function assertSnapshotCell(
   if (outcome === 'approval-required') {
     return;
   }
+  // SAFETY: a JSON round trip of the instance's own snapshot, as a client would receive it.
   const client = fromSnapshot(
     JSON.parse(JSON.stringify(instance.snapshot())) as never,
   );
+  // SAFETY: permission is a leaf of the policy under test; can() accepts any row at runtime.
   expect(
     client.can(permission as never, data as never),
     'snapshot client disagrees with the server',
@@ -150,6 +152,7 @@ export function describePolicy<TSubject>(
           (value) => !isOutcomeCell(value),
         );
         if (!nested) {
+          // SAFETY: nested is false, so every value in spec passed isOutcomeCell.
           for (const [subjectName, cell] of Object.entries(spec) as [
             string,
             MatrixCell,
@@ -166,6 +169,7 @@ export function describePolicy<TSubject>(
                 permission.kind === 'instance'
                   ? Object.values(config.fixtures ?? {})[0]
                   : undefined;
+              // SAFETY: permission is a leaf of the policy under test; decide() accepts any row.
               assertCell(
                 instance.decide(permission as never, data as never),
                 cell,
@@ -191,11 +195,13 @@ export function describePolicy<TSubject>(
                   config.options,
                 ));
               const fixture = config.fixtures?.[fixtureName];
+              // SAFETY: a leaf of the policy under test; cell sits in a nested row, so it is a MatrixCell.
               assertCell(
                 instance.decide(permission as never, fixture as never),
                 cell as MatrixCell,
               );
               if (config.snapshot === true) {
+                // SAFETY: cell sits in a nested fixture row of the matrix, so it is a MatrixCell.
                 assertSnapshotCell(
                   instance,
                   permission,

@@ -413,6 +413,7 @@ async function verifyBytes(
 ): Promise<boolean> {
   try {
     if (alg === 'ed25519') {
+      // SAFETY: key is a JWK from the key directory; importKey rejects a bad one and the catch denies.
       const cryptoKey = await crypto.subtle.importKey(
         'jwk',
         key as never,
@@ -420,6 +421,7 @@ async function verifyBytes(
         false,
         ['verify'],
       );
+      // SAFETY: decodeSfBytes and TextEncoder build both arrays over plain ArrayBuffers.
       return await crypto.subtle.verify(
         'Ed25519',
         cryptoKey,
@@ -428,6 +430,7 @@ async function verifyBytes(
       );
     }
     if (alg === 'ecdsa-p256-sha256') {
+      // SAFETY: key is a JWK from the key directory; importKey rejects a bad one and the catch denies.
       const cryptoKey = await crypto.subtle.importKey(
         'jwk',
         key as never,
@@ -435,6 +438,7 @@ async function verifyBytes(
         false,
         ['verify'],
       );
+      // SAFETY: decodeSfBytes and TextEncoder build both arrays over plain ArrayBuffers.
       return await crypto.subtle.verify(
         { name: 'ECDSA', hash: 'SHA-256' },
         cryptoKey,
@@ -465,6 +469,7 @@ async function loadDirectory(
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     return [];
   }
+  // SAFETY: body was checked to be a non-array object above; keys stays unknown.
   const keys = (body as { readonly keys?: unknown }).keys;
   if (!Array.isArray(keys)) {
     return [];

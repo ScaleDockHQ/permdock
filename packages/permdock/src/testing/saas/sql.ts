@@ -78,6 +78,7 @@ function literal(value: string | number | boolean | null | undefined): string {
 }
 
 function values(rows: readonly (readonly unknown[])[]): string {
+  // SAFETY: seed rows are the SaaS fixture's own scalar columns.
   return rows
     .map(
       (row) =>

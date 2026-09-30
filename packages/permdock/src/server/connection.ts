@@ -66,7 +66,7 @@ const REVOKED: Decision = Object.freeze({
     }),
   ]),
   alternatives: Object.freeze([]),
-}) as Decision;
+});
 
 function principalId(dock: PermDock): string | undefined {
   return dock.subject.principal?.id;
@@ -92,6 +92,7 @@ async function loadData<T>(
   if (typeof data !== 'function') {
     return { ok: true, value: data };
   }
+  // SAFETY: data is a value or a loader, and the value case returned above.
   const loaded = await (
     data as () => T | null | undefined | Promise<T | null | undefined>
   )();
@@ -185,6 +186,7 @@ export async function openConnection<T>(
       abort('denied');
       return false;
     }
+    // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
     const decision = (
       dock.decide as (
         next: Permission,
@@ -314,6 +316,7 @@ export async function openConnection<T>(
       if (dock === undefined) {
         return REVOKED;
       }
+      // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
       return (
         dock.decide as (
           next: Permission,

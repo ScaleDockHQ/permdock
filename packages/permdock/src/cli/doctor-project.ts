@@ -50,6 +50,7 @@ export function pd005(cwd: string): readonly DoctorFinding[] {
 export function pd006(cwd: string): readonly DoctorFinding[] {
   try {
     const require = createRequire(resolve(cwd, 'package.json'));
+    // SAFETY: typescript's package.json always declares a version string.
     const pkg = require('typescript/package.json') as {
       readonly version: string;
     };

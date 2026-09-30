@@ -17,6 +17,7 @@ export function packageRoot(): string {
   for (;;) {
     const manifest = join(dir, 'package.json');
     if (existsSync(manifest)) {
+      // SAFETY: name is typed unknown and compared with a string literal before use.
       const { name } = JSON.parse(readFileSync(manifest, 'utf8')) as {
         readonly name?: unknown;
       };

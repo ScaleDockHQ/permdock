@@ -160,6 +160,7 @@ function writeFile(
   try {
     const existing: unknown = JSON.parse(readFileSync(file, 'utf8'));
     if (isRecord(existing) && isRecord(existing['profiles'])) {
+      // SAFETY: the file is written only by writeFile; entries are just copied back unread.
       profiles = existing['profiles'] as Record<string, StoredCredential>;
     }
   } catch {

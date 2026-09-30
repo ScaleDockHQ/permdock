@@ -63,6 +63,7 @@ function incomingBody(req: IncomingMessage): ReadableStream<Uint8Array> {
       pull(controller): Promise<void> {
         return new Promise<void>((resolve) => {
           const drain = (): boolean => {
+            // SAFETY: a paused IncomingMessage's read() yields a Buffer, a string with an encoding, or null.
             const chunk = req.read() as string | Buffer | null;
             if (chunk !== null) {
               controller.enqueue(chunkOf(chunk));
@@ -151,7 +152,7 @@ export function isServerResponse(value: unknown): value is ServerResponse {
     typeof value === 'object' &&
     value !== null &&
     'setHeader' in value &&
-    typeof (value as ServerResponse).setHeader === 'function' &&
+    typeof value.setHeader === 'function' &&
     'end' in value
   );
 }

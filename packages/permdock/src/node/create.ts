@@ -107,6 +107,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     if (hit !== undefined) {
       return hit;
     }
+    // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
     const nodeReq = req as NodeRequest;
     const request = toRequest(nodeReq);
     bound.set(req, request);
@@ -114,12 +115,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     return request;
   };
 
+  // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
   const scopeOf = (req: IncomingMessage): Promise<TenantScope> =>
     tenantScope(options.tenant, req as NodeRequest);
 
   const permdock = async (req: IncomingMessage): Promise<PermDock> =>
     kernel.permdock(bind(req), await scopeOf(req));
 
+  // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
   const protect =
     (
       permission: Permission,
@@ -148,6 +151,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         await sendResponse(res, await GET(bind(req)));
         return;
       }
+      // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
       const nodeReq = req as NodeRequest;
       const request = toRequest(nodeReq);
       contexts.set(request, nodeReq);

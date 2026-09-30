@@ -180,6 +180,7 @@ export function diffRls(
         }
       }
       for (const privilege of have) {
+        // SAFETY: widening the privilege union to string only lets includes() accept a catalog value.
         if (!(want as readonly string[]).includes(privilege)) {
           out.push(
             `${table}: ${role} holds ${privilege}, which no generated policy allows`,
@@ -255,12 +256,14 @@ export async function introspectRls(
     const grants = await client.query(GRANTS_SQL, [tables]);
     const helpers = await client.query(HELPERS_SQL, [[...expected.helpers]]);
     const byTable: Record<string, Record<string, string[]>> = {};
+    // SAFETY: pg rows are objects keyed by the SELECT's columns; every field is read through String().
     for (const row of grants.rows as Record<string, unknown>[]) {
       const table = String(row['target']);
       const role = String(row['grantee']);
       const entry = (byTable[table] ??= {});
       (entry[role] ??= []).push(String(row['privilege']));
     }
+    // SAFETY: pg rows are objects keyed by each SELECT's columns; fields are narrowed as they are read.
     return {
       policies: (policies.rows as Record<string, unknown>[]).map((row) => ({
         table: String(row['target']),

@@ -374,6 +374,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
           ? { trusted: false, boundary: 'http-body' as const }
           : {}),
       });
+      // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
       const raw =
         remote === undefined
           ? (
@@ -402,14 +403,14 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
             data !== null &&
             typeof data === 'object' &&
             'id' in data &&
-            (typeof (data as { readonly id?: unknown }).id === 'string' ||
-              typeof (data as { readonly id?: unknown }).id === 'number')
-              ? String((data as { readonly id: string | number }).id)
+            (typeof data.id === 'string' || typeof data.id === 'number')
+              ? String(data.id)
               : undefined,
         }),
         adapter,
       );
       if (decision.outcome === 'granted') {
+        // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
         return {
           ok: true,
           permdock: instance,

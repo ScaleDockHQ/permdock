@@ -39,6 +39,7 @@ export function rowSchema<const S extends Shape>(
         if (typeof value !== 'object' || value === null) {
           return { issues: [{ message: 'expected an object' }] };
         }
+        // SAFETY: value was checked to be a non-null object above; fields stay unknown.
         const record = value as Readonly<Record<string, unknown>>;
         const issues: StandardSchemaV1.Issue[] = [];
         for (const [field, kind] of Object.entries(shape)) {
@@ -46,6 +47,7 @@ export function rowSchema<const S extends Shape>(
             issues.push({ message: `expected ${kind}`, path: [field] });
           }
         }
+        // SAFETY: with no issues, every field of the shape was accepted by its declared kind.
         return issues.length > 0 ? { issues } : { value: record as Infer<S> };
       },
     },

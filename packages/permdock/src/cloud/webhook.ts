@@ -152,6 +152,7 @@ function validData(
         data['type'] === 'access' &&
         typeof data['tenant'] === 'string' &&
         isRecord(data['principal']) &&
+        // SAFETY: isRecord checked data['principal'] on the line above.
         typeof (data['principal'] as Record<string, unknown>)['id'] === 'string'
       );
     default: {
@@ -177,10 +178,12 @@ export function parseCloudEvent(value: unknown): PermDockCloudEvent | null {
     typeof value['time'] !== 'string' ||
     (value['subject'] !== undefined && typeof value['subject'] !== 'string') ||
     !isRecord(value['data']) ||
+    // SAFETY: TYPES.has checked value['type'] against the CloudEventType list above.
     !validData(value['type'] as CloudEventType, value['data'])
   ) {
     return null;
   }
+  // SAFETY: a JSON copy of value, whose envelope and data were validated above.
   return freezeDeep(JSON.parse(JSON.stringify(value)) as PermDockCloudEvent);
 }
 

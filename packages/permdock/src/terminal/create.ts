@@ -104,9 +104,10 @@ function actorFromResolved(value: unknown): TerminalActor {
     value !== null &&
     'id' in value &&
     'kind' in value &&
-    typeof (value as Actor).id === 'string' &&
-    typeof (value as Actor).kind === 'string'
+    typeof value.id === 'string' &&
+    typeof value.kind === 'string'
   ) {
+    // SAFETY: id and kind were checked to be strings above; every other Actor field is optional.
     return { actor: value as Actor };
   }
   return {};
@@ -117,7 +118,7 @@ function resourceRef(
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
   if (data !== null && typeof data === 'object' && 'id' in data) {
-    const id = (data as { readonly id?: unknown }).id;
+    const id = data.id;
     if (typeof id === 'string' || typeof id === 'number') {
       return { type: permission.resource, id: String(id) };
     }
@@ -293,6 +294,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (load !== undefined) {
         data = await load(...args);
       }
+      // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
       const decide = instance.decide as (
         next: Permission,
         row?: unknown,
@@ -419,6 +421,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         }
       }
 
+      // SAFETY: TData is load's result type; data is undefined only when no load was passed.
       return action(
         {
           permdock: instance,

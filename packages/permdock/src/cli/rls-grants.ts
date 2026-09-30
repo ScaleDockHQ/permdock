@@ -33,6 +33,7 @@ export type RlsGrant = {
 };
 
 function granteeItems(to: Grant['to']): readonly Grantee[] {
+  // SAFETY: to is Grantee | readonly Grantee[]; Array.isArray does not narrow readonly arrays.
   return Array.isArray(to) ? (to as readonly Grantee[]) : [to as Grantee];
 }
 

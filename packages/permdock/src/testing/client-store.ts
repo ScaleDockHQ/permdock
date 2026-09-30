@@ -114,14 +114,13 @@ function recorder(respond: Responder): {
         : input instanceof URL
           ? input.href
           : input.url;
-    const body =
-      typeof init?.body === 'string'
-        ? (JSON.parse(init.body) as unknown)
-        : undefined;
+    const body: unknown =
+      typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
     const call = { url, method: init?.method ?? 'GET', body };
     calls.push(call);
     return respond(call);
   };
+  // SAFETY: impl takes fetch's input and init and returns a Response; the store uses nothing else.
   return { fetch: impl as typeof fetch, calls };
 }
 
@@ -342,6 +341,7 @@ export function testClientStore(
 
     it('caches endpoint answers per tenant and settles the store status', async () => {
       const net = recorder((call) => {
+        // SAFETY: the store under test posts an AuthZEN evaluations batch to the endpoint.
         const body = call.body as { readonly evaluations: readonly unknown[] };
         return json({
           evaluations: body.evaluations.map(() => ({
@@ -375,6 +375,7 @@ export function testClientStore(
 
     it('forgets endpoint answers when a new snapshot arrives', async () => {
       const net = recorder((call) => {
+        // SAFETY: the store under test posts an AuthZEN evaluations batch to the endpoint.
         const body = call.body as { readonly evaluations: readonly unknown[] };
         return json({
           evaluations: body.evaluations.map(() => ({

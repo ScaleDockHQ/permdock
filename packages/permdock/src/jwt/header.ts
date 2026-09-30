@@ -32,6 +32,7 @@ export function decodeHeader(token: string): DecodedHeader | undefined {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       return undefined;
     }
+    // SAFETY: unverified header, checked to be an object; fields are compared by value, jose re-checks.
     return value as DecodedHeader;
   } catch {
     return undefined;

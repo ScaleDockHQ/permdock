@@ -50,6 +50,7 @@ function tableSql(
         )
         .map((item) => item.command),
     );
+    // SAFETY: every literal in the list is a SqlCommand.
     const grants = ['select', 'insert', 'update', 'delete'].filter(
       (cmd) =>
         cmds.has(cmd as SqlCommand) &&

@@ -399,6 +399,7 @@ function columnTypeOf(property: unknown): string | undefined {
   if (!isRecord(property)) {
     return undefined;
   }
+  // SAFETY: find(Array.isArray) returns an array or undefined; its items stay unknown.
   const variants = [property['anyOf'], property['oneOf']].find(
     Array.isArray,
   ) as readonly unknown[] | undefined;
@@ -880,6 +881,7 @@ export function compileConditionSql(
           ? `${column} = any (${list})`
           : `(${column} is not null and not (${column} = any (${list})))`;
       }
+      // SAFETY: an in / notIn value is a list or a ref, and the ref case returned above.
       const values = (condition.value as readonly ConditionValue[]).map(
         (item) => sqlValue(item, ctx),
       );

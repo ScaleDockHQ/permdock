@@ -282,6 +282,7 @@ export async function verifyTree(input: {
       for (const row of list) {
         checked += 1;
         const id = String(row[node.id]);
+        // SAFETY: permission is a leaf of this policy's own permissions tree, which can() accepts.
         const allowed = dock.can(permission as never, row);
         if (allowed !== seen.has(id)) {
           mismatches.push(

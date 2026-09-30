@@ -34,6 +34,7 @@ async function verify(
   if (proof === null || proof.length === 0) {
     return { ok: false, cause: 'dpop-proof-invalid' };
   }
+  // SAFETY: cnf was checked to be a non-array object, and jkt to be a string, before it is read.
   const expectedJkt =
     claims['cnf'] !== null &&
     typeof claims['cnf'] === 'object' &&
@@ -54,11 +55,13 @@ async function verify(
   }
   try {
     const jose = await loadJose();
+    // SAFETY: jwk was checked to be a non-array object; importJWK rejects a malformed key.
     const key = await jose.importJWK(jwk as never, header.alg);
     const result = await jose.jwtVerify(proof, key, {
       typ: 'dpop+jwt',
       maxTokenAge: DPOP_WINDOW_SECONDS,
     });
+    // SAFETY: the same jwk that importJWK accepted and the proof verified against above.
     const jkt = await jose.calculateJwkThumbprint(jwk as never, 'sha256');
     if (jkt !== expectedJkt) {
       return { ok: false, cause: 'dpop-proof-invalid' };

@@ -107,6 +107,7 @@ export function testAuthZen(
         }),
       );
       expect(response.status).toBe(200);
+      // SAFETY: the metadata JSON of the PDP under test; each field is asserted below.
       const document = (await response.json()) as Record<string, unknown>;
       expect(document['policy_decision_point']).toBe(origin);
       expect(document['access_evaluation_endpoint']).toBe(
@@ -123,6 +124,7 @@ export function testAuthZen(
   for (const [index, vector] of (options.vectors.evaluation ?? []).entries()) {
     const { subject, action, resource: target } = vector.request;
     it(`evaluation ${index}: ${subject.id ?? '?'} ${action.name} ${target.type}:${target.id ?? ''} is ${String(vector.expected)}`, async () => {
+      // SAFETY: response JSON of the PDP under test; the decision field is asserted next.
       const body = (await post('/access/v1/evaluation', vector.request)) as {
         readonly decision: unknown;
       };
@@ -132,6 +134,7 @@ export function testAuthZen(
 
   for (const [index, vector] of (options.vectors.evaluations ?? []).entries()) {
     it(`evaluations ${index}: ${vector.request.evaluations.length} items`, async () => {
+      // SAFETY: response JSON of the PDP under test; a missing list fails the assertion below.
       const body = (await post('/access/v1/evaluations', vector.request)) as {
         readonly evaluations: readonly { readonly decision: unknown }[];
       };
@@ -145,6 +148,7 @@ export function testAuthZen(
   for (const kind of ['subject', 'resource', 'action'] as const) {
     for (const [index, vector] of (search[kind] ?? []).entries()) {
       it(`search/${kind} ${index}`, async () => {
+        // SAFETY: response JSON of the PDP under test; a missing list fails the assertion below.
         const body = (await post(
           `/access/v1/search/${kind}`,
           vector.request,
@@ -249,7 +253,7 @@ export const authzenTodoPolicy: Policy = definePolicy(authzenTodoPermissions, {
   principal: (user: unknown) => {
     const id =
       user !== null && typeof user === 'object' && 'id' in user
-        ? (user as { readonly id: unknown }).id
+        ? user.id
         : undefined;
     if (id === 'pep') {
       return { id: 'pep', roles: ['pep'] };

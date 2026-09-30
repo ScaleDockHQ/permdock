@@ -48,8 +48,10 @@ function asStringArray(value: unknown): string[] {
       item !== null &&
       typeof item === 'object' &&
       'value' in item &&
+      // SAFETY: item was checked to be a non-null object with a value key above.
       typeof (item as { readonly value?: unknown }).value === 'string'
     ) {
+      // SAFETY: the condition above checked value to be a string.
       out.push((item as { readonly value: string }).value);
     }
   }
@@ -154,7 +156,9 @@ function bindingOf(claims: JwtClaims): Binding | undefined {
   if (cnf === null || typeof cnf !== 'object' || Array.isArray(cnf)) {
     return undefined;
   }
+  // SAFETY: cnf was checked to be a non-array object above; values stay unknown.
   const record = cnf as Record<string, unknown>;
+  // SAFETY: jwk is only a non-null object here; it is compared to the proof key by thumbprint.
   const binding = compact<Binding>({
     jkt: typeof record['jkt'] === 'string' ? record['jkt'] : undefined,
     'x5t#S256':
@@ -219,6 +223,7 @@ function membershipsFromClaim(value: unknown): Membership[] {
   if (value === null || typeof value !== 'object') {
     return [];
   }
+  // SAFETY: value was checked to be a non-null object above; values stay unknown.
   const record = value as Record<string, unknown>;
   if (typeof record['scope'] === 'string' && typeof record['id'] === 'string') {
     return [
@@ -254,6 +259,7 @@ function membershipsFromClaim(value: unknown): Membership[] {
       continue;
     }
     if (entry !== null && typeof entry === 'object') {
+      // SAFETY: entry was checked to be a non-null object on the line above; values stay unknown.
       const nested = entry as Record<string, unknown>;
       out.push(
         compact<Membership>({
@@ -332,9 +338,11 @@ function delegationOf(
     paths?.authorizationDetails ?? 'authorization_details',
   );
   const access = readPath(claims, paths?.access ?? 'access');
+  // SAFETY: arrays from a verified token; delegation matching compares each entry field by field.
   const authorizationDetails = Array.isArray(details)
     ? (details as AuthorizationDetail[])
     : undefined;
+  // SAFETY: arrays from a verified token; delegation matching compares each entry field by field.
   const accessList = Array.isArray(access)
     ? (access as GnapAccess[])
     : undefined;
@@ -374,6 +382,7 @@ export function validateCustomClaims(
   if ('issues' in result && result.issues !== undefined) {
     return { ok: false };
   }
+  // SAFETY: a Standard Schema result without issues is a success carrying the parsed value.
   return {
     ok: true,
     value: (result as { readonly value: Record<string, unknown> }).value,

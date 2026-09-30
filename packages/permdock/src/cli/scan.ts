@@ -76,6 +76,7 @@ export function scanSources(
     let program: Estree;
     try {
       const parsed = parseSync(file, source);
+      // SAFETY: oxc-parser returns an ESTree Program; Estree is an all-optional view of its nodes.
       program = parsed.program as Estree;
     } catch {
       continue;
@@ -161,6 +162,7 @@ function includeOf(
       ? null
       : undefined;
   }
+  // SAFETY: a Property's value is an ESTree node; its type is checked on the next line.
   const list = property.value as Estree | undefined;
   if (list?.type !== 'ArrayExpression') {
     return null;
@@ -451,11 +453,13 @@ function walk(
   for (const value of Object.values(node)) {
     if (Array.isArray(value)) {
       for (const item of value) {
+        // SAFETY: walk() returns early unless the item is an object with a type.
         walk(item as Estree, node, visit);
       }
       continue;
     }
     if (value !== null && typeof value === 'object' && 'type' in value) {
+      // SAFETY: checked above to be an object with a type, which is an ESTree node.
       walk(value as Estree, node, visit);
     }
   }

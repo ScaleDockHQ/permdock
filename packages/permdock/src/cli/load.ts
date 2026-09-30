@@ -12,6 +12,7 @@ export async function loadModule(
   if (loaded === null || typeof loaded !== 'object') {
     throw new Error(`PermDock CLI: module '${abs}' did not export an object`);
   }
+  // SAFETY: checked to be a non-null object above; exports stay unknown.
   return loaded as Record<string, unknown>;
 }
 
@@ -33,6 +34,7 @@ export function asPermissionTree(value: unknown): PermissionTree {
       'PermDock CLI: permissions export is not a permission tree',
     );
   }
+  // SAFETY: the project's configured permissions export, checked to be an object above.
   return value as PermissionTree;
 }
 
@@ -45,6 +47,7 @@ export function asPolicy(value: unknown): Policy {
   ) {
     throw new Error('PermDock CLI: policy export is not a Policy');
   }
+  // SAFETY: the project's configured policy export, checked above for roles and permissions.
   return value as Policy;
 }
 

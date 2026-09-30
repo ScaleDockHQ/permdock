@@ -63,11 +63,11 @@ function literalEnum(schema: JsonSchema): readonly string[] | undefined {
   if (
     !Array.isArray(values) ||
     values.length === 0 ||
-    !values.every((value) => typeof value === 'string')
+    !values.every((value): value is string => typeof value === 'string')
   ) {
     return undefined;
   }
-  return values as readonly string[];
+  return values;
 }
 
 function schemaType(schema: JsonSchema): string | undefined {

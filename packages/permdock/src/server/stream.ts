@@ -8,6 +8,7 @@ import { PermDockRevokedError } from '../core/errors.ts';
 export function isAsyncIterable(
   value: unknown,
 ): value is AsyncIterable<unknown> {
+  // SAFETY: value is a non-null object; the iterator member is only compared with typeof.
   return (
     value !== null &&
     typeof value === 'object' &&

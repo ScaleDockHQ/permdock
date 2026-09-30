@@ -34,6 +34,7 @@ async function outcomes(
       : { customRoles: options.customRoles }),
   });
   const client = fromSnapshot(parseSnapshot(JSON.stringify(server.snapshot())));
+  // SAFETY: the case's permission and row are erased to fit both can() overloads alike.
   return {
     server: server.can(entry.permission as never, entry.row as never),
     client: client.can(entry.permission as never, entry.row as never),

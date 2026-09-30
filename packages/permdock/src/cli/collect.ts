@@ -104,6 +104,7 @@ export async function runCollect(input: {
       };
     }
     const current = readFileSync(outPath, 'utf8');
+    // SAFETY: only serialised again by catalogForCompare; any other shape just compares unequal.
     const currentDoc = JSON.parse(current) as CatalogDocument;
     if (catalogForCompare(currentDoc) !== catalogForCompare(document)) {
       return {

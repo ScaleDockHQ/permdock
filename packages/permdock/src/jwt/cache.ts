@@ -84,6 +84,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
       if (!response.ok) {
         return undefined;
       }
+      // SAFETY: issuer is compared to the configured string and jwks_uri is typeof-checked below.
       const body = (await response.json()) as {
         readonly issuer?: string;
         readonly jwks_uri?: string;
@@ -170,6 +171,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
       if (!response.ok) {
         throw new Error('jwks fetch failed');
       }
+      // SAFETY: keys is checked to be a non-empty array next; jose validates each key on import.
       const body = (await response.json()) as JsonWebKeySet;
       if (!Array.isArray(body.keys) || body.keys.length === 0) {
         throw new Error('empty jwks');

@@ -216,6 +216,7 @@ function declaredFields(
   if (schema === null || typeof schema !== 'object') {
     return undefined;
   }
+  // SAFETY: schema was checked to be a non-null object above; properties stays unknown.
   const properties = (schema as { readonly properties?: unknown }).properties;
   if (properties === null || typeof properties !== 'object') {
     return undefined;

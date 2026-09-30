@@ -435,6 +435,7 @@ export function subjectFromApiKey(
 }
 
 function anonymous(): Subject<CredentialPrincipal> {
+  // SAFETY: the anonymous subject has a null principal, which fits any principal type.
   return anonymousSubject() as Subject<CredentialPrincipal>;
 }
 
@@ -502,5 +503,6 @@ async function resolveApiKey(
   }
   reportUse(options, credential);
   touch(options.verifier, credential.id);
+  // SAFETY: credentialSubject builds a CredentialPrincipal, and a null principal returned above.
   return subject as Subject<CredentialPrincipal>;
 }

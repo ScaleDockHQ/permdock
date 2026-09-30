@@ -285,6 +285,7 @@ type Defined<T> = {
 };
 
 function withDefined<T extends Record<string, unknown>>(value: T): Defined<T> {
+  // SAFETY: the entries of T minus those whose value is undefined are exactly Defined<T>.
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== undefined),
   ) as Defined<T>;
@@ -320,6 +321,7 @@ function metaRecord(meta: ActionMeta): Readonly<Record<string, unknown>> {
 }
 
 export function jsonSchemaOf(node: ResourceNode): unknown {
+  // SAFETY: every member is optional and checked with ?. and typeof before output() is called.
   const schema = node.schema as
     | {
         readonly '~standard'?: {

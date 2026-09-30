@@ -177,6 +177,7 @@ async function seedsFromDb(
   const tables = await query(
     `select table_schema from information_schema.tables where table_name = 'role_permissions' order by table_schema = 'public' desc, table_schema limit 1`,
   );
+  // SAFETY: a row of the SELECT above, which has one table_schema column; it is read as unknown.
   const first = tables.rows[0] as
     | { readonly table_schema?: unknown }
     | undefined;
@@ -189,6 +190,7 @@ async function seedsFromDb(
       `select role::text, permission::text, grant_key, scope, effect from "${schema}".role_permissions`,
     );
     return rows.rows.flatMap((row) => {
+      // SAFETY: pg returns each row as an object keyed by the SELECT's columns; values stay unknown.
       const seed = seedFromRow(row as Readonly<Record<string, unknown>>);
       return seed === undefined ? [] : [seed];
     });

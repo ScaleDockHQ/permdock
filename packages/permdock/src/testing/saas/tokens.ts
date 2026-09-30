@@ -115,6 +115,7 @@ function parseSegment(segment: string): Record<string, unknown> | null {
     const parsed: unknown = JSON.parse(
       new TextDecoder().decode(decodeSegment(segment)),
     );
+    // SAFETY: checked to be a non-null, non-array object; values stay unknown.
     return parsed !== null &&
       typeof parsed === 'object' &&
       !Array.isArray(parsed)

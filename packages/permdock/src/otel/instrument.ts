@@ -38,7 +38,9 @@ type OtelRegistry = {
 };
 
 function registry(): OtelRegistry | undefined {
+  // SAFETY: reading one symbol key of globalThis; the value stays unknown until checked.
   const value = (globalThis as Record<symbol, unknown>)[OTEL_REGISTRY];
+  // SAFETY: the object @opentelemetry/api registers there; every member is optional and read with ?.
   return typeof value === 'object' && value !== null
     ? (value as OtelRegistry)
     : undefined;
@@ -53,6 +55,7 @@ const registryApi: OtelApi = {
   trace: {
     getTracer: (name) => registry()?.trace?.getTracer?.(name) ?? NOOP_TRACER,
     getActiveSpan: () =>
+      // SAFETY: the OpenTelemetry context stores the active Span under OTEL_SPAN_KEY.
       registry()?.context?.active?.()?.getValue?.(OTEL_SPAN_KEY) as
         | OtelSpan
         | undefined,
@@ -121,6 +124,7 @@ function omitPath(
   if (nested === null || typeof nested !== 'object') {
     return { attributes, matched: false };
   }
+  // SAFETY: nested was checked to be a non-null object above; its values stay unknown.
   const child = omitPath(nested as Record<string, unknown>, rest.join('.'));
   if (!child.matched) {
     return { attributes, matched: false };
@@ -262,6 +266,7 @@ function listen(
   return permdock.on('decision', (payload) => {
     const end = now();
     const start = startedAt();
+    // SAFETY: the instance emits a DecisionEvent as the payload of every 'decision' event.
     const event = payload as DecisionEvent;
     safeCall(() => {
       recordSignals(
@@ -310,6 +315,7 @@ function instrumented(
         }
       }
     };
+  // SAFETY: timed() forwards its arguments and result unchanged; the casts restore the overloads.
   return Object.freeze({
     ...permdock,
     can: timed(permdock.can) as PermDock['can'],

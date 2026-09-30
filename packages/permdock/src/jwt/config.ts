@@ -162,6 +162,7 @@ export function assertVerifierConfig(options: JoseTokenVerifierOptions): void {
     }
   }
   const algorithms = resolveAlgorithms(options);
+  // SAFETY: includes() only compares values; the check guards a list typed without 'none'.
   if (algorithms.includes('none' as JwtAlgorithm)) {
     throw new Error('PermDock: alg none is never accepted.');
   }

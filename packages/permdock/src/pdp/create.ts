@@ -147,6 +147,7 @@ function wrap(
   subject: Subject,
   providers: readonly DecisionProvider[],
 ): PdpPermDock {
+  // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
   const decideLocal = dock.decide as (
     permission: Permission,
     data?: unknown,
@@ -200,6 +201,7 @@ function wrap(
       onDenied(decision);
     }
     const resource = getResource(policy.permissions, permission.resource);
+    // SAFETY: data was checked to be a non-null object; the id stays unknown until String().
     const resourceId =
       data !== null && typeof data === 'object'
         ? (data as Record<string, unknown>)[resource?.id ?? 'id']
@@ -245,6 +247,7 @@ function wrap(
     });
   };
 
+  // SAFETY: the branches handle each of simulate's overloads and return its matching result.
   const simulate = ((
     input:
       | readonly (readonly [Permission, unknown?])[]
@@ -260,6 +263,7 @@ function wrap(
     if (isArazzoSimulateInput(input)) {
       return dock.simulate(input);
     }
+    // SAFETY: pairs and Arazzo inputs returned above; what remains is the role override input.
     return wrap(
       dock.simulate(
         input as {

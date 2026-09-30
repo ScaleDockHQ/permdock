@@ -82,6 +82,7 @@ export async function pd003(input: {
   if (usage.code === 2) {
     return [];
   }
+  // SAFETY: runUsage with json: true and a code other than 2 prints its report with ungranted.
   const report = JSON.parse(usage.output) as {
     readonly ungranted: readonly {
       readonly key: string;
@@ -325,6 +326,7 @@ type MembershipsFixture = {
 };
 
 function asMembershipsFixture(parsed: unknown): MembershipsFixture {
+  // SAFETY: the fixture is the project's own file; callers check each field with Array.isArray.
   return parsed !== null && typeof parsed === 'object'
     ? (parsed as MembershipsFixture)
     : {};
@@ -371,7 +373,7 @@ export async function pd018(input: {
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(absolute, 'utf8')) as unknown;
+    parsed = JSON.parse(readFileSync(absolute, 'utf8'));
   } catch {
     findings.push({
       code: 'PD018',
@@ -547,7 +549,7 @@ export async function pd023(input: {
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(absolute, 'utf8')) as unknown;
+    parsed = JSON.parse(readFileSync(absolute, 'utf8'));
   } catch {
     return [];
   }
@@ -587,7 +589,7 @@ function readJson(cwd: string, path: string | undefined): unknown {
     return undefined;
   }
   try {
-    return JSON.parse(readFileSync(absolute, 'utf8')) as unknown;
+    return JSON.parse(readFileSync(absolute, 'utf8'));
   } catch {
     return undefined;
   }
@@ -597,6 +599,7 @@ function listField(value: unknown, field: string): readonly unknown[] {
   if (value === null || typeof value !== 'object') {
     return [];
   }
+  // SAFETY: value was checked to be a non-null object above; the field stays unknown.
   const list = (value as Record<string, unknown>)[field];
   return Array.isArray(list) ? list : [];
 }
@@ -628,15 +631,18 @@ export function pd029(input: {
       });
     }
   }
+  // SAFETY: parsed was checked to be a non-null object; settings stays unknown.
   const settings =
     parsed !== null && typeof parsed === 'object'
       ? (parsed as { readonly settings?: unknown }).settings
       : undefined;
+  // SAFETY: settings was checked to be a non-null object; its values stay unknown.
   const tenants =
     settings !== null && typeof settings === 'object'
       ? Object.entries(settings as Record<string, unknown>)
       : [];
   for (const [tenant, value] of tenants) {
+    // SAFETY: a non-null object from the settings fixture; only allowNoExpiry === true is read.
     const policy =
       value !== null && typeof value === 'object'
         ? (value as TenantSettings).credentials
@@ -708,7 +714,7 @@ export async function pd025(input: {
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(absolute, 'utf8')) as unknown;
+    parsed = JSON.parse(readFileSync(absolute, 'utf8'));
   } catch {
     return [];
   }
@@ -745,6 +751,7 @@ function limitedColumns(policy: Policy, resource: string): readonly string[] {
   );
   const node = policy.resources.get(resource);
   const schema = node === undefined ? null : jsonSchemaOf(node);
+  // SAFETY: schema was checked to be a non-null object; properties stays unknown.
   const properties =
     schema !== null && typeof schema === 'object'
       ? (schema as { readonly properties?: unknown }).properties

@@ -207,6 +207,7 @@ function valued(row: unknown): readonly string[] {
   if (row === null || typeof row !== 'object') {
     return [];
   }
+  // SAFETY: row was checked to be a non-null object above; values stay unknown.
   const record = row as Readonly<Record<string, unknown>>;
   return Object.keys(record)
     .filter((name) => record[name] !== null && record[name] !== undefined)
@@ -263,11 +264,13 @@ export async function rlsParity<TUser>(
   const scopes = scopeList(policy.scopes);
 
   async function runCase(fixture: RlsParityFixture): Promise<RlsParityCase> {
+    // SAFETY: TUser is erased at the policy boundary; toSubject builds the Subject createPermDock reads.
     const dock = await createPermDock(
       policy,
       toSubject(fixture.subject) as TUser,
       { customRoles: memoryRoleSource(customRoles) },
     );
+    // SAFETY: each branch casts to the kind just checked; Permission's kind parameter does not narrow.
     const granted =
       fixture.permission.kind === 'collection'
         ? dock.can(
@@ -284,6 +287,7 @@ export async function rlsParity<TUser>(
       if (typeof snapshot !== 'object' || snapshot instanceof Promise) {
         throw new TypeError('PermDock: rlsParity needs an unsigned snapshot');
       }
+      // SAFETY: the snapshot client's can() treats both kinds alike at runtime; the row is optional.
       fromClient = fromSnapshot(parseSnapshot(JSON.stringify(snapshot))).can(
         fixture.permission as Permission<string, unknown, 'instance'>,
         fixture.row,
@@ -323,6 +327,7 @@ export async function rlsParity<TUser>(
       ) {
         const key =
           policy.resources.get(fixture.permission.resource)?.id ?? 'id';
+        // SAFETY: the if above checked fixture.permission.kind === 'instance'.
         const kept = new Set(
           granted
             ? valued(

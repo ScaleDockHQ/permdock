@@ -344,13 +344,15 @@ async function readResult(response: Response): Promise<HttpResult> {
     return { status: response.status, body: null };
   }
   try {
-    return { status: response.status, body: JSON.parse(text) as unknown };
+    const body: unknown = JSON.parse(text);
+    return { status: response.status, body };
   } catch {
     return { status: response.status, body: text };
   }
 }
 
 function field(body: unknown, key: string): unknown {
+  // SAFETY: body was checked to be a non-null object; the field stays unknown.
   return body !== null && typeof body === 'object'
     ? (body as Record<string, unknown>)[key]
     : undefined;
@@ -471,7 +473,7 @@ async function untilEnd(
       return { problem: undefined, ended: true };
     }
     if (frame.event === 'permdock') {
-      const problem = JSON.parse(frame.data) as unknown;
+      const problem: unknown = JSON.parse(frame.data);
       return { problem, ended: (await stream.next()) === undefined };
     }
   }

@@ -309,6 +309,7 @@ export async function run(
         const result = await (
           await import('./supabase-hook.ts')
         ).runSupabase(
+          // SAFETY: the object literal has runSupabase's option shape; the filter only drops undefined.
           Object.fromEntries(
             Object.entries({
               cwd,

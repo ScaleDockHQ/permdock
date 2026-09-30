@@ -377,7 +377,7 @@ export function testLimitStore(store: LimitStore): void {
         peeked !== null &&
           typeof peeked === 'object' &&
           'then' in peeked &&
-          typeof (peeked as { readonly then?: unknown }).then === 'function',
+          typeof peeked.then === 'function',
       ).toBe(false);
     }
     await store.consume(input);
@@ -434,7 +434,7 @@ export function testPolicySource(
       document !== null &&
         typeof document === 'object' &&
         'then' in document &&
-        typeof (document as { readonly then?: unknown }).then === 'function',
+        typeof document.then === 'function',
     ).toBe(false);
     return document;
   };
@@ -581,6 +581,7 @@ export function testRevocationFeed(feed: RevocationFeed): void {
     const stop = feed.subscribe((event) => {
       seen.push(event);
     });
+    // SAFETY: deliberately malformed events to exercise the feed's fail-closed validation.
     const bad = [
       { principal: '', kind: 'changed' },
       { principal: 'u-bad', kind: 'granted' },
@@ -700,6 +701,7 @@ export function testDirectoryStore(
       active: true,
     });
     expect(created.status).toBe(201);
+    // SAFETY: a 201 from the SCIM handler under test returns the created User resource with id.
     const id = String(((await created.json()) as { id: unknown }).id);
     seen.length = 0;
     const patched = await call(`/Users/${id}`, 'PATCH', {
@@ -925,6 +927,7 @@ function decodeHeader(token: string): Record<string, unknown> {
   const padded = encoded.replaceAll('-', '+').replaceAll('_', '/');
   const pad =
     padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
+  // SAFETY: the protected header of a JWS the signer under test produced is a JSON object.
   return JSON.parse(atob(`${padded}${pad}`)) as Record<string, unknown>;
 }
 

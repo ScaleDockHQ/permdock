@@ -73,7 +73,7 @@ function resourceRef(
 ): { readonly type: string; readonly id?: string } {
   const fromRow =
     data !== null && typeof data === 'object' && 'id' in data
-      ? (data as { readonly id?: unknown }).id
+      ? data.id
       : undefined;
   const fromWire = item.resource?.id;
   const id =
@@ -151,6 +151,7 @@ function evaluateOne(
     return Promise.resolve(DENIED);
   }
   const data = resourceData(item);
+  // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
   const decide = dock.decide as (
     next: Permission,
     row?: unknown,
@@ -221,6 +222,7 @@ export function createEvaluationsHandler(options: {
     if (body === null || typeof body !== 'object' || Array.isArray(body)) {
       return validationProblem('evaluations body must be an object');
     }
+    // SAFETY: body was checked to be a non-array object above; evaluations stays unknown.
     const evaluations = (body as { readonly evaluations?: unknown })
       .evaluations;
     if (evaluations === undefined) {
@@ -242,6 +244,7 @@ export function createEvaluationsHandler(options: {
     }
     const rows = await Promise.all(
       evaluations.map(async (item) => {
+        // SAFETY: every EvaluationItem field is optional and read through ?. and typeof checks.
         const entry =
           item !== null && typeof item === 'object'
             ? (item as EvaluationItem)

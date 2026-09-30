@@ -82,6 +82,7 @@ export function runSkillsInstall(input: {
 
 function listSkills(cwd: string): SkillsResult {
   const lockPath = join(cwd, '.permdock/skills-lock.json');
+  // SAFETY: the lock file is written by permdock skills; version is only interpolated into text.
   const lock = existsSync(lockPath)
     ? (JSON.parse(readFileSync(lockPath, 'utf8')) as {
         readonly version?: string;
@@ -136,6 +137,7 @@ function readPermdockVersion(skillsRoot: string): string {
   if (!existsSync(pkg)) {
     return '0.0.0';
   }
+  // SAFETY: the package.json next to the skills folder is permdock's own, which has a version.
   const raw = JSON.parse(readFileSync(pkg, 'utf8')) as {
     readonly version: string;
   };

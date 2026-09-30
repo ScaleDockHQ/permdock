@@ -80,6 +80,7 @@ export async function ormParity<TUser>(
     if (scenario.options?.relations !== undefined) {
       await dock.loadRelations(scenario.permission, scenario.rows);
     }
+    // SAFETY: scenario rows are object rows; the id field value stays unknown for sortedIds.
     const expected = sortedIds(
       dock
         .filter(scenario.permission, scenario.rows)

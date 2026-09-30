@@ -26,6 +26,7 @@ import { freezeDeep } from '../core/freeze.ts';
 import { parsePolicyDocument } from '../core/hosted.ts';
 
 function readEnv(name: string): string {
+  // SAFETY: process is optional here and the env value is typeof-checked before use.
   const runtime = globalThis as {
     readonly process?: { readonly env?: Record<string, string | undefined> };
   };
@@ -58,6 +59,7 @@ function asApproval(value: unknown): ApprovalRequest | null {
   ) {
     return null;
   }
+  // SAFETY: a v1 approval request from the Cloud with a string token; resume re-runs decide.
   return value as ApprovalRequest;
 }
 

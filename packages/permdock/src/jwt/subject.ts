@@ -47,6 +47,7 @@ function mtlsThumbprint(claims: JwtClaims): string | undefined {
   if (cnf === null || typeof cnf !== 'object' || Array.isArray(cnf)) {
     return undefined;
   }
+  // SAFETY: cnf was checked to be a non-array object above; the value stays unknown.
   const value = (cnf as { readonly 'x5t#S256'?: unknown })['x5t#S256'];
   return typeof value === 'string' ? value : undefined;
 }
@@ -185,6 +186,7 @@ async function resolveSubject(
   if (mapped.invalidClaims) {
     emitAuth(options, 'invalid-claims', token);
   }
+  // SAFETY: a non-null principal from mapClaimsToSubject is a JwtPrincipal (checked above).
   return extraMemberships(
     options,
     mapped.subject as MappedSubject,

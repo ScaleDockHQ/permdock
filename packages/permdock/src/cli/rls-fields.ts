@@ -120,6 +120,7 @@ function schemaColumns(
 ): readonly string[] | undefined {
   const node = policy.resources.get(resource);
   const schema = node === undefined ? null : jsonSchemaOf(node);
+  // SAFETY: schema was checked to be a non-null object; properties stays unknown.
   const properties =
     schema !== null && typeof schema === 'object'
       ? (schema as { readonly properties?: unknown }).properties

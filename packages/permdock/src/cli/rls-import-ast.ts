@@ -11,6 +11,7 @@ type PgNode = Record<string, unknown>;
 
 function asNode(value: unknown): PgNode | undefined {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    // SAFETY: checked to be a non-null, non-array object, which is all PgNode claims.
     return value as PgNode;
   }
   return undefined;
@@ -162,6 +163,7 @@ function sublinkTable(
     return undefined;
   }
   const kind = sub['subLinkType'];
+  // SAFETY: Set.has only compares by identity, so a kind of any other type just misses.
   if (kind === undefined || !kinds.has(kind as string | number)) {
     return undefined;
   }
@@ -449,6 +451,7 @@ function flatten(value: unknown, op: 'and' | 'or'): readonly unknown[] {
 
 function helperCalls(conjunct: unknown): readonly HelperCall[] | undefined {
   const calls = flatten(conjunct, 'or').map(helperCall);
+  // SAFETY: every() above checked that no call is undefined.
   return calls.every((call) => call !== undefined)
     ? (calls as readonly HelperCall[])
     : undefined;
@@ -601,6 +604,7 @@ export async function seedsFromSql(
       for (const [index, col] of cols.entries()) {
         if (
           typeof col === 'string' &&
+          // SAFETY: widening the column union to string only lets includes() accept a parsed name.
           (SEED_COLUMNS as readonly string[]).includes(col)
         ) {
           row[col] = constValue(items[index]);
@@ -708,6 +712,7 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
       rawArgs
         .map((arg) => argFromNode(arg))
         .filter((item): item is SqlFunctionArg => item !== undefined);
+    // SAFETY: twin comes from the project's own rls.functions config, which documents it as a Condition.
     return {
       op: 'sqlFunction',
       name,

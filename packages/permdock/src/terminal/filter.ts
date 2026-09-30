@@ -14,6 +14,7 @@ function snapshotAllows(dock: PermDock, permission: Permission): boolean {
 
 function commandAllowed(dock: PermDock, permission: Permission): boolean {
   if (permission.kind === 'collection') {
+    // SAFETY: kind is collection, and a collection permission's can() takes no row.
     return (dock.can as (next: Permission) => boolean)(permission);
   }
   return snapshotAllows(dock, permission);

@@ -34,6 +34,7 @@ function validatorFor(file: string): ValidateFunction {
     '"$dynamicRef": "#meta"',
     '"$ref": "#/$defs/schema"',
   );
+  // SAFETY: the file is a JSON Schema document shipped in the package's schemas directory.
   const compiled = ajv.compile(JSON.parse(text) as object);
   validators.set(file, compiled);
   return compiled;

@@ -38,6 +38,7 @@ export async function loadConfig(
   if (value === null || typeof value !== 'object') {
     return {};
   }
+  // SAFETY: the project's own permdock config default export, checked to be an object above.
   return value as PermDockConfig;
 }
 

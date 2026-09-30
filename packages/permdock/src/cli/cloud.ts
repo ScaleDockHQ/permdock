@@ -48,6 +48,7 @@ function pushedGrant(grant: Grant): PushedPolicy['grants'][number] {
     fields: grant.fields,
     limit: grant.limit,
   };
+  // SAFETY: entry is built above with the grant fields; the filter only drops undefined ones.
   return Object.fromEntries(
     Object.entries(entry).filter(([, value]) => value !== undefined),
   ) as PushedPolicy['grants'][number];
@@ -96,6 +97,7 @@ export async function runCloud(input: {
   if (built.code !== 0) {
     return { code: built.code, output: built.output };
   }
+  // SAFETY: built.output is the catalog document that the catalog command just produced.
   const catalog = JSON.parse(built.output) as CatalogDocument;
   const fingerprint = catalogFingerprint(catalog);
   const loaded = await loadConfiguredPolicy(input.cwd, input.config.policy);

@@ -94,6 +94,7 @@ function asFixtures(value: unknown): readonly RlsFixture[] {
         `PermDock CLI: fixture ${index} subject.tenant must be a string`,
       );
     }
+    // SAFETY: subject, row, action, subject.id, memberships and tenant were each checked above.
     return item as RlsFixture;
   });
 }
@@ -111,6 +112,7 @@ function asCustomRoles(value: unknown): readonly CustomRole[] {
   if (!Array.isArray(value['customRoles'])) {
     throw new TypeError('PermDock CLI: fixtures customRoles must be an array');
   }
+  // SAFETY: checked to be an array above; resolveCustomRole validates each role before use.
   return value['customRoles'] as readonly CustomRole[];
 }
 
@@ -147,11 +149,13 @@ function canFixture(
   row: unknown,
 ): boolean {
   if (permission.kind === 'collection') {
+    // SAFETY: kind was checked on the line above; Permission's kind parameter does not narrow.
     return dock.can(
       permission as Permission<string, unknown, 'collection'>,
       row,
     );
   }
+  // SAFETY: a permission is collection or instance, and collection returned above.
   return dock.can(permission as Permission<string, unknown, 'instance'>, row);
 }
 
@@ -538,8 +542,8 @@ async function verifyAgainstDatabase(input: {
         cause !== null &&
         typeof cause === 'object' &&
         'code' in cause &&
-        typeof (cause as { readonly code: unknown }).code === 'string'
-          ? (cause as { readonly code: string }).code
+        typeof cause.code === 'string'
+          ? cause.code
           : undefined;
       return { rows: [], rowCount: 0, ...(code === undefined ? {} : { code }) };
     }
@@ -783,6 +787,7 @@ export async function runRlsVerify(input: {
       fieldsMode &&
       permission.kind === 'instance' &&
       commandFor(permission.action) === 'select';
+    // SAFETY: reads is only true when permission.kind === 'instance'.
     const fields = reads
       ? expectedFields(
           granted,

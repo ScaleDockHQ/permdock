@@ -78,6 +78,7 @@ export function stepUpOf(decision: Decision): {
         : Array.isArray(denial.to)
           ? denial.to
           : [denial.to];
+    // SAFETY: to is Grantee | readonly Grantee[]; Array.isArray does not narrow readonly arrays.
     for (const grantee of grantees as readonly Grantee[]) {
       if (grantee.kind !== 'assurance') {
         continue;
@@ -166,7 +167,7 @@ function resourceRef(
 ): { readonly type: string; readonly id?: string } {
   const id =
     data !== null && typeof data === 'object' && 'id' in data
-      ? (data as { readonly id?: unknown }).id
+      ? data.id
       : undefined;
   return compact({
     type: permission.resource,
@@ -179,6 +180,7 @@ function isLimitDetail(value: unknown): value is LimitDetail {
   if (value === null || typeof value !== 'object') {
     return false;
   }
+  // SAFETY: value is a non-null object; each destructured field is checked below.
   const { count, window, resetsAt } = value as Partial<LimitDetail>;
   return (
     Number.isFinite(count) &&

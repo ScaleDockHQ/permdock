@@ -798,6 +798,7 @@ export function parseHookMarker(
   if (!line.startsWith(`${HOOK_MARKER} `)) {
     return undefined;
   }
+  // SAFETY: a fresh prototype-less object; only string values are assigned below.
   const fields: Record<string, string> = Object.create(null) as Record<
     string,
     string
