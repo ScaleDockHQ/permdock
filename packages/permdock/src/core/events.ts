@@ -103,7 +103,13 @@ export function finish(
     readonly approvalRequired: number;
   },
 ): void {
-  if (!env.emit) {
+  const heard =
+    env.sink !== undefined ||
+    env.listeners.decision.size > 0 ||
+    (decision.outcome === 'denied' && env.listeners.denied.size > 0) ||
+    (decision.outcome === 'approval-required' &&
+      env.listeners.approval.size > 0);
+  if (!env.emit || !heard) {
     return;
   }
   const resource = getResource(policy.permissions, permission.resource);

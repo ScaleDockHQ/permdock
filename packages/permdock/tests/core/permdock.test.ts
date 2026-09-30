@@ -461,3 +461,53 @@ describe('createPermDock', () => {
     ).toBe(false);
   });
 });
+
+describe('decide alternatives', () => {
+  it('evaluates alternatives at the decision clock', async () => {
+    const tenancy = definePermissions({
+      doc: resource({
+        id: 'id',
+        actions: ['read'],
+        collection: ['list', 'create'],
+        relations: { org: { field: 'org_id', memberOf: 'organization' } },
+      }),
+    });
+    const tenancyPolicy = definePolicy(tenancy, {
+      scopes: { organization: { key: 'org_id' } },
+      roles: [
+        role('member', [allow(tenancy.doc.read), allow(tenancy.doc.list)], {
+          on: 'organization',
+        }),
+      ],
+      subject: (user: { id: string; tenant: string } | null) =>
+        user === null
+          ? null
+          : {
+              id: user.id,
+              roles: [],
+              tenant: user.tenant,
+              memberships: [
+                {
+                  scope: 'organization',
+                  id: user.tenant,
+                  roles: ['member'],
+                  expiresAt: 1000,
+                },
+              ],
+            },
+    });
+    const permdock = await createPermDock(tenancyPolicy, {
+      id: 'u1',
+      tenant: 'T',
+    });
+    const decision = permdock.decide(tenancy.doc.create, undefined, {
+      now: 500,
+    });
+    expect(decision.outcome).toBe('denied');
+    if (decision.outcome !== 'denied') return;
+    expect(decision.alternatives.map((leaf) => leaf.key)).toEqual([
+      'doc.read',
+      'doc.list',
+    ]);
+  });
+});

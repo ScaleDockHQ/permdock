@@ -192,6 +192,7 @@ function alternativesFor(
   policy: Policy,
   permission: Permission,
   subject: Subject,
+  now: number,
   env: EvalEnv,
 ): Permission[] {
   const same = listPermissions(policy.permissions).filter(
@@ -204,7 +205,7 @@ function alternativesFor(
       subject,
       leaf,
       undefined,
-      { trusted: true, source: 'decide' },
+      { trusted: true, source: 'decide', now },
       { ...env, emit: false, skipAlternatives: true },
     );
     return decision.outcome === 'granted';
@@ -793,7 +794,7 @@ export function evaluate(
             denials: [breakGlassDenial],
             alternatives: env.skipAlternatives
               ? []
-              : alternativesFor(policy, permission, subject, env),
+              : alternativesFor(policy, permission, subject, now, env),
           });
           finish(
             policy,
@@ -813,7 +814,7 @@ export function evaluate(
         denials: [{ role: displayRole, reason: 'deny' }],
         alternatives: env.skipAlternatives
           ? []
-          : alternativesFor(policy, permission, subject, env),
+          : alternativesFor(policy, permission, subject, now, env),
       });
       finish(
         policy,
@@ -857,7 +858,7 @@ export function evaluate(
       denials: denials.length > 0 ? denials : [{ role: null, reason }],
       alternatives: env.skipAlternatives
         ? []
-        : alternativesFor(policy, permission, subject, env),
+        : alternativesFor(policy, permission, subject, now, env),
     });
     finish(
       policy,
@@ -903,7 +904,7 @@ export function evaluate(
       denials: [{ role: null, reason: delegationMiss }],
       alternatives: env.skipAlternatives
         ? []
-        : alternativesFor(policy, permission, subject, env),
+        : alternativesFor(policy, permission, subject, now, env),
     });
     finish(
       policy,
@@ -955,7 +956,7 @@ export function evaluate(
       denials: quotaDenials.length > 0 ? quotaDenials : denials,
       alternatives: env.skipAlternatives
         ? []
-        : alternativesFor(policy, permission, subject, env),
+        : alternativesFor(policy, permission, subject, now, env),
     });
     finish(
       policy,
