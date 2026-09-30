@@ -212,8 +212,7 @@ export const core: OxlintConfig = defineConfig({
     'anti-slop/no-widen-then-assert': 'error',
     // `as unknown as` erases the TUser / listener generics at the policy boundary (57 findings).
     'anti-slop/no-chained-type-assertions': 'off',
-    // Enabled once every existing assertion carries a SAFETY comment (1133 findings).
-    'anti-slop/require-safety-comment-for-type-assertion': 'off',
+    'anti-slop/require-safety-comment-for-type-assertion': 'error',
     // UI adapters' Proxy get traps forward reads with the receiver-preserving Reflect.get (11 findings).
     'anti-slop/no-reflect-get': 'off',
     // Boundary validation (invariant 9) narrows untrusted JSON with `typeof` (1129 findings).
