@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   schedule:
     # Nightly flake hunt: every e2e test three times, no retries.
     - cron: '17 3 * * *'
@@ -15,70 +15,21 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Turborepo remote cache on the Vercel team. Unset (forks, before setup) means local cache only.
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  CI: true
   TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
 
 jobs:
-  check:
-    name: Check and unit tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  verify:
+    name: Verify
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-
-      - uses: pnpm/setup@v3
-        with:
-          runtime: node@24
-          cache: true
-          require-lockfile: true
-
-      # Type-aware lint resolves workspace packages through their dist/ declarations.
-      - name: Build
-        run: pnpm run build
-
-      - name: Format
-        run: pnpm run fmt:check
-
-      - name: Lint
-        run: pnpm run lint --format=github
-
-      - name: Boundaries
-        run: pnpm exec turbo boundaries
-
-      - name: Typecheck
-        run: pnpm run typecheck
-
-      - name: Typecheck matrix
-        run: |
-          pnpm --filter @permdock/types-ts59 typecheck
-          pnpm --filter @permdock/types-ts6 typecheck
-          pnpm --filter @permdock/types-ts7 typecheck
-
-      - name: Test
-        run: pnpm run test
-
-      - name: Size
-        run: pnpm run size
-
-      - name: Catalog drift
-        run: |
-          pnpm exec permdock collect --check --cwd tests/integration/fixtures/posts
-          pnpm exec permdock collect --check --cwd apps/examples/monorepo
-          pnpm exec permdock collect --check --cwd tests/e2e/fixtures/turborepo
-
-      - name: Docs drift
-        run: pnpm run docs:drift
-
-      - name: Publish checks
-        run: pnpm run check:publish
+      id-token: write
+    uses: ./.github/workflows/verify.yml
+    with:
+      affected: ${{ github.event_name == 'pull_request' }}
+    secrets:
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
 
   build:
     name: Production builds
@@ -86,16 +37,15 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/setup@v3
+      - uses: ./.github/actions/setup
         with:
-          runtime: node@24
-          cache: true
-          require-lockfile: true
+          turbo-team: ${{ vars.TURBO_TEAM }}
 
       - name: Build
         run: pnpm run build
@@ -114,16 +64,15 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/setup@v3
+      - uses: ./.github/actions/setup
         with:
-          runtime: node@24
-          cache: true
-          require-lockfile: true
+          turbo-team: ${{ vars.TURBO_TEAM }}
 
       - uses: actions/download-artifact@v8
         with:
@@ -140,16 +89,15 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/setup@v3
+      - uses: ./.github/actions/setup
         with:
-          runtime: node@24
-          cache: true
-          require-lockfile: true
+          turbo-team: ${{ vars.TURBO_TEAM }}
 
       - uses: oven-sh/setup-bun@v2
 
@@ -169,6 +117,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -210,11 +159,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/setup@v3
+      - uses: ./.github/actions/setup
         with:
-          runtime: node@24
-          cache: true
-          require-lockfile: true
+          turbo-team: ${{ vars.TURBO_TEAM }}
 
       - uses: actions/download-artifact@v8
         with:

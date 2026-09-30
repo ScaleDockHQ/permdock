@@ -1,0 +1,28 @@
+name: Setup
+description: Turborepo Remote Cache over OIDC, then pnpm and Node.js 24 from the lockfile.
+
+inputs:
+  turbo-team:
+    description: Vercel team slug for the Remote Cache; empty (forks, before setup) means local cache only.
+    required: false
+    default: ''
+  cache:
+    description: Cache the pnpm store.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    # Needs `id-token: write` on the calling job.
+    - name: Turborepo Remote Cache
+      if: inputs.turbo-team != ''
+      uses: vercel/setup-turborepo-remote-cache-action@v1.1.0
+      with:
+        team: ${{ inputs.turbo-team }}
+
+    - uses: pnpm/setup@v3
+      with:
+        runtime: node@24
+        cache: ${{ inputs.cache }}
+        require-lockfile: true

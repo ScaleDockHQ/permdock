@@ -2,10 +2,11 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    target-branch: main
     schedule:
       interval: weekly
     cooldown:
-      default-days: 7
+      default-days: 2
     open-pull-requests-limit: 10
     # An Expo SDK upgrade moves these together; `expo` pins its SDK's React Native minor.
     ignore:
@@ -20,28 +21,17 @@ updates:
       - dependency-name: 'react-native'
         update-types: ['version-update:semver-minor']
     groups:
-      oxc:
-        patterns:
-          - oxlint
-          - oxfmt
-          - oxlint-tsgolint
-      turbo:
-        patterns:
-          - turbo
-          - '@turbo/*'
-      commitlint:
-        patterns:
-          - '@commitlint/*'
       dependencies:
         patterns:
           - '*'
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: main
     schedule:
       interval: weekly
     cooldown:
-      default-days: 7
+      default-days: 2
     groups:
       github-actions:
         patterns:

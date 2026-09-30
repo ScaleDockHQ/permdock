@@ -1,0 +1,95 @@
+name: Verify
+
+on:
+  workflow_call:
+    inputs:
+      affected:
+        description: Run Turborepo tasks only for workspaces changed against the base branch.
+        type: boolean
+        default: false
+    secrets:
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY:
+        required: false
+
+permissions: {}
+
+env:
+  CI: true
+  TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+  AFFECTED: ${{ inputs.affected && '--affected' || '' }}
+  # The Next.js workspaces; GitHub-hosted runners run out of memory building them in parallel.
+  NEXT_APPS: >-
+    --filter=docs --filter=marketing --filter=@permdock/example-next
+    --filter=@permdock/e2e-next-saas --filter=@permdock/e2e-turbo-web
+
+jobs:
+  verify:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: format
+            run: pnpm run format:check
+          - name: lint
+            next: true
+            run: pnpm run lint:root && pnpm exec turbo run lint $AFFECTED
+          - name: knip
+            run: pnpm run knip
+          # Includes the public types under TypeScript 5.9, 6 and 7 (tests/types).
+          - name: typecheck
+            next: true
+            run: pnpm exec turbo run typecheck $AFFECTED && pnpm run typecheck:tooling
+          - name: test
+            next: true
+            run: pnpm exec turbo run test $AFFECTED
+          - name: boundaries
+            run: pnpm run boundaries
+          - name: audit
+            run: pnpm run audit:high
+          - name: drift
+            run: |
+              pnpm exec turbo run build --filter=permdock
+              pnpm exec permdock collect --check --cwd tests/integration/fixtures/posts
+              pnpm exec permdock collect --check --cwd apps/examples/monorepo
+              pnpm exec permdock collect --check --cwd tests/e2e/fixtures/turborepo
+              pnpm run docs:drift
+              pnpm run openapi:generate
+              git diff --exit-code -- packages/permdock/schemas/openapi
+          - name: doctor
+            run: |
+              pnpm exec turbo run build --filter=permdock
+              for example in apps/examples/*/; do
+                echo "::group::$example"
+                pnpm exec permdock doctor --cwd "$example"
+                echo "::endgroup::"
+              done
+          - name: size
+            run: pnpm exec turbo run test --filter=@permdock/bundle
+          - name: publish
+            run: pnpm exec turbo run check:publish
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # `--affected` diffs against the merge base.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+
+      - name: Build Next.js apps
+        if: matrix.next
+        run: |
+          # Word splitting turns NEXT_APPS into separate flags.
+          # shellcheck disable=SC2086
+          pnpm exec turbo run build $NEXT_APPS --concurrency=1
+
+      - name: ${{ matrix.name }}
+        run: ${{ matrix.run }}

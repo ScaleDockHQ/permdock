@@ -29,11 +29,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: pnpm/setup@v3
+      - uses: ./.github/actions/setup
         with:
-          runtime: node@24
-          cache: false
-          require-lockfile: true
+          cache: 'false'
 
       # The pnpm runtime ships Node without npm; the Node.js distribution bundles it.
       - uses: actions/setup-node@v7
@@ -51,17 +49,26 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Check
-        run: pnpm run check
-
-      - name: Test
-        run: pnpm run test
+      - name: Verify
+        run: pnpm run verify
 
       - name: Create release pull request or publish
+        id: changesets
         uses: changesets/action@v2.1.2
         with:
           # Publishing to npm is opt-in: set the repository variable NPM_PUBLISH to 'true'.
-          publish-script: ${{ vars.NPM_PUBLISH == 'true' && 'node scripts/publish.ts' || '' }}
+          version-script: pnpm run version-packages
+          publish-script: ${{ vars.NPM_PUBLISH == 'true' && 'pnpm run release' || '' }}
           pr-title: 'chore: version packages'
           commit-message: 'chore: version packages'
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge main back into develop
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          if gh api "repos/$REPO/branches/develop" --silent 2>/dev/null; then
+            gh api "repos/$REPO/merges" -f base=develop -f head=main -f commit_message='chore: merge main into develop'
+          fi
