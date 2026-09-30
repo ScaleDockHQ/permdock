@@ -217,6 +217,7 @@ type Fixture = {
 function fixtures(): readonly Fixture[] {
   const out: Fixture[] = [];
   for (const [name, subject] of Object.entries(SUBJECTS)) {
+    // SAFETY: Object.keys(ROWS) lists exactly its keys
     for (const resource of Object.keys(ROWS) as (keyof typeof ROWS)[]) {
       for (const row of ROWS[resource]) {
         for (const action of ACTIONS[resource]) {

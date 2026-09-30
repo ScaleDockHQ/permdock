@@ -42,6 +42,7 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
   const type = request.headers.get('content-type') ?? '';
   if (type.includes('application/json')) {
     const value: unknown = await request.json();
+    // SAFETY: checked to be a non-null object; every value stays unknown
     return typeof value === 'object' && value !== null
       ? (value as Record<string, unknown>)
       : {};

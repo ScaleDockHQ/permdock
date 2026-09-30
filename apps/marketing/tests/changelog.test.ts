@@ -54,6 +54,7 @@ describe('parseChangelog', () => {
       expect(releases).toEqual([]);
       return;
     }
+    // SAFETY: packages/permdock/package.json is the repository's own manifest with a string version
     const { version } = JSON.parse(
       readFileSync(join(root, 'packages/permdock/package.json'), 'utf8'),
     ) as { readonly version: string };

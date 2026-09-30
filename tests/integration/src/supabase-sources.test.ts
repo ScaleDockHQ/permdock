@@ -88,6 +88,7 @@ $$;
 
 type Claims = Record<string, unknown>;
 
+// SAFETY: callers pass JSON objects, and JSON.parse of their text stays unknown
 const byJson = (list: readonly unknown[]): unknown[] =>
   list
     .map((item) => JSON.stringify(item, Object.keys(item as object).toSorted()))
@@ -221,18 +222,21 @@ describe('permdock supabase hook generate against Postgres', () => {
     for (const user of [OWNER, CONTACT, SEATED]) {
       const claims = await mint(user);
       const live = await composed.membershipsFor({ id: user }, {});
+      // SAFETY: the custom access token hook mints memberships as an array
       expect(byJson(live)).toEqual(byJson(claims['memberships'] as unknown[]));
     }
   });
 
   it('puts the active scope first, truncates at the budget and falls back to the source', async () => {
     const claims = await mint(BIG);
+    // SAFETY: the custom access token hook mints memberships as Membership objects
     const kept = claims['memberships'] as Membership[];
     expect(claims['memberships_truncated']).toBe(true);
     expect(kept.length).toBeLessThan(MANY.length);
     expect(kept[0]?.id).toBe('O39');
     expect(claims['tenant_id']).toBe('O39');
     expect(Buffer.byteLength(JSON.stringify(kept))).toBeLessThanOrEqual(1024);
+    // SAFETY: minted claims always carry a subject, so the principal is set
     const principal = subjectFromSupabase(claims).principal as Principal;
     expect(principal.membershipsTruncated).toBe(true);
     const policy = definePolicy(
@@ -305,6 +309,7 @@ describe('permdock supabase hook generate against Postgres', () => {
     const dockFor = async (claims: Claims) =>
       createPermDock(
         policy,
+        // SAFETY: minted claims always carry a subject, so the principal is set
         subjectFromSupabase({ ...claims, tenant_id: 'T' })
           .principal as Principal,
         { memberships },
@@ -322,12 +327,14 @@ describe('permdock supabase hook generate against Postgres', () => {
     });
     expect(stale.can(permissions.quote.read, quote)).toBe(true);
     const after = await mint(OWNER);
+    // SAFETY: the custom access token hook mints authz_ver as a number
     expect(after['authz_ver']).toBeGreaterThan(before['authz_ver'] as number);
     expect((await dockFor(after)).can(permissions.quote.delete, quote)).toBe(
       true,
     );
     const seated = await createPermDock(
       policy,
+      // SAFETY: minted claims always carry a subject, so the principal is set
       subjectFromSupabase({ ...(await mint(SEATED)), tenant_id: 'T' })
         .principal as Principal,
       { memberships },

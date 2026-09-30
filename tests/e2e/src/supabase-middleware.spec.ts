@@ -6,6 +6,7 @@ async function bearer(
 ): Promise<{ readonly authorization: string }> {
   const response = await request.get(`/dev/token/${user}`);
   expect(response.status()).toBe(200);
+  // SAFETY: the example's /dev/token route answers { token }
   const { token } = (await response.json()) as { readonly token: string };
   return { authorization: `Bearer ${token}` };
 }
@@ -39,6 +40,7 @@ test.describe('supabase-middleware example', { tag: '@smoke' }, () => {
     expect(response.headers()['content-type']).toContain(
       'application/problem+json',
     );
+    // SAFETY: a denial answers application/problem+json in this shape, checked above
     const body = (await response.json()) as {
       readonly permission: string;
       readonly denials: readonly { readonly reason: string }[];
@@ -103,6 +105,7 @@ test.describe('supabase-middleware example', { tag: '@smoke' }, () => {
       },
     });
     expect(response.status()).toBe(200);
+    // SAFETY: the AuthZEN evaluations endpoint answers this shape
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };

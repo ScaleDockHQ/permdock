@@ -86,6 +86,7 @@ test.describe('mcp-server example', { tag: '@smoke' }, () => {
     expect(parked.structuredContent).toMatchObject({
       outcome: 'approval-required',
     });
+    // SAFETY: toMatchObject above checked an approval-required result, which carries its token
     const token = (parked.structuredContent as { readonly token: string })
       .token;
 

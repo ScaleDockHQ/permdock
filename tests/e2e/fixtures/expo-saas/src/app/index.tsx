@@ -66,6 +66,7 @@ function Projects() {
       cache: 'no-store',
     })
       .then(
+        // SAFETY: the fixture's /api/projects route answers { projects: SaasProject[] }
         (response) => response.json() as Promise<{ projects: SaasProject[] }>,
       )
       .then((body) => {

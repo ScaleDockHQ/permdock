@@ -36,6 +36,7 @@ testHttpAdapter({
             opts.ctx.req.headers.get('authorization'),
             new URL(opts.ctx.req.url).pathname,
           ),
+        // SAFETY: every procedure's input is an object or undefined; `org` is a string when present
         tenant: (opts) =>
           (opts.input as { readonly org?: string } | undefined)?.org ??
           domain.org(new URL(opts.ctx.req.url).pathname),
@@ -46,6 +47,7 @@ testHttpAdapter({
     );
     const t = initTRPC.context<Context>().create({ errorFormatter });
     const base = t.procedure.use(permdock());
+    // SAFETY: every procedure's input is an object or undefined; `id` is a string when present
     const row = (opts: { readonly input?: unknown }) =>
       domain.project((opts.input as { readonly id?: string } | undefined)?.id);
 
@@ -64,6 +66,7 @@ testHttpAdapter({
           .use(
             protect(
               p.project.create,
+              // SAFETY: this procedure's input schema is an object with a `body` field
               (opts) => (opts.input as { readonly body?: unknown }).body,
               {
                 trusted: false,
@@ -101,6 +104,7 @@ testHttpAdapter({
       }),
     });
 
+    // SAFETY: createAdaptorServer without http2 options creates a node:http Server
     const server = createAdaptorServer({
       fetch: (request: Request) => {
         const [org, segment] = new URL(request.url).pathname
@@ -206,6 +210,7 @@ testHttpAdapter({
         if (!(error instanceof TRPCClientError)) {
           throw error;
         }
+        // SAFETY: errorFormatter above adds httpStatus to every error's data
         const data = error.data as { readonly httpStatus?: number } | undefined;
         return { status: data?.httpStatus ?? 500, body: data };
       }

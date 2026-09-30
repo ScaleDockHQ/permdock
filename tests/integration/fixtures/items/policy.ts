@@ -146,10 +146,9 @@ const OPERATORS = {
 
 export type ItemAction = keyof typeof OPERATORS | 'inFolder';
 
-export const itemActions = [
-  ...Object.keys(OPERATORS),
-  'inFolder',
-] as readonly ItemAction[];
+export const itemActions =
+  // SAFETY: Object.keys(OPERATORS) lists exactly its keys, which with 'inFolder' are ItemAction
+  [...Object.keys(OPERATORS), 'inFolder'] as readonly ItemAction[];
 
 export const itemPermissions = definePermissions({
   folder: resource({ actions: ['read'] }),
@@ -164,6 +163,7 @@ export const itemRoles = defineRoles({
   editor: { assignable: true },
 });
 
+// SAFETY: itemActions lists every ItemAction, so the resource has one permission per action
 const item = itemPermissions.item as unknown as Readonly<
   Record<ItemAction, (typeof itemPermissions.item)['eq']>
 >;
@@ -178,6 +178,7 @@ export const itemPolicy = definePolicy(
       }),
     ],
     grants: Object.entries(OPERATORS).map(([action, where]) =>
+      // SAFETY: Object.entries(OPERATORS) yields only its keys, each an ItemAction
       allow(item[action as ItemAction], { to: itemRoles.reader, where }),
     ),
   },

@@ -314,6 +314,7 @@ describe('rls verify matrix (admin, member, viewer, non-member, global role)', (
       const json = /export const catalog = ([\s\S]*?) as const/u.exec(
         text,
       )?.[1];
+      // SAFETY: the generated catalog literal is JSON in this shape
       const catalog = JSON.parse(json ?? '[]') as readonly {
         readonly table: string;
         readonly cmd: string;

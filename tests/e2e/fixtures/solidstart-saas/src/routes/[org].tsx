@@ -60,6 +60,7 @@ function RefreshSignal(props: {
       if (window.saasPausePoll === true) {
         return;
       }
+      // SAFETY: the fixture's /api/version route answers { changedAt: number }
       fetch(`/api/version?org=${encodeURIComponent(props.org)}`, {
         cache: 'no-store',
       })

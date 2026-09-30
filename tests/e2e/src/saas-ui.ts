@@ -59,6 +59,7 @@ async function signedIn(
 
 async function pausePoll(page: Page, paused: boolean): Promise<void> {
   await page.evaluate((value) => {
+    // SAFETY: SaasWindow declares the optional test hook the fixture reads
     (window as SaasWindow).saasPausePoll = value;
   }, paused);
 }
@@ -161,6 +162,7 @@ export function saasUiScenarios(options: SaasUiOptions): void {
     await page.waitForURL(`${origin}/login`);
     await page.evaluate(() => {
       const seen = { members: false };
+      // SAFETY: saasSeen is a test-only global this evaluate installs
       (window as unknown as { saasSeen: typeof seen }).saasSeen = seen;
       new MutationObserver(() => {
         if (document.querySelector('[data-nav="members"]') !== null) {
@@ -172,6 +174,7 @@ export function saasUiScenarios(options: SaasUiOptions): void {
     await page.waitForURL(`${origin}/acme`);
     await expect(nav(page, 'projects')).toBeVisible();
     await expect(nav(page, 'members')).toHaveCount(0);
+    // SAFETY: saasSeen is a test-only global installed above; it is optional here
     const seen = await page
       .evaluate(
         () =>

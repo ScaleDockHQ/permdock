@@ -74,6 +74,7 @@ const KEY = Symbol.for('permdock.e2e.next-saas.store');
 
 // One store per server process, shared by the proxy-free server bundles.
 function store(): Store {
+  // SAFETY: KEY is a private Symbol.for key; only store() and resetStore() write it, with a Store
   const holder = globalThis as { [KEY]?: Store };
   holder[KEY] ??= seed();
   return holder[KEY];
@@ -84,6 +85,7 @@ function bump(key: string): void {
 }
 
 export function resetStore(): void {
+  // SAFETY: KEY is a private Symbol.for key; only store() and resetStore() write it, with a Store
   (globalThis as { [KEY]?: Store })[KEY] = seed();
 }
 

@@ -61,7 +61,9 @@ function scenarios(): OrmParityScenario<WorkspaceUser>[] {
       name: `${user.id} ${permission.key}`,
       user,
       options: { relations },
+      // SAFETY: every check is an instance permission; the scenario type erases its generics
       permission: permission as Permission<string, unknown, 'instance'>,
+      // SAFETY: every check's resource is one of the seeded Resource tables
       rows: rows[permission.resource as Resource],
     })),
   );
@@ -104,6 +106,7 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
     query: string,
     values: readonly unknown[],
   ): Promise<readonly unknown[]> =>
+    // SAFETY: pg only reads the values array; its signature just lacks readonly
     (
       await database().query<{ id: unknown }>(query, values as unknown[])
     ).rows.map((row) => row.id);
@@ -113,7 +116,9 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
       const db = drizzle(database());
       const report = await ormParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
+          // SAFETY: every scenario's resource is one of the seeded Resource tables
           const table = tables[scenario.permission.resource as Resource];
+          // SAFETY: drizzleWhere compiles against a Drizzle table, so it returns a Drizzle SQL
           const found = await db
             .select({ id: table.id })
             .from(table)
@@ -138,11 +143,13 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
       });
       const report = await ormParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
+          // SAFETY: every scenario's resource is one of the seeded Resource tables
           const resource = scenario.permission.resource as Resource;
           const compiled = db
             .selectFrom(resource)
             .select('id')
             .where(
+              // SAFETY: kyselyWhere compiles for this db's resource table; Kysely's generic filter type is erased
               kyselyWhere(where, resource, {
                 relations: mapping,
                 sql,
@@ -165,12 +172,15 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
               (
                 await database().query<Record<string, unknown>>(
                   query.sql,
+                  // SAFETY: pg only reads the values array; its signature just lacks readonly
                   query.values as unknown[],
                 )
               ).rows,
           });
           expect(JSON.stringify(resolved.condition)).not.toContain('related');
+          // SAFETY: every scenario's resource is one of the seeded Resource tables
           const table = tables[scenario.permission.resource as Resource];
+          // SAFETY: drizzleWhere compiles against a Drizzle table, so it returns a Drizzle SQL
           const found = await db
             .select({ id: table.id })
             .from(table)

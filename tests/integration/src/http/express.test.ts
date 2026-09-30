@@ -17,12 +17,14 @@ testHttpAdapter({
       {
         subject: (req) =>
           domain.subject(req.headers.authorization, req.originalUrl),
+        // SAFETY: Express types every param as present; `org` is absent on routes without it
         tenant: (req) => req.params['org'] as string | undefined,
         customRoles: domain.customRoles,
         store: domain.store,
         limits: domain.limits,
       },
     );
+    // SAFETY: Express types every param as present; `id` is absent on routes without it
     const row = (req: Request) =>
       domain.project(req.params['id'] as string | undefined);
     const upload = multer({ storage: multer.memoryStorage() });
@@ -39,6 +41,7 @@ testHttpAdapter({
     app.use('/:org/permdock/access/v1/evaluations', permdockHandler());
     app.use('/:org/admin', admin);
     app.get('/:org/projects/:id', protect(p.project.read, row), (req, res) => {
+      // SAFETY: protect() above sets permdock and permdockData before this handler runs
       res.json((req as PermDockRequest).permdockData);
     });
     app.patch(
@@ -50,10 +53,12 @@ testHttpAdapter({
     );
     app.post(
       '/:org/projects',
+      // SAFETY: req.body is typed any; protect() validates it against the resource schema
       protect(p.project.create, (req) => req.body as unknown, {
         trusted: false,
       }),
       (req, res) => {
+        // SAFETY: protect() above sets permdock and permdockData before this handler runs
         res.status(201).json((req as PermDockRequest).permdockData);
       },
     );
@@ -61,6 +66,7 @@ testHttpAdapter({
       '/:org/projects/:id',
       protect(p.project.read, row),
       (req, res) => {
+        // SAFETY: protect() above sets permdock and permdockData before this handler runs
         const scoped = req as PermDockRequest;
         scoped.permdock.assert(p.project.delete, scoped.permdockData);
         res.status(204).end();

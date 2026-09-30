@@ -47,6 +47,7 @@ export function parseChangelog(
     const kindMatch = kindHeading.exec(line);
     if (kindMatch?.groups?.['kind'] !== undefined) {
       flush();
+      // SAFETY: the kindHeading regex only captures the release kinds ChangelogRelease['kind'] lists
       kind = kindMatch.groups['kind'] as ChangelogRelease['kind'];
       continue;
     }

@@ -60,6 +60,7 @@ async function cloudApi(
   const text = await response.text();
   return {
     status: response.status(),
+    // SAFETY: Cloud API responses are JSON objects; an empty body becomes {}
     body: (text === '' ? {} : JSON.parse(text)) as Record<string, unknown>,
   };
 }
@@ -92,6 +93,7 @@ async function decide(
     data: { user, permission, resource },
   });
   expect(response.ok()).toBe(true);
+  // SAFETY: the fixture's /api/test/decide route answers a Decision in this shape
   return (await response.json()) as {
     readonly outcome: string;
     readonly matched?: { readonly hosted?: { readonly grant: string } };
@@ -104,6 +106,7 @@ let grantId = '';
 test('the fixture resolves the environment URL the Cloud issues from', async ({
   request,
 }) => {
+  // SAFETY: the fixture's /api/health route answers this shape
   const health = (await (await request.get(`${APP}/api/health`)).json()) as {
     readonly issuer: string | null;
   };
@@ -129,6 +132,7 @@ test('cloud push publishes the catalog', () => {
       },
     },
   );
+  // SAFETY: the CLI prints the push result as JSON in this shape
   const pushed = JSON.parse(output) as {
     readonly fingerprint: string;
     readonly hostable: readonly string[];
@@ -162,6 +166,7 @@ test('a hosted grant is bounded by hostable and reaches a local decision', async
 
   const refreshed = await request.post(`${APP}/api/test/refresh`);
   expect(
+    // SAFETY: the fixture's /api/test/refresh route answers { fingerprint }
     ((await refreshed.json()) as { fingerprint: string | null }).fingerprint,
   ).not.toBeNull();
 
@@ -175,6 +180,7 @@ test('the signed decision log records the hosted grant that matched', async ({
 }) => {
   await expect
     .poll(async () => {
+      // SAFETY: the fixture's decision-log route answers the drained events in this shape
       const page = (await (
         await request.get(`${APP}/api/test/decision-log`)
       ).json()) as {
@@ -199,6 +205,7 @@ test('approvals page with limit and an opaque cursor', async ({ request }) => {
   const listed = await request.get(
     `${APP}/api/test/approvals?principal=${principal}&limit=2`,
   );
+  // SAFETY: the fixture's approvals route answers { pages: string[][] }
   const { pages } = (await listed.json()) as { pages: string[][] };
   expect(pages.map((page) => page.length)).toEqual([2, 1]);
   expect(pages.flat().toSorted()).toEqual(tokens.toSorted());
@@ -225,6 +232,7 @@ test('webhooks are signed and verified against the environment JWKS', async ({
   await expect
     .poll(async () => {
       await runDeliveries(request);
+      // SAFETY: the fixture's webhooks route answers the received events
       const received = (await (
         await request.get(`${APP}/api/test/webhooks`)
       ).json()) as readonly { readonly type: string }[];
@@ -267,6 +275,7 @@ test('SCIM deactivation relayed by the Cloud ends open connections', async ({
   await expect
     .poll(async () => {
       await runDeliveries(request);
+      // SAFETY: the fixture's revocations route answers the received events
       const events = (await (
         await request.get(`${APP}/api/test/revocations`)
       ).json()) as readonly {
@@ -299,6 +308,7 @@ test('a token-exchanged Cloud-native access token is decided locally', async ({
   });
   expect(assigned.status).toBe(201);
 
+  // SAFETY: the fixture's id-token route answers { id_token }
   const { id_token: idToken } = (await (
     await request.post(`${APP}/api/test/id-token`, { data: { subject } })
   ).json()) as { readonly id_token: string };
@@ -315,6 +325,7 @@ test('a token-exchanged Cloud-native access token is decided locally', async ({
     },
   });
   expect(exchanged.status()).toBe(200);
+  // SAFETY: a successful OAuth token exchange answers this shape
   const body = (await exchanged.json()) as {
     readonly access_token: string;
     readonly issued_token_type: string;

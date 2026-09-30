@@ -18,12 +18,14 @@ testHttpAdapter({
       {
         subject: (request) =>
           domain.subject(request.headers.authorization, request.url),
+        // SAFETY: every route in this app is under /:org, and most carry /:id
         tenant: (request) => (request.params as Params).org,
         customRoles: domain.customRoles,
         store: domain.store,
         limits: domain.limits,
       },
     );
+    // SAFETY: every route in this app is under /:org, and most carry /:id
     const row = (request: FastifyRequest) =>
       domain.project((request.params as Params).id);
 
@@ -45,11 +47,13 @@ testHttpAdapter({
     app.get(
       '/:org/projects/:id',
       { preHandler: protect(p.project.read, row) },
+      // SAFETY: the protect() preHandler sets permdock and permdockData before this handler
       (request) => (request as PermDockRequest).permdockData,
     );
     app.patch(
       '/:org/projects/:id',
       { preHandler: protect(p.project.update, row) },
+      // SAFETY: this route's path is /:org/projects/:id
       (request) => ({ id: (request.params as Params).id }),
     );
     app.post(
@@ -60,12 +64,14 @@ testHttpAdapter({
         }),
       },
       async (request, reply) =>
+        // SAFETY: the protect() preHandler sets permdock and permdockData before this handler
         reply.code(201).send((request as PermDockRequest).permdockData),
     );
     app.delete(
       '/:org/projects/:id',
       { preHandler: protect(p.project.read, row) },
       async (request, reply) => {
+        // SAFETY: the protect() preHandler sets permdock and permdockData before this handler
         const scoped = request as PermDockRequest;
         scoped.permdock.assert(p.project.delete, scoped.permdockData);
         return reply.code(204).send();

@@ -90,6 +90,7 @@ export async function authzenOutcomes(base: string): Promise<Outcome[]> {
     if (!response.ok) {
       return response.status;
     }
+    // SAFETY: the AuthZEN evaluation endpoint answers { decision: boolean } on success
     return ((await response.json()) as { decision: boolean }).decision;
   };
   return [

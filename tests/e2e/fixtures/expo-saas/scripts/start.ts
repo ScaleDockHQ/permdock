@@ -7,6 +7,7 @@ import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // expo-server 57's ESM build has extensionless relative imports that Node cannot resolve.
+// SAFETY: the CommonJS build of expo-server/adapter/http exports createRequestHandler
 const { createRequestHandler } = createRequire(import.meta.url)(
   'expo-server/adapter/http',
 ) as {

@@ -45,6 +45,7 @@ function resumeInChild(serialized: string, user: string): Resumed {
   if (child.status !== 0) {
     throw new Error(`resume failed: ${child.stderr}`);
   }
+  // SAFETY: the openai-resume child prints its Resumed result as JSON
   return JSON.parse(child.stdout) as Resumed;
 }
 

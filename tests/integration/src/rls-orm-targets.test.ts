@@ -95,6 +95,7 @@ function drizzlePolicies(module: Record<string, unknown>): Created[] {
   return Object.values(module)
     .filter((value): value is PgPolicy => is(value, PgPolicy))
     .map((policy) => {
+      // SAFETY: Drizzle's pgPolicy().link() stores the linked PgTable on _linkedTable
       const linked = Reflect.get(policy, '_linkedTable') as PgTable | undefined;
       if (linked === undefined) {
         throw new Error(`PermDock: ${policy.name} is not linked to a table`);
@@ -136,6 +137,7 @@ function prismaPolicies(text: string): Created[] {
     }
     const string = (key: string): string | undefined => {
       const value = fields.get(key);
+      // SAFETY: each generated Prisma attribute value read here is a JSON string literal
       return value === undefined ? undefined : (JSON.parse(value) as string);
     };
     return {
@@ -187,6 +189,7 @@ async function visible(
 async function inProcess(sub: string, table: Table): Promise<string[]> {
   const dock = await createPermDock(graphPolicy, { id: sub }, { relations });
   await dock.loadRelations(reads[table], rows[table]);
+  // SAFETY: rows[table] holds the seeded rows for the resource reads[table] checks
   return rows[table]
     .filter((row) => dock.can(reads[table], row as never))
     .map((row) => row.id)
@@ -254,6 +257,7 @@ describe('rls generate --target drizzle and prisma against Postgres', () => {
   }
 
   it('links every Drizzle policy to its table and matches can()', async () => {
+    // SAFETY: a module namespace is a string-keyed record; drizzlePolicies checks each export with is()
     const module = (await import(join(dir, 'policies.ts'))) as Record<
       string,
       unknown

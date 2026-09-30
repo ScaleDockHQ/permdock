@@ -37,6 +37,7 @@ const { data: view } = await useAsyncData(
 // channel would carry the same signal in production.
 onMounted(() => {
   const id = setInterval(() => {
+    // SAFETY: saasPausePoll is an optional test hook the e2e spec sets on window
     if ((window as { saasPausePoll?: boolean }).saasPausePoll === true) {
       return;
     }

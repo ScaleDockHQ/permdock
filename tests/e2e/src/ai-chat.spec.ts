@@ -53,8 +53,10 @@ test('1. a granted tool call streams its arguments, runs, and the reply streams 
       for (const node of document.querySelectorAll(
         '[data-testid="tool-delete_project"]',
       )) {
+        // SAFETY: the selector matches rendered HTML elements
         const state = (node as HTMLElement).dataset['state'];
         if (state !== undefined) {
+          // SAFETY: recordState is installed on window by page.exposeFunction in this test
           void (
             window as unknown as { recordState: (s: string) => Promise<void> }
           ).recordState(state);

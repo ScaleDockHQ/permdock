@@ -140,6 +140,7 @@ function Approvals() {
   const [pending, setPending] = useState<readonly Pending[]>([]);
   const [result, setResult] = useState('');
   const load = (): void => {
+    // SAFETY: the fixture's /api/approvals/pending route answers { items: Pending[] }
     fetch('/api/approvals/pending', { credentials: 'include' })
       .then((response) =>
         response.ok
@@ -188,6 +189,7 @@ function Approvals() {
 export function App() {
   const [user, setUser] = useState<string | null | undefined>(undefined);
   useEffect(() => {
+    // SAFETY: the fixture's /api/me route answers { user: string | null }
     fetch('/api/me', { credentials: 'include' })
       .then((response) => response.json() as Promise<{ user: string | null }>)
       .then((body) => {

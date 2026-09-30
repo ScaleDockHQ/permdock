@@ -15,6 +15,7 @@ type SaasWindow = Window & { saasPausePoll?: boolean };
 
 async function pausePoll(page: Page, paused: boolean): Promise<void> {
   await page.evaluate((value) => {
+    // SAFETY: SaasWindow declares the optional test hook the fixture reads
     (window as SaasWindow).saasPausePoll = value;
   }, paused);
 }
@@ -242,6 +243,7 @@ test('7. signing out clears the shell and the next user never sees the previous 
   await page.waitForURL(`${JWT}/login`);
   await page.evaluate(() => {
     const seen = { members: false };
+    // SAFETY: saasSeen is a test-only global this evaluate installs
     (window as unknown as { saasSeen: typeof seen }).saasSeen = seen;
     new MutationObserver(() => {
       if (document.querySelector('[data-nav="members"]') !== null) {
@@ -253,6 +255,7 @@ test('7. signing out clears the shell and the next user never sees the previous 
   await page.waitForURL(`${JWT}/acme`);
   await expect(nav(page, 'projects')).toBeVisible();
   await expect(nav(page, 'members')).toHaveCount(0);
+  // SAFETY: saasSeen was installed by the evaluate above before navigation
   const seen = await page.evaluate(
     () => (window as unknown as { saasSeen: { members: boolean } }).saasSeen,
   );

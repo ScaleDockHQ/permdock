@@ -94,6 +94,7 @@ const session = { id: 'session-1', auth: { initiator: alice, current: alice } };
  * `approval.request` with the session context and passes the answer through.
  */
 function eveToolApproval(permdock: EvePermDock): ToolApproval {
+  // SAFETY: mirrors the approval function eve 0.58.1 builds, which reads only toolCall
   return (async ({
     toolCall,
   }: {

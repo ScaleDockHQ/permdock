@@ -22,6 +22,7 @@ export async function listen(server: Server): Promise<HttpMounted> {
   await new Promise<void>((resolve) => {
     server.listen(0, '127.0.0.1', resolve);
   });
+  // SAFETY: the server listens on a TCP port, so address() is AddressInfo
   const { port } = server.address() as AddressInfo;
   return {
     fetch: (request) => forward(`http://127.0.0.1:${port}`, request),

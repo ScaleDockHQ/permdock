@@ -36,6 +36,7 @@ function readJson(path: string): unknown {
 
 function readPreState(): PreState | undefined {
   const path = join(ROOT, '.changeset', 'pre.json');
+  // SAFETY: .changeset/pre.json is written by changesets in the PreState shape
   return existsSync(path) ? (readJson(path) as PreState) : undefined;
 }
 
@@ -94,6 +95,7 @@ function pack(): string {
   return join(destination, tarballs[0] ?? '');
 }
 
+// SAFETY: packages/permdock/package.json is the repository's own manifest
 const manifest = readJson(join(PACKAGE_DIR, 'package.json')) as Manifest;
 const tag = distTag(manifest.version);
 const published = await isPublished(manifest);

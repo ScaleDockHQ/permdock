@@ -130,6 +130,7 @@ function toGroup(row: GroupRow): DirectoryGroup {
 
 /** Maps a unique violation to the SCIM `uniqueness` error. */
 function uniqueness(error: unknown): never {
+  // SAFETY: every field is compared against literals before use; a non-pg error just rethrows
   const pg = error as { code?: unknown; constraint?: unknown };
   if (pg.code === '23505') {
     const constraint = typeof pg.constraint === 'string' ? pg.constraint : '';
@@ -299,6 +300,7 @@ function without<T extends object, K extends keyof T>(
 function emailsOf(value: unknown): Emails {
   return Array.isArray(value)
     ? value.flatMap((item: unknown) => {
+        // SAFETY: every field is typeof-checked before it is kept
         const email = item as {
           value?: unknown;
           primary?: unknown;
@@ -345,6 +347,7 @@ function applyUserOp(user: DirectoryUser, op: ScimPatchOp): DirectoryUser {
 function memberValues(value: unknown): string[] {
   return Array.isArray(value)
     ? value.flatMap((item: unknown) => {
+        // SAFETY: `value` is typeof-checked before it is kept
         const member = item as { value?: unknown } | null;
         return typeof member?.value === 'string' ? [member.value] : [];
       })

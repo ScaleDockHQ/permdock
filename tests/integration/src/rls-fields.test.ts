@@ -301,6 +301,7 @@ function financeSettings(dialect: Dialect): Readonly<Record<string, string>> {
         'request.jwt.claims': JSON.stringify({
           sub: FINANCE,
           role: 'authenticated',
+          // SAFETY: parses the memberships JSON built above; the value is only re-serialized
           memberships: JSON.parse(memberships) as unknown,
         }),
       };
@@ -491,6 +492,7 @@ describe('rls generate --fields views (supabase, neon, guc)', () => {
       const json = /export const fieldViews = ([\s\S]*?) as const/u.exec(
         text,
       )?.[1];
+      // SAFETY: the generated fieldViews literal is JSON in this shape
       const views = JSON.parse(json ?? '[]') as readonly {
         readonly view: string;
         readonly table: string;

@@ -10,6 +10,7 @@ export const metadata = {
 
 export default function BlogIndexPage() {
   const posts = blogSource.getPages().filter((page) => {
+    // SAFETY: blog frontmatter may carry `draft`; only `=== true` is trusted below
     const data = page.data as { draft?: unknown };
     return data.draft !== true;
   });

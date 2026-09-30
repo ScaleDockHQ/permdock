@@ -38,6 +38,7 @@ const destroy = withPermDock((ctx, args: { readonly id: string }) => {
   return { allowed };
 });
 
+// SAFETY: snapshotQuery() registers a Convex query whose handler takes this ctx and args
 const snapshot = snapshotQuery() as {
   readonly handler: (
     ctx: { readonly user?: { readonly id: string } },

@@ -19,6 +19,7 @@ import {
 
 const RSC = fileURLToPath(new URL('./fixtures/rsc/', import.meta.url));
 
+// SAFETY: declares the subset of Next's compiled react-server-dom-webpack client used here
 const { createFromNodeStream } = createRequire(import.meta.url)(
   'next/dist/compiled/react-server-dom-webpack/client.node',
 ) as {
@@ -59,6 +60,7 @@ export function renderFlight(mode: 'provider' | 'snapshot'): RenderResult {
       env: { ...process.env, NODE_ENV: 'production' },
     },
   );
+  // SAFETY: the last stdout line of the render fixture is its JSON RenderResult
   return JSON.parse(out.trim().split('\n').at(-1) ?? '{}') as RenderResult;
 }
 
@@ -93,6 +95,7 @@ describe('react-server build', () => {
   it('never reaches a client-only React API from a server entry', () => {
     const client = new Set<Entry>(CLIENT_ENTRIES);
     const leaks: string[] = [];
+    // SAFETY: Object.keys(ENTRIES) lists exactly the Entry keys
     for (const entry of Object.keys(ENTRIES) as Entry[]) {
       if (!client.has(entry)) {
         leaks.push(...clientApiLeaks(ENTRIES[entry]));
@@ -106,6 +109,7 @@ describe('react-server build', () => {
     if (!result.ok) {
       throw new Error(result.error);
     }
+    // SAFETY: the snapshot fixture renders an object with a `snapshot` field
     const decoded = (await createFromNodeStream(
       Readable.from([result.flight]),
       {

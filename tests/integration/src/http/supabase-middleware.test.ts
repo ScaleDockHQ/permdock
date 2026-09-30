@@ -163,6 +163,7 @@ testHttpAdapter({
       }
     };
 
+    // SAFETY: createAdaptorServer without http2 options creates a node:http Server
     return listen(createAdaptorServer({ fetch: app }) as Server);
   },
 });

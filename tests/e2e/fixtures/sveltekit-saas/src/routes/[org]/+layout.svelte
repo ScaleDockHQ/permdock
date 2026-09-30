@@ -23,6 +23,7 @@
       if (window.saasPausePoll === true) {
         return;
       }
+      // SAFETY: the fixture's /api/version route answers { changedAt: number }
       fetch(`/api/version?org=${encodeURIComponent(org)}`, { cache: 'no-store' })
         .then((response) => response.json() as Promise<{ changedAt: number }>)
         .then((body) => (body.changedAt >= issuedAt ? invalidateAll() : undefined))

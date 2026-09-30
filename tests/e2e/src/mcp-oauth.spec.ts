@@ -45,6 +45,7 @@ async function toolNames(client: Client): Promise<string[]> {
 }
 
 function textOf(result: unknown): string {
+  // SAFETY: an MCP tool result carries an optional content array; `text` is checked below
   const content = (
     result as { content?: readonly { type: string; text?: string }[] }
   ).content;
@@ -90,6 +91,7 @@ test('1. an unauthenticated request is challenged with the protected-resource me
   expect(response.headers()['www-authenticate']).toContain(
     `resource_metadata="${metadataUrl}"`,
   );
+  // SAFETY: protected resource metadata (RFC 9728) answers this shape
   const metadata = (await (await request.get(metadataUrl)).json()) as {
     resource: string;
     authorization_servers: string[];

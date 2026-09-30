@@ -48,6 +48,7 @@ test('1. a signed snapshot from the +api route renders the nav and row actions',
 test('2. a tampered snapshot is rejected on first launch', async ({ page }) => {
   await page.route('**/api/snapshot**', async (route) => {
     const response = await route.fetch();
+    // SAFETY: the fixture's /api/snapshot route answers the JWS as a JSON string
     const jws = (await response.json()) as string;
     const [header, payload, signature] = jws.split('.');
     const tail = signature ?? '';

@@ -40,6 +40,7 @@ async function scim(
   const text = await response.text();
   return {
     status: response.status(),
+    // SAFETY: SCIM responses are JSON objects; an empty 204 body becomes {}
     body: (text === '' ? {} : JSON.parse(text)) as Record<string, unknown>,
   };
 }
@@ -89,6 +90,7 @@ async function signIn(request: APIRequestContext, user: string) {
 
 async function access(request: APIRequestContext, org: Tenant) {
   const response = await request.get(`${origin}/api/projects?org=${org}`);
+  // SAFETY: the fixture's /api/projects route answers this shape on success
   return response.ok()
     ? ((await response.json()) as {
         list: boolean;
@@ -100,6 +102,7 @@ async function access(request: APIRequestContext, org: Tenant) {
 
 async function version(request: APIRequestContext, user: string) {
   const response = await request.get(`${origin}/api/version?user=${user}`);
+  // SAFETY: the fixture's /api/version route answers { version: number }
   return ((await response.json()) as { version: number }).version;
 }
 
@@ -134,6 +137,7 @@ test('2. provisioned group roles become memberships, then decisions', async ({
     list: true,
     delete: false,
   });
+  // SAFETY: the fixture's /api/snapshot route answers a PermDock snapshot
   const snapshot = (await (
     await request.get(`${origin}/api/snapshot?org=acme`)
   ).json()) as {
@@ -263,6 +267,7 @@ test('6. SCIM filters and cursor pages run against Postgres', async ({
     `/Users?filter=${filter}&count=1&cursor=${cursor}`,
   );
   const names = [first, second].flatMap((page) =>
+    // SAFETY: a SCIM ListResponse carries a Resources array of users
     (page.body['Resources'] as { userName: string }[]).map(
       (user) => user.userName,
     ),

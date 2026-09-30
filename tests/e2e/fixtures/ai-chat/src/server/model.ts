@@ -66,6 +66,7 @@ function toolCall(
 
 function describeOutput(output: unknown): string {
   if (output !== null && typeof output === 'object' && 'type' in output) {
+    // SAFETY: narrowed to an object with `type` above; each field is re-checked before use
     const typed = output as {
       readonly type: string;
       readonly value?: unknown;

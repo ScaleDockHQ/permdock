@@ -23,6 +23,7 @@ function subscribeForeground(listener: () => void): () => void {
 export default function Layout() {
   const [session, setSession] = useState<Session | undefined>(undefined);
   useEffect(() => {
+    // SAFETY: the fixture's /api/me route answers a Session
     fetch(`/api/me?org=${ORG}`, { credentials: 'include', cache: 'no-store' })
       .then((response) => response.json() as Promise<Session>)
       .then(setSession)

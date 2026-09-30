@@ -48,6 +48,7 @@ function textFrom(data: unknown): string | undefined {
   }
   try {
     const value: unknown = JSON.parse(data);
+    // SAFETY: `text` stays unknown and is typeof-checked below; optional chaining covers null
     const text = (value as { text?: unknown } | null)?.text;
     return typeof text === 'string' ? text : undefined;
   } catch {
@@ -83,6 +84,7 @@ const app = new Hono()
     return (await handleSaasRoute(c.req.raw)) ?? c.notFound();
   })
   .post('/api/test/set-role', async (c) => {
+    // SAFETY: every field stays unknown and is checked before use
     const input = (await c.req.raw.clone().json()) as {
       org?: unknown;
       user?: unknown;
@@ -175,7 +177,7 @@ serve({
   fetch: app.fetch,
   port: PORT,
   hostname: '127.0.0.1',
-  // `ws` types `options.noServer` as optional; the adapter wants it set.
+  // SAFETY: `ws` types `options.noServer` as optional; the adapter wants it set, as it is here.
   websocket: {
     server: new WebSocketServer({
       noServer: true,

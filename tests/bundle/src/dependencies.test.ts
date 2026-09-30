@@ -16,6 +16,7 @@ describe('invariant 12: runtime entries depend on @standard-schema/spec only', (
     const leaked: string[] = [];
     for (const entry of RUNTIME_ENTRIES) {
       for (const name of packageImports(walk(ENTRIES[entry]))) {
+        // SAFETY: widens the literal tuple so includes() accepts any package name
         if ((TOOLING_PACKAGES as readonly string[]).includes(name)) {
           leaked.push(`${entry}: ${name}`);
         }
@@ -29,6 +30,7 @@ describe('invariant 12: runtime entries depend on @standard-schema/spec only', (
   });
 
   it('declares only @standard-schema/spec and the CLI parser as dependencies', () => {
+    // SAFETY: dist/../package.json is the built package's own manifest
     const manifest = JSON.parse(
       readFileSync(join(DIST, '..', 'package.json'), 'utf8'),
     ) as { readonly dependencies: Readonly<Record<string, string>> };

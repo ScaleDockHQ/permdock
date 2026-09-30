@@ -164,6 +164,7 @@ async function inProcess(
     { principal: { id: sub, roles: [] }, context: {} },
     { relations },
   );
+  // SAFETY: folders holds the seeded folder rows permissions.folder.read checks
   return table === 'doc'
     ? DOCS.filter((row) => dock.can(permissions.doc.read, row)).map(
         (row) => row.id,

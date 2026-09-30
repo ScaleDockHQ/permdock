@@ -49,6 +49,7 @@ function reasonOf(decision: Decision): string | undefined {
 
 /** Re-decides at execution time: the enqueue check may be stale by now. */
 async function run(job: Job): Promise<void> {
+  // SAFETY: the api's internal /jobs/:id/input route answers the Input it stored
   const input = (await (
     await internal(`/jobs/${job.id}/input`)
   ).json()) as Input;
@@ -85,6 +86,7 @@ async function poll(): Promise<void> {
       () => undefined,
     );
     if (response?.status === 200) {
+      // SAFETY: the api's internal job queue answers a Job on 200
       await run((await response.json()) as Job);
       continue;
     }

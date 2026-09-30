@@ -131,6 +131,7 @@ function testRoutes(client: CloudClient, contract: ContractEnv): Hono {
     if (!verified.ok) {
       return c.json({ status: 401, cause: verified.cause, events: [] });
     }
+    // SAFETY: checked to be an array; each event's `data` stays unknown until checked
     const events = Array.isArray(verified.claims['events'])
       ? (verified.claims['events'] as readonly { readonly data?: unknown }[])
       : [];

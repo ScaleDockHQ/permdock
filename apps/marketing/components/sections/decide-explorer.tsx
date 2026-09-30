@@ -19,10 +19,12 @@ import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 import { Section } from './section';
 
 function isDemoRole(value: string): value is DemoRole {
+  // SAFETY: widens the literal tuple so includes() accepts any string
   return (DEMO_ROLES as readonly string[]).includes(value);
 }
 
 function isDemoAction(value: string): value is DemoAction {
+  // SAFETY: widens the literal tuple so includes() accepts any string
   return (DEMO_ACTIONS as readonly string[]).includes(value);
 }
 

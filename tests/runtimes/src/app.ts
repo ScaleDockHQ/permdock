@@ -24,6 +24,7 @@ export const PEP_TOKEN = 'runtimes-pep-bearer';
 export const customRoles = memoryRoleSource(saasCustomRoles);
 
 const verify = createJwtSubjectResolver({
+  // SAFETY: saasJwks is a well-formed EC JWKS; its EcJwk type differs from JsonWebKeySet's key type
   jwks: saasJwks as unknown as JsonWebKeySet,
   issuer: saasIssuer,
   audience: saasAudience,
@@ -85,6 +86,7 @@ const authzen = createAuthzen(saasPolicy, {
       ? { principal: { id: 'pep' }, context: {} }
       : null,
   trustedPep: (pep) =>
+    // SAFETY: `principal` and `id` are optional; optional chaining covers null
     (pep as { principal?: { id?: string } } | null)?.principal?.id === 'pep',
   resources: { project: { load: (id) => projectOf(id) } },
   memberships: {

@@ -94,6 +94,7 @@ testHttpAdapter({
         c.body(null, 204),
       );
 
+    // SAFETY: createAdaptorServer without http2 options creates a node:http Server
     return listen(createAdaptorServer({ fetch: app.fetch }) as Server);
   },
 });

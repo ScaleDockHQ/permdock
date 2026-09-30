@@ -49,6 +49,7 @@ const rows = (list: readonly { readonly id: string }[], extra: string[]) =>
       (row) =>
         `(${[
           row.id,
+          // SAFETY: seed rows carry a string column for every key in `extra`
           ...extra.map((key) => (row as Record<string, string>)[key]),
         ]
           .map((value) => `'${value ?? ''}'`)
@@ -120,6 +121,7 @@ function claimsOf(jwt: string | undefined): Record<string, unknown> {
     return { role: 'anon' };
   }
   const payload = jwt.split('.')[1] ?? '';
+  // SAFETY: a Supabase JWT payload is a JSON object of claims
   return JSON.parse(
     Buffer.from(payload, 'base64url').toString('utf8'),
   ) as Record<string, unknown>;
@@ -255,6 +257,7 @@ describe('link capabilities through the Supabase exchange', () => {
   it('ignores a capability claim once the Supabase token has expired', async () => {
     const { jwt } = await portal(`${APP}/portal/quotes?token=${await link()}`);
     const claims = claimsOf(jwt);
+    // SAFETY: the portal minted a capability link above, so the claim is an object
     const capability = claims['capability'] as Record<string, unknown>;
     expect(
       await visible('quote', {

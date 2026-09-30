@@ -61,6 +61,7 @@ async function toRequest(req: IncomingMessage): Promise<Request> {
   }
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
+    // SAFETY: an IncomingMessage without setEncoding yields Buffer chunks
     chunks.push(chunk as Buffer);
   }
   return new Request(new URL(req.url ?? '/', ORIGIN), {

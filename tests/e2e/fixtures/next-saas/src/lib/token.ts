@@ -20,6 +20,7 @@ function isMembership(value: unknown): value is Membership {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
+  // SAFETY: checked to be a non-null object above; both fields stay unknown
   const record = value as { tenant?: unknown; roles?: unknown };
   return (
     typeof record.tenant === 'string' &&

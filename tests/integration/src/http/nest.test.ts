@@ -36,6 +36,7 @@ function method(
   key: string,
   ...decorators: readonly MethodDecorator[]
 ): void {
+  // SAFETY: a class prototype is always an object; Nest's Type<T> types it any
   const proto = cls.prototype as object;
   const descriptor = Object.getOwnPropertyDescriptor(proto, key);
   if (descriptor === undefined) {
@@ -52,6 +53,7 @@ function parameter(
   index: number,
   decorator: ParameterDecorator,
 ): void {
+  // SAFETY: a class prototype is always an object; Nest's Type<T> types it any
   decorator(cls.prototype as object, key, index);
 }
 
@@ -107,6 +109,7 @@ function appModule(
           ? undefined
           : { name: file.originalname, size: file.size };
       }
+      // SAFETY: this branch only runs on the Fastify platform, where req is a FastifyRequest
       const part = await (req as unknown as FastifyRequest).file();
       if (part === undefined) {
         return null;
@@ -230,7 +233,7 @@ testHttpAdapter({
       new FastifyAdapter(),
       { logger: false },
     );
-    // Nest pins its own `fastify` types; the plugin is the same at runtime.
+    // SAFETY: Nest pins its own `fastify` types; the plugin is the same at runtime.
     await app.register(
       multipart as unknown as Parameters<typeof app.register>[0],
     );

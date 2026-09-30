@@ -23,6 +23,7 @@ function session() {
 }
 
 function orgInput(data: unknown): { org: string } {
+  // SAFETY: `org` stays unknown and is typeof-checked below; optional chaining covers null
   const org = (data as { org?: unknown } | null)?.org;
   return { org: typeof org === 'string' ? org : '' };
 }
@@ -68,6 +69,7 @@ export const getProjects = createServerFn({ method: 'GET' })
 
 export const removeProject = createServerFn({ method: 'POST' })
   .validator((data: unknown) => {
+    // SAFETY: `id` stays unknown and is typeof-checked below; optional chaining covers null
     const id = (data as { id?: unknown } | null)?.id;
     return { id: typeof id === 'string' ? id : '' };
   })

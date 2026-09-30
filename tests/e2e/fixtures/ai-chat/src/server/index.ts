@@ -77,6 +77,7 @@ async function chat(request: Request): Promise<Response> {
   if (subject === null) {
     return new Response(null, { status: 401 });
   }
+  // SAFETY: the useChat client posts { messages: UIMessage[] }; the handler only forwards them
   const body = (await request.json()) as { readonly messages?: UIMessage[] };
   const permdock = createPermDock(saasPolicy, {
     subject: () => subject,
@@ -180,6 +181,7 @@ async function toRequest(req: IncomingMessage): Promise<Request> {
   }
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
+    // SAFETY: an IncomingMessage without setEncoding yields Buffer chunks
     chunks.push(chunk as Buffer);
   }
   return new Request(new URL(req.url ?? '/', ORIGIN), {

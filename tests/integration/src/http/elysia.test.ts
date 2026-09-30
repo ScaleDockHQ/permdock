@@ -5,6 +5,7 @@ import { createPermDock } from 'permdock/elysia';
 import { testHttpAdapter } from 'permdock/testing';
 import { saasPermissions as p } from 'permdock/testing/saas';
 
+// SAFETY: only called on handler contexts of apps that register permdock(), which derives these fields
 const scoped = (ctx: unknown) => ctx as ElysiaContext;
 
 testHttpAdapter({
@@ -72,6 +73,7 @@ testHttpAdapter({
       .post(
         '/:org/projects/:id/files',
         (ctx) => {
+          // SAFETY: multipart bodies parse to an object or undefined; `file` stays unknown
           const file = (ctx.body as { readonly file?: unknown } | undefined)
             ?.file;
           if (!(file instanceof File)) {

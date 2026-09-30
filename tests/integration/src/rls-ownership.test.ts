@@ -69,6 +69,7 @@ describe('ownership triggers in generated RLS', () => {
       await admin.query('set constraints all immediate');
       return null;
     } catch (error) {
+      // SAFETY: a Postgres error may carry a hint; String(error) covers any other value
       return (error as { readonly hint?: string }).hint ?? String(error);
     } finally {
       await admin.query('rollback');

@@ -55,6 +55,7 @@ async function projectIds(request: APIRequestContext, org: string) {
   const response = await request.get(`${api}/${org}/projects`);
   return {
     status: response.status(),
+    // SAFETY: the api's projects route answers { projects } on success
     rows: response.ok()
       ? (
           (await response.json()) as {
@@ -82,7 +83,10 @@ async function job(
   id: string,
   status: string,
 ): Promise<{ status: string; reason: string | null }> {
-  let last = { status: '', reason: null as string | null };
+  let last: { status: string; reason: string | null } = {
+    status: '',
+    reason: null,
+  };
   await expect
     .poll(async () => {
       last = await (await request.get(`${api}/jobs/${id}`)).json();
@@ -135,6 +139,7 @@ test('3. the worker archives a queued project for its owner', async ({
   await signIn(page, 'bob');
   const queued = await page.request.post(`${api}/acme/projects/p1/archive`);
   expect(queued.status()).toBe(202);
+  // SAFETY: the archive route answers the queued job's { id } with 202, checked above
   const { id } = (await queued.json()) as { id: string };
 
   await job(page.request, id, 'done');
@@ -150,6 +155,7 @@ test('4. a job enqueued before a demotion is denied when the worker runs it', as
   await signIn(page, 'bob');
   const queued = await page.request.post(`${api}/acme/projects/p3/archive`);
   expect(queued.status()).toBe(202);
+  // SAFETY: the archive route answers the queued job's { id } with 202, checked above
   const { id } = (await queued.json()) as { id: string };
 
   const demoted = await request.post(`${api}/api/test/set-role`, {
@@ -214,6 +220,7 @@ test('7. a globbed collect --check covers every app and skips installed code', (
   });
   expect(result.status, result.stderr).toBe(0);
 
+  // SAFETY: the catalog run above exited 0 and wrote this file in the catalog-v1 shape
   const catalog = JSON.parse(
     readFileSync(join(fixture, 'permissions.catalog.json'), 'utf8'),
   ) as { permissions: { usages?: { file: string }[] }[] };

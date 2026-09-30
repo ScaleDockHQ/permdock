@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const cwd = join(dirname(fileURLToPath(import.meta.url)), '..');
 const client = join(cwd, 'dist/client');
+// SAFETY: the TanStack Start server build default-exports a fetch handler
 const entry = (await import(
   pathToFileURL(join(cwd, 'dist/server/server.js')).href
 )) as {
@@ -38,7 +39,9 @@ createServer((incoming, outgoing) => {
     ),
     {
       method,
+      // SAFETY: Node joins repeated request headers into strings, except set-cookie, absent on requests
       headers: incoming.headers as Record<string, string>,
+      // SAFETY: Readable.toWeb returns a web ReadableStream; Node types it as its own stream class
       ...(method === 'GET' || method === 'HEAD'
         ? {}
         : { body: Readable.toWeb(incoming) as ReadableStream, duplex: 'half' }),

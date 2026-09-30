@@ -16,6 +16,7 @@ function applyMethod(
   key: string,
   decorator: MethodDecorator,
 ): void {
+  // SAFETY: a class prototype is always an object; `Function.prototype` is typed any
   const proto: object = cls.prototype as object;
   const descriptor = Object.getOwnPropertyDescriptor(proto, key);
   if (!descriptor) {

@@ -41,6 +41,7 @@ export function RefreshSignal() {
           cache: 'no-store',
         },
       );
+      // SAFETY: the fixture's /api/version route answers { changedAt: number }
       const body = (await response.json()) as { readonly changedAt: number };
       if (!stopped && issuedAt > 0 && body.changedAt >= issuedAt) {
         router.refresh();

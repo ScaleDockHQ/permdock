@@ -20,6 +20,7 @@ async function scim(
   if (response.status === 204) {
     return {};
   }
+  // SAFETY: a non-204 SCIM response body is a JSON object
   return (await response.json()) as Record<string, unknown>;
 }
 

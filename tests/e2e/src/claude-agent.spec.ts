@@ -12,6 +12,7 @@ test.describe('claude-agent example', { tag: '@smoke' }, () => {
   test('denies delete_post with a pending approval, then allows it once after approval', async ({
     request,
   }) => {
+    // SAFETY: the example's /delete_post route answers the hook result in this shape
     const parked = (await (await request.get('/delete_post')).json()) as {
       readonly result: { readonly behavior: string; readonly message: string };
     };

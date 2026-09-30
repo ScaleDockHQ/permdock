@@ -12,6 +12,7 @@ const exportsPath = join(
 
 describe('public exports', () => {
   it('matches the recorded exports snapshot', () => {
+    // SAFETY: the exports snapshot is written by this suite in this shape
     const recorded = JSON.parse(readFileSync(exportsPath, 'utf8')) as Record<
       string,
       readonly string[]

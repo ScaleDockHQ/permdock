@@ -103,6 +103,7 @@ const app = new Hono()
     if (!permdock.can(p.project.list)) {
       return c.body(null, 403);
     }
+    // SAFETY: toWhere compiles against the Drizzle `projects` table, so it returns a Drizzle SQL
     const rows = await db
       .select()
       .from(projects)

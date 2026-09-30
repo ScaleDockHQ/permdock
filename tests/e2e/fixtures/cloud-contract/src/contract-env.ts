@@ -41,6 +41,7 @@ export function readContractEnv(): ContractEnv | undefined {
   if (path === '') {
     return undefined;
   }
+  // SAFETY: the contract env file is written by the contract harness in this shape
   const env = JSON.parse(
     readFileSync(
       resolve(process.env['INIT_CWD'] ?? process.cwd(), path),

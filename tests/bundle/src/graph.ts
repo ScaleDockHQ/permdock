@@ -78,9 +78,11 @@ const TOOLING_ENTRIES = [
   './testing/saas/permissions',
 ] as const;
 
-export const RUNTIME_ENTRIES = (Object.keys(ENTRIES) as Entry[]).filter(
-  (entry) => !(TOOLING_ENTRIES as readonly string[]).includes(entry),
-);
+export const RUNTIME_ENTRIES =
+  // SAFETY: Object.keys(ENTRIES) lists exactly the Entry keys; the tuple is widened for includes()
+  (Object.keys(ENTRIES) as Entry[]).filter(
+    (entry) => !(TOOLING_ENTRIES as readonly string[]).includes(entry),
+  );
 
 /** Packages only the CLI and the test runners may load. */
 export const TOOLING_PACKAGES = [
@@ -127,9 +129,11 @@ export function packageImports(files: readonly string[]): readonly string[] {
   return [...found].toSorted();
 }
 
-export const WINTERTC_ENTRIES = (Object.keys(ENTRIES) as Entry[]).filter(
-  (entry) => !(NODE_ONLY_ENTRIES as readonly string[]).includes(entry),
-);
+export const WINTERTC_ENTRIES =
+  // SAFETY: Object.keys(ENTRIES) lists exactly the Entry keys; the tuple is widened for includes()
+  (Object.keys(ENTRIES) as Entry[]).filter(
+    (entry) => !(NODE_ONLY_ENTRIES as readonly string[]).includes(entry),
+  );
 export const CLIENT_ENTRIES = [
   './react',
   './react-native',

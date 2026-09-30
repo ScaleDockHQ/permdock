@@ -10,6 +10,7 @@ export async function POST(request: Request): Promise<Response> {
   if (process.env['NEXT_E2E'] !== '1') {
     return new Response(null, { status: 404 });
   }
+  // SAFETY: every field stays unknown and is checked before use
   const body = (await request.json()) as {
     readonly org?: unknown;
     readonly plan?: unknown;

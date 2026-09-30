@@ -57,6 +57,7 @@ function doctorCodes(): readonly string[] {
 }
 
 function packageEntries(): readonly string[] {
+  // SAFETY: packages/permdock/package.json is the repository's own manifest
   const manifest = JSON.parse(
     read(join(ROOT, 'packages', 'permdock', 'package.json')),
   ) as { readonly exports: Readonly<Record<string, unknown>> };
@@ -71,6 +72,7 @@ function unlistedPages(): readonly string[] {
   for (const meta of metas) {
     const dir = dirname(meta);
     const pages = new Set(
+      // SAFETY: Fumadocs meta.json files carry an optional `pages` string array
       (JSON.parse(read(meta)) as { readonly pages?: readonly string[] })
         .pages ?? [],
     );

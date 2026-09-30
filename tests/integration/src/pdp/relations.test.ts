@@ -59,10 +59,12 @@ async function post(url: string, body: unknown, token?: string) {
       `${url}: ${String(response.status)} ${await response.text()}`,
     );
   }
+  // SAFETY: every PDP route in this test answers a JSON object on success
   return (await response.json()) as Record<string, unknown>;
 }
 
 function sortedIds(condition: unknown): string[] {
+  // SAFETY: every field stays unknown and is checked before use
   const { op, field, value } = condition as {
     readonly op?: unknown;
     readonly field?: unknown;
@@ -304,6 +306,7 @@ definition document {
   });
 
   const id = (data: unknown): { readonly id?: string } => {
+    // SAFETY: the tool input is an object or undefined; `id` is a string when present
     const value = (data as { readonly id?: string } | undefined)?.id;
     return value === undefined ? {} : { id: value };
   };

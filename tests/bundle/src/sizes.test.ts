@@ -12,6 +12,7 @@ const baselinePath = join(
 
 describe('per-entry gzip', () => {
   it('matches the recorded baseline', () => {
+    // SAFETY: the size baseline is written by this suite in this shape
     const baseline = JSON.parse(readFileSync(baselinePath, 'utf8')) as Record<
       string,
       number

@@ -210,6 +210,7 @@ testHttpAdapter({
           continue;
         }
         const id = match.pathname.groups['id'];
+        // SAFETY: Request.json() is typed Promise<any>; the body stays unknown until protect validates it
         const guard = await kernel.protect(
           permission,
           load === 'row'
@@ -240,6 +241,7 @@ testHttpAdapter({
       return new Response(null, { status: 404 });
     };
 
+    // SAFETY: createAdaptorServer without http2 options creates a node:http Server
     return listen(createAdaptorServer({ fetch: app }) as Server);
   },
 });

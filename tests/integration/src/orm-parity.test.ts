@@ -106,6 +106,7 @@ function drizzleRun(db: DrizzleDb): Engine['run'] {
       .select({ id: table.id })
       .from(table)
       .where(
+        // SAFETY: drizzleWhere compiles against a Drizzle table, so it returns a Drizzle SQL
         drizzleWhere(
           where,
           table,
@@ -153,6 +154,7 @@ function saasScenarios(): OrmParityScenario<Principal | null>[] {
           ...(tenant === undefined ? {} : { tenant }),
           customRoles: saasRoleSource,
         },
+        // SAFETY: every saas check is an instance permission; the scenario type erases its generics
         permission: permission as Permission<string, unknown, 'instance'>,
         rows:
           permission.resource === 'project' ? saasSeed.projects : saasSeed.docs,
@@ -169,6 +171,7 @@ const itemTenants: Readonly<Record<string, readonly (string | undefined)[]>> = {
 };
 
 function itemScenarios(): OrmParityScenario<Principal | null>[] {
+  // SAFETY: itemActions lists every ItemAction, so the resource has one instance permission per action
   const item = itemPermissions.item as unknown as Readonly<
     Record<ItemAction, Permission<string, unknown, 'instance'>>
   >;
@@ -223,8 +226,10 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
     }).$extends(permdockExtension());
     prisma = prismaDb;
 
+    // SAFETY: pg and PGlite Drizzle clients share the query builder DrizzleDb declares
     const drizzleOnPg = drizzleRun(drizzlePg(db.admin) as unknown as DrizzleDb);
     const drizzleOnLite = drizzleRun(
+      // SAFETY: pg and PGlite Drizzle clients share the query builder DrizzleDb declares
       drizzlePglite(lite) as unknown as DrizzleDb,
     );
     const listFieldsOf: Readonly<Record<Resource, readonly string[]>> = {
@@ -242,6 +247,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
         .selectFrom(resource)
         .select('id')
         .where(
+          // SAFETY: kyselyWhere compiles for this db's resource table; Kysely's generic filter type is erased
           kyselyWhere(where, resource, {
             listFields: listFieldsOf[resource],
             ...(memberships === undefined ? {} : { memberships }),
@@ -250,6 +256,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
         .execute();
       return rows.map((row) => row.id);
     };
+    // SAFETY: the extended client has one delegate per Resource model with findMany
     const models = prismaDb as unknown as Readonly<
       Record<
         Resource,
@@ -280,6 +287,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       });
       return rows.map((row) => row.id);
     };
+    // SAFETY: each ORM's typed client and model is passed to its own row checker, erased to never
     checkers.push(
       async (dock, permission, id) =>
         drizzleCheckRow(
@@ -371,6 +379,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       const report = await ormParity(saasPolicy, saasScenarios(), {
         run: ({ scenario, where }) =>
           engine.run(
+            // SAFETY: every scenario's resource is one of the seeded Resource tables
             scenario.permission.resource as Resource,
             where,
             engine.exists ? saasMemberships : undefined,
@@ -400,6 +409,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
             ? { found: false }
             : {
                 found: true,
+                // SAFETY: the row comes from the scenario's seeded rows for this permission's resource
                 granted: dock.can(scenario.permission, row as never),
               };
         for (const [index, check] of checkers.entries()) {

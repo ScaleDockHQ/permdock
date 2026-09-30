@@ -26,6 +26,7 @@ type ClientReference = {
 };
 
 const require = createRequire(import.meta.url);
+// SAFETY: FlightServer declares the subset of Next's compiled react-server-dom-webpack used here
 const { renderToPipeableStream } =
   require('next/dist/compiled/react-server-dom-webpack/server.node') as FlightServer;
 
@@ -91,6 +92,7 @@ async function main(mode: string | undefined): Promise<object> {
     const element: ReactElement = PermDockProvider({
       children: 'children',
     });
+    // SAFETY: PermDockProvider returns a client reference element whose type carries $$typeof and $$id
     const tree = element as unknown as { readonly type: ClientReference };
     return {
       reference: tree.type.$$typeof === Symbol.for('react.client.reference'),

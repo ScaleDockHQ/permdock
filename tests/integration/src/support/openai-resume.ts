@@ -18,6 +18,7 @@ const context = { user };
 
 const chunks: Buffer[] = [];
 for await (const chunk of process.stdin) {
+  // SAFETY: stdin without setEncoding yields Buffer chunks
   chunks.push(chunk as Buffer);
 }
 const serialized = Buffer.concat(chunks).toString('utf8');
