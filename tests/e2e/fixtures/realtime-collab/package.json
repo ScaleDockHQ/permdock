@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "serve": "node scripts/serve.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
     "@hono/node-server": "catalog:",

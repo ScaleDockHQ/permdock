@@ -6,7 +6,7 @@
   "scripts": {
     "serve": "node scripts/serve.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
     "@electric-sql/pglite": "catalog:",

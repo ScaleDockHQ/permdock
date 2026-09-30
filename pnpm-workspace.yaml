@@ -198,6 +198,11 @@ peerDependencyRules:
     # Only `svelte-kit sync` type generation reads it; the e2e fixture builds with Vite.
     '@sveltejs/kit>typescript': '7'
 
+# The VS Code TypeScript native preview looks for `@typescript/typescript-<platform>`
+# next to `node_modules/typescript` without following pnpm's symlinks.
+publicHoistPattern:
+  - '@typescript/*'
+
 packageExtensions:
   # Oxlint loads the plugin through `jsPlugins`; it imports only ESLint types.
   eslint-plugin-turbo:

@@ -8,7 +8,7 @@
     "dev": "prisma generate && node --watch --experimental-strip-types src/serve.ts",
     "generate": "prisma generate",
     "start": "prisma generate && node --experimental-strip-types src/serve.ts",
-    "typecheck": "prisma generate && tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit --checkers 4"
   },
   "dependencies": {
     "@electric-sql/pglite": "catalog:",

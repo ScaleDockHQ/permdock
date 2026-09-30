@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node --experimental-strip-types src/http.ts",
     "stdio": "node --experimental-strip-types src/stdio.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "catalog:",
