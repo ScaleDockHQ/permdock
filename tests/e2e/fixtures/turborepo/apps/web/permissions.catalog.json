@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-09-29T19:34:50.581Z",
+  "generatedAt": "2026-09-30T11:20:40.406Z",
   "generator": "permdock@0.1.0-next.2",
-  "fingerprint": "Ea9Za8tg7QsF0EhbV3a2BCgd0-H5BSSRAnQ0fjOcWRQ",
+  "fingerprint": "1NzjjwFJjgDUJwOE8US-L2Z3Nb6p7zerwsgZR4mZe60",
   "resources": {
     "project": {
       "id": "id",
@@ -162,9 +162,7 @@
       "action": "delete",
       "arity": "instance",
       "meta": {
-        "tags": [
-          "destructive"
-        ]
+        "destructive": true
       },
       "usages": []
     },
@@ -215,9 +213,7 @@
       "action": "delete",
       "arity": "instance",
       "meta": {
-        "tags": [
-          "destructive"
-        ]
+        "destructive": true
       },
       "usages": []
     },
@@ -304,9 +300,7 @@
       "action": "delete",
       "arity": "instance",
       "meta": {
-        "tags": [
-          "destructive"
-        ]
+        "destructive": true
       },
       "usages": []
     },

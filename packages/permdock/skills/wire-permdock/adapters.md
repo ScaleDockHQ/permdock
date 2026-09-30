@@ -214,7 +214,7 @@ server.registerTool(
 );
 ```
 
-`actor.kind` is `'mcp-client'`. Every `registerTool` / `registerResource` / `registerPrompt` needs a `permission`. Lists are filtered per caller. A missing scope is an `insufficient_scope` step-up (HTTP `403`). Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` returns `isError: true` with the token and parks it in `store`; the retried call runs once after approval (token optional under `_meta["dev.permdock/approval"]`, never from tool arguments).
+`actor.kind` is `'mcp-client'`. Every `registerTool` / `registerResource` / `registerPrompt` needs a `permission`. Lists are filtered per caller. A missing scope is an `insufficient_scope` step-up (HTTP `403`) naming only the scope the call needs. Set `resource` to the server's URL so tokens for another audience are refused. Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` parks the call in `store` and returns `isError: true` with the token, or an `input_required` URL request when `approval.at` is set and the client declares URL elicitation; the retried call runs once after approval (token optional under `_meta["dev.permdock/approval"]`, never from tool arguments).
 
 An MCP server that is not an SDK `McpServer` (better-supabase `createMcp`) cannot be wrapped: filter its tool list with `mayUse(permdock, permission)` from `permdock` and decide each call with `permdock.decide(permission, args)` in its `authorize` hook. `mayUse` is a listing hint, never a decision.
 

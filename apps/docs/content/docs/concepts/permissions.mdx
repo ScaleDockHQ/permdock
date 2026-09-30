@@ -75,7 +75,7 @@ export const permissions = definePermissions({
 
 | Helper | Instance | Collection | Default meta |
 | --- | --- | --- | --- |
-| `crud()` | `read`, `update`, `delete` | `create`, `list` | `read` and `list` carry `readOnly: true`; `delete` carries `tags: ['destructive']` |
+| `crud()` | `read`, `update`, `delete` | `create`, `list` | `read` and `list` carry `readOnly: true`; `delete` carries `destructive: true` |
 | `readable()` | `read` | `list` | both `readOnly: true` |
 | `writable()` | `read`, `update` | none | `read` carries `readOnly: true` |
 
@@ -94,13 +94,13 @@ post: resource(Post, {
   actions: {
     read:   { title: 'Read post', readOnly: true },
     update: { title: 'Edit post', description: 'Change title or body', tags: ['editor'] },
-    delete: { title: 'Delete post', tags: ['destructive'] },
+    delete: { title: 'Delete post', destructive: true },
   },
   collection: ['create', 'list'],
 })
 ```
 
-Metadata is plain JSON and lands on the leaf as `meta`. The [WebMCP adapter](/docs/adapters/webmcp) reads `readOnly` for `readOnlyHint`; the [catalog](/docs/cli/catalog) prints `title` and `description`.
+Metadata is plain JSON and lands on the leaf as `meta`. `readOnly`, `destructive` and `idempotent` become the MCP tool hints `readOnlyHint`, `destructiveHint` and `idempotentHint` in [`permdock/mcp`](/docs/adapters/mcp) (WebMCP reads only `readOnly`); an action named `read` or `list` is read-only unless `readOnly` says otherwise, and `destructive` is ignored on a read-only action. The hints inform the client and never replace the server's decision. The [catalog](/docs/cli/catalog) prints `title` and `description`.
 
 ## What a leaf contains
 

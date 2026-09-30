@@ -37,7 +37,7 @@ describe('presets', () => {
         actions: {
           read: { readOnly: true },
           update: {},
-          delete: { tags: ['destructive'] },
+          delete: { destructive: true },
         },
         collection: {
           create: {},
@@ -66,7 +66,7 @@ describe('presets', () => {
         actions: {
           read: { readOnly: true },
           update: {},
-          delete: { tags: ['destructive'] },
+          delete: { destructive: true },
           publish: { title: 'Publish post' },
         },
         collection: {
@@ -100,7 +100,7 @@ describe('presets', () => {
     });
     expect(permissions.post.delete.meta).toEqual({
       title: 'Delete post',
-      tags: ['destructive'],
+      destructive: true,
     });
   });
 
@@ -109,12 +109,15 @@ describe('presets', () => {
       post: resource(
         Post,
         crud({
-          actions: { read: { readOnly: false }, delete: { tags: ['editor'] } },
+          actions: {
+            read: { readOnly: false },
+            delete: { destructive: false },
+          },
         }),
       ),
     });
     expect(permissions.post.read.meta).toEqual({ readOnly: false });
-    expect(permissions.post.delete.meta).toEqual({ tags: ['editor'] });
+    expect(permissions.post.delete.meta).toEqual({ destructive: false });
   });
 
   it('passes id and parent through to the resource node', () => {

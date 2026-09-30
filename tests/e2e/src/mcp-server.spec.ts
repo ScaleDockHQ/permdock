@@ -66,11 +66,11 @@ test.describe('mcp-server example', { tag: '@smoke' }, () => {
     await member.close();
 
     // Over HTTP the SDK turns the scope challenge into a 403 step-up that
-    // names every scope to request; a client without an auth provider throws.
+    // names the scopes the call needs; the client adds the ones it holds.
     const narrow = await connect('dev-narrow');
     await expect(
       narrow.callTool({ name: 'update_post', arguments: { id: 'p1' } }),
-    ).rejects.toThrow(/insufficient scope: required "post:list post:update"/iu);
+    ).rejects.toThrow(/insufficient scope: required "post:update"/iu);
     await narrow.close();
   });
 

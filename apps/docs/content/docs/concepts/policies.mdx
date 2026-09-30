@@ -140,7 +140,7 @@ Closure grants are typed `(data, ctx) => boolean`. A closure that returns a then
 
 `approval: 'human'` marks a grant whose match is necessary but not sufficient. When it is the matched allow, `decide` returns `{ outcome: 'approval-required', grant, reason, token }` instead of `granted`. The token binds the pending approval to the permission key, resource id, subject and actor so an approved reply cannot be replayed against different arguments.
 
-Adapters translate this outcome: the Vercel AI SDK gets `user-approval`, `WorkflowAgent` suspends through `needsApproval`, MCP raises an elicitation, HTTP returns 403 Problem Details with an `approval-required` type. See [decisions](/docs/concepts/decisions) and [approvals](/docs/security/approvals).
+Adapters translate this outcome: the Vercel AI SDK gets `user-approval`, `WorkflowAgent` suspends through `needsApproval`, MCP answers `input_required` or a refusal carrying the token, HTTP returns 403 Problem Details with an `approval-required` type. See [decisions](/docs/concepts/decisions) and [approvals](/docs/security/approvals).
 
 ## Feature flags and entitlements are context, not grants
 

@@ -194,3 +194,44 @@ test('8. tokens for another audience, expired tokens and bad secrets are refused
   }
   await expect(connect('erin-acme', 'wrong-secret')).rejects.toThrow();
 });
+
+test('9. two users never share a cached tools/list', async () => {
+  const bodies: string[] = [];
+  const recording: typeof fetch = async (input, init) => {
+    const response = await fetch(input, init);
+    const sent = typeof init?.body === 'string' ? init.body : '';
+    if (sent.includes('"tools/list"')) {
+      bodies.push(await response.clone().text());
+    }
+    return response;
+  };
+  const connectRecorded = async (clientId: string): Promise<Client> => {
+    const client = new Client({ name: 'permdock-e2e', version: '1.0.0' });
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(resource), {
+        fetch: recording,
+        authProvider: new ClientCredentialsProvider({
+          clientId,
+          clientSecret: `${clientId}-secret`,
+          expectedIssuer: origin,
+        }),
+      }),
+    );
+    open.push(client);
+    return client;
+  };
+  const erin = await connectRecorded('erin-globex');
+  const narrow = await connectRecorded('bob-acme-list');
+  for (let round = 0; round < 3; round += 1) {
+    expect(await toolNames(erin)).toEqual([
+      'delete_project',
+      'list_projects',
+      'read_analytics',
+    ]);
+    expect(await toolNames(narrow)).toEqual(['list_projects']);
+  }
+  expect(bodies.length).toBeGreaterThan(0);
+  for (const body of bodies) {
+    expect(body).toContain('"cacheScope":"private"');
+  }
+});

@@ -289,12 +289,7 @@
     "subjectFromSession"
   ],
   "./openai": ["createPermDock"],
-  "./mcp": [
-    "APPROVAL_META_KEY",
-    "InsufficientScopeError",
-    "createPermDock",
-    "subjectFromMcp"
-  ],
+  "./mcp": ["APPROVAL_META_KEY", "createPermDock", "subjectFromMcp"],
   "./authzen": ["createPermDock"],
   "./openapi": [
     "DRAFT_PINS",

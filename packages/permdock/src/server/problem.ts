@@ -1,5 +1,6 @@
 import type { Decision } from '../core/decision.ts';
 import type { ApprovalHint, ProblemDetails } from '../core/errors.ts';
+import type { Grantee } from '../core/grantee.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Subject } from '../core/subject.ts';
 
@@ -18,6 +19,85 @@ function quoted(value: string): string {
   return `"${value.replaceAll(/["\\]/gu, '')}"`;
 }
 
+export type BearerChallenge = {
+  readonly error:
+    | 'invalid_token'
+    | 'insufficient_scope'
+    | 'insufficient_user_authentication';
+  /** Every scope the operation needs, not the held set plus the missing one. */
+  readonly scopes?: readonly string[];
+  /** The RFC 9728 Protected Resource Metadata URL. */
+  readonly resourceMetadata?: string;
+  /** RFC 9470 step-up parameters. */
+  readonly acrValues?: readonly string[];
+  readonly maxAge?: number;
+};
+
+/** An RFC 6750 `WWW-Authenticate: Bearer` value. */
+export function bearerChallenge(challenge: BearerChallenge): string {
+  const parts = [`error=${quoted(challenge.error)}`];
+  if (challenge.scopes !== undefined && challenge.scopes.length > 0) {
+    parts.push(`scope=${quoted([...new Set(challenge.scopes)].join(' '))}`);
+  }
+  if (challenge.acrValues !== undefined && challenge.acrValues.length > 0) {
+    parts.push(`acr_values=${quoted(challenge.acrValues.join(' '))}`);
+  }
+  if (challenge.maxAge !== undefined) {
+    parts.push(`max_age=${quoted(String(challenge.maxAge))}`);
+  }
+  if (challenge.resourceMetadata !== undefined) {
+    parts.push(`resource_metadata=${quoted(challenge.resourceMetadata)}`);
+  }
+  return `Bearer ${parts.join(', ')}`;
+}
+
+/** The RFC 9728 well-known metadata URL for a resource identifier. */
+export function protectedResourceMetadataUrl(resource: URL): string {
+  const path = resource.pathname === '/' ? '' : resource.pathname;
+  return `${resource.origin}/.well-known/oauth-protected-resource${path}`;
+}
+
+/** The `acr` values and the tightest `maxAge` the failing assurance grants ask for. */
+export function stepUpOf(decision: Decision): {
+  readonly acrValues?: readonly string[];
+  readonly maxAge?: number;
+} {
+  if (decision.outcome !== 'denied') {
+    return {};
+  }
+  const acr = new Set<string>();
+  let maxAge: number | undefined;
+  for (const denial of decision.denials) {
+    if (denial.reason !== 'insufficient-user-authentication') {
+      continue;
+    }
+    const grantees =
+      denial.to === undefined
+        ? []
+        : Array.isArray(denial.to)
+          ? denial.to
+          : [denial.to];
+    for (const grantee of grantees as readonly Grantee[]) {
+      if (grantee.kind !== 'assurance') {
+        continue;
+      }
+      for (const value of grantee.acr ?? []) {
+        acr.add(value);
+      }
+      if (grantee.maxAge !== undefined) {
+        maxAge =
+          maxAge === undefined
+            ? grantee.maxAge
+            : Math.min(maxAge, grantee.maxAge);
+      }
+    }
+  }
+  return compact({
+    acrValues: acr.size === 0 ? undefined : [...acr],
+    maxAge,
+  });
+}
+
 export function wwwAuthenticate(
   decision: Decision,
   permission: Permission | undefined,
@@ -27,17 +107,18 @@ export function wwwAuthenticate(
   }
   const reasons = new Set(decision.denials.map((denial) => denial.reason));
   if (reasons.has('insufficient-user-authentication')) {
-    return 'Bearer error="insufficient_user_authentication"';
+    return bearerChallenge({ error: 'insufficient_user_authentication' });
   }
   if (reasons.has('anonymous')) {
-    return 'Bearer error="invalid_token"';
+    return bearerChallenge({ error: 'invalid_token' });
   }
   if (reasons.has('not-delegated') || reasons.has('no-delegation')) {
-    const scope = permission?.scope;
-    if (scope === undefined) {
-      return 'Bearer error="insufficient_scope"';
-    }
-    return `Bearer error="insufficient_scope", scope=${quoted(scope)}`;
+    return bearerChallenge(
+      compact<BearerChallenge>({
+        error: 'insufficient_scope',
+        scopes: permission === undefined ? undefined : [permission.scope],
+      }),
+    );
   }
   return undefined;
 }

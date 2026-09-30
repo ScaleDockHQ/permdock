@@ -603,10 +603,12 @@ export function evaluate(
       policy.resources,
     );
     if (!granteeMatch.matched) {
-      denials.push({
-        role: displayRole,
-        reason: granteeMatch.reason ?? 'no-grant',
-      });
+      const reason = granteeMatch.reason ?? 'no-grant';
+      denials.push(
+        reason === 'insufficient-user-authentication' && grant.to !== undefined
+          ? { role: displayRole, reason, to: grant.to }
+          : { role: displayRole, reason },
+      );
       continue;
     }
     const roleItems = flattenGrantee(grant.to).filter(

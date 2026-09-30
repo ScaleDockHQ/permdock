@@ -64,7 +64,7 @@ class PermDockApprovalRequiredError extends Error {
 }
 ```
 
-It is a distinct class rather than a flag on the denied error because callers handle it differently: a denial ends the request, an approval requirement starts a workflow. The AI SDK adapter turns it into `user-approval`, MCP into an elicitation, `WorkflowAgent` into a durable suspend, and HTTP into a 403 with the token. See [approvals](/docs/security/approvals).
+It is a distinct class rather than a flag on the denied error because callers handle it differently: a denial ends the request, an approval requirement starts a workflow. The AI SDK adapter turns it into `user-approval`, MCP into an `input_required` URL request or a refusal carrying the token, `WorkflowAgent` into a durable suspend, and HTTP into a 403 with the token. See [approvals](/docs/security/approvals).
 
 ### The digest
 
@@ -108,7 +108,7 @@ Adapters send `toProblemDetails()` in the transport's own close frame: an SSE `e
 | Delegation does not cover the permission | `denied` with `not-delegated` | throws `PermDockDeniedError` | 403 with `WWW-Authenticate: Bearer error="insufficient_scope"`; MCP adds a `scopeChallenge` so the client can step up |
 | Only `subject.assurance` conditions failed | `denied` with `insufficient-user-authentication` | throws `PermDockDeniedError` | 401 `/step-up-required` with `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values=…` (RFC 9470); agent surfaces carry the required `acr` |
 | Token present but unverifiable | `denied` with `anonymous`; `on('auth')` carries `invalid-token` and a `cause` | throws `PermDockDeniedError` | 401 `/unauthenticated` with `WWW-Authenticate: Bearer error="invalid_token"`; the `cause` is audit-only |
-| Grant with `approval: 'human'` matched | `approval-required` | throws `PermDockApprovalRequiredError` | 403 `/approval-required`; AI SDK `user-approval`; MCP elicitation |
+| Grant with `approval: 'human'` matched | `approval-required` | throws `PermDockApprovalRequiredError` | 403 `/approval-required`; AI SDK `user-approval`; MCP `input_required` or refusal with `token` |
 | Untrusted data fails its schema | `denied` with reason `validation` | throws `PermDockValidationError` | 400 `/validation` with `issues` |
 | Schema returns a Promise at a boundary | throws `PermDockValidationError` (`async-schema`) | same | 500; this is a configuration bug |
 | Closure grant throws | `denied` with `closure-error` | throws `PermDockDeniedError` | 403; the closure's error is attached as `cause` on the denial |
@@ -128,7 +128,7 @@ PermDockRevokedError           → 401 type .../unauthenticated, or 403 type ...
 
 - HTTP adapters (`permdock/hono` and siblings) call `toProblemDetails({ instance: request.url })` and set `Content-Type: application/problem+json`. Nothing else is needed in your handlers. Over plain HTTP the `approval-required` body is the whole surface: the caller orchestrates the wait and retries with the `PermDock-Approval` header ([approvals adapter](/docs/adapters/approvals)).
 - `permdock/next`: `assert` inside a Server Component or Action runs your `onDenied` handler first (typically `redirect()` or `notFound()`); in a Route Handler the error becomes Problem Details.
-- `permdock/mcp`: denied and validation errors become a tool result with `isError: true`, the `message` as text content and the Decision fields as `structuredContent`; a missing scope also produces the `scopeChallenge` step-up; approval becomes an elicitation.
+- `permdock/mcp`: denied and validation errors become a tool result with `isError: true`, the `message` as text content and the Decision fields as `structuredContent`; a missing scope also produces the `scopeChallenge` step-up; approval becomes an `input_required` URL request when `approval.at` is set and the client takes URL elicitations, otherwise a refusal carrying the token.
 - `permdock/ai-sdk`: never throws into the model loop; `toolApproval` returns `denied` with the message as the reason, or `user-approval`.
 - `permdock/claude-agent`: `canUseTool` returns a deny result with the message; approval returns an ask.
 - `permdock/authzen`: never throws to the client; `decision: false` with the Decision in `context`.
