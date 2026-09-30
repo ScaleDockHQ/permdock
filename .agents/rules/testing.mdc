@@ -1,11 +1,11 @@
 ---
 description: Test layout and habits - permdock/testing runners and the shared SaaS domain, e2e scenario fixtures, integration, runtimes, types matrix and bundle baseline; tests before features for evaluation semantics
-globs: tests/**,packages/permdock/src/testing/**,packages/permdock/src/**/*.test.ts,apps/examples/**
+globs: tests/**,packages/permdock/src/testing/**,packages/permdock/tests/**,apps/examples/**
 alwaysApply: false
 paths:
   - "tests/**"
   - "packages/permdock/src/testing/**"
-  - "packages/permdock/src/**/*.test.ts"
+  - "packages/permdock/tests/**"
   - "apps/examples/**"
 ---
 

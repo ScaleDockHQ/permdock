@@ -100,7 +100,7 @@ SSF 1.0 and CAEP 1.0 leave a transmitter and a receiver several choices: which e
 
 - The event types the profile requires are the ones `onEvent` is keyed by; the receiver accepts them without configuration and treats profile-required delivery as the baseline rather than an option.
 - Events and subject identifier formats outside the profile still work through `onEvent['*']` and the `subject` mapper, so a transmitter that emits more than the profile is not rejected.
-- `packages/permdock/src/testing/fixtures/ssf/transmitters.json` holds SETs in the shapes Entra, Okta and Auth0 transmit, and `ssf-transmitters.test.ts` replays them against the receiver with no network, so a transmitter or profile change that alters a required shape shows up as a failing fixture rather than a silent drop.
+- `packages/permdock/tests/testing/fixtures/ssf/transmitters.json` holds SETs in the shapes Entra, Okta and Auth0 transmit, and `ssf-transmitters.test.ts` replays them against the receiver with no network, so a transmitter or profile change that alters a required shape shows up as a failing fixture rather than a silent drop.
 
 The profile is an implementer's draft; its row on the [standards watch list](/docs/standards/watch-list) is reviewed each release, and this section is updated when the profile reaches final.
 

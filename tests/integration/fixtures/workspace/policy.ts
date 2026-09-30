@@ -12,7 +12,7 @@ import {
 } from 'permdock';
 import { z } from 'zod';
 
-// The graph of packages/permdock/src/fixtures/graph.ts, built on the
+// The graph of packages/permdock/tests/fixtures/graph.ts, built on the
 // published entry so its registry is the one the ORM compilers read.
 const Team = z.object({ id: z.string(), leadId: z.string().nullable() });
 const Folder = z.object({

@@ -15,7 +15,7 @@ const out = join(
   '..',
   'packages',
   'permdock',
-  'src',
+  'tests',
   'testing',
   'fixtures',
   'authzen',
