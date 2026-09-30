@@ -1,3 +1,4 @@
+import { ScrollRegion } from '@/components/site/scroll-region';
 import { SiteLink } from '@/components/site/site-link';
 import { compareMatrix } from '@/lib/compare';
 import { site } from '@/lib/site';
@@ -68,7 +69,7 @@ export default function PricingPage() {
           </Frame>
         ))}
       </div>
-      <div className="mt-16 overflow-x-auto">
+      <ScrollRegion aria-label="Capability comparison" className="mt-16">
         <table className="w-full min-w-[36rem] text-left text-sm">
           <thead>
             <tr className="border-border border-b">
@@ -91,7 +92,7 @@ export default function PricingPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
     </div>
   );
 }

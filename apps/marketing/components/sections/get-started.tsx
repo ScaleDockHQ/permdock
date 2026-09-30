@@ -1,15 +1,4 @@
-'use client';
-
 import { getStartedSteps } from '@/lib/site';
-import {
-  Stepper,
-  StepperDescription,
-  StepperIndicator,
-  StepperItem,
-  StepperSeparator,
-  StepperTitle,
-  StepperTrigger,
-} from '@permdock/ui/reui/stepper';
 
 import { Section } from './section';
 
@@ -20,20 +9,30 @@ export function GetStarted() {
       eyebrow="Get started"
       title="Install, define, grant, decide"
     >
-      <Stepper defaultValue={1} orientation="vertical" className="max-w-xl">
+      <ol className="flex max-w-xl flex-col">
         {getStartedSteps.map((step, index) => (
-          <StepperItem key={step.title} step={index + 1}>
-            <StepperTrigger className="w-full">
-              <StepperIndicator />
-              <div className="flex flex-col items-start gap-1 text-left">
-                <StepperTitle>{step.title}</StepperTitle>
-                <StepperDescription>{step.body}</StepperDescription>
-              </div>
-            </StepperTrigger>
-            {index < getStartedSteps.length - 1 ? <StepperSeparator /> : null}
-          </StepperItem>
+          <li key={step.title} className="flex gap-2.5">
+            <div className="flex flex-col items-center">
+              <span
+                aria-hidden="true"
+                className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground"
+              >
+                {index + 1}
+              </span>
+              {index < getStartedSteps.length - 1 ? (
+                <span
+                  aria-hidden="true"
+                  className="m-0.5 min-h-8 w-0.5 flex-1 rounded-sm bg-muted"
+                />
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-1 pb-6">
+              <h3 className="text-sm leading-none font-medium">{step.title}</h3>
+              <p className="text-sm text-muted-foreground">{step.body}</p>
+            </div>
+          </li>
         ))}
-      </Stepper>
+      </ol>
     </Section>
   );
 }

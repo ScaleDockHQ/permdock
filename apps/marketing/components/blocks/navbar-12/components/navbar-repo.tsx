@@ -18,7 +18,7 @@ import { NAVBAR_COMPANIES, NAVBAR_PRODUCTS } from "./data"
 
 function NavbarBrand() {
   return (
-    <a href="/" className="flex shrink-0 items-center gap-2">
+    <a href="/" aria-label="PermDock home" className="flex shrink-0 items-center gap-2">
       <Item className="bg-primary text-primary-foreground flex size-7 items-center justify-center p-0">
         <ItemMedia variant="icon" className="size-auto">
           <svg
@@ -52,10 +52,10 @@ export function NavbarRepo() {
 
       <Separator
         orientation="vertical"
-        className="my-auto hidden h-4 md:block"
+        className="my-auto hidden h-4 lg:block"
       />
 
-      <NavigationMenu>
+      <NavigationMenu className="hidden lg:flex">
         <NavigationMenuList>
           <NavigationMenuItem>
             <NavigationMenuTrigger>Product</NavigationMenuTrigger>

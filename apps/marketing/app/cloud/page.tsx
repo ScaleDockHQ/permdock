@@ -5,6 +5,7 @@ import { AgentActivity as McpActivity } from '@/components/blocks/agent-activity
 import { CloudCta } from '@/components/sections/cloud-cta';
 import { PageHero } from '@/components/sections/page-hero';
 import { Section } from '@/components/sections/section';
+import { ScrollRegion } from '@/components/site/scroll-region';
 import { site } from '@/lib/site';
 
 export const metadata = {
@@ -51,17 +52,17 @@ export default function CloudPage() {
         title="Human gates stay in the run"
         description="The same approval-required Decision the agent runtime already halted on. Cloud hosts the inbox; decide() still runs in your process."
       >
-        <div className="overflow-x-auto">
+        <ScrollRegion aria-label="Agent activity">
           <AgentActivity />
-        </div>
+        </ScrollRegion>
       </Section>
       <Section
         title="Refused MCP scope stays refused"
         description="A missing grant is denied, not a boolean false with no reason. The table is an illustration of protectServer, not a live PDP."
       >
-        <div className="overflow-x-auto">
+        <ScrollRegion aria-label="MCP activity">
           <McpActivity />
-        </div>
+        </ScrollRegion>
       </Section>
       <CloudCta />
     </>

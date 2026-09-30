@@ -12,6 +12,7 @@ export function NavbarActions() {
       <ThemeToggle />
       <Button
         variant="ghost"
+        className="hidden sm:inline-flex"
         nativeButton={false}
         render={<SiteLink href={site.github} />}
       >
@@ -19,6 +20,7 @@ export function NavbarActions() {
       </Button>
       <Button
         variant="ghost"
+        className="hidden sm:inline-flex"
         nativeButton={false}
         render={<SiteLink href={site.cloud.app} />}
       >

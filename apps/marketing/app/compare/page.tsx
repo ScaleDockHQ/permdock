@@ -1,6 +1,7 @@
 import { GitCompareIcon, LibraryIcon, NetworkIcon } from 'lucide-react';
 
 import { PageHero } from '@/components/sections/page-hero';
+import { ScrollRegion } from '@/components/site/scroll-region';
 import { SiteLink } from '@/components/site/site-link';
 import { compareMatrix, compareRows } from '@/lib/compare';
 import { Button } from '@permdock/ui/components/button';
@@ -70,7 +71,10 @@ export default function ComparePage() {
           </Frame>
         ))}
       </div>
-      <div className="mx-auto w-full max-w-6xl overflow-x-auto px-6 pb-16 md:px-8">
+      <ScrollRegion
+        aria-label="Feature comparison"
+        className="mx-auto w-full max-w-6xl px-6 pb-16 md:px-8"
+      >
         <table className="w-full min-w-[36rem] text-left text-sm">
           <thead>
             <tr className="border-border border-b">
@@ -93,7 +97,7 @@ export default function ComparePage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
     </>
   );
 }
