@@ -26,3 +26,4 @@
 .agents/skills/**/evals/
 .agents/skills/**/eval-viewer/
 .agents/skills/**/node_modules/
+.agents/skills/**/*.png
