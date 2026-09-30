@@ -21,6 +21,7 @@ import {
   isRegistryTree,
   listPermissions,
 } from '../core/permissions.ts';
+import { wireDenials } from '../core/wire-denial.ts';
 
 const MISSING_CONTEXT =
   'permdock/webmcp: document.modelContext is absent; registerTools is a no-op.';
@@ -195,7 +196,7 @@ function deniedResult(
       outcome: 'denied' as const,
       permission: permission.key,
       resource: resourceRef(permission, data),
-      denials: decision.denials,
+      denials: wireDenials(decision.denials),
       alternatives,
       detail: described.detail,
     }),

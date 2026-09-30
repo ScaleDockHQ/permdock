@@ -30,6 +30,7 @@ import { describe } from '../core/describe.ts';
 import { mayUse } from '../core/may-use.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { annotationsFor } from '../core/permissions.ts';
+import { wireDenials } from '../core/wire-denial.ts';
 import { applyOtel } from '../otel/instrument.ts';
 import {
   bearerChallenge,
@@ -255,7 +256,7 @@ function deniedRefusal(
       outcome: 'denied',
       permission: permission.key,
       resource,
-      denials: decision.denials,
+      denials: wireDenials(decision.denials),
       alternatives,
       detail: describe(decision).detail,
     },

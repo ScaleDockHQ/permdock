@@ -2,9 +2,11 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { Decision } from './decision.ts';
 import type { Subject } from './subject.ts';
+import type { WireDenial } from './wire-denial.ts';
 
 import { compact } from './compact.ts';
 import { approvalDigest, deniedDigest } from './digest.ts';
+import { wireDenials } from './wire-denial.ts';
 
 /** Where and how a human approves; carries no secret. */
 export type ApprovalHint = {
@@ -21,10 +23,7 @@ export type ProblemDetails = {
   readonly permission?: string;
   readonly scope?: string;
   readonly resource?: { readonly type: string; readonly id?: string };
-  readonly denials?: readonly {
-    readonly role: string | null;
-    readonly reason: string;
-  }[];
+  readonly denials?: readonly WireDenial[];
   readonly alternatives?: readonly string[];
   readonly reason?: string;
   readonly token?: string;
@@ -78,7 +77,7 @@ export class PermDockDeniedError extends Error {
       permission: this.permission,
       scope: this.scope,
       resource: this.resource,
-      denials: this.decision.denials,
+      denials: wireDenials(this.decision.denials),
       alternatives: this.decision.alternatives.map((leaf) => leaf.key),
     });
   }
@@ -251,7 +250,7 @@ export class PermDockRevokedError extends Error {
         permission: this.permission,
         denials:
           this.decision?.outcome === 'denied'
-            ? this.decision.denials
+            ? wireDenials(this.decision.denials)
             : undefined,
       });
     }

@@ -174,7 +174,7 @@ Rules the adapters follow:
 - `type` is a stable URI per outcome under the fixed base `https://permdock.dev/problems`. `title` is constant per `type`; `detail` is human-readable and may vary.
 - The extension members `permission`, `scope`, `resource`, `denials`, `alternatives`, `reason`, `token` and `issues` are the machine-readable part. Their names match the `Decision` and the audit event, so a client library can parse all three with one type.
 - `approval-required` is a 403 with its own `type`, not a 401 and not a 202: the request was understood and refused pending a human. The client retries with a `PermDock-Approval: <token>` header once the request is approved in the store ([approvals](/docs/security/approvals)).
-- The body never contains the policy, the closure source, or another subject's data. `denials` names roles the subject holds, which the subject already knows.
+- The body never contains the policy, the closure source, what a closure threw, or another subject's data. `denials` names roles the subject holds, which the subject already knows.
 - OpenAPI emission documents the 403 responses with these schemas on every protected operation.
 
 Model-readable text: the `detail` strings are written for an LLM as much as for a person ("post.delete was denied for the current subject; permitted alternatives: post.read, post.update"), because the MCP and AI SDK adapters reuse them as refusal text. See [errors](/docs/concepts/errors).
