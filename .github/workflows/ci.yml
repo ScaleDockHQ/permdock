@@ -9,21 +9,30 @@ on:
     # Nightly flake hunt: every e2e test three times, no retries.
     - cron: '17 3 * * *'
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Turborepo remote cache on the Vercel team. Unset (forks, before setup) means local cache only.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
 jobs:
   check:
     name: Check and unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
+          persist-credentials: false
 
       - uses: pnpm/setup@v3
         with:
@@ -35,8 +44,14 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Check
-        run: pnpm run check
+      - name: Format
+        run: pnpm run fmt:check
+
+      - name: Lint
+        run: pnpm run lint --format=github
+
+      - name: Typecheck
+        run: pnpm run typecheck
 
       - name: Typecheck matrix
         run: |
@@ -65,8 +80,13 @@ jobs:
   build:
     name: Production builds
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: pnpm/setup@v3
         with:
@@ -88,8 +108,13 @@ jobs:
     name: Integration (Postgres)
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: pnpm/setup@v3
         with:
@@ -109,8 +134,13 @@ jobs:
     name: Runtimes (Bun, Deno, workerd)
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: pnpm/setup@v3
         with:
@@ -132,6 +162,10 @@ jobs:
     name: E2E (${{ matrix.shard.name }})
     needs: build
     runs-on: ubuntu-latest
+    # A shard takes about 2 minutes; the nightly run repeats every test three times.
+    timeout-minutes: 20
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -170,6 +204,8 @@ jobs:
             projects: --project=turborepo
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: pnpm/setup@v3
         with:
@@ -201,7 +237,13 @@ jobs:
         run: pnpm --filter @permdock/e2e exec playwright install-deps chromium
 
       - name: E2E
-        run: pnpm --filter @permdock/e2e exec playwright test ${{ matrix.shard.projects }} ${{ github.event_name == 'schedule' && '--repeat-each=3' || '' }}
+        run: |
+          # Word splitting turns the project list into separate flags.
+          # shellcheck disable=SC2086
+          pnpm --filter @permdock/e2e exec playwright test $PROJECTS $REPEAT
+        env:
+          PROJECTS: ${{ matrix.shard.projects }}
+          REPEAT: ${{ github.event_name == 'schedule' && '--repeat-each=3' || '' }}
 
       - uses: actions/upload-artifact@v7
         if: failure()
