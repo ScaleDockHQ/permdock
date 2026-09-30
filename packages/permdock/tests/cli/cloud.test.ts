@@ -85,6 +85,7 @@ describe('permdock cloud push', () => {
       ),
     });
     expect(result.code).toBe(0);
+    // SAFETY: the --json summary printed by `cloud push` under test.
     const summary = JSON.parse(result.stdout) as {
       readonly hostable: readonly string[];
       readonly environment: string;
@@ -97,6 +98,7 @@ describe('permdock cloud push', () => {
       'https://cloud.permdock.test/v1/environments/preview/catalog',
     );
     expect(request?.headers.get('authorization')).toBe('Bearer env-key');
+    // SAFETY: the request body sent by `cloud push` under test, captured by fetchImpl.
     const body = (await request?.json()) as {
       readonly fingerprint: string;
       readonly catalog: {
@@ -158,6 +160,7 @@ describe('permdock cloud push', () => {
       io: io({}),
     });
     expect(first.code).toBe(0);
+    // SAFETY: both outputs are the --json summary printed by `cloud push --dry-run`.
     expect(
       (JSON.parse(first.stdout) as { readonly fingerprint: string })
         .fingerprint,

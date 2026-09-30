@@ -71,6 +71,7 @@ describe('subjectStatements', () => {
   });
 
   it('refuses any other role and unsafe setting names', () => {
+    // SAFETY: a deliberately forbidden role to exercise subjectStatements' refusal.
     expect(() =>
       subjectStatements(user, { role: 'service_role' as never }),
     ).toThrow(/authenticated or anon/);

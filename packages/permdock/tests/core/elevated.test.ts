@@ -36,6 +36,7 @@ function dockFor(
   context: Record<string, unknown> = {},
   options?: Parameters<typeof createPermDock>[2],
 ): PermDock {
+  // SAFETY: a ready Subject with no async sources, so createPermDock returns the instance.
   return createPermDock(
     policy,
     { principal, context } as Subject,
@@ -385,11 +386,13 @@ describe('purpose of use', () => {
   });
 
   it('applies only when context.purpose overlaps', () => {
+    // SAFETY: a ready Subject with no async sources, so createPermDock returns the instance.
     const instance = createPermDock(purposePolicy, {
       principal: { id: 'u1' },
       context: { purpose: ['treatment'] },
     }) as PermDock;
     expect(instance.can(purposePermissions.note.read, { id: 'n1' })).toBe(true);
+    // SAFETY: a ready Subject with no async sources, so createPermDock returns the instance.
     const none = createPermDock(purposePolicy, {
       principal: { id: 'u1' },
       context: {},

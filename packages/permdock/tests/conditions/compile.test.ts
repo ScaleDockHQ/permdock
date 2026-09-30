@@ -680,6 +680,7 @@ describe('compileWhere', () => {
     expect(compileWhere({ op: 'eq', field: 'a', value: null })).toEqual({
       kind: 'never',
     });
+    // SAFETY: a deliberately unknown operator to exercise compileWhere's refusal.
     expect(() =>
       compileWhere({ op: 'nope', field: 'a' } as unknown as Condition),
     ).toThrow(/unknown condition/);

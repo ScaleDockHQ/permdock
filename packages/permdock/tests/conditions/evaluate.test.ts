@@ -321,6 +321,7 @@ describe('evaluateCondition', () => {
   });
 
   it('does not traverse prototype keys', () => {
+    // SAFETY: the literal parses to a plain JSON object.
     const data = JSON.parse('{"authorId":"u1"}') as object;
     expect(
       evaluateCondition(

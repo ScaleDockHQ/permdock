@@ -34,6 +34,7 @@ async function dockFor(
 const rowsFor = (permission: Permission): readonly object[] =>
   permission.resource === 'asset' ? assets : documents;
 
+// SAFETY: every leaf of these three resources is a Permission from definePermissions.
 const instanceLeaves = [
   ...Object.values(permissions.quote),
   ...Object.values(permissions.invoice),
@@ -41,6 +42,7 @@ const instanceLeaves = [
 ] as readonly Permission[];
 
 function readable(dock: PermDock, permission: Permission): string[] {
+  // SAFETY: callers pass instance leaves, and every asset and document row has a string id.
   return rowsFor(permission)
     .filter((row) => dock.can(permission as never, row))
     .map((row) => (row as { readonly id: string }).id);
@@ -58,7 +60,9 @@ describe('named scopes: decide, snapshot and where agree', () => {
       for (const permission of instanceLeaves) {
         const where = dock.where(permission);
         for (const row of rowsFor(permission)) {
+          // SAFETY: instanceLeaves holds only instance permissions.
           const decided = dock.can(permission as never, row);
+          // SAFETY: instanceLeaves holds only instance permissions.
           expect(
             client.can(permission as never, row),
             `${name} snapshot ${permission.key} ${JSON.stringify(row)}`,
@@ -383,6 +387,7 @@ describe('named scopes: definition', () => {
   });
 
   it('reserves the restricted role option', () => {
+    // SAFETY: a deliberately reserved option, to exercise role()'s refusal.
     expect(() => role('x', [], { restricted: undefined as never })).toThrow(
       /reserved/,
     );

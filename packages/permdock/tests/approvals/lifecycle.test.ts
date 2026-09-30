@@ -59,6 +59,7 @@ const requester: Subject = {
   context: {},
 };
 
+// SAFETY: a minimal grant fixture; the approval code under test reads only these fields.
 const grant = {
   effect: 'allow',
   permission: 'post.delete',
@@ -67,6 +68,7 @@ const grant = {
 } as never;
 
 function required(token: string): Decision {
+  // SAFETY: an approval-required decision built from the grant fixture above.
   return {
     outcome: 'approval-required',
     subject: requester,
@@ -140,6 +142,7 @@ describe('single-use approvals', () => {
 
   it('ignores a resume token on a decision that needs no approval', async () => {
     const store = memoryApprovalStore();
+    // SAFETY: a granted decision built from the grant fixture above.
     const granted = {
       outcome: 'granted',
       subject: requester,
@@ -193,6 +196,7 @@ describe('single-use approvals', () => {
       decision: required('pd1.d'),
       permission: deletePost,
       subject: requester,
+      // SAFETY: deliberately a store without consume, to exercise the fail-closed resume.
       store: legacy as never,
       resource: { type: 'post', id: '42' },
       adapter: 'test',
@@ -266,6 +270,7 @@ describe('approval tenancy', () => {
       const response = await fetch(
         new Request('https://api.example.com/permdock/approvals/pending'),
       );
+      // SAFETY: response JSON produced by approvalsHandler's pending route under test.
       const body = (await response.json()) as {
         readonly items: readonly ApprovalRequest[];
       };
@@ -308,6 +313,7 @@ describe('approval tenancy', () => {
       const response = await fetch(
         new Request('https://api.example.com/permdock/approvals/pending'),
       );
+      // SAFETY: response JSON produced by approvalsHandler's pending route under test.
       const body = (await response.json()) as {
         readonly items: readonly ApprovalRequest[];
       };
@@ -430,6 +436,7 @@ describe('approval token inputs', () => {
   });
 
   it('changes with the principal id, tenant, issuer or actor', () => {
+    // SAFETY: decisionToken reads only id, tenant and issuer, which each call supplies.
     const token = (
       principal: Record<string, unknown>,
       actor = base.actor,

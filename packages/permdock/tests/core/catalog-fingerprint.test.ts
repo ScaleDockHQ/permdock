@@ -25,7 +25,7 @@ const catalog = {
 
 describe('catalogFingerprint', () => {
   it('is stable across key order, whitespace, clock, generator and usages', () => {
-    const reordered = JSON.parse(
+    const reordered: unknown = JSON.parse(
       JSON.stringify({
         roles: catalog.roles,
         permissions: catalog.permissions.map((permission) => ({
@@ -39,7 +39,7 @@ describe('catalogFingerprint', () => {
         generator: 'permdock 9.9.9',
         fingerprint: 'stale',
       }),
-    ) as unknown;
+    );
     expect(catalogFingerprint(reordered)).toBe(catalogFingerprint(catalog));
   });
 

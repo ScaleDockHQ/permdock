@@ -19,6 +19,7 @@ function withCondition(where: WhereResult, condition: Condition): WhereResult {
   for (const key of ['subject', 'resources'] as const) {
     Object.defineProperty(out, key, { value: where[key], enumerable: false });
   }
+  // SAFETY: out copies where's non-enumerable subject and resources above, as WhereResult carries.
   return out as WhereResult;
 }
 
@@ -96,6 +97,7 @@ describe('resolveRelated', () => {
           eq,
           {
             op: 'not',
+            // SAFETY: a related node with the optional restricted field cleared.
             condition: {
               ...viewerOfParent,
               restricted: undefined,
@@ -135,6 +137,7 @@ describe('resolveRelated', () => {
       value: where.resources,
       enumerable: false,
     });
+    // SAFETY: a WhereResult with resources defined above and deliberately no subject.
     const resolved = await resolveRelated(anonymous as WhereResult, {
       run: () => {
         ran = true;
@@ -144,6 +147,7 @@ describe('resolveRelated', () => {
     expect(ran).toBe(false);
     expect(resolved.condition).toEqual({ op: 'or', conditions: [] });
 
+    // SAFETY: deliberately a WhereResult without its resource graph, to exercise the refusal.
     await expect(
       resolveRelated(
         { condition: viewerOfParent, partial: false } as WhereResult,

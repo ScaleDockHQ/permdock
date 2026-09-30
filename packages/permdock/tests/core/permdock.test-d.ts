@@ -37,6 +37,7 @@ describe('permission arity', () => {
 
 describe('decision exhaustiveness', () => {
   it('narrows Decision.outcome', () => {
+    // SAFETY: a type-only test; the value is never evaluated, only its outcome narrowed.
     const decision = { outcome: 'granted' } as Decision;
     switch (decision.outcome) {
       case 'granted':

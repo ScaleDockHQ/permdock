@@ -376,6 +376,7 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
       ]),
     );
     const result = await run(['doctor', '--json', '--only', 'PD039'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;

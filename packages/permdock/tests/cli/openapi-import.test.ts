@@ -39,6 +39,7 @@ async function generated(
   dir: string,
   file: string,
 ): Promise<readonly Permission[]> {
+  // SAFETY: the module is the permissions file `openapi import` just generated, which exports this.
   const module = (await import(
     `${pathToFileURL(join(dir, file)).href}?t=${Date.now()}`
   )) as { readonly permissions: Parameters<typeof listPermissions>[0] };
@@ -241,6 +242,7 @@ paths:
       { cwd: dir },
     );
     expect(imported.code).toBe(0);
+    // SAFETY: --annotate rewrites the SCOPED document in place, adding only x- extensions.
     const annotated = JSON.parse(
       readFileSync(join(dir, 'openapi.json'), 'utf8'),
     ) as typeof SCOPED;
@@ -264,6 +266,7 @@ paths:
       { cwd: dir },
     );
     expect(emitted.code).toBe(0);
+    // SAFETY: out.json is the OpenAPI document written by `openapi emit` above.
     const out = JSON.parse(readFileSync(join(dir, 'out.json'), 'utf8')) as {
       paths: Record<string, Record<string, { security?: unknown }>>;
     };

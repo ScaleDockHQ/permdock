@@ -203,6 +203,7 @@ describe('claimsFirst', () => {
       ...token,
       memberships: [{ scope: 'organization', id: 'T', roles: ['owner'] }],
     };
+    // SAFETY: owner.memberships is the scoped membership list declared just above.
     const live = source(() => owner.memberships as never);
     const at = (version: number | undefined, current: number) =>
       createPermDock(

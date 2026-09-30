@@ -205,6 +205,7 @@ describe('staleOn definition checks', () => {
   });
 
   it('rejects an unknown staleOn value and an unsafe version field', () => {
+    // SAFETY: a deliberately invalid staleOn value to exercise allow()'s validation.
     expect(() =>
       allow(permissions.invoice.pay, {
         approval: { staleOn: 'always' as never },

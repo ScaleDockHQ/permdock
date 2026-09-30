@@ -115,6 +115,7 @@ describe('createPermDockPlugin', () => {
         { framework: 'vite' },
       );
       const plugin = Array.isArray(checking) ? checking[0] : checking;
+      // SAFETY: the permdock unplugin defines buildStart as a plain async function, no hook object.
       const buildStart = plugin?.buildStart as
         | (() => Promise<void>)
         | undefined;
@@ -125,6 +126,7 @@ describe('createPermDockPlugin', () => {
         { framework: 'vite' },
       );
       const writer = Array.isArray(writing) ? writing[0] : writing;
+      // SAFETY: the permdock unplugin defines buildStart as a plain async function, no hook object.
       const start = writer?.buildStart as (() => Promise<void>) | undefined;
       await start?.();
       expect(existsSync(join(cwd, 'permissions.catalog.json'))).toBe(true);

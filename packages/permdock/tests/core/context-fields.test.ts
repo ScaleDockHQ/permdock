@@ -102,10 +102,12 @@ describe('async context', () => {
     const policy = definePolicy(permissions, {
       roles: [role('member', [allow(permissions.post.read)])],
       subject: () => ({ id: 'u1', roles: ['member'] }),
+      // SAFETY: a deliberately non-object context result, which the instance treats as empty.
       context: () => null as unknown as Record<string, unknown>,
     });
     const permdock = await createPermDock(policy, { id: 'u1' });
     expect(permdock.subject.context).toEqual({});
+    // SAFETY: a deliberately null row, which pick() answers with an empty object.
     expect(
       permdock.pick(permissions.post.read, null as unknown as typeof row),
     ).toEqual({});

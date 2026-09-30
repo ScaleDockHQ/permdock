@@ -85,6 +85,7 @@ describe('coveredByDelegation', () => {
   });
 
   it('accepts a permission leaf that crossed a serialisation boundary', () => {
+    // SAFETY: a JSON round trip of the update leaf keeps its key, resource, action and scope.
     const leaf = JSON.parse(
       JSON.stringify({ key: 'post.update', meta: {}, ...update }),
     ) as typeof update;

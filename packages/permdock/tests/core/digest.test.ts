@@ -67,6 +67,7 @@ describe('PermDock error digests', () => {
       member.assert(permissions.post.update, otherPost),
     );
     expect(denied).toBeInstanceOf(PermDockDeniedError);
+    // SAFETY: checked by toBeInstanceOf above.
     expect((denied as PermDockDeniedError).digest).toBe(
       'PERMDOCK_DENIED;post.update',
     );
@@ -75,6 +76,7 @@ describe('PermDock error digests', () => {
       member.assert(permissions.post.delete, ownPost),
     );
     expect(approval).toBeInstanceOf(PermDockApprovalRequiredError);
+    // SAFETY: checked by toBeInstanceOf above.
     const error = approval as PermDockApprovalRequiredError;
     expect(parsePermDockDigest(error.digest)).toEqual({
       outcome: 'approval-required',
@@ -83,6 +85,7 @@ describe('PermDock error digests', () => {
     });
 
     const again = thrown(() => member.assert(permissions.post.delete, ownPost));
+    // SAFETY: the same call as above, which threw a PermDockApprovalRequiredError.
     expect((again as PermDockApprovalRequiredError).digest).toBe(error.digest);
     const admin = await createPermDock(policy, adminUser);
     expect(thrown(() => admin.assert(permissions.post.delete, ownPost))).toBe(

@@ -26,6 +26,7 @@ afterEach(() => {
 });
 
 function codes(stdout: string): readonly string[] {
+  // SAFETY: stdout is the --json report printed by `permdock doctor`.
   const report = JSON.parse(stdout) as {
     readonly findings: readonly { readonly code: string }[];
   };
@@ -237,6 +238,7 @@ create materialized view mat as select 1;
 `,
     );
     const result = await run(['doctor', '--json', '--only', 'PD022'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
@@ -270,6 +272,7 @@ revoke update (bio) on profiles from authenticated;
       const result = await run(['doctor', '--json', '--only', 'PD028'], {
         cwd,
       });
+      // SAFETY: the --json report printed by `permdock doctor` under test.
       return (
         JSON.parse(result.stdout) as {
           readonly findings: readonly {
@@ -362,6 +365,7 @@ export const policy = definePolicy(permissions, {
     const result = await run(['doctor', '--json', '--only', 'context-refs'], {
       cwd,
     });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
@@ -549,6 +553,7 @@ export const policy = definePolicy(permissions, {
     const result = await run(['doctor', '--json', '--only', 'self-approval'], {
       cwd,
     });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
@@ -666,6 +671,7 @@ export const policy = definePolicy(permissions, {
     const result = await run(['doctor', '--json', '--only', 'PD023'], {
       cwd,
     });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
@@ -707,6 +713,7 @@ export const policy = definePolicy(permissions, {
     const result = await run(['doctor', '--json', '--only', 'ownership'], {
       cwd,
     });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
@@ -756,6 +763,7 @@ export const policy = definePolicy(permissions, {
     const result = await run(['doctor', '--json', '--only', 'scopes'], {
       cwd,
     });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
@@ -811,6 +819,7 @@ export const policy = definePolicy(permissions, {
 `,
     );
     const result = await run(['doctor', '--json', '--only', 'graph'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
@@ -864,6 +873,7 @@ export const policy = definePolicy(permissions, {
     const result = await run(['doctor', '--json', '--only', 'credentials'], {
       cwd,
     });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
@@ -1026,6 +1036,7 @@ export const d = (claims: unknown, options: never) => subjectFromSupabase(claims
 `,
     );
     const result = await run(['doctor', '--json', '--only', 'PD038'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
@@ -1051,6 +1062,7 @@ create policy "write" on posts for insert to authenticated with check (true);
 `,
     );
     const result = await run(['doctor', '--json', '--only', 'PD040'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
@@ -1086,6 +1098,7 @@ export const PATCH = protect(permissions.post.update)(handler);
 `,
     );
     const result = await run(['doctor', '--json', '--only', 'PD036'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
@@ -1108,6 +1121,7 @@ export const modern = (subject: never, key: never) =>
 `,
     );
     const result = await run(['doctor', '--json', '--only', 'PD041'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
@@ -1156,6 +1170,7 @@ create policy "own table" on public.post for update using ((select public.permdo
 `,
     );
     const result = await run(['doctor', '--json', '--only', 'PD037'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;

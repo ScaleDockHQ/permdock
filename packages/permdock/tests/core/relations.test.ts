@@ -254,6 +254,7 @@ describe('relationship graph', () => {
   });
 
   it('rejects malformed source answers', async () => {
+    // SAFETY: deliberately malformed source answers, to exercise fail-closed validation.
     const junk = await dock('vera', {
       ancestors: () => ({ ancestors: [{ id: 7 }] }) as never,
       related: () => [{ principal: 'vera' }] as never,
@@ -376,6 +377,7 @@ describe('relationship graph', () => {
     expect(grant).toBeDefined();
     expect(grant?.where).toBeUndefined();
     expect(JSON.stringify(snapshot)).not.toContain('"related"');
+    // SAFETY: the instance has no signer, so snapshot() returned an unsigned Snapshot.
     const client = fromSnapshot(snapshot as never);
     expect(client.decide(permissions.doc.read, doc('d1', 'eng'))).toMatchObject(
       {

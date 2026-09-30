@@ -165,6 +165,7 @@ describe('resolveCustomRole', () => {
       grants: [
         { permission: 'invoice.void' },
         { permission: 'nope.read' },
+        // SAFETY: a deliberately conditional grant, which resolveCustomRole must drop.
         {
           permission: 'post.update',
           where: { authorId: 'x' },

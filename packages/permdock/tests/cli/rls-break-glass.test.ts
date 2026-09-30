@@ -38,6 +38,7 @@ const policy = definePolicy(permissions, {
       requires: { purpose: ['BTG'], reason: true },
     }),
   ],
+  // SAFETY: SQL generation never calls the subject mapper; only the grants are read.
   subject: (user: unknown) => user as never,
 });
 
@@ -78,6 +79,7 @@ describe('break-glass RLS generation', () => {
   it('is empty for a policy with no break-glass grant', () => {
     const plain = definePolicy(permissions, {
       grants: [],
+      // SAFETY: SQL generation never calls the subject mapper; only the grants are read.
       subject: (user: unknown) => user as never,
     });
     expect(breakGlassSql(ctx, breakGlassEntries(plain, undefined))).toBe('');

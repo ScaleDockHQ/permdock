@@ -50,6 +50,7 @@ describe('memorySink', () => {
     await sink.write([event('42')]);
     expect(sink.batches()).toEqual(['jws.batch']);
     expect(signed[0]?.typ).toBe('permdock-decisions+jwt');
+    // SAFETY: the signed batch payload's events field is the list of CloudEvents objects.
     const events = signed[0]?.payload['events'] as readonly Record<
       string,
       unknown
@@ -97,6 +98,7 @@ describe('signDecisionBatch', () => {
     let captured: readonly unknown[] = [];
     await signDecisionBatch([directory, approval], {
       async sign(payload) {
+        // SAFETY: signDecisionBatch puts the event list in the payload's events field.
         captured = payload['events'] as readonly unknown[];
         return 'jws';
       },
@@ -162,6 +164,7 @@ describe('signDecisionBatch', () => {
     let captured: readonly unknown[] = [];
     await signDecisionBatch([membership], {
       async sign(payload) {
+        // SAFETY: signDecisionBatch puts the event list in the payload's events field.
         captured = payload['events'] as readonly unknown[];
         return 'jws';
       },

@@ -230,6 +230,7 @@ describe('parseCapability', () => {
   });
 
   it('never reads inherited properties', () => {
+    // SAFETY: Object.create returns an object whose prototype holds the valid fields.
     const inherited = Object.create({ ...valid }) as object;
     expect(parseCapability(inherited)).toBeUndefined();
   });

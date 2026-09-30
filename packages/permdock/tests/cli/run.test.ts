@@ -146,6 +146,7 @@ describe('run', () => {
     const cwd = appCopy();
     const result = await run(['usage', '--json'], { cwd });
     expect(result.code).toBe(1);
+    // SAFETY: the --json report printed by `permdock usage` under test.
     const report = JSON.parse(result.stdout) as {
       readonly unused: readonly { readonly key: string }[];
       readonly ungranted: readonly { readonly key: string }[];
@@ -171,6 +172,7 @@ describe('run', () => {
       ),
     );
     const result = await run(['usage', '--json'], { cwd });
+    // SAFETY: the --json report printed by `permdock usage` under test.
     const report = JSON.parse(result.stdout) as {
       readonly undeclared: readonly {
         readonly key: string;
@@ -210,6 +212,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
 `,
     );
     const result = await run(['usage', '--json'], { cwd });
+    // SAFETY: the --json report printed by `permdock usage` under test.
     const report = JSON.parse(result.stdout) as {
       readonly outsideInclude: readonly { readonly key: string }[];
     };
@@ -277,6 +280,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
       cwd,
     });
     expect(result.code).toBe(0);
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly unknown[];
     };

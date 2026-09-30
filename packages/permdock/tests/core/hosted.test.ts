@@ -194,6 +194,7 @@ describe('hosted grants', () => {
         where: { op: 'eq', field: '__proto__.polluted', value: true },
       },
     ]);
+    // SAFETY: every 'error' event for a rejected hosted grant carries a reason string.
     expect(
       errors.map((error) => (error as { readonly reason: string }).reason),
     ).toEqual([
@@ -223,6 +224,7 @@ describe('hosted grants', () => {
         approval: 'human',
       },
     ]);
+    // SAFETY: every 'error' event for a rejected hosted grant carries a reason string.
     expect(
       errors.map((error) => (error as { readonly reason: string }).reason),
     ).toEqual(['weaker-approval']);
@@ -407,6 +409,7 @@ describe('hosted approvals that go stale on a resource change', () => {
     dock.on('error', (error) => {
       errors.push(error);
     });
+    // SAFETY: every 'error' event for a rejected hosted grant carries a reason string.
     return errors.map((error) => (error as { readonly reason: string }).reason);
   }
 

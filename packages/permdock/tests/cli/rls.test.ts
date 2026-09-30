@@ -632,6 +632,7 @@ export const policy = definePolicy(permissions, {
       const json = /export const catalog = ([\s\S]*?) as const/u.exec(
         text,
       )?.[1];
+      // SAFETY: the catalog JSON literal that `rls import` wrote into src/gen.ts above.
       const catalog = JSON.parse(json ?? '[]') as readonly {
         readonly cmd: string;
         readonly condition: unknown;

@@ -40,7 +40,7 @@ function assertJson(value: unknown, path = '$'): void {
   if (typeof value !== 'object') {
     throw new TypeError(`${path} is a ${typeof value}`);
   }
-  const proto = Object.getPrototypeOf(value) as unknown;
+  const proto: unknown = Object.getPrototypeOf(value);
   if (proto !== Object.prototype && proto !== null) {
     throw new TypeError(`${path} is not a plain object`);
   }
@@ -52,6 +52,7 @@ function assertJson(value: unknown, path = '$'): void {
 describe('snapshotFor', () => {
   it('matches createPermDock().snapshot() for the same subject', async () => {
     const dock = await createPermDock(policy, alice, { tenant: 'acme' });
+    // SAFETY: the instance has no signer, so snapshot() returned an unsigned Snapshot.
     const expected = dock.snapshot() as { readonly issuedAt: number };
     const actual = snapshotFor(policy, alice, {
       tenant: 'acme',
@@ -156,6 +157,7 @@ describe('snapshotFor', () => {
   });
 
   it('rejects async mappers instead of returning a promise', () => {
+    // SAFETY: deliberately an async context mapper, which snapshotFor must refuse.
     const asyncPolicy = {
       ...policy,
       context: async () => ({}),

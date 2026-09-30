@@ -102,6 +102,7 @@ describe('permissions', () => {
         folder: resource({
           actions: ['read'],
           relations: {
+            // SAFETY: a deliberately mixed edge and field relation, which must be refused.
             viewer: { edge: 'folder_viewers', field: 'x' } as never,
           },
         }),
@@ -127,6 +128,7 @@ describe('permissions', () => {
     for (let i = 0; i < 12; i += 1) {
       tree = { g: tree };
     }
+    // SAFETY: a deliberately over-deep tree built above, which the type would reject.
     expect(() => definePermissions(tree as never)).toThrow(/nesting exceeds/);
   });
 });

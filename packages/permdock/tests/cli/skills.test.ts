@@ -56,6 +56,7 @@ describe('skills', () => {
     expect(
       existsSync(join(cwd, '.cursor/skills/audit-permissions/SKILL.md')),
     ).toBe(true);
+    // SAFETY: the lock file that `skills install` just wrote, which records a version string.
     const lock = JSON.parse(
       readFileSync(join(cwd, '.permdock/skills-lock.json'), 'utf8'),
     ) as { readonly version: string };

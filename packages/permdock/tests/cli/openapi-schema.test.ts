@@ -33,6 +33,7 @@ function appCopy(openapi = '3.2.0'): string {
   const dir = mkdtempSync(join(TMP, 'schema-'));
   temps.push(dir);
   cpSync(FIXTURE, dir, { recursive: true });
+  // SAFETY: the mini-app fixture's openapi.json is an OpenAPI document with an openapi field.
   const doc = JSON.parse(readFileSync(join(dir, 'openapi.json'), 'utf8')) as {
     openapi: string;
   };
@@ -112,6 +113,7 @@ describe('OpenAPI and Overlay output conformance', () => {
 
   it('adds x-permdock-arity only behind --arity, and stays valid', async () => {
     const cwd = appCopy();
+    // SAFETY: the mini-app fixture's openapi.json has a paths object.
     const doc = readJson(cwd, 'openapi.json') as {
       paths: Record<string, unknown>;
     };
@@ -143,6 +145,7 @@ describe('OpenAPI and Overlay output conformance', () => {
     );
 
     await emit('arity.json', ['--arity']);
+    // SAFETY: arity.json is the OpenAPI document written by `openapi emit` above.
     const out = readJson(cwd, 'arity.json') as {
       paths: Record<string, Record<string, Record<string, unknown>>>;
     };
@@ -192,6 +195,7 @@ describe('OpenAPI and Overlay output conformance', () => {
 
   it('keeps the flow URLs a document already declares', async () => {
     const cwd = appCopy();
+    // SAFETY: the mini-app fixture's openapi.json is a JSON object.
     const doc = readJson(cwd, 'openapi.json') as Record<string, unknown>;
     doc['components'] = {
       securitySchemes: {
@@ -214,6 +218,7 @@ describe('OpenAPI and Overlay output conformance', () => {
       { cwd },
     );
     expect(result.code).toBe(0);
+    // SAFETY: out.json is emitted from the doc above, whose permdockOAuth scheme has this shape.
     const out = readJson(cwd, 'out.json') as {
       components: {
         securitySchemes: {
@@ -230,6 +235,7 @@ describe('OpenAPI and Overlay output conformance', () => {
       authorizationUrl: 'https://id.example.com/authorize',
       tokenUrl: 'https://id.example.com/token',
     });
+    // SAFETY: an emitted oauth2 flow always carries a scopes object.
     expect(
       Object.keys(scheme.flows.authorizationCode['scopes'] as object),
     ).not.toEqual([]);

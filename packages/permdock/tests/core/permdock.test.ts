@@ -293,6 +293,7 @@ describe('createPermDock', () => {
         role('member', [
           allow(
             permissions.post.read,
+            // SAFETY: a deliberately thenable closure, to exercise the closure-error deny.
             () => Promise.resolve(true) as unknown as boolean,
           ),
         ]),

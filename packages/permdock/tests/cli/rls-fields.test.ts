@@ -295,6 +295,7 @@ describe('permdock rls import of field views', () => {
       const json = /export const fieldViews = ([\s\S]*?) as const/u.exec(
         text,
       )?.[1];
+      // SAFETY: the fieldViews JSON literal that `rls import` wrote into generated.ts above.
       const [view] = JSON.parse(json ?? '[]') as readonly {
         readonly view: string;
         readonly companion?: string;
@@ -344,6 +345,7 @@ describe('permdock doctor field views', () => {
       const result = await run(['doctor', '--json', '--only', 'PD030'], {
         cwd,
       });
+      // SAFETY: the --json report printed by `permdock doctor` under test.
       const report = JSON.parse(result.stdout) as {
         readonly findings: readonly { readonly message: string }[];
       };
@@ -370,6 +372,7 @@ describe('permdock doctor field views', () => {
       'supabase/migrations/001_rls.sql',
     );
     const result = await run(['doctor', '--json', '--only', 'PD022'], { cwd });
+    // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = JSON.parse(result.stdout) as {
       readonly findings: readonly unknown[];
     };

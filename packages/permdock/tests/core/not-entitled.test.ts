@@ -58,6 +58,7 @@ describe('not-entitled', () => {
       server.subject,
     );
     expect(response.status).toBe(403);
+    // SAFETY: the Problem Details JSON produced by the response helper under test.
     const body = (await response.json()) as {
       readonly type: string;
       readonly plans: readonly string[];

@@ -144,15 +144,16 @@ describe('parseCredential', () => {
   });
 
   it('never reads a field from the prototype', () => {
+    // SAFETY: Object.create returns a plain object, whose own fields are assigned below.
     const inherited = Object.create({ kind: 'user' }) as Record<
       string,
       unknown
     >;
     Object.assign(inherited, { ...userKey, kind: undefined });
     expect(parseCredential(inherited)).toBeUndefined();
-    const polluted = JSON.parse(
+    const polluted: unknown = JSON.parse(
       `{"v":1,"id":"k","kind":"user","principal":"u","createdBy":"u","createdAt":1,"permissions":[{"permission":"repo.read","__proto__":{"ids":["r_1"]}}]}`,
-    ) as unknown;
+    );
     expect(parseCredential(polluted)?.permissions).toEqual([
       { permission: 'repo.read' },
     ]);
@@ -161,6 +162,7 @@ describe('parseCredential', () => {
 
 describe('credentialPolicyViolation', () => {
   it('refuses a key without expiry unless a policy allows it and none caps it', () => {
+    // SAFETY: the userKey fixture with its optional expiresAt cleared.
     const forever = { ...userKey, expiresAt: undefined } as Credential;
     expect(credentialPolicyViolation(forever, [])).toBe('no-expiry');
     expect(credentialPolicyViolation(forever, {})).toBe('no-expiry');
@@ -295,6 +297,7 @@ describe('credentialSubject', () => {
     const events: DecisionEvent[] = [];
     const permdock = dock(credentialSubject(serviceKey, { permissions }));
     permdock.on('decision', (event) => {
+      // SAFETY: the instance emits a DecisionEvent on every 'decision' event.
       events.push(event as DecisionEvent);
     });
     permdock.can(repo.read, r1);
@@ -304,6 +307,7 @@ describe('credentialSubject', () => {
     });
     const plain = dock(userSubject('u_1', ['owner']));
     plain.on('decision', (event) => {
+      // SAFETY: the instance emits a DecisionEvent on every 'decision' event.
       events.push(event as DecisionEvent);
     });
     plain.can(repo.read, r1);

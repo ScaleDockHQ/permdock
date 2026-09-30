@@ -276,8 +276,6 @@ describe('coverage edges', () => {
     if (denied.outcome === 'denied') {
       expect(denied.denials[0]?.reason).toBe('no-delegation');
     }
-    const resources = tree as unknown as { readonly [key: string]: unknown };
-    void resources;
     expect(membershipField(undefined, 'org', new Map())).toBeUndefined();
     const org = getResource(tree, 'org');
     const post = getResource(tree, 'post');
@@ -416,7 +414,8 @@ describe('coverage edges', () => {
             validate: (value: unknown) =>
               typeof value === 'object' &&
               value !== null &&
-              typeof (value as { id?: unknown }).id === 'string'
+              'id' in value &&
+              typeof value.id === 'string'
                 ? { value }
                 : { issues: [{ message: 'required', path: [{ key: 'id' }] }] },
           },
@@ -609,6 +608,7 @@ describe('coverage edges', () => {
         {
           op: 'eq',
           field: 'when',
+          // SAFETY: deliberately a Date where the condition JSON form expects a scalar.
           value: new Date('2020-01-02T00:00:00.000Z') as never,
         },
         { when: new Date('2020-01-02T00:00:00.000Z') },
@@ -689,6 +689,7 @@ describe('coverage edges', () => {
     expect(nested.op).toBe('or');
     expect(JSON.stringify(principal.id)).toContain('principal.id');
     expect(Object.keys(principal.id)).toEqual(['ref']);
+    // SAFETY: deliberately a symbol key, to check the reference proxy ignores symbols.
     expect(
       principal.id[Symbol.toStringTag as unknown as string],
     ).toBeUndefined();
@@ -842,6 +843,7 @@ describe('coverage edges', () => {
         now,
       ),
     ).toBe(true);
+    // SAFETY: a deliberately unknown operator, to exercise the evaluator's fail-closed path.
     evaluateCondition({ op: 'zzz' } as never, data, sub, now);
     expect(normalizeWhere({ tags: ['draft', 'live'] }).op).toBe('eq');
     expect(
@@ -912,6 +914,7 @@ describe('coverage edges', () => {
     expect(() => role('empty-on', [allow(tree.post.read)], { on: [] })).toThrow(
       /exactly one resource/,
     );
+    // SAFETY: deliberately a symbol key, to check the reference proxy ignores symbols.
     expect(principal.id[Symbol.iterator as unknown as string]).toBeUndefined();
     expect(parseSnapshot({ v: 1, grants: [] }).v).toBe(1);
     const postNode = getResource(tree, 'post');
@@ -1125,6 +1128,7 @@ describe('coverage edges', () => {
     expect(authErrors.length).toBeGreaterThan(0);
     expect(findPermission(tree, 'constructor')).toBeUndefined();
     expect(findPermission(tree, 'post:read')?.action).toBe('read');
+    // SAFETY: deliberately a permission tree where resource() expects a schema.
     expect(() => resource(tree as never, { actions: ['read'] })).toThrow(
       /must be a schema or options/,
     );

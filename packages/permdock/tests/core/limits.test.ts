@@ -143,6 +143,7 @@ describe('quota grants', () => {
   it('fails closed when remaining is a thenable', async () => {
     const limits: LimitStore = {
       consume: () => ({ remaining: 1 }),
+      // SAFETY: a deliberately thenable answer, to exercise the fail-closed deny.
       remaining: () => Promise.resolve({ remaining: 1 }) as never,
     };
     const permdock = await dock([limited], 'member', { limits });
@@ -362,6 +363,7 @@ describe('soft and hard quotas', () => {
   it('keeps mode and alertAt on the grant and drops unknown limit keys', () => {
     const [grant] = [
       allow(permissions.report.export, {
+        // SAFETY: a deliberately unknown extra key, which allow() must drop.
         limit: {
           count: 5,
           per: 'day',
@@ -380,6 +382,7 @@ describe('soft and hard quotas', () => {
   });
 
   it('rejects an unknown mode or an alertAt outside (0, 1]', () => {
+    // SAFETY: a deliberately unknown mode, to exercise allow()'s validation.
     expect(() =>
       allow(permissions.report.export, {
         limit: { count: 1, per: 'hour', mode: 'lenient' as never },

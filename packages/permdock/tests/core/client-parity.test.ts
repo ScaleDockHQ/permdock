@@ -181,6 +181,7 @@ describe('client parity', () => {
 
   it('denies a tenant-related row that has no tenant field', async () => {
     const { server, client } = await both(alice, 'acme');
+    // SAFETY: deliberately a Row without its tenant field, to exercise the fail-closed deny.
     const orphan = { id: 'x', teamId: null, locked: false } as unknown as Row;
     expect(server.can(permissions.project.read, orphan)).toBe(false);
     expect(client.can(permissions.project.read, orphan)).toBe(false);

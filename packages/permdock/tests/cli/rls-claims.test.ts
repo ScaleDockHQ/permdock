@@ -151,6 +151,7 @@ describe('claims cast to the column type', () => {
       day: z.iso.date(),
       tags: z.array(z.string()),
     });
+    // SAFETY: Zod 4 schemas implement Standard JSON Schema, so ~standard carries jsonSchema.
     expect(
       columnTypesOf(
         (
