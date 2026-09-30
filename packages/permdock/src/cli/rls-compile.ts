@@ -3,7 +3,7 @@ import type { RlsGrant } from './rls-grants.ts';
 import type { RolePermission } from './rls-helpers.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
-import { sole } from '../core/lists.ts';
+import { sole } from '../core/compact.ts';
 import { hasConditionOp, requiresApproval } from '../index.ts';
 import { jsonSchemaOf } from './catalog-doc.ts';
 import { collectGrants } from './rls-grants.ts';

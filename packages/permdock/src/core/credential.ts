@@ -11,10 +11,9 @@ import type {
 } from './subject.ts';
 
 import { idList, isId, ownRecord } from './capability.ts';
-import { compact } from './compact.ts';
+import { compact, isReadonlyArray } from './compact.ts';
 import { coveredByDelegation } from './delegation.ts';
 import { freezeDeep } from './freeze.ts';
-import { isReadonlyArray } from './lists.ts';
 import { listPermissions } from './permissions.ts';
 import { bytesToBase64Url, sha256 } from './sha256.ts';
 import { anonymousSubject } from './subject.ts';

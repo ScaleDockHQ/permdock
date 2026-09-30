@@ -7,9 +7,8 @@ import type {
   BetterAuthSubjectOptions,
 } from './types.ts';
 
-import { compact } from '../core/compact.ts';
+import { compact, isReadonlyArray } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
-import { isReadonlyArray } from '../core/lists.ts';
 import { anonymousSubject } from '../core/subject.ts';
 import {
   asRoles,

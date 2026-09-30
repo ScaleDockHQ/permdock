@@ -1,6 +1,6 @@
 import type { ScimPatchOp } from './types.ts';
 
-import { isReadonlyArray } from '../core/lists.ts';
+import { isReadonlyArray } from '../core/compact.ts';
 import { ROLES_EXTENSION } from './types.ts';
 
 const FILTER_PATH =

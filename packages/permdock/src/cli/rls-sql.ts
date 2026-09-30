@@ -10,7 +10,7 @@ import type {
 } from './types.ts';
 
 import { scopeColumn, scopeMembershipTable } from '../conditions/compile.ts';
-import { isReadonlyArray, sole } from '../core/lists.ts';
+import { isReadonlyArray, sole } from '../core/compact.ts';
 import { isForbiddenKey } from '../core/paths.ts';
 import { resolveScope, rootScope, scopeChain } from '../core/scopes.ts';
 import { isSqlFunctionField } from '../index.ts';

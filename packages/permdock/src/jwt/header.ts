@@ -1,4 +1,4 @@
-import { isReadonlyArray } from '../core/lists.ts';
+import { isReadonlyArray } from '../core/compact.ts';
 export type DecodedHeader = {
   readonly alg?: string;
   readonly kid?: string;

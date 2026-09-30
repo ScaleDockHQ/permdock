@@ -1,9 +1,8 @@
 import type { WhereResult } from '../core/permdock.ts';
 import type { Membership, Subject } from '../core/subject.ts';
 
-import { compact } from '../core/compact.ts';
+import { compact, isReadonlyArray, sole } from '../core/compact.ts';
 import { PermDockValidationError } from '../core/errors.ts';
-import { isReadonlyArray, sole } from '../core/lists.ts';
 import { assertSafeKey } from '../core/paths.ts';
 import {
   type Scope,

@@ -1,6 +1,6 @@
 import type { Membership, Subject } from '../core/subject.ts';
 
-import { isReadonlyArray } from '../core/lists.ts';
+import { isReadonlyArray } from '../core/compact.ts';
 import { ownGet } from '../core/paths.ts';
 import {
   type Scope,

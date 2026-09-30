@@ -8,7 +8,7 @@ import {
   type WhereShorthand,
   normalizeWhere,
 } from '../conditions/index.ts';
-import { compact } from './compact.ts';
+import { compact, isReadonlyArray, sole } from './compact.ts';
 import { sanitizeFields } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import {
@@ -23,7 +23,6 @@ import {
   roleScopeOf,
 } from './grantee.ts';
 import { assertLimit, normalizeLimit } from './limits.ts';
-import { isReadonlyArray, sole } from './lists.ts';
 import { isForbiddenKey } from './paths.ts';
 import {
   type Permission,

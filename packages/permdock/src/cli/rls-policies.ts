@@ -1,6 +1,6 @@
 import type { CompiledBranch, CompiledPolicy } from './rls-compile.ts';
 
-import { sole } from '../core/lists.ts';
+import { sole } from '../core/compact.ts';
 import { branchClauses, wrapSql } from './rls-compile.ts';
 
 export type PolicyShape = {

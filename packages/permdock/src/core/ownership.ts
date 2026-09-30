@@ -3,9 +3,8 @@ import type { Policy, RoleBinding } from './policy.ts';
 import type { Membership, Principal } from './subject.ts';
 import type { Role, RoleMeta } from './vocabulary.ts';
 
-import { compact } from './compact.ts';
+import { compact, isReadonlyArray } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
-import { isReadonlyArray } from './lists.ts';
 import { declaredRoleNames } from './policy.ts';
 import { type Scope, resolveScope, scopeChain, scopeIdOf } from './scopes.ts';
 import { isMembershipExpired } from './tenancy.ts';

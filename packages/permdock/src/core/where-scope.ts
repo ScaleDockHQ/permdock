@@ -5,8 +5,8 @@ import type { ResourceNode } from './permissions.ts';
 import type { Membership, Subject } from './subject.ts';
 
 import { bindConditionRefs } from '../conditions/bind.ts';
+import { sole } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
-import { sole } from './lists.ts';
 import { type Scope, findScope, scopeChain, scopeIdOf } from './scopes.ts';
 import {
   activeFor,

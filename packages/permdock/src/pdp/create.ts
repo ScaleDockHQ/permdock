@@ -13,7 +13,7 @@ import type { Membership, Principal, Subject } from '../core/subject.ts';
 import type { PdpPermDock } from './types.ts';
 
 import { isArazzoSimulateInput } from '../core/arazzo.ts';
-import { compact } from '../core/compact.ts';
+import { compact, isReadonlyArray } from '../core/compact.ts';
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -22,7 +22,6 @@ import {
   deniedMessage,
 } from '../core/errors.ts';
 import { freezeDeep } from '../core/freeze.ts';
-import { isReadonlyArray } from '../core/lists.ts';
 import { createPermDock as createCore } from '../core/permdock.ts';
 import { getResource } from '../core/permissions.ts';
 import { resourceIdOf } from './shared.ts';

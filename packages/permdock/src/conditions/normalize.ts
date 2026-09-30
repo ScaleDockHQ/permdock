@@ -1,5 +1,5 @@
+import { sole } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
-import { sole } from '../core/lists.ts';
 import { assertSafeKey, ownKeys } from '../core/paths.ts';
 import {
   type Condition,

@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
+import { isReadonlyArray } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
-import { isReadonlyArray } from './lists.ts';
 import {
   assertSafeKey,
   isForbiddenKey,

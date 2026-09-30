@@ -5,11 +5,10 @@ import type { AssuranceRequirement } from './policy.ts';
 import type { Membership, Subject } from './subject.ts';
 import type { Role } from './vocabulary.ts';
 
-import { compact } from './compact.ts';
+import { compact, isReadonlyArray, sole } from './compact.ts';
 import { parseDuration } from './duration.ts';
 import { freezeDeep } from './freeze.ts';
 import { asGrantee, authenticated } from './grantee.ts';
-import { isReadonlyArray, sole } from './lists.ts';
 import { listPermissions } from './permissions.ts';
 import {
   type BreakGlassOptions,

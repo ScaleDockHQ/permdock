@@ -21,7 +21,7 @@ import {
   isArazzoSimulateInput,
   simulateArazzo,
 } from './arazzo.ts';
-import { compact } from './compact.ts';
+import { compact, isReadonlyArray } from './compact.ts';
 import {
   type CustomGrant,
   ceilingGrants,
@@ -42,7 +42,6 @@ import { type EvalEnv, emitSafe, emptyListeners, finish } from './events.ts';
 import { pickVisible } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
-import { isReadonlyArray } from './lists.ts';
 import {
   type RoleChange,
   type RoleChangeDecision,
