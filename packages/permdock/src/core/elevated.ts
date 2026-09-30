@@ -1,4 +1,5 @@
-import type { Obligation, Decision, DenialReason } from './decision.ts';
+import type { Obligation, Decision, Denial, DenialReason } from './decision.ts';
+import type { AssuranceGrantee } from './grantee.ts';
 import type { Permission, PermissionTree } from './permissions.ts';
 import type { Grant, Policy, SupportSpec } from './policy.ts';
 import type { AssuranceRequirement } from './policy.ts';
@@ -8,7 +9,7 @@ import type { Role } from './vocabulary.ts';
 import { compact, isReadonlyArray, sole } from './compact.ts';
 import { parseDuration } from './duration.ts';
 import { freezeDeep } from './freeze.ts';
-import { asGrantee, authenticated } from './grantee.ts';
+import { asGrantee, assurance, authenticated } from './grantee.ts';
 import { listPermissions } from './permissions.ts';
 import {
   type BreakGlassOptions,
@@ -132,21 +133,21 @@ export function assuranceMet(
   if (requirement === undefined) {
     return true;
   }
-  const assurance = subject.principal?.assurance;
+  const held = subject.principal?.assurance;
   if (requirement.acr !== undefined && requirement.acr.length > 0) {
-    const acr = assurance?.acr;
+    const acr = held?.acr;
     if (acr === undefined || !requirement.acr.includes(acr)) {
       return false;
     }
   }
   if (requirement.amr !== undefined && requirement.amr.length > 0) {
-    const amr = assurance?.amr ?? [];
+    const amr = held?.amr ?? [];
     if (!requirement.amr.every((method) => amr.includes(method))) {
       return false;
     }
   }
   if (requirement.maxAge !== undefined) {
-    const authTime = assurance?.authTime;
+    const authTime = held?.authTime;
     if (authTime === undefined || now - authTime > requirement.maxAge) {
       return false;
     }
@@ -169,10 +170,12 @@ export type BreakGlassResult =
   | { readonly kind: 'granted'; readonly obligations: readonly Obligation[] }
   | {
       readonly kind: 'denied';
-      readonly reason:
-        | 'purpose'
-        | 'reason-required'
-        | 'insufficient-user-authentication';
+      readonly reason: 'purpose' | 'reason-required';
+    }
+  | {
+      readonly kind: 'denied';
+      readonly reason: 'insufficient-user-authentication';
+      readonly to: AssuranceGrantee;
     };
 
 /**
@@ -201,8 +204,15 @@ export function evaluateBreakGlass(
   if (spec.reason && (typeof reason !== 'string' || reason === '')) {
     return { kind: 'denied', reason: 'reason-required' };
   }
-  if (!assuranceMet(spec.assurance, subject, now)) {
-    return { kind: 'denied', reason: 'insufficient-user-authentication' };
+  if (
+    spec.assurance !== undefined &&
+    !assuranceMet(spec.assurance, subject, now)
+  ) {
+    return {
+      kind: 'denied',
+      reason: 'insufficient-user-authentication',
+      to: assurance(spec.assurance),
+    };
   }
   const obligations: Obligation[] = [
     ...spec.obligations.map((kind) => ({ kind }) as Obligation),
@@ -242,10 +252,15 @@ export type ActivateInput = {
   readonly reason?: string;
 };
 
-function activationDenied(reason: DenialReason): Decision {
+function activationDenied(
+  reason: DenialReason,
+  to?: AssuranceGrantee,
+): Decision {
+  const denial: Denial =
+    to === undefined ? { role: null, reason } : { role: null, reason, to };
   return freezeDeep({
     outcome: 'denied',
-    denials: [{ role: null, reason }],
+    denials: [denial],
     alternatives: [],
   }) as Decision;
 }
@@ -291,8 +306,14 @@ export function activate(
       return activationDenied('reason-required');
     }
   }
-  if (!assuranceMet(activation.assurance, subject, now)) {
-    return activationDenied('insufficient-user-authentication');
+  if (
+    activation.assurance !== undefined &&
+    !assuranceMet(activation.assurance, subject, now)
+  ) {
+    return activationDenied(
+      'insufficient-user-authentication',
+      assurance(activation.assurance),
+    );
   }
   const requested = parseDuration(input.duration);
   const cap = parseDuration(activation.maxDuration);

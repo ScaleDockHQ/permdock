@@ -40,6 +40,7 @@ export const permissions = definePermissions({
 | `actions` | array or record | Instance-level actions: `can(permissions.post.update, post)` requires a `Post`. |
 | `collection` | array or record | Type-level actions: `can(permissions.post.create)` takes no instance. |
 | `parent` | `{ field, resource }` | Optional. `resource` is the parent **name string** (the last path segment). Exactly one parent. The name is resolved at `definePolicy` after `mergePermissions`. See [tenancy](/docs/concepts/tenancy). |
+| `disclosure` | `'hide'` or `'reveal'` | Optional, default `'reveal'`. With `'hide'`, an HTTP adapter answers a denied check on a loaded row with `404` `/not-found`, the same body a missing row gets, so an id never confirms that a row exists; the reason stays on the decision event. A step-up or rate-limit denial still answers as usual, because it arises only when the subject holds a matching grant. See the [threat model](/docs/security/threat-model). |
 
 ### actions versus collection
 

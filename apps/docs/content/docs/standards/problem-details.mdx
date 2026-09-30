@@ -59,7 +59,7 @@ An approval-required decision:
 
 Rules:
 
-- **`type` URIs are stable** and per outcome: `.../denied`, `.../approval-required`, `.../validation` (for `PermDockValidationError` at a boundary, status 400), plus two 401 types that exist only where a `WWW-Authenticate` challenge is the real answer: `.../unauthenticated` (no token, or a token that failed verification) and `.../step-up-required` (RFC 9470, carrying `acrValues` and `maxAge`). They sit under the fixed base `https://permdock.dev/problems`; the host is not configurable, so a self-hosted deployment emits the same identifiers.
+- **`type` URIs are stable** and per outcome: `.../denied`, `.../approval-required`, `.../validation` (for `PermDockValidationError` at a boundary, status 400), plus two 401 types that exist only where a `WWW-Authenticate` challenge is the real answer: `.../unauthenticated` (no token, or a token that failed verification) and `.../step-up-required` (RFC 9470, carrying `acrValues` and `maxAge`). An exhausted `limit` is `.../rate-limited` (429) and a limit store that cannot answer is `.../limit-unavailable` (503); a denied row of a resource with `disclosure: 'hide'` is `.../not-found` (404). They sit under the fixed base `https://permdock.dev/problems`; the host is not configurable, so a self-hosted deployment emits the same identifiers.
 - **`permission`** is the permission `key`, never the object; keys are the wire form of references.
 - **`denials`** mirrors `Decision.denials` and is always present, in production too, because what it reveals is bounded by the subject's own snapshot: one entry per role that had a matching grant and why it did not apply. Conditions are the portable JSON AST, so a client can show exactly which constraint failed. Closure grants appear as `{ "kind": "closure" }` with no further detail.
 - **`alternatives`** lists permission keys on the same resource the subject does hold, so a model can pick a permitted action.
@@ -76,7 +76,10 @@ When the caller is an OAuth client, Problem Details is the body and RFC 6750 (wi
 | No token (Decision reason `anonymous`) | 401 | `Bearer realm="<audience>"` (the challenge names the scheme the resource accepts: `Bearer` or `DPoP`) | `.../unauthenticated`; no `denials` |
 | A token that failed verification: `on('auth')` `reason: 'invalid-token'`, Decision reason `anonymous` | 401 | `Bearer error="invalid_token", error_description="<generic text>"`; the `cause` stays on the audit event (RFC 6750 section 3.1 says not to explain to an unauthenticated caller) | `.../unauthenticated` |
 | Decision `denied` with reason `not-delegated` or `no-delegation` | 403 | `Bearer error="insufficient_scope", scope="<permission.scope>"` | `.../denied`, with `alternatives` listing what the token would allow |
-| Decision `denied` with reason `insufficient-user-authentication` (only `subject.assurance` conditions failed) | 401 | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age=<seconds>` (RFC 9470 section 3), values taken from the failed condition | `.../step-up-required` with `acrValues` and `maxAge` |
+| Decision `denied` with reason `insufficient-user-authentication` (only `subject.assurance` conditions failed) | 401 | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age="<seconds>"` (RFC 9470 section 3): the union of `acr` and the smallest `maxAge` across the failed assurance grantees, a break-glass `requires.assurance` and a role `activation.assurance` | `.../step-up-required` with `acrValues` and `maxAge` |
+| Every denial is `limit` | 429 | none; `Retry-After`, `RateLimit` and `RateLimit-Policy` instead ([RateLimit header fields](/docs/standards/ratelimit-headers)) | `.../rate-limited` |
+| Denials are `limit-unavailable`, possibly with `limit` | 503 | none | `.../limit-unavailable` |
+| Any `denied` on a loaded row of a `disclosure: 'hide'` resource, unless every reason is step-up or limit | 404 | none | `.../not-found`, the body a missing row gets |
 | Any other `denied` | 403 | none (the token was fine; authorization was not) | `.../denied` |
 | `approval-required` | 403 | none | `.../approval-required` |
 | `PermDockValidationError` | 400 | none | `.../validation` |
@@ -107,6 +110,14 @@ Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redire
 
 401. Only `subject.assurance` conditions failed (RFC 9470). Carries `acrValues` and `maxAge`.
 
+### rate-limited
+
+429. Every denial is `limit`: the subject holds the grant but used its count for the window. Sent with `Retry-After`, `RateLimit` and `RateLimit-Policy` ([RateLimit header fields](/docs/standards/ratelimit-headers)); carries `permission` and `denials` like `denied`.
+
+### limit-unavailable
+
+503. A `limit` grant could not be counted: no `LimitStore`, a store that threw, or one that returned a Promise. Fail-closed, and the server's fault rather than the caller's.
+
 ### invalid-signature
 
 403. A request claimed a Web Bot Auth signature that did not verify. It never becomes an anonymous actor.
@@ -117,7 +128,7 @@ Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redire
 
 ### not-found
 
-404. The approvals handler has no approval for the token, or the AuthZEN handler has no endpoint at the path (including a search endpoint the application did not configure).
+404. The approvals handler has no approval for the token, the AuthZEN handler has no endpoint at the path (including a search endpoint the application did not configure), or `protect`'s loader found no row. A denied row of a resource with `disclosure: 'hide'` answers with the same body and headers, so the two cannot be told apart; the reason stays on the decision event.
 
 ### conflict
 

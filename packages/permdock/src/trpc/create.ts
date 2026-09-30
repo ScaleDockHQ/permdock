@@ -140,6 +140,7 @@ function trpcCode(
   | 'BAD_REQUEST'
   | 'NOT_FOUND'
   | 'TOO_MANY_REQUESTS'
+  | 'SERVICE_UNAVAILABLE'
   | 'FORBIDDEN' {
   switch (status) {
     case 400:
@@ -150,6 +151,8 @@ function trpcCode(
       return 'NOT_FOUND';
     case 429:
       return 'TOO_MANY_REQUESTS';
+    case 503:
+      return 'SERVICE_UNAVAILABLE';
     default:
       return 'FORBIDDEN';
   }

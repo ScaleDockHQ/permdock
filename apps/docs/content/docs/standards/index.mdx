@@ -40,6 +40,7 @@ The trade-off is that PermDock inherits the pace and gaps of each specification.
 | [A2A](/docs/standards/a2a) | 1.0, Linux Foundation | 1.0 | [a2a adapter](/docs/adapters/a2a) |
 | [Postgres RLS](/docs/standards/postgres-rls) | PostgreSQL `CREATE POLICY`, Supabase, Drizzle `pgPolicy`, Prisma 8 | shipped in PostgreSQL | [rls adapter](/docs/adapters/rls), [CLI rls](/docs/cli/rls) |
 | [Shared Signals and CAEP](/docs/standards/shared-signals-caep) | SSF 1.0, CAEP 1.0, RISC 1.0; CAEP Interoperability Profile | final; interoperability profile is an implementer's draft | [ssf adapter](/docs/adapters/ssf) invalidating [snapshots](/docs/concepts/snapshots) |
+| [RateLimit header fields](/docs/standards/ratelimit-headers) | `draft-ietf-httpapi-ratelimit-headers-11`, RFC 9110 `Retry-After` | IETF WG draft, built from the pinned draft | `429` and `RateLimit` fields for exhausted `limit` grants in HTTP adapters |
 | [Web Bot Auth](/docs/standards/web-bot-auth) | `draft-meunier-webbotauth-httpsig-protocol-02`, RFC 9421 | IETF drafts, built from the pinned draft | `actor` in HTTP adapters (`webBotAuth` on `permdock/server`) |
 | [Standards watch list](/docs/standards/watch-list) | Everything above plus the specifications PermDock only follows, including GNAP | mixed | Reviewed each release |
 

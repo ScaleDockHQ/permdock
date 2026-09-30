@@ -55,6 +55,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD033` | A role `activation` has no `maxDuration` (the elevation never expires on its own), or an activation role is held standing by a `doctor.memberships` fixture | warning |
 | `PD034` | Under an `rls` config, a `breakGlass` grant would be compiled: RLS never compiles a break-glass override, so it reads through the generated `permdock_break_glass_<resource>` function instead | warning |
 | `PD035` | A `supportAccess` role has `actorRequired: false`, so a support session runs as the tenant, unattributed | warning |
+| `PD036` | A `protect(permission)` with no row loader on a route whose path names an id (`/posts/:id`, `/posts/{id}`, a `[id]` folder), so the check never sees the row (BOLA) | warning |
 | `PD037` | A migration's policy on `storage.objects` or `realtime.messages` calls `permdock_has` or `permitted_<scope>_ids` with a permission whose grants carry row conditions, which the helpers do not check | error |
 | `PD038` | Under an `rls` or `supabase.hook` config, a `subjectFromSupabase` or `subjectFromSupabaseSession` call reads the tenant from a different claim than `rls.tenantClaim`, the claim the hook writes and the helpers compare with | warning |
 | `PD039` | Under a `supabase.hook` config, the helper schema has no generated `permdock_has` or `permitted_<scope>_ids`, a `supabase.hook.claims` entry in the `doctor.claims` fixture is larger than the memberships budget, or a sample has a `memberships` entry `subjectFromSupabase` drops | warning |
@@ -225,6 +226,10 @@ A `breakGlass` grant is the one deny override, and it is non-portable on purpose
 ### PD035: support access without an actor
 
 `supportAccess` is impersonation: a vendor acts inside a tenant. With `actorRequired: false` the session runs as the tenant with no `act`, so the audit log cannot tell the vendor apart from the customer. The check names each support role that omits it; set `actorRequired: true` ([elevated access](/docs/concepts/elevated-access)). `--only support` runs PD035.
+
+### PD036: id route without a row loader
+
+Broken object level authorization (BOLA, OWASP API1) is a route that takes an object id and checks only that the caller holds the permission, so anyone who may update one post may update every post. `protect(permission, loader)` loads the row and decides against it; `protect(permission)` alone decides a collection-level question. The check reads each `protect(` call with a single argument and warns when the file sits under a dynamic route segment (`app/posts/[id]/route.ts`) or when a route literal with a parameter (`'/posts/:id'`, `'/posts/{id}'`) appears earlier in the same statement. It is a source scan, not a type check: a route that loads the row some other way and calls `assert` in the handler also passes, and can ignore the warning. `--only bola` runs PD036.
 
 ### PD037: helper calls for row-conditioned permissions
 

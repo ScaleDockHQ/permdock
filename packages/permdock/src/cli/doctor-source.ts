@@ -365,3 +365,51 @@ export function pd041(
   }
   return findings;
 }
+
+const PROTECT_CALL = /\bprotect\s*\(/gu;
+const ID_ROUTE =
+  /['"`](\/[^'"`\s]*(?::[A-Za-z_$][\w$]*|\{[A-Za-z_$][\w$]*\})[^'"`\s]*)['"`]/gu;
+const DYNAMIC_SEGMENT = /(?:^|[\\/])(\[[^\]/\\]+\])(?=[\\/])/u;
+
+/** The id-bearing route a `protect` call at `index` sits in: the file's dynamic segment, or a route literal earlier in the same statement. */
+function idRouteOf(source: DoctorSource, index: number): string | undefined {
+  const segment = DYNAMIC_SEGMENT.exec(source.file);
+  if (segment !== null) {
+    return segment[1];
+  }
+  const window = source.text.slice(Math.max(0, index - 400), index);
+  const start = Math.max(window.lastIndexOf(';'), window.lastIndexOf('\n\n'));
+  const statement = window.slice(start + 1);
+  return [...statement.matchAll(ID_ROUTE)].at(-1)?.[1];
+}
+
+/** PD036: a `protect(permission)` with no row loader on a route whose path names an object id (BOLA, OWASP API1). */
+export function pd036(
+  sources: readonly DoctorSource[],
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const source of sources) {
+    if (!source.text.includes('permdock')) {
+      continue;
+    }
+    for (const match of source.text.matchAll(PROTECT_CALL)) {
+      const open = match.index + match[0].length - 1;
+      const args = callArguments(source.text, open);
+      if (args?.length !== 1) {
+        continue;
+      }
+      const route = idRouteOf(source, match.index);
+      if (route === undefined) {
+        continue;
+      }
+      const line = source.text.slice(0, match.index).split('\n').length;
+      findings.push({
+        code: 'PD036',
+        severity: 'warning',
+        message: `${source.file}:${String(line)} protects ${route} with ${args[0] ?? ''} and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)`,
+        fix: 'pass a loader that fetches the row by the id: protect(permission, (request) => load(request))',
+      });
+    }
+  }
+  return findings;
+}

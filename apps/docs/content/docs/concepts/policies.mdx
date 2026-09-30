@@ -178,6 +178,7 @@ allow(permissions.report.export, { limit: { count: 100, per: 'day', mode: 'soft'
 - `mode` is `'hard'` (the default, the behaviour above) or `'soft'`. A soft limit grants past `count` and adds the obligation `{ kind: 'over-limit' }`, so the app can bill the overage, warn, or queue the work. The store still counts only up to `count`.
 - `alertAt` is a fraction of `count`, above `0` and at most `1`. Once this call brings usage to that fraction, the decision carries `{ kind: 'near-limit' }`. An `over-limit` call carries only `over-limit`.
 - A granted decision under a limit carries `quota: { remaining, resetsAt }`: what is left once this call counts, and the Unix second the window ends. `can`, `filter` and `simulate` report what the call would leave. `approval-required` and `denied` never carry `quota`.
+- A `limit` denial carries `detail: { count, window, resetsAt }` (`LimitDetail`): the grant's count, its window in seconds and the Unix second it resets. HTTP adapters render it as `429` with `Retry-After` and the `RateLimit` / `RateLimit-Policy` fields ([RateLimit header fields](/docs/standards/ratelimit-headers)); `limit-unavailable` renders as `503`.
 - A soft limit is still fail-closed: no store, a throw or a thenable denies with `limit-unavailable`, exactly as in hard mode.
 - An unknown `mode`, or an `alertAt` outside that range, throws when the grant is defined.
 
@@ -275,7 +276,32 @@ export async function listPosts(permdock: PermDock) {
 }
 ```
 
-For a single record, load it and call `assert` (or `protect` in an HTTP adapter) before returning it. When `where` is `partial` (a closure grant exists) the `filter` step is what keeps the result correct; when it is not, `filter` is a cheap confirmation.
+For a single record, load it and call `assert` (or `protect` in an HTTP adapter) before returning it.
+
+### Field-level responses
+
+Returning a whole row after an allowed read leaks every column the grant's `fields` leave out (OWASP API3, broken object property level authorization). Pass the response through `pick`, and check each field a write body sets against the row it changes:
+
+```ts
+const loadInvoice = (c: Context) => invoices.find(c.req.param('id'))
+
+app.get('/invoices/:id', protect(permissions.invoice.read, loadInvoice), (c) =>
+  c.json(c.get('permdock').pick(permissions.invoice.read, c.get('permdockData'))), // only the fields the grant lists
+)
+
+app.patch('/invoices/:id', protect(permissions.invoice.update, loadInvoice), async (c) => {
+  const permdock = c.get('permdock')
+  const row = c.get('permdockData')
+  const changes: Partial<Invoice> = await c.req.json()
+  const refused = Object.keys(changes).filter(
+    (field) => !permdock.can(permissions.invoice.update, row, { field: field as keyof Invoice }),
+  )
+  if (refused.length > 0) return c.json({ refused }, 403)
+  return c.json(permdock.pick(permissions.invoice.read, await invoices.update(row.id, changes)))
+})
+```
+
+`pick` returns only own keys the grant lists, so a column added to the table later stays out of the response until a grant names it. The write check runs against the stored row, not the body, so the grant's `where` sees the real owner. `permdock rls generate --fields views` gives a direct database read the same answer as `pick` ([field security](/docs/adapters/rls#field-security)).
 
 ## Design rationale
 

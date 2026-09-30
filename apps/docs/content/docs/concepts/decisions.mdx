@@ -36,7 +36,7 @@ if (decision.outcome === 'granted') {
 
 `matched` is the grant that produced the outcome: the role name, the permission key and the normalised condition. It is JSON, so it can be logged as the justification for the action.
 
-When the matched allow has a `limit`, the decision also carries `quota: { remaining, resetsAt }`, and it may carry `obligations`: `{ kind: 'over-limit' }` when a soft limit granted past its count, `{ kind: 'near-limit' }` when usage reached `alertAt` ([limits](/docs/concepts/policies#limits)). An obligation never turns `granted` into another outcome; the caller acts on it (warn, bill, notify) and proceeds.
+When the matched allow has a `limit`, the decision also carries `quota: { remaining, resetsAt }`, and it may carry `obligations`: `{ kind: 'over-limit' }` when a soft limit granted past its count, `{ kind: 'near-limit' }` when usage reached `alertAt` ([limits](/docs/concepts/policies#limits)). An obligation never turns `granted` into another outcome; the caller acts on it (warn, bill, notify) and proceeds. An exhausted limit denies with reason `limit` and `detail: { count, window, resetsAt }` (`LimitDetail`), which HTTP adapters turn into a `429` with `Retry-After` and the `RateLimit` fields ([Problem Details](/docs/standards/problem-details)).
 
 ### denied
 

@@ -541,7 +541,7 @@ export function evaluate(
   let breakGlassGrant: Grant | undefined;
   let breakGlassObligations: readonly Obligation[] = [];
   const breakGlassOverrides = new Set<string>();
-  let breakGlassDenial: DenialReason | undefined;
+  let breakGlassDenial: Denial | undefined;
   for (const grant of grantList(policy)) {
     if (
       grant.permission.key !== permission.key ||
@@ -564,7 +564,10 @@ export function evaluate(
       breakGlassObligations = result.obligations;
       break;
     }
-    breakGlassDenial ??= result.reason;
+    breakGlassDenial ??=
+      result.reason === 'insufficient-user-authentication'
+        ? { role: null, reason: result.reason, to: result.to }
+        : { role: null, reason: result.reason };
   }
 
   const holdsCustom = (custom: CustomRole): boolean =>
@@ -745,7 +748,7 @@ export function evaluate(
         if (breakGlassDenial !== undefined) {
           const decision: Decision = freezeDeep({
             outcome: 'denied',
-            denials: [{ role: null, reason: breakGlassDenial }],
+            denials: [breakGlassDenial],
             alternatives: env.skipAlternatives
               ? []
               : alternativesFor(policy, permission, subject, env),
@@ -796,7 +799,7 @@ export function evaluate(
       breakGlass: true,
     });
   } else if (breakGlassDenial !== undefined) {
-    denials.unshift({ role: null, reason: breakGlassDenial });
+    denials.unshift(breakGlassDenial);
   }
 
   if (allows.length === 0) {
@@ -898,10 +901,11 @@ export function evaluate(
       });
       break;
     }
-    quotaDenials.push({
-      role: candidate.grant.role,
-      reason: quota.reason,
-    });
+    quotaDenials.push(
+      quota.reason === 'limit'
+        ? { role: candidate.grant.role, reason: 'limit', detail: quota.detail }
+        : { role: candidate.grant.role, reason: quota.reason },
+    );
   }
   if (matchedAllow === undefined) {
     const decision: Decision = freezeDeep({

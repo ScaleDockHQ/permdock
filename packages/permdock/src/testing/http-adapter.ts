@@ -676,7 +676,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         op: 'apiKey.create',
         org: 'acme',
       });
-      expect(exhausted.status).toBe(403);
+      expect(exhausted.status).toBe(429);
       expect(reasonsOf(exhausted.body)).toContain('limit');
       expect(
         (await send('erin', { op: 'apiKey.create', org: 'globex' })).status,

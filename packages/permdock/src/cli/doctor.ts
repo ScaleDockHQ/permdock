@@ -47,6 +47,7 @@ import {
   pd013,
   pd014,
   pd015,
+  pd036,
   pd038,
   pd041,
 } from './doctor-source.ts';
@@ -217,6 +218,9 @@ export async function runDoctor(input: {
   }
   if (include('support') || include('PD035')) {
     findings.push(...(await pd035(input)));
+  }
+  if (include('bola') || include('PD036')) {
+    findings.push(...pd036(sources));
   }
   if (include('supabase') || include('row-conditions') || include('PD037')) {
     findings.push(...(await pd037(input)));

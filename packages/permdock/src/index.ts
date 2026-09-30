@@ -27,6 +27,7 @@ export type {
   DenialReason,
   DeniedDecision,
   GrantedDecision,
+  LimitDetail,
   MatchedGrant,
   Obligation,
   Quota,

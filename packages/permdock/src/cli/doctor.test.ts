@@ -1039,6 +1039,42 @@ create policy "write" on posts for insert to authenticated with check (true);
     ]);
   });
 
+  it('PD036 warns on an id route protected without a row loader', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/app.ts'),
+      `import { createPermDock } from 'permdock/hono';
+import { permissions } from './permissions.ts';
+
+const { protect } = createPermDock(policy, { subject: () => null });
+
+app.patch('/posts/:id', protect(permissions.post.update), handler);
+app.post('/posts', protect(permissions.post.create), handler);
+app.delete(
+  '/posts/{postId}',
+  protect(permissions.post.delete, (request) => load(request)),
+  handler,
+);
+`,
+    );
+    mkdirSync(join(cwd, 'src/app/posts/[id]'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'src/app/posts/[id]/route.ts'),
+      `import { protect } from '../../../permdock.ts';
+
+export const PATCH = protect(permissions.post.update)(handler);
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD036'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly { readonly message: string }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      'src/app.ts:6 protects /posts/:id with permissions.post.update and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)',
+      'src/app/posts/[id]/route.ts:3 protects [id] with permissions.post.update and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)',
+    ]);
+  });
+
   it('PD041 warns when exchangeCapability signs with HS256', async () => {
     const cwd = appCopy();
     writeFileSync(

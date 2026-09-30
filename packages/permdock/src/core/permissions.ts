@@ -127,6 +127,11 @@ export type ResourceOptions<
    * itself, never by relations held on its ancestors.
    */
   readonly restricted?: string;
+  /**
+   * `'hide'`: a denied check on a loaded row answers as if the row did not
+   * exist (HTTP `404`), so an id never confirms a row the caller cannot read.
+   */
+  readonly disclosure?: 'hide' | 'reveal';
 };
 
 export type ResourceInit<
@@ -148,6 +153,7 @@ export type ResourceNode<T = unknown> = {
   readonly relations: Readonly<Record<string, ResourceRelation>>;
   readonly version: string | undefined;
   readonly restricted: string | undefined;
+  readonly disclosure: 'hide' | 'reveal';
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
 };
@@ -461,6 +467,12 @@ function materialiseResource(
   if (restricted !== undefined) {
     assertSafeKey(restricted, 'restricted field');
   }
+  const disclosure = init.options.disclosure ?? 'reveal';
+  if (disclosure !== 'hide' && disclosure !== 'reveal') {
+    throw new Error(
+      `PermDock: resource "${name}" disclosure must be 'hide' or 'reveal'`,
+    );
+  }
   const relations: Record<string, ResourceRelation> = {};
   for (const [relationName, spec] of Object.entries(
     init.options.relations ?? {},
@@ -479,6 +491,7 @@ function materialiseResource(
     relations: freezeDeep(relations),
     version,
     restricted,
+    disclosure,
     instanceActions: instanceSet,
     collectionActions: collectionSet,
   });

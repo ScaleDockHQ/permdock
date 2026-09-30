@@ -82,6 +82,16 @@ export type Quota = {
   readonly resetsAt: number;
 };
 
+/**
+ * The `detail` of a `limit` denial: the grant's `count`, its window in
+ * seconds and when the window resets (Unix seconds).
+ */
+export type LimitDetail = {
+  readonly count: number;
+  readonly window: number;
+  readonly resetsAt: number;
+};
+
 export type GrantedDecision = {
   readonly outcome: 'granted';
   readonly subject: Subject;

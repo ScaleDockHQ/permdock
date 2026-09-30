@@ -8,6 +8,7 @@
     "arazzo",
     "openapi-registry",
     "problem-details",
+    "ratelimit-headers",
     "postgres-rls",
     "---Authentication---",
     "openid-connect",

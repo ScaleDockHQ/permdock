@@ -97,6 +97,7 @@ type PresetOptions<
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   readonly restricted?: string;
+  readonly disclosure?: 'hide' | 'reveal';
   readonly actions?: A;
   readonly collection?: C;
 };
@@ -111,6 +112,7 @@ type PresetResult<
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   readonly restricted?: string;
+  readonly disclosure?: 'hide' | 'reveal';
   readonly actions: MergeActionRecords<BaseA, ToActionRecord<A>>;
   readonly collection?: MergeActionRecords<BaseC, ToActionRecord<C>>;
 };
@@ -187,6 +189,7 @@ function finishPreset<
     parent: options?.parent,
     relations: options?.relations,
     restricted: options?.restricted,
+    disclosure: options?.disclosure,
     actions,
     collection: Object.keys(collection).length === 0 ? undefined : collection,
   });
