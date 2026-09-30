@@ -127,7 +127,7 @@ attrs: {
 
 ## Claims other packages own
 
-`supabase.hook.claims` adds claims PermDock does not own to the one hook Supabase allows, for example better-supabase's per-tenant plan features:
+`supabase.hook.claims` adds claims PermDock does not own to the one hook Supabase allows, for example better-supabase's per-tenant plan features. PermDock owns the hook and the claims the SQL helpers read; better-supabase owns authentication, sessions and its own claims ([with better-supabase](/docs/adapters/supabase#with-better-supabase) has the full split):
 
 ```ts
 supabase: {

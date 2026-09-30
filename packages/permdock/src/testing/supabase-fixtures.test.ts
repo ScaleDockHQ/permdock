@@ -1,3 +1,5 @@
+import { Ajv2020 } from 'ajv/dist/2020.js';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { supabaseHookManifest } from '../cli/supabase-hook.ts';
@@ -151,5 +153,31 @@ describe('supabaseHookManifestFixture', () => {
       },
     );
     expect(manifest).toEqual(supabaseHookManifestFixture);
+  });
+});
+
+describe('supabase-claims-v1.json', () => {
+  const validate = new Ajv2020({ strict: false }).compile(
+    JSON.parse(
+      readFileSync(
+        new URL('../../schemas/supabase-claims-v1.json', import.meta.url),
+        'utf8',
+      ),
+    ) as object,
+  );
+
+  it('accepts every claim fixture and the hook output shape', () => {
+    for (const [name, fixture] of Object.entries(supabaseClaimFixtures)) {
+      expect([name, validate(fixture.claims)]).toEqual([name, true]);
+    }
+  });
+
+  it('refuses a membership the reader would drop', () => {
+    expect(validate({ memberships: [{ org_id: 'o1', role: 'admin' }] })).toBe(
+      false,
+    );
+    expect(
+      validate({ memberships: [{ scope: 'tenant', id: 'o1', roles: [] }] }),
+    ).toBe(false);
   });
 });

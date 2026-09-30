@@ -234,6 +234,23 @@ In `jwt` mode the policy and PermDock read one claim written by one function. Ke
 
 ## With better-supabase
 
+better-supabase and PermDock split a Supabase app in two halves, and each half has one owner:
+
+| Concern | Owner |
+| --- | --- |
+| Token verification (`@supabase/server`), sessions, refresh and the `AuthSession` shape | better-supabase |
+| Typed clients, repositories and typegen (`@supabase/postgrest-typegen`) | better-supabase |
+| Storage and Realtime plumbing (`defineBucket`, `defineTopic`), jobs and webhooks | better-supabase |
+| MCP protected-resource metadata (`createMcp`) | better-supabase |
+| Token lifetime, refresh-token reuse, HS256 on the local stack, splinter | better-supabase lints |
+| The claim contract: `user_role`, `roles`, `memberships`, the active-tenant claim, `attrs`, `authz_ver`, `memberships_truncated` | PermDock |
+| The one token hook (`permdock supabase hook generate`) | PermDock |
+| `role_permissions`, `authorize()`, the SQL helpers and the table policies | PermDock |
+| Tool and route authorization (`permdock/mcp`, `permdock/server`) | PermDock |
+| Doctor checks about authorization correctness | PermDock |
+
+Between them sit the [SQL helper contract](/docs/adapters/rls#sql-helper-contract) and its claim JSON Schema, which better-supabase's `permdock` mode policies call, and one claims budget, `supabaseMembershipsBudget`, which better-supabase's size check reads when PermDock is configured. Map its session with `subjectFromSupabaseSession(session, { plans: 'features' })`: the canonical memberships come through as they are, and the active tenant's `features` become `principal.plans`. `supabaseClaimFixtures.betterSupabase` is that claim set.
+
 better-supabase keeps its organization memberships in its own schema. Point a `fromJunction` source at the schema-qualified table; the hook and the in-process source quote it as `"better_supabase"."memberships"`, and the hook grants `supabase_auth_admin` usage on the schema and `select` on the table:
 
 ```ts
