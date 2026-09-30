@@ -30,7 +30,7 @@ async function toRequest(req: IncomingMessage): Promise<Request> {
     chunks.push(chunk as Buffer);
   }
   return new Request(url, {
-    method: req.method,
+    method: req.method ?? 'GET',
     headers,
     ...(chunks.length === 0 ? {} : { body: Buffer.concat(chunks) }),
   });

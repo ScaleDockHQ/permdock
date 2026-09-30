@@ -12,7 +12,7 @@ export async function forward(
   return fetch(new URL(`${url.pathname}${url.search}`, origin), {
     method: request.method,
     headers: request.headers,
-    body: bodyless ? undefined : await request.arrayBuffer(),
+    ...(bodyless ? {} : { body: await request.arrayBuffer() }),
     redirect: 'manual',
   });
 }

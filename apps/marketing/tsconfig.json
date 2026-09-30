@@ -2,13 +2,14 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "@permdock/typescript-config/next.json",
   "compilerOptions": {
-    "declaration": false,
-    "isolatedDeclarations": false,
+    // Vendored ReUI and block components are checked through their imports and
+    // do not compile under these flags; see docs/decisions.
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "verbatimModuleSyntax": false,
+    "declaration": false,
+    "isolatedDeclarations": false,
     "paths": {
       "@/*": ["./*"]
     }

@@ -60,7 +60,7 @@ export default function Layout() {
         snapshotUrl={`/api/snapshot?org=${ORG}`}
         revalidate="focus"
         subscribeForeground={subscribeForeground}
-        verifier={verifier}
+        {...(verifier === undefined ? {} : { verifier })}
       >
         <Slot />
       </PermDockProvider>

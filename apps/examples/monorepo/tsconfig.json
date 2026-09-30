@@ -1,9 +1,7 @@
 {
   "extends": "@permdock/typescript-config/base.json",
   "compilerOptions": {
-    "allowImportingTsExtensions": true,
-    "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src",

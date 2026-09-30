@@ -24,7 +24,7 @@ function toRequest(req: IncomingMessage): Request {
     }
   }
   return new Request(url, {
-    method: req.method,
+    method: req.method ?? 'GET',
     headers,
   });
 }

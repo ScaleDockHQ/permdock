@@ -56,8 +56,8 @@ type Created = {
   readonly as: string;
   readonly command: string;
   readonly roles: readonly string[];
-  readonly using?: string;
-  readonly check?: string;
+  readonly using?: string | undefined;
+  readonly check?: string | undefined;
 };
 
 function createSql(policy: Created): string {

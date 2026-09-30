@@ -239,7 +239,7 @@ function requestedProjects(): readonly string[] {
       if (next !== undefined) {
         names.push(next);
       }
-    } else if (arg.startsWith('--project=')) {
+    } else if (arg?.startsWith('--project=') === true) {
       names.push(arg.slice('--project='.length));
     }
   }

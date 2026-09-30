@@ -15,7 +15,7 @@ import { policy, type User } from './policy.ts';
 
 export const otelLog: {
   readonly message: string;
-  readonly attributes?: Record<string, unknown>;
+  readonly attributes?: Record<string, unknown> | undefined;
 }[] = [];
 
 export const store = memoryApprovalStore();
@@ -81,7 +81,7 @@ export function createServer(options: {
 }): McpServer {
   const { protectServer } = createPermDock(policy, {
     subject: (authInfo) => options.local ?? userFor(authInfo),
-    requireAuthInfo: options.requireAuthInfo,
+    requireAuthInfo: options.requireAuthInfo ?? false,
     store,
     otel: {
       logger: {

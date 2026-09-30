@@ -9,8 +9,8 @@ const port = Number(process.env['PORT'] ?? 3462);
 const handler = new RPCHandler(router);
 
 function isHealth(req: {
-  readonly method?: string;
-  readonly url?: string;
+  readonly method?: string | undefined;
+  readonly url?: string | undefined;
 }): boolean {
   if (req.method !== 'GET') {
     return false;

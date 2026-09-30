@@ -303,8 +303,10 @@ definition document {
     await Promise.all([fga?.stop(), spice?.stop()]);
   });
 
-  const id = (data: unknown) =>
-    (data as { readonly id?: string } | undefined)?.id;
+  const id = (data: unknown): { readonly id?: string } => {
+    const value = (data as { readonly id?: string } | undefined)?.id;
+    return value === undefined ? {} : { id: value };
+  };
 
   scenarios(
     'OpenFGA',
@@ -320,7 +322,7 @@ definition document {
               user: `user:${subject.principal?.id ?? ''}`,
               relation: 'viewer',
               type: 'document',
-              id: id(data),
+              ...id(data),
             }),
           ],
           [
@@ -329,7 +331,7 @@ definition document {
               user: `user:${subject.principal?.id ?? ''}`,
               relation: 'owner',
               type: 'document',
-              id: id(data),
+              ...id(data),
             }),
           ],
         ],
@@ -355,7 +357,7 @@ definition document {
             (subject, data) => ({
               subject: { type: 'user', id: subject.principal?.id ?? '' },
               permission: 'view',
-              resource: { type: 'document', id: id(data) },
+              resource: { type: 'document', ...id(data) },
             }),
           ],
           [
@@ -363,7 +365,7 @@ definition document {
             (subject, data) => ({
               subject: { type: 'user', id: subject.principal?.id ?? '' },
               permission: 'delete',
-              resource: { type: 'document', id: id(data) },
+              resource: { type: 'document', ...id(data) },
             }),
           ],
         ],

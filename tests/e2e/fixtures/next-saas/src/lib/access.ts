@@ -1,15 +1,23 @@
-import type { PermDock, Snapshot } from 'permdock';
+import type { Membership, PermDock, Snapshot } from 'permdock';
 
 import { cacheLife, cacheTag } from 'next/cache';
 import { createPermDock, memoryRoleSource, snapshotFor } from 'permdock';
 import { cacheLifeFor } from 'permdock/next';
 
 import type { Project } from '../permissions.ts';
+import type { SessionClaims } from '../policy.ts';
 import type { Org } from './store.ts';
 
 import { policy, subjectOf } from '../policy.ts';
 import { getClaims, membershipsFor } from './session.ts';
 import { findOrg, membersOf, projectsOf } from './store.ts';
+
+function membershipOption(claims: SessionClaims | null): {
+  readonly memberships?: readonly Membership[];
+} {
+  const memberships = claims === null ? undefined : membershipsFor(claims);
+  return memberships === undefined ? {} : { memberships };
+}
 
 export type OrgView = Pick<Org, 'id' | 'name' | 'plan' | 'customRoles'>;
 
@@ -53,7 +61,7 @@ async function buildSnapshot(org: string): Promise<{
   const view = await getOrg(org);
   const snapshot = snapshotFor(policy, subjectOf(claims), {
     tenant: org,
-    memberships: claims === null ? undefined : membershipsFor(claims),
+    ...membershipOption(claims),
     customRoles: view?.customRoles ?? [],
     plans: view === null ? [] : [view.plan],
   });
@@ -87,7 +95,7 @@ export async function serverPermDock(org: string): Promise<{
   const claims = await getClaims();
   const view = findOrg(org);
   const subject = subjectOf(claims, {
-    memberships: claims === null ? undefined : membershipsFor(claims),
+    ...membershipOption(claims),
     plans: view === undefined ? [] : [view.plan],
   });
   const permdock = await createPermDock(policy, subject, {

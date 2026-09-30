@@ -217,6 +217,9 @@ testHttpAdapter({
       }
     };
 
-    return { call, close: mounted.close };
+    return {
+      call,
+      ...(mounted.close === undefined ? {} : { close: mounted.close }),
+    };
   },
 });

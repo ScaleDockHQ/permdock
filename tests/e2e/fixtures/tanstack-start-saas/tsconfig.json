@@ -5,8 +5,6 @@
     "noEmit": true,
     "declaration": false,
     "isolatedDeclarations": false,
-    "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false,
     "module": "esnext",
     "moduleResolution": "bundler",
     "types": ["node", "vite/client"]

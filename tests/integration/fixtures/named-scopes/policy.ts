@@ -201,9 +201,12 @@ function principal(
   memberships: Principal['memberships'],
   global: readonly string[] = [],
 ): Principal {
-  return tenant === undefined
-    ? { id, roles: global, memberships }
-    : { id, roles: global, memberships, tenant };
+  return {
+    id,
+    roles: global,
+    ...(memberships === undefined ? {} : { memberships }),
+    ...(tenant === undefined ? {} : { tenant }),
+  };
 }
 
 /** The personas; `tenant` is the organization the request is about. */

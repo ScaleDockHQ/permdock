@@ -6,7 +6,7 @@ import { memberUser, policy } from './policy.ts';
 
 export const otelLog: {
   readonly message: string;
-  readonly attributes?: Record<string, unknown>;
+  readonly attributes?: Record<string, unknown> | undefined;
 }[] = [];
 
 const { protect } = createPermDock(policy, {

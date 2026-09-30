@@ -6,7 +6,7 @@ import type {
   ApprovalStore,
 } from 'permdock/approvals';
 
-import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lte, sql } from 'drizzle-orm';
 import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { ApprovalError, assertApprover } from 'permdock/approvals';
 
@@ -56,10 +56,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         .onConflictDoUpdate({
           target: approvals.token,
           set: values,
-          setWhere: or(
-            eq(approvals.status, 'expired'),
-            lte(approvals.expiresAt, new Date()),
-          ),
+          setWhere: sql`${eq(approvals.status, 'expired')} or ${lte(approvals.expiresAt, new Date())}`,
         });
     },
     get,

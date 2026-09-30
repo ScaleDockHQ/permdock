@@ -2,9 +2,7 @@
   "extends": "@permdock/typescript-config/base.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false,
-    "lib": ["ES2024", "DOM"],
+    "lib": ["ES2025", "DOM"],
     "types": []
   },
   "include": ["src"]

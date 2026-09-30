@@ -8,8 +8,8 @@ import { memberUser } from './policy.ts';
 const port = Number(process.env['PORT'] ?? 3461);
 
 function isHealth(req: {
-  readonly method?: string;
-  readonly url?: string;
+  readonly method?: string | undefined;
+  readonly url?: string | undefined;
 }): boolean {
   if (req.method !== 'GET') {
     return false;
