@@ -31,6 +31,7 @@ describe('permdock/openapi', () => {
       },
     });
     const schemes = securitySchemes();
+    // SAFETY: the oauth scheme configured above is emitted as an oauth2 security scheme.
     const oauth = schemes['oauth'] as {
       readonly type: string;
       readonly flows: {
@@ -117,6 +118,7 @@ describe('permdock/openapi', () => {
         },
       },
     });
+    // SAFETY: the oauth scheme configured above is emitted as a JSON object.
     const oauth = securitySchemes()['oauth'] as Record<string, unknown>;
     expect(oauth['oauth2MetadataUrl']).toBeUndefined();
     expect(oauth['x-permdock-oauth2MetadataUrl']).toBe(
@@ -138,6 +140,7 @@ describe('permdock/openapi', () => {
         },
       });
     const schemes = securitySchemes();
+    // SAFETY: securityProfile 'fapi2' on target 3.3 emits this profile scheme.
     const profile = schemes['permdockFapi2'] as {
       readonly type: string;
       readonly profileMetadata: { readonly name: string };
@@ -166,10 +169,12 @@ describe('permdock/openapi', () => {
 
     const v12 = overlay({ extends: './openapi.json', version: '1.2' });
     expect(v12['overlay']).toBe('1.2.0');
+    // SAFETY: overlay 1.2 output holds reusable actions under components.actions.
     const components = v12['components'] as {
       readonly actions: Readonly<Record<string, unknown>>;
     };
     expect(components.actions['post.delete']).toBeTruthy();
+    // SAFETY: overlay output holds its actions as an array of action objects.
     const actions = v12['actions'] as readonly { readonly $ref?: string }[];
     expect(
       actions.some(

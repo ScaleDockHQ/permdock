@@ -39,6 +39,7 @@ async function listen(
   const app = await NestFactory.create(module, { logger: false });
   apps.push(app);
   await app.listen(0, '127.0.0.1');
+  // SAFETY: NestFactory.create defaults to the Express platform, whose server is a node Server.
   const server = app.getHttpServer() as Server;
   const address = server.address();
   if (address === null || typeof address === 'string') {
@@ -148,6 +149,7 @@ describe('permdock/nest', () => {
         ],
       }),
     });
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };

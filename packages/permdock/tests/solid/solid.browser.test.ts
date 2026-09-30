@@ -24,7 +24,9 @@ import {
 } from '../fixtures/quick-start.ts';
 
 async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
+  // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
   const server = await createPermDock(policy as never, user);
+  // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }
 

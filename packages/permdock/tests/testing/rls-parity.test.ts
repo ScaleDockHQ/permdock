@@ -313,6 +313,7 @@ describe('rlsParity relation grantee', () => {
       ],
       query: async (sql, values) => {
         if (sql.startsWith('select set_config')) {
+          // SAFETY: the runner passes the JSON claims it built as the second set_config value.
           const claims = JSON.parse(String(values?.[1])) as {
             readonly memberships: readonly unknown[];
           };

@@ -32,6 +32,7 @@ function contextOf(
   handler: () => unknown,
   data: unknown = {},
 ): ExecutionContext {
+  // SAFETY: stub implements every ExecutionContext method the guard calls for rpc and ws.
   return {
     getType: () => type,
     getClass: () => Gateway,
@@ -47,6 +48,7 @@ function contextOf(
 }
 
 function hostOf(type: string, client: unknown): ArgumentsHost {
+  // SAFETY: stub implements every ArgumentsHost method the exception filter calls.
   return {
     getType: () => type,
     getArgs: () => [],
@@ -60,6 +62,7 @@ function hostOf(type: string, client: unknown): ArgumentsHost {
 }
 
 function fakeRequest(id: string): NestRequest {
+  // SAFETY: stub carries the method, url, headers and params the adapter reads.
   return {
     method: 'GET',
     url: `/posts/${id}`,
@@ -74,6 +77,7 @@ describe('permdock/nest gateway connections', () => {
     const { PermDockGuard, Protect, connection } = createPermDock(policy, {
       subject: () => memberUser,
       revocations,
+      // SAFETY: message() below builds ws contexts whose data is { id }.
       request: (context) =>
         fakeRequest(
           (context.switchToWs().getData() as { readonly id: string }).id,
@@ -103,6 +107,7 @@ describe('permdock/nest gateway connections', () => {
     };
     await connection(client, fakeRequest('handshake'));
     const guard = new PermDockGuard(new Reflector());
+    // SAFETY: descriptor.value is Posts.update; the stub extends contextOf with the ws client.
     const message = (id: string): ExecutionContext =>
       ({
         ...contextOf('ws', descriptor.value as () => unknown, { id }),
@@ -147,9 +152,11 @@ describe('permdock/nest outside HTTP', () => {
       descriptor,
     );
     const guard = new PermDockGuard(new Reflector());
+    // SAFETY: descriptor.value is the Gateway.update method read above.
     await expect(
       guard.canActivate(contextOf('rpc', descriptor.value as () => unknown)),
     ).resolves.toBe(false);
+    // SAFETY: descriptor.value is the Gateway.update method read above.
     await expect(
       guard.canActivate(contextOf('ws', descriptor.value as () => unknown)),
     ).resolves.toBe(false);
@@ -160,6 +167,7 @@ describe('permdock/nest outside HTTP', () => {
       subject: () => memberUser,
     });
     const guard = new PermDockGuard(new Reflector());
+    // SAFETY: Gateway.prototype.open is the zero-argument method declared above.
     await expect(
       guard.canActivate(
         contextOf('rpc', Reflect.get(Gateway.prototype, 'open') as () => void),
@@ -170,6 +178,7 @@ describe('permdock/nest outside HTTP', () => {
   it('protects a mapped context through the request option', async () => {
     const { PermDockGuard, Protect } = createPermDock(policy, {
       subject: () => memberUser,
+      // SAFETY: context() below builds rpc contexts whose data is { id }.
       request: (context) =>
         fakeRequest(
           (context.switchToRpc().getData() as { readonly id: string }).id,
@@ -188,6 +197,7 @@ describe('permdock/nest outside HTTP', () => {
       req.params?.['id'] === 'p1' ? ownPost : otherPost,
     )(Mapped.prototype, 'update', descriptor);
     const guard = new PermDockGuard(new Reflector());
+    // SAFETY: descriptor.value is the Mapped.update method read above.
     const context = (id: string): ExecutionContext => ({
       ...contextOf('rpc', descriptor.value as () => unknown, { id }),
       getClass: () => Mapped,

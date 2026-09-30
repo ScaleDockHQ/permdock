@@ -32,6 +32,7 @@ function pdp(
 ): ReturnType<typeof createPermDock>['handler'] {
   return createPermDock(policy, {
     subject: () => ({ id: 'pep', orgId: 'o1', roles: ['admin'] }),
+    // SAFETY: pep is the object returned by subject() above, which has an id.
     trustedPep: (pep) => (pep as { readonly id?: unknown }).id === 'pep',
     resources: {
       post: {
@@ -75,6 +76,7 @@ describe('permdock/authzen', () => {
     const response = await pdp()(
       request('/access/v1/evaluation', { json: memberBody() }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly decision: boolean;
       readonly context: { readonly permdock: { readonly outcome: string } };
@@ -92,6 +94,7 @@ describe('permdock/authzen', () => {
         }),
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly decision: boolean;
       readonly context: { readonly permdock: { readonly outcome: string } };
@@ -108,6 +111,7 @@ describe('permdock/authzen', () => {
         }),
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const deniedBody = (await denied.json()) as {
       readonly context: { readonly permdock: Record<string, unknown> };
     };
@@ -116,6 +120,7 @@ describe('permdock/authzen', () => {
       'denials',
       'outcome',
     ]);
+    // SAFETY: the handler's denied response carries permdock.denials as an array of objects.
     for (const denial of deniedBody.context.permdock[
       'denials'
     ] as readonly Record<string, unknown>[]) {
@@ -124,6 +129,7 @@ describe('permdock/authzen', () => {
     const granted = await pdp()(
       request('/access/v1/evaluation', { json: memberBody() }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const grantedBody = (await granted.json()) as {
       readonly context: Record<string, unknown>;
     };
@@ -131,6 +137,7 @@ describe('permdock/authzen', () => {
   });
 
   it('uses the PEP identity unless trustedPep allows the PEP', async () => {
+    // SAFETY: a non-function trustedPep is deliberately invalid to check it grants no trust.
     for (const trustedPep of [undefined, () => false, true as never]) {
       const handler = createPermDock(policy, {
         subject: () => ({ id: 'pep', orgId: 'o1', roles: ['admin'] }),
@@ -143,6 +150,7 @@ describe('permdock/authzen', () => {
           }),
         }),
       );
+      // SAFETY: response JSON produced by the AuthZEN handler under test.
       const body = (await response.json()) as { readonly decision: boolean };
       expect(body.decision).toBe(true);
     }
@@ -163,6 +171,7 @@ describe('permdock/authzen', () => {
         }),
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly decision: boolean;
       readonly context: { readonly permdock: { readonly outcome: string } };
@@ -181,6 +190,7 @@ describe('permdock/authzen', () => {
         }),
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as { readonly decision: boolean };
     expect(body.decision).toBe(true);
   });
@@ -191,6 +201,7 @@ describe('permdock/authzen', () => {
         json: memberBody({ action: 'explode' }),
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly decision: boolean;
       readonly context: { readonly permdock: { readonly reason?: string } };
@@ -205,6 +216,7 @@ describe('permdock/authzen', () => {
         json: memberBody({ action: 'delete' }),
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly decision: boolean;
       readonly context: {
@@ -227,6 +239,7 @@ describe('permdock/authzen', () => {
         }),
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as { readonly decision: boolean };
     expect(body.decision).toBe(true);
   });
@@ -278,6 +291,7 @@ describe('permdock/authzen', () => {
         },
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly {
         readonly decision: boolean;
@@ -308,6 +322,7 @@ describe('permdock/authzen', () => {
         },
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
@@ -338,6 +353,7 @@ describe('permdock/authzen', () => {
         },
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly results: readonly { readonly name: string }[];
       readonly page: { readonly next_token: string };
@@ -361,6 +377,7 @@ describe('permdock/authzen', () => {
         },
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly results: readonly { readonly id: string }[];
     };
@@ -376,6 +393,7 @@ describe('permdock/authzen', () => {
         },
       }),
     );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
     const body = (await response.json()) as {
       readonly results: readonly { readonly id: string }[];
     };
@@ -384,6 +402,7 @@ describe('permdock/authzen', () => {
 
   it('omits search/subject from discovery when no enumerator is set', async () => {
     const handler = pdp({ subjects: undefined });
+    // SAFETY: discovery JSON produced by the AuthZEN handler under test.
     const metadata = (await (
       await handler(
         request('/.well-known/authzen-configuration', { method: 'GET' }),
@@ -404,6 +423,7 @@ describe('permdock/authzen', () => {
   });
 
   it('serves per-tenant discovery', async () => {
+    // SAFETY: discovery JSON produced by the AuthZEN handler under test.
     const metadata = (await (
       await pdp()(
         request('/.well-known/authzen-configuration/o1', { method: 'GET' }),

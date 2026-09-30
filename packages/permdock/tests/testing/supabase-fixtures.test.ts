@@ -157,6 +157,7 @@ describe('supabaseHookManifestFixture', () => {
 });
 
 describe('supabase-claims-v1.json', () => {
+  // SAFETY: supabase-claims-v1.json is the package's own JSON Schema, a top-level object.
   const validate = new Ajv2020({ strict: false }).compile(
     JSON.parse(
       readFileSync(

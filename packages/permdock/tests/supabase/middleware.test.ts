@@ -134,6 +134,7 @@ describe('permdock/supabase/middleware', () => {
     expect(response.headers.get('content-type')).toContain(
       'application/problem+json',
     );
+    // SAFETY: Problem Details JSON produced by the middleware under test.
     const body = (await response.json()) as { readonly type: string };
     expect(body.type).toBe('https://permdock.dev/problems/denied');
   });
@@ -257,6 +258,7 @@ describe('permdock/supabase/middleware', () => {
     );
     const pending = await fetch(request('/posts/p1', { method: 'DELETE' }));
     expect(pending.status).toBe(403);
+    // SAFETY: Problem Details JSON produced by the middleware under test.
     const body = (await pending.json()) as {
       readonly type: string;
       readonly token?: string;
@@ -298,6 +300,7 @@ describe('permdock/supabase/middleware', () => {
         }),
       }),
     );
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
@@ -328,6 +331,7 @@ describe('permdock/supabase/middleware', () => {
       }),
     );
     expect(response.status).toBe(403);
+    // SAFETY: Problem Details JSON produced by the middleware under test.
     const body = (await response.json()) as { readonly type: string };
     expect(body.type).toBe('https://permdock.dev/problems/invalid-signature');
   });

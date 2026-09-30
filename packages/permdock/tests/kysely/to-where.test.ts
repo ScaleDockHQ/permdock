@@ -9,9 +9,10 @@ import type {
 import { toWhere, withSubject } from '../../src/kysely/to-where.ts';
 
 function selectQuery(table: string): KyselySelectQuery {
+  const parts: unknown[] = [];
   const query = {
     table,
-    parts: [] as unknown[],
+    parts,
     select(expr: unknown) {
       query.parts.push({ select: expr });
       return query;
@@ -58,6 +59,7 @@ function isLitFalse(compiled: unknown): boolean {
   if (typeof compiled !== 'function') {
     return false;
   }
+  // SAFETY: every node the eb() stub above builds is an object with a kind.
   const result = compiled(eb()) as { kind?: string; value?: unknown };
   return result.kind === 'lit' && result.value === false;
 }
@@ -116,9 +118,11 @@ describe('permdock/kysely toWhere', () => {
           },
         },
       },
-    )(eb()) as { kind: string; query: { table: string } };
-    expect(compiled.kind).toBe('exists');
-    expect(compiled.query.table).toBe('organization_members as m');
+    )(eb());
+    expect(compiled).toMatchObject({
+      kind: 'exists',
+      query: { table: 'organization_members as m' },
+    });
   });
 
   it('matches listFields by element and escapes LIKE elsewhere', () => {

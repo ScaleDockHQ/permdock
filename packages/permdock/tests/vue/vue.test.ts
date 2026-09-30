@@ -25,6 +25,7 @@ import {
 } from '../fixtures/quick-start.ts';
 
 async function memberSnapshot() {
+  // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
   const server = await createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
@@ -105,6 +106,7 @@ describe('permdock/vue', () => {
           );
       },
     });
+    // SAFETY: state holds a JSON round-trip of a real snapshot, as Nuxt useState would.
     app.use(permdockPlugin, { snapshot: () => state.value as never });
     await expect(renderToString(app)).resolves.toContain('edit');
   });

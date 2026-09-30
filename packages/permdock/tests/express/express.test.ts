@@ -146,6 +146,7 @@ describe('permdock/express', () => {
         ],
       }),
     });
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };

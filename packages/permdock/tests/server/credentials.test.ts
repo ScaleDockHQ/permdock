@@ -47,6 +47,7 @@ const BASE62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const r1 = { id: 'r_1', orgId: 'o_1' };
 
 function credential(overrides: Record<string, unknown> = {}): Credential {
+  // SAFETY: overrides may be deliberately invalid to exercise fail-closed credential checks.
   return {
     v: 1,
     id: 'key_1',
@@ -237,6 +238,7 @@ describe('apiKeyVerifier', () => {
   it('returns null for a wrong hash, a mismatched id or an invalid record', async () => {
     const key = generateApiKey('key_1');
     const hash = await hashApiKey(key);
+    // SAFETY: a numeric hash is deliberately malformed to exercise fail-closed verification.
     const rows = [
       {
         credential: credential(),

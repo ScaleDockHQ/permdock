@@ -179,6 +179,7 @@ describe('registerTools', () => {
     }
     const result = await publish.execute({ ...ownPost, published: true });
     expect(result.isError).toBe(true);
+    // SAFETY: a denied tool result carries the decision's denials in structuredContent.
     expect(
       (result.structuredContent as { denials?: { reason: string }[] })
         .denials?.[0]?.reason,
@@ -235,6 +236,7 @@ describe('registerTools', () => {
     }
     const result = await update.execute({ ...ownPost, orgId: 'other' });
     expect(result.isError).toBe(true);
+    // SAFETY: a denied tool result carries the decision's denials in structuredContent.
     const denials = result.structuredContent?.['denials'] as
       | { reason: string }[]
       | undefined;
@@ -278,6 +280,7 @@ describe('registerTools', () => {
       handlers: { update: handler },
     });
     await tools.get('post_update')?.execute(ownPost);
+    // SAFETY: registerTools calls the handler with { input, token } for a granted call.
     const call = handler.mock.calls[0]?.[0] as {
       readonly input: unknown;
       readonly token: unknown;
@@ -294,6 +297,7 @@ describe('registerTools', () => {
     );
     registerTools(context, permissions.post, {
       permdock,
+      // SAFETY: a minimal Standard Schema with the JSON Schema input() under test.
       schema: {
         '~standard': {
           version: 1,

@@ -72,6 +72,7 @@ function request(path: string, init: RequestInit = {}, token = TOKEN): Request {
 }
 
 async function json(response: Response): Promise<Record<string, unknown>> {
+  // SAFETY: every SCIM response body read in this file is a JSON object.
   return (await response.json()) as Record<string, unknown>;
 }
 

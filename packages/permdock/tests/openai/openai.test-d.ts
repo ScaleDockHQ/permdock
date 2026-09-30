@@ -30,6 +30,7 @@ describe('permdock/openai against @openai/agents', () => {
   });
 
   it('resolves the interruptions of a RunState', () => {
+    // SAFETY: type-level placeholders; toBeCallableWith checks the types and never calls it.
     expectTypeOf(resolveInterruptions).toBeCallableWith(
       {} as RunState<unknown, Agent>,
       [] as RunToolApprovalItem[],
@@ -38,6 +39,7 @@ describe('permdock/openai against @openai/agents', () => {
   });
 
   it('filters SDK tools', () => {
+    // SAFETY: type-level placeholder; toBeCallableWith checks the type and never calls it.
     expectTypeOf(guardTools<Tool>).toBeCallableWith([] as Tool[], {});
   });
 });

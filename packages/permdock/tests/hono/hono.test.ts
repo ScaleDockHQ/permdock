@@ -109,6 +109,7 @@ describe('permdock/hono streams and sockets', () => {
           opened.push('open');
         },
       });
+      // SAFETY: the socket handlers call only close() on the WSContext, which this stub provides.
       const ws = {
         close: (code?: number, reason?: string) => {
           closes.push([code, reason]);
@@ -178,6 +179,7 @@ describe('permdock/hono', () => {
         ],
       }),
     });
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
@@ -204,6 +206,7 @@ describe('permdock/hono', () => {
       },
     });
     expect(response.status).toBe(403);
+    // SAFETY: Problem Details JSON produced by the middleware under test.
     const body = (await response.json()) as { readonly type: string };
     expect(body.type).toBe('https://permdock.dev/problems/invalid-signature');
   });

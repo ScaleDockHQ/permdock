@@ -25,6 +25,7 @@ import {
 } from '../fixtures/quick-start.ts';
 
 async function memberSnapshot() {
+  // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
   const server = await createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {

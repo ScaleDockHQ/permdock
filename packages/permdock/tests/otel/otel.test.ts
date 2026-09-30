@@ -75,6 +75,7 @@ function fakeApi(parent?: Record<string, unknown>): {
               startTime: spanOptions?.startTime,
               endTime: undefined,
             };
+            // SAFETY: recorded is the fake's own object; only its readonly view is exposed.
             const mutable = recorded as {
               status: { readonly code?: number } | undefined;
               ended: boolean;
@@ -280,6 +281,7 @@ describe('permdock/otel', () => {
     const key = Symbol.for('opentelemetry.js.api.1');
     const spanKey = Symbol.for('OpenTelemetry Context Key SPAN');
     const parent = api.trace.getActiveSpan?.();
+    // SAFETY: globalThis is an ordinary object; the test writes and restores one symbol key.
     const registry = globalThis as Record<symbol, unknown>;
     const previous = registry[key];
     registry[key] = {

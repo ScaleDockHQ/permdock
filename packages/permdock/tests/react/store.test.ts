@@ -6,6 +6,7 @@ import type { Snapshot, TokenVerifier } from '../../src/core/interfaces.ts';
 import { emptySnapshot } from '../../src/core/from-snapshot.ts';
 import { createClientStore } from '../../src/react/store.ts';
 
+// SAFETY: a partial approval-required decision; the store reads only outcome, grant and token.
 const required: Decision = {
   outcome: 'approval-required',
   grant: {
@@ -20,7 +21,7 @@ function signedIn(id: string): Snapshot {
   return {
     ...emptySnapshot(),
     subject: { principal: { id, roles: [] }, context: {} },
-  } as Snapshot;
+  };
 }
 
 function ignore(): void {

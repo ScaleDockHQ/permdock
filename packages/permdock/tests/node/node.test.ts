@@ -122,6 +122,7 @@ describe('permdock/node', () => {
         ],
       }),
     });
+    // SAFETY: AuthZEN response JSON produced by the handler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
@@ -129,6 +130,7 @@ describe('permdock/node', () => {
   });
 
   it('does not throw when Host is missing', () => {
+    // SAFETY: toRequest reads only headers, method and url from the IncomingMessage.
     const req = {
       headers: {},
       method: 'GET',

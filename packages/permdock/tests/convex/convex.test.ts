@@ -100,6 +100,7 @@ describe('permdock/convex', () => {
     const { snapshotQuery } = createPermDock(policy, {
       subject: () => ({ id: 'user-1', roles: ['member'] }),
     });
+    // SAFETY: a Convex query registration exposes the handler passed to query() as .handler.
     const query = snapshotQuery() as {
       handler: (
         ctx: object,

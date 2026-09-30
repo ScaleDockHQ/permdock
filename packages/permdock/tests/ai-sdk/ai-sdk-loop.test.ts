@@ -75,11 +75,13 @@ function bindings() {
   return {
     delete_post: {
       permission: permissions.post.delete,
+      // SAFETY: every tool call in this file passes an object args with an optional id.
       data: (args: unknown) =>
         (args as { readonly id?: string }).id === 'p1' ? ownPost : otherPost,
     },
     publish_post: {
       permission: permissions.post.publish,
+      // SAFETY: every tool call in this file passes an object args with an optional id.
       data: (args: unknown) =>
         (args as { readonly id?: string }).id === 'p1' ? ownPost : otherPost,
     },

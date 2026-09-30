@@ -34,6 +34,7 @@ describe('permdock/terminal', () => {
       subject: () => memberUser,
       runtime: { exit: throwExit, write: (): void => undefined },
     });
+    // SAFETY: exitCode reads only outcome; the granted Decision's other fields are omitted.
     expect(exitCode({ outcome: 'granted' } as never)).toBe(0);
     expect(
       exitCode({
@@ -323,6 +324,7 @@ describe('permdock/terminal', () => {
       },
       runtime: {
         configDir: dir,
+        // SAFETY: the device flow calls fetch with a URL and init only, which this stub accepts.
         fetch: (async (input) => {
           const url = String(input);
           calls.push(url);
@@ -431,6 +433,7 @@ describe('permdock/terminal', () => {
           ACTIONS_ID_TOKEN_REQUEST_URL: 'https://gha.example/oidc',
           ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'request-token',
         },
+        // SAFETY: the ci-oidc source only awaits a Response from fetch, which this stub returns.
         fetch: (async () =>
           Response.json({ value: 'gha-oidc' })) as typeof fetch,
         exit: throwExit,
@@ -461,6 +464,7 @@ describe('permdock/terminal', () => {
           ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'request-token',
           PERMDOCK_ID_TOKEN: 'gitlab-oidc',
         },
+        // SAFETY: the ci-oidc source calls fetch with a URL string, which this stub accepts.
         fetch: (async (url: URL | string) => {
           requested.push(String(url));
           return Response.json({ value: 'gha-oidc' });

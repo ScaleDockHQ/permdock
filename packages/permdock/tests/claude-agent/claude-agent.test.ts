@@ -25,6 +25,7 @@ function tools() {
     mcp__posts__delete_post: {
       permission: permissions.post.delete,
       data: (args: unknown) => {
+        // SAFETY: every tool call in this file passes an object args with an optional id.
         const id = (args as { readonly id?: string }).id;
         return id === 'p1' ? ownPost : otherPost;
       },

@@ -280,6 +280,7 @@ describe('permdock/pdp', () => {
           endpoints: { evaluation: 'https://pdp.example/access/v1/evaluation' },
           cache: { ttl: '5s' },
           fetch: async (_url, init) => {
+            // SAFETY: remotePdp posts an AuthZEN evaluation request as a JSON object body.
             const body = JSON.parse(String(init?.body)) as {
               readonly context?: { readonly tenant?: string };
             };
@@ -354,6 +355,7 @@ describe('permdock/pdp', () => {
           searchResource: 'https://pdp.example/access/v1/search/resource',
         },
         fetch: async (_url, init) => {
+          // SAFETY: remotePdp posts an AuthZEN request as a JSON object body.
           const body = JSON.parse(String(init?.body)) as {
             readonly page?: unknown;
           };

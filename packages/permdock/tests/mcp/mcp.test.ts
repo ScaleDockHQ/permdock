@@ -69,6 +69,7 @@ const byId = (args: { readonly id: string }) =>
   args.id === 'p1' ? ownPost : otherPost;
 
 function text(result: { readonly content?: unknown }): string {
+  // SAFETY: MCP tool results carry content as an array of blocks; only text blocks have text.
   const [first] = (result.content ?? []) as { readonly text?: string }[];
   return first?.text ?? '';
 }
@@ -261,6 +262,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
       outcome: 'approval-required',
       permission: 'post.delete',
     });
+    // SAFETY: the approval-required result carries a token string in its structuredContent.
     const token = (parked.structuredContent as { readonly token: string })
       .token;
     await resolveApproval(store, token, {
@@ -642,6 +644,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     const guarded = createPermDock(policy, {
       subject: () => memberUser,
     }).protectServer(server);
+    // SAFETY: deliberately omits the required permission to exercise fail-closed registration.
     expect(() =>
       guarded.registerTool('open', {} as never, () => ({ content: [] })),
     ).toThrow(TypeError);
@@ -700,6 +703,7 @@ describe('subjectFromMcp', () => {
   it('returns the anonymous subject for missing or malformed material', () => {
     expect(subjectFromMcp(undefined).principal).toBeNull();
     expect(subjectFromMcp({}).principal).toBeNull();
+    // SAFETY: a numeric sub is deliberately malformed to exercise the anonymous fallback.
     expect(
       subjectFromMcp(auth([], { sub: 42 as unknown as string })).principal,
     ).toBeNull();

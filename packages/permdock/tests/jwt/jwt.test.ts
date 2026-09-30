@@ -96,6 +96,7 @@ describe('joseTokenSigner', () => {
     );
     const [encoded] = jws.split('.');
     expect(encoded).toBeDefined();
+    // SAFETY: a JWS protected header is a base64url-encoded JSON object (RFC 7515).
     const header = JSON.parse(
       atob(encoded!.replaceAll('-', '+').replaceAll('_', '/')),
     ) as Record<string, unknown>;
@@ -804,6 +805,7 @@ describe('signed snapshot', () => {
       audience: 'https://app.example.com',
     });
     expect(typeof jws).toBe('string');
+    // SAFETY: the typeof check above confirmed snapshot({ signer }) returned a JWS string.
     const checked = await joseTokenVerifier({
       jwks: PUBLIC_JWKS,
       typ: 'permdock-snapshot+jwt',

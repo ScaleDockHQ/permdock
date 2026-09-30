@@ -37,6 +37,7 @@ type Fixture = {
   readonly transmitters: readonly Transmitter[];
 };
 
+// SAFETY: transmitters.json is a checked-in fixture written in the Fixture shape above.
 const fixture = JSON.parse(
   readFileSync(
     new URL('./fixtures/ssf/transmitters.json', import.meta.url),
@@ -60,6 +61,7 @@ function userOf(subject: SetSubject): string | null {
     case 'email':
       return typeof subject['email'] === 'string' ? subject['email'] : null;
     case 'complex': {
+      // SAFETY: a complex SET subject nests its user identifier as a SetSubject (RFC 9493).
       const user = subject['user'] as SetSubject | undefined;
       return user === undefined ? null : userOf(user);
     }

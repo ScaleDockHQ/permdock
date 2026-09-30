@@ -28,9 +28,12 @@ function field(name: string): PrismaFieldProxy {
   };
 }
 
-const model = new Proxy({} as Record<string, PrismaFieldProxy>, {
-  get: (_, name) => (typeof name === 'string' ? field(name) : undefined),
-});
+const model = new Proxy<Record<string, PrismaFieldProxy>>(
+  {},
+  {
+    get: (_, name) => (typeof name === 'string' ? field(name) : undefined),
+  },
+);
 
 const combinators: PrismaCombinators = {
   and: (...items) => `(${items.join(' and ')})`,

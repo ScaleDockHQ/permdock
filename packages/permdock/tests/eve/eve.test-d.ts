@@ -24,7 +24,9 @@ describe('permdock/eve against eve', () => {
   });
 
   it('takes the single eve context on each side', () => {
+    // SAFETY: type-level placeholder; toBeCallableWith checks the type and never calls request.
     expectTypeOf(approval.request).toBeCallableWith({} as ApprovalContext);
+    // SAFETY: type-level placeholder; toBeCallableWith checks the type and never calls response.
     expectTypeOf(approval.response).toBeCallableWith(
       {} as ApprovalResponseContext,
     );

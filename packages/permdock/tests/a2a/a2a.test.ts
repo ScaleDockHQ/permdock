@@ -217,6 +217,7 @@ describe('permdock/a2a', () => {
       skills: {
         publish: {
           permission: permissions.post.publish,
+          // SAFETY: both runs below pass a task object with a post; the row is then validated.
           data: async (task) => (task as { readonly post: unknown }).post,
         },
       },

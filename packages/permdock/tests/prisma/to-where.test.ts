@@ -20,8 +20,9 @@ function isEmptyOr(compiled: unknown): boolean {
   return (
     compiled !== null &&
     typeof compiled === 'object' &&
-    Array.isArray((compiled as { OR?: unknown }).OR) &&
-    (compiled as { OR: unknown[] }).OR.length === 0
+    'OR' in compiled &&
+    Array.isArray(compiled.OR) &&
+    compiled.OR.length === 0
   );
 }
 

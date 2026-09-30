@@ -163,6 +163,7 @@ describe('subjectFromCiOidc', () => {
         })
       ).principal,
     ).toBeNull();
+    // SAFETY: deliberately unknown provider to exercise the anonymous fallback.
     expect(
       (
         await subjectFromCiOidc(token, {

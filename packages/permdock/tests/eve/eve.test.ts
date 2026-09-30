@@ -57,6 +57,7 @@ function respond(
   callId = 'c1',
   initiator: Person = memberUser,
 ): EveResponseContext {
+  // SAFETY: roles is unknown so tests can pass malformed values; eve's type is widened here.
   return {
     request: { callId, requestId: `r-${callId}`, ...request },
     responder: {
@@ -75,6 +76,7 @@ function tools() {
     delete_post: {
       permission: permissions.post.delete,
       data: (input: unknown) => {
+        // SAFETY: every tool call in this file passes an object input with an optional id, or none.
         const id = (input as { readonly id?: string } | undefined)?.id;
         return id === 'p1' ? ownPost : otherPost;
       },

@@ -97,6 +97,7 @@ describe('permdock/server', () => {
     expect(denied.response.headers.get('content-type')).toContain(
       'application/problem+json',
     );
+    // SAFETY: Problem Details JSON produced by the server adapter under test.
     const body = (await denied.response.json()) as {
       readonly permission: string;
       readonly denials: readonly unknown[];
@@ -141,6 +142,7 @@ describe('permdock/server', () => {
     });
     const dock = await permdock(request());
     const decision = dock.decide(permissions.post.delete, ownPost);
+    // SAFETY: Problem Details JSON produced by problem() under test.
     const body = (await problem(decision, {
       permission: permissions.post.delete,
     }).json()) as { readonly approval?: unknown };
@@ -155,6 +157,7 @@ describe('permdock/server', () => {
     if (read.ok) {
       throw new Error('expected denied');
     }
+    // SAFETY: Problem Details JSON produced by the server adapter under test.
     expect(
       ((await read.response.json()) as { readonly approval?: unknown })
         .approval,
@@ -181,6 +184,7 @@ describe('permdock/server', () => {
     expect(pending.ok).toBe(false);
     if (!pending.ok) {
       expect(pending.response.status).toBe(403);
+      // SAFETY: Problem Details JSON produced by the server adapter under test.
       const body = (await pending.response.json()) as {
         readonly token?: string;
       };
@@ -270,6 +274,7 @@ describe('permdock/server', () => {
         }),
       );
     for (const _ of [1, 2]) {
+      // SAFETY: response JSON produced by the handler under test.
       const body = (await (await ask()).json()) as {
         readonly evaluations: readonly { readonly decision: boolean }[];
       };
@@ -297,6 +302,7 @@ describe('permdock/server', () => {
         }),
       }),
     );
+    // SAFETY: response JSON produced by the handler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
@@ -355,6 +361,7 @@ describe('permdock/server decision endpoint', () => {
           }),
         }),
       );
+      // SAFETY: response JSON produced by the handler under test.
       const body = (await response.json()) as {
         readonly evaluations: readonly {
           readonly decision: boolean;
@@ -443,6 +450,7 @@ describe('permdock/server webBotAuth', () => {
       return;
     }
     expect(denied.response.status).toBe(403);
+    // SAFETY: Problem Details JSON produced by the server adapter under test.
     const body = (await denied.response.json()) as { readonly type: string };
     expect(body.type).toBe('https://permdock.dev/problems/invalid-signature');
   });
@@ -494,6 +502,7 @@ describe('permdock/server webBotAuth', () => {
       return;
     }
     expect(denied.response.status).toBe(403);
+    // SAFETY: Problem Details JSON produced by the server adapter under test.
     const body = (await denied.response.json()) as { readonly type: string };
     expect(body.type).toBe('https://permdock.dev/problems/invalid-signature');
   });

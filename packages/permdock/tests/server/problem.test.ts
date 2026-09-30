@@ -217,6 +217,7 @@ describe('disclosure', () => {
   });
 
   it('rejects an unknown disclosure', () => {
+    // SAFETY: deliberately invalid disclosure to exercise definePermissions validation.
     expect(() =>
       definePermissions({
         report: resource(Report, {
@@ -292,6 +293,7 @@ describe('step-up challenges', () => {
         { scope: 'tenant', id: 't1', roles: [], eligible: ['admin'] },
       ],
     };
+    // SAFETY: the subject omits optional fields; the policy's user generic is erased to PermDock.
     const dock = (await createCoreDock(policy, {
       principal: eligible,
       context: { purpose: 'incident' },

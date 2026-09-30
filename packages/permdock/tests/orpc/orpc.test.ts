@@ -58,6 +58,7 @@ describe('permdock/orpc event iterators', () => {
       .handler(async function* () {
         yield* posts.drain();
       });
+    // SAFETY: feed is an async generator handler, so call() resolves to its async iterable.
     const stream = (await call(feed, undefined, {
       context: { user: memberUser },
     })) as AsyncIterable<unknown>;
@@ -107,6 +108,7 @@ describe('permdock/orpc', () => {
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(ORPCError);
+      // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
       const denied = error as ORPCError<string, unknown>;
       expect(denied.code).toBe('FORBIDDEN');
       expect(denied.data).toEqual(
@@ -132,6 +134,7 @@ describe('permdock/orpc', () => {
       context: { user: memberUser },
     }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ORPCError);
+    // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
     const denied = error as ORPCError<string, unknown>;
     expect(denied.code).toBe('FORBIDDEN');
     expect(denied.data).toEqual(
@@ -157,6 +160,7 @@ describe('permdock/orpc', () => {
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(ORPCError);
+      // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
       expect((error as ORPCError<string, unknown>).code).toBe('UNAUTHORIZED');
     }
   });
@@ -202,6 +206,7 @@ describe('permdock/orpc', () => {
         }),
       }),
     );
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };

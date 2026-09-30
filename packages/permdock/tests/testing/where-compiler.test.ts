@@ -75,7 +75,8 @@ describe('testWhereCompiler drizzle', () => {
         typeof compiled === 'object' &&
         'op' in compiled &&
         compiled.op === 'sql' &&
-        (compiled as { sql?: string }).sql === 'false',
+        'sql' in compiled &&
+        compiled.sql === 'false',
     },
   );
 });
@@ -86,8 +87,9 @@ describe('testWhereCompiler prisma', () => {
     isFailClosed: (compiled) =>
       compiled !== null &&
       typeof compiled === 'object' &&
-      Array.isArray((compiled as { OR?: unknown }).OR) &&
-      (compiled as { OR: unknown[] }).OR.length === 0,
+      'OR' in compiled &&
+      Array.isArray(compiled.OR) &&
+      compiled.OR.length === 0,
   });
 });
 
@@ -98,6 +100,7 @@ describe('testWhereCompiler kysely', () => {
       if (typeof compiled !== 'function') {
         return false;
       }
+      // SAFETY: the stub lit() above returns { lit }, the shape a fail-closed Kysely where yields.
       const result = compiled({
         and: (args: readonly unknown[]) => args,
         or: (args: readonly unknown[]) => args,

@@ -634,6 +634,7 @@ describe('conformance runners', () => {
   );
 
   it('ships one signed-output fixture per typ', () => {
+    // SAFETY: signed-outputs.json is a checked-in map of fixture names to compact JWS strings.
     const fixtures = JSON.parse(
       readFileSync(
         new URL('./fixtures/jwt/signed-outputs.json', import.meta.url),
@@ -650,6 +651,7 @@ describe('conformance runners', () => {
   });
 
   it('resolves the capability fixture into a link subject', async () => {
+    // SAFETY: signed-outputs.json is a checked-in map of fixture names to compact JWS strings.
     const fixtures = JSON.parse(
       readFileSync(
         new URL('./fixtures/jwt/signed-outputs.json', import.meta.url),
@@ -674,6 +676,7 @@ describe('conformance runners', () => {
   });
 
   it('verifies the policy fixture and parses its document', async () => {
+    // SAFETY: signed-outputs.json is a checked-in map of fixture names to compact JWS strings.
     const fixtures = JSON.parse(
       readFileSync(
         new URL('./fixtures/jwt/signed-outputs.json', import.meta.url),

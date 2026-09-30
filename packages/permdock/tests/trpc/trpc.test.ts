@@ -18,6 +18,7 @@ async function shapeOf(run: () => Promise<unknown>) {
   try {
     await run();
   } catch (error) {
+    // SAFETY: tRPC callers reject with a TRPCError, wrapping any other thrown value.
     return errorFormatter({
       shape: { data: { code: 'X' } },
       error: error as TRPCError,
@@ -76,11 +77,13 @@ describe('permdock/trpc subscriptions', () => {
     });
     const user = { ...memberUser, roles: [...memberUser.roles] };
     const stream = await appRouter.createCaller({ user }).posts();
+    // SAFETY: the posts procedure is a subscription, whose caller result is an async iterable.
     const iterator = (stream as AsyncIterable<unknown>)[Symbol.asyncIterator]();
 
     posts.push(otherPost, ownPost);
     const first = await iterator.next();
     expect(first.done).toBe(false);
+    // SAFETY: tracked() yields an [id, data, ...] tuple, and done is false above.
     expect((first.value as readonly unknown[])[1]).toEqual(ownPost);
 
     const pending = iterator.next();
@@ -106,6 +109,7 @@ describe('permdock/trpc subscriptions', () => {
     });
     const user = { id: 'u2', orgId: 'o1', roles: ['admin'] };
     const stream = await appRouter.createCaller({ user }).drafts();
+    // SAFETY: the drafts procedure is a subscription, whose caller result is an async iterable.
     const iterator = (stream as AsyncIterable<unknown>)[Symbol.asyncIterator]();
     posts.push(ownPost);
     await expect(iterator.next()).resolves.toMatchObject({ value: ownPost });
@@ -148,6 +152,7 @@ describe('permdock/trpc', () => {
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(TRPCError);
+      // SAFETY: toBeInstanceOf above checked the error is a TRPCError.
       const denied = error as TRPCError;
       expect(denied.code).toBe('FORBIDDEN');
       expect(denied.cause).toEqual(
@@ -198,6 +203,7 @@ describe('permdock/trpc', () => {
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(TRPCError);
+      // SAFETY: toBeInstanceOf above checked the error is a TRPCError.
       expect((error as TRPCError).code).toBe('UNAUTHORIZED');
     }
   });
@@ -220,6 +226,7 @@ describe('permdock/trpc', () => {
         }),
       }),
     );
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };

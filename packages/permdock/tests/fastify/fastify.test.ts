@@ -27,6 +27,7 @@ describe('permdock/fastify', () => {
     const app = Fastify();
     apps.push(app);
     await app.register(permdock);
+    // SAFETY: the permdock plugin registered above decorates every request with permdock.
     app.delete<{ Params: { id: string } }>(
       '/posts/:id',
       {
@@ -90,6 +91,7 @@ describe('permdock/fastify', () => {
         ],
       },
     });
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = response.json() as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };

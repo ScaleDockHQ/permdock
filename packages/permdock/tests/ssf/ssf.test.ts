@@ -108,6 +108,7 @@ describe('createPermDock', () => {
   });
 
   it('throws TypeError without subject', () => {
+    // SAFETY: deliberately omits the required subject option to exercise option validation.
     expect(() =>
       createPermDock(policy, {
         issuer: ISSUER,

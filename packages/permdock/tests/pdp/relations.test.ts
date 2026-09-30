@@ -22,6 +22,7 @@ function recorder(answer: (call: Call) => Response): {
   return {
     calls,
     fetch: async (input, init) => {
+      // SAFETY: the provider under test posts a JSON object body on every call.
       const call = {
         url: String(input),
         body: JSON.parse(String(init?.body)) as Record<string, unknown>,
@@ -57,6 +58,7 @@ describe('openfga', () => {
         user: `user:${subject.principal?.id ?? ''}`,
         relation: 'viewer',
         type: 'document',
+        // SAFETY: data is a doc row from rows above, or undefined for a type-level check.
         id: (data as { readonly id?: string } | undefined)?.id,
       }),
     ],
@@ -66,6 +68,7 @@ describe('openfga', () => {
         user: `user:${subject.principal?.id ?? ''}`,
         relation: 'owner',
         type: 'document',
+        // SAFETY: data is a doc row from rows above, or undefined for a type-level check.
         id: (data as { readonly id?: string } | undefined)?.id,
       }),
     ],
@@ -214,6 +217,7 @@ describe('spicedb', () => {
         permission: 'view',
         resource: {
           type: 'document',
+          // SAFETY: data is a doc row from rows above, or undefined for a type-level check.
           id: (data as { readonly id?: string } | undefined)?.id,
         },
       }),
@@ -225,6 +229,7 @@ describe('spicedb', () => {
     const calls: Call[] = [];
     const fetcher: typeof fetch = async (input, init) => {
       authorizations.push(new Headers(init?.headers).get('authorization'));
+      // SAFETY: the provider under test posts a JSON object body on every call.
       const call = {
         url: String(input),
         body: JSON.parse(String(init?.body)) as Record<string, unknown>,

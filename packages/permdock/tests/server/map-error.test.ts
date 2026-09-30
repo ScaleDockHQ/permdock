@@ -44,6 +44,7 @@ describe('problemFromError', () => {
     );
     const response = problemFromError(error);
     expect(response?.status).toBe(403);
+    // SAFETY: Problem Details JSON produced by problemFromError under test.
     const body = (await response?.json()) as { readonly type: string };
     expect(body.type).toContain('approval-required');
   });

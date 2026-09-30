@@ -29,6 +29,7 @@ function tools() {
     delete_post: {
       permission: permissions.post.delete,
       data: (args: unknown) => {
+        // SAFETY: every tool call in this file passes an object args with an optional id.
         const id = (args as { readonly id?: string }).id;
         return id === 'p1' ? ownPost : otherPost;
       },
@@ -37,6 +38,7 @@ function tools() {
     publish_post: {
       permission: permissions.post.publish,
       data: (args: unknown) => {
+        // SAFETY: every tool call in this file passes an object args with an optional id.
         const id = (args as { readonly id?: string }).id;
         return id === 'p1' ? ownPost : otherPost;
       },

@@ -36,6 +36,7 @@ async function instanceFor(user: string, tenant: string | undefined) {
 
 async function checkServer(scenario: SaasScenario): Promise<void> {
   const permdock = await instanceFor(scenario.user, scenario.tenant);
+  // SAFETY: each saas scenario pairs a saasPermissions leaf with a row of its resource.
   const decision = permdock.decide(
     scenario.permission as never,
     scenario.row as never,
@@ -54,6 +55,7 @@ async function checkClient(scenario: SaasScenario): Promise<void> {
     parseSnapshot(JSON.stringify(permdock.snapshot())),
   );
   const outcome = scenario.clientOutcome ?? scenario.expected.outcome;
+  // SAFETY: each saas scenario pairs a saasPermissions leaf with a row of its resource.
   expect(client.can(scenario.permission as never, scenario.row as never)).toBe(
     outcome === 'granted',
   );
@@ -111,6 +113,7 @@ describe('saas seed', () => {
 
   it('validates rows at the boundary', async () => {
     const permdock = await instanceFor('alice', 'acme');
+    // SAFETY: deliberately incomplete project row to exercise boundary validation.
     expect(
       permdock.decide(
         saasPermissions.project.update,

@@ -48,6 +48,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
     const method = request.method;
 
     if (method === 'POST' && path === '/approvals') {
+      // SAFETY: the cloud client under test posts the ApprovalRequest it was given.
       const record = (await request.json()) as ApprovalRequest;
       store.create(record);
       return new Response(null, { status: 204 });
@@ -55,6 +56,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
     const resolve = /^\/approvals\/([^/]+)\/resolve$/u.exec(path);
     if (method === 'POST' && resolve?.[1] !== undefined) {
       try {
+        // SAFETY: the cloud client under test posts the resolution it was given.
         const next = store.resolve(
           decodeURIComponent(resolve[1]),
           (await request.json()) as Parameters<typeof store.resolve>[1],
@@ -88,6 +90,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
     if (method === 'GET' && path === '/approvals') {
       return json(
         store.list({
+          // SAFETY: the cloud client under test only sends a status from ApprovalRequest.
           status: (url.searchParams.get('status') ?? undefined) as
             | ApprovalRequest['status']
             | undefined,
@@ -104,6 +107,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       );
     }
     if (method === 'POST' && path === '/approvals/cancel') {
+      // SAFETY: the cloud client under test posts this cancel body.
       const body = (await request.json()) as {
         readonly filter: Parameters<typeof store.cancel>[0];
         readonly by: string;
@@ -119,6 +123,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       });
     }
     if (method === 'POST' && path === '/approvals/expire') {
+      // SAFETY: the cloud client under test posts this expire body.
       const body = (await request.json()) as { readonly now?: string };
       const expired = store.expire(
         body.now === undefined ? undefined : new Date(body.now),
@@ -126,6 +131,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       return json({ expired });
     }
     if (method === 'POST' && path === '/decisions') {
+      // SAFETY: the cloud sink under test posts its batch as { events }.
       const body = (await request.json()) as { readonly events: SinkEvent[] };
       decisions.push(body.events);
       return new Response(null, { status: 204 });
@@ -170,6 +176,7 @@ describe('cloud', () => {
   });
 
   it('reads url and key from the environment', () => {
+    // SAFETY: vitest runs on Node.js, where globalThis.process.env exists.
     const env = (
       globalThis as {
         readonly process: { readonly env: Record<string, string | undefined> };
@@ -252,6 +259,7 @@ describe('cloud', () => {
         if (!online) {
           throw new Error('offline');
         }
+        // SAFETY: the cloud sink under test posts its batch as { events }.
         const body = (await new Request(input, init).json()) as {
           readonly events: SinkEvent[];
         };

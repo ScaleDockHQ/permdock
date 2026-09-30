@@ -23,7 +23,9 @@ import { cell, reactive } from './fixtures/cell.svelte.ts';
 import Harness from './Harness.test.svelte';
 
 async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
+  // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
   const server = await createPermDock(policy as never, user);
+  // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }
 
@@ -37,6 +39,7 @@ function latest<T>(readable: {
   const stop = readable.subscribe((value) => {
     current = value;
   });
+  // SAFETY: a Svelte store calls run synchronously on subscribe, so current is set.
   return { value: () => current as T, stop };
 }
 
@@ -101,8 +104,9 @@ describe('permdock/svelte (browser build)', () => {
 
   it('<Protected> follows a changed permission prop', async () => {
     const target = document.createElement('div');
+    // SAFETY: widens data to unknown, the prop type of the Harness component.
     const props = reactive({
-      snapshot: (await snapshotOf(memberUser)) as Snapshot,
+      snapshot: await snapshotOf(memberUser),
       permission: defs.post.update,
       data: ownPost as unknown,
     });

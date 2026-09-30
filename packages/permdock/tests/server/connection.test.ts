@@ -58,6 +58,7 @@ function setup(state: Session, extra: { revalidate?: number } = {}) {
 function reasonOf(signal: AbortSignal): PermDockRevokedError {
   expect(signal.aborted).toBe(true);
   expect(signal.reason).toBeInstanceOf(PermDockRevokedError);
+  // SAFETY: toBeInstanceOf above checked the reason is a PermDockRevokedError.
   return signal.reason as PermDockRevokedError;
 }
 
@@ -242,6 +243,7 @@ describe('memoryRevocationFeed', () => {
     expect(() => feed.revoke({ principal: '', kind: 'changed' })).toThrow(
       TypeError,
     );
+    // SAFETY: deliberately unknown revocation kind to exercise input validation.
     expect(() =>
       feed.revoke({ principal: 'u1', kind: 'grant' as never }),
     ).toThrow(TypeError);

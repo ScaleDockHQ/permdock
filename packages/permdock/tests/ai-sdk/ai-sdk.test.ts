@@ -26,6 +26,7 @@ function tools() {
     delete_post: {
       permission: permissions.post.delete,
       data: (args: unknown) => {
+        // SAFETY: every tool call in this file passes an object args with an optional id.
         const id = (args as { readonly id?: string }).id;
         return id === 'p1' ? ownPost : otherPost;
       },
@@ -34,6 +35,7 @@ function tools() {
     publish_post: {
       permission: permissions.post.publish,
       data: (args: unknown) => {
+        // SAFETY: every tool call in this file passes an object args with an optional id.
         const id = (args as { readonly id?: string }).id;
         return id === 'p1' ? ownPost : otherPost;
       },
@@ -44,6 +46,7 @@ function tools() {
 describe('permdock/ai-sdk', () => {
   it('maps granted, denied and unmapped tools without not-applicable', async () => {
     const { toolApproval } = createPermDock(policy, {
+      // SAFETY: every call in this test passes a runtimeContext object carrying user.
       subject: ({ runtimeContext }) =>
         (runtimeContext as { readonly user: unknown }).user,
       delegation: () => delegated,

@@ -31,6 +31,7 @@ const hasOfficial: boolean = existsSync(OFFICIAL);
 describe.runIf(hasOfficial)(
   'AuthZEN interop: official Todo decisions (pnpm authzen:vectors)',
   () => {
+    // SAFETY: the file is the official AuthZEN decisions vector set fetched by authzen:vectors.
     const vectors = hasOfficial
       ? (JSON.parse(readFileSync(OFFICIAL, 'utf8')) as AuthZenVectors)
       : {};

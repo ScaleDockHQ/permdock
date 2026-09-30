@@ -201,6 +201,7 @@ testHttpAdapter({
           continue;
         }
         const id = match.pathname.groups['id'];
+        // SAFETY: widens the any from json() to unknown; trusted: false makes the kernel validate it.
         const guard = await kernel.protect(
           permission,
           load === 'row'

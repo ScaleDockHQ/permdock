@@ -239,6 +239,7 @@ describe('permdock/next', () => {
     );
 
     expect(forged.status).toBe(200);
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = (await json(forged)) as {
       readonly evaluations: readonly {
         readonly decision: boolean;
@@ -269,6 +270,7 @@ describe('permdock/next', () => {
         }),
       }),
     );
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const unknownBody = (await json(unknown)) as {
       readonly evaluations: readonly {
         readonly decision: boolean;
@@ -300,6 +302,7 @@ describe('permdock/next', () => {
 
     const snapshot = await GET(new Request('https://app.example/api/permdock'));
     expect(snapshot.status).toBe(200);
+    // SAFETY: snapshot JSON produced by permdockHandler under test.
     const payload = (await json(snapshot)) as {
       readonly v: number;
       readonly grants: readonly { readonly permission: string }[];
@@ -312,6 +315,7 @@ describe('permdock/next', () => {
     const discovery = await GET(
       new Request('https://app.example/.well-known/authzen-configuration'),
     );
+    // SAFETY: discovery JSON produced by permdockHandler under test.
     const meta = (await json(discovery)) as {
       readonly access_evaluations_endpoint: string;
     };
@@ -348,6 +352,7 @@ describe('permdock/next', () => {
         }),
       }),
     );
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const pendingBody = (await json(pending)) as {
       readonly evaluations: readonly {
         readonly decision: boolean;
@@ -383,6 +388,7 @@ describe('permdock/next', () => {
         }),
       }),
     );
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const resumedBody = (await json(resumed)) as {
       readonly evaluations: readonly {
         readonly decision: boolean;

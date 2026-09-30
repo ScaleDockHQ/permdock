@@ -47,6 +47,7 @@ describe('permdock/elysia', () => {
     const { permdock, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
+    // SAFETY: the permdock() plugin used here derives ctx.permdock for every route.
     const app = new Elysia().use(permdock()).delete(
       '/posts/:id',
       (ctx) => ({
@@ -108,6 +109,7 @@ describe('permdock/elysia', () => {
         }),
       }),
     );
+    // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };

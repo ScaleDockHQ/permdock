@@ -51,8 +51,9 @@ function isSqlFalse(compiled: unknown): boolean {
     typeof compiled === 'object' &&
     'op' in compiled &&
     compiled.op === 'sql' &&
-    Array.isArray((compiled as { args: unknown[] }).args) &&
-    (compiled as { args: unknown[] }).args[0] === 'false'
+    'args' in compiled &&
+    Array.isArray(compiled.args) &&
+    compiled.args[0] === 'false'
   );
 }
 
@@ -91,6 +92,7 @@ describe('permdock/drizzle toWhere', () => {
         { operators: ops(), subject },
       ),
     ).toEqual({ op: 'eq', args: ['col.org', 'o1'] });
+    // SAFETY: the ops() stub above builds every node as { op, args }.
     const exists = toWhere(
       { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['viewer'] },
       posts,
@@ -129,6 +131,7 @@ describe('permdock/drizzle toWhere', () => {
   });
 
   it('binds whole-second expiry and the active tenant in exists joins', () => {
+    // SAFETY: the ops() stub above builds every node as { op, args }.
     const exists = toWhere(
       { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['viewer'] },
       posts,
