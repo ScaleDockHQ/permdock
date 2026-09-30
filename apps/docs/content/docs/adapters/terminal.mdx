@@ -46,6 +46,8 @@ export const { permdock, protect, filterCommands, format, exitCode } = createPer
   interactive: process.stdout.isTTY && !process.env.CI,                  // default shown; controls approval prompts
   approval: { at: 'https://console.acme.dev/approvals', hint: 'Ask a release manager to approve, then re-run.' },
   output: { json: process.argv.includes('--json') },                     // default shown; selects Problem Details output
+  yes: process.argv.includes('--yes') || process.argv.includes('-y'),    // default shown; skips the typed confirmation of a destructive action
+  dryRun: process.argv.includes('--dry-run'),                            // default shown; decides and prints, never runs the action
 })
 ```
 
@@ -66,7 +68,7 @@ export const { permdock, protect, filterCommands, format, exitCode } = createPer
 | `device` | OAuth 2.0 device authorization grant (RFC 8628). The CLI prints `user_code` and `verification_uri` (and opens `verification_uri_complete` when a browser is available), polls the token endpoint honouring `interval` and `slow_down`, then stores the result through `storage`. | Interactive `login` on a developer machine |
 | `keychain` | Reads the token stored by a previous `device` login from the OS keychain through `storage.keyring`; falls back to a mode-0600 file when no keychain is available (headless Linux, containers). Refreshes with the refresh token when expired. | Every later invocation |
 | `env` | `PERMDOCK_TOKEN` (or a configured name) holding a JWT or an API key that your `subject` resolver exchanges for a principal. | Scripts, non-interactive shells |
-| `ci-oidc` | GitHub Actions or GitLab CI id tokens, exchanged with RFC 8693 token exchange at your authorization server for a workload principal (`kind: 'workload'`). The CLI never sees a long-lived secret. | Pipelines |
+| `ci-oidc` | The job's OIDC token: GitHub Actions through `ACTIONS_ID_TOKEN_REQUEST_URL` (`{ source: 'ci-oidc', audience }` requests that `aud`), a GitLab `id_tokens` variable named with `{ source: 'ci-oidc', env }`, or `CI_JOB_JWT_V2`. Verify it with `subjectFromCiOidc` from `permdock/jwt`, which returns a workload principal (`kind: 'workload'`, `sub` as the id, with `repository`, `ref` and `environment`), or exchange it with RFC 8693 token exchange at your authorization server. The CLI never sees a long-lived secret. | Pipelines |
 | anonymous | `token()` returned `null` and `subject` returned `null`. | Public read-only commands |
 
 All sources end in the same verification step. A `--user` flag, a `USER` environment variable or a git config email are never accepted as identity; they may at most select which stored profile to load (`--as`), and the profile's token is still verified.
@@ -75,7 +77,7 @@ All sources end in the same verification step. A `--user` flag, a `USER` environ
 
 1. The CLI parses arguments; commands are registered through `filterCommands`, so `--help` already reflects the subject.
 2. The first call to `permdock()` resolves the subject (and actor) once. A `device` source may block here for the login round trip.
-3. `protect` runs `load` for instance actions, validates the result at the boundary when `load` is marked untrusted (JSON from stdin or a file), then calls `assert`. `granted` runs your action; `denied` writes `format(decision)` to stderr and exits `77`; `approval-required` prompts when `interactive` is true, otherwise writes the Problem Details `approval` extension and exits `75`.
+3. `protect` runs `load` for instance actions, validates the result at the boundary when `load` is marked untrusted (JSON from stdin or a file), then decides. With `--dry-run` it prints the decision and exits with its code, running nothing. `granted` runs your action, after a typed confirmation when the permission is `destructive`; `denied` writes `format(decision)` to stderr and exits `77`; `approval-required` prompts when `interactive` is true, otherwise writes the Problem Details `approval` extension and exits `75`.
 4. Every decision, including the human's answer to a prompt, is emitted through `on('decision')` with the command path so audit and [otel](/docs/adapters/otel) see it.
 
 ## Exit codes
@@ -84,9 +86,10 @@ Codes follow the BSD `sysexits.h` conventions so shell scripts and agents can br
 
 | Code | Name | When |
 |---|---|---|
-| `0` | `EX_OK` | `granted` and the action completed |
+| `0` | `EX_OK` | `granted` and the action completed, or `granted` under `--dry-run` |
+| `64` | `EX_USAGE` | A `destructive` permission in a process with no terminal and no `--yes` |
 | `75` | `EX_TEMPFAIL` | `approval-required` in a non-interactive process: the command can succeed once someone approves |
-| `77` | `EX_NOPERM` | `denied`, including anonymous subjects and a declined approval prompt |
+| `77` | `EX_NOPERM` | `denied`, including anonymous subjects, a declined approval prompt and a typed confirmation that did not match |
 | `78` | `EX_CONFIG` | The adapter is misconfigured: no verifier, unreachable authorization server metadata, async schema at a boundary |
 
 Failures inside your action keep whatever code your framework assigns; the adapter only sets codes for outcomes it produced. This is a different contract from the `0` / `1` / `2` codes of the [`permdock` binary](/docs/cli), which reports findings, not permissions.
@@ -180,6 +183,20 @@ createPermDock(policy, {
 
 An Ink `useInput` component can implement the same `confirm` contract; the adapter only needs a `Promise<boolean>`.
 
+## Destructive commands and dry runs
+
+A permission whose action meta sets `destructive: true` (the `delete` action of `crud()`, or `{ rollback: { destructive: true } }`) asks for a typed confirmation before the action runs, after the decision granted it:
+
+- In a terminal, the default prompt asks the user to type the resource id (the permission key for a collection action) and runs the action only on an exact match; anything else exits `77`. Replace it with `interactive: { typed }`, a function that receives `{ permission, resource, expected }` and resolves with what the user typed.
+- Without a terminal (no TTY, `CI` set, output piped), the command exits `64` (`EX_USAGE`) and says to pass `--yes`, unless `--yes` or `-y` is in `argv` or the `yes` option is set.
+- `--yes` only waives this confirmation. It never approves an `approval-required` decision and never turns a denial into a grant.
+
+`--dry-run` (or `dryRun: true`) decides without side effects: nothing runs, no quota is consumed, no confirmation is asked. A granted decision prints `dry run: <permission> on <resource> is granted; nothing ran` (with `--json`, `{ "outcome": "granted", "permission": …, "dryRun": true }`); a denial or an `approval-required` prints the usual Problem Details. The process exits with the code `exitCode` maps the outcome to, so a pipeline can check a deploy before it runs it:
+
+```bash
+acme deploy api --env production --dry-run --json || echo "would be refused: $?"
+```
+
 ## Agent-driven CLIs
 
 When an AI agent runs your CLI through a shell tool, two identities are involved and the adapter records both:
@@ -244,11 +261,14 @@ Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, p
 - The keychain peer is injected, not imported. `permdock`'s runtime entries import nothing but `@standard-schema/spec` (invariant 12), and a dynamic import of an optional native module breaks bundlers and single-file CLI builds. Passing `Entry` keeps the choice and the native build in the consumer's `package.json`.
 - `@napi-rs/keyring` is the recommendation because it ships prebuilt binaries for macOS Keychain, Windows Credential Manager and the Linux Secret Service, needs no `node-gyp` step, and replaced the archived `keytar`. Any class with the same `getPassword` / `setPassword` / `deletePassword` shape works.
 - The mode-0600 file stays as the fallback. Containers, CI runners and headless Linux have no secret service, and a CLI that cannot log in there is worse than one that stores a refreshable token in a file only its user can read. A successful keychain write removes the file copy for that profile.
+- The destructive confirmation is typed, not `y`. A `y` is muscle memory and an agent answers it without reading; typing the id makes the user name what is about to go. Without a terminal there is nobody to ask, so the adapter refuses with `EX_USAGE` rather than guessing, and `--yes` is the explicit, greppable way a script says it meant it. `--yes` stays separate from approvals because the agent that asked for the action can type the flag.
+- `--dry-run` decides through the same path as a real run but as a simulation, so it reports what the run would decide without consuming a `limit` and without the prompt; a pipeline gets the real exit code before it commits.
+- `subjectFromCiOidc` returns a `workload`, never a user: a CI job acts for a repository and a ref, not for the person who pushed. Grant it through a `principal.kind` or `principal.repository` condition, or map it to memberships in your `principal` function.
 - `approval.at` and `hint` are shared with the HTTP adapters rather than terminal-only fields, so one client that reads `approval-required` Problem Details handles both a CLI's `--json` output and a 403 body.
 
 ## Example app
 
-`apps/examples/terminal`: a deploy CLI with `status` / `deploy` / `rollback` guarded by `protect`, `--help` built through `filterCommands`, `--json` Problem Details, an approval-gated production deploy, and an agent-run mode that reads `PERMDOCK_ACTOR_TOKEN`.
+`apps/examples/terminal`: a deploy CLI with `status` / `deploy` / `rollback` guarded by `protect`, `--help` built through `filterCommands`, `--json` Problem Details, an approval-gated production deploy, `--dry-run`, a destructive `rollback` that needs a typed confirmation or `--yes`, and an agent-run mode that reads `PERMDOCK_ACTOR_TOKEN`.
 
 ## Related
 

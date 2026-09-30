@@ -121,6 +121,7 @@
     "joseTokenSigner",
     "joseTokenVerifier",
     "subjectFromCapability",
+    "subjectFromCiOidc",
     "subjectFromIntrospection",
     "subjectFromJwt",
     "verifyDpopProof"
@@ -305,6 +306,7 @@
     "EX_NOPERM",
     "EX_OK",
     "EX_TEMPFAIL",
+    "EX_USAGE",
     "TerminalExit",
     "createPermDock",
     "exitCode",

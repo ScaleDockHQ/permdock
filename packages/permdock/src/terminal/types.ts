@@ -21,7 +21,12 @@ export type TokenSourceName = 'device' | 'keychain' | 'env' | 'ci-oidc';
 export type TokenSource =
   | TokenSourceName
   | { readonly env: string }
-  | { readonly source: TokenSourceName; readonly env?: string };
+  | {
+      readonly source: TokenSourceName;
+      readonly env?: string;
+      /** `ci-oidc`: the audience requested from GitHub Actions (`aud`). */
+      readonly audience?: string;
+    };
 
 export type TokenHelper = (
   sources: readonly TokenSource[],
@@ -60,6 +65,13 @@ export type InteractiveConfirm = (input: {
   readonly reason: string;
   readonly token: string;
 }) => Promise<boolean>;
+
+/** Asks the user to type `expected` before a destructive action; resolves with what they typed. */
+export type TypedConfirm = (input: {
+  readonly permission: string;
+  readonly resource: { readonly type: string; readonly id?: string };
+  readonly expected: string;
+}) => Promise<string>;
 
 export type TerminalRuntime = {
   readonly argv?: readonly string[];
@@ -109,7 +121,16 @@ export type TerminalPermDockOptions<TUser = unknown> = {
   readonly limits?: LimitStore;
   readonly storage?: TerminalStorageOptions;
   readonly device?: DeviceFlowOptions;
-  readonly interactive?: boolean | { readonly confirm: InteractiveConfirm };
+  readonly interactive?:
+    | boolean
+    | {
+        readonly confirm?: InteractiveConfirm;
+        readonly typed?: TypedConfirm;
+      };
+  /** Runs a destructive action without the typed confirmation; defaults to `--yes` / `-y` in argv. */
+  readonly yes?: boolean;
+  /** Decides and prints the decision without running the action; defaults to `--dry-run` in argv. */
+  readonly dryRun?: boolean;
   readonly output?: { readonly json?: boolean };
   readonly approval?: ApprovalHint;
   readonly runtime?: TerminalRuntime;

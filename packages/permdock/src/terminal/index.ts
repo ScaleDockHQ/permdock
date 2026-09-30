@@ -5,6 +5,7 @@ export {
   EX_NOPERM,
   EX_OK,
   EX_TEMPFAIL,
+  EX_USAGE,
 } from './exit.ts';
 export { exitCode, formatDecision } from './format.ts';
 export { looksLikeJwt } from './token.ts';
@@ -14,6 +15,7 @@ export type {
   DeviceFlowOptions,
   FilterCommandsOptions,
   FormatOptions,
+  InteractiveConfirm,
   KeyringEntry,
   PermDockResolveOptions,
   ProtectContext,
@@ -26,4 +28,5 @@ export type {
   TokenHelper,
   TokenSource,
   TokenSourceName,
+  TypedConfirm,
 } from './types.ts';

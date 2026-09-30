@@ -9,7 +9,7 @@ export const Service = z.object({
 export const permissions = definePermissions({
   deploy: resource(Service, {
     id: 'id',
-    actions: ['run', 'rollback'],
+    actions: { run: {}, rollback: { destructive: true } },
     collection: ['read'],
   }),
 });

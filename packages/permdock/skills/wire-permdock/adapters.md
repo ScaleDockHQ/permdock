@@ -428,7 +428,7 @@ export const { permdock, protect, filterCommands, format, exitCode } =
   });
 ```
 
-Not the `permdock` binary. Never accept `--user` or `--actor` as identity.
+Not the `permdock` binary. Never accept `--user` or `--actor` as identity. In CI, verify the job token with `subjectFromCiOidc(jwt, { provider: 'github', audience })` from `permdock/jwt`, which returns a `workload` principal, never a user. A `destructive` permission asks for the resource id to be typed, and exits `64` without a terminal unless `--yes` is passed; `--yes` never approves an `approval-required` call. `--dry-run` decides and exits with the outcome's code without running the action.
 
 ## WebMCP — `permdock/webmcp`
 

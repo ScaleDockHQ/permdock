@@ -9,7 +9,16 @@ import {
   permissions,
   policy,
 } from '../fixtures/quick-start.ts';
-import { createPermDock, TerminalExit } from './index.ts';
+import {
+  allow,
+  crud,
+  definePermissions,
+  definePolicy,
+  memoryLimitStore,
+  resource,
+  role,
+} from '../index.ts';
+import { createPermDock, EX_USAGE, TerminalExit } from './index.ts';
 
 function throwExit(code: number): never {
   throw new TerminalExit(code);
@@ -426,5 +435,197 @@ describe('permdock/terminal', () => {
     });
     const dock = await permdock();
     expect(dock.subject.principal?.id).toBe('u1');
+  });
+
+  it('requests a ci-oidc audience and reads a named id_tokens variable', async () => {
+    const requested: string[] = [];
+    const seen: (string | null)[] = [];
+    const { permdock } = createPermDock(policy, {
+      subject: async ({ token }) => {
+        seen.push(
+          await token([
+            { source: 'ci-oidc', audience: 'https://deploy.acme.dev' },
+          ]),
+          await token([{ source: 'ci-oidc', env: 'PERMDOCK_ID_TOKEN' }]),
+        );
+        return null;
+      },
+      runtime: {
+        env: {
+          ACTIONS_ID_TOKEN_REQUEST_URL:
+            'https://gha.example/oidc?api-version=2.0',
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'request-token',
+          PERMDOCK_ID_TOKEN: 'gitlab-oidc',
+        },
+        fetch: (async (url: URL | string) => {
+          requested.push(String(url));
+          return Response.json({ value: 'gha-oidc' });
+        }) as typeof fetch,
+        exit: throwExit,
+        write: (): void => undefined,
+      },
+    });
+    await permdock();
+    expect(requested).toEqual([
+      'https://gha.example/oidc?api-version=2.0&audience=https%3A%2F%2Fdeploy.acme.dev',
+    ]);
+    expect(seen).toEqual(['gha-oidc', 'gitlab-oidc']);
+  });
+});
+
+describe('permdock/terminal destructive and dry-run', () => {
+  const deploys = definePermissions({
+    environment: resource(crud({ collection: ['deploy'] })),
+  });
+  const ops = definePolicy(deploys, {
+    roles: [
+      role('operator', [
+        allow(deploys.environment.delete),
+        allow(deploys.environment.deploy, { limit: { count: 1, per: 'hour' } }),
+      ]),
+    ],
+    subject: (user: { readonly id: string } | null) =>
+      user === null ? null : { id: user.id, roles: ['operator'] },
+  });
+  const staging = { id: 'staging' };
+
+  function terminal(
+    options: Partial<Parameters<typeof createPermDock>[1]> = {},
+  ): { readonly lines: string[]; readonly ran: string[] } & ReturnType<
+    typeof createPermDock
+  > {
+    const lines: string[] = [];
+    const ran: string[] = [];
+    const created = createPermDock(ops, {
+      subject: () => ({ id: 'u1' }),
+      interactive: false,
+      ...options,
+      runtime: {
+        argv: [],
+        exit: throwExit,
+        write: (text): void => {
+          lines.push(text);
+        },
+        ...options.runtime,
+      },
+    });
+    return { ...created, lines, ran };
+  }
+
+  it('exits 64 on a destructive action without a terminal or --yes', async () => {
+    const { protect, lines, ran } = terminal();
+    const run = protect(
+      deploys.environment.delete,
+      () => staging,
+    )(async () => {
+      ran.push('delete');
+    });
+    expect(EX_USAGE).toBe(64);
+    await expect(run()).rejects.toMatchObject({ code: 64 });
+    expect(ran).toEqual([]);
+    expect(lines.join('')).toContain('pass --yes');
+  });
+
+  it('runs a destructive action with --yes', async () => {
+    const { protect, ran } = terminal({
+      runtime: { argv: ['node', 'ops', 'rm', 'staging', '--yes'] },
+    });
+    await protect(
+      deploys.environment.delete,
+      () => staging,
+    )(async () => {
+      ran.push('delete');
+    })();
+    expect(ran).toEqual(['delete']);
+  });
+
+  it('asks for the id to be typed in a terminal', async () => {
+    const asked: string[] = [];
+    const typedOk = terminal({
+      interactive: {
+        typed: async ({ expected }) => {
+          asked.push(expected);
+          return ` ${expected} `;
+        },
+      },
+    });
+    await typedOk.protect(
+      deploys.environment.delete,
+      () => staging,
+    )(async () => {
+      typedOk.ran.push('delete');
+    })();
+    expect(asked).toEqual(['staging']);
+    expect(typedOk.ran).toEqual(['delete']);
+
+    const typedWrong = terminal({
+      interactive: { typed: async () => 'production' },
+    });
+    await expect(
+      typedWrong.protect(
+        deploys.environment.delete,
+        () => staging,
+      )(async () => {
+        typedWrong.ran.push('delete');
+      })(),
+    ).rejects.toMatchObject({ code: 77 });
+    expect(typedWrong.ran).toEqual([]);
+  });
+
+  it('does not ask for a non-destructive action', async () => {
+    const { protect, ran } = terminal({ limits: memoryLimitStore() });
+    await protect(deploys.environment.deploy)(async () => {
+      ran.push('deploy');
+    })();
+    expect(ran).toEqual(['deploy']);
+  });
+
+  it('prints the decision on --dry-run without running or consuming', async () => {
+    const limits = memoryLimitStore();
+    const dry = terminal({
+      limits,
+      output: { json: true },
+      runtime: { argv: ['node', 'ops', 'deploy', '--dry-run'] },
+    });
+    const run = dry.protect(deploys.environment.deploy)(async () => {
+      dry.ran.push('deploy');
+    });
+    await expect(run()).rejects.toMatchObject({ code: 0 });
+    await expect(run()).rejects.toMatchObject({ code: 0 });
+    expect(dry.ran).toEqual([]);
+    expect(JSON.parse(dry.lines[0] ?? '')).toEqual({
+      outcome: 'granted',
+      permission: 'environment.deploy',
+      dryRun: true,
+    });
+
+    const real = terminal({ limits });
+    await real.protect(deploys.environment.deploy)(async () => {
+      real.ran.push('deploy');
+    })();
+    expect(real.ran).toEqual(['deploy']);
+    const exhausted = terminal({ limits, dryRun: true });
+    await expect(
+      exhausted.protect(deploys.environment.deploy)(async () => {
+        exhausted.ran.push('deploy');
+      })(),
+    ).rejects.toMatchObject({ code: 77 });
+    expect(exhausted.ran).toEqual([]);
+  });
+
+  it('skips the destructive prompt on --dry-run', async () => {
+    const { protect, ran, lines } = terminal({ dryRun: true });
+    await expect(
+      protect(
+        deploys.environment.delete,
+        () => staging,
+      )(async () => {
+        ran.push('delete');
+      })(),
+    ).rejects.toMatchObject({ code: 0 });
+    expect(ran).toEqual([]);
+    expect(lines.join('')).toBe(
+      'dry run: environment.delete on environment staging is granted; nothing ran\n',
+    );
   });
 });

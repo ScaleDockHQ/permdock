@@ -1,4 +1,5 @@
 export const EX_OK = 0;
+export const EX_USAGE = 64;
 export const EX_TEMPFAIL = 75;
 export const EX_NOPERM = 77;
 export const EX_CONFIG = 78;
