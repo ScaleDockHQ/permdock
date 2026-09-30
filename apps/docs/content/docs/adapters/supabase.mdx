@@ -275,6 +275,35 @@ A suspension in `rls.suspension` reaches RLS on the next statement in both modes
 
 In `jwt` mode the policy and PermDock read one claim written by one function. Keep `jwt_expiry` at 3600 seconds or less when the policy grants sensitive verbs; `permdock doctor` flags it as PD019. A [Shared Signals receiver](/docs/adapters/ssf) can reject a revoked session for the app, not for RLS. `updateTag` and `router.refresh()` do not help in `jwt` mode: they re-render from the same stale claims. The per-layer staleness table for a Next.js app, including other members' browsers, is in the [Next.js Cache Components guide](/docs/guides/next-cache-components).
 
+## With better-supabase
+
+better-supabase keeps its organization memberships in its own schema. Point a `fromJunction` source at the schema-qualified table; the hook and the in-process source quote it as `"better_supabase"."memberships"`, and the hook grants `supabase_auth_admin` usage on the schema and `select` on the table:
+
+```ts
+// permdock.config.ts
+import { fromJunction } from 'permdock/supabase';
+
+export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  supabase: {
+    hook: {
+      memberships: [
+        fromJunction({
+          table: 'better_supabase.memberships',
+          scope: 'organization',
+          id: 'org_id',
+          roles: 'role',
+        }),
+      ],
+      claims: { features: 'better_supabase.feature_claims' },
+    },
+  },
+};
+```
+
+Pass the same source, with a `query` over the app's connection, as `memberships` to `createPermDock` so `decide` reads the rows the token was minted from. `tests/integration/src/supabase-junction.test.ts` runs the round trip against Postgres.
+
 ## Request lifecycle
 
 1. The client signs in; Supabase Auth runs the `custom_access_token_hook`, which reads `user_roles` and adds `user_role` to the JWT (and, in `jwt` mode, `memberships` from the scope tables).

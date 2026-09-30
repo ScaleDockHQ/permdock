@@ -382,6 +382,21 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
     ]);
   });
 
+  it('quotes a schema-qualified fromJunction table and grants usage on its schema', async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [fromJunction({ table: 'better_supabase.memberships', scope: 'organization', id: 'org_id', roles: 'role' })], roles: false }`,
+    );
+    expect(code).toBe(0);
+    expect(sql).toContain('from "better_supabase"."memberships"');
+    expect(sql).not.toContain('"better_supabase.memberships"');
+    expect(sql).toContain(
+      'grant usage on schema "better_supabase" to supabase_auth_admin;',
+    );
+    expect(sql).toContain(
+      'grant select on table "better_supabase"."memberships" to supabase_auth_admin;',
+    );
+  });
+
   it('refuses reserved or unqualified extra claims', async () => {
     for (const [claims, message] of [
       [`{ memberships: 'x.f' }`, 'PermDock or Supabase Auth writes'],

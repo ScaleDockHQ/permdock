@@ -514,9 +514,21 @@ function readsSql(parts: Parts): string {
       reads.get(parts.users.table) ?? 'status_users',
     );
   }
-  return [...reads]
-    .map(([name, label]) => authAdminRead(name, label))
-    .join('\n');
+  const schemas = new Set(
+    [...reads.keys()]
+      .map((name) => (name.includes('.') ? name.split('.')[0] : 'public'))
+      .filter(
+        (schema): schema is string =>
+          schema !== undefined && schema !== parts.schema && schema !== 'auth',
+      ),
+  );
+  return [
+    ...[...schemas].map(
+      (schema) =>
+        `grant usage on schema ${quoteIdent(schema)} to supabase_auth_admin;`,
+    ),
+    ...[...reads].map(([name, label]) => authAdminRead(name, label)),
+  ].join('\n');
 }
 
 function versionSql(parts: Parts): string {
