@@ -43,7 +43,12 @@ import {
 } from './doctor-source.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
 import { runSkillsInstall } from './skills.ts';
-import { attrsPlan } from './supabase-hook.ts';
+import {
+  attrsPlan,
+  loadScopes,
+  supabaseHookManifest,
+} from './supabase-hook.ts';
+import { pd039 } from './supabase-setup.ts';
 import { DOCTOR_REPORT_SCHEMA } from './version.ts';
 
 export type { DoctorFinding, DoctorSeverity } from './doctor-types.ts';
@@ -208,6 +213,12 @@ export async function runDoctor(input: {
     findings.push(...(await pd037(input)));
   }
   if (
+    input.config.supabase?.hook !== undefined &&
+    (include('supabase') || include('helpers') || include('PD039'))
+  ) {
+    findings.push(...(await supabaseSetup(input)));
+  }
+  if (
     (input.config.rls !== undefined ||
       input.config.supabase?.hook !== undefined) &&
     (include('supabase') || include('tenant') || include('PD038'))
@@ -257,4 +268,20 @@ function formatDoctor(report: DoctorReport, color: boolean): string {
     `  ${String(report.errors)} error${report.errors === 1 ? '' : 's'}, ${String(report.warnings)} warning${report.warnings === 1 ? '' : 's'}`,
   );
   return `${lines.join('\n')}\n`;
+}
+
+async function supabaseSetup(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  let manifest;
+  try {
+    manifest = supabaseHookManifest(
+      await loadScopes(input.cwd, input.config),
+      input.config,
+    );
+  } catch {
+    return [];
+  }
+  return pd039({ cwd: input.cwd, config: input.config, manifest });
 }

@@ -57,6 +57,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD035` | A `supportAccess` role has `actorRequired: false`, so a support session runs as the tenant, unattributed | warning |
 | `PD037` | A migration's policy on `storage.objects` or `realtime.messages` calls `permdock_has` or `permitted_<scope>_ids` with a permission whose grants carry row conditions, which the helpers do not check | error |
 | `PD038` | Under an `rls` or `supabase.hook` config, a `subjectFromSupabase` or `subjectFromSupabaseSession` call reads the tenant from a different claim than `rls.tenantClaim`, the claim the hook writes and the helpers compare with | warning |
+| `PD039` | Under a `supabase.hook` config, the helper schema has no generated `permdock_has` or `permitted_<scope>_ids`, or a `supabase.hook.claims` entry in the `doctor.claims` fixture is larger than the memberships budget | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -230,6 +231,10 @@ The SQL helpers answer one question, whether the subject holds a role with the g
 ### PD038: tenant claim mismatch
 
 The hook writes the active tenant to `rls.tenantClaim` (default `supabaseTenantClaim`, `tenant_id`), and the generated helpers compare against it; `subjectFromSupabase` and `subjectFromSupabaseSession` read it from their `tenant` option, with the same default. When the two differ, the subject has no active tenant while RLS still scopes rows to one, so `can()` and the database disagree. The check finds each call in the source scan and compares its `tenant` option, or the default when the call passes none, with `rls.tenantClaim`. A call whose options are a variable is skipped. `--only supabase` or `--only tenant` runs PD038.
+
+### PD039: Supabase hook setup
+
+The hook writes claims that only the generated SQL helpers read. The check lists the helpers the policy's scopes need (`permdock_has` and `permitted_<scope>_ids` in `rls.schema`) and warns on each one no SQL file defines: `rls.out` (else `rls.sql`) and the `doctor.migrations` folders, never the hook's own file. `permdock supabase hook generate` prints the same warning, and with `--db` looks in the database instead. When `doctor.claims` points at a JSON array of sample decoded tokens, the check also measures each `supabase.hook.claims` entry and warns when its largest sample is more bytes of JSON than the memberships budget: those claims sit outside the budget but still travel in the session cookie. `--only supabase` or `--only helpers` runs PD039.
 
 ## Why
 

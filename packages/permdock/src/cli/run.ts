@@ -315,6 +315,7 @@ export async function run(
               out: flagString(args.flags, 'out'),
               check: flagBool(args.flags, 'check'),
               json,
+              db: flagString(args.flags, 'db'),
               activeFrom: flagString(args.flags, 'active-from'),
               budget: flagString(args.flags, 'budget'),
               schema: flagString(args.flags, 'schema'),

@@ -383,4 +383,40 @@ describe('permdock supabase hook generate against Postgres', () => {
     expect(changed).toBe(1);
     expect(generated).not.toMatch(/service_role/iu);
   });
+
+  it('reports missing helpers from the database with --db (PD039)', async () => {
+    if (db === undefined) {
+      throw new Error('PermDock: Postgres was not started');
+    }
+    const dir = mkdtempSync(join(tmpdir(), 'permdock-sources-db-'));
+    const generate = () =>
+      run(
+        [
+          'supabase',
+          'hook',
+          'generate',
+          '--out',
+          join(dir, 'hook.sql'),
+          '--db',
+          db?.uri ?? '',
+        ],
+        { cwd: FIXTURE },
+      );
+    try {
+      const missing = await generate();
+      expect(missing.code).toBe(0);
+      expect(missing.stdout).toContain(
+        'PD039 schema public has no permdock_has, permitted_organization_ids, permitted_customer_ids',
+      );
+      await db.admin.query(
+        'create function public.permdock_has(p_grant text) returns boolean language sql as $$ select false $$',
+      );
+      const partial = await generate();
+      expect(partial.stdout).toContain(
+        'PD039 schema public has no permitted_organization_ids, permitted_customer_ids',
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

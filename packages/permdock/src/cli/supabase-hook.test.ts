@@ -319,6 +319,69 @@ describe('permdock supabase hook generate', () => {
     expect(text.stdout).toContain('tenant claim tenant_id');
   });
 
+  it('warns with PD039 until the helpers exist in the configured schema', async () => {
+    const missing = await generate(`{ memberships: [${SOURCES}] }`);
+    expect(missing.code).toBe(0);
+    expect(missing.output).toContain(
+      'PD039 schema public has no permdock_has, permitted_organization_ids, permitted_customer_ids',
+    );
+    writeFileSync(
+      join(missing.cwd, 'rls.sql'),
+      `create or replace function "public".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;
+create or replace function public.permitted_organization_ids(p_grant text) returns setof text language sql as $$ select null::text where false $$;
+`,
+    );
+    const partial = await run(
+      ['supabase', 'hook', 'generate', '--out', 'hook.sql'],
+      { cwd: missing.cwd },
+    );
+    expect(partial.stdout).toContain(
+      'PD039 schema public has no permitted_customer_ids',
+    );
+    const other = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      "{ schema: 'app' }",
+    );
+    writeFileSync(
+      join(other.cwd, 'rls.sql'),
+      `create function "public".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;`,
+    );
+    const wrongSchema = await run(
+      ['supabase', 'hook', 'generate', '--out', 'hook.sql'],
+      { cwd: other.cwd },
+    );
+    expect(wrongSchema.stdout).toContain(
+      'PD039 schema app has no permdock_has',
+    );
+  });
+
+  it('doctor PD039 reports missing helpers and oversized extra claims', async () => {
+    const { cwd } = await generate(
+      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      [],
+      "{}, doctor: { claims: './claims.json' }",
+    );
+    writeFileSync(
+      join(cwd, 'claims.json'),
+      JSON.stringify([
+        { features: { small: true } },
+        { features: { flags: 'x'.repeat(2000) } },
+      ]),
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD039'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      "schema public has no permdock_has, permitted_organization_ids, permitted_customer_ids: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
+      'claim features is 2012 bytes of JSON in ./claims.json, more than the 1024-byte memberships budget',
+    ]);
+  });
+
   it('refuses reserved or unqualified extra claims', async () => {
     for (const [claims, message] of [
       [`{ memberships: 'x.f' }`, 'PermDock or Supabase Auth writes'],

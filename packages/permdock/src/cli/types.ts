@@ -184,6 +184,8 @@ export type DoctorConfig = {
   readonly clientEntries?: readonly string[];
   /** Globs or directories of SQL migrations PD022 scans for views; defaults to the usual migration folders. */
   readonly migrations?: readonly string[];
+  /** A JSON array of sample decoded token claims; PD039 measures each `supabase.hook.claims` entry in it. */
+  readonly claims?: string;
 };
 
 export type PermDockConfig = {

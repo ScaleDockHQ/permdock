@@ -34,10 +34,15 @@ import {
   quoteLiteral,
   quoteTable,
 } from './rls-sql.ts';
+import {
+  missingHelpersInDb,
+  missingHelpersInFiles,
+  missingHelpersMessage,
+} from './supabase-setup.ts';
 
 export const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
-  hook generate [--out supabase/permdock-hook.sql] [--check]
+  hook generate [--out supabase/permdock-hook.sql] [--check] [--db <url>]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                 [--budget 1024] [--schema public]
   inspect [--json]
@@ -867,7 +872,7 @@ function inspectText(manifest: SupabaseHookManifest): string {
   ].join('\n');
 }
 
-async function loadScopes(
+export async function loadScopes(
   cwd: string,
   config: PermDockConfig,
 ): Promise<readonly Scope[]> {
@@ -889,6 +894,7 @@ export async function runSupabase(input: {
   readonly out?: string;
   readonly check: boolean;
   readonly json?: boolean;
+  readonly db?: string;
   readonly activeFrom?: string;
   readonly budget?: string;
   readonly schema?: string;
@@ -943,6 +949,11 @@ export async function runSupabase(input: {
   }
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, sql);
+  const placed = { ...manifest, hook: { ...manifest.hook, out: outRel } };
+  const missing =
+    input.db === undefined
+      ? missingHelpersInFiles(input.cwd, input.config, placed)
+      : await missingHelpersInDb(input.db, placed);
   return {
     code: 0,
     output: [
@@ -950,6 +961,7 @@ export async function runSupabase(input: {
       'add to supabase/config.toml:',
       toml,
       ...warnings,
+      ...(missing.length === 0 ? [] : [missingHelpersMessage(placed, missing)]),
     ].join('\n'),
   };
 }
