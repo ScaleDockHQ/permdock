@@ -17,6 +17,10 @@
     "transit": {
       "dependsOn": ["^transit"]
     },
+    "typegen": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"],
