@@ -334,6 +334,27 @@ describe('scimHandler', () => {
     ]);
   });
 
+  it('reads groupRoles by own key only', async () => {
+    const { handle } = handler({
+      assignable: ['editor'],
+      groupRoles: { editors: ['editor'] },
+    });
+    for (const id of ['constructor', 'toString', '__proto__']) {
+      const response = await handle(
+        request('/Groups', {
+          method: 'POST',
+          body: JSON.stringify({
+            schemas: [GROUP_SCHEMA],
+            id,
+            displayName: `Group ${id}`,
+          }),
+        }),
+      );
+      expect(response.status).toBe(201);
+      expect((await json(response))[ROLES_EXTENSION]).toBeUndefined();
+    }
+  });
+
   it('emits a membership event per affected group member', async () => {
     const sink = memorySink();
     const { handle } = handler({ sink });

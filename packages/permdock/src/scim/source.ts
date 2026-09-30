@@ -8,6 +8,7 @@ import type {
 
 import { compact } from '../core/compact.ts';
 import { parseScimFilter } from './filter.ts';
+import { groupRolesFor } from './group-roles.ts';
 
 function allowedRoles(
   roles: readonly string[] | undefined,
@@ -94,7 +95,8 @@ export function directoryMembershipSource(
       }
       const memberships: Membership[] = [];
       for (const group of groups) {
-        const mapped = group.roles ?? options.groupRoles?.[group.id];
+        const mapped =
+          group.roles ?? groupRolesFor(options.groupRoles, group.id);
         memberships.push(
           compact<Membership>({
             tenant,

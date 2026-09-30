@@ -15,6 +15,7 @@ import {
   reportUnknownRoles,
 } from './emit.ts';
 import { filterSupported, parseScimFilter } from './filter.ts';
+import { groupRolesFor } from './group-roles.ts';
 import { normalizePatchOps, readPatchOperations } from './patch.ts';
 import {
   forbidden,
@@ -175,7 +176,10 @@ export function scimHandler(
           membershipEventsForGroup({
             tenant,
             groupId: route.id,
-            roles: existing?.roles ?? options.groupRoles?.[route.id] ?? [],
+            roles:
+              existing?.roles ??
+              groupRolesFor(options.groupRoles, route.id) ??
+              [],
             previous: existing,
             next: null,
           }),
@@ -218,11 +222,10 @@ export function scimHandler(
         if (!schemasOk(body, GROUP_SCHEMA)) {
           return scimError(400, 'invalidSyntax', 'unsupported schema');
         }
-        // SAFETY: only a lookup key; a missing or non-string id coerces to a key groupRoles lacks.
         const parsed = groupFromBody(
           body,
           '',
-          options.groupRoles?.[body['id'] as string],
+          groupRolesFor(options.groupRoles, body['id']),
         );
         if (parsed === undefined) {
           return scimError(400, 'invalidValue', 'displayName is required');
@@ -243,7 +246,10 @@ export function scimHandler(
           membershipEventsForGroup({
             tenant,
             groupId: stored.id,
-            roles: stored.roles ?? options.groupRoles?.[stored.id] ?? [],
+            roles:
+              stored.roles ??
+              groupRolesFor(options.groupRoles, stored.id) ??
+              [],
             previous: null,
             next: stored,
           }),
@@ -290,7 +296,7 @@ export function scimHandler(
         const parsed = groupFromBody(
           body,
           route.id,
-          options.groupRoles?.[route.id],
+          groupRolesFor(options.groupRoles, route.id),
         );
         if (parsed === undefined) {
           return scimError(400, 'invalidValue', 'displayName is required');
