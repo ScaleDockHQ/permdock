@@ -1,8 +1,10 @@
 import type { Policy, ResourceNode } from '../index.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
+import { relationArmSql } from '../conditions/graph-sql.ts';
 import { flattenGrantee, relationCondition } from '../core/grantee.ts';
 import {
+  expandRelation,
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
@@ -12,10 +14,12 @@ import { scopeList } from '../core/scopes.ts';
 import {
   CLOSURE,
   graphHelper,
+  graphSqlText,
+  linkHelper,
+  qualifiedTable,
   quoteIdent,
   quoteLiteral,
   quoteTable,
-  subjectIdSql,
 } from './rls-sql.ts';
 
 export { CLOSURE };
@@ -31,23 +35,60 @@ function tableFor(
   return tables?.[resource] ?? resource;
 }
 
-/** One resource the graph grants read: the relations they name and, when they walk it, the closure depth. */
+/** One resource the graph grants read: the relations they name, the links they cross and, when they walk it, the closure depth. */
 export type GraphResource = {
   readonly node: ResourceNode;
+  /** Relations asked for, as grants and groups name them (before `includes`). */
   readonly relations: ReadonlySet<string>;
+  /** Links a hop follows out of this resource. */
+  readonly links: ReadonlySet<string>;
   /** Deepest `depth` any grant walks; absent when no grant walks the resource. */
   readonly closure?: number;
 };
 
 export type GraphPlan = ReadonlyMap<string, GraphResource>;
 
-/** Every `related` condition the policy's grants compile to, with the resource graph they need. */
+type PlanEntry = {
+  node: ResourceNode;
+  relations: Set<string>;
+  links: Set<string>;
+  closure?: number;
+};
+
+/** Every `related` condition the policy's grants compile to, with the resource graph they need, groups included. */
 export function graphPlan(policy: Policy): GraphPlan {
   const scopes = scopeList(policy.scopes);
-  const plan = new Map<
-    string,
-    { node: ResourceNode; relations: Set<string>; closure?: number }
-  >();
+  const plan = new Map<string, PlanEntry>();
+  const entryFor = (node: ResourceNode): PlanEntry => {
+    const entry = plan.get(node.name) ?? {
+      node,
+      relations: new Set<string>(),
+      links: new Set<string>(),
+    };
+    plan.set(node.name, entry);
+    return entry;
+  };
+  const addRelation = (node: ResourceNode, relation: string): void => {
+    const entry = entryFor(node);
+    if (entry.relations.has(relation)) {
+      return;
+    }
+    entry.relations.add(relation);
+    for (const name of expandRelation(node, relation)) {
+      const spec = node.relations[name];
+      if (!isEdgeRelation(spec) || spec.groups === undefined) {
+        continue;
+      }
+      for (const [resource, groupRelation] of Object.entries(
+        spec.groups.resources,
+      )) {
+        const target = policy.resources.get(resource);
+        if (target !== undefined && target.name !== node.name) {
+          addRelation(target, groupRelation);
+        }
+      }
+    }
+  };
   for (const grant of policy.grants) {
     const row = policy.resources.get(grant.permission.resource);
     for (const item of flattenGrantee(grant.to)) {
@@ -64,12 +105,19 @@ export function graphPlan(policy: Policy): GraphPlan {
       if (node === undefined) {
         continue;
       }
-      const entry = plan.get(node.name) ?? { node, relations: new Set() };
-      entry.relations.add(condition.relation);
+      addRelation(node, condition.relation);
+      const entry = entryFor(node);
       if (condition.depth > 0 && isSelfParented(node)) {
         entry.closure = Math.max(entry.closure ?? 0, condition.depth);
       }
-      plan.set(node.name, entry);
+      const hops = condition.hops ?? [];
+      for (let index = 1; index < hops.length; index += 1) {
+        const from = policy.resources.get(hops[index - 1]?.resource ?? '');
+        const hop = hops[index];
+        if (from !== undefined && hop !== undefined) {
+          entryFor(from).links.add(hop.link);
+        }
+      }
     }
   }
   return plan;
@@ -89,68 +137,79 @@ export function closureDepths(
 }
 
 function tableSql(name: string): string {
-  return quoteTable(name.includes('.') ? name : `public.${name}`);
+  return quoteTable(qualifiedTable(name));
 }
 
-function textSubject(ctx: RlsSqlContext): string {
-  return `${subjectIdSql(ctx)}::text`;
-}
-
-/** The `permitted_<resource>_ids(relation)` arm for one relation: ids of `resource` the subject holds it on. */
+/**
+ * The `permitted_<resource>_ids(relation)` arm for one concrete relation:
+ * ids of `resource` the subject holds it on, directly or through a group.
+ * `asked` are the relation names that include it, so a call for any of them
+ * (or for all, with null) reads this arm.
+ */
 function relationArm(
   ctx: RlsSqlContext,
+  plan: GraphPlan,
   node: ResourceNode,
   relation: string,
+  asked: readonly string[],
   tables: Readonly<Record<string, string>> | undefined,
 ): string {
   const spec = node.relations[relation];
-  const guard = `(p_relation is null or p_relation = ${quoteLiteral(relation)})`;
-  if (isEdgeRelation(spec)) {
-    const object = quoteIdent(spec.object ?? `${node.name}_id`);
-    const subject = quoteIdent(spec.subject ?? 'user_id');
-    const parts = [guard, `e.${subject}::text = ${textSubject(ctx)}`];
-    if (spec.expiresAt !== undefined) {
-      const column = `e.${quoteIdent(spec.expiresAt)}`;
-      parts.push(`(${column} is null or ${column} > now())`);
-    }
-    return `  select e.${object}::text from ${tableSql(spec.edge)} e\n  where ${parts.join('\n    and ')}`;
-  }
-  const table = tableSql(tableFor(node.name, tables));
-  const id = `t.${quoteIdent(node.id)}::text`;
-  if (isPrincipalRelation(spec)) {
-    const parts = [
-      guard,
-      `t.${quoteIdent(spec.principal)}::text = ${textSubject(ctx)}`,
-    ];
-    const startsAt = spec.period?.startsAt;
-    if (startsAt !== undefined) {
-      const column = `t.${quoteIdent(startsAt)}`;
-      parts.push(`(${column} is null or ${column} <= now())`);
-    }
-    const expiresAt = spec.period?.expiresAt;
-    if (expiresAt !== undefined) {
-      const column = `t.${quoteIdent(expiresAt)}`;
-      parts.push(`(${column} is null or ${column} > now())`);
-    }
-    return `  select ${id} from ${table} t\n  where ${parts.join('\n    and ')}`;
-  }
-  if (!isFieldRelation(spec) || spec.memberOf !== undefined) {
+  if (
+    !isEdgeRelation(spec) &&
+    !isPrincipalRelation(spec) &&
+    (!isFieldRelation(spec) || spec.memberOf !== undefined)
+  ) {
     throw new Error(
       `PermDock CLI: relation '${relation}' on ${node.name} is not a graph relation RLS can compile`,
     );
   }
-  return `  select ${id} from ${table} t\n  where ${guard}\n    and t.${quoteIdent(spec.field)}::text = ${textSubject(ctx)}`;
+  const guard =
+    asked.length === 1
+      ? `(p_relation is null or p_relation = ${quoteLiteral(asked[0] ?? relation)})`
+      : `(p_relation is null or p_relation in (${asked.map(quoteLiteral).join(', ')}))`;
+  const body = graphSqlText(
+    relationArmSql(node.name, relation, {
+      resources: new Map([...plan].map(([name, item]) => [name, item.node])),
+      ...(tables === undefined ? {} : { tables }),
+      qualify: qualifiedTable,
+      holders: (resource, groupRelation) => [
+        {
+          text: `select ${qualified(ctx, graphHelper(resource))}(${quoteLiteral(groupRelation)})`,
+        },
+      ],
+    }),
+    ctx,
+  );
+  return `  select a.id from (${body}) a\n  where ${guard}`;
 }
 
 function permittedSql(
   ctx: RlsSqlContext,
+  plan: GraphPlan,
   entry: GraphResource,
   tables: Readonly<Record<string, string>> | undefined,
 ): string {
   const fn = qualified(ctx, graphHelper(entry.node.name));
-  const arms = [...entry.relations]
-    .toSorted()
-    .map((relation) => relationArm(ctx, entry.node, relation, tables));
+  const asked = [...entry.relations].toSorted();
+  const concrete = [
+    ...new Set(asked.flatMap((name) => expandRelation(entry.node, name))),
+  ].toSorted();
+  const arms = concrete.map((relation) =>
+    relationArm(
+      ctx,
+      plan,
+      entry.node,
+      relation,
+      asked.filter((name) =>
+        expandRelation(entry.node, name).includes(relation),
+      ),
+      tables,
+    ),
+  );
+  if (arms.length === 0) {
+    arms.push('  select null::text where false');
+  }
   return `-- ${entry.node.name}: ids the subject holds a relation on (all relations when p_relation is null)
 create or replace function ${fn}(p_relation text)
 returns setof text
@@ -163,6 +222,33 @@ ${arms.join('\n  union\n')}
 $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;`;
+}
+
+/** `permdock_link_<resource>_<link>(ids)`: ids of `resource` whose link points into `ids`, read past the table's own policies. */
+function linkSql(
+  ctx: RlsSqlContext,
+  node: ResourceNode,
+  link: string,
+  tables: Readonly<Record<string, string>> | undefined,
+): string {
+  const spec = Object.hasOwn(node.links, link) ? node.links[link] : undefined;
+  if (spec === undefined) {
+    throw new Error(`PermDock CLI: ${node.name} has no link '${link}'`);
+  }
+  const fn = qualified(ctx, linkHelper(node.name, link));
+  return `-- ${node.name}.${link}: rows whose ${spec.field} points at one of the given ${spec.resource} ids
+create or replace function ${fn}(p_ids text[])
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select t.${quoteIdent(node.id)}::text from ${tableSql(tableFor(node.name, tables))} t
+  where t.${quoteIdent(spec.field)}::text = any(p_ids)
+$$;
+revoke execute on function ${fn}(text[]) from public, anon;
+grant execute on function ${fn}(text[]) to authenticated;`;
 }
 
 function closureTableSql(ctx: RlsSqlContext): string {
@@ -321,6 +407,46 @@ create trigger ${trigger('truncate')} after truncate on ${table}
 select ${refresh}(array(select t.${id}::text from ${table} t));`;
 }
 
+/** Group resources a resource's asked relations name, other than itself. */
+function groupTargets(entry: GraphResource): readonly string[] {
+  const out = new Set<string>();
+  for (const asked of entry.relations) {
+    for (const name of expandRelation(entry.node, asked)) {
+      const spec = entry.node.relations[name];
+      const resources = isEdgeRelation(spec)
+        ? Object.keys(spec.groups?.resources ?? {})
+        : [];
+      for (const resource of resources) {
+        if (resource !== entry.node.name) {
+          out.add(resource);
+        }
+      }
+    }
+  }
+  return [...out].toSorted();
+}
+
+/** Plan entries by name, each after the group resources its helper calls (SQL function bodies are checked on create). */
+function dependencyOrder(plan: GraphPlan): readonly GraphResource[] {
+  const out: GraphResource[] = [];
+  const done = new Set<string>();
+  const visit = (name: string): void => {
+    const entry = plan.get(name);
+    if (entry === undefined || done.has(name)) {
+      return;
+    }
+    done.add(name);
+    for (const target of groupTargets(entry)) {
+      visit(target);
+    }
+    out.push(entry);
+  };
+  for (const name of [...plan.keys()].toSorted()) {
+    visit(name);
+  }
+  return out;
+}
+
 /**
  * The graph preamble: `permitted_<resource>_ids` for every resource a graph
  * grant reads, and the closure table with its triggers for every
@@ -341,10 +467,15 @@ export function graphSql(
       );
     }
   }
-  const entries = [...plan.values()].toSorted((a, b) =>
-    a.node.name.localeCompare(b.node.name),
-  );
-  const chunks = entries.map((entry) => permittedSql(ctx, entry, tables));
+  const entries = dependencyOrder(plan);
+  const chunks = entries.flatMap((entry) => [
+    ...(entry.relations.size === 0
+      ? []
+      : [permittedSql(ctx, plan, entry, tables)]),
+    ...[...entry.links]
+      .toSorted()
+      .map((link) => linkSql(ctx, entry.node, link, tables)),
+  ]);
   const walked = entries.filter((entry) => entry.closure !== undefined);
   if (walked.length > 0) {
     chunks.push(closureTableSql(ctx));

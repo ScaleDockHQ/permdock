@@ -1,19 +1,32 @@
 import type { RelatedCondition } from '../conditions/ast.ts';
 import type {
   RelationChain,
+  RelationGroup,
   RelationHolder,
   RelationSource,
 } from './interfaces.ts';
-import type { PermissionTree, ResourceNode } from './permissions.ts';
+import type {
+  EdgeRelation,
+  PermissionTree,
+  ResourceNode,
+} from './permissions.ts';
 import type { Subject } from './subject.ts';
 
 import { ownGet } from './paths.ts';
 import {
+  expandRelation,
   getRegistry,
+  isComputedRelation,
   isEdgeRelation,
   isPrincipalRelation,
 } from './permissions.ts';
 import { isThenable } from './thenable.ts';
+
+/** How deep groups of one resource may nest in each other; a group of another resource starts a fresh count. */
+export const DEFAULT_GROUP_DEPTH = 16;
+
+/** A holder as the reader returns it: tagged with the relation it was read under, after `includes`. */
+export type ReadHolder = RelationHolder & { readonly relation: string };
 
 type CacheEntry =
   | { readonly state: 'ready'; readonly value: unknown }
@@ -27,16 +40,21 @@ export type Unread = 'pending' | 'failed';
 
 /** Synchronous reads over a `RelationSource` and the instance's cache. */
 export type RelationReader = {
+  /** Whether a `RelationSource` was configured at all. */
+  readonly available: boolean;
   chain(query: {
     readonly resource: string;
     readonly id: string;
     readonly depth: number;
+    /** `'parent'` (the default) or a link name. */
+    readonly through?: string;
   }): RelationChain | Unread;
+  /** Holders of `relation` and of every relation it includes. */
   holders(query: {
     readonly resource: string;
     readonly id: string;
     readonly relation: string;
-  }): readonly RelationHolder[] | Unread;
+  }): readonly ReadHolder[] | Unread;
 };
 
 export type RelatedVerdict =
@@ -77,6 +95,19 @@ function asChain(value: unknown): RelationChain | undefined {
   };
 }
 
+function asGroup(value: unknown): RelationGroup | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value.resource !== 'string' ||
+    typeof value.id !== 'string' ||
+    typeof value.relation !== 'string' ||
+    value.id === ''
+  ) {
+    return undefined;
+  }
+  return { resource: value.resource, id: value.id, relation: value.relation };
+}
+
 function asHolders(value: unknown): readonly RelationHolder[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
@@ -85,22 +116,28 @@ function asHolders(value: unknown): readonly RelationHolder[] | undefined {
   for (const item of value as readonly unknown[]) {
     if (
       !isRecord(item) ||
-      !isRecord(item.principal) ||
-      typeof item.principal.id !== 'string' ||
       !isInstant(item.startsAt) ||
       !isInstant(item.expiresAt)
     ) {
       return undefined;
     }
-    holders.push({
-      principal: { id: item.principal.id },
+    const period = {
       ...(item.startsAt === undefined
         ? {}
         : { startsAt: item.startsAt as number }),
       ...(item.expiresAt === undefined
         ? {}
         : { expiresAt: item.expiresAt as number }),
-    });
+    };
+    if (isRecord(item.principal) && typeof item.principal.id === 'string') {
+      holders.push({ principal: { id: item.principal.id }, ...period });
+      continue;
+    }
+    const group = asGroup(item.group);
+    if (group === undefined) {
+      return undefined;
+    }
+    holders.push({ group, ...period });
   }
   return holders;
 }
@@ -149,25 +186,66 @@ function read<T>(
 export function relationReader(
   source: RelationSource | undefined,
   cache: RelationCache,
+  resources?: ReadonlyMap<string, ResourceNode>,
 ): RelationReader {
+  const concrete = (
+    resource: string,
+    id: string,
+    relation: string,
+  ): readonly RelationHolder[] | Unread =>
+    read(
+      cache,
+      JSON.stringify(['holders', resource, id, relation]),
+      source === undefined
+        ? undefined
+        : () => source.related({ resource, id, relation }),
+      asHolders,
+    );
   return {
+    available: source !== undefined,
     chain(query) {
+      const through = query.through ?? 'parent';
       return read(
         cache,
-        JSON.stringify(['chain', query.resource, query.id, query.depth]),
+        JSON.stringify([
+          'chain',
+          query.resource,
+          query.id,
+          query.depth,
+          through,
+        ]),
         source === undefined
           ? undefined
-          : () => source.ancestors({ ...query, through: 'parent' }),
+          : () =>
+              source.ancestors({
+                resource: query.resource,
+                id: query.id,
+                depth: query.depth,
+                through,
+              }),
         asChain,
       );
     },
     holders(query) {
-      return read(
-        cache,
-        JSON.stringify(['holders', query.resource, query.id, query.relation]),
-        source === undefined ? undefined : () => source.related({ ...query }),
-        asHolders,
-      );
+      const node = resources?.get(query.resource);
+      const names =
+        node === undefined
+          ? [query.relation]
+          : expandRelation(node, query.relation);
+      const out: ReadHolder[] = [];
+      let unread: Unread | undefined;
+      for (const name of names) {
+        const answer = concrete(query.resource, query.id, name);
+        if (answer === 'pending' || answer === 'failed') {
+          unread =
+            answer === 'failed' || unread === 'failed' ? 'failed' : 'pending';
+          continue;
+        }
+        for (const holder of answer) {
+          out.push({ ...holder, relation: name });
+        }
+      }
+      return unread ?? out;
     },
   };
 }
@@ -198,16 +276,57 @@ export function relationId(value: unknown): string | undefined {
   return undefined;
 }
 
+/** Whether the holder's period covers `now`. */
+export function activeNow(holder: RelationHolder, now: number): boolean {
+  return (
+    (holder.startsAt === undefined || holder.startsAt <= now) &&
+    (holder.expiresAt === undefined || holder.expiresAt > now)
+  );
+}
+
 export function holdsNow(
   holder: RelationHolder,
   principalId: string,
   now: number,
 ): boolean {
   return (
+    'principal' in holder &&
     holder.principal.id === principalId &&
-    (holder.startsAt === undefined || holder.startsAt <= now) &&
-    (holder.expiresAt === undefined || holder.expiresAt > now)
+    activeNow(holder, now)
   );
+}
+
+/** Where the walk starts after following `hops`, or why it cannot. */
+function followHops(
+  condition: RelatedCondition,
+  first: string,
+  reader: RelationReader,
+): { readonly id: string } | 'relation-unavailable' | undefined {
+  const hops = condition.hops ?? [];
+  let id = first;
+  for (let index = 1; index < hops.length; index += 1) {
+    const from = hops[index - 1];
+    const hop = hops[index];
+    if (from === undefined || hop === undefined) {
+      /* v8 ignore next */
+      return undefined;
+    }
+    const chain = reader.chain({
+      resource: from.resource,
+      id,
+      depth: 1,
+      through: hop.link,
+    });
+    if (chain === 'pending' || chain === 'failed') {
+      return 'relation-unavailable';
+    }
+    const next = chain.ancestors[0]?.id;
+    if (next === undefined) {
+      return undefined;
+    }
+    id = next;
+  }
+  return { id };
 }
 
 /** The instances a graph relation reads: the start, then ancestors until a restricted one or `depth`. */
@@ -226,16 +345,22 @@ export function relationWalk(
   if (!isRecord(row)) {
     return undefined;
   }
-  const id = relationId(ownGet(row, condition.field));
-  if (id === undefined) {
+  const first = relationId(ownGet(row, condition.field));
+  if (first === undefined) {
     return undefined;
   }
   const rowRestricted =
     condition.restricted !== undefined &&
     ownGet(row, condition.restricted) === true;
-  if (condition.parent === true && rowRestricted) {
+  const hopped = condition.hops !== undefined && condition.hops.length > 0;
+  if ((condition.parent === true || hopped) && rowRestricted) {
     return undefined;
   }
+  const start = hopped ? followHops(condition, first, reader) : { id: first };
+  if (start === undefined || start === 'relation-unavailable') {
+    return start;
+  }
+  const id = start.id;
   if (condition.depth === 0 || rowRestricted) {
     return { ids: [id], truncated: false };
   }
@@ -293,25 +418,102 @@ export function resolveRelated(
   if (walk === 'relation-depth' || walk === 'relation-unavailable') {
     return walk;
   }
-  let unavailable = false;
-  for (const id of walk.ids) {
-    const holders = reader.holders({
-      resource: condition.resource,
-      id,
-      relation: condition.relation,
-    });
-    if (holders === 'pending' || holders === 'failed') {
-      unavailable = true;
-      continue;
-    }
-    if (holders.some((holder) => holdsNow(holder, principal.id, now))) {
+  if (condition.ids !== undefined) {
+    const held = new Set(condition.ids);
+    if (walk.ids.some((id) => held.has(id))) {
       return true;
+    }
+    return walk.truncated ? 'relation-depth' : false;
+  }
+  let unavailable = false;
+  let deep = false;
+  for (const id of walk.ids) {
+    const verdict = holdsRelation(
+      {
+        resource: condition.resource,
+        id,
+        relation: condition.relation,
+      },
+      principal.id,
+      now,
+      reader,
+      DEFAULT_GROUP_DEPTH,
+      new Set(),
+    );
+    if (verdict === true) {
+      return true;
+    }
+    if (verdict === 'relation-unavailable') {
+      unavailable = true;
+    } else if (verdict === 'relation-depth') {
+      deep = true;
     }
   }
   if (unavailable) {
     return 'relation-unavailable';
   }
-  return walk.truncated ? 'relation-depth' : false;
+  return walk.truncated || deep ? 'relation-depth' : false;
+}
+
+function groupKey(group: RelationGroup): string {
+  return JSON.stringify([group.resource, group.id, group.relation]);
+}
+
+/**
+ * Whether the principal holds `at.relation` on one instance, directly or
+ * through a group whose members hold it. Groups of `at`'s own resource nest
+ * at most `budget` deep; a group of another resource gets a fresh budget
+ * (declarations rule out cycles across resources). A group met twice on one
+ * path, or one past the budget, is `relation-depth`.
+ */
+export function holdsRelation(
+  at: RelationGroup,
+  principalId: string,
+  now: number,
+  reader: RelationReader,
+  budget: number,
+  seen: ReadonlySet<string>,
+): RelatedVerdict {
+  const holders = reader.holders(at);
+  if (holders === 'pending' || holders === 'failed') {
+    return 'relation-unavailable';
+  }
+  if (holders.some((holder) => holdsNow(holder, principalId, now))) {
+    return true;
+  }
+  const path = new Set(seen).add(groupKey(at));
+  let unavailable = false;
+  let deep = false;
+  for (const holder of holders) {
+    if (!('group' in holder) || !activeNow(holder, now)) {
+      continue;
+    }
+    const nested = holder.group.resource === at.resource;
+    if ((nested && budget <= 0) || path.has(groupKey(holder.group))) {
+      deep = true;
+      continue;
+    }
+    const verdict = holdsRelation(
+      holder.group,
+      principalId,
+      now,
+      reader,
+      nested ? budget - 1 : DEFAULT_GROUP_DEPTH,
+      path,
+    );
+    if (verdict === true) {
+      return true;
+    }
+    if (verdict === 'relation-unavailable') {
+      unavailable = true;
+    } else if (verdict === 'relation-depth') {
+      deep = true;
+    }
+  }
+  if (unavailable) {
+    return 'relation-unavailable';
+  }
+  return deep ? 'relation-depth' : false;
 }
 
 export type MemoryEdge = {
@@ -323,7 +525,7 @@ export type MemoryEdge = {
 };
 
 export type MemoryRelationsData = {
-  /** Rows per resource: parent pointers, restricted flags and relation columns are read from them. */
+  /** Rows per resource: parent pointers, links, restricted flags and relation columns are read from them. */
   readonly rows?: Readonly<
     Record<string, readonly Readonly<Record<string, unknown>>[]>
   >;
@@ -331,7 +533,58 @@ export type MemoryRelationsData = {
   readonly edges?: Readonly<
     Record<string, Readonly<Record<string, readonly MemoryEdge[]>>>
   >;
+  /**
+   * Edge tables as the database holds them, keyed by `edge` name: each row
+   * is read through the relation's `object`, `subject`, `expiresAt`, `match`
+   * and `groups` columns. A relation whose table is here ignores `edges`.
+   */
+  readonly tables?: Readonly<
+    Record<string, readonly Readonly<Record<string, unknown>>[]>
+  >;
 };
+
+/** The holder one edge-table row names for `spec`, or `undefined` when the row does not belong to it. */
+function tableHolder(
+  resourceName: string,
+  spec: EdgeRelation,
+  row: Readonly<Record<string, unknown>>,
+  id: string,
+): RelationHolder | undefined {
+  if (relationId(ownGet(row, spec.object ?? `${resourceName}_id`)) !== id) {
+    return undefined;
+  }
+  for (const [column, value] of Object.entries(spec.match ?? {})) {
+    if (ownGet(row, column) !== value) {
+      return undefined;
+    }
+  }
+  const subject = relationId(ownGet(row, spec.subject ?? 'user_id'));
+  if (subject === undefined) {
+    return undefined;
+  }
+  const expiresAt =
+    spec.expiresAt === undefined
+      ? undefined
+      : seconds(ownGet(row, spec.expiresAt));
+  const period = expiresAt === undefined ? {} : { expiresAt };
+  const groups = spec.groups;
+  const kind = groups === undefined ? null : ownGet(row, groups.column);
+  if (
+    groups === undefined ||
+    kind === null ||
+    kind === undefined ||
+    kind === groups.direct
+  ) {
+    return { principal: { id: subject }, ...period };
+  }
+  const relation =
+    typeof kind === 'string' && Object.hasOwn(groups.resources, kind)
+      ? groups.resources[kind]
+      : undefined;
+  return relation === undefined
+    ? undefined
+    : { group: { resource: kind as string, id: subject, relation }, ...period };
+}
 
 function seconds(value: unknown): number | undefined {
   if (value instanceof Date) {
@@ -406,11 +659,24 @@ export function memoryRelations(
   ): Readonly<Record<string, unknown>> | undefined =>
     byId.get(resource)?.get(id);
   return {
-    ancestors({ resource, id, depth }) {
+    ancestors({ resource, id, depth, through }) {
       const node = registry.get(resource);
       const start = rowOf(resource, id);
       if (node === undefined || start === undefined) {
         return { ancestors: [] };
+      }
+      if (through !== 'parent') {
+        const link = Object.hasOwn(node.links, through)
+          ? node.links[through]
+          : undefined;
+        const next =
+          link === undefined
+            ? undefined
+            : relationId(ownGet(start, link.field));
+        if (next === undefined || depth < 1) {
+          return { ancestors: [] };
+        }
+        return { ancestors: [{ id: next }] };
       }
       const restricted = restrictedOf(node, start);
       if (
@@ -450,10 +716,17 @@ export function memoryRelations(
     },
     related({ resource, id, relation }) {
       const spec = registry.get(resource)?.relations[relation];
-      if (spec === undefined) {
+      if (spec === undefined || isComputedRelation(spec)) {
         return [];
       }
       if (isEdgeRelation(spec)) {
+        const table = data.tables?.[spec.edge];
+        if (table !== undefined) {
+          return table.flatMap((row) => {
+            const holder = tableHolder(resource, spec, row, id);
+            return holder === undefined ? [] : [holder];
+          });
+        }
         return (data.edges?.[resource]?.[relation] ?? [])
           .filter((edge) => edge.id === id)
           .map(edgeHolder);

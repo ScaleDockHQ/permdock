@@ -110,7 +110,7 @@ Conditions are plain JSON. No superjson, no class instances, no functions. The l
 - A literal value is a JSON literal.
 - A reference is `{ "ref": "principal.<path>" }` or `{ "ref": "context.<path>" }`; no other prefix resolves.
 - A scope test is `{ "op": "memberOf", "scope": "tenant" | "team" | "resource", "field": "<row field>", "roles": [...] }`, with `resource` and `parents` when the scope is a resource ([tenancy](/docs/concepts/tenancy)).
-- A graph test is `{ "op": "related", "resource": "<resource>", "relation": "<name>", "field": "<row field>", "depth": <0-32> }`, with `"parent": true` when the field holds the row's parent id and `restricted` naming the row's restricted column. It never appears in a snapshot: grants that need it are server-only there.
+- A graph test is `{ "op": "related", "resource": "<resource>", "relation": "<name>", "field": "<row field>", "depth": <0-32> }`, with `"parent": true` when the field holds the row's parent id, `hops` (`[{ "link", "resource" }]`) when the grant follows links, `ids` in place of `relation` for a resource role held on a self-parented resource, and `restricted` naming the row's restricted column. It never appears in a snapshot: grants that need it are server-only there.
 - A date is a tagged ISO string `{ "date": "..." }`, so it survives JSON without superjson and compares correctly in memory and in SQL.
 - Nested `and` / `or` are flattened and single-child compounds collapsed at definition time, the same normalisation CASL's ucast applies.
 
@@ -128,9 +128,10 @@ One AST, several interpreters:
 | Drizzle | `toWhere(permdock.where(...), posts)` from `permdock/drizzle` | An SQL expression for `.where()`; empty allow is constant false; `memberOf` is equality, `inArray`, parent `or`, or `exists` |
 | Prisma | `toWhere(...)` from `permdock/prisma` | A `WhereInput` object; fail-closed as `{ OR: [] }` when nothing is allowed; `memberOf` uses frozen membership ids |
 | Kysely | `toWhere(...)` from `permdock/kysely` | An expression builder callback; empty allow is `eb.lit(false)`; `memberOf` matches Drizzle |
-
-`related` is not portable to the three query builders (`portable: false` for them): the graph lives in a `RelationSource` or the closure table, not in the row. `permdock.where()` leaves graph grants out and returns `partial: true`, so re-check rows with `filter` after `loadRelations`, or let RLS enforce them.
+| Prisma 8 | `toPredicate(...)` from `permdock/prisma` | A function of the model's field proxy |
 | Postgres RLS | `permdock rls generate` | `CREATE POLICY` statements, Drizzle `pgPolicy` entries or Prisma 8 `policy_*` blocks |
+
+`related` needs the graph tables, not only the row. `permdock.where()` keeps it; Drizzle and Kysely compile it to a subquery when `options.relations` says where the tables are, and Prisma needs `resolveRelated` to replace it with ids first. Without either, the compilers refuse it with `non-portable-condition`. A relation with a `period` stays out of `where()` (`partial: true`); re-check those rows with `filter` after `loadRelations`, or let RLS enforce them ([relationships](/docs/concepts/relationships#snapshots-clients-and-where)).
 
 ```ts
 import { toWhere } from 'permdock/drizzle'

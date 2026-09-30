@@ -26,9 +26,17 @@ Targets:
 
 | `--target` | Output |
 | --- | --- |
-| `drizzle` | `pgPolicy()` calls next to the table definitions, using `drizzle-orm/supabase` helpers (`authenticatedRole`, `authUid`) when `--dialect supabase` |
+| `drizzle` | `pgPolicy(...).link(schema.<table>)` exports, using `drizzle-orm/supabase` helpers (`authenticatedRole`, `authUid`) when `--dialect supabase` and `pgRole(...).existing()` otherwise, plus `<out>.migration.sql` |
 | `sql` | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` plus `CREATE POLICY` statements, the `REVOKE` / `GRANT` statements for the target role, one file, idempotent |
-| `prisma` | Prisma 8 native `policy_*` blocks in the schema |
+| `prisma` | Prisma 8 native `policy_*` blocks, with a header naming the models that need `@@rls`, plus `<out>.migration.sql`; a deny grant fails generation |
+
+`<out>.migration.sql` holds what a policy object cannot: helpers, the closure table, grants, column privileges, `enable` / `force row level security` and field views. Config for the two targets:
+
+| Key | Meaning |
+| --- | --- |
+| `rls.drizzle.schema` | Import path of the module exporting the tables, default `./schema` |
+| `rls.drizzle.exports` | Table name to export name, when it is not the table name in camelCase |
+| `rls.prisma.models` | Table name to model name, when it is not the table name in PascalCase |
 
 Dialects decide how the subject reaches SQL. `--dialect` overrides `rls.dialect` from the config, and `supabase` is the default when neither is set:
 
@@ -131,7 +139,7 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 | `--revoke-columns` | flag | `rls.revokeColumns`, off | With `--fields views`, grant `anon` and `authenticated` `select` on only the unrestricted columns of each such table, so restricted columns are read through `<table>_visible`. Breaks `select *` on the table. Without `--fields views` it exits 2. |
 | `--capabilities` | flag | `rls.capabilities`, off | [Link capabilities](/docs/concepts/capabilities) reach resource-scoped grants: adds `permdock_capability_ids(p_resource, p_role, p_permission)`, which reads the `capability` claim `exchangeCapability` mints, and one `anon` policy per resource-scoped grant. A resource role with no memberships table gets only the `anon` policy, with a warning, instead of failing. |
 
-`--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
+`--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` write it to `<out>.migration.sql`. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
 
 With `--rbac`, the command prints a reminder to run `permdock supabase hook generate` for the token hook.
 
@@ -204,7 +212,7 @@ from "invoice";
 
 A read deny with `fields` and a read allow with an empty list only shape columns, as in the application (a field-only deny does not deny the row), so they leave the row policy and live in the masks. The resource needs a schema with Standard JSON Schema output to list its columns; without one the command fails with the resource named.
 
-Without `--revoke-columns` the table still returns every column to a direct read, and the command prints which. With it, the `sql` target replaces the table-level `select` grant by `grant select (<unrestricted columns and key>)` for each role and adds `revoke select (<restricted columns>) ... from anon, authenticated`; `insert`, `update` and `delete` keep their table-level grants, so `returning *` and `select *` on the table fail with `42501` and clients read through the view. `drizzle` and `prisma` put the views and the column statements in the migration comment. With `--force` the companion's owner is subject to the table's policies, which target only `anon` and `authenticated`, so it needs `BYPASSRLS` or every restricted column reads as `null`; the command warns.
+Without `--revoke-columns` the table still returns every column to a direct read, and the command prints which. With it, the `sql` target replaces the table-level `select` grant by `grant select (<unrestricted columns and key>)` for each role and adds `revoke select (<restricted columns>) ... from anon, authenticated`; `insert`, `update` and `delete` keep their table-level grants, so `returning *` and `select *` on the table fail with `42501` and clients read through the view. `drizzle` and `prisma` put the views and the column statements in `<out>.migration.sql`. With `--force` the companion's owner is subject to the table's policies, which target only `anon` and `authenticated`, so it needs `BYPASSRLS` or every restricted column reads as `null`; the command warns.
 
 Doctor PD030 warns while field-limited columns stay readable on the table ([doctor](/docs/cli/doctor)).
 

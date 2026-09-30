@@ -124,9 +124,10 @@ describe('graph grants in RLS', () => {
     expect(sql).toContain(
       'create table if not exists "public".permdock_closure',
     );
-    expect(sql).toContain('e."member"::text = (select auth.uid())::text');
-    expect(sql).toContain('(e."until" is null or e."until" > now())');
-    expect(sql).toContain('from "app"."folder_editors" e');
+    expect(sql).toContain('e1."member"::text = (select auth.uid())::text');
+    expect(sql).toContain('(e1."until" is null or e1."until" > now())');
+    expect(sql).toContain('from "app"."folder_editors" e1');
+    expect(sql).toContain('from "public"."folder_viewers" e1');
     expect(sql).toContain('coalesce(p."hidden", false)');
     expect(sql).toContain('walk.depth < 8');
     expect(sql).toContain('after update on "app"."folders"');
@@ -174,7 +175,94 @@ describe('graph grants in RLS', () => {
     expect(closureDepths(plan)).toEqual({ team: 16 });
   });
 
-  it('is not portable to toWhere compilers', () => {
+  it('is refused by toWhere compilers without a relations mapping', () => {
     expect(() => compileWhere(related())).toThrow(/related/);
+  });
+
+  it('plans groups, includes and link hops, and emits a helper per link', () => {
+    const graph = definePermissions({
+      squad: resource({
+        actions: ['read'],
+        relations: {
+          member: {
+            edge: 'team_members',
+            groups: { column: 'kind', resources: { squad: 'member' } },
+          },
+          lead: { principal: 'leadId' },
+        },
+      }),
+      folder: resource({
+        actions: ['read'],
+        parent: { field: 'parentId', resource: 'folder' },
+        links: { squad: { field: 'squadId', resource: 'squad' } },
+        relations: {
+          editor: {
+            edge: 'folder_members',
+            match: { role: 'editor' },
+            groups: { column: 'kind', resources: { squad: 'member' } },
+          },
+          viewer: {
+            edge: 'folder_members',
+            match: { role: 'viewer' },
+            includes: ['editor'],
+          },
+        },
+      }),
+      doc: resource({
+        actions: ['read', 'review'],
+        links: { folder: { field: 'folderId', resource: 'folder' } },
+        parent: { field: 'folderId', resource: 'folder' },
+      }),
+    });
+    const graphed = definePolicy(graph, {
+      grants: [
+        allow(graph.doc.read, {
+          to: relation(graph.folder, 'viewer', { through: 'parent', depth: 4 }),
+        }),
+        allow(graph.doc.review, {
+          to: relation(graph.squad, 'lead', { through: ['folder', 'squad'] }),
+        }),
+      ],
+      subject: () => null,
+    });
+    const plan = graphPlan(graphed);
+    expect([...(plan.get('squad')?.relations ?? [])].toSorted()).toEqual([
+      'lead',
+      'member',
+    ]);
+    expect([...(plan.get('folder')?.links ?? [])]).toEqual(['squad']);
+    const ctx: RlsSqlContext = {
+      dialect: 'supabase',
+      scopes: scopeList(graphed.scopes),
+      tenantClaim: 'tenant_id',
+      gucPrefix: 'app',
+      graph: { closures: closureDepths(plan), resources: graphed.resources },
+    };
+    const sql = graphSql(ctx, plan, undefined);
+    expect(sql).toContain(
+      `e1."role" = 'editor') a\n  where (p_relation is null or p_relation = 'viewer')`,
+    );
+    expect(sql).toContain(`e1."role" = 'viewer'`);
+    expect(sql).toContain(`"public".permitted_squad_ids('member')`);
+    expect(sql).toContain('with recursive g');
+    expect(sql).toContain('"public".permdock_link_folder_squad(p_ids text[])');
+    expect(
+      compileConditionSql(
+        {
+          op: 'related',
+          resource: 'squad',
+          relation: 'lead',
+          field: 'folderId',
+          depth: 0,
+          hops: [
+            { link: 'folder', resource: 'folder' },
+            { link: 'squad', resource: 'squad' },
+          ],
+        },
+        ctx,
+      ),
+    ).toBe(
+      `coalesce("folderId"::text in (select "public".permdock_link_folder_squad(array(select "public".permitted_squad_ids('lead')))), false)`,
+    );
   });
 });

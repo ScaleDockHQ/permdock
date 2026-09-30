@@ -35,7 +35,16 @@ await withSubject(db, permdock, async (trx) => {
 - `where(expression)` accepts the callback directly: `db.selectFrom('post').where(toWhere(permdock.where(permissions.post.read), 'post'))`.
 - No grant returns `(eb) => eb.lit(false)`, so the query yields no rows (fail closed).
 - `principal.<field>` and `context.<key>` values become bound parameters via `eb.val`.
-- `withSubject(db, permdock, fn)` opens a transaction and runs `set local role` plus `set_config('request.jwt.claims', ..., true)` (Supabase dialect) or `set_config('app.user_id', ..., true)` (GUC dialect) before `fn`, so database-side RLS sees the same subject as the in-process check. Dialect follows the policy's `rls` configuration.
+- `options.relations` (`{ tables?, closure? }`) lets a graph grant's `related` node compile to one subquery, over the closure table when named or a bounded recursive walk otherwise ([relationships](/docs/concepts/relationships#snapshots-clients-and-where)). Without it the node throws `non-portable-condition`.
+- `checkRow(db, table, condition, key, options?)` takes `key` as an expression-builder callback (`(eb) => eb('id', '=', id)`), selects the filter as a boolean for the matching row and returns `{ found: false }` or `{ found: true, granted }`. More than one matching row throws.
+- `withSubject(db, permdock, fn, options?)` opens a transaction, runs the preamble below and then `fn(trx)`, so the generated policies see `permdock.subject`. The same function ships in `permdock/drizzle` and `permdock/prisma` ([RLS adapter](/docs/adapters/rls)).
+
+The preamble, in order:
+
+1. `set local role authenticated`, or `anon` when the subject has no principal. `options.role` accepts only `authenticated`, `anon` or `false`. `false` keeps the connection's role, for a login role RLS already applies to.
+2. The claims. `supabase` and `neon` set `request.jwt.claims` (`sub`, `role`, the tenant claim) and `request.jwt.claim.sub`. `guc` sets `<prefix>.user_id` and one `<prefix>.<claim>` setting per claim.
+
+`options.dialect` (default `supabase`), `options.gucPrefix` (default `app`) and `options.tenantClaim` (default `tenant_id`) must match the `rls` block in `permdock.config.ts`; `withSubject` does not read the config. `options.claims` adds claims from the verified token, such as `user_role` or `memberships` for `jwt`-mode helpers. `sub`, `role` and the tenant claim always come from the subject. `options.sql` passes Kysely's `sql` tag on runtimes without `require`.
 
 Operator mapping:
 
@@ -59,7 +68,7 @@ Operator mapping:
 
 - Column existence is checked by Kysely's types when the database interface is typed; `toWhere` is generic over the `DB` type so an unknown column is a type error.
 - Closure grants: `permdock.where` reports `{ portable: false }`; `toWhere` throws `PermDockValidationError` naming the grant.
-- `withSubject` validates that the policy declares an RLS dialect and that the connection user may `set role` to the target role; otherwise it throws before running `fn`.
+- `withSubject` refuses any role other than `authenticated` or `anon`, and any setting prefix or claim name outside `[a-z_][a-z0-9_]*`. It throws before opening the transaction. A connection user that is not a member of the role fails at `set local role`, so `fn` never runs.
 - Rows returned from the database are trusted and not schema-validated.
 
 ## How denials surface
@@ -71,7 +80,7 @@ Operator mapping:
 
 ## Example app
 
-None. Kysely is covered by `tests/integration/src/orm-parity.test.ts` (`ormParity`: `filter` in memory against `toWhere` on a testcontainers Postgres, with and without a memberships table) and by a snippet in the [RLS adapter](/docs/adapters/rls) page.
+None. Kysely is covered by `tests/integration/src/orm-parity.test.ts` (`ormParity`: `filter` in memory against `toWhere` on a testcontainers Postgres, with and without a memberships table), `orm-graph.test.ts` (relationship grants) and `with-subject.test.ts` (`withSubject` under the generated policies, compared with `can()`).
 
 ## Why
 

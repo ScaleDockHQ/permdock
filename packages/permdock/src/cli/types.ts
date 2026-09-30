@@ -86,6 +86,18 @@ export type RlsConfig = {
   readonly roleClaim?: string;
   readonly gucPrefix?: string;
   readonly out?: string;
+  /** `--target drizzle`: where each policy's `.link()` finds its table. */
+  readonly drizzle?: {
+    /** Module exporting the tables, as imported from `out`. Default `./schema`. */
+    readonly schema?: string;
+    /** Export name per table name; defaults to the camelCased table name. */
+    readonly exports?: Readonly<Record<string, string>>;
+  };
+  /** `--target prisma`: the model each table maps to. */
+  readonly prisma?: {
+    /** Model name per table name; defaults to the PascalCased table name. */
+    readonly models?: Readonly<Record<string, string>>;
+  };
   /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`) (and the RBAC scaffold). Default `public`. */
   readonly schema?: string;
   /** Where the helpers read roles and memberships: `database` tables or `jwt` claims. */

@@ -131,7 +131,7 @@ Adopt: Cedar's authoring-time validation, mirrored by `permdock collect --check`
 
 Adapt: bridge OpenFGA and SpiceDB graphs through `permdock/pdp` instead of reimplementing them. Their `ListObjects` and `LookupResources` become the `filter` of the `pdp` presets, with `where` compiling to `in(row.id, ids)`. OPA's Compile API is the bar `permdock/drizzle`, `prisma` and `kysely` must meet in-process. AVP's single, batch and token-authenticated shapes are what `permdock/authzen` exposes over AuthZEN. Casbin's PERM split is a checklist: the `Decision` and catalog make request, policy, matcher and effect visible for audit.
 
-Avoid: strings-in, boolean-out SDKs as the primary API; DSLs that need their own compiler (Polar, Cedar, Rego) as the authoring format; configurable deny-override or fail-open conventions; relationship graphs (usersets, arrows, recursive membership) in the portable AST.
+Avoid: strings-in, boolean-out SDKs as the primary API; DSLs that need their own compiler (Polar, Cedar, Rego) as the authoring format; configurable deny-override or fail-open conventions; general userset rewrites and unbounded recursive membership in the portable AST. The bounded subset (one `related` node covering parent chains, role-filtered edges, implied relations, groups nested at most 16 deep and to-one links) is adopted, because each part compiles to SQL ([relationships](/docs/concepts/relationships)).
 
 ## Authorization bundled with providers and data layers
 

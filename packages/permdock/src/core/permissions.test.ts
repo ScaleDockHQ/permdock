@@ -106,7 +106,7 @@ describe('permissions', () => {
           },
         }),
       }),
-    ).toThrow(/exactly one of field, edge or principal/);
+    ).toThrow(/exactly one of field, edge, principal or includes/);
     expect(() =>
       definePermissions({
         folder: resource({

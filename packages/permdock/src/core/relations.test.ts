@@ -361,7 +361,7 @@ describe('relationship graph', () => {
     );
   });
 
-  it('keeps the graph out of snapshots and where()', async () => {
+  it('keeps the graph out of snapshots but in where()', async () => {
     const vera = await dock('vera');
     const snapshot = vera.snapshot();
     const grant =
@@ -383,8 +383,10 @@ describe('relationship graph', () => {
       },
     );
     const where = vera.where(permissions.doc.read);
-    expect(where.partial).toBe(true);
-    expect(JSON.stringify(where.condition)).not.toContain('related');
+    expect(where.partial).toBe(false);
+    expect(JSON.stringify(where.condition)).toContain('"related"');
+    expect(where.resources?.get('doc')?.name).toBe('doc');
+    expect(Object.keys(where)).not.toContain('resources');
     expect(mayAccess(policy, { id: 'vera' }, permissions.doc.read)).toBe(true);
   });
 

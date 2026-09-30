@@ -140,12 +140,17 @@ Both are documented with their evaluation rules on the [tenancy](/docs/concepts/
 
 ```ts
 interface RelationSource {
-  ancestors(query: { resource: string; id: string; through: 'parent'; depth: number }): RelationChain | Promise<RelationChain>
+  ancestors(query: { resource: string; id: string; through: string; depth: number }): RelationChain | Promise<RelationChain>
   related(query: { resource: string; id: string; relation: string }): RelationHolder[] | Promise<RelationHolder[]>
 }
 type RelationChain = { restricted?: boolean; ancestors: { id: string; restricted?: boolean }[]; truncated?: boolean }
-type RelationHolder = { principal: { id: string }; startsAt?: number; expiresAt?: number }
+type RelationHolder = { startsAt?: number; expiresAt?: number } & (
+  | { principal: { id: string } }
+  | { group: { resource: string; id: string; relation: string } }
+)
 ```
+
+`through` is `'parent'` for the parent chain, or a link name, for which the source returns the one instance the link points to (`depth` is then 1). `related` is asked only for concrete relations (field, edge or principal), never for one declared with `includes` alone; core expands implication and follows group holders by asking `related` again for the group.
 
 `createPermDock(policy, user, { relations })` takes one source for the `through` and edge-table relation grants ([relationships](/docs/concepts/relationships)). Unlike the subject inputs it is read during `can` and `decide`, because what it answers depends on the row, so it follows the `LimitStore` rules for synchronous evaluation: a synchronous answer is used, a Promise is never awaited on the decision path, and `permdock.loadRelations(permission, rows)` is the async step that loads what those rows need into the instance's cache. Answers are cached per instance and query, never at module level. A missing source, a throw, a rejection, an answer that is not a chain or a holder list, or a Promise that was not loaded denies with `relation-unavailable`; a cycle, or a chain past `depth` with no holder within it, denies with `relation-depth`. `ancestors` returns at most `depth` entries nearest first and sets `truncated` when the chain goes on; core stops the walk at the first restricted entry and checks for cycles itself, so a source may return more. `related` may return expired holders: core compares `startsAt` and `expiresAt` with the decision's clock. `whoCan` reads `related` for every instance on the chain.
 
@@ -282,7 +287,7 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testTokenSigner` | Output is compact JWS whose protected header has exactly `alg`, `kid`, `typ`; `alg` is in the allow-list; `iat`, `jti` and `iss` are set; the supplied verifier accepts it with the same `typ`; `jwks()` when present contains the signing key's public half |
 | `testMembershipSource` | Returns only well-formed memberships (one shape each: a named scope instance, the `tenant` / `team` input form, or `on`); with `policy`, every membership normalises under its [named scopes](/docs/concepts/scopes); a throw yields an empty list; results are JSON; with `list`, every instance a principal holds lists that principal; with `version`, the version is a finite number or absent |
 | `testEntitlementSource` | Returns plan names as strings for a tenant (matching `expect` when given) and none without a tenant |
-| `testRelationSource` | Chains are nearest first with non-empty string ids and no longer than `depth`; `depth: 1` returns the first ancestor with `truncated` when there are more; `depth: 0` returns none; holders have string principal ids and finite `startsAt` / `expiresAt`; an unknown object answers an empty chain and no holders instead of throwing; `expect` pins chains (`resource:id`) and holders (`resource:id#relation`) |
+| `testRelationSource` | Chains are nearest first with non-empty string ids and no longer than `depth`; `depth: 1` returns the first ancestor with `truncated` when there are more; `depth: 0` returns none; holders have a string principal id or a group with string `resource`, `id` and `relation`, and finite `startsAt` / `expiresAt`; `expect.links` pins the instance a link points to (`resource:id>link`), and a group holder is pinned as `resource:id#relation`; an unknown object answers an empty chain and no holders instead of throwing; `expect` pins chains (`resource:id`) and holders (`resource:id#relation`) |
 | `testCredentialVerifier` | The live key (a string, or a function issuing one) verifies to a v1 credential whose id is the key's, twice alike; every other string (empty, not a key, a flipped secret, another id, another prefix, a trailing character) is `null` without a throw; with `touch`, touching the key's id and an unknown id leaves what the key verifies to unchanged; with `revoke`, the revoked key stops verifying |
 | `testSettingsSource` | The tenant's settings are plain JSON with a valid `credentials` block (`maxTtl` finite and non-negative, `kinds` only `user` / `service`); an unknown tenant has none |
 | `testRoleSource` | Every custom role belongs to the requested tenant; every `includes` entry is a declared role; with `{ policy }`, `validateCustomRole` drops nothing (every `grants` key is inside the ceiling); `assignable` is a subset of the declared roles |

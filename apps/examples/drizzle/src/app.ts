@@ -1,4 +1,4 @@
-import { type SQL, and, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { createPermDock } from 'permdock';
 import { toWhere } from 'permdock/drizzle';
@@ -18,7 +18,7 @@ app.get('/posts', async (c) => {
   const rows = await db
     .select({ id: posts.id })
     .from(posts)
-    .where(toWhere(dock.where(permissions.post.list), posts) as SQL)
+    .where(toWhere(dock.where(permissions.post.list), posts))
     .orderBy(posts.id);
   return c.json({ ok: true, posts: rows.map((row) => row.id) });
 });
@@ -32,7 +32,7 @@ app.patch('/posts/:id', async (c) => {
     .where(
       and(
         eq(posts.id, c.req.param('id')),
-        toWhere(dock.where(permissions.post.update), posts) as SQL,
+        toWhere(dock.where(permissions.post.update), posts),
       ),
     )
     .returning({ id: posts.id });

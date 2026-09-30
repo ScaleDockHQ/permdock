@@ -1,3 +1,10 @@
-export { toWhere } from './to-where.ts';
+export { checkRow, toWhere, withSubject } from './to-where.ts';
+export type { RowCheck } from '../conditions/row-check.ts';
 export type { MembershipsMapping } from '../conditions/compile.ts';
-export type { DrizzleOperators, DrizzleWhereOptions } from './types.ts';
+export type { RelationsMapping } from '../conditions/graph-sql.ts';
+export type {
+  DrizzleOperators,
+  DrizzleWhereOptions,
+  DrizzleWithSubjectOptions,
+} from './types.ts';
+export type { WithSubjectOptions } from '../conditions/subject-settings.ts';

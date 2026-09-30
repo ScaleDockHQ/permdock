@@ -354,9 +354,17 @@
     "tenantFromPath"
   ],
   "./cloud": ["cloud", "cloudEndpoints", "parseCloudEvent", "verifyWebhook"],
-  "./drizzle": ["toWhere"],
-  "./prisma": ["permdockExtension", "toWhere"],
-  "./kysely": ["toWhere", "withSubject"],
+  "./drizzle": ["checkRow", "toWhere", "withSubject"],
+  "./prisma": [
+    "checkRow",
+    "permdockExtension",
+    "prismaModelFields",
+    "resolveRelated",
+    "toPredicate",
+    "toWhere",
+    "withSubject"
+  ],
+  "./kysely": ["checkRow", "toWhere", "withSubject"],
   "./supabase": [
     "AUTHZ_VERSION_TABLE",
     "authorizeSql",

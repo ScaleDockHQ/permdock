@@ -267,6 +267,7 @@
     "ai": "catalog:",
     "ajv": "catalog:",
     "arktype": "catalog:",
+    "drizzle-orm": "catalog:",
     "elysia": "catalog:",
     "eve": "catalog:",
     "express": "catalog:",

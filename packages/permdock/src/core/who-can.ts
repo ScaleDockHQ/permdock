@@ -3,26 +3,37 @@ import type { CustomGrant } from './custom-roles.ts';
 import type { Decision } from './decision.ts';
 import type { EvalEnv } from './events.ts';
 import type { Grantee, RelationGrantee, RoleGrantee } from './grantee.ts';
-import type { MembershipSource, RelationHolder } from './interfaces.ts';
+import type {
+  MembershipSource,
+  RelationGroup,
+  RelationHolder,
+} from './interfaces.ts';
 import type { Permission, ResourceNode } from './permissions.ts';
 import type { Grant, Policy } from './policy.ts';
-import type { RelationCache, RelationReader } from './relations.ts';
+import type { ReadHolder, RelationCache, RelationReader } from './relations.ts';
 import type { Scope } from './scopes.ts';
 import type { Membership, Subject } from './subject.ts';
 
+import { compact } from './compact.ts';
 import { evaluate } from './evaluate.ts';
 import { emptyListeners } from './events.ts';
 import { freezeDeep } from './freeze.ts';
 import { flattenGrantee, relationCondition } from './grantee.ts';
 import { ownGet } from './paths.ts';
 import {
+  expandRelation,
   getResource,
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
 } from './permissions.ts';
 import { grantList } from './policy.ts';
-import { pendingRelations, relationId, relationWalk } from './relations.ts';
+import {
+  DEFAULT_GROUP_DEPTH,
+  pendingRelations,
+  relationId,
+  relationWalk,
+} from './relations.ts';
 import {
   findScope,
   normalizeMemberships,
@@ -52,6 +63,8 @@ export type HoldingVia =
       readonly relation: string;
       readonly id: string;
       readonly expiresAt?: number;
+      /** The group the share names, when the principal holds it as one of its members. */
+      readonly group?: RelationGroup;
     };
 
 export type Holder = {
@@ -75,7 +88,7 @@ type Member = { readonly id: string; readonly membership: Membership };
 
 type NodeHolders = {
   readonly id: string;
-  readonly holders: readonly RelationHolder[];
+  readonly holders: readonly ReadHolder[];
 };
 
 /** What discovery shares: the row, the sources, and the candidates found so far. */
@@ -95,7 +108,7 @@ type Discovery = {
   readonly incomplete: () => void;
 };
 
-const MAX_ROUNDS = 6;
+const MAX_ROUNDS = 48;
 
 async function settle(cache: RelationCache): Promise<void> {
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
@@ -191,13 +204,64 @@ function holderVia(
     readonly id: string;
   },
   share: boolean,
+  group?: RelationGroup,
 ): HoldingVia {
   if (!share) {
     return { kind: 'relation', ...at };
   }
-  return holder.expiresAt === undefined
-    ? { kind: 'share', ...at }
-    : { kind: 'share', ...at, expiresAt: holder.expiresAt };
+  return compact<HoldingVia>({
+    kind: 'share',
+    ...at,
+    expiresAt: holder.expiresAt,
+    group,
+  });
+}
+
+/** Principals holding `group`'s relation, through at most `budget` more groups of its resource; `undefined` when a read failed. */
+async function groupMembers(
+  group: RelationGroup,
+  ctx: Discovery,
+  budget: number,
+  seen: ReadonlySet<string>,
+): Promise<readonly string[] | undefined> {
+  let holders = ctx.reader.holders(group);
+  if (holders === 'pending') {
+    await settle(ctx.cache);
+    holders = ctx.reader.holders(group);
+  }
+  if (holders === 'pending' || holders === 'failed') {
+    return undefined;
+  }
+  const key = JSON.stringify([group.resource, group.id, group.relation]);
+  const path = new Set(seen).add(key);
+  const out: string[] = [];
+  for (const holder of holders) {
+    if ('principal' in holder) {
+      out.push(holder.principal.id);
+      continue;
+    }
+    const nested = JSON.stringify([
+      holder.group.resource,
+      holder.group.id,
+      holder.group.relation,
+    ]);
+    const same = holder.group.resource === group.resource;
+    if ((same && budget <= 0) || path.has(nested)) {
+      continue;
+    }
+    // oxlint-disable-next-line no-await-in-loop -- nested groups are read one level at a time
+    const members = await groupMembers(
+      holder.group,
+      ctx,
+      same ? budget - 1 : DEFAULT_GROUP_DEPTH,
+      path,
+    );
+    if (members === undefined) {
+      return undefined;
+    }
+    out.push(...members);
+  }
+  return out;
 }
 
 async function discoverGraph(
@@ -210,20 +274,41 @@ async function discoverGraph(
     ctx.incomplete();
     return;
   }
-  const share = isEdgeRelation(
-    ctx.policy.resources.get(condition.resource)?.relations[condition.relation],
-  );
-  for (const node of nodes) {
-    const at = {
-      resource: condition.resource,
-      relation: condition.relation,
-      id: node.id,
-    };
-    for (const holder of node.holders) {
-      ctx.add(
-        holder.principal.id,
-        allow ? holderVia(holder, at, share) : undefined,
+  const node = ctx.policy.resources.get(condition.resource);
+  for (const entry of nodes) {
+    for (const holder of entry.holders) {
+      const at = {
+        resource: condition.resource,
+        relation: holder.relation,
+        id: entry.id,
+      };
+      const share = isEdgeRelation(node?.relations[holder.relation]);
+      if ('principal' in holder) {
+        ctx.add(
+          holder.principal.id,
+          allow ? holderVia(holder, at, share) : undefined,
+        );
+        continue;
+      }
+      // oxlint-disable-next-line no-await-in-loop -- each group's members are read after the walk settles
+      const members = await groupMembers(
+        holder.group,
+        ctx,
+        holder.group.resource === condition.resource
+          ? DEFAULT_GROUP_DEPTH - 1
+          : DEFAULT_GROUP_DEPTH,
+        new Set(),
       );
+      if (members === undefined) {
+        ctx.incomplete();
+        continue;
+      }
+      for (const member of members) {
+        ctx.add(
+          member,
+          allow ? holderVia(holder, at, share, holder.group) : undefined,
+        );
+      }
     }
   }
 }
@@ -232,6 +317,7 @@ async function discoverRelation(
   item: RelationGrantee,
   allow: boolean,
   ctx: Discovery,
+  expanded = false,
 ): Promise<void> {
   const condition = relationCondition(item, ctx.resource, ctx.scopes, {
     resources: ctx.policy.resources,
@@ -241,6 +327,13 @@ async function discoverRelation(
     return;
   }
   const spec = ctx.resource?.relations[item.relation];
+  if (spec?.includes !== undefined && !expanded) {
+    for (const name of expandRelation(ctx.resource, item.relation)) {
+      // oxlint-disable-next-line no-await-in-loop -- each included relation is a field or principal read on the row
+      await discoverRelation({ ...item, relation: name }, allow, ctx, true);
+    }
+    return;
+  }
   const via: HoldingVia | undefined = allow
     ? {
         kind: 'relation',

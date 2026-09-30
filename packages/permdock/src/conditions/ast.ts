@@ -86,24 +86,40 @@ export function parentHop(parent: MemberOfParent): {
 /**
  * The subject holds `relation` on the `resource` instance whose id the row's
  * `field` holds, or on one of its ancestors within `depth` parent hops.
- * Evaluated through a `RelationSource` in process and the closure table in
- * RLS; `toWhere` compilers treat it as non-portable.
+ * Evaluated through a `RelationSource` in process, the closure table in RLS,
+ * and, given relation mappings, a subquery in the `toWhere` compilers.
  */
 export type RelatedCondition = {
   readonly op: 'related';
   readonly resource: string;
   readonly relation: string;
-  /** The row's own id field, or (with `parent`) the field holding its parent's id. */
+  /** The row's own id field, or (with `parent` or `hops`) the field holding the next instance's id. */
   readonly field: string;
-  /** Parent hops walked above the first instance; `0` reads only that instance. */
+  /** Parent hops walked above the first `resource` instance; `0` reads only that instance. */
   readonly depth: number;
   /** The row is a child of `resource`, reached through `field`. */
   readonly parent?: true;
   /**
-   * The row's boolean column that keeps ancestor grants out: with `parent`, a
-   * restricted row matches nothing; without, the walk stops at the row.
+   * To-one links from the row to `resource`: `field` points at the first
+   * hop's resource, each later hop follows `link` on the resource before it,
+   * and the last hop's resource is `resource`.
+   */
+  readonly hops?: readonly RelatedHop[];
+  /**
+   * The `resource` instances the subject holds a resource role on; replaces
+   * the `relation` lookup (`relation` is then empty).
+   */
+  readonly ids?: readonly string[];
+  /**
+   * The row's boolean column that keeps ancestor grants out: with `parent` or
+   * `hops`, a restricted row matches nothing; without, the walk stops at the row.
    */
   readonly restricted?: string;
+};
+
+export type RelatedHop = {
+  readonly link: string;
+  readonly resource: string;
 };
 
 export type OpaqueCondition = {

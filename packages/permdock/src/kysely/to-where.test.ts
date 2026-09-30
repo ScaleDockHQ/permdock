@@ -162,21 +162,24 @@ describe('permdock/kysely toWhere', () => {
     );
   });
 
-  it('sets session claims inside withSubject', async () => {
-    const queries: { sql: string; parameters: readonly unknown[] }[] = [];
+  it('sets the role and session claims inside withSubject', async () => {
+    const queries: { sql: string; values: readonly unknown[] }[] = [];
+    const trx = { name: 'trx' };
+    const sql = Object.assign(
+      (strings: TemplateStringsArray, ...values: unknown[]) => ({
+        execute(db: unknown) {
+          expect(db).toBe(trx);
+          queries.push({ sql: strings.join('?'), values });
+          return Promise.resolve();
+        },
+      }),
+      { ref: (reference: string) => reference },
+    );
     const db = {
       transaction() {
         return {
-          execute<T>(fn: (trx: unknown) => Promise<T>): Promise<T> {
-            return fn({
-              executeQuery(query: {
-                readonly sql: string;
-                readonly parameters: readonly unknown[];
-              }) {
-                queries.push(query);
-                return Promise.resolve();
-              },
-            });
+          execute<T>(fn: (inner: typeof trx) => Promise<T>): Promise<T> {
+            return fn(trx);
           },
         };
       },
@@ -184,22 +187,24 @@ describe('permdock/kysely toWhere', () => {
     const result = await withSubject(
       db,
       {
-        snapshot: () => ({
-          v: 1,
-          issuedAt: 1,
-          subject: {
-            principal: { id: 'u1', roles: [], tenant: 'o1' },
-            context: {},
-          },
-          roles: [],
-          grants: [],
-          tenants: [],
-        }),
+        subject: {
+          principal: { id: 'u1', roles: [], tenant: 'o1' },
+          context: {},
+        },
       },
-      async () => 'ok',
+      async (inner) => (inner === trx ? 'ok' : 'wrong'),
+      { sql },
     );
     expect(result).toBe('ok');
-    expect(queries[0]?.sql).toContain('request.jwt.claims');
-    expect(queries[0]?.parameters[0]).toContain('u1');
+    expect(queries.map((query) => query.sql)).toEqual([
+      'set local role authenticated',
+      "select set_config('request.jwt.claims', ?, true)",
+      "select set_config('request.jwt.claim.sub', ?, true)",
+    ]);
+    expect(JSON.parse(String(queries[1]?.values[0]))).toEqual({
+      sub: 'u1',
+      tenant_id: 'o1',
+      role: 'authenticated',
+    });
   });
 });

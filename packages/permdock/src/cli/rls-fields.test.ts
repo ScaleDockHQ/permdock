@@ -181,7 +181,7 @@ describe('permdock rls generate --fields views', () => {
     expect(stdout).toContain('--force with --revoke-columns');
   });
 
-  it('puts the views and column grants in the migration comment for Drizzle and Prisma', async () => {
+  it('puts the views and column grants in the migration file for Drizzle and Prisma', async () => {
     const cwd = appCopy();
     for (const [target, out] of [
       ['drizzle', 'policies.ts'],
@@ -194,14 +194,18 @@ describe('permdock rls generate --fields views', () => {
         out,
       );
       expect(code).toBe(0);
-      const comment = sql.slice(sql.lastIndexOf('/* run in a migration:'));
-      expect(comment).toContain(
-        'revoke select on table "invoice" from anon, authenticated;',
+      expect(sql).toContain('run policies.migration.sql');
+      const migration = readFileSync(
+        join(cwd, 'policies.migration.sql'),
+        'utf8',
       );
-      expect(comment).toContain(
+      expect(migration).toContain(
+        'revoke all on table "invoice" from anon, authenticated;',
+      );
+      expect(migration).toContain(
         'grant select ("id", "title") on table "invoice" to authenticated;',
       );
-      expect(comment).toContain('create or replace view "invoice_visible"');
+      expect(migration).toContain('create or replace view "invoice_visible"');
     }
   });
 

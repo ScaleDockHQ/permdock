@@ -24,39 +24,68 @@ const posts = await prisma.post.findMany({
 
 // typed to the model's WhereInput when the resource schema was generated from Prisma types
 toWhere<Prisma.PostWhereInput>(permdock.where(permissions.post.read))
+
+// required and list fields read from schema.prisma (or Prisma.dmmf.datamodel)
+const model = prismaModelFields(readFileSync('prisma/schema.prisma', 'utf8'), 'Post')
+toWhere(permdock.where(permissions.post.read), { model })
+
+// graph grants: read the related ids first, then compile
+const where = await resolveRelated(permdock.where(permissions.doc.read), {
+  run: ({ sql, values }) => prisma.$queryRawUnsafe(sql, ...values),
+})
+await prisma.doc.findMany({ where: toWhere(where) })
+
+// one row: not found, or found with the decision
+const check = await checkRow(prisma.post, permdock.where(permissions.post.update), { id })
+
+// run a transaction as the subject, so RLS policies see it
+await withSubject(prisma, permdock, (tx) => tx.post.findMany(), { dialect: 'guc' })
 ```
 
 - `toWhere(condition, options?)` maps fields to model fields by name (or `options.fields`), and operators to Prisma filter operators: `eq` to `equals`, `ne` to `not`, `in` / `notIn`, `gt` / `gte` / `lt` / `lte`, `isNull` to `equals: null`, `contains` to `has` for scalar lists (`options.listFields`) and `contains` for strings with `%`, `_` and `\` escaped (Prisma passes the value into `LIKE` as is), `and` / `or` / `not` to `AND` / `OR` / `NOT`.
 - `options.requiredFields` lists the model's non-nullable fields. A negated condition keeps SQL NULL rows the way the in-memory evaluator does, which adds an `isNull` branch; Prisma rejects a null filter on a required field, and its runtime data model does not say which fields are required. On a listed field the branch folds away (`isNull` is never, not-null is always). On any other field it stays `equals: null`, so a forgotten entry is a Prisma validation error, never extra rows.
+- `options.model` takes the result of `prismaModelFields(datamodel, model)`, which reads required and list fields from `schema.prisma` text or a DMMF datamodel, so you do not maintain `requiredFields` and `listFields` by hand. It skips relation fields and throws when the model is missing. Field names are checked after `options.fields` mapping.
+- A `related` node (a graph grant) cannot be a Prisma `WhereInput`: Prisma has no raw fragment inside `where`. `resolveRelated(where, { run, relations?, parse? })` runs one raw query per node through your `run` and replaces the node with `in` over the ids. It reads the ids when called, so run the filtered query straight after. `parse` converts ids for non-text key columns. Without it, `toWhere` refuses the node with `non-portable-condition`.
+- `checkRow(delegate, condition, unique, options?)` runs `findFirst` with the unique filter and the permission filter, then, if that finds nothing, `findFirst` with the unique filter alone. It returns `{ found: false }` or `{ found: true, granted }`, so a handler can answer `404` and `403` apart without loading the row into `can()`.
+- `withSubject(prisma, permdock, fn, options?)` runs `fn` inside `$transaction` after `set local role` and the claim settings for the frozen subject, with the same options as [Drizzle](/docs/adapters/drizzle): `dialect`, `role`, `gucPrefix`, `tenantClaim`, `claims`. They must match the RLS configuration.
 - `memberOf` always compiles from the frozen subject's memberships (active-tenant equality, `in` over held tenants or teams, keyed parent hops). Prisma `WhereInput` has no `EXISTS`, so there is no memberships-table option; pass the subject. `where()` already carries it. The adapter does not import `@prisma/client`.
 - No grant compiles to `{ OR: [] }`.
 - `permdockExtension()` is a Prisma client extension that detects `OR: []` anywhere in a `where` and rewrites the query so it returns no records for `findMany`, `findFirst`, `count`, `aggregate`, `updateMany` and `deleteMany`, closing the gap in [prisma#17367](https://github.com/prisma/prisma/issues/17367).
 - Prisma 7 custom-output generators are supported through a runtime entry that does not import `@prisma/client`; types are passed by the caller as in the example.
 
+### Prisma 8
+
+Prisma 8's ORM filters with typed field predicates instead of `WhereInput` objects. `toPredicate(condition, options?)` returns a function of the model's field proxy that builds the same filter:
+
+```ts
+import { toPredicate, prismaModelFields } from 'permdock/prisma'
+
+const readable = toPredicate(permdock.where(permissions.post.read), { model })
+// readable(post) builds the predicate from the Post field proxy; pass it wherever Prisma 8 takes a filter
+```
+
+It uses `.eq`, `.neq`, `.in`, `.gt`, `.gte`, `.lt`, `.lte`, `.like`, `.isNull` and `.isNotNull` on each field, and `and`, `or` and `not` from `@prisma/orm-postgres/orm-client` (or `options.combinators`). Constant true and false are `key.isNotNull()` and `key.isNull()` on `options.key` (default `id`). It refuses, with `non-portable-condition`, `contains` on a list field or with a non-string value, `exists`, `sql`, and a `related` node that `resolveRelated` has not replaced. `memberOf` compiles from the subject, as in `toWhere`. `toPredicate` is unit-tested only; the integration suite runs Prisma 7.
+
 RLS generation:
 
 ```prisma
 // emitted by: permdock rls generate --target prisma --dialect supabase
-model Post {
-  id        String  @id
-  authorId  String
-  published Boolean
-  @@rls
-}
-
+// add @@rls to model Post; keep these blocks in their namespace
 policy_select post_read_member {
   target = Post
   roles  = [authenticated]
-  using  = "(select auth.uid()) = \"authorId\""
+  using  = "(\"author_id\" = (select auth.uid()))"
 }
 
 policy_update post_update_member {
-  target    = Post
-  roles     = [authenticated]
-  using     = "(select auth.uid()) = \"authorId\""
-  withCheck = "(select auth.uid()) = \"authorId\""
+  target = Post
+  roles  = [authenticated]
+  using  = "(\"author_id\" = (select auth.uid()))"
+  withCheck = "(\"author_id\" = (select auth.uid()))"
 }
 ```
+
+The file holds policy blocks only; add `@@rls` to each model named in the header. Prisma 8 policies are permissive, so a policy with a deny grant cannot be expressed and `generate` stops with an error naming `--target sql`. Grants, column privileges and helper functions go to `<out>.migration.sql`. `rls.prisma.models` maps a table to its model name when it is not the table name in PascalCase ([RLS](/docs/adapters/rls)).
 
 `@@rls` enables RLS fail-closed on the model; `roles` reference Prisma 8 `role` declarations (`@prisma/orm-extension-supabase` supplies `anon`, `authenticated`, `service_role`); `prisma migration plan` emits the `ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` statements and `prisma db verify` fails on drift.
 
@@ -84,7 +113,7 @@ policy_update post_update_member {
 
 ## Example app
 
-`apps/examples/prisma`: a Hono server on `127.0.0.1:3468` running Prisma 7 with `@prisma/adapter-pg` against an in-process PGlite database (served over `@electric-sql/pglite-socket`). `GET /posts` returns the rows `findMany` selects through the list filter; `PATCH /posts/:id` runs `updateMany` through the update filter and answers `403` when no row matched. `tests/integration/src/orm-parity.test.ts` runs the full operator and scenario matrix against Postgres with `ormParity`.
+`apps/examples/prisma`: a Hono server on `127.0.0.1:3468` running Prisma 7 with `@prisma/adapter-pg` against an in-process PGlite database (served over `@electric-sql/pglite-socket`). `GET /posts` returns the rows `findMany` selects through the list filter; `PATCH /posts/:id` runs `updateMany` through the update filter and answers `403` when no row matched. `tests/integration/src/orm-parity.test.ts` runs the full operator and scenario matrix against Postgres with `ormParity`, once with hand-written `requiredFields` and once with `prismaModelFields`, and compares `checkRow` with `can()`. `orm-graph.test.ts` covers `resolveRelated`, `with-subject.test.ts` runs `withSubject` against generated RLS, and `rls-orm-targets.test.ts` applies the policy blocks' SQL to Postgres.
 
 ## Related standards
 

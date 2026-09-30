@@ -25,9 +25,21 @@ await db.select().from(posts).where(and(toWhere(permdock.where(permissions.post.
 
 // column mapping when schema field names differ from Drizzle column names
 toWhere(condition, posts, { columns: { authorId: posts.author_id } })
+
+// graph grants: related nodes compile to a subquery over the relation tables
+toWhere(permdock.where(permissions.doc.read), docs, { relations: { closure: 'public.permdock_closure' } })
+
+// one row: not found, or found with the decision
+const check = await checkRow(db, posts, permdock.where(permissions.post.update), eq(posts.id, id))
+
+// run a transaction as the subject, so RLS policies see it
+await withSubject(db, permdock, (tx) => tx.select().from(posts), { dialect: 'guc' })
 ```
 
-- `toWhere(condition, table, options?)` maps each condition field to a column of `table` by name (or via `options.columns`), and each operator (`eq`, `ne`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `isNull`, `contains`, `and`, `or`, `not`) to the Drizzle operator of the same meaning. `table` is any Drizzle table object; no cast is needed. `drizzle-orm` is an optional peer; tests can inject `options.operators`. The call stays two-step (`permdock.where` then `toWhere`) so the adapter never needs the instance.
+- `toWhere(condition, table, options?)` returns a Drizzle `SQL` and maps each condition field to a column of `table` by name (or via `options.columns`), and each operator (`eq`, `ne`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `isNull`, `contains`, `and`, `or`, `not`) to the Drizzle operator of the same meaning. `table` is any Drizzle table object; no cast is needed. `options.columns` accepts only columns of that table or `SQL`, so a column of another table is a type error.
+- `options.relations` (`{ tables?, closure? }`) lets a `related` node compile: one subquery over the edge tables, the closure table when named, otherwise a recursive walk of the resource's own table bounded by the grant's depth ([relationships](/docs/concepts/relationships#snapshots-clients-and-where)). Without it a `related` node throws `non-portable-condition`.
+- `checkRow(db, table, condition, key, options?)` selects the rows matching `key` with the filter as a boolean column and returns `{ found: false }` or `{ found: true, granted }`, so a handler can answer `404` and `403` apart with one query. More than one row matching `key` throws.
+- `withSubject(db, permdock, fn, options?)` opens a transaction, runs `set local role` and the claim settings for the frozen subject, then calls `fn(tx)`. `options` are `dialect` (`supabase`, `guc`, `neon`), `role` (default `authenticated` with a principal, `anon` without, `false` to leave the role), `gucPrefix`, `tenantClaim` and extra `claims`. They must match what `permdock rls generate` was configured with; `withSubject` does not read the config. `drizzle-orm` is an optional peer; tests can inject `options.operators`. The call stays two-step (`permdock.where` then `toWhere`) so the adapter never needs the instance.
 - `contains` on an array column (`dataType: 'array'`) is `value = any(column)`; on a string it is `like` with `%`, `_` and `\` escaped; any other value is `@>`.
 - NULL follows the in-memory evaluator: a comparison with a NULL row value or an unresolved reference never matches, and `not` keeps NULL rows (`not (x = 1)` compiles to `x <> 1 or x is null`).
 - `memberOf` compiles from the frozen subject when `options.memberships` is omitted: tenant scope with an active `principal.tenant` is equality on that id, otherwise `inArray` over held tenants; team scope is `inArray` of team ids (dropping memberships whose tenant is not the active one); resource scope is `inArray` on the row field plus `or` over `parents`, a keyed parent (`{ field, resource }`) using only memberships on that resource. With `options.memberships`, it emits `exists (select 1 from <table> m ...)`: one bound parameter per role (the role predicate is skipped when the list is empty), `expires_at > now` with `now` bound in whole Unix seconds (rounded up, so a membership expires up to a second early, never late), the active tenant on tenant and team scopes, and `m.<resource> = '<name>'` when the table has a `resource` column. A keyed parent hop uses `memberships.resource[<parent>]` and fails closed when that resource has no table.
@@ -39,14 +51,20 @@ RLS generation reuses the same compiler:
 
 ```ts
 // emitted by: permdock rls generate --target drizzle --dialect supabase
+import { sql } from 'drizzle-orm'
 import { pgPolicy } from 'drizzle-orm/pg-core'
 import { authenticatedRole, authUid } from 'drizzle-orm/supabase'
+import * as schema from './schema'
 
-export const posts = pgTable('posts', { /* columns */ }, (t) => [
-  pgPolicy('post_read_member', { for: 'select', to: authenticatedRole, using: sql`${authUid} = ${t.authorId}` }),
-  pgPolicy('post_update_member', { for: 'update', to: authenticatedRole, using: sql`${authUid} = ${t.authorId}`, withCheck: sql`${authUid} = ${t.authorId}` }),
-])
+export const postReadMember = pgPolicy('post_read_member', {
+  as: 'permissive',
+  for: 'select',
+  to: authenticatedRole,
+  using: sql`("author_id" = ${authUid})`,
+}).link(schema.posts)
 ```
+
+Each policy is linked to its table with `.link`, so the table definition stays untouched and drizzle-kit picks the policies up from the schema. The `guc` and `neon` dialects declare `pgRole('authenticated').existing()` in the file instead of importing from `drizzle-orm/supabase`. Grants, column privileges, `enable row level security` and the helper functions have no Drizzle form, so they go to `<out>.migration.sql` next to the policies file; apply it with your migrations. `rls.drizzle.schema` sets the import path and `rls.drizzle.exports` maps a table to its export name when it is not the table name in camelCase ([RLS](/docs/adapters/rls)).
 
 ## Request lifecycle
 
@@ -73,7 +91,7 @@ For RLS, the same tree is compiled by the CLI at build time instead of per reque
 
 ## Example app
 
-`apps/examples/drizzle`: a Hono API over an in-process PGlite database. `GET /posts` selects through the list filter; `PATCH /posts/:id` updates through the update filter and answers `403` when no row matched. `tests/integration/src/orm-parity.test.ts` compares `filter` in memory with `toWhere` results on node-postgres and PGlite for every operator, NULL and negation case, reference, `memberOf` scope, parent hop and expired membership (`ormParity` in `permdock/testing`).
+`apps/examples/drizzle`: a Hono API over an in-process PGlite database. `GET /posts` selects through the list filter; `PATCH /posts/:id` updates through the update filter and answers `403` when no row matched. `tests/integration/src/orm-parity.test.ts` compares `filter` in memory with `toWhere` results on node-postgres and PGlite for every operator, NULL and negation case, reference, `memberOf` scope, parent hop and expired membership (`ormParity` in `permdock/testing`), and `checkRow` with `can()` for each row. `orm-graph.test.ts` does the same for graph grants, `with-subject.test.ts` runs `withSubject` against generated RLS as a non-owner role, and `rls-orm-targets.test.ts` applies the generated `pgPolicy` file to Postgres.
 
 ## Why
 

@@ -7,6 +7,7 @@ import type { Membership, Subject } from './subject.ts';
 import { bindConditionRefs } from '../conditions/bind.ts';
 import { sole } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
+import { resourceRoleCondition } from './grantee.ts';
 import { type Scope, findScope, scopeChain, scopeIdOf } from './scopes.ts';
 import {
   activeFor,
@@ -21,6 +22,8 @@ export type WhereScope = {
   readonly resource: string;
   /** The policy's resource graph; a snapshot carries none. */
   readonly resources?: ReadonlyMap<string, ResourceNode>;
+  /** A `RelationSource` decides in process, so resource roles walk self-parents here too. */
+  readonly graph?: boolean;
   readonly scopes: readonly Scope[];
   /** Whether `resource`'s rows are partitioned by the scope's key. */
   readonly partitioned: (scope: string, key: string) => boolean;
@@ -96,6 +99,18 @@ function scopeFilters(
     membershipField(roleResource, on.resource, scope.resources) === undefined
   ) {
     return null;
+  }
+  const walked =
+    scope.graph === true
+      ? resourceRoleCondition(
+          scope.resources.get(scope.resource),
+          on.resource,
+          [on.id],
+          scope.resources,
+        )
+      : undefined;
+  if (walked !== undefined) {
+    return [walked];
   }
   const field = membershipField(
     scope.resources.get(scope.resource),
@@ -238,5 +253,11 @@ export function whereFromGrants(
     value: scope.scopes,
     enumerable: false,
   });
+  if (scope.resources !== undefined) {
+    Object.defineProperty(result, 'resources', {
+      value: scope.resources,
+      enumerable: false,
+    });
+  }
   return freezeDeep(result) as WhereResult;
 }

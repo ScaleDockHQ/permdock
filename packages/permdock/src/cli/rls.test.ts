@@ -119,9 +119,9 @@ describe('permdock rls', () => {
       /enable row level security;\nalter table "[^"]+" force row level security;/u,
     );
     const drizzle = await generate('policies.ts', 'drizzle', ['--force']);
-    expect(drizzle.stdout).toContain('--force');
-    expect(readFileSync(join(cwd, 'policies.ts'), 'utf8')).toContain(
-      '/* run in a migration:',
+    expect(drizzle.stdout).toContain('policies.migration.sql');
+    expect(readFileSync(join(cwd, 'policies.migration.sql'), 'utf8')).toMatch(
+      /enable row level security;\nalter table "[^"]+" force row level security;/u,
     );
   });
 
@@ -888,9 +888,33 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     expect(drizzle.code).toBe(0);
-    expect(readFileSync(join(cwd, 'src/db/policies.ts'), 'utf8')).toContain(
-      'pgPolicy',
+    const drizzleText = readFileSync(join(cwd, 'src/db/policies.ts'), 'utf8');
+    expect(drizzleText).toContain("from 'drizzle-orm/supabase'");
+    expect(drizzleText).not.toMatch(/Role[^\n]*from 'drizzle-orm\/pg-core'/u);
+    expect(drizzleText).toMatch(/\}\)\.link\(schema\.\w+\)/u);
+    expect(drizzleText).toContain("import * as schema from './schema'");
+    expect(
+      readFileSync(join(cwd, 'src/db/policies.migration.sql'), 'utf8'),
+    ).toContain('enable row level security');
+    const guc = await run(
+      [
+        'rls',
+        'generate',
+        '--target',
+        'drizzle',
+        '--dialect',
+        'guc',
+        '--out',
+        'guc/policies.ts',
+      ],
+      { cwd },
     );
+    expect(guc.code).toBe(0);
+    const gucText = readFileSync(join(cwd, 'guc/policies.ts'), 'utf8');
+    expect(gucText).toContain(
+      "export const authenticatedRole = pgRole('authenticated').existing()",
+    );
+    expect(gucText).not.toContain('drizzle-orm/supabase');
     const prisma = await run(
       [
         'rls',
@@ -903,9 +927,15 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     expect(prisma.code).toBe(0);
-    expect(readFileSync(join(cwd, 'prisma/policies.prisma'), 'utf8')).toContain(
-      '@@rls',
+    const prismaText = readFileSync(
+      join(cwd, 'prisma/policies.prisma'),
+      'utf8',
     );
+    expect(prismaText).toMatch(/^\/\/ add @@rls to models? \w+/mu);
+    expect(prismaText).toMatch(
+      /^policy_select \w+ \{\n {2}target = \w+\n {2}roles {2}= \[/mu,
+    );
+    expect(prismaText).not.toMatch(/^model /mu);
   });
 
   it('emits sqlFunction calls and can inline the twin', async () => {

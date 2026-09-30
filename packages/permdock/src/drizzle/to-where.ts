@@ -1,6 +1,13 @@
+import type { SQL } from 'drizzle-orm';
+
 import type { Condition } from '../conditions/ast.ts';
 import type { WhereResult } from '../core/permdock.ts';
-import type { DrizzleOperators, DrizzleWhereOptions } from './types.ts';
+import type { Subject } from '../core/subject.ts';
+import type {
+  DrizzleOperators,
+  DrizzleWhereOptions,
+  DrizzleWithSubjectOptions,
+} from './types.ts';
 
 import {
   type CompiledExists,
@@ -8,6 +15,11 @@ import {
   compileWhere,
   escapeLike,
 } from '../conditions/compile.ts';
+import { type RowCheck, rowCheckFrom } from '../conditions/row-check.ts';
+import {
+  statementTemplate,
+  subjectStatements,
+} from '../conditions/subject-settings.ts';
 import { compact } from '../core/compact.ts';
 import { assertSafeKey } from '../core/paths.ts';
 
@@ -57,8 +69,13 @@ function column(
 ): unknown {
   assertSafeKey(field, 'condition field');
   const mapped =
-    columns?.[field] ?? (table as Readonly<Record<string, unknown>>)[field];
-  if (mapped === undefined) {
+    (columns !== undefined && Object.hasOwn(columns, field)
+      ? columns[field]
+      : undefined) ??
+    (Object.hasOwn(table, field)
+      ? (table as Readonly<Record<string, unknown>>)[field]
+      : undefined);
+  if (mapped === undefined || typeof mapped === 'function') {
     throw new Error(`PermDock: unknown column '${field}'`);
   }
   return mapped;
@@ -187,6 +204,19 @@ function render(
       return ops.not(render(node.item, table, options, ops));
     case 'exists':
       return existsSql(node, table, options, ops);
+    case 'sql':
+      return tagged(
+        node.parts.map((part): SqlPart => {
+          if ('text' in part) {
+            return part;
+          }
+          if ('column' in part) {
+            return { value: column(table, part.column, options.columns) };
+          }
+          return { value: 'subject' in part ? node.subject : part.value };
+        }),
+        ops,
+      );
     case 'compare': {
       const col = column(table, node.field, options.columns);
       switch (node.op) {
@@ -223,18 +253,84 @@ function render(
   }
 }
 
-export function toWhere(
+/** Compiles a condition into a Drizzle `SQL` filter over `table`; no grant compiles to `false`. */
+export function toWhere<T extends object>(
   input: Condition | WhereResult,
-  table: object,
-  options: DrizzleWhereOptions = {},
-): unknown {
+  table: T,
+  options: DrizzleWhereOptions<T> = {},
+): SQL {
   const compiled = compileWhere(
     input,
     compact({
       subject: options.subject,
       memberships: options.memberships,
       now: options.now,
+      relations: options.relations,
     }),
   );
-  return render(compiled, table, options, loadOperators(options.operators));
+  return render(
+    compiled,
+    table,
+    options as DrizzleWhereOptions,
+    loadOperators(options.operators),
+  ) as SQL;
+}
+
+type DrizzleDatabase<Tx> = {
+  transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+};
+
+/**
+ * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so the generated
+ * RLS policies decide for the same subject as the in-process checks.
+ */
+export function withSubject<Tx extends { execute(query: never): unknown }, T>(
+  db: DrizzleDatabase<Tx>,
+  permdock: { readonly subject: Subject },
+  fn: (tx: Tx) => Promise<T>,
+  options: DrizzleWithSubjectOptions = {},
+): Promise<T> {
+  const statements = subjectStatements(permdock, options);
+  const { sql } = loadOperators(options.operators);
+  return db.transaction(async (tx) => {
+    const execute = tx.execute.bind(tx) as (query: unknown) => Promise<unknown>;
+    for (const statement of statements) {
+      // oxlint-disable-next-line no-await-in-loop -- the role must be set before the claims
+      await execute(sql(statementTemplate(statement), ...statement.values));
+    }
+    return fn(tx);
+  });
+}
+
+type DrizzleSelectable = {
+  select(fields: Record<string, unknown>): {
+    from(table: never): {
+      where(where: unknown): {
+        limit(
+          count: number,
+        ): PromiseLike<readonly { readonly granted?: unknown }[]>;
+      };
+    };
+  };
+};
+
+/**
+ * One query for one row: `{ found: false }` when `key` matches nothing, otherwise whether the
+ * permission filter keeps the row. Throws when `key` matches more than one row.
+ */
+export async function checkRow<T extends object>(
+  db: DrizzleSelectable,
+  table: T,
+  input: Condition | WhereResult,
+  key: SQL,
+  options: DrizzleWhereOptions<T> = {},
+): Promise<RowCheck> {
+  const { sql } = loadOperators(options.operators);
+  const filter = toWhere(input, table, options);
+  const rows = await db
+    .select({ granted: sql`coalesce((${filter}), false)` })
+    .from(table as never)
+    .where(key)
+    .limit(2);
+  return rowCheckFrom(rows);
 }

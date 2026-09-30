@@ -2,20 +2,24 @@ import type {
   Condition,
   ConditionValue,
   RelatedCondition,
+  RelatedHop,
 } from '../conditions/ast.ts';
 import type { DenialReason } from './decision.ts';
 import type {
   Permission,
   PermissionTree,
   PrincipalRelation,
+  ResourceLink,
   ResourceNode,
 } from './permissions.ts';
 import type { Subject } from './subject.ts';
 import type { Plan, Role } from './vocabulary.ts';
 
-import { compact } from './compact.ts';
+import { compact, sole } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import {
+  expandRelation,
+  isComputedRelation,
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
@@ -44,9 +48,13 @@ export type RelationGrantee = {
   readonly kind: 'relation';
   readonly resource: string;
   readonly relation: string;
-  /** Follow the row's `parent` chain upward to `resource`, then its own parents. */
-  readonly through?: 'parent';
-  /** Parent hops walked above the first `resource` instance; absent means `DEFAULT_RELATION_DEPTH`. */
+  /**
+   * `'parent'`: follow the row's `parent` chain upward to `resource`, then its
+   * own parents. A list of link names: follow those to-one links from the row
+   * to `resource`, then walk its parents only when `depth` is set.
+   */
+  readonly through?: 'parent' | readonly string[];
+  /** Parent hops walked above the first `resource` instance; absent means `DEFAULT_RELATION_DEPTH` for `'parent'` and `0` for links. */
   readonly depth?: number;
 };
 
@@ -103,7 +111,10 @@ export function authenticated(): AuthenticatedGrantee {
 export function relation(
   resource: Permission | PermissionTree,
   name: string,
-  options?: { readonly through?: 'parent'; readonly depth?: number },
+  options?: {
+    readonly through?: 'parent' | readonly string[];
+    readonly depth?: number;
+  },
 ): RelationGrantee {
   const leaves = listPermissions(resource);
   const resourceName = leaves[0]?.resource;
@@ -111,19 +122,37 @@ export function relation(
     throw new Error('PermDock: relation() requires a resource tree');
   }
   const through = options?.through;
-  if (through !== undefined && through !== 'parent') {
+  if (Array.isArray(through)) {
+    if (through.length === 0) {
+      throw new Error('PermDock: relation() through needs at least one link');
+    }
+    for (const link of through as readonly unknown[]) {
+      if (typeof link !== 'string' || link === '' || link === 'parent') {
+        throw new Error(
+          "PermDock: relation() through lists link names; walk parents with through: 'parent' or depth",
+        );
+      }
+    }
+  } else if (through !== undefined && through !== 'parent') {
     throw new Error(
-      `PermDock: relation() through must be 'parent' (got '${String(through)}')`,
+      `PermDock: relation() through must be 'parent' or a list of link names (got '${String(through)}')`,
     );
   }
   const depth = options?.depth;
   if (depth !== undefined) {
     if (through === undefined) {
-      throw new Error("PermDock: relation() depth needs through: 'parent'");
-    }
-    if (!Number.isInteger(depth) || depth < 0 || depth > MAX_RELATION_DEPTH) {
       throw new Error(
-        `PermDock: relation() depth must be an integer from 0 to ${MAX_RELATION_DEPTH}`,
+        "PermDock: relation() depth needs through: 'parent' or a link list",
+      );
+    }
+    const hops = Array.isArray(through) ? through.length : 0;
+    if (
+      !Number.isInteger(depth) ||
+      depth < 0 ||
+      depth + hops > MAX_RELATION_DEPTH
+    ) {
+      throw new Error(
+        `PermDock: relation() depth must be an integer from 0 to ${MAX_RELATION_DEPTH}, counting each link`,
       );
     }
   }
@@ -132,7 +161,10 @@ export function relation(
       kind: 'relation' as const,
       resource: resourceName,
       relation: name,
-      through,
+      through:
+        through === undefined || through === 'parent'
+          ? through
+          : [...(through as readonly string[])],
       depth,
     }),
   );
@@ -262,6 +294,8 @@ export type RelationConditionOptions = {
   readonly resources?: ReadonlyMap<string, ResourceNode> | undefined;
   /** The instant a principal relation's `period` is compared against: a date in process, `{ ref: 'now' }` in SQL. */
   readonly now?: ConditionValue;
+  /** `false` while expanding an `includes`: compile the named relation alone. */
+  readonly includes?: boolean;
 };
 
 /**
@@ -280,7 +314,11 @@ export function relationStart(
       readonly depth: number;
     }
   | undefined {
-  if (resource === undefined || target === undefined) {
+  if (
+    resource === undefined ||
+    target === undefined ||
+    Array.isArray(grantee.through)
+  ) {
     return undefined;
   }
   const walks = grantee.through === 'parent' && isSelfParented(target);
@@ -302,7 +340,98 @@ export function relationStart(
   return undefined;
 }
 
-/** Whether the grantee needs the relation graph: a `through` walk or an edge table. */
+/**
+ * A resource role held on self-parented `membershipResource` instances
+ * (`ids`) reaches rows below them: the row itself when it is of that
+ * resource, its parent field when its parent is, walked up to the default
+ * depth. `undefined` when the row is not on such a chain.
+ */
+export function resourceRoleCondition(
+  resource: ResourceNode | undefined,
+  membershipResource: string,
+  ids: readonly string[],
+  resources: ReadonlyMap<string, ResourceNode>,
+): RelatedCondition | undefined {
+  if (
+    resource === undefined ||
+    !isSelfParented(resources.get(membershipResource))
+  ) {
+    return undefined;
+  }
+  const start =
+    resource.name === membershipResource
+      ? { field: resource.id, parent: false }
+      : resource.parent?.resource === membershipResource
+        ? { field: resource.parent.field, parent: true }
+        : undefined;
+  if (start === undefined) {
+    return undefined;
+  }
+  return compact<RelatedCondition>({
+    op: 'related',
+    resource: membershipResource,
+    relation: '',
+    ids: [...new Set(ids)].toSorted(),
+    field: start.field,
+    depth: DEFAULT_RELATION_DEPTH,
+    parent: start.parent ? true : undefined,
+    restricted: resource.restricted,
+  });
+}
+
+/**
+ * The link path from the row to the grantee's resource: the row field of
+ * the first link and each hop. `undefined` when a link is not declared or
+ * the path ends on another resource.
+ */
+export function relationHops(
+  grantee: RelationGrantee,
+  resource: ResourceNode | undefined,
+  resources: ReadonlyMap<string, ResourceNode> | undefined,
+):
+  | {
+      readonly field: string;
+      readonly hops: readonly RelatedHop[];
+      readonly depth: number;
+    }
+  | undefined {
+  const through = grantee.through;
+  if (!Array.isArray(through) || resource === undefined) {
+    return undefined;
+  }
+  const hops: RelatedHop[] = [];
+  let current: ResourceNode | undefined = resource;
+  let field: string | undefined;
+  for (const link of through as readonly string[]) {
+    const spec: ResourceLink | undefined =
+      current !== undefined && Object.hasOwn(current.links, link)
+        ? current.links[link]
+        : undefined;
+    if (spec === undefined) {
+      return undefined;
+    }
+    field ??= spec.field;
+    hops.push({ link, resource: spec.resource });
+    current = resources?.get(spec.resource);
+  }
+  if (
+    field === undefined ||
+    current === undefined ||
+    current.name !== grantee.resource
+  ) {
+    return undefined;
+  }
+  const depth = grantee.depth ?? 0;
+  if (depth > 0 && !isSelfParented(current)) {
+    return undefined;
+  }
+  return { field, hops, depth };
+}
+
+/**
+ * Whether the grantee needs the relation graph: a `through` walk, an edge
+ * table, or an `includes` that reaches one.
+ */
 export function isGraphRelation(
   grantee: RelationGrantee,
   resources: ReadonlyMap<string, ResourceNode> | undefined,
@@ -310,9 +439,9 @@ export function isGraphRelation(
   if (grantee.through !== undefined) {
     return true;
   }
-  return isEdgeRelation(
-    resources?.get(grantee.resource)?.relations[grantee.relation],
-  );
+  const node = resources?.get(grantee.resource);
+  const names = expandRelation(node, grantee.relation);
+  return names.some((name) => isEdgeRelation(node?.relations[name]));
 }
 
 function periodConditions(
@@ -361,6 +490,21 @@ export function relationCondition(
     ) {
       return undefined;
     }
+    if (Array.isArray(grantee.through)) {
+      const path = relationHops(grantee, resource, options.resources);
+      if (path === undefined || target === undefined) {
+        return undefined;
+      }
+      return compact<RelatedCondition>({
+        op: 'related',
+        resource: target.name,
+        relation: grantee.relation,
+        field: path.field,
+        depth: path.depth,
+        hops: path.hops,
+        restricted: resource?.restricted,
+      });
+    }
     const start = relationStart(grantee, resource, target);
     if (start === undefined || target === undefined) {
       return undefined;
@@ -378,6 +522,21 @@ export function relationCondition(
   }
   const spec = resource?.relations?.[grantee.relation];
   if (spec === undefined || isEdgeRelation(spec)) {
+    return undefined;
+  }
+  if (spec.includes !== undefined && options.includes !== false) {
+    const parts = expandRelation(resource, grantee.relation).flatMap((name) => {
+      const part = relationCondition(
+        { ...grantee, relation: name },
+        resource,
+        scopes,
+        { ...options, includes: false },
+      );
+      return part === undefined ? [] : [part];
+    });
+    return sole(parts) ?? { op: 'or', conditions: parts };
+  }
+  if (isComputedRelation(spec)) {
     return undefined;
   }
   if (isPrincipalRelation(spec)) {

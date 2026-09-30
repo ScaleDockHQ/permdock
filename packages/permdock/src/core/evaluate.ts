@@ -27,7 +27,12 @@ import { PermDockValidationError } from './errors.ts';
 import { type EvalEnv, emitSafe, finish } from './events.ts';
 import { grantCoversField } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
-import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
+import {
+  combineWhere,
+  flattenGrantee,
+  matchGrantee,
+  resourceRoleCondition,
+} from './grantee.ts';
 import { applyQuota } from './limits.ts';
 import { getResource, listPermissions } from './permissions.ts';
 import {
@@ -43,6 +48,7 @@ import {
   isMembershipExpired,
   matchScopedMembership,
   nowSeconds,
+  type ResourceRoleWalk,
 } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
 import { decisionToken, versionOf } from './token.ts';
@@ -577,6 +583,25 @@ export function evaluate(
         holdsCustomRole(membership, custom, scopes),
     );
 
+  const walkRole: ResourceRoleWalk | undefined =
+    env.relations?.available === true
+      ? (membership, row) => {
+          const on = membership.on;
+          const condition =
+            on === undefined
+              ? undefined
+              : resourceRoleCondition(
+                  resource,
+                  on.resource,
+                  [on.id],
+                  policy.resources,
+                );
+          return condition === undefined || env.relations === undefined
+            ? false
+            : resolveRelated(condition, row, subject, now, env.relations);
+        }
+      : undefined;
+
   for (const { grant, custom } of candidates) {
     const displayRole = grant.role;
     if (
@@ -676,6 +701,7 @@ export function evaluate(
                 : [];
             },
             env.team,
+            walkRole,
           );
         const scopeMatch = matchWriteScope(
           matchRow,

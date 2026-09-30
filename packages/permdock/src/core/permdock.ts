@@ -15,7 +15,7 @@ import type {
   TokenSigner,
 } from './interfaces.ts';
 import type { RoleChange, RoleChangeDecision } from './ownership.ts';
-import type { Permission } from './permissions.ts';
+import type { Permission, ResourceNode } from './permissions.ts';
 import type { Policy, PolicyVocabulary } from './policy.ts';
 import type { Scope } from './scopes.ts';
 import type {
@@ -74,6 +74,8 @@ export type WhereResult = {
   readonly subject?: Subject;
   /** The policy's scopes, for `memberOf`; not enumerable either. */
   readonly scopes?: readonly Scope[];
+  /** The policy's resource graph, for `related`; not enumerable either. */
+  readonly resources?: ReadonlyMap<string, ResourceNode>;
 };
 
 export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {

@@ -18,6 +18,7 @@ import {
   authenticated,
   flattenGrantee,
   isGraphRelation,
+  relationHops,
   relationStart,
   roleNameOf,
   roleScopeOf,
@@ -259,6 +260,8 @@ export type Grant = {
   readonly check?: Condition;
   readonly approval?: 'human' | ApprovalRequirement;
   readonly portable: boolean;
+  /** Set when `portable` is false only because the grant reads the relation graph. */
+  readonly graph?: true;
   readonly closure?: ClosureGrantFn;
   readonly limit?: GrantLimit;
   readonly fields?: readonly string[];
@@ -798,6 +801,14 @@ function assertRelationGrants(
         );
       }
       const row = resources.get(grant.permission.resource);
+      if (Array.isArray(item.through)) {
+        if (relationHops(item, row, resources) === undefined) {
+          throw new Error(
+            `PermDock: ${label}: the links [${item.through.join(', ')}] from ${grant.permission.resource} do not end on ${target.name}${(item.depth ?? 0) > 0 ? ` (or ${target.name} does not parent itself for depth)` : ''}`,
+          );
+        }
+        continue;
+      }
       if (
         item.through === 'parent' &&
         target.name === row?.name &&

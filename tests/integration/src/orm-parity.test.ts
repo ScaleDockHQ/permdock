@@ -4,13 +4,26 @@ import type { MembershipsMapping } from 'permdock/drizzle';
 
 import { PGlite } from '@electric-sql/pglite';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { eq } from 'drizzle-orm';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { Kysely, PostgresDialect } from 'kysely';
-import { memoryRoleSource } from 'permdock';
-import { toWhere as drizzleWhere } from 'permdock/drizzle';
-import { toWhere as kyselyWhere } from 'permdock/kysely';
-import { permdockExtension, toWhere as prismaWhere } from 'permdock/prisma';
+import { readFileSync } from 'node:fs';
+import { createPermDock, memoryRoleSource } from 'permdock';
+import {
+  checkRow as drizzleCheckRow,
+  toWhere as drizzleWhere,
+} from 'permdock/drizzle';
+import {
+  checkRow as kyselyCheckRow,
+  toWhere as kyselyWhere,
+} from 'permdock/kysely';
+import {
+  checkRow as prismaCheckRow,
+  permdockExtension,
+  prismaModelFields,
+  toWhere as prismaWhere,
+} from 'permdock/prisma';
 import {
   type OrmParityCase,
   type OrmParityScenario,
@@ -54,6 +67,11 @@ import { startPostgres } from './support/postgres.ts';
 import { PrismaClient } from './support/prisma/client.ts';
 
 type Resource = 'item' | 'project' | 'doc';
+
+const PRISMA_SCHEMA = readFileSync(
+  new URL('../prisma/schema.prisma', import.meta.url),
+  'utf8',
+);
 
 type Engine = {
   readonly name: string;
@@ -176,6 +194,12 @@ function failures(results: readonly OrmParityCase[]): readonly string[] {
     );
 }
 
+type Checker = (
+  dock: Awaited<ReturnType<typeof createPermDock>>,
+  permission: Permission<string, unknown, 'instance'>,
+  id: string,
+) => Promise<{ readonly found: boolean; readonly granted?: boolean }>;
+
 describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', () => {
   let db: Postgres | undefined;
   let lite: PGlite | undefined;
@@ -183,6 +207,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
   let kysely: Kysely<OrmDatabase> | undefined;
   let prisma: { $disconnect(): Promise<void> } | undefined;
   const engines: Engine[] = [];
+  const checkers: Checker[] = [];
 
   beforeAll(async () => {
     db = await startPostgres(SETUP);
@@ -246,6 +271,39 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       });
       return rows.map((row) => row.id);
     };
+    const prismaSchemaRun: Engine['run'] = async (resource, where) => {
+      const rows = await models[resource].findMany({
+        where: prismaWhere(where, {
+          model: prismaModelFields(PRISMA_SCHEMA, resource),
+        }),
+        select: { id: true },
+      });
+      return rows.map((row) => row.id);
+    };
+    checkers.push(
+      async (dock, permission, id) =>
+        drizzleCheckRow(
+          drizzlePg(db?.admin as never) as never,
+          itemTable,
+          dock.where(permission),
+          eq(itemTable.id, id),
+        ),
+      async (dock, permission, id) =>
+        kyselyCheckRow(
+          kyselyDb as never,
+          'item',
+          dock.where(permission),
+          (eb) => eb('id', '=', id),
+          { listFields: ['tags'] },
+        ),
+      async (dock, permission, id) =>
+        prismaCheckRow(
+          models.item as never,
+          dock.where(permission),
+          { id },
+          { model: prismaModelFields(PRISMA_SCHEMA, 'item') },
+        ),
+    );
 
     engines.push(
       { name: 'drizzle (node-postgres)', exists: false, run: drizzleOnPg },
@@ -259,6 +317,11 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       { name: 'kysely (pg)', exists: false, run: kyselyRun },
       { name: 'kysely (pg, exists)', exists: true, run: kyselyRun },
       { name: 'prisma 7 (adapter-pg)', exists: false, run: prismaRun },
+      {
+        name: 'prisma 7 (schema fields)',
+        exists: false,
+        run: prismaSchemaRun,
+      },
     );
   }, 180_000);
 
@@ -277,6 +340,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
     'kysely (pg)',
     'kysely (pg, exists)',
     'prisma 7 (adapter-pg)',
+    'prisma 7 (schema fields)',
   ];
 
   for (const name of names) {
@@ -315,4 +379,40 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       expect(failures(report.results)).toEqual([]);
     });
   }
+
+  it('checkRow in Drizzle, Kysely and Prisma answers can() for each row', async () => {
+    const mismatches: string[] = [];
+    const scenarios = itemScenarios().filter((scenario) =>
+      ['read', 'update'].some((action) =>
+        scenario.name.endsWith(`item.${action}`),
+      ),
+    );
+    for (const scenario of scenarios) {
+      const dock = await createPermDock(
+        itemPolicy,
+        scenario.user,
+        scenario.options,
+      );
+      for (const row of [...itemRows, { id: 'missing' }]) {
+        const id = row.id;
+        const want =
+          row.id === 'missing'
+            ? { found: false }
+            : {
+                found: true,
+                granted: dock.can(scenario.permission, row as never),
+              };
+        for (const [index, check] of checkers.entries()) {
+          const got = await check(dock, scenario.permission, id);
+          if (JSON.stringify(got) !== JSON.stringify(want)) {
+            mismatches.push(
+              `${['drizzle', 'kysely', 'prisma'][index] ?? ''} ${scenario.name} ${id}: ${JSON.stringify(got)} want ${JSON.stringify(want)}`,
+            );
+          }
+        }
+      }
+    }
+    expect(checkers).toHaveLength(3);
+    expect(mismatches).toEqual([]);
+  });
 });

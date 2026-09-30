@@ -1,4 +1,5 @@
 import type { WhereResult } from '../core/permdock.ts';
+import type { ResourceNode } from '../core/permissions.ts';
 import type { Membership, Subject } from '../core/subject.ts';
 
 import { compact, isReadonlyArray, sole } from '../core/compact.ts';
@@ -16,10 +17,16 @@ import {
 import {
   type Condition,
   type ConditionValue,
+  type RelatedCondition,
   isConditionDate,
   isConditionRef,
   parentHop,
 } from './ast.ts';
+import {
+  type GraphSql,
+  type RelationsMapping,
+  relatedSql,
+} from './graph-sql.ts';
 import { resolveConditionRef } from './refs.ts';
 
 export type MembershipTable = {
@@ -57,6 +64,10 @@ export type CompileWhereOptions = {
   readonly now?: number;
   /** The policy's scopes; `where()` results carry them. Defaults to the implicit `tenant` / `team` pair. */
   readonly scopes?: readonly Scope[];
+  /** Where the relation graph lives; without it a `related` node is refused. */
+  readonly relations?: RelationsMapping;
+  /** The policy's resource graph; `where()` results carry it. */
+  readonly resources?: ReadonlyMap<string, ResourceNode>;
 };
 
 /** The membership table mapped for scope `name`, through the `tenant` / `team` shorthands. */
@@ -144,7 +155,16 @@ export type CompiledWhere =
     }
   | { readonly kind: 'and' | 'or'; readonly items: readonly CompiledWhere[] }
   | { readonly kind: 'not'; readonly item: CompiledWhere }
-  | CompiledExists;
+  | CompiledExists
+  | CompiledSql;
+
+/** A Postgres boolean over the row that is never NULL: a `related` node's subquery. */
+export type CompiledSql = {
+  readonly kind: 'sql';
+  readonly parts: GraphSql;
+  /** What a `{ subject: true }` part binds. */
+  readonly subject: string;
+};
 
 const NEVER: CompiledWhere = { kind: 'never' };
 const ALWAYS: CompiledWhere = { kind: 'always' };
@@ -258,6 +278,7 @@ function negate(node: CompiledWhere): CompiledWhere {
         { kind: 'isNull', field: node.field, negated: false },
       ]);
     case 'exists':
+    case 'sql':
       return { kind: 'not', item: node };
     default: {
       const exhaustive: never = node;
@@ -550,6 +571,33 @@ function compileCompare(
   return { kind: 'compare', op: condition.op, field: condition.field, value };
 }
 
+function compileRelated(
+  condition: RelatedCondition,
+  options: CompileWhereOptions,
+): CompiledWhere {
+  if (options.relations === undefined || options.resources === undefined) {
+    throw nonPortable(
+      'related (the relation graph): pass `relations` so it compiles to a subquery, or resolve it to ids first (permdock/prisma resolveRelated)',
+    );
+  }
+  assertSafeKey(condition.field, 'condition field');
+  const principal = options.subject?.principal?.id;
+  if (
+    condition.ids === undefined &&
+    (principal === undefined || principal === '')
+  ) {
+    return NEVER;
+  }
+  return {
+    kind: 'sql',
+    parts: relatedSql(condition, {
+      ...options.relations,
+      resources: options.resources,
+    }),
+    subject: principal ?? '',
+  };
+}
+
 function compileNode(
   condition: Condition,
   options: CompileWhereOptions,
@@ -579,9 +627,7 @@ function compileNode(
     case 'memberOf':
       return compileMemberOf(condition, options);
     case 'related':
-      throw nonPortable(
-        'related (the relation graph; RLS compiles it over the closure table)',
-      );
+      return compileRelated(condition, options);
     case 'eq':
     case 'ne':
     case 'gt':
@@ -611,14 +657,21 @@ function whereScopes(
   return 'partial' in input ? input.scopes : undefined;
 }
 
+function whereResources(
+  input: Condition | WhereResult,
+): ReadonlyMap<string, ResourceNode> | undefined {
+  return 'partial' in input ? input.resources : undefined;
+}
+
 export function compileWhere(
   input: Condition | WhereResult,
   options: CompileWhereOptions = {},
 ): CompiledWhere {
   const subject = options.subject ?? whereSubject(input);
   const scopes = options.scopes ?? whereScopes(input);
+  const resources = options.resources ?? whereResources(input);
   return compileNode(
     asPortableCondition(input),
-    compact({ ...options, subject, scopes }),
+    compact({ ...options, subject, scopes, resources }),
   );
 }
