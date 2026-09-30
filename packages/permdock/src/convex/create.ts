@@ -58,6 +58,7 @@ export function createPermDock<
         user = null;
       }
       const dock = await createCore(policy, user);
+      // SAFETY: the spread keeps every TCtx field and adds the permdock instance built above.
       const next = { ...ctx, permdock: dock } as ConvexPermDockCtx<TCtx> & {
         readonly permdock: PermDock;
       };
@@ -80,6 +81,7 @@ export function createPermDock<
         );
       },
     );
+    // SAFETY: Convex calls the handler with the app's own query context, which TCtx describes.
     const definition = {
       args: {},
       handler: (

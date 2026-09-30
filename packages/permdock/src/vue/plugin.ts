@@ -30,6 +30,7 @@ export const permdockPlugin: Plugin<PermDockPluginOptions> = {
     } else if (isRef(source) || typeof source === 'function') {
       const scope = effectScope(true);
       scope.run(() => {
+        // SAFETY: the promise case is handled above, so source is a ref or getter of a Snapshot or string.
         watch(
           () => toValue(source) as Snapshot | string,
           (next) => {

@@ -49,6 +49,7 @@ function validateClaims(
   if ('issues' in result && result.issues !== undefined) {
     return undefined;
   }
+  // SAFETY: a synchronous result without issues is the Standard Schema success result, which has value.
   const value = (result as { readonly value: unknown }).value;
   return isRecord(value) ? value : undefined;
 }
@@ -372,6 +373,7 @@ export async function subjectFromClerk(
     if (!trustedObject && !trustedPayload) {
       return anonymousSubject();
     }
+    // SAFETY: not an auth object, so isVerifiedPayload above confirmed a verified payload record.
     const mapped = trustedObject
       ? fromAuthObject(authObject)
       : fromPayload(authObject as Record<string, unknown>);

@@ -143,6 +143,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     instance: PermDock,
     data?: unknown,
   ): void => {
+    // SAFETY: ElysiaContext is the request context plus the permdock fields assigned here.
     const scoped = ctx as ElysiaContext;
     scoped.permdock = instance;
     if (data !== undefined) {
@@ -150,6 +151,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }
   };
 
+  // SAFETY: the chain returns an Elysia instance; only its accumulated generics are dropped.
   const permdock = (): Elysia =>
     new Elysia({ name: 'permdock', seed })
       .derive({ as: 'global' }, async (ctx) => {
@@ -205,6 +207,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const ctx = contexts.get(request);
       return ctx === undefined ? { tenant: undefined } : scopeOf(ctx);
     });
+    // SAFETY: the chain returns an Elysia instance; only its accumulated generics are dropped.
     return new Elysia({ name: 'permdock-handler', seed })
       .post('/', (ctx) => POST(bind(ctx)))
       .get('/', (ctx) => GET(bind(ctx))) as unknown as Elysia;

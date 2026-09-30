@@ -65,6 +65,7 @@ function emailsOf(value: unknown): DirectoryUser['emails'] | undefined {
     if (item === null || typeof item !== 'object') {
       return [];
     }
+    // SAFETY: checked above to be a non-null object; each field is typeof-checked before use.
     const record = item as {
       value?: unknown;
       primary?: unknown;
@@ -96,6 +97,7 @@ function membersOf(value: unknown): DirectoryGroup['members'] {
     if (item === null || typeof item !== 'object') {
       return [];
     }
+    // SAFETY: checked above to be a non-null object; value is typeof-checked below.
     const record = item as { value?: unknown };
     return typeof record.value === 'string' ? [{ value: record.value }] : [];
   });

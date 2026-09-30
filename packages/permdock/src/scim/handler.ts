@@ -218,6 +218,7 @@ export function scimHandler(
         if (!schemasOk(body, GROUP_SCHEMA)) {
           return scimError(400, 'invalidSyntax', 'unsupported schema');
         }
+        // SAFETY: only a lookup key; a missing or non-string id coerces to a key groupRoles lacks.
         const parsed = groupFromBody(
           body,
           '',

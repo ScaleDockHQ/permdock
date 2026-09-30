@@ -51,6 +51,7 @@ function useTick(store: ClientStore): ComputedRef<ClientPermDock> {
 export function usePermDock(): ClientPermDock {
   const store = useStore();
   const dock = useTick(store);
+  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
   return new Proxy({} as ClientPermDock, {
     get(_target, prop, _receiver): unknown {
       return Reflect.get(dock.value, prop);
@@ -120,6 +121,7 @@ export function useFilter<T>(
   const dock = useTick(useStore());
   return computed(() => {
     const filtered = dock.value.filter(permission, toValue(rows));
+    // SAFETY: a fresh copy; the next line sets partial on it.
     const result = [...filtered] as T[] & { partial: boolean };
     result.partial = dock.value.where(permission).partial;
     return result;

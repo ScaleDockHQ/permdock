@@ -28,7 +28,7 @@ function isThenable(value: unknown): value is Promise<unknown> {
     typeof value === 'object' &&
     value !== null &&
     'then' in value &&
-    typeof (value as { readonly then: unknown }).then === 'function'
+    typeof value.then === 'function'
   );
 }
 
@@ -40,7 +40,8 @@ export function acceptSnapshot(
     return undefined;
   }
   try {
-    const snapshot = parseSnapshot(JSON.parse(raw) as unknown);
+    const parsed: unknown = JSON.parse(raw);
+    const snapshot = parseSnapshot(parsed);
     const id = snapshot.subject.principal?.id;
     if (subjectId !== undefined && id !== subjectId) {
       return undefined;

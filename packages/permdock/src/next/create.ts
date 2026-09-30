@@ -35,6 +35,7 @@ const DENIED: Decision = {
 };
 
 function assertServerOnly(): void {
+  // SAFETY: document is only compared with undefined, so runtimes without it read undefined.
   const globals = globalThis as typeof globalThis & {
     readonly document?: unknown;
   };
@@ -103,6 +104,7 @@ function wrapInstance<V extends PolicyVocabulary>(
   if (onDenied === undefined) {
     return dock;
   }
+  // SAFETY: assert's instance and collection overloads share one implementation that takes either kind.
   const assert = ((
     permission: Permission,
     data?: unknown,
@@ -157,6 +159,7 @@ export function createPermDock<
     // Decisions read the clock (membership and token expiry), so the instance
     // is created past a dynamic boundary; inside a cache scope this resolves at once.
     await io();
+    // SAFETY: applyOtel erases V; it returns or wraps the instance built from this V-typed policy.
     const instance = applyOtel(
       await createCorePermDock(
         policy,
@@ -190,6 +193,7 @@ export function createPermDock<
   ): Promise<ServerPermissionState> => {
     try {
       const dock = await getPermDock();
+      // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
       const decision = (
         dock.decide as (next: Permission, row?: unknown) => Decision
       )(permission, data);
@@ -209,6 +213,7 @@ export function createPermDock<
     const dock = await getPermDock(
       input.tenant === undefined ? undefined : { tenant: input.tenant },
     );
+    // SAFETY: assert's instance and collection overloads share one implementation that takes either kind.
     const assert = dock.assert as (
       next: Permission,
       row?: unknown,

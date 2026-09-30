@@ -110,6 +110,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function contextOf(value: unknown): Context {
+  // SAFETY: a record from the SDK's handler context; every Context field is optional and type-checked on read.
   return isRecord(value) ? (value as Context) : {};
 }
 
@@ -136,6 +137,7 @@ function authorizationDetailsOf(
   authInfo: McpAuthInfo,
 ): readonly AuthorizationDetail[] | undefined {
   const details = authInfo.extra?.['authorizationDetails'];
+  // SAFETY: authInfo comes from the server's token verifier, which puts RFC 9396 entries in this array.
   return Array.isArray(details)
     ? (details as readonly AuthorizationDetail[])
     : undefined;
@@ -318,6 +320,7 @@ function requirePermission(
       `permdock/mcp: ${kind} ${name} has no permission; every guarded registration needs one.`,
     );
   }
+  // SAFETY: checked above to be a record with a string key; decisions identify permissions by key.
   return permission as unknown as Permission;
 }
 
@@ -359,6 +362,7 @@ function guardUpdates(
   registered.update = (updates): void => {
     const next: Record<string, unknown> = { ...updates };
     if (typeof updates['callback'] === 'function') {
+      // SAFETY: the typeof check above confirms a function; Handler takes any arguments.
       next['callback'] = wrap(updates['callback'] as Handler);
     }
     if (rename !== undefined && currentName !== undefined) {
@@ -447,6 +451,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     if (url === undefined) {
       return undefined;
     }
+    // SAFETY: handlerContext is the SDK handler context, passed unchanged to the SDK's own codec.
     const requestState =
       options.requestState === undefined
         ? decision.token
@@ -582,6 +587,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }
     try {
       const dock = await instanceFor(authInfo);
+      // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
       const raw = (
         dock.decide as (
           next: Permission,
@@ -795,6 +801,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           return result;
         }
         const context = contextOf(rawContext);
+        // SAFETY: checked to be an array above; the SDK's list result schema gives each entry TEntry's key.
         const entries = result[field] as TEntry[];
         const shown = await visible(context, permissionOf, entries.map(keyOf));
         const kept = entries.filter((entry) => shown.has(keyOf(entry)));
@@ -833,6 +840,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       ),
     };
 
+    // SAFETY: server.server is the SDK's low-level Server; InnerServer names the methods used here.
     const inner = server.server as unknown as InnerServer;
     const capabilities = (): unknown => inner.getClientCapabilities?.();
     const set = inner.setRequestHandler.bind(inner);
@@ -847,6 +855,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         typeof handler === 'function'
       ) {
         set(method, async (request: unknown, context: unknown) =>
+          // SAFETY: the typeof check above confirms a function; Handler takes any arguments.
           filter(await (handler as Handler)(request, context), context),
         );
         return;
@@ -893,13 +902,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     ): Handler =>
       guard(
         permission,
-        load as ((...args: unknown[]) => unknown) | undefined,
+        load,
         handler,
         (params) => (params.length >= 2 ? [params[0]] : [undefined]),
         toolRefusal,
         { after: announce, longRunning, capabilities },
       );
 
+    // SAFETY: the SDK overloads are generic over schemas; the wrapper forwards the same arguments.
     // oxlint-disable-next-line typescript/no-deprecated -- bind() resolves to the raw-shape overload
     const originalTool = server.registerTool.bind(server) as unknown as (
       name: string,
@@ -919,8 +929,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         longRunning: rawLongRunning,
         ...passthrough
       } = config;
+      // SAFETY: GuardedMcpServer types a tool config's data as a loader over the tool args.
       const load = data as ((args: unknown) => unknown) | undefined;
       const longRunning = rawLongRunning === true;
+      // SAFETY: GuardedMcpServer types annotations as ToolHints and scopeChallenge as its handler.
       const registered = originalTool(
         name,
         {
@@ -953,6 +965,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       return registered;
     };
 
+    // SAFETY: the SDK overloads are generic over schemas; the wrapper forwards the same arguments.
     // oxlint-disable-next-line typescript/no-deprecated -- bind() resolves to the raw-shape overload
     const originalPrompt = server.registerPrompt.bind(server) as unknown as (
       name: string,
@@ -971,6 +984,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         scopeChallenge,
         ...passthrough
       } = config;
+      // SAFETY: GuardedMcpServer types a prompt config's data as a loader over the prompt args.
       const load = data as ((...args: unknown[]) => unknown) | undefined;
       const wrap = (callback: Handler): Handler =>
         guard(
@@ -981,6 +995,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           throwRefusal,
           { capabilities },
         );
+      // SAFETY: GuardedMcpServer types a prompt config's scopeChallenge as ScopeChallengeHandler.
       const registered = originalPrompt(
         name,
         {
@@ -997,6 +1012,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       return registered;
     };
 
+    // SAFETY: the SDK overloads are generic over schemas; the wrapper forwards the same arguments.
     const originalResource = server.registerResource.bind(
       server,
     ) as unknown as (
@@ -1018,6 +1034,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         scopeChallenge,
         ...passthrough
       } = config;
+      // SAFETY: GuardedMcpServer types a resource config's data as a loader over the read args.
       const load = data as ((...args: unknown[]) => unknown) | undefined;
       const wrap = (callback: Handler): Handler =>
         guard(
@@ -1028,6 +1045,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           throwRefusal,
           { capabilities },
         );
+      // SAFETY: GuardedMcpServer types a resource config's scopeChallenge as ScopeChallengeHandler.
       const registered = originalResource(
         name,
         uriOrTemplate,
@@ -1049,10 +1067,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       return registered;
     };
 
+    // SAFETY: the server is an object whose three register methods are replaced below.
     const guarded = server as unknown as Record<string, unknown>;
     guarded['registerTool'] = registerTool;
     guarded['registerPrompt'] = registerPrompt;
     guarded['registerResource'] = registerResource;
+    // SAFETY: the register methods were just replaced by the guarded ones GuardedMcpServer declares.
     return server as unknown as GuardedMcpServer;
   };
 

@@ -21,6 +21,7 @@ function asActor(value: unknown): Actor | undefined {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;
   }
+  // SAFETY: checked above to be a non-array object; id and kind are typeof-checked below.
   const record = value as { readonly id?: unknown; readonly kind?: unknown };
   if (typeof record.id !== 'string' || typeof record.kind !== 'string') {
     return undefined;
@@ -47,6 +48,7 @@ export function approvalTokenOf(context: unknown): string | undefined {
   if (context === null || typeof context !== 'object') {
     return undefined;
   }
+  // SAFETY: checked above to be a non-null object; the token is typeof-checked below.
   const token = (context as { readonly permdockApproval?: unknown })
     .permdockApproval;
   return typeof token === 'string' && token !== '' ? token : undefined;
@@ -56,6 +58,7 @@ export function idOf(data: unknown): string | undefined {
   if (data === null || typeof data !== 'object') {
     return undefined;
   }
+  // SAFETY: checked above to be a non-null object; id is typeof-checked below.
   const id = (data as { readonly id?: unknown }).id;
   if (typeof id === 'string' || typeof id === 'number') {
     return String(id);
@@ -79,6 +82,7 @@ function runDecide(
   data: unknown,
   adapter: string,
 ): Decision {
+  // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
   return (
     dock.decide as (
       next: Permission,

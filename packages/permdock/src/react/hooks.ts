@@ -39,6 +39,7 @@ export function usePermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(): ClientPermDock<V> {
   const store = useStore();
+  // SAFETY: V only types the vocabulary; the store holds the instance for the provider's policy.
   return useSyncExternalStore(
     (listener) => store.subscribe(listener),
     () => store.get(),
@@ -106,6 +107,7 @@ export function useFilter<T>(
   const dock = usePermDock();
   return useMemo(() => {
     const filtered = dock.filter(permission, rows);
+    // SAFETY: a fresh copy; the next line sets partial on it.
     const result = [...filtered] as T[] & { partial: boolean };
     result.partial = dock.where(permission).partial;
     return result;

@@ -12,10 +12,12 @@ import { PermDockContext } from './context.ts';
 export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
   const source = props.snapshot;
   const promised = isPromiseLike(source);
+  // SAFETY: the only function the snapshot prop allows is an accessor of a snapshot or string.
   const read =
     typeof source === 'function'
       ? (source as () => Snapshot | string | undefined)
       : undefined;
+  // SAFETY: neither a promise nor an accessor, so it is the plain Snapshot or string the prop allows.
   const initial = promised
     ? undefined
     : read === undefined

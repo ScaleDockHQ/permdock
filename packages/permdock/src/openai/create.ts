@@ -106,6 +106,7 @@ export type OpenAiPermDock = {
 
 function appContext(runContext: OpenAiRunContext | undefined): OpenAiContext {
   const context = runContext?.context;
+  // SAFETY: the object the app passed to the run as its context, which the app types as OpenAiContext.
   return typeof context === 'object' && context !== null
     ? (context as OpenAiContext)
     : {};
@@ -127,7 +128,8 @@ function parseCall(item: OpenAiInterruption): ParsedCall {
       : { ok: false };
   }
   try {
-    return { ok: true, name, args: JSON.parse(raw) as unknown };
+    const args: unknown = JSON.parse(raw);
+    return { ok: true, name, args };
   } catch {
     return { ok: false };
   }
@@ -182,6 +184,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
       try {
         const dock = await kernel.instance(context);
+        // SAFETY: can's instance and collection overloads share one implementation that takes either kind.
         const can = dock.can as (next: Permission, row?: unknown) => boolean;
         if (binding.data === undefined) {
           return !can(permission);

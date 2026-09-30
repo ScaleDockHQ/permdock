@@ -17,7 +17,7 @@ function isTable(
     value !== null &&
     typeof value === 'object' &&
     'table' in value &&
-    typeof (value as { readonly table?: unknown }).table === 'string'
+    typeof value.table === 'string'
   );
 }
 

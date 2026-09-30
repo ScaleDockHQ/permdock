@@ -36,6 +36,7 @@ function fromStore<T>(store: ClientStore, compute: () => T): Readable<T> {
 }
 
 export function sveltePermDock(store: ClientStore): ClientPermDock {
+  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
   return new Proxy({} as ClientPermDock, {
     get(_target, prop, _receiver): unknown {
       return Reflect.get(store.get(), prop);
@@ -119,6 +120,7 @@ export function filteredFor<T>(
 ): Readable<FilterResult<T>> {
   return fromStore(store, () => {
     const dock = store.get();
+    // SAFETY: filter returns a fresh array; the next line sets partial on it.
     const next = dock.filter(reference, rows()) as T[] & { partial: boolean };
     next.partial = dock.where(reference).partial;
     return next;

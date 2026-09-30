@@ -31,6 +31,7 @@ export function subjectFromMcp(
     if (authInfo === undefined || !isRecord(authInfo.extra)) {
       return anonymousSubject();
     }
+    // SAFETY: extra is checked to be a record above; mapClaimsToSubject type-checks each claim it reads.
     const claims = compact<JwtClaims>({
       ...(authInfo.extra as JwtClaims),
       scope: authInfo.scopes?.join(' '),
@@ -46,6 +47,7 @@ export function subjectFromMcp(
       return anonymousSubject();
     }
     const clientId = authInfo.clientId;
+    // SAFETY: McpPrincipal only adds optional fields to the Principal mapClaimsToSubject builds.
     return freezeDeep(
       compact({
         ...mapped.subject,

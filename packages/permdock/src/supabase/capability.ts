@@ -63,6 +63,7 @@ export async function exchangeCapability(
     return undefined;
   }
   const jose = await loadJose();
+  // SAFETY: a non-secret key is the private JWK the options type declares; jose validates it on import.
   const key = isSecret(options.key)
     ? new TextEncoder().encode(options.key.secret)
     : await jose.importJWK(options.key as never, options.alg);

@@ -33,7 +33,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const CURRENT = Symbol.for('permdock.current');
 
 function current(permdock: WebMcpPermDock): WebMcpPermDock {
+  // SAFETY: an optional read of the CURRENT symbol, typeof-checked below.
   const latest = (permdock as { readonly [CURRENT]?: unknown })[CURRENT];
+  // SAFETY: the client store defines CURRENT as a getter for its latest instance.
   return typeof latest === 'function'
     ? (latest as () => WebMcpPermDock)()
     : permdock;
@@ -81,9 +83,11 @@ function jsonSchemaOf(
   if (schema === undefined) {
     return undefined;
   }
+  // SAFETY: an optional read of Standard JSON Schema's jsonSchema; it is checked before use.
   const standard = schema['~standard'] as {
     readonly jsonSchema?: unknown;
   };
+  // SAFETY: Standard JSON Schema's shape; input is typeof-checked before the call.
   const converter = standard.jsonSchema as
     | { readonly input?: (options: { readonly target: string }) => unknown }
     | undefined;
@@ -127,6 +131,7 @@ function validateInput(
       issues: [],
     });
   }
+  // SAFETY: a thenable result threw above, so this is the synchronous Result.
   const sync = result as StandardSchemaV1.Result<unknown>;
   if ('issues' in sync && sync.issues !== undefined) {
     throw new PermDockValidationError({
@@ -240,6 +245,7 @@ function problemResult(error: unknown): WebMcpToolResult | undefined {
     'toProblemDetails' in error &&
     typeof error.toProblemDetails === 'function'
   ) {
+    // SAFETY: toProblemDetails is the PermDock error method; it returns Problem Details with title and detail.
     const problem = (
       error as { toProblemDetails: () => { title: string; detail: string } }
     ).toProblemDetails();
@@ -273,6 +279,7 @@ function wrapResult(value: unknown): WebMcpToolResult {
         typeof item['text'] === 'string',
     )
   ) {
+    // SAFETY: a record whose content items were each checked above to be a text part.
     return value as unknown as WebMcpToolResult;
   }
   if (typeof value === 'string') {
@@ -317,6 +324,7 @@ function warnMissing(warn: RegisterToolsOptions['warn']): void {
     warn(MISSING_CONTEXT);
     return;
   }
+  // SAFETY: optional chaining below guards a missing console or warn.
   const consoleLike = (
     globalThis as { readonly console?: { warn?: (message: string) => void } }
   ).console;

@@ -106,6 +106,7 @@ function loadSql(injected?: KyselySql): KyselySql {
   if (injected !== undefined) {
     return injected;
   }
+  // SAFETY: optional chaining guards a missing process; node:module is Node's createRequire module.
   const loader = (
     globalThis as {
       readonly process?: {
@@ -153,6 +154,7 @@ function graphExpr(
     );
     strings.push('');
   }
+  // SAFETY: a string array becomes a TemplateStringsArray once raw is defined on the next line.
   const template = strings as unknown as TemplateStringsArray;
   Object.defineProperty(template, 'raw', { value: strings });
   return sql(template, ...values);
@@ -258,6 +260,7 @@ export function withSubject<Trx, T>(
   const sql = loadSql(options.sql);
   return db.transaction().execute(async (trx) => {
     for (const statement of statements) {
+      // SAFETY: Kysely's sql tag returns a RawBuilder, which has execute(db).
       const query = sql(
         statementTemplate(statement),
         ...statement.values,
@@ -294,6 +297,7 @@ export async function checkRow(
 ): Promise<RowCheck> {
   const sql = loadSql(options.sql);
   const filter = toWhere(input, table, options);
+  // SAFETY: never-typed parameters accept any Kysely table or expression; sql returns a RawBuilder.
   const rows = await db
     .selectFrom(table as never)
     .select(((eb: KyselyExpressionBuilder) =>

@@ -31,10 +31,12 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
   name: 'Protected',
   props: {
     permission: {
+      // SAFETY: Vue's PropType idiom; the runtime check is Object and the static type a permission leaf.
       type: Object as PropType<Permission>,
       required: true,
     },
     data: {
+      // SAFETY: Vue's PropType idiom; unknown is the widest static type for any row.
       type: Object as PropType<unknown>,
       required: false,
     },
@@ -50,6 +52,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
     );
     const root = usePermDock();
     return (): VNode | VNode[] | string | null => {
+      // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
       const scoped: ScopedView =
         props.tenant === undefined
           ? {

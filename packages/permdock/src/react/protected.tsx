@@ -34,6 +34,7 @@ function Guard(props: ProtectedProps): ReactNode {
       decision,
     };
   };
+  // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
   const { allowed, status, decision } =
     props.tenant === undefined
       ? local

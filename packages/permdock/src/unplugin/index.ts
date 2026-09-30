@@ -16,6 +16,7 @@ type CreateUnplugin = typeof createUnplugin<
 // Synchronous so CommonJS bundler configs can still `require()` this entry.
 function loadCreateUnplugin(): CreateUnplugin {
   try {
+    // SAFETY: the unplugin peer's entry exports createUnplugin, whose type is imported above.
     const unplugin = createRequire(import.meta.url)('unplugin') as {
       readonly createUnplugin: CreateUnplugin;
     };

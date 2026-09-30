@@ -27,6 +27,7 @@ export function Protected(props: ProtectedProps): JSX.Element {
     if (props.tenant === undefined) {
       return local();
     }
+    // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
     return tenantView(
       root.tenant(props.tenant) as DecideDock,
       props.permission,
@@ -45,13 +46,11 @@ export function Protected(props: ProtectedProps): JSX.Element {
       return props.fallback ?? null;
     }
     if (typeof props.children === 'function') {
-      return props.children(
-        scoped.decision as Extract<Decision, { readonly outcome: 'granted' }>,
-      );
+      return props.children(scoped.decision);
     }
     return props.children;
   };
-  // Solid renders an accessor child reactively; its JSX types only name nodes.
+  // SAFETY: Solid renders an accessor child reactively; its JSX types only name nodes.
   return render as unknown as JSX.Element;
 }
 

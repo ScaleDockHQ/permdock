@@ -29,6 +29,7 @@ function loadOperators(injected?: DrizzleOperators): DrizzleOperators {
   }
   // Feature-detected so the entry loads on runtimes without a Node module
   // loader; there, pass `operators` (`import * as operators from 'drizzle-orm'`).
+  // SAFETY: optional chaining guards a missing process; node:module is Node's createRequire module.
   const loader = (
     globalThis as {
       readonly process?: {
@@ -68,6 +69,7 @@ function column(
   columns: Readonly<Record<string, unknown>> | undefined,
 ): unknown {
   assertSafeKey(field, 'condition field');
+  // SAFETY: an own-key read on an object; the value is checked for undefined or function below.
   const mapped =
     (columns !== undefined && Object.hasOwn(columns, field)
       ? columns[field]
@@ -83,6 +85,7 @@ function column(
 
 /** Drizzle's Postgres array columns (`text().array()`) report `dataType: 'array'`. */
 function isArrayColumn(col: unknown): boolean {
+  // SAFETY: checked to be a non-null object first; dataType is only compared.
   return (
     col !== null &&
     typeof col === 'object' &&
@@ -104,6 +107,7 @@ function tagged(parts: readonly SqlPart[], ops: DrizzleOperators): unknown {
       strings.push('');
     }
   }
+  // SAFETY: a string array becomes a TemplateStringsArray once raw is defined on the next line.
   const template = strings as unknown as TemplateStringsArray;
   Object.defineProperty(template, 'raw', { value: strings });
   return ops.sql(template, ...values);
@@ -233,8 +237,10 @@ function render(
         case 'lte':
           return ops.lte(col, node.value);
         case 'in':
+          // SAFETY: compileWhere emits in and notIn compares only with a non-empty array value.
           return ops.inArray(col, node.value as readonly unknown[]);
         case 'notIn':
+          // SAFETY: compileWhere emits in and notIn compares only with a non-empty array value.
           return ops.notInArray(col, node.value as readonly unknown[]);
         case 'contains':
           return containsSql(col, node.value, ops);
@@ -268,6 +274,7 @@ export function toWhere<T extends object>(
       relations: options.relations,
     }),
   );
+  // SAFETY: T only narrows the column values render reads as unknown; the operators build Drizzle SQL.
   return render(
     compiled,
     table,
@@ -293,6 +300,7 @@ export function withSubject<Tx extends { execute(query: never): unknown }, T>(
   const statements = subjectStatements(permdock, options);
   const { sql } = loadOperators(options.operators);
   return db.transaction(async (tx) => {
+    // SAFETY: every query passed is built by drizzle-orm's own sql tag, which tx.execute accepts.
     const execute = tx.execute.bind(tx) as (query: unknown) => Promise<unknown>;
     for (const statement of statements) {
       // oxlint-disable-next-line no-await-in-loop -- the role must be set before the claims
@@ -327,6 +335,7 @@ export async function checkRow<T extends object>(
 ): Promise<RowCheck> {
   const { sql } = loadOperators(options.operators);
   const filter = toWhere(input, table, options);
+  // SAFETY: from() is typed never so any Drizzle table fits; table is the caller's Drizzle table.
   const rows = await db
     .select({ granted: sql`coalesce((${filter}), false)` })
     .from(table as never)

@@ -15,7 +15,8 @@ export async function readJson(request: Request): Promise<unknown> {
   if (text === '') {
     return undefined;
   }
-  return JSON.parse(text) as unknown;
+  const parsed: unknown = JSON.parse(text);
+  return parsed;
 }
 
 export function schemasOk(

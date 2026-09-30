@@ -103,17 +103,11 @@ export type TrpcPermDock<TCtx = object> = {
 };
 
 function requestFromCtx(ctx: object): Request | undefined {
-  if ('request' in ctx) {
-    const rec = ctx as { readonly request?: unknown };
-    if (rec.request instanceof Request) {
-      return rec.request;
-    }
+  if ('request' in ctx && ctx.request instanceof Request) {
+    return ctx.request;
   }
-  if ('req' in ctx) {
-    const rec = ctx as { readonly req?: unknown };
-    if (rec.req instanceof Request) {
-      return rec.req;
-    }
+  if ('req' in ctx && ctx.req instanceof Request) {
+    return ctx.req;
   }
   return undefined;
 }
@@ -193,6 +187,7 @@ async function throwTrpcError(response: Response): Promise<never> {
  * a failed middleware result; it becomes the same TRPCError `protect` throws.
  */
 function mapDownstream(result: unknown): Promise<unknown> {
+  // SAFETY: checked to be a non-null object first; ok is only compared.
   if (
     result === null ||
     typeof result !== 'object' ||
@@ -200,6 +195,7 @@ function mapDownstream(result: unknown): Promise<unknown> {
   ) {
     return Promise.resolve(result);
   }
+  // SAFETY: the check above returned unless result is a non-null object; error is tested below.
   const error = (result as { readonly error?: unknown }).error;
   const cause =
     error instanceof TRPCError && error.code === 'INTERNAL_SERVER_ERROR'
@@ -219,6 +215,7 @@ export function errorFormatter<TShape extends { readonly data: object }>(opts: {
   if (cause === null || typeof cause !== 'object' || !(PROBLEM in cause)) {
     return opts.shape;
   }
+  // SAFETY: checked above to be a non-null object carrying the PROBLEM brand.
   const { [PROBLEM]: _brand, ...problem } = cause as Record<
     PropertyKey,
     unknown
@@ -269,6 +266,7 @@ export function createPermDock<
         return undefined;
       }
     }
+    // SAFETY: tRPC always passes an object context; TCtx is unconstrained only for inference.
     return requestFromCtx(ctx as object);
   };
 
@@ -278,6 +276,7 @@ export function createPermDock<
    * procedure's own opts in `scopeOf`, never through the shared `Request`.
    */
   const bind = (opts: TrpcMiddlewareOpts<TCtx>): Request => {
+    // SAFETY: tRPC always passes an object context; TCtx is unconstrained only for inference.
     const ctx = opts.ctx as object;
     const hit = requestByCtx.get(ctx);
     if (hit !== undefined) {
@@ -300,6 +299,7 @@ export function createPermDock<
     requestByCtx.set(ctx, request);
   };
 
+  // SAFETY: the function has tRPC's middleware call shape; its generics cannot be inferred from it.
   const permdock = (): TrpcMiddleware =>
     (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
       const request = bind(opts);
@@ -332,6 +332,7 @@ export function createPermDock<
     loadData: (() => unknown) | undefined,
     protectOptions: StreamProtectOptions | undefined,
   ): Promise<unknown> => {
+    // SAFETY: checked to be a non-null object first; ok is only compared and data only tested.
     if (
       result === null ||
       typeof result !== 'object' ||
@@ -344,6 +345,7 @@ export function createPermDock<
       opts,
       compact({ permission, data: loadData }),
     );
+    // SAFETY: isAsyncIterable confirmed data above.
     return {
       ...result,
       data: guardIterable(
@@ -364,6 +366,7 @@ export function createPermDock<
     loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ): TrpcMiddleware =>
+    // SAFETY: the function has tRPC's middleware call shape; its generics cannot be inferred from it.
     (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
       const request = bind(opts);
       const guard = await kernel.protect(
@@ -390,6 +393,7 @@ export function createPermDock<
     }) as TrpcMiddleware;
 
   const permdockHandler = (request: Request): Promise<Response> => {
+    // SAFETY: the handler route runs outside tRPC, so its only context is the request as req.
     const opts = {
       ctx: { req: request } as TCtx,
       path: 'permdock',

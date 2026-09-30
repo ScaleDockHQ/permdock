@@ -18,6 +18,7 @@ type FastifyReplyLike = {
 };
 
 function isReadable(value: unknown): value is IncomingMessage {
+  // SAFETY: checked to be a non-null object first; read is only typeof-checked.
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -29,6 +30,7 @@ function isFastifyReply(value: unknown): value is FastifyReplyLike {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
+  // SAFETY: checked above to be a non-null object; each method is typeof-checked below.
   const reply = value as Record<string, unknown>;
   return (
     typeof reply['code'] === 'function' &&
@@ -45,6 +47,7 @@ export function toRequest(req: NodeRequest): Request {
   if (isReadable(req)) {
     return nodeToRequest(req);
   }
+  // SAFETY: an optional read of Fastify's raw stream; isReadable checks it below.
   const raw: unknown = (req as { readonly raw?: unknown }).raw;
   return nodeToRequest(req, isReadable(raw) ? raw : null);
 }

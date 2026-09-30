@@ -126,6 +126,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     policy,
     compact({
       subject: (request: Request) =>
+        // SAFETY: the kernel passes it to core createPermDock, which accepts TUser, a Subject or null.
         options.subject(contextFor(request), request) as TUser | Promise<TUser>,
       tenant:
         typeof tenantOption === 'function'

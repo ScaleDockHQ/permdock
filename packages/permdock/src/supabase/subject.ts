@@ -252,6 +252,7 @@ function validateClaims(
   if ('issues' in result && result.issues !== undefined) {
     return undefined;
   }
+  // SAFETY: a synchronous result without issues is the Standard Schema success result, which has value.
   const value = (result as { readonly value: unknown }).value;
   return isRecord(value) ? value : undefined;
 }

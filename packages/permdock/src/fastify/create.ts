@@ -118,6 +118,7 @@ function decorate(
   instance: PermDock,
   data?: unknown,
 ): void {
+  // SAFETY: the next line assigns permdock, which makes the request a PermDockRequest.
   const scoped = request as PermDockRequest;
   scoped.permdock = instance;
   if (data !== undefined) {
@@ -197,6 +198,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const protect: FastifyProtect =
     (permission, loadData, protectOptions) => async (request, reply) => {
+      // SAFETY: a route-typed FastifyRequest; bind and scopeOf read only the untyped base request.
       const plain = request as FastifyRequest;
       const guard = await kernel.protect(
         permission,

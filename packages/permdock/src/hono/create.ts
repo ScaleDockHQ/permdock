@@ -147,6 +147,7 @@ async function sse<T>(
       });
     },
   );
+  // SAFETY: guardIterable calls unwrap only with items from source, which are T.
   const iterator = guardIterable(
     source,
     connection,
@@ -163,6 +164,7 @@ async function sse<T>(
       if (next.done === true || stream.aborted) {
         return;
       }
+      // SAFETY: a value that is not done comes from source, an async iterable of T.
       const item = next.value as T;
       // oxlint-disable-next-line no-await-in-loop -- frames keep their order
       await stream.writeSSE(
@@ -263,6 +265,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return guard.response;
       }
       c.set('permdock', guard.permdock);
+      // SAFETY: guard.data is loadData's TData result; protect answers 404 when it is null or undefined.
       c.set('permdockData', guard.data as NonNullable<TData>);
       await next();
       mapDownstream(c);

@@ -18,7 +18,9 @@ export function caepName(uri: string): CaepEventName | undefined {
     return undefined;
   }
   const name = uri.slice(CAEP_PREFIX.length);
+  // SAFETY: a string lookup in the set; only a member passes, so the return below is a CaepEventName.
   if (CAEP_NAMES.has(name as CaepEventName)) {
+    // SAFETY: CAEP_NAMES.has just confirmed the name is a CaepEventName.
     return name as CaepEventName;
   }
   return undefined;

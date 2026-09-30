@@ -7,6 +7,6 @@ export function isPromiseLike(
     typeof value === 'object' &&
     value !== null &&
     'then' in value &&
-    typeof (value as { readonly then: unknown }).then === 'function'
+    typeof value.then === 'function'
   );
 }

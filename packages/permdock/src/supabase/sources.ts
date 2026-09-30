@@ -241,6 +241,7 @@ function sqlOf(shape: Shape): MembershipSql {
 function rowsOf(
   result: Awaited<ReturnType<SqlQuery>>,
 ): readonly Record<string, unknown>[] {
+  // SAFETY: SqlQuery's only other variant has rows; Array.isArray does not narrow readonly arrays.
   return Array.isArray(result)
     ? result
     : (result as { readonly rows: readonly Record<string, unknown>[] }).rows;
@@ -262,6 +263,7 @@ function membershipOf(row: Record<string, unknown>): Membership | undefined {
   if (roles.length === 0) {
     return undefined;
   }
+  // SAFETY: row['within'] is checked just before to be a non-null, non-array object.
   const within =
     row['within'] !== null &&
     typeof row['within'] === 'object' &&
@@ -431,6 +433,7 @@ export function fromJunction(
       withinEntries.length === 0
         ? 'null::jsonb'
         : `jsonb_build_object(${withinEntries.map(([name, column]) => `${literal(name)}, ${col(column)}::text`).join(', ')})`,
+    // SAFETY: fixed is undefined only when options.roles is a column name string.
     roles:
       fixed === undefined
         ? `jsonb_agg(distinct ${col(options.roles as string)}::text order by ${col(options.roles as string)}::text)`

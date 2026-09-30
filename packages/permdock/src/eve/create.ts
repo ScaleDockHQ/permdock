@@ -190,6 +190,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 ): EvePermDock {
   const store = options.store ?? memoryApprovalStore();
   const tokensByCall = boundedMap<string, string>(TOKENS_PER_PROCESS);
+  // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromSession builds, or null.
   const kernel = createAgentKernel<EveContext, TUser>(policy, {
     ...compact({
       tenant: options.tenant,

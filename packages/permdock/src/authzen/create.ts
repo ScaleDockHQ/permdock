@@ -95,7 +95,7 @@ function resourceRef(
 ): { readonly type: string; readonly id?: string } {
   const fromRow =
     data !== null && typeof data === 'object' && 'id' in data
-      ? (data as { readonly id?: unknown }).id
+      ? data.id
       : undefined;
   const fromWire = item.resource?.id;
   const id =
@@ -199,6 +199,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     }
     const { data, trusted } = await resourceOf(item);
     const dock = await instantiate(pep, item);
+    // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
     const decide = dock.decide as (
       next: Permission,
       row?: unknown,
@@ -364,12 +365,14 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     const dock = await instantiate(pep, item);
     let permitted: readonly unknown[] = [];
     if (permission.kind === 'instance') {
+      // SAFETY: permission.kind is checked to be instance just above.
       permitted = dock.filter(
         permission as Permission<string, unknown, 'instance'>,
         rows,
       );
     } else if (
       permission.kind === 'collection' &&
+      // SAFETY: permission.kind is checked to be collection just before.
       dock.can(permission as Permission<string, unknown, 'collection'>)
     ) {
       permitted = rows;

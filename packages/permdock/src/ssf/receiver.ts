@@ -252,6 +252,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     type: string,
     input: SsfEventInput,
   ): Promise<IngestResult> {
+    // SAFETY: an event name used as a lookup key; the handler is checked for undefined below.
     const named = config.onEvent[type as keyof SsfOnEvent];
     const wildcard = config.onEvent['*'];
     const handler: SsfEventHandler | undefined = named ?? wildcard;
@@ -357,6 +358,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       });
       return verified;
     }
+    // SAFETY: verify rejects a token whose jti is not a non-empty string.
     const jti = verified.claims['jti'] as string;
     const issuer =
       typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
@@ -443,6 +445,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         cause: 'invalid-claims',
       };
     }
+    // SAFETY: verify rejects a token whose jti is not a non-empty string.
     const jti = verified.claims['jti'] as string;
     const issuer =
       typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
@@ -480,6 +483,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     },
   ): Promise<IngestResult> {
     const { issuer, jti, sub, sid } = ids;
+    // SAFETY: ingestLogout checked events to be a record holding the back-channel logout event.
     const events = claims['events'] as Readonly<Record<string, unknown>>;
     const identifier: SetSubject =
       sub === undefined

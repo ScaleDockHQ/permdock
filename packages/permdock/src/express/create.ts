@@ -99,6 +99,7 @@ const handler =
   (fn: (req: PermDockRequest, res: Response) => unknown): RequestHandler =>
   (req, res, next) => {
     run(async () => {
+      // SAFETY: handler wraps routes mounted after permdock() or protect(), which set req.permdock.
       await fn(req as PermDockRequest, res);
     }, next);
   };
@@ -155,6 +156,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const permdock = (): RequestHandler => (req, _res, next) => {
     run(async () => {
       const instance = await kernel.permdock(bind(req), await scopeOf(req));
+      // SAFETY: this assignment is what makes req a PermDockRequest.
       (req as PermDockRequest).permdock = instance;
       next();
     }, next);
@@ -177,6 +179,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           await sendResponse(res, guard.response);
           return;
         }
+        // SAFETY: the next line assigns permdock, which makes req a PermDockRequest.
         const scoped = req as PermDockRequest;
         scoped.permdock = guard.permdock;
         scoped.permdockData = guard.data;

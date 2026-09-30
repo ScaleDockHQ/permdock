@@ -283,6 +283,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
       let decision: Decision;
       try {
+        // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
         const raw = (
           dock.decide as (
             next: Permission,

@@ -28,6 +28,7 @@ function PermissionFallback(
   props: PermissionBoundaryProps,
   info: ErrorInfo,
 ): ReactNode {
+  // SAFETY: an optional read of the digest Next.js adds to errors; parsePermDockDigest validates it.
   const parsed = parsePermDockDigest(
     (info.error as Error & { readonly digest?: unknown }).digest,
   );

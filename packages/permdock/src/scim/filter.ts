@@ -110,6 +110,7 @@ function parsePrimary(
   if (value === undefined) {
     return undefined;
   }
+  // SAFETY: COMPARE.has(op) above admits only eq, ne, co and sw.
   return {
     filter: {
       op: op as 'eq' | 'ne' | 'co' | 'sw',
@@ -202,6 +203,7 @@ function readAttribute(
     }
     return members.map((member) => {
       if (member !== null && typeof member === 'object' && 'value' in member) {
+        // SAFETY: checked just above to be a non-null object that has a value key.
         return (member as { value?: unknown }).value;
       }
       return undefined;
@@ -213,6 +215,7 @@ function readAttribute(
     if (current === null || typeof current !== 'object') {
       return undefined;
     }
+    // SAFETY: checked just above to be a non-null object.
     current = (current as Record<string, unknown>)[part];
   }
   return current;
@@ -274,6 +277,7 @@ export function matchFilter(
   if (filter === undefined) {
     return true;
   }
+  // SAFETY: directory users and groups are plain records; attributes are only read, never assumed.
   const record = target as Record<string, unknown>;
   switch (filter.op) {
     case 'and':

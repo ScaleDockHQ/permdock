@@ -81,6 +81,7 @@ function foldRequired(
       if (items.some((item) => item.kind === 'never')) {
         return NEVER;
       }
+      // SAFETY: items[0] is read only when items.length is 1.
       return items.length === 0
         ? ALWAYS
         : items.length === 1
@@ -94,6 +95,7 @@ function foldRequired(
       if (items.some((item) => item.kind === 'always')) {
         return ALWAYS;
       }
+      // SAFETY: items[0] is read only when items.length is 1.
       return items.length === 0
         ? NEVER
         : items.length === 1
@@ -213,6 +215,7 @@ function containsEmptyOr(value: unknown): boolean {
   if (Array.isArray(value)) {
     return value.some((item) => containsEmptyOr(item));
   }
+  // SAFETY: null, primitives and arrays returned above, so value is a non-array object here.
   const record = value as Record<string, unknown>;
   if (Array.isArray(record['OR']) && record['OR'].length === 0) {
     return true;
@@ -242,6 +245,7 @@ export function toWhere<
     }),
   );
   const tests = fieldTests(options);
+  // SAFETY: T names the caller's Prisma where input, the shape render emits.
   return render(foldRequired(compiled, tests.required), options, tests) as T;
 }
 

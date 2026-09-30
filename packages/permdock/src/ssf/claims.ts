@@ -24,6 +24,7 @@ export function setSubjectFromClaims(
 ): SetSubject | undefined {
   const subId = claims['sub_id'];
   if (isRecord(subId) && typeof subId['format'] === 'string') {
+    // SAFETY: a record with a string format, the field RFC 9493 requires of every subject identifier.
     return subId as SetSubject;
   }
   if (typeof claims.sub === 'string' && claims.sub.length > 0) {
@@ -62,6 +63,7 @@ export function eventSubject(
   payload: Readonly<Record<string, unknown>>,
 ): SetSubject | undefined {
   const subject = payload['subject'];
+  // SAFETY: a record with a string format, the field RFC 9493 requires of every subject identifier.
   return isRecord(subject) && typeof subject['format'] === 'string'
     ? (subject as SetSubject)
     : undefined;

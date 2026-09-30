@@ -108,6 +108,7 @@ export type AiSdkPermDock = {
 };
 
 function contextOf(call: ToolApprovalCall): AiSdkContext {
+  // SAFETY: an object; AiSdkContext's fields are unknown but permdockApproval, which is typeof-checked.
   const runtime =
     call.runtimeContext !== null && typeof call.runtimeContext === 'object'
       ? (call.runtimeContext as AiSdkContext)
@@ -119,6 +120,7 @@ function contextOf(call: ToolApprovalCall): AiSdkContext {
 }
 
 function toolContextOf(options: NeedsApprovalOptions): AiSdkContext {
+  // SAFETY: an object; AiSdkContext's fields are unknown but permdockApproval, which is typeof-checked.
   const tool =
     options.context !== null && typeof options.context === 'object'
       ? (options.context as AiSdkContext)
@@ -139,10 +141,12 @@ function isRecheck(messages: unknown, toolCallId: unknown): boolean {
     if (typeof message !== 'object' || message === null) {
       return false;
     }
+    // SAFETY: checked above to be a non-null object; role and content are only compared and tested.
     const { role, content } = message as {
       readonly role?: unknown;
       readonly content?: unknown;
     };
+    // SAFETY: each part is checked to be a non-null object before its fields are compared.
     return (
       role === 'assistant' &&
       Array.isArray(content) &&
@@ -162,6 +166,7 @@ function resourceOf(
   permission: Permission,
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
+  // SAFETY: read only from a non-null object; id is typeof-checked below.
   const id =
     typeof data === 'object' && data !== null
       ? (data as { readonly id?: unknown }).id
@@ -275,6 +280,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const tools = params.tools.filter(
         (tool) => typeof tool.name === 'string' && allowed.has(tool.name),
       );
+      // SAFETY: every read is optional and compared, so any other toolChoice leaves forcedAway false.
       const choice = params.toolChoice as
         | { readonly type?: unknown; readonly toolName?: unknown }
         | undefined;

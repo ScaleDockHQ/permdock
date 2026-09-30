@@ -50,6 +50,7 @@ function loadCombinators(injected?: PrismaCombinators): PrismaCombinators {
   if (injected !== undefined) {
     return injected;
   }
+  // SAFETY: optional chaining guards a missing process; node:module is Node's createRequire module.
   const loader = (
     globalThis as {
       readonly process?: {
@@ -145,10 +146,12 @@ function render(
         case 'lte':
           return field.lte(node.value);
         case 'in': {
+          // SAFETY: compileWhere emits in and notIn compares only with an array value.
           const values = node.value as readonly unknown[];
           return values.length === 0 ? key().isNull() : field.in(values);
         }
         case 'notIn': {
+          // SAFETY: compileWhere emits in and notIn compares only with an array value.
           const values = node.value as readonly unknown[];
           return values.length === 0
             ? key().isNotNull()
@@ -195,5 +198,6 @@ export function toPredicate<M = Model>(
     compact({ subject: options.subject, now: options.now }),
   );
   const ops = loadCombinators(options.combinators);
+  // SAFETY: Prisma passes its model of field proxies; render refuses a field the model lacks.
   return (model) => render(compiled, model as Model, options, ops);
 }

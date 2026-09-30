@@ -157,6 +157,7 @@ class PermDockHttpError extends Error {
 }
 
 function reflectMeta(): ReflectMeta {
+  // SAFETY: reflect-metadata adds these methods to Reflect; both are typeof-checked below.
   const ref = Reflect as unknown as ReflectMeta;
   if (
     typeof ref.getMetadata !== 'function' ||
@@ -191,6 +192,7 @@ function applyParameter(
 function hasEmit(
   value: unknown,
 ): value is { emit(event: string, payload: unknown): unknown } {
+  // SAFETY: checked to be a non-null object first; emit is only typeof-checked.
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -203,6 +205,7 @@ function rulesOf(target: object): readonly ProtectRule[] {
   if (!Array.isArray(found)) {
     return [];
   }
+  // SAFETY: only Protect below defines PROTECT_KEY metadata, always as a ProtectRule array.
   return found as ProtectRule[];
 }
 
@@ -212,6 +215,7 @@ const Protect: NestProtect = (permission, loadData, protectOptions) => {
     loadData,
     options: protectOptions,
   });
+  // SAFETY: the function accepts both the class and the method decorator call shapes.
   return ((
     target: object,
     _propertyKey?: string | symbol,
@@ -428,6 +432,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (!hasEmit(client)) {
         throw exception;
       }
+      // SAFETY: problem is a Problem Details JSON object PermDock built; title is typeof-checked below.
       const body = (await problem.json()) as { readonly title?: unknown };
       client.emit('exception', {
         status: 'error',

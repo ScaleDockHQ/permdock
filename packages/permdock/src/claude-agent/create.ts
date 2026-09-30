@@ -116,6 +116,7 @@ const MCP_PREFIX = 'mcp__';
 
 function asInput(input: unknown): Record<string, unknown> {
   if (input !== null && typeof input === 'object' && !Array.isArray(input)) {
+    // SAFETY: checked just above to be a non-null, non-array object.
     return input as Record<string, unknown>;
   }
   return {};

@@ -93,7 +93,7 @@ export async function emitDirectory(
       : 'changed';
   const sink = options.sink ?? memorySink();
   try {
-    await sink.write([event, ...extra] as readonly SinkEvent[]);
+    await sink.write([event, ...extra]);
   } catch {
     // A throwing sink must never fail the IdP write.
   }

@@ -32,6 +32,7 @@ function useVersion(store: ClientStore): Accessor<number> {
 export function usePermDock(): ClientPermDock {
   const store = useStore();
   const version = useVersion(store);
+  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
   return new Proxy({} as ClientPermDock, {
     get(_target, prop, _receiver): unknown {
       version();
@@ -94,6 +95,7 @@ export function useFilter<T>(
 ): Accessor<FilterResult<T>> {
   const dock = usePermDock();
   return createMemo(() => {
+    // SAFETY: filter returns a fresh array; the next line sets partial on it.
     const next = dock.filter(permission, rows()) as T[] & { partial: boolean };
     next.partial = dock.where(permission).partial;
     return next;

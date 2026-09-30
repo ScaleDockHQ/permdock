@@ -33,6 +33,7 @@ export function protectedView(
   _generation?: number,
 ): ProtectedView {
   const local: PermissionState = store.permissionState(reference, data);
+  // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
   const scoped: ProtectedView =
     tenant === undefined
       ? {

@@ -119,22 +119,16 @@ function hasBoundPermDock(context: unknown): boolean {
     context !== null &&
     typeof context === 'object' &&
     'permdock' in context &&
-    (context as { readonly permdock?: unknown }).permdock !== undefined
+    context.permdock !== undefined
   );
 }
 
 function requestFromCtx(ctx: object): Request | undefined {
-  if ('request' in ctx) {
-    const rec = ctx as { readonly request?: unknown };
-    if (rec.request instanceof Request) {
-      return rec.request;
-    }
+  if ('request' in ctx && ctx.request instanceof Request) {
+    return ctx.request;
   }
-  if ('req' in ctx) {
-    const rec = ctx as { readonly req?: unknown };
-    if (rec.req instanceof Request) {
-      return rec.req;
-    }
+  if ('req' in ctx && ctx.req instanceof Request) {
+    return ctx.req;
   }
   return undefined;
 }
@@ -268,7 +262,7 @@ export function createPermDock<
    * procedure's own opts in `scopeOf`, never through the shared `Request`.
    */
   const bind = (opts: OrpcMiddlewareOpts<TCtx>): Request => {
-    const ctx = opts.context as object;
+    const ctx = opts.context;
     const hit = requestByCtx.get(ctx);
     if (hit !== undefined) {
       return hit;
@@ -291,8 +285,10 @@ export function createPermDock<
     requestByCtx.set(ctx, request);
   };
 
+  // SAFETY: the function has oRPC's middleware call shape; its generics cannot be inferred from it.
   const permdock = (): OrpcMiddleware<TCtx> =>
     ((mwOptions, input) => {
+      // SAFETY: oRPC passes this middleware's context as TCtx and next takes the extended context.
       const opts = toOpts(
         mwOptions as {
           readonly context: TCtx;
@@ -304,6 +300,7 @@ export function createPermDock<
         }) => Promise<unknown>,
       );
       if (hasBoundPermDock(opts.context)) {
+        // SAFETY: hasBoundPermDock just confirmed the context already carries a permdock.
         return mwOptions.next({
           context: opts.context as TCtx & { readonly permdock: PermDock },
         });
@@ -343,7 +340,7 @@ export function createPermDock<
   ): Promise<unknown> => {
     const output =
       result !== null && typeof result === 'object' && 'output' in result
-        ? (result as { readonly output: unknown }).output
+        ? result.output
         : undefined;
     if (!isAsyncIterable(output)) {
       return result;
@@ -352,6 +349,7 @@ export function createPermDock<
       opts,
       compact({ permission, data: loadData }),
     );
+    // SAFETY: output was read from result above, so result is an object.
     return {
       ...(result as object),
       output: guardIterable(
@@ -367,7 +365,9 @@ export function createPermDock<
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ): OrpcMiddleware<TCtx> =>
+    // SAFETY: the function has oRPC's middleware call shape; its generics cannot be inferred from it.
     (async (mwOptions, input) => {
+      // SAFETY: oRPC passes this middleware's context as TCtx and next takes the extended context.
       const opts = toOpts(
         mwOptions as {
           readonly context: TCtx;
@@ -403,6 +403,7 @@ export function createPermDock<
     }) as OrpcMiddleware<TCtx>;
 
   const permdockHandler = (request: Request): Promise<Response> => {
+    // SAFETY: the handler route runs outside oRPC, so its only context is the request as req.
     const opts = {
       context: { req: request } as TCtx,
       path: ['permdock'],

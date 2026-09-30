@@ -232,9 +232,9 @@ async function readNote(request: Request): Promise<string | undefined> {
       body !== null &&
       typeof body === 'object' &&
       'note' in body &&
-      typeof (body as { note?: unknown }).note === 'string'
+      typeof body.note === 'string'
     ) {
-      return (body as { note: string }).note;
+      return body.note;
     }
   } catch {
     return undefined;

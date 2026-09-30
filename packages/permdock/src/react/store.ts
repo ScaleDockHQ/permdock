@@ -47,6 +47,7 @@ function cacheKey(permission: Permission, data: unknown): string {
   if (data === null || typeof data !== 'object') {
     return `${permission.key}:*`;
   }
+  // SAFETY: checked above to be a non-null object; id is typeof-checked below.
   const id = (data as Record<string, unknown>)['id'];
   return `${permission.key}:${typeof id === 'string' || typeof id === 'number' ? String(id) : '*'}`;
 }
@@ -118,6 +119,7 @@ function needsEndpoint(decision: Decision): boolean {
 
 export function createClientStore(options: ClientStoreOptions): ClientStore {
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
+  // SAFETY: window is only compared with undefined, so runtimes without it read undefined.
   const server =
     options.server ??
     (globalThis as { readonly window?: unknown }).window === undefined;
@@ -311,7 +313,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
                 item.data !== null &&
                 typeof item.data === 'object' &&
                 'id' in item.data
-                  ? String((item.data as { readonly id?: unknown }).id ?? '')
+                  ? String(item.data.id ?? '')
                   : undefined,
               properties: item.data,
             },
@@ -321,6 +323,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       if (!response.ok) {
         throw new Error('evaluations failed');
       }
+      // SAFETY: the app's own PermDock evaluations endpoint answers in this AuthZEN shape.
       const body = (await response.json()) as {
         readonly evaluations?: readonly {
           readonly decision?: boolean;
@@ -379,6 +382,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         decision: hit.decision,
       };
     }
+    // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
     const decision = (
       instance.decide as (next: Permission, row?: unknown) => Decision
     )(permission, data);
@@ -449,6 +453,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
             if (response.status === 404) {
               next = 'expired';
             } else if (response.ok) {
+              // SAFETY: status is only compared with the four literals; a null body throws into the catch.
               const body = (await response.json()) as {
                 readonly status?: unknown;
               };

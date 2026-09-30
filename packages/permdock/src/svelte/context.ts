@@ -17,7 +17,7 @@ function isReadable(value: unknown): value is Readable<Snapshot | string> {
     typeof value === 'object' &&
     value !== null &&
     'subscribe' in value &&
-    typeof (value as { readonly subscribe: unknown }).subscribe === 'function'
+    typeof value.subscribe === 'function'
   );
 }
 
@@ -47,6 +47,7 @@ function connectSvelteStore(options: PermDockSvelteOptions): {
       initial = value;
     })();
   } else if (!promised) {
+    // SAFETY: not a promise, function or store, so it is the plain Snapshot or string the option allows.
     initial = source as Snapshot | string;
   }
   const store = createClientStore(
