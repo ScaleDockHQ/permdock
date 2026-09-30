@@ -5,6 +5,8 @@ import type { KnipConfig } from 'knip';
 // test's child process.
 const config: KnipConfig = {
   treatConfigHintsAsErrors: true,
+  // The Vercel CLI is installed globally, not per repository.
+  ignoreBinaries: ['vercel'],
   tags: ['-internal'],
   ignoreExportsUsedInFile: { interface: true, type: true },
   workspaces: {

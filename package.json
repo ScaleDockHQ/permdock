@@ -13,7 +13,7 @@
     "dev": "turbo run dev --filter=marketing --filter=docs",
     "docs:dev": "turbo run dev --filter=docs",
     "docs:drift": "node scripts/check-docs-drift.ts",
-    "env:pull": "pnpm --filter marketing --filter docs exec vercel env pull .env.local --yes",
+    "env:pull": "vercel env pull .env.development.local --environment=development --yes && vercel env pull .env.preview.local --environment=preview --yes && vercel env pull .env.production.local --environment=production --yes",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "knip": "knip --config knip.mts",

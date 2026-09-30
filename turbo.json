@@ -18,15 +18,39 @@
     "passThroughEnv": [
       "COREPACK_HOME",
       "ENABLE_EXPERIMENTAL_COREPACK",
+      "GITHUB_ACTIONS",
       "INIT_CWD",
-      "LEFTHOOK"
-    ]
+      "LEFTHOOK",
+      "PORTLESS*",
+      "REUI_LICENSE_KEY",
+      "VERCEL",
+      "VERCEL_*"
+    ],
+    "inputs": ["packages/typescript-config/*.json", "packages/ox-config/src/**"]
   },
   "boundaries": {
     "tags": {
-      "package": {
+      "library": {
         "dependencies": {
-          "allow": ["package"]
+          "allow": ["library", "config"]
+        }
+      },
+      "app": {
+        "dependencies": {
+          "allow": ["library", "config", "ui", "next-config"]
+        }
+      },
+      "example": {
+        "dependencies": {
+          "allow": ["library", "config"]
+        },
+        "dependents": {
+          "allow": ["test"]
+        }
+      },
+      "test": {
+        "dependents": {
+          "allow": ["test"]
         }
       }
     }
@@ -41,11 +65,13 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/packages/typescript-config/*.json"
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**",
+        ".source/**"
       ],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"],
       "env": [
         "MEMBERSHIP_MODE",
         "NEXT_E2E",
@@ -53,35 +79,27 @@
         "PERMDOCK_E2E_DRIFT",
         "PERMDOCK_E2E_NO_PRIVATE_CACHE",
         "SESSION_SECRET"
-      ],
-      "passThroughEnv": ["VERCEL", "VERCEL_*"]
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/packages/typescript-config/*.json"
-      ]
+      "dependsOn": ["^build"]
     },
     "lint": {
       "dependsOn": ["^build", "typegen"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/packages/ox-config/src/**",
-        "$TURBO_ROOT$/turbo.json"
-      ]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/turbo.json"]
     },
     "test": {
-      "dependsOn": ["build", "^build"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/packages/typescript-config/*.json"
-      ]
+      "dependsOn": ["build", "^build"]
     },
     "check:publish": {
       "dependsOn": ["build", "^build"]
     },
     "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["HOST", "PORT"]
+    },
+    "dev:portless": {
       "cache": false,
       "persistent": true,
       "passThroughEnv": ["HOST", "PORT"]

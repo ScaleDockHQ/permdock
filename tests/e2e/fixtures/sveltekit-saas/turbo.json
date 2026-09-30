@@ -1,7 +1,7 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["app"],
+  "tags": ["test"],
   "tasks": {
     "build": {
       "outputs": ["build/**"]
