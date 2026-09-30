@@ -30,7 +30,7 @@ async function readJson(
   }
 }
 
-export async function discoverDeviceEndpoints(
+async function discoverDeviceEndpoints(
   issuer: string,
   runtime: TerminalRuntime,
 ): Promise<{

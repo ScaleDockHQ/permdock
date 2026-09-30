@@ -4,7 +4,7 @@ import type { PermDockStorage } from './types.ts';
 import { parseSnapshot } from '../core/snapshot.ts';
 
 export const SNAPSHOT_KEY = 'permdock.snapshot';
-export const TENANT_KEY = 'permdock.tenant';
+const TENANT_KEY = 'permdock.tenant';
 
 export function memoryStorage(
   initial: Readonly<Record<string, string>> = {},

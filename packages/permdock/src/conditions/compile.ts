@@ -215,7 +215,7 @@ function nonPortable(detail: string): PermDockValidationError {
   });
 }
 
-export function asPortableCondition(input: Condition | WhereResult): Condition {
+function asPortableCondition(input: Condition | WhereResult): Condition {
   if ('partial' in input && input.partial) {
     throw nonPortable('closure grant');
   }

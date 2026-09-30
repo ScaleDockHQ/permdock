@@ -19,7 +19,7 @@ type Store = {
   versions: Map<string, number>;
 };
 
-export const ORG_IDS: ReadonlySet<string> = new Set(['acme', 'globex']);
+const ORG_IDS: ReadonlySet<string> = new Set(['acme', 'globex']);
 
 function seed(): Store {
   return {

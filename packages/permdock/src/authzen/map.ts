@@ -190,7 +190,7 @@ function permdockContext(decision: Decision): PermDockContext {
   }
 }
 
-export function evaluationContext(decision: Decision): EvaluationContext {
+function evaluationContext(decision: Decision): EvaluationContext {
   return { permdock: permdockContext(decision) };
 }
 

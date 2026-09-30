@@ -1,6 +1,5 @@
 import type { ArazzoPlan, ArazzoSimulateInput } from '../core/arazzo.ts';
 import type { Decision } from '../core/decision.ts';
-import type { DecisionProvider } from '../core/interfaces.ts';
 import type {
   CreatePermDockOptions,
   DecideOptions,
@@ -163,5 +162,3 @@ export type PdpFactory = <TUser, TPrincipal extends Principal = Principal>(
   user: TUser | null,
   options?: CreatePermDockOptions,
 ) => Promise<PdpPermDock>;
-
-export type { DecisionProvider };

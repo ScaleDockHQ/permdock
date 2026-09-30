@@ -9,6 +9,7 @@
     "commitlint.config.ts",
     "oxlint.config.ts",
     "oxfmt.config.ts",
-    "scripts"
+    "scripts",
+    "vitest.config.ts"
   ]
 }

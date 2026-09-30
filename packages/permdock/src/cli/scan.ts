@@ -431,37 +431,3 @@ function walk(
     }
   }
 }
-
-export function allowKeysFromScan(
-  cwd: string,
-  files: readonly string[],
-): readonly string[] {
-  const keys = new Set<string>();
-  for (const file of files) {
-    const source = readFileSync(file, 'utf8');
-    let program: Estree;
-    try {
-      program = parseSync(file, source).program as Estree;
-    } catch {
-      continue;
-    }
-    walk(program, undefined, (node) => {
-      if (
-        node.type !== 'CallExpression' ||
-        calleeName(node.callee) !== 'allow'
-      ) {
-        return;
-      }
-      const first = node.arguments?.[0];
-      if (first === undefined) {
-        return;
-      }
-      const path = memberPath(first);
-      if (path !== undefined && path.length >= 2) {
-        keys.add(path.slice(1).join('.'));
-      }
-    });
-  }
-  void cwd;
-  return [...keys].toSorted();
-}

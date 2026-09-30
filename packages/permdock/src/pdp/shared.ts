@@ -6,7 +6,7 @@ import type { RemotePdpAuth, RemotePdpCache } from './types.ts';
 import { decisionToken } from '../core/token.ts';
 
 export const DEFAULT_TIMEOUT_MS = 300;
-export const MAX_CACHE_TTL_MS = 30_000;
+const MAX_CACHE_TTL_MS = 30_000;
 const CACHE_MAX = 1000;
 
 /** Milliseconds, clamped to `[0, 30s]`; anything unparseable disables the cache. */
@@ -128,7 +128,7 @@ export function ttlCache<T>(ttl: number): TtlCache<T> {
   };
 }
 
-export async function bearerOf(
+async function bearerOf(
   auth: RemotePdpAuth | undefined,
 ): Promise<string | null> {
   if (auth === undefined) {

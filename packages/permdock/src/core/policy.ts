@@ -55,8 +55,6 @@ import {
   listRoles,
 } from './vocabulary.ts';
 
-export const NON_PORTABLE: unique symbol = Symbol.for('permdock.non-portable');
-
 export type ClosureContext = {
   readonly subject: {
     readonly principal: Principal | null;
@@ -73,8 +71,6 @@ export type ClosureGrantFn<T = unknown> = (
   data: T,
   ctx: ClosureContext,
 ) => boolean;
-
-export type NonPortable<T> = T & { readonly [NON_PORTABLE]: true };
 
 export type ApprovalRequirement = {
   readonly by: Grantee | readonly Grantee[];
@@ -615,7 +611,7 @@ export function role(
  * A role with `activation` is eligible-only: it needs a positive `maxDuration`
  * (Doctor PD033 warns without one). `justification` defaults to `'optional'`.
  */
-export function normalizeActivation(
+function normalizeActivation(
   roleName: string,
   option: ActivationOption | undefined,
 ): ActivationSpec | undefined {
@@ -1151,7 +1147,7 @@ export type SeparationConflict = {
   readonly roles: readonly [string, string];
 };
 
-export function exclusivePairs(
+function exclusivePairs(
   policy: Policy,
 ): ReadonlyMap<string, readonly string[]> {
   const pairs = new Map<string, readonly string[]>();

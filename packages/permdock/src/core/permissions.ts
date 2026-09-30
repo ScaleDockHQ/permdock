@@ -9,9 +9,9 @@ import {
   ownKeys,
 } from './paths.ts';
 
-export const RESOURCE_BRAND: unique symbol = Symbol.for('permdock.resource');
-export const TREE_REGISTRY: unique symbol = Symbol.for('permdock.registry');
-export const TREE_LEAVES: unique symbol = Symbol.for('permdock.leaves');
+const RESOURCE_BRAND: unique symbol = Symbol.for('permdock.resource');
+const TREE_REGISTRY: unique symbol = Symbol.for('permdock.registry');
+const TREE_LEAVES: unique symbol = Symbol.for('permdock.leaves');
 
 export type ActionMeta = {
   readonly title?: string;

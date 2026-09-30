@@ -10,7 +10,7 @@ const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
 const MAX_PAGES = 1000;
 
-export function pageSizeOf(limit: number | undefined): number {
+function pageSizeOf(limit: number | undefined): number {
   if (limit === undefined || !Number.isFinite(limit)) {
     return DEFAULT_PAGE_SIZE;
   }
@@ -33,11 +33,11 @@ function compare(a: Position, b: Position): number {
   return a[1] < b[1] ? -1 : 1;
 }
 
-export function encodeCursor(request: ApprovalRequest): string {
+function encodeCursor(request: ApprovalRequest): string {
   return JSON.stringify(positionOf(request));
 }
 
-export function decodeCursor(cursor: string): Position | null {
+function decodeCursor(cursor: string): Position | null {
   try {
     const parsed: unknown = JSON.parse(cursor);
     return Array.isArray(parsed) &&

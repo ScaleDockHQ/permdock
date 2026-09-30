@@ -15,7 +15,7 @@ import {
   GEN_AI_TOOL_NAME,
 } from './types.ts';
 
-export { GENAI_SEMCONV_PIN, GEN_AI_TOOL_CALL_ID, GEN_AI_TOOL_NAME };
+export { GENAI_SEMCONV_PIN };
 
 const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
 const SPAN_STATUS_ERROR = 2;

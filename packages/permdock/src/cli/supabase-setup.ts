@@ -16,10 +16,7 @@ function escape(text: string): string {
 }
 
 /** The helper functions `sql` creates in `schema`; unqualified names count for `public`. */
-export function helpersDefined(
-  sql: string,
-  schema: string,
-): ReadonlySet<string> {
+function helpersDefined(sql: string, schema: string): ReadonlySet<string> {
   const qualifier =
     schema === 'public'
       ? String.raw`(?:(?:"public"|public)\.)?`
@@ -114,7 +111,7 @@ export function missingHelpersMessage(
 }
 
 /** Bytes of JSON of each extra claim in the largest sample, for claims that pass the budget. */
-export function oversizedClaims(
+function oversizedClaims(
   samples: readonly unknown[],
   manifest: SupabaseHookManifest,
 ): readonly { readonly name: string; readonly bytes: number }[] {
@@ -147,7 +144,7 @@ export function oversizedClaims(
 }
 
 /** `memberships[i]` entries `subjectFromSupabase` drops, per sample index. */
-export function droppedMemberships(
+function droppedMemberships(
   samples: readonly unknown[],
 ): readonly { readonly sample: number; readonly entries: readonly number[] }[] {
   const out: { sample: number; entries: readonly number[] }[] = [];

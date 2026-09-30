@@ -356,7 +356,7 @@ export type Assignable = {
  * then intersected with the permissions the subject holds there. Holding a
  * role or a granted permission with `meta.manageRoles` lifts the intersection.
  */
-export function assignableIn(
+function assignableIn(
   policy: Policy,
   subject: Subject,
   customRoles: readonly CustomRole[],

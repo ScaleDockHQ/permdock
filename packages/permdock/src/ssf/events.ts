@@ -23,7 +23,3 @@ export function caepName(uri: string): CaepEventName | undefined {
   }
   return undefined;
 }
-
-export function isCaepName(value: string): value is CaepEventName {
-  return CAEP_NAMES.has(value as CaepEventName);
-}

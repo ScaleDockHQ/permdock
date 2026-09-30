@@ -9,7 +9,7 @@ import {
 } from '../node/http.ts';
 
 export type { NodeRequest as NestHttpRequest } from '../node/http.ts';
-export { isServerResponse, sendResponse };
+export { sendResponse };
 
 type FastifyReplyLike = {
   code(status: number): unknown;

@@ -10,18 +10,14 @@ import type {
 
 import { isForbiddenKey, splitPath } from '../core/paths.ts';
 
-export const DEFAULT_ALGORITHMS: readonly JwtAlgorithm[] = [
+const DEFAULT_ALGORITHMS: readonly JwtAlgorithm[] = [
   'ES256',
   'PS256',
   'Ed25519',
   'RS256',
 ];
 
-export const FAPI2_ALGORITHMS: readonly JwtAlgorithm[] = [
-  'ES256',
-  'PS256',
-  'Ed25519',
-];
+const FAPI2_ALGORITHMS: readonly JwtAlgorithm[] = ['ES256', 'PS256', 'Ed25519'];
 
 export const DEFAULT_DECRYPTION_ALGS: readonly string[] = [
   'RSA-OAEP-256',
@@ -30,8 +26,8 @@ export const DEFAULT_DECRYPTION_ALGS: readonly string[] = [
   'dir',
 ];
 
-export const DEFAULT_CLOCK_TOLERANCE = 5;
-export const FAPI2_CLOCK_TOLERANCE = 5;
+const DEFAULT_CLOCK_TOLERANCE = 5;
+const FAPI2_CLOCK_TOLERANCE = 5;
 export const DEFAULT_JWKS_MIN_TTL = 60;
 export const DEFAULT_JWKS_MAX_TTL = 3600;
 export const DEFAULT_JWKS_COOLDOWN = 60;
@@ -55,7 +51,7 @@ export function isSecretJwks(
   );
 }
 
-export function isKeySet(
+function isKeySet(
   jwks: JwtJwks,
 ): jwks is { readonly keys: readonly Record<string, unknown>[] } {
   return (
@@ -92,7 +88,7 @@ export function resolveClockTolerance(
   return configured;
 }
 
-export function assertSafeClaimPaths(claims: JwtClaimPaths | undefined): void {
+function assertSafeClaimPaths(claims: JwtClaimPaths | undefined): void {
   if (claims === undefined) {
     return;
   }
@@ -188,7 +184,7 @@ export function assertSubjectConfig(options: JwtSubjectOptions): void {
   }
 }
 
-export function secretBits(secret: Uint8Array | string): number {
+function secretBits(secret: Uint8Array | string): number {
   if (typeof secret === 'string') {
     return secret.length * 8;
   }

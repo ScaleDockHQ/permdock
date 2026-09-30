@@ -125,7 +125,7 @@ export function supportAccess<S extends string = string>(
 }
 
 /** Whether the subject's authentication is fresh enough for an elevated grant. */
-export function assuranceMet(
+function assuranceMet(
   requirement: AssuranceRequirement | undefined,
   subject: Subject,
   now: number,

@@ -31,7 +31,7 @@ export function isSchemaKind(value: string | undefined): value is SchemaKind {
   return value === 'zod' || value === 'valibot' || value === 'arktype';
 }
 
-export function schemaImport(kind: SchemaKind): string {
+function schemaImport(kind: SchemaKind): string {
   switch (kind) {
     case 'zod':
       return "import { z } from 'zod'";

@@ -73,12 +73,3 @@ type TilesOf<Group> = Group extends { readonly tiles: readonly (infer Tile)[] }
   : never;
 
 export type AdapterTile = TilesOf<AdapterGroup>;
-
-const tiles: AdapterTile[] = [];
-for (const group of adapterGroups) {
-  for (const tile of group.tiles) {
-    tiles.push(tile);
-  }
-}
-
-export const adapterTiles: readonly AdapterTile[] = tiles;

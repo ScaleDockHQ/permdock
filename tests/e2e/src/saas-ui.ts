@@ -29,7 +29,7 @@ export type SaasUiOptions = {
 
 type SaasWindow = Window & { saasPausePoll?: boolean };
 
-export function nav(page: Page, id: string) {
+function nav(page: Page, id: string) {
   return page.locator(`[data-nav="${id}"]:visible`);
 }
 

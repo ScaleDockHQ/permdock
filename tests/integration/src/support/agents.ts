@@ -69,8 +69,6 @@ export function projectLoader(uri: string) {
   };
 }
 
-export type AgentContext = { readonly user: string };
-
 export const TENANT = 'acme';
 
 export function agentSubject(context: { readonly user?: unknown }) {

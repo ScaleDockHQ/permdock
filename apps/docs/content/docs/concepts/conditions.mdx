@@ -146,7 +146,7 @@ const rows = await db.select().from(posts).where(toWhere(permdock.where(permissi
 allow(permissions.post.publish, (post, ctx) => post.authorId === ctx.principal.id && !post.published)
 ```
 
-A closure is any function passed as the condition. It runs on the server with `(data, ctx)` where `ctx` has `subject`, `actor`, `delegation` and `context`. It may be async. It is branded `NonPortable` at the type level, so:
+A closure is any function passed as the condition. It runs on the server with `(data, ctx)` where `ctx` has `subject`, `actor`, `delegation` and `context`. It may be async. It is not portable, so:
 
 - `permdock.where` skips it and sets `partial`.
 - `permdock.snapshot()` emits the grant as `{ "portable": false }`; a client asking about that permission gets `status: 'server-only'` and the provider asks the decision endpoint, batched by permission key and resource id.

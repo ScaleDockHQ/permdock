@@ -58,7 +58,7 @@ export type RelationGrantee = {
   readonly depth?: number;
 };
 
-export const DEFAULT_RELATION_DEPTH = 16;
+const DEFAULT_RELATION_DEPTH = 16;
 export const MAX_RELATION_DEPTH = 32;
 export type PlanGrantee = { readonly kind: 'plan'; readonly plan: string };
 export type ActorGrantee = { readonly kind: 'actor'; readonly actor: string };

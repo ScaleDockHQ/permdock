@@ -40,7 +40,7 @@ function membershipTenants(subject: Subject): readonly string[] {
   return [...tenants];
 }
 
-export function belongsToTenant(subject: Subject, tenant: string): boolean {
+function belongsToTenant(subject: Subject, tenant: string): boolean {
   return membershipTenants(subject).includes(tenant);
 }
 
@@ -65,7 +65,7 @@ function holdsRole(subject: Subject, role: string, tenant?: string): boolean {
   return false;
 }
 
-export function matchesApprovers(
+function matchesApprovers(
   by: Grantee | readonly Grantee[],
   subject: Subject,
   tenant: string | undefined,

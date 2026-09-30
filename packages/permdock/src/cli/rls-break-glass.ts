@@ -11,7 +11,7 @@ import {
 } from './rls-sql.ts';
 
 /** The audit table every generated break-glass read writes to. Part of the SQL contract. */
-export const BREAK_GLASS_AUDIT = 'permdock_break_glass_audit';
+const BREAK_GLASS_AUDIT = 'permdock_break_glass_audit';
 
 const IDENT = /^[a-z][a-z0-9_]*$/u;
 

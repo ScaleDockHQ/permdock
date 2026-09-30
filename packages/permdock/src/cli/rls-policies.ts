@@ -10,8 +10,8 @@ export type PolicyShape = {
   readonly name?: string;
 };
 
-export const DEFAULT_POLICY_NAME = '{table}_{op}';
-export const DEFAULT_PER_ROLE_NAME = '{role}_{permission}';
+const DEFAULT_POLICY_NAME = '{table}_{op}';
+const DEFAULT_PER_ROLE_NAME = '{role}_{permission}';
 
 const PLACEHOLDER = /\{(table|op|role|permission)\}/gu;
 
@@ -32,7 +32,7 @@ function render(
 }
 
 /** Rejects a template that cannot name every policy of the chosen shape uniquely. */
-export function assertPolicyName(template: string, perRole: boolean): void {
+function assertPolicyName(template: string, perRole: boolean): void {
   if (!perRole && /\{(role|permission)\}/u.test(template)) {
     throw new Error(
       'PermDock CLI: --policy-name {role} and {permission} need --policy-per-role; a collapsed policy covers several roles',

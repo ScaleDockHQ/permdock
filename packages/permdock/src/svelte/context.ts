@@ -10,7 +10,7 @@ import { emptySnapshot } from '../core/from-snapshot.ts';
 import { isPromiseLike } from '../react/source.ts';
 import { createClientStore } from '../react/store.ts';
 
-export const permDockKey: unique symbol = Symbol('permdock');
+const permDockKey: unique symbol = Symbol('permdock');
 
 function isReadable(value: unknown): value is Readable<Snapshot | string> {
   return (
@@ -34,7 +34,7 @@ function reactiveSource(
  * Builds the store; the returned `stop` ends the subscription to a reactive
  * snapshot source.
  */
-export function connectSvelteStore(options: PermDockSvelteOptions): {
+function connectSvelteStore(options: PermDockSvelteOptions): {
   readonly store: ClientStore;
   readonly stop: () => void;
 } {

@@ -165,7 +165,7 @@ export function activeRowSql(row: RlsActiveRow, id: string): string {
 
 const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;
 
-export function sqlType(name: string): string {
+function sqlType(name: string): string {
   if (!SQL_TYPE.test(name)) {
     throw new Error(`PermDock CLI: unsafe SQL type '${name}'`);
   }
@@ -176,7 +176,7 @@ export function tenantTypeOf(ctx: RlsSqlContext): string {
   return sqlType(ctx.tenantType ?? 'uuid');
 }
 
-export function teamTypeOf(ctx: RlsSqlContext): string {
+function teamTypeOf(ctx: RlsSqlContext): string {
   return sqlType(ctx.teamType ?? ctx.tenantType ?? 'uuid');
 }
 
@@ -318,10 +318,8 @@ export function scopeTable(
     : { table, column, tenantColumn };
 }
 
-export { resolveScope };
-
 /** The active-tenant claim cast to the tenant column's type, so the comparison uses the column's index. */
-export function tenantClaimSql(ctx: RlsSqlContext): string {
+function tenantClaimSql(ctx: RlsSqlContext): string {
   return `${subjectClaimSql(ctx, ctx.tenantClaim)}::${tenantTypeOf(ctx)}`;
 }
 
@@ -553,19 +551,13 @@ function claimRoot(
 }
 
 /** The claim at `path` as `jsonb`. */
-export function claimJsonSql(
-  ctx: RlsSqlContext,
-  path: readonly string[],
-): string {
+function claimJsonSql(ctx: RlsSqlContext, path: readonly string[]): string {
   const { root, keys } = claimRoot(ctx, path);
   return keys.length === 0 ? root : `(${jsonPath(root, keys, '->')})`;
 }
 
 /** The claim at `path` as text: `->>` on the last key, or the plain setting for a one-segment `guc` claim. */
-export function claimTextSql(
-  ctx: RlsSqlContext,
-  path: readonly string[],
-): string {
+function claimTextSql(ctx: RlsSqlContext, path: readonly string[]): string {
   const [head] = path;
   if (path.length === 1 && head !== undefined) {
     return subjectClaimSql(ctx, head);
@@ -588,7 +580,7 @@ function jsonKindOf(type: string | undefined): 'number' | 'boolean' | 'string' {
  * memory); other types cast the text form. A one-segment `guc` claim is text
  * and is cast as is.
  */
-export function typedClaimSql(
+function typedClaimSql(
   ctx: RlsSqlContext,
   path: readonly string[],
   type: string | undefined,
@@ -611,7 +603,7 @@ export function typedClaimSql(
  * A missing or non-array claim is the empty array; elements of another JSON
  * kind are left out.
  */
-export function claimArraySql(
+function claimArraySql(
   ctx: RlsSqlContext,
   path: readonly string[],
   type: string | undefined,
@@ -1060,7 +1052,7 @@ export function sqlFunctionNames(
  * The helper sits in `array(...)` so it stays an InitPlan; a plain `in` gets
  * pulled into a join that can rescan it per closure row.
  */
-export function compileRelatedSql(
+function compileRelatedSql(
   condition: RelatedCondition,
   ctx: RlsSqlContext,
 ): string {

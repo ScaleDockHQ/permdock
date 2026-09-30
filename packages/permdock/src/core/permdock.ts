@@ -31,7 +31,6 @@ import type { PlanTree, Role, RoleTree } from './vocabulary.ts';
 import type { WhoCan } from './who-can.ts';
 
 import { compact } from './compact.ts';
-import { describe } from './describe.ts';
 import { assignableNamesFor, customRolesFor } from './evaluate.ts';
 import {
   type PolicyDocument,
@@ -315,4 +314,4 @@ export function createPermDock<
 }
 
 export { fromSnapshot } from './from-snapshot.ts';
-export { describe, parseSnapshot };
+export { parseSnapshot };

@@ -34,7 +34,7 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
   return diff === 0;
 }
 
-export function bearerToken(request: Request): string | undefined {
+function bearerToken(request: Request): string | undefined {
   const header = request.headers.get('authorization');
   if (header === null) {
     return undefined;

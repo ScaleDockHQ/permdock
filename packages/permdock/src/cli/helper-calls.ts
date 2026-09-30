@@ -12,7 +12,7 @@ const HELPER_CALL = new RegExp(
 );
 
 /** The permission keys a policy expression passes to `permdock_has` or `permitted_<scope>_ids`, `#n` stripped. */
-export function helperCallKeys(sql: string): readonly string[] {
+function helperCallKeys(sql: string): readonly string[] {
   const keys = new Set<string>();
   for (const [, literal = ''] of sql.matchAll(HELPER_CALL)) {
     const key = literal.replaceAll("''", "'").split('#')[0] ?? '';

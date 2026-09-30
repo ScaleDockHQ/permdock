@@ -28,12 +28,12 @@ export const HELPERS = {
 } as const;
 
 /** The helper `--capabilities` adds: ids of one resource a link capability claim reaches. Part of the SQL contract. */
-export const CAPABILITIES = {
+const CAPABILITIES = {
   ids: 'permdock_capability_ids',
 } as const;
 
 /** Objects `--custom-roles` adds next to the helpers. Names are part of the SQL contract. */
-export const CUSTOM_ROLES = {
+const CUSTOM_ROLES = {
   permissions: 'custom_role_permissions',
   includes: 'custom_role_includes',
   ceiling: 'permdock_ceiling',
@@ -52,7 +52,7 @@ export type RolePermission = {
   readonly effect: 'allow' | 'deny';
 };
 
-export function helperSchema(ctx: RlsSqlContext): string {
+function helperSchema(ctx: RlsSqlContext): string {
   return ctx.schema ?? 'public';
 }
 
@@ -177,7 +177,7 @@ function userActive(ctx: RlsSqlContext, indent: string): string[] {
  * `scope`'s membership: its own and each ancestor's. `idOf` gives the SQL for
  * the id the membership holds for a scope on that chain.
  */
-export function instancesActive(
+function instancesActive(
   ctx: RlsSqlContext,
   scope: string,
   idOf: (name: string) => string | undefined,

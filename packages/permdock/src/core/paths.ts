@@ -1,4 +1,4 @@
-export const FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
+const FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
   '__proto__',
   'constructor',
   'prototype',

@@ -12,10 +12,7 @@ function snapshotAllows(dock: PermDock, permission: Permission): boolean {
   );
 }
 
-export function commandAllowed(
-  dock: PermDock,
-  permission: Permission,
-): boolean {
+function commandAllowed(dock: PermDock, permission: Permission): boolean {
   if (permission.kind === 'collection') {
     return (dock.can as (next: Permission) => boolean)(permission);
   }

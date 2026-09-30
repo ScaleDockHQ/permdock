@@ -22,8 +22,6 @@ import {
   quoteTable,
 } from './rls-sql.ts';
 
-export { CLOSURE };
-
 function qualified(ctx: RlsSqlContext, name: string): string {
   return `${quoteIdent(ctx.schema ?? 'public')}.${name}`;
 }

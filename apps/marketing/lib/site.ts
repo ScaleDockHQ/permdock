@@ -22,7 +22,7 @@ export type NavLink = {
   readonly description?: string;
 };
 
-export const productLinks: readonly NavLink[] = [
+const productLinks: readonly NavLink[] = [
   {
     href: '/cloud',
     label: 'Cloud',
@@ -45,7 +45,7 @@ export const productLinks: readonly NavLink[] = [
   },
 ];
 
-export const resourceLinks: readonly NavLink[] = [
+const resourceLinks: readonly NavLink[] = [
   { href: '/docs', label: 'Docs' },
   { href: '/docs/getting-started/quick-start', label: 'Quick start' },
   { href: '/changelog', label: 'Changelog' },

@@ -92,7 +92,7 @@ export function roleAllowKeys(
   );
 }
 
-export function isAssignableRole(policy: Policy, name: string): boolean {
+function isAssignableRole(policy: Policy, name: string): boolean {
   const binding = policy.rolesByName.get(name);
   if (binding !== undefined) {
     return binding.assignable;
@@ -106,7 +106,7 @@ export function isAssignableRole(policy: Policy, name: string): boolean {
  * ever reach. Hosted grants never widen it. `assignable` narrows it to those
  * role names (`RoleSource.assignable`).
  */
-export function ceilings(
+function ceilings(
   policy: Policy,
   assignable?: readonly string[],
 ): ReadonlyMap<CeilingScope, readonly Grant[]> {

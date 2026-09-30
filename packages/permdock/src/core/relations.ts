@@ -288,14 +288,14 @@ export function relationId(value: unknown): string | undefined {
 }
 
 /** Whether the holder's period covers `now`. */
-export function activeNow(holder: RelationHolder, now: number): boolean {
+function activeNow(holder: RelationHolder, now: number): boolean {
   return (
     (holder.startsAt === undefined || holder.startsAt <= now) &&
     (holder.expiresAt === undefined || holder.expiresAt > now)
   );
 }
 
-export function holdsNow(
+function holdsNow(
   holder: RelationHolder,
   principalId: string,
   now: number,
@@ -477,7 +477,7 @@ function groupKey(group: RelationGroup): string {
  * (declarations rule out cycles across resources). A group met twice on one
  * path, or one past the budget, is `relation-depth`.
  */
-export function holdsRelation(
+function holdsRelation(
   at: RelationGroup,
   principalId: string,
   now: number,

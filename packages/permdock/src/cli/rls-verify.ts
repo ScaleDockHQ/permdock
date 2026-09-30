@@ -322,7 +322,7 @@ type InProcess = {
 };
 
 /** Columns of `row` that hold a value; a masked column reads as null. */
-export function valuedColumns(row: unknown): readonly string[] {
+function valuedColumns(row: unknown): readonly string[] {
   return isRecord(row)
     ? Object.keys(row)
         .filter((name) => row[name] !== null && row[name] !== undefined)
@@ -334,7 +334,7 @@ export function valuedColumns(row: unknown): readonly string[] {
  * What a field view returns for a row: nothing for a denied row, otherwise
  * `pick`'s columns with a value plus the key, which always passes through.
  */
-export function expectedFields(
+function expectedFields(
   granted: boolean,
   picked: unknown,
   key: string,

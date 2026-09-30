@@ -13,8 +13,9 @@
     "docs:drift": "node scripts/check-docs-drift.ts",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
+    "knip": "knip --config knip.mts",
     "lint": "pnpm run lint:root && turbo run lint",
-    "lint:root": "oxlint commitlint.config.ts oxfmt.config.ts oxlint.config.ts scripts",
+    "lint:root": "oxlint commitlint.config.ts oxfmt.config.ts oxlint.config.ts scripts vitest.config.ts",
     "marketing:dev": "turbo run dev --filter=marketing --filter=docs",
     "permdock": "permdock",
     "prepare": "node scripts/prepare.mjs",
@@ -34,13 +35,15 @@
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "knip": "catalog:",
     "lefthook": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",
     "turbo": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "devEngines": {
     "packageManager": {

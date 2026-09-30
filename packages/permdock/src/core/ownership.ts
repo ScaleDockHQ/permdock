@@ -68,7 +68,7 @@ export function roleMeta(policy: Policy, name: string): RoleMeta | undefined {
 }
 
 /** A role with `for` is held only through a membership of one of those kinds. */
-export function mayHoldVia(
+function mayHoldVia(
   policy: Policy,
   role: string,
   via: string | undefined,
@@ -222,7 +222,7 @@ function coversInstance(
 }
 
 /** Roles the principal holds at the instance, at an ancestor named in `within`, or globally. */
-export function rolesAtInstance(
+function rolesAtInstance(
   policy: Policy,
   principal: Principal,
   scopes: readonly Scope[],

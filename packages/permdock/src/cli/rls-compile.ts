@@ -124,7 +124,7 @@ function membershipField(
 
 // Mirrors `matchResourceMembership`: a membership on the role's resource or
 // one of its ancestors, keyed by the row field that holds that resource's id.
-export function resourceCondition(
+function resourceCondition(
   item: RlsGrant,
   policy: Policy,
   ctx: RlsSqlContext,
@@ -485,7 +485,7 @@ export function compileGrants(
  * RETURNING, so a table with only update or delete grants gets matching
  * SELECT branches.
  */
-export function ensureSelectCoverage(
+function ensureSelectCoverage(
   branches: readonly CompiledBranch[],
   warnings: string[],
 ): CompiledBranch[] {

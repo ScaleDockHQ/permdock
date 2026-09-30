@@ -11,7 +11,7 @@ import {
   type PermDock,
 } from 'permdock';
 
-export const demoPermissions = definePermissions({
+const demoPermissions = definePermissions({
   post: resource({
     id: 'id',
     actions: ['read', 'update', 'delete', 'publish'],
@@ -72,7 +72,7 @@ const policy = definePolicy(demoPermissions, {
   subject: demoSubject,
 });
 
-export function demoDock(roleName: DemoRole): PermDock {
+function demoDock(roleName: DemoRole): PermDock {
   const created = createPermDock(policy, {
     id: 'demo-user',
     roles: [roleName],

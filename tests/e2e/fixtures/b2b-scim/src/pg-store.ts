@@ -48,7 +48,7 @@ type GroupRow = {
 
 const DEFAULT_COUNT = 100;
 
-export const directorySchema = `
+const directorySchema = `
   create table if not exists scim_user (
     seq bigserial unique,
     tenant text not null,

@@ -9,7 +9,7 @@ import { SESSION_COOKIE, signSession, verifySession } from './token.ts';
 
 export type MembershipMode = 'jwt' | 'database';
 
-export function membershipMode(): MembershipMode {
+function membershipMode(): MembershipMode {
   return process.env['MEMBERSHIP_MODE'] === 'database' ? 'database' : 'jwt';
 }
 

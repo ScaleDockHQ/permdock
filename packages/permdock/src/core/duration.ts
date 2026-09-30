@@ -29,16 +29,3 @@ export function parseDuration(input: unknown): number | undefined {
   }
   return amount * unit;
 }
-
-/** Whether `requested` is within `max`; a missing bound never caps, a missing request is capped. */
-export function withinDuration(
-  requested: unknown,
-  max: string | undefined,
-): boolean {
-  const cap = parseDuration(max);
-  if (cap === undefined) {
-    return true;
-  }
-  const seconds = parseDuration(requested);
-  return seconds !== undefined && seconds <= cap;
-}

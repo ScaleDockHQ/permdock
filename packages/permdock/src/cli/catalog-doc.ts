@@ -9,7 +9,6 @@ import type {
   CatalogApproval,
   CatalogBreakGlass,
   CatalogDocument,
-  CatalogUsage,
   ScanResult,
 } from './types.ts';
 
@@ -30,7 +29,7 @@ const ROW_GRANTEES = new Set(['relation', 'plan', 'actor', 'assurance']);
  * (`permdock_has`, `permitted_<scope>_ids`) check only role and scope, so a
  * policy that calls them for such a permission would widen access.
  */
-export function grantHasRowConditions(grant: Grant): boolean {
+function grantHasRowConditions(grant: Grant): boolean {
   const grantees = Array.isArray(grant.to) ? grant.to : [grant.to];
   return (
     grant.where !== undefined ||
@@ -346,18 +345,6 @@ export function formatCatalogJson(doc: CatalogDocument): string {
 export function catalogForCompare(doc: CatalogDocument): string {
   const { generatedAt: _generatedAt, generator: _generator, ...rest } = doc;
   return `${JSON.stringify(rest, null, 2)}\n`;
-}
-
-export function usagesOf(
-  doc: CatalogDocument,
-): Readonly<Record<string, readonly CatalogUsage[]>> {
-  const out: Record<string, readonly CatalogUsage[]> = {};
-  for (const permission of doc.permissions) {
-    if (permission.usages.length > 0) {
-      out[permission.key] = permission.usages;
-    }
-  }
-  return out;
 }
 
 export function formatCatalogMarkdown(doc: CatalogDocument): string {

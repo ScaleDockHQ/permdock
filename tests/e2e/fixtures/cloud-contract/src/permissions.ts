@@ -1,13 +1,13 @@
 import { definePermissions, resource } from 'permdock';
 import { z } from 'zod';
 
-export const Invoice = z.object({
+const Invoice = z.object({
   id: z.string(),
   orgId: z.string(),
   ownerId: z.string(),
 });
 
-export const AuditLog = z.object({ id: z.string(), orgId: z.string() });
+const AuditLog = z.object({ id: z.string(), orgId: z.string() });
 
 export const permissions = definePermissions({
   invoice: resource(Invoice, {

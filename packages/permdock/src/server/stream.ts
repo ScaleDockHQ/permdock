@@ -95,7 +95,7 @@ export async function* guardIterable(
 export const POLICY_VIOLATION = 1008;
 
 /** The Problem Details for an aborted connection signal. */
-export function revokedProblem(signal: AbortSignal): ProblemDetails {
+function revokedProblem(signal: AbortSignal): ProblemDetails {
   const reason: unknown = signal.reason;
   return (
     reason instanceof PermDockRevokedError

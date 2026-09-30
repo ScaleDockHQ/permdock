@@ -48,7 +48,7 @@ function covers(branch: CompiledBranch, column: string): boolean {
  * denies the row) or an allow with an empty list (it grants nothing). With
  * field views it leaves the row policy and lives in the view's masks.
  */
-export function fieldOnly(branch: CompiledBranch): boolean {
+function fieldOnly(branch: CompiledBranch): boolean {
   if (branch.command !== 'select' || branch.fields === undefined) {
     return false;
   }
@@ -224,13 +224,13 @@ export function fieldViews(
 }
 
 /** Columns of `view`'s table that `anon` and `authenticated` keep on the base table with `--revoke-columns`. */
-export function readableColumns(view: FieldView): readonly string[] {
+function readableColumns(view: FieldView): readonly string[] {
   return view.columns
     .filter((column) => column.mask === undefined)
     .map((column) => column.name);
 }
 
-export function restrictedColumns(view: FieldView): readonly string[] {
+function restrictedColumns(view: FieldView): readonly string[] {
   return view.columns
     .filter((column) => column.mask !== undefined)
     .map((column) => column.name);

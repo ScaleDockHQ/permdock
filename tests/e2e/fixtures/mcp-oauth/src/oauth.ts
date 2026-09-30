@@ -9,7 +9,6 @@ import { saasJwks, signSaasToken } from 'permdock/testing/saas';
 
 import {
   CLIENTS,
-  ISSUER,
   ORIGIN,
   RESOURCE,
   SCOPES,
@@ -18,7 +17,7 @@ import {
 
 export const metadata: AuthMetadataOptions = {
   oauthMetadata: {
-    issuer: ISSUER,
+    issuer: ORIGIN,
     authorization_endpoint: `${ORIGIN}/oauth/authorize`,
     token_endpoint: `${ORIGIN}/oauth/token`,
     response_types_supported: ['code'],
@@ -79,7 +78,7 @@ export async function tokenEndpoint(request: Request): Promise<Response> {
       : requested.filter((scope) => client.scopes.includes(scope));
   const accessToken = await signSaasToken(client.user, {
     memberships: false,
-    issuer: ISSUER,
+    issuer: ORIGIN,
     audience: RESOURCE,
     ttl: TOKEN_TTL_SECONDS,
     claims: {
@@ -101,7 +100,7 @@ export async function tokenEndpoint(request: Request): Promise<Response> {
 
 const jwt = joseTokenVerifier({
   jwks: saasJwks,
-  issuer: ISSUER,
+  issuer: ORIGIN,
   audience: RESOURCE,
   algorithms: ['ES256'],
   typ: 'at+jwt',

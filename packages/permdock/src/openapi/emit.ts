@@ -12,7 +12,7 @@ import { compact } from '../core/compact.ts';
 import { listPermissions } from '../core/permissions.ts';
 import { DRAFT_PINS, GNAP_RESERVED, PROFILE_NAMES } from './pins.ts';
 
-export function assertScheme(options: OpenApiPermDockOptions): void {
+function assertScheme(options: OpenApiPermDockOptions): void {
   if (options.scheme.type === 'gnap') {
     throw new TypeError(GNAP_RESERVED);
   }
@@ -36,7 +36,7 @@ export function asList(
   return isLeaf(permission) ? [permission] : permission;
 }
 
-export function grantsOf(
+function grantsOf(
   policy: Policy,
   permissions: readonly Permission[],
 ): readonly Grant[] {
@@ -60,7 +60,7 @@ function mergeRecord(
   return result;
 }
 
-export function scopesOf(policy: Policy): Readonly<Record<string, string>> {
+function scopesOf(policy: Policy): Readonly<Record<string, string>> {
   const scopes: Record<string, string> = {};
   for (const leaf of listPermissions(policy.permissions)) {
     scopes[leaf.scope] = leaf.meta.description ?? leaf.meta.title ?? leaf.key;

@@ -29,7 +29,7 @@ function outputText(item: Record<string, unknown>): string {
  * every tool result it was given, so a run resumed in another process
  * behaves the same.
  */
-export const scriptedModel = {
+const scriptedModel = {
   async getResponse(request: ModelRequest) {
     const items = typeof request.input === 'string' ? [] : request.input;
     const results = items

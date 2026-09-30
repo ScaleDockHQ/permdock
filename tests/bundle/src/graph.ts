@@ -61,7 +61,7 @@ export const ENTRIES = {
 export type Entry = keyof typeof ENTRIES;
 
 /** Entries that are Node-only by design: a terminal CLI helper and the build tooling. */
-export const NODE_ONLY_ENTRIES = [
+const NODE_ONLY_ENTRIES = [
   './terminal',
   './cli',
   './unplugin',
@@ -69,7 +69,7 @@ export const NODE_ONLY_ENTRIES = [
 ] as const;
 
 /** Build- and test-time entries; every other entry is a runtime entry. */
-export const TOOLING_ENTRIES = [
+const TOOLING_ENTRIES = [
   './cli',
   './unplugin',
   './next/plugin',

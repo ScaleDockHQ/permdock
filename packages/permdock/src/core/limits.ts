@@ -36,7 +36,7 @@ const PER_PATTERN =
   /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/u;
 
 /** The window length of `per` in seconds, or `undefined` when unrecognised. */
-export function limitWindowSeconds(per: string): number | undefined {
+function limitWindowSeconds(per: string): number | undefined {
   const trimmed = per.trim().toLowerCase();
   const named = UNIT_SECONDS[trimmed];
   if (named !== undefined) {
@@ -106,12 +106,12 @@ export function normalizeLimit(
   };
 }
 
-export function limitWindowId(per: string, now: number): string | undefined {
+function limitWindowId(per: string, now: number): string | undefined {
   const seconds = limitWindowSeconds(per);
   return seconds === undefined ? undefined : String(Math.floor(now / seconds));
 }
 
-export function limitCacheKey(
+function limitCacheKey(
   input: {
     readonly subjectId: string;
     readonly key: string;

@@ -4,17 +4,11 @@ import {
   type DocsPageSummary,
 } from './docs-mcp-pages';
 
-export {
-  DEFAULT_SEARCH_LIMIT,
-  findPage,
-  MAX_SEARCH_LIMIT,
-  normalizeDocsPath,
-  searchDocs,
-} from './docs-mcp-pages';
+export { findPage, normalizeDocsPath, searchDocs } from './docs-mcp-pages';
 export type { DocsPageSummary } from './docs-mcp-pages';
 
-export const DOCS_MCP_NAME = 'permdock-docs';
-export const DOCS_MCP_VERSION = '0.0.0';
+const DOCS_MCP_NAME = 'permdock-docs';
+const DOCS_MCP_VERSION = '0.0.0';
 
 export const MCP_PROTOCOL_VERSIONS = [
   '2025-11-05',
@@ -60,7 +54,7 @@ export type McpHttpResult = {
   readonly body: JsonRpcResponse | readonly JsonRpcResponse[] | null;
 };
 
-export const DOCS_MCP_TOOLS = [
+const DOCS_MCP_TOOLS = [
   {
     name: 'search_docs',
     description:
@@ -107,14 +101,14 @@ function isJsonRpcId(value: unknown): value is Exclude<JsonRpcId, null> {
   return typeof value === 'string' || typeof value === 'number';
 }
 
-export function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
+function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
   if (!isRecord(value) || value['jsonrpc'] !== '2.0') {
     return false;
   }
   return typeof value['method'] === 'string';
 }
 
-export function isProtocolVersion(value: unknown): value is McpProtocolVersion {
+function isProtocolVersion(value: unknown): value is McpProtocolVersion {
   return MCP_PROTOCOL_VERSIONS.some((version) => version === value);
 }
 

@@ -10,7 +10,7 @@ export type DecodedHeader = {
   readonly [key: string]: unknown;
 };
 
-export function compactParts(token: string): readonly string[] {
+function compactParts(token: string): readonly string[] {
   return token.split('.');
 }
 

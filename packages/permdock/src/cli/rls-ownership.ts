@@ -25,7 +25,7 @@ import {
 } from './rls-sql.ts';
 
 /** Objects the ownership rules add next to the helpers. Names are part of the SQL contract. */
-export const OWNERSHIP = {
+const OWNERSHIP = {
   canAssign: 'permdock_can_assign',
   holders: 'permdock_holders',
   transferOnly: 'permdock_transfer_only',
