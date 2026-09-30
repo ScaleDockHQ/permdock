@@ -55,7 +55,11 @@ const config: KnipConfig = {
     'tests/*': {},
     'tests/e2e': {
       // Listed so turbo builds every app Playwright starts.
-      ignoreDependencies: [/^@permdock\/(?:e2e|example)-/u, 'marketing'],
+      ignoreDependencies: [
+        /^@permdock\/(?:e2e|example)-/u,
+        'docs',
+        'marketing',
+      ],
     },
     'tests/bundle': {
       entry: ['src/fixtures/rsc/{register,render}.ts'],
