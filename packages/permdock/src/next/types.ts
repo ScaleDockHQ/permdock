@@ -17,6 +17,7 @@ import type { Permission } from '../core/permissions.ts';
 import type { PolicyVocabulary } from '../core/policy.ts';
 import type { OtelOptions } from '../otel/types.ts';
 
+// oxlint-disable-next-line anti-slop/no-unknown-type-aliases -- public alias; the resolver parses it
 export type NextSubjectInput = unknown;
 
 export type NextPermDockOptions<TUser = NextSubjectInput> = {

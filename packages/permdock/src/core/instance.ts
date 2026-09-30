@@ -42,6 +42,7 @@ import { type EvalEnv, emitSafe, emptyListeners, finish } from './events.ts';
 import { pickVisible } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
+import { isReadonlyArray } from './lists.ts';
 import {
   type RoleChange,
   type RoleChangeDecision,
@@ -857,7 +858,7 @@ export function buildInstance(
           }
         | ArazzoSimulateInput,
     ): Decision[] | PermDock | ArazzoPlan => {
-      if (Array.isArray(input)) {
+      if (isReadonlyArray(input)) {
         return input.map(([permission, data]) =>
           evaluate(
             policy,

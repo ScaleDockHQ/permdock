@@ -22,6 +22,7 @@ import {
   deniedMessage,
 } from '../core/errors.ts';
 import { freezeDeep } from '../core/freeze.ts';
+import { isReadonlyArray } from '../core/lists.ts';
 import { createPermDock as createCore } from '../core/permdock.ts';
 import { getResource } from '../core/permissions.ts';
 import { resourceIdOf } from './shared.ts';
@@ -249,7 +250,7 @@ function wrap(
       | readonly (readonly [Permission, unknown?])[]
       | Parameters<PermDock['simulate']>[0],
   ) => {
-    if (Array.isArray(input)) {
+    if (isReadonlyArray(input)) {
       return Promise.all(
         input.map(([permission, data]) =>
           decide(permission, data, { source: 'simulate' }),

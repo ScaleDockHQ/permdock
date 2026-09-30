@@ -5,6 +5,7 @@ import type { Role, RoleMeta } from './vocabulary.ts';
 
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
+import { isReadonlyArray } from './lists.ts';
 import { declaredRoleNames } from './policy.ts';
 import { type Scope, resolveScope, scopeChain, scopeIdOf } from './scopes.ts';
 import { isMembershipExpired } from './tenancy.ts';
@@ -393,7 +394,7 @@ export function decideRoleChange(
     return done(null);
   }
   const self = target.id === principal.id;
-  const targetRoles = Array.isArray(target.roles) ? target.roles : [];
+  const targetRoles = isReadonlyArray(target.roles) ? target.roles : [];
   const already = targetRoles.includes(name);
   let by: string | null = null;
 

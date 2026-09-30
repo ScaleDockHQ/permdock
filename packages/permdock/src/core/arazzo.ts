@@ -382,13 +382,10 @@ function worst(outcomes: readonly Decision['outcome'][]): Decision['outcome'] {
 }
 
 function combine(decisions: readonly Decision[]): Decision {
-  if (decisions.length === 0) {
-    return denied('undocumented');
-  }
   const outcome = worst(decisions.map((item) => item.outcome));
-  const first =
-    decisions.find((item) => item.outcome === outcome) ?? decisions[0]!;
-  return first;
+  return (
+    decisions.find((item) => item.outcome === outcome) ?? denied('undocumented')
+  );
 }
 
 export function simulateArazzo(

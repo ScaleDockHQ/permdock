@@ -3,6 +3,7 @@ import type { Membership, Subject } from '../core/subject.ts';
 
 import { compact } from '../core/compact.ts';
 import { PermDockValidationError } from '../core/errors.ts';
+import { isReadonlyArray, sole } from '../core/lists.ts';
 import { assertSafeKey } from '../core/paths.ts';
 import {
   type Scope,
@@ -179,7 +180,7 @@ function unwrap(value: ConditionValue, subject: Subject | undefined): unknown {
     const date = new Date(value.date);
     return Number.isNaN(date.getTime()) ? null : date;
   }
-  if (Array.isArray(value)) {
+  if (isReadonlyArray(value)) {
     return value.map((item) => unwrap(item, subject));
   }
   return value;
@@ -218,7 +219,7 @@ function allOf(items: readonly CompiledWhere[]): CompiledWhere {
   if (kept.length === 0) {
     return ALWAYS;
   }
-  return kept.length === 1 ? kept[0]! : { kind: 'and', items: kept };
+  return sole(kept) ?? { kind: 'and', items: kept };
 }
 
 function anyOf(items: readonly CompiledWhere[]): CompiledWhere {
@@ -229,7 +230,7 @@ function anyOf(items: readonly CompiledWhere[]): CompiledWhere {
   if (kept.length === 0) {
     return NEVER;
   }
-  return kept.length === 1 ? kept[0]! : { kind: 'or', items: kept };
+  return sole(kept) ?? { kind: 'or', items: kept };
 }
 
 /**

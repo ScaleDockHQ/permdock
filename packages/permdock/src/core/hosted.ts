@@ -421,7 +421,11 @@ function buildGrant(
         [(effect === 'allow' ? allow : deny)(permission, options as never)],
         binding?.on === undefined ? {} : { on: binding.on },
       );
-      built = bound.grants[0]!;
+      const [first] = bound.grants;
+      if (first === undefined) {
+        throw new TypeError('PermDock: role produced no grant');
+      }
+      built = first;
     }
   } catch {
     return { ok: false, reason: 'invalid' };

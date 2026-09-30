@@ -9,6 +9,7 @@ import type {
 
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
+import { isReadonlyArray } from '../core/lists.ts';
 import { anonymousSubject } from '../core/subject.ts';
 import {
   asRoles,
@@ -86,7 +87,7 @@ async function organizationIds(
   }
   const rows = await settle(async () => {
     const value: unknown = await list({ headers: options.headers });
-    return Array.isArray(value) ? value : [];
+    return isReadonlyArray(value) ? value : [];
   }, []);
   const ids = rows
     .map((row: unknown) =>

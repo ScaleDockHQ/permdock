@@ -1,5 +1,6 @@
 import type { ScimPatchOp } from './types.ts';
 
+import { isReadonlyArray } from '../core/lists.ts';
 import { ROLES_EXTENSION } from './types.ts';
 
 const FILTER_PATH =
@@ -127,7 +128,7 @@ export function readPatchOperations(
     return undefined;
   }
   const operations = body.Operations ?? body.operations;
-  if (!Array.isArray(operations)) {
+  if (!isReadonlyArray(operations)) {
     return undefined;
   }
   return operations;

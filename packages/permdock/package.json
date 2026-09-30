@@ -10,6 +10,7 @@
     "permissions",
     "rbac",
     "rls",
+    "tanstack-intent",
     "typescript"
   ],
   "homepage": "https://permdock.dev",

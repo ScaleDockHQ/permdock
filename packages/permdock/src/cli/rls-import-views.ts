@@ -96,7 +96,10 @@ function columnRef(
   if (column === undefined || fields.some((field) => field === undefined)) {
     return undefined;
   }
-  return fields.length > 1 ? { from: fields.at(-2)!, column } : { column };
+  const from = fields.at(-2);
+  return fields.length > 1 && from !== undefined
+    ? { from, column }
+    : { column };
 }
 
 function targetOf(value: unknown): Target | undefined {

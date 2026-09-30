@@ -9,6 +9,7 @@ import { compact } from './compact.ts';
 import { parseDuration } from './duration.ts';
 import { freezeDeep } from './freeze.ts';
 import { asGrantee, authenticated } from './grantee.ts';
+import { isReadonlyArray, sole } from './lists.ts';
 import { listPermissions } from './permissions.ts';
 import {
   type BreakGlassOptions,
@@ -33,7 +34,7 @@ function flattenPermissions(
   ) {
     return [input as Permission];
   }
-  if (Array.isArray(input)) {
+  if (isReadonlyArray(input)) {
     return input.flatMap((item) => flattenPermissions(item));
   }
   return [...listPermissions(input as PermissionTree)];
@@ -72,7 +73,7 @@ export function breakGlass<T>(
       }),
     ),
   );
-  return grants.length === 1 ? grants[0]! : grants;
+  return sole(grants) ?? grants;
 }
 
 /**
@@ -190,9 +191,10 @@ export function evaluateBreakGlass(
   if (purposes.length === 0) {
     return { kind: 'inactive' };
   }
+  const required = spec.purpose;
   if (
-    spec.purpose !== undefined &&
-    !purposes.some((purpose) => spec.purpose!.includes(purpose))
+    required !== undefined &&
+    !purposes.some((purpose) => required.includes(purpose))
   ) {
     return { kind: 'denied', reason: 'purpose' };
   }

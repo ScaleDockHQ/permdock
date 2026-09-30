@@ -3,6 +3,7 @@ import type { RlsGrant } from './rls-grants.ts';
 import type { RolePermission } from './rls-helpers.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
+import { sole } from '../core/lists.ts';
 import { hasConditionOp, requiresApproval } from '../index.ts';
 import { jsonSchemaOf } from './catalog-doc.ts';
 import { collectGrants } from './rls-grants.ts';
@@ -148,7 +149,7 @@ export function resourceCondition(
       resource: holder,
     });
   }
-  return hops.length === 1 ? hops[0]! : { op: 'or', conditions: hops };
+  return sole(hops) ?? { op: 'or', conditions: hops };
 }
 
 /**

@@ -23,6 +23,7 @@ import {
   roleScopeOf,
 } from './grantee.ts';
 import { assertLimit, normalizeLimit } from './limits.ts';
+import { isReadonlyArray, sole } from './lists.ts';
 import { isForbiddenKey } from './paths.ts';
 import {
   type Permission,
@@ -401,7 +402,7 @@ function flattenPermissions(
   if (isPermission(input)) {
     return [input];
   }
-  if (Array.isArray(input)) {
+  if (isReadonlyArray(input)) {
     return input.flatMap((item) => flattenPermissions(item));
   }
   return [...listPermissions(input as PermissionTree)];
@@ -421,12 +422,13 @@ function resolveRoleScope(on: RoleScope | undefined): Grant['scope'] {
     on as Permission | PermissionTree | readonly Permission[],
   );
   const names = new Set(permissions.map((permission) => permission.resource));
-  if (names.size !== 1) {
+  const [resource] = names;
+  if (names.size !== 1 || resource === undefined) {
     throw new Error(
       'PermDock: role on: resource must name exactly one resource',
     );
   }
-  return { resource: [...names][0]! };
+  return { resource };
 }
 
 function makeGrant(
@@ -500,7 +502,7 @@ export function allow<T, K extends PermissionKind = PermissionKind>(
       condition as GrantOptions | ClosureGrantFn | undefined,
     ),
   );
-  return grants.length === 1 ? grants[0]! : grants;
+  return sole(grants) ?? grants;
 }
 
 export function deny<T, K extends PermissionKind = PermissionKind>(
@@ -515,7 +517,7 @@ export function deny<T, K extends PermissionKind = PermissionKind>(
       condition as GrantOptions | ClosureGrantFn | undefined,
     ),
   );
-  return grants.length === 1 ? grants[0]! : grants;
+  return sole(grants) ?? grants;
 }
 
 function flattenGrants(
@@ -846,7 +848,11 @@ function rescopeGrantee(
       ? freezeDeep({ ...item, scope: scopeOfGrant(item.scope, declared) })
       : item,
   );
-  return Array.isArray(to) ? freezeDeep(mapped) : mapped[0]!;
+  if (Array.isArray(to)) {
+    return freezeDeep(mapped);
+  }
+  const [single] = mapped;
+  return single ?? to;
 }
 
 /** Resolves `tenant` / `team` aliases to declared names; an undeclared scope throws. */

@@ -587,9 +587,10 @@ export function evaluate(
     ) {
       continue;
     }
+    const required = grant.purpose;
     if (
-      grant.purpose !== undefined &&
-      !purposes.some((purpose) => grant.purpose!.includes(purpose))
+      required !== undefined &&
+      !purposes.some((purpose) => required.includes(purpose))
     ) {
       continue;
     }

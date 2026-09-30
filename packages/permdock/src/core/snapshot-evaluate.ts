@@ -268,7 +268,8 @@ export function evaluateSnapshot(
     }
     allows.push(grant);
   }
-  if (allows.length === 0) {
+  const [matched] = allows;
+  if (matched === undefined) {
     return freezeDeep({
       outcome: 'denied',
       denials:
@@ -296,7 +297,6 @@ export function evaluateSnapshot(
       alternatives: [],
     });
   }
-  const matched = allows[0]!;
   const token = decisionToken({
     key: permission.key,
     resourceId: permission.kind === 'collection' ? '*' : rowId(current),

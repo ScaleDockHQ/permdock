@@ -1,5 +1,6 @@
 import type { Membership, Subject } from '../core/subject.ts';
 
+import { isReadonlyArray } from '../core/lists.ts';
 import { ownGet } from '../core/paths.ts';
 import {
   type Scope,
@@ -34,7 +35,7 @@ function unwrap(value: ConditionValue, subject: Subject): unknown {
   if (isConditionDate(value)) {
     return new Date(isoInstant(value.date) ?? Number.NaN);
   }
-  if (Array.isArray(value)) {
+  if (isReadonlyArray(value)) {
     return value.map((item) => unwrap(item, subject));
   }
   return value;

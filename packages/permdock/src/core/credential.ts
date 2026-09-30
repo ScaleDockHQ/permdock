@@ -14,6 +14,7 @@ import { idList, isId, ownRecord } from './capability.ts';
 import { compact } from './compact.ts';
 import { coveredByDelegation } from './delegation.ts';
 import { freezeDeep } from './freeze.ts';
+import { isReadonlyArray } from './lists.ts';
 import { listPermissions } from './permissions.ts';
 import { bytesToBase64Url, sha256 } from './sha256.ts';
 import { anonymousSubject } from './subject.ts';
@@ -118,7 +119,7 @@ const MAX_NAME = 256;
 function policies(
   policy: CredentialPolicy | readonly CredentialPolicy[],
 ): readonly CredentialPolicy[] {
-  return Array.isArray(policy) ? policy : [policy as CredentialPolicy];
+  return isReadonlyArray(policy) ? policy : [policy];
 }
 
 /**
@@ -372,7 +373,7 @@ function permissionEntries(
     }[]
   | undefined {
   if (
-    !Array.isArray(request.permissions) ||
+    !isReadonlyArray(request.permissions) ||
     request.permissions.length === 0 ||
     request.permissions.length > MAX_ENTRIES
   ) {

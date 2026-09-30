@@ -53,9 +53,10 @@ const WRITABLE_ACTIONS: WritableActions = {
   update: {},
 };
 
-const WRITABLE_COLLECTION: Record<never, never> = {};
-
+// oxlint-disable-next-line typescript/no-generated-empty-object-type -- the preset with no collection actions
 type EmptyRecord = Record<never, never>;
+
+const WRITABLE_COLLECTION: EmptyRecord = {};
 
 type ActionNames<A extends ActionList | undefined> = A extends readonly string[]
   ? A[number] & string

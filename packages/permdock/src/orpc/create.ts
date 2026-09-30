@@ -54,6 +54,7 @@ export type OrpcMiddleware<
   },
   TInput,
   unknown,
+  // oxlint-disable-next-line typescript/no-generated-empty-object-type -- oRPC's own "no meta" type
   Record<never, never>
 >;
 
