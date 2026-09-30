@@ -22,9 +22,9 @@ npm and yarn work the same way; the repository itself uses pnpm workspaces.
 
 ## Requirements
 
-- TypeScript 5.9, 6 or 7. The type tests in `tests/types` run against all three, and the public API avoids template-literal unions so TypeScript 7 stays fast. Permissions are typed object references, not string unions.
+- Node.js 24 or later for servers and the CLI. The package declares `engines.node: ">=24"`. Browser and React Native bundles are produced from the same ESM entry points and do not depend on Node.
+- TypeScript 7. PermDock is written in and built with TypeScript 7, and the public API avoids template-literal unions so TypeScript 7 stays fast: permissions are typed object references, not string unions. The type tests in `tests/types` also check the public types under TypeScript 5.9 and 6, so an app that has not moved yet keeps compiling.
 - ESM only. There is no CommonJS build. Your `tsconfig.json` needs a `moduleResolution` that understands package `exports` (`bundler`, `node16` or `nodenext`) so subpath imports such as `permdock/react` resolve.
-- A current Node.js LTS release for servers and the CLI. Browser and React Native bundles are produced from the same ESM entry points.
 - Runtime entries depend on `@standard-schema/spec` only, and it is types only. The package's one other dependency, `oxc-parser`, belongs to the CLI and no runtime entry loads it.
 
 ## Runtimes
@@ -33,7 +33,7 @@ Core uses only the [WinterTC Minimum Common API](https://min-common-api.proposal
 
 | Runtime | Core, `permdock/server`, agent adapters | Notes |
 | --- | --- | --- |
-| Node.js LTS | Yes | The CLI and `permdock/node` need Node; `permdock/jwt` uses `jose`'s Node build |
+| Node.js 24 or later | Yes | The CLI and `permdock/node` need Node; `permdock/jwt` uses `jose`'s Node build |
 | Bun | Yes | Elysia's home runtime; `bun test` runs the policy matrix unchanged |
 | Deno, Deno Deploy | Yes | Import from npm specifiers or JSR once published; no Node built-ins to polyfill |
 | Cloudflare Workers | Yes | `memoryApprovalStore` is per isolate: use Durable Objects or KV behind `ApprovalStore` and `SnapshotSource` ([approvals](/docs/adapters/approvals)); D1 has no RLS, `where` compilers still apply ([RLS](/docs/adapters/rls)) |

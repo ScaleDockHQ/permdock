@@ -126,7 +126,7 @@ Triggers for moving GNAP from tracking to planned: a major identity vendor shipp
 
 ## Review cadence
 
-At each release the maintainer checks every row: has the maturity changed, has the body renamed or split the document, does the change touch existing behaviour. A maturity change alone updates the row. A change to existing behaviour opens an issue against the adapter page and, if a wire format or security default moves, updates the owning page's Why section and the rows listed in `AGENTS.md`. Checklist rows are re-read against their adapter whenever it changes. Build rows are checked against their pin: the maintainer either bumps the pin (standards page, output, fixtures, changeset) or records why the old revision is kept; a build row whose text reaches Final, RFC or Released loses its pin and becomes stable.
+At each release the maintainer checks every row: has the maturity changed, has the body renamed or split the document, does the change touch existing behaviour. A maturity change alone updates the row. A change to existing behaviour opens an issue against the adapter page and, if a wire format or security default moves, updates the owning page's Why section and the rows listed in `.agents/rules/change-checklist.mdc`. Checklist rows are re-read against their adapter whenever it changes. Build rows are checked against their pin: the maintainer either bumps the pin (standards page, output, fixtures, changeset) or records why the old revision is kept; a build row whose text reaches Final, RFC or Released loses its pin and becomes stable.
 
 ## How to propose a row
 
@@ -134,7 +134,7 @@ At each release the maintainer checks every row: has the maturity changed, has t
 2. State in one sentence which PermDock concept the specification touches.
 3. Propose the action (implements, consumes, checklist, tracking).
 4. For an unfinished text, propose the posture and, for build, the revision to pin and the stable twin.
-5. Say whether it changes a wire format or a security default; if it does, update the owning page's Why section and the rows listed in `AGENTS.md`.
+5. Say whether it changes a wire format or a security default; if it does, update the owning page's Why section and the rows listed in `.agents/rules/change-checklist.mdc`.
 
 Rows are added by pull request against this page. A row that reaches "implements" gets its own standards page in the same pull request as the code.
 
