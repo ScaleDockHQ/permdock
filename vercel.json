@@ -1,10 +1,18 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "changeset-release/**": false,
+      "dependabot/**": false
+    }
+  },
   "services": {
     "docs": {
       "root": "apps/docs",
       "framework": "nextjs",
       "installCommand": "corepack enable && corepack prepare pnpm@12.8.1 --activate && corepack pnpm@12.8.1 install",
-      "buildCommand": "(cd ../../packages/permdock && node --run build) && next build",
+      "buildCommand": "mkdir -p /tmp/corepack && corepack enable --install-directory /tmp/corepack pnpm && corepack prepare pnpm@12.8.1 --activate && export PATH=\"/tmp/corepack:$PATH\" && corepack pnpm@12.8.1 exec turbo run build --filter=docs",
+      "ignoreCommand": "npx -y turbo@2.11.5 query affected --packages docs --exit-code ${VERCEL_GIT_PREVIOUS_SHA:+--base $VERCEL_GIT_PREVIOUS_SHA} >/dev/null; test $? -eq 0",
       "rewrites": [
         {
           "source": "/docs/_next/:path*",
@@ -16,7 +24,8 @@
       "root": "apps/marketing",
       "framework": "nextjs",
       "installCommand": "corepack enable && corepack prepare pnpm@12.8.1 --activate && corepack pnpm@12.8.1 install",
-      "buildCommand": "(cd ../../packages/permdock && node --run build) && next build"
+      "buildCommand": "mkdir -p /tmp/corepack && corepack enable --install-directory /tmp/corepack pnpm && corepack prepare pnpm@12.8.1 --activate && export PATH=\"/tmp/corepack:$PATH\" && corepack pnpm@12.8.1 exec turbo run build --filter=marketing",
+      "ignoreCommand": "npx -y turbo@2.11.5 query affected --packages marketing --exit-code ${VERCEL_GIT_PREVIOUS_SHA:+--base $VERCEL_GIT_PREVIOUS_SHA} >/dev/null; test $? -eq 0"
     }
   },
   "rewrites": [

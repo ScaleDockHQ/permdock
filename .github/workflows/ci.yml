@@ -50,6 +50,9 @@ jobs:
       - name: Lint
         run: pnpm run lint --format=github
 
+      - name: Boundaries
+        run: pnpm exec turbo boundaries
+
       - name: Typecheck
         run: pnpm run typecheck
 
