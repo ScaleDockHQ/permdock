@@ -42,6 +42,20 @@ This is the short product brief: what PermDock is, who it is for, the principles
 - Storing or managing tenants, teams, invitations, memberships or custom roles. PermDock reads them through `MembershipSource` and `RoleSource`; the auth provider or the application owns the tables ([tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)).
 - UI components beyond `<Protected>`. Hooks return data and the application's design system renders it.
 
+## Voice
+
+Plain and technical, written for an engineer or a coding agent about to wire it in. Lead with the fact, name the identifier, show the code, and state limits as limits. British spelling in prose. The full rules are in [`.agents/rules/writing.mdc`](./.agents/rules/writing.mdc); the visual rules are in [`DESIGN.md`](./DESIGN.md).
+
+## What we never claim
+
+- That PermDock authenticates users or verifies tokens in core. It consumes verified material.
+- That PermDock makes an application compliant with SOC 2, ISO 27001, HIPAA or any other regime. It produces evidence a compliance programme can use.
+- That approvals make an agent safe. They gate the tools PermDock guards, nothing else.
+- That PermDock Cloud is needed to decide, or that it is on the decision path.
+- A benchmark, percentage or size that was not measured in this repository, with the source next to it.
+- A planned feature as shipped. Pages for unbuilt work say so, and the [roadmap](./apps/docs/content/docs/roadmap.mdx) lists them.
+- That PermDock is published before `0.1.0` is on npm.
+
 ## Business model
 
 The library is and stays MIT. PermDock Cloud is an optional hosted service built on the same public interfaces, in the separate `PermDock-Cloud` repository: dashboard [app.permdock.com](https://app.permdock.com), API [api.permdock.com](https://api.permdock.com), read-only MCP [mcp.permdock.com](https://mcp.permdock.com). It is never on the decision path: every decision runs in the application's process, and a Cloud outage never changes an outcome.

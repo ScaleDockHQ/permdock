@@ -1,6 +1,6 @@
 ---
 description: How the marketing and docs apps deploy as two Vercel Services on one origin - route ownership, assetPrefix, the permdock build step, the public docs MCP, and the PermDock Cloud hosts
-globs: apps/marketing/**,apps/docs/app/**,apps/docs/lib/**,apps/docs/next.config.*,apps/docs/source.config.*,vercel.json
+globs: apps/marketing/**,apps/docs/app/**,apps/docs/lib/**,apps/docs/next.config.*,apps/docs/source.config.*,packages/next-config/**,packages/ui/**,vercel.json
 alwaysApply: false
 paths:
   - "apps/marketing/**"
@@ -8,6 +8,8 @@ paths:
   - "apps/docs/lib/**"
   - "apps/docs/next.config.*"
   - "apps/docs/source.config.*"
+  - "packages/next-config/**"
+  - "packages/ui/**"
   - "vercel.json"
 ---
 
@@ -15,11 +17,13 @@ paths:
 
 - Both apps are [Vercel Services](https://vercel.com/docs/services) of one project, declared in the root `vercel.json`.
 - The marketing app (`apps/marketing`) owns `/`, `/_next`, `robots.txt` and `sitemap.xml`.
-- The docs app keeps `/docs`, `/api/search`, `/mcp`, `/devtools`, `/llms.txt`, `/llms-full.txt`, `/llms.mdx` and `/og`, with `assetPrefix: '/docs'` so its assets ride `/docs/_next`. Never `basePath: '/docs'`, which double-prefixes `next/link`.
+- The docs app keeps `/docs` (including `/docs/sitemap.xml`, `/docs/ask`, `/docs/changelog` and the `/docs/api/chat` Ask AI endpoint), `/api/search`, `/mcp`, `/devtools`, `/llms.txt`, `/llms-full.txt`, `/llms.mdx` and `/og`, with `assetPrefix: '/docs'` so its assets ride `/docs/_next`. Never `basePath: '/docs'`, which double-prefixes `next/link`. Marketing redirects `/changelog` to `/docs/changelog`.
+- Both apps spread `createNextConfig()` from `packages/next-config` (security headers, `allowedDevOrigins`, Sentry options) and import UI from `packages/ui` through `transpilePackages`. Links between the two apps are plain anchors (`SiteLink`), never `next/link`.
+- `/docs/api/chat` calls the AI Gateway over Vercel OIDC. Never set `AI_GATEWAY_API_KEY` or a provider key.
 - Both services build with `turbo run build --filter=<service>`, which compiles `permdock` first because `dist/` is not committed. Vercel's bundled pnpm fails the `devEngines` 12.8.1 check, so the install command activates pnpm 12.8.1 itself and installs only the service, its workspace dependencies and the root tooling (`--frozen-lockfile --filter '{.}...' --include-workspace-root`), and the build command puts a corepack `pnpm` shim first on `PATH` because turbo spawns `pnpm` for each task.
 - Each service's `ignoreCommand` runs `turbo query affected --packages <service> --exit-code` against `VERCEL_GIT_PREVIOUS_SHA` and skips the build only when nothing is affected. A turbo error or a missing base ref builds. `vercel.json` is a build input of both services, so a change to it rebuilds both.
 - `git.deploymentEnabled` deploys `main` only: `*` and `**` are off (`*` does not cross `/`), and so is `changeset-release/*`. Add `develop` when it exists. Keys are minimatch globs.
 - Functions run in `fra1` (`regions`).
 - The `/mcp` route is the public docs MCP server: search and page-fetch only, no subject.
 - PermDock Cloud is a separate Vercel project in the `PermDock-Cloud` repository: dashboard `https://app.permdock.com`, API `https://api.permdock.com`, read-only MCP `https://mcp.permdock.com`.
-- Local: `pnpm marketing:dev` serves marketing on `:3000` and proxies `/docs` to the docs app on `:3001`; `pnpm docs:dev` runs the docs alone.
+- Local: `pnpm dev:portless` serves marketing at `https://permdock.localhost`, which proxies `/docs` to `https://docs.permdock.localhost` (`.agents/rules/local-dev-portless-agent-browser.mdc`). Without Portless, `pnpm marketing:dev` serves marketing on `:3000` and docs on `:3001`; `pnpm docs:dev` runs the docs alone.

@@ -1,0 +1,1 @@
+../../.agents/rules/local-dev-portless-agent-browser.mdc

@@ -15,7 +15,8 @@ Topic rules live in `.agents/rules/*.mdc`. Cursor loads them through the `.curso
 | `change-checklist.mdc` | Before opening a PR: what else to update when you change X |
 | `docs.mdc` | Editing `apps/docs/content/docs` |
 | `testing.mdc` | Writing tests, runners, fixtures or examples |
-| `deployment.mdc` | Touching `apps/marketing`, the docs app code or `vercel.json` |
+| `deployment.mdc` | Touching `apps/marketing`, the docs app code, `packages/{ui,next-config}` or `vercel.json` |
+| `local-dev-portless-agent-browser.mdc` | Running or checking the apps locally |
 | `skills.mdc` | Touching `packages/permdock/skills`, `.claude-plugin`, vendored skills or `skills-lock.json` |
 | `writing.mdc` | Writing any prose: docs, READMEs, skills, changesets, comments, commits, PRs |
 
@@ -38,6 +39,8 @@ packages/
     schemas/ rulesets/ skills/         catalog and OpenAPI schemas, lint ruleset, consumer skills
   typescript-config/  private tsconfig presets: base, library, react-library, next
   ox-config/          private oxlint and oxfmt config; root configs add repo ignores and `typeAware`
+  next-config/        private createNextConfig(): headers, allowedDevOrigins, Sentry
+  ui/                 private vendored shadcn/ui, ReUI, AI Elements; per-file exports
 apps/
   marketing/          Next.js 16.3 marketing site, Vercel Service at `/`
   docs/               Fumadocs on Next.js 16.3, content in apps/docs/content/docs, Vercel Service at `/docs`
@@ -49,6 +52,7 @@ tests/
   runtimes/           Bun, Deno and workerd
   bundle/             per-entry gzip baseline, client-entry and dependency assertions
 .agents/rules/        topic rules (see Rules); .agents/skills/ vendored skills pinned in skills-lock.json
+docs/agents/          corrections agents needed twice; docs/decisions/ exceptions to the repo standard
 ```
 
 ## Commands (keep these names)
@@ -67,10 +71,37 @@ pnpm verify                # format:check, lint, typecheck, knip, boundaries, te
 pnpm check:publish         # publint + arethetypeswrong
 pnpm size                  # per-entry gzip measurements
 pnpm docs:drift            # docs match CLI flags, doctor codes, package entries, meta.json
-pnpm docs:dev              # apps/docs on :3001
+pnpm dev:portless          # https://permdock.localhost, docs at /docs
+pnpm docs:dev              # apps/docs on :3001, no Portless
 pnpm marketing:dev         # apps/marketing on :3000, proxies /docs
+pnpm env:pull              # .env.{development,preview,production}.local from Vercel
 pnpm changeset             # every user-visible change
 ```
+
+## Local dev
+
+Run `pnpm exec portless list` first and reuse a running PermDock route. The Portless proxy is shared with other repositories: never stop it, never run `portless clean` or `prune`, never kill a process you did not start. Check UI changes with `agent-browser` on the Portless URL. [`docs/agents/`](./docs/agents/README.md) lists the fixes agents needed before; read the file for the area you touch.
+
+## When you change X, also update Y
+
+| Change | Also update |
+| --- | --- |
+| Env key | The app's `env.ts`, `.env.example`, the task `env` in `turbo.json`, Vercel for each environment |
+| Route | The app's `sitemap.ts`, `deployment.mdc` route ownership, a `redirects()` entry for a moved URL |
+| UI primitive | Vendor it into `packages/ui` with the shadcn CLI, then `DESIGN.md` if it adds a token or pattern |
+| Dependency | Catalog pin (`docs/agents/pnpm-catalog.md`), the installed docs for any config it touches |
+| User-visible change | A changeset; the owning docs page |
+| Exception to the repo standard | A record in `docs/decisions` |
+| `permdock`, docs or examples | The rows in `change-checklist.mdc` |
+
+## Hard rules
+
+- Never discard uncommitted work you did not make.
+- Read the installed docs (`node_modules/next/dist/docs`, `turbo/docs`, the package README) before configuring Next.js, Turborepo or Fumadocs.
+- Never lower `minimumReleaseAge`. Pin versions from `pnpm view` at run time.
+- Secrets never go in git or `NEXT_PUBLIC_*`. Never set `AI_GATEWAY_API_KEY` or a provider key: the AI Gateway uses Vercel OIDC.
+- Every `as T` has a `// SAFETY:` comment; prefer a type guard or a schema parse.
+- Fix the code, not the test.
 
 ## Invariants
 

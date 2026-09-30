@@ -10,7 +10,7 @@ Typed permissions for TypeScript apps, APIs, databases and AI agents: one defini
 ![pnpm 12](https://img.shields.io/badge/pnpm-12.8.1-f69220.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
 
-[**Docs**](https://permdock.dev/docs) · [**npm package**](./packages/permdock/README.md) · [**Product brief**](./PRODUCT.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
+[**Docs**](https://permdock.dev/docs) · [**npm package**](./packages/permdock/README.md) · [**Product brief**](./PRODUCT.md) · [**Design**](./DESIGN.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Decisions**](./docs/decisions/README.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
 
 > **Pre-release.** Nothing is published yet. The first release of `permdock` is `0.1.0`: one package with core, every adapter, the `permdock` CLI and `permdock/testing`.
 
@@ -63,10 +63,24 @@ git clone https://github.com/ScaleDockHQ/PermDock.git && cd PermDock
 pnpm install        # also installs the lefthook git hooks
 pnpm build          # tsdown builds packages/permdock; apps and tests import dist/
 pnpm test           # vitest unit and type tests
-pnpm docs:dev       # docs on http://localhost:3001/docs
+vercel link         # once, maintainers only: links the Vercel project
+pnpm env:pull       # maintainers only: writes .env.*.local from Vercel
+pnpm dev:portless   # marketing and docs through Portless
 ```
 
-No environment variables are needed for build, check or test. `CONTRIBUTING.md` covers installing pnpm 12 when Corepack is unavailable.
+No environment variables are needed for build, verify or test; `.env.example` lists the optional keys. `CONTRIBUTING.md` covers installing pnpm 12 when Corepack is unavailable.
+
+### Local URLs
+
+`pnpm dev:portless` runs both apps through [Portless](https://portless.sh), which serves named HTTPS URLs from a local proxy. The first run asks for `sudo` to bind port 443 and trust its local CA.
+
+| App | URL |
+| --- | --- |
+| Marketing | `https://permdock.localhost` |
+| Docs | `https://permdock.localhost/docs` (served by `https://docs.permdock.localhost`) |
+| Docs MCP | `https://permdock.localhost/mcp` |
+
+In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`. Without Portless, `pnpm marketing:dev` serves `http://localhost:3000` with docs on `:3001`.
 
 ## Common Commands
 
@@ -81,9 +95,14 @@ No environment variables are needed for build, check or test. `CONTRIBUTING.md` 
 | `pnpm size` | Per-entry min+gzip against the recorded baseline |
 | `pnpm check:publish` | publint and arethetypeswrong on the published package |
 | `pnpm docs:drift` | Docs mention every CLI flag, doctor code and package entry; every page is in `meta.json` |
+| `pnpm dev:portless` | Marketing and docs at the Portless URLs above, with `.env.local` and `.env.development.local` loaded |
+| `pnpm dev:cleanup` | `portless prune`: stops dev servers orphaned by a crashed session |
 | `pnpm docs:dev` / `pnpm marketing:dev` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied |
+| `pnpm env:pull` | `.env.development.local`, `.env.preview.local` and `.env.production.local` from Vercel |
 | `pnpm format` / `pnpm lint` | Oxfmt over the whole repository; Oxlint per workspace |
 | `pnpm knip` | Unused files, exports and dependencies |
+| `pnpm boundaries` | `turbo boundaries`: workspace dependency rules by tag |
+| `pnpm audit:high` | `pnpm audit` failing on high and critical advisories |
 | `pnpm openapi:generate` | Refresh the vendored OpenAPI and Overlay schemas |
 | `pnpm changeset` | Record a user-visible change |
 
@@ -100,7 +119,9 @@ No environment variables are needed for build, check or test. `CONTRIBUTING.md` 
 
 - `ci.yml` runs on pushes to `main` and `develop`, on pull requests, and nightly with every e2e test repeated three times. It calls `verify.yml`, a matrix of format, lint, Knip, typecheck (with the TypeScript 5.9 / 6 / 7 type matrix), unit tests, boundaries, `audit:high`, catalog, docs and OpenAPI drift, `permdock doctor` over the examples, bundle size and publish checks, affected-only on pull requests. Integration, runtimes and sharded Playwright e2e run against the built `dist/`.
 - `release.yml` runs `verify` and Changesets on `main`. Pending changesets open a version pull request (`pnpm version-packages` also updates the root `CHANGELOG.md`); merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
-- The marketing and docs apps deploy as two Vercel Services of one project; see `vercel.json` and [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc).
+## Deploy
+
+The marketing and docs apps deploy as two Vercel Services of one project, declared in `vercel.json`: marketing owns `/` and docs owns `/docs`, `/mcp` and the `llms` routes on the same origin. Only `main` deploys (`git.deploymentEnabled`); other branches, including `changeset-release/*`, do not. Each service builds only when `turbo query affected` reports it changed. Functions run in `fra1`, and Ask AI reaches the AI Gateway through Vercel OIDC, with no API key. Route ownership and the build commands are in [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc); the exceptions to the repo standard are in [`docs/decisions`](./docs/decisions/README.md).
 
 ## Contributing
 
@@ -115,6 +136,8 @@ Read [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes start as an RFC 
 | [`packages/permdock`](./packages/permdock) | npm `permdock`: `src/core`, `src/conditions`, one folder per adapter, `src/cli` (the `permdock` bin), `src/testing` (`permdock/testing`), JSON schemas, the OpenAPI lint ruleset and the consumer skills |
 | [`packages/typescript-config`](./packages/typescript-config) | Private tsconfig presets: `base`, `library`, `react-library`, `next` |
 | [`packages/ox-config`](./packages/ox-config) | Private Oxlint and Oxfmt configuration |
+| [`packages/next-config`](./packages/next-config) | Private `createNextConfig()`: security headers, dev origins, Sentry options |
+| [`packages/ui`](./packages/ui) | Private vendored shadcn/ui, ReUI and AI Elements components, one export per file |
 
 ### Apps
 

@@ -1,0 +1,19 @@
+---
+description: Running the marketing and docs apps locally through Portless and checking them with agent-browser - the URLs, the shared proxy, what never to stop
+globs: apps/marketing/**,apps/docs/**,packages/ui/**,packages/next-config/**,.vscode/**
+alwaysApply: false
+paths:
+  - "apps/marketing/**"
+  - "apps/docs/**"
+  - "packages/ui/**"
+  - "packages/next-config/**"
+  - ".vscode/**"
+---
+
+# Local dev: Portless and agent-browser
+
+- Run the apps with `pnpm dev:portless`: marketing at `https://permdock.localhost`, docs at `https://permdock.localhost/docs` (served by `https://docs.permdock.localhost`).
+- Run `pnpm exec portless list` first and reuse a running PermDock route.
+- The Portless proxy is shared with other repositories. Never stop the proxy, run `portless clean` or `portless prune`, or kill a process you did not start.
+- Check UI and routing changes with `agent-browser` on the Portless URL, at 390 px and 1440 px, and show the screenshot.
+- Details and the fixes agents needed before: `docs/agents/portless.md` and `docs/agents/agent-browser.md`.
