@@ -80,6 +80,10 @@ create table organization (id text primary key, disabled_at timestamptz);
 insert into organization select o, null from unnest(array['T', 'B', ${MANY.map((id) => `'${id}'`).join(', ')}]) o;
 insert into organization values ('X', now());
 grant select, insert, update, delete on memberships to authenticated;
+create schema better_supabase;
+create function better_supabase.feature_claims(uid uuid) returns jsonb language sql stable as $$
+  select case when uid in ('${OWNER}', '${ADMIN}', '${SUSPENDED}') then '{"T": ["export"]}'::jsonb end
+$$;
 `;
 
 type Claims = Record<string, unknown>;
@@ -201,6 +205,15 @@ describe('permdock supabase hook generate against Postgres', () => {
   it('empties the claims of a suspended user', async () => {
     const claims = await mint(SUSPENDED);
     expect(claims).toMatchObject({ user_role: [], roles: [], memberships: [] });
+    expect(claims).not.toHaveProperty('features');
+  });
+
+  it('writes extra claims with or without memberships and omits a null one', async () => {
+    expect((await mint(OWNER))['features']).toEqual({ T: ['export'] });
+    const admin = await mint(ADMIN);
+    expect(admin['memberships']).toEqual([]);
+    expect(admin['features']).toEqual({ T: ['export'] });
+    expect(await mint(CONTACT)).not.toHaveProperty('features');
   });
 
   it('resolves the same memberships at runtime as the hook writes', async () => {
@@ -369,5 +382,41 @@ describe('permdock supabase hook generate against Postgres', () => {
     );
     expect(changed).toBe(1);
     expect(generated).not.toMatch(/service_role/iu);
+  });
+
+  it('reports missing helpers from the database with --db (PD039)', async () => {
+    if (db === undefined) {
+      throw new Error('PermDock: Postgres was not started');
+    }
+    const dir = mkdtempSync(join(tmpdir(), 'permdock-sources-db-'));
+    const generate = () =>
+      run(
+        [
+          'supabase',
+          'hook',
+          'generate',
+          '--out',
+          join(dir, 'hook.sql'),
+          '--db',
+          db?.uri ?? '',
+        ],
+        { cwd: FIXTURE },
+      );
+    try {
+      const missing = await generate();
+      expect(missing.code).toBe(0);
+      expect(missing.stdout).toContain(
+        'PD039 schema public has no permdock_has, permitted_organization_ids, permitted_customer_ids',
+      );
+      await db.admin.query(
+        'create function public.permdock_has(p_grant text) returns boolean language sql as $$ select false $$',
+      );
+      const partial = await generate();
+      expect(partial.stdout).toContain(
+        'PD039 schema public has no permitted_organization_ids, permitted_customer_ids',
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

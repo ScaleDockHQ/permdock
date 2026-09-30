@@ -981,4 +981,171 @@ export const policy = definePolicy(permissions, {
     const result = await run(['doctor', '--json', '--only', 'PD035'], { cwd });
     expect(codes(result.stdout)).toContain('PD035');
   });
+
+  it('PD038 warns when subjectFromSupabase reads a different tenant claim than the hook writes', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/subject.ts'),
+      `import { subjectFromSupabase, subjectFromSupabaseSession } from 'permdock/supabase';
+
+export const a = (claims: unknown) => subjectFromSupabase(claims);
+export const b = (claims: unknown) => subjectFromSupabase(claims, { tenant: 'org_id' });
+export const c = (session: never) =>
+  subjectFromSupabaseSession(session, { roles: 'user_role', tenant: "tenant_id" });
+export const d = (claims: unknown, options: never) => subjectFromSupabase(claims, options);
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  collect: { srcPath: ['./src'] },
+  rls: { tenantClaim: 'org_id' },
+};
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD038'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      "src/subject.ts:3 reads the tenant from 'tenant_id', but rls.tenantClaim is 'org_id'",
+      "src/subject.ts:6 reads the tenant from 'tenant_id', but rls.tenantClaim is 'org_id'",
+    ]);
+  });
+
+  it('PD040 warns on auth.role() in a migration, outside comments', async () => {
+    const cwd = appCopy();
+    mkdirSync(join(cwd, 'supabase/migrations'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'supabase/migrations/0001_posts.sql'),
+      `-- auth.role() is deprecated
+create policy "read" on posts for select
+  using (auth.role() = 'authenticated');
+/* auth.role() */
+create policy "write" on posts for insert to authenticated with check (true);
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD040'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly { readonly message: string }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      'supabase/migrations/0001_posts.sql:3 calls auth.role(), which Supabase deprecated',
+    ]);
+  });
+
+  it('PD036 warns on an id route protected without a row loader', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/app.ts'),
+      `import { createPermDock } from 'permdock/hono';
+import { permissions } from './permissions.ts';
+
+const { protect } = createPermDock(policy, { subject: () => null });
+
+app.patch('/posts/:id', protect(permissions.post.update), handler);
+app.post('/posts', protect(permissions.post.create), handler);
+app.delete(
+  '/posts/{postId}',
+  protect(permissions.post.delete, (request) => load(request)),
+  handler,
+);
+`,
+    );
+    mkdirSync(join(cwd, 'src/app/posts/[id]'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'src/app/posts/[id]/route.ts'),
+      `import { protect } from '../../../permdock.ts';
+
+export const PATCH = protect(permissions.post.update)(handler);
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD036'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly { readonly message: string }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      'src/app.ts:6 protects /posts/:id with permissions.post.update and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)',
+      'src/app/posts/[id]/route.ts:3 protects [id] with permissions.post.update and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)',
+    ]);
+  });
+
+  it('PD041 warns when exchangeCapability signs with HS256', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/links.ts'),
+      `import { exchangeCapability } from 'permdock/supabase';
+
+export const legacy = (subject: never) =>
+  exchangeCapability(subject, { alg: 'HS256', secret: 'x', issuer: 'i' });
+export const modern = (subject: never, key: never) =>
+  exchangeCapability(subject, { alg: 'ES256', key, issuer: 'i' });
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD041'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly { readonly message: string }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      "src/links.ts:4 signs capability tokens with HS256, the project's shared JWT secret: whoever holds it can mint any user's token",
+    ]);
+  });
+
+  it('PD037 errors on a storage or realtime policy calling the helpers with a row-conditioned key', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/storage-policy.ts'),
+      `import { allow, definePolicy, principal, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  scopes: { tenant: { key: 'orgId' } },
+  roles: [
+    role('member', [
+      allow(permissions.post.list),
+      allow(permissions.post.update, { where: { authorId: principal.id } }),
+    ], { on: 'tenant' }),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/storage-policy.ts',
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    mkdirSync(join(cwd, 'supabase/migrations'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'supabase/migrations/0001_buckets.sql'),
+      `create policy "posts list" on storage.objects for select to authenticated
+  using ((storage.foldername(name))[1] in (select t.id::text from public.permitted_tenant_ids('post.list') as t(id)));
+-- create policy "commented" on storage.objects using ((select public.permdock_has('post.update')));
+create policy "posts update" on "storage"."objects" for update to authenticated
+  using ((storage.foldername(name))[1] in (select t.id::text from public.permitted_tenant_ids('post.update#1') as t(id)));
+create policy "own table" on public.post for update using ((select public.permdock_has('post.update')));
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD037'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(result.code).toBe(1);
+    expect(report.findings).toHaveLength(1);
+    expect(report.findings[0]?.code).toBe('PD037');
+    expect(report.findings[0]?.message).toContain("'posts update'");
+    expect(report.findings[0]?.message).toContain('post.update');
+  });
 });

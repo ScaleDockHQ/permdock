@@ -247,3 +247,169 @@ export function pd015(
   }
   return findings;
 }
+
+const SUPABASE_SUBJECT_CALL = /\bsubjectFromSupabase(?:Session)?\s*\(/gu;
+
+/** Top-level arguments of the call whose `(` ends at `open`, or undefined when unbalanced. */
+function callArguments(
+  text: string,
+  open: number,
+): readonly string[] | undefined {
+  const args: string[] = [];
+  let depth = 0;
+  let quote: string | undefined;
+  let start = open + 1;
+  for (let index = open + 1; index < text.length; index += 1) {
+    const char = text[index];
+    if (quote !== undefined) {
+      if (char === '\\') {
+        index += 1;
+      } else if (char === quote) {
+        quote = undefined;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+    } else if (char === '(' || char === '{' || char === '[') {
+      depth += 1;
+    } else if (char === ')' || char === '}' || char === ']') {
+      if (depth === 0) {
+        args.push(text.slice(start, index).trim());
+        return args.filter((arg) => arg !== '');
+      }
+      depth -= 1;
+    } else if (char === ',' && depth === 0) {
+      args.push(text.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  return undefined;
+}
+
+/** The claim a `subjectFromSupabase` call reads the tenant from, or undefined when the options are not a literal. */
+function readTenantClaim(
+  options: string | undefined,
+  fallback: string,
+): string | undefined {
+  if (options === undefined) {
+    return fallback;
+  }
+  if (!options.startsWith('{')) {
+    return undefined;
+  }
+  const tenant =
+    /(?:^|[{,\s])tenant\s*:\s*(?:'([^']*)'|"([^"]*)"|([^,}\s]+))/u.exec(
+      options,
+    );
+  if (tenant === null) {
+    return fallback;
+  }
+  return tenant[1] ?? tenant[2];
+}
+
+export function pd038(
+  sources: readonly DoctorSource[],
+  tenantClaim: string,
+  fallback: string,
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const source of sources) {
+    for (const match of source.text.matchAll(SUPABASE_SUBJECT_CALL)) {
+      const open = match.index + match[0].length - 1;
+      const args = callArguments(source.text, open);
+      if (args === undefined) {
+        continue;
+      }
+      const read = readTenantClaim(args[1], fallback);
+      if (read === undefined || read === tenantClaim) {
+        continue;
+      }
+      const line = source.text.slice(0, match.index).split('\n').length;
+      findings.push({
+        code: 'PD038',
+        severity: 'warning',
+        message: `${source.file}:${line} reads the tenant from '${read}', but rls.tenantClaim is '${tenantClaim}'`,
+        fix: `pass tenant: '${tenantClaim}' or set rls.tenantClaim to '${read}'`,
+      });
+    }
+  }
+  return findings;
+}
+
+const EXCHANGE_CALL = /\bexchangeCapability\s*\(/gu;
+
+/** PD041: `exchangeCapability` signing link tokens with the project's shared JWT secret. */
+export function pd041(
+  sources: readonly DoctorSource[],
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const source of sources) {
+    for (const match of source.text.matchAll(EXCHANGE_CALL)) {
+      const open = match.index + match[0].length - 1;
+      const options = callArguments(source.text, open)?.[1];
+      if (
+        options === undefined ||
+        !/(?:^|[{,\s])alg\s*:\s*['"]HS256['"]/u.test(options)
+      ) {
+        continue;
+      }
+      const line = source.text.slice(0, match.index).split('\n').length;
+      findings.push({
+        code: 'PD041',
+        severity: 'warning',
+        message: `${source.file}:${String(line)} signs capability tokens with HS256, the project's shared JWT secret: whoever holds it can mint any user's token`,
+        fix: "sign with alg: 'ES256' and the private JWK of an asymmetric Supabase signing key; keep HS256 for the local stack only",
+      });
+    }
+  }
+  return findings;
+}
+
+const PROTECT_CALL = /\bprotect\s*\(/gu;
+const ID_ROUTE =
+  /['"`](\/[^'"`\s]*(?::[A-Za-z_$][\w$]*|\{[A-Za-z_$][\w$]*\})[^'"`\s]*)['"`]/gu;
+const DYNAMIC_SEGMENT = /(?:^|[\\/])(\[[^\]/\\]+\])(?=[\\/])/u;
+
+/** The id-bearing route a `protect` call at `index` sits in: the file's dynamic segment, or a route literal earlier in the same statement. */
+function idRouteOf(source: DoctorSource, index: number): string | undefined {
+  const segment = DYNAMIC_SEGMENT.exec(source.file);
+  if (segment !== null) {
+    return segment[1];
+  }
+  const window = source.text.slice(Math.max(0, index - 400), index);
+  const start = Math.max(window.lastIndexOf(';'), window.lastIndexOf('\n\n'));
+  const statement = window.slice(start + 1);
+  return [...statement.matchAll(ID_ROUTE)].at(-1)?.[1];
+}
+
+/** PD036: a `protect(permission)` with no row loader on a route whose path names an object id (BOLA, OWASP API1). */
+export function pd036(
+  sources: readonly DoctorSource[],
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const source of sources) {
+    if (!source.text.includes('permdock')) {
+      continue;
+    }
+    for (const match of source.text.matchAll(PROTECT_CALL)) {
+      const open = match.index + match[0].length - 1;
+      const args = callArguments(source.text, open);
+      if (args?.length !== 1) {
+        continue;
+      }
+      const route = idRouteOf(source, match.index);
+      if (route === undefined) {
+        continue;
+      }
+      const line = source.text.slice(0, match.index).split('\n').length;
+      findings.push({
+        code: 'PD036',
+        severity: 'warning',
+        message: `${source.file}:${String(line)} protects ${route} with ${args[0] ?? ''} and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)`,
+        fix: 'pass a loader that fetches the row by the id: protect(permission, (request) => load(request))',
+      });
+    }
+  }
+  return findings;
+}

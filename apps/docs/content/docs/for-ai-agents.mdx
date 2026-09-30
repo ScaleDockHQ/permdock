@@ -118,7 +118,7 @@ Use permission references, never strings; keep the policy and every `createPermD
 PermDock assumes the reader of a denial may be a language model deciding what to do next, so denials carry structure rather than prose:
 
 - `decide()` returns `{ outcome: 'denied', denials: [{ role, reason }], alternatives: [...] }`. `reason` is the policy author's string; `alternatives` lists permissions on the same resource this subject does hold, so the model can pick a permitted action instead of retrying the same one.
-- `approval-required` carries the grant, a reason and a `token`. Adapters turn it into AI SDK `user-approval`, `WorkflowAgent` `needsApproval`, MCP elicitation or an HTTP 403 with the `.../approval-required` problem type; the token must be echoed back when the approval resumes.
+- `approval-required` carries the grant, a reason and a `token`. Adapters turn it into AI SDK `user-approval`, `WorkflowAgent` `needsApproval`, MCP `input_required` or an HTTP 403 with the `.../approval-required` problem type; the token must be echoed back when the approval resumes.
 - MCP refusals return `isError: true` with the `Decision` in `structuredContent`, and missing delegation produces a `scopeChallenge` naming the exact scope (`post:delete`) to request.
 - HTTP adapters emit RFC 9457 `application/problem+json` with `type`, `title`, `permission`, `denials` and `alternatives`; see [Errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
 - `PermDockValidationError` names the resource and the schema issues; `PermDockDeniedError` and `PermDockApprovalRequiredError` carry the `Decision`.

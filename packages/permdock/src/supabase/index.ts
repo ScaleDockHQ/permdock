@@ -7,6 +7,7 @@ export {
   fromJunction,
   fromTable,
   supabaseMembershipsBudget,
+  supabaseTenantClaim,
 } from './sources.ts';
 export type {
   MembershipJunctionOptions,
@@ -16,6 +17,7 @@ export type {
   SqlQuery,
 } from './sources.ts';
 export { subjectFromSupabase, subjectFromSupabaseSession } from './subject.ts';
+export type { SupabaseHookClaim, SupabaseHookManifest } from './manifest.ts';
 export type {
   AuthorizeSqlOptions,
   SupabaseActiveRow,

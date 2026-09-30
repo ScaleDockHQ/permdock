@@ -510,7 +510,7 @@ export function fromJunction(
 
 export const AUTHZ_VERSION_TABLE = 'permdock_authz_version';
 
-export { supabaseMembershipsBudget } from './budget.ts';
+export { supabaseMembershipsBudget, supabaseTenantClaim } from './budget.ts';
 
 /**
  * Reads the authorization version `permdock supabase hook generate` keeps in

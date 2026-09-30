@@ -1,6 +1,6 @@
 ---
 title: MCP authorization
-description: How the Model Context Protocol 2026-07-28 authorization model (OAuth 2.1 resource servers, scope challenges, CIMD, RFC 9207, SEP-2350, Enterprise-Managed Authorization) maps onto permdock/mcp.
+description: How the Model Context Protocol 2026-07-28 authorization model (OAuth 2.1 resource servers, scope challenges, RFC 8707, MRTR, CIMD, RFC 9207, Enterprise-Managed Authorization) maps onto permdock/mcp.
 ---
 
 
@@ -13,7 +13,9 @@ The [MCP specification 2026-07-28](https://modelcontextprotocol.io/specification
 - **Stateless core.** The [2026-07-28 release](https://blog.modelcontextprotocol.io/posts/2026-07-28/) made the core stateless; elicitation and Tasks now work through multi-round-trip requests (MRTR) rather than server-held session state.
 - **Client ID Metadata Documents (CIMD)** replace Dynamic Client Registration, which is deprecated. A client identifies itself with a URL that hosts its metadata instead of registering per server.
 - **RFC 9207 `iss` validation** is required, so a client checks that the authorization response came from the issuer it expected (mix-up protection).
-- **SEP-2350** clarifies scope accumulation during step-up: a step-up request asks for the union of already-held scopes and the newly required ones, so a client does not lose earlier grants.
+- **Scope challenges name the operation.** A runtime `insufficient_scope` challenge SHOULD carry `scope` with every scope the current operation needs, in one challenge, plus `resource_metadata`. Scope accumulation (SEP-2350) is the client's job: on step-up it requests the union of its earlier scopes and the challenged ones.
+- **Audience binding.** Servers MUST validate that a token was issued for them as the RFC 8707 audience.
+- **Multi-round-trip requests (MRTR).** Server-to-client requests (`elicitation/create`, `sampling/createMessage`, `roots/list`) now travel inside an `input_required` result on `tools/call`, `prompts/get` or `resources/read`, with an opaque `requestState` the client echoes on retry. The server MUST treat `requestState` as attacker-controlled and protect it when it influences authorization; a client MAY retry at once when the result has no `inputRequests`, and a server MUST NOT send an input request the client did not declare.
 - **Enterprise-Managed Authorization (EMA)** is a stabilised [extension](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/extensions/auth/enterprise-managed-authorization.mdx): the client exchanges an SSO identity assertion for an ID-JAG (identity assertion JWT authorization grant) via RFC 8693 token exchange and redeems it with an RFC 7523 JWT-bearer grant at the MCP server's authorization server. Support is discovered through `authorization_grant_profiles_supported` in authorization server metadata.
 
 ## Why it matters for PermDock
@@ -38,10 +40,12 @@ guarded.registerTool(
 
 What `protectServer` does with each MCP concept:
 
-- **`scopeChallenge`.** `permission.scope` (`post:delete`) becomes the tool's `scopeChallenge`. A caller whose token lacks it receives the SDK's `403 insufficient_scope` step-up challenge before the handler runs. Because SEP-2350 says the client accumulates scopes, PermDock lists only the missing scope in the challenge.
+- **`scopeChallenge`.** `permission.scope` (`post:delete`) becomes the tool's `scopeChallenge`. A caller whose token lacks it receives the SDK's `403 insufficient_scope` step-up challenge, with `resource_metadata`, before the handler runs. The challenge names every scope the operation needs, which is the tool's one permission scope; the client adds the scopes it already holds.
+- **`resource`.** With the option set, a token whose `authInfo.resource` is absent or names another server is refused with `invalid_token` and lists no tools.
 - **Handler-level check.** When the scope is present, `protectServer` builds a request-scoped `PermDock` from `authInfo`, loads the instance with `data(args)`, validates `args` against the resource schema (`validate: 'boundary'`), and calls `decide(permission, instance)`. `denied` returns `isError: true` with the `Decision` reasons and `alternatives` as `structuredContent`, so the model can self-correct instead of retrying.
 - **`list_tools` filtering.** The tool list is filtered per caller from the subject's snapshot: a tool is listed when the delegation can cover its permission, some grant allows it and no deny blocks every row, so a model never sees tools it cannot use (the same idea as `capabilityMiddleware` in [ai-sdk](/docs/adapters/ai-sdk)). Listing is a hint, never a decision; the call itself is decided in full with the real instance.
-- **Approvals.** `approval-required` is returned as a structured tool result carrying `token` and an `elicitation: { mode: 'approval', token }` hint; the adapter does not send an `elicitation/create` request itself. Because the core is stateless, the client resumes on a later request and the approval is re-checked against `Decision.token` (see [approvals](/docs/security/approvals)). The adapter does not use the Tasks extension: a long-running approval is durable in the `ApprovalStore`, not in an MCP task.
+- **Approvals.** With `approval.at` set and a client that declares URL elicitation, `approval-required` is an MRTR `input_required` result: a URL-mode `elicitation/create` request pointing at the approval page and the approval token as `requestState`. The retry carries the state back and the approval is re-checked against `Decision.token` (see [approvals](/docs/security/approvals)). Otherwise it is a structured tool result carrying `token`. A bare `requestState` is never sent, because the client may retry it at once.
+- **Step-up.** An `insufficient-user-authentication` denial carries `acr_values` and `max_age` from the failing assurance grants; with `stepUp.at` set it is a URL-mode request to that page with both appended. The adapter does not use the Tasks extension: a long-running approval is durable in the `ApprovalStore`, not in an MCP task.
 - **EMA and CIMD.** PermDock does not implement the token exchange; it consumes the resulting `authInfo`. An ID-JAG-derived token still yields `scopes` and a `clientId`, so `actor` and `delegation` are filled the same way. The adapter parses no token itself: `authorization_details` reach `delegation` only when the token layer puts them on `authInfo.extra.authorizationDetails`. A CIMD client id is a URL and is recorded verbatim as `actor.id` for audit.
 - **RFC 9207.** Issuer validation is a client concern and is out of scope for the server adapter; the docs for the MCP example client note it.
 - **Two-principal subject.** `principal` comes from the token's user, `actor` from the client, `delegation` from the scopes and any `authorization_details`. The decision is the principal's grants intersected with the delegation, so an agent can never exceed its user (see [delegation](/docs/security/delegation)).
@@ -55,23 +59,33 @@ What `protectServer` does with each MCP concept:
 | RFC 9728 Protected Resource Metadata (`protectedResourceHandler`) | Not written by PermDock; its `scopes_supported` should list every permission `scope` the server exposes, which `permdock collect` emits |
 | `registerTool(..., { scopeChallenge })` | `permission` option on `guarded.registerTool`; `permission.scope` fills `scopeChallenge` |
 | `requireScopes()` | Applied automatically for tools with a `permission` |
-| `403 insufficient_scope` step-up | Emitted when `permission.scope` is missing from `authInfo.scopes` |
-| SEP-2350 scope accumulation | Challenge lists only missing scopes; `simulate()` can pre-compute the full set for a plan |
+| `403 insufficient_scope` step-up | Emitted when `permission.scope` is missing from `authInfo.scopes`, naming the operation's scopes and `resource_metadata` |
+| SEP-2350 scope accumulation | Client-side; the challenge names the operation's scopes, and `simulate()` can pre-compute the full set for a plan |
+| RFC 8707 audience validation | `resource` option; a mismatch is `invalid_token` |
 | `ctx.http.authInfo.scopes` | `delegation.scopes`; intersected with principal grants |
 | `authInfo.clientId` | `actor.id` with `actor.kind: 'mcp-client'` |
 | Handler returning `isError: true` | `Decision` denied, with reasons and `alternatives` in `structuredContent` |
 | Tool `inputSchema` | Cross-checked against the resource's Standard JSON Schema; args validated at the boundary |
-| Stateless elicitation (MRTR) | `approval-required` structured result with an elicitation hint, no `elicitation/create` request; approval re-checked against `Decision.token` |
+| MRTR `input_required` | `approval-required` and step-up as URL-mode requests when the client declares URL elicitation; `requestState` is the approval token (or sealed by `createRequestStateCodec`) |
 | Tasks extension | Not used; long-running approvals live in the `ApprovalStore` |
 | CIMD client identity | Recorded as `actor.id`; no registration step in PermDock |
 | RFC 9207 `iss` validation | Client-side; documented in the example client, not enforced by the adapter |
 | EMA (ID-JAG via RFC 8693, redeemed with RFC 7523) | Transparent: resulting `authInfo` is consumed like any other token |
 | `authorization_grant_profiles_supported` | Not read by PermDock; belongs to the client's discovery step |
 
+## Specification check
+
+Checked on 2026-09-30 against the published 2026-07-28 text and `@modelcontextprotocol/server` 2.2.0:
+
+- [Authorization, Scope Challenge Handling](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization): the challenge carries the scopes the operation needs and `resource_metadata`; accumulation is client-side. PermDock previously listed held plus missing scopes and now lists only the needed ones.
+- [Multi Round-Trip Requests](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr): `input_required` on `tools/call`, `prompts/get` and `resources/read`; URL-mode elicitation has no `elicitationId` on this revision.
+- SDK 2.2.0 supports it: handlers may return `InputRequiredResult` (built with `inputRequired()` or as a literal), read `ctx.mcpReq.requestState()` and `ctx.mcpReq.inputResponses` on retry, and seal state with `createRequestStateCodec` wired into `ServerOptions.requestState.verify`. The client drives rounds automatically and gives up after its round limit. A 2025-11-25 session gets the same result through the SDK's legacy shim.
+
 ## Sources
 
 - [MCP specification 2026-07-28, Authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization).
 - [MCP 2026-07-28 release post](https://blog.modelcontextprotocol.io/posts/2026-07-28/): stateless core, CIMD over DCR, RFC 9207, SEP-2350.
+- [MCP specification 2026-07-28, Multi Round-Trip Requests](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr).
 - [Enterprise-Managed Authorization extension](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/extensions/auth/enterprise-managed-authorization.mdx).
 - [MCP specification index](https://modelcontextprotocol.io/specification) and [llms.txt](https://modelcontextprotocol.io/llms.txt).
 - [Landscape research](/docs/research/landscape), MCP section: SDK v2 `requireBearerAuth`, `AuthInfo`, hand-written per-tool checks.

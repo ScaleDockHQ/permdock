@@ -82,7 +82,7 @@ const resolve = createJwtSubjectResolver({
 
 ### Step-up denials
 
-A permission whose condition reads `subject.assurance` (for example `acr` in a required set, or `authTime` newer than a bound) is `denied` with reason `insufficient-user-authentication`. HTTP adapters render that exact reason as the RFC 9470 challenge, `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="<required>", max_age=<seconds>`, taking `acr_values` and `max_age` from the condition that failed; the status is 401 and the Problem Details body is `type: .../step-up-required` carrying the same values as `acrValues` and `maxAge` ([Problem Details](/docs/standards/problem-details)). MCP renders it as a `scopeChallenge`-style elicitation. The mapping from every denial reason to RFC 6750 and RFC 9470 is on the [JWT adapter](/docs/adapters/jwt).
+A permission whose condition reads `subject.assurance` (for example `acr` in a required set, or `authTime` newer than a bound) is `denied` with reason `insufficient-user-authentication`. HTTP adapters render that exact reason as the RFC 9470 challenge, `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="<required>", max_age=<seconds>`, taking `acr_values` and `max_age` from the condition that failed; the status is 401 and the Problem Details body is `type: .../step-up-required` carrying the same values as `acrValues` and `maxAge` ([Problem Details](/docs/standards/problem-details)). MCP returns the same `acr_values` and `max_age` in the refusal, and an `input_required` URL request to `stepUp.at` when it is set. The mapping from every denial reason to RFC 6750 and RFC 9470 is on the [JWT adapter](/docs/adapters/jwt).
 
 ### Back-Channel Logout as a revocation input
 

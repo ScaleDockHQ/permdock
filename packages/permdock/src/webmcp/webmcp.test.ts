@@ -185,7 +185,7 @@ describe('registerTools', () => {
     ).toBe('deny');
   });
 
-  it('returns approval elicitation unless the page confirms', async () => {
+  it('returns the approval token unless the page confirms', async () => {
     const permdock = await clientOf(memberUser);
     const { context, tools } = fakeContext();
     const handler = vi.fn<() => Promise<string>>(async () => 'deleted');
@@ -198,7 +198,11 @@ describe('registerTools', () => {
       throw new Error('expected post_delete');
     }
     const asked = await remove.execute(ownPost);
-    expect(asked.structuredContent?.outcome).toBe('approval-required');
+    expect(asked.structuredContent).toMatchObject({
+      outcome: 'approval-required',
+      token: expect.any(String),
+    });
+    expect(asked.structuredContent).not.toHaveProperty('elicitation');
     expect(handler).not.toHaveBeenCalled();
     const confirmed = fakeContext();
     registerTools(confirmed.context, permissions.post, {

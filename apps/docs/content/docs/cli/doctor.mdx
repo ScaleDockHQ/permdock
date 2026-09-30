@@ -55,6 +55,12 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD033` | A role `activation` has no `maxDuration` (the elevation never expires on its own), or an activation role is held standing by a `doctor.memberships` fixture | warning |
 | `PD034` | Under an `rls` config, a `breakGlass` grant would be compiled: RLS never compiles a break-glass override, so it reads through the generated `permdock_break_glass_<resource>` function instead | warning |
 | `PD035` | A `supportAccess` role has `actorRequired: false`, so a support session runs as the tenant, unattributed | warning |
+| `PD036` | A `protect(permission)` with no row loader on a route whose path names an id (`/posts/:id`, `/posts/{id}`, a `[id]` folder), so the check never sees the row (BOLA) | warning |
+| `PD037` | A migration's policy on `storage.objects` or `realtime.messages` calls `permdock_has` or `permitted_<scope>_ids` with a permission whose grants carry row conditions, which the helpers do not check | error |
+| `PD038` | Under an `rls` or `supabase.hook` config, a `subjectFromSupabase` or `subjectFromSupabaseSession` call reads the tenant from a different claim than `rls.tenantClaim`, the claim the hook writes and the helpers compare with | warning |
+| `PD039` | Under a `supabase.hook` config, the helper schema has no generated `permdock_has` or `permitted_<scope>_ids`, a `supabase.hook.claims` entry in the `doctor.claims` fixture is larger than the memberships budget, or a sample has a `memberships` entry `subjectFromSupabase` drops | warning |
+| `PD040` | A SQL migration calls `auth.role()`, which Supabase deprecated | warning |
+| `PD041` | An `exchangeCapability` call signs with `alg: 'HS256'`, the project's shared JWT secret | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -220,6 +226,30 @@ A `breakGlass` grant is the one deny override, and it is non-portable on purpose
 ### PD035: support access without an actor
 
 `supportAccess` is impersonation: a vendor acts inside a tenant. With `actorRequired: false` the session runs as the tenant with no `act`, so the audit log cannot tell the vendor apart from the customer. The check names each support role that omits it; set `actorRequired: true` ([elevated access](/docs/concepts/elevated-access)). `--only support` runs PD035.
+
+### PD036: id route without a row loader
+
+Broken object level authorization (BOLA, OWASP API1) is a route that takes an object id and checks only that the caller holds the permission, so anyone who may update one post may update every post. `protect(permission, loader)` loads the row and decides against it; `protect(permission)` alone decides a collection-level question. The check reads each `protect(` call with a single argument and warns when the file sits under a dynamic route segment (`app/posts/[id]/route.ts`) or when a route literal with a parameter (`'/posts/:id'`, `'/posts/{id}'`) appears earlier in the same statement. It is a source scan, not a type check: a route that loads the row some other way and calls `assert` in the handler also passes, and can ignore the warning. `--only bola` runs PD036.
+
+### PD037: helper calls for row-conditioned permissions
+
+The SQL helpers answer one question, whether the subject holds a role with the grant key in a scope; the row conditions of a grant stay in PermDock's own table policies ([RLS](/docs/adapters/rls#sql-helper-contract)). A Storage or Realtime policy written outside PermDock, such as better-supabase's `defineBucket` or `defineTopic` in `permdock` mode, that calls a helper for a permission with a `where`, `check`, closure, field list, purpose, break-glass override, or a relation, plan, actor or assurance grantee would therefore grant more than the application does. The check reads `create policy` statements on `storage.objects` and `realtime.messages` from the migration directories (`doctor.migrations`) and errors on each helper call whose key has `rowConditions: true` in the catalog. `permdock rls verify --db` runs the same check against `pg_policies`. `--only supabase` or `--only row-conditions` runs PD037.
+
+### PD038: tenant claim mismatch
+
+The hook writes the active tenant to `rls.tenantClaim` (default `supabaseTenantClaim`, `tenant_id`), and the generated helpers compare against it; `subjectFromSupabase` and `subjectFromSupabaseSession` read it from their `tenant` option, with the same default. When the two differ, the subject has no active tenant while RLS still scopes rows to one, so `can()` and the database disagree. The check finds each call in the source scan and compares its `tenant` option, or the default when the call passes none, with `rls.tenantClaim`. A call whose options are a variable is skipped. `--only supabase` or `--only tenant` runs PD038.
+
+### PD039: Supabase hook setup
+
+The hook writes claims that only the generated SQL helpers read. The check lists the helpers the policy's scopes need (`permdock_has` and `permitted_<scope>_ids` in `rls.schema`) and warns on each one no SQL file defines: `rls.out` (else `rls.sql`) and the `doctor.migrations` folders, never the hook's own file. `permdock supabase hook generate` prints the same warning, and with `--db` looks in the database instead. When `doctor.claims` points at a JSON array of sample decoded tokens, the check also measures each `supabase.hook.claims` entry and warns when its largest sample is more bytes of JSON than the memberships budget: those claims sit outside the budget but still travel in the session cookie. It also lists each sample's `memberships` entries that `subjectFromSupabase` cannot read (the `membership-dropped` cause at runtime). `--only supabase` or `--only helpers` runs PD039.
+
+### PD040: `auth.role()` in a migration
+
+Supabase deprecated `auth.role()`. The role a request runs under is already the Postgres role (`anon` or `authenticated`), so a policy names it with `to authenticated` instead of testing `auth.role() = 'authenticated'` in `using`. The check scans the `doctor.migrations` folders, skipping comments, and names each call by file and line. `--only auth-role` runs it.
+
+### PD041: HS256 capability tokens
+
+`exchangeCapability` can sign with the project's legacy JWT secret (`alg: 'HS256'`, `key: { secret }`). Whoever holds that secret can mint a token for any user, not just a link. The check warns on each call whose options are a literal with `alg: 'HS256'`; sign with `ES256` and the private JWK of an asymmetric Supabase signing key instead. `--only capabilities` runs it. Token lifetime, refresh-token reuse and HS256 on the local stack are better-supabase's checks; PermDock keeps PD019 because it is about how stale the authorization claims may be.
 
 ## Why
 

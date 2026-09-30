@@ -1,6 +1,12 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
-import type { Membership, Subject } from '../core/subject.ts';
+import type { AuthEvent } from '../core/interfaces.ts';
+import type {
+  Actor,
+  Delegation,
+  Membership,
+  Subject,
+} from '../core/subject.ts';
 import type {
   SupabasePrincipal,
   SupabaseSessionLike,
@@ -10,6 +16,7 @@ import type {
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { anonymousSubject } from '../core/subject.ts';
+import { supabaseTenantClaim } from './budget.ts';
 
 const REGISTERED = new Set([
   'sub',
@@ -28,6 +35,9 @@ const REGISTERED = new Set([
   'is_anonymous',
   'app_metadata',
   'user_metadata',
+  'act',
+  'client_id',
+  'scope',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -66,69 +76,167 @@ function asRoles(
   return raw.filter((role) => allowed.has(role));
 }
 
-function asMemberships(value: unknown): readonly Membership[] {
+type ReadMemberships = {
+  readonly memberships: readonly Membership[];
+  /** Indexes of the entries that could not be read and were dropped. */
+  readonly dropped: readonly number[];
+};
+
+/** Reads the `memberships` claim; an entry it cannot read is dropped and its index reported. */
+export function readMemberships(value: unknown): ReadMemberships {
   if (!Array.isArray(value)) {
-    return [];
+    return { memberships: [], dropped: [] };
   }
   const out: Membership[] = [];
-  for (const item of value) {
-    if (!isRecord(item) || !Array.isArray(item.roles)) {
-      continue;
+  const dropped: number[] = [];
+  for (const [index, item] of value.entries()) {
+    const membership = asMembership(item);
+    if (membership === undefined) {
+      dropped.push(index);
+    } else {
+      out.push(membership);
     }
-    const roles = item.roles.filter(
-      (role): role is string => typeof role === 'string',
-    );
-    if (roles.length === 0) {
-      continue;
-    }
-    const scope = typeof item.scope === 'string' ? item.scope : undefined;
-    const id = typeof item.id === 'string' ? item.id : undefined;
-    const within = isRecord(item.within)
-      ? Object.fromEntries(
-          Object.entries(item.within).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string',
-          ),
-        )
-      : undefined;
-    const tenant = typeof item.tenant === 'string' ? item.tenant : undefined;
-    const team = typeof item.team === 'string' ? item.team : undefined;
-    const onRecord = isRecord(item.on) ? item.on : undefined;
-    const on =
-      onRecord !== undefined &&
-      typeof onRecord.resource === 'string' &&
-      typeof onRecord.id === 'string'
-        ? { resource: onRecord.resource, id: onRecord.id }
-        : undefined;
-    if (
-      (scope === undefined || id === undefined) &&
-      tenant === undefined &&
-      team === undefined &&
-      on === undefined
-    ) {
-      continue;
-    }
-    out.push(
-      compact<Membership>({
-        roles,
-        scope,
-        id,
-        within,
-        tenant,
-        team,
-        on,
-        via: typeof item.via === 'string' ? item.via : undefined,
-        expiresAt:
-          typeof item.expiresAt === 'number' ? item.expiresAt : undefined,
-        managedBy: item.managedBy === 'idp' ? 'idp' : undefined,
-        entitlements: Array.isArray(item.entitlements)
-          ? item.entitlements.filter(
-              (seat): seat is string => typeof seat === 'string',
-            )
-          : undefined,
-      }),
-    );
   }
-  return out;
+  return { memberships: out, dropped };
+}
+
+function asMembership(item: unknown): Membership | undefined {
+  if (!isRecord(item) || !Array.isArray(item.roles)) {
+    return undefined;
+  }
+  const roles = item.roles.filter(
+    (role): role is string => typeof role === 'string',
+  );
+  if (roles.length === 0) {
+    return undefined;
+  }
+  const scope = typeof item.scope === 'string' ? item.scope : undefined;
+  const id = typeof item.id === 'string' ? item.id : undefined;
+  const within = isRecord(item.within)
+    ? Object.fromEntries(
+        Object.entries(item.within).filter(
+          (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+      )
+    : undefined;
+  const tenant = typeof item.tenant === 'string' ? item.tenant : undefined;
+  const team = typeof item.team === 'string' ? item.team : undefined;
+  const onRecord = isRecord(item.on) ? item.on : undefined;
+  const on =
+    onRecord !== undefined &&
+    typeof onRecord.resource === 'string' &&
+    typeof onRecord.id === 'string'
+      ? { resource: onRecord.resource, id: onRecord.id }
+      : undefined;
+  if (
+    (scope === undefined || id === undefined) &&
+    tenant === undefined &&
+    team === undefined &&
+    on === undefined
+  ) {
+    return undefined;
+  }
+  return compact<Membership>({
+    roles,
+    scope,
+    id,
+    within,
+    tenant,
+    team,
+    on,
+    via: typeof item.via === 'string' ? item.via : undefined,
+    expiresAt: typeof item.expiresAt === 'number' ? item.expiresAt : undefined,
+    managedBy: item.managedBy === 'idp' ? 'idp' : undefined,
+    entitlements: Array.isArray(item.entitlements)
+      ? item.entitlements.filter(
+          (seat): seat is string => typeof seat === 'string',
+        )
+      : undefined,
+  });
+}
+
+function asStrings(value: unknown): readonly string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+/** `claims[plans][tenant]`: only the active tenant's entry, never another tenant's. */
+function plansFor(
+  claims: Record<string, unknown>,
+  name: string | undefined,
+  tenant: string | undefined,
+): readonly string[] {
+  if (name === undefined || tenant === undefined) {
+    return [];
+  }
+  const byTenant = readClaim(claims, name);
+  if (!isRecord(byTenant) || !Object.hasOwn(byTenant, tenant)) {
+    return [];
+  }
+  return asStrings(byTenant[tenant]);
+}
+
+type ActorClaim =
+  | { readonly status: 'ok'; readonly actor: Actor; readonly chain?: unknown }
+  | { readonly status: 'invalid' }
+  | { readonly status: 'absent' };
+
+/** RFC 8693 `act` (innermost `sub`), else the OAuth `client_id` of a third-party app. */
+function actorOf(claims: Record<string, unknown>): ActorClaim {
+  if (Object.hasOwn(claims, 'act') && claims.act !== undefined) {
+    let current: unknown = claims.act;
+    let innermost: Record<string, unknown> | undefined;
+    while (current !== undefined) {
+      if (!isRecord(current)) {
+        return { status: 'invalid' };
+      }
+      innermost = current;
+      current = Object.hasOwn(current, 'act') ? current.act : undefined;
+    }
+    const sub = innermost?.sub;
+    if (typeof sub !== 'string' || sub === '') {
+      return { status: 'invalid' };
+    }
+    return {
+      status: 'ok',
+      actor: { id: sub, kind: 'oauth-client' },
+      chain: claims.act,
+    };
+  }
+  const client = claims.client_id;
+  if (typeof client === 'string' && client !== '') {
+    return { status: 'ok', actor: { id: client, kind: 'oauth-client' } };
+  }
+  return { status: 'absent' };
+}
+
+function delegationOf(
+  claims: Record<string, unknown>,
+  chain: unknown,
+): Delegation | undefined {
+  const scope = claims.scope;
+  const scopes =
+    typeof scope === 'string'
+      ? scope.split(/\s+/u).filter(Boolean)
+      : asStrings(scope);
+  const delegation = compact<Delegation>({
+    scopes: scopes.length > 0 ? scopes : undefined,
+    chain,
+  });
+  return Object.keys(delegation).length === 0 ? undefined : delegation;
+}
+
+function emit(
+  options: SupabaseSubjectOptions,
+  reason: AuthEvent['reason'],
+  cause: string,
+): void {
+  try {
+    options.onAuth?.({ reason, cause, source: 'supabase' });
+  } catch {
+    // A throwing audit hook never changes the subject.
+  }
 }
 
 function validateClaims(
@@ -175,8 +283,13 @@ function mapClaims(
   if (typeof id !== 'string' || id === '') {
     return anonymousSubject();
   }
+  const act = actorOf(claims);
+  if (act.status === 'invalid') {
+    emit(options, 'invalid-token', 'invalid-chain');
+    return anonymousSubject();
+  }
   const roleClaim = options.roles ?? 'user_role';
-  const tenantClaim = options.tenant ?? 'tenant_id';
+  const tenantClaim = options.tenant ?? supabaseTenantClaim;
   const membershipsClaim = options.memberships ?? 'memberships';
   let extra = extraClaims(claims);
   if (options.schema !== undefined) {
@@ -185,12 +298,21 @@ function mapClaims(
   const include = new Set(options.include ?? []);
   const tenantValue = readClaim(claims, tenantClaim);
   const version = readClaim(claims, 'authz_ver');
+  const tenant = typeof tenantValue === 'string' ? tenantValue : undefined;
+  const { memberships, dropped } = readMemberships(
+    readClaim(claims, membershipsClaim),
+  );
+  if (dropped.length > 0) {
+    emit(options, 'schema', 'membership-dropped');
+  }
+  const plans = plansFor(claims, options.plans, tenant);
   const principal = compact<SupabasePrincipal>({
     id,
     kind: 'user',
     roles: asRoles(readClaim(claims, roleClaim), options.declared),
-    tenant: typeof tenantValue === 'string' ? tenantValue : undefined,
-    memberships: asMemberships(readClaim(claims, membershipsClaim)),
+    tenant,
+    plans: plans.length > 0 ? plans : undefined,
+    memberships,
     membershipsTruncated:
       readClaim(claims, 'memberships_truncated') === true ? true : undefined,
     authzVersion:
@@ -219,6 +341,9 @@ function mapClaims(
   return freezeDeep(
     compact<Subject<SupabasePrincipal>>({
       principal,
+      actor: act.status === 'ok' ? act.actor : undefined,
+      delegation:
+        act.status === 'ok' ? delegationOf(claims, act.chain) : undefined,
       context: {},
       session,
       expiresAt,

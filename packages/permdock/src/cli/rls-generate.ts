@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import type { Policy } from '../index.ts';
+import type { CompiledPolicy } from './rls-compile.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 import type {
   CliIo,
@@ -13,6 +14,7 @@ import type {
 
 import { scopeList } from '../core/scopes.ts';
 import { listRoles } from '../index.ts';
+import { supabaseTenantClaim } from '../supabase/budget.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { breakGlassEntries, breakGlassSql } from './rls-break-glass.ts';
 import { compileGrants } from './rls-compile.ts';
@@ -23,7 +25,7 @@ import { closureDepths, graphPlan, graphSql } from './rls-graph.ts';
 import { helpersSql } from './rls-helpers.ts';
 import { ownershipRules, ownershipSql } from './rls-ownership.ts';
 import { assemblePolicies } from './rls-policies.ts';
-import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
+import { type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
 import {
   checkSuspension,
   graphHelper,
@@ -35,6 +37,8 @@ export type GenerateOutcome = {
   readonly code: 0 | 1 | 2;
   readonly output: string;
   readonly text: string;
+  /** The policies `text` creates; set when `write` is false. */
+  readonly policies?: readonly CompiledPolicy[];
 };
 
 async function loadPolicy(
@@ -107,6 +111,8 @@ export async function runRlsGenerate(input: {
   readonly capabilities?: boolean;
   readonly fields?: string;
   readonly revokeColumns?: boolean;
+  /** `false` returns the SQL and its policies without touching `out`. */
+  readonly write?: boolean;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
   const rls = input.config.rls;
@@ -151,7 +157,7 @@ export async function runRlsGenerate(input: {
   const ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
-    tenantClaim: rls?.tenantClaim ?? 'tenant_id',
+    tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
     gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? 'app',
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
     schema,
@@ -235,7 +241,7 @@ export async function runRlsGenerate(input: {
   }
   if (input.rbac) {
     warnings.push(
-      `enable the hook: [auth.hook.custom_access_token] enabled = true, uri = "${hookUri(schema)}"`,
+      'the token hook that writes user_role and memberships comes from permdock supabase hook generate',
     );
   }
   const owned = ownershipSql(ctx);
@@ -289,6 +295,9 @@ export async function runRlsGenerate(input: {
   }
   for (const column of compiled.filtered) {
     warnings.push(`index suggestion: create index on ${column}`);
+  }
+  if (input.write === false) {
+    return { code: 0, output: warnings.join('\n'), text, policies };
   }
   const outRel = input.out ?? rls?.out ?? defaultOut(input.target);
   const outPath = resolve(input.cwd, outRel);

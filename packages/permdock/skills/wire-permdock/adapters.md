@@ -214,7 +214,9 @@ server.registerTool(
 );
 ```
 
-`actor.kind` is `'mcp-client'`. Every `registerTool` / `registerResource` / `registerPrompt` needs a `permission`. Lists are filtered per caller. A missing scope is an `insufficient_scope` step-up (HTTP `403`). Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` returns `isError: true` with the token and parks it in `store`; the retried call runs once after approval (token optional under `_meta["dev.permdock/approval"]`, never from tool arguments).
+`actor.kind` is `'mcp-client'`. Every `registerTool` / `registerResource` / `registerPrompt` needs a `permission`. Lists are filtered per caller. A missing scope is an `insufficient_scope` step-up (HTTP `403`) naming only the scope the call needs. Set `resource` to the server's URL so tokens for another audience are refused. Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` parks the call in `store` and returns `isError: true` with the token, or an `input_required` URL request when `approval.at` is set and the client declares URL elicitation; the retried call runs once after approval (token optional under `_meta["dev.permdock/approval"]`, never from tool arguments).
+
+An MCP server that is not an SDK `McpServer` (better-supabase `createMcp`) cannot be wrapped: filter its tool list with `mayUse(permdock, permission)` from `permdock` and decide each call with `permdock.decide(permission, args)` in its `authorize` hook. `mayUse` is a listing hint, never a decision.
 
 ## AuthZEN — `permdock/authzen`
 
@@ -426,7 +428,7 @@ export const { permdock, protect, filterCommands, format, exitCode } =
   });
 ```
 
-Not the `permdock` binary. Never accept `--user` or `--actor` as identity.
+Not the `permdock` binary. Never accept `--user` or `--actor` as identity. In CI, verify the job token with `subjectFromCiOidc(jwt, { provider: 'github', audience })` from `permdock/jwt`, which returns a `workload` principal, never a user. A `destructive` permission asks for the resource id to be typed, and exits `64` without a terminal unless `--yes` is passed; `--yes` never approves an `approval-required` call. `--dry-run` decides and exits with the outcome's code without running the action.
 
 ## WebMCP — `permdock/webmcp`
 
@@ -626,7 +628,9 @@ const subject = subjectFromSupabase(claims, {
 });
 ```
 
-No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL as authority and run `permdock rls verify --db` against `sqlFunction` twins ([database-first](/docs/adapters/rls)).
+Write the claims with `permdock supabase hook generate`; `permdock supabase inspect --json` prints the manifest (helper names, tenant claim, budget, claims written) a package such as better-supabase reads before it writes Storage or Realtime policies against the helpers. No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL as authority and run `permdock rls verify --db` against `sqlFunction` twins ([database-first](/docs/adapters/rls)).
+
+With better-supabase, map its session with `subjectFromSupabaseSession(session, { plans: 'features' })`: the active tenant's `features` become `principal.plans`. A token Supabase's OAuth server issued to a third-party app (`client_id`) becomes an `oauth-client` actor limited to its `scope`; `deny(permission, { to: actor('oauth-client') })` keeps such apps out, in the app and, through `rls generate`, in Postgres. Check a deployed database against the generated policies with `permdock rls verify --introspect --db $DATABASE_URL`.
 
 `claims` is whatever Supabase verified: `data.claims` from `supabase.auth.getClaims()` on an `@supabase/ssr` server client, or `jwtClaims` from `@supabase/server` (`ctx.jwtClaims` in `withSupabase`, `c.var.supabaseContext.jwtClaims` in its Hono adapter). Pass `null` for anonymous callers; never `getSession().access_token` (unverified). An API-key auth mode (`secret`, `publishable`) has `jwtClaims: null` and is the anonymous subject, not a user.
 

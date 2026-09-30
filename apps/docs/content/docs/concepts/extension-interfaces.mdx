@@ -154,6 +154,7 @@ type RelationHolder = { principal: { id: string }; startsAt?: number; expiresAt?
 ```ts
 interface CredentialVerifier {
   verify(key: string): Credential | null | Promise<Credential | null>
+  touch?(id: string, at: number): void | Promise<void> // after a key resolved; not awaited, errors ignored
 }
 
 interface SettingsSource {
@@ -161,7 +162,7 @@ interface SettingsSource {
 }
 ```
 
-A verifier is where an API key is authenticated, so it belongs next to the `subjectFrom*` resolvers, never in core: `apiKeyVerifier({ find })` splits `pdk_<id>_<secret>`, reads one row by id, and compares the key's SHA-256 hash in constant time. `subjectFromApiKey` still re-validates what a verifier returns with `parseCredential` and checks expiry, revocation and the tenant settings itself, so a verifier that returns too much cannot widen a key. A verifier or settings source that throws denies with `source-threw`. Settings are read on every key use as well as at creation, so a tightened tenant rule reaches keys already issued ([API keys](/docs/concepts/credentials)).
+A verifier is where an API key is authenticated, so it belongs next to the `subjectFrom*` resolvers, never in core: `apiKeyVerifier({ find })` splits `pdk_<id>_<secret><checksum>`, reads one row by id, and compares the key's SHA-256 hash in constant time. `subjectFromApiKey` still re-validates what a verifier returns with `parseCredential` and checks expiry, revocation and the tenant settings itself, so a verifier that returns too much cannot widen a key. A verifier or settings source that throws denies with `source-threw`. Settings are read on every key use as well as at creation, so a tightened tenant rule reaches keys already issued ([API keys](/docs/concepts/credentials)).
 
 ### DirectoryStore
 
@@ -282,7 +283,7 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures })
 | `testMembershipSource` | Returns only well-formed memberships (one shape each: a named scope instance, the `tenant` / `team` input form, or `on`); with `policy`, every membership normalises under its [named scopes](/docs/concepts/scopes); a throw yields an empty list; results are JSON; with `list`, every instance a principal holds lists that principal; with `version`, the version is a finite number or absent |
 | `testEntitlementSource` | Returns plan names as strings for a tenant (matching `expect` when given) and none without a tenant |
 | `testRelationSource` | Chains are nearest first with non-empty string ids and no longer than `depth`; `depth: 1` returns the first ancestor with `truncated` when there are more; `depth: 0` returns none; holders have string principal ids and finite `startsAt` / `expiresAt`; an unknown object answers an empty chain and no holders instead of throwing; `expect` pins chains (`resource:id`) and holders (`resource:id#relation`) |
-| `testCredentialVerifier` | The live key (a string, or a function issuing one) verifies to a v1 credential whose id is the key's, twice alike; every other string (empty, not a key, a flipped secret, another id, another prefix, a trailing character) is `null` without a throw; with `revoke`, the revoked key stops verifying |
+| `testCredentialVerifier` | The live key (a string, or a function issuing one) verifies to a v1 credential whose id is the key's, twice alike; every other string (empty, not a key, a flipped secret, another id, another prefix, a trailing character) is `null` without a throw; with `touch`, touching the key's id and an unknown id leaves what the key verifies to unchanged; with `revoke`, the revoked key stops verifying |
 | `testSettingsSource` | The tenant's settings are plain JSON with a valid `credentials` block (`maxTtl` finite and non-negative, `kinds` only `user` / `service`); an unknown tenant has none |
 | `testRoleSource` | Every custom role belongs to the requested tenant; every `includes` entry is a declared role; with `{ policy }`, `validateCustomRole` drops nothing (every `grants` key is inside the ceiling); `assignable` is a subset of the declared roles |
 | `testDirectoryStore` | Users and groups round-trip through `put`, `get`, `find` and `patch`; the normalised `PATCH` shapes from the recorded Okta, Entra ID and Google Workspace requests apply correctly; `userName` and `externalId` are unique per tenant and a duplicate is reported, not overwritten; `groupsFor` reflects `members` after every operation; a second tenant never sees the first tenant's resources; `directoryMembershipSource` over the store yields no memberships for an `active: false` user; `scimHandler` over the store publishes `session-revoked` into a `RevocationFeed` and `onChange` when a `PATCH` deactivates a user |

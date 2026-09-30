@@ -20,6 +20,13 @@ import {
   hasConditionOp,
   memoryRoleSource,
 } from '../index.ts';
+import { supabaseTenantClaim } from '../supabase/budget.ts';
+import { rowConditionKeys } from './catalog-doc.ts';
+import {
+  HELPER_TABLE_POLICIES_SQL,
+  helperTablePoliciesFromRows,
+  rowConditionMessage,
+} from './helper-calls.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { requirePeer } from './peer.ts';
 import { commandFor } from './rls-compile.ts';
@@ -502,7 +509,7 @@ async function verifyAgainstDatabase(input: {
   }
   const dialect = input.config.rls?.dialect ?? 'supabase';
   const gucPrefix = input.config.rls?.gucPrefix ?? 'app';
-  const tenantClaim = input.config.rls?.tenantClaim ?? 'tenant_id';
+  const tenantClaim = input.config.rls?.tenantClaim ?? supabaseTenantClaim;
   const roleClaim = input.config.rls?.roleClaim ?? 'user_role';
   const rls = input.config.rls;
   const seedsTables =
@@ -534,6 +541,15 @@ async function verifyAgainstDatabase(input: {
   const mismatches: string[] = [];
   const notes: string[] = [];
   try {
+    const conditioned = rowConditionKeys(input.policy);
+    for (const found of helperTablePoliciesFromRows(
+      (await query(HELPER_TABLE_POLICIES_SQL)).rows,
+    )) {
+      const keys = found.keys.filter((key) => conditioned.has(key));
+      if (keys.length > 0) {
+        mismatches.push(`PD037 ${rowConditionMessage(found, keys)}`);
+      }
+    }
     for (const [index, fixture] of input.fixtures.entries()) {
       const permission = findPermission(
         input.policy.permissions,
@@ -644,7 +660,7 @@ async function verifyTreeAgainstDatabase(
           { subject: { id: subject }, row: {}, action: 'read' },
           config.rls?.dialect ?? 'supabase',
           config.rls?.gucPrefix ?? 'app',
-          config.rls?.tenantClaim ?? 'tenant_id',
+          config.rls?.tenantClaim ?? supabaseTenantClaim,
           config.rls?.roleClaim ?? 'user_role',
           [],
           scopes,

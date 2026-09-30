@@ -13,14 +13,16 @@ import type {
   A2ATaskOutcome,
 } from './types.ts';
 
-import { mayUse, storedApprovalToken } from '../agent/kernel.ts';
+import { storedApprovalToken } from '../agent/kernel.ts';
 import { resumeDecision } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from '../core/errors.ts';
+import { mayUse } from '../core/may-use.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
+import { bearerChallenge } from '../server/problem.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -111,11 +113,6 @@ function resourceRef(
     : { type: permission.resource };
 }
 
-function wwwAuthenticate(scope: string, held: readonly string[]): string {
-  const scopes = [...new Set([...held, scope])].toSorted().join(' ');
-  return `Bearer error="insufficient_scope", scope="${scopes}"`;
-}
-
 const LOAD_FAILED: Extract<Decision, { readonly outcome: 'denied' }> = {
   outcome: 'denied',
   denials: [{ role: null, reason: 'validation' }],
@@ -174,7 +171,7 @@ async function signCard(
   };
 }
 
-function missingScope(permission: Permission, auth: A2AAuth): A2ATaskOutcome {
+function missingScope(permission: Permission): A2ATaskOutcome {
   const problem: ProblemDetails = {
     type: 'https://permdock.dev/problems/unauthenticated',
     title: 'Insufficient scope',
@@ -188,7 +185,10 @@ function missingScope(permission: Permission, auth: A2AAuth): A2ATaskOutcome {
     status: 401,
     state: 'failed',
     problem,
-    wwwAuthenticate: wwwAuthenticate(permission.scope, auth.scopes ?? []),
+    wwwAuthenticate: bearerChallenge({
+      error: 'insufficient_scope',
+      scopes: [permission.scope],
+    }),
   };
 }
 
@@ -264,7 +264,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         };
       }
       if (!hasScope(auth, config.permission.scope)) {
-        return missingScope(config.permission, auth);
+        return missingScope(config.permission);
       }
       const dock = await instanceFor(auth);
       let data: unknown;

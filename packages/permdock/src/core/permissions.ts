@@ -1,6 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
-import { isReadonlyArray } from './compact.ts';
+import { compact, isReadonlyArray } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import {
   assertSafeKey,
@@ -18,6 +18,10 @@ export type ActionMeta = {
   readonly description?: string;
   readonly tags?: readonly string[];
   readonly readOnly?: boolean;
+  /** The action may destroy or overwrite data; only meaningful when not `readOnly`. */
+  readonly destructive?: boolean;
+  /** Repeating the action with the same input has no further effect. */
+  readonly idempotent?: boolean;
   /**
    * On a role, or on a permission the subject is granted: whoever holds it may
    * assign the whole custom-role ceiling, not only what they hold themselves.
@@ -123,6 +127,11 @@ export type ResourceOptions<
    * itself, never by relations held on its ancestors.
    */
   readonly restricted?: string;
+  /**
+   * `'hide'`: a denied check on a loaded row answers as if the row did not
+   * exist (HTTP `404`), so an id never confirms a row the caller cannot read.
+   */
+  readonly disclosure?: 'hide' | 'reveal';
 };
 
 export type ResourceInit<
@@ -144,6 +153,7 @@ export type ResourceNode<T = unknown> = {
   readonly relations: Readonly<Record<string, ResourceRelation>>;
   readonly version: string | undefined;
   readonly restricted: string | undefined;
+  readonly disclosure: 'hide' | 'reveal';
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
 };
@@ -233,6 +243,28 @@ function metaFor(list: ActionList | undefined, action: string): ActionMeta {
   }
   const meta = (list as Record<string, ActionMeta>)[action];
   return freezeDeep({ ...meta });
+}
+
+export type ToolHints = {
+  readonly readOnlyHint: boolean;
+  readonly destructiveHint?: boolean;
+  readonly idempotentHint?: boolean;
+};
+
+/**
+ * MCP and WebMCP tool hints from a permission's `meta`. Hints only inform the
+ * client; every call is still decided on the server.
+ */
+export function annotationsFor(permission: Permission): ToolHints {
+  const { meta } = permission;
+  const readOnlyHint =
+    meta.readOnly ??
+    (permission.action === 'read' || permission.action === 'list');
+  return compact<ToolHints>({
+    readOnlyHint,
+    destructiveHint: readOnlyHint ? undefined : meta.destructive,
+    idempotentHint: meta.idempotent,
+  });
 }
 
 function actionNames(list: ActionList | undefined): readonly string[] {
@@ -435,6 +467,12 @@ function materialiseResource(
   if (restricted !== undefined) {
     assertSafeKey(restricted, 'restricted field');
   }
+  const disclosure = init.options.disclosure ?? 'reveal';
+  if (disclosure !== 'hide' && disclosure !== 'reveal') {
+    throw new Error(
+      `PermDock: resource "${name}" disclosure must be 'hide' or 'reveal'`,
+    );
+  }
   const relations: Record<string, ResourceRelation> = {};
   for (const [relationName, spec] of Object.entries(
     init.options.relations ?? {},
@@ -453,6 +491,7 @@ function materialiseResource(
     relations: freezeDeep(relations),
     version,
     restricted,
+    disclosure,
     instanceActions: instanceSet,
     collectionActions: collectionSet,
   });

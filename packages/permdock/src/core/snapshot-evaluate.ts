@@ -270,6 +270,15 @@ export function evaluateSnapshot(
   }
   const [matched] = allows;
   if (matched === undefined) {
+    for (const entry of snapshot.notEntitled ?? []) {
+      if (entry.permission === permission.key) {
+        denials.push({
+          role: entry.role,
+          reason: 'not-entitled',
+          to: entry.to,
+        });
+      }
+    }
     return freezeDeep({
       outcome: 'denied',
       denials:

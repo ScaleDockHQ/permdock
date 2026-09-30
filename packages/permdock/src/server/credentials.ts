@@ -23,11 +23,41 @@ import { isThenable } from '../core/thenable.ts';
 
 const PREFIX = 'pdk_';
 const ID = /^[\w-]{1,128}$/u;
-const SECRET = /^[A-Za-z\d]{43}$/u;
+const TAIL = /^[A-Za-z\d]{49}$/u;
 const ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const SECRET_LENGTH = 43;
-const MAX_KEY = PREFIX.length + 128 + 1 + SECRET_LENGTH;
+const CHECKSUM_LENGTH = 6;
+const MAX_KEY = PREFIX.length + 128 + 1 + SECRET_LENGTH + CHECKSUM_LENGTH;
+
+const CRC_TABLE = ((): Uint32Array => {
+  const table = new Uint32Array(256);
+  for (let index = 0; index < 256; index += 1) {
+    let value = index;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xed_b8_83_20 ^ (value >>> 1) : value >>> 1;
+    }
+    table[index] = value >>> 0;
+  }
+  return table;
+})();
+
+/** CRC-32 (IEEE 802.3) of the key's ASCII bytes, as 6 base62 characters. */
+function checksum(text: string): string {
+  let crc = 0xff_ff_ff_ff;
+  for (let index = 0; index < text.length; index += 1) {
+    crc =
+      (CRC_TABLE[(crc ^ (text.codePointAt(index) ?? 0)) & 0xff] ?? 0) ^
+      (crc >>> 8);
+  }
+  let value = (crc ^ 0xff_ff_ff_ff) >>> 0;
+  let out = '';
+  for (let index = 0; index < CHECKSUM_LENGTH; index += 1) {
+    out = (ALPHABET[value % 62] ?? '') + out;
+    value = Math.floor(value / 62);
+  }
+  return out;
+}
 
 /** `on('auth')` causes for an API key that resolves to the anonymous subject. */
 export type ApiKeyFailureCause =
@@ -39,7 +69,7 @@ export type ApiKeyFailureCause =
   | 'credential-revoked'
   | 'owner-unavailable';
 
-/** An opaque key split at its last `_`: `pdk_<id>_<secret>`. */
+/** An opaque key split at its last `_`: `pdk_<id>_<secret><checksum>`. */
 export type ApiKeyParts = {
   readonly id: string;
   readonly secret: string;
@@ -52,8 +82,10 @@ export type StoredCredential = {
 };
 
 /**
- * Splits `pdk_<id>_<secret>`: `id` is 1 to 128 of `A-Z a-z 0-9 _ -`, the
- * secret 43 base62 characters. Anything else is `undefined`.
+ * Splits `pdk_<id>_<secret><checksum>`: `id` is 1 to 128 of `A-Z a-z 0-9 _ -`,
+ * the secret 43 base62 characters and the checksum the 6 base62 characters of
+ * the CRC-32 of everything before it. Anything else, including a checksum
+ * that does not match, is `undefined`.
  */
 export function parseApiKey(key: unknown): ApiKeyParts | undefined {
   if (
@@ -69,11 +101,21 @@ export function parseApiKey(key: unknown): ApiKeyParts | undefined {
     return undefined;
   }
   const id = body.slice(0, cut);
-  const secret = body.slice(cut + 1);
-  return ID.test(id) && SECRET.test(secret) ? { id, secret } : undefined;
+  const tail = body.slice(cut + 1);
+  if (!ID.test(id) || !TAIL.test(tail)) {
+    return undefined;
+  }
+  const secret = tail.slice(0, SECRET_LENGTH);
+  return tail.slice(SECRET_LENGTH) === checksum(`${PREFIX}${id}_${secret}`)
+    ? { id, secret }
+    : undefined;
 }
 
-/** A fresh `pdk_<id>_<secret>` with a 43-character base62 secret (about 256 bits). */
+/**
+ * A fresh `pdk_<id>_<secret><checksum>`: a 43-character base62 secret (about
+ * 256 bits) and a 6-character CRC-32 checksum, so a secret scanner can tell a
+ * real key from a lookalike without calling the issuer.
+ */
 export function generateApiKey(id: string): string {
   if (!ID.test(id)) {
     throw new TypeError(
@@ -91,7 +133,8 @@ export function generateApiKey(id: string): string {
       }
     }
   }
-  return `${PREFIX}${id}_${secret}`;
+  const key = `${PREFIX}${id}_${secret}`;
+  return `${key}${checksum(key)}`;
 }
 
 /** base64url SHA-256 of the whole key, the value to store and compare. */
@@ -130,8 +173,11 @@ export function apiKeyVerifier(options: {
     | null
     | undefined
     | Promise<StoredCredential | null | undefined>;
+  /** Passed through as the verifier's `touch`, for a `lastUsedAt` column. */
+  readonly touch?: CredentialVerifier['touch'];
 }): CredentialVerifier {
   return Object.freeze({
+    ...(options.touch === undefined ? {} : { touch: options.touch }),
     async verify(secret: string): Promise<Credential | null> {
       const parts = parseApiKey(secret);
       if (parts === undefined) {
@@ -163,6 +209,8 @@ export type MemoryCredentials = CredentialVerifier & {
   /** `true` when a credential was removed. */
   revoke(id: string): boolean;
   list(): readonly Credential[];
+  /** When `touch` last recorded a use of `id`, in Unix seconds. */
+  lastUsedAt(id: string): number | undefined;
 };
 
 function write(
@@ -187,6 +235,7 @@ export function memoryCredentials(
   options: { readonly sink?: DecisionSink; readonly source?: string } = {},
 ): MemoryCredentials {
   const records = new Map<string, StoredCredential>();
+  const used = new Map<string, number>();
   const verifier = apiKeyVerifier({ find: (id) => records.get(id) });
   const emit = (
     operation: 'created' | 'rotated' | 'revoked',
@@ -207,6 +256,14 @@ export function memoryCredentials(
   };
   return Object.freeze({
     verify: (secret: string) => verifier.verify(secret),
+    touch(id: string, at: number): void {
+      if (records.has(id)) {
+        used.set(id, at);
+      }
+    },
+    lastUsedAt(id: string): number | undefined {
+      return used.get(id);
+    },
     async issue(input: Credential): Promise<string> {
       const credential = parseCredential(input);
       if (credential === undefined) {
@@ -234,6 +291,7 @@ export function memoryCredentials(
         return false;
       }
       records.delete(id);
+      used.delete(id);
       emit('revoked', current.credential);
       return true;
     },
@@ -311,6 +369,20 @@ async function checkStores(
     return { ok: true, owner };
   } catch {
     return { ok: false };
+  }
+}
+
+function touch(verifier: CredentialVerifier, id: string): void {
+  if (verifier.touch === undefined) {
+    return;
+  }
+  try {
+    const touched = verifier.touch(id, Math.floor(Date.now() / 1000));
+    if (isThenable(touched)) {
+      void Promise.resolve(touched).catch(() => undefined);
+    }
+  } catch {
+    // a touch never changes the subject
   }
 }
 
@@ -429,5 +501,6 @@ async function resolveApiKey(
     return deny('owner-unavailable');
   }
   reportUse(options, credential);
+  touch(options.verifier, credential.id);
   return subject as Subject<CredentialPrincipal>;
 }

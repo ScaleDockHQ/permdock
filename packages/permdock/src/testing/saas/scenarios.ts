@@ -208,7 +208,7 @@ export const saasScenarios: readonly SaasScenario[] = Object.freeze([
     user: 'alice',
     tenant: 'acme',
     permission: p.analytics.read,
-    expected: { outcome: 'denied' },
+    expected: { outcome: 'denied', reason: 'not-entitled' },
   },
   {
     name: 'pro plan shows analytics to admins',
@@ -222,7 +222,7 @@ export const saasScenarios: readonly SaasScenario[] = Object.freeze([
     user: 'erin',
     tenant: 'acme',
     permission: p.analytics.read,
-    expected: { outcome: 'denied' },
+    expected: { outcome: 'denied', reason: 'not-entitled' },
   },
   {
     name: 'custom contractor role inherits member create',

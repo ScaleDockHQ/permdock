@@ -16,6 +16,7 @@ import { compact } from '../core/compact.ts';
 import { describe } from '../core/describe.ts';
 import { PermDockValidationError } from '../core/errors.ts';
 import {
+  annotationsFor,
   getRegistry,
   isRegistryTree,
   listPermissions,
@@ -47,13 +48,6 @@ function snapshotOf(permdock: WebMcpPermDock): Snapshot | undefined {
 
 function toolName(permission: Permission): string {
   return permission.key.replaceAll('.', '_');
-}
-
-function readOnlyHint(permission: Permission): boolean {
-  if (permission.meta.readOnly !== undefined) {
-    return permission.meta.readOnly;
-  }
-  return permission.action === 'read' || permission.action === 'list';
 }
 
 function untrustedHint(
@@ -220,7 +214,6 @@ function approvalResult(
       permission: permission.key,
       resource: resourceRef(permission, data),
       token: decision.token,
-      elicitation: { mode: 'approval', token: decision.token },
     },
   };
 }
@@ -435,7 +428,7 @@ function registerGeneration(
             ? jsonSchemaOf(schema)
             : undefined,
         annotations: compact({
-          readOnlyHint: readOnlyHint(permission),
+          readOnlyHint: annotationsFor(permission).readOnlyHint,
           untrustedContentHint: untrustedHint(
             permission,
             options.untrustedContentHint,

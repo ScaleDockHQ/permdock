@@ -19,6 +19,7 @@ import type {
 } from '@modelcontextprotocol/server';
 
 import type { ApprovalStore } from '../approvals/types.ts';
+import type { ApprovalHint } from '../core/errors.ts';
 import type { PolicySource } from '../core/hosted.ts';
 import type {
   DecisionSink,
@@ -40,6 +41,8 @@ export type McpAuthInfo = {
   readonly scopes?: readonly string[];
   readonly expiresAt?: number;
   readonly resource?: URL;
+  /** Stamped by the SDK's bearer-auth helpers from their `resourceMetadataUrl` option. */
+  readonly resourceMetadataUrl?: string;
   readonly extra?: Readonly<Record<string, unknown>>;
 };
 
@@ -138,6 +141,25 @@ export type McpPermDockOptions<TUser = unknown> = {
       ) => string | undefined | Promise<string | undefined>);
   /** Deny every call and list nothing when the transport carries no auth info. */
   readonly requireAuthInfo?: boolean;
+  /**
+   * This server's RFC 8707 resource identifier. A token whose
+   * `authInfo.resource` is absent or different is refused with `invalid_token`.
+   */
+  readonly resource?: string | URL;
+  /**
+   * Where a human approves. With `at` set, `approval-required` answers a
+   * client that supports URL elicitation with an `input_required` result.
+   */
+  readonly approval?: ApprovalHint;
+  /** Where the user re-authenticates; `acr_values` and `max_age` are appended to `at`. */
+  readonly stepUp?: { readonly at: string };
+  /**
+   * Seals the approval token into `requestState`. Pass the codec from the
+   * SDK's `createRequestStateCodec` when the server verifies request state.
+   */
+  readonly requestState?: {
+    readonly mint: (token: string, context?: never) => Promise<string>;
+  };
   readonly memberships?: MembershipSource | readonly MembershipSource[];
   /** The object graph for relation grants that walk a parent chain; without it they deny. */
   readonly relations?: RelationSource;

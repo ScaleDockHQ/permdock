@@ -18,13 +18,14 @@ import type {
   TokenContext,
   TokenHelper,
   TokenSource,
+  TypedConfirm,
 } from './types.ts';
 
 import { compact } from '../core/compact.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { isSubject } from '../core/subject.ts';
 import { revokeCredential } from './device.ts';
-import { defaultExit, EX_NOPERM } from './exit.ts';
+import { defaultExit, EX_NOPERM, EX_USAGE } from './exit.ts';
 import { filterCommandEntries } from './filter.ts';
 import { exitCode, formatDecision } from './format.ts';
 import { deleteCredentials, readCredentials } from './storage.ts';
@@ -65,6 +66,18 @@ function jsonOutput(options: TerminalPermDockOptions): boolean {
     return options.output.json;
   }
   return argvOf(options).includes('--json');
+}
+
+function flag(
+  options: TerminalPermDockOptions,
+  value: boolean | undefined,
+  names: readonly string[],
+): boolean {
+  if (value !== undefined) {
+    return value;
+  }
+  const argv = argvOf(options);
+  return names.some((name) => argv.includes(name));
 }
 
 function actorFromResolved(value: unknown): TerminalActor {
@@ -121,13 +134,9 @@ function defaultConfirm(input: {
     input: process.stdin,
     output: process.stderr,
   });
-  const id =
-    input.resource.id === undefined
-      ? input.resource.type
-      : `${input.resource.type} ${input.resource.id}`;
   return new Promise((resolve) => {
     rl.question(
-      `${input.permission} on ${id} (${input.reason}). Continue? [y/N] `,
+      `${input.permission} on ${describeResource(input.resource)} (${input.reason}). Continue? [y/N] `,
       (answer) => {
         rl.close();
         resolve(answer.trim().toLowerCase() === 'y');
@@ -135,6 +144,31 @@ function defaultConfirm(input: {
     );
   });
 }
+
+function describeResource(resource: {
+  readonly type: string;
+  readonly id?: string;
+}): string {
+  return resource.id === undefined
+    ? resource.type
+    : `${resource.type} ${resource.id}`;
+}
+
+const defaultTyped: TypedConfirm = (input) => {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+  return new Promise((resolve) => {
+    rl.question(
+      `${input.permission} on ${describeResource(input.resource)} cannot be undone. Type ${input.expected} to continue: `,
+      (answer) => {
+        rl.close();
+        resolve(answer);
+      },
+    );
+  });
+};
 
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
@@ -263,15 +297,29 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         next: Permission,
         row?: unknown,
         decideOptions?: {
-          readonly source: 'adapter';
+          readonly source: 'adapter' | 'simulate';
           readonly adapter: string;
         },
       ) => Decision;
+      const dryRun = flag(options, options.dryRun, ['--dry-run']);
       const first = decide(
         permission,
         data,
-        compact({ source: 'adapter' as const, adapter: 'terminal' }),
+        dryRun
+          ? { source: 'simulate', adapter: 'terminal' }
+          : { source: 'adapter', adapter: 'terminal' },
       );
+
+      if (dryRun) {
+        write(
+          first.outcome === 'granted'
+            ? jsonOutput(options)
+              ? `${JSON.stringify({ outcome: 'granted', permission: permission.key, dryRun: true })}\n`
+              : `dry run: ${permission.key} on ${describeResource(resourceRef(permission, data))} is granted; nothing ran\n`
+            : format(first, { permission, subject: instance.subject }),
+        );
+        return exit(exitCode(first));
+      }
 
       if (first.outcome === 'denied') {
         write(format(first, { permission, subject: instance.subject }));
@@ -293,7 +341,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         }
         const confirm =
           typeof options.interactive === 'object'
-            ? options.interactive.confirm
+            ? (options.interactive.confirm ?? defaultConfirm)
             : defaultConfirm;
         const promptToken = first.token;
         const accepted = await confirm({
@@ -340,6 +388,33 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           };
         } else {
           write(format(again, { permission, subject: instance.subject }));
+          return exit(EX_NOPERM);
+        }
+      }
+
+      if (
+        permission.meta.destructive === true &&
+        !flag(options, options.yes, ['--yes', '-y'])
+      ) {
+        const resource = resourceRef(permission, data);
+        if (!isInteractive(options)) {
+          write(
+            `${permission.key} on ${describeResource(resource)} is destructive: pass --yes to run it without a terminal\n`,
+          );
+          return exit(EX_USAGE);
+        }
+        const typed =
+          typeof options.interactive === 'object'
+            ? (options.interactive.typed ?? defaultTyped)
+            : defaultTyped;
+        const expected = resource.id ?? permission.key;
+        const answer = await typed({
+          permission: permission.key,
+          resource,
+          expected,
+        });
+        if (answer.trim() !== expected) {
+          write(`${permission.key}: confirmation did not match; nothing ran\n`);
           return exit(EX_NOPERM);
         }
       }

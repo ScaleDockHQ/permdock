@@ -1,18 +1,27 @@
+import type { SupabaseHookManifest } from '../supabase/manifest.ts';
+
 /**
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
- * multi-org apps). Plain data: no Supabase or better-supabase types.
+ * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.2 emits: scoped
+ * memberships, `tenant_id` and per-tenant plans in `features`. Plain data: no Supabase or
+ * better-supabase types.
  */
 export type SupabaseClaimFixture = {
   readonly claims: Readonly<Record<string, unknown>>;
+  /** `subjectFromSupabase` options the case needs. */
+  readonly options?: { readonly plans?: string };
   readonly expect: {
     readonly id: string | null;
     readonly roles: readonly string[];
     readonly memberships: readonly {
-      readonly tenant: string;
+      readonly tenant?: string;
+      readonly scope?: string;
+      readonly id?: string;
       readonly roles: readonly string[];
     }[];
     readonly tenant?: string;
+    readonly plans?: readonly string[];
   };
 };
 
@@ -39,6 +48,7 @@ export type SupabaseClaimFixtureName =
   | 'nullRole'
   | 'userMetadataIgnored'
   | 'multiOrg'
+  | 'betterSupabase'
   | 'anon'
   | 'serviceRole';
 
@@ -109,6 +119,49 @@ export const supabaseClaimFixtures: Readonly<
       ],
     },
   },
+  betterSupabase: {
+    claims: {
+      ...base,
+      user_role: null,
+      tenant_id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+      memberships: [
+        {
+          scope: 'tenant',
+          id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+          roles: ['admin'],
+        },
+        {
+          scope: 'tenant',
+          id: '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9',
+          roles: ['viewer'],
+        },
+      ],
+      features: {
+        '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6': ['pro'],
+        '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9': ['free'],
+      },
+      authz_ver: 3,
+    },
+    options: { plans: 'features' },
+    expect: {
+      id,
+      roles: [],
+      tenant: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+      memberships: [
+        {
+          scope: 'tenant',
+          id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+          roles: ['admin'],
+        },
+        {
+          scope: 'tenant',
+          id: '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9',
+          roles: ['viewer'],
+        },
+      ],
+      plans: ['pro'],
+    },
+  },
   anon: {
     claims: { ...base, role: 'anon', sub: '' },
     expect: { id: null, roles: [], memberships: [] },
@@ -124,3 +177,41 @@ export const supabaseClaimFixtures: Readonly<
  * single-role memberships. `permdock supabase hook generate` truncates at it by default.
  */
 export { supabaseMembershipsBudget } from '../supabase/budget.ts';
+
+/**
+ * The `permdock supabase inspect --json` manifest for a policy with one
+ * `tenant` scope, the default `supabase.hook` and a `features` claim from
+ * `better_supabase.feature_claims`. A package that reads the manifest tests its
+ * parser against this value.
+ */
+export const supabaseHookManifestFixture: SupabaseHookManifest = {
+  version: 1,
+  hook: {
+    schema: 'public',
+    function: 'custom_access_token_hook',
+    out: 'supabase/permdock-hook.sql',
+  },
+  helpers: {
+    schema: 'public',
+    functions: ['permdock_has', 'permitted_tenant_ids'],
+  },
+  tenantClaim: 'tenant_id',
+  budget: {
+    bytes: 1024,
+    measure: 'octet_length(memberships::text) + octet_length(attrs::text)',
+  },
+  claims: [
+    { name: 'user_role', source: 'permdock', budget: false },
+    { name: 'roles', source: 'permdock', budget: false },
+    { name: 'memberships', source: 'permdock', budget: true },
+    { name: 'memberships_truncated', source: 'permdock', budget: false },
+    { name: 'tenant_id', source: 'permdock', budget: false },
+    { name: 'authz_ver', source: 'permdock', budget: false },
+    {
+      name: 'features',
+      source: 'better_supabase.feature_claims',
+      budget: false,
+    },
+  ],
+  authzVersion: true,
+};

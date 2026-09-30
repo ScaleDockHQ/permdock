@@ -126,6 +126,10 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 - `role('viewer', [...], { on: 'customers' })` fails to compile when the policy declares `customer`, and `definePolicy` throws when a resource a scoped grant touches has no `memberOf` relation on the scope's key.
 - `definePolicy` returns `Policy<TUser, TPrincipal>`, typed from the `principal` mapper. `createPermDock` in core and in every adapter is generic over both, so a typed policy passes to any adapter without a cast, and the adapter's `subject` option is checked against `TUser`. `Policy.subject` and `Policy.context` are declared as methods so a typed policy stays assignable to helpers that only read roles and grants. `TUser` never defaults to `any`, which would hide real mismatches.
 
+### Listing hints
+
+`mayUse(permdock, permission)` from `permdock` answers whether a permission could be granted to the instance's subject for some row: a grant in its snapshot for the active tenant, no unconditional deny, and a delegation that could cover it. A tool list, a command palette or a skill index filters with it; the call itself still runs `can` or `decide`, because a row condition or an approval decides only there. `mayAccess` is the policy-level twin for a proxy that has no instance yet.
+
 ### Evaluation is synchronous
 
 `can`, `decide`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource` and `RoleSource` run once inside `createPermDock`, which may itself be async, and their output is frozen into the instance. Each check is then a pure function of frozen data.
@@ -136,7 +140,7 @@ Closure grants are typed `(data, ctx) => boolean`. A closure that returns a then
 
 `approval: 'human'` marks a grant whose match is necessary but not sufficient. When it is the matched allow, `decide` returns `{ outcome: 'approval-required', grant, reason, token }` instead of `granted`. The token binds the pending approval to the permission key, resource id, subject and actor so an approved reply cannot be replayed against different arguments.
 
-Adapters translate this outcome: the Vercel AI SDK gets `user-approval`, `WorkflowAgent` suspends through `needsApproval`, MCP raises an elicitation, HTTP returns 403 Problem Details with an `approval-required` type. See [decisions](/docs/concepts/decisions) and [approvals](/docs/security/approvals).
+Adapters translate this outcome: the Vercel AI SDK gets `user-approval`, `WorkflowAgent` suspends through `needsApproval`, MCP answers `input_required` or a refusal carrying the token, HTTP returns 403 Problem Details with an `approval-required` type. See [decisions](/docs/concepts/decisions) and [approvals](/docs/security/approvals).
 
 ## Feature flags and entitlements are context, not grants
 
@@ -174,6 +178,7 @@ allow(permissions.report.export, { limit: { count: 100, per: 'day', mode: 'soft'
 - `mode` is `'hard'` (the default, the behaviour above) or `'soft'`. A soft limit grants past `count` and adds the obligation `{ kind: 'over-limit' }`, so the app can bill the overage, warn, or queue the work. The store still counts only up to `count`.
 - `alertAt` is a fraction of `count`, above `0` and at most `1`. Once this call brings usage to that fraction, the decision carries `{ kind: 'near-limit' }`. An `over-limit` call carries only `over-limit`.
 - A granted decision under a limit carries `quota: { remaining, resetsAt }`: what is left once this call counts, and the Unix second the window ends. `can`, `filter` and `simulate` report what the call would leave. `approval-required` and `denied` never carry `quota`.
+- A `limit` denial carries `detail: { count, window, resetsAt }` (`LimitDetail`): the grant's count, its window in seconds and the Unix second it resets. HTTP adapters render it as `429` with `Retry-After` and the `RateLimit` / `RateLimit-Policy` fields ([RateLimit header fields](/docs/standards/ratelimit-headers)); `limit-unavailable` renders as `503`.
 - A soft limit is still fail-closed: no store, a throw or a thenable denies with `limit-unavailable`, exactly as in hard mode.
 - An unknown `mode`, or an `alertAt` outside that range, throws when the grant is defined.
 
@@ -271,7 +276,32 @@ export async function listPosts(permdock: PermDock) {
 }
 ```
 
-For a single record, load it and call `assert` (or `protect` in an HTTP adapter) before returning it. When `where` is `partial` (a closure grant exists) the `filter` step is what keeps the result correct; when it is not, `filter` is a cheap confirmation.
+For a single record, load it and call `assert` (or `protect` in an HTTP adapter) before returning it.
+
+### Field-level responses
+
+Returning a whole row after an allowed read leaks every column the grant's `fields` leave out (OWASP API3, broken object property level authorization). Pass the response through `pick`, and check each field a write body sets against the row it changes:
+
+```ts
+const loadInvoice = (c: Context) => invoices.find(c.req.param('id'))
+
+app.get('/invoices/:id', protect(permissions.invoice.read, loadInvoice), (c) =>
+  c.json(c.get('permdock').pick(permissions.invoice.read, c.get('permdockData'))), // only the fields the grant lists
+)
+
+app.patch('/invoices/:id', protect(permissions.invoice.update, loadInvoice), async (c) => {
+  const permdock = c.get('permdock')
+  const row = c.get('permdockData')
+  const changes: Partial<Invoice> = await c.req.json()
+  const refused = Object.keys(changes).filter(
+    (field) => !permdock.can(permissions.invoice.update, row, { field: field as keyof Invoice }),
+  )
+  if (refused.length > 0) return c.json({ refused }, 403)
+  return c.json(permdock.pick(permissions.invoice.read, await invoices.update(row.id, changes)))
+})
+```
+
+`pick` returns only own keys the grant lists, so a column added to the table later stays out of the response until a grant names it. The write check runs against the stored row, not the body, so the grant's `where` sees the real owner. `permdock rls generate --fields views` gives a direct database read the same answer as `pick` ([field security](/docs/adapters/rls#field-security)).
 
 ## Design rationale
 

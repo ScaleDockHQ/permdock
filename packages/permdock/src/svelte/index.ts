@@ -4,7 +4,7 @@ import type { ProtectedProps } from './protected.ts';
 
 import ProtectedComponent from './Protected.svelte';
 
-export { describe } from '../core/describe.ts';
+export { describe, requiredPlans } from '../core/describe.ts';
 export { approvalHeaders } from '../react/headers.ts';
 export { setPermDock } from './stores.ts';
 export {

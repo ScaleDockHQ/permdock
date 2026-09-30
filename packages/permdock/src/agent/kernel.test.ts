@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { memoryApprovalStore } from '../approvals/index.ts';
+import { mayUse } from '../core/may-use.ts';
 import {
   adminUser,
   memberUser,
@@ -11,7 +12,7 @@ import {
 } from '../fixtures/quick-start.ts';
 import * as saas from '../fixtures/saas.ts';
 import { allow, anyone, createPermDock, definePolicy, deny } from '../index.ts';
-import { createAgentKernel, idOf, mayUse, resourceRef } from './kernel.ts';
+import { createAgentKernel, idOf, resourceRef } from './kernel.ts';
 
 function tools() {
   return {

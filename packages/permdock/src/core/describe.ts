@@ -11,10 +11,13 @@ export type DecisionDescription = {
     | 'approval'
     | 'tenant'
     | 'delegation'
-    | 'server-only';
+    | 'server-only'
+    | 'upgrade';
   readonly title: string;
   readonly detail: string;
   readonly alternatives: readonly Permission[];
+  /** On `upgrade`: the plans any of which would grant the permission. */
+  readonly plans?: readonly string[];
 };
 
 const TENANT_REASONS = new Set([
@@ -57,6 +60,29 @@ function labelGrantee(grantee: Grantee): string {
   }
 }
 
+/**
+ * The plans named by the `not-entitled` denials of a decision, when every
+ * denial is `not-entitled`; otherwise empty, since a plan alone would not grant.
+ */
+export function requiredPlans(decision: Decision): readonly string[] {
+  if (
+    decision.outcome !== 'denied' ||
+    decision.denials.length === 0 ||
+    decision.denials.some((denial) => denial.reason !== 'not-entitled')
+  ) {
+    return [];
+  }
+  const plans = new Set<string>();
+  for (const denial of decision.denials) {
+    for (const item of flattenGrantee(denial.to)) {
+      if (item.kind === 'plan') {
+        plans.add(item.plan);
+      }
+    }
+  }
+  return [...plans];
+}
+
 function approvalDetail(
   permission: string,
   approval: MatchedGrant['approval'],
@@ -86,6 +112,16 @@ export function describe(decision: Decision): DecisionDescription {
         decision.grant.approval,
       ),
       alternatives: [],
+    };
+  }
+  const plans = requiredPlans(decision);
+  if (plans.length > 0) {
+    return {
+      kind: 'upgrade',
+      title: 'Upgrade required',
+      detail: `${plans.join(' or ')} plan required.`,
+      alternatives: decision.alternatives,
+      plans,
     };
   }
   const reasons = decision.denials.map((denial) => denial.reason);

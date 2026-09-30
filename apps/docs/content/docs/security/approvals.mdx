@@ -77,7 +77,7 @@ Applications that need approvals to survive a restart implement the interface ov
 | Claude Agent SDK | `canUseTool` denies with the reason and `token` and records the request in the store; `permissionRequestHook` answers the SDK's own prompt with the same decision | A reviewer resolves the request in the store; the agent's retry recomputes `token` and consumes the approved record once |
 | Eve | `approval.request` returns `"user-approval"`; the session parks at `session.waiting` | `approval.response` checks the responder against the store and `approvers`; on resume the adapter recomputes and compares `token` ([Eve adapter](/docs/adapters/eve)) |
 | OpenAI Agents SDK | `needsApproval` returns `true`; the run returns `interruptions` and a serialisable `RunState` | `resolveInterruptions` applies the store's verdict with `state.approve` / `state.reject`; the token is recomputed before `execute` ([OpenAI adapter](/docs/adapters/openai)) |
-| MCP | Structured tool result (`isError`) carrying the reason, `token` and an `elicitation: { mode: 'approval', token }` hint; the adapter sends no `elicitation/create` request | A reviewer resolves the request in the store; the retried call re-runs `decide`, compares and consumes |
+| MCP | An MRTR `input_required` result with a URL-mode `elicitation/create` request to `approval.at` and the token as `requestState`, when the client takes URL elicitations; otherwise a structured tool result (`isError`) carrying the reason and `token` | A reviewer resolves the request in the store; the retried call re-runs `decide`, compares and consumes |
 | HTTP adapters | `403` Problem Details with `type` `.../approval-required`, `permission`, `token` | Client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record, re-runs `decide` and compares |
 | Terminal (`permdock/terminal`) | Interactive prompt in a TTY; `denied` in a non-TTY | The prompt writes to and reads from the same store, so a CLI approval leaves the same audit record |
 | A2A | Skill returns a structured "approval required" result with `token` | The task enters `input-required`; the caller retries with the token |
@@ -100,7 +100,7 @@ sequenceDiagram
   Agent->>Adapter: call delete_post(p_42)
   Adapter->>PermDock: decide(post.delete, post)
   PermDock-->>Adapter: approval-required, token T
-  Adapter-->>Agent: user-approval / elicitation / 403 approval-required (T)
+  Adapter-->>Agent: user-approval / input_required / 403 approval-required (T)
   Agent->>Human: ask
   Human-->>Agent: approved (T)
   Agent->>Adapter: call delete_post(p_42) with approval T

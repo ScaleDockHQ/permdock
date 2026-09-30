@@ -18,7 +18,7 @@ export {
   isConditionRef,
   isSqlFunctionField,
 } from './conditions/ast.ts';
-export { describe } from './core/describe.ts';
+export { describe, requiredPlans } from './core/describe.ts';
 export type { DecisionDescription } from './core/describe.ts';
 export type {
   ApprovalRequiredDecision,
@@ -27,6 +27,7 @@ export type {
   DenialReason,
   DeniedDecision,
   GrantedDecision,
+  LimitDetail,
   MatchedGrant,
   Obligation,
   Quota,
@@ -100,6 +101,7 @@ export type {
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
+  SnapshotNotEntitled,
   SnapshotScope,
   SnapshotSource,
   SubjectResolver,
@@ -121,6 +123,7 @@ export type {
 export { emptySnapshot, fromSnapshot } from './core/from-snapshot.ts';
 export { createPermDock, parseSnapshot } from './core/permdock.ts';
 export { mayAccess } from './core/may-access.ts';
+export { mayUse } from './core/may-use.ts';
 export {
   customRoleClaim,
   resolveCustomRole,

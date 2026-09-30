@@ -1,4 +1,7 @@
-import type { AuthInfo } from '@modelcontextprotocol/server';
+import type {
+  AuthInfo,
+  ClientCapabilities,
+} from '@modelcontextprotocol/server';
 
 import { Client } from '@modelcontextprotocol/client';
 import {
@@ -18,6 +21,7 @@ import {
   permissions,
   policy,
 } from '../fixtures/quick-start.ts';
+import { allow, assurance, definePolicy } from '../index.ts';
 import { APPROVAL_META_KEY, createPermDock, subjectFromMcp } from './index.ts';
 
 type Session = { authInfo: AuthInfo | undefined };
@@ -29,6 +33,7 @@ function auth(scopes: readonly string[], extra: Record<string, unknown> = {}) {
 async function connect(
   server: McpServer,
   session: Session,
+  capabilities: ClientCapabilities = {},
 ): Promise<{ readonly client: Client; readonly changes: () => number }> {
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   const send = clientSide.send.bind(clientSide);
@@ -40,7 +45,10 @@ async function connect(
         : { ...options, authInfo: session.authInfo },
     );
   await server.connect(serverSide);
-  const client = new Client({ name: 'tester', version: '1.0.0' });
+  const client = new Client(
+    { name: 'tester', version: '1.0.0' },
+    { capabilities },
+  );
   let changed = 0;
   client.setNotificationHandler('notifications/tools/list_changed', () => {
     changed += 1;
@@ -159,7 +167,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     expect(await names(client)).toEqual([]);
   });
 
-  it('refuses a call outside the granted scopes and names the scopes to ask for', async () => {
+  it('refuses a call outside the granted scopes and names every scope the operation needs', async () => {
     const { server, guarded } = postServer({ subject: () => memberUser });
     const registered = guarded.registerTool(
       'read_post',
@@ -167,7 +175,10 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
       () => ({ content: [{ type: 'text', text: 'read' }] }),
     );
     const { client } = await connect(server, {
-      authInfo: auth(['post:read']),
+      authInfo: {
+        ...auth(['post:read']),
+        resource: new URL('https://mcp.example.com/mcp'),
+      },
     });
     const refused = await client.callTool({
       name: 'update_post',
@@ -177,7 +188,11 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     expect(refused.structuredContent).toMatchObject({
       outcome: 'denied',
       error: 'insufficient_scope',
-      scope: 'post:read post:update',
+      scope: 'post:update',
+      resource_metadata:
+        'https://mcp.example.com/.well-known/oauth-protected-resource/mcp',
+      www_authenticate:
+        'Bearer error="insufficient_scope", scope="post:update", resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp"',
     });
 
     const request = {
@@ -191,7 +206,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
         request,
         authInfo: auth(['post:list']),
       }),
-    ).toEqual({ scopes: ['post:list', 'post:read'] });
+    ).toEqual({ scopes: ['post:read'] });
     expect(
       await registered.scopeChallenge?.({
         request,
@@ -291,6 +306,154 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
       arguments: { id: 'p1' },
     });
     expect(text(resumed)).toBe('deleted p1');
+  });
+
+  it('answers an approval with input_required when the client takes URL elicitations', async () => {
+    const store = memoryApprovalStore();
+    const { server } = postServer({
+      subject: () => memberUser,
+      store,
+      approval: { at: 'https://app.example.com/approvals' },
+    });
+    const { client } = await connect(
+      server,
+      { authInfo: auth(['post:delete']) },
+      { elicitation: { url: {} } },
+    );
+    const asked: string[] = [];
+    client.setRequestHandler('elicitation/create', async (request) => {
+      const url = new URL(String(request.params.url));
+      asked.push(`${url.origin}${url.pathname}`);
+      await resolveApproval(store, url.searchParams.get('token') ?? '', {
+        status: 'approved',
+        by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+      });
+      return { action: 'accept' };
+    });
+    const resumed = await client.callTool({
+      name: 'delete_post',
+      arguments: { id: 'p1' },
+    });
+    expect(text(resumed)).toBe('deleted p1');
+    expect(asked).toEqual(['https://app.example.com/approvals']);
+  });
+
+  it('keeps the plain approval refusal for a client without URL elicitation', async () => {
+    const { server } = postServer({
+      subject: () => memberUser,
+      store: memoryApprovalStore(),
+      approval: { at: 'https://app.example.com/approvals' },
+    });
+    const { client } = await connect(server, {
+      authInfo: auth(['post:delete']),
+    });
+    const parked = await client.callTool({
+      name: 'delete_post',
+      arguments: { id: 'p1' },
+    });
+    expect(parked.structuredContent).toMatchObject({
+      outcome: 'approval-required',
+      token: expect.any(String),
+    });
+    expect(parked.structuredContent).not.toHaveProperty('elicitation');
+  });
+
+  it('asks for a step-up with acr_values and max_age', async () => {
+    const stepUpPolicy = definePolicy(permissions, {
+      subject: (user: { readonly id: string } | null) =>
+        user === null ? null : { id: user.id, roles: [] },
+      grants: [
+        allow(permissions.post.list, {
+          to: assurance({ acr: 'mfa', maxAge: 300 }),
+        }),
+      ],
+    });
+    const server = new McpServer({ name: 'posts', version: '1.0.0' });
+    createPermDock(stepUpPolicy, {
+      subject: () => ({ id: 'u1' }),
+      stepUp: { at: 'https://app.example.com/reauth' },
+    })
+      .protectServer(server)
+      .registerTool(
+        'list_posts',
+        { permission: permissions.post.list },
+        () => ({
+          content: [{ type: 'text', text: '[]' }],
+        }),
+      );
+
+    const plain = await connect(server, { authInfo: auth(['post:list']) });
+    const refused = await plain.client.callTool({ name: 'list_posts' });
+    expect(refused.structuredContent).toMatchObject({
+      error: 'insufficient_user_authentication',
+      acr_values: 'mfa',
+      max_age: 300,
+      www_authenticate:
+        'Bearer error="insufficient_user_authentication", acr_values="mfa", max_age="300"',
+    });
+
+    const urls: string[] = [];
+    const eliciting = await connect(
+      server,
+      { authInfo: auth(['post:list']) },
+      { elicitation: { url: {} } },
+    );
+    eliciting.client.setRequestHandler(
+      'elicitation/create',
+      async (request) => {
+        urls.push(String(request.params.url));
+        return { action: 'decline' };
+      },
+    );
+    await eliciting.client
+      .callTool({ name: 'list_posts' })
+      .catch(() => undefined);
+    expect(urls[0]).toBe(
+      'https://app.example.com/reauth?acr_values=mfa&max_age=300',
+    );
+  });
+
+  it('refuses a token issued for another resource', async () => {
+    const { server } = postServer({
+      subject: () => memberUser,
+      resource: 'https://mcp.example.com/mcp',
+    });
+    const session: Session = {
+      authInfo: {
+        ...auth(['post:list']),
+        resource: new URL('https://other.example.com/mcp'),
+      },
+    };
+    const { client } = await connect(server, session);
+    expect(await names(client)).toEqual([]);
+    const refused = await client.callTool({ name: 'list_posts' });
+    expect(refused.structuredContent).toMatchObject({
+      error: 'invalid_token',
+    });
+
+    session.authInfo = {
+      ...auth(['post:list']),
+      resource: new URL('https://MCP.example.com/mcp'),
+    };
+    expect(await names(client)).toEqual(['list_posts']);
+    session.authInfo = auth(['post:list']);
+    expect(await names(client)).toEqual([]);
+  });
+
+  it('fills tool annotations the author left out from the permission', async () => {
+    const { server } = postServer({ subject: () => adminUser });
+    const { client } = await connect(server, {
+      authInfo: auth(['post:list', 'post:update', 'post:delete']),
+    });
+    const listed = await client.listTools(undefined, { cache: 'bypass' });
+    const byName = new Map(listed.tools.map((tool) => [tool.name, tool]));
+    expect(byName.get('list_posts')?.annotations).toEqual({
+      readOnlyHint: true,
+    });
+    expect(byName.get('update_post')?.annotations).toEqual({
+      readOnlyHint: false,
+      idempotentHint: true,
+    });
   });
 
   it('fails closed when the data loader throws or finds nothing', async () => {

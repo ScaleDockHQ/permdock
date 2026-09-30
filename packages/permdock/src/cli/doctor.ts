@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { DoctorFinding } from './doctor-types.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
+import { supabaseTenantClaim } from '../supabase/budget.ts';
 import { runCollect } from './collect.ts';
 import {
   pd002,
@@ -26,8 +27,17 @@ import {
   pd033,
   pd034,
   pd035,
+  pd037,
 } from './doctor-collect.ts';
-import { pd005, pd006, pd009, pd012, pd022, pd028 } from './doctor-project.ts';
+import {
+  pd005,
+  pd006,
+  pd009,
+  pd012,
+  pd022,
+  pd028,
+  pd040,
+} from './doctor-project.ts';
 import {
   pd001,
   pd007,
@@ -37,10 +47,18 @@ import {
   pd013,
   pd014,
   pd015,
+  pd036,
+  pd038,
+  pd041,
 } from './doctor-source.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
 import { runSkillsInstall } from './skills.ts';
-import { attrsPlan } from './supabase-hook.ts';
+import {
+  attrsPlan,
+  loadScopes,
+  supabaseHookManifest,
+} from './supabase-hook.ts';
+import { pd039 } from './supabase-setup.ts';
 import { DOCTOR_REPORT_SCHEMA } from './version.ts';
 
 export type { DoctorFinding, DoctorSeverity } from './doctor-types.ts';
@@ -201,6 +219,37 @@ export async function runDoctor(input: {
   if (include('support') || include('PD035')) {
     findings.push(...(await pd035(input)));
   }
+  if (include('bola') || include('PD036')) {
+    findings.push(...pd036(sources));
+  }
+  if (include('supabase') || include('row-conditions') || include('PD037')) {
+    findings.push(...(await pd037(input)));
+  }
+  if (
+    input.config.supabase?.hook !== undefined &&
+    (include('supabase') || include('helpers') || include('PD039'))
+  ) {
+    findings.push(...(await supabaseSetup(input)));
+  }
+  if (
+    (input.config.rls !== undefined ||
+      input.config.supabase?.hook !== undefined) &&
+    (include('supabase') || include('tenant') || include('PD038'))
+  ) {
+    findings.push(
+      ...pd038(
+        sources,
+        input.config.rls?.tenantClaim ?? supabaseTenantClaim,
+        supabaseTenantClaim,
+      ),
+    );
+  }
+  if (include('supabase') || include('auth-role') || include('PD040')) {
+    findings.push(...pd040(input.cwd, input.config));
+  }
+  if (include('supabase') || include('capabilities') || include('PD041')) {
+    findings.push(...pd041(sources));
+  }
 
   const errors = findings.filter((item) => item.severity === 'error').length;
   const warnings = findings.filter(
@@ -238,4 +287,20 @@ function formatDoctor(report: DoctorReport, color: boolean): string {
     `  ${String(report.errors)} error${report.errors === 1 ? '' : 's'}, ${String(report.warnings)} warning${report.warnings === 1 ? '' : 's'}`,
   );
   return `${lines.join('\n')}\n`;
+}
+
+async function supabaseSetup(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  let manifest;
+  try {
+    manifest = supabaseHookManifest(
+      await loadScopes(input.cwd, input.config),
+      input.config,
+    );
+  } catch {
+    return [];
+  }
+  return pd039({ cwd: input.cwd, config: input.config, manifest });
 }

@@ -11,6 +11,7 @@ import {
   type Policy,
   type Subject,
 } from '../index.ts';
+import { supabaseTenantClaim } from '../supabase/budget.ts';
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -255,7 +256,7 @@ export async function rlsParity<TUser>(
 ): Promise<RlsParityReport> {
   const dialect = options.dialect ?? 'guc';
   const gucPrefix = options.gucPrefix ?? 'app';
-  const tenantClaim = options.tenantClaim ?? 'tenant_id';
+  const tenantClaim = options.tenantClaim ?? supabaseTenantClaim;
   const roleClaim = options.roleClaim ?? 'user_role';
   const role = options.role ?? 'authenticated';
   const customRoles = options.customRoles ?? [];

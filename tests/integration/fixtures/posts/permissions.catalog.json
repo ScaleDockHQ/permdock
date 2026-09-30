@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-09-29T10:50:46.678Z",
-  "generator": "permdock@0.1.0-next.1",
-  "fingerprint": "1jqQg7VKp6ix0_g5wSeOLvfUOEsELf0m-_v4rPKvGxc",
+  "generatedAt": "2026-09-30T10:06:39.608Z",
+  "generator": "permdock@0.1.0-next.2",
+  "fingerprint": "nK_Opc7T6imLepnWrdleKRV7r1-Nijna9X68ThB3CLc",
   "resources": {
     "post": {
       "id": "id",
@@ -68,7 +68,8 @@
       "action": "list",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": false
     },
     {
       "key": "job.read",
@@ -83,7 +84,8 @@
           "line": 21,
           "call": "allow"
         }
-      ]
+      ],
+      "rowConditions": true
     },
     {
       "key": "post.create",
@@ -98,7 +100,8 @@
           "line": 17,
           "call": "allow"
         }
-      ]
+      ],
+      "rowConditions": false
     },
     {
       "key": "post.list",
@@ -113,7 +116,8 @@
           "line": 16,
           "call": "allow"
         }
-      ]
+      ],
+      "rowConditions": false
     },
     {
       "key": "post.read",
@@ -128,7 +132,8 @@
           "line": 15,
           "call": "allow"
         }
-      ]
+      ],
+      "rowConditions": false
     },
     {
       "key": "post.update",
@@ -143,7 +148,8 @@
           "line": 18,
           "call": "allow"
         }
-      ]
+      ],
+      "rowConditions": true
     }
   ],
   "roles": [

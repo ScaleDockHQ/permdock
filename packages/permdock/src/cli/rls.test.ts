@@ -387,7 +387,7 @@ export const policy = definePolicy(permissions, {
     );
   });
 
-  it('emits the custom access token hook and authorize() with --rbac-scaffold', async () => {
+  it('emits authorize() and points to the supabase token hook with --rbac-scaffold', async () => {
     const cwd = appCopy();
     const result = await run(
       [
@@ -404,16 +404,13 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain(
-      'pg-functions://postgres/public/custom_access_token_hook',
+    expect(result.stdout + result.stderr).toContain(
+      'permdock supabase hook generate',
     );
     const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
-    expect(sql).toContain('custom_access_token_hook');
+    expect(sql).not.toContain('custom_access_token_hook(event jsonb)');
     expect(sql).toContain('create or replace function "public"."authorize"(');
     expect(sql).toContain('requested_tenant text default null');
-    expect(sql).toContain(
-      'grant usage on schema "public" to supabase_auth_admin;',
-    );
     expect(sql).toContain(`(select "public".permdock_has('post.read'))`);
     expect(sql).not.toMatch(/using \([^\n]*authorize\(/u);
     expect(sql).not.toMatch(/service_role/i);

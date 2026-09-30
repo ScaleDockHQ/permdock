@@ -3,10 +3,7 @@
 
 -- rbac scaffold (Supabase Custom Claims and RBAC)
 -- authorize: jwt (reads the hook claims; stale until the token refreshes)
--- enable the hook in supabase/config.toml:
---   [auth.hook.custom_access_token]
---   enabled = true
---   uri = "pg-functions://postgres/app/custom_access_token_hook"
+-- the custom access token hook that writes user_role and memberships: permdock supabase hook generate
 create schema if not exists "app";
 do $$ begin
   create type "app"."app_role" as enum ('admin', 'member');
@@ -24,6 +21,7 @@ create table if not exists "app"."user_roles" (
 );
 
 alter table "app"."user_roles" enable row level security;
+revoke all on table "app"."user_roles" from authenticated, anon, public;
 
 -- permdock helpers (jwt: reads the role and memberships claims)
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
@@ -178,59 +176,6 @@ $$;
 
 revoke execute on function "app"."authorize"("app"."app_permission", text) from public, anon;
 grant execute on function "app"."authorize"("app"."app_permission", text) to authenticated;
-
-create or replace function "app"."custom_access_token_hook"(event jsonb)
-returns jsonb
-language plpgsql
-stable
-set search_path = ''
-as $$
-declare
-  claims jsonb := event -> 'claims';
-  held jsonb;
-  uid text := event ->> 'user_id';
-  members jsonb;
-begin
-  select case count(*) when 0 then null when 1 then to_jsonb(min(ur.role::text)) else jsonb_agg(ur.role::text order by ur.role::text) end
-    into held
-    from "app"."user_roles" ur
-    where ur.user_id = (event ->> 'user_id')::uuid;
-  if held is not null then
-    claims := jsonb_set(claims, '{user_role}', held);
-  end if;
-  select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'id', x.entry::text), '[]'::jsonb)
-    into members
-    from (
-      select 0 as ord, jsonb_strip_nulls(jsonb_build_object(
-          'scope', 'tenant',
-          'id', m."organization_id"::text,
-          'roles', jsonb_agg(distinct m."role"::text order by m."role"::text)
-        )) as entry
-      from "public"."organization_members" m
-      where m."user_id"::text = uid
-      group by m."organization_id"
-    ) x;
-  claims := jsonb_set(claims, '{memberships}', members);
-  return jsonb_set(event, '{claims}', claims);
-end;
-$$;
-
-grant usage on schema "app" to supabase_auth_admin;
-grant execute on function "app"."custom_access_token_hook"(jsonb) to supabase_auth_admin;
-revoke execute on function "app"."custom_access_token_hook"(jsonb) from authenticated, anon, public;
-grant select on table "app"."user_roles" to supabase_auth_admin;
-revoke all on table "app"."user_roles" from authenticated, anon, public;
-drop policy if exists "Allow auth admin to read user roles" on "app"."user_roles";
-create policy "Allow auth admin to read user roles" on "app"."user_roles"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);
-grant select on table "public"."organization_members" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_memberships" on "public"."organization_members";
-create policy "permdock_auth_admin_read_memberships" on "public"."organization_members"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);
 
 revoke all on table "post" from anon, authenticated;
 grant select, insert, update, delete on table "post" to authenticated;

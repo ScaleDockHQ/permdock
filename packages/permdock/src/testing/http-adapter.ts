@@ -653,9 +653,14 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         expect(
           (await send('erin', { op: 'analytics.read', org: 'globex' })).status,
         ).toBe(200);
-        expect(
-          (await send('erin', { op: 'analytics.read', org: 'acme' })).status,
-        ).toBe(403);
+        const upgrade = await send('erin', {
+          op: 'analytics.read',
+          org: 'acme',
+        });
+        expect(upgrade.status).toBe(403);
+        expect(new Set(reasonsOf(upgrade.body))).toEqual(
+          new Set(['not-entitled']),
+        );
       },
     );
 
@@ -676,7 +681,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         op: 'apiKey.create',
         org: 'acme',
       });
-      expect(exhausted.status).toBe(403);
+      expect(exhausted.status).toBe(429);
       expect(reasonsOf(exhausted.body)).toContain('limit');
       expect(
         (await send('erin', { op: 'apiKey.create', org: 'globex' })).status,

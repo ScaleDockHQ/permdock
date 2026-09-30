@@ -44,7 +44,7 @@ Semantics the generator applies:
 | `anyone()` grant | `TO anon, authenticated`, in its own `{table}_{op}_anon` policy |
 | `service_role` | never emitted: it bypasses RLS |
 
-Additional rules: a `SELECT` policy is generated (or its coverage asserted) whenever `update` or `delete` grants exist, because Postgres requires SELECT access to filter and for `RETURNING`; `ENABLE ROW LEVEL SECURITY` is always emitted; `REVOKE ALL ... FROM anon, authenticated` followed by the exact `GRANT`s is emitted next to the policies, because a missing grant raises `42501` and masquerades as a policy denial; helper calls are wrapped as `(select auth.uid())` so they run once per statement; an index suggestion is printed for every filtered column. Grants come from `definePolicy({ roles })` and top-level `definePolicy({ grants })` alike, and a grant Postgres cannot enforce (a `plan()`, `actor()` or `assurance()` grantee) fails generation with the permission named.
+Additional rules: a `SELECT` policy is generated (or its coverage asserted) whenever `update` or `delete` grants exist, because Postgres requires SELECT access to filter and for `RETURNING`; `ENABLE ROW LEVEL SECURITY` is always emitted; `REVOKE ALL ... FROM anon, authenticated` followed by the exact `GRANT`s is emitted next to the policies, because a missing grant raises `42501` and masquerades as a policy denial; helper calls are wrapped as `(select auth.uid())` so they run once per statement; an index suggestion is printed for every filtered column. Grants come from `definePolicy({ roles })` and top-level `definePolicy({ grants })` alike, and a grant Postgres cannot enforce (a `plan()` or `assurance()` grantee, or an `actor()` grantee other than the one below) fails generation with the permission named. `deny(permission, { to: actor('oauth-client') })` on its own compiles, because the token shows a delegated client: it becomes a RESTRICTIVE policy that refuses rows while `client_id` or `act` is in the claims, so a third-party app's token cannot reach what the user's own session can. `contains` on a column whose resource schema says it is an array compiles to `value = any(column)`, with the value cast to the item type; on any other column it is `LIKE`.
 
 ## Per-statement helpers (InitPlan)
 
@@ -84,6 +84,21 @@ Security notes on the helpers:
 - They are `stable`, take only the grant key, and read the subject from `auth.uid()` / the claims inside the function: a caller cannot pass another user's id.
 - `execute` is revoked from `public` and `anon` and granted to `authenticated`, so `anon` policies (`anyone()` grants) never reference them. The exception is a [field view](#field-security) `anon` reads: Postgres checks `execute` on every function a view calls before it runs, so the helpers are granted to `anon` too. They find no subject for `anon` (no `sub`, no role claim, no membership row) and return nothing.
 - `role_permissions` has RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; it changes only through a migration that re-runs `generate`.
+
+### SQL helper contract
+
+Other packages call the helpers from policies PermDock does not generate: better-supabase's `defineBucket` and `defineTopic` in `permdock` mode write Storage and Realtime policies that do, and an app's own RPCs may. These signatures, the claims they read and the rules below are the contract; they change only with a new major of the hook marker (`-- permdock:hook v1`) and the [hook manifest](/docs/concepts/wire-formats#supabase-hook-manifest).
+
+| Function | Returns | Answers |
+| --- | --- | --- |
+| `<schema>.permdock_has(p_grant text)` | `boolean` | The caller holds a global role whose grants include `p_grant` |
+| `<schema>.permitted_<scope>_ids(p_grant text)` | `setof <scope type>` | The instances of `<scope>` in which the caller holds a role that grants `p_grant`, through memberships of exactly that scope; with the active-tenant claim set, only inside that tenant |
+| `<schema>.permitted_<resource>_ids(p_relation text)` | `setof text` | The ids of `<resource>` the caller holds `p_relation` on in the [relationship graph](#closure-table), every graph relation when `p_relation` is `null` |
+
+- **Grant keys.** `p_grant` is a permission key (`invoice.read`). PermDock's own policies pass `invoice.read#1`, `invoice.read#2` for the condition groups of one permission; the part after `#` is internal, so another package passes the plain key and gets the grants that carry no condition group.
+- **Role and scope only.** The helpers check the role and the scope and nothing else: no `where`, `check`, relation, plan, actor or assurance. A call is correct only for a permission whose grants carry no other condition. The catalog marks each permission with `rowConditions`, `true` when a code grant has a `where`, `check`, closure, field list, purpose, break-glass override, or a relation, plan, actor or assurance grantee. `permdock doctor` PD037 and `permdock rls verify --db` refuse a Storage or Realtime policy that calls a helper for a `rowConditions: true` key.
+- **Exact-text ids.** Scope ids compare as exact text: the helpers never apply `lower()` or trim, and neither does `decide`. A producer writing ids into a claim or a membership table writes the id's canonical text, `uuid::text` for a uuid column (Postgres prints it in lower case). An upper-case uuid in a claim is a different id to `decide`, while a `uuid` cast in Postgres would still match it, so the application and the database would disagree.
+- **Claims.** In `jwt` mode the helpers read `user_role`, `memberships` and the active-tenant claim (`tenant_id` by default, `rls.tenantClaim`) from `auth.jwt()`, top-level or under `app_metadata`. `schemas/supabase-claims-v1.json` in the `permdock` package is their JSON Schema: a membership is `{ scope, id, within?, roles, via?, expiresAt?, grantedBy?, reason? }` with a non-empty `roles`, and the hook also writes `memberships_truncated`, `attrs` and `authz_ver`. `permdock supabase hook generate` is the one writer; `permdock supabase inspect --json` prints which claims it writes and where the helpers live.
 
 ### Ownership rules
 
@@ -197,7 +212,7 @@ Parity is checked end to end. `rls verify` (with `rls.fields: 'views'`) and `rls
 2. Assign grant keys (one per permission and condition group) and seed `role_permissions`; emit the helpers.
 3. Flatten allows and denies per (table, command, audience) into one permissive and one restrictive policy (`--policy-per-role` keeps one per role and permission).
 4. Compile each condition with the dialect; emit `pgPolicy(...)` entries (Drizzle, using `authenticatedRole` and `authUid` from `drizzle-orm/supabase`, with the helpers in a migration comment), an idempotent migration (`sql`: helpers, `drop policy if exists` + `create policy`, grants, `enable row level security`), or Prisma 8 `policy_*` blocks with `@@rls`.
-5. With `--rbac supabase`, also emit the `app_role` / `app_permission` enums, `user_roles`, the `custom_access_token_hook`, and an `authorize()` function over the same `role_permissions` for hand-written policies ([Supabase provider](/docs/adapters/supabase)).
+5. With `--rbac supabase`, also emit the `app_role` / `app_permission` enums, `user_roles`, and an `authorize()` function over the same `role_permissions` for hand-written policies ([Supabase provider](/docs/adapters/supabase)). The token hook comes from `permdock supabase hook generate`.
 
 `import`:
 

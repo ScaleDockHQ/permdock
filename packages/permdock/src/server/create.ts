@@ -31,6 +31,7 @@ import {
 } from './evaluations.ts';
 import {
   PROBLEM_BASE,
+  notFoundProblem,
   problemFromDecision,
   problemResponse,
 } from './problem.ts';
@@ -362,10 +363,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
       if (loadData !== undefined) {
         const loaded = await loadData(request);
         if (loaded === null || loaded === undefined) {
-          return {
-            ok: false,
-            response: new Response(null, { status: 404 }),
-          };
+          return { ok: false, response: notFoundProblem() };
         }
         data = loaded;
       }
@@ -425,7 +423,13 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
           decision,
           permission,
           instance.subject,
-          compact({ approval: options.approval }),
+          compact({
+            approval: options.approval,
+            disclosure:
+              data === undefined
+                ? undefined
+                : policy.resources.get(permission.resource)?.disclosure,
+          }),
         ),
       };
     };

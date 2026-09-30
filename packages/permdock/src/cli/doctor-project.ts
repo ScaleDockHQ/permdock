@@ -152,7 +152,7 @@ export function pd012(
   return findings;
 }
 
-const MIGRATION_DIRS = [
+export const MIGRATION_DIRS = [
   'supabase/migrations',
   'migrations',
   'drizzle',
@@ -176,7 +176,7 @@ const COMPANION = new RegExp(
   'giu',
 );
 
-function sqlFiles(cwd: string, entries: readonly string[]): string[] {
+export function sqlFiles(cwd: string, entries: readonly string[]): string[] {
   const files = new Set<string>();
   for (const entry of entries) {
     const pattern = /[*?[{]/u.test(entry) ? entry : `${entry}/**/*.sql`;
@@ -246,6 +246,40 @@ export function pd022(
       message: `view ${key} in ${file} is not security_invoker, so it reads past row level security`,
       fix: `create the view with (security_invoker = true), or alter view ${key} set (security_invoker = true); Postgres 15 or later. For column-level reads, generate field views with permdock rls generate --fields views`,
     }));
+}
+
+const AUTH_ROLE = /\bauth\.role\s*\(\s*\)/giu;
+
+/**
+ * PD040: `auth.role()` in a migration. Supabase deprecated it; a policy
+ * names its Postgres roles with `to authenticated` instead, and the role
+ * claim it reads is the one PostgREST already switched to.
+ */
+export function pd040(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const file of sqlFiles(
+    cwd,
+    config.doctor?.migrations ?? MIGRATION_DIRS,
+  )) {
+    const text = readFileSync(file, 'utf8')
+      .replaceAll(/--[^\n]*/gu, (comment) => ' '.repeat(comment.length))
+      .replaceAll(/\/\*[\s\S]*?\*\//gu, (comment) =>
+        comment.replaceAll(/[^\n]/gu, ' '),
+      );
+    for (const match of text.matchAll(AUTH_ROLE)) {
+      const line = text.slice(0, match.index).split('\n').length;
+      findings.push({
+        code: 'PD040',
+        severity: 'warning',
+        message: `${rel(cwd, file)}:${String(line)} calls auth.role(), which Supabase deprecated`,
+        fix: "name the roles on the policy (create policy ... to authenticated) and drop the auth.role() = 'authenticated' test; call permdock_has or permitted_<scope>_ids for permissions",
+      });
+    }
+  }
+  return findings;
 }
 
 const GRANT =

@@ -1,5 +1,4 @@
 export { APPROVAL_META_KEY, createPermDock } from './create.ts';
-export { InsufficientScopeError } from './errors.ts';
 export { subjectFromMcp } from './subject.ts';
 export type { McpSubjectOptions } from './subject.ts';
 export type {

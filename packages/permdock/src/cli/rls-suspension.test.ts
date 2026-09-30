@@ -219,7 +219,7 @@ describe('rls.suspension', () => {
 describe('the Supabase token hook', () => {
   const rbac = ['--rbac', 'supabase', '--dialect', 'supabase'];
 
-  it('writes canonical memberships from every scope table in jwt mode', async () => {
+  it('emits no token hook: permdock supabase hook generate writes the claims', async () => {
     const { code, sql, output } = await generate(
       {
         tenantType: 'text',
@@ -230,67 +230,10 @@ describe('the Supabase token hook', () => {
       rbac,
     );
     expect(code).toBe(0);
-    expect(output).not.toContain('writes no');
-    const hook = sql.slice(sql.indexOf('custom_access_token_hook'));
-    expect(hook).toContain(`'scope', 'organization'`);
-    expect(hook).toContain(`'scope', 'customer'`);
-    expect(hook).toContain(
-      `'within', jsonb_build_object('organization', m."organization_id"::text)`,
-    );
-    expect(hook).toContain(
-      `claims := jsonb_set(claims, '{memberships}', members);`,
-    );
-    expect(hook).toContain(
-      `if not exists (select 1 from "public"."profiles" s where s."id" = uid::uuid and s."disabled_at" is null) then`,
-    );
-    expect(hook).toContain(
-      `claims := jsonb_set(claims, '{user_role}', '[]'::jsonb);`,
-    );
-    for (const table of [
-      'organization_users',
-      'customer_contacts',
-      'organizations',
-      'customers',
-      'profiles',
-    ]) {
-      expect(hook).toContain(
-        `grant select on table "public"."${table}" to supabase_auth_admin;`,
-      );
-    }
+    expect(sql).not.toContain('custom_access_token_hook(event jsonb)');
+    expect(sql).toContain('permdock supabase hook generate');
+    expect(output).toContain('permdock supabase hook generate');
     expect(sql).not.toMatch(/service_role/iu);
-  });
-
-  it('writes no memberships in database mode, and warns about a table missing an ancestor', async () => {
-    const database = await generate(
-      { tenantType: 'text', authorize: 'database', memberships: MEMBERSHIPS },
-      rbac,
-    );
-    expect(database.code).toBe(0);
-    expect(database.sql).not.toContain('{memberships}');
-    const partial = await generate(
-      {
-        tenantType: 'text',
-        authorize: 'jwt',
-        memberships: {
-          scopes: {
-            ...MEMBERSHIPS.scopes,
-            customer: {
-              table: 'customer_contacts',
-              user: 'user_id',
-              role: 'role',
-              columns: { customer: 'customer_id' },
-            },
-          },
-        },
-      },
-      rbac,
-    );
-    expect(partial.code).toBe(0);
-    expect(partial.output).toContain(
-      'the token hook writes no customer memberships',
-    );
-    expect(partial.sql).toContain(`'scope', 'organization'`);
-    expect(partial.sql).not.toContain(`'scope', 'customer'`);
   });
 
   it('guards authorize() against suspended users and tenants', async () => {
@@ -303,10 +246,7 @@ describe('the Supabase token hook', () => {
       },
       rbac,
     );
-    const authorize = sql.slice(
-      sql.indexOf('function "public"."authorize"('),
-      sql.indexOf('function "public"."custom_access_token_hook"'),
-    );
+    const authorize = sql.slice(sql.indexOf('function "public"."authorize"('));
     expect(authorize).toContain('return false; -- suspended user');
     expect(authorize).toContain(
       `if requested_tenant is not null and not exists (select 1 from "public"."organizations" s where s."id"::text = requested_tenant and s."disabled_at" is null) then`,

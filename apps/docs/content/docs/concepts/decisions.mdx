@@ -36,7 +36,7 @@ if (decision.outcome === 'granted') {
 
 `matched` is the grant that produced the outcome: the role name, the permission key and the normalised condition. It is JSON, so it can be logged as the justification for the action.
 
-When the matched allow has a `limit`, the decision also carries `quota: { remaining, resetsAt }`, and it may carry `obligations`: `{ kind: 'over-limit' }` when a soft limit granted past its count, `{ kind: 'near-limit' }` when usage reached `alertAt` ([limits](/docs/concepts/policies#limits)). An obligation never turns `granted` into another outcome; the caller acts on it (warn, bill, notify) and proceeds.
+When the matched allow has a `limit`, the decision also carries `quota: { remaining, resetsAt }`, and it may carry `obligations`: `{ kind: 'over-limit' }` when a soft limit granted past its count, `{ kind: 'near-limit' }` when usage reached `alertAt` ([limits](/docs/concepts/policies#limits)). An obligation never turns `granted` into another outcome; the caller acts on it (warn, bill, notify) and proceeds. An exhausted limit denies with reason `limit` and `detail: { count, window, resetsAt }` (`LimitDetail`), which HTTP adapters turn into a `429` with `Retry-After` and the `RateLimit` fields ([Problem Details](/docs/standards/problem-details)).
 
 ### denied
 
@@ -63,6 +63,7 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 | `anonymous` | No principal |
 | `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
 | `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge; also a break-glass or activation `assurance` that was not met ([elevated access](/docs/concepts/elevated-access)) |
+| `not-entitled` | The grant's roles are held but a `plan` grantee in its `to` is not: neither `principal.plans` nor a seat on the active tenant's membership names it. `to` carries the grantee so the caller can name the plan; HTTP adapters answer 403 `/not-entitled` with `plans` when every denial is `not-entitled`, and `describe` returns `kind: 'upgrade'`. A plan grant whose roles are not held adds no denial, so the reason never offers an upgrade that would not grant |
 | `purpose`, `reason-required` | A break-glass grant was engaged (`context.purpose`) but the asserted purpose was not one it lists, or it requires a reason and `context.reason` was missing ([elevated access](/docs/concepts/elevated-access)); `role` is `null` |
 | `actor-required` | The subject holds a `supportAccess` membership with `actorRequired` but carries no `act`; support access is impersonation and must be attributed ([elevated access](/docs/concepts/elevated-access)); `role` is `null` |
 | `limit` | Quota exhausted |
@@ -157,7 +158,7 @@ A third overload reads an [Arazzo](/docs/standards/arazzo) workflow and the appl
 | --- | --- | --- | --- | --- |
 | `granted` | `approved` | tool runs | 2xx | `decision: true` |
 | `denied` | `denied` with reason and alternatives | `isError: true`, refusal text plus `structuredContent` with denials and alternatives | `403` Problem Details `/denied` | `decision: false`, denials in `context` |
-| `approval-required` | `user-approval` | elicitation | `403` Problem Details `/approval-required` | `decision: false`, `context.permdock.outcome: 'approval-required'` |
+| `approval-required` | `user-approval` | `input_required` URL request, or a refusal with `token` | `403` Problem Details `/approval-required` | `decision: false`, `context.permdock.outcome: 'approval-required'` |
 
 Each adapter page documents its exact translation; the [wire formats](/docs/concepts/wire-formats) page has the JSON.
 

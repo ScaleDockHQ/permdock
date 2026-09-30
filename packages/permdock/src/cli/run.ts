@@ -298,6 +298,7 @@ export async function run(
           fields: flagString(args.flags, 'fields'),
           revokeColumns: flagBool(args.flags, 'revoke-columns'),
           tree: flagBool(args.flags, 'tree'),
+          introspect: flagBool(args.flags, 'introspect'),
           io,
         });
         writeOut(result.output);
@@ -314,6 +315,8 @@ export async function run(
               rest: args.rest,
               out: flagString(args.flags, 'out'),
               check: flagBool(args.flags, 'check'),
+              json,
+              db: flagString(args.flags, 'db'),
               activeFrom: flagString(args.flags, 'active-from'),
               budget: flagString(args.flags, 'budget'),
               schema: flagString(args.flags, 'schema'),

@@ -1,9 +1,11 @@
-import type { Decision } from '../core/decision.ts';
+import type { Decision, LimitDetail } from '../core/decision.ts';
 import type { ApprovalHint, ProblemDetails } from '../core/errors.ts';
+import type { Grantee } from '../core/grantee.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Subject } from '../core/subject.ts';
 
 import { compact } from '../core/compact.ts';
+import { requiredPlans } from '../core/describe.ts';
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -18,6 +20,85 @@ function quoted(value: string): string {
   return `"${value.replaceAll(/["\\]/gu, '')}"`;
 }
 
+export type BearerChallenge = {
+  readonly error:
+    | 'invalid_token'
+    | 'insufficient_scope'
+    | 'insufficient_user_authentication';
+  /** Every scope the operation needs, not the held set plus the missing one. */
+  readonly scopes?: readonly string[];
+  /** The RFC 9728 Protected Resource Metadata URL. */
+  readonly resourceMetadata?: string;
+  /** RFC 9470 step-up parameters. */
+  readonly acrValues?: readonly string[];
+  readonly maxAge?: number;
+};
+
+/** An RFC 6750 `WWW-Authenticate: Bearer` value. */
+export function bearerChallenge(challenge: BearerChallenge): string {
+  const parts = [`error=${quoted(challenge.error)}`];
+  if (challenge.scopes !== undefined && challenge.scopes.length > 0) {
+    parts.push(`scope=${quoted([...new Set(challenge.scopes)].join(' '))}`);
+  }
+  if (challenge.acrValues !== undefined && challenge.acrValues.length > 0) {
+    parts.push(`acr_values=${quoted(challenge.acrValues.join(' '))}`);
+  }
+  if (challenge.maxAge !== undefined) {
+    parts.push(`max_age=${quoted(String(challenge.maxAge))}`);
+  }
+  if (challenge.resourceMetadata !== undefined) {
+    parts.push(`resource_metadata=${quoted(challenge.resourceMetadata)}`);
+  }
+  return `Bearer ${parts.join(', ')}`;
+}
+
+/** The RFC 9728 well-known metadata URL for a resource identifier. */
+export function protectedResourceMetadataUrl(resource: URL): string {
+  const path = resource.pathname === '/' ? '' : resource.pathname;
+  return `${resource.origin}/.well-known/oauth-protected-resource${path}`;
+}
+
+/** The `acr` values and the tightest `maxAge` the failing assurance grants ask for. */
+export function stepUpOf(decision: Decision): {
+  readonly acrValues?: readonly string[];
+  readonly maxAge?: number;
+} {
+  if (decision.outcome !== 'denied') {
+    return {};
+  }
+  const acr = new Set<string>();
+  let maxAge: number | undefined;
+  for (const denial of decision.denials) {
+    if (denial.reason !== 'insufficient-user-authentication') {
+      continue;
+    }
+    const grantees =
+      denial.to === undefined
+        ? []
+        : Array.isArray(denial.to)
+          ? denial.to
+          : [denial.to];
+    for (const grantee of grantees as readonly Grantee[]) {
+      if (grantee.kind !== 'assurance') {
+        continue;
+      }
+      for (const value of grantee.acr ?? []) {
+        acr.add(value);
+      }
+      if (grantee.maxAge !== undefined) {
+        maxAge =
+          maxAge === undefined
+            ? grantee.maxAge
+            : Math.min(maxAge, grantee.maxAge);
+      }
+    }
+  }
+  return compact({
+    acrValues: acr.size === 0 ? undefined : [...acr],
+    maxAge,
+  });
+}
+
 export function wwwAuthenticate(
   decision: Decision,
   permission: Permission | undefined,
@@ -27,17 +108,21 @@ export function wwwAuthenticate(
   }
   const reasons = new Set(decision.denials.map((denial) => denial.reason));
   if (reasons.has('insufficient-user-authentication')) {
-    return 'Bearer error="insufficient_user_authentication"';
+    return bearerChallenge({
+      error: 'insufficient_user_authentication',
+      ...stepUpOf(decision),
+    });
   }
   if (reasons.has('anonymous')) {
-    return 'Bearer error="invalid_token"';
+    return bearerChallenge({ error: 'invalid_token' });
   }
   if (reasons.has('not-delegated') || reasons.has('no-delegation')) {
-    const scope = permission?.scope;
-    if (scope === undefined) {
-      return 'Bearer error="insufficient_scope"';
-    }
-    return `Bearer error="insufficient_scope", scope=${quoted(scope)}`;
+    return bearerChallenge(
+      compact<BearerChallenge>({
+        error: 'insufficient_scope',
+        scopes: permission === undefined ? undefined : [permission.scope],
+      }),
+    );
   }
   return undefined;
 }
@@ -46,8 +131,10 @@ export function problemResponse(
   details: ProblemDetails,
   permission?: Permission,
   decision?: Decision,
+  extra?: Readonly<Record<string, string>>,
 ): Response {
   const headers = new Headers({
+    ...extra,
     'content-type': 'application/problem+json',
   });
   if (decision !== undefined) {
@@ -88,6 +175,68 @@ function resourceRef(
   });
 }
 
+function isLimitDetail(value: unknown): value is LimitDetail {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  const { count, window, resetsAt } = value as Partial<LimitDetail>;
+  return (
+    Number.isFinite(count) &&
+    Number.isFinite(window) &&
+    Number.isFinite(resetsAt)
+  );
+}
+
+/**
+ * `Retry-After` plus the `RateLimit` / `RateLimit-Policy` fields of
+ * draft-ietf-httpapi-ratelimit-headers-11, one policy per exhausted grant.
+ */
+export function rateLimitHeaders(
+  decision: Decision,
+  now: number = Date.now() / 1000,
+): Record<string, string> {
+  if (decision.outcome !== 'denied') {
+    return {};
+  }
+  const policies = new Map<string, LimitDetail>();
+  for (const denial of decision.denials) {
+    if (denial.reason !== 'limit' || !isLimitDetail(denial.detail)) {
+      continue;
+    }
+    const name = denial.role ?? 'default';
+    if (!policies.has(name)) {
+      policies.set(name, denial.detail);
+    }
+  }
+  if (policies.size === 0) {
+    return {};
+  }
+  const entries = [...policies].map(([name, detail]) => ({
+    name: quoted(name),
+    detail,
+    wait: Math.max(1, Math.ceil(detail.resetsAt - now)),
+  }));
+  return {
+    'Retry-After': String(Math.min(...entries.map((entry) => entry.wait))),
+    RateLimit: entries
+      .map((entry) => `${entry.name};r=0;t=${entry.wait}`)
+      .join(', '),
+    'RateLimit-Policy': entries
+      .map(
+        (entry) =>
+          `${entry.name};q=${entry.detail.count};w=${entry.detail.window}`,
+      )
+      .join(', '),
+  };
+}
+
+/** Reasons that only arise once a matching grant was found, so they reveal nothing hidden. */
+const HOLDS_GRANT = new Set<string>([
+  'insufficient-user-authentication',
+  'limit',
+  'limit-unavailable',
+]);
+
 export function problemFromDecision(
   decision: Decision,
   permission: Permission,
@@ -95,6 +244,8 @@ export function problemFromDecision(
   options: {
     readonly instance?: string;
     readonly approval?: ApprovalHint;
+    /** `'hide'` on a loaded row: a denial answers as `404` `/not-found`. */
+    readonly disclosure?: 'hide' | 'reveal';
   } = {},
 ): Response {
   const base = PROBLEM_BASE;
@@ -132,6 +283,12 @@ export function problemFromDecision(
   }
   const reasons = new Set(decision.denials.map((denial) => denial.reason));
   if (
+    options.disclosure === 'hide' &&
+    ![...reasons].every((reason) => HOLDS_GRANT.has(reason))
+  ) {
+    return notFoundProblem(options.instance);
+  }
+  if (
     decision.denials.some(
       (denial) => denial.detail instanceof PermDockValidationError,
     )
@@ -161,14 +318,84 @@ export function problemFromDecision(
   const details = error.toProblemDetails(
     compact({ instance: options.instance }),
   );
-  let status = details.status;
-  let type = `${base}/denied`;
   if (reasons.has('anonymous')) {
-    status = 401;
-    type = `${base}/unauthenticated`;
-  } else if (reasons.has('insufficient-user-authentication')) {
-    status = 401;
-    type = `${base}/step-up-required`;
+    return problemResponse(
+      { ...details, status: 401, type: `${base}/unauthenticated` },
+      permission,
+      decision,
+    );
   }
-  return problemResponse({ ...details, status, type }, permission, decision);
+  if (reasons.has('insufficient-user-authentication')) {
+    return problemResponse(
+      compact<ProblemDetails>({
+        ...details,
+        status: 401,
+        type: `${base}/step-up-required`,
+        ...stepUpOf(decision),
+      }),
+      permission,
+      decision,
+    );
+  }
+  const plans = requiredPlans(decision);
+  if (plans.length > 0) {
+    return problemResponse(
+      {
+        ...details,
+        type: `${base}/not-entitled`,
+        title: 'Plan upgrade required',
+        plans,
+      },
+      permission,
+      decision,
+    );
+  }
+  if (reasons.size > 0 && [...reasons].every((reason) => reason === 'limit')) {
+    return problemResponse(
+      {
+        ...details,
+        status: 429,
+        type: `${base}/rate-limited`,
+        title: 'Rate limit exceeded',
+      },
+      permission,
+      decision,
+      rateLimitHeaders(decision),
+    );
+  }
+  if (
+    reasons.has('limit-unavailable') &&
+    [...reasons].every(
+      (reason) => reason === 'limit' || reason === 'limit-unavailable',
+    )
+  ) {
+    return problemResponse(
+      {
+        ...details,
+        status: 503,
+        type: `${base}/limit-unavailable`,
+        title: 'Rate limit unavailable',
+      },
+      permission,
+      decision,
+    );
+  }
+  return problemResponse(
+    { ...details, type: `${base}/denied` },
+    permission,
+    decision,
+  );
+}
+
+/** The `404` a missing row and a hidden one share, so the two read the same. */
+export function notFoundProblem(instance?: string): Response {
+  return problemResponse(
+    compact<ProblemDetails>({
+      type: `${PROBLEM_BASE}/not-found`,
+      title: 'Not found',
+      status: 404,
+      detail: 'No such resource',
+      instance,
+    }),
+  );
 }

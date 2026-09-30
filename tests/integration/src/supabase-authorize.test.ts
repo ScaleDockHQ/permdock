@@ -221,33 +221,8 @@ describe('Supabase RBAC scaffold, database mode', () => {
     }
   });
 
-  it('lets only supabase_auth_admin run the hook, which writes user_role', async () => {
-    const event = JSON.stringify({ user_id: STAFF, claims: { sub: STAFF } });
-    const claims = await as('supabase_auth_admin', null, async (client) => {
-      const result = await client.query<{
-        event: { claims: Record<string, unknown> };
-      }>('select public.custom_access_token_hook($1::jsonb) as event', [event]);
-      return result.rows[0]?.event.claims;
-    });
-    expect(claims).toEqual({ sub: STAFF, user_role: 'staff' });
-
-    const none = await as('supabase_auth_admin', null, async (client) => {
-      const result = await client.query<{
-        event: { claims: Record<string, unknown> };
-      }>('select public.custom_access_token_hook($1::jsonb) as event', [
-        JSON.stringify({ user_id: MEMBER, claims: { sub: MEMBER } }),
-      ]);
-      return result.rows[0]?.event.claims;
-    });
-    expect(none).toEqual({ sub: MEMBER });
-
-    await expect(
-      as('authenticated', STAFF, async (client) => {
-        await client.query(
-          'select public.custom_access_token_hook($1::jsonb)',
-          [event],
-        );
-      }),
-    ).rejects.toMatchObject({ code: '42501' });
+  it('emits no token hook, leaving the claims to permdock supabase hook generate', () => {
+    expect(generated).not.toContain('custom_access_token_hook(event jsonb)');
+    expect(generated).toContain('permdock supabase hook generate');
   });
 });

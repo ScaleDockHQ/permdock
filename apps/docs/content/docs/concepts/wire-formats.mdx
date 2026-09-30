@@ -97,7 +97,7 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
 }
 ```
 
-A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [policies](/docs/concepts/policies) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (a scope name or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque, needs the relation graph (a `through: 'parent'` or edge-table relation), or reads a relation `period`; such an entry carries no `where` or `check`, so the client sends the check to the decision endpoint. A snapshot has one entry per membership of the grant's scope that holds its roles (no cascade between scopes), and a client denies when a `portable: false` deny applies. A resolved [custom-role](/docs/concepts/custom-roles) grant is an ordinary entry whose `role` is the custom role name, whose `to` is that role in its scope, and whose `membership` is the membership holding it. `roles` is ranked by the policy's `assigns` graph when it has one, and `audiences` lists the distinct `meta.audience` values of those roles in the same order (absent when there are none). `assignable` has one `{ tenant, roles, permissions }` entry per tenant in `tenants`: the declared role names and the permission leaves the subject may hand out there, with `permissions` trimmed by `include`; it is absent when `tenants` is empty. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
+A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [policies](/docs/concepts/policies) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `scope` (a scope name or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque, needs the relation graph (a `through: 'parent'` or edge-table relation), or reads a relation `period`; such an entry carries no `where` or `check`, so the client sends the check to the decision endpoint. A snapshot has one entry per membership of the grant's scope that holds its roles (no cascade between scopes), and a client denies when a `portable: false` deny applies. A resolved [custom-role](/docs/concepts/custom-roles) grant is an ordinary entry whose `role` is the custom role name, whose `to` is that role in its scope, and whose `membership` is the membership holding it. `roles` is ranked by the policy's `assigns` graph when it has one, and `audiences` lists the distinct `meta.audience` values of those roles in the same order (absent when there are none). `assignable` has one `{ tenant, roles, permissions }` entry per tenant in `tenants`: the declared role names and the permission leaves the subject may hand out there, with `permissions` trimmed by `include`; it is absent when `tenants` is empty. `notEntitled` lists `{ permission, role, to }` for each allow grant whose roles the subject holds and whose `plan` grantee it lacks, one per permission and role; it grants nothing and is absent when empty. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
 
 ## Membership and custom role
 
@@ -149,7 +149,7 @@ The return value of `decide`, and the payload inside AuthZEN `context` and Probl
   "reason": "human", "token": "pd1.…" }
 ```
 
-In JSON, `alternatives` is an array of permission keys; in memory it is an array of leaves. Remote PDP denials use `pdp-denied`, `pdp-unavailable` or `pdp-invalid-response`. A remote grant sets `matched.provider` to `pdp`. Quota denials use `limit` (exhausted) or `limit-unavailable` (no store, throw, or thenable). A `granted` decision whose matched allow has a `limit` carries `quota`: `remaining` is what is left once this call counts (for `can`, `filter` and `simulate`, which only peek, what it would leave), and `resetsAt` is the Unix second the window ends. It may also carry `obligations`, an array of `{ kind }` objects the caller owes alongside the action: `over-limit` when a `mode: 'soft'` limit granted past its count (`remaining` is then `0`), and `near-limit` when usage reached the limit's `alertAt` fraction. Both fields are absent otherwise, and only `granted` carries them. Snapshots never carry `quota`, because it is live store state. An Arazzo hole uses `undocumented` (missing operation or no `x-permdock-permissions`) or `unsupported` (AsyncAPI source). A refused API key creation (`decideCredential`) uses `exceeds-creator` or `credential-policy`, with `detail` naming the offending role, permission, tenant or rule ([API keys](/docs/concepts/credentials)).
+In JSON, `alternatives` is an array of permission keys; in memory it is an array of leaves. Remote PDP denials use `pdp-denied`, `pdp-unavailable` or `pdp-invalid-response`. A remote grant sets `matched.provider` to `pdp`. Quota denials use `limit` (exhausted) or `limit-unavailable` (no store, throw, or thenable); a `limit` denial's `detail` is `{ count, window, resetsAt }`, the grant's count, its window in seconds and the Unix second it resets. A `granted` decision whose matched allow has a `limit` carries `quota`: `remaining` is what is left once this call counts (for `can`, `filter` and `simulate`, which only peek, what it would leave), and `resetsAt` is the Unix second the window ends. It may also carry `obligations`, an array of `{ kind }` objects the caller owes alongside the action: `over-limit` when a `mode: 'soft'` limit granted past its count (`remaining` is then `0`), and `near-limit` when usage reached the limit's `alertAt` fraction. Both fields are absent otherwise, and only `granted` carries them. Snapshots never carry `quota`, because it is live store state. An Arazzo hole uses `undocumented` (missing operation or no `x-permdock-permissions`) or `unsupported` (AsyncAPI source). A refused API key creation (`decideCredential`) uses `exceeds-creator` or `credential-policy`, with `detail` naming the offending role, permission, tenant or rule ([API keys](/docs/concepts/credentials)).
 
 ## Decision event
 
@@ -253,7 +253,7 @@ A `credential` event records an API key's lifecycle ([API keys](/docs/concepts/c
 
 ## Credential
 
-The record an API key stands for. The key itself (`pdk_<id>_<secret>`) is opaque; the application stores this record with the key's base64url SHA-256 hash and never the key.
+The record an API key stands for. The key itself (`pdk_<id>_<secret><checksum>`) is opaque; the application stores this record with the key's base64url SHA-256 hash and never the key.
 
 ```json
 {
@@ -500,13 +500,13 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
   "permissions": [
     { "key": "post.update", "scope": "post:update", "resource": "post", "action": "update", "arity": "instance",
       "meta": { "title": "Edit post" },
-      "usages": [{ "file": "src/app/posts/[id]/page.tsx", "line": 22, "call": "assert" }] },
+      "usages": [{ "file": "src/app/posts/[id]/page.tsx", "line": 22, "call": "assert" }], "rowConditions": true },
     { "key": "post.create", "scope": "post:create", "resource": "post", "action": "create", "arity": "collection",
-      "meta": {}, "usages": [] },
+      "meta": {}, "usages": [], "rowConditions": false },
     { "key": "auditLog.read", "scope": "auditLog:read", "resource": "auditLog", "action": "read", "arity": "instance",
-      "meta": {}, "usages": [], "hostable": true },
+      "meta": {}, "usages": [], "hostable": true, "rowConditions": false },
     { "key": "invoice.refund", "scope": "invoice:refund", "resource": "invoice", "action": "refund", "arity": "instance",
-      "meta": {}, "usages": [], "approvals": ["human"] }
+      "meta": {}, "usages": [], "rowConditions": false, "approvals": ["human"] }
   ],
   "scopes": [{ "name": "tenant", "key": "orgId" }, { "name": "team", "key": "teamId", "within": "tenant" }],
   "roles": [
@@ -517,9 +517,9 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 }
 ```
 
-`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, the catalog lists the policy's `scopes` in order (`{ name, key, within? }`, omitted when it declares none), each role also carries `on` (a scope name or `resource`, omitted for a global role), `assignable` and, when set, its [ownership rules](/docs/concepts/ownership) `min` (omitted when 0), `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`, a permission the policy lists in `hostable` carries `hostable: true`, and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by, distinct?, staleOn? }`), absent when none requires one. A resource that declares `version` carries it (the row field a `staleOn: 'resource-change'` approval binds to), and one that declares `restricted` carries that column name. `relations` maps each relation name to its declared shape: `{ field, memberOf? }`, `{ edge, object?, subject?, expiresAt? }` or `{ principal, period?: { startsAt?, expiresAt? } }`. A relation grantee (`to`) in a snapshot, a decision event or a catalog may carry `through: "parent"` and `depth` ([relationships](/docs/concepts/relationships)). PermDock Cloud reads these to offer only assignable roles, to apply `assigns`, `min`, `max`, `transferOnly` and `for` in its assignment checks, to offer only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`); an approval without `staleOn` is weaker than one with it. `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`.
+`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, the catalog lists the policy's `scopes` in order (`{ name, key, within? }`, omitted when it declares none), each role also carries `on` (a scope name or `resource`, omitted for a global role), `assignable` and, when set, its [ownership rules](/docs/concepts/ownership) `min` (omitted when 0), `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`, a permission the policy lists in `hostable` carries `hostable: true`, every permission carries `rowConditions` (`true` when a code grant for it depends on more than the role and the scope, so the SQL helpers alone cannot enforce it, [RLS](/docs/adapters/rls#sql-helper-contract)), and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by, distinct?, staleOn? }`), absent when none requires one. A resource that declares `version` carries it (the row field a `staleOn: 'resource-change'` approval binds to), and one that declares `restricted` carries that column name. `relations` maps each relation name to its declared shape: `{ field, memberOf? }`, `{ edge, object?, subject?, expiresAt? }` or `{ principal, period?: { startsAt?, expiresAt? } }`. A relation grantee (`to`) in a snapshot, a decision event or a catalog may carry `through: "parent"` and `depth` ([relationships](/docs/concepts/relationships)). PermDock Cloud reads these to offer only assignable roles, to apply `assigns`, `min`, `max`, `transferOnly` and `for` in its assignment checks, to offer only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`); an approval without `staleOn` is weaker than one with it. `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`.
 
-`fingerprint` identifies the catalog's contract and is what a hosted policy document pins as `catalog`. It is `catalogFingerprint(catalog)` from `permdock`: the base64url SHA-256 of the canonical JSON (object keys sorted by UTF-16 code unit, no whitespace, as in RFC 8785) of the document without `generatedAt`, `generator`, `fingerprint` and every `permissions[].usages`. The clock, the CLI version and call sites therefore never change it; any change to a permission, resource, role, plan, `hostable` or `approvals` does. A reader recomputes it with the same function and rejects a document whose `fingerprint` disagrees.
+`fingerprint` identifies the catalog's contract and is what a hosted policy document pins as `catalog`. It is `catalogFingerprint(catalog)` from `permdock`: the base64url SHA-256 of the canonical JSON (object keys sorted by UTF-16 code unit, no whitespace, as in RFC 8785) of the document without `generatedAt`, `generator`, `fingerprint` and every `permissions[].usages`. The clock, the CLI version and call sites therefore never change it; any change to a permission, resource, role, plan, `hostable`, `rowConditions` or `approvals` does. A reader recomputes it with the same function and rejects a document whose `fingerprint` disagrees.
 
 ### `x-permdock-catalog` in OpenAPI documents
 
@@ -541,6 +541,56 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 ```
 
 `drafts` appears only when the output depends on an unfinished specification, today `--target 3.3` (`oas`, `securityProfiles`; [OpenAPI 3.3](/docs/standards/openapi)) and `--overlay 1.2` (`overlay`; [OpenAPI Overlay](/docs/standards/openapi-overlay)), and carries only the keys that apply; each value names the pinned revision. `permdock openapi emit --check` fails when a committed document's `drafts` differ from the installed CLI's pins. The shape is versioned by `v` like every other extension.
+
+## Supabase hook manifest
+
+Output of `permdock supabase inspect --json` ([supabase](/docs/cli/supabase)): what the generated hook and SQL helpers expect, for a package that writes policies or claims next to them. `version` is the format major, as in the catalog; `permdock/testing` exports `supabaseHookManifestFixture`, and `permdock/supabase` the `SupabaseHookManifest` type.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["version", "hook", "helpers", "tenantClaim", "budget", "claims", "authzVersion"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "hook": {
+      "type": "object",
+      "required": ["schema", "function", "out"],
+      "properties": {
+        "schema": { "type": "string" },
+        "function": { "const": "custom_access_token_hook" },
+        "out": { "type": "string" }
+      }
+    },
+    "helpers": {
+      "type": "object",
+      "required": ["schema", "functions"],
+      "properties": {
+        "schema": { "type": "string" },
+        "functions": { "type": "array", "items": { "type": "string", "pattern": "^(permdock_has|permitted_[a-z][a-z0-9_]*_ids)$" } }
+      }
+    },
+    "tenantClaim": { "type": "string" },
+    "budget": {
+      "type": "object",
+      "required": ["bytes", "measure"],
+      "properties": { "bytes": { "type": "integer", "minimum": 1 }, "measure": { "type": "string" } }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "source", "budget"],
+        "properties": { "name": { "type": "string" }, "source": { "type": "string" }, "budget": { "type": "boolean" } }
+      }
+    },
+    "authzVersion": { "type": "boolean" }
+  }
+}
+```
+
+`helpers.functions` are `permdock_has(p_grant text)` and one `permitted_<scope>_ids(p_grant text)` per declared scope, in `helpers.schema`. What they answer, and what a policy calling them may rely on, is the [SQL helper contract](/docs/adapters/rls#sql-helper-contract); the claims they read have a JSON Schema, `schemas/supabase-claims-v1.json`. `budget.measure` is the SQL the hook sums against `budget.bytes`: `octet_length(memberships::text) + octet_length(attrs::text)`. Each claim's `source` is `permdock` or the `<schema>.<function>` of a `supabase.hook.claims` entry, and `budget` says whether it counts toward the budget. The generated migration starts with the same facts on one line, `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, which `supabase hook generate --check` compares first.
 
 ## Problem Details
 

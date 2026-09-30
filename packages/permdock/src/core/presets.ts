@@ -9,7 +9,7 @@ import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 
 type ReadOnlyMeta = { readonly readOnly: true };
-type DestructiveMeta = { readonly tags: readonly ['destructive'] };
+type DestructiveMeta = { readonly destructive: true };
 
 type CrudActions = {
   readonly read: ReadOnlyMeta;
@@ -32,7 +32,7 @@ type WritableActions = {
 const CRUD_ACTIONS: CrudActions = {
   read: { readOnly: true },
   update: {},
-  delete: { tags: ['destructive'] as const },
+  delete: { destructive: true },
 };
 
 const CRUD_COLLECTION: CrudCollection = {
@@ -97,6 +97,7 @@ type PresetOptions<
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   readonly restricted?: string;
+  readonly disclosure?: 'hide' | 'reveal';
   readonly actions?: A;
   readonly collection?: C;
 };
@@ -111,6 +112,7 @@ type PresetResult<
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   readonly restricted?: string;
+  readonly disclosure?: 'hide' | 'reveal';
   readonly actions: MergeActionRecords<BaseA, ToActionRecord<A>>;
   readonly collection?: MergeActionRecords<BaseC, ToActionRecord<C>>;
 };
@@ -139,6 +141,8 @@ function mergeMeta(base: ActionMeta, extra: ActionMeta): ActionMeta {
     description: extra.description ?? base.description,
     tags: extra.tags ?? base.tags,
     readOnly: extra.readOnly ?? base.readOnly,
+    destructive: extra.destructive ?? base.destructive,
+    idempotent: extra.idempotent ?? base.idempotent,
   });
 }
 
@@ -185,6 +189,7 @@ function finishPreset<
     parent: options?.parent,
     relations: options?.relations,
     restricted: options?.restricted,
+    disclosure: options?.disclosure,
     actions,
     collection: Object.keys(collection).length === 0 ? undefined : collection,
   });

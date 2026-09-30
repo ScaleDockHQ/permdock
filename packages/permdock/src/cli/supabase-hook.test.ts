@@ -38,7 +38,7 @@ async function generate(
   hook: string,
   extra: readonly string[] = [],
   rls = '{}',
-): Promise<{ code: number; output: string; sql: string }> {
+): Promise<{ code: number; output: string; sql: string; cwd: string }> {
   mkdirSync(TMP, { recursive: true });
   const cwd = mkdtempSync(join(TMP, 'supabase-hook-'));
   temps.push(cwd);
@@ -63,7 +63,12 @@ export default {
   } catch {
     sql = '';
   }
-  return { code: result.code, output: result.stdout + result.stderr, sql };
+  return {
+    code: result.code,
+    output: result.stdout + result.stderr,
+    sql,
+    cwd,
+  };
 }
 
 describe('permdock supabase hook generate', () => {
@@ -204,6 +209,216 @@ describe('permdock supabase hook generate', () => {
     expect(sql).toContain(
       `claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);`,
     );
+  });
+
+  it('writes extra claims outside the budget and strips them for suspended users', async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      [],
+      `{ suspension: { users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' } } }`,
+    );
+    expect(code).toBe(0);
+    expect(sql).toContain(
+      `extra := "better_supabase"."feature_claims"(uid::uuid);`,
+    );
+    expect(sql).toContain(`claims := jsonb_set(claims, '{features}', extra);`);
+    expect(sql).toContain(
+      `claims := claims - 'memberships_truncated' - 'attrs' - 'tenant_id' - 'features';`,
+    );
+    expect(sql).toContain(`claims := claims - 'attrs' - 'features';`);
+    expect(sql).toContain(
+      'grant execute on function "better_supabase"."feature_claims"(uuid) to supabase_auth_admin;',
+    );
+    expect(sql).toContain(
+      'grant usage on schema "better_supabase" to supabase_auth_admin;',
+    );
+    const suspendedBranch = sql.slice(
+      sql.indexOf('if not '),
+      sql.indexOf('end if;', sql.indexOf('if not ')),
+    );
+    expect(suspendedBranch).not.toContain('feature_claims');
+    const loopEnd = sql.indexOf('end loop;');
+    expect(sql.indexOf('feature_claims"(uid')).toBeGreaterThan(loopEnd);
+    expect(sql.split('\n', 1)[0]).toBe(
+      '-- permdock:hook v1 schema=public tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,tenant_id,authz_ver,features',
+    );
+  });
+
+  it('checks the marker line and prints the inspect manifest', async () => {
+    const { code, cwd } = await generate(
+      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      ['--budget', '2048'],
+    );
+    expect(code).toBe(0);
+    const upToDate = await run(
+      [
+        'supabase',
+        'hook',
+        'generate',
+        '--out',
+        'hook.sql',
+        '--budget',
+        '2048',
+        '--check',
+      ],
+      { cwd },
+    );
+    expect(upToDate.code).toBe(0);
+    const drift = await run(
+      ['supabase', 'hook', 'generate', '--out', 'hook.sql', '--check'],
+      { cwd },
+    );
+    expect(drift.code).toBe(1);
+    expect(drift.stdout + drift.stderr).toContain('budget 2048 -> 1024');
+    writeFileSync(join(cwd, 'hook.sql'), '-- hand edited\n');
+    const unmarked = await run(
+      ['supabase', 'hook', 'generate', '--out', 'hook.sql', '--check'],
+      { cwd },
+    );
+    expect(unmarked.stdout + unmarked.stderr).toContain(
+      'hook.sql has no -- permdock:hook v1 line',
+    );
+    const inspect = await run(['supabase', 'inspect', '--json'], { cwd });
+    expect(inspect.code).toBe(0);
+    expect(JSON.parse(inspect.stdout)).toEqual({
+      version: 1,
+      hook: {
+        schema: 'public',
+        function: 'custom_access_token_hook',
+        out: 'supabase/permdock-hook.sql',
+      },
+      helpers: {
+        schema: 'public',
+        functions: [
+          'permdock_has',
+          'permitted_organization_ids',
+          'permitted_customer_ids',
+        ],
+      },
+      tenantClaim: 'tenant_id',
+      budget: {
+        bytes: 1024,
+        measure: 'octet_length(memberships::text) + octet_length(attrs::text)',
+      },
+      claims: [
+        { name: 'user_role', source: 'permdock', budget: false },
+        { name: 'roles', source: 'permdock', budget: false },
+        { name: 'memberships', source: 'permdock', budget: true },
+        { name: 'memberships_truncated', source: 'permdock', budget: false },
+        { name: 'tenant_id', source: 'permdock', budget: false },
+        { name: 'authz_ver', source: 'permdock', budget: false },
+        {
+          name: 'features',
+          source: 'better_supabase.feature_claims',
+          budget: false,
+        },
+      ],
+      authzVersion: true,
+    });
+    const text = await run(['supabase', 'inspect'], { cwd });
+    expect(text.stdout).toContain('tenant claim tenant_id');
+  });
+
+  it('warns with PD039 until the helpers exist in the configured schema', async () => {
+    const missing = await generate(`{ memberships: [${SOURCES}] }`);
+    expect(missing.code).toBe(0);
+    expect(missing.output).toContain(
+      'PD039 schema public has no permdock_has, permitted_organization_ids, permitted_customer_ids',
+    );
+    writeFileSync(
+      join(missing.cwd, 'rls.sql'),
+      `create or replace function "public".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;
+create or replace function public.permitted_organization_ids(p_grant text) returns setof text language sql as $$ select null::text where false $$;
+`,
+    );
+    const partial = await run(
+      ['supabase', 'hook', 'generate', '--out', 'hook.sql'],
+      { cwd: missing.cwd },
+    );
+    expect(partial.stdout).toContain(
+      'PD039 schema public has no permitted_customer_ids',
+    );
+    const other = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      "{ schema: 'app' }",
+    );
+    writeFileSync(
+      join(other.cwd, 'rls.sql'),
+      `create function "public".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;`,
+    );
+    const wrongSchema = await run(
+      ['supabase', 'hook', 'generate', '--out', 'hook.sql'],
+      { cwd: other.cwd },
+    );
+    expect(wrongSchema.stdout).toContain(
+      'PD039 schema app has no permdock_has',
+    );
+  });
+
+  it('doctor PD039 reports missing helpers, oversized extra claims and dropped memberships', async () => {
+    const { cwd } = await generate(
+      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      [],
+      "{}, doctor: { claims: './claims.json' }",
+    );
+    writeFileSync(
+      join(cwd, 'claims.json'),
+      JSON.stringify([
+        { features: { small: true } },
+        { features: { flags: 'x'.repeat(2000) } },
+        {
+          memberships: [
+            { scope: 'organization', id: 'o1', roles: ['admin'] },
+            { org_id: 'o2', role: 'admin' },
+          ],
+        },
+      ]),
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD039'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      "schema public has no permdock_has, permitted_organization_ids, permitted_customer_ids: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
+      'claim features is 2012 bytes of JSON in ./claims.json, more than the 1024-byte memberships budget',
+      'sample 2 in ./claims.json has memberships [1] that subjectFromSupabase drops (membership-dropped)',
+    ]);
+  });
+
+  it('quotes a schema-qualified fromJunction table and grants usage on its schema', async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [fromJunction({ table: 'better_supabase.memberships', scope: 'organization', id: 'org_id', roles: 'role' })], roles: false }`,
+    );
+    expect(code).toBe(0);
+    expect(sql).toContain('from "better_supabase"."memberships"');
+    expect(sql).not.toContain('"better_supabase.memberships"');
+    expect(sql).toContain(
+      'grant usage on schema "better_supabase" to supabase_auth_admin;',
+    );
+    expect(sql).toContain(
+      'grant select on table "better_supabase"."memberships" to supabase_auth_admin;',
+    );
+  });
+
+  it('refuses reserved or unqualified extra claims', async () => {
+    for (const [claims, message] of [
+      [`{ memberships: 'x.f' }`, 'PermDock or Supabase Auth writes'],
+      [`{ tenant_id: 'x.f' }`, 'PermDock or Supabase Auth writes'],
+      [`{ role: 'x.f' }`, 'PermDock or Supabase Auth writes'],
+      [`{ __proto__x: 'x.f', ['__proto__']: 'x.f' }`, 'prototype key'],
+      [`{ features: 'feature_claims' }`, 'schema-qualified'],
+      [`{ features: 'x.f(); drop' }`, 'schema-qualified'],
+    ] as const) {
+      const result = await generate(
+        `{ memberships: [${SOURCES}], claims: ${claims} }`,
+      );
+      expect(result.code).toBe(2);
+      expect(result.output).toContain(message);
+    }
   });
 });
 

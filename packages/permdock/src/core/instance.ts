@@ -1,4 +1,5 @@
 import type { Decision } from './decision.ts';
+import type { GranteeMatch } from './grantee.ts';
 import type {
   AuthEvent,
   DecisionSink,
@@ -201,7 +202,14 @@ export function collectSnapshotGrants(
   customRoles: readonly CustomRole[],
   now: number = nowSeconds(),
   customGrants: readonly CustomGrant[] = customGrantsFor(policy, customRoles),
+  mode: 'held' | 'not-entitled' = 'held',
 ): readonly { readonly grant: Grant; readonly membership?: Membership }[] {
+  const skip = (grant: Grant, match: GranteeMatch): boolean =>
+    mode === 'held'
+      ? !match.matched
+      : match.matched ||
+        match.reason !== 'not-entitled' ||
+        grant.effect !== 'allow';
   const scopes = scopeList(policy.scopes);
   const declared = declaredRoleNames(policy);
   const global = expandRoleNames(
@@ -241,7 +249,7 @@ export function collectSnapshotGrants(
       scopes,
       policy.resources,
     );
-    if (!match.matched) {
+    if (skip(grant, match)) {
       continue;
     }
     const roleItems = flattenGrantee(grant.to).filter(
@@ -284,7 +292,7 @@ export function collectSnapshotGrants(
       scopes,
       policy.resources,
     );
-    if (!match.matched) {
+    if (skip(grant, match)) {
       continue;
     }
     const merged: Grant = graphAware(grant, match.where);
@@ -293,7 +301,7 @@ export function collectSnapshotGrants(
     }
   }
   const fresh = policy.fresh ?? [];
-  if (subject.stale === true && fresh.length > 0) {
+  if (mode === 'held' && subject.stale === true && fresh.length > 0) {
     return out.filter(
       ({ grant }) =>
         grant.effect === 'deny' || !fresh.includes(grant.permission.key),
@@ -468,6 +476,14 @@ export function snapshotOf(
       subject,
       roles,
       audiences: audiences.length === 0 ? undefined : audiences,
+      notEntitled: collectSnapshotGrants(
+        policy,
+        subject,
+        options.customRoles,
+        now,
+        customGrants,
+        'not-entitled',
+      ),
       grants: collectSnapshotGrants(
         policy,
         subject,

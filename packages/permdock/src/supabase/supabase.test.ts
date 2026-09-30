@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
+import type { AuthEvent } from '../core/interfaces.ts';
+
+import {
+  allow,
+  createPermDock,
+  definePermissions,
+  definePolicy,
+  defineRoles,
+  resource,
+} from '../index.ts';
 import {
   authorizeSql,
   subjectFromSupabase,
@@ -143,6 +153,105 @@ describe('subjectFromSupabase', () => {
     );
     expect(subject.principal?.email).toBe('a@b.c');
     expect(subject.principal?.phone).toBeUndefined();
+  });
+
+  it('reports each membership entry it drops', () => {
+    const events: AuthEvent[] = [];
+    const subject = subjectFromSupabase(
+      {
+        sub: 'user-5',
+        role: 'authenticated',
+        memberships: [
+          { scope: 'tenant', id: 'org-1', roles: ['admin'] },
+          { org_id: 'org-2', role: 'admin' },
+          { tenant: 'org-3', roles: [] },
+        ],
+      },
+      {
+        onAuth: (event) => {
+          events.push(event);
+        },
+      },
+    );
+    expect(subject.principal?.memberships).toEqual([
+      { scope: 'tenant', id: 'org-1', roles: ['admin'] },
+    ]);
+    expect(events).toEqual([
+      { reason: 'schema', cause: 'membership-dropped', source: 'supabase' },
+    ]);
+  });
+
+  it("reads plans from the active tenant's entry only", () => {
+    const claims = {
+      sub: 'user-6',
+      role: 'authenticated',
+      tenant_id: 'org-1',
+      features: { 'org-1': ['pro', 'sso'], 'org-2': ['enterprise'] },
+    };
+    expect(
+      subjectFromSupabase(claims, { plans: 'features' }).principal?.plans,
+    ).toEqual(['pro', 'sso']);
+    expect(subjectFromSupabase(claims).principal?.plans).toBeUndefined();
+    const { tenant_id: _, ...noTenant } = claims;
+    expect(
+      subjectFromSupabase(noTenant, { plans: 'features' }).principal?.plans,
+    ).toBeUndefined();
+  });
+
+  it('maps act and client_id to an oauth-client actor with scope as delegation', () => {
+    const base = { sub: 'user-7', role: 'authenticated' };
+    const client = subjectFromSupabase({
+      ...base,
+      client_id: 'app-1',
+      scope: 'openid invoice:read',
+    });
+    expect(client.principal?.id).toBe('user-7');
+    expect(client.actor).toEqual({ id: 'app-1', kind: 'oauth-client' });
+    expect(client.delegation).toEqual({ scopes: ['openid', 'invoice:read'] });
+    expect(client.principal?.claims).toBeUndefined();
+
+    const act = { sub: 'agent-1', act: { sub: 'agent-2' } };
+    const chained = subjectFromSupabase({ ...base, act, client_id: 'app-1' });
+    expect(chained.actor).toEqual({ id: 'agent-2', kind: 'oauth-client' });
+    expect(chained.delegation).toEqual({ chain: act });
+
+    const events: AuthEvent[] = [];
+    const broken = subjectFromSupabase(
+      { ...base, act: { act: 'nope' } },
+      {
+        onAuth: (event) => {
+          events.push(event);
+        },
+      },
+    );
+    expect(broken.principal).toBeNull();
+    expect(events).toMatchObject([{ cause: 'invalid-chain' }]);
+
+    expect(subjectFromSupabase(base).actor).toBeUndefined();
+  });
+
+  it('denies a third-party client whose scope does not delegate the permission', () => {
+    const permissions = definePermissions({
+      invoice: resource({ collection: ['read'] }),
+    });
+    const roles = defineRoles({ member: {} });
+    const policy = definePolicy(
+      { permissions, roles },
+      {
+        subject: (claims: unknown) => subjectFromSupabase(claims).principal,
+        grants: [allow(permissions.invoice.read, { to: roles.member })],
+      },
+    );
+    const base = { sub: 'user-8', role: 'authenticated', user_role: 'member' };
+    const dock = (claims: Record<string, unknown>): boolean =>
+      createPermDock(policy, subjectFromSupabase(claims)).can(
+        permissions.invoice.read,
+      );
+    expect(dock(base)).toBe(true);
+    expect(dock({ ...base, client_id: 'app-1' })).toBe(false);
+    expect(dock({ ...base, client_id: 'app-1', scope: 'invoice:read' })).toBe(
+      true,
+    );
   });
 });
 

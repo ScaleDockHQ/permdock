@@ -1,3 +1,4 @@
+import { crc32 } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 
 import type { Credential } from '../core/credential.ts';
@@ -42,6 +43,7 @@ const policy = definePolicy(
 );
 
 const NOW = Math.floor(Date.now() / 1000);
+const BASE62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const r1 = { id: 'r_1', orgId: 'o_1' };
 
 function credential(overrides: Record<string, unknown> = {}): Credential {
@@ -128,22 +130,43 @@ describe('testCredentialVerifier on apiKeyVerifier', () => {
 });
 
 describe('API key format', () => {
-  it('generates pdk_<id>_<secret> keys that parse back, ids with underscores included', () => {
+  it('generates pdk_<id>_<secret><checksum> keys that parse back, ids with underscores included', () => {
     const key = generateApiKey('key_1');
-    expect(key).toMatch(/^pdk_key_1_[A-Za-z0-9]{43}$/);
-    expect(parseApiKey(key)).toEqual({ id: 'key_1', secret: key.slice(10) });
+    expect(key).toMatch(/^pdk_key_1_[A-Za-z0-9]{49}$/);
+    expect(parseApiKey(key)).toEqual({
+      id: 'key_1',
+      secret: key.slice(10, 53),
+    });
     expect(generateApiKey('key_1')).not.toBe(key);
   });
 
+  it('ends in the base62 CRC-32 of the rest of the key', () => {
+    const key = generateApiKey('ci');
+    const body = key.slice(0, -6);
+    let value = crc32(body);
+    let expected = '';
+    for (let index = 0; index < 6; index += 1) {
+      expected = BASE62[value % 62] + expected;
+      value = Math.floor(value / 62);
+    }
+    expect(key.slice(-6)).toBe(expected);
+    const secret = key.slice(7, 50);
+    const swapped = secret.startsWith('A')
+      ? `B${secret.slice(1)}`
+      : `A${secret.slice(1)}`;
+    expect(parseApiKey(`pdk_ci_${swapped}${key.slice(-6)}`)).toBeUndefined();
+  });
+
   it('refuses anything else', () => {
-    const secret = 'a'.repeat(43);
+    const secret = 'a'.repeat(49);
     for (const key of [
       undefined,
       42,
       '',
       'pdk_',
       `pdk__${secret}`,
-      `pdk_key_${'a'.repeat(42)}`,
+      `pdk_key_${'a'.repeat(48)}`,
+      `pdk_key_${secret}`,
       `pdk_key_${secret}_`,
       `sk_key_${secret}`,
       `pdk_k.y_${secret}`,
@@ -238,7 +261,7 @@ describe('apiKeyVerifier', () => {
 describe('subjectFromApiKey', () => {
   testSubjectResolver(
     subjectFromApiKey({ verifier: memoryCredentials(), permissions }),
-    { invalid: `pdk_nope_${'a'.repeat(43)}` },
+    { invalid: `pdk_nope_${'a'.repeat(49)}` },
   );
 
   it('checks a service key against its tenant and a user key against the request tenant', async () => {
@@ -280,6 +303,30 @@ describe('subjectFromApiKey', () => {
     const permdock = dock(subject);
     expect(permdock.can(repo.read, r1)).toBe(true);
     expect(permdock.can(repo.write, r1)).toBe(false);
+  });
+
+  it('touches the verifier on a resolved key only, and ignores a throwing touch', async () => {
+    const { store, key } = await issue();
+    const options = { verifier: store, permissions, owner: () => owner };
+    await resolve(`${key.slice(0, -1)}x`, options);
+    expect(store.lastUsedAt('key_1')).toBeUndefined();
+    await resolve(key, options);
+    expect(store.lastUsedAt('key_1')).toBeGreaterThanOrEqual(NOW);
+    const throwing = {
+      verify: (secret: string) => store.verify(secret),
+      touch: () => {
+        throw new Error('database down');
+      },
+    };
+    const subject = await resolve(key, { ...options, verifier: throwing });
+    expect(subject.principal?.id).toBe('u_1');
+    const rejecting = {
+      verify: (secret: string) => store.verify(secret),
+      touch: () => Promise.reject(new Error('database down')),
+    };
+    expect(
+      (await resolve(key, { ...options, verifier: rejecting })).principal?.id,
+    ).toBe('u_1');
   });
 
   it('takes the owner rights from createPermDock memberships without an owner loader', async () => {

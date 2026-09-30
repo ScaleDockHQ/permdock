@@ -152,6 +152,14 @@ export type SupabaseHookConfig = {
     readonly id?: string;
     readonly columns: readonly string[];
   };
+  /**
+   * Claims other packages own, each `claim: '<schema>.<function>'`, for
+   * example `{ features: 'better_supabase.feature_claims' }`. The function
+   * takes the user id (`uuid`) and returns `jsonb`; `null` omits the claim.
+   * Reserved names are refused, the claims sit outside `budget`, and a
+   * suspended user gets none.
+   */
+  readonly claims?: Readonly<Record<string, string>>;
   /** Bytes of JSON the `memberships` claim may use. Default `supabaseMembershipsBudget` (1024). */
   readonly budget?: number;
   /** Keep `permdock_authz_version` and write the `authz_ver` claim. Default `true`. */
@@ -176,6 +184,8 @@ export type DoctorConfig = {
   readonly clientEntries?: readonly string[];
   /** Globs or directories of SQL migrations PD022 scans for views; defaults to the usual migration folders. */
   readonly migrations?: readonly string[];
+  /** A JSON array of sample decoded token claims; PD039 measures each `supabase.hook.claims` entry in it. */
+  readonly claims?: string;
 };
 
 export type PermDockConfig = {
@@ -207,6 +217,12 @@ export type CatalogPermission = {
   readonly usages: readonly CatalogUsage[];
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
+  /**
+   * Present when the catalog was built with the policy: `true` when a code
+   * grant for the key has a condition beyond role and scope, so the SQL
+   * helpers alone cannot enforce it.
+   */
+  readonly rowConditions?: boolean;
   /** The approvals code allows on this permission require; a hosted grant must meet each. */
   readonly approvals?: readonly CatalogApproval[];
   /** Present when a `breakGlass` override targets this permission. */

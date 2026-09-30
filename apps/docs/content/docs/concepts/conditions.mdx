@@ -26,7 +26,7 @@ An object literal is an implicit `and` over its fields. A field value is either 
 | `in`, `notIn` | membership in a literal array or a `context` array | `IN`, `NOT IN` |
 | `gt`, `gte`, `lt`, `lte` | comparison on numbers, strings, dates | `>`, `>=`, `<`, `<=` |
 | `isNull` | `true` or `false` | `IS NULL`, `IS NOT NULL` |
-| `contains` | array column contains value, or string contains substring (typed by the field) | `@>` or `LIKE` |
+| `contains` | array column contains value, or string contains substring (typed by the field) | `@>` or `LIKE`; RLS: `value = any(column)` or `LIKE` |
 | `and`, `or`, `not` | compound | `AND`, `OR`, `NOT` |
 | `memberOf` | the row's scope field names an instance of a named scope (or a resource) where the subject holds one of the listed roles, through a membership of exactly that scope; emitted by scoped role declarations, not written by hand | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)` |
 | `sqlFunction` | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run | `name(args)` (`--inline-functions` emits the twin instead) |

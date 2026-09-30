@@ -51,7 +51,7 @@ What `registerTools` does:
 - Passes the caller's `AbortSignal` through and additionally aborts and re-registers when the snapshot changes (`usePermDock().status` moving to `stale` and back to `ready`), so revoked permissions disappear from the tool list without a reload.
 - Registers an instance action once, taking the resource `id` as an argument that the `data` resolver loads at call time, never one tool per visible row.
 - Skips any permission whose status is `pending` or `server-only`, so a tool is registered only when the snapshot can answer for it.
-- Returns `approval-required` as a structured tool result carrying the `token` and an `elicitation: { mode: 'approval', token }` hint; the browser has no elicitation channel, so the page renders its own approval UI.
+- Returns `approval-required` as a structured tool result carrying the `token`; the browser has no elicitation channel, so the page renders its own approval UI.
 - Does nothing when `document.modelContext` is undefined and no polyfill is present; `permdock doctor` reports the missing Permissions-Policy header if the page is served without `tools`.
 
 ## Mapping table

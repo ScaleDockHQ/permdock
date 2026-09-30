@@ -55,9 +55,21 @@ function envName(source: TokenSource, fallback: string): string {
   return source.env ?? fallback;
 }
 
-async function fromCiOidc(runtime: TerminalRuntime): Promise<string | null> {
+async function fromCiOidc(
+  runtime: TerminalRuntime,
+  source: TokenSource,
+): Promise<string | null> {
   const env = runtime.env ?? process.env;
   const fetchImpl = runtime.fetch ?? fetch;
+  const named = typeof source === 'string' ? undefined : source.env;
+  const audience =
+    typeof source === 'object' && 'audience' in source
+      ? source.audience
+      : undefined;
+  if (named !== undefined) {
+    const value = env[named];
+    return typeof value === 'string' && value !== '' ? value : null;
+  }
   if (typeof env.CI_JOB_JWT_V2 === 'string' && env.CI_JOB_JWT_V2 !== '') {
     return env.CI_JOB_JWT_V2;
   }
@@ -66,7 +78,11 @@ async function fromCiOidc(runtime: TerminalRuntime): Promise<string | null> {
     typeof env.ACTIONS_ID_TOKEN_REQUEST_TOKEN === 'string'
   ) {
     try {
-      const response = await fetchImpl(env.ACTIONS_ID_TOKEN_REQUEST_URL, {
+      const url = new URL(env.ACTIONS_ID_TOKEN_REQUEST_URL);
+      if (audience !== undefined) {
+        url.searchParams.set('audience', audience);
+      }
+      const response = await fetchImpl(url, {
         headers: {
           Authorization: `Bearer ${env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}`,
         },
@@ -146,7 +162,7 @@ export async function resolveToken(
         return stored.access_token;
       }
       case 'ci-oidc': {
-        const oidc = await fromCiOidc(options.runtime);
+        const oidc = await fromCiOidc(options.runtime, source);
         if (oidc !== null) {
           return oidc;
         }

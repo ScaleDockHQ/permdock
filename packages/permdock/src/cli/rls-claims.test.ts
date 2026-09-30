@@ -15,6 +15,7 @@ import {
 } from '../index.ts';
 import { compileGrants } from './rls-compile.ts';
 import {
+  arrayColumnsOf,
   claimPath,
   columnTypesOf,
   compileConditionSql,
@@ -269,5 +270,59 @@ describe('request context in RLS', () => {
     expect(branches[0]?.using).toContain(
       `"clearance" <= (case when jsonb_typeof(((select auth.jwt()) -> 'attrs' -> 'clearance')) = 'number' then ((select auth.jwt()) -> 'attrs' ->> 'clearance')::numeric end)`,
     );
+  });
+});
+
+describe('contains on an array column', () => {
+  const arrays: RlsSqlContext = {
+    ...base,
+    arrayColumns: { tags: 'text', reviewers: 'uuid' },
+  };
+
+  it('compiles to v = any(col) instead of like', () => {
+    expect(
+      compileConditionSql(
+        { op: 'contains', field: 'tags', value: 'urgent' },
+        arrays,
+      ),
+    ).toBe(`'urgent' = any("tags")`);
+    expect(
+      compileConditionSql(
+        { op: 'contains', field: 'reviewers', value: { ref: 'principal.id' } },
+        arrays,
+      ),
+    ).toBe(`(select auth.uid()) = any("reviewers")`);
+    expect(
+      compileConditionSql(
+        {
+          op: 'contains',
+          field: 'reviewers',
+          value: { ref: 'principal.claims.delegate' },
+        },
+        arrays,
+      ),
+    ).toBe(`(((select auth.jwt()) ->> 'delegate')::uuid) = any("reviewers")`);
+    expect(
+      compileConditionSql(
+        { op: 'contains', field: 'title', value: 'draft' },
+        arrays,
+      ),
+    ).toBe(`"title"::text like '%' || 'draft'::text || '%'`);
+  });
+
+  it('reads array columns and their item types from the JSON Schema', () => {
+    expect(
+      arrayColumnsOf({
+        properties: {
+          tags: { type: 'array', items: { type: 'string' } },
+          reviewers: {
+            type: ['array', 'null'],
+            items: { type: 'string', format: 'uuid' },
+          },
+          title: { type: 'string' },
+        },
+      }),
+    ).toEqual({ tags: 'text', reviewers: 'uuid' });
+    expect(arrayColumnsOf(undefined)).toEqual({});
   });
 });

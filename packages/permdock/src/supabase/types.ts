@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
+import type { AuthEvent } from '../core/interfaces.ts';
 import type { Principal } from '../core/subject.ts';
 
 export type SupabasePrincipal = Principal & {
@@ -103,4 +104,8 @@ export type SupabaseSubjectOptions = {
   readonly schema?: StandardSchemaV1;
   readonly include?: readonly SupabaseInclude[];
   readonly declared?: readonly string[];
+  /** Claim holding plan names per tenant id; the active tenant's entry becomes `principal.plans`. */
+  readonly plans?: string;
+  /** Audit hook: `membership-dropped` for a `memberships` entry that could not be read, `invalid-chain` for a malformed `act`. */
+  readonly onAuth?: (event: AuthEvent) => void;
 };

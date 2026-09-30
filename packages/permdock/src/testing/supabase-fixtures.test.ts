@@ -1,5 +1,9 @@
+import { Ajv2020 } from 'ajv/dist/2020.js';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+import { supabaseHookManifest } from '../cli/supabase-hook.ts';
+import { defineScopes } from '../core/scopes.ts';
 import {
   allow,
   definePermissions,
@@ -10,11 +14,13 @@ import {
   snapshotFor,
 } from '../index.ts';
 import {
+  fromTable,
   subjectFromSupabase,
   subjectFromSupabaseSession,
 } from '../supabase/index.ts';
 import {
   supabaseClaimFixtures,
+  supabaseHookManifestFixture,
   supabaseMembershipsBudget,
 } from './supabase-fixtures.ts';
 
@@ -63,7 +69,7 @@ function memberships(count: number): string {
 describe('Supabase RBAC hook claims', () => {
   for (const [name, fixture] of Object.entries(supabaseClaimFixtures)) {
     it(`maps ${name}`, () => {
-      const subject = subjectFromSupabase(fixture.claims);
+      const subject = subjectFromSupabase(fixture.claims, fixture.options);
       expect(subject.principal?.id ?? null).toBe(fixture.expect.id);
       if (subject.principal === null) {
         return;
@@ -75,6 +81,7 @@ describe('Supabase RBAC hook claims', () => {
       if ('tenant' in fixture.expect) {
         expect(subject.principal.tenant).toBe(fixture.expect.tenant);
       }
+      expect(subject.principal.plans).toEqual(fixture.expect.plans);
       expect(subject.expiresAt).toBe(fixture.claims.exp);
     });
   }
@@ -128,5 +135,49 @@ describe('Supabase RBAC hook claims', () => {
       supabaseMembershipsBudget,
     );
     expect(memberships(16).length).toBeGreaterThan(supabaseMembershipsBudget);
+  });
+});
+
+describe('supabaseHookManifestFixture', () => {
+  it('is what supabase inspect prints for one tenant scope and a features claim', () => {
+    const manifest = supabaseHookManifest(
+      defineScopes({ tenant: { key: 'orgId' } }),
+      {
+        permissions: './policy.ts',
+        supabase: {
+          hook: {
+            memberships: [fromTable({ table: 'memberships' })],
+            claims: { features: 'better_supabase.feature_claims' },
+          },
+        },
+      },
+    );
+    expect(manifest).toEqual(supabaseHookManifestFixture);
+  });
+});
+
+describe('supabase-claims-v1.json', () => {
+  const validate = new Ajv2020({ strict: false }).compile(
+    JSON.parse(
+      readFileSync(
+        new URL('../../schemas/supabase-claims-v1.json', import.meta.url),
+        'utf8',
+      ),
+    ) as object,
+  );
+
+  it('accepts every claim fixture and the hook output shape', () => {
+    for (const [name, fixture] of Object.entries(supabaseClaimFixtures)) {
+      expect([name, validate(fixture.claims)]).toEqual([name, true]);
+    }
+  });
+
+  it('refuses a membership the reader would drop', () => {
+    expect(validate({ memberships: [{ org_id: 'o1', role: 'admin' }] })).toBe(
+      false,
+    );
+    expect(
+      validate({ memberships: [{ scope: 'tenant', id: 'o1', roles: [] }] }),
+    ).toBe(false);
   });
 });

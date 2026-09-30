@@ -1015,6 +1015,17 @@ export function testCredentialVerifier(
     }
   });
 
+  if (verifier.touch !== undefined) {
+    it('accepts a touch without changing what the key verifies to', async () => {
+      const key = await live();
+      const before = parseCredential(await verifier.verify(key));
+      const id = parseApiKey(key)?.id ?? '';
+      await verifier.touch?.(id, Math.floor(Date.now() / 1000));
+      await verifier.touch?.('unknown-id', Math.floor(Date.now() / 1000));
+      expect(parseCredential(await verifier.verify(key))).toEqual(before);
+    });
+  }
+
   if (options.revoke !== undefined) {
     const revoke = options.revoke;
     it('stops verifying a revoked key', async () => {

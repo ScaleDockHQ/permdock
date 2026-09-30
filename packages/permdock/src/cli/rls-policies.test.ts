@@ -4,6 +4,7 @@ import type { RlsSqlContext } from './rls-sql.ts';
 
 import { scopeList } from '../core/scopes.ts';
 import {
+  actor,
   allow,
   anyone,
   definePermissions,
@@ -119,5 +120,36 @@ describe('assemblePolicies', () => {
         name: '{role}_{table}_{op}',
       }),
     ).toThrow(/--policy-per-role/u);
+  });
+});
+
+describe('delegated actor denies', () => {
+  const guarded = definePolicy(permissions, {
+    subject: () => null,
+    scopes: { tenant: { key: 'orgId' } },
+    roles: [role('admin', [allow(post.delete)], { on: 'tenant' })],
+    grants: [deny(post.delete, { to: actor('oauth-client') })],
+  });
+
+  it('compiles deny for oauth-client actors to a restrictive client_id check', () => {
+    const policies = assemblePolicies(
+      compileGrants(guarded, ctx, undefined, [], false).branches,
+      { perRole: false },
+    );
+    const denied = policies.find((item) => item.name === 'deny_post_delete');
+    expect(denied?.effect).toBe('deny');
+    expect(denied?.using).toBe(
+      `not (((select auth.jwt()) ->> 'client_id') is not null or ((select auth.jwt()) -> 'act') is not null)`,
+    );
+  });
+
+  it('refuses an actor grantee it cannot compile', () => {
+    const allowed = definePolicy(permissions, {
+      subject: () => null,
+      grants: [allow(post.read, { to: actor('oauth-client') })],
+    });
+    expect(() => compileGrants(allowed, ctx, undefined, [], false)).toThrow(
+      /RLS compiles only deny/u,
+    );
   });
 });

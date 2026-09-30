@@ -69,7 +69,8 @@ export default async function handler(request: Request): Promise<Response> {
 ### `protect` semantics
 
 - Collection action (`permissions.post.create`): no `loadData`; `decide` runs on the subject alone.
-- Instance action with `loadData`: the loader runs before the handler; a `null` or `undefined` result is `404`; the loaded value is validated against the resource schema only if `protect` is called with `{ trusted: false }`. The decision endpoint always treats `resource.properties` as untrusted and validates them.
+- Instance action with `loadData`: the loader runs before the handler; a `null` or `undefined` result is a `404` `.../not-found` problem, and so is a denial on a resource with `disclosure: 'hide'` ([permissions](/docs/concepts/permissions)); the loaded value is validated against the resource schema only if `protect` is called with `{ trusted: false }`. The decision endpoint always treats `resource.properties` as untrusted and validates them.
+- Denial status: `401` for an anonymous caller or a step-up (with `acr_values` and `max_age`), `429` with `Retry-After` and the `RateLimit` fields when every denial is `limit`, `503` for `limit-unavailable`, `403` otherwise ([Problem Details](/docs/standards/problem-details)).
 - `approval-required`: `protect` fails closed with a `403` whose `type` ends in `/approval-required` and whose body carries `token`. The handler never runs.
 - Every outcome is emitted through `on('decision')` with the request method and path attached so [otel](/docs/adapters/otel) and audit sinks see HTTP context.
 

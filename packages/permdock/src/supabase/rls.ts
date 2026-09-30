@@ -8,6 +8,7 @@ import type {
 } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { supabaseTenantClaim } from './budget.ts';
 
 function isTable(
   value: unknown,
@@ -29,7 +30,7 @@ export function supabaseRls(
   return compact<SupabaseRlsConfig>({
     dialect: 'supabase',
     roleClaim: options.roleClaim ?? 'user_role',
-    tenantClaim: options.tenantClaim ?? 'tenant_id',
+    tenantClaim: options.tenantClaim ?? supabaseTenantClaim,
     tenantType: options.tenantType,
     memberships,
     suspension: options.suspension,

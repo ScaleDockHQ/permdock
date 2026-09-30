@@ -1,4 +1,4 @@
-import type { Obligation, Quota } from './decision.ts';
+import type { LimitDetail, Obligation, Quota } from './decision.ts';
 import type { LimitStore } from './interfaces.ts';
 import type { Grant, GrantLimit } from './policy.ts';
 
@@ -202,7 +202,12 @@ export type QuotaVerdict =
       readonly quota?: Quota;
       readonly obligations?: readonly Obligation[];
     }
-  | { readonly ok: false; readonly reason: 'limit' | 'limit-unavailable' };
+  | {
+      readonly ok: false;
+      readonly reason: 'limit';
+      readonly detail: LimitDetail;
+    }
+  | { readonly ok: false; readonly reason: 'limit-unavailable' };
 
 /**
  * `left` is what remains once this call counts: the store's answer after
@@ -226,7 +231,11 @@ function verdictFor(
           quota: { remaining: 0, resetsAt },
           obligations: [{ kind: 'over-limit' }],
         }
-      : { ok: false, reason: 'limit' };
+      : {
+          ok: false,
+          reason: 'limit',
+          detail: { count: limit.count, window: seconds, resetsAt },
+        };
   }
   const near =
     limit.alertAt !== undefined &&

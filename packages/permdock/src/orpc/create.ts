@@ -175,6 +175,8 @@ function orpcCode(status: number): string {
       return 'NOT_FOUND';
     case 429:
       return 'TOO_MANY_REQUESTS';
+    case 503:
+      return 'SERVICE_UNAVAILABLE';
     default:
       return 'FORBIDDEN';
   }

@@ -1,0 +1,65 @@
+---
+title: RateLimit header fields
+description: How PermDock's HTTP adapters answer an exhausted limit grant with 429, Retry-After and the IETF RateLimit and RateLimit-Policy header fields, pinned to draft-ietf-httpapi-ratelimit-headers-11.
+---
+
+Draft posture: build (`draft-ietf-httpapi-ratelimit-headers-11`, 23 May 2026; `Retry-After` from RFC 9110 and the Problem Details `.../rate-limited` body are the stable twins, per [watch list](/docs/standards/watch-list))
+
+## What it is
+
+The IETF HTTPAPI working group's RateLimit header fields draft defines two response fields a server uses to tell a client about its quotas:
+
+- **`RateLimit-Policy`** describes a quota policy: a name, the quota `q` and the window `w` in seconds (`"daily";q=1000;w=86400`). Several policies are a comma-separated list.
+- **`RateLimit`** describes what is left under a named policy right now: the remaining units `r` and the seconds `t` until the quota resets (`"daily";r=0;t=3600`).
+
+Both are Structured Fields (RFC 9651) lists whose items are the policy name as a string. The draft sits next to `Retry-After` (RFC 9110 section 10.2.3) and the `429 Too Many Requests` status (RFC 6585), which it does not replace.
+
+## Why it matters for PermDock
+
+A `limit` grant is how a policy caps a paid or agent-reachable action ([limits](/docs/concepts/policies#limits)). When the count runs out, the caller needs to know two things: that it should back off rather than ask for more access, and for how long. A `403` says neither, so an agent that treats a `403` as "try another permission" keeps hammering the route. A `429` with `Retry-After` says "wait", and the RateLimit fields say how big the quota is, so a client can pace itself before the next exhaustion.
+
+## How PermDock uses it
+
+```ts
+allow(permissions.report.export, { limit: { count: 100, per: 'day' } })
+```
+
+When that grant is exhausted, an HTTP adapter built on the [server kernel](/docs/adapters/server-kernel) answers:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/problem+json
+Retry-After: 3600
+RateLimit: "member";r=0;t=3600
+RateLimit-Policy: "member";q=100;w=86400
+
+{ "type": "https://permdock.dev/problems/rate-limited", "status": 429, "permission": "report.export",
+  "denials": [{ "role": "member", "reason": "limit" }], ... }
+```
+
+- **Where the numbers come from.** The `limit` denial carries `detail: { count, window, resetsAt }` (`LimitDetail`), computed by the evaluator from the grant and the window it counted in. The renderer reads nothing from the `LimitStore`, so rendering a response never touches the counter.
+- **One policy per exhausted grant.** Each role whose limited grant matched and was exhausted is one policy, named by the role (`"default"` for a top-level grant). `Retry-After` is the smallest `t`, the soonest any of them frees a call.
+- **Only when every denial is `limit`.** A decision where another grant was denied for a different reason stays a `403` `.../denied`; a `429` would tell the client that waiting helps when it does not.
+- **`limit-unavailable` is a `503`.** No store, a store that threw, or a store that returned a Promise denies with `limit-unavailable` (fail-closed). That is the server's fault, not the caller's, so it renders as `503` `.../limit-unavailable` with no `Retry-After`.
+- **Granted responses carry no fields yet.** A granted decision carries `quota: { remaining, resetsAt }`; an app that wants `RateLimit` on every response sets it from `quota` in its handler.
+- tRPC and oRPC map `429` to `TOO_MANY_REQUESTS` and `503` to `SERVICE_UNAVAILABLE`.
+
+## Mapping
+
+| Draft concept | PermDock |
+| --- | --- |
+| Quota policy | A `limit` grant under one role |
+| Policy name | The role name, or `"default"` for a grant without one |
+| `q` (quota) | `limit.count` |
+| `w` (window) | `limit.per` in seconds (`LimitDetail.window`) |
+| `r` (remaining) | `0` on a denial |
+| `t` (reset) | `LimitDetail.resetsAt` minus now, at least 1 |
+| `429` + `Retry-After` | Reason `limit` on every denial |
+| Service unavailable | Reason `limit-unavailable`, `503` |
+
+## Sources
+
+- [draft-ietf-httpapi-ratelimit-headers-11](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/), RateLimit header fields for HTTP, IETF HTTPAPI WG, 23 May 2026
+- [RFC 9110 section 10.2.3](https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3), `Retry-After`
+- [RFC 6585 section 4](https://www.rfc-editor.org/rfc/rfc6585#section-4), `429 Too Many Requests`
+- [RFC 9651](https://www.rfc-editor.org/rfc/rfc9651), Structured Field Values for HTTP

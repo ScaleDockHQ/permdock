@@ -35,7 +35,7 @@ export default defineConfig({
 })
 ```
 
-- `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from the configured role claim (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from the configured tenant claim (default `tenant_id`, hook-injected or under `app_metadata`); `memberships` comes from a hook-injected claim of `{ scope, id, within?, roles, via?, expiresAt? }` entries (the [named scopes](/docs/concepts/scopes) form; `{ tenant, team? }` is still read) when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
+- `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from the configured role claim (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from the configured tenant claim (default `supabaseTenantClaim`, `tenant_id`, hook-injected or under `app_metadata`; keep it equal to `rls.tenantClaim`, which `permdock doctor` PD038 checks); `memberships` comes from a hook-injected claim of `{ scope, id, within?, roles, via?, expiresAt? }` entries (the [named scopes](/docs/concepts/scopes) form; `{ tenant, team? }` is still read) when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
 - `options.schema` (any Standard Schema, for example a Zod object) validates and types the custom claims before they reach `principal.claims`; an invalid claim set drops `claims` with a development warning, never the subject.
 - `supabaseRls(options)` is the `rls` value in `permdock.config.ts`. It tells `permdock rls` how `principal.id` (`(select auth.uid())`), `principal.claim.<name>` (`(select auth.jwt()) ->> 'claim'`), `principal.roles` (the `permdock_has` helper) and tenant-scoped roles (the `permitted_tenant_ids` helper, over the membership table or the `memberships` claim) compile; `tenantType` sets the tenant column type the claim is cast to (default `uuid`) ([tenancy](/docs/concepts/tenancy), portable compilation). `memberships` is one table, or `{ scopes, tenant, team, resource }` with a table per [named scope](/docs/concepts/scopes). `suspension` names the users and scope-instance tables whose `disabledAt` or `status` column suspends a row ([RLS](/docs/cli/rls)).
 - `exchangeCapability(subject, { key, alg, kid?, issuer?, ttl? })` exchanges a verified link subject (from `subjectFromCapability`) for a short-lived Supabase access token: `role: 'anon'`, the capability under a `capability` claim, `iat`, `exp` (the `ttl`, default 300 seconds and at most 3600, never past the capability's expiry) and no `sub`, because `auth.uid()` casts `sub` to a uuid. `key` is a private JWK imported into the project's [JWT signing keys](https://supabase.com/docs/guides/auth/signing-keys) with `alg: 'ES256'` or `'RS256'` and its `kid`, or `{ secret }` with `alg: 'HS256'` for a project on the legacy JWT secret. It returns `undefined` for any subject that is not a live link, and never mints `service_role`. `permdock rls generate --capabilities` emits the policies that read the claim ([link capabilities](/docs/concepts/capabilities)).
@@ -46,9 +46,7 @@ export default defineConfig({
   - the shared `role_permissions(role, permission, grant_key, scope, effect)` table and its seed rows, from role grants and top-level `definePolicy({ grants })` alike (every `rls generate` emits these, with or without `--rbac`);
   - the `permdock_has` helper and one `permitted_<scope>_ids` per declared scope, `security definer` with `search_path = ''`, executable by `authenticated` only;
   - `authorize()` as above, executable by `authenticated` only;
-  - `custom_access_token_hook(event jsonb)` with `set search_path = ''`, writing `user_role` (a string, or an array for several roles) only when the user has a role row. In `jwt` mode it also writes the canonical `memberships` claim from every scope table in `rls.memberships`. With `rls.suspension`, a suspended user gets `user_role: []` (and `memberships: []`);
-  - the `supabase_auth_admin` grants, revokes and read policies the hook needs, on `user_roles` and on each membership or status table it reads.
-  Everything lands in the chosen schema. The command prints the `config.toml` stanza that enables the hook (`uri = "pg-functions://postgres/<schema>/custom_access_token_hook"`).
+  Everything lands in the chosen schema. It emits no token hook: `permdock supabase hook generate` is the one generator of `custom_access_token_hook`, so one function writes `user_role`, `memberships` and the other claims ([Supabase token hook](/docs/adapters/supabase-hook)). The hook reads the same `user_roles` table by default.
 - A global role's grant compiles to `(select "public".permdock_has('post.delete'))`; a tenant-scoped role's grant to `"orgId" in (select "public".permitted_tenant_ids('post.update#2'))`; conditions AND onto their branch, and one policy per table and command ORs the branches. `insert` policies carry only `with check`. No policy calls `authorize()` with a row column, which would run it once per row.
 
 Claim mapping used by both the in-process subject and the RLS compiler:
@@ -178,6 +176,12 @@ Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/d
 | `session_id` | Verified | Carried on audit events; the key a CAEP `session-revoked` event invalidates |
 | `exp` | Verified | `subject.expiresAt`, copied into snapshots |
 | `email`, `phone`, `is_anonymous` | Verified | Exposed on `principal` only when `options.include` names them; not used for grants |
+| The claim `options.plans` names (for example `features`), an object keyed by tenant id | Server-set, trusted | `principal.plans`, from the active tenant's entry only, so `plan()` grants apply; another tenant's plans are never read |
+| `act` (RFC 8693, nested chains read to the innermost `sub`) | Verified | `subject.actor` `{ id, kind: 'oauth-client' }`, with the chain on `delegation.chain`; a malformed `act` yields the anonymous subject and `on('auth')` cause `invalid-chain` |
+| `client_id` (a token Supabase's OAuth server issued to a third-party app) | Verified | `subject.actor` `{ id: client_id, kind: 'oauth-client' }` when there is no `act` |
+| `scope` | Verified | `delegation.scopes`. An actor needs a delegation that covers the permission (`<resource>:<action>`), so a client token without a matching scope is `denied` with `no-delegation` or `not-delegated` |
+
+A `memberships` entry the reader cannot use (no `roles` array, or none of `scope` plus `id`, `tenant`, `team` or `on`) is dropped, never guessed at, and `options.onAuth` receives `{ reason: 'schema', cause: 'membership-dropped', source: 'supabase' }`. Access still fails closed; the event tells you the hook and the reader disagree. `permdock doctor` PD039 reports the same entries from the `doctor.claims` samples.
 
 A top-level claim set to `null` counts as absent. The RBAC hook writes `user_role: null` for a user with no row in `user_roles`, so the reader falls back to `app_metadata.user_role` instead of letting the `null` shadow it. `null` under `app_metadata` is also absent: no roles.
 
@@ -192,61 +196,28 @@ const subject = subjectFromSupabaseSession(session, { roles: 'user_role' })
 
 ### Claim size and membership mode
 
-`permdock supabase hook generate` builds the whole hook from the app's membership sources, with a byte budget, `memberships_truncated`, `authz_ver` for `fresh` permissions and IdP-row protection ([Supabase token hook](/docs/adapters/supabase-hook)). The rest of this section covers the `--rbac` hook.
+`permdock supabase hook generate` builds the whole hook from the app's membership sources, with a byte budget, `memberships_truncated`, `authz_ver` for `fresh` permissions and IdP-row protection ([Supabase token hook](/docs/adapters/supabase-hook)). It writes these claims, and `permdock supabase inspect` lists them for a given config:
+
+| Claim | Source | Counts toward the budget |
+| --- | --- | --- |
+| `user_role`, `roles` | `supabase.hook.roles` (default `<schema>.user_roles`); `[]` for a suspended user | No |
+| `memberships` | `supabase.hook.memberships`, the active first-scope instance first | Yes |
+| `memberships_truncated` | Set to `true` when memberships or `attrs` were cut to fit | No |
+| `tenant_id` (`rls.tenantClaim`) | `supabase.hook.activeFrom`, when the user holds a membership there | No |
+| `attrs` | `supabase.hook.attrs`, when configured | Yes |
+| `authz_ver` | `permdock_authz_version`, unless `version: false` | No |
+| each `supabase.hook.claims` key | Its `<schema>.<function>(uuid)`; left out for a suspended user | No |
+
+The helpers the claims feed come from `permdock rls generate`, so a new project runs both commands: `permdock rls generate --target sql --out supabase/migrations/<n>_permdock_rls.sql` and then `permdock supabase hook generate`. `hook generate` warns with PD039 while the helper schema has no `permdock_has` or `permitted_<scope>_ids`, reading `rls.out` and the migration folders, or the database with `--db`.
+
 
 Claims travel in the session cookie and on every request. Keep the hook's `memberships` claim under about 1 KB of JSON: about 15 UUID-keyed, single-role memberships. `permdock/testing` exports this ceiling as `supabaseMembershipsBudget`, along with `supabaseClaimFixtures` in the hook's shape. Above the ceiling, or when a role change must apply before the next token refresh, switch to database mode. The hook writes no memberships, the helpers and `authorize()` read the membership table, and the app passes rows from its own query to `snapshotFor(policy, claims, { memberships })`. JWT mode costs a token refresh of staleness (`jwt_expiry`, 3600 s by default); database mode costs a query per snapshot.
 
 ### The Custom Access Token Hook
 
-The hook runs before Supabase Auth issues a token and may add or remove claims ([Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)). It is how `user_role` gets into the JWT so that both the RLS helpers in `jwt` mode and `subjectFromSupabase` in the app read the same role from the same place.
+The hook runs before Supabase Auth issues a token and may add or remove claims ([Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)). It is how `user_role` and `memberships` get into the JWT so that both the RLS helpers in `jwt` mode and `subjectFromSupabase` in the app read the same claims from the same place. `permdock supabase hook generate` writes it from the app's `fromTable` / `fromJunction` sources, with the grants `supabase_auth_admin` needs; the [Supabase token hook](/docs/adapters/supabase-hook) page shows the SQL and the claims. The hook is enabled in the dashboard under Authentication, then Hooks, or in `config.toml` for local development.
 
-SQL form, as `permdock rls generate --rbac supabase` emits it (schema `public`):
-
-```sql
-create or replace function "public"."custom_access_token_hook"(event jsonb)
-returns jsonb
-language plpgsql
-stable
-set search_path = ''
-as $$
-declare
-  claims jsonb := event -> 'claims';
-  held jsonb;
-begin
-  select case count(*) when 0 then null when 1 then to_jsonb(min(ur.role::text)) else jsonb_agg(ur.role::text order by ur.role::text) end
-    into held
-    from "public"."user_roles" ur
-    where ur.user_id = (event ->> 'user_id')::uuid;
-  if held is not null then
-    claims := jsonb_set(claims, '{user_role}', held);
-  end if;
-  return jsonb_set(event, '{claims}', claims);
-end;
-$$;
-
-grant usage on schema "public" to supabase_auth_admin;
-grant execute on function "public"."custom_access_token_hook"(jsonb) to supabase_auth_admin;
-revoke execute on function "public"."custom_access_token_hook"(jsonb) from authenticated, anon, public;
-grant select on table "public"."user_roles" to supabase_auth_admin;
-revoke all on table "public"."user_roles" from authenticated, anon, public;
-create policy "Allow auth admin to read user roles" on "public"."user_roles"
-  as permissive for select to supabase_auth_admin using (true);
-```
-
-In `jwt` mode the generated hook also writes the `memberships` claim, one canonical entry per scope instance, from the tables in `rls.memberships` (for the policy in the [scopes](/docs/concepts/scopes) example, one select over `organization_users` and one over `customer_contacts`):
-
-```json
-[
-  { "scope": "organization", "id": "T", "roles": ["member"] },
-  { "scope": "customer", "id": "A", "within": { "organization": "T" }, "roles": ["contact"], "expiresAt": 1790000000 }
-]
-```
-
-Entries carry `within` from the table's ancestor columns, `via` from its `via` column (so roles limited to a membership kind keep working) and `expiresAt` from its `expiresAt` column; expired rows are left out. A nested scope whose table lacks an ancestor column writes no entries, and `generate` warns, because a membership without every ancestor grants nothing. With `rls.suspension`, entries of a suspended instance or ancestor are left out, and a suspended user gets `user_role: []` and `memberships: []`. The empty values are set on purpose: an absent or `null` claim would fall back to `app_metadata`. Custom-role `grants` are not written; a token that needs them still comes from your own hook with `customRoleClaim`. In `database` mode the hook writes no `memberships` claim.
-
-The grants matter as much as the function: the hook runs as `supabase_auth_admin`, which needs `usage` on the schema, `execute` on the function and read access to `user_roles` (plus the membership and status tables it reads, each with a `permdock_auth_admin_read_*` policy); everyone else must lose `execute` so a client cannot call the hook through PostgREST. The hook is enabled in the dashboard under Authentication, then Hooks, or in `config.toml` for local development.
-
-HTTP form: an endpoint (typically an Edge Function) that receives a JSON body with `user_id`, `claims` and `authentication_method`, signed with a standard-webhooks secret (`v1,whsec_...`) that the function must verify before trusting the body, and returns a JSON object with the modified `claims`. Use it when roles live outside Postgres (an external HR system, a billing provider). The SQL hook above is what `permdock rls generate --rbac-scaffold` emits; an HTTP hook is yours to host.
+HTTP form: an endpoint (typically an Edge Function) that receives a JSON body with `user_id`, `claims` and `authentication_method`, signed with a standard-webhooks secret (`v1,whsec_...`) that the function must verify before trusting the body, and returns a JSON object with the modified `claims`. Use it when roles live outside Postgres (an external HR system, a billing provider). The SQL hook is what `permdock supabase hook generate` emits; an HTTP hook is yours to host.
 
 Either form can also strip claims to shrink the token. The generated hook does not strip anything. If you strip claims, keep `iss`, `aud`, `exp`, `iat`, `sub`, `role`, `aal`, `session_id`, `email`, `phone` and `is_anonymous`, the set Supabase clients and `subjectFromSupabase` need.
 
@@ -261,9 +232,55 @@ A suspension in `rls.suspension` reaches RLS on the next statement in both modes
 
 In `jwt` mode the policy and PermDock read one claim written by one function. Keep `jwt_expiry` at 3600 seconds or less when the policy grants sensitive verbs; `permdock doctor` flags it as PD019. A [Shared Signals receiver](/docs/adapters/ssf) can reject a revoked session for the app, not for RLS. `updateTag` and `router.refresh()` do not help in `jwt` mode: they re-render from the same stale claims. The per-layer staleness table for a Next.js app, including other members' browsers, is in the [Next.js Cache Components guide](/docs/guides/next-cache-components).
 
+## With better-supabase
+
+better-supabase and PermDock split a Supabase app in two halves, and each half has one owner:
+
+| Concern | Owner |
+| --- | --- |
+| Token verification (`@supabase/server`), sessions, refresh and the `AuthSession` shape | better-supabase |
+| Typed clients, repositories and typegen (`@supabase/postgrest-typegen`) | better-supabase |
+| Storage and Realtime plumbing (`defineBucket`, `defineTopic`), jobs and webhooks | better-supabase |
+| MCP protected-resource metadata (`createMcp`) | better-supabase |
+| Token lifetime, refresh-token reuse, HS256 on the local stack, splinter | better-supabase lints |
+| The claim contract: `user_role`, `roles`, `memberships`, the active-tenant claim, `attrs`, `authz_ver`, `memberships_truncated` | PermDock |
+| The one token hook (`permdock supabase hook generate`) | PermDock |
+| `role_permissions`, `authorize()`, the SQL helpers and the table policies | PermDock |
+| Tool and route authorization (`permdock/mcp`, `permdock/server`) | PermDock |
+| Doctor checks about authorization correctness | PermDock |
+
+Between them sit the [SQL helper contract](/docs/adapters/rls#sql-helper-contract) and its claim JSON Schema, which better-supabase's `permdock` mode policies call, and one claims budget, `supabaseMembershipsBudget`, which better-supabase's size check reads when PermDock is configured. Map its session with `subjectFromSupabaseSession(session, { plans: 'features' })`: the canonical memberships come through as they are, and the active tenant's `features` become `principal.plans`. `supabaseClaimFixtures.betterSupabase` is that claim set.
+
+better-supabase keeps its organization memberships in its own schema. Point a `fromJunction` source at the schema-qualified table; the hook and the in-process source quote it as `"better_supabase"."memberships"`, and the hook grants `supabase_auth_admin` usage on the schema and `select` on the table:
+
+```ts
+// permdock.config.ts
+import { fromJunction } from 'permdock/supabase';
+
+export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  supabase: {
+    hook: {
+      memberships: [
+        fromJunction({
+          table: 'better_supabase.memberships',
+          scope: 'organization',
+          id: 'org_id',
+          roles: 'role',
+        }),
+      ],
+      claims: { features: 'better_supabase.feature_claims' },
+    },
+  },
+};
+```
+
+Pass the same source, with a `query` over the app's connection, as `memberships` to `createPermDock` so `decide` reads the rows the token was minted from. `tests/integration/src/supabase-junction.test.ts` runs the round trip against Postgres.
+
 ## Request lifecycle
 
-1. The client signs in; Supabase Auth runs the `custom_access_token_hook`, which reads `user_roles` and adds `user_role` to the JWT (and, in `jwt` mode, `memberships` from the scope tables).
+1. The client signs in; Supabase Auth runs the `custom_access_token_hook` from `permdock supabase hook generate`, which reads `user_roles` and the membership sources and adds `user_role`, `memberships` and the tenant claim to the JWT.
 2. Server request: the adapter in use (`permdock/next` over `@supabase/ssr`, `permdock/hono` over `@supabase/server`'s Hono adapter, or `withPermDock` after `withClaims` in a pipeline) takes the claims Supabase verified, calls `subjectFromSupabase`, and creates the request-scoped `PermDock`.
 3. In-process checks (`can`, `assert`, `filter`, `where`) run with `principal.roles` and `principal.tenant` from the claims, `principal.memberships` from the claim or the membership source, and `subject.claims` for other conditions.
 4. Database access: with `toWhere` the filter travels in the query; with RLS the database evaluates the helpers (once per statement) and the compiled conditions under the `authenticated` role with `request.jwt.claims` set by PostgREST or by the app's transaction preamble.

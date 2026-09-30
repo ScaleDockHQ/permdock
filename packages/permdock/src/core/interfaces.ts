@@ -251,6 +251,18 @@ export type Snapshot = {
   readonly scopes?: readonly SnapshotScope[];
   /** One entry per tenant in `tenants`: what the subject may hand out there. Absent without tenants. */
   readonly assignable?: readonly SnapshotAssignable[];
+  /**
+   * Allow grants of held roles that only a plan the subject lacks keeps
+   * from applying; they grant nothing and name the plan a denial asks for.
+   */
+  readonly notEntitled?: readonly SnapshotNotEntitled[];
+};
+
+/** A grant the subject would hold on another plan: its permission, role and `to`. */
+export type SnapshotNotEntitled = {
+  readonly permission: string;
+  readonly role: string | null;
+  readonly to: Grantee | readonly Grantee[];
 };
 
 /** One declared scope as a snapshot carries it. */
@@ -414,6 +426,12 @@ export type AccessEvent = {
  */
 export type CredentialVerifier = {
   verify(secret: string): Credential | null | Promise<Credential | null>;
+  /**
+   * Records a successful use at `at` (Unix seconds), for a `lastUsedAt`
+   * column. Called after a key resolved and not awaited; a throw or a
+   * rejection is ignored, so it never changes the subject.
+   */
+  touch?(id: string, at: number): void | Promise<void>;
 };
 
 export type DecisionEvent = {
