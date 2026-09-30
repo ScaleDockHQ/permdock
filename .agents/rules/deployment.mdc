@@ -16,7 +16,9 @@ paths:
 - Both apps are [Vercel Services](https://vercel.com/docs/services) of one project, declared in the root `vercel.json`.
 - The marketing app (`apps/marketing`) owns `/`, `/_next`, `robots.txt` and `sitemap.xml`.
 - The docs app keeps `/docs`, `/api/search`, `/mcp`, `/devtools`, `/llms.txt`, `/llms-full.txt`, `/llms.mdx` and `/og`, with `assetPrefix: '/docs'` so its assets ride `/docs/_next`. Never `basePath: '/docs'`, which double-prefixes `next/link`.
-- Both services compile `permdock` with `node --run build` then `next build`: `dist/` is not committed, and Vercel's bundled pnpm fails the `packageManager` 12.8.1 check, so the install command activates pnpm 12.8.1 itself.
+- Both services build with `turbo run build --filter=<service>`, which compiles `permdock` first because `dist/` is not committed. Vercel's bundled pnpm fails the `packageManager` 12.8.1 check, so the install command activates pnpm 12.8.1 itself, and the build command puts a corepack `pnpm` shim first on `PATH` because turbo spawns `pnpm` for each task.
+- Each service's `ignoreCommand` runs `turbo query affected --packages <service> --exit-code` against `VERCEL_GIT_PREVIOUS_SHA` and skips the build only when nothing is affected. A turbo error or a missing base ref builds. `vercel.json` is a build input of both services, so a change to it rebuilds both.
+- `git.deploymentEnabled` turns off deployments for `changeset-release/**` and `dependabot/**`. Keys are minimatch globs, and `*` does not cross `/`.
 - The `/mcp` route is the public docs MCP server: search and page-fetch only, no subject.
 - PermDock Cloud is a separate Vercel project in the `PermDock-Cloud` repository: dashboard `https://app.permdock.com`, API `https://api.permdock.com`, read-only MCP `https://mcp.permdock.com`.
 - Local: `pnpm marketing:dev` serves marketing on `:3000` and proxies `/docs` to the docs app on `:3001`; `pnpm docs:dev` runs the docs alone.
