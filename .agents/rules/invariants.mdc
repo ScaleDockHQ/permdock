@@ -1,0 +1,32 @@
+---
+description: The 15 PermDock invariants in full - fail-closed, deny overrides, references not strings, frozen JSON leaves, boundary validation, zero runtime dependencies, authentication upstream, the optional Cloud
+globs: packages/permdock/src/**,packages/permdock/skills/**,tests/**,apps/examples/**
+alwaysApply: false
+paths:
+  - "packages/permdock/src/**"
+  - "packages/permdock/skills/**"
+  - "tests/**"
+  - "apps/examples/**"
+---
+
+# Invariants
+
+A PR that breaks one is wrong, whatever else it does. `AGENTS.md` carries the one-line index; this file is the full text.
+
+1. **Fail-closed.** No grant, unknown role, invalid boundary data, unrecognised remote decision, thrown closure, an `actor` with no `delegation`: all deny. `can()` never throws. `Decision.outcome` is only `granted`, `denied` or `approval-required`; never `not-applicable`.
+2. **Deny overrides allow.** Allows OR together; any matching deny wins.
+3. **No string keys in the public API.** Permissions are references (`permissions.post.update`). Strings appear only as `.key` / `.scope` on the wire, in audit, catalogs and `findPermission()`.
+4. **Permission leaves are plain frozen JSON.** `{ key, resource, action, scope, meta }`; the schema lives on the resource node. Leaves must survive `JSON.stringify`, RSC props and postMessage.
+5. **Identity is by `key`, never by object identity.** Two copies of the definition module, or a leaf that crossed a serialisation boundary, resolve to the same grant.
+6. **Portable-first.** New condition operators must have an in-memory evaluator, a JSON form, and a Drizzle / Prisma / Kysely / RLS compilation or an explicit `portable: false` marking. Closures stay a branded escape hatch.
+7. **Immutable, request-scoped instances.** `createPermDock` returns a frozen object; no module-level mutable state; no `AsyncLocalStorage` in core.
+8. **No server imports in client entries.** `permdock/react`, `permdock/react-native`, `permdock/webmcp` and the `client` half of framework adapters must not import policies, closures or Node built-ins; `tests/bundle` asserts it.
+9. **Boundary validation.** Data from HTTP bodies, MCP tool args, client `refresh` or model output is validated against the resource's Standard Schema before a check; trusted server rows are not.
+10. **Prototype-safe, no eval.** Condition paths never traverse `__proto__` / `constructor` / `prototype`; no `eval` or `new Function` anywhere.
+11. **Never emit `service_role`** in generated RLS; never trust a model-supplied subject or actor; approval `token` is bound to permission key + resource id + subject + actor. An approver is never the request's actor, and never its principal unless the grant sets `approval: { distinct: false }` (`distinct` defaults to `true`).
+12. **Runtime entry points depend on `@standard-schema/spec` only.** `permdock`, `permdock/next`, `permdock/jwt` and every other runtime entry never import CLI or test code, so they never load a CLI dependency; framework SDKs, OTel and `jose` are optional peers. The package's only other dependency is `oxc-parser`, which the everyday commands (`collect`, `doctor`, the build hooks) need; `yaml` and `ajv` are bundled into the lazily loaded CLI chunks, and heavy or rare CLI dependencies (`pgsql-parser`, `pg`, `unplugin`) are optional peers loaded by the command that needs them, with an install hint when missing. `tests/bundle` asserts both halves.
+13. **Authentication is upstream.** Core never verifies a token or a session. `permdock/jwt` and the provider `subjectFrom*` helpers verify and hand core a `Subject`; an unverifiable token becomes the anonymous subject, never a throw. Never build grants from user-editable claims (`user_metadata`); never accept a subject, actor, membership or active tenant from a CLI flag, a model argument, a request body or an unsigned header. Memberships and custom roles come only from `subjectFrom*`, `subject`, `context`, a `MembershipSource` or a `RoleSource`; a requested tenant with no matching membership is no tenant, never a default one; team ids are identifiers, never display names.
+14. **Naming convention** (`.agents/rules/naming.mdc`) is part of the public API.
+15. **The Cloud is optional.** No core path requires a network call to decide; `permdock/pdp` is the only opt-in exception. Every hosted capability (approvals, decision log, snapshot distribution) is an interface (`ApprovalStore`, `DecisionSink`, `SnapshotSource`) with an in-process default shipped in the open-source package; `permdock/cloud` is one implementation, server-only, with zero required dependencies. A store or sink never influences an outcome; a resume re-runs `decide` and recomputes the token before trusting a stored approval. `MembershipSource` and `RoleSource` are subject inputs (they may shape an outcome, like `subject` and `context`) and `permdock/cloud` never implements them. The Cloud may relay SCIM provisioning into a `DirectoryStore` the application owns (`permdock/scim`); in that bring-your-own mode it holds no authoritative directory copy and a Cloud outage leaves memberships at their last synced state. Only in Cloud-native directory mode may the Cloud hold the directory of record, and then it reaches `decide` solely as claims on a token the application verifies locally; no request-time call to the Cloud ever feeds a subject. Hosted grants reach an instance only through a `PolicySource` whose `current()` is read once by `createPermDock`, apply only to permissions the policy marks `hostable`, and never override a code deny or a code approval. Every Cloud connector speaks a standard wire format or an existing PermDock interface, never a per-vendor npm entry, and no connector sits on the decision path; the Cloud's MCP server is read-only and never resolves an approval. PermDock Cloud itself lives in the separate `PermDock-Cloud` repository and follows this repository's wire formats.
+
+Changing a security default also updates `security/threat-model.mdx`, the `security/owasp-agentic.mdx` mapping, the "Secure by default" bullet in `packages/permdock/README.md` and this file.

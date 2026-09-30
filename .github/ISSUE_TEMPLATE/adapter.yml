@@ -5,7 +5,7 @@ labels: ['adapter']
 body:
   - type: markdown
     attributes:
-      value: An adapter PR ships the entry, adapters docs page with Status and Phase, a skill reference update, an example app, tests, and a tests/bundle measurement. See AGENTS.md.
+      value: An adapter PR ships the entry, its adapters docs page, a skill reference update, an example app, tests, and a tests/bundle measurement. See .agents/rules/change-checklist.mdc.
   - type: input
     id: name
     attributes:

@@ -1,0 +1,27 @@
+---
+description: Agent skills - the two consumer skills shipped in the permdock package, their frontmatter, the Claude Code plugin marketplace, and the vendored third-party skills pinned in skills-lock.json
+globs: packages/permdock/skills/**,.claude-plugin/**,skills-lock.json,.agents/skills/**
+alwaysApply: false
+paths:
+  - "packages/permdock/skills/**"
+  - ".claude-plugin/**"
+  - "skills-lock.json"
+---
+
+# Skills
+
+## Consumer skills (shipped)
+
+- `packages/permdock/skills/wire-permdock/SKILL.md`: how to add PermDock to an app (define, policy, factory file, first guard, MCP / AI SDK wiring, `permdock doctor`). Written for the consumer's repo; `adapters.md` next to it holds the adapter factory shapes.
+- `packages/permdock/skills/audit-permissions/SKILL.md`: how to review an existing PermDock setup (ungranted permissions, unused definitions, closures that could be portable, snapshot scope, OWASP ASI02 / ASI03 checklist).
+- Consumer instructions never go in `AGENTS.md` or `.agents/rules`, and maintainer instructions never go in these skills.
+- Frontmatter follows the [Agent Skills spec](https://agentskills.io/specification): `name` (matches the folder), `description` (what it does and when to use it, third person), `license: MIT`, and `metadata` with `author`, `homepage` and `repository` as strings. No version in `metadata`: skills version with the `permdock` package.
+- They reach users three ways, all from the same folders: `npx skills add ScaleDockHQ/PermDock`, `permdock skills` from `node_modules/permdock/skills`, and the Claude Code plugin in `.claude-plugin/marketplace.json` (`/plugin marketplace add ScaleDockHQ/permdock`). Adding a skill updates the marketplace `skills` array, `cli/skills.mdx` and `for-ai-agents.mdx`.
+- `npx skills add ScaleDockHQ/PermDock --list` must list only `wire-permdock` and `audit-permissions`. Run it after touching skill folders or the marketplace file.
+
+## Vendored skills (maintainer tooling)
+
+- `.agents/skills/` holds third-party skills for agents working in this repo, pinned by source and hash in `skills-lock.json`. `.cursor/skills` and `.claude/skills` symlink into it.
+- Refresh or add one with `npx skills add <source> --skill <name>`, which updates the lock. Never edit a vendored skill in place; the next update overwrites it.
+- They are hidden from ripgrep (`.ignore`) and from Cursor indexing (`.cursorignore`) because each match would appear three times; skills load by path.
+- If `skills add … --list` ever shows a vendored skill to consumers, stop committing `.agents/skills`: gitignore it and restore it from `skills-lock.json` on install.

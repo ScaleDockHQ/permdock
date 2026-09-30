@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "permdock",
+  "description": "Agent skills for PermDock, typed permissions for TypeScript apps, APIs, databases and AI agents.",
+  "owner": {
+    "name": "ScaleDockHQ",
+    "url": "https://github.com/ScaleDockHQ"
+  },
+  "plugins": [
+    {
+      "name": "permdock",
+      "displayName": "PermDock",
+      "description": "Wire PermDock into a TypeScript app (wire-permdock) and audit an existing setup or pull request (audit-permissions).",
+      "source": "./packages/permdock/skills",
+      "strict": false,
+      "skills": ["./wire-permdock", "./audit-permissions"],
+      "author": {
+        "name": "ScaleDockHQ",
+        "url": "https://github.com/ScaleDockHQ"
+      },
+      "homepage": "https://permdock.dev/docs/for-ai-agents",
+      "repository": "https://github.com/ScaleDockHQ/permdock",
+      "license": "MIT",
+      "category": "security",
+      "keywords": [
+        "authorization",
+        "permissions",
+        "rbac",
+        "rls",
+        "mcp",
+        "ai-agents"
+      ]
+    }
+  ]
+}

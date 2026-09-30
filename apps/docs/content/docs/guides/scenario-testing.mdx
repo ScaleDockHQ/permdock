@@ -56,7 +56,7 @@ An application does not need the saas domain to use them. `describePolicy`, `orm
 3. Add it to `tests/e2e/package.json` as a dev dependency and to the project map in `tests/e2e/playwright.config.ts` with `fixtureServer('<name>', port)`, so a run starts only the servers its projects need.
 4. Write `tests/e2e/src/<name>.spec.ts`. A SaaS UI calls `saasUiScenarios`, which pins the DOM contract; anything else states its scenarios as numbered, serial tests with hand-written expectations. Assert denials by reason, not only by status.
 5. Add the project to one shard of the e2e matrix in `.github/workflows/ci.yml`. There are no retries: a flaky test fails the run, and the nightly job repeats every test three times.
-6. If the fixture has a `permdock.config.ts`, add `pnpm exec permdock collect --check --cwd tests/e2e/fixtures/<name>` to the catalog drift step and to the command list in `AGENTS.md`.
+6. If the fixture has a `permdock.config.ts`, add `pnpm exec permdock collect --check --cwd tests/e2e/fixtures/<name>` to the catalog drift step and to the catalog drift list in `.agents/rules/testing.mdc`.
 7. Name every new third-party tool in `research/ecosystem-index.mdx`.
 
 A fixture that finds a bug does its job: write the failing scenario first, fix the library, and keep the scenario.

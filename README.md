@@ -1,292 +1,166 @@
 # PermDock
 
-**Typed permissions for TypeScript apps, APIs, databases, and AI agents.**
+Typed permissions for TypeScript apps, APIs, databases and AI agents: one definition, one decision object, checked in the UI, the API, SQL, Postgres RLS and agent tool approvals.
 
 [![npm](https://img.shields.io/npm/v/permdock?label=permdock)](https://www.npmjs.com/package/permdock)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/ScaleDockHQ/PermDock/ci.yml?label=CI)](https://github.com/ScaleDockHQ/PermDock/actions)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9%20%7C%206%20%7C%207-3178c6.svg)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-5fa04e.svg)
+![TypeScript 7](https://img.shields.io/badge/TypeScript-7-3178c6.svg)
+![pnpm 12](https://img.shields.io/badge/pnpm-12.8.1-f69220.svg)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
 
-Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
+[**Docs**](https://permdock.dev/docs) · [**npm package**](./packages/permdock/README.md) · [**Product brief**](./PRODUCT.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
 
-> **Status: pre-release.** Nothing is published yet; the first release of `permdock` (one package: core, adapters, the `permdock` CLI and `permdock/testing`) will be `0.1.0`. See the [roadmap](./apps/docs/content/docs/roadmap.mdx).
+> **Pre-release.** Nothing is published yet. The first release of `permdock` is `0.1.0`: one package with core, every adapter, the `permdock` CLI and `permdock/testing`.
+
+---
 
 ## Why PermDock
 
-Permission logic in a typical TypeScript app is spread across `if (user.role === 'admin')` checks in components, string keys like `'post:update'` in middleware, a hand-written client copy of the server rules, RLS policies nobody can diff against the app, and, increasingly, AI agents that call tools on a user's behalf with no way to say "ask first". PermDock replaces all of that with one definition and one decision object:
+Permission logic in a typical TypeScript app lives in `if (user.role === 'admin')` checks in components, `'post:update'` strings in middleware, a hand-written client copy of the server rules, RLS policies nobody diffs against the app, and AI agents that call tools with no way to say "ask first". PermDock replaces them with one typed definition and one `Decision`.
 
-- **Reference-based.** `permissions.post.update` is a typed, frozen object carrying `key`, `scope`, schema and metadata. Go-to-definition, rename-safe, no template-literal unions for TypeScript 7 to expand, and the runtime definition *is* the catalog.
-- **Standard-Schema-native.** Resources are built from any [Standard Schema](https://standardschema.dev) validator; instance types are inferred; untrusted inputs are validated at trust boundaries only.
-- **Policy as data.** Roles are arrays of `allow` / `deny` grants with a portable condition AST. One condition evaluates to a boolean in the browser, filters arrays, compiles to Drizzle / Prisma / Kysely `where`, and generates Postgres RLS.
-- **Multi-tenant roles without a second system.** A role is held globally, in a tenant, in a team or on one resource; `role('admin', grants, { on: 'tenant' })` replaces the `orgId` condition you used to repeat on every grant. Tenant admins compose their own roles from the ones you declared, never wider. Memberships come from your auth provider; PermDock stores nothing. Read [Tenants, teams and scoped roles](./apps/docs/content/docs/concepts/tenancy.mdx).
-- **Immutable, request-scoped.** `createPermDock(policy, user)` returns a frozen `PermDock`. Safe in RSC, edge, serverless and concurrent requests. `permdock.tenant(id)` derives another frozen instance for a tenant switch or a preview.
-- **Decisions, not booleans.** `decide()` returns `granted`, `denied` or `approval-required` with the matched grant, denial reasons and permitted alternatives. Adapters turn that into RFC 9457 Problem Details, model-readable MCP refusals and AI SDK approval states.
-- **Snapshots that carry conditions.** The client answers ownership checks offline; no duplicated client rules; `<Protected>` never blocks a Next.js 16.3 instant navigation.
-- **Agent-native.** Two-principal subject (principal + actor + delegation), MCP / AI SDK / Claude Agent SDK / Eve / OpenAI Agents SDK / WebMCP / A2A adapters, an AuthZEN 1.0 decision endpoint, bundled skills, `AGENTS.md` and `llms.txt`.
-- **Human approvals that resume safely.** `approval: 'human'` grants yield a third outcome with a replay-safe `token`; pending approvals live in a pluggable `ApprovalStore` (in-memory by default, your database, or PermDock Cloud), approvers are authenticated and never the agent, and plain HTTP resumes with a `PermDock-Approval` header.
-- **The Cloud is optional.** Every decision runs in-process. PermDock Cloud adds the decision log as compliance evidence and agent governance (access reviews, agent activity, signed and OCSF exports), a hosted AuthZEN Authorization Decision Service, an approval inbox and a SCIM relay into a directory store your app owns (`permdock/scim`), all behind interfaces the open-source package ships with in-process defaults; self-host or subscribe, the library is the same, and the Cloud never decides. Dashboard [app.permdock.com](https://app.permdock.com), API [api.permdock.com](https://api.permdock.com), read-only MCP [mcp.permdock.com](https://mcp.permdock.com). Read [PermDock Cloud](./apps/docs/content/docs/adapters/cloud.mdx).
-- **RLS round-trip.** `permdock rls generate | import | verify` for Supabase, Neon and generic Postgres.
-- **Secure by default.** Fail-closed, deny overrides allow, unknown reference is a type error, prototype-safe, no eval, `service_role` never emitted, model-supplied subjects never trusted, an agent with no delegation denied, no one (agent or user) approving their own request, never a default tenant, request bodies validated before they become a row, protected routes denied on transports the guard cannot read, and the optional Cloud never consulted at request time (a Cloud-hosted directory reaches your app only as claims on a token you verify).
-- **Authentication stays upstream.** PermDock consumes verified material only: sessions, JWKS-verified JWTs (`permdock/jwt` with OIDC Discovery, `at+jwt` / `typ` checks, the RFC 9864 algorithm allow-list, FAPI 2.0 profile, RFC 9068 `roles` / `groups` claims, `jose` as an optional peer behind a pluggable `TokenVerifier`), Supabase / Clerk / Better Auth claims and memberships, MCP `authInfo`, workload identities. Every `subjectFrom*` mapper takes a Standard Schema for your custom claims; token failures surface as RFC 6750 `WWW-Authenticate` challenges, never as thrown errors. Read [Authentication](./apps/docs/content/docs/concepts/authentication.mdx), [OpenID Connect](./apps/docs/content/docs/standards/openid-connect.mdx) and [JOSE](./apps/docs/content/docs/standards/jose.mdx).
-- **Interoperable by construction.** Everything PermDock signs (snapshots, cross-service approval tokens, decision exports) is compact JWS with registered header parameters and claim names, so a Go, Python, Java or .NET service verifies it with any JOSE library and a published JWK Set. Read [Wire formats](./apps/docs/content/docs/concepts/wire-formats.mdx).
+- **Typed references, not strings.** `permissions.post.update` is a frozen object with a `key`, a `scope` and the resource's Standard Schema. Renames are safe and the definition is the catalog.
+- **Policy as data.** Roles are arrays of `allow` / `deny` grants with a portable condition AST that evaluates in the browser, filters arrays, compiles to Drizzle, Prisma and Kysely `where`, and generates Postgres RLS.
+- **Three outcomes.** `granted`, `denied` or `approval-required`, with denial reasons, permitted alternatives and a replay-safe approval token.
+- **Embedded.** Every decision runs in-process. PermDock Cloud is optional and never on the decision path.
 
-## Install
+The user-facing overview with code for every surface is the [npm README](./packages/permdock/README.md); the full reference is the [docs](https://permdock.dev/docs).
 
-```bash
-pnpm add permdock   # core, every adapter as a subpath export, and the permdock CLI
-```
+## What ships
 
-The `permdock` binary (collect, catalog, usage, openapi, rls, doctor, skills) ships in the same package.
-
-Test runners ship in the same package as `permdock/testing` (Vitest is an optional peer).
-
-ESM-only. TypeScript 5.9, 6 and 7 are tested. Runtime entries depend on `@standard-schema/spec` only; the CLI's one dependency, `oxc-parser`, never reaches them.
-
-## Quick start
-
-### 1. Define permissions (importable everywhere: server, client, React Native, MCP, tests)
-
-```ts
-// src/permissions.ts
-import { definePermissions, defineRoles, resource } from 'permdock'
-import { z } from 'zod' // or valibot / arktype / effect
-
-const Post = z.object({ id: z.string(), authorId: z.string(), orgId: z.string(), published: z.boolean() })
-
-export const permissions = definePermissions({
-  post: resource(Post, {
-    id: 'id',                                          // identity field: cache keys, filter, RLS
-    actions: ['read', 'update', 'delete', 'publish'],  // take an instance
-    collection: ['create', 'list'],                    // do not
-  }),
-  billing: {
-    invoice: resource(Invoice, { actions: ['read', 'pay'] }),
-    plan: resource({ collection: ['view', 'change'] }), // schema-less
-  },
-})
-
-permissions.post.update.key                // 'post.update'
-permissions.billing.invoice.pay.scope      // 'billing:invoice:pay' (OAuth / MCP scope)
-```
-
-```ts
-export const roles = defineRoles({
-  member: {},
-  admin: { on: 'tenant' },
-})
-```
-
-### 2. Write the policy (server-only; roles are data, conditions are portable)
-
-```ts
-// src/policy.ts
-import { definePolicy, role, allow, deny, principal, relation } from 'permdock'
-import { permissions, roles } from './permissions'
-
-const member = role(roles.member, [
-  allow(permissions.post.read),
-  allow(permissions.post.list),
-  allow(permissions.post.create),
-  allow(permissions.post.update, { to: relation(permissions.post, 'author') }),                       // portable
-  allow(permissions.post.publish, (post, ctx) => post.authorId === ctx.subject.id),           // closure: server-only
-  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),     // → 'approval-required'
-])
-
-const admin = role(roles.admin, [...member.grants, allow(permissions.post.delete)], { on: 'tenant' })  // held per tenant
-
-export const policy = definePolicy({ permissions, roles }, {
-  roles: [member, admin],
-  scopes: { tenant: { key: 'orgId' } },   // the field a tenant-scoped grant compares against the membership
-  principal: (user: User | null) => user && { id: user.id, roles: user.roles, tenant: user.activeOrgId, memberships: user.memberships },
-  validate: 'boundary', // validate data that crossed a trust boundary, skip trusted server rows
-})
-```
-
-`memberships` is `[{ tenant: 'o_acme', roles: ['admin'] }, { tenant: 'o_acme', team: 't_design', roles: ['lead'] }]`: a list your auth provider already has. `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromSupabase` and `subjectFromJwt` produce it for you.
-
-### 3. Create a `PermDock` and decide
-
-```ts
-import { createPermDock } from 'permdock'
-
-const permdock = await createPermDock(policy, user)      // frozen, request-scoped, never throws
-permdock.can(permissions.post.update, post)              // boolean
-permdock.can(permissions.post.create)                    // collection action: arity is in the type
-permdock.actions(permissions.post, post)                 // Permission[] this subject may perform on the row
-permdock.heldRoles()                                     // Role[]
-permdock.decide(permissions.post.delete, post)           // { outcome: 'granted' | 'denied' | 'approval-required', ... }
-permdock.assert(permissions.post.delete, post)           // narrows subject or throws PermDockDeniedError
-permdock.filter(permissions.post.read, posts)            // Post[]
-permdock.where(permissions.post.read)                    // portable condition → Drizzle / Prisma / Kysely / SQL
-permdock.snapshot({ include: [permissions.post] })       // JSON for the client
-permdock.tenant('o_globex').can(permissions.post.delete, post)  // derived instance with another active tenant
-permdock.tenants()                                       // ['o_acme', 'o_globex'] for a tenant switcher
-```
-
-### React
-
-```tsx
-import { PermDockProvider, usePermission, useTenant, useFilter, Protected } from 'permdock/react'
-
-<PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
-  <Protected permission={permissions.post.update} data={post} pending={<Skeleton />} fallback={<Locked />}>
-    <EditButton />
-  </Protected>
-</PermDockProvider>
-
-const { allowed, status } = usePermission(permissions.post.update, post) // 'ready' | 'pending' | 'stale' | 'server-only'
-const { tenant, tenants, switchTo } = useTenant()                        // tenant switcher from the same snapshot
-const editable = useFilter(permissions.post.update, posts)               // the rows this user may edit
-```
-
-Also `usePermissions`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useApproval`, `useSubject` and the pure `describe(decision)` for "why not" tooltips; the same names in React Native, Vue, Svelte and Solid. Read [Building UI](./apps/docs/content/docs/concepts/ui.mdx).
-
-### Next.js 16.3
-
-```ts
-// src/permdock/server.ts
-import { createPermDock } from 'permdock/next'
-export const { getPermDock, getPermission, requireAccess, PermDockProvider, permdockHandler } = createPermDock(policy, {
-  subject: async () => getUser(await cookies()),
-})
-
-// app/posts/[id]/page.tsx
-const permdock = await getPermDock()
-permdock.assert(permissions.post.update, post)
-await requireAccess({ permission: permissions.post.update, data: post })   // forbidden() / unauthorized() on a denial
-
-// app/api/permdock/route.ts
-export const { POST } = permdockHandler()
-```
-
-### Hono (same shape for Express, Fastify, Elysia, Nest, Node, tRPC, oRPC)
-
-```ts
-import { createPermDock } from 'permdock/hono'
-export const { permdock, protect } = createPermDock(policy, { subject: (c) => c.get('user') })
-
-app.use(permdock())
-app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler)
-// deny → 403 application/problem+json with permission, denials and alternatives
-```
-
-### MCP
-
-```ts
-import { createPermDock } from 'permdock/mcp'
-const { protectServer } = createPermDock(policy, { subject: (authInfo) => userFrom(authInfo) })
-const guarded = protectServer(server)
-guarded.registerTool('delete_post', { permission: permissions.post.delete, inputSchema, data: (args) => loadPost(args.id) }, handler)
-// scopeChallenge step-up, list_tools filtered per caller, args validated, refusals carry reasons + alternatives
-```
-
-### AI SDK
-
-```ts
-import { createPermDock } from 'permdock/ai-sdk'
-const { toolApproval, capabilityMiddleware } = createPermDock(policy, {
-  subject: ({ runtimeContext }) => runtimeContext.user,
-  actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' }),
-  tools: { delete_post: { permission: permissions.post.delete, data: (args) => loadPost(args.id) } },
-})
-generateText({ model, tools, toolApproval }) // granted → 'approved', denied → 'denied', approval-required → 'user-approval'
-```
-
-### Eve
-
-```ts
-import { defineTool } from 'eve/tools'
-import { createPermDock } from 'permdock/eve'
-import { memoryApprovalStore } from 'permdock/approvals'
-const { approval } = createPermDock(policy, {
-  tools: { refund: { permission: permissions.charge.refund, data: (input) => loadCharge(input.chargeId) } },
-  store: memoryApprovalStore(),   // or drizzleApprovalStore(db), or cloud().approvals
-})
-export default defineTool({ description: 'Refund a charge.', inputSchema, approval, execute })
-// granted → "not-applicable" (run), approval-required → "user-approval" (session parks), denied → { type: "denied", reason }
-// approval.response checks the responder against the store: an agent never approves its own call
-```
-
-### RLS
-
-```bash
-permdock rls generate --target drizzle --dialect supabase   # roles × grants → policies
-permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts
-permdock rls verify --db $DATABASE_URL                      # can() vs database parity
-```
-
-## Larger apps
-
-Define permissions once and import them anywhere, or colocate `definePermissions()` per feature and merge them centrally. Both resolve by `key`, so leaves stay identical across bundles and serialisation boundaries.
-
-```ts
-// src/permissions.ts
-import { mergePermissions } from 'permdock'
-import { postPermissions } from '@/features/posts/permissions'
-import { billingPermissions } from '@/features/billing/permissions'
-import { generated } from './permissions.generated' // from `permdock rls import` or `permdock openapi import`
-
-export const permissions = mergePermissions(postPermissions, billingPermissions, generated)
-```
-
-Role fragments merge by name, `permdock collect` keeps a catalog as a compile output (the next-intl `useExtracted` model) and fails CI on drift, and scoped snapshots send a route only the grants it needs. Read [Larger apps](./apps/docs/content/docs/getting-started/larger-apps.mdx).
-
-## Works with
-
-Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. Then, one import path per target (example app under `apps/examples/` where one exists):
-
-| Group | Adapters |
+| Surface | Entries |
 | --- | --- |
-| UI | `permdock/react` `react-vite` · `permdock/react-native` `expo` · `permdock/vue` `vue` · `permdock/svelte` `svelte` · `permdock/solid` `solid` |
-| Full-stack | `permdock/next` `next` |
-| HTTP | `permdock/server` kernel · `permdock/hono` `hono` · `permdock/express` `express` · `permdock/fastify` `fastify` · `permdock/elysia` `elysia` · `permdock/nest` `nest` · `permdock/node` |
-| Terminal | `permdock/terminal` `terminal` for your own commander / citty / oclif / yargs / Ink CLI (not the `permdock` binary) |
-| RPC | `permdock/trpc` `trpc` · `permdock/orpc` `orpc` |
-| Agents | `permdock/mcp` `mcp-server` · `permdock/ai-sdk` `ai-sdk-agent` · `permdock/claude-agent` `claude-agent` · `permdock/eve` `eve-agent` · `permdock/openai` `openai-agent` · `permdock/webmcp` `webmcp` · `permdock/a2a` `a2a-agent` |
-| Decision plane | `permdock/authzen` `authzen-pdp` · `permdock/approvals` (`ApprovalStore`, `approvalsHandler`) · `permdock/cloud` (optional PermDock Cloud client) · `permdock/scim` (`scimHandler`, `DirectoryStore`) · `permdock/ssf` · `permdock/openapi` (3.2 document or Overlay) · `permdock/otel` · `permdock/pdp` |
-| Data | `permdock/drizzle` `drizzle` · `permdock/prisma` `prisma` · `permdock/kysely` · `permdock rls` `supabase-rls` |
-| Auth and providers | `permdock/jwt` (OIDC Discovery, RFC 9068 roles and groups, `TokenVerifier` / `TokenSigner`) · `permdock/supabase` (tenant and memberships claims) · `permdock/supabase/middleware` `supabase-middleware` (`withPermDock` for the `@supabase/middleware` pipeline; `@supabase/server` and `@supabase/ssr` are recipes) · `permdock/better-auth` `better-auth` (organizations, teams, dynamic roles) · `permdock/clerk` `clerk` (organizations, custom roles) · `permdock/convex` `convex` |
-| Testing | `permdock/testing` |
+| UI | `permdock/react`, `react-native`, `vue`, `svelte`, `solid` |
+| Full-stack and HTTP | `permdock/next`, `server`, `hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `terminal` |
+| Agents | `permdock/mcp`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `webmcp`, `a2a` |
+| Decision plane | `permdock/authzen`, `approvals`, `cloud`, `scim`, `ssf`, `openapi`, `otel`, `pdp` |
+| Data | `permdock/drizzle`, `prisma`, `kysely`, and `permdock rls generate / import / verify` |
+| Auth providers | `permdock/jwt`, `supabase`, `supabase/middleware`, `better-auth`, `clerk`, `convex` |
+| Tooling | the `permdock` CLI, `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `wire-permdock` and `audit-permissions` agent skills |
 
-Full matrix with related standards: [Adapters](./apps/docs/content/docs/adapters/index.mdx).
-
-Nuxt, Astro, React Router, TanStack Start and Effect use the existing adapters plus `permdock/unplugin` ([unplugin recipes](./apps/docs/content/docs/cli/unplugin.mdx)); there is no `permdock/nuxt` or other per-vendor package ([adapters](./apps/docs/content/docs/adapters/index.mdx)).
-
-Around the OpenAPI output, PermDock composes with the tools you already run rather than wrapping them: next-openapi-gen (Next.js, TanStack Start, React Router, SvelteKit, Nuxt, Astro), Redocly CLI, Bump.sh and Speakeasy apply the Overlay; Hey API, Orval, Kubb, Scalar, Mintlify, Fern and OpenAPI-to-MCP bridges read the result as standard `security`; Schemathesis and oasdiff turn it into CI checks. The same rule covers MCP hosting (`mcp-handler`), approval delivery (Vercel Chat SDK to Slack and Teams), identity providers and observability sinks. Recipes on the [OpenAPI adapter](./apps/docs/content/docs/adapters/openapi.mdx) and [approvals](./apps/docs/content/docs/adapters/approvals.mdx) pages; every named tool in the [ecosystem index](./apps/docs/content/docs/research/ecosystem-index.mdx); the rule on the [adapters](./apps/docs/content/docs/adapters/index.mdx) page.
-
-## Comparison
-
-Other TypeScript permission libraries (CASL, permix, Kilpi, `@zap-studio/permit`) return booleans from string keys and stop at the server or the UI. Hosted PDPs (Cerbos, Permit.io, OpenFGA, SpiceDB) put a network call on every check. PermDock is an embedded, typed library: one decision object across UI, API, SQL, RLS and agent approvals, with an optional Cloud that is never on the decision path.
-
-Details and a feature matrix: [Comparison](./apps/docs/content/docs/comparison.mdx).
+Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/content/docs/adapters/index.mdx) and, where it has a runtime, an app under [`apps/examples`](./apps/examples).
 
 ## For AI agents
 
+- Consumers: `npx skills add ScaleDockHQ/PermDock` installs `wire-permdock` and `audit-permissions`; Claude Code can add the marketplace in [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) with `/plugin marketplace add ScaleDockHQ/permdock`.
+- Maintainers: [`AGENTS.md`](./AGENTS.md) (imported by `CLAUDE.md`) is the entry point, and the topic rules in [`.agents/rules`](./.agents/rules) attach by path in Cursor and Claude Code.
+- Every docs page is served as Markdown, plus `llms.txt`, `llms-full.txt` and a public docs MCP at `/mcp`. Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 24 or later (`.node-version` pins 24, which CI runs)
+- pnpm 12.8.1 exactly: `devEngines` fails any other version
+- Docker, only for `pnpm test:integration`
+- Bun on `PATH`, only for `pnpm test:runtimes`
+
+### First run
+
 ```bash
-npx skills add ScaleDockHQ/PermDock   # installs the `wire-permdock` and `audit-permissions` skills
+git clone https://github.com/ScaleDockHQ/PermDock.git && cd PermDock
+pnpm install        # also installs the lefthook git hooks
+pnpm build          # tsdown builds packages/permdock; apps and tests import dist/
+pnpm test           # vitest unit and type tests
+pnpm docs:dev       # docs on http://localhost:3001/docs
 ```
 
-- [`AGENTS.md`](./AGENTS.md) (`CLAUDE.md` imports it) describes the repo, invariants and update rules.
-- Every docs page is served as `.md`, plus `llms.txt` and `llms-full.txt`. The public docs MCP is `POST /mcp` (`search_docs`, `get_page`; no subject). The Cloud MCP is [mcp.permdock.com](https://mcp.permdock.com) (read-only evidence and catalog; never resolves an approval). The decide explorer is `/devtools`.
-- Denials are written for models: every `denied` decision carries reasons and permitted `alternatives`; every `approval-required` decision carries a replay-safe `token`.
-- `permdock doctor` and `permdock collect --check` give deterministic feedback in CI.
+No environment variables are needed for build, check or test. `CONTRIBUTING.md` covers installing pnpm 12 when Corepack is unavailable.
 
-Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
+## Common Commands
 
-## Documentation
+| Command | What it does |
+| --- | --- |
+| `pnpm build` | `turbo run build` (tsdown for `permdock`, `next build` for the apps) |
+| `pnpm check` | `fmt:check`, `lint` and `typecheck`; the pre-push hook and CI run it |
+| `pnpm test` | Vitest unit and type tests across the workspace |
+| `pnpm test:e2e` | Playwright across `apps/examples` and `tests/e2e/fixtures` |
+| `pnpm test:integration` | Postgres via testcontainers: RLS parity and providers |
+| `pnpm test:runtimes` | The WinterTC app on Bun, Deno and workerd |
+| `pnpm size` | Per-entry min+gzip against the recorded baseline |
+| `pnpm check:publish` | publint and arethetypeswrong on the published package |
+| `pnpm docs:drift` | Docs mention every CLI flag, doctor code and package entry; every page is in `meta.json` |
+| `pnpm docs:dev` / `pnpm marketing:dev` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied |
+| `pnpm fmt` / `pnpm lint` | Oxfmt and Oxlint over the whole repository |
+| `pnpm changeset` | Record a user-visible change |
 
-The marketing site is `apps/marketing` at `/`. Run `pnpm marketing:dev` for the marketing origin on `:3000` with `/docs` proxied to the docs app on `:3001`. Docs alone: `pnpm docs:dev` and open `/docs`. The source of truth is the MDX tree at [`apps/docs/content/docs`](./apps/docs/content/docs): [getting started](./apps/docs/content/docs/getting-started), [concepts](./apps/docs/content/docs/concepts), [adapters](./apps/docs/content/docs/adapters), [CLI](./apps/docs/content/docs/cli), [standards](./apps/docs/content/docs/standards), [security](./apps/docs/content/docs/security), and [research](./apps/docs/content/docs/research).
+## Code Standards
 
-The product brief is [`PRODUCT.md`](./PRODUCT.md); the roadmap and open questions live in [roadmap](./apps/docs/content/docs/roadmap.mdx).
+- Fifteen invariants (fail-closed, deny overrides allow, no string keys, frozen JSON leaves, zero runtime dependencies beyond `@standard-schema/spec`, authentication upstream, the Cloud optional, and more) are listed in [`AGENTS.md`](./AGENTS.md) and spelled out in [`.agents/rules/invariants.mdc`](./.agents/rules/invariants.mdc). A PR that breaks one is wrong.
+- The naming convention is public API: every adapter exports `createPermDock`, every provider is `subjectFrom*`. See [`.agents/rules/naming.mdc`](./.agents/rules/naming.mdc) and the [naming page](./apps/docs/content/docs/getting-started/naming.mdx).
+- TypeScript 7 in strict mode with `exactOptionalPropertyTypes`, `isolatedDeclarations` and `erasableSyntaxOnly`; presets in `packages/typescript-config`.
+- Oxlint with type-aware rules and Oxfmt (single quotes, semicolons, width 80); config in `packages/ox-config`.
+- Exact dependency pins from the pnpm catalog, `trustPolicy: no-downgrade`, and a one-day minimum release age.
+- Conventional commits, enforced by commitlint on `commit-msg`. Prose follows [`.agents/rules/writing.mdc`](./.agents/rules/writing.mdc).
+
+## CI And Release
+
+- `ci.yml` runs on pushes to `main`, on pull requests, and nightly with every e2e test repeated three times: build, `check`, the TypeScript 5.9 / 6 / 7 type matrix, unit tests, bundle size, catalog drift, docs drift and publish checks, then integration, runtimes and sharded Playwright e2e against the built `dist/`.
+- `release.yml` runs Changesets on `main`. Pending changesets open a version pull request; merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
+- The marketing and docs apps deploy as two Vercel Services of one project; see `vercel.json` and [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc).
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes go through a short RFC in an issue before a PR. Every adapter ships with a docs page, a skill reference, an example app and tests; the checklist is in [`AGENTS.md`](./AGENTS.md). This project follows the [Contributor Covenant](./CODE_OF_CONDUCT.md).
+Read [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes start as an RFC issue. Every user-visible change has a changeset, and every adapter ships with a docs page, a skill reference, an example app and tests ([change checklist](./.agents/rules/change-checklist.mdc)). This project follows the [Contributor Covenant](./CODE_OF_CONDUCT.md).
+
+## Monorepo Map
+
+### Packages
+
+| Path | Contents |
+| --- | --- |
+| [`packages/permdock`](./packages/permdock) | npm `permdock`: `src/core`, `src/conditions`, one folder per adapter, `src/cli` (the `permdock` bin), `src/testing` (`permdock/testing`), JSON schemas, the OpenAPI lint ruleset and the consumer skills |
+| [`packages/typescript-config`](./packages/typescript-config) | Private tsconfig presets: `base`, `library`, `react-library`, `next` |
+| [`packages/ox-config`](./packages/ox-config) | Private Oxlint and Oxfmt configuration |
+
+### Apps
+
+| Path | Contents |
+| --- | --- |
+| [`apps/docs`](./apps/docs) | Fumadocs on Next.js 16.3; content in `apps/docs/content/docs`; served at `/docs` |
+| [`apps/marketing`](./apps/marketing) | Next.js 16.3 marketing site; served at `/` |
+| [`apps/examples`](./apps/examples) | One app per adapter: `next`, `react-vite`, `expo`, `vue`, `svelte`, `solid`, `hono`, `express`, `fastify`, `elysia`, `nest`, `terminal`, `trpc`, `orpc`, `mcp-server`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`, `webmcp`, `a2a-agent`, `authzen-pdp`, `scim`, `supabase-rls`, `supabase-middleware`, `drizzle`, `prisma`, `better-auth`, `clerk`, `convex`, `monorepo` |
+
+### Tests
+
+| Path | Contents |
+| --- | --- |
+| [`tests/e2e`](./tests/e2e) | Playwright over the examples, plus scenario fixture apps (Next, SvelteKit, Nuxt, TanStack Start, SolidStart, Expo, MCP OAuth, AI chat, realtime, Turborepo, SCIM, Cloud contract) |
+| [`tests/integration`](./tests/integration) | Postgres via testcontainers: RLS parity and providers |
+| [`tests/runtimes`](./tests/runtimes) | Bun, Deno and workerd |
+| [`tests/types`](./tests/types) | The public types under TypeScript 5.9, 6 and 7 |
+| [`tests/bundle`](./tests/bundle) | Per-entry size baseline and client-entry assertions |
+
+## Architecture At A Glance
+
+```mermaid
+flowchart LR
+  defs["permissions.ts<br/>definePermissions"] --> policy["policy.ts<br/>definePolicy, roles, grants"]
+  subject["subjectFrom*<br/>verified session or token"] --> instance
+  policy --> instance["createPermDock<br/>frozen, request-scoped"]
+  instance --> decision["Decision<br/>granted / denied / approval-required"]
+  decision --> ui["UI snapshot<br/>Protected, hooks"]
+  decision --> http["HTTP and RPC guards<br/>Problem Details"]
+  decision --> agents["Agent tools<br/>approvals, refusals"]
+  instance --> where["where / RLS<br/>Drizzle, Prisma, Kysely, Postgres"]
+```
+
+- Definitions are importable everywhere, including client bundles; policies and closures stay on the server.
+- A request builds one frozen `PermDock` from the policy and a verified subject. Adapters translate its `Decision` into their surface.
+- The same portable conditions compile to SQL and RLS, and `permdock rls verify` checks the database against `can()`.
+- Stores, sinks and sources (`ApprovalStore`, `DecisionSink`, `SnapshotSource`, `MembershipSource`) are interfaces with in-process defaults; PermDock Cloud is one implementation.
+
+## Further Reading
+
+- [Docs index](./apps/docs/content/docs/index.mdx), [installation](./apps/docs/content/docs/getting-started/installation.mdx) and [quick start](./apps/docs/content/docs/getting-started/quick-start.mdx)
+- [Concepts](./apps/docs/content/docs/concepts), [adapters](./apps/docs/content/docs/adapters), [CLI](./apps/docs/content/docs/cli), [standards](./apps/docs/content/docs/standards) and [security](./apps/docs/content/docs/security)
+- [Threat model](./apps/docs/content/docs/security/threat-model.mdx) and [comparison](./apps/docs/content/docs/comparison.mdx)
+- [`PRODUCT.md`](./PRODUCT.md), the product brief, and the [roadmap](./apps/docs/content/docs/roadmap.mdx)
 
 ## Security
 
-Report vulnerabilities privately. See [`SECURITY.md`](./SECURITY.md). Do not open public issues for security reports.
+Report vulnerabilities privately; see [`SECURITY.md`](./SECURITY.md). Do not open public issues for security reports.
 
 ## License
 

@@ -16,13 +16,14 @@ This installs two Agent Skills into the folders your agent reads (`.agents/skill
 - **`wire-permdock`**: detect the framework and validator, create `src/permissions.ts`, `src/policy.ts` and the factory file, add the first check and the first UI guard, run the CLI checks, add CI steps.
 - **`audit-permissions`**: review an existing installation for ungranted or unused permissions, missing approvals on destructive agent-reachable actions, closures that could be portable, and the OWASP Agentic Top 10 mapping.
 
-The same skills ship inside the `permdock` npm package and can be installed with `permdock skills install`, so the skill version always matches the library version. See [skills](/docs/cli/skills).
+The same skills ship inside the `permdock` npm package and can be installed with `permdock skills install`, so the skill version always matches the library version. In Claude Code, `/plugin marketplace add ScaleDockHQ/permdock` adds them as the `permdock` plugin from `.claude-plugin/marketplace.json`. See [skills](/docs/cli/skills).
 
 ## What the repository gives you
 
 | Artifact | Where | Use it for |
 | --- | --- | --- |
-| `AGENTS.md` (`CLAUDE.md` imports it) | repository root | Maintainer guide: layout, commands, invariants, "when you change X also update Y" |
+| `AGENTS.md` (`CLAUDE.md` imports it) | repository root | Maintainer guide: layout, commands, the invariants and an index of the topic rules |
+| `.agents/rules/*.mdc` | repository root, linked into `.cursor/rules` and `.claude/rules` | Maintainer rules attached by path: invariants, naming, docs, "when you change X also update Y", testing, prose |
 | `llms.txt`, `llms-full.txt` | docs site root | Index and full text of the docs for context loading |
 | `.md` per page | append `.md` to any docs URL | Read one page as Markdown without HTML |
 | Docs MCP server | `POST /mcp` (`search_docs`, `get_page`) | Search and read docs from inside an MCP-capable agent |

@@ -1,0 +1,53 @@
+---
+description: Prose rules against AI slop for docs, READMEs, skills, changesets, rules, code comments, commit messages and PR descriptions - lead with the fact, name the thing, no marketing words, no filler
+globs: "**/*.md,**/*.mdx,**/*.mdc,.changeset/**"
+alwaysApply: false
+paths:
+  - "**/*.md"
+  - "**/*.mdx"
+  - "**/*.mdc"
+  - ".changeset/**"
+---
+
+# Writing
+
+Applies to every sentence a reader sees: docs pages, both READMEs, `PRODUCT.md`, skills, rules, changesets, code comments, commit messages, PR titles and descriptions, CLI output and error messages.
+
+## Say the thing
+
+- Lead with the fact, the rule or the outcome. The first sentence of a page, section, changeset or PR answers "what is it" or "what changed".
+- Name the identifier, file, flag, number or standard. `createPermDock returns a frozen object` beats "the factory is designed with immutability in mind".
+- One idea per sentence. Split a sentence that needs a second "and" or a parenthesis inside a parenthesis.
+- Show the code or the table instead of describing it.
+- State limits plainly: "not supported", "planned", "does not verify tokens". Never imply a feature exists because a sentence sounds confident.
+- Numbers come from a measurement or a spec, with the source nearby. No invented percentages, benchmarks or "up to" claims.
+
+## Cut
+
+- Marketing and filler words: seamless, robust, powerful, leverage, utilize, delve, unlock, elevate, empower, supercharge, effortless, cutting-edge, state-of-the-art, best-in-class, game-changer, world-class, blazing fast, next-generation, holistic, comprehensive (unless it is a list that is complete), simply, just, easily, obviously, of course.
+- Throat-clearing: "It's worth noting that", "It is important to", "In today's world", "Let's dive in", "In this guide we will", "As mentioned above", "At the end of the day".
+- Closing summaries that repeat the section ("In summary, …", "Overall, …"), and conclusions that restate the heading.
+- Hedging stacks ("may potentially", "can help to possibly"). Pick "may" or say what happens.
+- Rhetorical questions, exclamation marks, emoji, and "Not X, but Y" or "It's not just X, it's Y" flourishes.
+- Reflexive groups of three. Use as many items as there are.
+- Bold on every other phrase. Bold marks the one term a reader scans for, usually the first word of a list item.
+
+## Shape
+
+- Headings are nouns or imperatives in sentence case: "Boundary validation", "Add a condition operator". No "Understanding …" or "A deep dive into …".
+- Lists for parallel items; prose for reasoning. A bullet is a full sentence or a noun phrase, not a mix.
+- Tables for short enumerable facts; the explanation goes in the surrounding prose, not in the cells.
+- Prefer a colon, a semicolon or two sentences over an em dash.
+- British spelling in prose (behaviour, organisation, serialise, recognised); identifiers, spec terms and product names keep their own spelling (Clerk organizations, `Organization`, `authorization_details`).
+- Link the owning page instead of re-explaining it. In docs, links are `/docs/<path>` (`.agents/rules/docs.mdc`).
+
+## Code comments, commits and PRs
+
+- A comment states a constraint the code cannot show. It never narrates the next line, explains where the code came from, or argues that a change is correct.
+- Commit subjects follow Conventional Commits, lower case, at most 72 characters, and say what changed (`fix(rls): filter nested-scope memberships by kind`), not what you did (`fix stuff`, `address review`).
+- A PR description follows `.github/PULL_REQUEST_TEMPLATE.md`: what ships, how to verify it, the checklist. No narrative of the process.
+- A changeset is one or two sentences in the user's terms: the entry, the identifier, the behaviour change.
+
+## Check before you commit
+
+Read the text once as a user who has never seen the codebase. Delete every sentence that tells them nothing new, then every word in the survivors that carries no meaning.

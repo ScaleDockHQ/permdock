@@ -1,10 +1,19 @@
-## Summary
+## What ships
 
-<!-- What changed and why. -->
+<!-- One or two sentences a user would understand: the entry, identifier, command or page, and the behaviour change. Link the RFC issue for public API changes. -->
 
-## Test plan
+## Verify
+
+<!-- Commands a reviewer can run and what they print, or the test that covers it. -->
+
+```bash
+pnpm run check
+```
+
+## Checklist
 
 - [ ] `pnpm run check` passes
-- [ ] User-visible change has a changeset (`pnpm changeset`)
-- [ ] Public API or docs change updates the matching page and `meta.json` if a page was added
-- [ ] Adapter work follows the AGENTS.md checklist (docs, skill, example, tests)
+- [ ] User-visible change has a changeset (`pnpm changeset`); CI-only changes do not
+- [ ] Rows in `.agents/rules/change-checklist.mdc` that match this change are done (docs page, `meta.json`, skill, example, tests)
+- [ ] Docs changes pass `pnpm docs:drift`
+- [ ] Prose follows `.agents/rules/writing.mdc`
