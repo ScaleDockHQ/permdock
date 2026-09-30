@@ -19,10 +19,17 @@
   },
   "dependencies": {
     "@base-ui/react": "catalog:",
+    "@streamdown/cjk": "catalog:",
+    "@streamdown/code": "catalog:",
+    "@streamdown/math": "catalog:",
+    "@streamdown/mermaid": "catalog:",
+    "ai": "catalog:",
     "class-variance-authority": "catalog:",
     "cn": "catalog:",
     "lucide-react": "catalog:",
-    "shiki": "catalog:"
+    "shiki": "catalog:",
+    "streamdown": "catalog:",
+    "use-stick-to-bottom": "catalog:"
   },
   "devDependencies": {
     "@permdock/ox-config": "workspace:*",

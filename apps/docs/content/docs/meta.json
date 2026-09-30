@@ -4,6 +4,7 @@
   "defaultOpen": true,
   "pages": [
     "index",
+    "[Ask AI](/docs/ask)",
     "---Start---",
     "getting-started",
     "concepts",

@@ -10,6 +10,7 @@ const withMDX = createMDX();
 const config: NextConfig = {
   ...createNextConfig(),
   assetPrefix: '/docs',
+  transpilePackages: ['@permdock/ui'],
   redirects() {
     return [
       {

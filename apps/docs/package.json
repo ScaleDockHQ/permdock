@@ -12,12 +12,16 @@
     "typecheck": "next typegen && tsc --noEmit --checkers 4"
   },
   "dependencies": {
+    "@ai-sdk/otel": "catalog:",
+    "@ai-sdk/react": "catalog:",
     "@fumadocs/local-md": "catalog:",
     "@permdock/next-config": "workspace:*",
+    "@permdock/ui": "workspace:*",
     "@sentry/nextjs": "catalog:",
     "@t3-oss/env-nextjs": "catalog:",
     "@vercel/analytics": "catalog:",
     "@vercel/speed-insights": "catalog:",
+    "ai": "catalog:",
     "beautiful-mermaid": "catalog:",
     "fumadocs-core": "catalog:",
     "fumadocs-mdx": "catalog:",
@@ -30,7 +34,8 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "unist-util-visit": "catalog:",
-    "valibot": "catalog:"
+    "valibot": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@permdock/ox-config": "workspace:*",

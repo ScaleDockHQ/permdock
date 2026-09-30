@@ -11,8 +11,7 @@ import {
   type DemoRole,
 } from '@/lib/devtools-demo';
 
-const SELECT_CLASS =
-  'rounded-md border border-fd-border bg-fd-background px-3 py-2';
+const SELECT_CLASS = 'rounded-md border border-border bg-background px-3 py-2';
 
 function isDemoRole(value: string): value is DemoRole {
   return DEMO_ROLES.some((role) => role === value);
@@ -84,17 +83,17 @@ function ActionSelect({
 
 function DecisionView({ view }: { view: DemoDecisionView }) {
   return (
-    <dl className="grid gap-3 rounded-lg border border-fd-border p-4 text-sm">
+    <dl className="grid gap-3 rounded-lg border border-border p-4 text-sm">
       <div>
-        <dt className="text-fd-muted-foreground">Permission</dt>
+        <dt className="text-muted-foreground">Permission</dt>
         <dd className="font-mono">{view.permission}</dd>
       </div>
       <div>
-        <dt className="text-fd-muted-foreground">Outcome</dt>
+        <dt className="text-muted-foreground">Outcome</dt>
         <dd className="font-mono">{view.outcome}</dd>
       </div>
       <div>
-        <dt className="text-fd-muted-foreground">describe()</dt>
+        <dt className="text-muted-foreground">describe()</dt>
         <dd>
           {view.description.title}. {view.description.detail}
         </dd>

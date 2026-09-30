@@ -15,7 +15,7 @@ export default function DevtoolsPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-12">
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-fd-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           <Link href={docsIndex} className="underline">
             Docs
           </Link>
@@ -25,7 +25,7 @@ export default function DevtoolsPage() {
           </Link>
         </p>
         <h1 className="text-3xl font-semibold">PermDock devtools</h1>
-        <p className="text-fd-muted-foreground">
+        <p className="text-muted-foreground">
           A canned member and admin policy. Switch the role and permission to
           see decide and describe. This is not an export of permdock/react. Apps
           build overlays from useSubject and the decision event.

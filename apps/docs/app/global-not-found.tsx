@@ -17,7 +17,7 @@ export default function GlobalNotFound() {
     <RootDocument>
       <main className="mx-auto flex w-full max-w-lg flex-col items-center gap-4 px-6 py-24 text-center">
         <h1 className="text-3xl font-semibold">Page not found</h1>
-        <p className="text-sm text-fd-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           That URL is not a docs page.
         </p>
         <Link href={docsIndex} className="underline">

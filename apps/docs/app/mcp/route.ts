@@ -1,40 +1,5 @@
-import {
-  findPage,
-  handleMcpBody,
-  mcpCorsHeaders,
-  searchDocs,
-  type DocsMcpTools,
-  type DocsPageSummary,
-} from '@/lib/docs-mcp';
-import { getLLMText, source } from '@/lib/source';
-
-function pages(): readonly DocsPageSummary[] {
-  return source.getPages().map((page) => ({
-    title: page.data.title,
-    description: page.data.description ?? '',
-    url: page.url,
-    slugs: page.slugs,
-  }));
-}
-
-function tools(): DocsMcpTools {
-  const catalog = pages();
-  return {
-    search: (query, limit) => searchDocs(catalog, query, limit),
-    getPage: async (path) => {
-      const summary = findPage(catalog, path);
-      if (summary === null) {
-        return null;
-      }
-      const page = source.getPage([...summary.slugs]);
-      if (!page) {
-        return null;
-      }
-      const markdown = await getLLMText(page);
-      return markdown;
-    },
-  };
-}
+import { handleMcpBody, mcpCorsHeaders } from '@/lib/docs-mcp';
+import { docsTools } from '@/lib/docs-tools';
 
 function mcpResponse(
   status: number,
@@ -81,6 +46,6 @@ export async function POST(request: Request): Promise<Response> {
       error: { code: -32700, message: 'Parse error' },
     });
   }
-  const result = await handleMcpBody(body, tools());
+  const result = await handleMcpBody(body, docsTools());
   return mcpResponse(result.status, result.body);
 }
