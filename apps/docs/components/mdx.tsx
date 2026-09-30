@@ -1,5 +1,6 @@
 import type { MDXComponents } from 'mdx/types';
 
+import { TypeTable } from 'fumadocs-ui/components/type-table';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 
 import { Mermaid } from '@/components/mdx/mermaid';
@@ -7,6 +8,7 @@ import { Mermaid } from '@/components/mdx/mermaid';
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
+    TypeTable,
     Mermaid,
     ...components,
   } satisfies MDXComponents;

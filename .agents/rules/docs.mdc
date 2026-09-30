@@ -8,7 +8,7 @@ paths:
 
 # Docs conventions (`apps/docs/content/docs`)
 
-- Fumadocs-ready MDX: frontmatter `title` + `description`, no `# h1`, plain Markdown bodies, fenced code with language tags, ```mermaid fences. Pages are plain MDX: no Fumadocs component imports or JSX components in page bodies.
+- Fumadocs-ready MDX: frontmatter `title` + `description`, no `# h1`, plain Markdown bodies, fenced code with language tags, ```mermaid fences. Pages are plain MDX: no Fumadocs component imports or JSX components in page bodies. The one exception is `<auto-type-table cwd path="../../packages/permdock/src/…" name="…" />`, which the build replaces with a table generated from the exported type and its JSDoc; describe fields in JSDoc, not on the page.
 - Every folder has `meta.json` with `title` and an explicit `pages` order (`---Section---` separators allowed); root `meta.json` has `root: true`. Adding a page means adding it to `meta.json`; `pnpm docs:drift` fails otherwise.
 - Links between pages are `/docs/<path>` URLs, never `.mdx` file paths. `README.md`, `packages/permdock/README.md` and `PRODUCT.md` render on GitHub or npm: the root README and `PRODUCT.md` link to the `.mdx` files directly, and the npm README links to `https://permdock.dev/docs/<path>`.
 - One page per adapter (`adapters/<name>.mdx`) and per standard (`standards/<name>.mdx`). Pages carry no `Phase` line and no history. A `Status:` line directly under the frontmatter appears only on pages for something not built yet: `Status: planned` for an adapter or feature, `Status: tracking` for a standard PermDock follows without an adapter. Remove the line in the same PR that ships the code.

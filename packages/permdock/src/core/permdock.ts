@@ -46,12 +46,19 @@ import { tenantsOf } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
 
 export type DecideOptions = {
+  /** `false` validates `data` against the resource schema first; a failure denies with reason `validation`. */
   readonly trusted?: boolean;
+  /** Where untrusted data came from, reported on validation errors. Defaults to `'manual'`. */
   readonly boundary?: Boundary;
+  /** Decision clock in Unix seconds, for expiries and limits. Defaults to the current time. */
   readonly now?: number;
+  /** The call that produced the decision, reported on the decision event. Defaults to `'decide'`. */
   readonly source?: DecisionEvent['source'];
+  /** The adapter that made the call, reported on the decision event. */
   readonly adapter?: string;
+  /** Per-call unauthorized handler for `assert`; runs before instance and policy handlers. */
   readonly onDenied?: (decision: Decision) => never | void;
+  /** The field being read or written; only grants whose `fields` cover it match. */
   readonly field?: string;
 };
 

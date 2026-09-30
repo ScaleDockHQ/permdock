@@ -116,6 +116,12 @@ The grant matched, so the principal is allowed in principle, but a human must co
 
 See [approvals](/docs/security/approvals) for the full human-in-the-loop flow.
 
+## Options
+
+`decide`, `can` and `assert` take the same options as their last argument.
+
+<auto-type-table cwd path="../../packages/permdock/src/core/permdock.ts" name="DecideOptions" />
+
 ## token
 
 `token` is present on `granted` and `approval-required`. It is a hash over the permission key, the resource `id` (or the collection marker), the principal's stable identity, the actor and the condition fingerprint, plus the row's `version` field when the matched grant sets `approval: { staleOn: 'resource-change' }`. It has one job: an approval or a granted decision produced for one set of arguments cannot be replayed against another. When an approval reply comes back, the adapter recomputes the token from the actual tool arguments and rejects the reply if it differs. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approvals; PermDock computes it from the decision so every adapter gets it.
