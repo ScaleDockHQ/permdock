@@ -4,7 +4,7 @@
   "tags": ["app"],
   "tasks": {
     "build": {
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/vercel.json"]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vercel.json"]
     },
     "test": {
       "dependsOn": []
