@@ -3,7 +3,7 @@ import { defineConfig } from 'oxlint';
 
 import turbo from './turbo.json' with { type: 'json' };
 
-// Read by servers and scripts that Playwright or Vitest start, never by a turbo task.
+// Read by servers Playwright or Vitest start and by CI scripts, never by a turbo task.
 const runtimeOnlyEnv = [
   'AGENT_USER',
   'API_ORIGIN',
@@ -13,6 +13,7 @@ const runtimeOnlyEnv = [
   'PERMDOCK_E2E_NO_PRIVATE_CACHE',
   'PG_URI',
   'PORT',
+  'RUNNER_TEMP',
   'SESSION_SECRET',
   'SKIP_BUILD',
   'WORKER_TOKEN',
