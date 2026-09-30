@@ -1,6 +1,7 @@
 {
   "name": "@permdock/monorepo",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "authzen:vectors": "node scripts/fetch-authzen-vectors.ts",
@@ -15,7 +16,7 @@
     "lint": "turbo run typegen --output-logs=errors-only && oxlint .",
     "marketing:dev": "turbo run dev --filter=marketing --filter=docs",
     "permdock": "permdock",
-    "prepare": "node -e \"process.env.VERCEL ? process.exit(0) : require('node:child_process').execSync('lefthook install', { stdio: 'inherit' })\"",
+    "prepare": "node scripts/prepare.mjs",
     "size": "pnpm --filter @permdock/bundle test",
     "test": "turbo run test",
     "test:e2e": "pnpm --filter @permdock/e2e test:e2e",
@@ -47,13 +48,13 @@
     },
     "runtime": {
       "name": "node",
-      "version": ">=24",
-      "onFail": "error"
+      "version": "24.x",
+      "onFail": "download"
     }
   },
   "engines": {
-    "node": ">=24",
-    "pnpm": ">=12.8.1"
+    "node": "24.x",
+    "pnpm": "12.8.1"
   },
   "packageManager": "pnpm@12.8.1"
 }
