@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p ${PORT:-3001}",
+    "dev:portless": "portless",
     "lint": "oxlint --disable-nested-config",
     "start": "next start",
     "test": "vitest run",
@@ -48,9 +49,13 @@
     "@types/react-dom": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "portless": "catalog:",
     "postcss": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "portless": {
+    "name": "docs.permdock"
   }
 }

@@ -1,5 +1,11 @@
 {
-  "recommendations": ["TypeScriptTeam.native-preview", "oxc.oxc-vscode"],
+  "recommendations": [
+    "TypeScriptTeam.native-preview",
+    "oxc.oxc-vscode",
+    "bradlc.vscode-tailwindcss",
+    "EditorConfig.EditorConfig",
+    "vivaxy.vscode-conventional-commits"
+  ],
   "unwantedRecommendations": [
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",

@@ -4,7 +4,19 @@
     "**/node_modules": true
   },
   "search.exclude": {
-    "**/.turbo": true
+    "**/.next": true,
+    "**/.source": true,
+    "**/.turbo": true,
+    "**/coverage": true,
+    "**/dist": true,
+    "**/next-env.d.ts": true,
+    "pnpm-lock.yaml": true
+  },
+  "files.watcherExclude": {
+    "**/.next/**": true,
+    "**/.source/**": true,
+    "**/.turbo/**": true,
+    "**/dist/**": true
   },
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
@@ -12,8 +24,16 @@
     "source.fixAll.oxc": "explicit"
   },
   "oxc.configPath": "./oxlint.config.ts",
+  "oxc.fmt.configPath": "./oxfmt.config.ts",
+  "oxc.typeAware": true,
   "js/ts.experimental.useTsgo": true,
   "js/ts.tsdk.path": "./node_modules/typescript",
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
+  "tailwindCSS.classFunctions": ["cn", "cva"],
+  "tailwindCSS.experimental.configFile": {
+    "apps/docs/app/global.css": "apps/docs/**",
+    "apps/marketing/app/globals.css": ["apps/marketing/**", "packages/ui/**"]
+  },
   "[javascript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },

@@ -1,4 +1,29 @@
 {
   "version": "0.2.0",
-  "configurations": []
+  "configurations": [
+    {
+      "name": "marketing and docs (Portless)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm dev:portless",
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "Ready in",
+        "uriFormat": "https://permdock.localhost"
+      },
+      "postDebugTask": "dev:cleanup"
+    },
+    {
+      "name": "docs (Portless)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm exec dotenv -e .env.local -e .env.development.local -- turbo run dev:portless --filter=docs",
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "Ready in",
+        "uriFormat": "https://docs.permdock.localhost/docs"
+      },
+      "postDebugTask": "dev:cleanup"
+    }
+  ]
 }

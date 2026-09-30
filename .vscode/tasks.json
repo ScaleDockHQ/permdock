@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "install",
+      "type": "shell",
+      "command": "pnpm install",
+      "problemMatcher": []
+    },
+    {
+      "label": "verify",
+      "type": "shell",
+      "command": "pnpm verify",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:portless",
+      "type": "shell",
+      "command": "pnpm dev:portless",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "next",
+        "pattern": { "regexp": "⨯\\s+(.*Error.*)$", "message": 1 },
+        "background": {
+          "activeBegin": "Starting\\.\\.\\.",
+          "endsPattern": "Ready in"
+        }
+      }
+    },
+    {
+      "label": "dev:cleanup",
+      "type": "shell",
+      "command": "pnpm dev:cleanup",
+      "problemMatcher": []
+    }
+  ]
+}

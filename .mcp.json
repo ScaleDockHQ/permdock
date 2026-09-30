@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "permdock-docs": {
+      "type": "http",
+      "url": "https://permdock.dev/mcp"
+    },
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com"
+    },
+    "shadcn": {
+      "command": "pnpm",
+      "args": ["--dir", "apps/marketing", "exec", "shadcn", "mcp"]
+    },
+    "reui": {
+      "type": "http",
+      "url": "https://mcp.reui.io"
+    }
+  }
+}
