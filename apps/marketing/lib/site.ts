@@ -66,7 +66,7 @@ const productLinks: readonly NavLink[] = [
 const resourceLinks: readonly NavLink[] = [
   { href: '/docs', label: 'Docs' },
   { href: '/docs/getting-started/quick-start', label: 'Quick start' },
-  { href: '/changelog', label: 'Changelog' },
+  { href: '/docs/changelog', label: 'Changelog' },
   { href: '/blog', label: 'Blog' },
   { href: '/devtools', label: 'Decide explorer' },
   { href: site.github, label: 'GitHub' },

@@ -39,6 +39,7 @@ catalog:
   '@vitejs/plugin-vue': 6.0.9
   ai: 7.0.122
   '@changesets/cli': 3.0.3
+  '@fumadocs/local-md': 0.3.5
   '@sentry/nextjs': 11.1.0
   '@t3-oss/env-nextjs': 0.13.11
   '@vercel/analytics': 2.0.1
@@ -100,6 +101,9 @@ catalog:
   beautiful-mermaid: 1.1.3
   fumadocs-core: 16.15.17
   fumadocs-mdx: 15.4.5
+  fumadocs-openapi: 12.1.0
+  fumadocs-twoslash: 4.0.1
+  fumadocs-typescript: 5.4.1
   fumadocs-ui: npm:@fumadocs/base-ui@16.15.17
   hono: 4.13.11
   jose: 6.2.12

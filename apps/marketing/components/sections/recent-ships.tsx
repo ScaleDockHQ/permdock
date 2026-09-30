@@ -1,7 +1,6 @@
-import Link from 'next/link';
-
 import type { ChangelogRelease } from '@/lib/changelog';
 
+import { SiteLink } from '@/components/site/site-link';
 import { Badge } from '@permdock/ui/reui/badge';
 import {
   Timeline,
@@ -26,7 +25,7 @@ export function RecentShips({
       id="ships"
       eyebrow="Recent ships"
       title="What landed in 0.1.0"
-      description="Parsed from the package changelogs. The full log is on /changelog."
+      description="Parsed from the package changelogs. The full log is in the docs."
     >
       <Timeline defaultValue={1} className="w-full">
         {releases.map((release, index) => (
@@ -57,12 +56,12 @@ export function RecentShips({
         ))}
       </Timeline>
       <p className="mt-6 text-sm">
-        <Link
-          href="/changelog"
+        <SiteLink
+          href="/docs/changelog"
           className="text-primary underline-offset-4 hover:underline"
         >
           Full changelog
-        </Link>
+        </SiteLink>
       </p>
     </Section>
   );

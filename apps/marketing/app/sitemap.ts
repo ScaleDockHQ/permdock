@@ -8,7 +8,6 @@ const routes = [
   '/pricing',
   '/compare',
   '/enterprise',
-  '/changelog',
   '/blog',
 ] as const;
 

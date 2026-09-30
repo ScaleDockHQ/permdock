@@ -12,6 +12,7 @@
     "typecheck": "next typegen && tsc --noEmit --checkers 4"
   },
   "dependencies": {
+    "@fumadocs/local-md": "catalog:",
     "@permdock/next-config": "workspace:*",
     "@sentry/nextjs": "catalog:",
     "@t3-oss/env-nextjs": "catalog:",
@@ -20,6 +21,9 @@
     "beautiful-mermaid": "catalog:",
     "fumadocs-core": "catalog:",
     "fumadocs-mdx": "catalog:",
+    "fumadocs-openapi": "catalog:",
+    "fumadocs-twoslash": "catalog:",
+    "fumadocs-typescript": "catalog:",
     "fumadocs-ui": "catalog:",
     "lucide-react": "catalog:",
     "next": "catalog:",

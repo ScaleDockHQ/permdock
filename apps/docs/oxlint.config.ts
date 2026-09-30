@@ -22,5 +22,12 @@ export default defineConfig({
         'node/no-process-env': 'off',
       },
     },
+    {
+      files: ['lib/changelog.ts'],
+      rules: {
+        // Turbopack leaves `import.meta.dirname` undefined; `import.meta.url` survives bundling.
+        'unicorn/prefer-import-meta-properties': 'off',
+      },
+    },
   ],
 });

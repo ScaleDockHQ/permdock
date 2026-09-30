@@ -19,6 +19,11 @@ export default function nextConfig(phase: string): NextConfig {
       redirects() {
         return [
           {
+            source: '/changelog',
+            destination: '/docs/changelog',
+            permanent: true,
+          },
+          {
             source: '/problems/:type',
             destination: '/docs/standards/problem-details#:type',
             permanent: true,
