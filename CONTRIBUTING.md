@@ -1,23 +1,24 @@
 # Contributing
 
-Thanks for contributing to PermDock. This repository is a pnpm 12 + Turborepo monorepo. Public API changes start as an RFC-lite issue; accepted RFCs update the owning concept page. Maintainer rules live in [`AGENTS.md`](./AGENTS.md).
+Thanks for contributing to PermDock. This repository is a pnpm 12 + Turborepo monorepo. Public API changes start as an RFC-lite issue; accepted RFCs update the owning concept page. Maintainer rules live in [`AGENTS.md`](./AGENTS.md) and the topic rules it indexes in [`.agents/rules`](./.agents/rules).
 
 ## Requirements
 
 - Node.js 24 or later (24 LTS is what CI runs)
-- pnpm 12.8.1 or later
+- pnpm 12.8.1: `devEngines` in the root `package.json` fails any other version
+- TypeScript 7 comes from the workspace catalog; nothing to install globally
 
-npm and Yarn are not supported. Enable pnpm 12 with Corepack:
+npm and Yarn are not supported. On Node.js 24, enable pnpm with Corepack:
 
 ```bash
 corepack enable
 corepack prepare pnpm@12.8.1 --activate
 ```
 
-If Corepack cannot resolve pnpm 12:
+Node.js 25 and later no longer bundle Corepack. Install pnpm with its standalone script instead:
 
 ```bash
-npx get-pnpm latest-12
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.8.1 sh -
 ```
 
 ## Setup
@@ -64,7 +65,8 @@ docs: clarify fail-closed invariants
 
 - Open an [RFC issue](https://github.com/ScaleDockHQ/PermDock/issues/new?template=rfc.yml) before changing exported identifiers, wire formats, or CLI flags.
 - Every user-visible change needs a changeset (`pnpm changeset`).
-- Adapter work follows the checklist in [`AGENTS.md`](./AGENTS.md): docs page, `meta.json`, skill reference, example app, tests.
+- Adapter work follows [`.agents/rules/change-checklist.mdc`](./.agents/rules/change-checklist.mdc): docs page, `meta.json`, skill reference, example app, tests.
+- The PR description follows the template: What ships, Verify, Checklist.
 - Docs pages are Fumadocs MDX: frontmatter `title` and `description`, no `# h1`, and new pages must be listed in that folder's `meta.json`.
 
 ## Code of conduct
