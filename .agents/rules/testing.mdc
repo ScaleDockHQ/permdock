@@ -1,0 +1,23 @@
+---
+description: Test layout and habits - permdock/testing runners and the shared SaaS domain, e2e scenario fixtures, integration, runtimes, types matrix and bundle baseline; tests before features for evaluation semantics
+globs: tests/**,packages/permdock/src/testing/**,packages/permdock/src/**/*.test.ts,apps/examples/**
+alwaysApply: false
+paths:
+  - "tests/**"
+  - "packages/permdock/src/testing/**"
+  - "packages/permdock/src/**/*.test.ts"
+  - "apps/examples/**"
+---
+
+# Testing
+
+- Tests come before features for anything touching evaluation semantics: add a case to the policy matrix in `permdock/testing` and, for conditions, to the RLS parity suite.
+- `permdock/testing` (`packages/permdock/src/testing`) ships the policy matrix (`describePolicy`), snapshot fixtures, the RLS parity runner, the conformance runners (one `test<Interface>` per extension interface), the `testClientParity`, `testClientStore`, `testHttpAdapter` and `ormParity` runners, and the shared SaaS domain in `permdock/testing/saas`. Vitest is an optional peer.
+- `tests/e2e`: Playwright across `apps/examples` (web smoke per example); the `next-saas` fixture also asserts instant navigation with `@next/playwright` `instant()`.
+- `tests/e2e/fixtures/<name>`: scenario apps over the `permdock/testing/saas` domain (`next-saas`, `sveltekit-saas`, `nuxt-saas`, `tanstack-start-saas`, `solidstart-saas`, `expo-saas`, `mcp-oauth`, `ai-chat`, `realtime-collab`, `b2b-scim`, `cloud-contract`, and `turborepo`, whose `apps/*` and `packages/*` are workspace globs). Each has `scripts/serve.ts`, test-only `/api/test` routes and one numbered serial spec in `e2e/src`; `saas-kit` holds the shared session, store and routes.
+- `tests/integration`: Postgres via testcontainers (RLS parity, providers). Needs Docker.
+- `tests/runtimes`: one WinterTC app (kernel, Hono, AuthZEN, JWT) under Bun, Deno and workerd (Miniflare), plus Elysia on Bun. Bun comes from `PATH`; CI requires all three.
+- `tests/types`: the public types checked under TypeScript 5.9, 6 and 7 so consumers on older compilers keep working; the repository itself builds with TypeScript 7.
+- `tests/bundle`: per-entry min+gzip measurements against a recorded baseline, plus the client-entry and runtime-dependency assertions behind invariants 8 and 12. A size change updates the baseline in the same PR.
+- Catalog drift runs in CI with `pnpm exec permdock collect --check --cwd <dir>` for `tests/integration/fixtures/posts`, `apps/examples/monorepo` and `tests/e2e/fixtures/turborepo`; the repo root has no `permdock.config.ts`.
+- The [scenario testing guide](../../apps/docs/content/docs/guides/scenario-testing.mdx) covers the runners in depth. Keep assertions inside `it()` / `test()`, and never commit `.only` or `.skip`.

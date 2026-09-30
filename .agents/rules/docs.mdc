@@ -1,0 +1,22 @@
+---
+description: Docs conventions for apps/docs/content/docs - Fumadocs MDX frontmatter, meta.json page order, /docs links, Status and Draft posture lines, Why sections, open questions, research pages, MDX-safe prose
+globs: apps/docs/content/docs/**
+alwaysApply: false
+paths:
+  - "apps/docs/content/docs/**"
+---
+
+# Docs conventions (`apps/docs/content/docs`)
+
+- Fumadocs-ready MDX: frontmatter `title` + `description`, no `# h1`, plain Markdown bodies, fenced code with language tags, ```mermaid fences. Pages are plain MDX: no Fumadocs component imports or JSX components in page bodies.
+- Every folder has `meta.json` with `title` and an explicit `pages` order (`---Section---` separators allowed); root `meta.json` has `root: true`. Adding a page means adding it to `meta.json`; `pnpm docs:drift` fails otherwise.
+- Links between pages are `/docs/<path>` URLs, never `.mdx` file paths. `README.md`, `packages/permdock/README.md` and `PRODUCT.md` render on GitHub or npm: the root README and `PRODUCT.md` link to the `.mdx` files directly, and the npm README links to `https://permdock.dev/docs/<path>`.
+- One page per adapter (`adapters/<name>.mdx`) and per standard (`standards/<name>.mdx`). Pages carry no `Phase` line and no history. A `Status:` line directly under the frontmatter appears only on pages for something not built yet: `Status: planned` for an adapter or feature, `Status: tracking` for a standard PermDock follows without an adapter. Remove the line in the same PR that ships the code.
+- A standards page for an unfinished text adds `Draft posture: build | name | track` under the frontmatter: `build` names the pinned revision in the same line and means PermDock implements that revision with a stable twin; `name` means only identifiers are reserved; `track` means no code and no names. The watch list carries the same value in its Posture column; finished specifications carry none.
+- Design rationale lives in a `Why` section on the owning concept or adapter page. There is no ADR folder; when a decision changes, rewrite the `Why` section in place.
+- Open questions live only in the Open questions list on `roadmap.mdx`; pages do not carry their own Open questions sections.
+- Research is two pages: `research/landscape.mdx` (competing libraries and products; each section ends with Adopt / adapt / avoid) and `research/ecosystem-index.mdx` (every third-party tool PermDock composes with).
+- No `{`, `}` or bare `<` in prose (MDX parses them); use backticks.
+- Prose follows `.agents/rules/writing.mdc`.
+
+Before pushing docs changes run `pnpm docs:drift` (CLI flags, doctor codes, package entries and `meta.json` listings) and `pnpm --filter docs build`.

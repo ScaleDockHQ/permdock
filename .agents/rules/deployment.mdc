@@ -1,0 +1,22 @@
+---
+description: How the marketing and docs apps deploy as two Vercel Services on one origin - route ownership, assetPrefix, the permdock build step, the public docs MCP, and the PermDock Cloud hosts
+globs: apps/marketing/**,apps/docs/app/**,apps/docs/lib/**,apps/docs/next.config.*,apps/docs/source.config.*,vercel.json
+alwaysApply: false
+paths:
+  - "apps/marketing/**"
+  - "apps/docs/app/**"
+  - "apps/docs/lib/**"
+  - "apps/docs/next.config.*"
+  - "apps/docs/source.config.*"
+  - "vercel.json"
+---
+
+# Deployment (`apps/marketing`, `apps/docs`, `vercel.json`)
+
+- Both apps are [Vercel Services](https://vercel.com/docs/services) of one project, declared in the root `vercel.json`.
+- The marketing app (`apps/marketing`) owns `/`, `/_next`, `robots.txt` and `sitemap.xml`.
+- The docs app keeps `/docs`, `/api/search`, `/mcp`, `/devtools`, `/llms.txt`, `/llms-full.txt`, `/llms.mdx` and `/og`, with `assetPrefix: '/docs'` so its assets ride `/docs/_next`. Never `basePath: '/docs'`, which double-prefixes `next/link`.
+- Both services compile `permdock` with `node --run build` then `next build`: `dist/` is not committed, and Vercel's bundled pnpm fails the `packageManager` 12.8.1 check, so the install command activates pnpm 12.8.1 itself.
+- The `/mcp` route is the public docs MCP server: search and page-fetch only, no subject.
+- PermDock Cloud is a separate Vercel project in the `PermDock-Cloud` repository: dashboard `https://app.permdock.com`, API `https://api.permdock.com`, read-only MCP `https://mcp.permdock.com`.
+- Local: `pnpm marketing:dev` serves marketing on `:3000` and proxies `/docs` to the docs app on `:3001`; `pnpm docs:dev` runs the docs alone.

@@ -1,0 +1,28 @@
+# Cursor neither indexes nor reads these paths. Skill folders stay readable:
+# agents load SKILL.md and its references by path, so only bulky assets are listed.
+
+# secrets
+.env*
+!.env.example
+*.pem
+
+# build and test output
+**/dist/
+**/.next/
+**/.turbo/
+**/.source/
+**/coverage/
+**/playwright-report/
+**/test-results/
+**/blob-report/
+**/*.tsbuildinfo
+**/*.tgz
+
+# local agent chat logs
+/agent-transcripts/
+
+# vendored skill assets that are never instructions
+.agents/skills/**/images/
+.agents/skills/**/evals/
+.agents/skills/**/eval-viewer/
+.agents/skills/**/node_modules/

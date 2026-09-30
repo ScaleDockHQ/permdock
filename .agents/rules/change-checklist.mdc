@@ -1,0 +1,41 @@
+---
+description: When you change X, also update Y - the cross-file checklist for adapters, public identifiers, wire formats, Cloud interfaces, conditions, scopes, SCIM, CLI flags, standards, providers, signed outputs, OpenAPI, examples and the roadmap
+globs: packages/permdock/src/**,packages/permdock/skills/**,apps/docs/content/docs/**,apps/examples/**
+alwaysApply: false
+paths:
+  - "packages/permdock/src/**"
+  - "packages/permdock/skills/**"
+  - "apps/docs/content/docs/**"
+  - "apps/examples/**"
+---
+
+# When you change X, also update Y
+
+Pages are under `apps/docs/content/docs/`. Check the row for your change before opening a PR.
+
+| Change | Also update |
+| --- | --- |
+| Add or change an adapter entry | `adapters/<name>.mdx` (API), `adapters/index.mdx` matrix, `adapters/meta.json`, the `wire-permdock` skill reference, `apps/examples/<name>`, the "Works with" table in `packages/permdock/README.md`, `tests/bundle` measurement |
+| Add a public identifier | `getting-started/naming.mdx`, the relevant `concepts/*.mdx`, the skill, `.agents/rules/naming.mdc`, the owning page's `Why` section if it is a new concept |
+| Change a wire format (leaf, condition, snapshot, Decision, decision event, approval request, AuthZEN mapping, Problem Details, catalog) | `concepts/wire-formats.mdx` and its `Why` section, `permdock/testing` fixtures, and the PermDock-Cloud repository (it reads these formats). Before the first release, change the format in place and keep `v1`; after it, bump the major |
+| Change the Cloud HTTP API or the `ApprovalStore` / `DecisionSink` / `SnapshotSource` interfaces | `adapters/cloud.mdx`, `adapters/approvals.mdx`, `concepts/audit-and-observability.mdx`, `concepts/wire-formats.mdx`, `security/threat-model.mdx` Cloud rows, the PermDock-Cloud repository |
+| Add an agent-runtime adapter | `adapters/<name>.mdx` with the outcome mapping table, `security/approvals.mdx` surfaces table, `adapters/index.mdx` denial table, `apps/examples/<name>-agent`, `standards/watch-list.mdx` if the runtime's hook is new |
+| Add a condition operator | in-memory evaluator, JSON schema, Drizzle / Prisma / Kysely / RLS compilers (or explicit non-portable marking), `concepts/conditions.mdx`, `adapters/rls.mdx` portable-subset table |
+| Add a named-scope rule, membership source, role source or provider membership mapping | `concepts/scopes.mdx`, `concepts/tenancy.mdx`, `concepts/extension-interfaces.mdx`, the provider page "Memberships" section, `concepts/authentication.mdx` source table, `adapters/rls.mdx` membership table mapping, `permdock/testing` policy matrix and conformance runner, `security/threat-model.mdx` tenant rows |
+| Add a directory source, a SCIM attribute or extension, or change the `DirectoryStore` interface | `adapters/scim.mdx`, `standards/scim.mdx` attribute table, `concepts/extension-interfaces.mdx` `DirectoryStore` section and `testDirectoryStore` runner, `concepts/authentication.mdx` diagram and Lifecycle, `getting-started/naming.mdx` Spec names, `security/threat-model.mdx` SCIM rows, the PermDock-Cloud repository (the relay replays it) |
+| Add a Cloud connector, a CloudEvents `type` or an evidence export format | `adapters/cloud-integrations.mdx` table for its direction (Connector, Standard or interface, What it carries, Never), `concepts/wire-formats.mdx` CloudEvents types, `concepts/audit-and-observability.mdx` Evidence and governance, `research/ecosystem-index.mdx` row per named destination, `security/threat-model.mdx` Cloud rows, the PermDock-Cloud repository; never a new package entry |
+| Add a UI hook, composable or store | `concepts/ui.mdx`, every UI adapter page (`react`, `react-native`, `vue`, `svelte`, `solid`), the parity table on `adapters/index.mdx`, `getting-started/naming.mdx` |
+| Add a CLI command or flag | `cli/<command>.mdx`, `cli/index.mdx` table, `permdock doctor` if it is a check, the skill |
+| Name a third-party tool PermDock composes with (producer, applier, generator, docs host, bridge, MCP host, provider, framework, delivery surface, sink, flag SDK, database) | A row in `research/ecosystem-index.mdx` (mandatory, same PR); the adapter or concept page carrying the recipe; `standards/watch-list.mdx` if it is a specification; never a new package entry without a `Why` update on `adapters/index.mdx` |
+| Change the OpenAPI Overlay shape or the `x-badges` hint | `standards/openapi-overlay.mdx`, `adapters/openapi.mdx`, `cli/openapi.mdx`, `adapters/next.mdx` recipe, the lint ruleset file, `permdock/testing` fixtures |
+| Add or bump a standard | `standards/<name>.mdx`, `standards/index.mdx` table (including the Maturity column), `standards/watch-list.mdx` row, the adapter page that uses it, `security/*` if it changes the threat model |
+| Add a subject provider or claim mapping | `concepts/authentication.mdx` source table, the provider's adapter page "Verified material" section, `security/threat-model.mdx` token rows, `getting-started/naming.mdx` `subjectFrom*` row and "Spec names" table, `standards/openid-connect.mdx` claim table if the claim is an OIDC claim, `concepts/subject.mdx` |
+| Add a signed output, a `typ` value or a JWS header parameter | `standards/jose.mdx` produce table, `concepts/wire-formats.mdx` "Signed outputs", `standards/openapi-registry.mdx` `typ` table, the `TokenSigner` section on `concepts/extension-interfaces.mdx`, `permdock/testing` JWS fixtures, `security/threat-model.mdx` signed-output rows |
+| Add an `on('auth')` `cause` or a token-verification default (algorithm, `typ`, JWE) | `adapters/jwt.mdx` cause table and defaults, `standards/jose.mdx` checklist, `standards/fapi-2.mdx` if the profile tightens it, `cli/doctor.mdx` if it is a check, `security/threat-model.mdx` token rows |
+| Add an OpenAPI extension | `standards/openapi-registry.mdx` table, `standards/openapi.mdx`, `adapters/openapi.mdx`, `cli/openapi.mdx`, the registry PR once the namespace is registered |
+| Bump a pinned draft revision (OpenAPI 3.3 Security Profiles, Overlay 1.2, WebMCP, RAR remediation, OpenTelemetry GenAI, Web Bot Auth) or change a draft's posture | The standards page `Draft posture` line, `standards/watch-list.mdx` Posture cell, `x-permdock-catalog.drafts` for document and Overlay output, the emitter's name map and patch schema, `permdock/testing` fixtures keyed by the pin, a changeset; a posture change also updates the standards page's `Why` section |
+| Change a security default | `security/threat-model.mdx`, `security/owasp-agentic.mdx` mapping, the "Secure by default" bullet in `packages/permdock/README.md`, `.agents/rules/invariants.mdc` |
+| Add an example app | `apps/examples/<name>`, its adapter page "Example app" section, `tests/e2e`, the "Works with" table in `packages/permdock/README.md` |
+| Change the roadmap | `roadmap.mdx`, `Status: planned` lines on affected adapter / standards pages |
+| Resolve an open question | State the decision in the owning page's `Why` section and remove it from the Open questions list in `roadmap.mdx` |
+| Change a root script, the toolchain or CI | The Common commands or CI and release section of `README.md`, `CONTRIBUTING.md`, the Commands block in `AGENTS.md` |
