@@ -4,38 +4,47 @@ on:
   push:
     branches: [main]
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+permissions: {}
 
-permissions:
-  contents: write
-  # npm trusted publishing: the registry exchanges the job's OIDC token, so
-  # the workflow holds no npm token. The trusted publisher is `release.yml`.
-  id-token: write
-  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
+# No pnpm store cache and no Turborepo remote cache here: a publishing job builds from a cold start.
 jobs:
   release:
+    name: Release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # changesets/action pushes the version commit and release tags through the GitHub API.
+      contents: write
+      pull-requests: write
+      # npm trusted publishing: the registry exchanges the job's OIDC token, so
+      # the workflow holds no npm token. The trusted publisher is `release.yml`.
+      id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: pnpm/setup@v3
+      - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
         with:
           runtime: node@24
-          cache: true
+          cache: false
           require-lockfile: true
 
-      # The pnpm runtime ships Node without npm; trusted publishing needs npm
-      # 11.5.1 or later.
+      # The pnpm runtime ships Node without npm; the Node.js distribution bundles it.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      # Trusted publishing needs npm 11.5.1 or later.
       - name: npm
-        # `pnpm add npm@11` would set the package manager, hence the alias.
         run: |
-          mkdir -p "$RUNNER_TEMP/npm"
-          pnpm --dir "$RUNNER_TEMP/npm" add "npm-cli@npm:npm@11"
-          echo "$RUNNER_TEMP/npm/node_modules/.bin" >> "$GITHUB_PATH"
-          version="$("$RUNNER_TEMP/npm/node_modules/.bin/npm" --version)"
+          version="$(npm --version)"
           echo "npm $version"
           node -e "const [a,b,c]=process.argv[1].split('.').map(Number);process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)" "$version"
 
@@ -49,12 +58,10 @@ jobs:
         run: pnpm run test
 
       - name: Create release pull request or publish
-        uses: changesets/action@v2
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
           # Publishing to npm is opt-in: set the repository variable NPM_PUBLISH to 'true'.
-          publish-script: ${{ vars.NPM_PUBLISH == 'true' && 'pnpm exec changeset publish' || '' }}
+          publish-script: ${{ vars.NPM_PUBLISH == 'true' && 'node scripts/publish.ts' || '' }}
           pr-title: 'chore: version packages'
           commit-message: 'chore: version packages'
           github-token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          NPM_CONFIG_PROVENANCE: 'true'
