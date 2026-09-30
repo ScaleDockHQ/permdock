@@ -8,12 +8,12 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'node',
-          include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-          exclude: ['src/**/*.browser.test.ts'],
+          include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+          exclude: ['tests/**/*.browser.test.ts'],
           typecheck: {
             enabled: true,
-            include: ['src/**/*.test-d.ts'],
-            tsconfig: './tsconfig.typecheck.json',
+            include: ['tests/**/*.test-d.ts'],
+            tsconfig: './tests/tsconfig.json',
             ignoreSourceErrors: true,
           },
         },
@@ -30,7 +30,7 @@ export default defineConfig({
           // One `solid-js` instance: `solid-js/web` must not reach the Node
           // (server) build through an external import.
           server: { deps: { inline: [/solid-js/u] } },
-          include: ['src/**/*.browser.test.ts'],
+          include: ['tests/**/*.browser.test.ts'],
         },
       },
     ],
@@ -38,11 +38,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: [
-        'src/**/*.test.ts',
-        'src/**/*.test-d.ts',
         'src/**/index.ts',
-        'src/fixtures/**',
-        'src/cli/fixtures/**',
         'src/cli/bin.ts',
         // Dynamic import of the optional `jose` peer.
         'src/jwt/load-jose.ts',

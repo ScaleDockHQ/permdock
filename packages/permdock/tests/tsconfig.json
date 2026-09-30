@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "declaration": false,
+    "isolatedDeclarations": false,
+    "lib": ["ES2025", "DOM", "DOM.Iterable"]
+  },
+  "include": ["..", "../src"],
+  "exclude": ["../dist", "../tmp", "../coverage", "../node_modules"]
+}

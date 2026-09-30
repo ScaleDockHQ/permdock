@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     // Oxlint's RuleTester reads `describe` / `it` from globals at import time.
     globals: true,
-    include: ['src/**/*.test.ts'],
+    include: ['tests/**/*.test.ts'],
   },
 });

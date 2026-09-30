@@ -18,7 +18,11 @@ export default defineConfig({
       },
     },
     {
-      files: ['src/cli/**/*.{ts,tsx}', 'src/unplugin/**/*.ts'],
+      files: [
+        'src/cli/**/*.{ts,tsx}',
+        'src/unplugin/**/*.ts',
+        'tests/cli/**/*.{ts,tsx}',
+      ],
       rules: {
         // Commands process files in order for stable output (24 findings).
         'eslint/no-await-in-loop': 'off',
@@ -68,7 +72,7 @@ export default defineConfig({
       },
     },
     {
-      files: ['src/nest/**/*.{ts,tsx}'],
+      files: ['src/nest/**/*.{ts,tsx}', 'tests/nest/**/*.{ts,tsx}'],
       rules: {
         // Nest guards and controllers are classes by framework contract (6 findings).
         'eslint/class-methods-use-this': 'off',

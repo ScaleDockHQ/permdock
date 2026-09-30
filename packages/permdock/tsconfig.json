@@ -11,12 +11,5 @@
       "next/server": ["./node_modules/next/server.d.ts"]
     }
   },
-  "include": ["src"],
-  "exclude": [
-    "src/**/*.test.ts",
-    "src/**/*.test.tsx",
-    "src/**/*.test-d.ts",
-    "src/fixtures/**",
-    "src/cli/fixtures/**"
-  ]
+  "include": ["src"]
 }
