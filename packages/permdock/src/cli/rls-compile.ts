@@ -9,10 +9,13 @@ import { jsonSchemaOf } from './catalog-doc.ts';
 import { collectGrants } from './rls-grants.ts';
 import { accessSql, capabilityAccessSql } from './rls-helpers.ts';
 import {
+  arrayColumnsOf,
   columnTypesOf,
   compileConditionSql,
   contextRefs,
   sqlFunctionNames,
+  subjectClaimJsonSql,
+  subjectClaimSql,
 } from './rls-sql.ts';
 
 export type SqlCommand = 'select' | 'insert' | 'update' | 'delete';
@@ -374,9 +377,12 @@ export function compileGrants(
       return known;
     }
     const node = policy.resources.get(name);
-    const columnTypes =
-      node === undefined ? {} : columnTypesOf(jsonSchemaOf(node));
-    const next = { ...ctx, columnTypes };
+    const schema = node === undefined ? undefined : jsonSchemaOf(node);
+    const next = {
+      ...ctx,
+      columnTypes: columnTypesOf(schema),
+      arrayColumns: arrayColumnsOf(schema),
+    };
     typed.set(name, next);
     return next;
   };
@@ -411,6 +417,9 @@ export function compileGrants(
       access.kind === 'resource' &&
       ctx.capabilities === true &&
       ctx.memberships?.resource?.[access.resource] === undefined;
+    if (access.kind === 'actor') {
+      accessExpr = `${subjectClaimSql(ctx, 'client_id')} is not null or ${subjectClaimJsonSql(ctx, 'act')} is not null`;
+    }
     if (access.kind === 'resource' && !linkOnly) {
       accessExpr = compileConditionSql(
         resourceCondition(item, policy, ctx),

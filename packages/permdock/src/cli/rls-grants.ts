@@ -19,7 +19,9 @@ export type RlsAccess =
       readonly kind: 'resource';
       readonly role: string;
       readonly resource: string;
-    };
+    }
+  /** A `deny` for delegated `oauth-client` actors: a token with `client_id` or `act`. */
+  | { readonly kind: 'actor'; readonly actor: 'oauth-client' };
 
 export type RlsGrant = {
   readonly grant: Grant;
@@ -50,6 +52,24 @@ function relationWhere(
     );
   }
   return where;
+}
+
+/** Only a deny for `oauth-client` actors compiles: Postgres sees `client_id` and `act`, not other actor kinds. */
+function actorAccess(
+  grant: Grant,
+  grantee: Extract<Grantee, { readonly kind: 'actor' }>,
+  others: number,
+): RlsAccess {
+  if (
+    grant.effect !== 'deny' ||
+    grantee.actor !== 'oauth-client' ||
+    others > 0
+  ) {
+    throw new Error(
+      `PermDock CLI: grant ${grant.permission.key} is limited to an actor grantee; RLS compiles only deny(…, { to: actor('oauth-client') }) on its own, so enforce it in the application`,
+    );
+  }
+  return { kind: 'actor', actor: 'oauth-client' };
 }
 
 function accessOf(
@@ -87,6 +107,7 @@ export function collectGrants(policy: Policy): readonly RlsGrant[] {
     const roles: Extract<Grantee, { readonly kind: 'role' }>[] = [];
     let anyone = true;
     let where = grant.where;
+    let delegated: RlsAccess | undefined;
     for (const item of items) {
       switch (item.kind) {
         case 'role':
@@ -101,8 +122,10 @@ export function collectGrants(policy: Policy): readonly RlsGrant[] {
           anyone = false;
           where = andConditions(where, relationWhere(policy, grant, item));
           break;
-        case 'plan':
         case 'actor':
+          delegated = actorAccess(grant, item, items.length - 1);
+          break;
+        case 'plan':
         case 'assurance':
           throw new Error(
             `PermDock CLI: grant ${grant.permission.key} is limited to a ${item.kind} grantee, which RLS cannot compile; enforce it in the application`,
@@ -113,7 +136,7 @@ export function collectGrants(policy: Policy): readonly RlsGrant[] {
         }
       }
     }
-    const access = accessOf(grant, roles, anyone);
+    const access = delegated ?? accessOf(grant, roles, anyone);
     const label =
       access.kind === 'role' || access.kind === 'resource'
         ? access.role

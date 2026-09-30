@@ -56,6 +56,8 @@ export type RlsSqlContext = {
    * that type; a column without an entry compares as text.
    */
   readonly columnTypes?: Readonly<Record<string, string>>;
+  /** Array columns of the table, each with its item type: `contains` on one compiles to `v = any(col)`. */
+  readonly arrayColumns?: Readonly<Record<string, string>>;
   /** Active-row tables; scope keys are declared names (`checkSuspension` resolves aliases). */
   readonly suspension?: RlsSuspension;
   /** Set when field views compile: grant keys also split by field set. */
@@ -418,6 +420,32 @@ export function columnTypesOf(
   return types;
 }
 
+/**
+ * Array columns from a resource's JSON Schema, each with the type its items
+ * compare as (`text` when `columnTypesOf` would leave the item out).
+ */
+export function arrayColumnsOf(
+  schema: unknown,
+): Readonly<Record<string, string>> {
+  const properties = isRecord(schema) ? schema.properties : undefined;
+  if (!isRecord(properties)) {
+    return {};
+  }
+  const arrays: Record<string, string> = {};
+  for (const [name, property] of Object.entries(properties)) {
+    if (isForbiddenKey(name) || !isRecord(property)) {
+      continue;
+    }
+    const types = (
+      Array.isArray(property.type) ? property.type : [property.type]
+    ).filter((item) => item !== 'null');
+    if (types.length === 1 && types[0] === 'array') {
+      arrays[name] = columnTypeOf(property.items) ?? 'text';
+    }
+  }
+  return arrays;
+}
+
 const MAX_CLAIM_DEPTH = 8;
 
 /**
@@ -770,12 +798,30 @@ export function compileConditionSql(
     case 'gte':
     case 'lt':
     case 'lte':
-    case 'contains':
       return compareSql(
         condition.op,
         condition.field,
         sqlValue(condition.value, ctx, condition.field),
       );
+    case 'contains': {
+      const element = ctx.arrayColumns?.[condition.field];
+      if (element !== undefined) {
+        const value = sqlValue(
+          condition.value,
+          {
+            ...ctx,
+            columnTypes: { ...ctx.columnTypes, [condition.field]: element },
+          },
+          condition.field,
+        );
+        return `${value} = any(${quoteIdent(condition.field)})`;
+      }
+      return compareSql(
+        condition.op,
+        condition.field,
+        sqlValue(condition.value, ctx, condition.field),
+      );
+    }
     case 'in':
     case 'notIn': {
       const keyword = condition.op === 'in' ? 'in' : 'not in';
