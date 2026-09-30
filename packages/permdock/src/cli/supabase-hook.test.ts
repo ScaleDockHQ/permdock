@@ -38,7 +38,7 @@ async function generate(
   hook: string,
   extra: readonly string[] = [],
   rls = '{}',
-): Promise<{ code: number; output: string; sql: string }> {
+): Promise<{ code: number; output: string; sql: string; cwd: string }> {
   mkdirSync(TMP, { recursive: true });
   const cwd = mkdtempSync(join(TMP, 'supabase-hook-'));
   temps.push(cwd);
@@ -63,7 +63,12 @@ export default {
   } catch {
     sql = '';
   }
-  return { code: result.code, output: result.stdout + result.stderr, sql };
+  return {
+    code: result.code,
+    output: result.stdout + result.stderr,
+    sql,
+    cwd,
+  };
 }
 
 describe('permdock supabase hook generate', () => {
@@ -234,9 +239,84 @@ describe('permdock supabase hook generate', () => {
     expect(suspendedBranch).not.toContain('feature_claims');
     const loopEnd = sql.indexOf('end loop;');
     expect(sql.indexOf('feature_claims"(uid')).toBeGreaterThan(loopEnd);
-    expect(sql).toContain(
-      'features (better_supabase.feature_claims, outside the budget)',
+    expect(sql.split('\n', 1)[0]).toBe(
+      '-- permdock:hook v1 schema=public tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,tenant_id,authz_ver,features',
     );
+  });
+
+  it('checks the marker line and prints the inspect manifest', async () => {
+    const { code, cwd } = await generate(
+      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      ['--budget', '2048'],
+    );
+    expect(code).toBe(0);
+    const upToDate = await run(
+      [
+        'supabase',
+        'hook',
+        'generate',
+        '--out',
+        'hook.sql',
+        '--budget',
+        '2048',
+        '--check',
+      ],
+      { cwd },
+    );
+    expect(upToDate.code).toBe(0);
+    const drift = await run(
+      ['supabase', 'hook', 'generate', '--out', 'hook.sql', '--check'],
+      { cwd },
+    );
+    expect(drift.code).toBe(1);
+    expect(drift.stdout + drift.stderr).toContain('budget 2048 -> 1024');
+    writeFileSync(join(cwd, 'hook.sql'), '-- hand edited\n');
+    const unmarked = await run(
+      ['supabase', 'hook', 'generate', '--out', 'hook.sql', '--check'],
+      { cwd },
+    );
+    expect(unmarked.stdout + unmarked.stderr).toContain(
+      'hook.sql has no -- permdock:hook v1 line',
+    );
+    const inspect = await run(['supabase', 'inspect', '--json'], { cwd });
+    expect(inspect.code).toBe(0);
+    expect(JSON.parse(inspect.stdout)).toEqual({
+      version: 1,
+      hook: {
+        schema: 'public',
+        function: 'custom_access_token_hook',
+        out: 'supabase/permdock-hook.sql',
+      },
+      helpers: {
+        schema: 'public',
+        functions: [
+          'permdock_has',
+          'permitted_organization_ids',
+          'permitted_customer_ids',
+        ],
+      },
+      tenantClaim: 'tenant_id',
+      budget: {
+        bytes: 1024,
+        measure: 'octet_length(memberships::text) + octet_length(attrs::text)',
+      },
+      claims: [
+        { name: 'user_role', source: 'permdock', budget: false },
+        { name: 'roles', source: 'permdock', budget: false },
+        { name: 'memberships', source: 'permdock', budget: true },
+        { name: 'memberships_truncated', source: 'permdock', budget: false },
+        { name: 'tenant_id', source: 'permdock', budget: false },
+        { name: 'authz_ver', source: 'permdock', budget: false },
+        {
+          name: 'features',
+          source: 'better_supabase.feature_claims',
+          budget: false,
+        },
+      ],
+      authzVersion: true,
+    });
+    const text = await run(['supabase', 'inspect'], { cwd });
+    expect(text.stdout).toContain('tenant claim tenant_id');
   });
 
   it('refuses reserved or unqualified extra claims', async () => {

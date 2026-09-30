@@ -2,6 +2,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import type { Scope } from '../core/scopes.ts';
+import type {
+  SupabaseHookClaim,
+  SupabaseHookManifest,
+} from '../supabase/manifest.ts';
 import type { SqlMembershipSource } from '../supabase/sources.ts';
 import type {
   CliIo,
@@ -31,15 +35,18 @@ import {
   quoteTable,
 } from './rls-sql.ts';
 
-export const SUPABASE_HELP = `permdock supabase hook generate
+export const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
   hook generate [--out supabase/permdock-hook.sql] [--check]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                 [--budget 1024] [--schema public]
+  inspect [--json]
 
 Reads supabase.hook from permdock.config.ts: the fromTable / fromJunction sources the app
-passes as memberships. Emits custom_access_token_hook(jsonb), the grants it needs, the
-permdock_authz_version table and its triggers. Never grants anything to service_role.
+passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
+needs, the permdock_authz_version table and its triggers. Never grants anything to
+service_role. inspect prints the manifest: helper schema and names, tenant claim, budget and
+the claims the hook writes.
 `;
 
 export const MANAGED_TRIGGER = 'permdock_protect_managed';
@@ -653,15 +660,22 @@ enabled = true
 uri = "${hookUri(schema)}"`;
 }
 
-export function supabaseHookSql(
+export const HOOK_MARKER = '-- permdock:hook v1';
+
+export const BUDGET_MEASURE =
+  'octet_length(memberships::text) + octet_length(attrs::text)';
+
+type HookOverrides = {
+  readonly activeFrom?: string;
+  readonly budget?: string;
+  readonly schema?: string;
+};
+
+function hookParts(
   scopes: readonly Scope[],
   config: PermDockConfig,
-  overrides: {
-    readonly activeFrom?: string;
-    readonly budget?: string;
-    readonly schema?: string;
-  } = {},
-): { readonly sql: string; readonly warnings: readonly string[] } {
+  overrides: HookOverrides,
+): { readonly parts: Parts; readonly warnings: readonly string[] } {
   const hook = config.supabase?.hook;
   if (hook === undefined) {
     throw new Error(
@@ -708,13 +722,109 @@ export function supabaseHookSql(
     scopes,
     suspended: Object.keys(suspension?.scopes ?? {}),
   });
-  const toml = configToml(schema, parts.jwtExpiry)
+  return { parts, warnings };
+}
+
+function permdockClaim(name: string, budget = false): SupabaseHookClaim {
+  return { name, source: 'permdock', budget };
+}
+
+function hookClaims(parts: Parts): readonly SupabaseHookClaim[] {
+  return [
+    permdockClaim('user_role'),
+    permdockClaim('roles'),
+    permdockClaim('memberships', true),
+    permdockClaim('memberships_truncated'),
+    permdockClaim(parts.tenantClaim),
+    ...(parts.attrs === undefined ? [] : [permdockClaim('attrs', true)]),
+    ...(parts.version ? [permdockClaim('authz_ver')] : []),
+    ...parts.extra.map((entry) => ({
+      name: entry.claim,
+      source: entry.fn,
+      budget: false,
+    })),
+  ];
+}
+
+function manifestOf(
+  parts: Parts,
+  config: PermDockConfig,
+  out: string,
+): SupabaseHookManifest {
+  return {
+    version: 1,
+    hook: { schema: parts.schema, function: 'custom_access_token_hook', out },
+    helpers: {
+      schema: config.rls?.schema ?? 'public',
+      functions: [
+        'permdock_has',
+        ...parts.scopes.map((scope) => `permitted_${scope.name}_ids`),
+      ],
+    },
+    tenantClaim: parts.tenantClaim,
+    budget: { bytes: parts.budget, measure: BUDGET_MEASURE },
+    claims: hookClaims(parts),
+    authzVersion: parts.version,
+  };
+}
+
+/** The first line of the generated hook: fields `--check` compares before the full text. */
+export function hookMarker(manifest: SupabaseHookManifest): string {
+  return `${HOOK_MARKER} schema=${manifest.hook.schema} tenant=${manifest.tenantClaim} budget=${String(manifest.budget.bytes)} claims=${manifest.claims.map((claim) => claim.name).join(',')}`;
+}
+
+/** The fields of a hook marker line, or undefined when the text does not start with one. */
+export function parseHookMarker(
+  text: string,
+): Readonly<Record<string, string>> | undefined {
+  const line = text.split('\n', 1)[0] ?? '';
+  if (!line.startsWith(`${HOOK_MARKER} `)) {
+    return undefined;
+  }
+  const fields: Record<string, string> = Object.create(null) as Record<
+    string,
+    string
+  >;
+  for (const pair of line.slice(HOOK_MARKER.length + 1).split(' ')) {
+    const eq = pair.indexOf('=');
+    if (eq > 0) {
+      fields[pair.slice(0, eq)] = pair.slice(eq + 1);
+    }
+  }
+  return fields;
+}
+
+function defaultOut(config: PermDockConfig): string {
+  return config.supabase?.hook?.out ?? 'supabase/permdock-hook.sql';
+}
+
+export function supabaseHookManifest(
+  scopes: readonly Scope[],
+  config: PermDockConfig,
+  overrides: HookOverrides & { readonly out?: string } = {},
+): SupabaseHookManifest {
+  const { parts } = hookParts(scopes, config, overrides);
+  return manifestOf(parts, config, overrides.out ?? defaultOut(config));
+}
+
+export function supabaseHookSql(
+  scopes: readonly Scope[],
+  config: PermDockConfig,
+  overrides: HookOverrides = {},
+): {
+  readonly sql: string;
+  readonly warnings: readonly string[];
+  readonly manifest: SupabaseHookManifest;
+} {
+  const { parts, warnings } = hookParts(scopes, config, overrides);
+  const manifest = manifestOf(parts, config, defaultOut(config));
+  const toml = configToml(parts.schema, parts.jwtExpiry)
     .split('\n')
     .map((line) => (line === '' ? '--' : `--   ${line}`))
     .join('\n');
   const sql = [
-    `-- permdock supabase hook: custom_access_token_hook(jsonb)
--- claims: user_role, roles, memberships (active ${root} first, at most ${String(parts.budget)} bytes; memberships_truncated when cut), ${parts.tenantClaim}${parts.attrs === undefined ? '' : ', attrs (counted in the budget)'}${parts.version ? ', authz_ver' : ''}${parts.extra.map((entry) => `, ${entry.claim} (${entry.fn}, outside the budget)`).join('')}
+    `${hookMarker(manifest)}
+-- custom_access_token_hook(jsonb): memberships go active ${parts.root} first and stop at the budget
 -- supabase/config.toml:
 ${toml}`,
     attrsGuardSql(parts.attrs),
@@ -725,7 +835,36 @@ ${toml}`,
   ]
     .filter((chunk) => chunk !== '')
     .join('\n\n');
-  return { sql: `${sql}\n`, warnings };
+  return { sql: `${sql}\n`, warnings, manifest };
+}
+
+function markerDrift(
+  onDisk: string,
+  expected: SupabaseHookManifest,
+  outRel: string,
+): string {
+  const found = parseHookMarker(onDisk);
+  if (found === undefined) {
+    return `supabase hook drift: ${outRel} has no ${HOOK_MARKER} line`;
+  }
+  const want = parseHookMarker(hookMarker(expected)) ?? {};
+  const changed = Object.keys(want)
+    .filter((key) => found[key] !== want[key])
+    .map((key) => `${key} ${found[key] ?? '(none)'} -> ${want[key] ?? ''}`);
+  return changed.length === 0
+    ? 'supabase hook drift'
+    : `supabase hook drift: ${changed.join('; ')}`;
+}
+
+function inspectText(manifest: SupabaseHookManifest): string {
+  return [
+    `hook ${manifest.hook.schema}.${manifest.hook.function} (${manifest.hook.out})`,
+    `helpers ${manifest.helpers.functions.map((fn) => `${manifest.helpers.schema}.${fn}`).join(', ')}`,
+    `tenant claim ${manifest.tenantClaim}`,
+    `budget ${String(manifest.budget.bytes)} bytes of ${manifest.budget.measure}`,
+    `claims ${manifest.claims.map((claim) => `${claim.name}${claim.source === 'permdock' ? '' : ` (${claim.source})`}${claim.budget ? ' [budget]' : ''}`).join(', ')}`,
+    `authz_ver ${manifest.authzVersion ? 'on' : 'off'}`,
+  ].join('\n');
 }
 
 async function loadScopes(
@@ -749,31 +888,44 @@ export async function runSupabase(input: {
   readonly rest: readonly string[];
   readonly out?: string;
   readonly check: boolean;
+  readonly json?: boolean;
   readonly activeFrom?: string;
   readonly budget?: string;
   readonly schema?: string;
   readonly io: CliIo;
 }): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
   const [area, action] = input.rest;
+  const overrides: HookOverrides = Object.fromEntries(
+    Object.entries({
+      activeFrom: input.activeFrom,
+      budget: input.budget,
+      schema: input.schema,
+    }).filter(([, value]) => value !== undefined),
+  );
+  if (area === 'inspect' && action === undefined) {
+    const scopes = await loadScopes(input.cwd, input.config);
+    const manifest = supabaseHookManifest(scopes, input.config, {
+      ...overrides,
+      ...(input.out === undefined ? {} : { out: input.out }),
+    });
+    return {
+      code: 0,
+      output:
+        input.json === true
+          ? JSON.stringify(manifest, null, 2)
+          : inspectText(manifest),
+    };
+  }
   if (area !== 'hook' || action !== 'generate') {
     return { code: 2, output: SUPABASE_HELP };
   }
   const scopes = await loadScopes(input.cwd, input.config);
-  const { sql, warnings } = supabaseHookSql(
+  const { sql, warnings, manifest } = supabaseHookSql(
     scopes,
     input.config,
-    Object.fromEntries(
-      Object.entries({
-        activeFrom: input.activeFrom,
-        budget: input.budget,
-        schema: input.schema,
-      }).filter(([, value]) => value !== undefined),
-    ),
+    overrides,
   );
-  const outRel =
-    input.out ??
-    input.config.supabase?.hook?.out ??
-    'supabase/permdock-hook.sql';
+  const outRel = input.out ?? defaultOut(input.config);
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
   const toml = configToml(
@@ -784,9 +936,10 @@ export async function runSupabase(input: {
     if (!existsSync(outPath)) {
       return { code: 1, output: `supabase hook drift: missing ${outRel}` };
     }
-    return readFileSync(outPath, 'utf8') === sql
+    const onDisk = readFileSync(outPath, 'utf8');
+    return onDisk === sql
       ? { code: 0, output: 'supabase hook up to date' }
-      : { code: 1, output: 'supabase hook drift' };
+      : { code: 1, output: markerDrift(onDisk, manifest, outRel) };
   }
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, sql);

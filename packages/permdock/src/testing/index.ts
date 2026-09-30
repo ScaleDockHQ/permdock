@@ -90,6 +90,7 @@ export {
 } from './jwt-fixtures.ts';
 export {
   supabaseClaimFixtures,
+  supabaseHookManifestFixture,
   supabaseMembershipsBudget,
 } from './supabase-fixtures.ts';
 export type {

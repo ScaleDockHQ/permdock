@@ -314,6 +314,7 @@ export async function run(
               rest: args.rest,
               out: flagString(args.flags, 'out'),
               check: flagBool(args.flags, 'check'),
+              json,
               activeFrom: flagString(args.flags, 'active-from'),
               budget: flagString(args.flags, 'budget'),
               schema: flagString(args.flags, 'schema'),

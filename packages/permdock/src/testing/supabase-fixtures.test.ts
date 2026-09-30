@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { supabaseHookManifest } from '../cli/supabase-hook.ts';
+import { defineScopes } from '../core/scopes.ts';
 import {
   allow,
   definePermissions,
@@ -10,11 +12,13 @@ import {
   snapshotFor,
 } from '../index.ts';
 import {
+  fromTable,
   subjectFromSupabase,
   subjectFromSupabaseSession,
 } from '../supabase/index.ts';
 import {
   supabaseClaimFixtures,
+  supabaseHookManifestFixture,
   supabaseMembershipsBudget,
 } from './supabase-fixtures.ts';
 
@@ -128,5 +132,23 @@ describe('Supabase RBAC hook claims', () => {
       supabaseMembershipsBudget,
     );
     expect(memberships(16).length).toBeGreaterThan(supabaseMembershipsBudget);
+  });
+});
+
+describe('supabaseHookManifestFixture', () => {
+  it('is what supabase inspect prints for one tenant scope and a features claim', () => {
+    const manifest = supabaseHookManifest(
+      defineScopes({ tenant: { key: 'orgId' } }),
+      {
+        permissions: './policy.ts',
+        supabase: {
+          hook: {
+            memberships: [fromTable({ table: 'memberships' })],
+            claims: { features: 'better_supabase.feature_claims' },
+          },
+        },
+      },
+    );
+    expect(manifest).toEqual(supabaseHookManifestFixture);
   });
 });

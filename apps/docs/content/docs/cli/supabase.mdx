@@ -7,6 +7,7 @@ description: permdock supabase hook generate compiles the app's fromTable and fr
 permdock supabase hook generate [--out supabase/permdock-hook.sql] [--check]
                                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                                 [--budget 1024] [--schema public]
+permdock supabase inspect [--json]
 ```
 
 Reads `supabase.hook` from `permdock.config.ts` and the policy's scopes, and writes one idempotent SQL migration: `custom_access_token_hook(jsonb)`, the `supabase_auth_admin` grants and revokes, the `permdock_authz_version` table with its triggers, and the `permdock_protect_managed` trigger for IdP-owned rows. It prints the `config.toml` block (`jwt_expiry = 900` and the hook `uri`) to add. It never grants anything to `service_role`. The [Supabase token hook](/docs/adapters/supabase-hook) page covers the claims and the runtime side.
@@ -14,9 +15,15 @@ Reads `supabase.hook` from `permdock.config.ts` and the policy's scopes, and wri
 | Flag | Values | Default | Effect |
 | --- | --- | --- | --- |
 | `--out` | a path | `supabase.hook.out`, else `supabase/permdock-hook.sql` | Where the migration is written |
-| `--check` | flag | off | Exit `1` when the file on disk differs from what would be written |
+| `--check` | flag | off | Exit `1` when the file on disk differs from what would be written; the message names the marker fields that changed (`budget 2048 -> 1024`) or a missing marker line |
 | `--active-from` | `app_metadata.<key>`, `<table>.<column>` | `supabase.hook.activeFrom`, else `app_metadata.active_<first scope>` | Where the active first-scope id comes from; its memberships go first and it becomes the tenant claim when the user holds one there |
 | `--budget` | a positive integer | `supabase.hook.budget`, else `supabaseMembershipsBudget` (1024) | Bytes of JSON the `memberships` claim may use before it is truncated and `memberships_truncated: true` is set |
 | `--schema` | a Postgres identifier | `supabase.hook.schema`, `rls.schema`, else `public` | Schema of the hook, its trigger functions and the version table |
 
 `supabase.hook` also takes `memberships` (the sources, required), `roles` (the global roles table, `false` for none), `attrs` (`{ table?, id?, columns }`: server-owned columns and `app_metadata.<key>` entries copied into the `attrs` claim; `user_metadata` and client-writable columns are refused), `claims` (`{ <claim>: '<schema>.<function>' }`: claims other packages own, each the result of a `(uuid) returns jsonb` function, outside the budget), `version: false` (no `authz_ver`), `jwtExpiry` and `suspension` (defaults to `rls.suspension`; a suspended user gets empty claims). Exit `2` on a missing `supabase.hook`, a source whose scope the policy does not declare, a single-scope source missing an ancestor's `within` column, a non-positive budget, an unsafe identifier, or an `attrs` entry that is `user_metadata`, an `auth.users` column, a prototype key or a duplicate, or a `claims` entry that names a claim PermDock or Supabase Auth writes or an unqualified function. The generated migration also refuses to install while `anon` or `authenticated` can insert or update an `attrs` column.
+
+The migration's first line is a stable marker, `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, so a reader can tell which hook is installed without parsing the function.
+
+## inspect
+
+`permdock supabase inspect` prints what the hook and the SQL helpers expect: the hook's schema and output file, the helper schema and function names, the tenant claim, the budget and the SQL it measures, every claim the hook writes with its source and whether it counts toward the budget, and whether `authz_ver` is on. `--json` prints the [manifest](/docs/concepts/wire-formats#supabase-hook-manifest) (`version: 1`), which better-supabase reads to write Storage and Realtime policies against the same helpers and claims. It takes `--out`, `--budget`, `--schema` and `--active-from` like `hook generate`, and exits `2` on the same configuration errors.

@@ -1,3 +1,5 @@
+import type { SupabaseHookManifest } from '../supabase/manifest.ts';
+
 /**
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
@@ -124,3 +126,41 @@ export const supabaseClaimFixtures: Readonly<
  * single-role memberships. `permdock supabase hook generate` truncates at it by default.
  */
 export { supabaseMembershipsBudget } from '../supabase/budget.ts';
+
+/**
+ * The `permdock supabase inspect --json` manifest for a policy with one
+ * `tenant` scope, the default `supabase.hook` and a `features` claim from
+ * `better_supabase.feature_claims`. A package that reads the manifest tests its
+ * parser against this value.
+ */
+export const supabaseHookManifestFixture: SupabaseHookManifest = {
+  version: 1,
+  hook: {
+    schema: 'public',
+    function: 'custom_access_token_hook',
+    out: 'supabase/permdock-hook.sql',
+  },
+  helpers: {
+    schema: 'public',
+    functions: ['permdock_has', 'permitted_tenant_ids'],
+  },
+  tenantClaim: 'tenant_id',
+  budget: {
+    bytes: 1024,
+    measure: 'octet_length(memberships::text) + octet_length(attrs::text)',
+  },
+  claims: [
+    { name: 'user_role', source: 'permdock', budget: false },
+    { name: 'roles', source: 'permdock', budget: false },
+    { name: 'memberships', source: 'permdock', budget: true },
+    { name: 'memberships_truncated', source: 'permdock', budget: false },
+    { name: 'tenant_id', source: 'permdock', budget: false },
+    { name: 'authz_ver', source: 'permdock', budget: false },
+    {
+      name: 'features',
+      source: 'better_supabase.feature_claims',
+      budget: false,
+    },
+  ],
+  authzVersion: true,
+};

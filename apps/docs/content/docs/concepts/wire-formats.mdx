@@ -542,6 +542,56 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 
 `drafts` appears only when the output depends on an unfinished specification, today `--target 3.3` (`oas`, `securityProfiles`; [OpenAPI 3.3](/docs/standards/openapi)) and `--overlay 1.2` (`overlay`; [OpenAPI Overlay](/docs/standards/openapi-overlay)), and carries only the keys that apply; each value names the pinned revision. `permdock openapi emit --check` fails when a committed document's `drafts` differ from the installed CLI's pins. The shape is versioned by `v` like every other extension.
 
+## Supabase hook manifest
+
+Output of `permdock supabase inspect --json` ([supabase](/docs/cli/supabase)): what the generated hook and SQL helpers expect, for a package that writes policies or claims next to them. `version` is the format major, as in the catalog; `permdock/testing` exports `supabaseHookManifestFixture`, and `permdock/supabase` the `SupabaseHookManifest` type.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["version", "hook", "helpers", "tenantClaim", "budget", "claims", "authzVersion"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "hook": {
+      "type": "object",
+      "required": ["schema", "function", "out"],
+      "properties": {
+        "schema": { "type": "string" },
+        "function": { "const": "custom_access_token_hook" },
+        "out": { "type": "string" }
+      }
+    },
+    "helpers": {
+      "type": "object",
+      "required": ["schema", "functions"],
+      "properties": {
+        "schema": { "type": "string" },
+        "functions": { "type": "array", "items": { "type": "string", "pattern": "^(permdock_has|permitted_[a-z][a-z0-9_]*_ids)$" } }
+      }
+    },
+    "tenantClaim": { "type": "string" },
+    "budget": {
+      "type": "object",
+      "required": ["bytes", "measure"],
+      "properties": { "bytes": { "type": "integer", "minimum": 1 }, "measure": { "type": "string" } }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "source", "budget"],
+        "properties": { "name": { "type": "string" }, "source": { "type": "string" }, "budget": { "type": "boolean" } }
+      }
+    },
+    "authzVersion": { "type": "boolean" }
+  }
+}
+```
+
+`helpers.functions` are `permdock_has(p_grant text)` and one `permitted_<scope>_ids(p_grant text)` per declared scope, in `helpers.schema`. `budget.measure` is the SQL the hook sums against `budget.bytes`: `octet_length(memberships::text) + octet_length(attrs::text)`. Each claim's `source` is `permdock` or the `<schema>.<function>` of a `supabase.hook.claims` entry, and `budget` says whether it counts toward the budget. The generated migration starts with the same facts on one line, `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, which `supabase hook generate --check` compares first.
+
 ## Problem Details
 
 `application/problem+json` bodies from the HTTP adapters. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).

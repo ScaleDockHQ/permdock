@@ -628,7 +628,7 @@ const subject = subjectFromSupabase(claims, {
 });
 ```
 
-No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL as authority and run `permdock rls verify --db` against `sqlFunction` twins ([database-first](/docs/adapters/rls)).
+Write the claims with `permdock supabase hook generate`; `permdock supabase inspect --json` prints the manifest (helper names, tenant claim, budget, claims written) a package such as better-supabase reads before it writes Storage or Realtime policies against the helpers. No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL as authority and run `permdock rls verify --db` against `sqlFunction` twins ([database-first](/docs/adapters/rls)).
 
 `claims` is whatever Supabase verified: `data.claims` from `supabase.auth.getClaims()` on an `@supabase/ssr` server client, or `jwtClaims` from `@supabase/server` (`ctx.jwtClaims` in `withSupabase`, `c.var.supabaseContext.jwtClaims` in its Hono adapter). Pass `null` for anonymous callers; never `getSession().access_token` (unverified). An API-key auth mode (`secret`, `publishable`) has `jwtClaims: null` and is the anonymous subject, not a user.
 
