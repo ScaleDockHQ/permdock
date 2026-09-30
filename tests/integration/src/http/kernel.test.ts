@@ -129,7 +129,6 @@ async function events(
       };
       try {
         for await (const item of domain.ticks(org, conn.signal)) {
-          // oxlint-disable-next-line unicorn/no-array-callback-reference -- Connection#filter takes a permission, not a callback
           for (const readable of conn.filter(p.project.update, [item])) {
             frame(`data: ${JSON.stringify(readable)}`);
           }

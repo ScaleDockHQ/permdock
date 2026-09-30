@@ -55,6 +55,7 @@ export function PageHero({
       });
     }, 2200);
     return () => clearTimeout(timer);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new title re-arms the timer, including after a click
   }, [activeTitle, features, held]);
 
   return (

@@ -213,7 +213,6 @@ async function* ticks(
   }
   while (!signal.aborted) {
     for (const row of rows) {
-      // oxlint-disable-next-line no-await-in-loop -- one row per tick
       await pause(20, signal);
       if (signal.aborted) {
         return;
@@ -446,7 +445,6 @@ function eventStream(response: Response): EventStream {
         }
         continue;
       }
-      // oxlint-disable-next-line no-await-in-loop -- frames arrive in chunks
       const chunk = await within(reader.read(), 'an SSE frame');
       if (chunk.done) {
         return undefined;
@@ -468,7 +466,6 @@ async function untilEnd(
   stream: EventStream,
 ): Promise<{ readonly problem: unknown; readonly ended: boolean }> {
   for (;;) {
-    // oxlint-disable-next-line no-await-in-loop -- frames arrive one at a time
     const frame = await stream.next();
     if (frame === undefined) {
       return { problem: undefined, ended: true };
@@ -980,7 +977,6 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           expect(stream.status).toBe(200);
           const ids: string[] = [];
           while (ids.length < 7) {
-            // oxlint-disable-next-line no-await-in-loop -- reads two full rounds
             const frame = await stream.next();
             expect(frame?.event).toBe('message');
             ids.push(String(field(JSON.parse(frame?.data ?? '{}'), 'id')));

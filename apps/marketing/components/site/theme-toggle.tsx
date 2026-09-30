@@ -2,17 +2,21 @@
 
 import { MoonIcon, SunIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import { Button } from '@/components/ui/button';
 
+// oxlint-disable-next-line eslint/no-empty-function -- nothing to unsubscribe from
+const noSubscription = (): (() => void) => () => {};
+
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // `resolvedTheme` exists only in the browser, so the server snapshot is false.
+  const mounted = useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false,
+  );
 
   const isDark = mounted && resolvedTheme === 'dark';
 

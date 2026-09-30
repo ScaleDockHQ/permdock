@@ -102,6 +102,8 @@ catalog:
   next-themes: 0.4.6
   ajv: 8.20.0
   oxc-parser: 0.151.0
+  '@oxlint/plugins': 1.86.0
+  eslint-plugin-turbo: 2.11.5
   oxfmt: 0.71.0
   oxlint: 1.86.0
   oxlint-tsgolint: 7.0.2003
@@ -195,6 +197,13 @@ peerDependencyRules:
     '@supabase/server>@nestjs/common': '12'
     # Only `svelte-kit sync` type generation reads it; the e2e fixture builds with Vite.
     '@sveltejs/kit>typescript': '7'
+
+packageExtensions:
+  # Oxlint loads the plugin through `jsPlugins`; it imports only ESLint types.
+  eslint-plugin-turbo:
+    peerDependenciesMeta:
+      eslint:
+        optional: true
 
 overrides:
   '@react-native/metro-config': 'catalog:'

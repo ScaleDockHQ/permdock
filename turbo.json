@@ -19,7 +19,8 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"],
+      "env": ["NEXT_E2E", "PERMDOCK_COLLECT", "PERMDOCK_E2E_DRIFT"]
     },
     "typecheck": {
       "dependsOn": ["^build"]

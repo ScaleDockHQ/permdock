@@ -13,14 +13,19 @@
     "./oxfmt": "./src/oxfmt.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
+    "@oxlint/plugins": "catalog:",
+    "eslint-plugin-turbo": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:"
   },
   "devDependencies": {
     "@permdock/typescript-config": "workspace:*",
-    "typescript": "catalog:"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

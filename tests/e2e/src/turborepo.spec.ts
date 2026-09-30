@@ -70,13 +70,10 @@ async function expectedIds(user: string, org: string): Promise<string[]> {
     { sub: user, expiresAt: Date.now() / 1000 + 600 },
     org,
   );
-  return (
-    permdock
-      // oxlint-disable-next-line unicorn/no-array-callback-reference -- PermDock filter, not Array#filter
-      .filter(source.project.read, projectsOf(org))
-      .map((project) => project.id)
-      .toSorted()
-  );
+  return permdock
+    .filter(source.project.read, projectsOf(org))
+    .map((project) => project.id)
+    .toSorted();
 }
 
 async function job(
@@ -119,12 +116,9 @@ test('2. Drizzle rows match the in-memory filter per user and tenant', async ({
     ['erin', 'globex'],
     ['alice', 'globex'],
   ] as const) {
-    // oxlint-disable-next-line no-await-in-loop -- one session at a time
     await signIn(page, user);
-    // oxlint-disable-next-line no-await-in-loop -- one session at a time
     const { status, rows } = await projectIds(page.request, org);
     expect(status).toBe(200);
-    // oxlint-disable-next-line no-await-in-loop -- one session at a time
     const expected = await expectedIds(user, org);
     expect(rows.map((row) => row.id)).toEqual(expected);
     expect(expected.length).toBeGreaterThan(0);

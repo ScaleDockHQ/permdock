@@ -51,7 +51,6 @@ export async function* editsOf(
         yield next;
         continue;
       }
-      // oxlint-disable-next-line no-await-in-loop -- edits arrive one at a time
       await idle();
       wake = undefined;
     }

@@ -148,9 +148,7 @@ describe('joseTokenVerifier', () => {
     );
     expect(noIat).toMatchObject({ ok: false });
     for (const typ of ['at+jwt', 'logout+jwt']) {
-      // oxlint-disable-next-line no-await-in-loop -- one token type at a time
       const result = await check.verify(
-        // oxlint-disable-next-line no-await-in-loop -- one token type at a time
         await unexpiring(typ),
         expectations(typ),
       );

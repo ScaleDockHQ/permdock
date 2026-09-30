@@ -90,15 +90,10 @@ test('3. a locked doc and another team’s doc refuse the lead’s edits', async
   browser,
 }) => {
   for (const doc of ['d2', 'd3']) {
-    // oxlint-disable-next-line no-await-in-loop -- one doc at a time
     const gina = await openDoc(browser, 'gina', doc);
-    // oxlint-disable-next-line no-await-in-loop -- one doc at a time
     await ready(gina);
-    // oxlint-disable-next-line no-await-in-loop -- one doc at a time
     await edit(gina, 'overwritten');
-    // oxlint-disable-next-line no-await-in-loop -- one doc at a time
     await expect(gina.locator('#denied')).toHaveText(/^Denied: /u);
-    // oxlint-disable-next-line no-await-in-loop -- one doc at a time
     await expect(gina.locator('#content')).not.toHaveText('overwritten');
   }
 });
