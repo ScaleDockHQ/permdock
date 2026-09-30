@@ -266,8 +266,7 @@ export function memoryApprovalStore(
     consume(token: string, now: Date = new Date()): ApprovalRequest | null {
       const current = records.get(token);
       if (
-        current === undefined ||
-        current.status !== 'approved' ||
+        current?.status !== 'approved' ||
         current.consumedAt !== undefined ||
         Date.parse(current.expiresAt) <= now.getTime()
       ) {

@@ -102,9 +102,7 @@ describe('fromJunction over a schema-qualified table', () => {
     const loaded = await membership(query).membershipsFor({ id: MEMBER }, {});
     expect(
       loaded.toSorted((a, b) =>
-        String('id' in a ? a.id : '').localeCompare(
-          String('id' in b ? b.id : ''),
-        ),
+        ('id' in a ? a.id : '').localeCompare('id' in b ? b.id : ''),
       ),
     ).toEqual(expected);
   });

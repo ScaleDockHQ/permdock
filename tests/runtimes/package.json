@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "oxlint --disable-nested-config",
     "test:runtimes": "vitest run",
     "typecheck": "tsc --noEmit --checkers 4"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "deno": "catalog:",
@@ -16,6 +18,8 @@
     "hono": "catalog:",
     "jose": "catalog:",
     "miniflare": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",
     "typescript": "catalog:",
     "vitest": "catalog:"

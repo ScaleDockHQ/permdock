@@ -1,3 +1,5 @@
+import type * as Pg from 'pg';
+
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
@@ -55,7 +57,7 @@ const POLICY_RE =
 
 function extractParenClause(sql: string, keyword: string): string | undefined {
   const match = new RegExp(`\\b${keyword}\\s*\\(`, 'i').exec(sql);
-  if (match === null || match.index === undefined) {
+  if (match?.index === undefined) {
     return undefined;
   }
   const start = match.index + match[0].length;
@@ -165,7 +167,7 @@ function assertNoServiceRole(sql: string): void {
   }
 }
 
-function loadPg(): Promise<typeof import('pg')> {
+function loadPg(): Promise<typeof Pg> {
   return requirePeer(() => import('pg'), 'pg', 'permdock rls import --db');
 }
 

@@ -1,6 +1,9 @@
 import type { SQL } from 'drizzle-orm';
 
 import { serve } from '@hono/node-server';
+import { Hono } from 'hono';
+import { toWhere } from 'permdock/drizzle';
+
 import {
   findOrg,
   handleSaasRoute,
@@ -9,8 +12,6 @@ import {
   saasPermDock,
 } from '@permdock/e2e-saas-kit';
 import { permissions as p } from '@permdock/e2e-turbo-permissions';
-import { Hono } from 'hono';
-import { toWhere } from 'permdock/drizzle';
 
 import { archive, db, findRow, projects, reseed } from './db.ts';
 import {
@@ -58,7 +59,7 @@ const internal = new Hono()
   .post('/jobs/:id/settle', async (c) => {
     const job = findJob(c.req.param('id'));
     const result: { outcome?: unknown; reason?: unknown } = await c.req.json();
-    if (job === undefined || job.status !== 'running') {
+    if (job?.status !== 'running') {
       return c.body(null, 409);
     }
     if (result.outcome === 'granted') {

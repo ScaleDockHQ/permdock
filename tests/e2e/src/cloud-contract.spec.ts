@@ -1,13 +1,14 @@
 import type { APIRequestContext } from '@playwright/test';
 
-import {
-  CONTRACT_ENV_VARIABLE,
-  readContractEnv,
-} from '@permdock/e2e-cloud-contract/contract-env';
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import {
+  CONTRACT_ENV_VARIABLE,
+  readContractEnv,
+} from '@permdock/e2e-cloud-contract/contract-env';
 
 /**
  * The contract between this repository's wire formats and a running

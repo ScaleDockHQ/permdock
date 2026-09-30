@@ -132,7 +132,7 @@ function parseAnd(
   let cursor = first.next;
   for (;;) {
     const nextOp = readIdent(input, cursor);
-    if (nextOp === undefined || nextOp.value.toLowerCase() !== 'and') {
+    if (nextOp?.value.toLowerCase() !== 'and') {
       break;
     }
     const next = parsePrimary(input, nextOp.next);
@@ -160,7 +160,7 @@ function parseOr(
   let cursor = first.next;
   for (;;) {
     const nextOp = readIdent(input, cursor);
-    if (nextOp === undefined || nextOp.value.toLowerCase() !== 'or') {
+    if (nextOp?.value.toLowerCase() !== 'or') {
       break;
     }
     const next = parseAnd(input, nextOp.next);

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch --experimental-strip-types src/serve.ts",
+    "lint": "oxlint --disable-nested-config",
     "start": "node --experimental-strip-types src/serve.ts",
     "typecheck": "tsc --noEmit --checkers 4"
   },
@@ -18,8 +19,11 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
   }
 }

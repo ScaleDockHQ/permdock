@@ -36,6 +36,7 @@ export function oxfmt(options: OxfmtOptions = {}): OxfmtConfig {
     trailingComma: 'all',
     ignorePatterns: [...ignorePatterns, ...(options.ignorePatterns ?? [])],
     sortImports: {
+      internalPattern: ['@/', '@permdock/'],
       groups: [
         'type-import',
         ['value-builtin', 'value-external'],

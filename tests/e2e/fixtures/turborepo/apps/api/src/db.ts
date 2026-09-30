@@ -1,8 +1,9 @@
 import { PGlite } from '@electric-sql/pglite';
-import { projectsOf } from '@permdock/e2e-saas-kit';
 import { eq } from 'drizzle-orm';
 import { boolean, pgTable, text } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/pglite';
+
+import { projectsOf } from '@permdock/e2e-saas-kit';
 
 export const projects = pgTable('project', {
   id: text('id').primaryKey(),

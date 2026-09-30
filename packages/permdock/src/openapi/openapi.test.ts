@@ -169,9 +169,7 @@ describe('permdock/openapi', () => {
     const actions = v12.actions as readonly { readonly $ref?: string }[];
     expect(
       actions.some(
-        (action) =>
-          action.$ref !== undefined &&
-          action.$ref.startsWith('#/components/actions/'),
+        (action) => action.$ref?.startsWith('#/components/actions/') === true,
       ),
     ).toBe(true);
     expect(JSON.stringify(v12)).not.toContain('targetFormat');

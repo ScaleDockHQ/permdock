@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "oxlint --disable-nested-config",
     "test": "permdock collect --check",
     "typecheck": "tsc --noEmit --checkers 4"
   },
@@ -12,7 +13,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
   }
 }

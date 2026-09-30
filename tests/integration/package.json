@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "generate": "prisma generate",
+    "lint": "oxlint --disable-nested-config",
     "test:integration": "prisma generate && vitest run",
     "typecheck": "prisma generate && tsc --noEmit --checkers 4"
   },
@@ -19,6 +20,7 @@
     "@openai/agents": "catalog:",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@prisma/adapter-pg": "catalog:",
     "@prisma/client": "catalog:",
@@ -39,6 +41,8 @@
     "hono": "catalog:",
     "kysely": "catalog:",
     "multer": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",
     "pg": "catalog:",
     "prisma": "catalog:",

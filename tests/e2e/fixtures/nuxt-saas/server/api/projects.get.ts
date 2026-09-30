@@ -1,5 +1,6 @@
-import { projectsOf, readSession, saasPermDock } from '@permdock/e2e-saas-kit';
 import { saasPermissions as p } from 'permdock/testing/saas';
+
+import { projectsOf, readSession, saasPermDock } from '@permdock/e2e-saas-kit';
 
 /** Rows are filtered on the server; the snapshot only drives buttons. */
 export default defineEventHandler(async (event) => {

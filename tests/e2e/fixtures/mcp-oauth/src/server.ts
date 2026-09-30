@@ -5,12 +5,13 @@ import {
   oauthMetadataResponse,
   verifyBearerToken,
 } from '@modelcontextprotocol/server';
-import { handleSaasRoute } from '@permdock/e2e-saas-kit';
 import {
   createServer,
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
+
+import { handleSaasRoute } from '@permdock/e2e-saas-kit';
 
 import { ORIGIN, PORT, RESOURCE } from './config.ts';
 import { createMcpServer } from './mcp.ts';

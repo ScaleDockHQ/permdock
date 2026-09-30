@@ -5,16 +5,20 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "lint": "oxlint --disable-nested-config",
     "serve": "node scripts/serve.ts",
     "typecheck": "svelte-kit sync && tsc --noEmit --checkers 4",
     "typegen": "svelte-kit sync"
   },
   "devDependencies": {
     "@permdock/e2e-saas-kit": "workspace:*",
+    "@permdock/ox-config": "workspace:*",
     "@sveltejs/adapter-node": "catalog:",
     "@sveltejs/kit": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
     "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",
     "svelte": "catalog:",
     "typescript": "catalog:",

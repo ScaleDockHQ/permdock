@@ -3,7 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "lint": "oxlint --disable-nested-config"
+  },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",
     "zod": "catalog:"
   }

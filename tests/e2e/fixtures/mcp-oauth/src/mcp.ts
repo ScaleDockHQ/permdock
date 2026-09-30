@@ -1,6 +1,11 @@
 import type { McpAuthInfo } from 'permdock/mcp';
 
 import { McpServer } from '@modelcontextprotocol/server';
+import { createPermDock, subjectFromMcp } from 'permdock/mcp';
+import { saasPolicy } from 'permdock/testing/saas';
+import { saasPermissions as p } from 'permdock/testing/saas/permissions';
+import { z } from 'zod';
+
 import {
   findOrg,
   findProject,
@@ -8,10 +13,6 @@ import {
   projectsOf,
   removeProject,
 } from '@permdock/e2e-saas-kit';
-import { createPermDock, subjectFromMcp } from 'permdock/mcp';
-import { saasPolicy } from 'permdock/testing/saas';
-import { saasPermissions as p } from 'permdock/testing/saas/permissions';
-import { z } from 'zod';
 
 import { RESOURCE } from './config.ts';
 

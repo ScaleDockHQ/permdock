@@ -105,6 +105,9 @@ catalog:
   oxc-parser: 0.151.0
   '@oxlint/plugins': 1.86.0
   eslint-plugin-turbo: 2.11.5
+  eslint-plugin-playwright: 2.12.0
+  oxlint-plugin-react-doctor: 0.9.14
+  '@shadcn/lint': 0.2.0
   oxfmt: 0.71.0
   oxlint: 1.86.0
   oxlint-tsgolint: 7.0.2003
@@ -211,10 +214,21 @@ publicHoistPattern:
   - '@typescript/*'
 
 packageExtensions:
-  # Oxlint loads the plugin through `jsPlugins`; it imports only ESLint types.
+  # Oxlint loads these plugins through `jsPlugins`; they import only ESLint types.
   eslint-plugin-turbo:
     peerDependenciesMeta:
       eslint:
+        optional: true
+  eslint-plugin-playwright:
+    peerDependenciesMeta:
+      eslint:
+        optional: true
+  # Oxlint parses the files itself, so neither ESLint nor its TypeScript parser loads.
+  '@shadcn/lint':
+    peerDependenciesMeta:
+      eslint:
+        optional: true
+      '@typescript-eslint/parser':
         optional: true
 
 # No `typescript: 'catalog:'` override: tests/types pins TypeScript 5.9 and 6

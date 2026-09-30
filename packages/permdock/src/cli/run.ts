@@ -1,3 +1,4 @@
+import type { runSupabase } from './supabase-hook.ts';
 import type { CliIo, RunResult } from './types.ts';
 
 import { flagBool, flagList, flagString, parseArgs } from './args.ts';
@@ -322,9 +323,7 @@ export async function run(
               schema: flagString(args.flags, 'schema'),
               io,
             }).filter(([, value]) => value !== undefined),
-          ) as Parameters<
-            (typeof import('./supabase-hook.ts'))['runSupabase']
-          >[0],
+          ) as Parameters<typeof runSupabase>[0],
         );
         writeOut(result.output);
         return finish(result.code, stdoutChunks, stderrChunks);

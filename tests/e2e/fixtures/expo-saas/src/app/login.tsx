@@ -1,5 +1,6 @@
-import { loginUsers } from '@permdock/e2e-saas-kit/nav';
 import { Pressable, Text, View } from 'react-native';
+
+import { loginUsers } from '@permdock/e2e-saas-kit/nav';
 
 import { post } from '../lib/session';
 

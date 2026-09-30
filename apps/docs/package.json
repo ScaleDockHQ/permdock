@@ -6,6 +6,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev -p 3001",
+    "lint": "oxlint --disable-nested-config",
     "start": "next start",
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit --checkers 4"
@@ -22,12 +23,15 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@types/mdx": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "postcss": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",

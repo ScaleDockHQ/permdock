@@ -218,6 +218,7 @@ test('6b. JWT mode: a demoted member keeps the old role until the token is re-is
   await expect(magnet.getByRole('button', { name: 'Delete' })).toBeVisible();
 
   await demoteBob(browser, JWT);
+  // oxlint-disable-next-line playwright/no-wait-for-timeout -- the test proves nothing changes across a poll interval, so there is no signal to wait for.
   await page.waitForTimeout(1500);
   await expect(magnet.getByRole('button', { name: 'Delete' })).toBeVisible();
   await magnet.getByRole('button', { name: 'Delete' }).click();

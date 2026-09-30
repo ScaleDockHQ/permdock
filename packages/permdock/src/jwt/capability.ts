@@ -193,8 +193,7 @@ export async function subjectFromCapability(
   const parsed = parseCapability(verified.claims['capability']);
   const exp = verified.claims.exp;
   if (
-    parsed === undefined ||
-    parsed.holder !== 'link' ||
+    parsed?.holder !== 'link' ||
     verified.claims.sub !== parsed.id ||
     typeof exp !== 'number'
   ) {

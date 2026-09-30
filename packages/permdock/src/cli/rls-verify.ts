@@ -1,3 +1,5 @@
+import type * as Pg from 'pg';
+
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -307,7 +309,7 @@ function emitPgtap(
   return `${lines.join('\n')}\n`;
 }
 
-function loadPg(): Promise<typeof import('pg')> {
+function loadPg(): Promise<typeof Pg> {
   return requirePeer(() => import('pg'), 'pg', 'permdock rls verify --db');
 }
 

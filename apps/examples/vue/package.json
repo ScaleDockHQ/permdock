@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
+    "lint": "oxlint --disable-nested-config",
     "preview": "vite preview --host 127.0.0.1 --port 3481",
     "typecheck": "tsc --noEmit --checkers 4"
   },
@@ -15,8 +16,11 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@vitejs/plugin-vue": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:"
   }

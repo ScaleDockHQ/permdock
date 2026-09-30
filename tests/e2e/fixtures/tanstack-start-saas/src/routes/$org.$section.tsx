@@ -1,6 +1,7 @@
-import { navItemFor } from '@permdock/e2e-saas-kit/nav';
 import { createFileRoute } from '@tanstack/react-router';
 import { Protected } from 'permdock/react';
+
+import { navItemFor } from '@permdock/e2e-saas-kit/nav';
 
 import { Forbidden } from '../lib/forbidden';
 

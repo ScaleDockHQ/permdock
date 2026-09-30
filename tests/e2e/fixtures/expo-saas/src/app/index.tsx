@@ -1,11 +1,13 @@
-import type { NavItem } from '@permdock/e2e-saas-kit/nav';
 import type { SaasProject } from 'permdock/testing/saas/permissions';
 
-import { navItems, permissions } from '@permdock/e2e-saas-kit/nav';
 import { Redirect } from 'expo-router';
 import { usePermission } from 'permdock/react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Pressable, Text, View } from 'react-native';
+
+import type { NavItem } from '@permdock/e2e-saas-kit/nav';
+
+import { navItems, permissions } from '@permdock/e2e-saas-kit/nav';
 
 import { ORG, post, useSession } from '../lib/session';
 

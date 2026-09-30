@@ -79,7 +79,7 @@ export function parseEvery(every: number | string): number {
     return every;
   }
   const match = /^(\d+)(ms|s|m)$/u.exec(every);
-  if (match === null || match[2] === undefined) {
+  if (match?.[2] === undefined) {
     throw new TypeError(`PermDock: invalid poll interval '${every}'.`);
   }
   const n = Number(match[1]);

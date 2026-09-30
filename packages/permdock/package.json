@@ -237,6 +237,7 @@
   "scripts": {
     "build": "tsdown",
     "check:publish": "publint && pnpm pack --out pack.tgz && attw --profile esm-only pack.tgz && rm -f pack.tgz",
+    "lint": "oxlint --disable-nested-config",
     "test": "vitest run --coverage",
     "typecheck": "tsc --noEmit --checkers 4"
   },
@@ -254,6 +255,7 @@
     "@nestjs/platform-express": "catalog:",
     "@openai/agents": "catalog:",
     "@orpc/server": "catalog:",
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@supabase/middleware": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
@@ -277,6 +279,8 @@
     "jose": "catalog:",
     "kysely": "catalog:",
     "next": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "pg": "catalog:",
     "pgsql-parser": "catalog:",
     "publint": "catalog:",

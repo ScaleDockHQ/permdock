@@ -1,9 +1,10 @@
 import type { SaasProject } from 'permdock/testing/saas';
 
-import { permissions } from '@permdock/e2e-saas-kit/nav';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { usePermission } from 'permdock/react';
 import { useState } from 'react';
+
+import { permissions } from '@permdock/e2e-saas-kit/nav';
 
 import { Forbidden } from '../lib/forbidden';
 import { getProjects, removeProject } from '../lib/saas.functions';

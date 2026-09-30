@@ -409,7 +409,7 @@ export function fromJunction(
   const idColumn = options.id ?? `${options.scope}_id`;
   const withinEntries = Object.entries(options.within ?? {});
   const fixed = typeof options.roles === 'string' ? undefined : options.roles;
-  if (fixed !== undefined && fixed.length === 0) {
+  if (fixed?.length === 0) {
     throw new TypeError('PermDock: fromJunction needs at least one role');
   }
   const managedColumn =

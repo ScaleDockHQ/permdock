@@ -63,6 +63,14 @@
         "$TURBO_ROOT$/packages/typescript-config/*.json"
       ]
     },
+    "lint": {
+      "dependsOn": ["^build", "typegen"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/ox-config/src/**",
+        "$TURBO_ROOT$/turbo.json"
+      ]
+    },
     "test": {
       "dependsOn": ["build", "^build"],
       "inputs": [

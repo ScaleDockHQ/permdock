@@ -1,7 +1,5 @@
-import type { NavItem } from '@permdock/e2e-saas-kit/nav';
 import type { Snapshot } from 'permdock';
 
-import { navItems, orgs } from '@permdock/e2e-saas-kit/nav';
 import {
   Link,
   Outlet,
@@ -11,6 +9,10 @@ import {
 } from '@tanstack/react-router';
 import { PermDockProvider, usePermDock, usePermission } from 'permdock/react';
 import { Suspense, useEffect } from 'react';
+
+import type { NavItem } from '@permdock/e2e-saas-kit/nav';
+
+import { navItems, orgs } from '@permdock/e2e-saas-kit/nav';
 
 import type { OrgView } from '../lib/saas.functions';
 

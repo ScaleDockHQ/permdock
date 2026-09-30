@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { navItemFor } from '@permdock/e2e-saas-kit/nav';
 import { Protected } from 'permdock/vue';
+
+import { navItemFor } from '@permdock/e2e-saas-kit/nav';
 
 const route = useRoute();
 const item = computed(() => navItemFor(String(route.params.section)));

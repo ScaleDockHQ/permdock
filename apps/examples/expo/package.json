@@ -6,6 +6,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "dev": "expo start --web --port 3486",
+    "lint": "oxlint --disable-nested-config",
     "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
@@ -29,8 +30,11 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/react": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
   }
 }

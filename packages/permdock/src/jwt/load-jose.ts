@@ -1,4 +1,6 @@
-export type JoseModule = typeof import('jose');
+import type * as Jose from 'jose';
+
+export type JoseModule = typeof Jose;
 
 let cached: Promise<JoseModule> | undefined;
 

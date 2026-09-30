@@ -2,6 +2,7 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { DecisionProvider } from './interfaces.ts';
 import type { Principal } from './subject.ts';
+import type { Actor, Delegation } from './subject.ts';
 
 import {
   type Condition,
@@ -587,8 +588,7 @@ export function role(
   const normalised = flattenGrants(grants).map((grant) => {
     const items = flattenGrantee(grant.to);
     const first = items[0];
-    const roleTo =
-      items.length === 1 && first !== undefined && first.kind === 'role';
+    const roleTo = items.length === 1 && first?.kind === 'role';
     const to = roleTo ? roleGrantee : grant.to;
     return freezeDeep({
       ...grant,
@@ -967,10 +967,7 @@ export function completeGrant(grant: Omit<Grant, 'role' | 'scope'>): Grant {
   const to = flattenGrantee(grant.to);
   const first = to[0];
   const placeholder =
-    to.length === 1 &&
-    first !== undefined &&
-    first.kind === 'role' &&
-    first.role === '';
+    to.length === 1 && first?.kind === 'role' && first.role === '';
   if (placeholder) {
     throw new Error('PermDock: grant is missing to');
   }
@@ -1219,8 +1216,8 @@ export type PrincipalOf<P> =
 
 export type SubjectOf<P> = {
   readonly principal: PrincipalOf<P> | null;
-  readonly actor?: import('./subject.ts').Actor;
-  readonly delegation?: import('./subject.ts').Delegation;
+  readonly actor?: Actor;
+  readonly delegation?: Delegation;
   readonly context: Readonly<Record<string, unknown>>;
   readonly session?: string;
   readonly expiresAt?: number;

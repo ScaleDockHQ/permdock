@@ -1,11 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
 import { serve } from '@hono/node-server';
-import {
-  findOrg,
-  handleSaasRoute,
-  readCookie,
-  readSession,
-} from '@permdock/e2e-saas-kit';
 import { Hono } from 'hono';
 import { decodeJwt, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { createHash } from 'node:crypto';
@@ -14,6 +8,13 @@ import { directoryMembershipSource, scimHandler } from 'permdock/scim';
 import { createPermDock } from 'permdock/server';
 import { createPermDock as createSsf, memoryReplayStore } from 'permdock/ssf';
 import { saasPermissions as p, saasPolicy } from 'permdock/testing/saas';
+
+import {
+  findOrg,
+  handleSaasRoute,
+  readCookie,
+  readSession,
+} from '@permdock/e2e-saas-kit';
 
 import { pgDirectoryStore } from './pg-store.ts';
 

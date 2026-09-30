@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "oxlint --disable-nested-config",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit --checkers 4"
   },
@@ -54,10 +55,13 @@
     "@permdock/example-trpc": "workspace:*",
     "@permdock/example-vue": "workspace:*",
     "@permdock/example-webmcp": "workspace:*",
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "marketing": "workspace:*",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",
     "typescript": "catalog:"
   }

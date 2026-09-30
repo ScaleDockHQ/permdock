@@ -1,6 +1,7 @@
-import { serve } from '@permdock/e2e-saas-kit/serve';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { serve } from '@permdock/e2e-saas-kit/serve';
 
 serve({
   cwd: join(dirname(fileURLToPath(import.meta.url)), '..'),

@@ -3,18 +3,19 @@ import type { Context } from 'hono';
 import type { Connection } from 'permdock/server';
 
 import { serve, upgradeWebSocket } from '@hono/node-server';
-import {
-  findOrg,
-  handleSaasRoute,
-  readSession,
-  saasSubject,
-} from '@permdock/e2e-saas-kit';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { type CustomRole, type Decision, memoryRevocationFeed } from 'permdock';
 import { createPermDock } from 'permdock/hono';
 import { saasPermissions as p, saasPolicy } from 'permdock/testing/saas';
 import { WebSocketServer } from 'ws';
+
+import {
+  findOrg,
+  handleSaasRoute,
+  readSession,
+  saasSubject,
+} from '@permdock/e2e-saas-kit';
 
 import { editsOf, findDoc, resetDocs, textOf, writeText } from './docs.ts';
 import { page } from './page.ts';

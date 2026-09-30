@@ -519,7 +519,7 @@ describe('permdock/server webBotAuth', () => {
 
 function tamperSignature(header: string): string {
   const match = /:(.+):/.exec(header);
-  if (match === null || match[1] === undefined) {
+  if (match?.[1] === undefined) {
     return `${header}x`;
   }
   const bytes = Uint8Array.from(

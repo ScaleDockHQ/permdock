@@ -230,8 +230,7 @@ function recordSignals(
       }),
     );
     if (
-      event.denials !== undefined &&
-      event.denials.some((denial) => denial.reason === 'validation')
+      event.denials?.some((denial) => denial.reason === 'validation') === true
     ) {
       span.recordException?.(new Error('validation'));
     }

@@ -4,16 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "oxlint --disable-nested-config",
     "test": "vitest run",
     "typecheck": "tsc --noEmit --checkers 4"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@sveltejs/vite-plugin-svelte": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "next": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",

@@ -1,15 +1,6 @@
 import type { UIMessage } from 'ai';
 
 import {
-  findOrg,
-  findProject,
-  handleSaasRoute,
-  projectsOf,
-  readSession,
-  removeProject,
-  saasSubject,
-} from '@permdock/e2e-saas-kit';
-import {
   convertToModelMessages,
   createUIMessageStreamResponse,
   stepCountIs,
@@ -32,6 +23,16 @@ import { approvalsHandler, memoryApprovalStore } from 'permdock/approvals';
 import { saasPolicy } from 'permdock/testing/saas';
 import { saasPermissions as p } from 'permdock/testing/saas/permissions';
 import { z } from 'zod';
+
+import {
+  findOrg,
+  findProject,
+  handleSaasRoute,
+  projectsOf,
+  readSession,
+  removeProject,
+  saasSubject,
+} from '@permdock/e2e-saas-kit';
 
 import { scriptedModel } from './model.ts';
 

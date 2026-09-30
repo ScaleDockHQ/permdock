@@ -1,6 +1,7 @@
+import { cookies } from 'next/headers';
+
 import { projectsOf, readSession, saasPermDock } from '@permdock/e2e-saas-kit';
 import { permissions as p } from '@permdock/e2e-turbo-permissions';
-import { cookies } from 'next/headers';
 
 export default async function OrgPage(props: {
   readonly params: Promise<{ readonly org: string }>;

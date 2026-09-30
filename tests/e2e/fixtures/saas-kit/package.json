@@ -9,14 +9,18 @@
     "./serve": "./src/serve.ts"
   },
   "scripts": {
+    "lint": "oxlint --disable-nested-config",
     "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
     "permdock": "workspace:*"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
   }
 }

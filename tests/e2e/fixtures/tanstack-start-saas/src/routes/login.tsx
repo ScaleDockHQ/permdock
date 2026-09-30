@@ -1,5 +1,6 @@
-import { loginUsers } from '@permdock/e2e-saas-kit/nav';
 import { createFileRoute } from '@tanstack/react-router';
+
+import { loginUsers } from '@permdock/e2e-saas-kit/nav';
 
 export const Route = createFileRoute('/login')({
   component: () => (

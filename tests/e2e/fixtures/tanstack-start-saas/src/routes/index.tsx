@@ -1,5 +1,6 @@
-import { orgs } from '@permdock/e2e-saas-kit/nav';
 import { Link, createFileRoute } from '@tanstack/react-router';
+
+import { orgs } from '@permdock/e2e-saas-kit/nav';
 
 export const Route = createFileRoute('/')({
   component: () => (

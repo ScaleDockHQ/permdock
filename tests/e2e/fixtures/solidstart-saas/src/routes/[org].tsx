@@ -1,10 +1,12 @@
-import type { NavItem } from '@permdock/e2e-saas-kit/nav';
 import type { RouteDefinition, RouteSectionProps } from '@solidjs/router';
 
-import { navItems, orgs } from '@permdock/e2e-saas-kit/nav';
 import { createAsync, revalidate } from '@solidjs/router';
 import { PermDockProvider, usePermission } from 'permdock/solid';
 import { For, Show, Suspense, onCleanup, onMount } from 'solid-js';
+
+import type { NavItem } from '@permdock/e2e-saas-kit/nav';
+
+import { navItems, orgs } from '@permdock/e2e-saas-kit/nav';
 
 import type { OrgView } from '../lib/saas';
 

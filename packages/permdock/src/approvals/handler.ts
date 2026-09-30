@@ -282,7 +282,8 @@ export function approvalsHandler(
     await store.expire();
 
     const subject = await resolveSubject(request, options.subject);
-    if (subject === null || subject.principal === null) {
+    const principal = subject?.principal ?? null;
+    if (subject === null || principal === null) {
       return problem(
         401,
         'Unauthenticated',
@@ -320,7 +321,7 @@ export function approvalsHandler(
       if (route.kind === 'mine') {
         const page = await store.list({
           ...pageQuery(url),
-          principalId: subject.principal.id,
+          principalId: principal.id,
         });
         return json(200, compact({ items: page.items, next: page.next }));
       }

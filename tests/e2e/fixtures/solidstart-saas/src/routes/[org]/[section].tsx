@@ -1,8 +1,9 @@
 import type { RouteSectionProps } from '@solidjs/router';
 
-import { navItemFor } from '@permdock/e2e-saas-kit/nav';
 import { Protected } from 'permdock/solid';
 import { Show } from 'solid-js';
+
+import { navItemFor } from '@permdock/e2e-saas-kit/nav';
 
 import { Forbidden } from '../../lib/forbidden';
 

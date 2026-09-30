@@ -178,10 +178,7 @@ export function fieldViews(
         (branch) =>
           branch.fields !== undefined && !branch.fields.includes(column),
       ) ||
-        denies.some(
-          (branch) =>
-            branch.fields !== undefined && branch.fields.includes(column),
-        ));
+        denies.some((branch) => branch.fields?.includes(column) === true));
     const columns = names.map((name): FieldColumn => {
       quoteIdent(name);
       return restricted(name)

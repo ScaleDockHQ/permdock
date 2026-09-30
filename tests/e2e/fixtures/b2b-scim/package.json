@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "oxlint --disable-nested-config",
     "serve": "node scripts/serve.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit --checkers 4"
@@ -17,8 +18,11 @@
     "permdock": "workspace:*"
   },
   "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

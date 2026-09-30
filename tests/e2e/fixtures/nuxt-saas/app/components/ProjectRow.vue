@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { SaasProject } from 'permdock/testing/saas';
 
-import { permissions } from '@permdock/e2e-saas-kit/nav';
 import { usePermission } from 'permdock/vue';
+
+import { permissions } from '@permdock/e2e-saas-kit/nav';
 
 const props = defineProps<{ project: SaasProject }>();
 const { allowed: canDelete } = usePermission(
