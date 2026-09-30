@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-09-30T11:20:40.049Z",
+  "generatedAt": "2026-09-30T19:19:45.271Z",
   "generator": "permdock@0.1.0-next.2",
   "fingerprint": "1NzjjwFJjgDUJwOE8US-L2Z3Nb6p7zerwsgZR4mZe60",
   "resources": {
@@ -316,12 +316,12 @@
       "usages": [
         {
           "file": "apps/api/src/server.ts",
-          "line": 102,
+          "line": 103,
           "call": "can"
         },
         {
           "file": "apps/web/src/app/[org]/page.tsx",
-          "line": 14,
+          "line": 15,
           "call": "can"
         }
       ]
@@ -338,12 +338,12 @@
       "usages": [
         {
           "file": "apps/api/src/server.ts",
-          "line": 108,
+          "line": 109,
           "call": "where"
         },
         {
           "file": "apps/web/src/app/[org]/page.tsx",
-          "line": 21,
+          "line": 22,
           "call": "filter"
         }
       ]
@@ -358,27 +358,27 @@
       "usages": [
         {
           "file": "apps/api/src/server.ts",
-          "line": 120,
+          "line": 121,
           "call": "can"
         },
         {
           "file": "apps/web/src/app/[org]/page.tsx",
-          "line": 26,
+          "line": 27,
           "call": "can"
         },
         {
           "file": "apps/worker/src/worker.ts",
-          "line": 14,
+          "line": 15,
           "call": "reference"
         },
         {
           "file": "apps/worker/src/worker.ts",
-          "line": 14,
+          "line": 15,
           "call": "reference"
         },
         {
           "file": "apps/worker/src/worker.ts",
-          "line": 71,
+          "line": 72,
           "call": "decide"
         }
       ]
