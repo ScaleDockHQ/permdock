@@ -1,17 +1,35 @@
 {
-  "$schema": "https://v2-10-12.turborepo.dev/schema.json",
+  "$schema": "https://turborepo.dev/schema.json",
+  "agentGuidance": true,
   "futureFlags": {
-    "globalConfiguration": true
+    "globalConfiguration": true,
+    "errorsOnlyShowHash": true,
+    "longerSignatureKey": true,
+    "affectedUsingTaskInputs": true
   },
   "global": {
-    "env": ["CI", "NODE_ENV"],
     "envMode": "strict",
-    "inputs": ["tsconfig.json"],
+    "cacheMaxAge": "14d",
+    "remoteCache": {
+      "enabled": true,
+      "signature": true
+    },
+    "env": ["CI", "NODE_ENV"],
     "passThroughEnv": [
       "COREPACK_HOME",
       "ENABLE_EXPERIMENTAL_COREPACK",
+      "INIT_CWD",
       "LEFTHOOK"
     ]
+  },
+  "boundaries": {
+    "tags": {
+      "package": {
+        "dependencies": {
+          "allow": ["package"]
+        }
+      }
+    }
   },
   "tasks": {
     "transit": {
@@ -23,21 +41,42 @@
     },
     "build": {
       "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/typescript-config/*.json"
+      ],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"],
-      "env": ["NEXT_E2E", "PERMDOCK_COLLECT", "PERMDOCK_E2E_DRIFT"]
+      "env": [
+        "MEMBERSHIP_MODE",
+        "NEXT_E2E",
+        "PERMDOCK_COLLECT",
+        "PERMDOCK_E2E_DRIFT",
+        "PERMDOCK_E2E_NO_PRIVATE_CACHE",
+        "SESSION_SECRET"
+      ],
+      "passThroughEnv": ["VERCEL", "VERCEL_*"]
     },
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/typescript-config/*.json"
+      ]
     },
     "test": {
-      "dependsOn": ["build", "^build"]
+      "dependsOn": ["build", "^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/typescript-config/*.json"
+      ]
     },
     "check:publish": {
       "dependsOn": ["build", "^build"]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["HOST", "PORT"]
     }
   }
 }
