@@ -5,6 +5,14 @@
 @source '../../../packages/ui/src';
 @source '../../../packages/ui/node_modules/streamdown/dist/*.js';
 
+/* WCAG AA needs 4.5:1. The neutral muted foreground (45.1%) is 4.1:1 on the
+   sidebar greys, and the syntax colours of code blocks and type tables fall
+   below it on the neutral card (94.7%). */
+@theme {
+  --color-fd-muted-foreground: hsl(0, 0%, 40%);
+  --color-fd-card: hsl(0, 0%, 100%);
+}
+
 @theme inline {
   --color-background: var(--color-fd-background);
   --color-foreground: var(--color-fd-foreground);

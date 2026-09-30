@@ -16,7 +16,7 @@ Colours are shadcn/ui CSS variables in OKLCH, neutral base, with a `.dark` overr
 | Lines and focus  | `border-border`, `ring-ring` (every element gets `outline-ring/50`)         |
 | Charts           | `chart-1` to `chart-5`                                                      |
 
-Radius derives from `--radius: 0.625rem`: `rounded-sm` to `rounded-4xl` step by 2 or 4 px. The docs app maps the same tokens onto the Fumadocs `--color-fd-*` variables, so docs and marketing share one palette.
+Radius derives from `--radius: 0.625rem`: `rounded-sm` to `rounded-4xl` step by 2 or 4 px. In the docs app the shadcn utilities read the Fumadocs neutral `--color-fd-*` variables, so `packages/ui` components match Fumadocs. In light mode `fd-muted-foreground` is darkened to `hsl(0 0% 40%)` for 4.5:1 on the sidebar greys and `fd-card` is white so syntax colours in code blocks and type tables keep 4.5:1; code blocks use the `github-light-high-contrast` Shiki theme.
 
 ## Type
 

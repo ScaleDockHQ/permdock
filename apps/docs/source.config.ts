@@ -19,5 +19,9 @@ export default defineConfig({
       [remarkAutoTypeTable, { generator }],
       remarkTypeTableMarkdown,
     ],
+    rehypeCodeOptions: {
+      // github-light tokens fall to 3.1:1 on the code background; WCAG AA needs 4.5:1.
+      themes: { light: 'github-light-high-contrast', dark: 'github-dark' },
+    },
   },
 });
