@@ -653,6 +653,9 @@ importers:
 
   apps/docs:
     dependencies:
+      '@permdock/next-config':
+        specifier: workspace:*
+        version: link:../../packages/next-config
       beautiful-mermaid:
         specifier: 'catalog:'
         version: 1.1.3
@@ -1834,6 +1837,9 @@ importers:
       '@base-ui/react':
         specifier: 'catalog:'
         version: 1.8.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@permdock/next-config':
+        specifier: workspace:*
+        version: link:../../packages/next-config
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -1922,6 +1928,31 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(@vitest/coverage-v8@5.0.2)(happy-dom@20.14.5)(vite@8.3.1(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/next-config:
+    dependencies:
+      next:
+        specifier: 16.3.7
+        version: 16.3.7(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@24.19.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+    devDependencies:
+      '@permdock/ox-config':
+        specifier: workspace:*
+        version: link:../ox-config
+      '@permdock/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.0
+      oxlint:
+        specifier: 'catalog:'
+        version: 1.86.0(oxlint-tsgolint@7.0.2003)
+      oxlint-tsgolint:
+        specifier: 'catalog:'
+        version: 7.0.2003
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   packages/ox-config:
     dependencies:

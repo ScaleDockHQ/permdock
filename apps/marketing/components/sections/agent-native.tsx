@@ -1,7 +1,6 @@
-import Link from 'next/link';
-
 import { AgentActivity } from '@/components/blocks/agent-activity-1/components/agent-activity';
 import { Badge } from '@/components/reui/badge';
+import { SiteLink } from '@/components/site/site-link';
 import { agentRuntimes } from '@/lib/site';
 
 import { Section } from './section';
@@ -19,7 +18,7 @@ export function AgentNative() {
           <Badge
             key={runtime.name}
             variant="outline"
-            render={<Link href={runtime.href} />}
+            render={<SiteLink href={runtime.href} />}
           >
             {runtime.name}
           </Badge>

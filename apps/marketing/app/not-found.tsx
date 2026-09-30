@@ -1,5 +1,4 @@
-import Link from 'next/link';
-
+import { SiteLink } from '@/components/site/site-link';
 import { Button } from '@/components/ui/button';
 import { site } from '@/lib/site';
 
@@ -11,13 +10,13 @@ export default function NotFound() {
         That URL is not a marketing route. Docs still live under /docs.
       </p>
       <div className="flex gap-2">
-        <Button nativeButton={false} render={<Link href="/" />}>
+        <Button nativeButton={false} render={<SiteLink href="/" />}>
           Home
         </Button>
         <Button
           variant="outline"
           nativeButton={false}
-          render={<Link href={site.docs} />}
+          render={<SiteLink href={site.docs} />}
         >
           Docs
         </Button>

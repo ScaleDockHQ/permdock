@@ -2,13 +2,14 @@ import type { NextConfig } from 'next';
 
 import { createMDX } from 'fumadocs-mdx/next';
 
+import { createNextConfig } from '@permdock/next-config';
+
 const withMDX = createMDX();
 
 const docsOrigin = process.env['DOCS_ORIGIN'] ?? 'http://127.0.0.1:3001';
 
 const config: NextConfig = {
-  reactStrictMode: true,
-  allowedDevOrigins: ['127.0.0.1'],
+  ...createNextConfig(),
   redirects() {
     return [
       {

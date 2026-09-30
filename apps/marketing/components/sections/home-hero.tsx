@@ -1,7 +1,6 @@
 'use client';
 
 import { ArrowRightIcon, CheckIcon, CopyIcon } from 'lucide-react';
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
@@ -9,6 +8,7 @@ import {
   CodeBlock,
   CodeBlockCopyButton,
 } from '@/components/reui/code-block/code-block';
+import { SiteLink } from '@/components/site/site-link';
 import { Button } from '@/components/ui/button';
 import { site } from '@/lib/site';
 import { heroSnippet } from '@/lib/snippets';
@@ -65,7 +65,7 @@ export function HomeHero() {
           <Button
             size="lg"
             nativeButton={false}
-            render={<Link href={site.getStarted} />}
+            render={<SiteLink href={site.getStarted} />}
           >
             Get started
             <ArrowRightIcon aria-hidden="true" />
@@ -74,7 +74,7 @@ export function HomeHero() {
             variant="outline"
             size="lg"
             nativeButton={false}
-            render={<Link href={site.github} />}
+            render={<SiteLink href={site.github} />}
           >
             GitHub
           </Button>

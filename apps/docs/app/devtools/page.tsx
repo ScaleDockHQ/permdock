@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { DevtoolsPanel } from '@/components/devtools-panel';
+import { docsIndex } from '@/lib/shared';
 
 export const metadata: Metadata = {
   title: 'Devtools',
@@ -15,7 +16,7 @@ export default function DevtoolsPage() {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-12">
       <div className="flex flex-col gap-2">
         <p className="text-sm text-fd-muted-foreground">
-          <Link href="/docs" className="underline">
+          <Link href={docsIndex} className="underline">
             Docs
           </Link>
           {' / '}

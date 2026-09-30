@@ -5,8 +5,6 @@ import { ImageResponse } from 'next/og';
 import { appName } from '@/lib/shared';
 import { getPageImageUrl, source } from '@/lib/source';
 
-export const revalidate = false;
-
 type OgRouteContext = {
   params: Promise<{ slug: string[] }>;
 };

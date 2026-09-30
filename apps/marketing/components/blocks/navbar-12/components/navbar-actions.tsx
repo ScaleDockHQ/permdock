@@ -4,7 +4,7 @@ import { ThemeToggle } from '@/components/site/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { site } from '@/lib/site';
 import { ArrowRightIcon } from 'lucide-react';
-import Link from 'next/link';
+import { SiteLink } from '@/components/site/site-link';
 
 export function NavbarActions() {
   return (
@@ -13,21 +13,21 @@ export function NavbarActions() {
       <Button
         variant="ghost"
         nativeButton={false}
-        render={<Link href={site.github} />}
+        render={<SiteLink href={site.github} />}
       >
         GitHub
       </Button>
       <Button
         variant="ghost"
         nativeButton={false}
-        render={<Link href={site.cloud.app} />}
+        render={<SiteLink href={site.cloud.app} />}
       >
         Sign in
       </Button>
       <Button
         className="group/sliding relative overflow-hidden px-6"
         nativeButton={false}
-        render={<Link href={site.getStarted} />}
+        render={<SiteLink href={site.getStarted} />}
       >
         <span className="inline-flex items-center transition-transform duration-300 group-hover/sliding:-translate-x-2">
           Get started

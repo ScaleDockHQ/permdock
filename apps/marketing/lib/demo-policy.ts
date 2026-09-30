@@ -7,6 +7,7 @@ import {
   resource,
   role,
   type Decision,
+  type DecideOptions,
   type DecisionDescription,
   type PermDock,
 } from 'permdock';
@@ -72,6 +73,9 @@ const policy = definePolicy(demoPermissions, {
   subject: demoSubject,
 });
 
+// The demo prerenders, so it cannot read the wall clock; no demo grant expires.
+const DEMO_OPTIONS: DecideOptions = { now: 1_767_225_600 };
+
 function demoDock(roleName: DemoRole): PermDock {
   const created = createPermDock(policy, {
     id: 'demo-user',
@@ -99,27 +103,35 @@ export function demoDecide(
   let permissionKey: string;
   switch (action) {
     case 'read':
-      decision = dock.decide(demoPermissions.post.read, post);
+      decision = dock.decide(demoPermissions.post.read, post, DEMO_OPTIONS);
       permissionKey = demoPermissions.post.read.key;
       break;
     case 'update':
-      decision = dock.decide(demoPermissions.post.update, post);
+      decision = dock.decide(demoPermissions.post.update, post, DEMO_OPTIONS);
       permissionKey = demoPermissions.post.update.key;
       break;
     case 'delete':
-      decision = dock.decide(demoPermissions.post.delete, post);
+      decision = dock.decide(demoPermissions.post.delete, post, DEMO_OPTIONS);
       permissionKey = demoPermissions.post.delete.key;
       break;
     case 'publish':
-      decision = dock.decide(demoPermissions.post.publish, post);
+      decision = dock.decide(demoPermissions.post.publish, post, DEMO_OPTIONS);
       permissionKey = demoPermissions.post.publish.key;
       break;
     case 'create':
-      decision = dock.decide(demoPermissions.post.create);
+      decision = dock.decide(
+        demoPermissions.post.create,
+        undefined,
+        DEMO_OPTIONS,
+      );
       permissionKey = demoPermissions.post.create.key;
       break;
     case 'list':
-      decision = dock.decide(demoPermissions.post.list);
+      decision = dock.decide(
+        demoPermissions.post.list,
+        undefined,
+        DEMO_OPTIONS,
+      );
       permissionKey = demoPermissions.post.list.key;
       break;
     default: {

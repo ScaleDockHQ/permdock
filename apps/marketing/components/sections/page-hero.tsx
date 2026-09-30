@@ -3,18 +3,20 @@
 import type { ReactNode } from 'react';
 
 import { ArrowRightIcon, ArrowUpRightIcon } from 'lucide-react';
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
+
+import type { SiteHref } from '@/lib/site';
 
 import { Badge } from '@/components/reui/badge';
 import { IconTile } from '@/components/reui/icon-tile';
+import { SiteLink } from '@/components/site/site-link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export type PageHeroFeature = {
   title: string;
   description: string;
-  href: string;
+  href: SiteHref;
   icon: ReactNode;
 };
 
@@ -28,11 +30,11 @@ export function PageHero({
   features,
 }: {
   badge: string;
-  badgeHref?: string;
+  badgeHref?: SiteHref;
   title: string;
   description: string;
-  primary: { href: string; label: string };
-  secondary: { href: string; label: string };
+  primary: { href: SiteHref; label: string };
+  secondary: { href: SiteHref; label: string };
   features: readonly PageHeroFeature[];
 }) {
   const first = features[0];
@@ -65,7 +67,7 @@ export function PageHero({
           <Badge
             variant="outline"
             radius="full"
-            render={badgeHref ? <Link href={badgeHref} /> : undefined}
+            render={badgeHref ? <SiteLink href={badgeHref} /> : undefined}
             className="h-7 gap-1.5 px-2 text-sm font-medium"
           >
             <span
@@ -85,13 +87,16 @@ export function PageHero({
             {description}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-2">
-            <Button nativeButton={false} render={<Link href={primary.href} />}>
+            <Button
+              nativeButton={false}
+              render={<SiteLink href={primary.href} />}
+            >
               {primary.label}
             </Button>
             <Button
               variant="outline"
               nativeButton={false}
-              render={<Link href={secondary.href} />}
+              render={<SiteLink href={secondary.href} />}
             >
               {secondary.label}
             </Button>
@@ -107,7 +112,7 @@ export function PageHero({
           {features.map((feature) => {
             const isActive = feature.title === activeTitle;
             return (
-              <Link
+              <SiteLink
                 key={feature.title}
                 href={feature.href}
                 onClick={() => setActiveTitle(feature.title)}
@@ -130,7 +135,7 @@ export function PageHero({
                   aria-hidden="true"
                   className="text-muted-foreground size-4 shrink-0 self-center"
                 />
-              </Link>
+              </SiteLink>
             );
           })}
         </div>

@@ -73,13 +73,20 @@
         ".source/**"
       ],
       "env": [
+        "DOCS_ORIGIN",
+        "EXPOSE_TESTING_API",
         "MEMBERSHIP_MODE",
         "NEXT_E2E",
+        "NEXT_PUBLIC_*",
         "PERMDOCK_COLLECT",
         "PERMDOCK_E2E_DRIFT",
         "PERMDOCK_E2E_NO_PRIVATE_CACHE",
+        "SENTRY_DSN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
         "SESSION_SECRET"
-      ]
+      ],
+      "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
     },
     "typecheck": {
       "dependsOn": ["^build"]

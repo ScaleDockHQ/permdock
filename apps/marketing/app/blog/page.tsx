@@ -35,7 +35,10 @@ export default function BlogIndexPage() {
             <Frame key={post.url} stacked>
               <FramePanel className="flex flex-1 flex-col gap-3">
                 <h2 className="text-lg font-semibold">
-                  <Link href={post.url} className="hover:text-primary">
+                  <Link
+                    href={`/blog/${post.slugs.join('/')}`}
+                    className="hover:text-primary"
+                  >
                     {post.data.title}
                   </Link>
                 </h2>
@@ -45,7 +48,7 @@ export default function BlogIndexPage() {
               </FramePanel>
               <FrameFooter>
                 <Link
-                  href={post.url}
+                  href={`/blog/${post.slugs.join('/')}`}
                   className="text-primary text-sm font-medium"
                 >
                   Read

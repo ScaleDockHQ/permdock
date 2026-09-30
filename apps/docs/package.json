@@ -12,6 +12,7 @@
     "typecheck": "next typegen && tsc --noEmit --checkers 4"
   },
   "dependencies": {
+    "@permdock/next-config": "workspace:*",
     "beautiful-mermaid": "catalog:",
     "fumadocs-core": "catalog:",
     "fumadocs-mdx": "catalog:",

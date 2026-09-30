@@ -2,8 +2,6 @@ import { notFound } from 'next/navigation';
 
 import { getLLMText, getPageMarkdownUrl, source } from '@/lib/source';
 
-export const revalidate = false;
-
 type MarkdownRouteContext = {
   params: Promise<{ slug?: string[] }>;
 };

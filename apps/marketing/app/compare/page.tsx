@@ -1,8 +1,8 @@
 import { GitCompareIcon, LibraryIcon, NetworkIcon } from 'lucide-react';
-import Link from 'next/link';
 
 import { Frame, FramePanel } from '@/components/reui/frame';
 import { PageHero } from '@/components/sections/page-hero';
+import { SiteLink } from '@/components/site/site-link';
 import { Button } from '@/components/ui/button';
 import { compareMatrix, compareRows } from '@/lib/compare';
 
@@ -62,7 +62,7 @@ export default function ComparePage() {
               <Button
                 variant="outline"
                 nativeButton={false}
-                render={<Link href={row.href} />}
+                render={<SiteLink href={row.href} />}
               >
                 Read more
               </Button>

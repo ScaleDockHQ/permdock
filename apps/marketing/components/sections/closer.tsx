@@ -4,10 +4,10 @@ import {
   PuzzleIcon,
   ShieldIcon,
 } from 'lucide-react';
-import Link from 'next/link';
 
 import { Badge } from '@/components/reui/badge';
 import { Frame, FramePanel } from '@/components/reui/frame';
+import { SiteLink } from '@/components/site/site-link';
 import { Button } from '@/components/ui/button';
 import { Item, ItemMedia } from '@/components/ui/item';
 import { site } from '@/lib/site';
@@ -67,7 +67,7 @@ export function Closer() {
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button
           nativeButton={false}
-          render={<Link href={site.getStarted} />}
+          render={<SiteLink href={site.getStarted} />}
           size="lg"
         >
           Get started
@@ -76,7 +76,7 @@ export function Closer() {
         <Button
           variant="outline"
           nativeButton={false}
-          render={<Link href={site.docs} />}
+          render={<SiteLink href={site.docs} />}
           size="lg"
         >
           View documentation

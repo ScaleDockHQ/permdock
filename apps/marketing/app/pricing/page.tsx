@@ -1,6 +1,5 @@
-import Link from 'next/link';
-
 import { Frame, FramePanel } from '@/components/reui/frame';
+import { SiteLink } from '@/components/site/site-link';
 import { Button } from '@/components/ui/button';
 import { compareMatrix } from '@/lib/compare';
 import { site } from '@/lib/site';
@@ -61,7 +60,7 @@ export default function PricingPage() {
               </p>
               <Button
                 nativeButton={false}
-                render={<Link href={tier.cta.href} />}
+                render={<SiteLink href={tier.cta.href} />}
               >
                 {tier.cta.label}
               </Button>

@@ -8,8 +8,6 @@ import {
 } from '@/lib/docs-mcp';
 import { getLLMText, source } from '@/lib/source';
 
-export const revalidate = false;
-
 function pages(): readonly DocsPageSummary[] {
   return source.getPages().map((page) => ({
     title: page.data.title,

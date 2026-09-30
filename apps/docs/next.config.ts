@@ -2,10 +2,12 @@ import type { NextConfig } from 'next';
 
 import { createMDX } from 'fumadocs-mdx/next';
 
+import { createNextConfig } from '@permdock/next-config';
+
 const withMDX = createMDX();
 
 const config: NextConfig = {
-  reactStrictMode: true,
+  ...createNextConfig(),
   assetPrefix: '/docs',
   redirects() {
     return [

@@ -1,5 +1,4 @@
-import Link from 'next/link';
-
+import { SiteLink } from '@/components/site/site-link';
 import { footerColumns, site } from '@/lib/site';
 
 export function SiteFooter() {
@@ -18,12 +17,12 @@ export function SiteFooter() {
             <ul className="flex flex-col gap-1.5">
               {column.links.map((link) => (
                 <li key={`${column.title}-${link.href}`}>
-                  <Link
+                  <SiteLink
                     href={link.href}
                     className="text-muted-foreground hover:text-foreground text-sm"
                   >
                     {link.label}
-                  </Link>
+                  </SiteLink>
                 </li>
               ))}
             </ul>

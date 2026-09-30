@@ -1,9 +1,9 @@
 'use client';
 
 import { CircleHelpIcon, LifeBuoyIcon, MailIcon } from 'lucide-react';
-import Link from 'next/link';
 
 import { Badge } from '@/components/reui/badge';
+import { SiteLink } from '@/components/site/site-link';
 import {
   Accordion,
   AccordionContent,
@@ -77,7 +77,7 @@ export function FaqSection() {
               </p>
               <Button
                 nativeButton={false}
-                render={<Link href="/docs/security/threat-model" />}
+                render={<SiteLink href="/docs/security/threat-model" />}
                 className="w-full"
               >
                 Threat model

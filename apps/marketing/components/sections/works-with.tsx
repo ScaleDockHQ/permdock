@@ -1,7 +1,6 @@
-import Link from 'next/link';
-
 import { Frame, FrameFooter, FramePanel } from '@/components/reui/frame';
 import { IconTile } from '@/components/reui/icon-tile';
+import { SiteLink } from '@/components/site/site-link';
 import { adapterGroups } from '@/lib/adapters';
 
 import { AdapterLogo } from './adapter-logos';
@@ -30,12 +29,12 @@ export function WorksWith() {
                     </IconTile>
                   </FramePanel>
                   <FrameFooter className="px-1.5! py-2.5! text-center">
-                    <Link
+                    <SiteLink
                       href={tile.href}
                       className="hover:text-primary text-sm leading-tight font-medium"
                     >
                       {tile.name}
-                    </Link>
+                    </SiteLink>
                   </FrameFooter>
                 </Frame>
               ))}

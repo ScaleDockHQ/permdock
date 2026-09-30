@@ -1,0 +1,7 @@
+{
+  "extends": "@permdock/typescript-config/base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "oxlint.config.ts"]
+}

@@ -1,8 +1,10 @@
+import type { SiteHref } from '@/lib/site';
+
 export type CompareRow = {
   readonly name: string;
   readonly kind: string;
   readonly take: string;
-  readonly href: string;
+  readonly href: SiteHref;
 };
 
 export const compareRows: readonly CompareRow[] = [

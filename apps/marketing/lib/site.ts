@@ -1,3 +1,19 @@
+import type { Route } from 'next';
+
+/** Paths the docs service serves; `<Link>` cannot navigate across zones. */
+export type DocsHref = `/docs${string}` | '/devtools';
+export type ExternalHref = `https://${string}` | `mailto:${string}`;
+export type SiteHref = Route | DocsHref | ExternalHref;
+
+export function isCrossZone(href: SiteHref): href is DocsHref | ExternalHref {
+  return (
+    href.startsWith('/docs') ||
+    href === '/devtools' ||
+    href.startsWith('https://') ||
+    href.startsWith('mailto:')
+  );
+}
+
 export const site = {
   name: 'PermDock',
   tagline:
@@ -17,7 +33,7 @@ export const site = {
 } as const;
 
 export type NavLink = {
-  readonly href: string;
+  readonly href: SiteHref;
   readonly label: string;
   readonly description?: string;
 };
@@ -56,7 +72,7 @@ const resourceLinks: readonly NavLink[] = [
 
 export const agentRuntimes: readonly {
   readonly name: string;
-  readonly href: string;
+  readonly href: DocsHref;
 }[] = [
   { name: 'MCP', href: '/docs/adapters/mcp' },
   { name: 'AI SDK', href: '/docs/adapters/ai-sdk' },
