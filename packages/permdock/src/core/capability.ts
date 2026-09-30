@@ -98,6 +98,7 @@ export function linkPolicyViolation(
   policy: LinkPolicy | readonly LinkPolicy[],
   issuedAt: number | undefined,
 ): LinkPolicyViolation | undefined {
+  // SAFETY: Array.isArray does not narrow a readonly array out of the union; not an array here.
   const policies: readonly LinkPolicy[] = Array.isArray(policy)
     ? policy
     : [policy as LinkPolicy];
@@ -158,7 +159,7 @@ export function idList(value: unknown): readonly string[] | undefined {
   ) {
     return undefined;
   }
-  return [...new Set(value as readonly string[])];
+  return [...new Set(value)];
 }
 
 function parseRedeemer(input: unknown): CapabilityRedeemer | undefined {

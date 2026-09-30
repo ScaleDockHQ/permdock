@@ -55,6 +55,7 @@ export function rowId(data: unknown): string {
   if (data === null || typeof data !== 'object') {
     return '*';
   }
+  // SAFETY: data is a non-null object checked above; the read id stays unknown and is checked below.
   const id = (data as Record<string, unknown>)['id'];
   return typeof id === 'string' || typeof id === 'number' ? String(id) : '*';
 }

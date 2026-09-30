@@ -33,6 +33,7 @@ function createRef(path: string): SubjectRef {
     assertSafeKey(segment, 'subject path');
   }
   const target: ConditionRef = freezeDeep({ ref: path });
+  // SAFETY: the get trap below answers every other string key with a nested SubjectRef.
   const proxy: SubjectRef = new Proxy(target as SubjectRef, {
     get(object, property, receiver): unknown {
       if (property === 'ref' || property === REF_BRAND) {
@@ -76,11 +77,11 @@ export function isSubjectRef(value: unknown): value is ConditionRef {
     value === null ||
     typeof value !== 'object' ||
     !('ref' in value) ||
-    typeof (value as ConditionRef).ref !== 'string'
+    typeof value.ref !== 'string'
   ) {
     return false;
   }
-  const ref = (value as ConditionRef).ref;
+  const ref = value.ref;
   return (
     ref === 'principal' ||
     ref.startsWith('principal.') ||

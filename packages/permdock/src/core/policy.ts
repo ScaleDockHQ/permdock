@@ -404,6 +404,7 @@ function flattenPermissions(
   if (isReadonlyArray(input)) {
     return input.flatMap((item) => flattenPermissions(item));
   }
+  // SAFETY: leaves and arrays returned above, so the remaining input is a PermissionTree.
   return [...listPermissions(input as PermissionTree)];
 }
 
@@ -417,6 +418,7 @@ function resolveRoleScope(on: RoleScope | undefined): Grant['scope'] {
     }
     return on;
   }
+  // SAFETY: strings returned above; flattenPermissions recurses, so trees inside an array work.
   const permissions = flattenPermissions(
     on as Permission | PermissionTree | readonly Permission[],
   );
@@ -494,6 +496,7 @@ export function allow<T, K extends PermissionKind = PermissionKind>(
   condition?: GrantCondition<T, K>,
 ): Omit<Grant, 'role' | 'scope'> | Omit<Grant, 'role' | 'scope'>[] {
   const permissions = flattenPermissions(permission);
+  // SAFETY: T and K only type the caller's closure and where input; makeGrant takes the erased form.
   const grants = permissions.map((leaf) =>
     makeGrant(
       leaf,
@@ -509,6 +512,7 @@ export function deny<T, K extends PermissionKind = PermissionKind>(
   condition?: GrantCondition<T, K>,
 ): Omit<Grant, 'role' | 'scope'> | Omit<Grant, 'role' | 'scope'>[] {
   const permissions = flattenPermissions(permission);
+  // SAFETY: T and K only type the caller's closure and where input; makeGrant takes the erased form.
   const grants = permissions.map((leaf) =>
     makeGrant(
       leaf,
@@ -528,8 +532,10 @@ function flattenGrants(
   const out: Omit<Grant, 'role' | 'scope'>[] = [];
   for (const grant of grants) {
     if (Array.isArray(grant)) {
+      // SAFETY: Array.isArray does not narrow a readonly array; the array form is a grant list.
       out.push(...(grant as readonly Omit<Grant, 'role' | 'scope'>[]));
     } else {
+      // SAFETY: arrays take the branch above, so this is a single grant.
       out.push(grant as Omit<Grant, 'role' | 'scope'>);
     }
   }
@@ -568,6 +574,7 @@ export function role(
     throw new Error(`PermDock: role option 'restricted' is reserved`);
   }
   const leaf = isRole(name) ? name : undefined;
+  // SAFETY: the right side runs only when name is not a role leaf, so it is the string form.
   const roleName = leaf?.key ?? (name as string);
   const scope = resolveRoleScope(options?.on ?? leaf?.on);
   const assignable =
@@ -679,6 +686,7 @@ function nameList(
       `PermDock: role '${roleName}' ${option} must be a list of names`,
     );
   }
+  // SAFETY: the check above throws unless value is an array of non-empty, safe strings.
   return [...new Set(value as readonly string[])];
 }
 
@@ -880,6 +888,7 @@ function rescopeBinding(
     typeof binding.on === 'string'
       ? scopeOfGrant(binding.on, declared)
       : binding.on;
+  // SAFETY: a string on resolves to a declared scope name; any other on is passed through as is.
   return freezeDeep(
     compact<RoleBinding>({ ...binding, grants, on: on as RoleScope }),
   );
@@ -955,6 +964,7 @@ function isVocabularyInput(value: unknown): value is PolicyVocabulary {
     value !== null &&
     typeof value === 'object' &&
     'permissions' in value &&
+    // SAFETY: permissions is checked to be a key; isRegistryTree then tests its registry brand.
     isRegistryTree((value as PolicyVocabulary).permissions)
   );
 }
@@ -1058,6 +1068,7 @@ export function definePolicy<
   permissions: Input,
   options: DefinePolicyOptions<TUser, TPrincipal, S>,
 ): Policy<TUser, TPrincipal, VocabularyFromInput<Input>> {
+  // SAFETY: Input is a vocabulary or a tree; each branch builds the VocabularyFromInput shape.
   const vocabulary = (
     isVocabularyInput(permissions)
       ? permissions
@@ -1088,12 +1099,7 @@ export function definePolicy<
     }
   }
   const fromBindings = roles.flatMap((item) => item.grants);
-  const fromGrants = flattenGrants(
-    (options.grants ?? []) as readonly (
-      | Omit<Grant, 'role' | 'scope'>
-      | readonly Omit<Grant, 'role' | 'scope'>[]
-    )[],
-  )
+  const fromGrants = flattenGrants(options.grants ?? [])
     .map(completeGrant)
     .map((grant) => rescopeGrant(grant, scopes));
   const grants = [...fromBindings, ...fromGrants];
@@ -1115,6 +1121,7 @@ export function definePolicy<
       ),
     ),
   ].toSorted();
+  // SAFETY: TUser and TPrincipal only type options.principal, the mapper stored here as is.
   return freezeDeep({
     permissions: tree,
     roles,
@@ -1188,6 +1195,7 @@ export function separationConflicts(
         if (!held.has(other)) {
           continue;
         }
+        // SAFETY: sorting a two-element array keeps both elements.
         const pair = [name, other].toSorted() as [string, string];
         const key = `${membership.principal ?? ''}:${membership.tenant ?? ''}:${pair.join('+')}`;
         if (seen.has(key)) {
@@ -1222,5 +1230,6 @@ export type SubjectOf<P> = {
 export function inferOutput<T>(
   schema: StandardSchemaV1<unknown, T> | undefined,
 ): T | undefined {
+  // SAFETY: a typing helper only; callers read the type T and never use the returned value as data.
   return schema as unknown as T | undefined;
 }

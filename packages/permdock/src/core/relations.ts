@@ -66,7 +66,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function isInstant(value: unknown): boolean {
+function isInstant(value: unknown): value is number | undefined {
   return (
     value === undefined || (typeof value === 'number' && Number.isFinite(value))
   );
@@ -78,6 +78,7 @@ function asChain(value: unknown): RelationChain | undefined {
   }
   const ancestors: { readonly id: string; readonly restricted?: boolean }[] =
     [];
+  // SAFETY: a widening from any, so each ancestor is checked with isRecord below.
   for (const item of value['ancestors'] as readonly unknown[]) {
     if (
       !isRecord(item) ||
@@ -121,6 +122,7 @@ function asHolders(value: unknown): readonly RelationHolder[] | undefined {
     return undefined;
   }
   const holders: RelationHolder[] = [];
+  // SAFETY: a widening from any, so each holder is checked with isRecord below.
   for (const item of value as readonly unknown[]) {
     if (
       !isRecord(item) ||
@@ -130,12 +132,10 @@ function asHolders(value: unknown): readonly RelationHolder[] | undefined {
       return undefined;
     }
     const period = {
-      ...(item['startsAt'] === undefined
-        ? {}
-        : { startsAt: item['startsAt'] as number }),
+      ...(item['startsAt'] === undefined ? {} : { startsAt: item['startsAt'] }),
       ...(item['expiresAt'] === undefined
         ? {}
-        : { expiresAt: item['expiresAt'] as number }),
+        : { expiresAt: item['expiresAt'] }),
     };
     if (
       isRecord(item['principal']) &&
@@ -161,6 +161,7 @@ function read<T>(
 ): T | Unread {
   const entry = cache.get(key);
   if (entry !== undefined) {
+    // SAFETY: a ready entry holds the result of validate, and each key is read with one validator.
     return entry.state === 'ready' ? (entry.value as T) : entry.state;
   }
   if (call === undefined) {
@@ -191,6 +192,7 @@ function read<T>(
   }
   settle(result);
   const settled = cache.get(key);
+  // SAFETY: settle above stored validate's result for this key.
   return settled?.state === 'ready' ? (settled.value as T) : 'failed';
 }
 
@@ -592,6 +594,7 @@ function tableHolder(
     typeof kind === 'string' && Object.hasOwn(groups.resources, kind)
       ? groups.resources[kind]
       : undefined;
+  // SAFETY: relation is defined only when kind passed the typeof string check above.
   return relation === undefined
     ? undefined
     : { group: { resource: kind as string, id: subject, relation }, ...period };

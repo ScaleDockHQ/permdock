@@ -32,11 +32,13 @@ function flattenPermissions(
     'key' in input &&
     'action' in input
   ) {
+    // SAFETY: a permission leaf carries key and action; a tree node does not.
     return [input as Permission];
   }
   if (isReadonlyArray(input)) {
     return input.flatMap((item) => flattenPermissions(item));
   }
+  // SAFETY: leaves and arrays returned above, so the remaining input is a PermissionTree.
   return [...listPermissions(input as PermissionTree)];
 }
 
@@ -215,7 +217,7 @@ export function evaluateBreakGlass(
     };
   }
   const obligations: Obligation[] = [
-    ...spec.obligations.map((kind) => ({ kind }) as Obligation),
+    ...spec.obligations.map((kind): Obligation => ({ kind })),
     ...(typeof reason === 'string' && reason !== ''
       ? [{ kind: 'justify' as const, reason }]
       : []),
@@ -262,7 +264,7 @@ function activationDenied(
     outcome: 'denied',
     denials: [denial],
     alternatives: [],
-  }) as Decision;
+  });
 }
 
 /**
@@ -344,7 +346,7 @@ export function activate(
       grant: { role: roleName, permission: `activate:${roleName}` },
       reason: 'human',
       token,
-    }) as Decision;
+    });
   }
   return freezeDeep({
     outcome: 'granted',
@@ -352,5 +354,5 @@ export function activate(
     matched: { role: roleName, permission: `activate:${roleName}` },
     token,
     elevation: membership,
-  }) as Decision;
+  });
 }

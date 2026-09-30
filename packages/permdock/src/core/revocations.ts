@@ -21,6 +21,7 @@ function isRevocationEvent(value: unknown): value is RevocationEvent {
   if (value === null || typeof value !== 'object') {
     return false;
   }
+  // SAFETY: value is a non-null object checked above; every field is type-checked below.
   const event = value as Record<string, unknown>;
   return (
     typeof event['principal'] === 'string' &&

@@ -176,10 +176,12 @@ function finishPreset<
   baseCollection: BaseC,
   options: PresetOptions<A, C> | undefined,
 ): PresetResult<BaseA, BaseC, A, C> {
+  // SAFETY: mergeActionLists overlays the options on the base record, as MergeActionRecords types it.
   const actions = mergeActionLists(
     baseActions,
     options?.actions,
   ) as MergeActionRecords<BaseA, ToActionRecord<A>>;
+  // SAFETY: mergeActionLists overlays the options on the base record, as MergeActionRecords types it.
   const collection = mergeActionLists(
     baseCollection,
     options?.collection,

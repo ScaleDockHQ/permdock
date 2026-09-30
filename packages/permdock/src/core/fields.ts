@@ -37,6 +37,7 @@ export function pickVisible<T extends object>(
       out[key] = ownGet(row, key);
     }
   }
+  // SAFETY: out holds only own keys of row, each with the row's value for that key.
   return freezeDeep(out) as Partial<T>;
 }
 

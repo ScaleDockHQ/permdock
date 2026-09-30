@@ -139,12 +139,13 @@ export async function resolveRelated(
     }
   }
 
-  const condition = await resolve(where.condition as Condition);
+  const condition = await resolve(where.condition);
   const out = { condition, partial: where.partial };
   for (const key of ['subject', 'scopes', 'resources'] as const) {
     if (where[key] !== undefined) {
       Object.defineProperty(out, key, { value: where[key], enumerable: false });
     }
   }
+  // SAFETY: out has condition and partial, plus the optional where() fields defined on it above.
   return freezeDeep(out) as WhereResult;
 }

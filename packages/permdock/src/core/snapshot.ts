@@ -244,26 +244,29 @@ function rejectUnsafe(value: unknown, path: string): void {
     }
     return;
   }
-  for (const key of Object.keys(value as object)) {
+  for (const key of Object.keys(value)) {
     if (isForbiddenKey(key)) {
       throw new Error(`PermDock: unsafe snapshot key '${key}' at ${path}`);
     }
+    // SAFETY: arrays and primitives returned above; key is an own key of this object.
     rejectUnsafe((value as Record<string, unknown>)[key], `${path}.${key}`);
   }
 }
 
 export function parseSnapshot(json: unknown): Snapshot {
-  const input = typeof json === 'string' ? (JSON.parse(json) as unknown) : json;
+  const input: unknown = typeof json === 'string' ? JSON.parse(json) : json;
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error('PermDock: snapshot must be an object');
   }
   // Freezing the caller's object in place would break a framework proxy
   // around it (Vue `reactive`, Nuxt `useState`); freeze a plain copy instead.
+  // SAFETY: a JSON round trip of the non-array object checked above is again an object.
   const value =
     typeof json === 'string' || Object.isFrozen(input)
       ? input
       : (JSON.parse(JSON.stringify(input)) as object);
   rejectUnsafe(value, '$');
+  // SAFETY: value is a non-array object; its fields stay unknown until checked.
   const record = value as Record<string, unknown>;
   const version = record['v'];
   if (version !== 1) {
@@ -271,5 +274,6 @@ export function parseSnapshot(json: unknown): Snapshot {
       `PermDock: unsupported snapshot version '${String(version)}'`,
     );
   }
+  // SAFETY: only the version and unsafe keys are checked; the other fields are not validated here.
   return freezeDeep(value) as Snapshot;
 }

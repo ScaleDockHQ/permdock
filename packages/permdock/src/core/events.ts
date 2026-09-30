@@ -78,6 +78,7 @@ function credentialRef(
   if (value === null || typeof value !== 'object') {
     return undefined;
   }
+  // SAFETY: value is a non-null object checked above; both fields stay unknown until checked.
   const { id, kind } = value as {
     readonly id?: unknown;
     readonly kind?: unknown;
@@ -113,10 +114,12 @@ export function finish(
     return;
   }
   const resource = getResource(policy.permissions, permission.resource);
+  // SAFETY: data is a non-null object checked in the condition; the read value stays unknown.
   const resourceId =
     data !== null && typeof data === 'object'
       ? (data as Record<string, unknown>)[resource?.id ?? 'id']
       : undefined;
+  // SAFETY: only the purpose array is checked; its items are not verified to be strings.
   const event: DecisionEvent = freezeDeep(
     compact<DecisionEvent>({
       type: 'decision' as const,
@@ -199,12 +202,14 @@ export function finish(
       counts,
     }),
   );
+  // SAFETY: emitSafe passes these listeners only the DecisionEvent built above.
   emitSafe(
     env.listeners.decision as unknown as Set<(payload: unknown) => void>,
     event,
     env.listeners,
   );
   if (decision.outcome === 'denied') {
+    // SAFETY: emitSafe passes these listeners only the DecisionEvent built above.
     emitSafe(
       env.listeners.denied as unknown as Set<(payload: unknown) => void>,
       event,

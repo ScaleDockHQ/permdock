@@ -141,6 +141,7 @@ export function rowInScope(
     if (key === undefined) {
       continue;
     }
+    // SAFETY: row is a non-null object checked above and key is its own property; value stays unknown.
     const value = Object.hasOwn(row, key)
       ? (row as Record<string, unknown>)[key]
       : undefined;
@@ -314,6 +315,7 @@ function matchResourceMembership(
     return false;
   }
   const field = membershipField(resource, on.resource, resources);
+  // SAFETY: row is a non-null object checked above; the read value is only compared with on.id.
   return (
     field !== undefined && (row as Record<string, unknown>)[field] === on.id
   );

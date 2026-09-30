@@ -104,13 +104,14 @@ export function customRolesFor(
   if (loaded.some((item) => isThenable(item))) {
     return Promise.all(
       loaded.map((item) =>
-        Promise.resolve(item).catch(() => {
+        Promise.resolve(item).catch((): CustomRole[] => {
           auth.push({ reason: 'source-threw', source: 'customRoles' });
-          return [] as CustomRole[];
+          return [];
         }),
       ),
     ).then((lists) => lists.flat());
   }
+  // SAFETY: the branch above returns when any item is a thenable, so every item is a list.
   return (loaded as CustomRole[][]).flat();
 }
 
@@ -463,6 +464,7 @@ export function evaluate(
     subject.principal?.tenant,
   );
   if (subject.principal !== null && globalNames.unknown.length > 0) {
+    // SAFETY: emitSafe passes these listeners only the AuthEvent literal below.
     emitSafe(
       env.listeners.auth as unknown as Set<(payload: unknown) => void>,
       { reason: 'unknown-role', source: 'roles' } satisfies AuthEvent,
@@ -971,6 +973,7 @@ export function evaluate(
     return decision;
   }
 
+  // SAFETY: current is a non-null object checked in the condition; the read value stays unknown.
   const resourceId =
     permission.kind === 'collection'
       ? '*'

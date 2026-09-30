@@ -313,10 +313,12 @@ export function createPermDock<
   const auth: AuthEvent[] = [];
   const subject = resolveSubject(policy, user, options, auth);
   if (isThenable(subject)) {
+    // SAFETY: instantiate builds the instance from this policy, whose vocabulary type is V.
     return subject.then((resolved) =>
       instantiate(policy, resolved, options, auth),
     ) as Promise<PermDock<V>>;
   }
+  // SAFETY: instantiate builds the instance from this policy, whose vocabulary type is V.
   return instantiate(policy, subject, options, auth) as PermDock<V>;
 }
 

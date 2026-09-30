@@ -94,6 +94,7 @@ function comparablePair(
     kind === typeof right &&
     (kind === 'string' || kind === 'number' || kind === 'boolean')
   ) {
+    // SAFETY: kind is typeof both sides and was checked to be string, number or boolean above.
     return [
       left as string | number | boolean,
       right as string | number | boolean,
@@ -291,7 +292,7 @@ export function evaluateCondition(
         return false;
       }
       const left = ownGet(data, condition.field);
-      const right = unwrap(condition.value as ConditionValue, subject);
+      const right = unwrap(condition.value, subject);
       const matched = inList(left, right);
       return condition.op === 'in'
         ? matched

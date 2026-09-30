@@ -57,6 +57,7 @@ export function mergeMemberships(
 function all<T>(
   values: readonly (T | Promise<T>)[],
 ): readonly T[] | Promise<readonly T[]> {
+  // SAFETY: the second branch runs only when no value is a thenable, so each one is a T.
   return values.some((value) => isThenable(value))
     ? Promise.all(values)
     : (values as readonly T[]);
@@ -85,7 +86,7 @@ export function composeMemberships(
       return then(
         all(sources.map((source) => source.membershipsFor(principal, options))),
         (lists) => mergeMemberships(lists),
-      ) as Membership[] | Promise<Membership[]>;
+      );
     },
     ...(listing.length === 0
       ? {}
@@ -118,7 +119,7 @@ export function composeMemberships(
                 }
                 return [...seen.values()];
               },
-            ) as MemberEntry[] | Promise<MemberEntry[]>;
+            );
           },
         }),
     ...(versioned.length === 0
@@ -144,6 +145,7 @@ export function composeMemberships(
 export function asMembershipSource(
   input: MembershipSource | readonly MembershipSource[],
 ): MembershipSource {
+  // SAFETY: Array.isArray does not narrow a readonly array out of the union; not an array here.
   return Array.isArray(input)
     ? composeMemberships(input)
     : (input as MembershipSource);

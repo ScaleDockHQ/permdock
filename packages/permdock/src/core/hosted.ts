@@ -94,16 +94,18 @@ function rejectUnsafe(value: unknown): void {
     if (isForbiddenKey(key)) {
       throw new Error(`PermDock: unsafe policy document key '${key}'`);
     }
+    // SAFETY: arrays and primitives returned above; key is an own key of this object.
     rejectUnsafe((value as Record<string, unknown>)[key]);
   }
 }
 
 /** Validates the document envelope; per-grant checks happen at merge time. */
 export function parsePolicyDocument(json: unknown): PolicyDocument {
-  const input = typeof json === 'string' ? (JSON.parse(json) as unknown) : json;
+  const input: unknown = typeof json === 'string' ? JSON.parse(json) : json;
   if (!isRecord(input)) {
     throw new TypeError('PermDock: policy document must be an object');
   }
+  // SAFETY: a JSON round trip of a record checked by isRecord above is again a plain object.
   const copy = JSON.parse(JSON.stringify(input)) as Record<string, unknown>;
   rejectUnsafe(copy);
   if (copy['v'] !== 1) {
@@ -120,6 +122,7 @@ export function parsePolicyDocument(json: unknown): PolicyDocument {
   ) {
     throw new TypeError('PermDock: malformed policy document');
   }
+  // SAFETY: the envelope fields are checked above; each grant is checked by buildGrant at merge.
   return freezeDeep(copy) as unknown as PolicyDocument;
 }
 
@@ -326,6 +329,7 @@ function approvalAcceptable(
   if (approval['by'] === undefined) {
     return true;
   }
+  // SAFETY: each item is checked with isRecord and declaredGrantee below before it is trusted.
   const by = flattenGrantee(approval['by'] as Grantee | readonly Grantee[]);
   return (
     by.length > 0 &&
@@ -365,6 +369,7 @@ function buildGrant(
   if (!policy.hostable.includes(permission.key)) {
     return { ok: false, reason: 'not-hostable' };
   }
+  // SAFETY: each item is checked with isRecord and declaredGrantee below before it is trusted.
   const to = flattenGrantee(raw['to'] as Grantee | readonly Grantee[]);
   if (
     to.length === 0 ||
@@ -393,15 +398,12 @@ function buildGrant(
     return { ok: false, reason: 'invalid' };
   }
   const effect = raw['effect'] ?? 'allow';
+  // SAFETY: approval passed approvalAcceptable and fields was checked as a string list above.
   const options = compact({
     where:
-      raw['where'] === undefined
-        ? undefined
-        : normalizeWhere(raw['where'] as Condition),
+      raw['where'] === undefined ? undefined : normalizeWhere(raw['where']),
     check:
-      raw['check'] === undefined
-        ? undefined
-        : normalizeWhere(raw['check'] as Condition),
+      raw['check'] === undefined ? undefined : normalizeWhere(raw['check']),
     approval: raw['approval'] as Grant['approval'],
     fields: raw['fields'] as readonly string[] | undefined,
   });
@@ -409,14 +411,17 @@ function buildGrant(
   try {
     const roleItem = to.length === 1 && to[0]?.kind === 'role' ? to[0] : null;
     if (roleItem === null) {
+      // SAFETY: to and options were validated above; allow and deny are generic over the leaf.
       const partial = (effect === 'allow' ? allow : deny)(permission, {
         ...options,
         to,
       } as never);
+      // SAFETY: allow and deny return a grant without role and scope, which completeGrant adds.
       built = completeGrant(partial as Omit<Grant, 'role' | 'scope'>);
     } else {
       const binding = policy.rolesByName.get(roleItem.role);
       const leaf = findRole(policy.vocabulary.roles, roleItem.role);
+      // SAFETY: options were validated above; allow and deny are generic over the leaf.
       const bound = role(
         leaf ?? roleItem.role,
         [(effect === 'allow' ? allow : deny)(permission, options as never)],

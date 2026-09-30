@@ -96,7 +96,7 @@ function isGrantee(value: unknown): value is Grantee {
     value !== null &&
     typeof value === 'object' &&
     'kind' in value &&
-    typeof (value as Grantee).kind === 'string'
+    typeof value.kind === 'string'
   );
 }
 
@@ -126,6 +126,7 @@ export function relation(
     if (through.length === 0) {
       throw new Error('PermDock: relation() through needs at least one link');
     }
+    // SAFETY: a widening to unknown, so each link from untyped callers is checked below.
     for (const link of through as readonly unknown[]) {
       if (typeof link !== 'string' || link === '' || link === 'parent') {
         throw new Error(
@@ -156,6 +157,7 @@ export function relation(
       );
     }
   }
+  // SAFETY: every link was checked to be a non-empty string other than 'parent' above.
   return freezeDeep(
     compact<RelationGrantee>({
       kind: 'relation' as const,
@@ -215,6 +217,7 @@ function resolveRoleScope(on: Role['on'] | undefined): RoleGrantee['scope'] {
 export function asGrantee(input: GranteeInput): Grantee | readonly Grantee[] {
   if (Array.isArray(input)) {
     const items: Grantee[] = [];
+    // SAFETY: Array.isArray does not narrow a readonly array; the only array form is GranteeInput[].
     for (const item of input as readonly GranteeInput[]) {
       items.push(...flattenGrantee(asGrantee(item)));
     }
@@ -250,8 +253,10 @@ export function flattenGrantee(
     return [];
   }
   if (Array.isArray(input)) {
+    // SAFETY: Array.isArray does not narrow a readonly array; the only array form is Grantee[].
     return input as readonly Grantee[];
   }
+  // SAFETY: undefined and arrays returned above, so input is a single Grantee.
   return [input as Grantee];
 }
 
@@ -402,6 +407,7 @@ export function relationHops(
   const hops: RelatedHop[] = [];
   let current: ResourceNode | undefined = resource;
   let field: string | undefined;
+  // SAFETY: Array.isArray does not narrow a readonly array; relation() only stores string links.
   for (const link of through as readonly string[]) {
     const spec: ResourceLink | undefined =
       current !== undefined && Object.hasOwn(current.links, link)

@@ -102,7 +102,7 @@ export function resourceIdOf(data: unknown): string | undefined {
   if (data === null || typeof data !== 'object' || !('id' in data)) {
     return undefined;
   }
-  const id = (data as { readonly id?: unknown }).id;
+  const id = data.id;
   return typeof id === 'string' || typeof id === 'number'
     ? String(id)
     : undefined;

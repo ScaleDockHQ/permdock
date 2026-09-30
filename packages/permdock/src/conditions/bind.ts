@@ -44,6 +44,7 @@ function bindArg(
   subject: Subject,
   only?: RefFilter,
 ): SqlFunctionArg {
+  // SAFETY: the field-reference form takes the first branch, so the second sees a ConditionValue.
   return arg !== null &&
     typeof arg === 'object' &&
     'field' in arg &&
@@ -79,7 +80,7 @@ export function bindConditionRefs(
       };
     case 'in':
     case 'notIn': {
-      const value = condition.value as ConditionValue;
+      const value: ConditionValue = condition.value;
       if (isConditionRef(value) && only !== undefined && !only(value.ref)) {
         return condition;
       }

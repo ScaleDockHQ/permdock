@@ -222,6 +222,7 @@ function asPortableCondition(input: Condition | WhereResult): Condition {
   if ('condition' in input && !('op' in input)) {
     return input.condition;
   }
+  // SAFETY: a WhereResult has no `op` and returned above, so what is left is a Condition.
   return input as Condition;
 }
 
@@ -543,7 +544,7 @@ function compileCompare(
     return condition.value === true ? ALWAYS : NEVER;
   }
   assertSafeKey(condition.field, 'condition field');
-  const value = unwrap(condition.value as ConditionValue, options.subject);
+  const value = unwrap(condition.value, options.subject);
   if (condition.op === 'in' || condition.op === 'notIn') {
     const list = Array.isArray(value)
       ? [

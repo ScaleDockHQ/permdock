@@ -17,6 +17,7 @@ export function freezeDeep<T>(value: T): T {
     return value;
   }
   for (const key of Object.getOwnPropertyNames(value)) {
+    // SAFETY: value is a non-null object checked above and key is one of its own property names.
     freezeDeep((value as Record<string, unknown>)[key]);
   }
   return value;

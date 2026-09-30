@@ -124,6 +124,7 @@ export function statementText(statement: SubjectStatement): string {
 export function statementTemplate(
   statement: SubjectStatement,
 ): TemplateStringsArray {
+  // SAFETY: a string array with a matching `raw` array is the shape a template tag reads.
   return Object.assign([...statement.strings], {
     raw: [...statement.strings],
   }) as unknown as TemplateStringsArray;

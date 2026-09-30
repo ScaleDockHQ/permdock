@@ -59,12 +59,14 @@ export function fromSnapshot(
   ): Decision =>
     evaluateSnapshot(snapshot, subject, permission, data, team, decideOptions);
 
+  // SAFETY: one implementation serves every PermDock['decide'] overload; all return a Decision.
   const decide = ((
     permission: Permission,
     data?: unknown,
     decideOptions: DecideOptions = {},
   ): Decision => run(permission, data, decideOptions)) as PermDock['decide'];
 
+  // SAFETY: one implementation serves every PermDock['can'] overload; all return a boolean.
   const can = ((
     permission: Permission,
     data?: unknown,
@@ -73,6 +75,7 @@ export function fromSnapshot(
     run(permission, data, decideOptions).outcome ===
     'granted') as PermDock['can'];
 
+  // SAFETY: one implementation serves every PermDock['assert'] overload; it returns only a grant.
   const assert = ((
     permission: Permission,
     data?: unknown,
@@ -144,6 +147,7 @@ export function fromSnapshot(
       return whereFromSnapshot(snapshot, subject, permission, team);
     },
     actions(resource, data, decideOptions) {
+      // SAFETY: actions takes a leaf or a resource node, the shapes listPermissions walks.
       const fromTree = listPermissions(resource as never);
       const leaves =
         fromTree.length > 0
@@ -155,8 +159,10 @@ export function fromSnapshot(
         (item) => run(item, data, decideOptions).outcome === 'granted',
       );
     },
+    // SAFETY: the implementation returns the result type of each simulate overload for its input.
     simulate: ((input: unknown) => {
       if (Array.isArray(input)) {
+        // SAFETY: the simulate overload that takes an array types it as [permission, data] pairs.
         return (input as readonly (readonly [Permission, unknown?])[]).map(
           ([permission, data]) => run(permission, data),
         );
@@ -166,6 +172,7 @@ export function fromSnapshot(
           run(permission, data),
         );
       }
+      // SAFETY: arrays and Arazzo input returned above; the last overload takes this preview.
       const preview = input as {
         readonly roles?: readonly (string | Role)[];
         readonly memberships?: readonly Membership[];

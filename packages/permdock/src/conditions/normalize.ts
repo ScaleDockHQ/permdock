@@ -133,6 +133,7 @@ function fieldCondition(field: string, raw: unknown): Condition {
     const keys = ownKeys(raw);
     if (keys.length === 1 && keys[0] !== undefined && FIELD_OPS.has(keys[0])) {
       const op = keys[0];
+      // SAFETY: raw is a non-null, non-array object checked above; op is one of its own keys.
       const value = (raw as Record<string, unknown>)[op];
       if (op === 'isNull') {
         if (typeof value !== 'boolean') {
@@ -155,6 +156,7 @@ function fieldCondition(field: string, raw: unknown): Condition {
           value: value.map((item) => toValue(item)),
         });
       }
+      // SAFETY: op is in FIELD_OPS and isNull, in and notIn returned above, so it is a comparison op.
       return collapse({
         op: op as 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains',
         field,
@@ -202,8 +204,9 @@ export function normalizeWhere(input: unknown): Condition {
     typeof input === 'object' &&
     'sql' in input &&
     'fingerprint' in input &&
-    typeof (input as { readonly sql: unknown }).sql === 'string'
+    typeof input.sql === 'string'
   ) {
+    // SAFETY: sql is checked to be a string above; fingerprint is only checked to be present.
     return opaque({
       sql: (input as { readonly sql: string; readonly fingerprint: string })
         .sql,
@@ -215,6 +218,7 @@ export function normalizeWhere(input: unknown): Condition {
   }
   const parts: Condition[] = [];
   for (const key of Object.keys(input)) {
+    // SAFETY: input is a non-null, non-array object checked above; key is one of its own keys.
     const value = (input as Record<string, unknown>)[key];
     if (key === 'and') {
       if (!Array.isArray(value)) {

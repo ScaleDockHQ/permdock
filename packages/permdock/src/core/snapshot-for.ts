@@ -62,6 +62,7 @@ export function snapshotFor<
 ): Snapshot {
   const auth: AuthEvent[] = [];
   const memberships = options.memberships;
+  // SAFETY: the generics only type the caller's side; resolveSubject reads the erased policy.
   const resolved = resolveSubject(
     policy as unknown as Policy,
     user,
@@ -80,6 +81,7 @@ export function snapshotFor<
     );
   }
   const subject = withPlans(resolved, options.plans);
+  // SAFETY: the generic policy's scopes are the same runtime list as the erased Policy's.
   const tenants = new Set(
     tenantsOf(subject.principal, scopeList(policy.scopes as Policy['scopes'])),
   );
@@ -96,6 +98,7 @@ export function snapshotFor<
             Object.hasOwn(names, tenant) ? (names[tenant] ?? []) : [],
           ]),
         );
+  // SAFETY: the generics only type the caller's side; snapshotOf reads the erased policy.
   return snapshotOf(
     policy as unknown as Policy,
     subject,

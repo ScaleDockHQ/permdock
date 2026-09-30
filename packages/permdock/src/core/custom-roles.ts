@@ -225,6 +225,7 @@ export function resolveCustomRole(
       drop({ permission: String(item), reason: 'unknown-permission' });
       continue;
     }
+    // SAFETY: item is a non-null object checked above; both fields stay unknown until checked.
     const entry = item as {
       readonly permission?: unknown;
       readonly effect?: unknown;

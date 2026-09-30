@@ -16,7 +16,7 @@ function isThenable(value: unknown): value is Promise<unknown> {
     value !== null &&
     typeof value === 'object' &&
     'then' in value &&
-    typeof (value as { readonly then?: unknown }).then === 'function'
+    typeof value.then === 'function'
   );
 }
 
@@ -64,6 +64,7 @@ export function validateBoundary(
       message: validationMessage(permission, resource, result.issues),
     });
   }
+  // SAFETY: a Standard Schema result without issues is a success result, which carries value.
   return (result as { readonly value: unknown }).value;
 }
 

@@ -47,6 +47,7 @@ function assemblePrincipal(
   let expiresAt = options.expiresAt;
   try {
     if (user === null || user === undefined) {
+      // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
       principal = policy.subject(user as never);
     } else if (isSubject(user)) {
       principal = user.principal;
@@ -58,6 +59,7 @@ function assemblePrincipal(
     } else if (isPrincipal(user)) {
       principal = user;
     } else {
+      // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
       principal = policy.subject(user as never);
     }
   } catch {
@@ -267,6 +269,7 @@ function resolveContext(
     return sanitizeContext(fallback);
   }
   try {
+    // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
     const loaded = policy.context(user as never);
     if (isThenable(loaded)) {
       return loaded.then(
@@ -331,6 +334,7 @@ export function resolveSubject(
   }
   const plans = withPlans(memberships);
   if (isThenable(plans)) {
+    // SAFETY: a thenable context returned above; the closure loses that narrowing.
     return Promise.resolve(plans).then((resolved) =>
       finishSubject(
         policy,

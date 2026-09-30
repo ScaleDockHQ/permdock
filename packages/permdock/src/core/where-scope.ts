@@ -259,5 +259,6 @@ export function whereFromGrants(
       enumerable: false,
     });
   }
+  // SAFETY: result has condition and partial, plus subject, scopes and resources defined above.
   return freezeDeep(result) as WhereResult;
 }

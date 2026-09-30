@@ -158,7 +158,7 @@ export function isConditionRef(value: unknown): value is ConditionRef {
     value !== null &&
     typeof value === 'object' &&
     'ref' in value &&
-    typeof (value as ConditionRef).ref === 'string'
+    typeof value.ref === 'string'
   );
 }
 
@@ -167,7 +167,7 @@ export function isConditionDate(value: unknown): value is ConditionDate {
     value !== null &&
     typeof value === 'object' &&
     'date' in value &&
-    typeof (value as ConditionDate).date === 'string' &&
+    typeof value.date === 'string' &&
     !('ref' in value)
   );
 }
@@ -177,7 +177,7 @@ export function isCondition(value: unknown): value is Condition {
     value !== null &&
     typeof value === 'object' &&
     'op' in value &&
-    typeof (value as { readonly op: unknown }).op === 'string'
+    typeof value.op === 'string'
   );
 }
 
@@ -186,7 +186,7 @@ export function isSqlFunctionField(value: unknown): value is SqlFunctionField {
     value !== null &&
     typeof value === 'object' &&
     'field' in value &&
-    typeof (value as SqlFunctionField).field === 'string' &&
+    typeof value.field === 'string' &&
     !('ref' in value) &&
     !('date' in value) &&
     !('op' in value)

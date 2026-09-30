@@ -22,6 +22,7 @@ export function versionOf(row: unknown, field: string): string | null {
   if (row === null || typeof row !== 'object' || !Object.hasOwn(row, field)) {
     return null;
   }
+  // SAFETY: row is a non-null object with field as an own key, checked above; value stays unknown.
   const value = (row as Record<string, unknown>)[field];
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : value.toISOString();

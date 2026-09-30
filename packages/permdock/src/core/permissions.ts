@@ -291,6 +291,7 @@ export type InferPermissionTree<
     : never;
 
 function isStandardSchema(value: unknown): value is StandardSchemaV1 {
+  // SAFETY: '~standard' is checked to be a key; the optional chain reads version defensively.
   return (
     value !== null &&
     typeof value === 'object' &&
@@ -306,7 +307,7 @@ function isResourceInit(value: unknown): value is ResourceInit {
     value !== null &&
     typeof value === 'object' &&
     RESOURCE_BRAND in value &&
-    (value as ResourceInit)[RESOURCE_BRAND] === true
+    value[RESOURCE_BRAND] === true
   );
 }
 
@@ -323,6 +324,7 @@ function metaFor(list: ActionList | undefined, action: string): ActionMeta {
   if (list === undefined || Array.isArray(list)) {
     return freezeDeep({});
   }
+  // SAFETY: Array.isArray does not narrow a readonly array; the non-array ActionList is this map.
   const meta = (list as Record<string, ActionMeta>)[action];
   return freezeDeep({ ...meta });
 }
@@ -370,6 +372,7 @@ function makeLeaf<K extends string, T, Kind extends PermissionKind>(
   meta: ActionMeta,
   kind: Kind,
 ): Permission<K, T, Kind> {
+  // SAFETY: T is a phantom type parameter; kind is defined on the leaf right below.
   const leaf = {
     key,
     scope: keyToScope(key),
@@ -487,6 +490,7 @@ function normaliseRelation(
           ...withIncludes,
         };
   }
+  // SAFETY: exactly one kind key is present and edge and principal returned above, so it is field.
   const field = spec as FieldRelation;
   assertSafeKey(field.field, 'relation field');
   if (field.memberOf !== undefined && includes !== undefined) {
@@ -511,12 +515,14 @@ function normaliseIncludes(
       `PermDock: ${label} includes must be a non-empty list of relation names`,
     );
   }
+  // SAFETY: a widening from any, so each name is checked as a string below.
   for (const name of includes as readonly unknown[]) {
     if (typeof name !== 'string') {
       throw new TypeError(`PermDock: ${label} includes a non-string name`);
     }
     assertSafeKey(name, 'included relation');
   }
+  // SAFETY: the loop above throws unless every name is a string.
   return [...new Set(includes as readonly string[])];
 }
 
@@ -847,6 +853,7 @@ function walk(
   const group: Record<string, PermissionTree | Permission> = {};
   for (const key of Object.keys(input)) {
     assertSafeKey(key, 'group');
+    // SAFETY: input is a non-null, non-array object checked above; key is one of its own keys.
     group[key] = walk(
       (input as Record<string, unknown>)[key],
       [...path, key],
@@ -863,6 +870,7 @@ function attachRegistry(
   registry: ReadonlyMap<string, ResourceNode>,
   leaves: readonly Permission[],
 ): RegistryTree {
+  // SAFETY: both RegistryTree symbol properties are defined on the tree right below.
   const attached = tree as RegistryTree;
   Object.defineProperty(attached, TREE_REGISTRY, {
     value: registry,
@@ -917,6 +925,7 @@ export function definePermissions<const Input>(
     seen.add(leaf.key);
   }
   assertGraphTargets(registry);
+  // SAFETY: walk builds the tree key by key from input, the shape InferPermissionTree<Input> maps.
   return freezeDeep(
     attachRegistry(tree, registry, leaves),
   ) as InferPermissionTree<Input>;
@@ -924,10 +933,12 @@ export function definePermissions<const Input>(
 
 function collectLeaves(node: PermissionTree | Permission): Permission[] {
   if ('key' in node && 'scope' in node && 'action' in node) {
+    // SAFETY: a leaf carries key, scope and action; a group built by walk has no such trio.
     return [node as Permission];
   }
   const out: Permission[] = [];
   for (const key of ownKeys(node)) {
+    // SAFETY: leaves returned above, so node is a group of trees and leaves.
     const child = (node as PermissionTree)[key];
     if (child !== undefined) {
       out.push(...collectLeaves(child));
@@ -939,7 +950,9 @@ function collectLeaves(node: PermissionTree | Permission): Permission[] {
 export function listPermissions(
   tree: PermissionTree | Permission,
 ): readonly Permission[] {
+  // SAFETY: isRegistryTree only tests for the TREE_REGISTRY key, which a leaf never has.
   if (isRegistryTree(tree as PermissionTree)) {
+    // SAFETY: the guard above found TREE_REGISTRY, which attachRegistry sets with TREE_LEAVES.
     return (tree as RegistryTree)[TREE_LEAVES];
   }
   return collectLeaves(tree);
@@ -1007,6 +1020,7 @@ function mergeNodes(
           : key;
       throw new Error(`PermDock: duplicate permission key '${keyName}'`);
     }
+    // SAFETY: a leaf on either side threw above, so existing is a group.
     const nested: Record<string, PermissionTree | Permission> = {
       ...(existing as PermissionTree),
     };
@@ -1039,6 +1053,6 @@ export function mergePermissions<const Trees extends readonly PermissionTree[]>(
     mergeNodes(merged, tree, keys, registry, sourceRegistry);
   }
   assertGraphTargets(registry);
-  const leaves = collectLeaves(merged as PermissionTree);
-  return freezeDeep(attachRegistry(merged as PermissionTree, registry, leaves));
+  const leaves = collectLeaves(merged);
+  return freezeDeep(attachRegistry(merged, registry, leaves));
 }

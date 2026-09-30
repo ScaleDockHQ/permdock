@@ -1,11 +1,13 @@
 export function compact<R extends object>(value: object): R {
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(value)) {
+    // SAFETY: key comes from Object.keys(value), so it is an own string key of the object.
     const next = (value as Record<string, unknown>)[key];
     if (next !== undefined) {
       result[key] = next;
     }
   }
+  // SAFETY: R is the caller's shape for value; the copy only omits keys whose value is undefined.
   return result as R;
 }
 

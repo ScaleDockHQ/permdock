@@ -111,6 +111,7 @@ function includePrefixes(
     if ('key' in item && typeof item.key === 'string') {
       return item.key;
     }
+    // SAFETY: include takes leaves or resource nodes, the shapes listPermissions walks.
     const leaves = listPermissions(item as never);
     const first = leaves[0];
     if (first === undefined) {
@@ -658,6 +659,7 @@ export function buildInstance(
       onDenied(decision);
     }
     const resource = getResource(policy.permissions, permission.resource);
+    // SAFETY: data is a non-null object checked in the condition; the read value stays unknown.
     const resourceId =
       data !== null && typeof data === 'object'
         ? (data as Record<string, unknown>)[resource?.id ?? 'id']
@@ -703,6 +705,7 @@ export function buildInstance(
     });
   };
 
+  // SAFETY: canImpl, decideImpl and assertImpl each implement every overload of their member.
   const instance: PermDock = {
     can: canImpl as PermDock['can'],
     decide: decideImpl as PermDock['decide'],
@@ -748,7 +751,7 @@ export function buildInstance(
         granted > 0
           ? freezeDeep({
               outcome: 'granted',
-              subject: subject as Subject & { readonly principal: Principal },
+              subject,
               matched: {
                 role: '*',
                 permission: permission.key,
@@ -826,6 +829,7 @@ export function buildInstance(
       data: unknown,
       options?: DecideOptions,
     ): Permission[] {
+      // SAFETY: actions takes a leaf or a resource node, the shapes listPermissions walks.
       const fromTree = listPermissions(resource as never);
       const leaves =
         fromTree.length > 0
@@ -880,6 +884,7 @@ export function buildInstance(
         team,
       });
     },
+    // SAFETY: the implementation returns the result type of each simulate overload for its input.
     simulate: ((
       input:
         | readonly (readonly [Permission, unknown?])[]
@@ -917,6 +922,7 @@ export function buildInstance(
             ),
         );
       }
+      // SAFETY: arrays and Arazzo input returned above, so the rest of the union is the preview.
       const preview = input as {
         readonly roles?: readonly (string | Role)[];
         readonly memberships?: readonly Membership[];
@@ -983,11 +989,13 @@ export function buildInstance(
       return snapshot;
     },
     on(event, handler) {
+      // SAFETY: on() types handler by event name, so each set only receives matching handlers.
       const set = listeners[event] as Set<(payload: unknown) => void>;
       set.add(handler);
       if (event === 'auth') {
         for (const queued of queuedAuth) {
           try {
+            // SAFETY: event is 'auth' here, so handler is the auth handler on() was typed with.
             (handler as (payload: AuthEvent) => void)(queued);
           } catch (error) {
             emitSafe(listeners.error, error, listeners);

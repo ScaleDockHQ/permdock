@@ -46,7 +46,7 @@ function jsonDetail(value: unknown): unknown {
     return undefined;
   }
   try {
-    return JSON.parse(JSON.stringify(value)) as unknown;
+    return JSON.parse(JSON.stringify(value));
   } catch {
     return undefined;
   }

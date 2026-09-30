@@ -98,6 +98,7 @@ function parseWorkflows(arazzo: unknown): Workflow[] | undefined {
         if (stepId === undefined) {
           continue;
         }
+        // SAFETY: parameters is checked to be an array only; dataFrom assumes its items are objects.
         steps.push(
           compact<WorkflowStep>({
             stepId,

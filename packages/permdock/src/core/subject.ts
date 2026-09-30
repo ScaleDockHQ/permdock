@@ -141,6 +141,7 @@ export function isPrincipal(value: unknown): value is Principal {
   if ('principal' in value && 'context' in value) {
     return false;
   }
+  // SAFETY: value is a non-null, non-array object checked above; every field stays unknown.
   const record = value as {
     readonly id?: unknown;
     readonly roles?: unknown;
@@ -168,7 +169,7 @@ export function isSubject(value: unknown): value is Subject {
     typeof value === 'object' &&
     'principal' in value &&
     'context' in value &&
-    typeof (value as Subject).context === 'object'
+    typeof value.context === 'object'
   );
 }
 
@@ -176,6 +177,7 @@ export function isActor(value: unknown): value is Actor {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
+  // SAFETY: value is a non-null, non-array object checked above; both fields stay unknown.
   const record = value as { readonly id?: unknown; readonly kind?: unknown };
   return typeof record.id === 'string' && typeof record.kind === 'string';
 }

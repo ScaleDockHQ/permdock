@@ -67,6 +67,7 @@ function makeRole<K extends string>(key: K, init: RoleInit): Role<K> {
   assertSafeKey(key, 'role');
   const on = init.on;
   const assignable = init.assignable ?? on !== undefined;
+  // SAFETY: on is assigned when set and kind is defined on the leaf right below.
   const leaf = {
     key,
     assignable,
@@ -86,6 +87,7 @@ function makeRole<K extends string>(key: K, init: RoleInit): Role<K> {
 
 function makePlan<K extends string>(key: K, init: PlanInit): Plan<K> {
   assertSafeKey(key, 'plan');
+  // SAFETY: kind is defined on the leaf right below.
   const leaf = {
     key,
     meta: freezeDeep({ ...init.meta }),
@@ -100,21 +102,23 @@ function makePlan<K extends string>(key: K, init: PlanInit): Plan<K> {
 }
 
 export function isRole(value: unknown): value is Role {
+  // SAFETY: value is a non-null object; reading a missing kind gives undefined, never ROLE_KIND.
   return (
     value !== null &&
     typeof value === 'object' &&
     'key' in value &&
-    typeof (value as Role).key === 'string' &&
+    typeof value.key === 'string' &&
     (value as Role).kind === ROLE_KIND
   );
 }
 
 export function isPlan(value: unknown): value is Plan {
+  // SAFETY: value is a non-null object; reading a missing kind gives undefined, never PLAN_KIND.
   return (
     value !== null &&
     typeof value === 'object' &&
     'key' in value &&
-    typeof (value as Plan).key === 'string' &&
+    typeof value.key === 'string' &&
     (value as Plan).kind === PLAN_KIND
   );
 }
@@ -129,6 +133,7 @@ export function defineRoles<const Input extends Record<string, RoleInit>>(
     }
     tree[key] = makeRole(key, input[key] ?? {});
   }
+  // SAFETY: tree has one Role per own key of input, keyed by that key, as InferRoleTree maps.
   return freezeDeep(tree) as InferRoleTree<Input>;
 }
 
@@ -142,6 +147,7 @@ export function definePlans<const Input extends Record<string, PlanInit>>(
     }
     tree[key] = makePlan(key, input[key] ?? {});
   }
+  // SAFETY: tree has one Plan per own key of input, keyed by that key, as InferPlanTree maps.
   return freezeDeep(tree) as InferPlanTree<Input>;
 }
 

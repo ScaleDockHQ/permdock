@@ -223,6 +223,7 @@ export function normalizeMembership(
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
     return undefined;
   }
+  // SAFETY: input is a non-null, non-array object checked above; each field is checked below.
   const raw = input as Record<string, unknown>;
   const roles = roleList(raw['roles']);
   if (roles === undefined) {
@@ -254,6 +255,7 @@ export function normalizeMembership(
   if (eligible !== undefined && eligible.length > 0) {
     extra.eligible = Object.freeze([...eligible]);
   }
+  // SAFETY: member is a non-null, non-array object checked in the condition; group is checked below.
   const member =
     raw['member'] !== null &&
     typeof raw['member'] === 'object' &&
@@ -281,6 +283,7 @@ export function normalizeMembership(
     if (named || legacy || on === null || typeof on !== 'object') {
       return undefined;
     }
+    // SAFETY: on is a non-null object checked above; resource and id are checked with isId below.
     const target = on as Record<string, unknown>;
     if (!isId(target['resource']) || !isId(target['id'])) {
       return undefined;
@@ -308,6 +311,7 @@ export function normalizeMembership(
       ) {
         return undefined;
       }
+      // SAFETY: within is a non-null, non-array object checked above; its values stay unknown.
       within = raw['within'] as Record<string, unknown>;
     }
   } else if (raw['team'] !== undefined) {

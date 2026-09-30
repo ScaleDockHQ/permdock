@@ -23,6 +23,7 @@ export function ownGet(object: object, key: string): unknown {
   if (!Object.hasOwn(object, key)) {
     return undefined;
   }
+  // SAFETY: key is a non-forbidden own property of object, checked above; the value stays unknown.
   return (object as Record<string, unknown>)[key];
 }
 
