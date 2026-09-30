@@ -92,5 +92,9 @@ Thumbs.db
 .env*
 !.env.example
 
+# local secrets and agent settings
+signing_key.json
+.claude/settings.local.json
+
 # next-saas e2e fixture build log
 .e2e/

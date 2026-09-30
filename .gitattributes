@@ -12,3 +12,7 @@
 *.eot binary
 
 pnpm-lock.yaml linguist-generated=true
+**/permissions.catalog.json linguist-generated=true
+packages/permdock/schemas/openapi/** linguist-vendored=true
+.agents/skills/** linguist-vendored=true
+packages/ui/src/components/** linguist-vendored=true

@@ -45,7 +45,7 @@ Applies to every sentence a reader sees: docs pages, both READMEs, `PRODUCT.md`,
 
 - A comment states a constraint the code cannot show. It never narrates the next line, explains where the code came from, or argues that a change is correct.
 - Commit subjects follow Conventional Commits, lower case, at most 72 characters, and say what changed (`fix(rls): filter nested-scope memberships by kind`), not what you did (`fix stuff`, `address review`).
-- A PR description follows `.github/PULL_REQUEST_TEMPLATE.md`: what ships, how to verify it, the checklist. No narrative of the process.
+- A PR description follows `.github/pull_request_template.md`: what ships, how to verify it, the checklist. No narrative of the process.
 - A changeset is one or two sentences in the user's terms: the entry, the identifier, the behaviour change.
 
 ## Check before you commit

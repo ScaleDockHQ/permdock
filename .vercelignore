@@ -1,0 +1,14 @@
+# .git stays: ignoreCommand runs turbo query affected against it.
+**/.next
+**/.turbo
+**/.source
+**/coverage
+**/dist
+**/node_modules
+*.tgz
+.e2e
+.testcontainers
+.kilo
+.kilocode
+.env*.local
+signing_key.json

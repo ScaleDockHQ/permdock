@@ -98,7 +98,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 - Every user-visible change has a changeset; CI-only changes do not.
 - Tests before features for anything touching evaluation semantics (`testing.mdc`).
 - Prefer deleting an open question by deciding it over carrying it forward.
-- Conventional commits, lower-case subject, at most 72 characters. The PR body follows `.github/PULL_REQUEST_TEMPLATE.md`.
+- Conventional commits, lower-case subject, at most 72 characters. The PR body follows `.github/pull_request_template.md`.
 
 ## Turbo agent guidance
 
