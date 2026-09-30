@@ -16,6 +16,7 @@ import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { getResource } from './permissions.ts';
 import { isThenable } from './thenable.ts';
+import { wireDenials } from './wire-denial.ts';
 
 export type ListenerMap = {
   decision: Set<(event: DecisionEvent) => void>;
@@ -173,7 +174,10 @@ export function finish(
         subject.context.reason !== ''
           ? subject.context.reason
           : undefined,
-      denials: decision.outcome === 'denied' ? decision.denials : undefined,
+      denials:
+        decision.outcome === 'denied'
+          ? wireDenials(decision.denials)
+          : undefined,
       alternatives:
         decision.outcome === 'denied'
           ? decision.alternatives.map((leaf) => leaf.key)

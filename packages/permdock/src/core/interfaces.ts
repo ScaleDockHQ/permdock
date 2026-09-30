@@ -16,6 +16,7 @@ import type {
   Subject,
 } from './subject.ts';
 import type { Plan, Role } from './vocabulary.ts';
+import type { WireDenial } from './wire-denial.ts';
 
 export type DecisionProvider = {
   readonly name: string;
@@ -472,10 +473,7 @@ export type DecisionEvent = {
   readonly purpose?: readonly string[];
   /** The justification the caller supplied (`context.reason`); present when set. */
   readonly reason?: string;
-  readonly denials?: readonly {
-    readonly role: string | null;
-    readonly reason: string;
-  }[];
+  readonly denials?: readonly WireDenial[];
   readonly alternatives?: readonly string[];
   readonly token?: string;
   readonly trusted: boolean;

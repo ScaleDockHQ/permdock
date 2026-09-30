@@ -3,10 +3,12 @@ import type { Decision } from '../core/decision.ts';
 import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission, PermissionTree } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
+import type { WireDecision } from '../core/wire-denial.ts';
 
 import { readApprovalHeader, resumeDecision } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import { findPermission, listPermissions } from '../core/permissions.ts';
+import { wireDenials } from '../core/wire-denial.ts';
 import { validationProblem } from './problem.ts';
 import { InvalidSignatureError } from './web-bot-auth.ts';
 
@@ -87,7 +89,7 @@ function evaluationRow(decision: Decision): {
   readonly decision: boolean;
   readonly context: {
     readonly outcome: Decision['outcome'];
-    readonly permdock: Decision;
+    readonly permdock: WireDecision;
   };
 } {
   switch (decision.outcome) {
@@ -99,7 +101,10 @@ function evaluationRow(decision: Decision): {
     case 'denied':
       return {
         decision: false,
-        context: { outcome: 'denied', permdock: decision },
+        context: {
+          outcome: 'denied',
+          permdock: { ...decision, denials: wireDenials(decision.denials) },
+        },
       };
     case 'approval-required':
       return {

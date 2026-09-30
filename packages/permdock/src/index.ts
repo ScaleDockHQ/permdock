@@ -32,6 +32,7 @@ export type {
   Obligation,
   Quota,
 } from './core/decision.ts';
+export type { WireDecision, WireDenial } from './core/wire-denial.ts';
 export {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
