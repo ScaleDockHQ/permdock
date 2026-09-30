@@ -39,6 +39,11 @@ catalog:
   '@vitejs/plugin-vue': 6.0.9
   ai: 7.0.122
   '@changesets/cli': 3.0.3
+  '@sentry/nextjs': 11.1.0
+  '@t3-oss/env-nextjs': 0.13.11
+  '@vercel/analytics': 2.0.1
+  '@vercel/speed-insights': 2.0.0
+  valibot: 1.5.0
   '@changesets/assemble-release-plan': 7.0.0
   '@changesets/config': 4.0.1
   '@changesets/pre': 3.0.0

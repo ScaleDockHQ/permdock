@@ -1,8 +1,9 @@
 import type { NextConfig } from 'next';
 
+import { withSentryConfig } from '@sentry/nextjs/config';
 import { createMDX } from 'fumadocs-mdx/next';
 
-import { createNextConfig } from '@permdock/next-config';
+import { createNextConfig, sentryBuildOptions } from '@permdock/next-config';
 
 const withMDX = createMDX();
 
@@ -28,4 +29,4 @@ const config: NextConfig = {
   },
 };
 
-export default withMDX(config);
+export default withSentryConfig(withMDX(config), sentryBuildOptions());

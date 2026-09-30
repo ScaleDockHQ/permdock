@@ -13,6 +13,10 @@
   },
   "dependencies": {
     "@permdock/next-config": "workspace:*",
+    "@sentry/nextjs": "catalog:",
+    "@t3-oss/env-nextjs": "catalog:",
+    "@vercel/analytics": "catalog:",
+    "@vercel/speed-insights": "catalog:",
     "beautiful-mermaid": "catalog:",
     "fumadocs-core": "catalog:",
     "fumadocs-mdx": "catalog:",
@@ -21,7 +25,8 @@
     "next": "catalog:",
     "permdock": "workspace:*",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "valibot": "catalog:"
   },
   "devDependencies": {
     "@permdock/ox-config": "workspace:*",

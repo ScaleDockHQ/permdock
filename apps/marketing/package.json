@@ -14,6 +14,10 @@
   "dependencies": {
     "@base-ui/react": "catalog:",
     "@permdock/next-config": "workspace:*",
+    "@sentry/nextjs": "catalog:",
+    "@t3-oss/env-nextjs": "catalog:",
+    "@vercel/analytics": "catalog:",
+    "@vercel/speed-insights": "catalog:",
     "class-variance-authority": "catalog:",
     "cn": "catalog:",
     "fumadocs-core": "catalog:",
@@ -29,6 +33,7 @@
     "shiki": "catalog:",
     "sonner": "catalog:",
     "tw-animate-css": "catalog:",
+    "valibot": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

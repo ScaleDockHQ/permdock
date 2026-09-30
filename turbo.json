@@ -81,7 +81,6 @@
         "PERMDOCK_COLLECT",
         "PERMDOCK_E2E_DRIFT",
         "PERMDOCK_E2E_NO_PRIVATE_CACHE",
-        "SENTRY_DSN",
         "SENTRY_ORG",
         "SENTRY_PROJECT",
         "SESSION_SECRET"

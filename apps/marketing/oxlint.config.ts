@@ -59,9 +59,9 @@ export default defineConfig({
       },
     },
     {
-      files: ['next.config.ts'],
+      files: ['env.ts'],
       rules: {
-        // Next.js reads its own config before any env module can load (2 findings).
+        // The one module that reads `process.env`; everything else imports `env`.
         'node/no-process-env': 'off',
       },
     },

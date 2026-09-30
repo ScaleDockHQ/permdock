@@ -1,5 +1,7 @@
 import type { Route } from 'next';
 
+import { env } from '@/env';
+
 /** Paths the docs service serves; `<Link>` cannot navigate across zones. */
 export type DocsHref = `/docs${string}` | '/devtools';
 export type ExternalHref = `https://${string}` | `mailto:${string}`;
@@ -18,7 +20,7 @@ export const site = {
   name: 'PermDock',
   tagline:
     'Typed permissions for TypeScript apps, APIs, databases, and AI agents.',
-  url: 'https://permdock.dev',
+  url: env.NEXT_PUBLIC_SITE_URL,
   github: 'https://github.com/ScaleDockHQ/PermDock',
   npm: 'https://www.npmjs.com/package/permdock',
   email: 'hello@permdock.com',
