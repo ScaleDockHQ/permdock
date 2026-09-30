@@ -1,3 +1,4 @@
+import { sole } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { assertSafeKey, ownKeys } from '../core/paths.ts';
 import {
@@ -95,8 +96,9 @@ function collapse(condition: Condition): Condition {
     if (flat.length === 0) {
       throw new Error(`PermDock: empty ${condition.op} condition`);
     }
-    if (flat.length === 1) {
-      return flat[0]!;
+    const single = sole(flat);
+    if (single !== undefined) {
+      return single;
     }
     return freezeDeep({ op: condition.op, conditions: flat });
   }
@@ -239,8 +241,9 @@ export function normalizeWhere(input: unknown): Condition {
   if (parts.length === 0) {
     throw new Error('PermDock: empty condition');
   }
-  if (parts.length === 1) {
-    return parts[0]!;
+  const single = sole(parts);
+  if (single !== undefined) {
+    return single;
   }
   return collapse({ op: 'and', conditions: parts });
 }

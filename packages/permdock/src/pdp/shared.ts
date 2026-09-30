@@ -52,8 +52,11 @@ export function granted(
   permission: Permission,
   subject: Subject,
   data: unknown,
-): Extract<Decision, { readonly outcome: 'granted' }> {
-  const principal = subject.principal!;
+): Decision {
+  const principal = subject.principal;
+  if (principal === null) {
+    return denied('anonymous');
+  }
   return {
     outcome: 'granted',
     subject: { ...subject, principal },

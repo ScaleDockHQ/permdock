@@ -13,7 +13,7 @@ import type { Membership, Principal, Subject } from '../core/subject.ts';
 import type { PdpPermDock } from './types.ts';
 
 import { isArazzoSimulateInput } from '../core/arazzo.ts';
-import { compact } from '../core/compact.ts';
+import { compact, isReadonlyArray } from '../core/compact.ts';
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -249,7 +249,7 @@ function wrap(
       | readonly (readonly [Permission, unknown?])[]
       | Parameters<PermDock['simulate']>[0],
   ) => {
-    if (Array.isArray(input)) {
+    if (isReadonlyArray(input)) {
       return Promise.all(
         input.map(([permission, data]) =>
           decide(permission, data, { source: 'simulate' }),

@@ -543,7 +543,6 @@ export function testRevocationFeed(feed: RevocationFeed): void {
       { principal: 'u-bad', kind: 'granted' },
     ] as unknown as readonly RevocationEvent[];
     for (const event of bad) {
-      // oxlint-disable-next-line no-await-in-loop -- each rejection is asserted in order
       await expect(
         (async (): Promise<void> => {
           await feed.revoke(event);

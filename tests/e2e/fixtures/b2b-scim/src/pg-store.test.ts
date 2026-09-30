@@ -27,7 +27,6 @@ async function seed(store: DirectoryStore): Promise<void> {
     { id: 'u3', userName: 'cy@other.test', externalId: 'cy', active: true },
   ];
   for (const user of users) {
-    // oxlint-disable-next-line no-await-in-loop -- insertion order is the page order
     await store.putUser('acme', {
       ...user,
       meta: { created: '', lastModified: '' },
@@ -119,7 +118,6 @@ describe('pgDirectoryStore parity with memoryDirectoryStore', () => {
       { startIndex: 2, count: 1 },
       { count: 5, cursor: '9' },
     ]) {
-      // oxlint-disable-next-line no-await-in-loop -- one page at a time
       const [left, right] = await Promise.all([
         pg.findUsers('acme', undefined, page),
         memory.findUsers('acme', undefined, page),

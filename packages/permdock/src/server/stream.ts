@@ -43,7 +43,8 @@ export async function* guardIterable(
   connection: Connection,
   options: GuardIterableOptions,
 ): AsyncGenerator<unknown, unknown, undefined> {
-  const iterator = source[Symbol.asyncIterator]();
+  const iterator: AsyncIterator<unknown, unknown> =
+    source[Symbol.asyncIterator]();
   const aborted = new Promise<never>((_resolve, reject) => {
     const fail = (): void => {
       reject(

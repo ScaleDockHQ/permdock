@@ -1,5 +1,6 @@
 import type { CompiledBranch, CompiledPolicy } from './rls-compile.ts';
 
+import { sole } from '../core/compact.ts';
 import { branchClauses, wrapSql } from './rls-compile.ts';
 
 export type PolicyShape = {
@@ -52,9 +53,7 @@ export function orSql(parts: readonly string[]): string {
   if (distinct.includes('true')) {
     return 'true';
   }
-  return distinct.length === 1
-    ? distinct[0]!
-    : distinct.map(wrapSql).join(' or ');
+  return sole(distinct) ?? distinct.map(wrapSql).join(' or ');
 }
 
 function negate(sql: string | undefined): string | undefined {
@@ -124,24 +123,24 @@ function perRolePolicies(
  */
 function mergeGroups(branches: readonly CompiledBranch[]): CompiledBranch[] {
   const merged: { branch: CompiledBranch; accesses: string[] }[] = [];
-  const byKey = new Map<string, number>();
+  const byKey = new Map<string, (typeof merged)[number]>();
   for (const branch of branches) {
     const id =
       branch.grantKey === undefined
         ? undefined
         : `${branch.table}\u0000${branch.command}\u0000${branch.grantKey}\u0000${branch.coverage === true}`;
-    const at = id === undefined ? undefined : byKey.get(id);
-    if (at === undefined) {
-      if (id !== undefined) {
-        byKey.set(id, merged.length);
-      }
-      merged.push({
+    const entry = id === undefined ? undefined : byKey.get(id);
+    if (entry === undefined) {
+      const created = {
         branch,
         accesses: branch.access === undefined ? [] : [branch.access],
-      });
+      };
+      if (id !== undefined) {
+        byKey.set(id, created);
+      }
+      merged.push(created);
       continue;
     }
-    const entry = merged[at]!;
     if (
       branch.access !== undefined &&
       !entry.accesses.includes(branch.access)
@@ -168,8 +167,11 @@ function collapsedPolicies(
     groups.set(id, [...(groups.get(id) ?? []), branch]);
   }
   const names = new Map<string, number>();
-  return [...groups.values()].map((group) => {
-    const first = group[0]!;
+  return [...groups.values()].flatMap((group) => {
+    const [first] = group;
+    if (first === undefined) {
+      return [];
+    }
     const deny = first.effect === 'deny';
     const clauses = group.map(branchClauses);
     const usings = clauses.flatMap((item) =>

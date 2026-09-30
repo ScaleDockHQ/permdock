@@ -472,7 +472,6 @@ async function writeGroup(
     [tenant, group.id],
   );
   for (const value of new Set(group.members.map((member) => member.value))) {
-    // oxlint-disable-next-line no-await-in-loop -- members keep their order
     await sql.query(
       'insert into scim_member (tenant, group_id, user_id) values ($1, $2, $3)',
       [tenant, group.id, value],

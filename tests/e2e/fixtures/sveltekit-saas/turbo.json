@@ -4,6 +4,9 @@
   "tasks": {
     "build": {
       "outputs": ["build/**"]
+    },
+    "typegen": {
+      "outputs": [".svelte-kit/**"]
     }
   }
 }

@@ -6,7 +6,8 @@
   "scripts": {
     "build": "vite build",
     "serve": "node scripts/serve.ts",
-    "typecheck": "svelte-kit sync && tsc --noEmit"
+    "typecheck": "svelte-kit sync && tsc --noEmit --checkers 4",
+    "typegen": "svelte-kit sync"
   },
   "devDependencies": {
     "@permdock/e2e-saas-kit": "workspace:*",

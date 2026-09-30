@@ -140,7 +140,6 @@ describe('memoryDirectoryStore', () => {
       ['g_full', [{ value: 'u1' }]],
       ['g_empty', []],
     ] as const) {
-      // oxlint-disable-next-line no-await-in-loop -- order is the page order
       await store.putGroup(TENANT, {
         id,
         displayName: id,

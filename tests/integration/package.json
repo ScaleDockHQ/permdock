@@ -6,7 +6,7 @@
   "scripts": {
     "generate": "prisma generate",
     "test:integration": "prisma generate && vitest run",
-    "typecheck": "prisma generate && tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit --checkers 4"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",

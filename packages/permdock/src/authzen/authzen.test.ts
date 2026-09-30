@@ -137,7 +137,6 @@ describe('permdock/authzen', () => {
         subject: () => ({ id: 'pep', orgId: 'o1', roles: ['admin'] }),
         ...(trustedPep === undefined ? {} : { trustedPep }),
       }).handler;
-      // oxlint-disable-next-line no-await-in-loop
       const response = await handler(
         request('/access/v1/evaluation', {
           json: memberBody({

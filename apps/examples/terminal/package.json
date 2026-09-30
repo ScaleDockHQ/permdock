@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch --experimental-strip-types src/main.ts",
     "start": "node --experimental-strip-types src/main.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
     "permdock": "workspace:*",

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "devDependencies": {
     "@permdock/typescript-config": "workspace:*",

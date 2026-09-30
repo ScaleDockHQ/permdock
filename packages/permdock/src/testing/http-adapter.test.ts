@@ -70,7 +70,6 @@ const routes: readonly Route[] = [
     p.project.update,
     'row',
     async ({ request }) => {
-      // oxlint-disable-next-line typescript/no-deprecated -- the upload is a trusted test client, not a remote server
       const file = (await request.formData()).get('file');
       return file instanceof File
         ? Response.json({ name: file.name, size: file.size }, { status: 201 })
@@ -124,7 +123,6 @@ async function events(
       };
       try {
         for await (const item of domain.ticks(org, conn.signal)) {
-          // oxlint-disable-next-line unicorn/no-array-callback-reference -- Connection#filter takes a permission, not a callback
           for (const readable of conn.filter(p.project.update, [item])) {
             frame(`data: ${JSON.stringify(readable)}`);
           }

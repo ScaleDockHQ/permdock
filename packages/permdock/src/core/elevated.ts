@@ -5,7 +5,7 @@ import type { AssuranceRequirement } from './policy.ts';
 import type { Membership, Subject } from './subject.ts';
 import type { Role } from './vocabulary.ts';
 
-import { compact } from './compact.ts';
+import { compact, isReadonlyArray, sole } from './compact.ts';
 import { parseDuration } from './duration.ts';
 import { freezeDeep } from './freeze.ts';
 import { asGrantee, authenticated } from './grantee.ts';
@@ -33,7 +33,7 @@ function flattenPermissions(
   ) {
     return [input as Permission];
   }
-  if (Array.isArray(input)) {
+  if (isReadonlyArray(input)) {
     return input.flatMap((item) => flattenPermissions(item));
   }
   return [...listPermissions(input as PermissionTree)];
@@ -72,7 +72,7 @@ export function breakGlass<T>(
       }),
     ),
   );
-  return grants.length === 1 ? grants[0]! : grants;
+  return sole(grants) ?? grants;
 }
 
 /**
@@ -190,9 +190,10 @@ export function evaluateBreakGlass(
   if (purposes.length === 0) {
     return { kind: 'inactive' };
   }
+  const required = spec.purpose;
   if (
-    spec.purpose !== undefined &&
-    !purposes.some((purpose) => spec.purpose!.includes(purpose))
+    required !== undefined &&
+    !purposes.some((purpose) => required.includes(purpose))
   ) {
     return { kind: 'denied', reason: 'purpose' };
   }

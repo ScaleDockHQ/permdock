@@ -10,6 +10,7 @@ import type {
 } from './types.ts';
 
 import { scopeColumn, scopeMembershipTable } from '../conditions/compile.ts';
+import { isReadonlyArray, sole } from '../core/compact.ts';
 import { isForbiddenKey } from '../core/paths.ts';
 import { resolveScope, rootScope, scopeChain } from '../core/scopes.ts';
 import { isSqlFunctionField } from '../index.ts';
@@ -565,7 +566,7 @@ function sqlValue(
   if (value !== null && typeof value === 'object' && 'date' in value) {
     return quoteLiteral(value.date);
   }
-  if (Array.isArray(value)) {
+  if (isReadonlyArray(value)) {
     return `array[${value.map((item) => sqlValue(item, ctx)).join(', ')}]`;
   }
   if (value === null) {
@@ -660,10 +661,11 @@ function existsSql(
       table.via === undefined
         ? 'null::text'
         : `m.${quoteIdent(table.via)}::text`;
+    const single = sole(roles);
     const kind =
-      roles.length === 1
-        ? roleKindSql(ctx, roles[0]!, via)
-        : kindFilterSql(ctx, `m.${quoteIdent(table.role)}::text`, via);
+      single === undefined
+        ? kindFilterSql(ctx, `m.${quoteIdent(table.role)}::text`, via)
+        : roleKindSql(ctx, single, via);
     if (kind !== undefined) {
       parts.push(kind);
     }

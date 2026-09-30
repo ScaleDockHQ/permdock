@@ -45,11 +45,11 @@ export function sha256(message: string): Uint8Array {
       w[i] = view.getInt32(offset + i * 4, false);
     }
     for (let i = 16; i < 64; i += 1) {
-      const w15 = w[i - 15]!;
-      const w2 = w[i - 2]!;
+      const w15 = w[i - 15] ?? 0;
+      const w2 = w[i - 2] ?? 0;
       const s0 = rotr(w15, 7) ^ rotr(w15, 18) ^ (w15 >>> 3);
       const s1 = rotr(w2, 17) ^ rotr(w2, 19) ^ (w2 >>> 10);
-      w[i] = (w[i - 16]! + s0 + w[i - 7]! + s1) | 0;
+      w[i] = ((w[i - 16] ?? 0) + s0 + (w[i - 7] ?? 0) + s1) | 0;
     }
     let a = h0;
     let b = h1;
@@ -62,7 +62,7 @@ export function sha256(message: string): Uint8Array {
     for (let i = 0; i < 64; i += 1) {
       const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
       const ch = (e & f) ^ (~e & g);
-      const temp1 = (h + S1 + ch + K[i]! + w[i]!) | 0;
+      const temp1 = (h + S1 + ch + (K[i] ?? 0) + (w[i] ?? 0)) | 0;
       const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const temp2 = (S0 + maj) | 0;

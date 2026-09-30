@@ -71,7 +71,11 @@ export async function exchangeCapability(
     .setProtectedHeader(
       secret
         ? { alg: 'HS256', typ: 'JWT' }
-        : { alg: options.alg, kid: options.kid!, typ: 'JWT' },
+        : {
+            alg: options.alg,
+            ...(options.kid === undefined ? {} : { kid: options.kid }),
+            typ: 'JWT',
+          },
     )
     .setIssuedAt(now)
     .setExpirationTime(exp);

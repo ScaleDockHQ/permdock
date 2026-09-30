@@ -43,7 +43,6 @@ function channel<T>() {
       for (;;) {
         const next = queue.shift();
         if (next === undefined) {
-          // oxlint-disable-next-line no-await-in-loop -- waits for the next push
           await nextPush();
         } else {
           yield next;

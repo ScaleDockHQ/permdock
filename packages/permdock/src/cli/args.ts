@@ -1,3 +1,4 @@
+import { isReadonlyArray } from '../core/compact.ts';
 export type FlagValue = string | boolean | readonly string[];
 
 export type ParsedArgs = {
@@ -91,7 +92,7 @@ export function flagList(
   name: string,
 ): readonly string[] {
   const value = flags[name];
-  if (Array.isArray(value)) {
+  if (isReadonlyArray(value)) {
     return value;
   }
   if (typeof value === 'string') {

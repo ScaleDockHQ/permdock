@@ -5,6 +5,7 @@ import type { ResourceNode } from './permissions.ts';
 import type { Membership, Subject } from './subject.ts';
 
 import { bindConditionRefs } from '../conditions/bind.ts';
+import { sole } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { type Scope, findScope, scopeChain, scopeIdOf } from './scopes.ts';
 import {
@@ -108,9 +109,7 @@ function all(conditions: readonly Condition[]): Condition {
   if (conditions.length === 0) {
     return ALWAYS;
   }
-  return conditions.length === 1
-    ? conditions[0]!
-    : { op: 'and', conditions: [...conditions] };
+  return sole(conditions) ?? { op: 'and', conditions: [...conditions] };
 }
 
 function scopedCondition(
@@ -213,7 +212,7 @@ function collect(
     return { condition: none, partial };
   }
   return {
-    condition: parts.length === 1 ? parts[0]! : { op: 'or', conditions: parts },
+    condition: sole(parts) ?? { op: 'or', conditions: parts },
     partial,
   };
 }

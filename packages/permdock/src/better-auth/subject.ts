@@ -7,7 +7,7 @@ import type {
   BetterAuthSubjectOptions,
 } from './types.ts';
 
-import { compact } from '../core/compact.ts';
+import { compact, isReadonlyArray } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { anonymousSubject } from '../core/subject.ts';
 import {
@@ -86,7 +86,7 @@ async function organizationIds(
   }
   const rows = await settle(async () => {
     const value: unknown = await list({ headers: options.headers });
-    return Array.isArray(value) ? value : [];
+    return isReadonlyArray(value) ? value : [];
   }, []);
   const ids = rows
     .map((row: unknown) =>

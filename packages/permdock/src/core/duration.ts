@@ -23,7 +23,7 @@ export function parseDuration(input: unknown): number | undefined {
     return undefined;
   }
   const amount = Number(match[1]);
-  const unit = UNITS[match[2]!];
+  const unit = UNITS[match[2] ?? ''];
   if (unit === undefined || !Number.isFinite(amount) || amount <= 0) {
     return undefined;
   }

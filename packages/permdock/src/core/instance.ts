@@ -21,7 +21,7 @@ import {
   isArazzoSimulateInput,
   simulateArazzo,
 } from './arazzo.ts';
-import { compact } from './compact.ts';
+import { compact, isReadonlyArray } from './compact.ts';
 import {
   type CustomGrant,
   ceilingGrants,
@@ -857,7 +857,7 @@ export function buildInstance(
           }
         | ArazzoSimulateInput,
     ): Decision[] | PermDock | ArazzoPlan => {
-      if (Array.isArray(input)) {
+      if (isReadonlyArray(input)) {
         return input.map(([permission, data]) =>
           evaluate(
             policy,

@@ -9,8 +9,8 @@ export function OfflineBadge() {
     return null;
   }
   return (
-    <p role="status" data-testid="offline">
+    <output data-testid="offline">
       Offline: showing the permissions from your last visit.
-    </p>
+    </output>
   );
 }

@@ -267,7 +267,6 @@ describe('permdock/server', () => {
         }),
       );
     for (const _ of [1, 2]) {
-      // oxlint-disable-next-line no-await-in-loop
       const body = (await (await ask()).json()) as {
         readonly evaluations: readonly { readonly decision: boolean }[];
       };

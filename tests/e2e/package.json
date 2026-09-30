@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "catalog:",

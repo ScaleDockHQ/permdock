@@ -3,7 +3,7 @@ import type { Policy, RoleBinding } from './policy.ts';
 import type { Membership, Principal } from './subject.ts';
 import type { Role, RoleMeta } from './vocabulary.ts';
 
-import { compact } from './compact.ts';
+import { compact, isReadonlyArray } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { declaredRoleNames } from './policy.ts';
 import { type Scope, resolveScope, scopeChain, scopeIdOf } from './scopes.ts';
@@ -393,7 +393,7 @@ export function decideRoleChange(
     return done(null);
   }
   const self = target.id === principal.id;
-  const targetRoles = Array.isArray(target.roles) ? target.roles : [];
+  const targetRoles = isReadonlyArray(target.roles) ? target.roles : [];
   const already = targetRoles.includes(name);
   let by: string | null = null;
 

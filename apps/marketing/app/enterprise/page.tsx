@@ -84,6 +84,7 @@ export default function EnterprisePage() {
           <FrameFooter>
             <Button
               nativeButton={false}
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- Base UI renders the Button's children inside this anchor
               render={<a href={`mailto:${site.email}`} />}
               variant="outline"
               size="lg"

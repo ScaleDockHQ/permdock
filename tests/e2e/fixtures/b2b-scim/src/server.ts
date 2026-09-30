@@ -109,7 +109,6 @@ const scim = scimHandler({
   revocations,
   onChange: async ({ tenant, userIds }) => {
     for (const id of userIds) {
-      // oxlint-disable-next-line no-await-in-loop -- a handful of users per change
       const user = await directory.getUser(tenant, id);
       bump(user?.externalId ?? id);
     }

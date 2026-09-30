@@ -56,7 +56,6 @@ describe('permdock/hono streams and sockets', () => {
     await revocations.revoke({ principal: 'u1', kind: 'session-revoked' });
     let rest = '';
     for (;;) {
-      // oxlint-disable-next-line no-await-in-loop -- reads the stream to its end
       const chunk = await reader.read();
       if (chunk.done) {
         break;

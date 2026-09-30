@@ -1,3 +1,4 @@
+import { isReadonlyArray } from '../core/compact.ts';
 export type DecodedHeader = {
   readonly alg?: string;
   readonly kid?: string;
@@ -42,11 +43,11 @@ export function unknownCrit(header: DecodedHeader): boolean {
   if (crit === undefined) {
     return false;
   }
-  if (!Array.isArray(crit)) {
+  if (!isReadonlyArray(crit)) {
     return true;
   }
   const understood = new Set(['alg', 'kid', 'typ', 'cty', 'enc']);
-  return crit.some((name) => !understood.has(name));
+  return crit.some((name) => typeof name !== 'string' || !understood.has(name));
 }
 
 export function normalizeTyp(typ: string | undefined): string | undefined {

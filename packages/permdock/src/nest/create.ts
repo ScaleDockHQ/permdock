@@ -168,7 +168,7 @@ function reflectMeta(): ReflectMeta {
 }
 
 function applyMethod(
-  cls: new () => unknown,
+  cls: { readonly prototype: object },
   key: string,
   decorator: MethodDecorator,
 ): void {
@@ -180,7 +180,7 @@ function applyMethod(
 }
 
 function applyParameter(
-  cls: new () => unknown,
+  cls: { readonly prototype: object },
   key: string,
   index: number,
   decorator: ParameterDecorator,

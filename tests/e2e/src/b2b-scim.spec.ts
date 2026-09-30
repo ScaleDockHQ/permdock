@@ -245,7 +245,6 @@ test('6. SCIM filters and cursor pages run against Postgres', async ({
   request,
 }) => {
   for (const name of ['pia', 'pat', 'quinn']) {
-    // oxlint-disable-next-line no-await-in-loop -- insertion order is the page order
     await provisionUser(request, 'acme', name);
   }
   const filter = encodeURIComponent('userName sw "p"');

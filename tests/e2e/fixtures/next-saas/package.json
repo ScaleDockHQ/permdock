@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "serve": "node scripts/serve.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
     "jose": "catalog:",

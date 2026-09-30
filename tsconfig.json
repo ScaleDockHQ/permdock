@@ -1,5 +1,9 @@
 {
   "extends": "@permdock/typescript-config/base.json",
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
   "include": [
     "commitlint.config.ts",
     "oxlint.config.ts",

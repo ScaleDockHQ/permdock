@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
+import { isReadonlyArray } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import {
   assertSafeKey,
@@ -238,7 +239,7 @@ function actionNames(list: ActionList | undefined): readonly string[] {
   if (list === undefined) {
     return [];
   }
-  if (Array.isArray(list)) {
+  if (isReadonlyArray(list)) {
     return list;
   }
   return Object.keys(list);

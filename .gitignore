@@ -44,6 +44,7 @@ apps/marketing/CLAUDE.md
 .svelte-kit/
 tests/e2e/fixtures/*/build/
 routeTree.gen.ts
+.tanstack/
 
 # expo
 .expo/

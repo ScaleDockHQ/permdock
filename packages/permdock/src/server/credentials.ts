@@ -320,7 +320,7 @@ function sampled(sample: number): boolean {
   }
   const draw = new Uint32Array(1);
   globalThis.crypto.getRandomValues(draw);
-  return draw[0]! / 0x1_0000_0000 < sample;
+  return (draw[0] ?? 0) / 0x1_0000_0000 < sample;
 }
 
 function reportUse(

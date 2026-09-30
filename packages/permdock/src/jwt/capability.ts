@@ -124,9 +124,11 @@ async function stores(
     ) {
       return 'capability-revoked';
     }
+    const replay = options.replay;
     if (
       once !== undefined &&
-      !(await claimOnce(options.replay!, once.key, once.expiresAt))
+      (replay === undefined ||
+        !(await claimOnce(replay, once.key, once.expiresAt)))
     ) {
       return 'capability-replayed';
     }

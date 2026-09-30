@@ -6,7 +6,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "dev": "expo start --web --port 3486",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
     "@expo/log-box": "catalog:",

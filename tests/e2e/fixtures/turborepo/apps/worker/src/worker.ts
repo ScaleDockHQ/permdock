@@ -80,16 +80,13 @@ async function run(job: Job): Promise<void> {
 
 async function poll(): Promise<void> {
   for (;;) {
-    // oxlint-disable-next-line no-await-in-loop -- one job at a time
     const response = await internal('/jobs/claim', { method: 'POST' }).catch(
       () => undefined,
     );
     if (response?.status === 200) {
-      // oxlint-disable-next-line no-await-in-loop -- one job at a time
       await run((await response.json()) as Job);
       continue;
     }
-    // oxlint-disable-next-line no-await-in-loop -- polling interval
     await sleep(POLL_MS);
   }
 }
