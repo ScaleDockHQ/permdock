@@ -87,25 +87,45 @@ export type RelationChain = {
   readonly truncated?: boolean;
 };
 
-/** One principal holding a relation on an object, as `RelationSource.related` returns it. */
-export type RelationHolder = {
-  readonly principal: { readonly id: string };
+type HolderPeriod = {
   /** Seconds since the epoch; before it the relation does not hold yet. */
   readonly startsAt?: number;
   /** Seconds since the epoch; from it on the relation no longer holds. */
   readonly expiresAt?: number;
 };
 
+/** A group holding a relation on an object: whoever holds `relation` on the group's instance holds it too. */
+export type RelationGroup = {
+  readonly resource: string;
+  readonly id: string;
+  readonly relation: string;
+};
+
 /**
- * The object graph: parent chains and who holds a relation on an object.
- * A source answers facts and never decides; a thrown or rejected call, or a
- * Promise the instance has not loaded, denies with `relation-unavailable`.
+ * One holder of a relation on an object, as `RelationSource.related` returns
+ * it: a principal, or a group (an edge row whose `groups` column names one).
+ */
+export type RelationHolder = HolderPeriod &
+  (
+    | { readonly principal: { readonly id: string } }
+    | { readonly group: RelationGroup }
+  );
+
+/**
+ * The object graph: parent chains, links and who holds a relation on an
+ * object. A source answers facts and never decides; a thrown or rejected
+ * call, or a Promise the instance has not loaded, denies with
+ * `relation-unavailable`.
  */
 export type RelationSource = {
+  /**
+   * With `through: 'parent'`, the parent chain; with a link name, the one
+   * instance that link points to (`depth` is then 1).
+   */
   ancestors(query: {
     readonly resource: string;
     readonly id: string;
-    readonly through: 'parent';
+    readonly through: string;
     readonly depth: number;
   }): RelationChain | Promise<RelationChain>;
   related(query: {

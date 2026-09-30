@@ -11,6 +11,7 @@ import type {
   Policy,
   PolicyDocument,
   PolicySource,
+  RelationHolder,
   RelationSource,
   RevocationEvent,
   RevocationFeed,
@@ -149,12 +150,20 @@ export function testMembershipSource(
   }
 }
 
+function holderKey(holder: RelationHolder): string {
+  return 'group' in holder
+    ? `${holder.group.resource}:${holder.group.id}#${holder.group.relation}`
+    : holder.principal.id;
+}
+
 /**
  * A `RelationSource` answers facts only: well-formed chains nearest first and
- * no longer than `depth`, holders with principal ids and numeric instants, a
- * `truncated` chain only when more ancestors exist, and empty answers (never
- * a throw) for an object it does not know. `expect` pins the chains and
- * holders for `objects`, keyed `resource:id` and `resource:id#relation`.
+ * no longer than `depth`, holders with principal ids or group references and
+ * numeric instants, a `truncated` chain only when more ancestors exist, and
+ * empty answers (never a throw) for an object it does not know. `expect` pins
+ * the chains, holders and links for `objects`, keyed `resource:id`,
+ * `resource:id#relation` and `resource:id>link`; a group holder is written
+ * `resource:id#relation`.
  */
 export function testRelationSource(
   source: RelationSource,
@@ -167,6 +176,8 @@ export function testRelationSource(
     readonly expect?: {
       readonly ancestors?: Readonly<Record<string, readonly string[]>>;
       readonly holders?: Readonly<Record<string, readonly string[]>>;
+      /** Keyed `resource:id>link`, the id the link leads to. */
+      readonly links?: Readonly<Record<string, string>>;
     };
   },
 ): void {
@@ -223,7 +234,18 @@ export function testRelationSource(
       });
       expect(Array.isArray(holders)).toBe(true);
       for (const holder of holders) {
-        expect(typeof holder.principal.id).toBe('string');
+        if ('group' in holder) {
+          for (const part of [
+            holder.group.resource,
+            holder.group.id,
+            holder.group.relation,
+          ]) {
+            expect(typeof part).toBe('string');
+            expect(part).not.toBe('');
+          }
+        } else {
+          expect(typeof holder.principal.id).toBe('string');
+        }
         for (const instant of [holder.startsAt, holder.expiresAt]) {
           expect(
             instant === undefined ||
@@ -236,10 +258,31 @@ export function testRelationSource(
           `${object.resource}:${object.id}#${object.relation}`
         ];
       if (expected !== undefined) {
-        expect(holders.map((holder) => holder.principal.id).toSorted()).toEqual(
+        expect(holders.map(holderKey).toSorted()).toEqual(
           [...expected].toSorted(),
         );
       }
+    }
+  });
+
+  it('follows each link to exactly one instance', async () => {
+    for (const [key, id] of Object.entries(options.expect?.links ?? {})) {
+      const [object, through] = key.split('>');
+      const [resource, objectId] = (object ?? '').split(':');
+      if (
+        resource === undefined ||
+        objectId === undefined ||
+        through === undefined
+      ) {
+        throw new Error(`expect.links key "${key}" is not resource:id>link.`);
+      }
+      const linked = await source.ancestors({
+        resource,
+        id: objectId,
+        through,
+        depth: 1,
+      });
+      expect(linked.ancestors.map((ancestor) => ancestor.id)).toEqual([id]);
     }
   });
 

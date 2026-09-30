@@ -1,12 +1,11 @@
 import type { CompiledPolicy, SqlCommand } from './rls-compile.ts';
 import type { FieldView } from './rls-fields.ts';
-import type { RlsTarget } from './types.ts';
+import type { RlsDialect, RlsTarget } from './types.ts';
 
 import {
   columnGrantSql,
   columnRevokeSql,
   fieldViewsSql,
-  revokeColumnsSql,
 } from './rls-fields.ts';
 import { quoteIdent, quoteTable } from './rls-sql.ts';
 
@@ -23,24 +22,56 @@ function assertNoServiceRole(text: string): void {
   }
 }
 
-/** `force row level security` for every table a policy targets, so the table owner is not exempt. */
-export function forceSql(policies: readonly CompiledPolicy[]): string {
-  return [...new Set(policies.map((item) => item.table))]
-    .map(
-      (table) => `alter table ${quoteTable(table)} force row level security;`,
-    )
-    .join('\n');
+function tablesOf(policies: readonly CompiledPolicy[]): string[] {
+  return [...new Set(policies.map((item) => item.table))];
 }
 
-function migrationComment(sqlText: string): string[] {
-  return sqlText === '' ? [] : ['/* run in a migration:', sqlText, '*/', ''];
-}
-
-/** The field views and, for targets without grants, the `--revoke-columns` statements. */
-function fieldsMigration(views: readonly FieldView[]): string {
-  return [revokeColumnsSql(views), fieldViewsSql(views)]
-    .filter((part) => part !== '')
-    .join('\n\n');
+/** Table grants for the commands a policy allows, then enable (and force) row level security. */
+function tableSql(
+  table: string,
+  policies: readonly CompiledPolicy[],
+  force: boolean,
+  views: readonly FieldView[],
+): string {
+  const closed = views.find(
+    (view) => view.table === table && view.companion !== undefined,
+  );
+  const lines = [
+    `revoke all on table ${quoteTable(table)} from anon, authenticated;`,
+  ];
+  for (const role of ['anon', 'authenticated']) {
+    const cmds = new Set(
+      policies
+        .filter(
+          (item) =>
+            item.table === table &&
+            item.effect === 'allow' &&
+            item.roles.includes(role),
+        )
+        .map((item) => item.command),
+    );
+    const grants = ['select', 'insert', 'update', 'delete'].filter(
+      (cmd) =>
+        cmds.has(cmd as SqlCommand) &&
+        (closed === undefined || cmd !== 'select'),
+    );
+    if (grants.length > 0) {
+      lines.push(
+        `grant ${grants.join(', ')} on table ${quoteTable(table)} to ${role};`,
+      );
+    }
+    if (closed !== undefined && cmds.has('select')) {
+      lines.push(columnGrantSql(closed, role));
+    }
+  }
+  if (closed !== undefined) {
+    lines.push(columnRevokeSql(closed));
+  }
+  lines.push(`alter table ${quoteTable(table)} enable row level security;`);
+  if (force) {
+    lines.push(`alter table ${quoteTable(table)} force row level security;`);
+  }
+  return lines.join('\n');
 }
 
 export function emitSql(
@@ -49,51 +80,12 @@ export function emitSql(
   force = false,
   views: readonly FieldView[] = [],
 ): string {
-  const tables = [...new Set(policies.map((item) => item.table))];
   const chunks: string[] = [HEADER];
   if (preamble !== '') {
     chunks.push(preamble);
   }
-  for (const table of tables) {
-    const closed = views.find(
-      (view) => view.table === table && view.companion !== undefined,
-    );
-    chunks.push(
-      `revoke all on table ${quoteTable(table)} from anon, authenticated;`,
-    );
-    for (const role of ['anon', 'authenticated']) {
-      const cmds = new Set(
-        policies
-          .filter(
-            (item) =>
-              item.table === table &&
-              item.effect === 'allow' &&
-              item.roles.includes(role),
-          )
-          .map((item) => item.command),
-      );
-      const grants = ['select', 'insert', 'update', 'delete'].filter(
-        (cmd) =>
-          cmds.has(cmd as SqlCommand) &&
-          (closed === undefined || cmd !== 'select'),
-      );
-      if (grants.length > 0) {
-        chunks.push(
-          `grant ${grants.join(', ')} on table ${quoteTable(table)} to ${role};`,
-        );
-      }
-      if (closed !== undefined && cmds.has('select')) {
-        chunks.push(columnGrantSql(closed, role));
-      }
-    }
-    if (closed !== undefined) {
-      chunks.push(columnRevokeSql(closed));
-    }
-    chunks.push(`alter table ${quoteTable(table)} enable row level security;`);
-    if (force) {
-      chunks.push(`alter table ${quoteTable(table)} force row level security;`);
-    }
-    chunks.push('');
+  for (const table of tablesOf(policies)) {
+    chunks.push(tableSql(table, policies, force, views), '');
   }
   for (const item of policies) {
     const as = item.effect === 'deny' ? 'restrictive' : 'permissive';
@@ -122,98 +114,213 @@ export function emitSql(
   return text;
 }
 
-function drizzleRoles(roles: readonly string[]): string {
-  return roles.includes('anon')
+/**
+ * The SQL a Drizzle or Prisma schema cannot declare: helpers, grants, `force` and field views.
+ * `rls generate` writes it next to `out` for a custom migration.
+ */
+export function migrationSql(
+  policies: readonly CompiledPolicy[],
+  preamble: string,
+  force: boolean,
+  views: readonly FieldView[],
+): string {
+  const parts = [
+    preamble.trim(),
+    ...tablesOf(policies).map((table) =>
+      tableSql(table, policies, force, views),
+    ),
+    fieldViewsSql(views),
+  ].filter((part) => part !== '');
+  if (parts.length === 0) {
+    return '';
+  }
+  const text = `${HEADER}\n${parts.join('\n\n')}\n`;
+  assertNoServiceRole(text);
+  return text;
+}
+
+function helpersNote(helpers: string | undefined, how: string): string[] {
+  return helpers === undefined ? [] : [`// run ${helpers} ${how}`];
+}
+
+function camelCase(name: string): string {
+  return name.replace(/[_-]+([a-z0-9])/gi, (_, char: string) =>
+    char.toUpperCase(),
+  );
+}
+
+function pascalCase(name: string): string {
+  const camel = camelCase(name);
+  return camel.charAt(0).toUpperCase() + camel.slice(1);
+}
+
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+
+function identifier(name: string, what: string): string {
+  if (!IDENTIFIER.test(name)) {
+    throw new Error(
+      `PermDock CLI: ${what} ${JSON.stringify(name)} is not an identifier`,
+    );
+  }
+  return name;
+}
+
+function quoted(text: string): string {
+  return `'${text.replace(/[\\']/g, (match) => `\\${match}`)}'`;
+}
+
+function templateText(text: string): string {
+  return text.replace(/[\\`]|\$\{/g, (match) => `\\${match}`);
+}
+
+export type DrizzleEmitOptions = {
+  readonly dialect: RlsDialect;
+  /** Module exporting the tables, as imported from the output file. */
+  readonly schema?: string;
+  /** Export name per table name. */
+  readonly exports?: Readonly<Record<string, string>>;
+  /** File name of the migration SQL written next to the output. */
+  readonly helpers?: string;
+};
+
+const AUTH_UID = '(select auth.uid())';
+
+function drizzleRoles(list: readonly string[]): string {
+  return list.includes('anon')
     ? '[anonRole, authenticatedRole]'
     : 'authenticatedRole';
 }
 
 export function emitDrizzle(
   policies: readonly CompiledPolicy[],
-  preamble: string,
-  force = false,
-  views: readonly FieldView[] = [],
+  options: DrizzleEmitOptions,
 ): string {
+  const supabase = options.dialect === 'supabase';
   const anon = policies.some((item) => item.roles.includes('anon'));
+  const sqlOf = (text: string): string => {
+    const parts = text.split(AUTH_UID).map(templateText);
+    return `sql\`${supabase ? parts.join('${authUid}') : parts.join(AUTH_UID)}\``;
+  };
+  const usesUid =
+    supabase &&
+    policies.some(
+      (item) =>
+        item.using?.includes(AUTH_UID) === true ||
+        item.check?.includes(AUTH_UID) === true,
+    );
   const lines = [
     '// generated by permdock rls generate',
     '// fail-closed: never target a bypass role',
+    ...helpersNote(
+      options.helpers,
+      'in a custom migration (drizzle-kit generate --custom)',
+    ),
     "import { sql } from 'drizzle-orm'",
-    `import { ${anon ? 'anonRole, ' : ''}authenticatedRole, pgPolicy } from 'drizzle-orm/pg-core'`,
-    '',
   ];
-  if (preamble !== '') {
-    lines.push('/* run in a migration:', preamble.trim(), '*/', '');
-  }
-  if (force) {
-    lines.push(...migrationComment(forceSql(policies)));
-  }
-  lines.push(...migrationComment(fieldsMigration(views)));
-  for (const item of policies) {
-    const as = item.effect === 'deny' ? 'restrictive' : 'permissive';
-    const using =
-      item.using === undefined ? '' : `\n  using: sql\`${item.using}\`,`;
-    const check =
-      item.check === undefined ? '' : `\n  withCheck: sql\`${item.check}\`,`;
+  if (supabase) {
+    const named = [
+      anon ? 'anonRole' : '',
+      'authenticatedRole',
+      usesUid ? 'authUid' : '',
+    ]
+      .filter((name) => name !== '')
+      .join(', ');
     lines.push(
-      `export const ${item.name} = pgPolicy('${item.name}', {`,
-      `  as: '${as}',`,
-      `  for: '${item.command}',`,
-      `  to: ${drizzleRoles(item.roles)},${using}${check}`,
-      '})',
+      "import { pgPolicy } from 'drizzle-orm/pg-core'",
+      `import { ${named} } from 'drizzle-orm/supabase'`,
+    );
+  } else {
+    lines.push("import { pgPolicy, pgRole } from 'drizzle-orm/pg-core'");
+  }
+  lines.push(
+    `import * as schema from ${quoted(options.schema ?? './schema')}`,
+    '',
+  );
+  if (!supabase) {
+    if (anon) {
+      lines.push("export const anonRole = pgRole('anon').existing()");
+    }
+    lines.push(
+      "export const authenticatedRole = pgRole('authenticated').existing()",
       '',
     );
   }
-  const text = `${lines.join('\n')}\n`;
+  for (const item of policies) {
+    const as = item.effect === 'deny' ? 'restrictive' : 'permissive';
+    const table = identifier(
+      options.exports?.[item.table] ?? camelCase(item.table),
+      'table export',
+    );
+    const name = identifier(camelCase(item.name), 'policy export');
+    const using =
+      item.using === undefined ? '' : `\n  using: ${sqlOf(item.using)},`;
+    const check =
+      item.check === undefined ? '' : `\n  withCheck: ${sqlOf(item.check)},`;
+    lines.push(
+      `export const ${name} = pgPolicy(${quoted(item.name)}, {`,
+      `  as: '${as}',`,
+      `  for: '${item.command}',`,
+      `  to: ${drizzleRoles(item.roles)},${using}${check}`,
+      `}).link(schema.${table})`,
+      '',
+    );
+  }
+  const text = `${lines.join('\n').trimEnd()}\n`;
   assertNoServiceRole(text);
   return text;
 }
 
+export type PrismaEmitOptions = {
+  /** Model name per table name. */
+  readonly models?: Readonly<Record<string, string>>;
+  /** File name of the migration SQL written next to the output. */
+  readonly helpers?: string;
+};
+
+/** Prisma 8 `policy_<command>` blocks; each target model declares `@@rls` itself. */
 export function emitPrisma(
   policies: readonly CompiledPolicy[],
-  preamble: string,
-  force = false,
-  views: readonly FieldView[] = [],
+  options: PrismaEmitOptions = {},
 ): string {
-  const byTable = new Map<string, CompiledPolicy[]>();
-  for (const item of policies) {
-    const list = byTable.get(item.table) ?? [];
-    list.push(item);
-    byTable.set(item.table, list);
-  }
+  const modelOf = (table: string): string =>
+    identifier(options.models?.[table] ?? pascalCase(table), 'model');
+  const models = [...new Set(policies.map((item) => modelOf(item.table)))];
   const lines = [
-    '// generated by permdock rls generate',
+    '// generated by permdock rls generate (Prisma 8 policy blocks)',
     '// fail-closed: never target a bypass role',
+    `// add @@rls to ${models.length === 1 ? 'model' : 'models'} ${models.join(', ')}; keep these blocks in their namespace`,
+    ...helpersNote(options.helpers, 'in a migration before these policies'),
     '',
   ];
-  if (preamble !== '') {
-    lines.push('/* run in a migration:', preamble.trim(), '*/', '');
-  }
-  if (force) {
-    lines.push(...migrationComment(forceSql(policies)));
-  }
-  lines.push(...migrationComment(fieldsMigration(views)));
-  for (const [table, items] of byTable) {
-    const model = table.charAt(0).toUpperCase() + table.slice(1);
-    lines.push(`model ${model} {`);
-    lines.push('  @@rls');
-    for (const item of items) {
-      const kind = `policy_${item.command}`;
-      lines.push(`  ${kind} ${item.name} {`);
-      lines.push(`    roles: [${item.roles.join(', ')}]`);
-      if (item.using !== undefined) {
-        lines.push(`    using: ${JSON.stringify(item.using)}`);
-      }
-      if (item.check !== undefined) {
-        lines.push(`    withCheck: ${JSON.stringify(item.check)}`);
-      }
-      lines.push('  }');
+  for (const item of policies) {
+    if (item.effect === 'deny') {
+      throw new Error(
+        `PermDock CLI: Prisma policy blocks are permissive only, so ${item.name} (a deny) needs --target sql`,
+      );
+    }
+    lines.push(
+      `policy_${item.command} ${identifier(item.name, 'policy name')} {`,
+      `  target = ${modelOf(item.table)}`,
+      `  roles  = [${item.roles.join(', ')}]`,
+    );
+    if (item.using !== undefined) {
+      lines.push(`  using  = ${JSON.stringify(item.using)}`);
+    }
+    if (item.check !== undefined) {
+      lines.push(`  withCheck = ${JSON.stringify(item.check)}`);
     }
     lines.push('}', '');
   }
-  const text = `${lines.join('\n')}\n`;
+  const text = `${lines.join('\n').trimEnd()}\n`;
   assertNoServiceRole(text);
   return text;
+}
+
+/** The migration file written next to `out`. */
+export function migrationOut(out: string): string {
+  const dot = out.lastIndexOf('.');
+  const slash = Math.max(out.lastIndexOf('/'), out.lastIndexOf('\\'));
+  return `${dot > slash ? out.slice(0, dot) : out}.migration.sql`;
 }
 
 export function defaultOut(target: RlsTarget): string {

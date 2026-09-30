@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 
 import type { Policy } from '../index.ts';
 import type { CompiledPolicy } from './rls-compile.ts';
@@ -12,13 +12,21 @@ import type {
   RlsTarget,
 } from './types.ts';
 
+import { compact } from '../core/compact.ts';
 import { scopeList } from '../core/scopes.ts';
 import { listRoles } from '../index.ts';
 import { supabaseTenantClaim } from '../supabase/budget.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { breakGlassEntries, breakGlassSql } from './rls-break-glass.ts';
 import { compileGrants } from './rls-compile.ts';
-import { defaultOut, emitDrizzle, emitPrisma, emitSql } from './rls-emit.ts';
+import {
+  defaultOut,
+  emitDrizzle,
+  emitPrisma,
+  emitSql,
+  migrationOut,
+  migrationSql,
+} from './rls-emit.ts';
 import { fieldViews, rowBranches } from './rls-fields.ts';
 import { roleNames } from './rls-grants.ts';
 import { closureDepths, graphPlan, graphSql } from './rls-graph.ts';
@@ -39,6 +47,8 @@ export type GenerateOutcome = {
   readonly text: string;
   /** The policies `text` creates; set when `write` is false. */
   readonly policies?: readonly CompiledPolicy[];
+  /** For Drizzle and Prisma, the SQL written next to `text` for a custom migration. */
+  readonly migration?: string;
 };
 
 async function loadPolicy(
@@ -176,7 +186,15 @@ export async function runRlsGenerate(input: {
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
     ...(fieldsMode === undefined ? {} : { fields: fieldsMode }),
-    ...(graph.size === 0 ? {} : { graph: { closures: closureDepths(graph) } }),
+    ...(graph.size === 0
+      ? {}
+      : {
+          graph: {
+            closures: closureDepths(graph),
+            resources: policy.resources,
+            ...(rls?.tables === undefined ? {} : { tables: rls.tables }),
+          },
+        }),
   };
   const warnings: string[] = [];
   if (authorize === 'database') {
@@ -272,21 +290,35 @@ export async function runRlsGenerate(input: {
       }
     }
   }
-  if (force && input.target !== 'sql') {
-    warnings.push(
-      `--force: ${input.target} has no FORCE ROW LEVEL SECURITY option; run the commented statements in a migration`,
-    );
-  }
+  const outRel = input.out ?? rls?.out ?? defaultOut(input.target);
+  const migration =
+    input.target === 'sql'
+      ? ''
+      : migrationSql(policies, preamble, force, views);
+  const migrationRel = migration === '' ? undefined : migrationOut(outRel);
+  const helpers =
+    migrationRel === undefined ? undefined : basename(migrationRel);
   let text: string;
   switch (input.target) {
     case 'sql':
       text = emitSql(policies, preamble, force, views);
       break;
     case 'drizzle':
-      text = emitDrizzle(policies, preamble, force, views);
+      text = emitDrizzle(
+        policies,
+        compact({
+          dialect: ctx.dialect,
+          schema: rls?.drizzle?.schema,
+          exports: rls?.drizzle?.exports,
+          helpers,
+        }),
+      );
       break;
     case 'prisma':
-      text = emitPrisma(policies, preamble, force, views);
+      text = emitPrisma(
+        policies,
+        compact({ models: rls?.prisma?.models, helpers }),
+      );
       break;
     default: {
       const exhaustive: never = input.target;
@@ -296,26 +328,46 @@ export async function runRlsGenerate(input: {
   for (const column of compiled.filtered) {
     warnings.push(`index suggestion: create index on ${column}`);
   }
+  const extras = migration === '' ? {} : { migration };
   if (input.write === false) {
-    return { code: 0, output: warnings.join('\n'), text, policies };
+    return { code: 0, output: warnings.join('\n'), text, policies, ...extras };
   }
-  const outRel = input.out ?? rls?.out ?? defaultOut(input.target);
-  const outPath = resolve(input.cwd, outRel);
+  const files: [string, string][] = [[outRel, text]];
+  if (migrationRel !== undefined) {
+    files.push([migrationRel, migration]);
+  }
   if (input.check) {
-    if (!existsSync(outPath)) {
-      return {
-        code: 1,
-        output: `rls generate drift: missing ${outRel}`,
-        text,
-      };
+    for (const [rel, content] of files) {
+      const path = resolve(input.cwd, rel);
+      if (!existsSync(path)) {
+        return {
+          code: 1,
+          output: `rls generate drift: missing ${rel}`,
+          text,
+          ...extras,
+        };
+      }
+      if (readFileSync(path, 'utf8') !== content) {
+        return {
+          code: 1,
+          output: `rls generate drift: ${rel}`,
+          text,
+          ...extras,
+        };
+      }
     }
-    if (readFileSync(outPath, 'utf8') === text) {
-      return { code: 0, output: 'rls generate up to date', text };
-    }
-    return { code: 1, output: 'rls generate drift', text };
+    return { code: 0, output: 'rls generate up to date', text, ...extras };
   }
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, text);
+  for (const [rel, content] of files) {
+    const path = resolve(input.cwd, rel);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, content);
+  }
   const extra = warnings.length === 0 ? '' : `\n${warnings.join('\n')}`;
-  return { code: 0, output: `wrote ${outRel}${extra}`, text };
+  return {
+    code: 0,
+    output: `wrote ${files.map(([rel]) => rel).join(', ')}${extra}`,
+    text,
+    ...extras,
+  };
 }

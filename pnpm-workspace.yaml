@@ -211,6 +211,8 @@ packageExtensions:
         optional: true
 
 overrides:
+  # One drizzle-orm peer variant everywhere, so its `SQL` type matches between permdock and the examples.
+  kysely: 'catalog:'
   '@react-native/metro-config': 'catalog:'
   react-native-worklets: 'catalog:'
 

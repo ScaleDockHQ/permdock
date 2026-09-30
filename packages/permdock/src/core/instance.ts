@@ -84,7 +84,8 @@ import { findRole, listRoles, synthesiseRole } from './vocabulary.ts';
 import { whereFromGrants } from './where-scope.ts';
 import { whoCan } from './who-can.ts';
 
-const LOAD_ROUNDS = 6;
+/** Each round reads one more layer: link hops, then the chain, then nested groups. */
+const LOAD_ROUNDS = 48;
 
 /** A grant on a relation with a `period` is decided on the server, where the clock is. */
 function periodBound(policy: Policy, grant: Grant): boolean {
@@ -187,8 +188,19 @@ function graphAware(grant: Grant, where: Grant['where']): Grant {
       ...grant,
       where: combined,
       portable: graph ? false : grant.portable,
+      graph: graph && grant.portable ? (true as const) : undefined,
     }),
   );
+}
+
+/**
+ * `where()` keeps a grant that is server-only because it reads the graph:
+ * its `related` nodes compile to subqueries given relation mappings.
+ */
+function whereGrant(grant: Grant): Grant {
+  return grant.graph === true
+    ? freezeDeep({ ...grant, portable: true })
+    : grant;
 }
 
 /**
@@ -570,7 +582,11 @@ export function buildInstance(
   const queuedErrors = [...(envBase.queuedErrors ?? [])];
   const customGrants = customGrantsFor(policy, envBase.customRoles);
   const relationCache: RelationCache = envBase.relationCache ?? new Map();
-  const relations = relationReader(envBase.relations, relationCache);
+  const relations = relationReader(
+    envBase.relations,
+    relationCache,
+    policy.resources,
+  );
   const assignableAt = (tenant: string | undefined): Assignable =>
     assignableIn(
       policy,
@@ -783,12 +799,13 @@ export function buildInstance(
         customGrants,
       )
         .filter((item) => item.grant.permission.key === permission.key)
-        .map((item) => snapshotGrant(item.grant, item.membership));
+        .map((item) => snapshotGrant(whereGrant(item.grant), item.membership));
       return whereFromGrants(
         grants,
         compact({
           resource: permission.resource,
           resources: policy.resources,
+          graph: envBase.relations !== undefined,
           scopes: scopeList(policy.scopes),
           partitioned: (name: string, key: string) =>
             relatesTo(

@@ -1,6 +1,6 @@
 import type { RelatedCondition } from '../conditions/ast.ts';
 import type { Scope } from '../core/scopes.ts';
-import type { Condition, ConditionValue } from '../index.ts';
+import type { Condition, ConditionValue, ResourceNode } from '../index.ts';
 import type {
   RlsActiveRow,
   RlsDialect,
@@ -10,6 +10,7 @@ import type {
 } from './types.ts';
 
 import { scopeColumn, scopeMembershipTable } from '../conditions/compile.ts';
+import { type GraphSql, relatedSql } from '../conditions/graph-sql.ts';
 import { isReadonlyArray, sole } from '../core/compact.ts';
 import { isForbiddenKey } from '../core/paths.ts';
 import { resolveScope, rootScope, scopeChain } from '../core/scopes.ts';
@@ -65,6 +66,10 @@ export type RlsSqlContext = {
   /** Graph grants: the closure depth kept for each walked resource. */
   readonly graph?: {
     readonly closures: Readonly<Record<string, number>>;
+    /** The policy's resources, for link hops. */
+    readonly resources?: ReadonlyMap<string, ResourceNode>;
+    /** The table of each resource, as `rls.tables` maps it. */
+    readonly tables?: Readonly<Record<string, string>>;
   };
 };
 
@@ -238,6 +243,42 @@ export const CLOSURE = {
 /** The helper returning the ids of `resource` the subject holds a relation on. */
 export function graphHelper(resource: string): string {
   return permittedIdsHelper(resource);
+}
+
+/** The helper returning the ids of `resource` whose `link` points into the ids it is given. */
+export function linkHelper(resource: string, link: string): string {
+  if (!/^[a-z][a-z0-9_]*$/u.test(link)) {
+    throw new Error(
+      `PermDock CLI: link '${link}' on ${resource} is not a lowercase SQL name, so rls generate cannot name its helper`,
+    );
+  }
+  permittedIdsHelper(resource);
+  return `permdock_link_${resource}_${link}`;
+}
+
+/** Graph SQL parts as RLS text: values inline as literals, the subject from the dialect's claim. */
+export function graphSqlText(parts: GraphSql, ctx: RlsSqlContext): string {
+  return parts
+    .map((part) => {
+      if ('text' in part) {
+        return part.text;
+      }
+      if ('column' in part) {
+        return quoteIdent(part.column);
+      }
+      if ('subject' in part) {
+        return `${subjectIdSql(ctx)}::text`;
+      }
+      return typeof part.value === 'string'
+        ? quoteLiteral(part.value)
+        : String(part.value);
+    })
+    .join('');
+}
+
+/** The schema-qualified name of a table under `search_path = ''`. */
+export function qualifiedTable(name: string): string {
+  return name.includes('.') ? name : `public.${name}`;
 }
 
 /** The helper returning the ids of scope `name` a grant key reaches. */
@@ -1023,6 +1064,9 @@ export function compileRelatedSql(
   condition: RelatedCondition,
   ctx: RlsSqlContext,
 ): string {
+  if (condition.hops !== undefined && condition.hops.length > 0) {
+    return compileHoppedSql(condition, ctx);
+  }
   const type = ctx.columnTypes?.[condition.field];
   const cast = type === undefined || type === 'text' ? '' : `::${type}`;
   const column =
@@ -1047,4 +1091,44 @@ export function compileRelatedSql(
     return `(${reach} and ${quoteIdent(condition.restricted)} is not true)`;
   }
   return reach;
+}
+
+/**
+ * A `related` condition that crosses link hops: the reached instances of the
+ * last resource, carried back over each link by its security definer helper,
+ * so the hop reads a table the subject may not see.
+ */
+function compileHoppedSql(
+  condition: RelatedCondition,
+  ctx: RlsSqlContext,
+): string {
+  const resources = ctx.graph?.resources;
+  if (resources === undefined) {
+    throw new Error(
+      'PermDock CLI: a related condition with link hops needs the policy resources in the RLS context',
+    );
+  }
+  const schema = quoteIdent(ctx.schema ?? 'public');
+  return graphSqlText(
+    relatedSql(condition, {
+      resources,
+      ...(ctx.graph?.tables === undefined ? {} : { tables: ctx.graph.tables }),
+      closure: `${ctx.schema ?? 'public'}.${CLOSURE.table}`,
+      closureDepths: ctx.graph?.closures ?? {},
+      qualify: qualifiedTable,
+      holders: (resource, relation) => [
+        {
+          text: `select ${schema}.${graphHelper(resource)}(${quoteLiteral(relation)})`,
+        },
+      ],
+      linked: (resource, link, targets) => [
+        {
+          text: `select ${schema}.${linkHelper(resource, link)}(array(`,
+        },
+        ...targets,
+        { text: '))' },
+      ],
+    }),
+    ctx,
+  );
 }

@@ -334,21 +334,3 @@ export function fieldViewsSql(views: readonly FieldView[]): string {
     })
     .join('\n\n');
 }
-
-/** The base-table statements `--revoke-columns` needs where the target emits no grants (Drizzle, Prisma). */
-export function revokeColumnsSql(views: readonly FieldView[]): string {
-  const lines: string[] = [];
-  for (const view of views) {
-    if (view.companion === undefined) {
-      continue;
-    }
-    lines.push(
-      `revoke select on table ${quoteTable(view.table)} from anon, authenticated;`,
-    );
-    for (const role of view.roles) {
-      lines.push(columnGrantSql(view, role));
-    }
-    lines.push(columnRevokeSql(view));
-  }
-  return lines.join('\n');
-}

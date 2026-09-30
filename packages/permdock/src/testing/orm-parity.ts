@@ -61,6 +61,8 @@ function subsetOf(small: readonly string[], large: readonly string[]): boolean {
 /**
  * ORM parity: for each scenario, the rows `permdock.filter()` keeps in memory
  * must be exactly the rows the database returns for `toWhere(permdock.where())`.
+ * With a `relations` option, the graph is loaded for the rows first, so the
+ * in-memory side walks the same graph the database query does.
  * A partial `where()` (a closure grant it cannot compile) may be refused or
  * return fewer rows, never more.
  */
@@ -75,6 +77,9 @@ export async function ormParity<TUser>(
     scenario: OrmParityScenario<TUser>,
   ): Promise<OrmParityCase> {
     const dock = await createPermDock(policy, scenario.user, scenario.options);
+    if (scenario.options?.relations !== undefined) {
+      await dock.loadRelations(scenario.permission, scenario.rows);
+    }
     const expected = sortedIds(
       dock
         .filter(scenario.permission, scenario.rows)

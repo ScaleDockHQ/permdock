@@ -51,15 +51,36 @@ export type ResourceParent = {
   readonly resource: string;
 };
 
+/** Relations on the same resource whose holders also hold this one. */
+export type RelationIncludes = {
+  readonly includes?: readonly string[];
+};
+
 /** The row's `field` holds the principal id (or, with `memberOf`, a scope id). */
-export type FieldRelation = {
+export type FieldRelation = RelationIncludes & {
   readonly field: string;
   /** A declared scope name (or the `tenant` / `team` alias): the field holds that scope's id. */
   readonly memberOf?: string;
 };
 
+/** Literal values an edge row's columns must hold, so one table backs several relations. */
+export type EdgeMatch = Readonly<Record<string, string | number | boolean>>;
+
+/**
+ * Edge rows that name a group instead of a principal: `column` holds the
+ * resource name, `subject` the group's id, and the row holds for whoever
+ * holds `resources[<name>]` on that group. A null `column` (or `direct`)
+ * names a principal; any other value matches nothing.
+ */
+export type EdgeGroups = {
+  readonly column: string;
+  readonly resources: Readonly<Record<string, string>>;
+  /** The `column` value of a row naming a principal, besides `null`. */
+  readonly direct?: string;
+};
+
 /** One row per holder in an edge table: `object` holds the resource id, `subject` the principal id. */
-export type EdgeRelation = {
+export type EdgeRelation = RelationIncludes & {
   readonly edge: string;
   /** Default `<resource>_id`. */
   readonly object?: string;
@@ -67,10 +88,12 @@ export type EdgeRelation = {
   readonly subject?: string;
   /** A timestamp column; an edge whose value has passed does not match. */
   readonly expiresAt?: string;
+  readonly match?: EdgeMatch;
+  readonly groups?: EdgeGroups;
 };
 
 /** On a principal resource: the row's `principal` column holds the principal who holds the relation over it. */
-export type PrincipalRelation = {
+export type PrincipalRelation = RelationIncludes & {
   readonly principal: string;
   /** Timestamp columns bounding when the relation holds; `null` leaves that side open. */
   readonly period?: {
@@ -79,9 +102,24 @@ export type PrincipalRelation = {
   };
 };
 
-export type ResourceRelation = FieldRelation | EdgeRelation | PrincipalRelation;
+/** Held only through the relations it includes. */
+export type ComputedRelation = {
+  readonly includes: readonly string[];
+};
+
+export type ResourceRelation =
+  | FieldRelation
+  | EdgeRelation
+  | PrincipalRelation
+  | ComputedRelation;
 
 export type ResourceRelationInput = string | ResourceRelation;
+
+/** A to-one link from a row to another resource's instance, walked by `through: [<link>]`. */
+export type ResourceLink = {
+  readonly field: string;
+  readonly resource: string;
+};
 
 export function isFieldRelation(
   relation: ResourceRelation | undefined,
@@ -101,6 +139,48 @@ export function isPrincipalRelation(
   return relation !== undefined && 'principal' in relation;
 }
 
+export function isComputedRelation(
+  relation: ResourceRelation | undefined,
+): relation is ComputedRelation {
+  return (
+    relation !== undefined &&
+    !('field' in relation) &&
+    !('edge' in relation) &&
+    !('principal' in relation)
+  );
+}
+
+/**
+ * The relations whose holders hold `name` on `node`: `name` itself when it
+ * has a source, then everything it includes, transitively, each once.
+ * `definePermissions` rejects cycles and unknown names, so this terminates.
+ */
+export function expandRelation(
+  node: ResourceNode | undefined,
+  name: string,
+): readonly string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const visit = (current: string): void => {
+    if (seen.has(current)) {
+      return;
+    }
+    seen.add(current);
+    const spec = node?.relations[current];
+    if (spec === undefined) {
+      return;
+    }
+    if (!isComputedRelation(spec)) {
+      out.push(current);
+    }
+    for (const included of spec.includes ?? []) {
+      visit(included);
+    }
+  };
+  visit(name);
+  return out;
+}
+
 /** Whether `node` names itself as its parent (nested folders, sub-teams, reporting lines). */
 export function isSelfParented(node: ResourceNode | undefined): boolean {
   return node?.parent !== undefined && node.parent.resource === node.name;
@@ -116,6 +196,7 @@ export type ResourceOptions<
   readonly actions?: A;
   readonly collection?: C;
   readonly parent?: ResourceParent;
+  readonly links?: Readonly<Record<string, ResourceLink>>;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   /**
    * The row field that changes whenever the row does (`updatedAt`, a revision
@@ -150,6 +231,7 @@ export type ResourceNode<T = unknown> = {
   readonly schema: StandardSchemaV1<unknown, T> | undefined;
   readonly id: string;
   readonly parent: ResourceParent | undefined;
+  readonly links: Readonly<Record<string, ResourceLink>>;
   readonly relations: Readonly<Record<string, ResourceRelation>>;
   readonly version: string | undefined;
   readonly restricted: string | undefined;
@@ -353,16 +435,22 @@ function normaliseRelation(
     assertSafeKey(spec, 'relation field');
     return { field: spec };
   }
+  const label = `relation '${relationName}' on '${resourceName}'`;
+  const includes = normaliseIncludes(label, spec.includes);
   const kinds = ['field', 'edge', 'principal'].filter((kind) => kind in spec);
+  if (kinds.length === 0 && includes !== undefined) {
+    return { includes };
+  }
   if (kinds.length !== 1) {
     throw new Error(
-      `PermDock: relation '${relationName}' on '${resourceName}' needs exactly one of field, edge or principal`,
+      `PermDock: ${label} needs exactly one of field, edge, principal or includes`,
     );
   }
+  const withIncludes = includes === undefined ? {} : { includes };
   if (isEdgeRelation(spec)) {
     if (!EDGE_TABLE.test(spec.edge)) {
       throw new Error(
-        `PermDock: relation '${relationName}' on '${resourceName}' has an unsafe edge table '${spec.edge}'`,
+        `PermDock: ${label} has an unsafe edge table '${spec.edge}'`,
       );
     }
     for (const column of [spec.object, spec.subject, spec.expiresAt]) {
@@ -370,7 +458,19 @@ function normaliseRelation(
         assertSafeKey(column, 'edge column');
       }
     }
-    return { ...spec };
+    return {
+      edge: spec.edge,
+      ...(spec.object === undefined ? {} : { object: spec.object }),
+      ...(spec.subject === undefined ? {} : { subject: spec.subject }),
+      ...(spec.expiresAt === undefined ? {} : { expiresAt: spec.expiresAt }),
+      ...(spec.match === undefined
+        ? {}
+        : { match: normaliseMatch(label, spec.match) }),
+      ...(spec.groups === undefined
+        ? {}
+        : { groups: normaliseGroups(label, spec.groups) }),
+      ...withIncludes,
+    };
   }
   if (isPrincipalRelation(spec)) {
     assertSafeKey(spec.principal, 'relation principal');
@@ -380,11 +480,219 @@ function normaliseRelation(
       }
     }
     return spec.period === undefined
-      ? { principal: spec.principal }
-      : { principal: spec.principal, period: { ...spec.period } };
+      ? { principal: spec.principal, ...withIncludes }
+      : {
+          principal: spec.principal,
+          period: { ...spec.period },
+          ...withIncludes,
+        };
   }
-  assertSafeKey(spec.field, 'relation field');
-  return { ...spec };
+  const field = spec as FieldRelation;
+  assertSafeKey(field.field, 'relation field');
+  if (field.memberOf !== undefined && includes !== undefined) {
+    throw new Error(
+      `PermDock: ${label} is a memberOf relation and cannot include others`,
+    );
+  }
+  return field.memberOf === undefined
+    ? { field: field.field, ...withIncludes }
+    : { field: field.field, memberOf: field.memberOf };
+}
+
+function normaliseIncludes(
+  label: string,
+  includes: unknown,
+): readonly string[] | undefined {
+  if (includes === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(includes) || includes.length === 0) {
+    throw new Error(
+      `PermDock: ${label} includes must be a non-empty list of relation names`,
+    );
+  }
+  for (const name of includes as readonly unknown[]) {
+    if (typeof name !== 'string') {
+      throw new TypeError(`PermDock: ${label} includes a non-string name`);
+    }
+    assertSafeKey(name, 'included relation');
+  }
+  return [...new Set(includes as readonly string[])];
+}
+
+function normaliseMatch(label: string, match: EdgeMatch): EdgeMatch {
+  const out: Record<string, string | number | boolean> = {};
+  const columns = Object.keys(match);
+  if (columns.length === 0) {
+    throw new Error(`PermDock: ${label} match needs at least one column`);
+  }
+  for (const column of columns) {
+    assertSafeKey(column, 'edge match column');
+    const value = match[column];
+    if (
+      typeof value !== 'string' &&
+      typeof value !== 'boolean' &&
+      !(typeof value === 'number' && Number.isFinite(value))
+    ) {
+      throw new Error(
+        `PermDock: ${label} match '${column}' must be a string, a finite number or a boolean`,
+      );
+    }
+    out[column] = value;
+  }
+  return out;
+}
+
+function normaliseGroups(label: string, groups: EdgeGroups): EdgeGroups {
+  assertSafeKey(groups.column, 'edge groups column');
+  const resources: Record<string, string> = {};
+  const names = Object.keys(groups.resources);
+  if (names.length === 0) {
+    throw new Error(`PermDock: ${label} groups needs at least one resource`);
+  }
+  for (const name of names) {
+    assertSafeKey(name, 'group resource');
+    const relationName = groups.resources[name];
+    if (typeof relationName !== 'string') {
+      throw new TypeError(
+        `PermDock: ${label} groups '${name}' must name a relation`,
+      );
+    }
+    assertSafeKey(relationName, 'group relation');
+    resources[name] = relationName;
+  }
+  if (groups.direct !== undefined && groups.direct in resources) {
+    throw new Error(
+      `PermDock: ${label} groups direct '${groups.direct}' is also a group resource`,
+    );
+  }
+  return groups.direct === undefined
+    ? { column: groups.column, resources }
+    : { column: groups.column, resources, direct: groups.direct };
+}
+
+/** An included relation must exist on the same resource, be tenancy-free and never include itself back. */
+function assertIncludes(node: ResourceNode): void {
+  const state = new Map<string, 'visiting' | 'done'>();
+  const visit = (name: string, path: readonly string[]): void => {
+    if (state.get(name) === 'done') {
+      return;
+    }
+    if (state.get(name) === 'visiting') {
+      throw new Error(
+        `PermDock: relation includes on '${node.name}' form a cycle: ${[...path, name].join(' -> ')}`,
+      );
+    }
+    state.set(name, 'visiting');
+    for (const included of node.relations[name]?.includes ?? []) {
+      const target = node.relations[included];
+      if (target === undefined) {
+        throw new Error(
+          `PermDock: relation '${name}' on '${node.name}' includes '${included}', which '${node.name}' does not declare`,
+        );
+      }
+      if (isFieldRelation(target) && target.memberOf !== undefined) {
+        throw new Error(
+          `PermDock: relation '${name}' on '${node.name}' includes the memberOf relation '${included}'; scopes are tenancy, not the object graph`,
+        );
+      }
+      visit(included, [...path, name]);
+    }
+    state.set(name, 'done');
+  };
+  for (const name of Object.keys(node.relations)) {
+    visit(name, []);
+  }
+}
+
+function assertGroupTarget(
+  registry: ReadonlyMap<string, ResourceNode>,
+  node: ResourceNode,
+  relationName: string,
+  spec: ResourceRelation,
+  target: string,
+  targetRelation: string,
+): void {
+  const label = `relation '${relationName}' on '${node.name}' groups '${target}'`;
+  const targetSpec = registry.get(target)?.relations[targetRelation];
+  if (targetSpec === undefined) {
+    throw new Error(
+      `PermDock: ${label} names '${target}#${targetRelation}', which is not declared`,
+    );
+  }
+  if (isFieldRelation(targetSpec) && targetSpec.memberOf !== undefined) {
+    throw new Error(
+      `PermDock: ${label} names a memberOf relation; scopes are tenancy, not the object graph`,
+    );
+  }
+  if (
+    target === node.name &&
+    (targetRelation !== relationName || spec.includes !== undefined)
+  ) {
+    throw new Error(
+      `PermDock: ${label}: a group on its own resource must name the same relation, which includes nothing`,
+    );
+  }
+}
+
+/**
+ * Links and group targets name declared resources and relations. Groups may
+ * nest within one resource (teams in teams) through the same relation, which
+ * then includes nothing, so SQL can walk it with one bounded recursive query;
+ * a group cycle across resources is rejected.
+ */
+function assertGraphTargets(registry: ReadonlyMap<string, ResourceNode>): void {
+  const edges = new Map<string, Set<string>>();
+  for (const node of registry.values()) {
+    for (const [linkName, link] of Object.entries(node.links)) {
+      if (!registry.has(link.resource)) {
+        throw new Error(
+          `PermDock: link '${linkName}' on '${node.name}' names the undeclared resource '${link.resource}'`,
+        );
+      }
+    }
+    for (const [relationName, spec] of Object.entries(node.relations)) {
+      if (!isEdgeRelation(spec) || spec.groups === undefined) {
+        continue;
+      }
+      for (const [target, targetRelation] of Object.entries(
+        spec.groups.resources,
+      )) {
+        assertGroupTarget(
+          registry,
+          node,
+          relationName,
+          spec,
+          target,
+          targetRelation,
+        );
+        if (target !== node.name) {
+          const out = edges.get(node.name) ?? new Set<string>();
+          out.add(target);
+          edges.set(node.name, out);
+        }
+      }
+    }
+  }
+  const state = new Map<string, 'visiting' | 'done'>();
+  const visit = (name: string): void => {
+    if (state.get(name) === 'done') {
+      return;
+    }
+    if (state.get(name) === 'visiting') {
+      throw new Error(
+        `PermDock: edge groups form a cycle across resources through '${name}'`,
+      );
+    }
+    state.set(name, 'visiting');
+    for (const next of edges.get(name) ?? []) {
+      visit(next);
+    }
+    state.set(name, 'done');
+  };
+  for (const name of edges.keys()) {
+    visit(name);
+  }
 }
 
 function materialiseResource(
@@ -482,12 +790,28 @@ function materialiseResource(
       normaliseRelation(name, relationName, spec),
     );
   }
+  const links: Record<string, ResourceLink> = {};
+  for (const [linkName, link] of Object.entries(init.options.links ?? {})) {
+    assertSafeKey(linkName, 'link');
+    if (linkName === 'parent') {
+      throw new Error(
+        `PermDock: link 'parent' on '${name}' is reserved; declare it as parent`,
+      );
+    }
+    assertSafeKey(link.field, 'link field');
+    assertSafeKey(link.resource, 'link resource');
+    links[linkName] = freezeDeep({
+      field: link.field,
+      resource: link.resource,
+    });
+  }
   const resourceNode: ResourceNode = Object.freeze({
     name,
     path: prefix,
     schema: init.schema,
     id: init.options.id ?? 'id',
     parent: parent === undefined ? undefined : freezeDeep({ ...parent }),
+    links: freezeDeep(links),
     relations: freezeDeep(relations),
     version,
     restricted,
@@ -495,6 +819,7 @@ function materialiseResource(
     instanceActions: instanceSet,
     collectionActions: collectionSet,
   });
+  assertIncludes(resourceNode);
   registry.set(name, resourceNode);
   return freezeDeep(node);
 }
@@ -591,6 +916,7 @@ export function definePermissions<const Input>(
     }
     seen.add(leaf.key);
   }
+  assertGraphTargets(registry);
   return freezeDeep(
     attachRegistry(tree, registry, leaves),
   ) as InferPermissionTree<Input>;
@@ -712,6 +1038,7 @@ export function mergePermissions<const Trees extends readonly PermissionTree[]>(
       : undefined;
     mergeNodes(merged, tree, keys, registry, sourceRegistry);
   }
+  assertGraphTargets(registry);
   const leaves = collectLeaves(merged as PermissionTree);
   return freezeDeep(attachRegistry(merged as PermissionTree, registry, leaves));
 }
