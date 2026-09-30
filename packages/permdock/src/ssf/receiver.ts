@@ -252,8 +252,10 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     type: string,
     input: SsfEventInput,
   ): Promise<IngestResult> {
-    // SAFETY: an event name used as a lookup key; the handler is checked for undefined below.
-    const named = config.onEvent[type as keyof SsfOnEvent];
+    // SAFETY: read only when type is an own key of onEvent, so the value is a declared handler.
+    const named = Object.hasOwn(config.onEvent, type)
+      ? config.onEvent[type as keyof SsfOnEvent]
+      : undefined;
     const wildcard = config.onEvent['*'];
     const handler: SsfEventHandler | undefined = named ?? wildcard;
     if (handler === undefined) {

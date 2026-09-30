@@ -296,6 +296,29 @@ describe('receiver.push', () => {
     expect(starred).toEqual([UNKNOWN_EVENT]);
   });
 
+  it('routes an event named after an Object.prototype key to onEvent *', async () => {
+    const starred: string[] = [];
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        iat: 1,
+        jti: 'proto-1',
+        sub_id: { format: 'email', email: 'a@example.com' },
+        events: { toString: {}, constructor: {} },
+      })),
+      subject: () => 'user-1',
+      onEvent: {
+        '*': ({ type }) => {
+          starred.push(type);
+        },
+      },
+    });
+    expect((await receiver.push(setRequest('set-proto'))).status).toBe(202);
+    expect(starred).toEqual(['toString', 'constructor']);
+  });
+
   it('acknowledges an unknown subject without error', async () => {
     const seen: string[] = [];
     const { receiver } = createPermDock(policy, {
