@@ -61,6 +61,16 @@ async function inProcess(dock: PermDock, table: Table): Promise<string[]> {
     .toSorted();
 }
 
+type PrismaRawTx = {
+  $queryRawUnsafe<T>(query: string, ...values: unknown[]): Promise<T>;
+  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
+};
+
+type PrismaDb = {
+  $transaction<T>(fn: (tx: PrismaRawTx) => Promise<T>): Promise<T>;
+  $disconnect(): Promise<void>;
+};
+
 function testerUri(uri: string): string {
   const url = new URL(uri);
   url.username = 'tester';
@@ -71,7 +81,7 @@ function testerUri(uri: string): string {
 describe('withSubject runs Drizzle, Kysely and Prisma under the generated RLS', () => {
   let db: Postgres | undefined;
   let pool: Pool | undefined;
-  let prisma: PrismaClient | undefined;
+  let prisma: PrismaDb | undefined;
   let kysely: Kysely<Record<Table, { id: string }>> | undefined;
   const dir = mkdtempSync(join(tmpdir(), 'permdock-with-subject-'));
 
