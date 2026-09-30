@@ -4,7 +4,7 @@ import {
   CodeBlockHeader,
   CodeBlockLanguage,
   CodeBlockTitle,
-} from "@/components/reui/code-block/code-block"
+} from "@permdock/ui/reui/code-block/code-block"
 
 const code = `export function useTotals(items: Item[]) {
   return useMemo(() => {

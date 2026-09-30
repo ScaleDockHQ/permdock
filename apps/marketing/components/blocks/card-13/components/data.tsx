@@ -1,13 +1,13 @@
 import { type ReactNode } from "react"
 
-import { Appstore } from "@/components/ui/svgs/appStore"
-import { Convex } from "@/components/ui/svgs/convex"
-import { Discord } from "@/components/ui/svgs/discord"
-import { Hono } from "@/components/ui/svgs/hono"
-import { Mintlify } from "@/components/ui/svgs/mintlify"
-import { Redis } from "@/components/ui/svgs/redis"
-import { Supabase } from "@/components/ui/svgs/supabase"
-import { Surrealdb } from "@/components/ui/svgs/surrealdb"
+import { Appstore } from "@permdock/ui/components/svgs/appStore"
+import { Convex } from "@permdock/ui/components/svgs/convex"
+import { Discord } from "@permdock/ui/components/svgs/discord"
+import { Hono } from "@permdock/ui/components/svgs/hono"
+import { Mintlify } from "@permdock/ui/components/svgs/mintlify"
+import { Redis } from "@permdock/ui/components/svgs/redis"
+import { Supabase } from "@permdock/ui/components/svgs/supabase"
+import { Surrealdb } from "@permdock/ui/components/svgs/surrealdb"
 
 export interface ICard {
   title: string

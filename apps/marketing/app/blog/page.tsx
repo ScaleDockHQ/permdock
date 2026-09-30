@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import { Frame, FrameFooter, FramePanel } from '@/components/reui/frame';
 import { blogSource } from '@/lib/source';
+import { Frame, FrameFooter, FramePanel } from '@permdock/ui/reui/frame';
 
 export const metadata = {
   title: 'Blog',

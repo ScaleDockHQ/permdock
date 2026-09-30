@@ -7,9 +7,9 @@ import { Geist_Mono, Inter } from 'next/font/google';
 
 import { SiteChrome } from '@/components/site/chrome';
 import { ThemeProvider } from '@/components/theme-provider';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { site } from '@/lib/site';
-import { cn } from '@/lib/utils';
+import { TooltipProvider } from '@permdock/ui/components/tooltip';
+import { cn } from '@permdock/ui/lib/utils';
 
 const inter = Inter({
   subsets: ['latin'],

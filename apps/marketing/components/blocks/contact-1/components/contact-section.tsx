@@ -2,16 +2,16 @@ import {
   Frame,
   FrameFooter,
   FramePanel,
-} from "@/components/reui/frame"
+} from "@permdock/ui/reui/frame"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@permdock/ui/components/button"
 import {
   Item,
   ItemContent,
   ItemDescription,
   ItemMedia,
   ItemTitle,
-} from "@/components/ui/item"
+} from "@permdock/ui/components/item"
 import { MailIcon } from "lucide-react"
 
 const SUPPORT_EMAIL = "hello@reui.io"

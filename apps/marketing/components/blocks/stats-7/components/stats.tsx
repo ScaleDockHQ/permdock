@@ -1,7 +1,7 @@
 "use client"
 
-import { Badge } from "@/components/reui/badge"
-import { Frame, FramePanel } from "@/components/reui/frame"
+import { Badge } from "@permdock/ui/reui/badge"
+import { Frame, FramePanel } from "@permdock/ui/reui/frame"
 
 import { cards } from "./data"
 

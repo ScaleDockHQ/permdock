@@ -2,13 +2,13 @@ import type { ReactNode, SVGProps } from 'react';
 
 import type { AdapterTile } from '@/lib/adapters';
 
-import { AnthropicBlack } from '@/components/ui/svgs/anthropicBlack';
-import { AnthropicWhite } from '@/components/ui/svgs/anthropicWhite';
-import { Convex } from '@/components/ui/svgs/convex';
-import { Hono } from '@/components/ui/svgs/hono';
-import { Openai } from '@/components/ui/svgs/openai';
-import { OpenaiDark } from '@/components/ui/svgs/openaiDark';
-import { Supabase } from '@/components/ui/svgs/supabase';
+import { AnthropicBlack } from '@permdock/ui/components/svgs/anthropicBlack';
+import { AnthropicWhite } from '@permdock/ui/components/svgs/anthropicWhite';
+import { Convex } from '@permdock/ui/components/svgs/convex';
+import { Hono } from '@permdock/ui/components/svgs/hono';
+import { Openai } from '@permdock/ui/components/svgs/openai';
+import { OpenaiDark } from '@permdock/ui/components/svgs/openaiDark';
+import { Supabase } from '@permdock/ui/components/svgs/supabase';
 
 type AdapterName = AdapterTile['name'];
 

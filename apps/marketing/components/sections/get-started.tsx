@@ -1,5 +1,6 @@
 'use client';
 
+import { getStartedSteps } from '@/lib/site';
 import {
   Stepper,
   StepperDescription,
@@ -8,8 +9,7 @@ import {
   StepperSeparator,
   StepperTitle,
   StepperTrigger,
-} from '@/components/reui/stepper';
-import { getStartedSteps } from '@/lib/site';
+} from '@permdock/ui/reui/stepper';
 
 import { Section } from './section';
 

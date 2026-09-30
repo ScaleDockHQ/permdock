@@ -1,10 +1,10 @@
 import { GitCompareIcon, LibraryIcon, NetworkIcon } from 'lucide-react';
 
-import { Frame, FramePanel } from '@/components/reui/frame';
 import { PageHero } from '@/components/sections/page-hero';
 import { SiteLink } from '@/components/site/site-link';
-import { Button } from '@/components/ui/button';
 import { compareMatrix, compareRows } from '@/lib/compare';
+import { Button } from '@permdock/ui/components/button';
+import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 
 export const metadata = {
   title: 'Compare',

@@ -3,20 +3,20 @@
 import {
   CodeBlock,
   CodeBlockCopyButton,
-} from "@/components/reui/code-block/code-block"
+} from "@permdock/ui/reui/code-block/code-block"
 import {
   Frame,
   FrameHeader,
   FramePanel,
   FrameTitle,
-} from "@/components/reui/frame"
+} from "@permdock/ui/reui/frame"
 
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs"
+} from "@permdock/ui/components/tabs"
 
 const samples = [
   {

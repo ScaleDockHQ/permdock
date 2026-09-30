@@ -1,4 +1,4 @@
-import { Badge, type BadgeProps } from "@/components/reui/badge"
+import { Badge, type BadgeProps } from "@permdock/ui/reui/badge"
 import {
   Timeline,
   TimelineContent,
@@ -8,7 +8,7 @@ import {
   TimelineItem,
   TimelineSeparator,
   TimelineTitle,
-} from "@/components/reui/timeline"
+} from "@permdock/ui/reui/timeline"
 
 import { changelogItems, type ChangelogItem } from "./data"
 

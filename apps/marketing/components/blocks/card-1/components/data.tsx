@@ -1,13 +1,13 @@
 import { type ReactNode } from "react"
 
-import { AnthropicBlack } from "@/components/ui/svgs/anthropicBlack"
-import { AnthropicWhite } from "@/components/ui/svgs/anthropicWhite"
-import { Openai } from "@/components/ui/svgs/openai"
-import { OpenaiDark } from "@/components/ui/svgs/openaiDark"
-import { ResendIconBlack } from "@/components/ui/svgs/resendIconBlack"
-import { ResendIconWhite } from "@/components/ui/svgs/resendIconWhite"
-import { Stripe } from "@/components/ui/svgs/stripe"
-import { Supabase } from "@/components/ui/svgs/supabase"
+import { AnthropicBlack } from "@permdock/ui/components/svgs/anthropicBlack"
+import { AnthropicWhite } from "@permdock/ui/components/svgs/anthropicWhite"
+import { Openai } from "@permdock/ui/components/svgs/openai"
+import { OpenaiDark } from "@permdock/ui/components/svgs/openaiDark"
+import { ResendIconBlack } from "@permdock/ui/components/svgs/resendIconBlack"
+import { ResendIconWhite } from "@permdock/ui/components/svgs/resendIconWhite"
+import { Stripe } from "@permdock/ui/components/svgs/stripe"
+import { Supabase } from "@permdock/ui/components/svgs/supabase"
 
 export interface ICard {
   title: string

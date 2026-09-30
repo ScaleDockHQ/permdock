@@ -4,7 +4,7 @@ import { MoonIcon, SunIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useSyncExternalStore } from 'react';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@permdock/ui/components/button';
 
 // oxlint-disable-next-line eslint/no-empty-function -- nothing to unsubscribe from
 const noSubscription = (): (() => void) => () => {};

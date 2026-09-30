@@ -7,11 +7,11 @@ import { useEffect, useState } from 'react';
 
 import type { SiteHref } from '@/lib/site';
 
-import { Badge } from '@/components/reui/badge';
-import { IconTile } from '@/components/reui/icon-tile';
 import { SiteLink } from '@/components/site/site-link';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Button } from '@permdock/ui/components/button';
+import { cn } from '@permdock/ui/lib/utils';
+import { Badge } from '@permdock/ui/reui/badge';
+import { IconTile } from '@permdock/ui/reui/icon-tile';
 
 export type PageHeroFeature = {
   title: string;

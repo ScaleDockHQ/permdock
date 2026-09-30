@@ -10,7 +10,7 @@ import {
 } from "react"
 import { motion } from "motion/react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@permdock/ui/lib/utils"
 
 export interface CtaGridPatternProps extends ComponentPropsWithoutRef<"svg"> {
   width?: number

@@ -6,11 +6,11 @@
  * No latency column and no payload body: this view is attribution only.
  */
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { Badge } from "@/components/reui/badge"
+import { Badge } from "@permdock/ui/reui/badge"
 import { toast } from "sonner"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@permdock/ui/lib/utils"
+import { Button } from "@permdock/ui/components/button"
 import {
   Empty,
   EmptyContent,
@@ -18,9 +18,9 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Spinner } from "@/components/ui/spinner"
+} from "@permdock/ui/components/empty"
+import { Skeleton } from "@permdock/ui/components/skeleton"
+import { Spinner } from "@permdock/ui/components/spinner"
 import {
   Table,
   TableBody,
@@ -29,11 +29,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@permdock/ui/components/table"
 import {
   ToggleGroup,
   ToggleGroupItem,
-} from "@/components/ui/toggle-group"
+} from "@permdock/ui/components/toggle-group"
 
 import {
   CALLS,

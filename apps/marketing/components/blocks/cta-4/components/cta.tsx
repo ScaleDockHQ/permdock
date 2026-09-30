@@ -1,8 +1,8 @@
-import { Badge } from "@/components/reui/badge"
-import { Frame, FramePanel } from "@/components/reui/frame"
+import { Badge } from "@permdock/ui/reui/badge"
+import { Frame, FramePanel } from "@permdock/ui/reui/frame"
 
-import { Button } from "@/components/ui/button"
-import { Item, ItemMedia } from "@/components/ui/item"
+import { Button } from "@permdock/ui/components/button"
+import { Item, ItemMedia } from "@permdock/ui/components/item"
 import { LayoutGridIcon, PuzzleIcon, PaletteIcon, ArrowRightIcon } from "lucide-react"
 
 const PROOF = [

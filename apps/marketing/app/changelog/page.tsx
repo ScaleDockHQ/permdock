@@ -1,4 +1,5 @@
-import { Badge } from '@/components/reui/badge';
+import { loadChangelogs } from '@/lib/changelogs';
+import { Badge } from '@permdock/ui/reui/badge';
 import {
   Timeline,
   TimelineContent,
@@ -8,8 +9,7 @@ import {
   TimelineItem,
   TimelineSeparator,
   TimelineTitle,
-} from '@/components/reui/timeline';
-import { loadChangelogs } from '@/lib/changelogs';
+} from '@permdock/ui/reui/timeline';
 
 export const metadata = {
   title: 'Changelog',

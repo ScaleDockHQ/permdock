@@ -3,15 +3,15 @@
 import { ArrowRightIcon, CheckIcon, CopyIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { Badge } from '@/components/reui/badge';
+import { SiteLink } from '@/components/site/site-link';
+import { site } from '@/lib/site';
+import { heroSnippet } from '@/lib/snippets';
+import { Button } from '@permdock/ui/components/button';
+import { Badge } from '@permdock/ui/reui/badge';
 import {
   CodeBlock,
   CodeBlockCopyButton,
-} from '@/components/reui/code-block/code-block';
-import { SiteLink } from '@/components/site/site-link';
-import { Button } from '@/components/ui/button';
-import { site } from '@/lib/site';
-import { heroSnippet } from '@/lib/snippets';
+} from '@permdock/ui/reui/code-block/code-block';
 
 export function HomeHero() {
   const [copied, setCopied] = useState(false);

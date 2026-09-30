@@ -1,7 +1,7 @@
 'use client';
 
 import { ThemeToggle } from '@/components/site/theme-toggle';
-import { Button } from '@/components/ui/button';
+import { Button } from '@permdock/ui/components/button';
 import { site } from '@/lib/site';
 import { ArrowRightIcon } from 'lucide-react';
 import { SiteLink } from '@/components/site/site-link';

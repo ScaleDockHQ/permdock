@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
-import { Frame, FramePanel } from '@/components/reui/frame';
-import { Button } from '@/components/ui/button';
 import { site } from '@/lib/site';
+import { Button } from '@permdock/ui/components/button';
+import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 
 import { Section } from './section';
 

@@ -1,4 +1,4 @@
-import type { BadgeProps } from "@/components/reui/badge"
+import type { BadgeProps } from "@permdock/ui/reui/badge"
 
 export type ProductId =
   | "essential"

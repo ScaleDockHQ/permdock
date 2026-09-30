@@ -30,7 +30,7 @@ import {
   resolveCodeBlockLanguage,
   stripNotationComments,
   toPlainLines,
-} from "@/components/reui/code-block/code-block-highlight"
+} from "@permdock/ui/reui/code-block/code-block-highlight"
 import type {
   CodeBlockDiffSpec,
   CodeBlockLevelSpec,
@@ -41,10 +41,10 @@ import type {
   CodeBlockToken,
   CodeBlockTransformer,
   CodeBlockWordSpec,
-} from "@/components/reui/code-block/code-block-highlight"
+} from "@permdock/ui/reui/code-block/code-block-highlight"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@permdock/ui/lib/utils"
+import { Button } from "@permdock/ui/components/button"
 
 /* -------------------------------------------------------------------------- */
 /*                                   Context                                   */
@@ -2203,7 +2203,7 @@ export { markdownCodeProps, markdownFences }
 export {
   ansiToLines,
   parseUnifiedDiff,
-} from "@/components/reui/code-block/code-block-highlight"
+} from "@permdock/ui/reui/code-block/code-block-highlight"
 export type {
   CodeBlockDiffSpec,
   CodeBlockHighlightOptions,
@@ -2217,7 +2217,7 @@ export type {
   CodeBlockToken,
   CodeBlockTransformer,
   CodeBlockWordSpec,
-} from "@/components/reui/code-block/code-block-highlight"
+} from "@permdock/ui/reui/code-block/code-block-highlight"
 
 export {
   CodeBlock,

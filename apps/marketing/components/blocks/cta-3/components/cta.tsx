@@ -1,8 +1,8 @@
-import { Badge } from "@/components/reui/badge"
-import { Frame, FramePanel } from "@/components/reui/frame"
+import { Badge } from "@permdock/ui/reui/badge"
+import { Frame, FramePanel } from "@permdock/ui/reui/frame"
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@permdock/ui/components/button"
+import { Input } from "@permdock/ui/components/input"
 import { CtaGridBackground } from "./cta-grid-background"
 import { FileTextIcon, ArrowRightIcon } from "lucide-react"
 

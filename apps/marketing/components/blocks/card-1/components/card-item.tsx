@@ -2,8 +2,8 @@ import {
   Frame,
   FrameFooter,
   FramePanel,
-} from "@/components/reui/frame"
-import { IconTile } from "@/components/reui/icon-tile"
+} from "@permdock/ui/reui/frame"
+import { IconTile } from "@permdock/ui/reui/icon-tile"
 
 import { ICard } from "./data"
 

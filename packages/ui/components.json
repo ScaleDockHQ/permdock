@@ -5,15 +5,15 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "app/globals.css",
+    "css": "../../apps/marketing/app/globals.css",
     "baseColor": "neutral",
     "cssVariables": true
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@/components",
-    "hooks": "@/hooks",
-    "lib": "@/lib",
+    "components": "@permdock/ui/components",
+    "hooks": "@permdock/ui/hooks",
+    "lib": "@permdock/ui/lib",
     "utils": "@permdock/ui/lib/utils",
     "ui": "@permdock/ui/components"
   },

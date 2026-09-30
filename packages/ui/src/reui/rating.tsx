@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@permdock/ui/lib/utils"
 import { StarIcon } from "lucide-react"
 
 const ratingVariants = cva("flex items-center", {

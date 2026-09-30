@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from "react"
-import { Badge } from "@/components/reui/badge"
+import { Badge } from "@permdock/ui/reui/badge"
 import { toast } from "sonner"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@permdock/ui/lib/utils"
+import { Button } from "@permdock/ui/components/button"
 import {
   Marker,
   MarkerContent,
   MarkerIcon,
-} from "@/components/ui/marker"
-import { Progress } from "@/components/ui/progress"
-import { Spinner } from "@/components/ui/spinner"
+} from "@permdock/ui/components/marker"
+import { Progress } from "@permdock/ui/components/progress"
+import { Spinner } from "@permdock/ui/components/spinner"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@permdock/ui/components/tooltip"
 
 import {
   formatClock,

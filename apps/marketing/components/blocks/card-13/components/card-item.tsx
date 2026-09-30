@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
-import { FramePanel } from "@/components/reui/frame"
+import { FramePanel } from "@permdock/ui/reui/frame"
 
-import { Item, ItemMedia } from "@/components/ui/item"
+import { Item, ItemMedia } from "@permdock/ui/components/item"
 
 import { ICard } from "./data"
 

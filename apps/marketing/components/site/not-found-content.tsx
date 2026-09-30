@@ -1,6 +1,6 @@
 import { SiteLink } from '@/components/site/site-link';
-import { Button } from '@/components/ui/button';
 import { site } from '@/lib/site';
+import { Button } from '@permdock/ui/components/button';
 
 export function NotFoundContent() {
   return (

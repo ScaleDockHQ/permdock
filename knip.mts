@@ -17,7 +17,7 @@ const config: KnipConfig = {
     'apps/docs': {},
     'apps/marketing': {
       // shadcn and ReUI registry code is vendored whole, used or not.
-      entry: ['components/{ui,reui,blocks,examples}/**/*.{ts,tsx}'],
+      entry: ['components/{blocks,examples}/**/*.{ts,tsx}'],
     },
     'apps/examples/*': {
       // Example sources are read as documentation; their exports show the shape.
@@ -40,6 +40,10 @@ const config: KnipConfig = {
       entry: ['permdock.config.ts', 'src/**/*.ts'],
     },
     'packages/*': {},
+    'packages/ui': {
+      // shadcn and ReUI registry code is vendored whole, used or not.
+      entry: ['src/**/*.{ts,tsx}'],
+    },
     'packages/permdock': {
       // `fromResponse` is the documented alias of `sendResponse` in `permdock/node`.
       ignoreIssues: { 'src/node/http.ts': ['duplicates'] },

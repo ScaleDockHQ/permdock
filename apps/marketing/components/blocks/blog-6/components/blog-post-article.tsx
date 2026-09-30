@@ -2,8 +2,8 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+} from "@permdock/ui/components/avatar"
+import { Badge } from "@permdock/ui/components/badge"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,15 +11,15 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Card, CardContent } from "@/components/ui/card"
+} from "@permdock/ui/components/breadcrumb"
+import { Card, CardContent } from "@permdock/ui/components/card"
 import {
   Item,
   ItemContent,
   ItemDescription,
   ItemTitle,
-} from "@/components/ui/item"
-import { Separator } from "@/components/ui/separator"
+} from "@permdock/ui/components/item"
+import { Separator } from "@permdock/ui/components/separator"
 import { ARTICLE } from "./data"
 import { ArrowRightIcon, ArrowUpRightIcon } from "lucide-react"
 

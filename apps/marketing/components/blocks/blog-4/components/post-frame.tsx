@@ -2,13 +2,13 @@ import {
   Frame,
   FrameFooter,
   FramePanel,
-} from "@/components/reui/frame"
+} from "@permdock/ui/reui/frame"
 
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@/components/ui/avatar"
+} from "@permdock/ui/components/avatar"
 import { type BlogPost } from "./data"
 import { ArrowUpRightIcon } from "lucide-react"
 

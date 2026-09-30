@@ -1,7 +1,7 @@
 "use client"
 
 import { ReactNode } from "react"
-import { BadgeProps } from "@/components/reui/badge"
+import { BadgeProps } from "@permdock/ui/reui/badge"
 import { TrendingUp, UserPlusIcon, TrendingDown } from "lucide-react"
 
 // ── Types ──

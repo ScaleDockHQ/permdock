@@ -15,6 +15,7 @@ export default function nextConfig(phase: string): NextConfig {
   return withSentryConfig(
     withMDX({
       ...createNextConfig(),
+      transpilePackages: ['@permdock/ui'],
       redirects() {
         return [
           {

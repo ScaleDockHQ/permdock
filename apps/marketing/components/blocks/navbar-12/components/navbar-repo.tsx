@@ -1,6 +1,6 @@
 'use client';
 
-import { Item, ItemMedia } from "@/components/ui/item"
+import { Item, ItemMedia } from "@permdock/ui/components/item"
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -9,8 +9,8 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu"
-import { Separator } from "@/components/ui/separator"
+} from "@permdock/ui/components/navigation-menu"
+import { Separator } from "@permdock/ui/components/separator"
 
 import { NAVBAR_COMPANIES, NAVBAR_PRODUCTS } from "./data"
 

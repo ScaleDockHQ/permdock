@@ -7,17 +7,17 @@
  * point, because a step that will stop for a person is visible before it stops.
  */
 import { useEffect, useRef, useState } from "react"
-import { Badge } from "@/components/reui/badge"
+import { Badge } from "@permdock/ui/reui/badge"
 import {
   Frame,
   FrameFooter,
   FrameHeader,
   FramePanel,
   FrameTitle,
-} from "@/components/reui/frame"
+} from "@permdock/ui/reui/frame"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@permdock/ui/lib/utils"
+import { Button } from "@permdock/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -29,15 +29,15 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@permdock/ui/components/dropdown-menu"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "@/components/ui/input-group"
-import { Marker, MarkerIcon } from "@/components/ui/marker"
-import { TooltipProvider } from "@/components/ui/tooltip"
+} from "@permdock/ui/components/input-group"
+import { Marker, MarkerIcon } from "@permdock/ui/components/marker"
+import { TooltipProvider } from "@permdock/ui/components/tooltip"
 
 import {
   DECISION_STATUS,

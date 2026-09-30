@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import type { ChangelogRelease } from '@/lib/changelog';
 
-import { Badge } from '@/components/reui/badge';
+import { Badge } from '@permdock/ui/reui/badge';
 import {
   Timeline,
   TimelineContent,
@@ -12,7 +12,7 @@ import {
   TimelineItem,
   TimelineSeparator,
   TimelineTitle,
-} from '@/components/reui/timeline';
+} from '@permdock/ui/reui/timeline';
 
 import { Section } from './section';
 

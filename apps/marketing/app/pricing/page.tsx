@@ -1,8 +1,8 @@
-import { Frame, FramePanel } from '@/components/reui/frame';
 import { SiteLink } from '@/components/site/site-link';
-import { Button } from '@/components/ui/button';
 import { compareMatrix } from '@/lib/compare';
 import { site } from '@/lib/site';
+import { Button } from '@permdock/ui/components/button';
+import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 
 export const metadata = {
   title: 'Pricing',

@@ -1,23 +1,23 @@
 "use client"
 
 import { Fragment, useState } from "react"
-import { Badge } from "@/components/reui/badge"
+import { Badge } from "@permdock/ui/reui/badge"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@permdock/ui/lib/utils"
+import { Button } from "@permdock/ui/components/button"
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
-} from "@/components/ui/select"
+} from "@permdock/ui/components/select"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@permdock/ui/components/tooltip"
 import {
   FEATURE_GROUPS,
   getProduct,

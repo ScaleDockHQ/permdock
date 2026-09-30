@@ -2,9 +2,6 @@
 
 import { useMemo, useState } from 'react';
 
-import { Badge } from '@/components/reui/badge';
-import { Frame, FramePanel } from '@/components/reui/frame';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   DEMO_ACTIONS,
   DEMO_ROLES,
@@ -12,6 +9,12 @@ import {
   type DemoAction,
   type DemoRole,
 } from '@/lib/demo-policy';
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@permdock/ui/components/toggle-group';
+import { Badge } from '@permdock/ui/reui/badge';
+import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 
 import { Section } from './section';
 

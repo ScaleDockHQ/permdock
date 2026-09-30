@@ -2,18 +2,18 @@
 
 import { CircleHelpIcon, LifeBuoyIcon, MailIcon } from 'lucide-react';
 
-import { Badge } from '@/components/reui/badge';
 import { SiteLink } from '@/components/site/site-link';
+import { faqItems } from '@/lib/faq';
+import { site } from '@/lib/site';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { faqItems } from '@/lib/faq';
-import { site } from '@/lib/site';
+} from '@permdock/ui/components/accordion';
+import { Button } from '@permdock/ui/components/button';
+import { Card, CardContent } from '@permdock/ui/components/card';
+import { Badge } from '@permdock/ui/reui/badge';
 
 export function FaqSection() {
   const first = faqItems[0];

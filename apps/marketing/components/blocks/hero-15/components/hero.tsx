@@ -8,11 +8,11 @@
  * customize: copy and actions here; the feature links live in data.tsx.
  */
 import { useEffect, useState } from "react"
-import { Badge } from "@/components/reui/badge"
-import { IconTile } from "@/components/reui/icon-tile"
+import { Badge } from "@permdock/ui/reui/badge"
+import { IconTile } from "@permdock/ui/reui/icon-tile"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@permdock/ui/lib/utils"
+import { Button } from "@permdock/ui/components/button"
 import { HERO_FEATURES } from "./data"
 import { ArrowUpRightIcon, Share2Icon, LayoutGridIcon, ArrowRightIcon } from "lucide-react"
 

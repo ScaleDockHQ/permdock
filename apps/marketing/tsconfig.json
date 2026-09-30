@@ -21,11 +21,5 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "components/ui",
-    "components/reui",
-    "components/blocks",
-    "components/examples"
-  ]
+  "exclude": ["node_modules", "components/blocks", "components/examples"]
 }

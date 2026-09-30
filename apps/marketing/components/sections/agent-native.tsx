@@ -1,7 +1,7 @@
 import { AgentActivity } from '@/components/blocks/agent-activity-1/components/agent-activity';
-import { Badge } from '@/components/reui/badge';
 import { SiteLink } from '@/components/site/site-link';
 import { agentRuntimes } from '@/lib/site';
+import { Badge } from '@permdock/ui/reui/badge';
 
 import { Section } from './section';
 

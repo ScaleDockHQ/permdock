@@ -1,5 +1,5 @@
-import { Frame, FramePanel } from '@/components/reui/frame';
 import { invariants } from '@/lib/invariants';
+import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 
 import { Section } from './section';
 

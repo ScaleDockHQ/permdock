@@ -7,30 +7,30 @@
  * customize: copy here; the snippet, faces and rating in data.tsx.
  */
 import { useEffect, useRef, useState } from "react"
-import { Badge } from "@/components/reui/badge"
-import { Rating } from "@/components/reui/rating"
+import { Badge } from "@permdock/ui/reui/badge"
+import { Rating } from "@permdock/ui/reui/rating"
 
 import {
   Avatar,
   AvatarFallback,
   AvatarGroup,
   AvatarImage,
-} from "@/components/ui/avatar"
+} from "@permdock/ui/components/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@permdock/ui/components/dropdown-menu"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupText,
   InputGroupTextarea,
-} from "@/components/ui/input-group"
-import { Separator } from "@/components/ui/separator"
+} from "@permdock/ui/components/input-group"
+import { Separator } from "@permdock/ui/components/separator"
 import {
   AI_MODELS,
   DEFAULT_CODE,

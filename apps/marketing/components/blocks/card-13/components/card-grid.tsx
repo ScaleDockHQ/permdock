@@ -1,4 +1,4 @@
-import { Frame } from "@/components/reui/frame"
+import { Frame } from "@permdock/ui/reui/frame"
 
 import { CardItem } from "./card-item"
 import { CARDS } from "./data"

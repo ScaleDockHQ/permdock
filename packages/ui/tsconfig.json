@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@permdock/typescript-config/react-library.json",
+  "compilerOptions": {
+    // shadcn/ui and ReUI code is vendored as published and does not compile
+    // under these flags; see docs/decisions.
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "declaration": false,
+    "isolatedDeclarations": false,
+    "types": ["node"],
+    "paths": {
+      "@permdock/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "oxlint.config.ts"]
+}

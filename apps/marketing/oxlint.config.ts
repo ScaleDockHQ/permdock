@@ -10,12 +10,7 @@ import {
 
 export default defineConfig({
   extends: [core, react, test],
-  ignorePatterns: [
-    ...ignorePatterns,
-    'components/ui/**',
-    'components/reui/**',
-    'components/blocks/**',
-  ],
+  ignorePatterns: [...ignorePatterns, 'components/blocks/**'],
   rules: {
     ...oneLibraryPerConcern,
     // Long-form pages keep their copy in one file (1 finding).

@@ -1,18 +1,18 @@
 "use client"
 
 import { Fragment, useMemo, useState } from "react"
-import { Badge } from "@/components/reui/badge"
+import { Badge } from "@permdock/ui/reui/badge"
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { ScrollBar } from "@/components/ui/scroll-area"
+import { cn } from "@permdock/ui/lib/utils"
+import { Button } from "@permdock/ui/components/button"
+import { ScrollBar } from "@permdock/ui/components/scroll-area"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@permdock/ui/components/tooltip"
 import {
   FEATURE_GROUPS,
   PRODUCTS,

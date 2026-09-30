@@ -1,7 +1,7 @@
-import { Frame, FrameFooter, FramePanel } from '@/components/reui/frame';
-import { IconTile } from '@/components/reui/icon-tile';
 import { SiteLink } from '@/components/site/site-link';
 import { adapterGroups } from '@/lib/adapters';
+import { Frame, FrameFooter, FramePanel } from '@permdock/ui/reui/frame';
+import { IconTile } from '@permdock/ui/reui/icon-tile';
 
 import { AdapterLogo } from './adapter-logos';
 import { Section } from './section';

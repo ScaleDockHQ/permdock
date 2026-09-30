@@ -1,17 +1,22 @@
 'use client';
 
+import { portableSnippets } from '@/lib/snippets';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@permdock/ui/components/tabs';
 import {
   CodeBlock,
   CodeBlockCopyButton,
-} from '@/components/reui/code-block/code-block';
+} from '@permdock/ui/reui/code-block/code-block';
 import {
   Frame,
   FrameHeader,
   FramePanel,
   FrameTitle,
-} from '@/components/reui/frame';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { portableSnippets } from '@/lib/snippets';
+} from '@permdock/ui/reui/frame';
 
 import { Section } from './section';
 

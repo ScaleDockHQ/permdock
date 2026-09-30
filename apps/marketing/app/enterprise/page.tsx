@@ -1,17 +1,17 @@
 import { LandmarkIcon, MailIcon, ShieldCheckIcon } from 'lucide-react';
 
-import { Frame, FrameFooter, FramePanel } from '@/components/reui/frame';
 import { PageHero } from '@/components/sections/page-hero';
-import { Button } from '@/components/ui/button';
+import { invariants } from '@/lib/invariants';
+import { site } from '@/lib/site';
+import { Button } from '@permdock/ui/components/button';
 import {
   Item,
   ItemContent,
   ItemDescription,
   ItemMedia,
   ItemTitle,
-} from '@/components/ui/item';
-import { invariants } from '@/lib/invariants';
-import { site } from '@/lib/site';
+} from '@permdock/ui/components/item';
+import { Frame, FrameFooter, FramePanel } from '@permdock/ui/reui/frame';
 
 export const metadata = {
   title: 'Enterprise',
