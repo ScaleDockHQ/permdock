@@ -96,7 +96,7 @@ No environment variables are needed for build, check or test. `CONTRIBUTING.md` 
 
 ## CI And Release
 
-- `ci.yml` runs on pushes to `main`, on pull requests, and nightly with every e2e test repeated three times: build, `check`, the TypeScript 5.9 / 6 / 7 type matrix, unit tests, bundle size, catalog drift, docs drift and publish checks, then integration, runtimes and sharded Playwright e2e against the built `dist/`.
+- `ci.yml` runs on pushes to `main`, on pull requests, and nightly with every e2e test repeated three times: build, `check`, `turbo boundaries`, the TypeScript 5.9 / 6 / 7 type matrix, unit tests, bundle size, catalog drift, docs drift and publish checks, then integration, runtimes and sharded Playwright e2e against the built `dist/`.
 - `release.yml` runs Changesets on `main`. Pending changesets open a version pull request; merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
 - The marketing and docs apps deploy as two Vercel Services of one project; see `vercel.json` and [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc).
 
