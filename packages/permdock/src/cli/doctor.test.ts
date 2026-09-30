@@ -1018,6 +1018,48 @@ export const d = (claims: unknown, options: never) => subjectFromSupabase(claims
     ]);
   });
 
+  it('PD040 warns on auth.role() in a migration, outside comments', async () => {
+    const cwd = appCopy();
+    mkdirSync(join(cwd, 'supabase/migrations'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'supabase/migrations/0001_posts.sql'),
+      `-- auth.role() is deprecated
+create policy "read" on posts for select
+  using (auth.role() = 'authenticated');
+/* auth.role() */
+create policy "write" on posts for insert to authenticated with check (true);
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD040'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly { readonly message: string }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      'supabase/migrations/0001_posts.sql:3 calls auth.role(), which Supabase deprecated',
+    ]);
+  });
+
+  it('PD041 warns when exchangeCapability signs with HS256', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/links.ts'),
+      `import { exchangeCapability } from 'permdock/supabase';
+
+export const legacy = (subject: never) =>
+  exchangeCapability(subject, { alg: 'HS256', secret: 'x', issuer: 'i' });
+export const modern = (subject: never, key: never) =>
+  exchangeCapability(subject, { alg: 'ES256', key, issuer: 'i' });
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD041'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly { readonly message: string }[];
+    };
+    expect(report.findings.map((item) => item.message)).toEqual([
+      "src/links.ts:4 signs capability tokens with HS256, the project's shared JWT secret: whoever holds it can mint any user's token",
+    ]);
+  });
+
   it('PD037 errors on a storage or realtime policy calling the helpers with a row-conditioned key', async () => {
     const cwd = appCopy();
     writeFileSync(

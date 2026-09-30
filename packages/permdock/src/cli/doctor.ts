@@ -29,7 +29,15 @@ import {
   pd035,
   pd037,
 } from './doctor-collect.ts';
-import { pd005, pd006, pd009, pd012, pd022, pd028 } from './doctor-project.ts';
+import {
+  pd005,
+  pd006,
+  pd009,
+  pd012,
+  pd022,
+  pd028,
+  pd040,
+} from './doctor-project.ts';
 import {
   pd001,
   pd007,
@@ -40,6 +48,7 @@ import {
   pd014,
   pd015,
   pd038,
+  pd041,
 } from './doctor-source.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
 import { runSkillsInstall } from './skills.ts';
@@ -230,6 +239,12 @@ export async function runDoctor(input: {
         supabaseTenantClaim,
       ),
     );
+  }
+  if (include('supabase') || include('auth-role') || include('PD040')) {
+    findings.push(...pd040(input.cwd, input.config));
+  }
+  if (include('supabase') || include('capabilities') || include('PD041')) {
+    findings.push(...pd041(sources));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

@@ -336,3 +336,32 @@ export function pd038(
   }
   return findings;
 }
+
+const EXCHANGE_CALL = /\bexchangeCapability\s*\(/gu;
+
+/** PD041: `exchangeCapability` signing link tokens with the project's shared JWT secret. */
+export function pd041(
+  sources: readonly DoctorSource[],
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const source of sources) {
+    for (const match of source.text.matchAll(EXCHANGE_CALL)) {
+      const open = match.index + match[0].length - 1;
+      const options = callArguments(source.text, open)?.[1];
+      if (
+        options === undefined ||
+        !/(?:^|[{,\s])alg\s*:\s*['"]HS256['"]/u.test(options)
+      ) {
+        continue;
+      }
+      const line = source.text.slice(0, match.index).split('\n').length;
+      findings.push({
+        code: 'PD041',
+        severity: 'warning',
+        message: `${source.file}:${String(line)} signs capability tokens with HS256, the project's shared JWT secret: whoever holds it can mint any user's token`,
+        fix: "sign with alg: 'ES256' and the private JWK of an asymmetric Supabase signing key; keep HS256 for the local stack only",
+      });
+    }
+  }
+  return findings;
+}

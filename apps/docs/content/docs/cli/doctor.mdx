@@ -58,6 +58,8 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD037` | A migration's policy on `storage.objects` or `realtime.messages` calls `permdock_has` or `permitted_<scope>_ids` with a permission whose grants carry row conditions, which the helpers do not check | error |
 | `PD038` | Under an `rls` or `supabase.hook` config, a `subjectFromSupabase` or `subjectFromSupabaseSession` call reads the tenant from a different claim than `rls.tenantClaim`, the claim the hook writes and the helpers compare with | warning |
 | `PD039` | Under a `supabase.hook` config, the helper schema has no generated `permdock_has` or `permitted_<scope>_ids`, a `supabase.hook.claims` entry in the `doctor.claims` fixture is larger than the memberships budget, or a sample has a `memberships` entry `subjectFromSupabase` drops | warning |
+| `PD040` | A SQL migration calls `auth.role()`, which Supabase deprecated | warning |
+| `PD041` | An `exchangeCapability` call signs with `alg: 'HS256'`, the project's shared JWT secret | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -235,6 +237,14 @@ The hook writes the active tenant to `rls.tenantClaim` (default `supabaseTenantC
 ### PD039: Supabase hook setup
 
 The hook writes claims that only the generated SQL helpers read. The check lists the helpers the policy's scopes need (`permdock_has` and `permitted_<scope>_ids` in `rls.schema`) and warns on each one no SQL file defines: `rls.out` (else `rls.sql`) and the `doctor.migrations` folders, never the hook's own file. `permdock supabase hook generate` prints the same warning, and with `--db` looks in the database instead. When `doctor.claims` points at a JSON array of sample decoded tokens, the check also measures each `supabase.hook.claims` entry and warns when its largest sample is more bytes of JSON than the memberships budget: those claims sit outside the budget but still travel in the session cookie. It also lists each sample's `memberships` entries that `subjectFromSupabase` cannot read (the `membership-dropped` cause at runtime). `--only supabase` or `--only helpers` runs PD039.
+
+### PD040: `auth.role()` in a migration
+
+Supabase deprecated `auth.role()`. The role a request runs under is already the Postgres role (`anon` or `authenticated`), so a policy names it with `to authenticated` instead of testing `auth.role() = 'authenticated'` in `using`. The check scans the `doctor.migrations` folders, skipping comments, and names each call by file and line. `--only auth-role` runs it.
+
+### PD041: HS256 capability tokens
+
+`exchangeCapability` can sign with the project's legacy JWT secret (`alg: 'HS256'`, `key: { secret }`). Whoever holds that secret can mint a token for any user, not just a link. The check warns on each call whose options are a literal with `alg: 'HS256'`; sign with `ES256` and the private JWK of an asymmetric Supabase signing key instead. `--only capabilities` runs it. Token lifetime, refresh-token reuse and HS256 on the local stack are better-supabase's checks; PermDock keeps PD019 because it is about how stale the authorization claims may be.
 
 ## Why
 
