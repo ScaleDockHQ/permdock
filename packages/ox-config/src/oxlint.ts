@@ -56,6 +56,8 @@ export const base: OxlintConfig = defineConfig({
     'no-new-func': 'error',
     'typescript/no-explicit-any': 'error',
     'unicorn/prefer-module': 'error',
+    // `Record<never, never>` is the deliberate empty context in adapter and middleware generics.
+    'typescript/no-generated-empty-object-type': 'off',
     // Config files (`*.config.ts`) need a default export; publishable
     // packages turn this back on via an override in the root config.
     'import/no-default-export': 'off',
