@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit --checkers 4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "catalog:",
     "@modelcontextprotocol/client": "catalog:",
     "@next/playwright": "catalog:",
     "@permdock/e2e-ai-chat": "workspace:*",
@@ -59,6 +60,7 @@
     "@permdock/typescript-config": "workspace:*",
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
+    "docs": "workspace:*",
     "marketing": "workspace:*",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",

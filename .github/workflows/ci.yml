@@ -137,6 +137,7 @@ jobs:
             projects: >-
               --project=react-vite --project=vue --project=svelte --project=solid
               --project=webmcp --project=expo --project=marketing
+              --project=marketing-mobile --project=docs --project=docs-mobile
           # next build && next start, then @next/playwright instant().
           - name: next-example
             projects: --project=next

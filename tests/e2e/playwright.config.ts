@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -93,7 +93,11 @@ type Project = {
   readonly name: string;
   readonly port?: number;
   readonly servers: readonly Server[];
+  /** Also run the spec at 390 px as `<name>-mobile`. */
+  readonly mobile?: true;
 };
+
+const mobileSuffix = '-mobile';
 
 /** A fixture that builds once and serves its production output (`scripts/serve.ts`). */
 function fixtureServer(name: string, healthPort: number): Server {
@@ -107,9 +111,19 @@ function fixtureServer(name: string, healthPort: number): Server {
   };
 }
 
+const docsServer: Server = {
+  ...uiServer('apps/docs', 3488),
+  url: 'http://127.0.0.1:3488/docs',
+  env: envWith({ CI: '1', PORT: '3488' }),
+};
+
 const marketingServer: Server = {
   ...uiServer('apps/marketing', 3487),
-  env: envWith({ CI: '1', PORT: '3487' }),
+  env: envWith({
+    CI: '1',
+    PORT: '3487',
+    DOCS_ORIGIN: 'http://127.0.0.1:3488',
+  }),
 };
 
 // `instant()` measures prefetches, which only `next start` performs.
@@ -171,7 +185,13 @@ const projectTable: readonly Project[] = [
     port: 3486,
     servers: [uiServer('apps/examples/expo', 3486)],
   },
-  { name: 'marketing', port: 3487, servers: [marketingServer] },
+  {
+    name: 'marketing',
+    port: 3487,
+    servers: [docsServer, marketingServer],
+    mobile: true,
+  },
+  { name: 'docs', port: 3488, servers: [docsServer], mobile: true },
   { name: 'next-saas', port: 3490, servers: [saasServer] },
   {
     name: 'sveltekit-saas',
@@ -246,22 +266,45 @@ function requestedProjects(): readonly string[] {
   return names;
 }
 
-function projectConfig(project: Project) {
+function projectConfigs(project: Project) {
   const testMatch = new RegExp(`(^|/)${project.name}\\.spec\\.ts$`, 'u');
-  return project.port === undefined
-    ? { name: project.name, testMatch }
-    : {
-        name: project.name,
-        testMatch,
-        use: { baseURL: `http://127.0.0.1:${String(project.port)}` },
-      };
+  const baseURL =
+    project.port === undefined
+      ? undefined
+      : `http://127.0.0.1:${String(project.port)}`;
+  const desktop =
+    baseURL === undefined
+      ? { name: project.name, testMatch }
+      : { name: project.name, testMatch, use: { baseURL } };
+  if (project.mobile !== true) {
+    return [desktop];
+  }
+  return [
+    desktop,
+    {
+      name: `${project.name}${mobileSuffix}`,
+      testMatch,
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(baseURL === undefined ? {} : { baseURL }),
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+  ];
 }
 
 const requested = new Set(requestedProjects());
 const selected =
   requested.size === 0
     ? projectTable
-    : projectTable.filter((project) => requested.has(project.name));
+    : projectTable.filter(
+        (project) =>
+          requested.has(project.name) ||
+          (project.mobile === true &&
+            requested.has(`${project.name}${mobileSuffix}`)),
+      );
 const servers = [
   ...new Map(
     selected
@@ -278,5 +321,5 @@ export default defineConfig({
   retries: 0,
   reporter: inCi ? [['github'], ['list']] : 'list',
   webServer: servers,
-  projects: projectTable.map((project) => projectConfig(project)),
+  projects: projectTable.flatMap((project) => projectConfigs(project)),
 });
