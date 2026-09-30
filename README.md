@@ -73,7 +73,7 @@ No environment variables are needed for build, check or test. `CONTRIBUTING.md` 
 | Command | What it does |
 | --- | --- |
 | `pnpm build` | `turbo run build` (tsdown for `permdock`, `next build` for the apps) |
-| `pnpm check` | `fmt:check`, `lint` and `typecheck`; the pre-push hook and CI run it |
+| `pnpm verify` | `format:check`, `lint`, `typecheck`, `typecheck:tooling`, `knip`, `boundaries`, `test` and `docs:drift` |
 | `pnpm test` | Vitest unit and type tests across the workspace |
 | `pnpm test:e2e` | Playwright across `apps/examples` and `tests/e2e/fixtures` |
 | `pnpm test:integration` | Postgres via testcontainers: RLS parity and providers |
@@ -82,7 +82,9 @@ No environment variables are needed for build, check or test. `CONTRIBUTING.md` 
 | `pnpm check:publish` | publint and arethetypeswrong on the published package |
 | `pnpm docs:drift` | Docs mention every CLI flag, doctor code and package entry; every page is in `meta.json` |
 | `pnpm docs:dev` / `pnpm marketing:dev` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied |
-| `pnpm fmt` / `pnpm lint` | Oxfmt and Oxlint over the whole repository |
+| `pnpm format` / `pnpm lint` | Oxfmt over the whole repository; Oxlint per workspace |
+| `pnpm knip` | Unused files, exports and dependencies |
+| `pnpm openapi:generate` | Refresh the vendored OpenAPI and Overlay schemas |
 | `pnpm changeset` | Record a user-visible change |
 
 ## Code Standards
@@ -96,8 +98,8 @@ No environment variables are needed for build, check or test. `CONTRIBUTING.md` 
 
 ## CI And Release
 
-- `ci.yml` runs on pushes to `main`, on pull requests, and nightly with every e2e test repeated three times: build, `check`, `turbo boundaries`, the TypeScript 5.9 / 6 / 7 type matrix, unit tests, bundle size, catalog drift, docs drift and publish checks, then integration, runtimes and sharded Playwright e2e against the built `dist/`.
-- `release.yml` runs Changesets on `main`. Pending changesets open a version pull request; merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
+- `ci.yml` runs on pushes to `main` and `develop`, on pull requests, and nightly with every e2e test repeated three times. It calls `verify.yml`, a matrix of format, lint, Knip, typecheck (with the TypeScript 5.9 / 6 / 7 type matrix), unit tests, boundaries, `audit:high`, catalog, docs and OpenAPI drift, `permdock doctor` over the examples, bundle size and publish checks, affected-only on pull requests. Integration, runtimes and sharded Playwright e2e run against the built `dist/`.
+- `release.yml` runs `verify` and Changesets on `main`. Pending changesets open a version pull request (`pnpm version-packages` also updates the root `CHANGELOG.md`); merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
 - The marketing and docs apps deploy as two Vercel Services of one project; see `vercel.json` and [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc).
 
 ## Contributing

@@ -39,6 +39,11 @@ catalog:
   '@vitejs/plugin-vue': 6.0.9
   ai: 7.0.122
   '@changesets/cli': 3.0.3
+  '@changesets/assemble-release-plan': 7.0.0
+  '@changesets/config': 4.0.1
+  '@changesets/pre': 3.0.0
+  '@changesets/read': 1.0.1
+  '@manypkg/get-packages': 3.1.0
   '@commitlint/cli': 21.2.3
   '@commitlint/config-conventional': 21.2.3
   '@commitlint/types': 21.2.3

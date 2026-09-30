@@ -60,9 +60,10 @@ pnpm test                  # vitest unit + type tests
 pnpm test:e2e              # playwright across apps/examples
 pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun (on PATH), Deno and workerd; CI requires all three
-pnpm lint && pnpm fmt      # oxlint, oxfmt over the whole repo
+pnpm lint && pnpm format   # oxlint per workspace, oxfmt over the whole repo
 pnpm typecheck             # turbo run typecheck (tsc --noEmit per package)
-pnpm check                 # fmt:check + lint + typecheck; CI and the pre-push hook
+pnpm knip                  # unused files, exports and dependencies
+pnpm verify                # format:check, lint, typecheck, knip, boundaries, test, docs:drift
 pnpm check:publish         # publint + arethetypeswrong
 pnpm size                  # per-entry gzip measurements
 pnpm docs:drift            # docs match CLI flags, doctor codes, package entries, meta.json

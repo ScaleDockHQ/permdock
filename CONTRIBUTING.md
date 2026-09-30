@@ -25,7 +25,7 @@ curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.8.1 sh -
 
 ```bash
 pnpm install
-pnpm run check
+pnpm run verify
 ```
 
 `pnpm install` runs `lefthook install` via the `prepare` script so Git hooks are set up locally.
@@ -34,9 +34,9 @@ Useful scripts:
 
 | Command                  | What it does                                         |
 | ------------------------ | ---------------------------------------------------- |
-| `pnpm run check`         | Format check, Oxlint and typecheck                   |
+| `pnpm run verify`        | Everything CI runs before the e2e suites             |
 | `pnpm run check:publish` | publint and arethetypeswrong on publishable packages |
-| `pnpm run fmt`           | Format with Oxfmt                                    |
+| `pnpm run format`        | Format with Oxfmt                                    |
 | `pnpm run lint`          | Lint with Oxlint                                     |
 | `pnpm run build`         | `turbo run build`                                    |
 | `pnpm run test`          | `turbo run test`                                     |

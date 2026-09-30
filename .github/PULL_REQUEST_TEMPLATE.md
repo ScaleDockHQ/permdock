@@ -7,12 +7,12 @@
 <!-- Commands a reviewer can run and what they print, or the test that covers it. -->
 
 ```bash
-pnpm run check
+pnpm run verify
 ```
 
 ## Checklist
 
-- [ ] `pnpm run check` passes
+- [ ] `pnpm run verify` passes
 - [ ] User-visible change has a changeset (`pnpm changeset`); CI-only changes do not
 - [ ] Rows in `.agents/rules/change-checklist.mdc` that match this change are done (docs page, `meta.json`, skill, example, tests)
 - [ ] Docs changes pass `pnpm docs:drift`
