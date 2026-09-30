@@ -653,9 +653,14 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         expect(
           (await send('erin', { op: 'analytics.read', org: 'globex' })).status,
         ).toBe(200);
-        expect(
-          (await send('erin', { op: 'analytics.read', org: 'acme' })).status,
-        ).toBe(403);
+        const upgrade = await send('erin', {
+          op: 'analytics.read',
+          org: 'acme',
+        });
+        expect(upgrade.status).toBe(403);
+        expect(new Set(reasonsOf(upgrade.body))).toEqual(
+          new Set(['not-entitled']),
+        );
       },
     );
 

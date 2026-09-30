@@ -1,4 +1,4 @@
-export { describe } from '../core/describe.ts';
+export { describe, requiredPlans } from '../core/describe.ts';
 export { approvalHeaders } from '../react/headers.ts';
 export {
   useApproval,

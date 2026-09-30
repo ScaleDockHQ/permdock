@@ -107,6 +107,7 @@ Adapters send `toProblemDetails()` in the transport's own close frame: an SSE `e
 | No grant, deny matched, condition false, anonymous | `denied` | throws `PermDockDeniedError` | 403 Problem Details; MCP `isError` refusal; AI SDK `denied` |
 | Delegation does not cover the permission | `denied` with `not-delegated` | throws `PermDockDeniedError` | 403 with `WWW-Authenticate: Bearer error="insufficient_scope"`; MCP adds a `scopeChallenge` so the client can step up |
 | Only `subject.assurance` conditions failed | `denied` with `insufficient-user-authentication` | throws `PermDockDeniedError` | 401 `/step-up-required` with `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values=…` (RFC 9470); agent surfaces carry the required `acr` |
+| Only a `plan` grantee failed, on grants whose roles are held | `denied` with `not-entitled` | throws `PermDockDeniedError` | 403 `/not-entitled` with `plans`; `describe` returns `kind: 'upgrade'` |
 | Token present but unverifiable | `denied` with `anonymous`; `on('auth')` carries `invalid-token` and a `cause` | throws `PermDockDeniedError` | 401 `/unauthenticated` with `WWW-Authenticate: Bearer error="invalid_token"`; the `cause` is audit-only |
 | Grant with `approval: 'human'` matched | `approval-required` | throws `PermDockApprovalRequiredError` | 403 `/approval-required`; AI SDK `user-approval`; MCP `input_required` or refusal with `token` |
 | Untrusted data fails its schema | `denied` with reason `validation` | throws `PermDockValidationError` | 400 `/validation` with `issues` |

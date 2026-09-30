@@ -13,6 +13,7 @@ export type DenialReason =
   | 'not-delegated'
   | 'no-delegation'
   | 'insufficient-user-authentication'
+  | 'not-entitled'
   | 'purpose'
   | 'reason-required'
   | 'actor-required'

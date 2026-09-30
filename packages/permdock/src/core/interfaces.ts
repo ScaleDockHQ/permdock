@@ -251,6 +251,18 @@ export type Snapshot = {
   readonly scopes?: readonly SnapshotScope[];
   /** One entry per tenant in `tenants`: what the subject may hand out there. Absent without tenants. */
   readonly assignable?: readonly SnapshotAssignable[];
+  /**
+   * Allow grants of held roles that only a plan the subject lacks keeps
+   * from applying; they grant nothing and name the plan a denial asks for.
+   */
+  readonly notEntitled?: readonly SnapshotNotEntitled[];
+};
+
+/** A grant the subject would hold on another plan: its permission, role and `to`. */
+export type SnapshotNotEntitled = {
+  readonly permission: string;
+  readonly role: string | null;
+  readonly to: Grantee | readonly Grantee[];
 };
 
 /** One declared scope as a snapshot carries it. */

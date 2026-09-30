@@ -2,6 +2,7 @@ import type {
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
+  SnapshotNotEntitled,
   TokenSigner,
 } from './interfaces.ts';
 import type { Grant, PolicyVocabulary } from './policy.ts';
@@ -67,6 +68,23 @@ function bindClaims(grant: SnapshotGrant, subject: Subject): SnapshotGrant {
   );
 }
 
+function notEntitledOf(
+  items: readonly { readonly grant: Grant }[],
+): readonly SnapshotNotEntitled[] | undefined {
+  const seen = new Map<string, SnapshotNotEntitled>();
+  for (const { grant } of items) {
+    const key = `${grant.permission.key}\u0000${grant.role ?? ''}`;
+    if (!seen.has(key)) {
+      seen.set(key, {
+        permission: grant.permission.key,
+        role: grant.role,
+        to: grant.to,
+      });
+    }
+  }
+  return seen.size === 0 ? undefined : [...seen.values()];
+}
+
 export function buildSnapshot(input: {
   readonly subject: Subject;
   readonly roles: readonly string[];
@@ -82,6 +100,7 @@ export function buildSnapshot(input: {
   readonly vocabulary?: PolicyVocabulary;
   readonly scopes?: Snapshot['scopes'];
   readonly assignable?: (tenant: string) => SnapshotAssignable;
+  readonly notEntitled?: readonly { readonly grant: Grant }[];
 }): Snapshot {
   const now = input.now ?? Math.floor(Date.now() / 1000);
   const principal = input.subject.principal;
@@ -145,6 +164,11 @@ export function buildSnapshot(input: {
       expiresAt: input.subject.expiresAt,
       scopes: input.scopes,
       assignable: assignable.length > 0 ? assignable : undefined,
+      notEntitled: notEntitledOf(
+        (input.notEntitled ?? []).filter((item) =>
+          included(item.grant.permission),
+        ),
+      ),
       vocabulary:
         input.vocabulary === undefined
           ? undefined

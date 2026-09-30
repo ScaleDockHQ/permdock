@@ -607,8 +607,24 @@ export function evaluate(
     );
     if (!granteeMatch.matched) {
       const reason = granteeMatch.reason ?? 'no-grant';
+      if (
+        reason === 'not-entitled' &&
+        !flattenGrantee(grant.to).every(
+          (item) =>
+            item.kind !== 'role' ||
+            (custom === undefined
+              ? item.scope === 'global'
+                ? globalNames.roles.includes(item.role)
+                : matchingRoles.has(item.role)
+              : holdsCustom(custom)),
+        )
+      ) {
+        continue;
+      }
       denials.push(
-        reason === 'insufficient-user-authentication' && grant.to !== undefined
+        (reason === 'insufficient-user-authentication' ||
+          reason === 'not-entitled') &&
+          grant.to !== undefined
           ? { role: displayRole, reason, to: grant.to }
           : { role: displayRole, reason },
       );

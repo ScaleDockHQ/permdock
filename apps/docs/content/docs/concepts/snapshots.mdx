@@ -65,6 +65,7 @@ The TypeScript type is `Snapshot`; `v` is the format major, `1`, and `parseSnaps
 | `scope`, `membership` | On grants from scoped roles: the scope kind and the membership that supplied the role, so the client evaluates the scope match exactly as the server did ([tenancy](/docs/concepts/tenancy)). Absent on global grants. |
 | `portable: false` | The grant exists but uses a closure or an opaque condition; the client must ask the server. |
 | `assignable` | One `{ tenant, roles, permissions }` entry per tenant in `tenants`: what the subject may hand out there, read by `assignableRoles`, `assignablePermissions` and `useAssignablePermissions` ([custom roles](/docs/concepts/custom-roles)). |
+| `notEntitled` | One `{ permission, role, to }` entry per allow grant whose roles the subject holds but whose `plan` grantee it lacks. It grants nothing; the client evaluator adds a `not-entitled` denial from it, so `usePermission` and `describe` name the plan without a round trip. Absent when there are none. |
 | `tenants` | The tenants whose grants are present: the active tenant by default, every membership tenant with `tenants: 'all'`. |
 | `simulated` | `true` when produced by `simulate`; the decision endpoint refuses it. |
 | `include` | Present on scoped snapshots so the client knows which groups are authoritative. |

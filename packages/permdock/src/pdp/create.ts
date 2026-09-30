@@ -104,6 +104,7 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case 'closure-error':
       case 'opaque-condition':
       case 'insufficient-user-authentication':
+      case 'not-entitled':
       case 'purpose':
       case 'reason-required':
       case 'actor-required':

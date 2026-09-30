@@ -18,7 +18,7 @@ export {
   isConditionRef,
   isSqlFunctionField,
 } from './conditions/ast.ts';
-export { describe } from './core/describe.ts';
+export { describe, requiredPlans } from './core/describe.ts';
 export type { DecisionDescription } from './core/describe.ts';
 export type {
   ApprovalRequiredDecision,
@@ -101,6 +101,7 @@ export type {
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
+  SnapshotNotEntitled,
   SnapshotScope,
   SnapshotSource,
   SubjectResolver,

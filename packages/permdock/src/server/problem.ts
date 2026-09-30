@@ -5,6 +5,7 @@ import type { Permission } from '../core/permissions.ts';
 import type { Subject } from '../core/subject.ts';
 
 import { compact } from '../core/compact.ts';
+import { requiredPlans } from '../core/describe.ts';
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -332,6 +333,19 @@ export function problemFromDecision(
         type: `${base}/step-up-required`,
         ...stepUpOf(decision),
       }),
+      permission,
+      decision,
+    );
+  }
+  const plans = requiredPlans(decision);
+  if (plans.length > 0) {
+    return problemResponse(
+      {
+        ...details,
+        type: `${base}/not-entitled`,
+        title: 'Plan upgrade required',
+        plans,
+      },
       permission,
       decision,
     );

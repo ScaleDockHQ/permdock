@@ -33,6 +33,8 @@ export type ProblemDetails = {
   /** RFC 9470 step-up parameters on `step-up-required`. */
   readonly acrValues?: readonly string[];
   readonly maxAge?: number;
+  /** The plans that would grant the permission, on `not-entitled`. */
+  readonly plans?: readonly string[];
 };
 
 const PROBLEM_BASE = 'https://permdock.dev/problems';

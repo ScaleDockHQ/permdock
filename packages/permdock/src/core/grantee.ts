@@ -475,7 +475,7 @@ function matchOne(
       return plans.includes(grantee.plan) ||
         seatsInTenant(subject, scopes).includes(grantee.plan)
         ? { matched: true }
-        : { matched: false, reason: 'no-grant' };
+        : { matched: false, reason: 'not-entitled' };
     }
     case 'actor': {
       if (subject.actor === undefined) {

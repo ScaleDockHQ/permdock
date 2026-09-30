@@ -63,6 +63,7 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 | `anonymous` | No principal |
 | `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
 | `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge; also a break-glass or activation `assurance` that was not met ([elevated access](/docs/concepts/elevated-access)) |
+| `not-entitled` | The grant's roles are held but a `plan` grantee in its `to` is not: neither `principal.plans` nor a seat on the active tenant's membership names it. `to` carries the grantee so the caller can name the plan; HTTP adapters answer 403 `/not-entitled` with `plans` when every denial is `not-entitled`, and `describe` returns `kind: 'upgrade'`. A plan grant whose roles are not held adds no denial, so the reason never offers an upgrade that would not grant |
 | `purpose`, `reason-required` | A break-glass grant was engaged (`context.purpose`) but the asserted purpose was not one it lists, or it requires a reason and `context.reason` was missing ([elevated access](/docs/concepts/elevated-access)); `role` is `null` |
 | `actor-required` | The subject holds a `supportAccess` membership with `actorRequired` but carries no `act`; support access is impersonation and must be attributed ([elevated access](/docs/concepts/elevated-access)); `role` is `null` |
 | `limit` | Quota exhausted |
