@@ -152,6 +152,14 @@ export type SupabaseHookConfig = {
     readonly id?: string;
     readonly columns: readonly string[];
   };
+  /**
+   * Claims other packages own, each `claim: '<schema>.<function>'`, for
+   * example `{ features: 'better_supabase.feature_claims' }`. The function
+   * takes the user id (`uuid`) and returns `jsonb`; `null` omits the claim.
+   * Reserved names are refused, the claims sit outside `budget`, and a
+   * suspended user gets none.
+   */
+  readonly claims?: Readonly<Record<string, string>>;
   /** Bytes of JSON the `memberships` claim may use. Default `supabaseMembershipsBudget` (1024). */
   readonly budget?: number;
   /** Keep `permdock_authz_version` and write the `authz_ver` claim. Default `true`. */

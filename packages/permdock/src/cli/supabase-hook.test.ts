@@ -205,6 +205,56 @@ describe('permdock supabase hook generate', () => {
       `claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);`,
     );
   });
+
+  it('writes extra claims outside the budget and strips them for suspended users', async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      [],
+      `{ suspension: { users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' } } }`,
+    );
+    expect(code).toBe(0);
+    expect(sql).toContain(
+      `extra := "better_supabase"."feature_claims"(uid::uuid);`,
+    );
+    expect(sql).toContain(`claims := jsonb_set(claims, '{features}', extra);`);
+    expect(sql).toContain(
+      `claims := claims - 'memberships_truncated' - 'attrs' - 'tenant_id' - 'features';`,
+    );
+    expect(sql).toContain(`claims := claims - 'attrs' - 'features';`);
+    expect(sql).toContain(
+      'grant execute on function "better_supabase"."feature_claims"(uuid) to supabase_auth_admin;',
+    );
+    expect(sql).toContain(
+      'grant usage on schema "better_supabase" to supabase_auth_admin;',
+    );
+    const suspendedBranch = sql.slice(
+      sql.indexOf('if not '),
+      sql.indexOf('end if;', sql.indexOf('if not ')),
+    );
+    expect(suspendedBranch).not.toContain('feature_claims');
+    const loopEnd = sql.indexOf('end loop;');
+    expect(sql.indexOf('feature_claims"(uid')).toBeGreaterThan(loopEnd);
+    expect(sql).toContain(
+      'features (better_supabase.feature_claims, outside the budget)',
+    );
+  });
+
+  it('refuses reserved or unqualified extra claims', async () => {
+    for (const [claims, message] of [
+      [`{ memberships: 'x.f' }`, 'PermDock or Supabase Auth writes'],
+      [`{ tenant_id: 'x.f' }`, 'PermDock or Supabase Auth writes'],
+      [`{ role: 'x.f' }`, 'PermDock or Supabase Auth writes'],
+      [`{ __proto__x: 'x.f', ['__proto__']: 'x.f' }`, 'prototype key'],
+      [`{ features: 'feature_claims' }`, 'schema-qualified'],
+      [`{ features: 'x.f(); drop' }`, 'schema-qualified'],
+    ] as const) {
+      const result = await generate(
+        `{ memberships: [${SOURCES}], claims: ${claims} }`,
+      );
+      expect(result.code).toBe(2);
+      expect(result.output).toContain(message);
+    }
+  });
 });
 
 describe('subjectFromSupabase and the hook claims', () => {

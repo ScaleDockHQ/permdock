@@ -91,7 +91,8 @@ The output is one idempotent migration:
   - `memberships`: a `union all` over every source, in the canonical `{ scope, id, within?, roles, via?, expiresAt?, managedBy?, entitlements? }` form;
   - the active tenant claim (`rls.tenantClaim`, default `tenant_id`), only when the user holds a membership in it. The active first-scope id comes from `app_metadata.active_<first scope>` by default; `--active-from` (or `supabase.hook.activeFrom`) takes `app_metadata.<key>`, `<table>.<column>` joined on `id`, or `{ table, id, column }`;
   - `attrs`: the allow-listed attribute columns and `app_metadata` keys (below), never other columns;
-  - `authz_ver`: the user's authorization version (below).
+  - `authz_ver`: the user's authorization version (below);
+  - the claims other packages own, from `supabase.hook.claims` (below).
 - The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, roles, the `attrs` table, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
 - `permdock_authz_version (user_id, version)` and the `permdock_bump_authz_version` trigger on every source table and the roles table.
 - The `permdock_protect_managed` trigger on sources with `managedBy`.
@@ -123,6 +124,26 @@ attrs: {
 - Only server-owned values may become attributes. `generate` refuses `user_metadata` and `raw_user_meta_data` in any form, `auth.users` as the table (use `app_metadata.<key>`), prototype keys and a key named twice.
 - The migration starts with a guard: when `anon` or `authenticated` can insert or update any listed column (`has_column_privilege`, which counts table-level and `public` grants), it raises `42501` and installs nothing. Grant clients column-level `update` on other columns only. `permdock doctor` PD028 reports the same from your migrations, before you run them.
 - The hook drops any `attrs` the incoming claims carry and writes its own, so an attribute is never whatever the client sent.
+
+## Claims other packages own
+
+`supabase.hook.claims` adds claims PermDock does not own to the one hook Supabase allows, for example better-supabase's per-tenant plan features:
+
+```ts
+supabase: {
+  hook: {
+    memberships: sources(),
+    claims: { features: 'better_supabase.feature_claims' },
+  },
+}
+```
+
+- Each value is a schema-qualified function `(user_id uuid) returns jsonb`; the hook runs with `search_path = ''`, so an unqualified name is refused. The hook sets the claim to the result, and a `null` result leaves the claim out.
+- A name PermDock or Supabase Auth writes is refused: `roles`, `user_role`, `memberships`, `memberships_truncated`, `attrs`, `authz_ver`, the tenant claim, and `sub`, `aud`, `role`, `exp`, `iat`, `iss`, `aal`, `amr`, `session_id`, `is_anonymous`, `email`, `phone`, `app_metadata`, `user_metadata`.
+- The hook drops each named claim from the incoming claims before it calls the function, so the value is always the function's.
+- The claims sit outside the size budget: the budget decides which memberships a token keeps, and a claim the hook cannot size must not push memberships out. Keep each one small; the function owns its size.
+- A suspended user gets none of them, and the function is not called. A user with no memberships still gets them.
+- The migration grants `supabase_auth_admin` `usage` on each function's schema and `execute` on the function. A function that raises makes the hook fail, so Supabase Auth issues no token.
 
 ## Size budget
 

@@ -80,6 +80,10 @@ create table organization (id text primary key, disabled_at timestamptz);
 insert into organization select o, null from unnest(array['T', 'B', ${MANY.map((id) => `'${id}'`).join(', ')}]) o;
 insert into organization values ('X', now());
 grant select, insert, update, delete on memberships to authenticated;
+create schema better_supabase;
+create function better_supabase.feature_claims(uid uuid) returns jsonb language sql stable as $$
+  select case when uid in ('${OWNER}', '${ADMIN}', '${SUSPENDED}') then '{"T": ["export"]}'::jsonb end
+$$;
 `;
 
 type Claims = Record<string, unknown>;
@@ -201,6 +205,15 @@ describe('permdock supabase hook generate against Postgres', () => {
   it('empties the claims of a suspended user', async () => {
     const claims = await mint(SUSPENDED);
     expect(claims).toMatchObject({ user_role: [], roles: [], memberships: [] });
+    expect(claims).not.toHaveProperty('features');
+  });
+
+  it('writes extra claims with or without memberships and omits a null one', async () => {
+    expect((await mint(OWNER))['features']).toEqual({ T: ['export'] });
+    const admin = await mint(ADMIN);
+    expect(admin['memberships']).toEqual([]);
+    expect(admin['features']).toEqual({ T: ['export'] });
+    expect(await mint(CONTACT)).not.toHaveProperty('features');
   });
 
   it('resolves the same memberships at runtime as the hook writes', async () => {
