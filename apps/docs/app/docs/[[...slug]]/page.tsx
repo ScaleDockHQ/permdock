@@ -6,6 +6,7 @@ import {
   DocsPage,
   DocsTitle,
   MarkdownCopyButton,
+  PageLastUpdate,
   ViewOptionsPopover,
 } from 'fumadocs-ui/layouts/docs/page';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
@@ -47,6 +48,9 @@ export default async function Page(props: DocsPageProps) {
           })}
         />
       </DocsBody>
+      {page.data.lastModified ? (
+        <PageLastUpdate date={page.data.lastModified} />
+      ) : null}
     </DocsPage>
   );
 }

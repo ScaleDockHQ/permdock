@@ -13,10 +13,5 @@ const routes = [
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    ...routes.map((path) => ({
-      url: `${site.url}${path}`,
-    })),
-    { url: `${site.url}/docs` },
-  ];
+  return routes.map((path) => ({ url: `${site.url}${path}` }));
 }
