@@ -982,6 +982,26 @@ export const policy = definePolicy(permissions, {
     expect(codes(result.stdout)).toContain('PD035');
   });
 
+  it('PD002 does not read role and plan vocabulary as permission references', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/vocabulary.ts'),
+      `import { allow, definePlans, defineRoles, plan, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const roles = defineRoles({ clerk: {} });
+export const plans = definePlans({ pro: {} });
+export const clerk = role(roles.clerk, [allow(permissions.post.delete)]);
+export const pro = plan(plans.pro);
+export const scope = permissions.post.delete.scope;
+export const key = permissions.post.delete.key;
+export const subtree = [permissions.post];
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD002'], { cwd });
+    expect(codes(result.stdout)).toEqual([]);
+  });
+
   it('PD038 warns when subjectFromSupabase reads a different tenant claim than the hook writes', async () => {
     const cwd = appCopy();
     writeFileSync(

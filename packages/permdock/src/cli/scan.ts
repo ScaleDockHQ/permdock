@@ -212,7 +212,9 @@ function recordCall(
   ) {
     const name = declaredName(parent);
     if (name !== undefined) {
-      roots.add(name);
+      if (callee === 'definePermissions') {
+        roots.add(name);
+      }
       definitionFiles[name] = fileRel;
     }
     if (callee === 'defineRoles') {
@@ -283,6 +285,9 @@ function recordMember(
     return;
   }
   const key = rest.join('.');
+  if (!knownKeys.has(key) && isFieldOrSubtree(rest, knownKeys)) {
+    return;
+  }
   const call = callName(parent);
   const usage = {
     file: fileRel,
@@ -293,6 +298,30 @@ function recordMember(
     allowKeys.add(key);
   }
   pushUsage(key, usage, knownKeys, usages, unknown);
+}
+
+const LEAF_FIELDS: ReadonlySet<string> = new Set([
+  'key',
+  'resource',
+  'action',
+  'scope',
+  'meta',
+]);
+
+function isFieldOrSubtree(
+  path: readonly string[],
+  knownKeys: ReadonlySet<string>,
+): boolean {
+  const last = path.at(-1);
+  if (
+    last !== undefined &&
+    LEAF_FIELDS.has(last) &&
+    knownKeys.has(path.slice(0, -1).join('.'))
+  ) {
+    return true;
+  }
+  const prefix = `${path.join('.')}.`;
+  return [...knownKeys].some((known) => known.startsWith(prefix));
 }
 
 function pushUsage(
