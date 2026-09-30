@@ -165,7 +165,7 @@ describe('link capabilities through the Supabase exchange', () => {
   async function visible(
     table: 'quote' | 'file',
     claims: Record<string, unknown>,
-    role = claims.role === 'authenticated' ? 'authenticated' : 'anon',
+    role = claims['role'] === 'authenticated' ? 'authenticated' : 'anon',
   ): Promise<string[]> {
     if (db === undefined) {
       throw new Error('PermDock: Postgres was not started');
@@ -204,7 +204,7 @@ describe('link capabilities through the Supabase exchange', () => {
     );
     expect(jwt).toBeDefined();
     const claims = claimsOf(jwt);
-    expect(claims.role).toBe('anon');
+    expect(claims['role']).toBe('anon');
     expect(await visible('quote', claims)).toEqual(
       allowed(subject, permissions.quote.read, quotes),
     );
@@ -255,7 +255,7 @@ describe('link capabilities through the Supabase exchange', () => {
   it('ignores a capability claim once the Supabase token has expired', async () => {
     const { jwt } = await portal(`${APP}/portal/quotes?token=${await link()}`);
     const claims = claimsOf(jwt);
-    const capability = claims.capability as Record<string, unknown>;
+    const capability = claims['capability'] as Record<string, unknown>;
     expect(
       await visible('quote', {
         ...claims,

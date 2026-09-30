@@ -38,25 +38,25 @@ export function parseChangelog(
 
   for (const line of lines) {
     const versionMatch = heading.exec(line);
-    if (versionMatch?.groups?.version !== undefined) {
+    if (versionMatch?.groups?.['version'] !== undefined) {
       flush();
-      version = versionMatch.groups.version;
+      version = versionMatch.groups['version'];
       kind = undefined;
       continue;
     }
     const kindMatch = kindHeading.exec(line);
-    if (kindMatch?.groups?.kind !== undefined) {
+    if (kindMatch?.groups?.['kind'] !== undefined) {
       flush();
-      kind = kindMatch.groups.kind as ChangelogRelease['kind'];
+      kind = kindMatch.groups['kind'] as ChangelogRelease['kind'];
       continue;
     }
     const changeMatch = changeLine.exec(line);
-    if (changeMatch?.groups?.text !== undefined && kind !== undefined) {
-      const hash = changeMatch.groups.hash;
+    if (changeMatch?.groups?.['text'] !== undefined && kind !== undefined) {
+      const hash = changeMatch.groups['hash'];
       if (hash === undefined) {
-        changes.push({ text: changeMatch.groups.text });
+        changes.push({ text: changeMatch.groups['text'] });
       } else {
-        changes.push({ text: changeMatch.groups.text, hash });
+        changes.push({ text: changeMatch.groups['text'], hash });
       }
     }
   }

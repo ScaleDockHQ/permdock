@@ -290,10 +290,10 @@ function parseInnerListAndParams(value: string):
   const params = parseParams(trimmed.slice(close + 1));
   return compact({
     components,
-    created: asUnix(params.created),
-    expires: asUnix(params.expires),
-    keyid: typeof params.keyid === 'string' ? params.keyid : undefined,
-    alg: typeof params.alg === 'string' ? params.alg : undefined,
+    created: asUnix(params['created']),
+    expires: asUnix(params['expires']),
+    keyid: typeof params['keyid'] === 'string' ? params['keyid'] : undefined,
+    alg: typeof params['alg'] === 'string' ? params['alg'] : undefined,
   });
 }
 

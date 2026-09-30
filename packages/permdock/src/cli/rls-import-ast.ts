@@ -21,20 +21,20 @@ function stringVal(value: unknown): string | undefined {
   if (node === undefined) {
     return undefined;
   }
-  const inner = asNode(node.String);
+  const inner = asNode(node['String']);
   if (inner !== undefined) {
-    if (typeof inner.sval === 'string') {
-      return inner.sval;
+    if (typeof inner['sval'] === 'string') {
+      return inner['sval'];
     }
-    if (typeof inner.str === 'string') {
-      return inner.str;
+    if (typeof inner['str'] === 'string') {
+      return inner['str'];
     }
   }
-  if (typeof node.str === 'string') {
-    return node.str;
+  if (typeof node['str'] === 'string') {
+    return node['str'];
   }
-  if (typeof node.sval === 'string') {
-    return node.sval;
+  if (typeof node['sval'] === 'string') {
+    return node['sval'];
   }
   return undefined;
 }
@@ -44,17 +44,17 @@ function unwrap(value: unknown): unknown {
   if (node === undefined) {
     return value;
   }
-  const cast = asNode(node.TypeCast);
+  const cast = asNode(node['TypeCast']);
   if (cast !== undefined) {
-    return unwrap(cast.arg);
+    return unwrap(cast['arg']);
   }
   return value;
 }
 
 function columnName(value: unknown): string | undefined {
   const node = asNode(unwrap(value));
-  const ref = asNode(node?.ColumnRef);
-  const fields = ref?.fields;
+  const ref = asNode(node?.['ColumnRef']);
+  const fields = ref?.['fields'];
   if (!Array.isArray(fields) || fields.length === 0) {
     return undefined;
   }
@@ -63,8 +63,8 @@ function columnName(value: unknown): string | undefined {
 
 function funcName(value: unknown): string | undefined {
   const node = asNode(unwrap(value));
-  const call = asNode(node?.FuncCall);
-  const names = call?.funcname;
+  const call = asNode(node?.['FuncCall']);
+  const names = call?.['funcname'];
   if (!Array.isArray(names) || names.length === 0) {
     return undefined;
   }
@@ -76,13 +76,13 @@ function isAuthUid(value: unknown): boolean {
   if (node === undefined) {
     return false;
   }
-  const sub = asNode(node.SubLink);
+  const sub = asNode(node['SubLink']);
   if (sub !== undefined) {
-    const select = asNode(asNode(sub.subselect)?.SelectStmt);
-    const targets = select?.targetList;
+    const select = asNode(asNode(sub['subselect'])?.['SelectStmt']);
+    const targets = select?.['targetList'];
     if (Array.isArray(targets) && targets[0] !== undefined) {
-      const res = asNode(asNode(targets[0])?.ResTarget);
-      return isAuthUid(res?.val);
+      const res = asNode(asNode(targets[0])?.['ResTarget']);
+      return isAuthUid(res?.['val']);
     }
   }
   const name = funcName(value);
@@ -100,7 +100,7 @@ function isCurrentSettingUserId(value: unknown): boolean {
     return false;
   }
   const node = asNode(unwrap(value));
-  const args = asNode(node?.FuncCall)?.args;
+  const args = asNode(node?.['FuncCall'])?.['args'];
   if (!Array.isArray(args) || args[0] === undefined) {
     return false;
   }
@@ -110,45 +110,45 @@ function isCurrentSettingUserId(value: unknown): boolean {
 
 function constValue(value: unknown): ConditionValue | undefined {
   const node = asNode(unwrap(value));
-  const constant = asNode(node?.A_Const);
+  const constant = asNode(node?.['A_Const']);
   if (constant === undefined) {
     return undefined;
   }
-  if (constant.isnull === true) {
+  if (constant['isnull'] === true) {
     return null;
   }
-  const sval = asNode(constant.sval);
-  if (sval !== undefined && typeof sval.sval === 'string') {
-    return sval.sval;
+  const sval = asNode(constant['sval']);
+  if (sval !== undefined && typeof sval['sval'] === 'string') {
+    return sval['sval'];
   }
-  if (typeof constant.sval === 'string') {
-    return constant.sval;
+  if (typeof constant['sval'] === 'string') {
+    return constant['sval'];
   }
-  const ival = asNode(constant.ival);
-  if (ival !== undefined && typeof ival.ival === 'number') {
-    return ival.ival;
+  const ival = asNode(constant['ival']);
+  if (ival !== undefined && typeof ival['ival'] === 'number') {
+    return ival['ival'];
   }
-  if (typeof constant.ival === 'number') {
-    return constant.ival;
+  if (typeof constant['ival'] === 'number') {
+    return constant['ival'];
   }
-  const boolval = asNode(constant.boolval);
-  if (boolval !== undefined && typeof boolval.boolval === 'boolean') {
-    return boolval.boolval;
+  const boolval = asNode(constant['boolval']);
+  if (boolval !== undefined && typeof boolval['boolval'] === 'boolean') {
+    return boolval['boolval'];
   }
-  if (typeof constant.boolval === 'boolean') {
-    return constant.boolval;
+  if (typeof constant['boolval'] === 'boolean') {
+    return constant['boolval'];
   }
   return undefined;
 }
 
 function selectFromTable(selectNode: unknown): string | undefined {
-  const select = asNode(asNode(selectNode)?.SelectStmt);
-  const from = select?.fromClause;
+  const select = asNode(asNode(selectNode)?.['SelectStmt']);
+  const from = select?.['fromClause'];
   if (!Array.isArray(from) || from[0] === undefined) {
     return undefined;
   }
-  const range = asNode(asNode(from[0])?.RangeVar);
-  const relname = range?.relname;
+  const range = asNode(asNode(from[0])?.['RangeVar']);
+  const relname = range?.['relname'];
   return typeof relname === 'string' ? relname : undefined;
 }
 
@@ -157,15 +157,15 @@ function sublinkTable(
   kinds: ReadonlySet<string | number>,
 ): string | undefined {
   const node = asNode(unwrap(value));
-  const sub = asNode(node?.SubLink);
+  const sub = asNode(node?.['SubLink']);
   if (sub === undefined) {
     return undefined;
   }
-  const kind = sub.subLinkType;
+  const kind = sub['subLinkType'];
   if (kind === undefined || !kinds.has(kind as string | number)) {
     return undefined;
   }
-  return selectFromTable(sub.subselect);
+  return selectFromTable(sub['subselect']);
 }
 
 function membershipTable(value: unknown): string | undefined {
@@ -181,11 +181,11 @@ function membershipTable(value: unknown): string | undefined {
     return anyDirect;
   }
   const node = asNode(unwrap(value));
-  const expr = asNode(node?.A_Expr);
+  const expr = asNode(node?.['A_Expr']);
   if (expr === undefined) {
     return undefined;
   }
-  const right = unwrap(expr.rexpr);
+  const right = unwrap(expr['rexpr']);
   const fromRight = sublinkTable(
     right,
     new Set(['ANY_SUBLINK', 'IN_SUBLINK', 'EXISTS_SUBLINK', 0, 2]),
@@ -193,16 +193,16 @@ function membershipTable(value: unknown): string | undefined {
   if (fromRight !== undefined) {
     return fromRight;
   }
-  if (Array.isArray(expr.rexpr) && expr.rexpr[0] !== undefined) {
-    return selectFromTable(expr.rexpr[0]);
+  if (Array.isArray(expr['rexpr']) && expr['rexpr'][0] !== undefined) {
+    return selectFromTable(expr['rexpr'][0]);
   }
   return undefined;
 }
 
 function operatorName(value: unknown): string | undefined {
   const node = asNode(unwrap(value));
-  const expr = asNode(node?.A_Expr);
-  const names = expr?.name;
+  const expr = asNode(node?.['A_Expr']);
+  const names = expr?.['name'];
   if (!Array.isArray(names) || names[0] === undefined) {
     return undefined;
   }
@@ -211,8 +211,8 @@ function operatorName(value: unknown): string | undefined {
 
 function boolOp(value: unknown): 'and' | 'or' | 'not' | undefined {
   const node = asNode(unwrap(value));
-  const expr = asNode(node?.BoolExpr);
-  const op = expr?.boolop;
+  const expr = asNode(node?.['BoolExpr']);
+  const op = expr?.['boolop'];
   if (op === 'AND_EXPR' || op === 0) {
     return 'and';
   }
@@ -265,8 +265,8 @@ function asStmts(parsed: unknown): readonly unknown[] {
     return parsed;
   }
   const node = asNode(parsed);
-  if (Array.isArray(node?.stmts)) {
-    return node.stmts;
+  if (Array.isArray(node?.['stmts'])) {
+    return node['stmts'];
   }
   return [];
 }
@@ -317,7 +317,7 @@ async function whereOf(sql: string): Promise<unknown> {
     const parsed = await parse(`SELECT 1 WHERE (${sql})`);
     const first = asNode(asStmts(parsed)[0]);
     const raw = asNode(nodeStmt(first));
-    return asNode(raw?.SelectStmt)?.whereClause;
+    return asNode(raw?.['SelectStmt'])?.['whereClause'];
   } catch {
     return undefined;
   }
@@ -352,7 +352,7 @@ function helperScope(name: string | undefined): HelperScope | undefined {
 }
 
 function helperKey(call: unknown): string | undefined {
-  const args = asNode(asNode(unwrap(call))?.FuncCall)?.args;
+  const args = asNode(asNode(unwrap(call))?.['FuncCall'])?.['args'];
   if (!Array.isArray(args) || args.length !== 1) {
     return undefined;
   }
@@ -362,27 +362,29 @@ function helperKey(call: unknown): string | undefined {
 
 function helperCall(value: unknown): HelperCall | undefined {
   const node = asNode(unwrap(value));
-  const sub = asNode(node?.SubLink);
+  const sub = asNode(node?.['SubLink']);
   if (sub === undefined) {
     const scope = helperScope(funcName(node));
     const key = helperKey(node);
     return scope === 'global' && key !== undefined ? { scope, key } : undefined;
   }
-  const targets = asNode(asNode(sub.subselect)?.SelectStmt)?.targetList;
+  const targets = asNode(asNode(sub['subselect'])?.['SelectStmt'])?.[
+    'targetList'
+  ];
   if (!Array.isArray(targets) || targets.length !== 1) {
     return undefined;
   }
-  const call = asNode(asNode(targets[0])?.ResTarget)?.val;
+  const call = asNode(asNode(targets[0])?.['ResTarget'])?.['val'];
   const scope = helperScope(funcName(call));
   const key = helperKey(call);
   if (scope === undefined || key === undefined) {
     return undefined;
   }
-  const kind = sub.subLinkType;
+  const kind = sub['subLinkType'];
   if (scope === 'global') {
     return kind === 'EXPR_SUBLINK' || kind === 4 ? { scope, key } : undefined;
   }
-  const column = columnName(sub.testexpr);
+  const column = columnName(sub['testexpr']);
   return (kind === 'ANY_SUBLINK' || kind === 2) && column !== undefined
     ? { scope, key, column }
     : undefined;
@@ -441,7 +443,7 @@ function flatten(value: unknown, op: 'and' | 'or'): readonly unknown[] {
   if (boolOp(value) !== op) {
     return [value];
   }
-  const args = asNode(asNode(unwrap(value))?.BoolExpr)?.args;
+  const args = asNode(asNode(unwrap(value))?.['BoolExpr'])?.['args'];
   return Array.isArray(args) ? args.flatMap((arg) => flatten(arg, op)) : [];
 }
 
@@ -469,7 +471,7 @@ export async function helperGrants(
   }
   let where = await whereOf(sql);
   if (boolOp(where) === 'not') {
-    where = asNode(asNode(unwrap(where))?.BoolExpr)?.args;
+    where = asNode(asNode(unwrap(where))?.['BoolExpr'])?.['args'];
     where = Array.isArray(where) ? where[0] : undefined;
   }
   const unportable: Condition = {
@@ -545,21 +547,21 @@ function asScope(value: unknown): HelperScope | undefined {
 export function seedFromRow(
   row: Readonly<Record<string, unknown>>,
 ): RolePermission | undefined {
-  const scope = asScope(row.scope);
+  const scope = asScope(row['scope']);
   if (
-    typeof row.role !== 'string' ||
-    typeof row.permission !== 'string' ||
-    typeof row.grant_key !== 'string' ||
+    typeof row['role'] !== 'string' ||
+    typeof row['permission'] !== 'string' ||
+    typeof row['grant_key'] !== 'string' ||
     scope === undefined
   ) {
     return undefined;
   }
   return {
-    role: row.role,
-    permission: row.permission,
-    grantKey: row.grant_key,
+    role: row['role'],
+    permission: row['permission'],
+    grantKey: row['grant_key'],
     scope,
-    effect: row.effect === 'deny' ? 'deny' : 'allow',
+    effect: row['effect'] === 'deny' ? 'deny' : 'allow',
   };
 }
 
@@ -575,19 +577,23 @@ export async function seedsFromSql(
   }
   const seeds: RolePermission[] = [];
   for (const item of asStmts(parsed)) {
-    const insert = asNode(asNode(nodeStmt(asNode(item)))?.InsertStmt);
-    if (asNode(insert?.relation)?.relname !== 'role_permissions') {
+    const insert = asNode(asNode(nodeStmt(asNode(item)))?.['InsertStmt']);
+    if (asNode(insert?.['relation'])?.['relname'] !== 'role_permissions') {
       continue;
     }
-    const cols = Array.isArray(insert?.cols)
-      ? insert.cols.map((col) => asNode(asNode(col)?.ResTarget)?.name)
+    const cols = Array.isArray(insert?.['cols'])
+      ? insert['cols'].map(
+          (col) => asNode(asNode(col)?.['ResTarget'])?.['name'],
+        )
       : [];
-    const values = asNode(asNode(insert?.selectStmt)?.SelectStmt)?.valuesLists;
+    const values = asNode(asNode(insert?.['selectStmt'])?.['SelectStmt'])?.[
+      'valuesLists'
+    ];
     if (!Array.isArray(values)) {
       continue;
     }
     for (const list of values) {
-      const items = asNode(asNode(list)?.List)?.items;
+      const items = asNode(asNode(list)?.['List'])?.['items'];
       if (!Array.isArray(items)) {
         continue;
       }
@@ -610,11 +616,11 @@ export async function seedsFromSql(
 }
 
 function nodeStmt(first: PgNode | undefined): unknown {
-  const raw = asNode(first?.RawStmt);
+  const raw = asNode(first?.['RawStmt']);
   if (raw !== undefined) {
-    return raw.stmt;
+    return raw['stmt'];
   }
-  return first?.stmt;
+  return first?.['stmt'];
 }
 
 function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
@@ -630,22 +636,22 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
   if (helper !== undefined) {
     return helperCondition(helper, ctx.seeds);
   }
-  const nullTest = asNode(node.NullTest);
+  const nullTest = asNode(node['NullTest']);
   if (nullTest !== undefined) {
-    const field = columnName(nullTest.arg);
+    const field = columnName(nullTest['arg']);
     if (field === undefined) {
       return undefined;
     }
     const isNull =
-      nullTest.nulltesttype === 'IS_NULL' ||
-      nullTest.nulltesttype === 0 ||
-      nullTest.nulltesttype === undefined;
+      nullTest['nulltesttype'] === 'IS_NULL' ||
+      nullTest['nulltesttype'] === 0 ||
+      nullTest['nulltesttype'] === undefined;
     return { op: 'isNull', field, value: isNull };
   }
   const compound = boolOp(node);
   if (compound !== undefined) {
-    const expr = asNode(node.BoolExpr);
-    const args = expr?.args;
+    const expr = asNode(node['BoolExpr']);
+    const args = expr?.['args'];
     if (!Array.isArray(args)) {
       return undefined;
     }
@@ -695,8 +701,8 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
       unmapped.push(name);
       return undefined;
     }
-    const call = asNode(node.FuncCall);
-    const rawArgs = Array.isArray(call?.args) ? call.args : [];
+    const call = asNode(node['FuncCall']);
+    const rawArgs = Array.isArray(call?.['args']) ? call['args'] : [];
     const args: SqlFunctionArg[] =
       mapping.args?.map((field) => ({ field })) ??
       rawArgs
@@ -710,7 +716,7 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
     };
   }
   const op = operatorName(node);
-  const expr = asNode(node.A_Expr);
+  const expr = asNode(node['A_Expr']);
   if (
     op === '=' ||
     op === '<>' ||
@@ -719,10 +725,10 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
     op === '<' ||
     op === '<='
   ) {
-    const left = columnName(expr?.lexpr) ?? columnName(expr?.rexpr);
-    const right = expr?.lexpr;
-    const leftIsColumn = columnName(expr?.lexpr) !== undefined;
-    const other = leftIsColumn ? expr?.rexpr : right;
+    const left = columnName(expr?.['lexpr']) ?? columnName(expr?.['rexpr']);
+    const right = expr?.['lexpr'];
+    const leftIsColumn = columnName(expr?.['lexpr']) !== undefined;
+    const other = leftIsColumn ? expr?.['rexpr'] : right;
     if (left === undefined) {
       return undefined;
     }
@@ -760,7 +766,7 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
 
 function jwtClaim(value: unknown): string | undefined {
   const node = asNode(unwrap(value));
-  const expr = asNode(node?.A_Expr);
+  const expr = asNode(node?.['A_Expr']);
   if (expr === undefined) {
     return undefined;
   }
@@ -768,22 +774,22 @@ function jwtClaim(value: unknown): string | undefined {
   if (name !== '->>' && name !== '->') {
     return undefined;
   }
-  const leftName = funcName(expr.lexpr);
+  const leftName = funcName(expr['lexpr']);
   if (leftName !== 'auth.jwt' && leftName !== 'auth.session') {
-    const sub = asNode(unwrap(expr.lexpr));
-    const nested = asNode(sub?.SubLink);
+    const sub = asNode(unwrap(expr['lexpr']));
+    const nested = asNode(sub?.['SubLink']);
     if (nested !== undefined && !isAuthUid({ SubLink: nested })) {
-      const select = asNode(asNode(nested.subselect)?.SelectStmt);
-      const targets = select?.targetList;
+      const select = asNode(asNode(nested['subselect'])?.['SelectStmt']);
+      const targets = select?.['targetList'];
       if (Array.isArray(targets) && targets[0] !== undefined) {
-        const res = asNode(asNode(targets[0])?.ResTarget);
-        const innerName = funcName(res?.val);
+        const res = asNode(asNode(targets[0])?.['ResTarget']);
+        const innerName = funcName(res?.['val']);
         if (innerName !== 'auth.jwt' && innerName !== 'auth.session') {
           return undefined;
         }
       }
     }
   }
-  const claim = constValue(expr.rexpr);
+  const claim = constValue(expr['rexpr']);
   return typeof claim === 'string' ? claim : undefined;
 }

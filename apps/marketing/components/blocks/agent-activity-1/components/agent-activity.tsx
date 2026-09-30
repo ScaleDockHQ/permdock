@@ -168,7 +168,7 @@ export function AgentActivity() {
   // Advancing skips over denied work, so a declined step is never live.
   useEffect(() => {
     // Frozen demo guard: ?demo=frozen pins the demo, so no timer starts.
-    if (document.documentElement.dataset.demo === "frozen") return
+    if (document.documentElement.dataset['demo'] === "frozen") return
     if (finished || stopped) return
     // Paused at 90%, the step resumes with 10% of its dwell left, so the bar
     // never sits at 100% waiting out time it already spent.
@@ -190,7 +190,7 @@ export function AgentActivity() {
   // declared seconds, so the readout lands exactly where the footer sum moves.
   useEffect(() => {
     // Frozen demo guard: ?demo=frozen pins the demo, so no timer starts.
-    if (document.documentElement.dataset.demo === "frozen") return
+    if (document.documentElement.dataset['demo'] === "frozen") return
     if (finished || stopped || !step || step.seconds < 1) return
     const tick = setInterval(
       () => setElapsed((s) => Math.min(s + 1, step.seconds)),
@@ -201,7 +201,7 @@ export function AgentActivity() {
 
   useEffect(() => {
     // Frozen demo guard: ?demo=frozen pins the demo, so no timer starts.
-    if (document.documentElement.dataset.demo === "frozen") return
+    if (document.documentElement.dataset['demo'] === "frozen") return
     if (copyState === "idle") return
     const clear = setTimeout(() => setCopyState("idle"), COPY_FEEDBACK_MS)
     return () => clearTimeout(clear)

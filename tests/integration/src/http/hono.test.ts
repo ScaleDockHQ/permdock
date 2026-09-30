@@ -77,7 +77,7 @@ testHttpAdapter({
         protect(p.project.update, row),
         async (c) => {
           const form = await c.req.parseBody();
-          const file = form.file;
+          const file = form['file'];
           if (!(file instanceof File)) {
             return c.body(null, 400);
           }

@@ -49,20 +49,20 @@ function parseDiscovery(url: string, body: unknown): Discovery | null {
     return null;
   }
   const evaluation =
-    typeof body.access_evaluation_endpoint === 'string'
-      ? body.access_evaluation_endpoint
-      : typeof body.policy_decision_point === 'string'
-        ? joinUrl(body.policy_decision_point, DEFAULT_EVALUATION)
+    typeof body['access_evaluation_endpoint'] === 'string'
+      ? body['access_evaluation_endpoint']
+      : typeof body['policy_decision_point'] === 'string'
+        ? joinUrl(body['policy_decision_point'], DEFAULT_EVALUATION)
         : joinUrl(url, DEFAULT_EVALUATION);
   return compact<Discovery>({
     evaluation,
     evaluations:
-      typeof body.access_evaluations_endpoint === 'string'
-        ? body.access_evaluations_endpoint
+      typeof body['access_evaluations_endpoint'] === 'string'
+        ? body['access_evaluations_endpoint']
         : joinUrl(url, DEFAULT_EVALUATIONS),
     searchResource:
-      typeof body.search_resource_endpoint === 'string'
-        ? body.search_resource_endpoint
+      typeof body['search_resource_endpoint'] === 'string'
+        ? body['search_resource_endpoint']
         : undefined,
   });
 }
@@ -75,7 +75,7 @@ function mapEvaluationBody(
 ): Record<string, unknown> {
   const defaultId =
     data !== null && typeof data === 'object'
-      ? (data as Record<string, unknown>).id
+      ? (data as Record<string, unknown>)['id']
       : undefined;
   const mappedSubject =
     mapping?.subject?.(subject) ??
@@ -120,18 +120,18 @@ function parseRemoteDecision(
   subject: Subject,
   data: unknown,
 ): Decision {
-  if (!isRecord(body) || typeof body.decision !== 'boolean') {
+  if (!isRecord(body) || typeof body['decision'] !== 'boolean') {
     return denied('pdp-invalid-response');
   }
-  if (body.decision) {
+  if (body['decision']) {
     return granted('pdp', permission, subject, data);
   }
   const context =
-    isRecord(body.context) && isRecord(body.context.permdock)
-      ? body.context.permdock
+    isRecord(body['context']) && isRecord(body['context']['permdock'])
+      ? body['context']['permdock']
       : {};
-  if (context.outcome === 'approval-required') {
-    const token = typeof context.token === 'string' ? context.token : '';
+  if (context['outcome'] === 'approval-required') {
+    const token = typeof context['token'] === 'string' ? context['token'] : '';
     return {
       outcome: 'approval-required',
       grant: {
@@ -144,16 +144,16 @@ function parseRemoteDecision(
       token,
     };
   }
-  if (Array.isArray(context.denials)) {
-    const denials: Denial[] = context.denials.flatMap((item) => {
-      if (!isRecord(item) || typeof item.reason !== 'string') {
+  if (Array.isArray(context['denials'])) {
+    const denials: Denial[] = context['denials'].flatMap((item) => {
+      if (!isRecord(item) || typeof item['reason'] !== 'string') {
         return [];
       }
       return [
         compact<Denial>({
-          role: typeof item.role === 'string' ? item.role : null,
-          reason: item.reason as DenialReason,
-          detail: item.detail,
+          role: typeof item['role'] === 'string' ? item['role'] : null,
+          reason: item['reason'] as DenialReason,
+          detail: item['detail'],
         }),
       ];
     });
@@ -174,36 +174,36 @@ function mapSearchBody(
   mapping: RemotePdpOptions['mapping'],
 ): Record<string, unknown> {
   const body = mapEvaluationBody(permission, undefined, subject, mapping);
-  const resource = isRecord(body.resource) ? body.resource : {};
+  const resource = isRecord(body['resource']) ? body['resource'] : {};
   return {
     ...body,
-    resource: { type: resource.type ?? permission.resource },
+    resource: { type: resource['type'] ?? permission.resource },
   };
 }
 
 function searchIds(body: unknown, type: unknown): string[] | null {
-  if (!isRecord(body) || !Array.isArray(body.results)) {
+  if (!isRecord(body) || !Array.isArray(body['results'])) {
     return null;
   }
   const ids: string[] = [];
-  for (const entity of body.results) {
+  for (const entity of body['results']) {
     if (
       !isRecord(entity) ||
-      entity.type !== type ||
-      typeof entity.id !== 'string'
+      entity['type'] !== type ||
+      typeof entity['id'] !== 'string'
     ) {
       return null;
     }
-    ids.push(entity.id);
+    ids.push(entity['id']);
   }
   return ids;
 }
 
 function nextToken(body: unknown): string | undefined {
-  if (!isRecord(body) || !isRecord(body.page)) {
+  if (!isRecord(body) || !isRecord(body['page'])) {
     return undefined;
   }
-  const token = body.page.next_token;
+  const token = body['page']['next_token'];
   return typeof token === 'string' && token !== '' ? token : undefined;
 }
 
@@ -339,7 +339,9 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
       if (hit !== undefined) {
         return hit;
       }
-      const type = isRecord(body.resource) ? body.resource.type : undefined;
+      const type = isRecord(body['resource'])
+        ? body['resource']['type']
+        : undefined;
       const url = endpoints.searchResource;
       const collect = async (
         token: string | undefined,

@@ -60,29 +60,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function asFixtures(value: unknown): readonly RlsFixture[] {
   const list = Array.isArray(value)
     ? value
-    : isRecord(value) && Array.isArray(value.fixtures)
-      ? value.fixtures
+    : isRecord(value) && Array.isArray(value['fixtures'])
+      ? value['fixtures']
       : undefined;
   if (list === undefined) {
     throw new Error('PermDock CLI: fixtures must be an array or { fixtures }');
   }
   return list.map((item, index) => {
-    if (!isRecord(item) || !isRecord(item.subject) || item.row === undefined) {
+    if (
+      !isRecord(item) ||
+      !isRecord(item['subject']) ||
+      item['row'] === undefined
+    ) {
       throw new Error(`PermDock CLI: fixture ${index} needs subject and row`);
     }
-    if (typeof item.action !== 'string') {
+    if (typeof item['action'] !== 'string') {
       throw new TypeError(`PermDock CLI: fixture ${index} needs action`);
     }
-    if (typeof item.subject.id !== 'string') {
+    if (typeof item['subject']['id'] !== 'string') {
       throw new TypeError(`PermDock CLI: fixture ${index} subject needs id`);
     }
-    const memberships = item.subject.memberships;
+    const memberships = item['subject']['memberships'];
     if (memberships !== undefined && !Array.isArray(memberships)) {
       throw new Error(
         `PermDock CLI: fixture ${index} subject.memberships must be an array`,
       );
     }
-    const tenant = item.subject.tenant;
+    const tenant = item['subject']['tenant'];
     if (tenant !== undefined && typeof tenant !== 'string') {
       throw new Error(
         `PermDock CLI: fixture ${index} subject.tenant must be a string`,
@@ -99,13 +103,13 @@ type FixtureFile = {
 };
 
 function asCustomRoles(value: unknown): readonly CustomRole[] {
-  if (!isRecord(value) || value.customRoles === undefined) {
+  if (!isRecord(value) || value['customRoles'] === undefined) {
     return [];
   }
-  if (!Array.isArray(value.customRoles)) {
+  if (!Array.isArray(value['customRoles'])) {
     throw new TypeError('PermDock CLI: fixtures customRoles must be an array');
   }
-  return value.customRoles as readonly CustomRole[];
+  return value['customRoles'] as readonly CustomRole[];
 }
 
 async function loadFixtures(cwd: string, path: string): Promise<FixtureFile> {
@@ -266,7 +270,7 @@ function statementFor(
 
 function rowId(row: unknown): unknown {
   if (isRecord(row) && 'id' in row) {
-    return row.id;
+    return row['id'];
   }
   return undefined;
 }

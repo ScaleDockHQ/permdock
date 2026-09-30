@@ -89,20 +89,23 @@ export function parseMemberRows(
 ): readonly Membership[] {
   const out: Membership[] = [];
   const rows =
-    isRecord(value) && typeof value.organizationId === 'string'
+    isRecord(value) && typeof value['organizationId'] === 'string'
       ? [value]
       : unwrapList(value);
   for (const item of rows) {
     if (!isRecord(item)) {
       continue;
     }
-    const owner = typeof item.userId === 'string' ? item.userId : undefined;
+    const owner =
+      typeof item['userId'] === 'string' ? item['userId'] : undefined;
     if (owner === undefined ? requireUserId : owner !== userId) {
       continue;
     }
     const tenant =
-      typeof item.organizationId === 'string' ? item.organizationId : undefined;
-    const roles = asRoles(item.role ?? item.roles);
+      typeof item['organizationId'] === 'string'
+        ? item['organizationId']
+        : undefined;
+    const roles = asRoles(item['role'] ?? item['roles']);
     if (tenant === undefined || roles.length === 0) {
       continue;
     }
@@ -120,23 +123,23 @@ export function parseTeamRows(
     if (!isRecord(item)) {
       continue;
     }
-    if (typeof item.userId === 'string' && item.userId !== userId) {
+    if (typeof item['userId'] === 'string' && item['userId'] !== userId) {
       continue;
     }
-    const teamRecord = isRecord(item.team) ? item.team : undefined;
+    const teamRecord = isRecord(item['team']) ? item['team'] : undefined;
     const team =
-      typeof item.teamId === 'string'
-        ? item.teamId
-        : typeof teamRecord?.id === 'string'
-          ? teamRecord.id
+      typeof item['teamId'] === 'string'
+        ? item['teamId']
+        : typeof teamRecord?.['id'] === 'string'
+          ? teamRecord['id']
           : undefined;
     const tenant =
-      typeof item.organizationId === 'string'
-        ? item.organizationId
-        : typeof teamRecord?.organizationId === 'string'
-          ? teamRecord.organizationId
+      typeof item['organizationId'] === 'string'
+        ? item['organizationId']
+        : typeof teamRecord?.['organizationId'] === 'string'
+          ? teamRecord['organizationId']
           : undefined;
-    const roles = asRoles(item.role ?? item.roles);
+    const roles = asRoles(item['role'] ?? item['roles']);
     if (team === undefined || roles.length === 0) {
       continue;
     }
@@ -166,10 +169,10 @@ export function parseOrganizationRoles(
       continue;
     }
     const name =
-      typeof item.role === 'string'
-        ? item.role
-        : typeof item.name === 'string'
-          ? item.name
+      typeof item['role'] === 'string'
+        ? item['role']
+        : typeof item['name'] === 'string'
+          ? item['name']
           : undefined;
     if (name === undefined || name === '') {
       continue;
@@ -177,7 +180,7 @@ export function parseOrganizationRoles(
     out.push({
       name,
       statements: asStatements(
-        item.permission ?? item.permissions ?? item.statements,
+        item['permission'] ?? item['permissions'] ?? item['statements'],
       ),
     });
   }

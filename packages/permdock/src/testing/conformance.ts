@@ -1090,8 +1090,8 @@ export function testTokenSigner(
     );
     const header = decodeHeader(token);
     expect(Object.keys(header).toSorted()).toEqual(['alg', 'kid', 'typ']);
-    expect(header.typ).toBe('permdock-snapshot+jwt');
-    expect(header.alg).not.toBe('none');
+    expect(header['typ']).toBe('permdock-snapshot+jwt');
+    expect(header['alg']).not.toBe('none');
     const verified = await options.verifier.verify(token, {
       typ: 'permdock-snapshot+jwt',
       audience: 'https://app.example.com',

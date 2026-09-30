@@ -401,17 +401,17 @@ function columnTypeOf(property: unknown): string | undefined {
   if (!isRecord(property)) {
     return undefined;
   }
-  const variants = [property.anyOf, property.oneOf].find(Array.isArray) as
-    | readonly unknown[]
-    | undefined;
+  const variants = [property['anyOf'], property['oneOf']].find(
+    Array.isArray,
+  ) as readonly unknown[] | undefined;
   if (variants !== undefined) {
     const present = variants.filter(
-      (item) => !(isRecord(item) && item.type === 'null'),
+      (item) => !(isRecord(item) && item['type'] === 'null'),
     );
     return present.length === 1 ? columnTypeOf(present[0]) : undefined;
   }
   const types = (
-    Array.isArray(property.type) ? property.type : [property.type]
+    Array.isArray(property['type']) ? property['type'] : [property['type']]
   ).filter((item) => item !== 'null');
   if (types.length !== 1) {
     return undefined;
@@ -423,7 +423,7 @@ function columnTypeOf(property: unknown): string | undefined {
     case 'boolean':
       return 'boolean';
     case 'string':
-      switch (property.format) {
+      switch (property['format']) {
         case 'date-time':
           return 'timestamptz';
         case 'date':
@@ -447,7 +447,7 @@ function columnTypeOf(property: unknown): string | undefined {
 export function columnTypesOf(
   schema: unknown,
 ): Readonly<Record<string, string>> {
-  const properties = isRecord(schema) ? schema.properties : undefined;
+  const properties = isRecord(schema) ? schema['properties'] : undefined;
   if (!isRecord(properties)) {
     return {};
   }
@@ -468,7 +468,7 @@ export function columnTypesOf(
 export function arrayColumnsOf(
   schema: unknown,
 ): Readonly<Record<string, string>> {
-  const properties = isRecord(schema) ? schema.properties : undefined;
+  const properties = isRecord(schema) ? schema['properties'] : undefined;
   if (!isRecord(properties)) {
     return {};
   }
@@ -478,10 +478,10 @@ export function arrayColumnsOf(
       continue;
     }
     const types = (
-      Array.isArray(property.type) ? property.type : [property.type]
+      Array.isArray(property['type']) ? property['type'] : [property['type']]
     ).filter((item) => item !== 'null');
     if (types.length === 1 && types[0] === 'array') {
-      arrays[name] = columnTypeOf(property.items) ?? 'text';
+      arrays[name] = columnTypeOf(property['items']) ?? 'text';
     }
   }
   return arrays;
@@ -967,10 +967,10 @@ function valueContextRefs(value: unknown): readonly string[] {
   }
   if (
     isRecord(value) &&
-    typeof value.ref === 'string' &&
-    (value.ref === 'context' || value.ref.startsWith('context.'))
+    typeof value['ref'] === 'string' &&
+    (value['ref'] === 'context' || value['ref'].startsWith('context.'))
   ) {
-    return [value.ref];
+    return [value['ref']];
   }
   return [];
 }

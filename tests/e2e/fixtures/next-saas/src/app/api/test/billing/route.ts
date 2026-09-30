@@ -7,7 +7,7 @@ import { setPlan } from '../../../../lib/store.ts';
  * the shared org entry is expired with `revalidateTag(tag, { expire: 0 })`.
  */
 export async function POST(request: Request): Promise<Response> {
-  if (process.env.NEXT_E2E !== '1') {
+  if (process.env['NEXT_E2E'] !== '1') {
     return new Response(null, { status: 404 });
   }
   const body = (await request.json()) as {

@@ -386,8 +386,8 @@ export function markdownCodeProps(props: {
     if (typeof node === "object" && "props" in (node as object)) {
       const nodeProps = (node as { props?: Record<string, unknown> }).props
       if (!nodeProps) return
-      readClassName(nodeProps.className)
-      walk(nodeProps.children)
+      readClassName(nodeProps['className'])
+      walk(nodeProps['children'])
     }
   }
 
@@ -610,7 +610,7 @@ function readTokenStyle(style: unknown): Omit<CodeBlockToken, "content"> {
  * ran.
  */
 function classListOf(node: HastNode): string[] {
-  const value = node.properties?.class ?? node.properties?.className
+  const value = node.properties?.['class'] ?? node.properties?.['className']
   if (Array.isArray(value)) return value.map(String)
   if (typeof value === "string") return value.split(/\s+/).filter(Boolean)
   return []
@@ -648,7 +648,7 @@ function collectTokens(
 
     const classes = classListOf(child)
     const childInWord = inWord || classes.includes("cb-word")
-    const style = readTokenStyle(child.properties?.style)
+    const style = readTokenStyle(child.properties?.['style'])
     const hasStyle = Boolean(style.color || style.colorDark || style.fontStyle)
 
     /* A styled leaf is a token; a wrapper (a decoration span) is descended into

@@ -74,7 +74,7 @@ export type EvalEnv = {
 function credentialRef(
   subject: Subject,
 ): NonNullable<DecisionEvent['subject']['credential']> | undefined {
-  const value = subject.principal?.credential;
+  const value = subject.principal?.['credential'];
   if (value === null || typeof value !== 'object') {
     return undefined;
   }
@@ -165,14 +165,14 @@ export function finish(
               })
             : undefined,
       purpose:
-        Array.isArray(subject.context.purpose) &&
-        subject.context.purpose.length > 0
-          ? (subject.context.purpose as readonly string[])
+        Array.isArray(subject.context['purpose']) &&
+        subject.context['purpose'].length > 0
+          ? (subject.context['purpose'] as readonly string[])
           : undefined,
       reason:
-        typeof subject.context.reason === 'string' &&
-        subject.context.reason !== ''
-          ? subject.context.reason
+        typeof subject.context['reason'] === 'string' &&
+        subject.context['reason'] !== ''
+          ? subject.context['reason']
           : undefined,
       denials:
         decision.outcome === 'denied'

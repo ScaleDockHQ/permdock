@@ -131,8 +131,8 @@ function testRoutes(client: CloudClient, contract: ContractEnv): Hono {
     if (!verified.ok) {
       return c.json({ status: 401, cause: verified.cause, events: [] });
     }
-    const events = Array.isArray(verified.claims.events)
-      ? (verified.claims.events as readonly { readonly data?: unknown }[])
+    const events = Array.isArray(verified.claims['events'])
+      ? (verified.claims['events'] as readonly { readonly data?: unknown }[])
       : [];
     return c.json({ status: 200, events: events.map((event) => event.data) });
   });

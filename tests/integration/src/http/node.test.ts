@@ -48,7 +48,7 @@ testHttpAdapter({
     const { protect, send, permdockHandler } = createPermDock(domain.policy, {
       subject: (req) =>
         domain.subject(req.headers.authorization, req.url ?? '/'),
-      tenant: (req) => params.get(req)?.org,
+      tenant: (req) => params.get(req)?.['org'],
       customRoles: domain.customRoles,
       store: domain.store,
       limits: domain.limits,
@@ -146,7 +146,7 @@ testHttpAdapter({
         const guard = await protect(
           entry.permission,
           entry.load === 'row'
-            ? () => domain.project(groups.id)
+            ? () => domain.project(groups['id'])
             : entry.load === 'body'
               ? (incoming) => toRequest(incoming).json()
               : undefined,

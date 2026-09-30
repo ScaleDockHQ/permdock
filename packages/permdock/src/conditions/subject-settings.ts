@@ -69,13 +69,13 @@ export function subjectStatements(
     ),
   );
   if (principal !== null) {
-    claims.sub = principal.id;
+    claims['sub'] = principal.id;
     if (principal.tenant !== undefined) {
       claims[tenantClaim] = principal.tenant;
     }
   }
   if (role !== false) {
-    claims.role = role;
+    claims['role'] = role;
   }
   const statements: SubjectStatement[] =
     role === false ? [] : [{ strings: [`set local role ${role}`], values: [] }];

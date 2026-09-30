@@ -73,39 +73,47 @@ function isInstant(value: unknown): boolean {
 }
 
 function asChain(value: unknown): RelationChain | undefined {
-  if (!isRecord(value) || !Array.isArray(value.ancestors)) {
+  if (!isRecord(value) || !Array.isArray(value['ancestors'])) {
     return undefined;
   }
   const ancestors: { readonly id: string; readonly restricted?: boolean }[] =
     [];
-  for (const item of value.ancestors as readonly unknown[]) {
-    if (!isRecord(item) || typeof item.id !== 'string' || item.id === '') {
+  for (const item of value['ancestors'] as readonly unknown[]) {
+    if (
+      !isRecord(item) ||
+      typeof item['id'] !== 'string' ||
+      item['id'] === ''
+    ) {
       return undefined;
     }
     ancestors.push(
-      item.restricted === true
-        ? { id: item.id, restricted: true }
-        : { id: item.id },
+      item['restricted'] === true
+        ? { id: item['id'], restricted: true }
+        : { id: item['id'] },
     );
   }
   return {
     ancestors,
-    ...(value.restricted === true ? { restricted: true } : {}),
-    ...(value.truncated === true ? { truncated: true } : {}),
+    ...(value['restricted'] === true ? { restricted: true } : {}),
+    ...(value['truncated'] === true ? { truncated: true } : {}),
   };
 }
 
 function asGroup(value: unknown): RelationGroup | undefined {
   if (
     !isRecord(value) ||
-    typeof value.resource !== 'string' ||
-    typeof value.id !== 'string' ||
-    typeof value.relation !== 'string' ||
-    value.id === ''
+    typeof value['resource'] !== 'string' ||
+    typeof value['id'] !== 'string' ||
+    typeof value['relation'] !== 'string' ||
+    value['id'] === ''
   ) {
     return undefined;
   }
-  return { resource: value.resource, id: value.id, relation: value.relation };
+  return {
+    resource: value['resource'],
+    id: value['id'],
+    relation: value['relation'],
+  };
 }
 
 function asHolders(value: unknown): readonly RelationHolder[] | undefined {
@@ -116,24 +124,27 @@ function asHolders(value: unknown): readonly RelationHolder[] | undefined {
   for (const item of value as readonly unknown[]) {
     if (
       !isRecord(item) ||
-      !isInstant(item.startsAt) ||
-      !isInstant(item.expiresAt)
+      !isInstant(item['startsAt']) ||
+      !isInstant(item['expiresAt'])
     ) {
       return undefined;
     }
     const period = {
-      ...(item.startsAt === undefined
+      ...(item['startsAt'] === undefined
         ? {}
-        : { startsAt: item.startsAt as number }),
-      ...(item.expiresAt === undefined
+        : { startsAt: item['startsAt'] as number }),
+      ...(item['expiresAt'] === undefined
         ? {}
-        : { expiresAt: item.expiresAt as number }),
+        : { expiresAt: item['expiresAt'] as number }),
     };
-    if (isRecord(item.principal) && typeof item.principal.id === 'string') {
-      holders.push({ principal: { id: item.principal.id }, ...period });
+    if (
+      isRecord(item['principal']) &&
+      typeof item['principal']['id'] === 'string'
+    ) {
+      holders.push({ principal: { id: item['principal']['id'] }, ...period });
       continue;
     }
-    const group = asGroup(item.group);
+    const group = asGroup(item['group']);
     if (group === undefined) {
       return undefined;
     }

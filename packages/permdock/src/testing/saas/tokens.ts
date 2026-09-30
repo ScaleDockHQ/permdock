@@ -155,8 +155,8 @@ export async function verifySaasSession(
   const header = parseSegment(head);
   const payload = parseSegment(body);
   if (
-    header?.alg !== 'ES256' ||
-    header.kid !== saasPublicJwk.kid ||
+    header?.['alg'] !== 'ES256' ||
+    header['kid'] !== saasPublicJwk.kid ||
     payload === null
   ) {
     return null;

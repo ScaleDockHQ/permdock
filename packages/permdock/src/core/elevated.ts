@@ -157,7 +157,7 @@ export function assuranceMet(
 
 /** `context.purpose` as a list of strings; fail-closed to empty. */
 export function purposesOf(subject: Subject): readonly string[] {
-  const value = subject.context.purpose;
+  const value = subject.context['purpose'];
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : typeof value === 'string' && value !== ''
@@ -200,7 +200,7 @@ export function evaluateBreakGlass(
   ) {
     return { kind: 'denied', reason: 'purpose' };
   }
-  const reason = subject.context.reason;
+  const reason = subject.context['reason'];
   if (spec.reason && (typeof reason !== 'string' || reason === '')) {
     return { kind: 'denied', reason: 'reason-required' };
   }

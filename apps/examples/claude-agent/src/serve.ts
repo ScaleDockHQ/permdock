@@ -8,7 +8,7 @@ import { resolveApproval } from 'permdock/approvals';
 import { canUseTool, store } from './agent.ts';
 import { ownPost } from './permissions.ts';
 
-const port = Number(process.env.PORT ?? 3473);
+const port = Number(process.env['PORT'] ?? 3473);
 const host = '127.0.0.1';
 
 function toRequest(req: IncomingMessage): Request {

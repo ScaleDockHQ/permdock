@@ -89,13 +89,19 @@ export function securitySchemesOf(
   const flowsIn = options.scheme.flows ?? { authorizationCode: {} };
   const flows: Record<string, unknown> = {};
   if (flowsIn.authorizationCode !== undefined) {
-    flows.authorizationCode = flowWithScopes(flowsIn.authorizationCode, scopes);
+    flows['authorizationCode'] = flowWithScopes(
+      flowsIn.authorizationCode,
+      scopes,
+    );
   }
   if (flowsIn.clientCredentials !== undefined) {
-    flows.clientCredentials = flowWithScopes(flowsIn.clientCredentials, scopes);
+    flows['clientCredentials'] = flowWithScopes(
+      flowsIn.clientCredentials,
+      scopes,
+    );
   }
   if (flowsIn.deviceAuthorization !== undefined && target !== '3.1') {
-    flows.deviceAuthorization = flowWithScopes(
+    flows['deviceAuthorization'] = flowWithScopes(
       flowsIn.deviceAuthorization,
       scopes,
     );
@@ -188,8 +194,8 @@ export function catalogOf(
   const target = options.target ?? '3.2';
   const drafts: Record<string, string> = {};
   if (target === '3.3') {
-    drafts.oas = DRAFT_PINS.oas;
-    drafts.securityProfiles = DRAFT_PINS.securityProfiles;
+    drafts['oas'] = DRAFT_PINS.oas;
+    drafts['securityProfiles'] = DRAFT_PINS.securityProfiles;
   }
   if (extraDrafts !== undefined) {
     for (const [key, value] of Object.entries(extraDrafts)) {

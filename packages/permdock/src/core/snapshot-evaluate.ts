@@ -55,7 +55,7 @@ export function rowId(data: unknown): string {
   if (data === null || typeof data !== 'object') {
     return '*';
   }
-  const id = (data as Record<string, unknown>).id;
+  const id = (data as Record<string, unknown>)['id'];
   return typeof id === 'string' || typeof id === 'number' ? String(id) : '*';
 }
 

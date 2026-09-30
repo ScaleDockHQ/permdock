@@ -53,7 +53,7 @@ test('1. a granted tool call streams its arguments, runs, and the reply streams 
       for (const node of document.querySelectorAll(
         '[data-testid="tool-delete_project"]',
       )) {
-        const state = (node as HTMLElement).dataset.state;
+        const state = (node as HTMLElement).dataset['state'];
         if (state !== undefined) {
           void (
             window as unknown as { recordState: (s: string) => Promise<void> }

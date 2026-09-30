@@ -4,7 +4,7 @@ import { resetStore } from '../../../../lib/store.ts';
 import { orgs } from '../../../../nav.ts';
 
 export function POST(): Response {
-  if (process.env.NEXT_E2E !== '1') {
+  if (process.env['NEXT_E2E'] !== '1') {
     return new Response(null, { status: 404 });
   }
   resetStore();

@@ -39,10 +39,10 @@ function mergeSchemes(
       result[name] = scheme;
       continue;
     }
-    const beforeFlows = isRecord(before.flows) ? before.flows : {};
+    const beforeFlows = isRecord(before['flows']) ? before['flows'] : {};
     const flows: Record<string, unknown> = { ...beforeFlows };
     for (const [kind, flow] of Object.entries(
-      isRecord(scheme.flows) ? scheme.flows : {},
+      isRecord(scheme['flows']) ? scheme['flows'] : {},
     )) {
       const previous = beforeFlows[kind];
       flows[kind] =
@@ -51,7 +51,7 @@ function mergeSchemes(
     result[name] = {
       ...before,
       ...scheme,
-      ...(isRecord(scheme.flows) ? { flows } : {}),
+      ...(isRecord(scheme['flows']) ? { flows } : {}),
     };
   }
   return result;
@@ -113,9 +113,11 @@ function applyDocument(
   factory: ReturnType<typeof createPermDock>,
   arity: boolean,
 ): Record<string, unknown> {
-  const components = isRecord(document.components) ? document.components : {};
-  const schemes = isRecord(components.securitySchemes)
-    ? components.securitySchemes
+  const components = isRecord(document['components'])
+    ? document['components']
+    : {};
+  const schemes = isRecord(components['securitySchemes'])
+    ? components['securitySchemes']
     : {};
   const nextSchemes = mergeRecord(
     schemes,
@@ -131,7 +133,7 @@ function applyDocument(
         : { securityProfileRequirements: requirements },
     ),
   );
-  const paths = isRecord(document.paths) ? document.paths : {};
+  const paths = isRecord(document['paths']) ? document['paths'] : {};
   const nextPaths: Record<string, unknown> = {};
   for (const [path, item] of Object.entries(paths)) {
     if (!isRecord(item)) {

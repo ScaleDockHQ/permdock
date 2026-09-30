@@ -4,6 +4,6 @@ import { app } from './app.ts';
 
 serve({
   fetch: (request): Response | Promise<Response> => app.fetch(request),
-  port: Number(process.env.PORT ?? 3463),
+  port: Number(process.env['PORT'] ?? 3463),
   hostname: '127.0.0.1',
 });

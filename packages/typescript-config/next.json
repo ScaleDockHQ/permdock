@@ -3,9 +3,8 @@
   "extends": "./base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "lib": ["ES2025", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "moduleResolution": "bundler",
     "allowJs": true,
     "resolveJsonModule": true,
     "incremental": true,

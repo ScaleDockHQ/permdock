@@ -56,7 +56,7 @@ async function provisionUser(
     active: true,
   });
   expect(created.status).toBe(201);
-  return String(created.body.id);
+  return String(created.body['id']);
 }
 
 async function provisionGroup(
@@ -72,7 +72,7 @@ async function provisionGroup(
     [ROLES]: { roles },
   });
   expect(created.status).toBe(201);
-  return String(created.body.id);
+  return String(created.body['id']);
 }
 
 function patch(operations: readonly Record<string, unknown>[]) {
@@ -235,7 +235,7 @@ test('5. a directory in one tenant grants nothing in another', async ({
     'GET',
     `/Users?filter=${encodeURIComponent('userName eq "hank@acme.test"')}`,
   );
-  expect(found.body.totalResults).toBe(0);
+  expect(found.body['totalResults']).toBe(0);
   expect((await scim(request, 'globex', 'GET', `/Users/${user}`)).status).toBe(
     404,
   );
@@ -255,7 +255,7 @@ test('6. SCIM filters and cursor pages run against Postgres', async ({
     `/Users?filter=${filter}&count=1`,
   );
   expect(first.body).toMatchObject({ totalResults: 2, itemsPerPage: 1 });
-  const cursor = String(first.body.nextCursor);
+  const cursor = String(first.body['nextCursor']);
   const second = await scim(
     request,
     'acme',
@@ -263,12 +263,12 @@ test('6. SCIM filters and cursor pages run against Postgres', async ({
     `/Users?filter=${filter}&count=1&cursor=${cursor}`,
   );
   const names = [first, second].flatMap((page) =>
-    (page.body.Resources as { userName: string }[]).map(
+    (page.body['Resources'] as { userName: string }[]).map(
       (user) => user.userName,
     ),
   );
   expect(names).toEqual(['pia@acme.test', 'pat@acme.test']);
-  expect(second.body.nextCursor).toBeUndefined();
+  expect(second.body['nextCursor']).toBeUndefined();
 });
 
 test('7. a CAEP session-revoked SET from the IdP invalidates the snapshot', async ({

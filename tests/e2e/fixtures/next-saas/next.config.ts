@@ -5,7 +5,7 @@ const config: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
-    exposeTestingApiInProductionBuild: process.env.NEXT_E2E === '1',
+    exposeTestingApiInProductionBuild: process.env['NEXT_E2E'] === '1',
   },
 };
 

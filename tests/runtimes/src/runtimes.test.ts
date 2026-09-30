@@ -20,7 +20,7 @@ import {
 } from './scenarios.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const inCi = process.env.CI !== undefined && process.env.CI !== '';
+const inCi = process.env['CI'] !== undefined && process.env['CI'] !== '';
 
 type Runtime = {
   readonly name: string;

@@ -10,7 +10,7 @@ import { SESSION_COOKIE, signSession, verifySession } from './token.ts';
 export type MembershipMode = 'jwt' | 'database';
 
 export function membershipMode(): MembershipMode {
-  return process.env.MEMBERSHIP_MODE === 'database' ? 'database' : 'jwt';
+  return process.env['MEMBERSHIP_MODE'] === 'database' ? 'database' : 'jwt';
 }
 
 export async function getClaims(): Promise<SessionClaims | null> {

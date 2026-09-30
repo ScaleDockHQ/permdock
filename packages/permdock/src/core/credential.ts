@@ -170,15 +170,15 @@ function parsePermissions(
   const out: CredentialPermission[] = [];
   for (const item of value) {
     const entry = ownRecord(item);
-    if (entry === undefined || !isId(entry.permission)) {
+    if (entry === undefined || !isId(entry['permission'])) {
       return undefined;
     }
-    const ids = entry.ids === undefined ? undefined : idList(entry.ids);
-    if (entry.ids !== undefined && ids === undefined) {
+    const ids = entry['ids'] === undefined ? undefined : idList(entry['ids']);
+    if (entry['ids'] !== undefined && ids === undefined) {
       return undefined;
     }
     out.push(
-      compact<CredentialPermission>({ permission: entry.permission, ids }),
+      compact<CredentialPermission>({ permission: entry['permission'], ids }),
     );
   }
   return out;
@@ -196,52 +196,52 @@ function isTime(value: unknown): value is number {
  */
 export function parseCredential(input: unknown): Credential | undefined {
   const value = ownRecord(input);
-  if (value === undefined || value.v !== 1 || !isId(value.id)) {
+  if (value === undefined || value['v'] !== 1 || !isId(value['id'])) {
     return undefined;
   }
-  if (value.kind !== 'user' && value.kind !== 'service') {
+  if (value['kind'] !== 'user' && value['kind'] !== 'service') {
     return undefined;
   }
-  if (!isId(value.principal) || !isId(value.createdBy)) {
+  if (!isId(value['principal']) || !isId(value['createdBy'])) {
     return undefined;
   }
-  const permissions = parsePermissions(value.permissions);
-  if (permissions === undefined || !isTime(value.createdAt)) {
+  const permissions = parsePermissions(value['permissions']);
+  if (permissions === undefined || !isTime(value['createdAt'])) {
     return undefined;
   }
-  if (value.expiresAt !== undefined && !isTime(value.expiresAt)) {
+  if (value['expiresAt'] !== undefined && !isTime(value['expiresAt'])) {
     return undefined;
   }
   if (
-    value.name !== undefined &&
-    (typeof value.name !== 'string' || value.name.length > MAX_NAME)
+    value['name'] !== undefined &&
+    (typeof value['name'] !== 'string' || value['name'].length > MAX_NAME)
   ) {
     return undefined;
   }
   let tenant: string | undefined;
   let roles: readonly string[] | undefined;
-  if (value.kind === 'service') {
-    roles = idList(value.roles);
-    if (!isId(value.tenant) || roles === undefined) {
+  if (value['kind'] === 'service') {
+    roles = idList(value['roles']);
+    if (!isId(value['tenant']) || roles === undefined) {
       return undefined;
     }
-    tenant = value.tenant;
-  } else if (value.tenant !== undefined || value.roles !== undefined) {
+    tenant = value['tenant'];
+  } else if (value['tenant'] !== undefined || value['roles'] !== undefined) {
     return undefined;
   }
   return freezeDeep(
     compact<Credential>({
       v: 1,
-      id: value.id,
-      kind: value.kind,
-      principal: value.principal,
+      id: value['id'],
+      kind: value['kind'],
+      principal: value['principal'],
       tenant,
       roles,
       permissions,
-      createdBy: value.createdBy,
-      createdAt: value.createdAt,
-      expiresAt: value.expiresAt,
-      name: value.name,
+      createdBy: value['createdBy'],
+      createdAt: value['createdAt'],
+      expiresAt: value['expiresAt'],
+      name: value['name'],
     }),
   );
 }

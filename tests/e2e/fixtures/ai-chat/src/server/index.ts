@@ -36,7 +36,7 @@ import { z } from 'zod';
 import { scriptedModel } from './model.ts';
 
 const ORG = 'acme';
-const PORT = Number(process.env.PORT ?? 3506);
+const PORT = Number(process.env['PORT'] ?? 3506);
 const ORIGIN = `http://127.0.0.1:${String(PORT)}`;
 const client = fileURLToPath(new URL('../../dist', import.meta.url));
 /** Signs approval requests so a client cannot forge one; per process. */

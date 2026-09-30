@@ -106,17 +106,17 @@ export function parsePolicyDocument(json: unknown): PolicyDocument {
   }
   const copy = JSON.parse(JSON.stringify(input)) as Record<string, unknown>;
   rejectUnsafe(copy);
-  if (copy.v !== 1) {
+  if (copy['v'] !== 1) {
     throw new Error(
-      `PermDock: unsupported policy document version '${String(copy.v)}'`,
+      `PermDock: unsupported policy document version '${String(copy['v'])}'`,
     );
   }
   if (
-    typeof copy.id !== 'string' ||
-    typeof copy.fingerprint !== 'string' ||
-    typeof copy.catalog !== 'string' ||
-    typeof copy.issuedAt !== 'number' ||
-    !Array.isArray(copy.grants)
+    typeof copy['id'] !== 'string' ||
+    typeof copy['fingerprint'] !== 'string' ||
+    typeof copy['catalog'] !== 'string' ||
+    typeof copy['issuedAt'] !== 'number' ||
+    !Array.isArray(copy['grants'])
   ) {
     throw new TypeError('PermDock: malformed policy document');
   }
@@ -152,55 +152,56 @@ function portableValue(value: unknown): value is ConditionValue {
     return false;
   }
   if (keys[0] === 'ref') {
-    return safePath(value.ref);
+    return safePath(value['ref']);
   }
-  return keys[0] === 'date' && typeof value.date === 'string';
+  return keys[0] === 'date' && typeof value['date'] === 'string';
 }
 
 /** True for the portable subset only: no `opaque`, no `sqlFunction`, no unknown op. */
 export function isPortableCondition(value: unknown): value is Condition {
-  if (!isRecord(value) || typeof value.op !== 'string') {
+  if (!isRecord(value) || typeof value['op'] !== 'string') {
     return false;
   }
-  const op = value.op;
+  const op = value['op'];
   if (COMPARISONS.has(op)) {
-    return safePath(value.field) && portableValue(value.value);
+    return safePath(value['field']) && portableValue(value['value']);
   }
   switch (op) {
     case 'in':
     case 'notIn':
       return (
-        safePath(value.field) &&
-        (Array.isArray(value.value) || isRecord(value.value)) &&
-        portableValue(value.value)
+        safePath(value['field']) &&
+        (Array.isArray(value['value']) || isRecord(value['value'])) &&
+        portableValue(value['value'])
       );
     case 'isNull':
-      return safePath(value.field) && typeof value.value === 'boolean';
+      return safePath(value['field']) && typeof value['value'] === 'boolean';
     case 'and':
     case 'or':
       return (
-        Array.isArray(value.conditions) &&
-        value.conditions.every(isPortableCondition)
+        Array.isArray(value['conditions']) &&
+        value['conditions'].every(isPortableCondition)
       );
     case 'not':
-      return isPortableCondition(value.condition);
+      return isPortableCondition(value['condition']);
     case 'memberOf':
       return (
-        (value.scope === 'tenant' ||
-          value.scope === 'team' ||
-          value.scope === 'resource') &&
-        safePath(value.field) &&
-        Array.isArray(value.roles) &&
-        value.roles.every((item) => typeof item === 'string') &&
-        (value.resource === undefined || typeof value.resource === 'string') &&
-        (value.parents === undefined ||
-          (Array.isArray(value.parents) &&
-            value.parents.every(
+        (value['scope'] === 'tenant' ||
+          value['scope'] === 'team' ||
+          value['scope'] === 'resource') &&
+        safePath(value['field']) &&
+        Array.isArray(value['roles']) &&
+        value['roles'].every((item) => typeof item === 'string') &&
+        (value['resource'] === undefined ||
+          typeof value['resource'] === 'string') &&
+        (value['parents'] === undefined ||
+          (Array.isArray(value['parents']) &&
+            value['parents'].every(
               (parent) =>
                 safePath(parent) ||
                 (isRecord(parent) &&
-                  safePath(parent.field) &&
-                  typeof parent.resource === 'string'),
+                  safePath(parent['field']) &&
+                  typeof parent['resource'] === 'string'),
             )))
       );
     default:
@@ -309,23 +310,23 @@ function approvalAcceptable(
     return false;
   }
   if (
-    approval.distinct !== undefined &&
-    typeof approval.distinct !== 'boolean'
+    approval['distinct'] !== undefined &&
+    typeof approval['distinct'] !== 'boolean'
   ) {
     return false;
   }
   if (
-    approval.staleOn !== undefined &&
-    (approval.staleOn !== 'resource-change' ||
+    approval['staleOn'] !== undefined &&
+    (approval['staleOn'] !== 'resource-change' ||
       getResource(policy.permissions, permissionResource)?.version ===
         undefined)
   ) {
     return false;
   }
-  if (approval.by === undefined) {
+  if (approval['by'] === undefined) {
     return true;
   }
-  const by = flattenGrantee(approval.by as Grantee | readonly Grantee[]);
+  const by = flattenGrantee(approval['by'] as Grantee | readonly Grantee[]);
   return (
     by.length > 0 &&
     by.every(
@@ -348,23 +349,23 @@ function buildGrant(
 ): Built {
   if (
     !isRecord(raw) ||
-    typeof raw.id !== 'string' ||
-    typeof raw.permission !== 'string' ||
-    (raw.effect !== undefined &&
-      raw.effect !== 'allow' &&
-      raw.effect !== 'deny') ||
-    raw.to === undefined
+    typeof raw['id'] !== 'string' ||
+    typeof raw['permission'] !== 'string' ||
+    (raw['effect'] !== undefined &&
+      raw['effect'] !== 'allow' &&
+      raw['effect'] !== 'deny') ||
+    raw['to'] === undefined
   ) {
     return { ok: false, reason: 'invalid' };
   }
-  const permission = findPermission(policy.permissions, raw.permission);
+  const permission = findPermission(policy.permissions, raw['permission']);
   if (permission === undefined) {
     return { ok: false, reason: 'unknown-permission' };
   }
   if (!policy.hostable.includes(permission.key)) {
     return { ok: false, reason: 'not-hostable' };
   }
-  const to = flattenGrantee(raw.to as Grantee | readonly Grantee[]);
+  const to = flattenGrantee(raw['to'] as Grantee | readonly Grantee[]);
   if (
     to.length === 0 ||
     !to.every(
@@ -374,35 +375,35 @@ function buildGrant(
   ) {
     return { ok: false, reason: 'unknown-grantee' };
   }
-  for (const condition of [raw.where, raw.check]) {
+  for (const condition of [raw['where'], raw['check']]) {
     if (condition !== undefined && !isPortableCondition(condition)) {
       return { ok: false, reason: 'non-portable' };
     }
   }
-  if (!approvalAcceptable(policy, raw.approval, permission.resource)) {
+  if (!approvalAcceptable(policy, raw['approval'], permission.resource)) {
     return { ok: false, reason: 'invalid' };
   }
   if (
-    raw.fields !== undefined &&
+    raw['fields'] !== undefined &&
     !(
-      Array.isArray(raw.fields) &&
-      raw.fields.every((field) => typeof field === 'string')
+      Array.isArray(raw['fields']) &&
+      raw['fields'].every((field) => typeof field === 'string')
     )
   ) {
     return { ok: false, reason: 'invalid' };
   }
-  const effect = raw.effect ?? 'allow';
+  const effect = raw['effect'] ?? 'allow';
   const options = compact({
     where:
-      raw.where === undefined
+      raw['where'] === undefined
         ? undefined
-        : normalizeWhere(raw.where as Condition),
+        : normalizeWhere(raw['where'] as Condition),
     check:
-      raw.check === undefined
+      raw['check'] === undefined
         ? undefined
-        : normalizeWhere(raw.check as Condition),
-    approval: raw.approval as Grant['approval'],
-    fields: raw.fields as readonly string[] | undefined,
+        : normalizeWhere(raw['check'] as Condition),
+    approval: raw['approval'] as Grant['approval'],
+    fields: raw['fields'] as readonly string[] | undefined,
   });
   let built: Grant;
   try {
@@ -447,7 +448,7 @@ function buildGrant(
     ok: true,
     grant: freezeDeep({
       ...built,
-      hosted: { document: document.fingerprint, grant: raw.id },
+      hosted: { document: document.fingerprint, grant: raw['id'] },
     }),
   };
 }

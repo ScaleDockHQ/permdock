@@ -64,7 +64,7 @@ function isTrustedSession(
   if (!isRecord(session)) {
     return false;
   }
-  return isRecord(session.user) || isRecord(session.session);
+  return isRecord(session['user']) || isRecord(session['session']);
 }
 
 async function settle<T>(load: () => Promise<T>, fallback: T): Promise<T> {
@@ -90,7 +90,7 @@ async function organizationIds(
   }, []);
   const ids = rows
     .map((row: unknown) =>
-      isRecord(row) && typeof row.id === 'string' ? row.id : undefined,
+      isRecord(row) && typeof row['id'] === 'string' ? row['id'] : undefined,
     )
     .filter((id): id is string => id !== undefined && id !== '');
   return [...new Set(ids)];
@@ -141,12 +141,12 @@ async function loadMemberships(
   options: BetterAuthSubjectOptions,
 ): Promise<readonly Membership[]> {
   let members = parseMemberRows(
-    session.members ?? session.member ?? user.members,
+    session['members'] ?? session['member'] ?? user['members'],
     userId,
     false,
   );
   let teams = parseTeamRows(
-    session.teamMembers ?? session.teams ?? user.teamMembers,
+    session['teamMembers'] ?? session['teams'] ?? user['teamMembers'],
     userId,
   );
   const headers = options.headers;
@@ -184,20 +184,22 @@ export async function subjectFromBetterAuth(
     ) {
       return anonymousSubject();
     }
-    if (!isRecord(session.user)) {
+    if (!isRecord(session['user'])) {
       return anonymousSubject();
     }
-    const user = session.user;
-    const record = isRecord(session.session) ? session.session : undefined;
-    const id = typeof user.id === 'string' ? user.id : undefined;
+    const user = session['user'];
+    const record = isRecord(session['session'])
+      ? session['session']
+      : undefined;
+    const id = typeof user['id'] === 'string' ? user['id'] : undefined;
     if (id === undefined || id === '') {
       return anonymousSubject();
     }
     const tenant =
-      typeof record?.activeOrganizationId === 'string'
-        ? record.activeOrganizationId
+      typeof record?.['activeOrganizationId'] === 'string'
+        ? record['activeOrganizationId']
         : undefined;
-    const roles = asRoles(user.role ?? user.roles);
+    const roles = asRoles(user['role'] ?? user['roles']);
     const declared = options.declared;
     const globalRoles =
       declared === undefined
@@ -221,15 +223,15 @@ export async function subjectFromBetterAuth(
       roles: globalRoles,
       tenant,
       memberships,
-      email: typeof user.email === 'string' ? user.email : undefined,
+      email: typeof user['email'] === 'string' ? user['email'] : undefined,
       claims: Object.keys(extra).length === 0 ? undefined : extra,
     });
     return freezeDeep(
       compact<Subject<BetterAuthPrincipal>>({
         principal,
         context: {},
-        session: typeof record?.id === 'string' ? record.id : undefined,
-        expiresAt: expiresAtSeconds(record?.expiresAt),
+        session: typeof record?.['id'] === 'string' ? record['id'] : undefined,
+        expiresAt: expiresAtSeconds(record?.['expiresAt']),
       }),
     );
   } catch {

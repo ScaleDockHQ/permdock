@@ -79,7 +79,7 @@ export function scimHandler(
       if (route.kind === 'Schemas') {
         const all = schemas();
         if (route.id !== undefined) {
-          const schema = all.find((item) => item.id === route.id);
+          const schema = all.find((item) => item['id'] === route.id);
           if (schema === undefined) {
             return scimError(404, 'invalidValue', 'schema not found');
           }
@@ -221,7 +221,7 @@ export function scimHandler(
         const parsed = groupFromBody(
           body,
           '',
-          options.groupRoles?.[body.id as string],
+          options.groupRoles?.[body['id'] as string],
         );
         if (parsed === undefined) {
           return scimError(400, 'invalidValue', 'displayName is required');

@@ -98,9 +98,9 @@ const FINDING_CODES: ReadonlySet<unknown> = new Set<CatalogFindingCode>([
 function isFinding(value: unknown): boolean {
   return (
     isRecord(value) &&
-    FINDING_CODES.has(value.code) &&
-    typeof value.permission === 'string' &&
-    (value.grant === undefined || typeof value.grant === 'string')
+    FINDING_CODES.has(value['code']) &&
+    typeof value['permission'] === 'string' &&
+    (value['grant'] === undefined || typeof value['grant'] === 'string')
   );
 }
 
@@ -110,45 +110,49 @@ function validData(
 ): boolean {
   switch (type) {
     case 'dev.permdock.decision':
-      return data.type === 'decision' && typeof data.permission === 'string';
+      return (
+        data['type'] === 'decision' && typeof data['permission'] === 'string'
+      );
     case 'dev.permdock.approval':
       return (
-        data.type === 'decision' &&
-        (data.phase === 'requested' || data.phase === 'resolved')
+        data['type'] === 'decision' &&
+        (data['phase'] === 'requested' || data['phase'] === 'resolved')
       );
     case 'dev.permdock.directory':
-      return data.type === 'directory' && typeof data.tenant === 'string';
+      return data['type'] === 'directory' && typeof data['tenant'] === 'string';
     case 'dev.permdock.membership':
-      return data.type === 'membership' && isRecord(data.principal);
+      return data['type'] === 'membership' && isRecord(data['principal']);
     case 'dev.permdock.credential':
       return (
-        data.type === 'credential' &&
-        isRecord(data.credential) &&
-        typeof data.credential.id === 'string' &&
-        (data.credential.kind === 'user' ||
-          data.credential.kind === 'service') &&
-        isRecord(data.principal) &&
-        (data.operation === 'created' ||
-          data.operation === 'used' ||
-          data.operation === 'rotated' ||
-          data.operation === 'revoked')
+        data['type'] === 'credential' &&
+        isRecord(data['credential']) &&
+        typeof data['credential']['id'] === 'string' &&
+        (data['credential']['kind'] === 'user' ||
+          data['credential']['kind'] === 'service') &&
+        isRecord(data['principal']) &&
+        (data['operation'] === 'created' ||
+          data['operation'] === 'used' ||
+          data['operation'] === 'rotated' ||
+          data['operation'] === 'revoked')
       );
     case 'dev.permdock.catalog':
       return (
-        (data.kind === 'publish' || data.kind === 'drift') &&
-        typeof data.fingerprint === 'string' &&
-        (data.previous === undefined || typeof data.previous === 'string') &&
-        (data.findings === undefined ||
-          (Array.isArray(data.findings) && data.findings.every(isFinding)))
+        (data['kind'] === 'publish' || data['kind'] === 'drift') &&
+        typeof data['fingerprint'] === 'string' &&
+        (data['previous'] === undefined ||
+          typeof data['previous'] === 'string') &&
+        (data['findings'] === undefined ||
+          (Array.isArray(data['findings']) &&
+            data['findings'].every(isFinding)))
       );
     case 'dev.permdock.access.started':
     case 'dev.permdock.access.ended':
     case 'dev.permdock.access.revoked':
       return (
-        data.type === 'access' &&
-        typeof data.tenant === 'string' &&
-        isRecord(data.principal) &&
-        typeof (data.principal as Record<string, unknown>).id === 'string'
+        data['type'] === 'access' &&
+        typeof data['tenant'] === 'string' &&
+        isRecord(data['principal']) &&
+        typeof (data['principal'] as Record<string, unknown>)['id'] === 'string'
       );
     default: {
       const exhaustive: never = type;
@@ -165,15 +169,15 @@ export function parseCloudEvent(value: unknown): PermDockCloudEvent | null {
   if (
     !isRecord(value) ||
     hasUnsafeKey(value) ||
-    value.specversion !== '1.0' ||
-    typeof value.type !== 'string' ||
-    !TYPES.has(value.type) ||
-    typeof value.source !== 'string' ||
-    typeof value.id !== 'string' ||
-    typeof value.time !== 'string' ||
-    (value.subject !== undefined && typeof value.subject !== 'string') ||
-    !isRecord(value.data) ||
-    !validData(value.type as CloudEventType, value.data)
+    value['specversion'] !== '1.0' ||
+    typeof value['type'] !== 'string' ||
+    !TYPES.has(value['type']) ||
+    typeof value['source'] !== 'string' ||
+    typeof value['id'] !== 'string' ||
+    typeof value['time'] !== 'string' ||
+    (value['subject'] !== undefined && typeof value['subject'] !== 'string') ||
+    !isRecord(value['data']) ||
+    !validData(value['type'] as CloudEventType, value['data'])
   ) {
     return null;
   }
@@ -236,8 +240,8 @@ export async function verifyWebhook(
   if (!verified.ok) {
     return { ok: false, reason: 'invalid-token', cause: verified.cause };
   }
-  const jti = verified.claims.jti;
-  const raw = verified.claims.events;
+  const jti = verified.claims['jti'];
+  const raw = verified.claims['events'];
   if (typeof jti !== 'string' || !Array.isArray(raw)) {
     return { ok: false, reason: 'invalid-events' };
   }

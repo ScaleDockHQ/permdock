@@ -51,7 +51,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asApproval(value: unknown): ApprovalRequest | null {
-  if (!isRecord(value) || value.v !== 1 || typeof value.token !== 'string') {
+  if (
+    !isRecord(value) ||
+    value['v'] !== 1 ||
+    typeof value['token'] !== 'string'
+  ) {
     return null;
   }
   return value as ApprovalRequest;
@@ -209,15 +213,15 @@ export function cloud(options: CloudOptions = {}): CloudClient {
           return { items: [] };
         }
         const body: unknown = await response.json();
-        if (!isRecord(body) || !Array.isArray(body.items)) {
+        if (!isRecord(body) || !Array.isArray(body['items'])) {
           return { items: [] };
         }
-        const items = body.items.flatMap((item: unknown) => {
+        const items = body['items'].flatMap((item: unknown) => {
           const parsed = asApproval(item);
           return parsed === null ? [] : [parsed];
         });
-        return typeof body.next === 'string' && body.next !== ''
-          ? { items, next: body.next }
+        return typeof body['next'] === 'string' && body['next'] !== ''
+          ? { items, next: body['next'] }
           : { items };
       } catch {
         return { items: [] };
@@ -235,10 +239,10 @@ export function cloud(options: CloudOptions = {}): CloudClient {
         throw new Error('PermDock Cloud rejected the approval cancel');
       }
       const body: unknown = await response.json();
-      if (!isRecord(body) || typeof body.cancelled !== 'number') {
+      if (!isRecord(body) || typeof body['cancelled'] !== 'number') {
         throw new Error('PermDock Cloud returned an unknown cancel shape');
       }
-      return body.cancelled;
+      return body['cancelled'];
     },
     async expire(now?: Date): Promise<number> {
       try {
@@ -254,10 +258,10 @@ export function cloud(options: CloudOptions = {}): CloudClient {
           return 0;
         }
         const body: unknown = await response.json();
-        if (!isRecord(body) || typeof body.expired !== 'number') {
+        if (!isRecord(body) || typeof body['expired'] !== 'number') {
           return 0;
         }
-        return body.expired;
+        return body['expired'];
       } catch {
         return 0;
       }
@@ -357,7 +361,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       }
       let next: PolicyDocument;
       try {
-        next = parsePolicyDocument(verified.claims.policy);
+        next = parsePolicyDocument(verified.claims['policy']);
       } catch {
         return;
       }

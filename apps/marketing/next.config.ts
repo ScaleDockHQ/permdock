@@ -4,7 +4,7 @@ import { createMDX } from 'fumadocs-mdx/next';
 
 const withMDX = createMDX();
 
-const docsOrigin = process.env.DOCS_ORIGIN ?? 'http://127.0.0.1:3001';
+const docsOrigin = process.env['DOCS_ORIGIN'] ?? 'http://127.0.0.1:3001';
 
 const config: NextConfig = {
   reactStrictMode: true,

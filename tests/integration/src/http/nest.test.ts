@@ -66,12 +66,12 @@ function appModule(
           req.headers.authorization,
           req.originalUrl ?? req.url ?? '/',
         ),
-      tenant: (req) => req.params?.org,
+      tenant: (req) => req.params?.['org'],
       customRoles: domain.customRoles,
       store: domain.store,
       limits: domain.limits,
     });
-  const row = (req: NestRequest) => domain.project(req.params?.id);
+  const row = (req: NestRequest) => domain.project(req.params?.['id']);
 
   class AdminController {
     members() {
@@ -90,7 +90,7 @@ function appModule(
     }
 
     update(req: NestRequest) {
-      return { id: req.params?.id };
+      return { id: req.params?.['id'] };
     }
 
     create(req: NestRequest) {

@@ -168,7 +168,7 @@ function resourceRef(
   if (permission.kind === 'collection' || !isRecord(data)) {
     return { type: permission.resource };
   }
-  const id = data.id;
+  const id = data['id'];
   return typeof id === 'string' || typeof id === 'number'
     ? { type: permission.resource, id: String(id) }
     : { type: permission.resource };
@@ -249,9 +249,10 @@ function problemResult(error: unknown): WebMcpToolResult | undefined {
       structuredContent: { outcome: 'denied' as const, problem },
     };
   }
-  if (isRecord(error) && error.type === 'application/problem+json') {
-    const title = typeof error.title === 'string' ? error.title : 'Denied';
-    const detail = typeof error.detail === 'string' ? error.detail : '';
+  if (isRecord(error) && error['type'] === 'application/problem+json') {
+    const title =
+      typeof error['title'] === 'string' ? error['title'] : 'Denied';
+    const detail = typeof error['detail'] === 'string' ? error['detail'] : '';
     return {
       isError: true,
       content: [{ type: 'text', text: `${title}: ${detail}` }],
@@ -264,10 +265,12 @@ function problemResult(error: unknown): WebMcpToolResult | undefined {
 function wrapResult(value: unknown): WebMcpToolResult {
   if (
     isRecord(value) &&
-    Array.isArray(value.content) &&
-    value.content.every(
+    Array.isArray(value['content']) &&
+    value['content'].every(
       (item) =>
-        isRecord(item) && item.type === 'text' && typeof item.text === 'string',
+        isRecord(item) &&
+        item['type'] === 'text' &&
+        typeof item['text'] === 'string',
     )
   ) {
     return value as unknown as WebMcpToolResult;

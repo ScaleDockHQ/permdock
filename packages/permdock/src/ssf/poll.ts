@@ -19,14 +19,14 @@ export async function pollOnce(input: {
     'content-type': 'application/json',
   };
   if (options.token !== undefined) {
-    headers.authorization = `Bearer ${options.token}`;
+    headers['authorization'] = `Bearer ${options.token}`;
   }
   const body: Record<string, unknown> = {
     maxEvents: 100,
     returnImmediately: true,
   };
   if (acks.length > 0) {
-    body.acks = acks;
+    body['acks'] = acks;
   }
   const requestInit = compact<RequestInit>({
     method: 'POST',
@@ -40,10 +40,10 @@ export async function pollOnce(input: {
     return [];
   }
   const parsed: unknown = await response.json();
-  if (!isRecord(parsed) || !isRecord(parsed.sets)) {
+  if (!isRecord(parsed) || !isRecord(parsed['sets'])) {
     return [];
   }
-  const tokens = Object.entries(parsed.sets).flatMap(([jti, jwt]) =>
+  const tokens = Object.entries(parsed['sets']).flatMap(([jti, jwt]) =>
     typeof jwt === 'string' ? [{ jti, jwt }] : [],
   );
   const outcomes = await Promise.all(

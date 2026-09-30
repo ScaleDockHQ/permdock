@@ -120,7 +120,7 @@ afterAll(async () => {
 
 async function agent() {
   return createPermDock(saasPolicy, {
-    subject: (context) => agentSubject({ user: context.user }),
+    subject: (context) => agentSubject({ user: context['user'] }),
     actor: () => ({ id: 'support-bot', kind: 'ai-sdk' }),
     tenant: TENANT,
     delegation: agentDelegation,

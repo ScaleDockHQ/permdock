@@ -77,7 +77,7 @@ function pack(): string {
     );
   }
   const destination = mkdtempSync(
-    join(process.env.RUNNER_TEMP ?? tmpdir(), 'permdock-pack-'),
+    join(process.env['RUNNER_TEMP'] ?? tmpdir(), 'permdock-pack-'),
   );
   execFileSync('pnpm', ['pack', '--pack-destination', destination], {
     cwd: PACKAGE_DIR,

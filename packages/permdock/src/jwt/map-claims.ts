@@ -134,9 +134,9 @@ function verifiedClaimsOf(
   const verified = entries.filter(
     (entry): entry is VerifiedClaims =>
       isPlainRecord(entry) &&
-      isPlainRecord(entry.verification) &&
-      typeof entry.verification.trust_framework === 'string' &&
-      isPlainRecord(entry.claims) &&
+      isPlainRecord(entry['verification']) &&
+      typeof entry['verification']['trust_framework'] === 'string' &&
+      isPlainRecord(entry['claims']) &&
       !hasForbiddenKey(entry),
   );
   return verified.length === 0
@@ -150,20 +150,20 @@ function verifiedClaimsOf(
 }
 
 function bindingOf(claims: JwtClaims): Binding | undefined {
-  const cnf = claims.cnf;
+  const cnf = claims['cnf'];
   if (cnf === null || typeof cnf !== 'object' || Array.isArray(cnf)) {
     return undefined;
   }
   const record = cnf as Record<string, unknown>;
   const binding = compact<Binding>({
-    jkt: typeof record.jkt === 'string' ? record.jkt : undefined,
+    jkt: typeof record['jkt'] === 'string' ? record['jkt'] : undefined,
     'x5t#S256':
       typeof record['x5t#S256'] === 'string' ? record['x5t#S256'] : undefined,
     jwk:
-      record.jwk !== null && typeof record.jwk === 'object'
-        ? (record.jwk as Binding['jwk'])
+      record['jwk'] !== null && typeof record['jwk'] === 'object'
+        ? (record['jwk'] as Binding['jwk'])
         : undefined,
-    kid: typeof record.kid === 'string' ? record.kid : undefined,
+    kid: typeof record['kid'] === 'string' ? record['kid'] : undefined,
   });
   return Object.keys(binding).length === 0 ? undefined : binding;
 }
@@ -206,9 +206,9 @@ function claimExtras(record: Record<string, unknown>): {
   readonly expiresAt?: number;
 } {
   return compact({
-    via: typeof record.via === 'string' ? record.via : undefined,
+    via: typeof record['via'] === 'string' ? record['via'] : undefined,
     expiresAt:
-      typeof record.expiresAt === 'number' ? record.expiresAt : undefined,
+      typeof record['expiresAt'] === 'number' ? record['expiresAt'] : undefined,
   });
 }
 
@@ -220,26 +220,29 @@ function membershipsFromClaim(value: unknown): Membership[] {
     return [];
   }
   const record = value as Record<string, unknown>;
-  if (typeof record.scope === 'string' && typeof record.id === 'string') {
+  if (typeof record['scope'] === 'string' && typeof record['id'] === 'string') {
     return [
       compact<Membership>({
-        scope: record.scope,
-        id: record.id,
-        within: stringRecord(record.within),
-        roles: asStringArray(record.roles),
+        scope: record['scope'],
+        id: record['id'],
+        within: stringRecord(record['within']),
+        roles: asStringArray(record['roles']),
         ...claimExtras(record),
       }),
     ];
   }
-  if (typeof record.tenant === 'string' || typeof record.org_id === 'string') {
+  if (
+    typeof record['tenant'] === 'string' ||
+    typeof record['org_id'] === 'string'
+  ) {
     return [
       compact<Membership>({
         tenant:
-          typeof record.tenant === 'string'
-            ? record.tenant
-            : String(record.org_id),
-        roles: asStringArray(record.roles),
-        team: typeof record.team === 'string' ? record.team : undefined,
+          typeof record['tenant'] === 'string'
+            ? record['tenant']
+            : String(record['org_id']),
+        roles: asStringArray(record['roles']),
+        team: typeof record['team'] === 'string' ? record['team'] : undefined,
         ...claimExtras(record),
       }),
     ];
@@ -255,7 +258,7 @@ function membershipsFromClaim(value: unknown): Membership[] {
       out.push(
         compact<Membership>({
           tenant,
-          roles: asStringArray(nested.roles ?? nested),
+          roles: asStringArray(nested['roles'] ?? nested),
         }),
       );
     }
@@ -283,15 +286,15 @@ function actorFromAct(
     const actor = configured(claims);
     return actor === undefined
       ? { status: 'absent' }
-      : { status: 'ok', actor, chain: claims.act };
+      : { status: 'ok', actor, chain: claims['act'] };
   }
   if (configured !== undefined && configured.from !== 'act') {
     return { status: 'absent' };
   }
-  if (!Object.hasOwn(claims, 'act') || claims.act === undefined) {
+  if (!Object.hasOwn(claims, 'act') || claims['act'] === undefined) {
     return { status: 'absent' };
   }
-  const act = claims.act;
+  const act = claims['act'];
   if (!isActObject(act)) {
     return { status: 'invalid' };
   }
@@ -493,7 +496,7 @@ export function mapClaimsToSubject(
       : freezeDeep(compact<Actor>({ ...act.actor, binding }));
   const sessionPath = paths?.session ?? DEFAULT_CLAIMS.session;
   const sessionValue = readPath(claims, sessionPath);
-  const sessionExpiry = claims.session_expiry;
+  const sessionExpiry = claims['session_expiry'];
   const exp = typeof claims.exp === 'number' ? claims.exp : undefined;
   const expiresAt =
     typeof sessionExpiry === 'number' && exp !== undefined
@@ -536,7 +539,7 @@ export function acceptMismatch(
     }
     const aud = claims.aud;
     const audiences = Array.isArray(aud) ? aud : aud === undefined ? [] : [aud];
-    if (audiences.length > 1 && claims.azp !== audience) {
+    if (audiences.length > 1 && claims['azp'] !== audience) {
       return true;
     }
     return false;
@@ -544,7 +547,7 @@ export function acceptMismatch(
   if (options.profile === 'fapi2' && typ !== 'at+jwt') {
     return true;
   }
-  if (typeof claims.nonce === 'string') {
+  if (typeof claims['nonce'] === 'string') {
     return true;
   }
   if (audience !== undefined && typeof claims.aud === 'string') {

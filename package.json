@@ -22,7 +22,8 @@
     "test:e2e": "pnpm --filter @permdock/e2e test:e2e",
     "test:integration": "pnpm --filter @permdock/integration test:integration",
     "test:runtimes": "pnpm --filter @permdock/runtimes test:runtimes",
-    "typecheck": "tsc --noEmit --checkers 4 && turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "typecheck:tooling": "tsc --noEmit --checkers 4"
   },
   "devDependencies": {
     "@changesets/cli": "catalog:",

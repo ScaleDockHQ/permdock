@@ -35,11 +35,11 @@ async function verify(
     return { ok: false, cause: 'dpop-proof-invalid' };
   }
   const expectedJkt =
-    claims.cnf !== null &&
-    typeof claims.cnf === 'object' &&
-    !Array.isArray(claims.cnf) &&
-    typeof (claims.cnf as { readonly jkt?: unknown }).jkt === 'string'
-      ? (claims.cnf as { readonly jkt: string }).jkt
+    claims['cnf'] !== null &&
+    typeof claims['cnf'] === 'object' &&
+    !Array.isArray(claims['cnf']) &&
+    typeof (claims['cnf'] as { readonly jkt?: unknown }).jkt === 'string'
+      ? (claims['cnf'] as { readonly jkt: string }).jkt
       : undefined;
   if (expectedJkt === undefined) {
     return { ok: false, cause: 'dpop-proof-invalid' };
@@ -48,7 +48,7 @@ async function verify(
   if (header?.typ?.toLowerCase() !== 'dpop+jwt') {
     return { ok: false, cause: 'dpop-proof-invalid' };
   }
-  const jwk = header.jwk;
+  const jwk = header['jwk'];
   if (jwk === null || typeof jwk !== 'object' || Array.isArray(jwk)) {
     return { ok: false, cause: 'dpop-proof-invalid' };
   }
@@ -63,14 +63,14 @@ async function verify(
     if (jkt !== expectedJkt) {
       return { ok: false, cause: 'dpop-proof-invalid' };
     }
-    const htm = result.payload.htm;
-    const htu = result.payload.htu;
+    const htm = result.payload['htm'];
+    const htu = result.payload['htu'];
     if (htm !== request.method || htu !== requestUrl(request)) {
       return { ok: false, cause: 'dpop-proof-invalid' };
     }
     if (accessToken !== undefined) {
       const ath = bytesToBase64Url(sha256(accessToken));
-      if (result.payload.ath !== ath) {
+      if (result.payload['ath'] !== ath) {
         return { ok: false, cause: 'dpop-proof-invalid' };
       }
     }

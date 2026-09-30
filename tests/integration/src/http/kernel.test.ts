@@ -196,7 +196,7 @@ testHttpAdapter({
       const stream =
         request.method === 'GET' ? eventsPath.exec(request.url) : null;
       if (stream !== null) {
-        return events(kernel, domain, request, stream.pathname.groups.id);
+        return events(kernel, domain, request, stream.pathname.groups['id']);
       }
       if (evaluationsPath.test(request.url)) {
         return request.method === 'GET'
@@ -209,7 +209,7 @@ testHttpAdapter({
         if (match === null) {
           continue;
         }
-        const id = match.pathname.groups.id;
+        const id = match.pathname.groups['id'];
         const guard = await kernel.protect(
           permission,
           load === 'row'

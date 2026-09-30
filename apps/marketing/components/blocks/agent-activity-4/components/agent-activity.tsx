@@ -120,7 +120,7 @@ const subscribeNever = () => () => {}
 function useFrozenDemo() {
   return useSyncExternalStore(
     subscribeNever,
-    () => document.documentElement.dataset.demo === "frozen",
+    () => document.documentElement.dataset['demo'] === "frozen",
     () => false
   )
 }
@@ -326,7 +326,7 @@ export function AgentActivity() {
 
   useEffect(() => {
     // Frozen demo guard: ?demo=frozen pins the demo, so no timer starts.
-    if (document.documentElement.dataset.demo === "frozen") return
+    if (document.documentElement.dataset['demo'] === "frozen") return
     // One async pass owns the whole stream, so each row waits its own declared
     // beat instead of a timer being rescheduled on every render.
     let cancelled = false

@@ -24,7 +24,7 @@ export function pickNamed(
       return mod[name];
     }
   }
-  return mod.default;
+  return mod['default'];
 }
 
 export function asPermissionTree(value: unknown): PermissionTree {

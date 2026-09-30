@@ -22,8 +22,8 @@ export function asSubject(
 export function setSubjectFromClaims(
   claims: JwtClaims,
 ): SetSubject | undefined {
-  const subId = claims.sub_id;
-  if (isRecord(subId) && typeof subId.format === 'string') {
+  const subId = claims['sub_id'];
+  if (isRecord(subId) && typeof subId['format'] === 'string') {
     return subId as SetSubject;
   }
   if (typeof claims.sub === 'string' && claims.sub.length > 0) {
@@ -39,7 +39,7 @@ export function setSubjectFromClaims(
 export function eventTimestamp(
   payload: Readonly<Record<string, unknown>>,
 ): number | undefined {
-  const value = payload.event_timestamp;
+  const value = payload['event_timestamp'];
   return typeof value === 'number' && Number.isFinite(value)
     ? value
     : undefined;
@@ -48,11 +48,11 @@ export function eventTimestamp(
 export function eventSession(
   payload: Readonly<Record<string, unknown>>,
 ): string | undefined {
-  if (typeof payload.session === 'string' && payload.session.length > 0) {
-    return payload.session;
+  if (typeof payload['session'] === 'string' && payload['session'].length > 0) {
+    return payload['session'];
   }
-  if (typeof payload.sid === 'string' && payload.sid.length > 0) {
-    return payload.sid;
+  if (typeof payload['sid'] === 'string' && payload['sid'].length > 0) {
+    return payload['sid'];
   }
   return undefined;
 }
@@ -61,16 +61,16 @@ export function eventSession(
 export function eventSubject(
   payload: Readonly<Record<string, unknown>>,
 ): SetSubject | undefined {
-  const subject = payload.subject;
-  return isRecord(subject) && typeof subject.format === 'string'
+  const subject = payload['subject'];
+  return isRecord(subject) && typeof subject['format'] === 'string'
     ? (subject as SetSubject)
     : undefined;
 }
 
 export function subjectSession(subject: SetSubject): string | undefined {
-  if (subject.format !== 'complex' || !isRecord(subject.session)) {
+  if (subject.format !== 'complex' || !isRecord(subject['session'])) {
     return undefined;
   }
-  const { id } = subject.session;
+  const { id } = subject['session'];
   return typeof id === 'string' && id.length > 0 ? id : undefined;
 }

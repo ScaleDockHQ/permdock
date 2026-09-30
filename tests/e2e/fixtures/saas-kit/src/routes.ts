@@ -86,20 +86,27 @@ const postRoutes: Readonly<Record<string, PostRoute>> = {
   },
   '/api/test/set-role': async (request) => {
     const input = await readBody(request);
-    const ok = setRole(text(input.org), text(input.user), text(input.role));
+    const ok = setRole(
+      text(input['org']),
+      text(input['user']),
+      text(input['role']),
+    );
     return json({ ok }, ok ? 200 : 404);
   },
   '/api/test/billing': async (request) => {
     const input = await readBody(request);
-    const ok = setPlan(text(input.org), input.plan === 'pro' ? 'pro' : 'free');
+    const ok = setPlan(
+      text(input['org']),
+      input['plan'] === 'pro' ? 'pro' : 'free',
+    );
     return json({ ok }, ok ? 200 : 404);
   },
   '/api/login': async (request) => {
     const input = await readBody(request);
-    if (!isUser(input.user)) {
+    if (!isUser(input['user'])) {
       return redirect('/login');
     }
-    return redirect('/acme', sessionCookie(await mintSession(input.user)));
+    return redirect('/acme', sessionCookie(await mintSession(input['user'])));
   },
   '/api/logout': () => Promise.resolve(redirect('/login', clearedCookie)),
 };

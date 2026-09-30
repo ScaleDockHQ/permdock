@@ -71,7 +71,7 @@ export function buildCatalog(
   const rowConditions =
     policy === undefined ? undefined : rowConditionKeys(policy);
   const resources: Record<string, CatalogDocument['resources'][string]> = {};
-  const definedIn = scan.definitionFiles.permissions;
+  const definedIn = scan.definitionFiles['permissions'];
   for (const leaf of listPermissions(tree)) {
     if (resources[leaf.resource] !== undefined) {
       continue;

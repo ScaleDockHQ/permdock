@@ -59,7 +59,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function literalEnum(schema: JsonSchema): readonly string[] | undefined {
-  const values = schema.enum;
+  const values = schema['enum'];
   if (
     !Array.isArray(values) ||
     values.length === 0 ||
@@ -71,7 +71,7 @@ function literalEnum(schema: JsonSchema): readonly string[] | undefined {
 }
 
 function schemaType(schema: JsonSchema): string | undefined {
-  const type = schema.type;
+  const type = schema['type'];
   if (typeof type === 'string') {
     return type;
   }
@@ -81,7 +81,7 @@ function schemaType(schema: JsonSchema): string | undefined {
       ? named[0]
       : undefined;
   }
-  return isRecord(schema.properties) ? 'object' : undefined;
+  return isRecord(schema['properties']) ? 'object' : undefined;
 }
 
 type Resolve = (schema: JsonSchema) => JsonSchema;
@@ -106,12 +106,12 @@ function zodOf(schema: JsonSchema, resolve: Resolve, depth: number): string {
     case 'boolean':
       return 'z.boolean()';
     case 'array':
-      return `z.array(${isRecord(node.items) ? zodOf(node.items, resolve, depth + 1) : 'z.unknown()'})`;
+      return `z.array(${isRecord(node['items']) ? zodOf(node['items'], resolve, depth + 1) : 'z.unknown()'})`;
     case 'object': {
       const required = new Set(
-        Array.isArray(node.required) ? node.required : [],
+        Array.isArray(node['required']) ? node['required'] : [],
       );
-      const properties = isRecord(node.properties) ? node.properties : {};
+      const properties = isRecord(node['properties']) ? node['properties'] : {};
       const fields = Object.entries(properties)
         .filter((entry): entry is [string, JsonSchema] => isRecord(entry[1]))
         .map(([name, child]) => {
@@ -149,12 +149,12 @@ function valibotOf(
     case 'boolean':
       return 'v.boolean()';
     case 'array':
-      return `v.array(${isRecord(node.items) ? valibotOf(node.items, resolve, depth + 1) : 'v.unknown()'})`;
+      return `v.array(${isRecord(node['items']) ? valibotOf(node['items'], resolve, depth + 1) : 'v.unknown()'})`;
     case 'object': {
       const required = new Set(
-        Array.isArray(node.required) ? node.required : [],
+        Array.isArray(node['required']) ? node['required'] : [],
       );
-      const properties = isRecord(node.properties) ? node.properties : {};
+      const properties = isRecord(node['properties']) ? node['properties'] : {};
       const fields = Object.entries(properties)
         .filter((entry): entry is [string, JsonSchema] => isRecord(entry[1]))
         .map(([name, child]) => {
@@ -195,19 +195,19 @@ function arktypeOf(
     case 'boolean':
       return "'boolean'";
     case 'array': {
-      if (!isRecord(node.items)) {
+      if (!isRecord(node['items'])) {
         return "'unknown[]'";
       }
-      const item = arktypeOf(node.items, resolve, depth + 1);
+      const item = arktypeOf(node['items'], resolve, depth + 1);
       return item.startsWith("'") && !item.includes('|')
         ? `'${item.slice(1, -1)}[]'`
         : `[${item}, '[]']`;
     }
     case 'object': {
       const required = new Set(
-        Array.isArray(node.required) ? node.required : [],
+        Array.isArray(node['required']) ? node['required'] : [],
       );
-      const properties = isRecord(node.properties) ? node.properties : {};
+      const properties = isRecord(node['properties']) ? node['properties'] : {};
       const fields = Object.entries(properties)
         .filter((entry): entry is [string, JsonSchema] => isRecord(entry[1]))
         .map(

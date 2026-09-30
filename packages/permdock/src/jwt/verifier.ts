@@ -33,7 +33,9 @@ function algorithmAllowed(
   }
   if (alg === 'EdDSA') {
     return (
-      allowed.includes('Ed25519') && key?.kty === 'OKP' && key.crv === 'Ed25519'
+      allowed.includes('Ed25519') &&
+      key?.['kty'] === 'OKP' &&
+      key['crv'] === 'Ed25519'
     );
   }
   return allowed.includes(alg as JwtAlgorithm);
@@ -48,7 +50,7 @@ function findKey(
   if (kid === undefined) {
     return usable.length === 1 ? usable[0] : undefined;
   }
-  return usable.find((key) => key.kid === kid);
+  return usable.find((key) => key['kid'] === kid);
 }
 
 function skipUndersized(
@@ -58,11 +60,11 @@ function skipUndersized(
   if (profile !== 'fapi2') {
     return false;
   }
-  if (key.kty === 'RSA' && typeof key.n === 'string') {
-    const bits = Math.floor((key.n.length * 6) / 8) * 8;
+  if (key['kty'] === 'RSA' && typeof key['n'] === 'string') {
+    const bits = Math.floor((key['n'].length * 6) / 8) * 8;
     return bits < 2048;
   }
-  if (key.kty === 'EC' && key.crv === 'P-192') {
+  if (key['kty'] === 'EC' && key['crv'] === 'P-192') {
     return true;
   }
   return false;
@@ -237,14 +239,14 @@ export function joseTokenVerifier(
       const first = rawKeys[0];
       if (
         first === undefined ||
-        first.kty !== 'oct' ||
-        typeof first.k !== 'string'
+        first['kty'] !== 'oct' ||
+        typeof first['k'] !== 'string'
       ) {
         return fail('encrypted-token');
       }
       const { plaintext } = await jose.compactDecrypt(
         token,
-        jose.base64url.decode(first.k),
+        jose.base64url.decode(first['k']),
         {
           keyManagementAlgorithms: [
             ...(options.decryptionAlgorithms ?? DEFAULT_DECRYPTION_ALGS),

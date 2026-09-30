@@ -206,7 +206,7 @@ function signedApproval(
     },
   };
   if (request.subject.principal !== null) {
-    payload.sub = request.subject.principal.id;
+    payload['sub'] = request.subject.principal.id;
   }
   return signer.sign(
     payload,

@@ -14,12 +14,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function outputText(item: Record<string, unknown>): string {
-  const output = item.output;
+  const output = item['output'];
   if (typeof output === 'string') {
     return output;
   }
-  if (isRecord(output) && typeof output.text === 'string') {
-    return output.text;
+  if (isRecord(output) && typeof output['text'] === 'string') {
+    return output['text'];
   }
   return JSON.stringify(output);
 }
@@ -34,8 +34,8 @@ export const scriptedModel = {
     const items = typeof request.input === 'string' ? [] : request.input;
     const results = items
       .filter((item) => isRecord(item))
-      .filter((item) => item.type === 'function_call_result')
-      .map((item) => `${String(item.callId)}=${outputText(item)}`);
+      .filter((item) => item['type'] === 'function_call_result')
+      .map((item) => `${String(item['callId'])}=${outputText(item)}`);
     const output =
       results.length === 0
         ? [

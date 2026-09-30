@@ -28,16 +28,21 @@ export async function adapterOutcomes(
 ): Promise<Outcome[]> {
   const t = await tokens();
   const cases: readonly [string, string, string, string | undefined][] = [
-    ['member reads a project in their org', 'GET', '/acme/projects/p1', t.bob],
+    [
+      'member reads a project in their org',
+      'GET',
+      '/acme/projects/p1',
+      t['bob'],
+    ],
     ['anonymous', 'GET', '/acme/projects/p1', undefined],
-    ['no membership in the org', 'GET', '/globex/projects/g1', t.bob],
-    ['owner updates their project', 'PATCH', '/acme/projects/p1', t.bob],
-    ['member updates another project', 'PATCH', '/acme/projects/p2', t.bob],
-    ['admin updates any project', 'PATCH', '/acme/projects/p2', t.alice],
-    ['custom role includes member', 'GET', '/acme/projects/p1', t.dave],
-    ['unknown row', 'GET', '/acme/projects/nope', t.bob],
-    ['expired token', 'GET', '/acme/projects/p1', t.expired],
-    ['wrong issuer', 'GET', '/acme/projects/p1', t.forged],
+    ['no membership in the org', 'GET', '/globex/projects/g1', t['bob']],
+    ['owner updates their project', 'PATCH', '/acme/projects/p1', t['bob']],
+    ['member updates another project', 'PATCH', '/acme/projects/p2', t['bob']],
+    ['admin updates any project', 'PATCH', '/acme/projects/p2', t['alice']],
+    ['custom role includes member', 'GET', '/acme/projects/p1', t['dave']],
+    ['unknown row', 'GET', '/acme/projects/nope', t['bob']],
+    ['expired token', 'GET', '/acme/projects/p1', t['expired']],
+    ['wrong issuer', 'GET', '/acme/projects/p1', t['forged']],
   ];
   const outcomes: Outcome[] = [];
   for (const [name, method, path, token] of cases) {

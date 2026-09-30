@@ -20,7 +20,7 @@ export const servers = [
   },
 ] as const;
 
-if (process.env.SKIP_BUILD !== '1') {
+if (process.env['SKIP_BUILD'] !== '1') {
   const build = spawnSync(next, ['build'], {
     cwd,
     env: base,

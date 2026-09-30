@@ -17,8 +17,8 @@ function delegationMayCover(
   ].flatMap((entry) =>
     typeof entry === 'object' &&
     entry !== null &&
-    typeof entry.identifier === 'string'
-      ? [entry.identifier]
+    typeof entry['identifier'] === 'string'
+      ? [entry['identifier']]
       : [],
   );
   return [undefined, ...identifiers].some(

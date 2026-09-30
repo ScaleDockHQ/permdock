@@ -224,7 +224,7 @@ export function normalizeMembership(
     return undefined;
   }
   const raw = input as Record<string, unknown>;
-  const roles = roleList(raw.roles);
+  const roles = roleList(raw['roles']);
   if (roles === undefined) {
     return undefined;
   }
@@ -238,55 +238,55 @@ export function normalizeMembership(
     managedBy?: 'idp';
     entitlements?: readonly string[];
   } = {};
-  if (typeof raw.via === 'string') {
-    extra.via = raw.via;
+  if (typeof raw['via'] === 'string') {
+    extra.via = raw['via'];
   }
-  if (typeof raw.expiresAt === 'number') {
-    extra.expiresAt = raw.expiresAt;
+  if (typeof raw['expiresAt'] === 'number') {
+    extra.expiresAt = raw['expiresAt'];
   }
-  if (typeof raw.grantedBy === 'string' && raw.grantedBy !== '') {
-    extra.grantedBy = raw.grantedBy;
+  if (typeof raw['grantedBy'] === 'string' && raw['grantedBy'] !== '') {
+    extra.grantedBy = raw['grantedBy'];
   }
-  if (typeof raw.reason === 'string' && raw.reason !== '') {
-    extra.reason = raw.reason;
+  if (typeof raw['reason'] === 'string' && raw['reason'] !== '') {
+    extra.reason = raw['reason'];
   }
-  const eligible = roleList(raw.eligible);
+  const eligible = roleList(raw['eligible']);
   if (eligible !== undefined && eligible.length > 0) {
     extra.eligible = Object.freeze([...eligible]);
   }
   const member =
-    raw.member !== null &&
-    typeof raw.member === 'object' &&
-    !Array.isArray(raw.member)
-      ? (raw.member as Record<string, unknown>).group
+    raw['member'] !== null &&
+    typeof raw['member'] === 'object' &&
+    !Array.isArray(raw['member'])
+      ? (raw['member'] as Record<string, unknown>)['group']
       : undefined;
   if (typeof member === 'string' && member !== '') {
     extra.member = Object.freeze({ group: member });
   }
-  if (raw.managedBy === 'idp') {
+  if (raw['managedBy'] === 'idp') {
     extra.managedBy = 'idp';
   }
-  if (Array.isArray(raw.entitlements)) {
-    const seats = raw.entitlements.filter(
+  if (Array.isArray(raw['entitlements'])) {
+    const seats = raw['entitlements'].filter(
       (item): item is string => typeof item === 'string' && item !== '',
     );
     if (seats.length > 0) {
       extra.entitlements = Object.freeze(seats);
     }
   }
-  const named = raw.scope !== undefined || raw.id !== undefined;
-  const legacy = raw.tenant !== undefined || raw.team !== undefined;
-  const on = raw.on;
+  const named = raw['scope'] !== undefined || raw['id'] !== undefined;
+  const legacy = raw['tenant'] !== undefined || raw['team'] !== undefined;
+  const on = raw['on'];
   if (on !== undefined) {
     if (named || legacy || on === null || typeof on !== 'object') {
       return undefined;
     }
     const target = on as Record<string, unknown>;
-    if (!isId(target.resource) || !isId(target.id)) {
+    if (!isId(target['resource']) || !isId(target['id'])) {
       return undefined;
     }
     return Object.freeze({
-      on: Object.freeze({ resource: target.resource, id: target.id }),
+      on: Object.freeze({ resource: target['resource'], id: target['id'] }),
       roles: Object.freeze([...roles]),
       ...extra,
     });
@@ -298,30 +298,30 @@ export function normalizeMembership(
     if (legacy) {
       return undefined;
     }
-    scope = resolveScope(scopes, raw.scope);
-    id = raw.id;
-    if (raw.within !== undefined) {
+    scope = resolveScope(scopes, raw['scope']);
+    id = raw['id'];
+    if (raw['within'] !== undefined) {
       if (
-        raw.within === null ||
-        typeof raw.within !== 'object' ||
-        Array.isArray(raw.within)
+        raw['within'] === null ||
+        typeof raw['within'] !== 'object' ||
+        Array.isArray(raw['within'])
       ) {
         return undefined;
       }
-      within = raw.within as Record<string, unknown>;
+      within = raw['within'] as Record<string, unknown>;
     }
-  } else if (raw.team !== undefined) {
+  } else if (raw['team'] !== undefined) {
     scope = resolveScope(scopes, 'team');
-    id = raw.team;
+    id = raw['team'];
     const parent = resolveScope(scopes, 'tenant');
-    if (raw.tenant !== undefined && parent !== undefined) {
-      within = { [parent]: raw.tenant };
+    if (raw['tenant'] !== undefined && parent !== undefined) {
+      within = { [parent]: raw['tenant'] };
     }
-  } else if (raw.tenant === undefined) {
+  } else if (raw['tenant'] === undefined) {
     return undefined;
   } else {
     scope = resolveScope(scopes, 'tenant');
-    id = raw.tenant;
+    id = raw['tenant'];
   }
   if (scope === undefined || !isId(id)) {
     return undefined;

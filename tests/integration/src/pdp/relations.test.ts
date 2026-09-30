@@ -181,7 +181,9 @@ describe('permdock/pdp relation presets', () => {
     ]);
 
     fgaUrl = `http://${fga.getHost()}:${String(fga.getMappedPort(8080))}`;
-    storeId = String((await post(`${fgaUrl}/stores`, { name: 'permdock' })).id);
+    storeId = String(
+      (await post(`${fgaUrl}/stores`, { name: 'permdock' }))['id'],
+    );
     await post(`${fgaUrl}/stores/${storeId}/authorization-models`, {
       schema_version: '1.1',
       type_definitions: [

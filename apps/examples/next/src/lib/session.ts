@@ -9,7 +9,7 @@ export const SESSION_COOKIE = 'example_session';
 
 // A demo secret so the example runs without configuration; set
 // SESSION_SECRET in any deployment.
-const SECRET = process.env.SESSION_SECRET ?? 'permdock-example-next-secret';
+const SECRET = process.env['SESSION_SECRET'] ?? 'permdock-example-next-secret';
 
 function sign(user: string): string {
   return createHmac('sha256', SECRET).update(user).digest('base64url');

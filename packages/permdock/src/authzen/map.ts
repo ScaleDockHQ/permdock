@@ -36,7 +36,7 @@ function actionNameOf(item: AuthzenItem): string | undefined {
   if (!isRecord(item.action?.properties)) {
     return undefined;
   }
-  const scope = item.action.properties.scope;
+  const scope = item.action.properties['scope'];
   return typeof scope === 'string' ? scope : undefined;
 }
 
@@ -92,7 +92,7 @@ export function userFromEntity(entity: AuthzenEntity | undefined): unknown {
   }
   const result: Record<string, unknown> = {};
   if (typeof entity.id === 'string' || typeof entity.id === 'number') {
-    result.id = String(entity.id);
+    result['id'] = String(entity.id);
   }
   if (isRecord(entity.properties)) {
     for (const [key, value] of Object.entries(entity.properties)) {
@@ -108,27 +108,27 @@ export function userFromEntity(entity: AuthzenEntity | undefined): unknown {
 export function actorOf(item: AuthzenItem): Actor | undefined {
   const context = isRecord(item.context) ? item.context : {};
   const fromSubject = isRecord(item.subject?.properties)
-    ? item.subject.properties.actor
+    ? item.subject.properties['actor']
     : undefined;
-  const raw = context.actor ?? fromSubject;
-  if (!isRecord(raw) || typeof raw.id !== 'string') {
+  const raw = context['actor'] ?? fromSubject;
+  if (!isRecord(raw) || typeof raw['id'] !== 'string') {
     return undefined;
   }
-  const kind = typeof raw.kind === 'string' ? raw.kind : 'oauth-client';
-  return { id: raw.id, kind };
+  const kind = typeof raw['kind'] === 'string' ? raw['kind'] : 'oauth-client';
+  return { id: raw['id'], kind };
 }
 
 export function delegationOf(item: AuthzenItem): Delegation | undefined {
   const context = isRecord(item.context) ? item.context : {};
   const fromSubject = isRecord(item.subject?.properties)
-    ? item.subject.properties.delegation
+    ? item.subject.properties['delegation']
     : undefined;
-  const raw = context.delegation ?? fromSubject;
+  const raw = context['delegation'] ?? fromSubject;
   if (!isRecord(raw)) {
     return undefined;
   }
-  const scopes = raw.scopes;
-  const authorizationDetails = raw.authorizationDetails;
+  const scopes = raw['scopes'];
+  const authorizationDetails = raw['authorizationDetails'];
   return compact<Delegation>({
     scopes: Array.isArray(scopes)
       ? scopes.filter((scope) => typeof scope === 'string')
@@ -140,10 +140,10 @@ export function delegationOf(item: AuthzenItem): Delegation | undefined {
 }
 
 export function tenantOf(item: AuthzenItem): string | undefined {
-  if (!isRecord(item.context) || typeof item.context.tenant !== 'string') {
+  if (!isRecord(item.context) || typeof item.context['tenant'] !== 'string') {
     return undefined;
   }
-  return item.context.tenant;
+  return item.context['tenant'];
 }
 
 /**
@@ -217,10 +217,10 @@ export function mergeItem(shared: AuthzenItem, item: unknown): AuthzenItem {
     return shared;
   }
   return compact<AuthzenItem>({
-    subject: isRecord(item.subject) ? item.subject : shared.subject,
-    action: isRecord(item.action) ? item.action : shared.action,
-    resource: isRecord(item.resource) ? item.resource : shared.resource,
-    context: item.context ?? shared.context,
+    subject: isRecord(item['subject']) ? item['subject'] : shared.subject,
+    action: isRecord(item['action']) ? item['action'] : shared.action,
+    resource: isRecord(item['resource']) ? item['resource'] : shared.resource,
+    context: item['context'] ?? shared.context,
   });
 }
 
@@ -228,15 +228,15 @@ export function pageOf(body: Record<string, unknown>): {
   readonly offset: number;
   readonly size: number;
 } {
-  const page = isRecord(body.page) ? body.page : {};
+  const page = isRecord(body['page']) ? body['page'] : {};
   const raw =
-    typeof page.token === 'string'
-      ? page.token
-      : typeof page.next_token === 'string'
-        ? page.next_token
+    typeof page['token'] === 'string'
+      ? page['token']
+      : typeof page['next_token'] === 'string'
+        ? page['next_token']
         : '0';
   const parsed = Math.trunc(Number(raw));
-  const sizeRaw = page.size;
+  const sizeRaw = page['size'];
   const size =
     typeof sizeRaw === 'number' && sizeRaw > 0 ? Math.min(sizeRaw, 200) : 50;
   return {

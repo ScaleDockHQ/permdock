@@ -22,8 +22,8 @@ import {
   settle,
 } from './jobs.ts';
 
-const PORT = Number(process.env.PORT ?? 3509);
-const WORKER_TOKEN = process.env.WORKER_TOKEN ?? '';
+const PORT = Number(process.env['PORT'] ?? 3509);
+const WORKER_TOKEN = process.env['WORKER_TOKEN'] ?? '';
 
 if (WORKER_TOKEN.length < 16) {
   throw new Error('WORKER_TOKEN must be set for the worker routes');

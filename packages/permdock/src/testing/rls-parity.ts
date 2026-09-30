@@ -121,7 +121,7 @@ function toSubject(input: RlsParitySubject): Subject {
 }
 
 function rowId(row: Readonly<Record<string, unknown>>): unknown {
-  return row.id;
+  return row['id'];
 }
 
 type Setting = { readonly sql: string; readonly values: readonly unknown[] };

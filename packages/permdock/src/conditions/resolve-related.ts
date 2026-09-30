@@ -84,7 +84,7 @@ export async function resolveRelated(
       values: query.values,
     });
     const ids = rows.flatMap((row) => {
-      const id = row.id;
+      const id = row['id'];
       if (typeof id !== 'string' && typeof id !== 'number') {
         return [];
       }

@@ -75,7 +75,7 @@ async function loadSnapshotUncached(org: string): Promise<Snapshot> {
 }
 
 export const loadSnapshot: (org: string) => Promise<Snapshot> =
-  process.env.PERMDOCK_E2E_NO_PRIVATE_CACHE === '1'
+  process.env['PERMDOCK_E2E_NO_PRIVATE_CACHE'] === '1'
     ? loadSnapshotUncached
     : loadSnapshotPrivate;
 

@@ -250,7 +250,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     if (!isRecord(body)) {
       return validationProblem('evaluations body must be an object');
     }
-    const items = body.evaluations;
+    const items = body['evaluations'];
     if (items === undefined) {
       return validationProblem('evaluations array is required');
     }
@@ -261,10 +261,10 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return tooLarge(maxEvaluations);
     }
     const shared = compact<AuthzenItem>({
-      subject: isRecord(body.subject) ? body.subject : undefined,
-      action: isRecord(body.action) ? body.action : undefined,
-      resource: isRecord(body.resource) ? body.resource : undefined,
-      context: body.context,
+      subject: isRecord(body['subject']) ? body['subject'] : undefined,
+      action: isRecord(body['action']) ? body['action'] : undefined,
+      resource: isRecord(body['resource']) ? body['resource'] : undefined,
+      context: body['context'],
     });
     const rows = await Promise.all(
       items.map((item) =>
@@ -449,7 +449,8 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       search_resource_endpoint: `${origin}/access/v1/search/resource`,
     };
     if (options.subjects?.list !== undefined) {
-      document.search_subject_endpoint = `${origin}/access/v1/search/subject`;
+      document['search_subject_endpoint'] =
+        `${origin}/access/v1/search/subject`;
     }
     return Response.json(document);
   }

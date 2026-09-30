@@ -7,7 +7,7 @@ import { Show } from 'solid-js';
 import { Forbidden } from '../../lib/forbidden';
 
 export default function Section(props: RouteSectionProps) {
-  const item = () => navItemFor(props.params.section ?? '');
+  const item = () => navItemFor(props.params['section'] ?? '');
   return (
     <Show when={item()} fallback={<h1>Not found</h1>}>
       {(current) => (

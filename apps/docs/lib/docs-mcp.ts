@@ -108,10 +108,10 @@ function isJsonRpcId(value: unknown): value is Exclude<JsonRpcId, null> {
 }
 
 export function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
-  if (!isRecord(value) || value.jsonrpc !== '2.0') {
+  if (!isRecord(value) || value['jsonrpc'] !== '2.0') {
     return false;
   }
-  return typeof value.method === 'string';
+  return typeof value['method'] === 'string';
 }
 
 export function isProtocolVersion(value: unknown): value is McpProtocolVersion {
@@ -147,32 +147,34 @@ async function callTool(
   tools: DocsMcpTools,
   params: unknown,
 ): Promise<unknown> {
-  if (!isRecord(params) || typeof params.name !== 'string') {
+  if (!isRecord(params) || typeof params['name'] !== 'string') {
     return toolText('tools/call requires name', true);
   }
-  const args = isRecord(params.arguments) ? params.arguments : {};
-  switch (params.name) {
+  const args = isRecord(params['arguments']) ? params['arguments'] : {};
+  switch (params['name']) {
     case 'search_docs': {
-      if (typeof args.query !== 'string' || args.query.trim() === '') {
+      if (typeof args['query'] !== 'string' || args['query'].trim() === '') {
         return toolText('search_docs requires query', true);
       }
       const limit =
-        typeof args.limit === 'number' ? args.limit : DEFAULT_SEARCH_LIMIT;
-      const hits = tools.search(args.query, limit);
+        typeof args['limit'] === 'number'
+          ? args['limit']
+          : DEFAULT_SEARCH_LIMIT;
+      const hits = tools.search(args['query'], limit);
       return toolText(JSON.stringify({ hits }, null, 2));
     }
     case 'get_page': {
-      if (typeof args.path !== 'string' || args.path.trim() === '') {
+      if (typeof args['path'] !== 'string' || args['path'].trim() === '') {
         return toolText('get_page requires path', true);
       }
-      const markdown = await tools.getPage(args.path);
+      const markdown = await tools.getPage(args['path']);
       if (markdown === null) {
-        return toolText(`Unknown page: ${args.path}`, true);
+        return toolText(`Unknown page: ${args['path']}`, true);
       }
       return toolText(markdown);
     }
     default:
-      return toolText(`Unknown tool: ${params.name}`, true);
+      return toolText(`Unknown tool: ${params['name']}`, true);
   }
 }
 
@@ -193,7 +195,7 @@ async function handleSingle(
     case 'initialize': {
       const params = isRecord(request.params) ? request.params : {};
       return jsonRpcResult(id, {
-        protocolVersion: negotiateProtocolVersion(params.protocolVersion),
+        protocolVersion: negotiateProtocolVersion(params['protocolVersion']),
         capabilities: { tools: {} },
         serverInfo: { name: DOCS_MCP_NAME, version: DOCS_MCP_VERSION },
         instructions:
@@ -254,7 +256,7 @@ export async function handleMcpBody(
     return {
       status: 400,
       body: jsonRpcError(
-        isRecord(body) && isJsonRpcId(body.id) ? body.id : null,
+        isRecord(body) && isJsonRpcId(body['id']) ? body['id'] : null,
         -32600,
         'Invalid Request',
       ),

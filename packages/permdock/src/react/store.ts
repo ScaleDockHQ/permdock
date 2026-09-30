@@ -47,7 +47,7 @@ function cacheKey(permission: Permission, data: unknown): string {
   if (data === null || typeof data !== 'object') {
     return `${permission.key}:*`;
   }
-  const id = (data as Record<string, unknown>).id;
+  const id = (data as Record<string, unknown>)['id'];
   return `${permission.key}:${typeof id === 'string' || typeof id === 'number' ? String(id) : '*'}`;
 }
 
@@ -237,7 +237,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       const verified = await options.verifier.verify(raw, {
         typ: 'permdock-snapshot+jwt',
       });
-      return verified.ok ? verified.claims.snapshot : undefined;
+      return verified.ok ? verified.claims['snapshot'] : undefined;
     } catch {
       return undefined;
     }

@@ -17,14 +17,14 @@ testHttpAdapter({
       {
         subject: (req) =>
           domain.subject(req.headers.authorization, req.originalUrl),
-        tenant: (req) => req.params.org as string | undefined,
+        tenant: (req) => req.params['org'] as string | undefined,
         customRoles: domain.customRoles,
         store: domain.store,
         limits: domain.limits,
       },
     );
     const row = (req: Request) =>
-      domain.project(req.params.id as string | undefined);
+      domain.project(req.params['id'] as string | undefined);
     const upload = multer({ storage: multer.memoryStorage() });
 
     const admin = express.Router({ mergeParams: true });
@@ -45,7 +45,7 @@ testHttpAdapter({
       '/:org/projects/:id',
       protect(p.project.update, row),
       (req, res) => {
-        res.json({ id: req.params.id });
+        res.json({ id: req.params['id'] });
       },
     );
     app.post(

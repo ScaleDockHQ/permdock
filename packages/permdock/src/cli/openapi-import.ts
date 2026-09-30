@@ -55,7 +55,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function operations(document: Record<string, unknown>): readonly Operation[] {
-  const paths = isRecord(document.paths) ? document.paths : {};
+  const paths = isRecord(document['paths']) ? document['paths'] : {};
   const out: Operation[] = [];
   for (const [path, item] of Object.entries(paths)) {
     if (!isRecord(item)) {
@@ -99,16 +99,18 @@ function arity(path: string, resource: string): 'instance' | 'collection' {
 }
 
 function oauthSchemes(document: Record<string, unknown>): ReadonlySet<string> {
-  const components = isRecord(document.components) ? document.components : {};
-  const schemes = isRecord(components.securitySchemes)
-    ? components.securitySchemes
+  const components = isRecord(document['components'])
+    ? document['components']
+    : {};
+  const schemes = isRecord(components['securitySchemes'])
+    ? components['securitySchemes']
     : {};
   return new Set(
     Object.entries(schemes)
       .filter(
         ([, scheme]) =>
           isRecord(scheme) &&
-          (scheme.type === 'oauth2' || scheme.type === 'openIdConnect'),
+          (scheme['type'] === 'oauth2' || scheme['type'] === 'openIdConnect'),
       )
       .map(([name]) => name),
   );
@@ -166,39 +168,41 @@ function validKey(key: string): boolean {
 }
 
 function jsonSchemaOf(node: unknown): JsonSchema | undefined {
-  if (!isRecord(node) || !isRecord(node.content)) {
+  if (!isRecord(node) || !isRecord(node['content'])) {
     return undefined;
   }
-  for (const [type, media] of Object.entries(node.content)) {
+  for (const [type, media] of Object.entries(node['content'])) {
     if (
       /json/u.test(type) &&
       isRecord(media) &&
-      isRecord(media.schema) &&
-      typeof media.schema.$ref === 'string'
+      isRecord(media['schema']) &&
+      typeof media['schema']['$ref'] === 'string'
     ) {
-      return media.schema;
+      return media['schema'];
     }
   }
   return undefined;
 }
 
 function resourceSchemaOf(operation: Operation): JsonSchema | undefined {
-  const responses = isRecord(operation.node.responses)
-    ? operation.node.responses
+  const responses = isRecord(operation.node['responses'])
+    ? operation.node['responses']
     : {};
   const ok = responses['200'] ?? responses['201'];
-  return jsonSchemaOf(ok) ?? jsonSchemaOf(operation.node.requestBody);
+  return jsonSchemaOf(ok) ?? jsonSchemaOf(operation.node['requestBody']);
 }
 
 function refResolver(document: Record<string, unknown>) {
   return (schema: JsonSchema): JsonSchema => {
     let node = schema;
-    for (let hop = 0; hop < 8 && typeof node.$ref === 'string'; hop += 1) {
-      const match = /^#\/components\/schemas\/([^/]+)$/u.exec(node.$ref);
-      const components = isRecord(document.components)
-        ? document.components
+    for (let hop = 0; hop < 8 && typeof node['$ref'] === 'string'; hop += 1) {
+      const match = /^#\/components\/schemas\/([^/]+)$/u.exec(node['$ref']);
+      const components = isRecord(document['components'])
+        ? document['components']
         : {};
-      const schemas = isRecord(components.schemas) ? components.schemas : {};
+      const schemas = isRecord(components['schemas'])
+        ? components['schemas']
+        : {};
       const name = match?.[1];
       const next =
         name === undefined || UNSAFE_SEGMENTS.has(name)
@@ -214,10 +218,10 @@ function refResolver(document: Record<string, unknown>) {
 }
 
 function metaFor(operation: Operation, inferred: string): GeneratedAction {
-  const summary = operation.node.summary;
-  const description = operation.node.description;
-  const tags = Array.isArray(operation.node.tags)
-    ? operation.node.tags.filter(
+  const summary = operation.node['summary'];
+  const description = operation.node['description'];
+  const tags = Array.isArray(operation.node['tags'])
+    ? operation.node['tags'].filter(
         (tag): tag is string => typeof tag === 'string',
       )
     : [];
@@ -259,14 +263,14 @@ function inferOperation(
     keys = explicit.filter((key): key is string => typeof key === 'string');
   } else {
     const scopes = scopesOf(
-      operation.node.security ?? document.security,
+      operation.node['security'] ?? document['security'],
       schemes,
     );
     if (scopes.length > 0) {
       keys = scopes.map((scope) => scope.replaceAll(':', '.'));
     } else {
-      const tag = Array.isArray(operation.node.tags)
-        ? operation.node.tags.find(
+      const tag = Array.isArray(operation.node['tags'])
+        ? operation.node['tags'].find(
             (item): item is string => typeof item === 'string',
           )
         : undefined;
@@ -280,8 +284,8 @@ function inferOperation(
       }
       const kind = arity(operation.path, resource);
       const action =
-        typeof operation.node.operationId === 'string'
-          ? identifier(operation.node.operationId)
+        typeof operation.node['operationId'] === 'string'
+          ? identifier(operation.node['operationId'])
           : defaultAction(operation.method, kind);
       keys = [`${resource}.${action}`];
     }

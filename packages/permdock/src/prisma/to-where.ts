@@ -214,14 +214,14 @@ function containsEmptyOr(value: unknown): boolean {
     return value.some((item) => containsEmptyOr(item));
   }
   const record = value as Record<string, unknown>;
-  if (Array.isArray(record.OR) && record.OR.length === 0) {
+  if (Array.isArray(record['OR']) && record['OR'].length === 0) {
     return true;
   }
   return Object.values(record).some((item) => containsEmptyOr(item));
 }
 
 function rewriteEmptyOr<T extends Record<string, unknown>>(args: T): T {
-  const where = args.where;
+  const where = args['where'];
   if (where === undefined || !containsEmptyOr(where)) {
     return args;
   }

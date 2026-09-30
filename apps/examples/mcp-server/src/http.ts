@@ -8,7 +8,7 @@ import { resolveApproval } from 'permdock/approvals';
 
 import { createServer as createMcpServer, store, verifier } from './server.ts';
 
-const port = Number(process.env.PORT ?? 3478);
+const port = Number(process.env['PORT'] ?? 3478);
 const host = '127.0.0.1';
 
 const mcp = createMcpHandler(() => createMcpServer({ requireAuthInfo: true }));

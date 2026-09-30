@@ -58,7 +58,7 @@ function isInteractive(options: TerminalPermDockOptions): boolean {
     return true;
   }
   const tty = options.runtime?.stdoutIsTTY ?? process.stdout.isTTY;
-  return tty === true && envOf(options).CI === undefined;
+  return tty === true && envOf(options)['CI'] === undefined;
 }
 
 function jsonOutput(options: TerminalPermDockOptions): boolean {

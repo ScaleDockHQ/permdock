@@ -121,7 +121,7 @@ export type EvePermDock = {
 const TOKENS_PER_PROCESS = 1000;
 
 export function rolesOf(principal: EvePrincipal | null | undefined): string[] {
-  const roles = principal?.attributes?.roles;
+  const roles = principal?.attributes?.['roles'];
   if (typeof roles === 'string') {
     return [roles];
   }

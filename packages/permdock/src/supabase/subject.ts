@@ -50,7 +50,7 @@ function readClaim(claims: Record<string, unknown>, name: string): unknown {
   if (top !== undefined && top !== null) {
     return top;
   }
-  const meta = claims.app_metadata;
+  const meta = claims['app_metadata'];
   if (isRecord(meta) && Object.hasOwn(meta, name)) {
     return meta[name] ?? undefined;
   }
@@ -101,32 +101,33 @@ export function readMemberships(value: unknown): ReadMemberships {
 }
 
 function asMembership(item: unknown): Membership | undefined {
-  if (!isRecord(item) || !Array.isArray(item.roles)) {
+  if (!isRecord(item) || !Array.isArray(item['roles'])) {
     return undefined;
   }
-  const roles = item.roles.filter(
+  const roles = item['roles'].filter(
     (role): role is string => typeof role === 'string',
   );
   if (roles.length === 0) {
     return undefined;
   }
-  const scope = typeof item.scope === 'string' ? item.scope : undefined;
-  const id = typeof item.id === 'string' ? item.id : undefined;
-  const within = isRecord(item.within)
+  const scope = typeof item['scope'] === 'string' ? item['scope'] : undefined;
+  const id = typeof item['id'] === 'string' ? item['id'] : undefined;
+  const within = isRecord(item['within'])
     ? Object.fromEntries(
-        Object.entries(item.within).filter(
+        Object.entries(item['within']).filter(
           (entry): entry is [string, string] => typeof entry[1] === 'string',
         ),
       )
     : undefined;
-  const tenant = typeof item.tenant === 'string' ? item.tenant : undefined;
-  const team = typeof item.team === 'string' ? item.team : undefined;
-  const onRecord = isRecord(item.on) ? item.on : undefined;
+  const tenant =
+    typeof item['tenant'] === 'string' ? item['tenant'] : undefined;
+  const team = typeof item['team'] === 'string' ? item['team'] : undefined;
+  const onRecord = isRecord(item['on']) ? item['on'] : undefined;
   const on =
     onRecord !== undefined &&
-    typeof onRecord.resource === 'string' &&
-    typeof onRecord.id === 'string'
-      ? { resource: onRecord.resource, id: onRecord.id }
+    typeof onRecord['resource'] === 'string' &&
+    typeof onRecord['id'] === 'string'
+      ? { resource: onRecord['resource'], id: onRecord['id'] }
       : undefined;
   if (
     (scope === undefined || id === undefined) &&
@@ -144,11 +145,12 @@ function asMembership(item: unknown): Membership | undefined {
     tenant,
     team,
     on,
-    via: typeof item.via === 'string' ? item.via : undefined,
-    expiresAt: typeof item.expiresAt === 'number' ? item.expiresAt : undefined,
-    managedBy: item.managedBy === 'idp' ? 'idp' : undefined,
-    entitlements: Array.isArray(item.entitlements)
-      ? item.entitlements.filter(
+    via: typeof item['via'] === 'string' ? item['via'] : undefined,
+    expiresAt:
+      typeof item['expiresAt'] === 'number' ? item['expiresAt'] : undefined,
+    managedBy: item['managedBy'] === 'idp' ? 'idp' : undefined,
+    entitlements: Array.isArray(item['entitlements'])
+      ? item['entitlements'].filter(
           (seat): seat is string => typeof seat === 'string',
         )
       : undefined,
@@ -184,27 +186,27 @@ type ActorClaim =
 
 /** RFC 8693 `act` (innermost `sub`), else the OAuth `client_id` of a third-party app. */
 function actorOf(claims: Record<string, unknown>): ActorClaim {
-  if (Object.hasOwn(claims, 'act') && claims.act !== undefined) {
-    let current: unknown = claims.act;
+  if (Object.hasOwn(claims, 'act') && claims['act'] !== undefined) {
+    let current: unknown = claims['act'];
     let innermost: Record<string, unknown> | undefined;
     while (current !== undefined) {
       if (!isRecord(current)) {
         return { status: 'invalid' };
       }
       innermost = current;
-      current = Object.hasOwn(current, 'act') ? current.act : undefined;
+      current = Object.hasOwn(current, 'act') ? current['act'] : undefined;
     }
-    const sub = innermost?.sub;
+    const sub = innermost?.['sub'];
     if (typeof sub !== 'string' || sub === '') {
       return { status: 'invalid' };
     }
     return {
       status: 'ok',
       actor: { id: sub, kind: 'oauth-client' },
-      chain: claims.act,
+      chain: claims['act'],
     };
   }
-  const client = claims.client_id;
+  const client = claims['client_id'];
   if (typeof client === 'string' && client !== '') {
     return { status: 'ok', actor: { id: client, kind: 'oauth-client' } };
   }
@@ -215,7 +217,7 @@ function delegationOf(
   claims: Record<string, unknown>,
   chain: unknown,
 ): Delegation | undefined {
-  const scope = claims.scope;
+  const scope = claims['scope'];
   const scopes =
     typeof scope === 'string'
       ? scope.split(/\s+/u).filter(Boolean)
@@ -256,7 +258,7 @@ function validateClaims(
 
 function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
   const extra: Record<string, unknown> = {};
-  const meta = claims.app_metadata;
+  const meta = claims['app_metadata'];
   if (isRecord(meta)) {
     for (const [key, value] of Object.entries(meta)) {
       extra[key] = value;
@@ -275,11 +277,11 @@ function mapClaims(
   claims: Record<string, unknown>,
   options: SupabaseSubjectOptions,
 ): Subject<SupabasePrincipal> {
-  const role = claims.role;
+  const role = claims['role'];
   if (role === 'anon' || role === 'service_role') {
     return anonymousSubject();
   }
-  const id = claims.sub;
+  const id = claims['sub'];
   if (typeof id !== 'string' || id === '') {
     return anonymousSubject();
   }
@@ -319,25 +321,27 @@ function mapClaims(
       typeof version === 'number' && Number.isInteger(version)
         ? version
         : undefined,
-    issuer: typeof claims.iss === 'string' ? claims.iss : undefined,
-    assurance: typeof claims.aal === 'string' ? { acr: claims.aal } : undefined,
+    issuer: typeof claims['iss'] === 'string' ? claims['iss'] : undefined,
+    assurance:
+      typeof claims['aal'] === 'string' ? { acr: claims['aal'] } : undefined,
     claims: Object.keys(extra).length === 0 ? undefined : extra,
     email:
-      include.has('email') && typeof claims.email === 'string'
-        ? claims.email
+      include.has('email') && typeof claims['email'] === 'string'
+        ? claims['email']
         : undefined,
     phone:
-      include.has('phone') && typeof claims.phone === 'string'
-        ? claims.phone
+      include.has('phone') && typeof claims['phone'] === 'string'
+        ? claims['phone']
         : undefined,
     is_anonymous:
-      include.has('is_anonymous') && typeof claims.is_anonymous === 'boolean'
-        ? claims.is_anonymous
+      include.has('is_anonymous') && typeof claims['is_anonymous'] === 'boolean'
+        ? claims['is_anonymous']
         : undefined,
   });
   const session =
-    typeof claims.session_id === 'string' ? claims.session_id : undefined;
-  const expiresAt = typeof claims.exp === 'number' ? claims.exp : undefined;
+    typeof claims['session_id'] === 'string' ? claims['session_id'] : undefined;
+  const expiresAt =
+    typeof claims['exp'] === 'number' ? claims['exp'] : undefined;
   return freezeDeep(
     compact<Subject<SupabasePrincipal>>({
       principal,

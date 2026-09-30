@@ -66,11 +66,11 @@ function replayExpiresAt(
   claims: Readonly<Record<string, unknown>>,
   clockTolerance = 0,
 ): number | undefined {
-  if (typeof claims.exp === 'number') {
-    return claims.exp;
+  if (typeof claims['exp'] === 'number') {
+    return claims['exp'];
   }
-  if (typeof claims.iat === 'number') {
-    const until = claims.iat + clockTolerance;
+  if (typeof claims['iat'] === 'number') {
+    const until = claims['iat'] + clockTolerance;
     return until > Date.now() / 1000 ? until : undefined;
   }
   return undefined;
@@ -127,8 +127,8 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       };
     }
     if (
-      typeof result.claims.jti !== 'string' ||
-      result.claims.jti.length === 0
+      typeof result.claims['jti'] !== 'string' ||
+      result.claims['jti'].length === 0
     ) {
       return {
         ok: false,
@@ -357,10 +357,10 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       });
       return verified;
     }
-    const jti = verified.claims.jti as string;
+    const jti = verified.claims['jti'] as string;
     const issuer =
       typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
-    const events = verified.claims.events;
+    const events = verified.claims['events'];
     if (!isRecord(events)) {
       return {
         ok: false,
@@ -409,7 +409,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         description: verified.description,
       };
     }
-    if (verified.claims.nonce !== undefined) {
+    if (verified.claims['nonce'] !== undefined) {
       return {
         ok: false,
         err: 'invalid_request',
@@ -417,7 +417,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         cause: 'invalid-claims',
       };
     }
-    const events = verified.claims.events;
+    const events = verified.claims['events'];
     if (!isRecord(events) || !(BACKCHANNEL_LOGOUT_EVENT in events)) {
       return {
         ok: false,
@@ -429,7 +429,9 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     const sub =
       typeof verified.claims.sub === 'string' ? verified.claims.sub : undefined;
     const sid =
-      typeof verified.claims.sid === 'string' ? verified.claims.sid : undefined;
+      typeof verified.claims['sid'] === 'string'
+        ? verified.claims['sid']
+        : undefined;
     if (
       (sub === undefined || sub.length === 0) &&
       (sid === undefined || sid.length === 0)
@@ -441,7 +443,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         cause: 'invalid-claims',
       };
     }
-    const jti = verified.claims.jti as string;
+    const jti = verified.claims['jti'] as string;
     const issuer =
       typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
     const key = replayKey(issuer, jti);
@@ -478,7 +480,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     },
   ): Promise<IngestResult> {
     const { issuer, jti, sub, sid } = ids;
-    const events = claims.events as Readonly<Record<string, unknown>>;
+    const events = claims['events'] as Readonly<Record<string, unknown>>;
     const identifier: SetSubject =
       sub === undefined
         ? compact({ format: 'opaque', id: sid })

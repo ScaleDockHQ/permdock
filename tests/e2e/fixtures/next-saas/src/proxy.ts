@@ -13,7 +13,7 @@ import { policy, subjectOf } from './policy.ts';
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (
-    process.env.NEXT_E2E === '1' &&
+    process.env['NEXT_E2E'] === '1' &&
     request.headers.get('x-e2e-skip-proxy') === '1'
   ) {
     return NextResponse.next();

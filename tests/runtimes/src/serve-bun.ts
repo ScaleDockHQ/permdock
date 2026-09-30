@@ -10,7 +10,7 @@ declare const Bun: {
 };
 
 Bun.serve({
-  port: Number(process.env.PORT),
+  port: Number(process.env['PORT']),
   hostname: '127.0.0.1',
   fetch: (request) =>
     new URL(request.url).pathname.startsWith('/elysia/')

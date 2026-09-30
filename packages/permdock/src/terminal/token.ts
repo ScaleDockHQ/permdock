@@ -70,21 +70,21 @@ async function fromCiOidc(
     const value = env[named];
     return typeof value === 'string' && value !== '' ? value : null;
   }
-  if (typeof env.CI_JOB_JWT_V2 === 'string' && env.CI_JOB_JWT_V2 !== '') {
-    return env.CI_JOB_JWT_V2;
+  if (typeof env['CI_JOB_JWT_V2'] === 'string' && env['CI_JOB_JWT_V2'] !== '') {
+    return env['CI_JOB_JWT_V2'];
   }
   if (
-    typeof env.ACTIONS_ID_TOKEN_REQUEST_URL === 'string' &&
-    typeof env.ACTIONS_ID_TOKEN_REQUEST_TOKEN === 'string'
+    typeof env['ACTIONS_ID_TOKEN_REQUEST_URL'] === 'string' &&
+    typeof env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'] === 'string'
   ) {
     try {
-      const url = new URL(env.ACTIONS_ID_TOKEN_REQUEST_URL);
+      const url = new URL(env['ACTIONS_ID_TOKEN_REQUEST_URL']);
       if (audience !== undefined) {
         url.searchParams.set('audience', audience);
       }
       const response = await fetchImpl(url, {
         headers: {
-          Authorization: `Bearer ${env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}`,
+          Authorization: `Bearer ${env['ACTIONS_ID_TOKEN_REQUEST_TOKEN']}`,
         },
       });
       const body: unknown = await response.json();

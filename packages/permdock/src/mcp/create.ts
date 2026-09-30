@@ -128,14 +128,14 @@ function approvalTokenOf(context: Context): string | undefined {
   if (typeof fromMeta === 'string' && fromMeta !== '') {
     return fromMeta;
   }
-  const fromAuth = context.http?.authInfo?.extra?.approval;
+  const fromAuth = context.http?.authInfo?.extra?.['approval'];
   return typeof fromAuth === 'string' && fromAuth !== '' ? fromAuth : undefined;
 }
 
 function authorizationDetailsOf(
   authInfo: McpAuthInfo,
 ): readonly AuthorizationDetail[] | undefined {
-  const details = authInfo.extra?.authorizationDetails;
+  const details = authInfo.extra?.['authorizationDetails'];
   return Array.isArray(details)
     ? (details as readonly AuthorizationDetail[])
     : undefined;
@@ -182,10 +182,10 @@ function acceptsUrlElicitation(
 ): boolean {
   const fromEnvelope = context.mcpReq?.envelope?.[CLIENT_CAPABILITIES];
   const capabilities = isRecord(fromEnvelope) ? fromEnvelope : fallback?.();
-  if (!isRecord(capabilities) || !isRecord(capabilities.elicitation)) {
+  if (!isRecord(capabilities) || !isRecord(capabilities['elicitation'])) {
     return false;
   }
-  return isRecord(capabilities.elicitation.url);
+  return isRecord(capabilities['elicitation']['url']);
 }
 
 function withParams(
@@ -229,7 +229,7 @@ function resourceRef(
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
   if (isRecord(data)) {
-    const id = data.id;
+    const id = data['id'];
     if (typeof id === 'string' || typeof id === 'number') {
       return { type: permission.resource, id: String(id) };
     }
@@ -312,8 +312,8 @@ function requirePermission(
   name: string,
   config: unknown,
 ): Permission {
-  const permission = isRecord(config) ? config.permission : undefined;
-  if (!isRecord(permission) || typeof permission.key !== 'string') {
+  const permission = isRecord(config) ? config['permission'] : undefined;
+  if (!isRecord(permission) || typeof permission['key'] !== 'string') {
     throw new TypeError(
       `permdock/mcp: ${kind} ${name} has no permission; every guarded registration needs one.`,
     );
@@ -358,11 +358,11 @@ function guardUpdates(
   const update = registered.update.bind(registered);
   registered.update = (updates): void => {
     const next: Record<string, unknown> = { ...updates };
-    if (typeof updates.callback === 'function') {
-      next.callback = wrap(updates.callback as Handler);
+    if (typeof updates['callback'] === 'function') {
+      next['callback'] = wrap(updates['callback'] as Handler);
     }
     if (rename !== undefined && currentName !== undefined) {
-      const to = updates.name;
+      const to = updates['name'];
       if (typeof to === 'string' || to === null) {
         rename(currentName(), to);
       }
@@ -927,7 +927,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           ...passthrough,
           annotations: {
             ...annotationsFor(permission),
-            ...(passthrough.annotations as ToolHints | undefined),
+            ...(passthrough['annotations'] as ToolHints | undefined),
           },
           scopeChallenge: challengeFor(
             permission,
@@ -1050,9 +1050,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     };
 
     const guarded = server as unknown as Record<string, unknown>;
-    guarded.registerTool = registerTool;
-    guarded.registerPrompt = registerPrompt;
-    guarded.registerResource = registerResource;
+    guarded['registerTool'] = registerTool;
+    guarded['registerPrompt'] = registerPrompt;
+    guarded['registerResource'] = registerResource;
     return server as unknown as GuardedMcpServer;
   };
 

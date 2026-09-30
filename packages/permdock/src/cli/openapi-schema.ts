@@ -52,7 +52,7 @@ export function validateOpenapi(
 ):
   | { readonly ok: true; readonly version: OpenapiVersion }
   | { readonly ok: false; readonly error: string } {
-  const version = isRecord(document) ? document.openapi : undefined;
+  const version = isRecord(document) ? document['openapi'] : undefined;
   const match =
     typeof version === 'string' ? /^3\.([12])\.\d+$/u.exec(version) : null;
   if (match === null) {

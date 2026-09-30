@@ -1,6 +1,6 @@
 import { saasPermissions as p } from 'permdock/testing/saas/permissions';
 
-export const PORT = Number(process.env.PORT ?? 3505);
+export const PORT = Number(process.env['PORT'] ?? 3505);
 export const ORIGIN = `http://127.0.0.1:${String(PORT)}`;
 /** The authorization server and the resource server share one origin here. */
 export const ISSUER = ORIGIN;

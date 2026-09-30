@@ -150,14 +150,14 @@ test('a hosted grant is bounded by hostable and reaches a local decision', async
     to: { kind: 'role', role: 'auditor' },
   });
   expect(refused.status).toBe(422);
-  expect(refused.body.reason).toBe('not-hostable');
+  expect(refused.body['reason']).toBe('not-hostable');
 
   const created = await admin(request, 'POST', '/hosted-grants', {
     permission: 'auditLog.read',
     to: { kind: 'role', role: 'auditor' },
   });
   expect(created.status).toBe(201);
-  grantId = String(created.body.id);
+  grantId = String(created.body['id']);
 
   const refreshed = await request.post(`${APP}/api/test/refresh`);
   expect(
@@ -254,7 +254,7 @@ test('SCIM deactivation relayed by the Cloud ends open connections', async ({
   const deactivated = await cloudApi(
     request,
     'PATCH',
-    `${scim.url}/Users/${String(created.body.id)}`,
+    `${scim.url}/Users/${String(created.body['id'])}`,
     scim.token,
     {
       schemas: [PATCH],
@@ -290,7 +290,7 @@ test('a token-exchanged Cloud-native access token is decided locally', async ({
     issuer: trustedIssuer.issuer,
   });
   expect(principal.status).toBe(201);
-  const principalId = String(principal.body.id);
+  const principalId = String(principal.body['id']);
   const assigned = await admin(request, 'POST', '/directory/assignments', {
     principal: principalId,
     tenant: scim.tenant,

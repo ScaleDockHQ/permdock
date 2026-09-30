@@ -190,7 +190,7 @@ export async function subjectFromCapability(
   if (normalizeTyp(verified.header.typ) !== 'permdock-capability+jwt') {
     return deny('wrong-token-type');
   }
-  const parsed = parseCapability(verified.claims.capability);
+  const parsed = parseCapability(verified.claims['capability']);
   const exp = verified.claims.exp;
   if (
     parsed === undefined ||
@@ -208,7 +208,7 @@ export async function subjectFromCapability(
   if (!redeemerAllows(capability.redeemer, options.viewer, now)) {
     return deny('redeemer-mismatch');
   }
-  const jti = verified.claims.jti;
+  const jti = verified.claims['jti'];
   if (
     capability.once === true &&
     (options.replay === undefined || typeof jti !== 'string' || jti === '')

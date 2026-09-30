@@ -179,19 +179,19 @@ function orgFeatures(fea: unknown): readonly string[] {
  * `per[i]`, so a permission key is `org:<feature>:<per[i]>`.
  */
 function orgClaimsV2(claims: Record<string, unknown>): OrgClaims | undefined {
-  const org = claims.o;
-  if (!isRecord(org) || typeof org.id !== 'string' || org.id === '') {
+  const org = claims['o'];
+  if (!isRecord(org) || typeof org['id'] !== 'string' || org['id'] === '') {
     return undefined;
   }
   const role =
-    typeof org.rol === 'string' && org.rol !== ''
-      ? org.rol.startsWith('org:')
-        ? org.rol
-        : `org:${org.rol}`
+    typeof org['rol'] === 'string' && org['rol'] !== ''
+      ? org['rol'].startsWith('org:')
+        ? org['rol']
+        : `org:${org['rol']}`
       : undefined;
-  const actions = splitList(org.per);
-  const features = orgFeatures(claims.fea);
-  const masks = splitList(org.fpm).map(Number);
+  const actions = splitList(org['per']);
+  const features = orgFeatures(claims['fea']);
+  const masks = splitList(org['fpm']).map(Number);
   const orgPermissions: string[] = [];
   for (const [index, feature] of features.entries()) {
     const mask = masks[index];
@@ -204,14 +204,15 @@ function orgClaimsV2(claims: Record<string, unknown>): OrgClaims | undefined {
       }
     }
   }
-  return { tenant: org.id, orgRole: role, orgPermissions };
+  return { tenant: org['id'], orgRole: role, orgPermissions };
 }
 
 function orgClaimsV1(claims: Record<string, unknown>): OrgClaims {
   return {
-    tenant: typeof claims.org_id === 'string' ? claims.org_id : undefined,
-    orgRole: typeof claims.org_role === 'string' ? claims.org_role : undefined,
-    orgPermissions: asRoles(claims.org_permissions),
+    tenant: typeof claims['org_id'] === 'string' ? claims['org_id'] : undefined,
+    orgRole:
+      typeof claims['org_role'] === 'string' ? claims['org_role'] : undefined,
+    orgPermissions: asRoles(claims['org_permissions']),
   };
 }
 
@@ -223,20 +224,20 @@ function isAuthObject(value: unknown): value is ClerkAuthObject {
   if (!isRecord(value)) {
     return false;
   }
-  return typeof value.has === 'function' || isRecord(value.sessionClaims);
+  return typeof value['has'] === 'function' || isRecord(value['sessionClaims']);
 }
 
 function isVerifiedPayload(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) {
     return false;
   }
-  if (typeof value.sub !== 'string' || value.sub === '') {
+  if (typeof value['sub'] !== 'string' || value['sub'] === '') {
     return false;
   }
   return (
-    typeof value.sid === 'string' ||
-    typeof value.azp === 'string' ||
-    typeof value.org_id === 'string' ||
+    typeof value['sid'] === 'string' ||
+    typeof value['azp'] === 'string' ||
+    typeof value['org_id'] === 'string' ||
     orgClaimsV2(value) !== undefined
   );
 }
@@ -254,8 +255,8 @@ function fromAuthObject(auth: ClerkAuthObject): {
   const id =
     typeof auth.userId === 'string'
       ? auth.userId
-      : typeof claims.sub === 'string'
-        ? claims.sub
+      : typeof claims['sub'] === 'string'
+        ? claims['sub']
         : undefined;
   const tenant =
     typeof auth.orgId === 'string' ? auth.orgId : fromClaims.tenant;
@@ -268,8 +269,8 @@ function fromAuthObject(auth: ClerkAuthObject): {
   const session =
     typeof auth.sessionId === 'string'
       ? auth.sessionId
-      : typeof claims.sid === 'string'
-        ? claims.sid
+      : typeof claims['sid'] === 'string'
+        ? claims['sid']
         : undefined;
   return { id, tenant, orgRole, orgPermissions, claims, session };
 }
@@ -283,10 +284,10 @@ function fromPayload(claims: Record<string, unknown>): {
   readonly session: string | undefined;
 } {
   return {
-    id: typeof claims.sub === 'string' ? claims.sub : undefined,
+    id: typeof claims['sub'] === 'string' ? claims['sub'] : undefined,
     ...orgClaims(claims),
     claims,
-    session: typeof claims.sid === 'string' ? claims.sid : undefined,
+    session: typeof claims['sid'] === 'string' ? claims['sid'] : undefined,
   };
 }
 
@@ -297,22 +298,22 @@ function membershipRow(item: unknown, userId: string): Membership | undefined {
   if (!isRecord(item)) {
     return undefined;
   }
-  const owner = isRecord(item.publicUserData)
-    ? item.publicUserData.userId
+  const owner = isRecord(item['publicUserData'])
+    ? item['publicUserData']['userId']
     : undefined;
   if (typeof owner === 'string' && owner !== userId) {
     return undefined;
   }
-  const organization = isRecord(item.organization)
-    ? item.organization
+  const organization = isRecord(item['organization'])
+    ? item['organization']
     : undefined;
   const tenant =
-    typeof item.organizationId === 'string'
-      ? item.organizationId
-      : typeof organization?.id === 'string'
-        ? organization.id
+    typeof item['organizationId'] === 'string'
+      ? item['organizationId']
+      : typeof organization?.['id'] === 'string'
+        ? organization['id']
         : undefined;
-  const roles = asRoles(item.role);
+  const roles = asRoles(item['role']);
   if (tenant === undefined || roles.length === 0) {
     return undefined;
   }
@@ -418,21 +419,21 @@ export async function subjectFromClerk(
     if (options.schema !== undefined) {
       claims = validateClaims(claims, options.schema) ?? {};
     }
-    const features = featureRoles(mapped.claims.fea, options.features);
+    const features = featureRoles(mapped.claims['fea'], options.features);
     const global = [
       ...globalRolesFrom(mapped.claims, options.globalRoles),
       ...features.roles,
     ];
-    const exp = mapped.claims.exp;
+    const exp = mapped.claims['exp'];
     const principal = compact<ClerkPrincipal>({
       id: mapped.id,
       kind: 'user',
       tenant: mapped.tenant,
       roles: global,
       plans:
-        planSlugs(mapped.claims.pla).length === 0
+        planSlugs(mapped.claims['pla']).length === 0
           ? undefined
-          : planSlugs(mapped.claims.pla),
+          : planSlugs(mapped.claims['pla']),
       memberships,
       clerkPermissions: mapped.orgPermissions,
       claims: Object.keys(claims).length === 0 ? undefined : claims,

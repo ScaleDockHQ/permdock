@@ -59,11 +59,11 @@ async function matchStaticToken(
 }
 
 function tenantClaim(claims: Record<string, unknown>): string | undefined {
-  if (typeof claims.tenant === 'string' && claims.tenant !== '') {
-    return claims.tenant;
+  if (typeof claims['tenant'] === 'string' && claims['tenant'] !== '') {
+    return claims['tenant'];
   }
-  if (typeof claims.tid === 'string' && claims.tid !== '') {
-    return claims.tid;
+  if (typeof claims['tid'] === 'string' && claims['tid'] !== '') {
+    return claims['tid'];
   }
   return undefined;
 }

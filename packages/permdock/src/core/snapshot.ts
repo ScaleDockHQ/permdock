@@ -206,7 +206,7 @@ export async function signSnapshot(
     snapshot,
   };
   if (snapshot.subject.principal !== null) {
-    payload.sub = snapshot.subject.principal.id;
+    payload['sub'] = snapshot.subject.principal.id;
   }
   const token = await signer.sign(
     payload,
@@ -265,7 +265,7 @@ export function parseSnapshot(json: unknown): Snapshot {
       : (JSON.parse(JSON.stringify(input)) as object);
   rejectUnsafe(value, '$');
   const record = value as Record<string, unknown>;
-  const version = record.v;
+  const version = record['v'];
   if (version !== 1) {
     throw new Error(
       `PermDock: unsupported snapshot version '${String(version)}'`,

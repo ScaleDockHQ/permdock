@@ -162,7 +162,7 @@ export async function postJson(
     accept: 'application/json',
   };
   if (token !== null) {
-    headers.authorization = `Bearer ${token}`;
+    headers['authorization'] = `Bearer ${token}`;
   }
   try {
     const response = await fetcher(url, {

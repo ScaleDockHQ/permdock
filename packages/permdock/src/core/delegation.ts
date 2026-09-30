@@ -43,8 +43,8 @@ export function coveredByDelegation(
         return false;
       }
       if (
-        typeof detail.identifier === 'string' &&
-        detail.identifier !== resourceId
+        typeof detail['identifier'] === 'string' &&
+        detail['identifier'] !== resourceId
       ) {
         return false;
       }
@@ -75,15 +75,15 @@ function accessCovers(
     if (entry === null || typeof entry !== 'object') {
       return false;
     }
-    const type = entry.type;
+    const type = entry['type'];
     if (typeof type !== 'string' || !typeMatches(type, permission.resource)) {
       return false;
     }
-    const actions = entry.actions;
+    const actions = entry['actions'];
     if (Array.isArray(actions) && !actions.includes(permission.action)) {
       return false;
     }
-    const identifier = entry.identifier;
+    const identifier = entry['identifier'];
     if (typeof identifier === 'string' && identifier !== resourceId) {
       return false;
     }

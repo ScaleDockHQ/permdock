@@ -23,11 +23,11 @@ function isRevocationEvent(value: unknown): value is RevocationEvent {
   }
   const event = value as Record<string, unknown>;
   return (
-    typeof event.principal === 'string' &&
-    event.principal.length > 0 &&
-    (event.kind === 'session-revoked' || event.kind === 'changed') &&
-    (event.session === undefined || typeof event.session === 'string') &&
-    (event.tenant === undefined || typeof event.tenant === 'string')
+    typeof event['principal'] === 'string' &&
+    event['principal'].length > 0 &&
+    (event['kind'] === 'session-revoked' || event['kind'] === 'changed') &&
+    (event['session'] === undefined || typeof event['session'] === 'string') &&
+    (event['tenant'] === undefined || typeof event['tenant'] === 'string')
   );
 }
 

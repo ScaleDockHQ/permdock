@@ -42,7 +42,10 @@ export function readContractEnv(): ContractEnv | undefined {
     return undefined;
   }
   const env = JSON.parse(
-    readFileSync(resolve(process.env.INIT_CWD ?? process.cwd(), path), 'utf8'),
+    readFileSync(
+      resolve(process.env['INIT_CWD'] ?? process.cwd(), path),
+      'utf8',
+    ),
   ) as ContractEnv;
   return { ...env, url: env.url.replace(/\/+$/u, '') };
 }

@@ -54,7 +54,7 @@ testHttpAdapter({
         get: base
           .input(Row)
           .use(protect(p.project.read, row))
-          .query(({ ctx }) => ctx.permdockData),
+          .query(({ ctx }) => ctx['permdockData']),
         update: base
           .input(Row)
           .use(protect(p.project.update, row))
@@ -70,12 +70,12 @@ testHttpAdapter({
               },
             ),
           )
-          .mutation(({ ctx }) => ctx.permdockData),
+          .mutation(({ ctx }) => ctx['permdockData']),
         delete: base
           .input(Row)
           .use(protect(p.project.read, row))
           .mutation(({ ctx }) => {
-            ctx.permdock.assert(p.project.delete, ctx.permdockData);
+            ctx['permdock'].assert(p.project.delete, ctx['permdockData']);
             return null;
           }),
       }),
@@ -129,7 +129,7 @@ testHttpAdapter({
       if (client === undefined) {
         const headers: Record<string, string> = {};
         if (call.authorization !== null) {
-          headers.authorization = call.authorization;
+          headers['authorization'] = call.authorization;
         }
         if (call.approval !== undefined) {
           headers['permdock-approval'] = call.approval;

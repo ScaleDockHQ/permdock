@@ -54,7 +54,7 @@ export function createPermDockPlugin(
           : nextConfig;
       const cwd = process.cwd();
       if (phase === PHASE_BUILD) {
-        const check = process.env.PERMDOCK_COLLECT !== 'write';
+        const check = process.env['PERMDOCK_COLLECT'] !== 'write';
         report(await runPluginCollect(cwd, options, check));
       } else if (phase === PHASE_DEV) {
         try {

@@ -9,7 +9,7 @@ const config: NextConfig = {
     authInterrupts: true,
     useOffline: true,
     // `@next/playwright` instant() against `next start`; only the e2e build sets it.
-    exposeTestingApiInProductionBuild: process.env.NEXT_E2E === '1',
+    exposeTestingApiInProductionBuild: process.env['NEXT_E2E'] === '1',
   },
 };
 

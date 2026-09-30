@@ -5,7 +5,7 @@ import { sendResponse, toRequest } from 'permdock/node';
 import { appRouter } from './app.ts';
 import { memberUser } from './policy.ts';
 
-const port = Number(process.env.PORT ?? 3461);
+const port = Number(process.env['PORT'] ?? 3461);
 
 function isHealth(req: {
   readonly method?: string;

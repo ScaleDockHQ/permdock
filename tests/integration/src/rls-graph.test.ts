@@ -170,7 +170,7 @@ async function inProcess(
       )
     : folders
         .filter((row) => dock.can(permissions.folder.read, row as never))
-        .map((row) => String(row.id))
+        .map((row) => String(row['id']))
         .toSorted();
 }
 

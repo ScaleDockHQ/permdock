@@ -54,16 +54,16 @@ export async function discoverDeviceEndpoints(
       readonly revocationEndpoint?: string;
     } = compact({
       authorizationEndpoint:
-        typeof body.device_authorization_endpoint === 'string'
-          ? body.device_authorization_endpoint
+        typeof body['device_authorization_endpoint'] === 'string'
+          ? body['device_authorization_endpoint']
           : undefined,
       tokenEndpoint:
-        typeof body.token_endpoint === 'string'
-          ? body.token_endpoint
+        typeof body['token_endpoint'] === 'string'
+          ? body['token_endpoint']
           : undefined,
       revocationEndpoint:
-        typeof body.revocation_endpoint === 'string'
-          ? body.revocation_endpoint
+        typeof body['revocation_endpoint'] === 'string'
+          ? body['revocation_endpoint']
           : undefined,
     });
     return discovered;
@@ -76,23 +76,24 @@ function parseAuthorization(
   body: Record<string, unknown>,
 ): DeviceAuthorization | null {
   if (
-    typeof body.device_code !== 'string' ||
-    typeof body.user_code !== 'string' ||
-    typeof body.verification_uri !== 'string' ||
-    typeof body.expires_in !== 'number'
+    typeof body['device_code'] !== 'string' ||
+    typeof body['user_code'] !== 'string' ||
+    typeof body['verification_uri'] !== 'string' ||
+    typeof body['expires_in'] !== 'number'
   ) {
     return null;
   }
   return compact<DeviceAuthorization>({
-    device_code: body.device_code,
-    user_code: body.user_code,
-    verification_uri: body.verification_uri,
+    device_code: body['device_code'],
+    user_code: body['user_code'],
+    verification_uri: body['verification_uri'],
     verification_uri_complete:
-      typeof body.verification_uri_complete === 'string'
-        ? body.verification_uri_complete
+      typeof body['verification_uri_complete'] === 'string'
+        ? body['verification_uri_complete']
         : undefined,
-    expires_in: body.expires_in,
-    interval: typeof body.interval === 'number' ? body.interval : undefined,
+    expires_in: body['expires_in'],
+    interval:
+      typeof body['interval'] === 'number' ? body['interval'] : undefined,
   });
 }
 
@@ -101,22 +102,26 @@ type ParsedToken =
   | { readonly ok: false; readonly error: string };
 
 function parseToken(body: Record<string, unknown>, now: number): ParsedToken {
-  if (typeof body.error === 'string') {
-    return { ok: false, error: body.error };
+  if (typeof body['error'] === 'string') {
+    return { ok: false, error: body['error'] };
   }
-  if (typeof body.access_token !== 'string') {
+  if (typeof body['access_token'] !== 'string') {
     return { ok: false, error: 'invalid-token' };
   }
   return {
     ok: true,
     credential: compact<StoredCredential>({
-      access_token: body.access_token,
+      access_token: body['access_token'],
       refresh_token:
-        typeof body.refresh_token === 'string' ? body.refresh_token : undefined,
+        typeof body['refresh_token'] === 'string'
+          ? body['refresh_token']
+          : undefined,
       expires_at:
-        typeof body.expires_in === 'number' ? now + body.expires_in : undefined,
+        typeof body['expires_in'] === 'number'
+          ? now + body['expires_in']
+          : undefined,
       token_type:
-        typeof body.token_type === 'string' ? body.token_type : undefined,
+        typeof body['token_type'] === 'string' ? body['token_type'] : undefined,
     }),
   };
 }

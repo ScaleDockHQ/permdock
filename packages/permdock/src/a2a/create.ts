@@ -107,7 +107,7 @@ function resourceRef(
   if (!isRecord(data)) {
     return { type: permission.resource };
   }
-  const id = data.id;
+  const id = data['id'];
   return typeof id === 'string' || typeof id === 'number'
     ? { type: permission.resource, id: String(id) }
     : { type: permission.resource };

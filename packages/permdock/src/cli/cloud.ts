@@ -111,14 +111,14 @@ export async function runCloud(input: {
     plans: (catalog.plans ?? []).length,
     grants: policy?.grants.length ?? 0,
   };
-  const url = firstNonEmpty(input.url, input.env.PERMDOCK_CLOUD_URL).replace(
+  const url = firstNonEmpty(input.url, input.env['PERMDOCK_CLOUD_URL']).replace(
     /\/$/u,
     '',
   );
   const environment = firstNonEmpty(
     input.environment,
-    input.env.PERMDOCK_CLOUD_ENV,
-    input.env.VERCEL_ENV,
+    input.env['PERMDOCK_CLOUD_ENV'],
+    input.env['VERCEL_ENV'],
     'production',
   );
   const describe = (verb: string): string =>
@@ -128,7 +128,7 @@ export async function runCloud(input: {
   if (input.dryRun) {
     return { code: 0, output: describe('would push') };
   }
-  const key = input.env.PERMDOCK_CLOUD_KEY ?? '';
+  const key = input.env['PERMDOCK_CLOUD_KEY'] ?? '';
   if (url === '' || key === '') {
     return {
       code: 2,

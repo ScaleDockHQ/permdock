@@ -196,7 +196,7 @@ function readAttribute(
   attribute: string,
 ): unknown {
   if (attribute === 'members.value') {
-    const members = target.members;
+    const members = target['members'];
     if (!Array.isArray(members)) {
       return undefined;
     }

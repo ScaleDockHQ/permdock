@@ -63,12 +63,12 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
               props.data,
             );
       if (scoped.status === 'pending') {
-        return slots.pending?.() ?? null;
+        return slots['pending']?.() ?? null;
       }
       if (!scoped.allowed || scoped.decision.outcome !== 'granted') {
-        return slots.fallback?.({ decision: scoped.decision }) ?? null;
+        return slots['fallback']?.({ decision: scoped.decision }) ?? null;
       }
-      return slots.default?.({ decision: scoped.decision }) ?? null;
+      return slots['default']?.({ decision: scoped.decision }) ?? null;
     };
   },
 });

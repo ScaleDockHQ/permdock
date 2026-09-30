@@ -52,7 +52,7 @@ export async function exchangeCapability(
   if (principal === null || principal.kind !== 'link') {
     return undefined;
   }
-  const capability = parseCapability(principal.capability);
+  const capability = parseCapability(principal['capability']);
   if (capability?.holder !== 'link' || capability.id !== principal.id) {
     return undefined;
   }

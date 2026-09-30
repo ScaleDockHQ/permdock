@@ -48,8 +48,8 @@ export async function verifySession(
     ) {
       return null;
     }
-    const memberships = Array.isArray(payload.memberships)
-      ? payload.memberships.filter((item) => isMembership(item))
+    const memberships = Array.isArray(payload['memberships'])
+      ? payload['memberships'].filter((item) => isMembership(item))
       : undefined;
     return {
       sub: payload.sub,

@@ -15,6 +15,8 @@ export class TerminalExit extends Error {
 }
 
 export function defaultExit(code: number): never {
-  process.exit(code);
+  // Typed as returning so the throw stays reachable when a test stubs `process.exit`.
+  const exit: (code: number) => void = process.exit.bind(process);
+  exit(code);
   throw new TerminalExit(code);
 }

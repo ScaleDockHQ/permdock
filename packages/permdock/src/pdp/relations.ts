@@ -188,8 +188,8 @@ export function openfga(options: OpenFgaOptions): DecisionProvider {
         if (body === undefined) {
           return 'unavailable';
         }
-        return isRecord(body) && typeof body.allowed === 'boolean'
-          ? body.allowed
+        return isRecord(body) && typeof body['allowed'] === 'boolean'
+          ? body['allowed']
           : 'invalid';
       },
       async list(
@@ -204,12 +204,12 @@ export function openfga(options: OpenFgaOptions): DecisionProvider {
             user: tuple.user,
           }),
         );
-        if (!isRecord(body) || !Array.isArray(body.objects)) {
+        if (!isRecord(body) || !Array.isArray(body['objects'])) {
           return null;
         }
         const prefix = `${tuple.type}:`;
         const ids: string[] = [];
-        for (const object of body.objects) {
+        for (const object of body['objects']) {
           if (typeof object !== 'string' || !object.startsWith(prefix)) {
             return null;
           }
@@ -267,7 +267,7 @@ export function spicedb(options: SpiceDbOptions): DecisionProvider {
         if (!isRecord(body)) {
           return 'invalid';
         }
-        switch (body.permissionship) {
+        switch (body['permissionship']) {
           case 'PERMISSIONSHIP_HAS_PERMISSION':
             return true;
           case 'PERMISSIONSHIP_NO_PERMISSION':
@@ -310,17 +310,17 @@ export function spicedb(options: SpiceDbOptions): DecisionProvider {
           } catch {
             return null;
           }
-          const result = isRecord(parsed) ? parsed.result : undefined;
+          const result = isRecord(parsed) ? parsed['result'] : undefined;
           if (
             !isRecord(result) ||
-            typeof result.resourceObjectId !== 'string'
+            typeof result['resourceObjectId'] !== 'string'
           ) {
             return null;
           }
           if (
-            result.permissionship === 'LOOKUP_PERMISSIONSHIP_HAS_PERMISSION'
+            result['permissionship'] === 'LOOKUP_PERMISSIONSHIP_HAS_PERMISSION'
           ) {
-            ids.push(result.resourceObjectId);
+            ids.push(result['resourceObjectId']);
           }
         }
         return Object.freeze(ids);

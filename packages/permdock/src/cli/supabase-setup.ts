@@ -156,7 +156,7 @@ export function droppedMemberships(
       continue;
     }
     const claim: unknown = Object.hasOwn(sample, 'memberships')
-      ? (sample as Readonly<Record<string, unknown>>).memberships
+      ? (sample as Readonly<Record<string, unknown>>)['memberships']
       : undefined;
     const { dropped } = readMemberships(claim);
     if (dropped.length > 0) {

@@ -108,8 +108,8 @@ export function testAuthZen(
       );
       expect(response.status).toBe(200);
       const document = (await response.json()) as Record<string, unknown>;
-      expect(document.policy_decision_point).toBe(origin);
-      expect(document.access_evaluation_endpoint).toBe(
+      expect(document['policy_decision_point']).toBe(origin);
+      expect(document['access_evaluation_endpoint']).toBe(
         `${origin}/access/v1/evaluation`,
       );
       for (const [name, value] of Object.entries(document)) {

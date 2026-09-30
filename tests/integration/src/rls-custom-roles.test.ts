@@ -328,8 +328,8 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
   });
 
   it('emits the tables in database mode, the ceiling view in both', () => {
-    const database = generated.custom_database ?? '';
-    const jwt = generated.custom_jwt ?? '';
+    const database = generated['custom_database'] ?? '';
+    const jwt = generated['custom_jwt'] ?? '';
     expect(database).toContain(
       'create table if not exists "public".custom_role_permissions',
     );
@@ -426,21 +426,21 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
         fixtures: [
           {
             name: 'plus updates another task',
-            subject: SUBJECTS.plus!,
+            subject: SUBJECTS['plus']!,
             permission: permissions.task.update,
             row: ROWS.task[1],
             table: 'task',
           },
           {
             name: 'plus cannot read projects',
-            subject: SUBJECTS.plus!,
+            subject: SUBJECTS['plus']!,
             permission: permissions.project.read,
             row: ROWS.project[0],
             table: 'project',
           },
           {
             name: 'reviewer reads its team board',
-            subject: SUBJECTS.reviewer!,
+            subject: SUBJECTS['reviewer']!,
             permission: permissions.board.read,
             row: ROWS.board[0],
             table: 'board',

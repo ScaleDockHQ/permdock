@@ -7,6 +7,6 @@ serve({
     request.method === 'GET' && new URL(request.url).pathname === '/health'
       ? Response.json({ ok: true })
       : handler(request),
-  port: Number(process.env.PORT ?? 3470),
+  port: Number(process.env['PORT'] ?? 3470),
   hostname: '127.0.0.1',
 });

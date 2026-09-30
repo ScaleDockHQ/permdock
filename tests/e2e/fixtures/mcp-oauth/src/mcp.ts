@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { RESOURCE } from './config.ts';
 
 function tenantOf(authInfo: McpAuthInfo): string | undefined {
-  const tenant = authInfo.extra?.tenant;
+  const tenant = authInfo.extra?.['tenant'];
   return typeof tenant === 'string' && tenant !== '' ? tenant : undefined;
 }
 

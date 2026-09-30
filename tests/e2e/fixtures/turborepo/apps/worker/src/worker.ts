@@ -5,8 +5,8 @@ import { permissions as p } from '@permdock/e2e-turbo-permissions/dist';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { createPermDock, memoryRoleSource } from 'permdock';
 
-const API = process.env.API_ORIGIN ?? 'http://127.0.0.1:3509';
-const WORKER_TOKEN = process.env.WORKER_TOKEN ?? '';
+const API = process.env['API_ORIGIN'] ?? 'http://127.0.0.1:3509';
+const WORKER_TOKEN = process.env['WORKER_TOKEN'] ?? '';
 const POLL_MS = 100;
 
 // Decisions below use leaves from the built copy against the source policy.

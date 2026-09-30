@@ -278,7 +278,7 @@ export async function verifyTree(input: {
         `select ${quoteIdent(node.id)}::text as id from ${tableSql(tables?.[node.name] ?? node.name)} where ${quoteIdent(node.id)}::text = any($1::text[])`,
         [ids],
       );
-      const seen = new Set(visible.rows.map((row) => String(row.id)));
+      const seen = new Set(visible.rows.map((row) => String(row['id'])));
       for (const row of list) {
         checked += 1;
         const id = String(row[node.id]);

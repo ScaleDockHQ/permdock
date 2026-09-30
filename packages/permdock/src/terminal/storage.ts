@@ -32,10 +32,10 @@ export function credentialsPath(
   const env = runtime.env ?? process.env;
   const platform = runtime.platform ?? process.platform;
   if (platform === 'win32') {
-    const appData = env.APPDATA ?? path.join(home(), 'AppData', 'Roaming');
+    const appData = env['APPDATA'] ?? path.join(home(), 'AppData', 'Roaming');
     return path.join(appData, service, 'credentials.json');
   }
-  const xdg = env.XDG_CONFIG_HOME ?? path.join(home(), '.config');
+  const xdg = env['XDG_CONFIG_HOME'] ?? path.join(home(), '.config');
   return path.join(xdg, service, 'credentials.json');
 }
 
@@ -44,17 +44,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseCredential(value: unknown): StoredCredential | null {
-  if (!isRecord(value) || typeof value.access_token !== 'string') {
+  if (!isRecord(value) || typeof value['access_token'] !== 'string') {
     return null;
   }
   return compact<StoredCredential>({
-    access_token: value.access_token,
+    access_token: value['access_token'],
     refresh_token:
-      typeof value.refresh_token === 'string' ? value.refresh_token : undefined,
+      typeof value['refresh_token'] === 'string'
+        ? value['refresh_token']
+        : undefined,
     expires_at:
-      typeof value.expires_at === 'number' ? value.expires_at : undefined,
+      typeof value['expires_at'] === 'number' ? value['expires_at'] : undefined,
     token_type:
-      typeof value.token_type === 'string' ? value.token_type : undefined,
+      typeof value['token_type'] === 'string' ? value['token_type'] : undefined,
   });
 }
 
@@ -117,10 +119,10 @@ function readFile(
   }
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!isRecord(parsed) || !isRecord(parsed.profiles)) {
+    if (!isRecord(parsed) || !isRecord(parsed['profiles'])) {
       return null;
     }
-    return parseCredential(parsed.profiles[profile]);
+    return parseCredential(parsed['profiles'][profile]);
   } catch {
     return null;
   }
@@ -157,8 +159,8 @@ function writeFile(
   let profiles: Record<string, StoredCredential> = {};
   try {
     const existing: unknown = JSON.parse(readFileSync(file, 'utf8'));
-    if (isRecord(existing) && isRecord(existing.profiles)) {
-      profiles = existing.profiles as Record<string, StoredCredential>;
+    if (isRecord(existing) && isRecord(existing['profiles'])) {
+      profiles = existing['profiles'] as Record<string, StoredCredential>;
     }
   } catch {
     profiles = {};
@@ -198,13 +200,13 @@ function deleteFile(
   } catch {
     return;
   }
-  if (!isRecord(parsed) || !isRecord(parsed.profiles)) {
+  if (!isRecord(parsed) || !isRecord(parsed['profiles'])) {
     return;
   }
   const profiles: Record<string, unknown> = {};
-  for (const key of Object.keys(parsed.profiles)) {
+  for (const key of Object.keys(parsed['profiles'])) {
     if (key !== profile) {
-      profiles[key] = parsed.profiles[key];
+      profiles[key] = parsed['profiles'][key];
     }
   }
   if (Object.keys(profiles).length === 0) {

@@ -22,7 +22,7 @@ export type ServeOptions = {
  */
 export function serve(options: ServeOptions): void {
   const base: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production' };
-  if (options.build !== undefined && process.env.SKIP_BUILD !== '1') {
+  if (options.build !== undefined && process.env['SKIP_BUILD'] !== '1') {
     const build = spawnSync(options.build.command, options.build.args, {
       cwd: options.cwd,
       env: { ...base, ...options.build.env },

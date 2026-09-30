@@ -211,7 +211,7 @@ export function Artifact({ step }: { step: AgentStep }) {
         setCopied(true)
         if (timer.current) window.clearTimeout(timer.current)
         // Frozen demo guard: ?demo=frozen pins the demo, so the label holds.
-        if (document.documentElement.dataset.demo === "frozen") return
+        if (document.documentElement.dataset['demo'] === "frozen") return
         timer.current = window.setTimeout(() => setCopied(false), 1400)
       })
       .catch(() => toast.error("Copy failed"))

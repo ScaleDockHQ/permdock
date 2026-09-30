@@ -255,53 +255,53 @@ function strings(value: unknown): readonly string[] {
 }
 
 function membershipOf(row: Record<string, unknown>): Membership | undefined {
-  const roles = strings(row.roles);
-  if (typeof row.scope !== 'string' || typeof row.id !== 'string') {
+  const roles = strings(row['roles']);
+  if (typeof row['scope'] !== 'string' || typeof row['id'] !== 'string') {
     return undefined;
   }
   if (roles.length === 0) {
     return undefined;
   }
   const within =
-    row.within !== null &&
-    typeof row.within === 'object' &&
-    !Array.isArray(row.within)
+    row['within'] !== null &&
+    typeof row['within'] === 'object' &&
+    !Array.isArray(row['within'])
       ? Object.fromEntries(
-          Object.entries(row.within as Record<string, unknown>).filter(
+          Object.entries(row['within'] as Record<string, unknown>).filter(
             (entry): entry is [string, string] => typeof entry[1] === 'string',
           ),
         )
       : undefined;
   const expires =
-    typeof row.expires_at === 'number'
-      ? row.expires_at
-      : typeof row.expires_at === 'string' && row.expires_at !== ''
-        ? Number(row.expires_at)
+    typeof row['expires_at'] === 'number'
+      ? row['expires_at']
+      : typeof row['expires_at'] === 'string' && row['expires_at'] !== ''
+        ? Number(row['expires_at'])
         : undefined;
-  const seats = strings(row.seats);
+  const seats = strings(row['seats']);
   return compact<Membership>({
-    scope: row.scope,
-    id: row.id,
+    scope: row['scope'],
+    id: row['id'],
     within:
       within === undefined || Object.keys(within).length === 0
         ? undefined
         : within,
     roles: [...roles].toSorted(),
-    via: typeof row.via === 'string' ? row.via : undefined,
+    via: typeof row['via'] === 'string' ? row['via'] : undefined,
     expiresAt: Number.isFinite(expires) ? expires : undefined,
     grantedBy:
-      typeof row.granted_by === 'string' && row.granted_by !== ''
-        ? row.granted_by
+      typeof row['granted_by'] === 'string' && row['granted_by'] !== ''
+        ? row['granted_by']
         : undefined,
     reason:
-      typeof row.reason === 'string' && row.reason !== ''
-        ? row.reason
+      typeof row['reason'] === 'string' && row['reason'] !== ''
+        ? row['reason']
         : undefined,
     member:
-      typeof row.member_group === 'string' && row.member_group !== ''
-        ? { group: row.member_group }
+      typeof row['member_group'] === 'string' && row['member_group'] !== ''
+        ? { group: row['member_group'] }
         : undefined,
-    managedBy: row.managed_by === 'idp' ? 'idp' : undefined,
+    managedBy: row['managed_by'] === 'idp' ? 'idp' : undefined,
     entitlements: seats.length === 0 ? undefined : seats,
   });
 }
@@ -334,9 +334,9 @@ function sourceOf(
       const rows = await run(sql.list(), [scope.scope, scope.id]);
       return rows.flatMap((row): MemberEntry[] => {
         const membership = membershipOf(row);
-        return membership === undefined || typeof row.user_id !== 'string'
+        return membership === undefined || typeof row['user_id'] !== 'string'
           ? []
-          : [{ principal: { id: row.user_id }, membership }];
+          : [{ principal: { id: row['user_id'] }, membership }];
       });
     },
   };
@@ -529,7 +529,7 @@ export function authzVersion(options: {
         principal.id,
       ]),
     );
-    const value = rows[0]?.version;
+    const value = rows[0]?.['version'];
     const version =
       typeof value === 'number'
         ? value

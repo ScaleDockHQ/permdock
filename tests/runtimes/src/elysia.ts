@@ -6,14 +6,14 @@ import { customRoles, projectOf, subjectOf } from './app.ts';
 
 const { permdock, protect } = createPermDock(saasPolicy, {
   subject: (ctx) =>
-    subjectOf(ctx.request.headers.get('authorization'), ctx.params?.org),
-  tenant: (ctx) => ctx.params?.org,
+    subjectOf(ctx.request.headers.get('authorization'), ctx.params?.['org']),
+  tenant: (ctx) => ctx.params?.['org'],
   customRoles,
 });
 
 const row = (ctx: {
   readonly params?: Readonly<Record<string, string | undefined>>;
-}) => projectOf(ctx.params?.id);
+}) => projectOf(ctx.params?.['id']);
 
 export const elysia = new Elysia({ prefix: '/elysia' })
   .use(permdock())

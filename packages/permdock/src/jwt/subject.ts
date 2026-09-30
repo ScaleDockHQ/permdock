@@ -43,7 +43,7 @@ function tokenInQuery(request: Request | undefined): boolean {
 }
 
 function mtlsThumbprint(claims: JwtClaims): string | undefined {
-  const cnf = claims.cnf;
+  const cnf = claims['cnf'];
   if (cnf === null || typeof cnf !== 'object' || Array.isArray(cnf)) {
     return undefined;
   }
@@ -152,7 +152,7 @@ async function resolveSubject(
   }
   const sender =
     options.sender ?? (options.profile === 'fapi2' ? 'dpop' : 'none');
-  const cnf = verified.claims.cnf;
+  const cnf = verified.claims['cnf'];
   const hasCnf = cnf !== null && typeof cnf === 'object';
   if (options.profile === 'fapi2' && !hasCnf) {
     emitAuth(options, 'sender-constraint-required', token);

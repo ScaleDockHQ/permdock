@@ -18,7 +18,7 @@ testHttpAdapter({
             ctx.request.headers.get('authorization') ?? undefined,
             new URL(ctx.request.url).pathname,
           ),
-        tenant: (ctx) => ctx.params?.org,
+        tenant: (ctx) => ctx.params?.['org'],
         customRoles: domain.customRoles,
         store: domain.store,
         limits: domain.limits,
@@ -26,7 +26,7 @@ testHttpAdapter({
     );
     const row = (ctx: {
       readonly params?: Readonly<Record<string, string | undefined>>;
-    }) => domain.project(ctx.params?.id);
+    }) => domain.project(ctx.params?.['id']);
 
     const admin = new Elysia({ prefix: '/:org/admin' })
       .use(permdock())

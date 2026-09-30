@@ -117,10 +117,11 @@ export const verifier = {
     const { claims } = verified;
     return {
       token,
-      clientId: typeof claims.client_id === 'string' ? claims.client_id : '',
+      clientId:
+        typeof claims['client_id'] === 'string' ? claims['client_id'] : '',
       scopes:
-        typeof claims.scope === 'string'
-          ? claims.scope.split(' ').filter(Boolean)
+        typeof claims['scope'] === 'string'
+          ? claims['scope'].split(' ').filter(Boolean)
           : [],
       ...(typeof claims.exp === 'number' ? { expiresAt: claims.exp } : {}),
       resource: new URL(RESOURCE),

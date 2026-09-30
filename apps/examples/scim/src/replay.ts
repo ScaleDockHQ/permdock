@@ -41,13 +41,13 @@ export async function replayProvision(): Promise<{
     body: JSON.stringify({
       schemas: [GROUP_SCHEMA, ROLES_EXTENSION],
       displayName: 'Editors',
-      members: [{ value: user.id }],
+      members: [{ value: user['id'] }],
       [ROLES_EXTENSION]: { roles: ['editor'] },
     }),
   });
   const granted = await permdockFor('u_ada');
   const afterGroup = granted.can(permissions.post.read, samplePost);
-  await scim(`/Users/${String(user.id)}`, {
+  await scim(`/Users/${String(user['id'])}`, {
     method: 'PATCH',
     body: JSON.stringify({
       schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],

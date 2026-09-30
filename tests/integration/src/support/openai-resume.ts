@@ -8,8 +8,8 @@ import { drizzleApprovalStore } from '../../fixtures/approval-store/drizzle.ts';
 import { projectLoader } from './agents.ts';
 import { buildAgent, executed } from './openai-agent.ts';
 
-const uri = process.env.PG_URI;
-const user = process.env.AGENT_USER;
+const uri = process.env['PG_URI'];
+const user = process.env['AGENT_USER'];
 if (uri === undefined || user === undefined) {
   throw new Error('PG_URI and AGENT_USER are required');
 }

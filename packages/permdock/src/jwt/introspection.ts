@@ -30,44 +30,45 @@ function keyToCnf(key: unknown): JwtClaims['cnf'] {
   if (!isRecord(key)) {
     return undefined;
   }
-  if (isRecord(key.jwk)) {
-    return { jwk: key.jwk };
+  if (isRecord(key['jwk'])) {
+    return { jwk: key['jwk'] };
   }
   return { jwk: key };
 }
 
 function introspectionToClaims(body: Record<string, unknown>): JwtClaims {
-  const cnf = keyToCnf(body.key);
+  const cnf = keyToCnf(body['key']);
   return compact<JwtClaims>({
-    sub: typeof body.sub === 'string' ? body.sub : undefined,
-    iss: typeof body.iss === 'string' ? body.iss : undefined,
-    aud: body.aud as JwtClaims['aud'],
-    exp: typeof body.exp === 'number' ? body.exp : undefined,
-    iat: typeof body.iat === 'number' ? body.iat : undefined,
-    nbf: typeof body.nbf === 'number' ? body.nbf : undefined,
-    jti: typeof body.jti === 'string' ? body.jti : undefined,
-    scope: typeof body.scope === 'string' ? body.scope : undefined,
-    authorization_details: body.authorization_details,
-    access: body.access,
-    client_id: typeof body.client_id === 'string' ? body.client_id : undefined,
-    roles: body.roles,
-    groups: body.groups,
-    entitlements: body.entitlements,
-    sid: typeof body.sid === 'string' ? body.sid : undefined,
-    acr: typeof body.acr === 'string' ? body.acr : undefined,
-    amr: body.amr,
-    auth_time: body.auth_time,
-    act: body.act,
+    sub: typeof body['sub'] === 'string' ? body['sub'] : undefined,
+    iss: typeof body['iss'] === 'string' ? body['iss'] : undefined,
+    aud: body['aud'] as JwtClaims['aud'],
+    exp: typeof body['exp'] === 'number' ? body['exp'] : undefined,
+    iat: typeof body['iat'] === 'number' ? body['iat'] : undefined,
+    nbf: typeof body['nbf'] === 'number' ? body['nbf'] : undefined,
+    jti: typeof body['jti'] === 'string' ? body['jti'] : undefined,
+    scope: typeof body['scope'] === 'string' ? body['scope'] : undefined,
+    authorization_details: body['authorization_details'],
+    access: body['access'],
+    client_id:
+      typeof body['client_id'] === 'string' ? body['client_id'] : undefined,
+    roles: body['roles'],
+    groups: body['groups'],
+    entitlements: body['entitlements'],
+    sid: typeof body['sid'] === 'string' ? body['sid'] : undefined,
+    acr: typeof body['acr'] === 'string' ? body['acr'] : undefined,
+    amr: body['amr'],
+    auth_time: body['auth_time'],
+    act: body['act'],
     cnf,
   });
 }
 
 function instanceActor(body: Record<string, unknown>): Actor | undefined {
   const id =
-    typeof body.instance_id === 'string'
-      ? body.instance_id
-      : typeof body.client_id === 'string'
-        ? body.client_id
+    typeof body['instance_id'] === 'string'
+      ? body['instance_id']
+      : typeof body['client_id'] === 'string'
+        ? body['client_id']
         : undefined;
   if (id === undefined) {
     return undefined;
@@ -103,7 +104,7 @@ export function subjectFromIntrospection(
   options: JwtSubjectOptions = {},
 ): MappedSubject {
   try {
-    if (!isRecord(response) || response.active !== true) {
+    if (!isRecord(response) || response['active'] !== true) {
       return anonymousSubject();
     }
     const mapped = mapClaimsToSubject(introspectionToClaims(response), options);

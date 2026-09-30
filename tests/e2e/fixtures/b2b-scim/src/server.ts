@@ -123,8 +123,8 @@ function receiver() {
     replay: memoryReplayStore(),
     revocations,
     subject: (setSubject) =>
-      setSubject.format === 'iss_sub' && setSubject.iss === IDP
-        ? String(setSubject.sub)
+      setSubject.format === 'iss_sub' && setSubject['iss'] === IDP
+        ? String(setSubject['sub'])
         : null,
     onEvent: {
       'session-revoked': ({ subject, event_timestamp }) => {

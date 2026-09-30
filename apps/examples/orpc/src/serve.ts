@@ -5,7 +5,7 @@ import { sendResponse, toRequest } from 'permdock/node';
 import { router } from './app.ts';
 import { memberUser } from './policy.ts';
 
-const port = Number(process.env.PORT ?? 3462);
+const port = Number(process.env['PORT'] ?? 3462);
 const handler = new RPCHandler(router);
 
 function isHealth(req: {

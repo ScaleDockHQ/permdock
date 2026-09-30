@@ -34,7 +34,7 @@ function Row(props: { readonly project: SaasProject }) {
 }
 
 export default function Projects(props: RouteSectionProps) {
-  const data = createAsync(() => getProjects(props.params.org ?? ''));
+  const data = createAsync(() => getProjects(props.params['org'] ?? ''));
   return (
     <>
       <h1>Projects</h1>

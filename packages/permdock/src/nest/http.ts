@@ -31,9 +31,9 @@ function isFastifyReply(value: unknown): value is FastifyReplyLike {
   }
   const reply = value as Record<string, unknown>;
   return (
-    typeof reply.code === 'function' &&
-    typeof reply.header === 'function' &&
-    typeof reply.send === 'function'
+    typeof reply['code'] === 'function' &&
+    typeof reply['header'] === 'function' &&
+    typeof reply['send'] === 'function'
   );
 }
 

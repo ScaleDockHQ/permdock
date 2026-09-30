@@ -309,8 +309,8 @@ export const seedSql = [
   insert('team', rows.team),
   insert('folder', rows.folder),
   insert('doc', rows.doc),
-  insert('team_members', tables.team_members ?? []),
-  insert('folder_members', tables.folder_members ?? [], 'expires_at'),
+  insert('team_members', tables['team_members'] ?? []),
+  insert('folder_members', tables['folder_members'] ?? [], 'expires_at'),
 ].join('\n');
 
 /** The closure as `permdock rls` keeps it: every folder reaches its ancestors, stopping after the first restricted one. */

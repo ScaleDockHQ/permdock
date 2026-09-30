@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const inCi = Boolean(process.env.CI);
+const inCi = Boolean(process.env['CI']);
 
 const httpExamples = [
   { name: 'hono', port: 3456 },

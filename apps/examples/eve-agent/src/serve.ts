@@ -7,7 +7,7 @@ import {
 import { approval, approve, callContext } from './agent.ts';
 import { ownPost } from './permissions.ts';
 
-const port = Number(process.env.PORT ?? 3474);
+const port = Number(process.env['PORT'] ?? 3474);
 const host = '127.0.0.1';
 
 function toRequest(req: IncomingMessage): Request {

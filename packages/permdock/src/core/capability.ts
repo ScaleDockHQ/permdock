@@ -170,11 +170,11 @@ function parseRedeemer(input: unknown): CapabilityRedeemer | undefined {
     return undefined;
   }
   const keys = Object.keys(value);
-  if (keys.length === 1 && isId(value.user)) {
-    return { user: value.user };
+  if (keys.length === 1 && isId(value['user'])) {
+    return { user: value['user'] };
   }
-  if (keys.length === 2 && isId(value.scope) && isId(value.id)) {
-    return { scope: value.scope, id: value.id };
+  if (keys.length === 2 && isId(value['scope']) && isId(value['id'])) {
+    return { scope: value['scope'], id: value['id'] };
   }
   return undefined;
 }
@@ -186,47 +186,51 @@ function parseRedeemer(input: unknown): CapabilityRedeemer | undefined {
  */
 export function parseCapability(input: unknown): Capability | undefined {
   const value = ownRecord(input);
-  if (value === undefined || value.v !== 1 || !isId(value.id)) {
+  if (value === undefined || value['v'] !== 1 || !isId(value['id'])) {
     return undefined;
   }
-  if (value.holder !== 'link' && value.holder !== 'key') {
+  if (value['holder'] !== 'link' && value['holder'] !== 'key') {
     return undefined;
   }
-  const on = ownRecord(value.on);
-  if (on === undefined || !isId(on.resource) || !isId(on.id)) {
+  const on = ownRecord(value['on']);
+  if (on === undefined || !isId(on['resource']) || !isId(on['id'])) {
     return undefined;
   }
-  const roles = idList(value.roles);
+  const roles = idList(value['roles']);
   if (roles === undefined) {
     return undefined;
   }
   const permissions =
-    value.permissions === undefined ? undefined : idList(value.permissions);
-  if (value.permissions !== undefined && permissions === undefined) {
+    value['permissions'] === undefined
+      ? undefined
+      : idList(value['permissions']);
+  if (value['permissions'] !== undefined && permissions === undefined) {
     return undefined;
   }
   const redeemer =
-    value.redeemer === undefined ? undefined : parseRedeemer(value.redeemer);
-  if (value.redeemer !== undefined && redeemer === undefined) {
+    value['redeemer'] === undefined
+      ? undefined
+      : parseRedeemer(value['redeemer']);
+  if (value['redeemer'] !== undefined && redeemer === undefined) {
     return undefined;
   }
-  if (value.once !== undefined && value.once !== true) {
+  if (value['once'] !== undefined && value['once'] !== true) {
     return undefined;
   }
-  const expiresAt = value.expiresAt;
+  const expiresAt = value['expiresAt'];
   if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) {
     return undefined;
   }
   return freezeDeep(
     compact<Capability>({
       v: 1,
-      id: value.id,
-      holder: value.holder,
-      on: { resource: on.resource, id: on.id },
+      id: value['id'],
+      holder: value['holder'],
+      on: { resource: on['resource'], id: on['id'] },
       roles,
       permissions,
       redeemer,
-      once: value.once,
+      once: value['once'],
       expiresAt,
     }),
   );

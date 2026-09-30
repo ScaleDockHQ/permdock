@@ -138,7 +138,7 @@ testHttpAdapter({
     function createClient(call: HttpCall) {
       const headers: Record<string, string> = {};
       if (call.authorization !== null) {
-        headers.authorization = call.authorization;
+        headers['authorization'] = call.authorization;
       }
       if (call.approval !== undefined) {
         headers['permdock-approval'] = call.approval;

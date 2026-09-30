@@ -72,40 +72,40 @@ function asString(value: unknown): string | undefined {
 }
 
 function parseWorkflows(arazzo: unknown): Workflow[] | undefined {
-  if (!isRecord(arazzo) || !Array.isArray(arazzo.workflows)) {
+  if (!isRecord(arazzo) || !Array.isArray(arazzo['workflows'])) {
     return undefined;
   }
-  const version = asString(arazzo.arazzo) ?? '1.1.0';
+  const version = asString(arazzo['arazzo']) ?? '1.1.0';
   if (!version.startsWith('1.0.') && version !== '1.1.0') {
     return undefined;
   }
   const out: Workflow[] = [];
-  for (const item of arazzo.workflows) {
+  for (const item of arazzo['workflows']) {
     if (!isRecord(item)) {
       continue;
     }
-    const workflowId = asString(item.workflowId);
+    const workflowId = asString(item['workflowId']);
     if (workflowId === undefined) {
       continue;
     }
     const steps: WorkflowStep[] = [];
-    if (Array.isArray(item.steps)) {
-      for (const step of item.steps) {
+    if (Array.isArray(item['steps'])) {
+      for (const step of item['steps']) {
         if (!isRecord(step)) {
           continue;
         }
-        const stepId = asString(step.stepId);
+        const stepId = asString(step['stepId']);
         if (stepId === undefined) {
           continue;
         }
         steps.push(
           compact<WorkflowStep>({
             stepId,
-            operationId: asString(step.operationId),
-            operationPath: asString(step.operationPath),
-            workflowId: asString(step.workflowId),
-            parameters: Array.isArray(step.parameters)
-              ? (step.parameters as WorkflowStep['parameters'])
+            operationId: asString(step['operationId']),
+            operationPath: asString(step['operationPath']),
+            workflowId: asString(step['workflowId']),
+            parameters: Array.isArray(step['parameters'])
+              ? (step['parameters'] as WorkflowStep['parameters'])
               : undefined,
           }),
         );
@@ -141,10 +141,10 @@ function operationsById(
     string,
     { readonly operationId: string; readonly node: unknown }
   >();
-  if (!isRecord(openapi) || !isRecord(openapi.paths)) {
+  if (!isRecord(openapi) || !isRecord(openapi['paths'])) {
     return map;
   }
-  for (const pathItem of Object.values(openapi.paths)) {
+  for (const pathItem of Object.values(openapi['paths'])) {
     if (!isRecord(pathItem)) {
       continue;
     }
@@ -152,7 +152,7 @@ function operationsById(
       if (method.startsWith('x-') || !isRecord(operation)) {
         continue;
       }
-      const operationId = asString(operation.operationId);
+      const operationId = asString(operation['operationId']);
       if (operationId !== undefined) {
         map.set(operationId, { operationId, node: operation });
       }
@@ -257,15 +257,15 @@ function sourceType(
   arazzo: unknown,
   sourceName: string | undefined,
 ): string | undefined {
-  if (!isRecord(arazzo) || !Array.isArray(arazzo.sourceDescriptions)) {
+  if (!isRecord(arazzo) || !Array.isArray(arazzo['sourceDescriptions'])) {
     return undefined;
   }
-  for (const source of arazzo.sourceDescriptions) {
+  for (const source of arazzo['sourceDescriptions']) {
     if (!isRecord(source)) {
       continue;
     }
-    if (sourceName === undefined || source.name === sourceName) {
-      return asString(source.type);
+    if (sourceName === undefined || source['name'] === sourceName) {
+      return asString(source['type']);
     }
   }
   return undefined;
@@ -330,7 +330,7 @@ export function arazzoFindings(
     if (step.operationPath !== undefined) {
       node = readPointer(doc, pointerOf(step.operationPath) ?? '');
       if (isRecord(node)) {
-        operationId = asString(node.operationId) ?? operationId;
+        operationId = asString(node['operationId']) ?? operationId;
       }
     } else if (operationId !== undefined) {
       node = byId.get(operationId)?.node;
@@ -457,7 +457,7 @@ export function simulateArazzo(
     if (step.operationPath !== undefined) {
       node = readPointer(doc, pointerOf(step.operationPath) ?? '');
       if (isRecord(node)) {
-        operationId = asString(node.operationId) ?? operationId;
+        operationId = asString(node['operationId']) ?? operationId;
       }
     } else if (operationId !== undefined) {
       node = byId.get(operationId)?.node;

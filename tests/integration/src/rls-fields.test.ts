@@ -201,14 +201,14 @@ function verifyFixtures(): readonly unknown[] {
   return [
     ...reads,
     {
-      subject: SUBJECTS.admin,
+      subject: SUBJECTS['admin'],
       row: ROWS[1],
       newRow: { ...ROWS[1], title: 'Renamed' },
       action: 'invoice.update',
       expected: 'granted',
     },
     {
-      subject: SUBJECTS.finance,
+      subject: SUBJECTS['finance'],
       row: ROWS[1],
       newRow: { ...ROWS[1], title: 'Renamed' },
       action: 'invoice.update',
@@ -437,7 +437,7 @@ describe('rls generate --fields views (supabase, neon, guc)', () => {
         s.query('select * from invoice_visible order by id'),
       );
       expect(rows.code).toBeUndefined();
-      expect(rows.rows.map((row) => row.id)).toEqual(['i-public']);
+      expect(rows.rows.map((row) => row['id'])).toEqual(['i-public']);
       expect(valued(rows.rows[0])).toEqual(['id', 'title']);
     },
   );
@@ -460,7 +460,9 @@ describe('rls generate --fields views (supabase, neon, guc)', () => {
         s.query(`select * from invoice_visible order by id`),
       );
       expect(open.rows).toEqual([{ id: 'i-other', title: 'Other' }]);
-      expect(all.rows.map((row) => [row.id, row.amount, row.note])).toEqual([
+      expect(
+        all.rows.map((row) => [row['id'], row['amount'], row['note']]),
+      ).toEqual([
         ['i-other', 200, null],
         ['i-own', 100, null],
         ['i-public', null, null],

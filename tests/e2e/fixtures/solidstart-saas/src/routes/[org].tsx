@@ -18,8 +18,8 @@ declare global {
 
 export const route = {
   preload: ({ params }) => {
-    void getOrgView(params.org ?? '');
-    void getSnapshot(params.org ?? '');
+    void getOrgView(params['org'] ?? '');
+    void getSnapshot(params['org'] ?? '');
   },
 } satisfies RouteDefinition;
 
@@ -100,8 +100,8 @@ function OrgHeader() {
 }
 
 export default function OrgLayout(props: RouteSectionProps) {
-  const org = createAsync(() => getOrgView(props.params.org ?? ''));
-  const snapshot = createAsync(() => getSnapshot(props.params.org ?? ''));
+  const org = createAsync(() => getOrgView(props.params['org'] ?? ''));
+  const snapshot = createAsync(() => getSnapshot(props.params['org'] ?? ''));
   // The provider mounts once the snapshot has resolved inside the boundary, so
   // streaming SSR serialises it and hydration builds the store from it.
   return (
@@ -129,7 +129,7 @@ export default function OrgLayout(props: RouteSectionProps) {
               )}
             </Show>
             <RefreshSignal
-              org={props.params.org ?? ''}
+              org={props.params['org'] ?? ''}
               issuedAt={current().issuedAt}
             />
             <main>{props.children}</main>
