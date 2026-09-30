@@ -981,4 +981,57 @@ export const policy = definePolicy(permissions, {
     const result = await run(['doctor', '--json', '--only', 'PD035'], { cwd });
     expect(codes(result.stdout)).toContain('PD035');
   });
+
+  it('PD037 errors on a storage or realtime policy calling the helpers with a row-conditioned key', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/storage-policy.ts'),
+      `import { allow, definePolicy, principal, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  scopes: { tenant: { key: 'orgId' } },
+  roles: [
+    role('member', [
+      allow(permissions.post.list),
+      allow(permissions.post.update, { where: { authorId: principal.id } }),
+    ], { on: 'tenant' }),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/storage-policy.ts',
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    mkdirSync(join(cwd, 'supabase/migrations'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'supabase/migrations/0001_buckets.sql'),
+      `create policy "posts list" on storage.objects for select to authenticated
+  using ((storage.foldername(name))[1] in (select t.id::text from public.permitted_tenant_ids('post.list') as t(id)));
+-- create policy "commented" on storage.objects using ((select public.permdock_has('post.update')));
+create policy "posts update" on "storage"."objects" for update to authenticated
+  using ((storage.foldername(name))[1] in (select t.id::text from public.permitted_tenant_ids('post.update#1') as t(id)));
+create policy "own table" on public.post for update using ((select public.permdock_has('post.update')));
+`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'PD037'], { cwd });
+    const report = JSON.parse(result.stdout) as {
+      readonly findings: readonly {
+        readonly code: string;
+        readonly message: string;
+      }[];
+    };
+    expect(result.code).toBe(1);
+    expect(report.findings).toHaveLength(1);
+    expect(report.findings[0]?.code).toBe('PD037');
+    expect(report.findings[0]?.message).toContain("'posts update'");
+    expect(report.findings[0]?.message).toContain('post.update');
+  });
 });

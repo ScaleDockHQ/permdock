@@ -215,6 +215,12 @@ export type CatalogPermission = {
   readonly usages: readonly CatalogUsage[];
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
+  /**
+   * Present when the catalog was built with the policy: `true` when a code
+   * grant for the key has a condition beyond role and scope, so the SQL
+   * helpers alone cannot enforce it.
+   */
+  readonly rowConditions?: boolean;
   /** The approvals code allows on this permission require; a hosted grant must meet each. */
   readonly approvals?: readonly CatalogApproval[];
   /** Present when a `breakGlass` override targets this permission. */

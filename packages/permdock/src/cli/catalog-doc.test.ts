@@ -7,6 +7,7 @@ import {
   catalogFingerprint,
   definePermissions,
   definePolicy,
+  plan,
   resource,
   role,
 } from '../index.ts';
@@ -63,5 +64,40 @@ describe('catalog resource versions', () => {
     ]);
     expect(approvals('invoice.void')).toEqual(['human']);
     expect(catalogFingerprint(catalog)).toBe(catalog.fingerprint);
+  });
+});
+
+describe('catalog rowConditions', () => {
+  const rows = definePermissions({
+    doc: resource({ actions: ['read', 'update', 'share'] }),
+  });
+  const conditioned = definePolicy(rows, {
+    roles: [
+      role('member', [
+        allow(rows.doc.read),
+        allow(rows.doc.update, { where: { locked: false } }),
+      ]),
+      role('lead', [allow(rows.doc.share, { to: plan('pro') })]),
+    ],
+    subject: () => null,
+  });
+
+  it('marks keys whose grants the SQL helpers cannot enforce', () => {
+    const catalog = buildCatalog(
+      rows,
+      scan,
+      '2026-09-29T00:00:00Z',
+      conditioned,
+    );
+    const flag = (key: string): unknown =>
+      catalog.permissions.find((item) => item.key === key)?.rowConditions;
+    expect(flag('doc.read')).toBe(false);
+    expect(flag('doc.update')).toBe(true);
+    expect(flag('doc.share')).toBe(true);
+  });
+
+  it('omits the flag without a policy', () => {
+    const catalog = buildCatalog(rows, scan, '2026-09-29T00:00:00Z');
+    expect(catalog.permissions[0]).not.toHaveProperty('rowConditions');
   });
 });

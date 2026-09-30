@@ -55,6 +55,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD033` | A role `activation` has no `maxDuration` (the elevation never expires on its own), or an activation role is held standing by a `doctor.memberships` fixture | warning |
 | `PD034` | Under an `rls` config, a `breakGlass` grant would be compiled: RLS never compiles a break-glass override, so it reads through the generated `permdock_break_glass_<resource>` function instead | warning |
 | `PD035` | A `supportAccess` role has `actorRequired: false`, so a support session runs as the tenant, unattributed | warning |
+| `PD037` | A migration's policy on `storage.objects` or `realtime.messages` calls `permdock_has` or `permitted_<scope>_ids` with a permission whose grants carry row conditions, which the helpers do not check | error |
 
 ### PD001: server-only imports in client entries
 
@@ -220,6 +221,10 @@ A `breakGlass` grant is the one deny override, and it is non-portable on purpose
 ### PD035: support access without an actor
 
 `supportAccess` is impersonation: a vendor acts inside a tenant. With `actorRequired: false` the session runs as the tenant with no `act`, so the audit log cannot tell the vendor apart from the customer. The check names each support role that omits it; set `actorRequired: true` ([elevated access](/docs/concepts/elevated-access)). `--only support` runs PD035.
+
+### PD037: helper calls for row-conditioned permissions
+
+The SQL helpers answer one question, whether the subject holds a role with the grant key in a scope; the row conditions of a grant stay in PermDock's own table policies ([RLS](/docs/adapters/rls#calling-the-helpers-from-other-policies)). A Storage or Realtime policy written outside PermDock, such as better-supabase's `defineBucket` or `defineTopic` in `permdock` mode, that calls a helper for a permission with a `where`, `check`, closure, field list, purpose, break-glass override, or a relation, plan, actor or assurance grantee would therefore grant more than the application does. The check reads `create policy` statements on `storage.objects` and `realtime.messages` from the migration directories (`doctor.migrations`) and errors on each helper call whose key has `rowConditions: true` in the catalog. `permdock rls verify --db` runs the same check against `pg_policies`. `--only supabase` or `--only row-conditions` runs PD037.
 
 ## Why
 

@@ -1,5 +1,6 @@
 import type {
   ActionMeta,
+  Grant,
   PermissionTree,
   Policy,
   ResourceNode,
@@ -20,7 +21,46 @@ import {
 } from '../index.ts';
 import { CATALOG_SCHEMA, generatorBanner } from './version.ts';
 
-/** With `policy`, permissions carry `hostable` and roles carry `on`, `assignable` and their ownership rules. */
+const ROW_GRANTEES = new Set(['relation', 'plan', 'actor', 'assurance']);
+
+/**
+ * Whether a grant depends on more than the role and the scope: a row or body
+ * condition, a closure, a field list, a purpose, a break-glass override, or a
+ * relation, plan, actor or assurance grantee. The SQL helpers
+ * (`permdock_has`, `permitted_<scope>_ids`) check only role and scope, so a
+ * policy that calls them for such a permission would widen access.
+ */
+export function grantHasRowConditions(grant: Grant): boolean {
+  const grantees = Array.isArray(grant.to) ? grant.to : [grant.to];
+  return (
+    grant.where !== undefined ||
+    grant.check !== undefined ||
+    grant.closure !== undefined ||
+    !grant.portable ||
+    grant.fields !== undefined ||
+    grant.purpose !== undefined ||
+    grant.breakGlass !== undefined ||
+    grantees.some((grantee: { readonly kind: string }) =>
+      ROW_GRANTEES.has(grantee.kind),
+    )
+  );
+}
+
+/** Per permission key, whether any code grant for it has row conditions. */
+export function rowConditionKeys(policy: Policy): ReadonlySet<string> {
+  const keys = new Set<string>();
+  for (const grant of [
+    ...policy.grants,
+    ...policy.roles.flatMap((binding) => binding.grants),
+  ]) {
+    if (grant.hosted === undefined && grantHasRowConditions(grant)) {
+      keys.add(grant.permission.key);
+    }
+  }
+  return keys;
+}
+
+/** With `policy`, permissions carry `hostable` and `rowConditions`, and roles carry `on`, `assignable` and their ownership rules. */
 export function buildCatalog(
   tree: PermissionTree,
   scan: ScanResult,
@@ -28,6 +68,8 @@ export function buildCatalog(
   policy?: Policy,
 ): CatalogDocument {
   const hostable = new Set(policy?.hostable ?? []);
+  const rowConditions =
+    policy === undefined ? undefined : rowConditionKeys(policy);
   const resources: Record<string, CatalogDocument['resources'][string]> = {};
   const definedIn = scan.definitionFiles.permissions;
   for (const leaf of listPermissions(tree)) {
@@ -67,6 +109,7 @@ export function buildCatalog(
         meta: metaRecord(leaf.meta),
         usages: scan.usages[leaf.key] ?? [],
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
+        rowConditions: rowConditions?.has(leaf.key),
         approvals: approvals.get(leaf.key),
         breakGlass: breakGlass.get(leaf.key),
       }),
@@ -390,6 +433,7 @@ export function catalogSchemaDocument(): unknown {
           required: ['key', 'resource', 'action', 'arity', 'scope'],
           properties: {
             hostable: { const: true },
+            rowConditions: { type: 'boolean' },
             approvals: {
               type: 'array',
               items: {

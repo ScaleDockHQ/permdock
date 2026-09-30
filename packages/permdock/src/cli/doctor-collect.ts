@@ -21,8 +21,14 @@ import {
   separationConflicts,
   validateCustomRole,
 } from '../index.ts';
-import { jsonSchemaOf } from './catalog-doc.ts';
+import { jsonSchemaOf, rowConditionKeys } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
+import { MIGRATION_DIRS, sqlFiles } from './doctor-project.ts';
+import {
+  ROW_CONDITION_FIX,
+  helperTablePolicies,
+  rowConditionMessage,
+} from './helper-calls.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { commandFor, tableFor } from './rls-compile.ts';
 import { graphPlan } from './rls-graph.ts';
@@ -1032,6 +1038,43 @@ export async function pd035(input: {
         message: `support access role '${binding.name}' has actorRequired: false: a support session then runs as the tenant, unattributed`,
         fix: `set actorRequired: true on supportAccess({ role: '${binding.name}', ... })`,
       });
+    }
+  }
+  return findings;
+}
+
+/**
+ * Storage and Realtime policies written outside PermDock (better-supabase
+ * `permdock` mode) that call the SQL helpers for a permission whose grants
+ * carry row conditions: the helpers check only role and scope.
+ */
+export async function pd037(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  if (input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const conditioned = rowConditionKeys(policy);
+  const findings: DoctorFinding[] = [];
+  for (const file of sqlFiles(
+    input.cwd,
+    input.config.doctor?.migrations ?? MIGRATION_DIRS,
+  )) {
+    for (const found of helperTablePolicies(readFileSync(file, 'utf8'))) {
+      const keys = found.keys.filter((key) => conditioned.has(key));
+      if (keys.length > 0) {
+        findings.push({
+          code: 'PD037',
+          severity: 'error',
+          message: rowConditionMessage(found, keys),
+          fix: ROW_CONDITION_FIX,
+        });
+      }
     }
   }
   return findings;

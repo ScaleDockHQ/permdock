@@ -152,7 +152,7 @@ export function pd012(
   return findings;
 }
 
-const MIGRATION_DIRS = [
+export const MIGRATION_DIRS = [
   'supabase/migrations',
   'migrations',
   'drizzle',
@@ -176,7 +176,7 @@ const COMPANION = new RegExp(
   'giu',
 );
 
-function sqlFiles(cwd: string, entries: readonly string[]): string[] {
+export function sqlFiles(cwd: string, entries: readonly string[]): string[] {
   const files = new Set<string>();
   for (const entry of entries) {
     const pattern = /[*?[{]/u.test(entry) ? entry : `${entry}/**/*.sql`;
