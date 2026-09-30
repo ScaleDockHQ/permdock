@@ -426,6 +426,12 @@ export type AccessEvent = {
  */
 export type CredentialVerifier = {
   verify(secret: string): Credential | null | Promise<Credential | null>;
+  /**
+   * Records a successful use at `at` (Unix seconds), for a `lastUsedAt`
+   * column. Called after a key resolved and not awaited; a throw or a
+   * rejection is ignored, so it never changes the subject.
+   */
+  touch?(id: string, at: number): void | Promise<void>;
 };
 
 export type DecisionEvent = {

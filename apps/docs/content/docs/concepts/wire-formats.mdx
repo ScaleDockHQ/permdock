@@ -253,7 +253,7 @@ A `credential` event records an API key's lifecycle ([API keys](/docs/concepts/c
 
 ## Credential
 
-The record an API key stands for. The key itself (`pdk_<id>_<secret>`) is opaque; the application stores this record with the key's base64url SHA-256 hash and never the key.
+The record an API key stands for. The key itself (`pdk_<id>_<secret><checksum>`) is opaque; the application stores this record with the key's base64url SHA-256 hash and never the key.
 
 ```json
 {
