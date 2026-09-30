@@ -13,13 +13,14 @@ import type {
   A2ATaskOutcome,
 } from './types.ts';
 
-import { mayUse, storedApprovalToken } from '../agent/kernel.ts';
+import { storedApprovalToken } from '../agent/kernel.ts';
 import { resumeDecision } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from '../core/errors.ts';
+import { mayUse } from '../core/may-use.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
