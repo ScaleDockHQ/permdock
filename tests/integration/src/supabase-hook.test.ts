@@ -42,7 +42,8 @@ create role anon nologin;
 create role supabase_auth_admin nologin;
 grant authenticated, anon, supabase_auth_admin to tester;
 create schema auth;
-create table auth.users (id uuid primary key);
+create table auth.users (id uuid primary key, raw_app_meta_data jsonb not null default '{}');
+grant select on auth.users to supabase_auth_admin;
 create function auth.jwt() returns jsonb language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
 $$;
@@ -106,10 +107,19 @@ describe('Supabase token hook with named scopes (jwt mode)', () => {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }
     generated = readFileSync(out, 'utf8');
+    const hookOut = join(dir, 'hook.sql');
+    const hook = await run(['supabase', 'hook', 'generate', '--out', hookOut], {
+      cwd: FIXTURE,
+    });
+    if (hook.code !== 0) {
+      throw new Error(`hook generate: ${hook.stdout}${hook.stderr}`);
+    }
+    const hookSql = readFileSync(hookOut, 'utf8');
     rmSync(dir, { recursive: true, force: true });
     db = await startPostgres([
       SETUP,
       generated,
+      hookSql,
       `insert into public.user_roles values ('${SUSPENDED}', 'platform-support')`,
     ]);
   }, 120_000);

@@ -115,7 +115,7 @@ The tenant claim is cast to the tenant column's type wherever it meets a column 
 
 Only portable conditions compile: equality against the subject, `in` / `notIn` membership (emitted as `IN (select ...)`), literal columns, `and` / `or` / `not`, `memberOf`, and `sqlFunction`. A `sqlFunction` grant emits `name(args)` so the database keeps its helper; `--inline-functions` (or `rls.inlineFunctions`) compiles the twin instead. Generate reports those grants as portable via twin. A closure grant fails generation with the grant's location and the message that the grant must be rewritten as a portable condition or excluded with `--skip-closures`. Grants with `approval: 'human'` are skipped with a warning, because RLS has no approval step; the table stays closed for that permission.
 
-With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `app_role` / `app_permission` enums, `user_roles`, the custom access token hook and the `authorize('permission', tenant)` function over the shared `role_permissions`, so the named-permission catalog exists in the database too. In `jwt` mode the hook also writes the canonical `memberships` claim from every scope table in `rls.memberships`; with `rls.suspension` it leaves out suspended instances and gives a suspended user empty `user_role` and `memberships` claims ([Supabase provider](/docs/adapters/supabase)). Generated policies still call the helpers, never `authorize()` per row; `authorize()` is there for hand-written policies and RPCs, and it answers "does a role hold this permission" without row conditions or denies.
+With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `app_role` / `app_permission` enums, `user_roles` and the `authorize('permission', tenant)` function over the shared `role_permissions`, so the named-permission catalog exists in the database too. It emits no token hook: [`permdock supabase hook generate`](/docs/cli/supabase) writes the one `custom_access_token_hook`, reading the same `user_roles` table ([Supabase provider](/docs/adapters/supabase)). Generated policies still call the helpers, never `authorize()` per row; `authorize()` is there for hand-written policies and RPCs, and it answers "does a role hold this permission" without row conditions or denies.
 
 | Flag | Values | Default | Effect |
 |---|---|---|---|
@@ -133,7 +133,7 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 
 `--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` cannot express it, so they add a comment with the statement to put in a migration and print a warning. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
 
-With `--rbac`, the command prints the `config.toml` stanza that enables the hook.
+With `--rbac`, the command prints a reminder to run `permdock supabase hook generate` for the token hook.
 
 ### Ownership rules
 

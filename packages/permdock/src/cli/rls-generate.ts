@@ -24,7 +24,7 @@ import { closureDepths, graphPlan, graphSql } from './rls-graph.ts';
 import { helpersSql } from './rls-helpers.ts';
 import { ownershipRules, ownershipSql } from './rls-ownership.ts';
 import { assemblePolicies } from './rls-policies.ts';
-import { hookUri, type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
+import { type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
 import {
   checkSuspension,
   graphHelper,
@@ -236,7 +236,7 @@ export async function runRlsGenerate(input: {
   }
   if (input.rbac) {
     warnings.push(
-      `enable the hook: [auth.hook.custom_access_token] enabled = true, uri = "${hookUri(schema)}"`,
+      'the token hook that writes user_role and memberships comes from permdock supabase hook generate',
     );
   }
   const owned = ownershipSql(ctx);

@@ -203,7 +203,7 @@ Parity is checked end to end. `rls verify` (with `rls.fields: 'views'`) and `rls
 2. Assign grant keys (one per permission and condition group) and seed `role_permissions`; emit the helpers.
 3. Flatten allows and denies per (table, command, audience) into one permissive and one restrictive policy (`--policy-per-role` keeps one per role and permission).
 4. Compile each condition with the dialect; emit `pgPolicy(...)` entries (Drizzle, using `authenticatedRole` and `authUid` from `drizzle-orm/supabase`, with the helpers in a migration comment), an idempotent migration (`sql`: helpers, `drop policy if exists` + `create policy`, grants, `enable row level security`), or Prisma 8 `policy_*` blocks with `@@rls`.
-5. With `--rbac supabase`, also emit the `app_role` / `app_permission` enums, `user_roles`, the `custom_access_token_hook`, and an `authorize()` function over the same `role_permissions` for hand-written policies ([Supabase provider](/docs/adapters/supabase)).
+5. With `--rbac supabase`, also emit the `app_role` / `app_permission` enums, `user_roles`, and an `authorize()` function over the same `role_permissions` for hand-written policies ([Supabase provider](/docs/adapters/supabase)). The token hook comes from `permdock supabase hook generate`.
 
 `import`:
 

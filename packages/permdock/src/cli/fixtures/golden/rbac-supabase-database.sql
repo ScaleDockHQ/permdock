@@ -3,10 +3,7 @@
 
 -- rbac scaffold (Supabase Custom Claims and RBAC)
 -- authorize: database (reads user_roles on every statement)
--- enable the hook in supabase/config.toml:
---   [auth.hook.custom_access_token]
---   enabled = true
---   uri = "pg-functions://postgres/public/custom_access_token_hook"
+-- the custom access token hook that writes user_role: permdock supabase hook generate
 do $$ begin
   create type "public"."app_role" as enum ('admin', 'member');
 exception when duplicate_object then null;
@@ -23,6 +20,7 @@ create table if not exists "public"."user_roles" (
 );
 
 alter table "public"."user_roles" enable row level security;
+revoke all on table "public"."user_roles" from authenticated, anon, public;
 
 -- permdock helpers (database: reads the membership and user_roles tables)
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
@@ -142,38 +140,6 @@ $$;
 
 revoke execute on function "public"."authorize"("public"."app_permission", text) from public, anon;
 grant execute on function "public"."authorize"("public"."app_permission", text) to authenticated;
-
-create or replace function "public"."custom_access_token_hook"(event jsonb)
-returns jsonb
-language plpgsql
-stable
-set search_path = ''
-as $$
-declare
-  claims jsonb := event -> 'claims';
-  held jsonb;
-begin
-  select case count(*) when 0 then null when 1 then to_jsonb(min(ur.role::text)) else jsonb_agg(ur.role::text order by ur.role::text) end
-    into held
-    from "public"."user_roles" ur
-    where ur.user_id = (event ->> 'user_id')::uuid;
-  if held is not null then
-    claims := jsonb_set(claims, '{user_role}', held);
-  end if;
-  return jsonb_set(event, '{claims}', claims);
-end;
-$$;
-
-grant usage on schema "public" to supabase_auth_admin;
-grant execute on function "public"."custom_access_token_hook"(jsonb) to supabase_auth_admin;
-revoke execute on function "public"."custom_access_token_hook"(jsonb) from authenticated, anon, public;
-grant select on table "public"."user_roles" to supabase_auth_admin;
-revoke all on table "public"."user_roles" from authenticated, anon, public;
-drop policy if exists "Allow auth admin to read user roles" on "public"."user_roles";
-create policy "Allow auth admin to read user roles" on "public"."user_roles"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);
 
 revoke all on table "post" from anon, authenticated;
 grant select, insert, update, delete on table "post" to authenticated;
