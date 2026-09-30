@@ -67,7 +67,7 @@ function memberships(count: number): string {
 describe('Supabase RBAC hook claims', () => {
   for (const [name, fixture] of Object.entries(supabaseClaimFixtures)) {
     it(`maps ${name}`, () => {
-      const subject = subjectFromSupabase(fixture.claims);
+      const subject = subjectFromSupabase(fixture.claims, fixture.options);
       expect(subject.principal?.id ?? null).toBe(fixture.expect.id);
       if (subject.principal === null) {
         return;
@@ -79,6 +79,7 @@ describe('Supabase RBAC hook claims', () => {
       if ('tenant' in fixture.expect) {
         expect(subject.principal.tenant).toBe(fixture.expect.tenant);
       }
+      expect(subject.principal.plans).toEqual(fixture.expect.plans);
       expect(subject.expiresAt).toBe(fixture.claims.exp);
     });
   }

@@ -5,6 +5,7 @@ import type { SupabaseHookManifest } from '../supabase/manifest.ts';
 import type { DoctorFinding } from './doctor-types.ts';
 import type { PermDockConfig } from './types.ts';
 
+import { readMemberships } from '../supabase/subject.ts';
 import { MIGRATION_DIRS, sqlFiles } from './doctor-project.ts';
 import { requirePeer } from './peer.ts';
 
@@ -145,6 +146,26 @@ export function oversizedClaims(
   return oversized;
 }
 
+/** `memberships[i]` entries `subjectFromSupabase` drops, per sample index. */
+export function droppedMemberships(
+  samples: readonly unknown[],
+): readonly { readonly sample: number; readonly entries: readonly number[] }[] {
+  const out: { sample: number; entries: readonly number[] }[] = [];
+  for (const [index, sample] of samples.entries()) {
+    if (sample === null || typeof sample !== 'object') {
+      continue;
+    }
+    const claim: unknown = Object.hasOwn(sample, 'memberships')
+      ? (sample as Readonly<Record<string, unknown>>).memberships
+      : undefined;
+    const { dropped } = readMemberships(claim);
+    if (dropped.length > 0) {
+      out.push({ sample: index, entries: dropped });
+    }
+  }
+  return out;
+}
+
 export function pd039(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -178,6 +199,14 @@ export function pd039(input: {
         severity: 'warning',
         message: `claim ${claim.name} is ${String(claim.bytes)} bytes of JSON in ${fixture}, more than the ${String(input.manifest.budget.bytes)}-byte memberships budget`,
         fix: 'return less from the claim function, or read the data per request instead of from the token',
+      });
+    }
+    for (const { sample, entries } of droppedMemberships(samples)) {
+      findings.push({
+        code: 'PD039',
+        severity: 'warning',
+        message: `sample ${String(sample)} in ${fixture} has memberships ${entries.map((entry) => `[${String(entry)}]`).join(', ')} that subjectFromSupabase drops (membership-dropped)`,
+        fix: 'emit { scope, id, roles } (or tenant, team or on) with a non-empty roles array for each entry',
       });
     }
   }

@@ -3,18 +3,25 @@ import type { SupabaseHookManifest } from '../supabase/manifest.ts';
 /**
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
- * multi-org apps). Plain data: no Supabase or better-supabase types.
+ * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.2 emits: scoped
+ * memberships, `tenant_id` and per-tenant plans in `features`. Plain data: no Supabase or
+ * better-supabase types.
  */
 export type SupabaseClaimFixture = {
   readonly claims: Readonly<Record<string, unknown>>;
+  /** `subjectFromSupabase` options the case needs. */
+  readonly options?: { readonly plans?: string };
   readonly expect: {
     readonly id: string | null;
     readonly roles: readonly string[];
     readonly memberships: readonly {
-      readonly tenant: string;
+      readonly tenant?: string;
+      readonly scope?: string;
+      readonly id?: string;
       readonly roles: readonly string[];
     }[];
     readonly tenant?: string;
+    readonly plans?: readonly string[];
   };
 };
 
@@ -41,6 +48,7 @@ export type SupabaseClaimFixtureName =
   | 'nullRole'
   | 'userMetadataIgnored'
   | 'multiOrg'
+  | 'betterSupabase'
   | 'anon'
   | 'serviceRole';
 
@@ -109,6 +117,49 @@ export const supabaseClaimFixtures: Readonly<
         { tenant: 'acme', roles: ['admin'] },
         { tenant: 'globex', roles: ['viewer'] },
       ],
+    },
+  },
+  betterSupabase: {
+    claims: {
+      ...base,
+      user_role: null,
+      tenant_id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+      memberships: [
+        {
+          scope: 'tenant',
+          id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+          roles: ['admin'],
+        },
+        {
+          scope: 'tenant',
+          id: '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9',
+          roles: ['viewer'],
+        },
+      ],
+      features: {
+        '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6': ['pro'],
+        '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9': ['free'],
+      },
+      authz_ver: 3,
+    },
+    options: { plans: 'features' },
+    expect: {
+      id,
+      roles: [],
+      tenant: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+      memberships: [
+        {
+          scope: 'tenant',
+          id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+          roles: ['admin'],
+        },
+        {
+          scope: 'tenant',
+          id: '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9',
+          roles: ['viewer'],
+        },
+      ],
+      plans: ['pro'],
     },
   },
   anon: {

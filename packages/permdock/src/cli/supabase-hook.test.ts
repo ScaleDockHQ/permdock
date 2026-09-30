@@ -356,7 +356,7 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
     );
   });
 
-  it('doctor PD039 reports missing helpers and oversized extra claims', async () => {
+  it('doctor PD039 reports missing helpers, oversized extra claims and dropped memberships', async () => {
     const { cwd } = await generate(
       `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
       [],
@@ -367,6 +367,12 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
       JSON.stringify([
         { features: { small: true } },
         { features: { flags: 'x'.repeat(2000) } },
+        {
+          memberships: [
+            { scope: 'organization', id: 'o1', roles: ['admin'] },
+            { org_id: 'o2', role: 'admin' },
+          ],
+        },
       ]),
     );
     const result = await run(['doctor', '--json', '--only', 'PD039'], { cwd });
@@ -379,6 +385,7 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
     expect(report.findings.map((item) => item.message)).toEqual([
       "schema public has no permdock_has, permitted_organization_ids, permitted_customer_ids: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
       'claim features is 2012 bytes of JSON in ./claims.json, more than the 1024-byte memberships budget',
+      'sample 2 in ./claims.json has memberships [1] that subjectFromSupabase drops (membership-dropped)',
     ]);
   });
 

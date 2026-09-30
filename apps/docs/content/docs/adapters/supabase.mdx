@@ -176,6 +176,12 @@ Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/d
 | `session_id` | Verified | Carried on audit events; the key a CAEP `session-revoked` event invalidates |
 | `exp` | Verified | `subject.expiresAt`, copied into snapshots |
 | `email`, `phone`, `is_anonymous` | Verified | Exposed on `principal` only when `options.include` names them; not used for grants |
+| The claim `options.plans` names (for example `features`), an object keyed by tenant id | Server-set, trusted | `principal.plans`, from the active tenant's entry only, so `plan()` grants apply; another tenant's plans are never read |
+| `act` (RFC 8693, nested chains read to the innermost `sub`) | Verified | `subject.actor` `{ id, kind: 'oauth-client' }`, with the chain on `delegation.chain`; a malformed `act` yields the anonymous subject and `on('auth')` cause `invalid-chain` |
+| `client_id` (a token Supabase's OAuth server issued to a third-party app) | Verified | `subject.actor` `{ id: client_id, kind: 'oauth-client' }` when there is no `act` |
+| `scope` | Verified | `delegation.scopes`. An actor needs a delegation that covers the permission (`<resource>:<action>`), so a client token without a matching scope is `denied` with `no-delegation` or `not-delegated` |
+
+A `memberships` entry the reader cannot use (no `roles` array, or none of `scope` plus `id`, `tenant`, `team` or `on`) is dropped, never guessed at, and `options.onAuth` receives `{ reason: 'schema', cause: 'membership-dropped', source: 'supabase' }`. Access still fails closed; the event tells you the hook and the reader disagree. `permdock doctor` PD039 reports the same entries from the `doctor.claims` samples.
 
 A top-level claim set to `null` counts as absent. The RBAC hook writes `user_role: null` for a user with no row in `user_roles`, so the reader falls back to `app_metadata.user_role` instead of letting the `null` shadow it. `null` under `app_metadata` is also absent: no roles.
 
