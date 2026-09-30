@@ -2,6 +2,7 @@ import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from './types.ts';
 
 import { requirePeer } from './peer.ts';
 import { runRlsGenerate } from './rls-generate.ts';
+import { diffRls, expectedRls, introspectRls } from './rls-introspect.ts';
 import { parseRbacAuthorize } from './rls-rbac.ts';
 import { runRlsVerify } from './rls-verify.ts';
 
@@ -16,6 +17,7 @@ export const RLS_HELP = `permdock rls generate | import | verify
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
   verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
+           [--introspect --db $DATABASE_URL, with the generate flags]
 
 Never emits service_role. memberOf compiles through the dialect memberships mapping.
 `;
@@ -50,6 +52,7 @@ export type RlsRunInput = {
   readonly fields: string | undefined;
   readonly revokeColumns: boolean;
   readonly tree: boolean;
+  readonly introspect: boolean;
   readonly io: CliIo;
 };
 
@@ -77,6 +80,89 @@ function asDialect(value: string | undefined): RlsDialect | undefined {
   return undefined;
 }
 
+function generateInput(
+  input: RlsRunInput,
+  target: RlsTarget,
+  dialect: RlsDialect,
+): Parameters<typeof runRlsGenerate>[0] {
+  return {
+    cwd: input.cwd,
+    config: input.config,
+    target,
+    dialect,
+    rbac: input.rbac,
+    ...(input.rbacSchema === undefined ? {} : { rbacSchema: input.rbacSchema }),
+    ...(input.authorize === undefined
+      ? {}
+      : { authorize: parseRbacAuthorize(input.authorize) ?? 'database' }),
+    check: input.check,
+    skipClosures: input.skipClosures,
+    inlineFunctions: input.inlineFunctions,
+    force: input.force,
+    io: input.io,
+    ...(input.out === undefined ? {} : { out: input.out }),
+    ...(input.from === undefined ? {} : { from: input.from }),
+    ...(input.memberships === undefined
+      ? {}
+      : { memberships: input.memberships }),
+    ...(input.gucPrefix === undefined ? {} : { gucPrefix: input.gucPrefix }),
+    policyPerRole: input.policyPerRole,
+    ...(input.policyName === undefined ? {} : { policyName: input.policyName }),
+    ...(input.tenantType === undefined ? {} : { tenantType: input.tenantType }),
+    customRoles: input.customRoles,
+    capabilities: input.capabilities,
+    ...(input.fields === undefined ? {} : { fields: input.fields }),
+    revokeColumns: input.revokeColumns,
+  };
+}
+
+/** `verify --introspect`: the catalogs against what `generate` would write with the same flags. */
+async function introspect(
+  input: RlsRunInput,
+): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+  if (input.db === undefined) {
+    return {
+      code: 2,
+      output: 'PermDock CLI: rls verify --introspect needs --db',
+    };
+  }
+  const dialect = asDialect(input.dialect ?? input.config.rls?.dialect);
+  if (dialect === undefined) {
+    return {
+      code: 2,
+      output:
+        'rls verify --dialect (or rls.dialect) must be supabase, neon or guc',
+    };
+  }
+  const generated = await runRlsGenerate({
+    ...generateInput(input, 'sql', dialect),
+    check: false,
+    write: false,
+  });
+  if (generated.code !== 0 || generated.policies === undefined) {
+    return { code: 2, output: generated.output };
+  }
+  const expected = expectedRls(generated.policies, generated.text);
+  try {
+    const actual = await introspectRls(input.db, expected);
+    const drift = diffRls(expected, actual, {
+      columnGrants: (input.fields ?? input.config.rls?.fields) === 'views',
+    });
+    if (drift.length > 0) {
+      return { code: 1, output: drift.join('\n') };
+    }
+    return {
+      code: 0,
+      output: `introspected ${String(expected.policies.length)} policies on ${String(expected.tables.length)} table(s) and ${String(expected.helpers.length)} helper(s): no drift`,
+    };
+  } catch (cause) {
+    return {
+      code: 2,
+      output: cause instanceof Error ? cause.message : String(cause),
+    };
+  }
+}
+
 export async function runRls(
   input: RlsRunInput,
 ): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
@@ -101,44 +187,7 @@ export async function runRls(
             'rls generate --dialect (or rls.dialect) must be supabase, neon or guc',
         };
       }
-      const generated = await runRlsGenerate({
-        cwd: input.cwd,
-        config: input.config,
-        target,
-        dialect,
-        rbac: input.rbac,
-        ...(input.rbacSchema === undefined
-          ? {}
-          : { rbacSchema: input.rbacSchema }),
-        ...(input.authorize === undefined
-          ? {}
-          : { authorize: parseRbacAuthorize(input.authorize) ?? 'database' }),
-        check: input.check,
-        skipClosures: input.skipClosures,
-        inlineFunctions: input.inlineFunctions,
-        force: input.force,
-        io: input.io,
-        ...(input.out === undefined ? {} : { out: input.out }),
-        ...(input.from === undefined ? {} : { from: input.from }),
-        ...(input.memberships === undefined
-          ? {}
-          : { memberships: input.memberships }),
-        ...(input.gucPrefix === undefined
-          ? {}
-          : { gucPrefix: input.gucPrefix }),
-        policyPerRole: input.policyPerRole,
-        ...(input.policyName === undefined
-          ? {}
-          : { policyName: input.policyName }),
-        ...(input.tenantType === undefined
-          ? {}
-          : { tenantType: input.tenantType }),
-        customRoles: input.customRoles,
-        capabilities: input.capabilities,
-        ...(input.fields === undefined ? {} : { fields: input.fields }),
-        revokeColumns: input.revokeColumns,
-      });
-      return generated;
+      return runRlsGenerate(generateInput(input, target, dialect));
     }
     case 'import': {
       await requirePeer(
@@ -161,6 +210,9 @@ export async function runRls(
       });
     }
     case 'verify': {
+      if (input.introspect) {
+        return introspect(input);
+      }
       const format = input.format ?? 'node';
       if (format !== 'node' && format !== 'pgtap') {
         return { code: 2, output: 'rls verify --format must be pgtap or node' };

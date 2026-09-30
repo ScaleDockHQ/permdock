@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import type { Policy } from '../index.ts';
+import type { CompiledPolicy } from './rls-compile.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 import type {
   CliIo,
@@ -36,6 +37,8 @@ export type GenerateOutcome = {
   readonly code: 0 | 1 | 2;
   readonly output: string;
   readonly text: string;
+  /** The policies `text` creates; set when `write` is false. */
+  readonly policies?: readonly CompiledPolicy[];
 };
 
 async function loadPolicy(
@@ -108,6 +111,8 @@ export async function runRlsGenerate(input: {
   readonly capabilities?: boolean;
   readonly fields?: string;
   readonly revokeColumns?: boolean;
+  /** `false` returns the SQL and its policies without touching `out`. */
+  readonly write?: boolean;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
   const rls = input.config.rls;
@@ -290,6 +295,9 @@ export async function runRlsGenerate(input: {
   }
   for (const column of compiled.filtered) {
     warnings.push(`index suggestion: create index on ${column}`);
+  }
+  if (input.write === false) {
+    return { code: 0, output: warnings.join('\n'), text, policies };
   }
   const outRel = input.out ?? rls?.out ?? defaultOut(input.target);
   const outPath = resolve(input.cwd, outRel);
