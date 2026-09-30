@@ -318,6 +318,30 @@ describePolicy(orgPolicy, {
   },
 });
 
+describePolicy(orgPolicy, {
+  exhaustive: false,
+  snapshot: true,
+  options: { tenant: 'Org_A' },
+  subjects: {
+    exactCase: {
+      id: 'u2',
+      plans: [],
+      memberships: [{ tenant: 'Org_A', roles: ['admin'] }],
+    },
+    lowerCase: {
+      id: 'u3',
+      plans: [],
+      memberships: [{ tenant: 'org_a', roles: ['admin'] }],
+    },
+  },
+  fixtures: { mixedCasePost: { ...otherPost, orgId: 'Org_A' } },
+  matrix: {
+    [permissions.post.update.key]: {
+      mixedCasePost: { exactCase: 'granted', lowerCase: 'denied' },
+    },
+  },
+});
+
 describe('snapshotFixture', () => {
   it('returns snapshot JSON', async () => {
     const snapshot = await snapshotFixture(policy, {
