@@ -98,7 +98,6 @@ function parseWorkflows(arazzo: unknown): Workflow[] | undefined {
         if (stepId === undefined) {
           continue;
         }
-        // SAFETY: parameters is checked to be an array only; dataFrom assumes its items are objects.
         steps.push(
           compact<WorkflowStep>({
             stepId,
@@ -106,7 +105,14 @@ function parseWorkflows(arazzo: unknown): Workflow[] | undefined {
             operationPath: asString(step['operationPath']),
             workflowId: asString(step['workflowId']),
             parameters: Array.isArray(step['parameters'])
-              ? (step['parameters'] as WorkflowStep['parameters'])
+              ? step['parameters']
+                  .filter((parameter) => isRecord(parameter))
+                  .map((parameter) =>
+                    compact<{ name?: string; value?: unknown }>({
+                      name: asString(parameter['name']),
+                      value: parameter['value'],
+                    }),
+                  )
               : undefined,
           }),
         );

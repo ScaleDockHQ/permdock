@@ -131,6 +131,29 @@ describe('simulate Arazzo', () => {
     expect(plan.steps[0]?.provisional).toBe(true);
   });
 
+  it('skips parameters that are not objects instead of throwing', async () => {
+    const permdock = await createPermDock(policy, adminUser);
+    const plan = permdock.simulate({
+      arazzo: {
+        arazzo: '1.1.0',
+        workflows: [
+          {
+            workflowId: 'malformed',
+            steps: [
+              {
+                stepId: 'load',
+                operationId: 'getPost',
+                parameters: [null, 'id', { name: 'id', value: 'p1' }],
+              },
+            ],
+          },
+        ],
+      },
+      openapi,
+    });
+    expect(plan.steps[0]?.decision.outcome).toBe('granted');
+  });
+
   it('denies AsyncAPI sources as unsupported', async () => {
     const permdock = await createPermDock(policy, adminUser);
     const plan = permdock.simulate({
