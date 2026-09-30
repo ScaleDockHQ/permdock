@@ -1,6 +1,11 @@
 ---
 name: wire-permdock
 description: Add PermDock authorization to a TypeScript app. Use when installing permdock, adding permissions, roles, RBAC, or access control, or when guarding a route, Server Action, tool, MCP handler, or React component. Use whenever the user asks for definePermissions, definePolicy, or createPermDock.
+license: MIT
+metadata:
+  author: ScaleDockHQ
+  homepage: https://permdock.dev/docs/for-ai-agents
+  repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # Wire PermDock

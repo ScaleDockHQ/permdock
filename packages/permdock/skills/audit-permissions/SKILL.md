@@ -1,6 +1,11 @@
 ---
 name: audit-permissions
 description: Review an existing PermDock setup or a pull request that changes it. Use when auditing permissions, reviewing a PR that touches permissions.ts or policy.ts, finding ungranted or unused leaves, missing human approvals on agent tools, closures that should be portable, validate never, or OWASP ASI02 / ASI03. Use whenever the user asks to audit, review, or harden PermDock.
+license: MIT
+metadata:
+  author: ScaleDockHQ
+  homepage: https://permdock.dev/docs/for-ai-agents
+  repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # Audit PermDock
