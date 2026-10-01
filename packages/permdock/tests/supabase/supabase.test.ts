@@ -212,7 +212,7 @@ describe('subjectFromSupabase', () => {
 
     const act = { sub: 'agent-1', act: { sub: 'agent-2' } };
     const chained = subjectFromSupabase({ ...base, act, client_id: 'app-1' });
-    expect(chained.actor).toEqual({ id: 'agent-2', kind: 'oauth-client' });
+    expect(chained.actor).toEqual({ id: 'agent-1', kind: 'oauth-client' });
     expect(chained.delegation).toEqual({ chain: act });
 
     const events: AuthEvent[] = [];

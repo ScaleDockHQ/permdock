@@ -714,7 +714,7 @@ describe('configuration and remaining causes', () => {
     expect(events[0]?.cause).toBe('invalid-chain');
   });
 
-  it('maps a nested act chain to the innermost actor', async () => {
+  it('RFC 8693 section 4.1: the outermost act is the current actor, nested ones are prior actors', async () => {
     const token = await accessToken({
       act: { sub: 'edge', act: { sub: 'inner-agent' } },
     });
@@ -725,7 +725,7 @@ describe('configuration and remaining causes', () => {
       sender: 'none',
     });
     expect(subject.actor).toMatchObject({
-      id: 'inner-agent',
+      id: 'edge',
       kind: 'oauth-client',
     });
     expect(subject.delegation?.chain).toEqual({

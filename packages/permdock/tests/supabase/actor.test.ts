@@ -39,7 +39,7 @@ describe('actorOf and delegationOf', () => {
     });
   }
 
-  it('reads the innermost sub of an act chain over client_id', () => {
+  it('reads the outermost sub of an act chain, the current actor, over client_id', () => {
     const result = actorOf({
       sub,
       client_id: 'app-1',
@@ -48,7 +48,7 @@ describe('actorOf and delegationOf', () => {
     expect(result).toEqual({
       ok: true,
       actor: {
-        id: 'client-9',
+        id: 'runner',
         kind: 'oauth-client',
         chain: { sub: 'runner', act: { sub: 'client-9', iss: 'x' } },
       },
@@ -74,7 +74,8 @@ describe('actorOf and delegationOf', () => {
     ['an array act', [{ sub: 'runner' }]],
     ['a null act', null],
     ['an act without sub', { iss: 'x' }],
-    ['an empty innermost sub', { sub: 'runner', act: { sub: '' } }],
+    ['an empty nested sub', { sub: 'runner', act: { sub: '' } }],
+    ['a nested act without sub', { sub: 'runner', act: { iss: 'x' } }],
     ['a nested act that is not an object', { sub: 'runner', act: 'client' }],
   ])('rejects %s as invalid-chain', (_, act) => {
     expect(actorOf({ sub, act })).toEqual({

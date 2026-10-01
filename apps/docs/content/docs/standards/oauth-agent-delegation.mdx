@@ -54,7 +54,7 @@ Adapters fill `actor` and `delegation` automatically from `authInfo` (MCP), `run
 
 ### Matching `authorization_details` to permissions
 
-Each permission reference carries a `scope` (`post:update`), and RAR entries are matched on the permission's resource and action. An entry in `delegation.authorizationDetails` covers a permission when its `type` equals the resource name and its `actions`, when present, include the permission's action. Other members (`locations`, `datatypes`, type-specific constraints) are the authorization server's to render and enforce; PermDock does not widen or narrow a grant from them, and the principal's own grant conditions still apply.
+Each permission reference carries a `scope` (`post:update`), and RAR entries are matched on the permission's resource and action. An entry in `delegation.authorizationDetails` covers a permission when its `type` equals the resource name and its `actions`, when present, include the permission's action. An `identifier`, when present, narrows the entry to the one resource whose id it names; an empty `actions` array covers nothing. Other members (`locations`, `datatypes`, type-specific constraints) are the authorization server's to render and enforce; PermDock does not widen or narrow a grant from them, and the principal's own grant conditions still apply.
 
 ```json
 {
@@ -66,7 +66,7 @@ Each permission reference carries a `scope` (`post:update`), and RAR entries are
 
 ### Delegation chains
 
-Chain verification belongs to the token layer. `permdock/jwt` checks that a nested RFC 8693 `act` claim is well formed, takes the innermost `sub` as the `actor`, and records the whole chain as `delegation.chain` for audit; a malformed chain yields the anonymous subject. Core trusts the `scopes` and `authorization_details` the verified token carries.
+Chain verification belongs to the token layer. `permdock/jwt` checks that a nested RFC 8693 `act` claim is well formed, takes the outermost `act.sub` as the `actor` (RFC 8693 section 4.1: the current actor; nested `act` claims are prior actors and never decide access), and records the whole chain as `delegation.chain` for audit; a malformed chain yields the anonymous subject. Core trusts the `scopes` and `authorization_details` the verified token carries.
 
 ### Calls with no human principal
 

@@ -99,7 +99,7 @@ The actor identifies the agent. It has an `id` and a `kind` plus whatever the ad
 | Adapter | `actor.kind` | `actor.id` | Source |
 | --- | --- | --- | --- |
 | `permdock/mcp` | `'mcp-client'` | OAuth `client_id` | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server) |
-| `permdock/jwt` with an `act` claim | `'oauth-client'` | innermost `act.sub` (RFC 8693) | the verified token; the nesting is `delegation.chain` |
+| `permdock/jwt` with an `act` claim | `'oauth-client'` | outermost `act.sub`, the current actor (RFC 8693) | the verified token; the nesting is `delegation.chain` |
 | `permdock/ai-sdk` | `'ai-sdk'` | your `runtimeContext.agentId` | the `actor` option of `createPermDock` |
 | `permdock/claude-agent` | `'claude-agent'` | session or agent name | the `actor` option |
 | HTTP adapters with Web Bot Auth | `'web-bot-auth'` | the verified signer `keyid` | RFC 9421 HTTP Message Signatures via `webBotAuth` |

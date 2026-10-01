@@ -352,21 +352,23 @@ function actorFromAct(
     return { status: 'invalid' };
   }
   let current: unknown = act;
-  let innermost = act;
-  while (isActObject(current) && Object.hasOwn(current, 'act')) {
-    current = current.act;
-    if (!isActObject(current)) {
+  while (current !== undefined) {
+    if (
+      !isActObject(current) ||
+      typeof current.sub !== 'string' ||
+      current.sub.length === 0
+    ) {
       return { status: 'invalid' };
     }
-    innermost = current;
+    current = Object.hasOwn(current, 'act') ? current.act : undefined;
   }
-  if (typeof innermost.sub !== 'string' || innermost.sub.length === 0) {
+  if (typeof act.sub !== 'string') {
     return { status: 'invalid' };
   }
   return {
     status: 'ok',
     actor: compact<Actor>({
-      id: innermost.sub,
+      id: act.sub,
       kind: configured?.kind ?? 'oauth-client',
     }),
     chain: act,

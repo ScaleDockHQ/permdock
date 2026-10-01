@@ -199,24 +199,23 @@ function copyAct(level: Record<string, unknown>): SupabaseActClaim {
       key === 'act' && isRecord(value) ? copyAct(value) : value,
     ],
   );
-  // SAFETY: readActor checked that this level and every nested `act` is an object and the innermost has a string `sub`.
+  // SAFETY: readActor checked that this level and every nested `act` is an object with a non-empty string `sub`.
   return Object.fromEntries(entries) as SupabaseActClaim;
 }
 
 function readActor(claims: Record<string, unknown>): SupabaseActorResult {
   if (Object.hasOwn(claims, 'act') && claims['act'] !== undefined) {
     let current: unknown = claims['act'];
-    let innermost: Record<string, unknown> | undefined;
     while (current !== undefined) {
-      if (!isRecord(current)) {
+      const level = isRecord(current) ? current['sub'] : undefined;
+      if (!isRecord(current) || typeof level !== 'string' || level === '') {
         return INVALID_CHAIN;
       }
-      innermost = current;
       current = Object.hasOwn(current, 'act') ? current['act'] : undefined;
     }
-    const sub = innermost?.['sub'];
     const outer = claims['act'];
-    if (typeof sub !== 'string' || sub === '' || !isRecord(outer)) {
+    const sub = isRecord(outer) ? outer['sub'] : undefined;
+    if (!isRecord(outer) || typeof sub !== 'string') {
       return INVALID_CHAIN;
     }
     return freezeDeep({
@@ -237,10 +236,11 @@ function readActor(claims: Record<string, unknown>): SupabaseActorResult {
 }
 
 /**
- * The app acting for the user: the innermost `sub` of an RFC 8693 `act` chain, else the
+ * The app acting for the user: the outermost `sub` of an RFC 8693 `act` chain (the current
+ * actor; nested levels are prior actors, kept on `chain` for audit), else the
  * OAuth `client_id` of a third-party app. Reads only `act` and `client_id`; the caller applies
  * the role rule first (`anon` and `service_role` are anonymous and carry no actor). An
- * `act` that is not a chain of objects ending in a non-empty `sub` is `{ ok: false }` and must deny.
+ * `act` that is not a chain of objects each with a non-empty `sub` is `{ ok: false }` and must deny.
  */
 export function actorOf(claims: unknown): SupabaseActorResult {
   try {

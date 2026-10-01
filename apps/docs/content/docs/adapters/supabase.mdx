@@ -198,7 +198,7 @@ Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/d
 | `exp` | Verified | `subject.expiresAt`, copied into snapshots |
 | `email`, `phone`, `is_anonymous` | Verified | Exposed on `principal` only when `options.include` names them; not used for grants |
 | The claim `options.plans` names (for example `features`), an object keyed by tenant id | Server-set, trusted | `principal.plans`, from the active tenant's entry only, so `plan()` grants apply; another tenant's plans are never read |
-| `act` (RFC 8693, nested chains read to the innermost `sub`) | Verified | `subject.actor` `{ id, kind: 'oauth-client' }`, with the chain on `delegation.chain`; a malformed `act` yields the anonymous subject and `on('auth')` cause `invalid-chain` |
+| `act` (RFC 8693, the outermost `sub` is the current actor) | Verified | `subject.actor` `{ id, kind: 'oauth-client' }`, with the chain on `delegation.chain`; a malformed `act` yields the anonymous subject and `on('auth')` cause `invalid-chain` |
 | `client_id` (a token Supabase's OAuth server issued to a third-party app) | Verified | `subject.actor` `{ id: client_id, kind: 'oauth-client' }` when there is no `act` |
 | `scope` | Verified | `delegation.scopes`. An actor needs a delegation that covers the permission (`<resource>:<action>`), so a client token without a matching scope is `denied` with `no-delegation` or `not-delegated` |
 
@@ -214,7 +214,7 @@ if (!actor.ok) return deny()         // a malformed act chain is never a user ac
 const delegation = delegationOf(claims) // { scopes } | undefined
 ```
 
-- `actorOf` reads only `act` and `client_id`. `act` wins: the actor is its innermost `sub`, and `chain` is a frozen copy of the claim. Without `act`, a non-empty `client_id` is the actor. With neither, the result is `{ ok: true }` with no actor.
+- `actorOf` reads only `act` and `client_id`. `act` wins: the actor is its outermost `sub` (the current actor; nested levels are prior actors), and `chain` is a frozen copy of the claim. Every level must carry a non-empty string `sub`. Without `act`, a non-empty `client_id` is the actor. With neither, the result is `{ ok: true }` with no actor.
 - `{ ok: false, reason: 'invalid-chain' }` must deny. An `act` that is not a chain of objects ending in a non-empty `sub` is not proof of who acts, and treating the token as the user alone would drop the delegation limit. `actorOf` also returns it when reading the claims throws.
 - `delegationOf` reads only `scope`: a space-separated string or a list of strings becomes `scopes`, and an empty or malformed value is `undefined`. `subjectFromSupabase` sets `delegation` only when there is an actor, as `{ scopes, chain }`.
 - Callers apply the role rule first. A token with `role` set to `anon` or `service_role` maps to the anonymous subject and never carries an actor or a delegation, whatever its `act`, `client_id` or `scope` say: `anon` is no user, and `service_role` is a bypass key, not a principal. Neither function looks at `role`, so a caller that skips this check would hand an actor to a token PermDock refuses.
