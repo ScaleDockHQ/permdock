@@ -361,6 +361,7 @@ export function scimHandler(
           route.id,
           normalized,
         );
+        reportUnknownRoles(stored.roles, options);
         const location = locationOf(request, 'Groups', stored.id);
         await emitDirectory(
           options,

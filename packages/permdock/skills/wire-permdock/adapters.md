@@ -561,7 +561,7 @@ export const { getPermDock } = createPermDock(policy, {
 });
 ```
 
-Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API.
+Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API. `o:` plans and features from `pla` and `fea` hold only in the session organization.
 
 ## Convex — `permdock/convex`
 

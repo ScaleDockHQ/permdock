@@ -84,11 +84,19 @@ function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
   return extra;
 }
 
-function planSlugs(pla: unknown): readonly string[] {
+/**
+ * Plan slugs from `pla`, split by owner: `o:` plans belong to the session's
+ * organization, everything else (`u:` and unprefixed) to the user.
+ */
+function planSlugs(pla: unknown): {
+  readonly org: readonly string[];
+  readonly user: readonly string[];
+} {
+  const org: string[] = [];
+  const user: string[] = [];
   if (typeof pla !== 'string' || pla === '') {
-    return [];
+    return { org, user };
   }
-  const plans: string[] = [];
   for (const raw of pla.split(',')) {
     const token = raw.trim();
     if (token === '') {
@@ -97,23 +105,25 @@ function planSlugs(pla: unknown): readonly string[] {
     const prefixed = /^([ou]):(.+)$/u.exec(token);
     const slug = prefixed?.[2] ?? token;
     if (slug !== '') {
-      plans.push(slug);
+      (prefixed?.[1] === 'o' ? org : user).push(slug);
     }
   }
-  return plans;
+  return { org, user };
 }
 
 function featureRoles(
   fea: unknown,
   map: Readonly<Record<string, string>> | undefined,
 ): {
-  readonly roles: readonly string[];
+  readonly org: readonly string[];
+  readonly user: readonly string[];
   readonly sources: Readonly<Record<string, 'o' | 'u'>>;
 } {
   if (map === undefined || typeof fea !== 'string' || fea === '') {
-    return { roles: [], sources: {} };
+    return { org: [], user: [], sources: {} };
   }
-  const roles: string[] = [];
+  const org: string[] = [];
+  const user: string[] = [];
   const sources: Record<string, 'o' | 'u'> = {};
   for (const raw of fea.split(',')) {
     const token = raw.trim();
@@ -128,12 +138,12 @@ function featureRoles(
     if (role === undefined) {
       continue;
     }
-    roles.push(role);
+    (source === 'o' ? org : user).push(role);
     if (source !== undefined) {
       sources[role] = source;
     }
   }
-  return { roles, sources };
+  return { org, user, sources };
 }
 
 function globalRolesFrom(
@@ -389,16 +399,21 @@ export async function subjectFromClerk(
     const permissionRoles = Object.keys(options.permissions ?? {}).filter(
       (key) => mapped.orgPermissions.includes(key),
     );
+    const features = featureRoles(mapped.claims['fea'], options.features);
+    const plans = planSlugs(mapped.claims['pla']);
     const membershipRoles = [
       ...(orgRole === undefined ? [] : [orgRole]),
       ...permissionRoles,
+      ...features.org,
     ];
     const sessionMembership =
-      mapped.tenant !== undefined && membershipRoles.length > 0
+      mapped.tenant !== undefined &&
+      (membershipRoles.length > 0 || plans.org.length > 0)
         ? [
             compact<Membership>({
               tenant: mapped.tenant,
               roles: membershipRoles,
+              entitlements: plans.org.length === 0 ? undefined : plans.org,
             }),
           ]
         : [];
@@ -421,10 +436,9 @@ export async function subjectFromClerk(
     if (options.schema !== undefined) {
       claims = validateClaims(claims, options.schema) ?? {};
     }
-    const features = featureRoles(mapped.claims['fea'], options.features);
     const global = [
       ...globalRolesFrom(mapped.claims, options.globalRoles),
-      ...features.roles,
+      ...features.user,
     ];
     const exp = mapped.claims['exp'];
     const principal = compact<ClerkPrincipal>({
@@ -432,10 +446,7 @@ export async function subjectFromClerk(
       kind: 'user',
       tenant: mapped.tenant,
       roles: global,
-      plans:
-        planSlugs(mapped.claims['pla']).length === 0
-          ? undefined
-          : planSlugs(mapped.claims['pla']),
+      plans: plans.user.length === 0 ? undefined : plans.user,
       memberships,
       clerkPermissions: mapped.orgPermissions,
       claims: Object.keys(claims).length === 0 ? undefined : claims,

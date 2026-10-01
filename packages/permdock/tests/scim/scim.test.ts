@@ -214,6 +214,138 @@ describe('directoryMembershipSource', () => {
   });
 });
 
+describe('directoryMembershipSource lookups', () => {
+  async function storeWith(externalId: string) {
+    const store = memoryDirectoryStore();
+    const user = await store.putUser(TENANT, {
+      id: 'u_ada',
+      userName: 'ada',
+      externalId,
+      active: true,
+      meta: { created: '', lastModified: '' },
+    });
+    await store.putGroup(TENANT, {
+      id: 'g_editors',
+      displayName: 'Editors',
+      members: [{ value: user.id }],
+      roles: ['editor'],
+      meta: { created: '', lastModified: '' },
+    });
+    return store;
+  }
+
+  it('finds ids holding a quote or a backslash', async () => {
+    for (const id of ['a"b', 'a\\b', 'a\\"b']) {
+      const source = directoryMembershipSource(await storeWith(id));
+      expect(
+        await source.membershipsFor({ id }, { tenant: TENANT }),
+      ).toHaveLength(1);
+    }
+  });
+
+  it('never reads a principal id as filter syntax', async () => {
+    const source = directoryMembershipSource(await storeWith('00u1'), {
+      match: 'externalId',
+    });
+    for (const id of [
+      'x" or externalId pr or userName eq "y',
+      '" or userName pr) and (userName pr',
+      'x" or userName sw "',
+    ]) {
+      expect(await source.membershipsFor({ id }, { tenant: TENANT })).toEqual(
+        [],
+      );
+    }
+  });
+
+  it('passes a single eq comparison to the store', async () => {
+    const store = await storeWith('00u1');
+    const seen: unknown[] = [];
+    const source = directoryMembershipSource(
+      {
+        ...store,
+        findUsers: (tenant, filter, page) => {
+          seen.push(filter);
+          return store.findUsers(tenant, filter, page);
+        },
+      },
+      { match: 'externalId' },
+    );
+    await source.membershipsFor(
+      { id: 'x" or userName pr "' },
+      { tenant: TENANT },
+    );
+    expect(seen).toEqual([
+      { op: 'eq', attribute: 'externalId', value: 'x" or userName pr "' },
+    ]);
+  });
+});
+
+describe('identity-provider memberships hold only assignable roles', () => {
+  const permissions = definePermissions({
+    post: resource(z.object({ id: z.string(), orgId: z.string() }), {
+      id: 'id',
+      actions: ['read', 'delete'],
+      relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+    }),
+  });
+  const policy = definePolicy(permissions, {
+    roles: [
+      role('editor', [allow(permissions.post.read)], { on: 'tenant' }),
+      role('owner', [allow(permissions.post.delete)], {
+        on: 'tenant',
+        assignable: false,
+      }),
+    ],
+    scopes: { tenant: { key: 'orgId' } },
+    subject: (row: { readonly id: string } | null) =>
+      row === null ? null : { id: row.id },
+  });
+
+  it('drops a non-assignable role a directory group maps, without an assignable option', async () => {
+    const store = memoryDirectoryStore();
+    const user = await store.putUser(TENANT, {
+      id: 'u_ada',
+      userName: 'ada',
+      externalId: '00u1',
+      active: true,
+      meta: { created: '', lastModified: '' },
+    });
+    await store.putGroup(TENANT, {
+      id: 'g_all',
+      displayName: 'Everyone',
+      members: [{ value: user.id }],
+      roles: ['editor', 'owner'],
+      meta: { created: '', lastModified: '' },
+    });
+    const dock = await createPermDock(
+      policy,
+      { id: '00u1' },
+      { tenant: TENANT, memberships: directoryMembershipSource(store) },
+    );
+    const row = { id: 'p1', orgId: TENANT };
+    expect(dock.can(permissions.post.read, row)).toBe(true);
+    expect(dock.can(permissions.post.delete, row)).toBe(false);
+    expect(dock.heldRoles().map((held) => held.key)).toEqual(['editor']);
+  });
+
+  it('keeps a non-assignable role on a membership the application wrote', async () => {
+    const dock = await createPermDock(
+      policy,
+      { id: 'u_ada' },
+      {
+        tenant: TENANT,
+        memberships: {
+          membershipsFor: () => [{ tenant: TENANT, roles: ['owner'] }],
+        },
+      },
+    );
+    expect(dock.can(permissions.post.delete, { id: 'p1', orgId: TENANT })).toBe(
+      true,
+    );
+  });
+});
+
 describe('scimHandler', () => {
   it('rejects missing or wrong bearer without a body', async () => {
     const { handle } = handler();
@@ -332,6 +464,42 @@ describe('scimHandler', () => {
         managedBy: 'idp',
       },
     ]);
+  });
+
+  it('reports unknown roles a PATCH adds', async () => {
+    const unknown: string[] = [];
+    const { handle } = handler({
+      assignable: ['editor'],
+      onUnknownRole: (name) => {
+        unknown.push(name);
+      },
+    });
+    const group = await json(
+      await handle(
+        request('/Groups', {
+          method: 'POST',
+          body: JSON.stringify({
+            schemas: [GROUP_SCHEMA, ROLES_EXTENSION],
+            displayName: 'Editors',
+            [ROLES_EXTENSION]: { roles: ['editor'] },
+          }),
+        }),
+      ),
+    );
+    expect(unknown).toEqual([]);
+    const patched = await handle(
+      request(`/Groups/${String(group['id'])}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          schemas: [PATCH_SCHEMA],
+          Operations: [
+            { op: 'replace', path: 'roles', value: ['editor', 'superadmin'] },
+          ],
+        }),
+      }),
+    );
+    expect(patched.status).toBe(200);
+    expect(unknown).toEqual(['superadmin']);
   });
 
   it('reads groupRoles by own key only', async () => {

@@ -5,6 +5,7 @@ import type { Role, RoleMeta } from './vocabulary.ts';
 
 import { compact, isReadonlyArray } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
+import { isExternallyManaged } from './memberships.ts';
 import { declaredRoleNames } from './policy.ts';
 import {
   type Scope,
@@ -88,9 +89,27 @@ function sameList(a: readonly string[], b: readonly string[]): boolean {
 }
 
 /**
+ * The identity provider may only hand out what the application could: a
+ * declared role with `assignable: false` (an owner, a platform role) never
+ * rides in on a `managedBy: 'idp'` membership. A name the policy does not
+ * declare stays, because only a tenant's custom role can give it meaning.
+ */
+function mayHoldManaged(
+  policy: Policy,
+  role: string,
+  membership: Membership,
+): boolean {
+  return (
+    !isExternallyManaged(membership) ||
+    bindingOf(policy, role)?.assignable !== false
+  );
+}
+
+/**
  * Drops every role a membership's kind may not hold (fail-closed: a missing
- * `via` is no kind). Global roles have no kind, so a role with `for` held
- * globally is dropped too.
+ * `via` is no kind) and every non-assignable role on an identity-provider
+ * membership. Global roles have no kind, so a role with `for` held globally
+ * is dropped too.
  */
 export function applyRoleKinds(
   policy: Policy,
@@ -100,14 +119,18 @@ export function applyRoleKinds(
   readonly roles: readonly string[] | undefined;
   readonly memberships: readonly Membership[];
 } {
-  if (!policy.roles.some((binding) => binding.for !== undefined)) {
+  const kinds = policy.roles.some((binding) => binding.for !== undefined);
+  if (!kinds && !memberships.some(isExternallyManaged)) {
     return { roles, memberships };
   }
-  const kept =
-    roles?.filter((name) => mayHoldVia(policy, name, undefined)) ?? roles;
+  const kept = kinds
+    ? (roles?.filter((name) => mayHoldVia(policy, name, undefined)) ?? roles)
+    : roles;
   const filtered = memberships.map((membership) => {
-    const allowed = membership.roles.filter((name) =>
-      mayHoldVia(policy, name, membership.via),
+    const allowed = membership.roles.filter(
+      (name) =>
+        mayHoldVia(policy, name, membership.via) &&
+        mayHoldManaged(policy, name, membership),
     );
     return sameList(allowed, membership.roles)
       ? membership

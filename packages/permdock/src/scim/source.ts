@@ -7,7 +7,6 @@ import type {
 } from './types.ts';
 
 import { compact } from '../core/compact.ts';
-import { parseScimFilter } from './filter.ts';
 import { groupRolesFor } from './group-roles.ts';
 
 function allowedRoles(
@@ -39,11 +38,14 @@ async function lookupUser(
   attribute: 'externalId' | 'userName',
   principalId: string,
 ): Promise<DirectoryUser | null> {
-  const filter = parseScimFilter(`${attribute} eq "${principalId}"`);
-  const found = await store.findUsers(tenant, filter, {
-    startIndex: 1,
-    count: 1,
-  });
+  const found = await store.findUsers(
+    tenant,
+    { op: 'eq', attribute, value: principalId },
+    {
+      startIndex: 1,
+      count: 1,
+    },
+  );
   return found.Resources[0] ?? null;
 }
 

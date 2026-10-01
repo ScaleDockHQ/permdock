@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { subjectFromClerk } from '../../src/clerk/index.ts';
+import { plan } from '../../src/core/grantee.ts';
+import { createPermDock } from '../../src/core/permdock.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
+import { allow, definePolicy, role } from '../../src/core/policy.ts';
 
 const permissions = definePermissions({
   billing: resource(z.object({ id: z.string() }), {
@@ -56,15 +59,16 @@ describe('subjectFromClerk', () => {
     expect(subject.principal?.memberships).toEqual([
       {
         tenant: 'org_1',
-        roles: ['org:admin', 'org:invoices:create'],
+        roles: ['org:admin', 'org:invoices:create', 'reporting'],
+        entitlements: ['pro'],
       },
     ]);
     expect(subject.principal?.clerkPermissions).toEqual([
       'org:invoices:create',
       'org:unknown',
     ]);
-    expect(subject.principal?.roles).toEqual(['reporting', 'api']);
-    expect(subject.principal?.plans).toEqual(['pro']);
+    expect(subject.principal?.roles).toEqual(['api']);
+    expect(subject.principal?.plans).toBeUndefined();
     expect(subject.principal?.featureSources).toEqual({
       reporting: 'o',
       api: 'u',
@@ -90,7 +94,7 @@ describe('subjectFromClerk', () => {
       },
     });
     expect(subject.principal?.memberships).toEqual([
-      { tenant: 'org_1', roles: ['org:admin'] },
+      { tenant: 'org_1', roles: ['org:admin'], entitlements: ['pro'] },
       { tenant: 'org_2', roles: ['org:member'] },
     ]);
   });
@@ -199,7 +203,9 @@ describe('subjectFromClerk', () => {
     const subject = await subjectFromClerk(authObject, {
       declared: ['org:member'],
     });
-    expect(subject.principal?.memberships).toEqual([]);
+    expect(subject.principal?.memberships).toEqual([
+      { tenant: 'org_1', roles: [], entitlements: ['pro'] },
+    ]);
   });
 
   it('treats a thrown Backend API call as no extra memberships', async () => {
@@ -214,7 +220,52 @@ describe('subjectFromClerk', () => {
       },
     });
     expect(subject.principal?.memberships).toEqual([
-      { tenant: 'org_1', roles: ['org:admin'] },
+      { tenant: 'org_1', roles: ['org:admin'], entitlements: ['pro'] },
     ]);
+  });
+
+  it('scopes organization plans and features to the session organization', async () => {
+    const tree = definePermissions({
+      report: resource(z.object({ id: z.string() }), {
+        id: 'id',
+        actions: ['export'],
+      }),
+    });
+    const policy = definePolicy(tree, {
+      roles: [
+        role('reporting', [allow(tree.report.export)]),
+        role('org:member', []),
+      ],
+      grants: [allow(tree.report.export, { to: plan('pro') })],
+      subject: (user: Awaited<ReturnType<typeof subjectFromClerk>>) => user,
+    });
+    const subject = await subjectFromClerk(
+      { ...authObject, orgRole: 'org:member' },
+      {
+        features: { reporting: 'reporting' },
+        memberships: 'all',
+        backend: {
+          users: {
+            getOrganizationMembershipList: async () => ({
+              data: [
+                { organization: { id: 'org_1' }, role: 'org:member' },
+                { organization: { id: 'org_2' }, role: 'org:member' },
+              ],
+            }),
+          },
+        },
+      },
+    );
+    expect(subject.principal?.plans).toBeUndefined();
+    expect(subject.principal?.roles ?? []).not.toContain('reporting');
+    expect(subject.principal?.memberships?.[0]).toEqual({
+      tenant: 'org_1',
+      roles: ['org:member', 'reporting'],
+      entitlements: ['pro'],
+    });
+    const inA = await createPermDock(policy, subject);
+    expect(inA.can(tree.report.export, { id: 'r1' })).toBe(true);
+    const inB = await createPermDock(policy, subject, { tenant: 'org_2' });
+    expect(inB.can(tree.report.export, { id: 'r1' })).toBe(false);
   });
 });
