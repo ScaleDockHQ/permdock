@@ -28,6 +28,8 @@ export type WebBotAuthOptions = {
   readonly keys: WebBotAuthKeys | WebBotAuthKeyLookup;
   readonly required?: boolean;
   readonly maxAge?: number;
+  /** Unix seconds; defaults to the system clock. */
+  readonly now?: () => number;
 };
 
 export type DiscoverViaSignatureAgentOptions = {
@@ -130,7 +132,7 @@ export async function verifyWebBotAuth(
   if (signature === undefined) {
     throw reject('Signature could not be parsed');
   }
-  const now = Math.floor(Date.now() / 1000);
+  const now = options.now?.() ?? Math.floor(Date.now() / 1000);
   const maxAge = options.maxAge ?? DEFAULT_MAX_AGE;
   if (typeof parsed.created !== 'number') {
     throw reject('Signature-Input created is required');

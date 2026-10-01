@@ -40,6 +40,7 @@ app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.
 Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 
 - **Verification is optional and off by default.** When `webBotAuth.verify` is true, a request with `Signature-Input` is verified against keys discovered through `Signature-Agent`, subject to an allow-list of key directories.
+- **Freshness is bounded.** `created` is required, may be at most 60 seconds in the future and at most `maxAge` seconds old (default 300); a past `expires` rejects. `now` (Unix seconds) replaces the system clock, which is how the RFC 9421 Appendix B vectors are checked.
 - **Invalid signature fails closed.** A request that claims a signature but fails verification is rejected before any permission check, with a Problem Details body of type `.../invalid-signature`. It is never downgraded to an anonymous actor.
 - **Verified signer becomes `actor`.** `actor.id` is the signer's key identifier and `actor.kind` is `'web-bot-auth'`. Policies may reference `subject.actor` in conditions (for example, denying `post.publish` when any actor is present), and `on('decision')` events include it for audit.
 - **Delegation still comes from the token.** If the same request carries a bearer token with scopes, those fill `delegation` exactly as they do for non-signed requests. If it carries none, the subject has an actor and no `delegation`, so every check is `denied` with reason `no-delegation`, with or without a session.
