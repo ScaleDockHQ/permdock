@@ -99,6 +99,107 @@ function insertSql(
   };
 }
 
+/** A `NOT NULL` column without a default that the generated rows do not set. */
+type RequiredColumn = {
+  readonly name: string;
+  readonly type: string;
+  readonly refTable: string | null;
+  readonly refColumn: string | null;
+};
+
+const REQUIRED_COLUMNS_SQL = `select a.attname as name,
+  format_type(a.atttypid, a.atttypmod) as type,
+  k.confrelid::regclass::text as "refTable",
+  r.attname as "refColumn"
+from pg_attribute a
+left join pg_constraint k
+  on k.conrelid = a.attrelid and k.contype = 'f' and k.conkey = array[a.attnum]
+left join pg_attribute r
+  on r.attrelid = k.confrelid and r.attnum = k.confkey[1]
+where a.attrelid = $1::regclass and a.attnum > 0 and not a.attisdropped
+  and a.attnotnull and not a.atthasdef
+  and a.attidentity = '' and a.attgenerated = ''`;
+
+function placeholder(type: string): unknown {
+  if (type === 'uuid') {
+    return randomUUID();
+  }
+  if (type === 'boolean') {
+    return false;
+  }
+  if (/^(smallint|integer|bigint|numeric|real|double precision)/u.test(type)) {
+    return 0;
+  }
+  if (type.startsWith('timestamp') || type === 'date') {
+    return new Date().toISOString();
+  }
+  if (type === 'json' || type === 'jsonb') {
+    return {};
+  }
+  return 'permdock-tree';
+}
+
+function asRequiredColumn(row: Row): RequiredColumn | undefined {
+  const { name, type, refTable, refColumn } = row;
+  if (typeof name !== 'string' || typeof type !== 'string') {
+    return undefined;
+  }
+  return {
+    name,
+    type,
+    refTable: typeof refTable === 'string' ? refTable : null,
+    refColumn: typeof refColumn === 'string' ? refColumn : null,
+  };
+}
+
+/**
+ * Values for the required columns a generated row leaves out, such as a
+ * tenant column or a name: an existing value of the referenced table for a
+ * foreign key, a placeholder of the column's type otherwise.
+ */
+async function requiredValues(
+  query: Query,
+  table: string,
+  set: ReadonlySet<string>,
+): Promise<Readonly<Record<string, unknown>>> {
+  const columns = (await query(REQUIRED_COLUMNS_SQL, [table])).rows
+    .map(asRequiredColumn)
+    .filter(
+      (column): column is RequiredColumn =>
+        column !== undefined && !set.has(column.name),
+    );
+  const values: Record<string, unknown> = {};
+  for (const column of columns) {
+    if (column.refTable !== null && column.refColumn !== null) {
+      const existing = await query(
+        `select ${quoteIdent(column.refColumn)} as value from ${column.refTable} limit 1`,
+      );
+      values[column.name] = existing.rows[0]?.['value'] ?? null;
+    } else {
+      values[column.name] = placeholder(column.type);
+    }
+  }
+  return values;
+}
+
+/** Inserts `rows` after filling the required columns they leave out. */
+async function seedRows(
+  query: Query,
+  table: string,
+  rows: readonly Row[],
+): Promise<readonly Row[]> {
+  const fill = await requiredValues(
+    query,
+    tableSql(table),
+    new Set(Object.keys(rows[0] ?? {})),
+  );
+  const inserted = insertSql(
+    table,
+    rows.map((row) => ({ ...fill, ...row })),
+  );
+  return (await query(inserted.sql, inserted.values)).rows;
+}
+
 export type TreeVerification = {
   readonly checked: number;
   /** Checks both sides granted, so a tree nobody reaches cannot pass by agreeing. */
@@ -187,8 +288,9 @@ export async function verifyTree(input: {
           .map((item) => String(item.id)),
       );
     }
-    const inserted = insertSql(tables?.[node.name] ?? node.name, seeded);
-    rows[node.name] = [...(await query(inserted.sql, inserted.values)).rows];
+    rows[node.name] = [
+      ...(await seedRows(query, tables?.[node.name] ?? node.name, seeded)),
+    ];
     for (const name of entry.relations) {
       const spec = node.relations[name];
       if (!isEdgeRelation(spec)) {
@@ -221,8 +323,7 @@ export async function verifyTree(input: {
         });
       }
       if (edgeRows.length > 0) {
-        const edgeInsert = insertSql(spec.edge, edgeRows);
-        await query(edgeInsert.sql, edgeInsert.values);
+        await seedRows(query, spec.edge, edgeRows);
       }
       edges[node.name] = { ...edges[node.name], [name]: list };
     }
@@ -241,12 +342,12 @@ export async function verifyTree(input: {
         }
         return row;
       });
-      const childInsert = insertSql(
-        tables?.[child.name] ?? child.name,
-        childRows,
-      );
       rows[child.name] = [
-        ...(await query(childInsert.sql, childInsert.values)).rows,
+        ...(await seedRows(
+          query,
+          tables?.[child.name] ?? child.name,
+          childRows,
+        )),
       ];
     }
   }
