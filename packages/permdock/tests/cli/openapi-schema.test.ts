@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  parseSchema,
+  patchOas33,
   validateOpenapi,
   validateOverlay,
 } from '../../src/cli/openapi-schema.ts';
@@ -252,5 +254,131 @@ describe('OpenAPI and Overlay output conformance', () => {
     );
     const overlay = validateOverlay({ overlay: '1.1.0', actions: [] });
     expect(overlay.ok).toBe(false);
+  });
+
+  it.each([null, 'openapi: 3.2.0', [], { openapi: 3.2 }, { openapi: '3.4.0' }])(
+    'rejects %j as not an OpenAPI 3.1, 3.2 or 3.3 document',
+    (document) => {
+      expect(validateOpenapi(document)).toEqual({
+        ok: false,
+        error: 'expected an OpenAPI 3.1, 3.2 or 3.3 document',
+      });
+    },
+  );
+});
+
+describe('the pinned OpenAPI 3.3 schema', () => {
+  const PROFILE_DOC = {
+    openapi: '3.3.0',
+    info: { title: 'mini', version: '1' },
+    components: {
+      securitySchemes: {
+        fapi: {
+          type: 'profile',
+          profileMetadata: {
+            name: 'fapi-20-security-profile',
+            servers: [{ url: 'https://auth.example.com' }],
+          },
+        },
+      },
+      securityProfileRequirements: {
+        read: {
+          securityScheme: { $ref: '#/components/securitySchemes/fapi' },
+          scopes: ['post:read'],
+        },
+      },
+    },
+    paths: {},
+  };
+
+  it('accepts a profile scheme and securityProfileRequirements', () => {
+    expect(validateOpenapi(PROFILE_DOC)).toEqual({ ok: true, version: '3.3' });
+  });
+
+  it('requires profileMetadata on a profile scheme and scopes on a requirement', () => {
+    const noMetadata = validateOpenapi({
+      ...PROFILE_DOC,
+      components: {
+        securitySchemes: { fapi: { type: 'profile' } },
+      },
+    });
+    expect(noMetadata.ok ? '' : noMetadata.error).toContain(
+      'document is not valid OpenAPI 3.3',
+    );
+    const noScopes = validateOpenapi({
+      ...PROFILE_DOC,
+      components: {
+        ...PROFILE_DOC.components,
+        securityProfileRequirements: {
+          read: { securityScheme: { $ref: '#/x' } },
+        },
+      },
+    });
+    expect(noScopes.ok ? '' : noScopes.error).toContain(
+      "required property 'scopes'",
+    );
+  });
+
+  it('keeps the profile scheme type out of OpenAPI 3.2', () => {
+    const result = validateOpenapi({
+      ...PROFILE_DOC,
+      components: { securitySchemes: PROFILE_DOC.components.securitySchemes },
+      openapi: '3.2.0',
+    });
+    expect(result.ok ? '' : result.error).toContain(
+      'document is not valid OpenAPI 3.2',
+    );
+  });
+
+  it('patches a schema without a type enum or allOf', () => {
+    const schema = patchOas33({
+      properties: { openapi: {} },
+      $defs: {
+        'security-scheme': { properties: { type: {} } },
+        components: { properties: {} },
+      },
+    });
+    expect(schema).toMatchObject({
+      $id: expect.stringMatching(
+        /^https:\/\/permdock\.dev\/schemas\/openapi\/oas-3\.3\//u,
+      ),
+      properties: { openapi: { pattern: String.raw`^3\.3\.\d+(-.+)?$` } },
+      $defs: {
+        'security-scheme': {
+          properties: { type: { enum: ['profile'] } },
+          allOf: [expect.objectContaining({ if: expect.anything() })],
+        },
+        components: {
+          properties: {
+            securityProfileRequirements: expect.objectContaining({
+              type: 'object',
+            }),
+          },
+        },
+      },
+    });
+  });
+
+  it('names the missing node of a schema it cannot patch', () => {
+    expect(() =>
+      patchOas33({ properties: { openapi: {} }, $defs: { components: {} } }),
+    ).toThrow('PermDock CLI: OpenAPI schema has no security-scheme');
+    expect(() => patchOas33({})).toThrow(
+      'PermDock CLI: OpenAPI schema has no properties.openapi',
+    );
+  });
+});
+
+describe('parseSchema', () => {
+  it('rewrites the #meta dynamic reference', () => {
+    expect(
+      parseSchema('{ "items": { "$dynamicRef": "#meta" } }', 'x.json'),
+    ).toEqual({ items: { $ref: '#/$defs/schema' } });
+  });
+
+  it.each(['[]', '"text"', 'null'])('rejects %s', (text) => {
+    expect(() => parseSchema(text, 'x.json')).toThrow(
+      'PermDock CLI: x.json is not a JSON Schema',
+    );
   });
 });

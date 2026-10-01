@@ -19,18 +19,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const validators = new Map<string, ValidateFunction>();
 
-function schemaFile(file: string): Record<string, unknown> {
+/** Parses a bundled schema file; throws on anything but a JSON object. */
+export function parseSchema(
+  text: string,
+  file: string,
+): Record<string, unknown> {
   // Ajv resolves `$dynamicRef: #meta` against the root rather than the
   // `$dynamicAnchor` in `$defs`; with no dialect override the two are the same.
-  const text = readFileSync(join(schemaDir(), file), 'utf8').replaceAll(
-    '"$dynamicRef": "#meta"',
-    '"$ref": "#/$defs/schema"',
+  const parsed: unknown = JSON.parse(
+    text.replaceAll('"$dynamicRef": "#meta"', '"$ref": "#/$defs/schema"'),
   );
-  const parsed: unknown = JSON.parse(text);
   if (!isRecord(parsed)) {
     throw new TypeError(`PermDock CLI: ${file} is not a JSON Schema`);
   }
   return parsed;
+}
+
+function schemaFile(file: string): Record<string, unknown> {
+  return parseSchema(readFileSync(join(schemaDir(), file), 'utf8'), file);
 }
 
 function child(
@@ -55,10 +61,11 @@ const STRINGS = { type: 'array', items: { type: 'string' } } as const;
 /**
  * No official 3.3 schema exists: the 3.2 schema plus the pinned draft's
  * Security Profiles (a `profile` scheme type and
- * `components.securityProfileRequirements`).
+ * `components.securityProfileRequirements`). Mutates and returns `schema`.
  */
-function oas33Schema(): Record<string, unknown> {
-  const schema = schemaFile('oas-3.2.json');
+export function patchOas33(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
   schema['$id'] =
     `https://permdock.dev/schemas/openapi/oas-3.3/${DRAFT_PINS.oas}`;
   child(schema, 'properties', 'openapi')['pattern'] =
@@ -130,7 +137,9 @@ function validatorFor(file: string): ValidateFunction {
     validateFormats: false,
   });
   const compiled = ajv.compile(
-    file === 'oas-3.3.json' ? oas33Schema() : schemaFile(file),
+    file === 'oas-3.3.json'
+      ? patchOas33(schemaFile('oas-3.2.json'))
+      : schemaFile(file),
   );
   validators.set(file, compiled);
   return compiled;
