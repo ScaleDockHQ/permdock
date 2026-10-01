@@ -34,6 +34,9 @@ export function subjectFromMcp(
     // SAFETY: extra is checked to be a record above; mapClaimsToSubject type-checks each claim it reads.
     const claims = compact<JwtClaims>({
       ...(authInfo.extra as JwtClaims),
+      authorization_details:
+        authInfo.extra['authorizationDetails'] ??
+        authInfo.extra['authorization_details'],
       scope: authInfo.scopes?.join(' '),
       client_id: authInfo.clientId,
       exp: authInfo.expiresAt,

@@ -135,7 +135,9 @@ function approvalTokenOf(context: Context): string | undefined {
 function authorizationDetailsOf(
   authInfo: McpAuthInfo,
 ): readonly AuthorizationDetail[] | undefined {
-  const details = authInfo.extra?.['authorizationDetails'];
+  const details =
+    authInfo.extra?.['authorizationDetails'] ??
+    authInfo.extra?.['authorization_details'];
   // SAFETY: authInfo comes from the server's token verifier, which puts RFC 9396 entries in this array.
   return Array.isArray(details)
     ? (details as readonly AuthorizationDetail[])
