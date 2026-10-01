@@ -48,7 +48,7 @@ jobs:
             run: pnpm exec turbo run typecheck $AFFECTED && pnpm run typecheck:tooling
           - name: test
             next: true
-            run: pnpm exec turbo run test $AFFECTED
+            run: pnpm run authzen:vectors && pnpm exec turbo run test $AFFECTED
           - name: boundaries
             run: pnpm run boundaries
           - name: audit

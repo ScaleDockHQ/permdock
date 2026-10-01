@@ -85,6 +85,13 @@ export default defineConfig({
       },
     },
     {
+      files: ['vitest.config.ts'],
+      rules: {
+        // The config hands CI to tests through `provide` (1 finding).
+        'node/no-process-env': 'off',
+      },
+    },
+    {
       files: [
         'tests/**/*.{ts,tsx}',
         '**/*.{test,spec}.{ts,tsx}',

@@ -1,8 +1,16 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vitest/config';
 
+declare module 'vitest' {
+  interface ProvidedContext {
+    readonly requireAuthzenVectors: boolean;
+  }
+}
+
 export default defineConfig({
   test: {
+    // CI fetches the official AuthZEN vectors first; a missing file there fails.
+    provide: { requireAuthzenVectors: process.env['CI'] !== undefined },
     projects: [
       {
         extends: true,

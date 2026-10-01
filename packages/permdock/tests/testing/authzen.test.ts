@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { describe } from 'vitest';
+import { describe, inject } from 'vitest';
 
 import type { AuthZenVectors } from '../../src/testing/authzen.ts';
 
@@ -27,12 +27,14 @@ const OFFICIAL = new URL(
   import.meta.url,
 );
 const hasOfficial: boolean = existsSync(OFFICIAL);
+const requireOfficial = hasOfficial || inject('requireAuthzenVectors');
 
-describe.runIf(hasOfficial)(
+describe.runIf(requireOfficial)(
   'AuthZEN interop: official Todo decisions (pnpm authzen:vectors)',
   () => {
     // SAFETY: the file is the official AuthZEN decisions vector set fetched by authzen:vectors.
-    const vectors = hasOfficial
+    // A skipped describe still runs its body to collect tests.
+    const vectors = requireOfficial
       ? (JSON.parse(readFileSync(OFFICIAL, 'utf8')) as AuthZenVectors)
       : {};
     testAuthZen(handler, { vectors, discovery: false });
