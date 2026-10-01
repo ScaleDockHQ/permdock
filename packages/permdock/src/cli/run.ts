@@ -302,6 +302,9 @@ export async function run(
           introspect: flagBool(args.flags, 'introspect'),
           split: flagString(args.flags, 'split'),
           grantsOut: flagString(args.flags, 'grants-out'),
+          helpersOnly: flagBool(args.flags, 'helpers-only'),
+          write: flagBool(args.flags, 'write'),
+          json,
           io,
         });
         writeOut(result.output);

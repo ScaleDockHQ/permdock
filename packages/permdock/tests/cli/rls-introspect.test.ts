@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { ActualRls } from '../../src/cli/rls-introspect.ts';
 
 import {
+  diffMixed,
   diffRls,
   expectedRls,
   qualified,
@@ -120,5 +121,79 @@ describe('rls verify --introspect', () => {
     expect(result.stderr + result.stdout).toContain(
       'rls verify --introspect needs --db',
     );
+  });
+});
+
+describe('diffMixed', () => {
+  const seed = {
+    role: 'admin',
+    permission: 'asset.update',
+    grantKey: 'asset.update',
+    scope: 'organization',
+    effect: 'allow',
+  } as const;
+  const mixed = {
+    schema: 'public',
+    seeds: [seed],
+    permissions: ['asset.update', 'quote.read'],
+    rowConditions: ['quote.read'],
+  };
+
+  it('diffs seeds exactly and checks every hand-written policy key', () => {
+    const result = diffMixed(mixed, {
+      seeds: [
+        { ...seed, grantKey: 'asset.delete', permission: 'asset.delete' },
+      ],
+      policies: [
+        {
+          table: 'public.asset',
+          name: 'assets_update',
+          expression:
+            "(organization_id IN ( SELECT public.permitted_organization_ids('asset.update'::text)))",
+        },
+        {
+          table: 'public.quote',
+          name: 'quotes_select',
+          expression:
+            "(organization_id IN ( SELECT public.permitted_organization_ids('quote.read'::text)))",
+        },
+        {
+          table: 'public.note',
+          name: 'notes_select',
+          expression: "public.permdock_has('note.read'::text)",
+        },
+      ],
+      rlsTables: [
+        'public.asset',
+        'public.legacy',
+        'public.note',
+        'public.quote',
+      ],
+    });
+    expect(result.drift).toEqual([
+      'public.role_permissions: missing admin allow asset.update on organization',
+      'public.role_permissions: unexpected admin allow asset.delete on organization',
+      'public.quote: policy quotes_select passes quote.read, whose grants carry row conditions the helpers do not check: the policy grants more than the application does',
+      'public.note: policy notes_select passes note.read, which the policy does not declare, so it always denies',
+    ]);
+    expect(result.info).toEqual([
+      'public.legacy: no policy calls a PermDock helper',
+    ]);
+  });
+
+  it('counts a key-less member helper call as coverage', () => {
+    const result = diffMixed(mixed, {
+      seeds: [seed],
+      policies: [
+        {
+          table: 'public.asset',
+          name: 'assets_select',
+          expression:
+            '(organization_id IN ( SELECT public.member_organization_ids()))',
+        },
+      ],
+      rlsTables: ['public.asset'],
+    });
+    expect(result).toEqual({ drift: [], info: [] });
   });
 });

@@ -140,6 +140,33 @@ export type RlsConfig = {
     readonly schema?: string;
     readonly authorize?: 'database' | 'jwt';
   };
+  /** Emit only the helpers, their seeds and the scaffold; the table policies stay hand-written. */
+  readonly helpersOnly?: boolean;
+  /** `rls migrate`: how existing helper calls map onto the generated helpers. */
+  readonly migrate?: RlsMigrateConfig;
+};
+
+/**
+ * One existing SQL helper `rls migrate` rewrites. `form` names its arguments:
+ * `ids(key)` returns scope ids, `row(id, key)` and `membership(id)` test one id,
+ * `scoped(scope, id, key)` takes the scope as a literal, `global(key)` returns a boolean.
+ */
+export type RlsMigrateHelper =
+  | { readonly form: 'ids' | 'row' | 'membership'; readonly scope: string }
+  | { readonly form: 'scoped' }
+  | { readonly form: 'global' };
+
+export type RlsMigrateConfig = {
+  /** By function name, without the schema. */
+  readonly helpers: Readonly<Record<string, RlsMigrateHelper>>;
+  /** Exact key renames, checked before `prefixes`. */
+  readonly keys?: Readonly<Record<string, string>>;
+  /** Key prefix renames, longest first: `{ 'organization.': '' }`. */
+  readonly prefixes?: Readonly<Record<string, string>>;
+  /** For `scoped` helpers, the scope literals that mean a global check, such as `system`. */
+  readonly globalScopes?: readonly string[];
+  /** For `scoped` helpers, a scope literal's PermDock scope when the names differ. */
+  readonly scopes?: Readonly<Record<string, string>>;
 };
 
 /** `permdock supabase hook generate` input. */

@@ -20,6 +20,7 @@ permdock rls generate --target sql --fields views --out migrations/rls.sql   # p
 permdock rls generate --target sql --fields views --revoke-columns --out migrations/rls.sql   # and close restricted columns on the table
 permdock rls generate --target sql --split helpers,policies,hook --out supabase/schemas/identity/056_permdock_{part}.sql \
   --grants-out supabase/migrations/20260101000000_permdock_grants.sql   # declarative schemas
+permdock rls generate --target sql --rbac supabase --helpers-only --out supabase/migrations/0056_permdock.sql   # policies stay hand-written
 ```
 
 Inputs: the policy module from `permdock.config.ts` (roles as data) and a mapping from resources to tables. The mapping is read from `--from drizzle` (table names and columns from the Drizzle schema, resource schemas via `drizzle-zod`) or declared in the config as `rls.tables`.
@@ -268,6 +269,60 @@ permdock rls generate $SPLIT --grants-out supabase/migrations/<timestamp>_permdo
 
 The grants migration has to sort after the `db diff` migration that first creates the hook, which is why it is created second. `create or replace function` keeps the grants, so later `db diff` migrations need no new grants file; one that drops and recreates the hook does. Doctor PD042 fails while no migration from the one that creates the hook on grants it to `supabase_auth_admin`. PD043 warns when `schema_paths` in `supabase/config.toml` applies a file that calls the helpers before the `helpers` part; with no `schema_paths`, files apply in path order, so number the helpers part below the files that call it. In CI, run the same command with `--check`.
 
+### Helpers only
+
+`--helpers-only` (or `rls.helpersOnly: true`) writes the helpers, their `role_permissions` seeds and the scaffold, and no table policies, grants or `enable row level security`. It is for a project whose policies stay hand-written and call `permdock_has`, `permitted_<scope>_ids` and `member_<scope>_ids` directly, usually after [`migrate`](#migrate) has moved them off a home-grown set of helpers. It needs `--target sql`, refuses `--fields`, and combines with `--split helpers` (a `policies` part is an error). `verify --introspect` then checks the helpers and the hand-written policies' keys instead of the generated policies.
+
+## migrate
+
+```bash
+permdock rls migrate --rbac supabase --sql supabase              # dry run: every rewrite and every skipped call
+permdock rls migrate --rbac supabase --sql supabase --write      # apply them
+permdock rls migrate --rbac supabase --sql supabase --json       # { rewrites, skipped }
+```
+
+`migrate` rewrites calls to a project's own SQL helpers in `create policy` and `alter policy` statements onto the generated ones, file by file, under `--sql` (a file or a directory of `.sql` files). It parses each file with `pgsql-parser` (the same optional peer as `import`) and splices only the call's text, so comments and formatting around it are kept. It takes the generate flags, because it checks every key against what `generate` would seed. Without `--write` it only prints. `rls.migrate` names the helpers and how keys map:
+
+```ts
+rls: {
+  migrate: {
+    helpers: {
+      org_ids_with_permission: { form: 'ids', scope: 'organization' },        // (key) -> setof id
+      has_org_permission: { form: 'row', scope: 'organization' },             // (id, key) -> boolean
+      authorize_scope: { form: 'scoped' },                                    // (scope, id, key) -> boolean
+      is_system_user_with: { form: 'global' },                                // (key) -> boolean
+      is_org_member: { form: 'membership', scope: 'organization' },           // (id) -> boolean
+    },
+    keys: { 'organization.customers.view': 'customers.read' },                // exact, checked first
+    prefixes: { 'organization.': '', 'system.': 'platform.' },                // longest prefix wins
+    globalScopes: ['system'],                                                 // scoped literals that mean global
+  },
+},
+```
+
+| Form | Before | After |
+| --- | --- | --- |
+| `ids` | `org_ids_with_permission('k')` | `public.permitted_organization_ids('k2')` |
+| `row` | `has_org_permission(col, 'k')` | `(col in (select public.permitted_organization_ids('k2')))` |
+| `scoped` | `authorize_scope('organization', col, 'k')` | the `row` form, on the named scope (`rls.migrate.scopes` renames a literal) |
+| `scoped`, global | `authorize_scope('system', null, 'k')` | `(select public.permdock_has('k2'))` |
+| `global` | `is_system_user_with('k')` | `(select public.permdock_has('k2'))`, without the `select` when the call already is one |
+| `membership` | `is_org_member(col)` | `(col in (select public.member_organization_ids()))` |
+
+The rewritten forms are uncorrelated, so Postgres runs each helper once per statement. A call is reported and left as written, with its file, line and reason, when the rewrite could change what it admits:
+
+| Reason | When |
+| --- | --- |
+| `not-a-column` | The id is an expression, a function call or a parameter, not a plain column |
+| `dynamic-key` | The key is not a string literal |
+| `unknown-key` | The mapped key is not in the policy; the command exits `1` while one remains |
+| `row-conditions` | The key's grants carry row conditions the helpers do not apply; let `generate` write that table's policy |
+| `not-granted-on-scope` | No role holds the key on that scope, or its action is not one `generate` seeds (`read`, `list`, `get`, `create`, `update`, `delete`) |
+| `missing-helper` | `generate` writes no such helper, such as `member_<scope>_ids` for a scope without a membership source |
+| `function-body` | The call is inside a `create function` or `do` body, which runs with its own privileges |
+| `not-in-policy` | The call is in a view, a trigger or any statement other than a policy |
+| `unparsed` | The file does not parse |
+
 ## import
 
 ```bash
@@ -299,6 +354,8 @@ permdock rls verify --db $DATABASE_URL --introspect
 `--tree` (needs `--db`) checks graph grants on a generated object graph instead of fixtures: two chains one level past each walked resource's depth, side branches that alternate restricted, child rows and edges for a few generated principals, all seeded and rolled back in one transaction, then compared with `can()` per principal. Connect as a role that owns the tables and is a member of `authenticated`. It prints `verified <n> tree check(s) against the database (<g> granted)` and exits `1` on any disagreement ([closure table](/docs/adapters/rls#closure-table)).
 
 `--introspect` (needs `--db`) compares the live catalogs with what `rls generate` would write from the same config and generate flags, without running fixtures. It reads `pg_policies`, `pg_class.relrowsecurity`, the `anon` and `authenticated` table grants and `pg_proc`, with catalog queries modelled on postgres-meta's (not a dependency), and prints one line per difference: a generated policy that is missing, or whose command, `permissive` / `restrictive` mode or roles differ; a policy on a generated table that generate does not write (a hand-written permissive policy widens access); a table without row level security; a missing grant (which answers `42501` instead of filtering) or a grant no policy allows; a `security definer` helper that is missing, is no longer `security definer`, or no longer sets `search_path = ''`. Policy expressions are not compared, since Postgres rewrites their text; the fixtures and `--tree` check what they do. It prints `introspected <n> policies on <t> table(s) and <h> helper(s): no drift`, or exits `1` with the list.
+
+With `--helpers-only` there are no generated policies to compare, so `--introspect` checks a mixed setup instead: the helpers as above, the `role_permissions` rows against the seeds exactly (`missing` and `unexpected` rows), and every policy outside the Supabase system schemas (plus `storage.objects` and `realtime.messages`) by the keys it passes to the helpers. A key the policy does not declare always denies, and a key whose grants carry row conditions grants more than the application does; both are drift. A table with row level security whose policies call no helper is printed as `info:` and does not fail the command.
 
 With `rls.fields: 'views'`, every instance read fixture also reads its row from `<table>_visible` (or the table itself when no view exists) and compares the columns that hold a value with those `pick` keeps, plus the key, which always passes through; a denied row must return nothing. Fixture rows are compared column by column, so give each read fixture the whole row as the database holds it. Statements read back only the key (`returning "id"`), so a table closed with `--revoke-columns` does not reject them.
 

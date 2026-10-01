@@ -738,6 +738,8 @@ Generated policies call `permdock_has('<key>')` and one `permitted_<scope>_ids('
 
 With Supabase declarative schemas (`supabase/schemas` plus `supabase db diff`), generate `--split helpers,policies,hook --out supabase/schemas/identity/056_permdock_{part}.sql` and write the hook's `supabase_auth_admin` grants with `--grants-out` into a migration created by `supabase migration new` after the first `db diff`; `db diff` drops those grants. Keep the helpers part ahead of every file that calls the helpers in `schema_paths` (`permdock doctor` PD042, PD043).
 
+When the project already has hand-written policies over its own helpers (`org_ids_with_permission`, `has_org_permission`, `authorize_scope`), do not rewrite them by hand. Map each helper under `rls.migrate.helpers` with its `form` (`ids`, `row`, `scoped`, `global`, `membership`) and the legacy keys under `rls.migrate.keys` or `prefixes`. Then run `permdock rls migrate --sql supabase`, read the skipped calls, and apply with `--write`. Generate with `--helpers-only` while policies stay hand-written, and check the result with `rls verify --introspect --db`. The command exits `1` while a mapped key is unknown. A `row-conditions` skip means that table's policy should be generated, not migrated.
+
 When SQL is the authority, skip `generate`. Map helpers in `rls.functions`, write `sqlFunction` twins, and fail CI on `verify --db`. `--inline-functions` inlines the twin for generate targets that cannot call a SQL function.
 
 Never emit `service_role`. Fixtures may carry `memberships` and `tenant`, and a fixture file may add `customRoles`.

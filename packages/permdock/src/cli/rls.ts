@@ -1,12 +1,19 @@
 import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from './types.ts';
 
 import { requirePeer } from './peer.ts';
-import { runRlsGenerate } from './rls-generate.ts';
-import { diffRls, expectedRls, introspectRls } from './rls-introspect.ts';
+import { type GenerateOutcome, runRlsGenerate } from './rls-generate.ts';
+import {
+  diffMixed,
+  diffRls,
+  type ExpectedRls,
+  expectedRls,
+  introspectMixed,
+  introspectRls,
+} from './rls-introspect.ts';
 import { parseRbacAuthorize } from './rls-rbac.ts';
 import { runRlsVerify } from './rls-verify.ts';
 
-export const RLS_HELP = `permdock rls generate | import | verify
+export const RLS_HELP = `permdock rls generate | import | verify | migrate
 
   generate --target drizzle|sql|prisma --dialect supabase|neon|guc
            [--rbac supabase] [--rbac-schema public] [--authorize database|jwt]
@@ -15,10 +22,13 @@ export const RLS_HELP = `permdock rls generate | import | verify
            [--capabilities] [--fields views [--revoke-columns]]
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
            [--split helpers,policies,hook --out <dir>/056_permdock_{part}.sql] [--grants-out <file>|-]
+           [--helpers-only]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
   verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
            [--introspect --db $DATABASE_URL, with the generate flags]
+  migrate  --sql <dir> [--write] [--json], with the generate flags
+           rewrites the rls.migrate helpers' calls in policies onto the generated helpers
 
 Never emits service_role. memberOf compiles through the dialect memberships mapping.
 `;
@@ -56,6 +66,9 @@ export type RlsRunInput = {
   readonly introspect: boolean;
   readonly split: string | undefined;
   readonly grantsOut: string | undefined;
+  readonly helpersOnly: boolean;
+  readonly write: boolean;
+  readonly json: boolean;
   readonly io: CliIo;
 };
 
@@ -118,7 +131,90 @@ function generateInput(
     revokeColumns: input.revokeColumns,
     ...(input.split === undefined ? {} : { split: input.split }),
     ...(input.grantsOut === undefined ? {} : { grantsOut: input.grantsOut }),
+    helpersOnly: input.helpersOnly,
   };
+}
+
+async function migrate(
+  input: RlsRunInput,
+): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+  const config = input.config.rls?.migrate;
+  if (config === undefined) {
+    return {
+      code: 2,
+      output: 'rls migrate needs rls.migrate.helpers in permdock.config.ts',
+    };
+  }
+  if (input.sql === undefined) {
+    return { code: 2, output: 'rls migrate needs --sql <dir>' };
+  }
+  const dialect = asDialect(input.dialect ?? input.config.rls?.dialect);
+  if (dialect === undefined) {
+    return {
+      code: 2,
+      output:
+        'rls migrate --dialect (or rls.dialect) must be supabase, neon or guc',
+    };
+  }
+  const generated = await runRlsGenerate({
+    ...generateInput(input, 'sql', dialect),
+    check: false,
+    write: false,
+  });
+  if (generated.code !== 0) {
+    return { code: 2, output: generated.output };
+  }
+  await requirePeer(
+    () => import('pgsql-parser'),
+    'pgsql-parser',
+    'permdock rls migrate',
+  );
+  const { migrateTarget, runRlsMigrate } = await import('./rls-migrate.ts');
+  return runRlsMigrate({
+    cwd: input.cwd,
+    sql: input.sql,
+    config,
+    target: migrateTarget(generated),
+    write: input.write,
+    json: input.json,
+  });
+}
+
+/** `verify --introspect` with `--helpers-only`: helpers and seeds exactly, hand-written policies by their keys. */
+async function introspectHelpersOnly(
+  db: string,
+  expected: ExpectedRls,
+  generated: GenerateOutcome,
+): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+  const schema = generated.schema ?? 'public';
+  try {
+    const helpers = diffRls(expected, await introspectRls(db, expected));
+    const mixed = diffMixed(
+      {
+        schema,
+        seeds: generated.seeds ?? [],
+        permissions: generated.keys?.permissions ?? [],
+        rowConditions: generated.keys?.rowConditions ?? [],
+      },
+      await introspectMixed(db, schema),
+    );
+    const drift = [...helpers, ...mixed.drift];
+    const info = mixed.info.map((line) => `info: ${line}`);
+    return drift.length > 0
+      ? { code: 1, output: [...drift, ...info].join('\n') }
+      : {
+          code: 0,
+          output: [
+            ...info,
+            `introspected ${String(expected.helpers.length)} helper(s) and ${String(generated.seeds?.length ?? 0)} seeded row(s), helpers only: no drift`,
+          ].join('\n'),
+        };
+  } catch (cause) {
+    return {
+      code: 2,
+      output: cause instanceof Error ? cause.message : String(cause),
+    };
+  }
 }
 
 /** `verify --introspect`: the catalogs against what `generate` would write with the same flags. */
@@ -148,6 +244,9 @@ async function introspect(
     return { code: 2, output: generated.output };
   }
   const expected = expectedRls(generated.policies, generated.text);
+  if (generated.helpersOnly === true) {
+    return introspectHelpersOnly(input.db, expected, generated);
+  }
   try {
     const actual = await introspectRls(input.db, expected);
     const drift = diffRls(expected, actual, {
@@ -234,6 +333,8 @@ export async function runRls(
       });
       return verified;
     }
+    case 'migrate':
+      return migrate(input);
     default:
       return { code: 2, output: RLS_HELP };
   }

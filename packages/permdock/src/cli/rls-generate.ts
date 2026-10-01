@@ -2,6 +2,7 @@ import { basename, resolve } from 'node:path';
 
 import type { Policy } from '../index.ts';
 import type { CompiledPolicy } from './rls-compile.ts';
+import type { RolePermission } from './rls-helpers.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 import type {
   CliIo,
@@ -13,8 +14,9 @@ import type {
 
 import { compact } from '../core/compact.ts';
 import { scopeList } from '../core/scopes.ts';
-import { listRoles } from '../index.ts';
+import { listPermissions, listRoles } from '../index.ts';
 import { supabaseTenantClaim } from '../supabase/budget.ts';
+import { rowConditionKeys } from './catalog-doc.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { breakGlassEntries, breakGlassSql } from './rls-break-glass.ts';
 import { compileGrants } from './rls-compile.ts';
@@ -57,6 +59,14 @@ export type GenerateOutcome = {
   readonly policies?: readonly CompiledPolicy[];
   /** For Drizzle and Prisma, the SQL written next to `text` for a custom migration. */
   readonly migration?: string;
+  /** The seeded `role_permissions` rows and the policy's keys; set when `write` is false. */
+  readonly seeds?: readonly RolePermission[];
+  readonly keys?: {
+    readonly permissions: readonly string[];
+    readonly rowConditions: readonly string[];
+  };
+  readonly schema?: string;
+  readonly helpersOnly?: boolean;
 };
 
 async function loadPolicy(
@@ -133,6 +143,8 @@ export async function runRlsGenerate(input: {
   readonly split?: string;
   /** The hook's `supabase_auth_admin` grants go here (`-` prints them); needs the `hook` part. */
   readonly grantsOut?: string;
+  /** Only the helpers, their seeds and the scaffold: no table policies, for a project whose policies are hand-written. */
+  readonly helpersOnly?: boolean;
   /** `false` returns the SQL and its policies without touching `out`. */
   readonly write?: boolean;
   readonly io: CliIo;
@@ -248,15 +260,25 @@ export async function runRlsGenerate(input: {
     );
   }
   const policyName = input.policyName ?? rls?.policyName;
-  const policies = assemblePolicies(
-    fieldsMode === undefined
-      ? compiled.branches
-      : rowBranches(compiled.branches),
-    {
-      perRole: input.policyPerRole === true || rls?.policyPerRole === true,
-      ...(policyName === undefined ? {} : { name: policyName }),
-    },
-  );
+  const helpersOnly = input.helpersOnly === true || rls?.helpersOnly === true;
+  if (helpersOnly && (input.target !== 'sql' || fieldsMode !== undefined)) {
+    return {
+      code: 2,
+      output: 'rls generate --helpers-only needs --target sql and no --fields',
+      text: '',
+    };
+  }
+  const policies = helpersOnly
+    ? []
+    : assemblePolicies(
+        fieldsMode === undefined
+          ? compiled.branches
+          : rowBranches(compiled.branches),
+        {
+          perRole: input.policyPerRole === true || rls?.policyPerRole === true,
+          ...(policyName === undefined ? {} : { name: policyName }),
+        },
+      );
   const rootMapped =
     ctx.scopes[0] === undefined
       ? undefined
@@ -353,12 +375,28 @@ export async function runRlsGenerate(input: {
   }
   const extras = migration === '' ? {} : { migration };
   if (input.write === false) {
-    return { code: 0, output: warnings.join('\n'), text, policies, ...extras };
+    return {
+      code: 0,
+      output: warnings.join('\n'),
+      text,
+      policies,
+      seeds: compiled.rolePermissions,
+      keys: {
+        permissions: listPermissions(policy.vocabulary.permissions).map(
+          (leaf) => leaf.key,
+        ),
+        rowConditions: [...rowConditionKeys(policy)],
+      },
+      schema,
+      helpersOnly,
+      ...extras,
+    };
   }
   const planned = outputFiles({
     input,
     outRel,
     text,
+    helpersOnly,
     sql: () => ({
       policies: emitSql(policies, '', force, views),
       helpers: emitSql([], preamble),
@@ -398,6 +436,7 @@ function outputFiles(plan: {
   readonly input: Parameters<typeof runRlsGenerate>[0];
   readonly outRel: string;
   readonly text: string;
+  readonly helpersOnly: boolean;
   readonly sql: () => { readonly policies: string; readonly helpers: string };
   readonly scopes: ReturnType<typeof scopeList>;
 }): readonly SqlFile[] | string {
@@ -405,6 +444,9 @@ function outputFiles(plan: {
   const split = parseSplit(input.split);
   if (typeof split === 'string') {
     return split;
+  }
+  if (split?.includes('policies') === true && plan.helpersOnly) {
+    return 'rls generate --helpers-only writes no policies part; drop it from --split';
   }
   if (split === undefined) {
     if (input.grantsOut !== undefined) {

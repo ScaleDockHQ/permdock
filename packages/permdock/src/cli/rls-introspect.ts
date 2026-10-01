@@ -1,5 +1,7 @@
 import type { CompiledPolicy } from './rls-compile.ts';
+import type { RolePermission } from './rls-helpers.ts';
 
+import { callsHelper, HELPER_TABLES, helperCallKeys } from './helper-calls.ts';
 import { requirePeer } from './peer.ts';
 
 const ROLES = ['anon', 'authenticated'] as const;
@@ -293,6 +295,170 @@ export async function introspectRls(
           },
         ]),
       ),
+    };
+  } finally {
+    await client.end();
+  }
+}
+
+/** A helpers-only setup: the seeds `generate` would write and the keys hand-written policies may pass. */
+export type ExpectedMixed = {
+  readonly schema: string;
+  readonly seeds: readonly RolePermission[];
+  readonly permissions: readonly string[];
+  readonly rowConditions: readonly string[];
+};
+
+/** Every policy and RLS table outside the system schemas, and the seeded rows. */
+export type ActualMixed = {
+  readonly seeds: readonly RolePermission[];
+  readonly policies: readonly {
+    readonly table: string;
+    readonly name: string;
+    readonly expression: string;
+  }[];
+  readonly rlsTables: readonly string[];
+};
+
+const SYSTEM_SCHEMAS = [
+  'pg_catalog',
+  'information_schema',
+  'pg_toast',
+  'auth',
+  'storage',
+  'realtime',
+  'extensions',
+  'graphql',
+  'graphql_public',
+  'vault',
+  'pgsodium',
+  'pgsodium_masks',
+  'net',
+  'cron',
+  'supabase_functions',
+  'supabase_migrations',
+] as const;
+
+function inScope(table: string): boolean {
+  const schema = table.split('.')[0] ?? '';
+  return (
+    HELPER_TABLES.some((item) => item === table) ||
+    !(
+      SYSTEM_SCHEMAS.some((item) => item === schema) || schema.startsWith('pg_')
+    )
+  );
+}
+
+function seedLine(row: RolePermission): string {
+  return `${row.role} ${row.effect} ${row.grantKey} on ${row.scope}`;
+}
+
+/** Drift is an error; `info` names RLS tables whose policies call no PermDock helper. */
+export function diffMixed(
+  expected: ExpectedMixed,
+  actual: ActualMixed,
+): { readonly drift: readonly string[]; readonly info: readonly string[] } {
+  const drift: string[] = [];
+  const want = new Set(expected.seeds.map(seedLine));
+  const have = new Set(actual.seeds.map(seedLine));
+  for (const line of want) {
+    if (!have.has(line)) {
+      drift.push(`${expected.schema}.role_permissions: missing ${line}`);
+    }
+  }
+  for (const line of have) {
+    if (!want.has(line)) {
+      drift.push(`${expected.schema}.role_permissions: unexpected ${line}`);
+    }
+  }
+  const permissions = new Set(expected.permissions);
+  const conditioned = new Set(expected.rowConditions);
+  const covered = new Set<string>();
+  for (const policy of actual.policies) {
+    if (callsHelper(policy.expression)) {
+      covered.add(policy.table);
+    }
+    for (const key of helperCallKeys(policy.expression)) {
+      if (!permissions.has(key)) {
+        drift.push(
+          `${policy.table}: policy ${policy.name} passes ${key}, which the policy does not declare, so it always denies`,
+        );
+      } else if (conditioned.has(key)) {
+        drift.push(
+          `${policy.table}: policy ${policy.name} passes ${key}, whose grants carry row conditions the helpers do not check: the policy grants more than the application does`,
+        );
+      }
+    }
+  }
+  const info = actual.rlsTables
+    .filter((table) => !covered.has(table))
+    .map((table) => `${table}: no policy calls a PermDock helper`);
+  return { drift, info };
+}
+
+const ALL_POLICIES_SQL = `select schemaname || '.' || tablename as target, policyname,
+  coalesce(qual, '') || ' ' || coalesce(with_check, '') as expression
+from pg_policies`;
+
+const RLS_TABLES_SQL = `select n.nspname || '.' || c.relname as target
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where c.relkind in ('r', 'p') and c.relrowsecurity`;
+
+function quoteIdent(name: string): string {
+  return `"${name.replaceAll('"', '""')}"`;
+}
+
+function rows(result: {
+  readonly rows: readonly unknown[];
+}): readonly Record<string, unknown>[] {
+  // SAFETY: pg rows are objects keyed by each SELECT's columns; every field is read through String().
+  return result.rows as readonly Record<string, unknown>[];
+}
+
+/** Reads `role_permissions`, `pg_policies` and the RLS-enabled tables for {@link diffMixed}. */
+export async function introspectMixed(
+  db: string,
+  schema: string,
+): Promise<ActualMixed> {
+  const pg = await requirePeer(
+    () => import('pg'),
+    'pg',
+    'permdock rls verify --introspect',
+  );
+  const client = new pg.Client({ connectionString: db });
+  try {
+    await client.connect();
+  } catch (cause) {
+    throw new Error('PermDock CLI: rls verify --introspect could not connect', {
+      cause,
+    });
+  }
+  try {
+    const seeds = await client.query(
+      `select role, permission, grant_key, scope, effect from ${quoteIdent(schema)}.role_permissions`,
+    );
+    const policies = await client.query(ALL_POLICIES_SQL);
+    const tables = await client.query(RLS_TABLES_SQL);
+    return {
+      seeds: rows(seeds).map((row) => ({
+        role: String(row['role']),
+        permission: String(row['permission']),
+        grantKey: String(row['grant_key']),
+        scope: String(row['scope']),
+        effect: String(row['effect']) === 'deny' ? 'deny' : 'allow',
+      })),
+      policies: rows(policies)
+        .map((row) => ({
+          table: String(row['target']),
+          name: String(row['policyname']),
+          expression: String(row['expression']),
+        }))
+        .filter((row) => inScope(row.table)),
+      rlsTables: rows(tables)
+        .map((row) => String(row['target']))
+        .filter(inScope)
+        .toSorted(),
     };
   } finally {
     await client.end();

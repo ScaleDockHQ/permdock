@@ -11,8 +11,18 @@ const HELPER_CALL = new RegExp(
   'giu',
 );
 
+const ANY_HELPER = new RegExp(
+  String.raw`\b(?:${HELPERS.has}|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids)\s*\(`,
+  'iu',
+);
+
+/** Whether a policy expression calls any generated helper, the key-less `member_<scope>_ids` included. */
+export function callsHelper(sql: string): boolean {
+  return ANY_HELPER.test(sql);
+}
+
 /** The permission keys a policy expression passes to `permdock_has` or `permitted_<scope>_ids`, `#n` stripped. */
-function helperCallKeys(sql: string): readonly string[] {
+export function helperCallKeys(sql: string): readonly string[] {
   const keys = new Set<string>();
   for (const [, literal = ''] of sql.matchAll(HELPER_CALL)) {
     const key = literal.replaceAll("''", "'").split('#')[0] ?? '';
