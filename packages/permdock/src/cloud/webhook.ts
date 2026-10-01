@@ -1,5 +1,6 @@
 import type {
   AccessEvent,
+  CredentialEvent,
   DecisionEvent,
   DirectoryEvent,
   MembershipEvent,
@@ -36,6 +37,7 @@ export type PermDockCloudEvent =
   | Envelope<'dev.permdock.approval', DecisionEvent>
   | Envelope<'dev.permdock.directory', DirectoryEvent>
   | Envelope<'dev.permdock.membership', MembershipEvent>
+  | Envelope<'dev.permdock.credential', CredentialEvent>
   | Envelope<'dev.permdock.catalog', CatalogEventData>
   | Envelope<'dev.permdock.access.started', AccessEvent>
   | Envelope<'dev.permdock.access.ended', AccessEvent>

@@ -19,7 +19,7 @@ export type ScimRoute =
 
 export function tenantFromPath(request: Request): string {
   const parts = new URL(request.url).pathname.split('/').filter(Boolean);
-  const index = parts.findIndex((part) => RESOURCES.has(part ?? ''));
+  const index = parts.findIndex((part) => RESOURCES.has(part));
   if (index <= 0) {
     return '';
   }
@@ -30,17 +30,17 @@ export function tenantFromPath(request: Request): string {
   return prev;
 }
 
+function isKind(part: string): part is ScimRoute['kind'] {
+  return RESOURCES.has(part);
+}
+
 export function parseRoute(url: URL): ScimRoute | undefined {
   const parts = url.pathname.split('/').filter(Boolean);
-  const index = parts.findIndex((part) => RESOURCES.has(part ?? ''));
-  if (index === -1) {
-    return undefined;
-  }
-  const kind = parts[index];
-  const id = parts[index + 1];
+  const kind = parts.find(isKind);
   if (kind === undefined) {
     return undefined;
   }
+  const id = parts[parts.indexOf(kind) + 1];
   switch (kind) {
     case 'Users':
       return compact<ScimRoute>({ kind: 'Users', id });
@@ -52,8 +52,10 @@ export function parseRoute(url: URL): ScimRoute | undefined {
       return compact<ScimRoute>({ kind: 'ResourceTypes', id });
     case 'Schemas':
       return compact<ScimRoute>({ kind: 'Schemas', id });
-    default:
-      return undefined;
+    default: {
+      const exhaustive: never = kind;
+      return exhaustive;
+    }
   }
 }
 
@@ -63,7 +65,7 @@ function prefixOf(request: Request): {
 } {
   const url = new URL(request.url);
   const parts = url.pathname.split('/').filter(Boolean);
-  const index = parts.findIndex((part) => RESOURCES.has(part ?? ''));
+  const index = parts.findIndex((part) => RESOURCES.has(part));
   return {
     origin: url.origin,
     prefix: index === -1 ? parts : parts.slice(0, index),

@@ -82,21 +82,7 @@ export function parseEvery(every: number | string): number {
   if (match?.[2] === undefined) {
     throw new TypeError(`PermDock: invalid poll interval '${every}'.`);
   }
-  const n = Number(match[1]);
   const unit = match[2];
-  if (unit !== 'ms' && unit !== 's' && unit !== 'm') {
-    throw new TypeError(`PermDock: invalid poll interval '${every}'.`);
-  }
-  switch (unit) {
-    case 'ms':
-      return n;
-    case 's':
-      return n * 1000;
-    case 'm':
-      return n * 60_000;
-    default: {
-      const exhaustive: never = unit;
-      return exhaustive;
-    }
-  }
+  const scale = unit === 'ms' ? 1 : unit === 's' ? 1000 : 60_000;
+  return Number(match[1]) * scale;
 }

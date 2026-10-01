@@ -50,7 +50,7 @@ function pageOf<T>(items: readonly T[], page: ScimPage): ScimPageResult<T> {
   let start = 0;
   if (page.cursor !== undefined && page.cursor !== '') {
     const decoded = Math.trunc(Number(page.cursor));
-    start = Number.isFinite(decoded) ? decoded : 0;
+    start = Number.isFinite(decoded) && decoded > 0 ? decoded : 0;
   } else if (page.startIndex !== undefined && page.startIndex > 0) {
     start = page.startIndex - 1;
   }

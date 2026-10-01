@@ -488,7 +488,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     // SAFETY: ingestLogout checked events to be a record holding the back-channel logout event.
     const events = claims['events'] as Readonly<Record<string, unknown>>;
     const identifier: SetSubject =
-      sub === undefined
+      sub === undefined || sub.length === 0
         ? compact({ format: 'opaque', id: sid })
         : compact({ format: 'iss_sub', iss: issuer, sub });
     const subject = await resolveSubject(identifier, sid, issuer);
