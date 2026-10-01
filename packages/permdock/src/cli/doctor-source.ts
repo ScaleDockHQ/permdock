@@ -1,3 +1,5 @@
+import { parseSync } from 'oxc-parser';
+
 import type { DoctorFinding, DoctorSource } from './doctor-types.ts';
 
 const SERVER_SPECIFIERS = [
@@ -36,6 +38,21 @@ const UNTRUSTED_CLAIMS = [
   'clientMetadata',
   'preferred_username',
 ] as const;
+
+// A `jwks:` key, not a `const jwks: JSONWebKeySet` declaration.
+const JWKS_OPTION = /(?<!\b(?:const|let|var)\s+)\bjwks\s*:/u;
+
+function withoutComments(source: DoctorSource): string {
+  const { comments } = parseSync(source.file, source.text);
+  let text = source.text;
+  for (const comment of comments) {
+    text =
+      text.slice(0, comment.start) +
+      ' '.repeat(comment.end - comment.start) +
+      text.slice(comment.end);
+  }
+  return text;
+}
 
 export function isClientSource(
   source: DoctorSource,
@@ -135,8 +152,9 @@ export function pd010(
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   for (const source of sources) {
+    const text = withoutComments(source);
     for (const claim of UNTRUSTED_CLAIMS) {
-      if (source.text.includes(claim) && /roles|tenant/u.test(source.text)) {
+      if (text.includes(claim) && /roles|tenant/u.test(text)) {
         findings.push({
           code: 'PD010',
           severity: 'error',
@@ -199,7 +217,8 @@ export function pd014(
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   for (const source of sources) {
-    if (/discovery:\s*['"]http:/u.test(source.text)) {
+    const text = withoutComments(source);
+    if (/discovery:\s*['"]http:/u.test(text)) {
       findings.push({
         code: 'PD014',
         severity: 'error',
@@ -207,7 +226,8 @@ export function pd014(
         fix: 'use an https: issuer',
       });
     }
-    if (/discovery\s*:/u.test(source.text) && /jwks\s*:/u.test(source.text)) {
+    const setsJwks = JWKS_OPTION.test(text);
+    if (/discovery\s*:/u.test(text) && setsJwks) {
       findings.push({
         code: 'PD014',
         severity: 'error',
@@ -216,9 +236,9 @@ export function pd014(
       });
     }
     if (
-      /jwks\s*:/u.test(source.text) &&
-      !/\bissuer\s*[:,}]/u.test(source.text) &&
-      !/discovery\s*:/u.test(source.text)
+      setsJwks &&
+      !/\bissuer\s*[:,}]/u.test(text) &&
+      !/discovery\s*:/u.test(text)
     ) {
       findings.push({
         code: 'PD014',

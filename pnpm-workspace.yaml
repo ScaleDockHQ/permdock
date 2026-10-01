@@ -266,6 +266,13 @@ overrides:
   # Expo SDK 57 packages ask for their own copies; one version keeps the Expo example and fixture on one Metro and worklets runtime.
   '@react-native/metro-config': 'catalog:'
   react-native-worklets: 'catalog:'
+  # Patched releases for exact pins whose parent has no fixed stable release; drop each once the parent ships one.
+  'miniflare>undici': 7.30.0
+  'miniflare>sharp': 0.35.5
+  'eve>undici': 8.11.2
+  'openai>undici': 8.11.2
+  mysql2: 3.24.5
+  '@prisma/config>deepmerge-ts': 8.0.2
 
 allowBuilds:
   # Engine downloads are for `prisma migrate`; tests/integration creates tables with SQL.

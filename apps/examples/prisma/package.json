@@ -4,12 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "prisma generate",
     "dev": "prisma generate && node --watch --experimental-strip-types src/serve.ts",
-    "generate": "prisma generate",
     "lint": "oxlint --disable-nested-config",
     "start": "prisma generate && node --experimental-strip-types src/serve.ts",
-    "typecheck": "prisma generate && tsc --noEmit --checkers 4"
+    "typecheck": "prisma generate && tsc --noEmit --checkers 4",
+    "typegen": "prisma generate"
   },
   "dependencies": {
     "@electric-sql/pglite": "catalog:",
