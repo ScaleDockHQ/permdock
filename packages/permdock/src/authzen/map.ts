@@ -242,7 +242,7 @@ export function pageOf(body: Record<string, unknown>): {
         ? page['next_token']
         : '0';
   const parsed = Math.trunc(Number(raw));
-  const sizeRaw = page['size'];
+  const sizeRaw = page['limit'] ?? page['size'];
   const size =
     typeof sizeRaw === 'number' && sizeRaw > 0 ? Math.min(sizeRaw, 200) : 50;
   return {
@@ -257,12 +257,20 @@ export function paged<T>(
   size: number,
 ): {
   readonly results: readonly T[];
-  readonly page: { readonly next_token: string };
+  readonly page: {
+    readonly next_token: string;
+    readonly count: number;
+    readonly total: number;
+  };
 } {
   const slice = items.slice(offset, offset + size);
   const next = offset + slice.length;
   return {
     results: slice,
-    page: { next_token: next < items.length ? String(next) : '' },
+    page: {
+      next_token: next < items.length ? String(next) : '',
+      count: slice.length,
+      total: items.length,
+    },
   };
 }

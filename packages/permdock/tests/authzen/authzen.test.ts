@@ -467,13 +467,13 @@ describe('permdock/authzen', () => {
     expect(missing.status).toBe(404);
   });
 
-  it('serves per-tenant discovery', async () => {
+  it('serves per-tenant discovery for the path-qualified PDP identifier', async () => {
     // SAFETY: discovery JSON produced by the AuthZEN handler under test.
     const metadata = (await (
       await pdp()(
         request('/.well-known/authzen-configuration/o1', { method: 'GET' }),
       )
     ).json()) as { readonly policy_decision_point: string };
-    expect(metadata.policy_decision_point).toBe(ORIGIN);
+    expect(metadata.policy_decision_point).toBe(`${ORIGIN}/o1`);
   });
 });

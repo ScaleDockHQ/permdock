@@ -67,8 +67,10 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 
 - `evaluation`: `{ "decision": false, "context": { "permdock": { "outcome": "denied", "denials": [{ "role": "member", "reason": "condition" }] } } }`. The `context` member is optional in AuthZEN and PermDock always fills it so a PEP can explain the refusal. A PEP that wants what else the subject may do asks `search/action`.
 - `approval-required`: `decision: false` with `context.permdock.outcome: 'approval-required'` and `context.permdock.token`; the PEP decides how to obtain approval. AuthZEN has no third outcome, so this is a `false` with a reason in `context`, not a profile-specific extension.
-- `evaluations`: one result per item, in order; a batch never fails partially because one item is denied.
-- Search endpoints return the permitted subset; an empty page is the denial. Resource search filters the rows `resources.<type>.list` yields in memory and returns each as a `{ type, id }` entity, reading `id` from the resource's `id` field and dropping rows without one. Pagination follows the AuthZEN `page` object with an offset `next_token`.
+- `evaluations`: one result per item, in order; a batch never fails partially because one item is denied. `options.evaluations_semantic` is `execute_all` (the default), `deny_on_first_deny` or `permit_on_first_permit`; the two short-circuit semantics evaluate in order and stop after the first matching result, and any other value is a `400`. A request without an `evaluations` array, or with an empty one, is a single evaluation and answers `{ decision, context }`.
+- Search endpoints return the permitted subset; an empty page is the denial. Resource search filters the rows `resources.<type>.list` yields in memory and returns each as a `{ type, id }` entity, reading `id` from the resource's `id` field and dropping rows without one. Subject search answers only for `subject.type` `user` (or no type). Pagination follows the AuthZEN `page` object: the request's `page.limit` (default 50, at most 200) and `page.token`, the response's offset `next_token` (empty on the last page), `count` and `total`.
+- Discovery at `/.well-known/authzen-configuration/<path>` names `<origin>/<path>` as `policy_decision_point` and lists every endpoint beneath it, so a path-qualified PDP identifier resolves to its own metadata.
+- Every response echoes the request's `X-Request-ID` header.
 - Transport errors use RFC 9457 Problem Details (`400`, `401`, `413` for oversized batches).
 
 ## Why

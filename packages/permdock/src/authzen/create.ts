@@ -80,6 +80,33 @@ async function readJson(request: Request): Promise<unknown> {
   }
 }
 
+const SEMANTICS = [
+  'execute_all',
+  'deny_on_first_deny',
+  'permit_on_first_permit',
+] as const;
+
+type Semantic = (typeof SEMANTICS)[number];
+
+function semanticOf(body: Record<string, unknown>): Semantic | undefined {
+  const options = body['options'];
+  const value = isRecord(options) ? options['evaluations_semantic'] : undefined;
+  if (value === undefined) {
+    return 'execute_all';
+  }
+  return SEMANTICS.find((semantic) => semantic === value);
+}
+
+const WELL_KNOWN = '/.well-known/authzen-configuration';
+
+function withRequestId(request: Request, response: Response): Response {
+  const id = request.headers.get('x-request-id');
+  if (id !== null && id !== '') {
+    response.headers.set('X-Request-ID', id);
+  }
+  return response;
+}
+
 function resourceRef(
   permission: Permission,
   data: unknown,
@@ -249,15 +276,21 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     if (!isRecord(body)) {
       return validationProblem('evaluations body must be an object');
     }
-    const items = body['evaluations'];
-    if (items === undefined) {
-      return validationProblem('evaluations array is required');
-    }
+    const items = body['evaluations'] ?? [];
     if (!Array.isArray(items)) {
       return validationProblem('evaluations must be an array');
     }
+    if (items.length === 0) {
+      return Response.json(evaluationRow(await decideItem(request, pep, body)));
+    }
     if (items.length > maxEvaluations) {
       return batchTooLarge(maxEvaluations);
+    }
+    const semantic = semanticOf(body);
+    if (semantic === undefined) {
+      return validationProblem(
+        `options.evaluations_semantic must be one of ${SEMANTICS.join(', ')}`,
+      );
     }
     const shared = compact<AuthzenItem>({
       subject: isRecord(body['subject']) ? body['subject'] : undefined,
@@ -265,11 +298,23 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       resource: isRecord(body['resource']) ? body['resource'] : undefined,
       context: body['context'],
     });
-    const rows = await Promise.all(
-      items.map((item) =>
-        decideItem(request, pep, mergeItem(shared, item)).then(evaluationRow),
-      ),
-    );
+    const rowOf = (item: unknown): Promise<ReturnType<typeof evaluationRow>> =>
+      decideItem(request, pep, mergeItem(shared, item)).then(evaluationRow);
+    if (semantic === 'execute_all') {
+      return Response.json({
+        evaluations: await Promise.all(items.map(rowOf)),
+      });
+    }
+    const stopOn = semantic === 'permit_on_first_permit';
+    const rows: ReturnType<typeof evaluationRow>[] = [];
+    for (const item of items) {
+      // oxlint-disable-next-line no-await-in-loop -- short-circuit semantics evaluate in order and stop early
+      const row = await rowOf(item);
+      rows.push(row);
+      if (row.decision === stopOn) {
+        break;
+      }
+    }
     return Response.json({ evaluations: rows });
   }
 
@@ -352,7 +397,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       typeof item.resource?.type === 'string' ? item.resource.type : undefined;
     const permission = permissionOf(policy.permissions, item);
     if (type === undefined || permission === undefined) {
-      return Response.json({ results: [], page: { next_token: '' } });
+      return Response.json(paged([], 0, 1));
     }
     const rows = await listRows(
       type,
@@ -407,9 +452,13 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     try {
       records = await options.subjects.list();
     } catch {
-      return Response.json({ results: [], page: { next_token: '' } });
+      return Response.json(paged([], 0, 1));
     }
     const item: AuthzenItem = body;
+    const wanted = item.subject?.type;
+    if (typeof wanted === 'string' && wanted !== 'user') {
+      return Response.json(paged([], 0, 1));
+    }
     const decisions = await Promise.all(
       records.map(async (record) => {
         const properties: Record<string, unknown> = {};
@@ -440,60 +489,67 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     return Response.json(paged(matches, offset, size));
   }
 
-  function discovery(request: Request): Response {
+  function discovery(request: Request, pathname: string): Response {
     const origin = new URL(request.url).origin;
+    const suffix = pathname
+      .slice(pathname.indexOf(WELL_KNOWN) + WELL_KNOWN.length)
+      .replace(/\/+$/u, '');
+    const pdp = `${origin}${suffix}`;
     const document: Record<string, string> = {
-      policy_decision_point: origin,
-      access_evaluation_endpoint: `${origin}/access/v1/evaluation`,
-      access_evaluations_endpoint: `${origin}/access/v1/evaluations`,
-      search_action_endpoint: `${origin}/access/v1/search/action`,
-      search_resource_endpoint: `${origin}/access/v1/search/resource`,
+      policy_decision_point: pdp,
+      access_evaluation_endpoint: `${pdp}/access/v1/evaluation`,
+      access_evaluations_endpoint: `${pdp}/access/v1/evaluations`,
+      search_action_endpoint: `${pdp}/access/v1/search/action`,
+      search_resource_endpoint: `${pdp}/access/v1/search/resource`,
     };
     if (options.subjects?.list !== undefined) {
-      document['search_subject_endpoint'] =
-        `${origin}/access/v1/search/subject`;
+      document['search_subject_endpoint'] = `${pdp}/access/v1/search/subject`;
     }
     return Response.json(document);
   }
 
+  async function route(request: Request): Promise<Response> {
+    const pathname = pathnameOf(request);
+    if (
+      endsWithPath(pathname, WELL_KNOWN) ||
+      pathname.includes(`${WELL_KNOWN}/`)
+    ) {
+      if (request.method !== 'GET') {
+        return methodNotAllowed('GET');
+      }
+      return discovery(request, pathname);
+    }
+
+    const identity = await authenticate(request);
+    if (identity instanceof Response) {
+      return identity;
+    }
+
+    const routes: readonly (readonly [
+      string,
+      string,
+      (req: Request, identity: unknown) => Promise<Response>,
+    ])[] = [
+      ['POST', '/access/v1/evaluation', evaluation],
+      ['POST', '/access/v1/evaluations', evaluations],
+      ['POST', '/access/v1/search/action', searchAction],
+      ['POST', '/access/v1/search/resource', searchResource],
+      ['POST', '/access/v1/search/subject', searchSubject],
+    ];
+    for (const [method, suffix, serve] of routes) {
+      if (endsWithPath(pathname, suffix)) {
+        if (request.method !== method) {
+          return methodNotAllowed(method);
+        }
+        return serve(request, identity.pep);
+      }
+    }
+    return notFound('unknown AuthZEN path');
+  }
+
   return {
     async handler(request) {
-      const pathname = pathnameOf(request);
-      if (
-        endsWithPath(pathname, '/.well-known/authzen-configuration') ||
-        pathname.includes('/.well-known/authzen-configuration/')
-      ) {
-        if (request.method !== 'GET') {
-          return methodNotAllowed('GET');
-        }
-        return discovery(request);
-      }
-
-      const identity = await authenticate(request);
-      if (identity instanceof Response) {
-        return identity;
-      }
-
-      const routes: readonly (readonly [
-        string,
-        string,
-        (req: Request, identity: unknown) => Promise<Response>,
-      ])[] = [
-        ['POST', '/access/v1/evaluation', evaluation],
-        ['POST', '/access/v1/evaluations', evaluations],
-        ['POST', '/access/v1/search/action', searchAction],
-        ['POST', '/access/v1/search/resource', searchResource],
-        ['POST', '/access/v1/search/subject', searchSubject],
-      ];
-      for (const [method, suffix, route] of routes) {
-        if (endsWithPath(pathname, suffix)) {
-          if (request.method !== method) {
-            return methodNotAllowed(method);
-          }
-          return route(request, identity.pep);
-        }
-      }
-      return notFound('unknown AuthZEN path');
+      return withRequestId(request, await route(request));
     },
   };
 };
