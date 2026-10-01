@@ -20,6 +20,24 @@ function quoted(value: string): string {
   return `"${value.replaceAll(/["\\]/gu, '')}"`;
 }
 
+const UTF8 = new TextEncoder();
+
+/**
+ * An RFC 9651 sf-string: `"` and `\` escaped, and anything outside printable
+ * ASCII percent-encoded, which the grammar does not allow.
+ */
+function sfString(value: string): string {
+  const escaped = value
+    .replaceAll(/[\\"]/gu, (char) => `\\${char}`)
+    .replaceAll(/[^\u0020-\u007E]/gu, (char) =>
+      Array.from(
+        UTF8.encode(char),
+        (byte) => `%${byte.toString(16).toUpperCase().padStart(2, '0')}`,
+      ).join(''),
+    );
+  return `"${escaped}"`;
+}
+
 export type BearerChallenge = {
   readonly error:
     | 'invalid_token'
@@ -240,7 +258,7 @@ export function rateLimitHeaders(
     return {};
   }
   const entries = [...policies].map(([name, detail]) => ({
-    name: quoted(name),
+    name: sfString(name),
     detail,
     wait: Math.max(1, Math.ceil(detail.resetsAt - now)),
   }));

@@ -38,7 +38,7 @@ RateLimit-Policy: "member";q=100;w=86400
 ```
 
 - **Where the numbers come from.** The `limit` denial carries `detail: { count, window, resetsAt }` (`LimitDetail`), computed by the evaluator from the grant and the window it counted in. The renderer reads nothing from the `LimitStore`, so rendering a response never touches the counter.
-- **One policy per exhausted grant.** Each role whose limited grant matched and was exhausted is one policy, named by the role (`"default"` for a top-level grant). `Retry-After` is the smallest `t`, the soonest any of them frees a call.
+- **One policy per exhausted grant.** Each role whose limited grant matched and was exhausted is one policy, named by the role (`"default"` for a top-level grant): an RFC 9651 sf-string, with `"` and `\` escaped and anything outside printable ASCII percent-encoded as UTF-8, so a role named `élève` is `"%C3%A9l%C3%A8ve"`. `Retry-After` is the smallest `t`, the soonest any of them frees a call.
 - **Only when every denial is `limit`.** A decision where another grant was denied for a different reason stays a `403` `.../denied`; a `429` would tell the client that waiting helps when it does not.
 - **`limit-unavailable` is a `503`.** No store, a store that threw, or a store that returned a Promise denies with `limit-unavailable` (fail-closed). That is the server's fault, not the caller's, so it renders as `503` `.../limit-unavailable` with no `Retry-After`.
 - **Granted responses carry no fields yet.** A granted decision carries `quota: { remaining, resetsAt }`; an app that wants `RateLimit` on every response sets it from `quota` in its handler.
