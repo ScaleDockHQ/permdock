@@ -15,7 +15,7 @@ import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { RevocationFeed } from '../core/revocations.ts';
-import type { Actor, Principal } from '../core/subject.ts';
+import type { Actor, Principal, Subject } from '../core/subject.ts';
 import type { PdpFactory, PdpPermDock } from '../pdp/types.ts';
 import type { Connection, ConnectionOptions } from './connection.ts';
 import type { WebBotAuthOptions } from './web-bot-auth.ts';
@@ -38,7 +38,10 @@ import {
 import { InvalidSignatureError, verifyWebBotAuth } from './web-bot-auth.ts';
 
 export type ServerPermDockOptions<TUser = unknown> = {
-  readonly subject: (request: Request) => TUser | Promise<TUser>;
+  /** The user, or a full `Subject` (core then skips `policy.subject`); `null` is anonymous. */
+  readonly subject: (
+    request: Request,
+  ) => TUser | Subject | null | Promise<TUser | Subject | null>;
   readonly actor?: (request: Request) => unknown;
   readonly webBotAuth?: WebBotAuthOptions;
   readonly tenant?:
@@ -190,7 +193,7 @@ type Built = {
 };
 
 type Resolved<TUser> = {
-  readonly user: TUser | null;
+  readonly user: TUser | Subject | null;
   readonly actor: Actor | undefined;
 };
 
@@ -247,7 +250,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
     }
     const resolved = (async (): Promise<Resolved<TUser>> => {
       const actor = await resolveActor(request, options);
-      let user: TUser | null = null;
+      let user: TUser | Subject | null = null;
       try {
         user = await options.subject(request);
       } catch {

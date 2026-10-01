@@ -16,6 +16,7 @@ import { listPermissions } from './permissions.ts';
 import {
   type BreakGlassOptions,
   type BreakGlassSpec,
+  type RoleBinding,
   type SupportAccessOptions,
   normalizeAssurance,
   role,
@@ -86,9 +87,14 @@ export function breakGlass<T>(
  * every decision under it without an `act`; `forbid` compiles to deny grants
  * scoped to `via: 'support'`.
  */
-export function supportAccess<S extends string = string>(
-  options: SupportAccessOptions<S>,
-): ReturnType<typeof role> {
+export function supportAccess<const S extends string>(
+  options: SupportAccessOptions<S> & { readonly on: S },
+): RoleBinding<S>;
+/** Support access held in the `tenant` scope. */
+export function supportAccess(
+  options: SupportAccessOptions<never>,
+): RoleBinding<'tenant'>;
+export function supportAccess(options: SupportAccessOptions): RoleBinding {
   const via = options.role;
   const forbidden = (options.forbid ?? []).flatMap((item) =>
     flattenPermissions(item),

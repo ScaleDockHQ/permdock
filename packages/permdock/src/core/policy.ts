@@ -179,7 +179,7 @@ export type SupportConsent = {
 export type SupportAccessOptions<S extends string = string> = {
   /** The role a consented support membership holds. */
   readonly role: string;
-  /** The scope the support membership sits in; defaults to the first scope. */
+  /** The scope the support membership sits in; defaults to `tenant`. */
   readonly on?: S;
   /** Every decision under the support membership denies with `actor-required` without an `act`. */
   readonly actorRequired?: boolean;
