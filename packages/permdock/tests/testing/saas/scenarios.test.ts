@@ -13,6 +13,7 @@ import {
 import {
   saasCustomRoles,
   saasFolderScenarios,
+  saasLimitStore,
   saasPermissions,
   saasPolicy,
   saasPrincipal,
@@ -84,6 +85,54 @@ describe('saas scenarios', () => {
       it(client, () => checkClient(scenario));
     }
   }
+});
+
+describe('saas scenario helpers', () => {
+  const input = {
+    key: 'apiKey.create',
+    subjectId: 'alice',
+    count: 5,
+    per: 'day',
+    tenant: 'acme',
+  };
+
+  it('primes each subject and tenant once with the used units', async () => {
+    const store = saasLimitStore(3);
+    expect(store.remaining(input)).toEqual({ remaining: 2 });
+    expect(await store.consume(input)).toEqual({ remaining: 1 });
+    expect(store.remaining({ ...input, tenant: 'globex' })).toEqual({
+      remaining: 2,
+    });
+    expect(saasLimitStore().remaining(input)).toEqual({ remaining: 5 });
+  });
+
+  it('builds a principal, or a subject when an actor or delegation is set', () => {
+    const base = saasScenarios[0];
+    if (base === undefined) {
+      throw new Error('no saas scenarios');
+    }
+    const delegation = { scopes: ['project:read'] };
+    expect({
+      plain: saasUser({ ...base, user: 'bob', tenant: 'acme' }),
+      delegated: saasUser({ ...base, user: 'bob', tenant: 'acme', delegation }),
+      options: Object.keys(
+        saasScenarioOptions({
+          name: base.name,
+          user: 'bob',
+          permission: base.permission,
+          expected: base.expected,
+        }),
+      ),
+    }).toEqual({
+      plain: saasPrincipal('bob', 'acme'),
+      delegated: {
+        principal: saasPrincipal('bob', 'acme'),
+        context: {},
+        delegation,
+      },
+      options: ['customRoles', 'limits', 'relations'],
+    });
+  });
 });
 
 describe('saas folder tree', () => {

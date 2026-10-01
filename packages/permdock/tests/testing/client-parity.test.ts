@@ -12,8 +12,8 @@ import { testClientParity } from '../../src/testing/client-parity.ts';
 import {
   saasCustomRoles,
   saasPolicy,
-  saasPrincipal,
   saasScenarios,
+  saasUser,
 } from '../../src/testing/saas/index.ts';
 
 describe('testClientParity over the saas scenarios', () => {
@@ -21,7 +21,7 @@ describe('testClientParity over the saas scenarios', () => {
     saasPolicy,
     saasScenarios.map((scenario) => ({
       name: scenario.name,
-      user: saasPrincipal(scenario.user, scenario.tenant),
+      user: saasUser(scenario),
       tenant: scenario.tenant,
       permission: scenario.permission,
       row: scenario.row,
