@@ -446,6 +446,7 @@ describe('permdock supabase hook generate', () => {
       join(missing.cwd, 'rls.sql'),
       `create or replace function "public".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;
 create or replace function public.permitted_organization_ids(p_grant text) returns setof text language sql as $$ select null::text where false $$;
+create or replace function "public".member_organization_ids_for(p_user uuid) returns setof text language sql as $$ select null::text where false $$;
 `,
     );
     const partial = await run(
@@ -453,7 +454,7 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
       { cwd: missing.cwd },
     );
     expect(partial.stdout).toContain(
-      'PD039 schema public has no member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
+      'PD039 schema public has no member_organization_ids, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
     );
     const other = await generate(
       `{ memberships: [${SOURCES}] }`,
