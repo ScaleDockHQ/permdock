@@ -25,7 +25,7 @@ const securitySchemes = {
     oauth2MetadataUrl:
       'https://auth.example.com/.well-known/oauth-authorization-server',
   },
-};
+} as const;
 
 const skills = {
   summarise: {
@@ -48,16 +48,16 @@ describe('permdock/a2a', () => {
       skills,
     });
     const published = agentCard();
-    expect(published.protocolVersion).toBe('1.0');
+    expect(published.supportedInterfaces[0]?.protocolVersion).toBe('1.0');
     expect(published.skills.map((skill) => skill.id)).toEqual([
       'summarise',
       'publish',
     ]);
     expect(published.skills[0]?.securityRequirements).toEqual([
-      { oauth: [permissions.post.read.scope] },
+      { schemes: { oauth: { list: [permissions.post.read.scope] } } },
     ]);
     expect(published.skills[1]?.securityRequirements).toEqual([
-      { oauth: [permissions.post.publish.scope] },
+      { schemes: { oauth: { list: [permissions.post.publish.scope] } } },
     ]);
   });
 
@@ -192,10 +192,16 @@ describe('permdock/a2a', () => {
     expect(granted).toEqual({ ok: true });
     const signed = await sign(
       agentCard(),
-      async (payload) => `sig:${payload.length}`,
+      async (payload) =>
+        `eyJhbGciOiJ0ZXN0In0.${Buffer.from(payload).toString('base64url')}.c2ln`,
     );
-    expect(signed.signature.startsWith('sig:')).toBe(true);
-    expect(signed.card.name).toBe('Posts agent');
+    expect(signed.signatures).toEqual([
+      { protected: 'eyJhbGciOiJ0ZXN0In0', signature: 'c2ln' },
+    ]);
+    expect(signed.name).toBe('Posts agent');
+    await expect(sign(agentCard(), async () => 'a.b.c')).rejects.toThrow(
+      /compact JWS over the payload/u,
+    );
   });
 
   it('refuses an instance skill without a data loader', () => {

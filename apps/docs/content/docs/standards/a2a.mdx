@@ -41,7 +41,7 @@ What the adapter does:
 - **Filters the extended card.** `extendedAgentCard(auth)` builds a request-scoped `PermDock` from the caller's credentials and includes only skills whose permission the subject holds (`can` on collection actions; instance actions are included when a representative check or an explicit `advertise` rule passes).
 - **Guards skill execution.** `protectSkill` wraps a skill handler: it validates parameters against the resource schema at the boundary, loads the instance with `data`, calls `decide`, and returns a structured refusal with reasons and `alternatives` on `denied`, or an approval request on `approval-required`.
 - **Fills `actor` and `delegation`** from the calling agent's identity and token scopes, so the calling agent cannot exceed the user it acts for.
-- **Signed cards** are produced by the hosting framework's signing step; the adapter supplies the card content and leaves signing to the deployment, because PermDock does not manage keys.
+- **Signed cards** use the host's key: `sign(card, signPayload)` hands the signer the RFC 8785 canonical card and stores the detached JWS in `signatures`, because PermDock does not manage keys.
 
 The public card lists every skill with its scopes: a scope names what a token must carry, not what any user holds, so it discloses nothing the OAuth metadata does not. The extended card is the per-caller view.
 
@@ -67,7 +67,7 @@ The A2A adapter reuses the MCP adapter's translation of a `Decision` into a stru
 | Skill | Entry in `skills: { name: { permission, data? } }` |
 | Authenticated extended card | `extendedAgentCard(auth)` filtered by `can` per skill |
 | Public card | `agentCard()` listing all skills with their requirements |
-| Signed card | Out of scope; content provided, signing left to the host |
+| Signed card | `sign(card, signPayload)`: the host's signer returns a compact JWS over the RFC 8785 card; the adapter appends the detached `{ protected, signature }` to `signatures` |
 | Calling agent identity | `actor` |
 | Caller's token scopes / `authorization_details` | `delegation` |
 | User the calling agent acts for | `principal` via `subject(auth)` |

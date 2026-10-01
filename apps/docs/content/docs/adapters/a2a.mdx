@@ -30,10 +30,10 @@ app.post('/a2a/tasks', protectSkill((task) => task.skillId), handleTask)
 ```
 
 - `skills` maps skill ids to a permission and optional metadata; `data` resolves the resource for instance-level actions from the task payload.
-- `agentCard()` returns the public card: every skill, each with `securityRequirements` naming the configured scheme and the permission's `scope` alone (`post:read`, `post:publish`), with no coarse agent scope added.
+- `agentCard()` returns the public card in the A2A 1.0 wire form, which validates against the published `a2a.json`: `card.url` becomes the first `supportedInterfaces` entry (`protocolBinding` defaults to `JSONRPC`, `protocolVersion` is `1.0`), `description` defaults to `name`, `defaultInputModes` and `defaultOutputModes` default to `['text/plain']`, and `capabilities.extendedAgentCard` is `true`. `securitySchemes` takes OpenAPI-style input (`type` `oauth2`, `http`, `openIdConnect`, `mutualTLS` or `apiKey`) and emits the A2A one-of form (`{ oauth2SecurityScheme: { oauth2MetadataUrl } }`). Each skill carries `tags` (default: the permission's resource) and `securityRequirements` of the form `{ schemes: { <scheme>: { list: [scope] } } }`, naming the configured scheme and the permission's `scope` alone (`post:read`, `post:publish`), with no coarse agent scope added.
 - `extendedAgentCard(auth)` builds a request-scoped `PermDock` and returns only skills with a grant for the caller; `securityRequirements` are unchanged. A skill with instance-level conditions stays listed when any grant could match, as with MCP `tools/list`, and filtered skills carry no `alternatives` hints.
 - `protectSkill(selector)` is middleware for the task endpoint: it resolves the skill id, runs `decide`, and rejects the task when the outcome is not `granted`.
-- Card signing stays with the host's key material: `sign(card, signPayload)` serialises the card and passes it to your signer callback, so the filtered extended card can be signed per response without the adapter holding a key.
+- Card signing stays with the host's key material: `sign(card, signPayload)` passes the RFC 8785 canonical JSON of the card without `signatures` to your callback, which returns a compact JWS over it (for example jose `CompactSign`); the adapter checks the payload, detaches it and appends `{ protected, signature }` to `signatures` (A2A 1.0 section 8.4), so the filtered extended card can be signed per response without the adapter holding a key.
 
 ## Request lifecycle
 

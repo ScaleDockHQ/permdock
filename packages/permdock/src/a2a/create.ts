@@ -9,11 +9,15 @@ import type {
   A2AAuth,
   A2APermDock,
   A2APermDockOptions,
+  A2ASecurityScheme,
   A2ASkill,
+  A2ASkillConfig,
   A2ATaskOutcome,
+  A2AWireSecurityScheme,
 } from './types.ts';
 
 import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
+import { canonicalJson } from '../core/canonical-json.ts';
 import { compact } from '../core/compact.ts';
 import {
   PermDockApprovalRequiredError,
@@ -21,6 +25,7 @@ import {
 } from '../core/errors.ts';
 import { mayUse } from '../core/may-use.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
+import { bytesToBase64Url } from '../core/sha256.ts';
 import { bearerChallenge } from '../server/problem.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -33,40 +38,108 @@ function firstScheme(options: A2APermDockOptions): string | undefined {
 
 function skillOf(
   id: string,
-  permission: Permission,
-  description: string | undefined,
+  config: A2ASkillConfig,
   scheme: string | undefined,
 ): A2ASkill {
-  return compact<A2ASkill>({
+  return {
     id,
     name: id,
-    description: description ?? permission.key,
+    description: config.description ?? config.permission.key,
+    tags: config.tags ?? [config.permission.resource],
     securityRequirements:
-      scheme === undefined ? [] : [{ [scheme]: [permission.scope] }],
-  });
+      scheme === undefined
+        ? []
+        : [{ schemes: { [scheme]: { list: [config.permission.scope] } } }],
+  };
 }
 
 function publicSkills(options: A2APermDockOptions): readonly A2ASkill[] {
   const scheme = firstScheme(options);
   return Object.entries(options.skills).map(([id, config]) =>
-    skillOf(id, config.permission, config.description, scheme),
+    skillOf(id, config, scheme),
   );
+}
+
+function wireScheme(scheme: A2ASecurityScheme): A2AWireSecurityScheme {
+  switch (scheme.type) {
+    case 'oauth2':
+      return {
+        oauth2SecurityScheme: compact({
+          oauth2MetadataUrl: scheme.oauth2MetadataUrl,
+          description: scheme.description,
+        }),
+      };
+    case 'http':
+      return {
+        httpAuthSecurityScheme: compact({
+          scheme: scheme.scheme,
+          bearerFormat: scheme.bearerFormat,
+          description: scheme.description,
+        }),
+      };
+    case 'openIdConnect':
+      return {
+        openIdConnectSecurityScheme: compact({
+          openIdConnectUrl: scheme.openIdConnectUrl,
+          description: scheme.description,
+        }),
+      };
+    case 'mutualTLS':
+      return {
+        mtlsSecurityScheme: compact({ description: scheme.description }),
+      };
+    case 'apiKey':
+      return {
+        apiKeySecurityScheme: compact({
+          location: scheme.in,
+          name: scheme.name,
+          description: scheme.description,
+        }),
+      };
+    default: {
+      const exhaustive: never = scheme;
+      return exhaustive;
+    }
+  }
 }
 
 function cardOf(
   options: A2APermDockOptions,
   skills: readonly A2ASkill[],
 ): A2AAgentCard {
+  const info = options.card;
   return compact<A2AAgentCard>({
-    name: options.card.name,
-    description: options.card.description,
-    url: options.card.url,
-    version: options.card.version,
-    protocolVersion: '1.0',
-    securitySchemes: options.securitySchemes,
+    name: info.name,
+    description: info.description ?? info.name,
+    version: info.version,
+    supportedInterfaces: [
+      {
+        url: info.url,
+        protocolBinding: info.protocolBinding ?? 'JSONRPC',
+        protocolVersion: '1.0',
+      },
+    ],
+    provider: info.provider,
+    documentationUrl: info.documentationUrl,
+    iconUrl: info.iconUrl,
+    capabilities: compact({
+      extendedAgentCard: true as const,
+      streaming: info.streaming,
+      pushNotifications: info.pushNotifications,
+    }),
+    defaultInputModes: info.defaultInputModes ?? DEFAULT_MODES,
+    defaultOutputModes: info.defaultOutputModes ?? DEFAULT_MODES,
+    securitySchemes: Object.fromEntries(
+      Object.entries(options.securitySchemes).map(([name, scheme]) => [
+        name,
+        wireScheme(scheme),
+      ]),
+    ),
     skills,
   });
 }
+
+const DEFAULT_MODES: readonly string[] = ['text/plain'];
 
 function delegationOf(auth: A2AAuth): Delegation | undefined {
   return compact<Delegation>({
@@ -160,13 +233,28 @@ function approvalOutcome(
   };
 }
 
+/** A2A 1.0 section 8.4: a detached JWS over the RFC 8785 form of the card. */
 async function signCard(
   card: A2AAgentCard,
   signPayload: (payload: string) => Promise<string>,
-): Promise<{ readonly card: A2AAgentCard; readonly signature: string }> {
+): Promise<A2AAgentCard> {
+  const { signatures = [], ...unsigned } = card;
+  const payload = canonicalJson(unsigned);
+  const jws = await signPayload(payload);
+  const [header, body, signature, extra] = jws.split('.');
+  if (
+    header === undefined ||
+    signature === undefined ||
+    extra !== undefined ||
+    body !== bytesToBase64Url(new TextEncoder().encode(payload))
+  ) {
+    throw new TypeError(
+      'PermDock: an A2A card signer must return a compact JWS over the payload it was given',
+    );
+  }
   return {
-    card,
-    signature: await signPayload(JSON.stringify(card)),
+    ...card,
+    signatures: [...signatures, { protected: header, signature }],
   };
 }
 
@@ -236,7 +324,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     const skills: A2ASkill[] = [];
     for (const [id, config] of Object.entries(options.skills)) {
       if (mayUse(dock, config.permission)) {
-        skills.push(skillOf(id, config.permission, config.description, scheme));
+        skills.push(skillOf(id, config, scheme));
       }
     }
     return cardOf(options, skills);

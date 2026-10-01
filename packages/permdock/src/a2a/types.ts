@@ -22,42 +22,132 @@ export type A2AAuth = {
   };
 };
 
-export type A2ASecurityScheme = {
-  readonly type: string;
-  readonly oauth2MetadataUrl?: string;
-  readonly scheme?: string;
-};
+/** OpenAPI-style input; the card carries the A2A 1.0 union form. */
+export type A2ASecurityScheme =
+  | {
+      readonly type: 'oauth2';
+      readonly oauth2MetadataUrl: string;
+      readonly description?: string;
+    }
+  | {
+      readonly type: 'http';
+      readonly scheme: string;
+      readonly bearerFormat?: string;
+      readonly description?: string;
+    }
+  | {
+      readonly type: 'openIdConnect';
+      readonly openIdConnectUrl: string;
+      readonly description?: string;
+    }
+  | { readonly type: 'mutualTLS'; readonly description?: string }
+  | {
+      readonly type: 'apiKey';
+      readonly in: 'query' | 'header' | 'cookie';
+      readonly name: string;
+      readonly description?: string;
+    };
+
+/** A2A 1.0 `SecurityScheme`: exactly one member set. */
+export type A2AWireSecurityScheme =
+  | {
+      readonly oauth2SecurityScheme: {
+        readonly oauth2MetadataUrl: string;
+        readonly description?: string;
+      };
+    }
+  | {
+      readonly httpAuthSecurityScheme: {
+        readonly scheme: string;
+        readonly bearerFormat?: string;
+        readonly description?: string;
+      };
+    }
+  | {
+      readonly openIdConnectSecurityScheme: {
+        readonly openIdConnectUrl: string;
+        readonly description?: string;
+      };
+    }
+  | { readonly mtlsSecurityScheme: { readonly description?: string } }
+  | {
+      readonly apiKeySecurityScheme: {
+        readonly location: 'query' | 'header' | 'cookie';
+        readonly name: string;
+        readonly description?: string;
+      };
+    };
 
 export type A2ACardInfo = {
   readonly name: string;
+  /** Required by A2A 1.0; defaults to `name`. */
+  readonly description?: string;
+  /** The preferred interface URL, the first `supportedInterfaces` entry. */
   readonly url: string;
   readonly version: string;
-  readonly description?: string;
+  /** Defaults to `JSONRPC`. */
+  readonly protocolBinding?: 'JSONRPC' | 'GRPC' | 'HTTP+JSON';
+  readonly provider?: { readonly organization: string; readonly url: string };
+  readonly documentationUrl?: string;
+  readonly iconUrl?: string;
+  /** Media types; default `['text/plain']`. */
+  readonly defaultInputModes?: readonly string[];
+  readonly defaultOutputModes?: readonly string[];
+  readonly streaming?: boolean;
+  readonly pushNotifications?: boolean;
 };
 
 export type A2ASkillConfig = {
   readonly permission: Permission;
   readonly description?: string;
+  /** Required by A2A 1.0; defaults to the permission's resource. */
+  readonly tags?: readonly string[];
   readonly data?: (task: unknown) => Promise<unknown>;
+};
+
+/** A2A 1.0 `SecurityRequirement`: scheme name to required scopes. */
+export type A2ASecurityRequirement = {
+  readonly schemes: Readonly<
+    Record<string, { readonly list: readonly string[] }>
+  >;
 };
 
 export type A2ASkill = {
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  readonly securityRequirements: readonly Readonly<
-    Record<string, readonly string[]>
-  >[];
+  readonly tags: readonly string[];
+  readonly securityRequirements: readonly A2ASecurityRequirement[];
+};
+
+/** A2A 1.0 `AgentCardSignature`: a JWS over the card without `signatures`. */
+export type A2AAgentCardSignature = {
+  readonly protected: string;
+  readonly signature: string;
 };
 
 export type A2AAgentCard = {
   readonly name: string;
-  readonly description?: string;
-  readonly url: string;
+  readonly description: string;
   readonly version: string;
-  readonly protocolVersion: '1.0';
-  readonly securitySchemes: Readonly<Record<string, A2ASecurityScheme>>;
+  readonly supportedInterfaces: readonly {
+    readonly url: string;
+    readonly protocolBinding: string;
+    readonly protocolVersion: '1.0';
+  }[];
+  readonly provider?: { readonly organization: string; readonly url: string };
+  readonly documentationUrl?: string;
+  readonly iconUrl?: string;
+  readonly capabilities: {
+    readonly extendedAgentCard: true;
+    readonly streaming?: boolean;
+    readonly pushNotifications?: boolean;
+  };
+  readonly defaultInputModes: readonly string[];
+  readonly defaultOutputModes: readonly string[];
+  readonly securitySchemes: Readonly<Record<string, A2AWireSecurityScheme>>;
   readonly skills: readonly A2ASkill[];
+  readonly signatures?: readonly A2AAgentCardSignature[];
 };
 
 export type A2ATaskOutcome =
@@ -97,8 +187,12 @@ export type A2APermDock = {
   readonly protectSkill: (
     selector: (task: unknown) => string,
   ) => (task: unknown, auth: A2AAuth) => Promise<A2ATaskOutcome>;
+  /**
+   * Appends an A2A 1.0 signature. `sign` returns a compact JWS over the
+   * RFC 8785 canonical card it is given; the payload is detached.
+   */
   readonly sign: (
     card: A2AAgentCard,
     sign: (payload: string) => Promise<string>,
-  ) => Promise<{ readonly card: A2AAgentCard; readonly signature: string }>;
+  ) => Promise<A2AAgentCard>;
 };
