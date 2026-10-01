@@ -49,9 +49,9 @@ export const permissions = definePermissions({
 Rules of consumption:
 
 - `resource()` accepts anything that satisfies `StandardSchemaV1`. It reads `~standard.types.output` for inference and stores the schema on the resource node, never on the permission leaf, so leaves stay plain JSON.
-- **Validation is synchronous at boundaries.** `validate: 'boundary'` (the default in `definePolicy`) calls `~standard.validate` on untrusted data. If the validator returns a Promise, PermDock throws `PermDockValidationError` with a message naming the async schema rather than silently denying, which is the failure mode `@zap-studio/permit` has with async rules. `validate: 'always'` and `'never'` are the other two modes.
+- **Validation is synchronous at boundaries.** `validate: 'boundary'` (the default in `definePolicy`) calls `~standard.validate` on untrusted data. If the validator returns a Promise, `decide` and `assert` throw `PermDockValidationError` with code `async-schema` rather than silently denying (`can` still returns `false`, never throws), which is the failure mode `@zap-studio/permit` has with async rules. `validate: 'always'` and `'never'` are the other two modes.
 - **Issues become denials.** A failed validation yields `outcome: 'denied'` with a reason of kind `validation` carrying the `issues` array, so an MCP client or an HTTP caller sees which field was wrong.
-- **JSON Schema export** uses `~standard.jsonSchema.output(...)` when the validator implements `StandardJSONSchemaV1`; schema-less resources and validators without it produce an empty object schema and a warning from `permdock doctor`.
+- **JSON Schema export** calls `~standard.jsonSchema.output({ target: 'draft-2020-12' })` when the validator implements `StandardJSONSchemaV1`; a schema-less resource, a validator without it and a converter that throws all produce `schema: null` in the catalog.
 - `@standard-schema/spec` is a **regular dependency** of `permdock`, not a peer, because its types are part of PermDock's public API. Users never install it themselves.
 - Generated definitions from `permdock rls import` emit code for the validator chosen with `--schema zod|valibot|arktype`, or reference existing Drizzle tables via `drizzle-zod`; the output is still just a Standard Schema.
 
@@ -66,7 +66,7 @@ Rules of consumption:
 | `validate` returning `{ issues }` | `Decision` denied with `reason.kind === 'validation'` and the issues |
 | `validate` returning a Promise | `PermDockValidationError` at the boundary (sync requirement) |
 | `StandardJSONSchemaV1.jsonSchema.output` | Catalog JSON Schema, OpenAPI `components.schemas`, MCP `inputSchema` cross-check |
-| `vendor` | Reported by `permdock doctor` and in the catalog for debugging |
+| `vendor` | Not read; every implementer is treated the same |
 
 ## Supported validators
 

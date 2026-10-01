@@ -326,14 +326,16 @@ export function jsonSchemaOf(node: ResourceNode): unknown {
   const schema = node.schema as
     | {
         readonly '~standard'?: {
-          readonly jsonSchema?: { readonly output?: () => unknown };
+          readonly jsonSchema?: {
+            readonly output?: (options: { readonly target: string }) => unknown;
+          };
         };
       }
     | undefined;
   const output = schema?.['~standard']?.jsonSchema?.output;
   if (typeof output === 'function') {
     try {
-      return output();
+      return output({ target: 'draft-2020-12' });
     } catch {
       return null;
     }
