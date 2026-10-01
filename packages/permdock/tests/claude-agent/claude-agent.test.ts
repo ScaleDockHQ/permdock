@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { ClaudeMcpServer } from '../../src/claude-agent/index.ts';
+
 import { memoryApprovalStore } from '../../src/approvals/index.ts';
 import { createPermDock } from '../../src/claude-agent/index.ts';
 import {
@@ -41,7 +43,11 @@ function tools() {
 const signal = new AbortController().signal;
 const sdkServer = { signal, mcpServer: { name: 'posts', source: 'sdk' } };
 
-function hookInput(toolName: string, toolInput: unknown, mcpServer?: unknown) {
+function hookInput(
+  toolName: string,
+  toolInput: unknown,
+  mcpServer?: ClaudeMcpServer,
+) {
   return {
     hook_event_name: 'PermissionRequest' as const,
     session_id: 's1',

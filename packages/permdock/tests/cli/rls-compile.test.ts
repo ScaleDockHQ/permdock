@@ -38,6 +38,7 @@ const policy = definePolicy(
 const ctx = {
   dialect: 'supabase',
   tenantClaim: 'tenant',
+  scopes: scopeList(undefined),
   gucPrefix: 'permdock',
   memberships: {
     resource: {

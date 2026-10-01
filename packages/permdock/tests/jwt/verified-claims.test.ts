@@ -2,6 +2,8 @@ import { SignJWT, importJWK } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
+import type { SubjectRef } from '../../src/conditions/refs.ts';
+
 import { principal } from '../../src/conditions/refs.ts';
 import { createPermDock } from '../../src/core/permdock.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
@@ -36,6 +38,18 @@ const EIDAS = {
   },
   claims: { given_name: 'Ada', birthdate: '1990-01-01' },
 };
+
+function refAt(ref: SubjectRef, keys: readonly string[]): SubjectRef {
+  let current = ref;
+  for (const key of keys) {
+    const next = current[key];
+    if (next === undefined) {
+      throw new Error(`no ref at ${key}`);
+    }
+    current = next;
+  }
+  return current;
+}
 
 async function token(claims: Record<string, unknown>): Promise<string> {
   const key = await importJWK({ ...PRIVATE_JWK }, 'Ed25519');
@@ -105,10 +119,12 @@ describe('verified_claims', () => {
         role('customer', [
           allow(permissions.account.open, {
             where: {
-              framework:
-                principal.assurance['verified']['0']['verification'][
-                  'trust_framework'
-                ],
+              framework: refAt(principal.assurance, [
+                'verified',
+                '0',
+                'verification',
+                'trust_framework',
+              ]),
             },
           }),
         ]),

@@ -384,6 +384,9 @@ describe('permdock supabase hook generate', () => {
         'public.profiles.locale',
       ],
     });
+    if (typeof manifest !== 'object' || manifest === null) {
+      throw new Error('inspect --json printed no object');
+    }
     expect(Reflect.get(Reflect.get(manifest, 'rls'), 'helpers')).toContainEqual(
       {
         name: 'member_customer_ids_for',

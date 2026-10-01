@@ -3,6 +3,7 @@ import { get, writable } from 'svelte/store';
 import { describe, expect, it } from 'vitest';
 
 import type { Snapshot } from '../../src/core/interfaces.ts';
+import type { ProtectedProps } from '../../src/svelte/runtime.ts';
 
 import { createPermDock } from '../../src/core/permdock.ts';
 import { createSvelteStore } from '../../src/svelte/context.ts';
@@ -104,11 +105,14 @@ describe('permdock/svelte (browser build)', () => {
 
   it('<Protected> follows a changed permission prop', async () => {
     const target = document.createElement('div');
-    // SAFETY: widens data to unknown, the prop type of the Harness component.
-    const props = reactive({
+    const props = reactive<{
+      snapshot: Snapshot;
+      permission: ProtectedProps['permission'];
+      data: unknown;
+    }>({
       snapshot: await snapshotOf(memberUser),
       permission: defs.post.update,
-      data: ownPost as unknown,
+      data: ownPost,
     });
     const app = mount(Harness, { target, props });
     flushSync();

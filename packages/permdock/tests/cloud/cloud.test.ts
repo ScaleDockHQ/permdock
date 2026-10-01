@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ApprovalRequest } from '../../src/approvals/types.ts';
+import type {
+  ApprovalListFilter,
+  ApprovalListQuery,
+  ApprovalRequest,
+  ApprovalStatus,
+} from '../../src/approvals/types.ts';
 import type { SinkEvent, Snapshot } from '../../src/core/interfaces.ts';
 import type { Subject } from '../../src/core/subject.ts';
 
@@ -26,6 +31,28 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'content-type': 'application/json' },
   });
+}
+
+function listQuery(params: URLSearchParams): ApprovalListQuery {
+  const text = (name: string): string | undefined =>
+    params.get(name) ?? undefined;
+  const status = text('status');
+  const principalId = text('principalId');
+  const actorId = text('actorId');
+  const tenant = text('tenant');
+  const session = text('session');
+  const limit = text('limit');
+  const cursor = text('cursor');
+  return {
+    // SAFETY: the cloud client under test only sends a status from ApprovalRequest.
+    ...(status === undefined ? {} : { status: status as ApprovalStatus }),
+    ...(principalId === undefined ? {} : { principalId }),
+    ...(actorId === undefined ? {} : { actorId }),
+    ...(tenant === undefined ? {} : { tenant }),
+    ...(session === undefined ? {} : { session }),
+    ...(limit === undefined ? {} : { limit: Number(limit) }),
+    ...(cursor === undefined ? {} : { cursor }),
+  };
 }
 
 function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
@@ -88,31 +115,18 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
         : json(loaded);
     }
     if (method === 'GET' && path === '/approvals') {
-      return json(
-        store.list({
-          // SAFETY: the cloud client under test only sends a status from ApprovalRequest.
-          status: (url.searchParams.get('status') ?? undefined) as
-            | ApprovalRequest['status']
-            | undefined,
-          principalId: url.searchParams.get('principalId') ?? undefined,
-          actorId: url.searchParams.get('actorId') ?? undefined,
-          tenant: url.searchParams.get('tenant') ?? undefined,
-          session: url.searchParams.get('session') ?? undefined,
-          limit:
-            url.searchParams.get('limit') === null
-              ? undefined
-              : Number(url.searchParams.get('limit')),
-          cursor: url.searchParams.get('cursor') ?? undefined,
-        }),
-      );
+      return json(store.list(listQuery(url.searchParams)));
     }
     if (method === 'POST' && path === '/approvals/cancel') {
       // SAFETY: the cloud client under test posts this cancel body.
       const body = (await request.json()) as {
-        readonly filter: Parameters<typeof store.cancel>[0];
+        readonly filter: ApprovalListFilter;
         readonly by: string;
         readonly note?: string;
       };
+      if (store.cancel === undefined) {
+        throw new Error('the memory store cancels');
+      }
       return json({
         cancelled: store.cancel(
           body.filter,

@@ -9,6 +9,8 @@ import { isPromiseLike } from '../react/source.ts';
 import { createClientStore } from '../react/store.ts';
 import { PermDockContext } from './context.ts';
 
+type ProviderProps = Parameters<typeof PermDockContext.Provider>[0];
+
 export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
   const source = props.snapshot;
   const promised = isPromiseLike(source);
@@ -68,10 +70,11 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
       ),
     );
   }
+  // SAFETY: Solid renders whatever children it is given; the prop is `unknown` so any JSX child fits.
   return createComponent(PermDockContext.Provider, {
     value: store,
     get children() {
       return props.children;
     },
-  });
+  } as ProviderProps);
 }

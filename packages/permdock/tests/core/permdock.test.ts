@@ -14,6 +14,7 @@ import { definePermissions, resource } from '../../src/core/permissions.ts';
 import { allow, definePolicy, role } from '../../src/core/policy.ts';
 import { memorySink } from '../../src/core/sink.ts';
 import { parseSnapshot } from '../../src/core/snapshot.ts';
+import { isDecisionEvent } from '../fixtures/decisions.ts';
 import {
   adminUser,
   memberUser,
@@ -22,6 +23,7 @@ import {
   permissions,
   policy,
 } from '../fixtures/quick-start.ts';
+import { unsigned } from '../fixtures/snapshots.ts';
 
 async function dock(
   user: Parameters<typeof createPermDock>[1],
@@ -90,7 +92,7 @@ describe('createPermDock', () => {
       subject: () => ({ id: 'u_1', roles: ['clerk'] }),
     });
     const permdock = await createPermDock(payPolicy, { id: 'u_1' });
-    const decision = permdock.decide(filing.filing.pay);
+    const decision = permdock.decide(filing.filing.pay, undefined);
     expect(decision.outcome).toBe('approval-required');
     if (decision.outcome === 'approval-required') {
       expect(decision.grant.approval).toEqual({
@@ -98,7 +100,7 @@ describe('createPermDock', () => {
         distinct: true,
       });
     }
-    expect(permdock.can(filing.filing.pay)).toBe(false);
+    expect(permdock.can(filing.filing.pay, undefined)).toBe(false);
   });
 
   it('denies anonymous and unknown roles', async () => {
@@ -121,7 +123,8 @@ describe('createPermDock', () => {
     const rows = permdock.filter(permissions.post.update, [ownPost, otherPost]);
     expect(rows).toEqual([ownPost]);
     expect(sink.events()).toHaveLength(1);
-    expect(sink.events()[0]?.counts).toEqual({
+    const event = sink.events().find(isDecisionEvent);
+    expect(event?.counts).toEqual({
       granted: 1,
       denied: 1,
       approvalRequired: 0,
@@ -253,9 +256,12 @@ describe('createPermDock', () => {
       if (denied.outcome === 'denied') {
         expect(denied.denials[0]?.reason).toBe('no-delegation');
       }
-      expect(permdock.snapshot().grants.length).toBeGreaterThan(0);
+      expect(unsigned(permdock.snapshot()).grants.length).toBeGreaterThan(0);
       expect(
-        fromSnapshot(permdock.snapshot()).can(permissions.post.read, ownPost),
+        fromSnapshot(unsigned(permdock.snapshot())).can(
+          permissions.post.read,
+          ownPost,
+        ),
       ).toBe(false);
     }
     const human = await createPermDock(policy, {

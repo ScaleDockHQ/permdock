@@ -23,7 +23,7 @@ describe('createEvaluationsHandler batch limit', () => {
     const handler = createEvaluationsHandler({
       policy,
       maxEvaluations: 2,
-      resolve: () => {
+      resolve: async () => {
         resolved += 1;
         return createCorePermDock(policy, memberUser);
       },
@@ -41,7 +41,7 @@ describe('createEvaluationsHandler batch limit', () => {
   it('defaults to the AuthZEN limit of 256', async () => {
     const handler = createEvaluationsHandler({
       policy,
-      resolve: () => createCorePermDock(policy, memberUser),
+      resolve: async () => createCorePermDock(policy, memberUser),
     });
     expect((await handler.POST(batch(257))).status).toBe(413);
     expect((await handler.POST(batch(256))).status).toBe(200);

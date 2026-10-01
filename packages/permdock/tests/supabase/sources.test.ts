@@ -137,7 +137,7 @@ group by m."scope"::text, m."scope_id"::text`);
       { scope: 'team', id: 't3', roles: 'lead', expires_at: '' },
     ]);
     const source = fromTable({ table: 'memberships', query });
-    expect(await source.membershipsFor(principal)).toEqual([
+    expect(await source.membershipsFor(principal, {})).toEqual([
       {
         scope: 'tenant',
         id: 'o1',
@@ -176,7 +176,7 @@ group by m."scope"::text, m."scope_id"::text`);
 
   it('describes SQL without a query and refuses to resolve', async () => {
     const source = fromTable({ table: 'memberships' });
-    await expect(source.membershipsFor(principal)).rejects.toThrow(
+    await expect(source.membershipsFor(principal, {})).rejects.toThrow(
       'the memberships membership source needs query to resolve memberships',
     );
   });
@@ -264,7 +264,7 @@ describe('fromJunction', () => {
       within: { columns: { tenant: 'org_id' } },
       expiresAt: { column: 'until' },
     });
-    expect(await source.membershipsFor(principal)).toEqual([
+    expect(await source.membershipsFor(principal, {})).toEqual([
       {
         scope: 'project',
         id: 'p1',

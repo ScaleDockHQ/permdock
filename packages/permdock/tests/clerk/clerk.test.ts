@@ -237,7 +237,8 @@ describe('subjectFromClerk', () => {
         role('org:member', []),
       ],
       grants: [allow(tree.report.export, { to: plan('pro') })],
-      subject: (user: Awaited<ReturnType<typeof subjectFromClerk>>) => user,
+      subject: (user: Awaited<ReturnType<typeof subjectFromClerk>> | null) =>
+        user?.principal ?? null,
     });
     const subject = await subjectFromClerk(
       { ...authObject, orgRole: 'org:member' },

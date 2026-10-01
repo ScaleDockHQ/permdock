@@ -17,7 +17,7 @@ type Session = {
   id: string | null;
   session?: string;
   expiresAt?: number;
-  memberships?: { roles: string[]; expiresAt: number }[];
+  memberships?: { tenant: string; roles: string[]; expiresAt: number }[];
 };
 
 function setup(state: Session, extra: { revalidate?: number } = {}) {
@@ -47,7 +47,11 @@ function setup(state: Session, extra: { revalidate?: number } = {}) {
       };
     },
   });
-  const open = (permission = permissions.post.list) =>
+  const open = (
+    permission:
+      | typeof permissions.post.list
+      | typeof permissions.post.publish = permissions.post.list,
+  ) =>
     kernel.connection(new Request('https://api.example/stream'), {
       permission,
       ...extra,

@@ -33,6 +33,15 @@ const viewerOfParent: RelatedCondition = {
   restricted: 'restricted',
 };
 
+const unrestrictedViewerOfParent: RelatedCondition = {
+  op: 'related',
+  resource: 'folder',
+  relation: 'viewer',
+  field: 'parentId',
+  depth: 0,
+  parent: true,
+};
+
 describe('resolveRelated', () => {
   it('replaces each related node with the ids one query reads', async () => {
     const where = await graphWhere('vera');
@@ -97,11 +106,7 @@ describe('resolveRelated', () => {
           eq,
           {
             op: 'not',
-            // SAFETY: a related node with the optional restricted field cleared.
-            condition: {
-              ...viewerOfParent,
-              restricted: undefined,
-            } as RelatedCondition,
+            condition: unrestrictedViewerOfParent,
           },
           {
             op: 'sqlFunction',

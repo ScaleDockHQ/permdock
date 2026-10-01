@@ -6,19 +6,21 @@ import { PermDockDeniedError } from '../../src/core/errors.ts';
 import { createPermDock } from '../../src/core/permdock.ts';
 import { allow, definePolicy, role } from '../../src/core/policy.ts';
 import { wireDenial } from '../../src/core/wire-denial.ts';
+import { isDecisionEvent } from '../fixtures/decisions.ts';
 import { memberUser, ownPost, permissions } from '../fixtures/quick-start.ts';
 
 describe('wireDenial', () => {
   it('keeps role, reason, to and a JSON detail', () => {
     const limit = { quota: 'seats', used: 3, max: 3 };
+    const to = { kind: 'role', role: 'user', scope: 'global' } as const;
     expect(
       wireDenial({
         role: 'member',
         reason: 'limit',
         detail: limit,
-        to: 'user',
+        to,
       }),
-    ).toEqual({ role: 'member', reason: 'limit', detail: limit, to: 'user' });
+    ).toEqual({ role: 'member', reason: 'limit', detail: limit, to });
     expect(
       wireDenial({ role: null, reason: 'not-entitled', detail: 'pro' }),
     ).toEqual({ role: null, reason: 'not-entitled', detail: 'pro' });
@@ -68,7 +70,9 @@ describe('outbound denials', () => {
     permdock.on('error', () => undefined);
     const events: DecisionEvent[] = [];
     permdock.on('decision', (event) => {
-      events.push(event);
+      if (isDecisionEvent(event)) {
+        events.push(event);
+      }
     });
     const decision = permdock.decide(permissions.post.read, ownPost);
     expect(decision.outcome).toBe('denied');
@@ -90,7 +94,7 @@ describe('outbound denials', () => {
       permission: permissions.post.read.key,
       scope: permissions.post.read.scope,
       resource: { type: 'post' },
-      subject: memberUser,
+      subject: permdock.subject,
       message: 'denied',
     });
     expect(JSON.stringify(error.toProblemDetails())).not.toContain('hunter2');

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import type { RlsSqlContext } from '../../src/cli/rls-sql.ts';
+import type { SubjectRef } from '../../src/conditions/refs.ts';
 
 import { compileGrants } from '../../src/cli/rls-compile.ts';
 import {
@@ -21,6 +22,19 @@ import {
   resource,
   role,
 } from '../../src/index.ts';
+
+/** Walks a ref proxy by key; the proxy answers every key, so `undefined` is a test bug. */
+function refAt(root: SubjectRef, ...path: readonly string[]): SubjectRef {
+  let current = root;
+  for (const key of path) {
+    const next = current[key];
+    if (next === undefined) {
+      throw new Error(`no ref at ${key}`);
+    }
+    current = next;
+  }
+  return current;
+}
 
 const base: RlsSqlContext = {
   dialect: 'supabase',
@@ -235,11 +249,15 @@ describe('request context in RLS', () => {
       role('analyst', [
         allow(permissions.doc.read, {
           where: {
-            region: principal['claims']['attrs']['region'],
-            clearance: { lte: principal['claims']['attrs']['clearance'] },
+            region: refAt(principal, 'claims', 'attrs', 'region'),
+            clearance: {
+              lte: refAt(principal, 'claims', 'attrs', 'clearance'),
+            },
           },
         }),
-        allow(permissions.doc.update, { where: { region: context['region'] } }),
+        allow(permissions.doc.update, {
+          where: { region: refAt(context, 'region') },
+        }),
       ]),
     ],
     subject: () => null,

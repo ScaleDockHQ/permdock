@@ -127,7 +127,7 @@ describe('tenancy', () => {
     const policy = definePolicy(
       { permissions, roles },
       {
-        subject: (user: Subject) => user,
+        subject: (user: Subject) => user.principal,
         roles: [
           role(
             roles.editor,
@@ -191,7 +191,7 @@ describe('tenancy', () => {
     const policy = definePolicy(
       { permissions, roles },
       {
-        subject: (user: Subject) => user,
+        subject: (user: Subject) => user.principal,
         roles: [
           role(roles.editor, [allow(permissions.doc.read)], {
             on: permissions.folder,

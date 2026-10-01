@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createPermDock } from '../../src/ai-sdk/index.ts';
 import { memoryApprovalStore } from '../../src/approvals/index.ts';

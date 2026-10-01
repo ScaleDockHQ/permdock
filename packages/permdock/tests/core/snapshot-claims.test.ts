@@ -10,6 +10,7 @@ import {
 } from '../../src/core/permdock.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
 import { allow, definePolicy } from '../../src/core/policy.ts';
+import { refAt } from '../fixtures/refs.ts';
 
 const Entry = z.object({
   id: z.string(),
@@ -26,13 +27,15 @@ const policy = definePolicy(permissions, {
     allow(permissions.record.read, {
       to: authenticated(),
       where: {
-        region: principal['claims']['attrs']['region'],
+        region: refAt(principal, 'claims', 'attrs', 'region'),
         ownerId: principal.id,
       },
     }),
     allow(permissions.record.delete, {
       to: authenticated(),
-      where: { region: { notIn: principal['claims']['attrs']['blocked'] } },
+      where: {
+        region: { notIn: refAt(principal, 'claims', 'attrs', 'blocked') },
+      },
     }),
   ],
   principal: (user: {

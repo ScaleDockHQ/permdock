@@ -11,6 +11,7 @@ import { allow, definePolicy, deny, role } from '../../src/core/policy.ts';
 import { crud } from '../../src/core/presets.ts';
 import { parseSnapshot } from '../../src/core/snapshot.ts';
 import { defineRoles } from '../../src/core/vocabulary.ts';
+import { reasonOf } from '../fixtures/decisions.ts';
 
 type Row = {
   readonly id: string;
@@ -138,9 +139,9 @@ describe('client parity', () => {
         }),
       ).toBe(true);
     }
-    expect(
-      server.decide(permissions.project.create, globex).denials[0]?.reason,
-    ).toBe('tenant-mismatch');
+    expect(reasonOf(server.decide(permissions.project.create, globex))).toBe(
+      'tenant-mismatch',
+    );
   });
 
   it('attaches snapshot grants to every membership holding the role', async () => {

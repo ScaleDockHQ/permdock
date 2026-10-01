@@ -248,8 +248,8 @@ describe('receiver.push', () => {
       }
     });
     expect((await receiver.push(setRequest('set-cancel'))).status).toBe(202);
-    expect(store.get('pd1.ssf')?.status).toBe('rejected');
-    expect(store.get('pd1.ssf')?.resolvedBy).toBe('system:ssf');
+    expect((await store.get('pd1.ssf'))?.status).toBe('rejected');
+    expect((await store.get('pd1.ssf'))?.resolvedBy).toBe('system:ssf');
     expect(cancelled).toEqual([1]);
   });
 
@@ -423,11 +423,16 @@ describe('receiver.logout', () => {
       })),
       subject: (setSubject, meta) => ({
         id: String(setSubject['sub'] ?? setSubject['id']),
-        session: meta?.session,
+        ...(meta?.session === undefined ? {} : { session: meta.session }),
       }),
       onEvent: {
         'session-revoked': ({ subject }) => {
-          seen.push({ id: subject.id, session: subject.session });
+          seen.push({
+            id: subject.id,
+            ...(subject.session === undefined
+              ? {}
+              : { session: subject.session }),
+          });
         },
       },
     });

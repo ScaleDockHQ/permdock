@@ -57,7 +57,7 @@ describe('permdock/trpc subscriptions', () => {
   it('drops unreadable items, follows a demotion and ends on session revocation', async () => {
     const t = initTRPC.context<Ctx>().create();
     const revocations = memoryRevocationFeed();
-    const { protect } = createPermDock(policy, {
+    const { protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
       revocations,
     });
@@ -97,7 +97,7 @@ describe('permdock/trpc subscriptions', () => {
   it('ends a subscription whose opening permission a demotion removed', async () => {
     const t = initTRPC.context<Ctx>().create();
     const revocations = memoryRevocationFeed();
-    const { protect } = createPermDock(policy, {
+    const { protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
       revocations,
     });
@@ -123,7 +123,7 @@ describe('permdock/trpc subscriptions', () => {
 describe('permdock/trpc', () => {
   it('grants and denies through createCaller', async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock, protect } = createPermDock(policy, {
+    const { permdock, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
     });
     const procedure = t.procedure.use(permdock());
@@ -132,7 +132,12 @@ describe('permdock/trpc', () => {
         .input(z.object({ id: z.string() }))
         .use(
           protect(permissions.post.update, ({ input }) =>
-            input.id === 'p1' ? ownPost : otherPost,
+            typeof input === 'object' &&
+            input !== null &&
+            'id' in input &&
+            input.id === 'p1'
+              ? ownPost
+              : otherPost,
           ),
         )
         .mutation(({ ctx }) => ({
@@ -165,7 +170,7 @@ describe('permdock/trpc', () => {
 
   it('maps assert inside a resolver to FORBIDDEN with the Problem', async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock } = createPermDock(policy, {
+    const { permdock } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
     });
     const appRouter = t.router({
@@ -187,7 +192,7 @@ describe('permdock/trpc', () => {
 
   it('throws UNAUTHORIZED for an anonymous caller', async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock, protect } = createPermDock(policy, {
+    const { permdock, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
     });
     const procedure = t.procedure.use(permdock());
@@ -209,7 +214,7 @@ describe('permdock/trpc', () => {
   });
 
   it('answers AuthZEN evaluations over Fetch', async () => {
-    const { permdockHandler, openapi } = createPermDock(policy, {
+    const { permdockHandler, openapi } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
     });
     const response = await permdockHandler(
@@ -241,7 +246,7 @@ describe('permdock/trpc', () => {
 
   it('merges only PermDock problems into the error shape', async () => {
     const t = initTRPC.context<Ctx>().create({ errorFormatter });
-    const { protect } = createPermDock(policy, {
+    const { protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
     });
     const router = t.router({

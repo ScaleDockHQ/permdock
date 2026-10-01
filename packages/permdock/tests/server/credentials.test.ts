@@ -32,7 +32,7 @@ const { repo } = permissions;
 const policy = definePolicy(
   { permissions },
   {
-    subject: (user: Subject) => user,
+    subject: (user: Subject) => user.principal,
     scopes: { organization: { key: 'orgId' } },
     roles: [
       role('developer', [allow(repo.read), allow(repo.write)], {

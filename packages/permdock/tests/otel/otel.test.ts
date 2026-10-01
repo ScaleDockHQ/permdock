@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { OtelApi, StructuralLogger } from '../../src/otel/types.ts';
 
@@ -159,7 +159,7 @@ describe('permdock/otel', () => {
     };
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, { logger });
-    expect(permdock.can(permissions.post.read)).toBe(true);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(lines).toHaveLength(1);
     expect(lines[0]?.message).toBe('permdock.decision');
     expect(lines[0]?.attrs).toMatchObject({
@@ -206,7 +206,7 @@ describe('permdock/otel', () => {
     });
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, { api });
-    expect(permdock.can(permissions.post.read)).toBe(true);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(spans[0]?.attributes['gen_ai.tool.name']).toBe('update_post');
     expect(spans[0]?.attributes['gen_ai.tool.call.id']).toBe('call-1');
   });
@@ -257,7 +257,7 @@ describe('permdock/otel', () => {
         },
       },
     });
-    expect(permdock.can(permissions.post.read)).toBe(true);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(spans[0]?.attributes['app.secret']).toBeUndefined();
     expect(spans[0]?.attributes['app.ok']).toBe('yes');
     expect(warns.some((line) => line.includes('subject.email'))).toBe(true);
@@ -298,7 +298,7 @@ describe('permdock/otel', () => {
     try {
       const permdock = await createPermDock(policy, memberUser);
       instrument(permdock, {});
-      expect(permdock.can(permissions.post.read)).toBe(true);
+      expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
       expect(spans).toHaveLength(1);
       expect(spans[0]?.attributes['gen_ai.tool.name']).toBe('from_registry');
     } finally {
@@ -309,7 +309,7 @@ describe('permdock/otel', () => {
   it('does nothing when neither logger nor API is present', async () => {
     const permdock = await createPermDock(policy, memberUser);
     const off = instrument(permdock, {});
-    expect(permdock.can(permissions.post.read)).toBe(true);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     off();
   });
 
@@ -325,7 +325,7 @@ describe('permdock/otel', () => {
         },
       },
     });
-    expect(() => permdock.can(permissions.post.read)).not.toThrow();
+    expect(() => permdock.can(permissions.post.read, ownPost)).not.toThrow();
   });
 
   it('times the span and histogram around the decision, in seconds', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Decision } from '../../src/core/decision.ts';
+import type { DeniedDecision } from '../../src/core/decision.ts';
 
 import { describe as describeDecision } from '../../src/core/describe.ts';
 import {
@@ -13,7 +13,7 @@ import {
 
 describe('errors and describe', () => {
   it('maps denials to Problem Details', () => {
-    const decision: Decision = {
+    const decision: DeniedDecision = {
       outcome: 'denied',
       denials: [{ role: 'member', reason: 'condition' }],
       alternatives: [
@@ -23,6 +23,7 @@ describe('errors and describe', () => {
           resource: 'post',
           action: 'read',
           meta: {},
+          kind: 'instance',
         },
       ],
     };

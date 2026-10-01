@@ -24,13 +24,15 @@ const created = new Date().toISOString();
 
 function subject(id: string, tenant?: string): Subject {
   return {
-    principal: {
-      id,
-      roles: ['admin'],
-      tenant,
-      memberships:
-        tenant === undefined ? undefined : [{ tenant, roles: ['admin'] }],
-    },
+    principal:
+      tenant === undefined
+        ? { id, roles: ['admin'] }
+        : {
+            id,
+            roles: ['admin'],
+            tenant,
+            memberships: [{ tenant, roles: ['admin'] }],
+          },
     context: {},
   };
 }
@@ -56,18 +58,20 @@ function pending(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
 }
 
 describe('memoryApprovalStore', () => {
-  it('creates, lists, resolves and expires requests', () => {
+  it('creates, lists, resolves and expires requests', async () => {
     const store = memoryApprovalStore();
     store.create(pending());
-    expect(store.get('pd1.token-1')?.status).toBe('pending');
-    expect(store.list({ status: 'pending' }).items).toHaveLength(1);
-    expect(store.list({ tenant: 'o_1' }).items).toHaveLength(1);
-    expect(store.list({ tenant: 'o_other' }).items).toHaveLength(0);
-    expect(store.list({ principalId: 'u_1' }).items).toHaveLength(1);
-    expect(store.list({ actorId: 'missing' }).items).toHaveLength(0);
-    expect(store.list({ principalId: 'missing' }).items).toHaveLength(0);
+    expect((await store.get('pd1.token-1'))?.status).toBe('pending');
+    expect((await store.list({ status: 'pending' })).items).toHaveLength(1);
+    expect((await store.list({ tenant: 'o_1' })).items).toHaveLength(1);
+    expect((await store.list({ tenant: 'o_other' })).items).toHaveLength(0);
+    expect((await store.list({ principalId: 'u_1' })).items).toHaveLength(1);
+    expect((await store.list({ actorId: 'missing' })).items).toHaveLength(0);
+    expect((await store.list({ principalId: 'missing' })).items).toHaveLength(
+      0,
+    );
 
-    const resolved = store.resolve('pd1.token-1', {
+    const resolved = await store.resolve('pd1.token-1', {
       status: 'approved',
       by: subject('u_9', 'o_1'),
       note: 'ok',
@@ -83,7 +87,7 @@ describe('memoryApprovalStore', () => {
     ).toThrow('approval is not pending');
   });
 
-  it('keeps a resolved request when the same call asks again', () => {
+  it('keeps a resolved request when the same call asks again', async () => {
     const store = memoryApprovalStore();
     store.create(pending());
     store.resolve('pd1.token-1', {
@@ -91,16 +95,16 @@ describe('memoryApprovalStore', () => {
       by: subject('u_9', 'o_1'),
     });
     store.create(pending({ detail: 'asked again' }));
-    expect(store.get('pd1.token-1')?.status).toBe('approved');
-    expect(store.list({ status: 'pending' }).items).toHaveLength(0);
+    expect((await store.get('pd1.token-1'))?.status).toBe('approved');
+    expect((await store.list({ status: 'pending' })).items).toHaveLength(0);
   });
 
-  it('replaces an expired request on a new ask', () => {
+  it('replaces an expired request on a new ask', async () => {
     const store = memoryApprovalStore();
     store.create(pending({ expiresAt: past }));
     store.create(pending());
-    expect(store.get('pd1.token-1')?.status).toBe('pending');
-    expect(store.get('pd1.token-1')?.expiresAt).toBe(future);
+    expect((await store.get('pd1.token-1'))?.status).toBe('pending');
+    expect((await store.get('pd1.token-1'))?.expiresAt).toBe(future);
   });
 
   it('treats unknown tokens as missing and refuses the actor', () => {
@@ -119,11 +123,11 @@ describe('memoryApprovalStore', () => {
     ).toThrow('approver is the actor of this request');
   });
 
-  it('marks stale pending requests expired', () => {
+  it('marks stale pending requests expired', async () => {
     const store = memoryApprovalStore();
     store.create(pending({ expiresAt: past }));
     expect(store.expire(new Date())).toBe(1);
-    expect(store.get('pd1.token-1')?.status).toBe('expired');
+    expect((await store.get('pd1.token-1'))?.status).toBe('expired');
     expect(store.expire(new Date())).toBe(0);
   });
 
@@ -224,7 +228,7 @@ describe('request and resume helpers', () => {
         by: { principal: null, context: {} },
       }),
     ).toThrow('approver must be authenticated');
-    expect(store.list({ status: 'approved' }).items).toHaveLength(0);
+    expect((await store.list({ status: 'approved' })).items).toHaveLength(0);
 
     store.create(pending({ token: 'pd1.gone', status: 'expired' }));
     expect(await inspectApproval(store, 'pd1.gone')).toEqual({
@@ -376,7 +380,7 @@ describe('request and resume helpers', () => {
     ).rejects.toThrow('approver does not hold an eligible role');
   });
 
-  it('cancels pending requests for a session without checking eligibility', () => {
+  it('cancels pending requests for a session without checking eligibility', async () => {
     const store = memoryApprovalStore();
     store.create(
       pending({ subject: { ...pending().subject, session: 'sid-1' } }),
@@ -390,9 +394,9 @@ describe('request and resume helpers', () => {
     expect(
       store.cancel?.({ session: 'sid-1' }, { by: 'ssf', note: 'jti-1' }),
     ).toBe(1);
-    expect(store.get('pd1.token-1')?.status).toBe('rejected');
-    expect(store.get('pd1.token-1')?.resolvedBy).toBe('system:ssf');
-    expect(store.get('pd1.other')?.status).toBe('pending');
+    expect((await store.get('pd1.token-1'))?.status).toBe('rejected');
+    expect((await store.get('pd1.token-1'))?.resolvedBy).toBe('system:ssf');
+    expect((await store.get('pd1.other'))?.status).toBe('pending');
   });
 });
 
@@ -413,8 +417,10 @@ describe('approvalsHandler', () => {
   } {
     store.create(pending());
     const fetch = approvalsHandler(store, {
-      requireDistinctApprover: options?.requireDistinctApprover,
-      signer: options?.signer,
+      ...(options?.requireDistinctApprover === undefined
+        ? {}
+        : { requireDistinctApprover: options.requireDistinctApprover }),
+      ...(options?.signer === undefined ? {} : { signer: options.signer }),
       subject: () => {
         if (options?.throwSubject === true) {
           throw new Error('boom');
@@ -680,6 +686,7 @@ describe('approvalsHandler', () => {
     const broken: ApprovalStore = {
       create: () => undefined,
       get: () => null,
+      consume: () => null,
       resolve: () => {
         throw new Error('db');
       },

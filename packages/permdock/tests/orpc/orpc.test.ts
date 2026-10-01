@@ -43,7 +43,7 @@ function channel<T>() {
 describe('permdock/orpc event iterators', () => {
   it('drops unreadable items and ends on session revocation', async () => {
     const revocations = memoryRevocationFeed();
-    const { protect } = createPermDock(policy, {
+    const { protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
       revocations,
     });
@@ -87,6 +87,7 @@ describe('permdock/orpc', () => {
       .use(
         protect(permissions.post.update, ({ input }) =>
           input !== undefined &&
+          input !== null &&
           typeof input === 'object' &&
           'id' in input &&
           input.id === 'p1'

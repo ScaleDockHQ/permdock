@@ -19,6 +19,7 @@ import {
 import { allow, definePolicy, deny, role } from '../../src/core/policy.ts';
 import { snapshotFor } from '../../src/core/snapshot-for.ts';
 import { defineRoles } from '../../src/core/vocabulary.ts';
+import { decideLeaf } from '../fixtures/decisions.ts';
 
 const permissions = definePermissions({
   invoice: resource({
@@ -419,9 +420,11 @@ describe('the ceiling', () => {
       for (let check = 0; check < 12; check += 1) {
         const leaf = pick(leaves);
         const row = leaf.kind === 'collection' ? undefined : pick(rows);
-        if (dock.decide(leaf, row).outcome !== 'denied') {
+        if (decideLeaf(dock, leaf, row).outcome !== 'denied') {
           reached += 1;
-          expect(everyAssignable.decide(leaf, row).outcome).not.toBe('denied');
+          expect(decideLeaf(everyAssignable, leaf, row).outcome).not.toBe(
+            'denied',
+          );
         }
       }
     }
@@ -622,9 +625,9 @@ describe('snapshot parity', () => {
       for (const leaf of listPermissions(permissions)) {
         for (const row of leaf.kind === 'collection' ? [undefined] : rows) {
           expect(
-            client.decide(leaf, row).outcome,
+            decideLeaf(client, leaf, row).outcome,
             `${leaf.key} ${JSON.stringify(row)}`,
-          ).toBe(server.decide(leaf, row).outcome);
+          ).toBe(decideLeaf(server, leaf, row).outcome);
         }
       }
       expect(client.assignablePermissions().map((leaf) => leaf.key)).toEqual(

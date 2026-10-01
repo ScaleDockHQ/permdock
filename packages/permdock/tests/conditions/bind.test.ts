@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Condition } from '../../src/conditions/ast.ts';
 import type { Subject } from '../../src/core/subject.ts';
 
 import { bindConditionRefs } from '../../src/conditions/bind.ts';
 import { context, principal } from '../../src/conditions/refs.ts';
 import { sqlFunction } from '../../src/conditions/sql-function.ts';
+import { refAt } from '../fixtures/refs.ts';
 
 const subject: Subject = {
   principal: { id: 'u1', teams: ['t1', 't2'] },
@@ -19,13 +21,13 @@ describe('bindConditionRefs', () => {
           op: 'and',
           conditions: [
             { op: 'eq', field: 'ownerId', value: principal.id },
-            { op: 'in', field: 'teamId', value: principal['teams'] },
+            { op: 'in', field: 'teamId', value: refAt(principal, 'teams') },
             {
               op: 'not',
               condition: {
                 op: 'eq',
                 field: 'region',
-                value: context['region'],
+                value: refAt(context, 'region'),
               },
             },
           ],
@@ -48,13 +50,13 @@ describe('bindConditionRefs', () => {
   it('binds a missing ref to null, and to an empty list inside in / notIn', () => {
     expect(
       bindConditionRefs(
-        { op: 'eq', field: 'ownerId', value: principal['missing'] },
+        { op: 'eq', field: 'ownerId', value: refAt(principal, 'missing') },
         subject,
       ),
     ).toEqual({ op: 'eq', field: 'ownerId', value: null });
     expect(
       bindConditionRefs(
-        { op: 'in', field: 'teamId', value: principal['missing'] },
+        { op: 'in', field: 'teamId', value: refAt(principal, 'missing') },
         subject,
       ),
     ).toEqual({ op: 'in', field: 'teamId', value: [] });
@@ -89,7 +91,7 @@ describe('bindConditionRefs', () => {
       args: [{ field: 'orgId' }, 'u1'],
       twin: { op: 'eq', field: 'ownerId', value: 'u1' },
     });
-    const kept = { op: 'isNull', field: 'deletedAt' } as const;
+    const kept: Condition = { op: 'isNull', field: 'deletedAt', value: true };
     expect(bindConditionRefs(kept, subject)).toBe(kept);
     const either = bindConditionRefs(
       {

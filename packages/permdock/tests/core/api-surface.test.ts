@@ -34,7 +34,6 @@ import {
   isRole,
   listPlans,
   listRoles,
-  synthesiseRole,
 } from '../../src/core/vocabulary.ts';
 
 const Post = z.object({
@@ -139,7 +138,7 @@ describe('grantee selectors', () => {
         }) => ({
           id: user.id,
           tenant: 'acme',
-          plans: user.plans,
+          ...(user.plans === undefined ? {} : { plans: user.plans }),
           memberships: [{ tenant: 'acme', roles: ['member'] }],
           assurance: { acr: 'mfa', amr: ['otp'], authTime: 1_700_000_000 },
         }),
@@ -289,7 +288,9 @@ describe('grantee and vocabulary helpers', () => {
     expect(hasAnyone(authenticated())).toBe(false);
     expect(roleNameOf(asGrantee(roles.owner))).toBe('owner');
     expect(roleScopeOf(asGrantee(roles.owner))).toBe('tenant');
-    expect(flattenGrantee([roles.member, plans.pro])).toHaveLength(2);
+    expect(flattenGrantee(asGrantee([roles.member, plans.pro]))).toHaveLength(
+      2,
+    );
     expect(asGrantee('admin')).toMatchObject({ kind: 'role', role: 'admin' });
     expect(asGrantee([anyone(), authenticated()])).toHaveLength(2);
     const node = getResource(permissions, 'post');

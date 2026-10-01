@@ -60,10 +60,10 @@ describe('toOcsf', () => {
   });
 
   it('maps granted, approval-required and anonymous events', () => {
+    const { denials: _denials, ...undenied } = base;
     const granted = toOcsf({
-      ...base,
+      ...undenied,
       outcome: 'granted',
-      denials: undefined,
       subject: { principal: null },
       matched: { role: 'admin', permission: 'post.delete' },
     });

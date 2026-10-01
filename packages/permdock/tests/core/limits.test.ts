@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import type { LimitStore } from '../../src/core/interfaces.ts';
+import type { RoleBinding } from '../../src/core/policy.ts';
 
 import { memoryLimitStore } from '../../src/core/limits.ts';
 import { createPermDock } from '../../src/core/permdock.ts';
@@ -41,7 +42,7 @@ const fallback = role('staff', [
 ]);
 
 function policyFor(
-  roles: Parameters<typeof definePolicy>[1]['roles'],
+  roles: readonly RoleBinding[],
 ): ReturnType<typeof definePolicy> {
   return definePolicy(permissions, {
     roles,
@@ -53,7 +54,7 @@ function policyFor(
 }
 
 async function dock(
-  roles: Parameters<typeof definePolicy>[1]['roles'],
+  roles: readonly RoleBinding[],
   roleName: string,
   options?: Parameters<typeof createPermDock>[2],
 ) {

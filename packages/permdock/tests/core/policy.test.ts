@@ -46,7 +46,7 @@ describe('policy', () => {
   it('rejects where on collection actions and unknown parents', () => {
     // SAFETY: a deliberately forbidden where on a collection action, to exercise the refusal.
     expect(() =>
-      allow(permissions.post.create, { where: { authorId: 'u1' } as never }),
+      allow(permissions.post.create, { where: { authorId: 'u1' } } as never),
     ).toThrow(/where is not allowed/);
     const dangling = definePermissions({
       comment: resource({

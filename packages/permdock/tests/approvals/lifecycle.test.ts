@@ -68,13 +68,7 @@ const grant = {
 } as never;
 
 function required(token: string): Decision {
-  // SAFETY: an approval-required decision built from the grant fixture above.
-  return {
-    outcome: 'approval-required',
-    subject: requester,
-    grant,
-    token,
-  } as Decision;
+  return { outcome: 'approval-required', grant, reason: 'human', token };
 }
 
 const deletePost = {
@@ -102,7 +96,7 @@ describe('single-use approvals', () => {
     });
   });
 
-  it('keeps a consumed request when the same call asks again', () => {
+  it('keeps a consumed request when the same call asks again', async () => {
     const store = memoryApprovalStore();
     store.create(pending('pd1.a', 'o_1'));
     store.resolve('pd1.a', {
@@ -111,7 +105,7 @@ describe('single-use approvals', () => {
     });
     store.consume('pd1.a');
     store.create(pending('pd1.a', 'o_1'));
-    expect(store.get('pd1.a')?.consumedAt).toBeDefined();
+    expect((await store.get('pd1.a'))?.consumedAt).toBeDefined();
   });
 
   it('grants a resume once, then denies the replay', async () => {
@@ -178,8 +172,8 @@ describe('single-use approvals', () => {
       token: 'pd1.other',
     });
     expect(result.outcome).toBe('approval-required');
-    expect(store.get('pd1.other')?.consumedAt).toBeUndefined();
-    expect(store.get('pd1.mine')?.status).toBe('pending');
+    expect((await store.get('pd1.other'))?.consumedAt).toBeUndefined();
+    expect((await store.get('pd1.mine'))?.status).toBe('pending');
   });
 
   it('denies a resume when the store cannot consume', async () => {
@@ -228,17 +222,17 @@ describe('approval errors', () => {
 });
 
 describe('memory store retention', () => {
-  it('drops settled records one ttl after they expire', () => {
+  it('drops settled records one ttl after they expire', async () => {
     const store = memoryApprovalStore({ ttl: 1000 });
     const expiresAt = new Date(Date.now() + 1000).toISOString();
     store.create(pending('pd1.old', 'o_1', { expiresAt }));
     store.create(pending('pd1.new', 'o_1'));
     const later = new Date(Date.now() + 1500);
     expect(store.expire(later)).toBe(1);
-    expect(store.get('pd1.old')?.status).toBe('expired');
+    expect((await store.get('pd1.old'))?.status).toBe('expired');
     store.expire(new Date(Date.now() + 2500));
     expect(store.get('pd1.old')).toBeNull();
-    expect(store.get('pd1.new')?.status).toBe('pending');
+    expect((await store.get('pd1.new'))?.status).toBe('pending');
   });
 });
 
@@ -294,7 +288,7 @@ describe('approval tenancy', () => {
     store.create(
       pending('pd1.owner', 'o_1', {
         subject: { principal: { id: 'u_2', roles: ['member'], tenant: 'o_1' } },
-        approvers: { by: ['owner'] },
+        approvers: { by: { kind: 'role', role: 'owner', scope: 'global' } },
       }),
     );
     store.create(
@@ -366,7 +360,7 @@ describe('self-approval', () => {
         ),
       );
       expect(response.status).toBe(403);
-      expect(store.get('pd1.self')?.status).toBe('pending');
+      expect((await store.get('pd1.self'))?.status).toBe('pending');
       await expect(
         resolveApproval(store, 'pd1.self', {
           status: 'approved',

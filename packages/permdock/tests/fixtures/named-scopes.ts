@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { CustomRole, Principal } from '../../src/index.ts';
+import type { CustomRole, Membership, Principal } from '../../src/index.ts';
 
 import {
   allow,
@@ -199,7 +199,7 @@ export const customRoles: readonly CustomRole[] = [
 function principal(
   id: string,
   tenant: string | undefined,
-  memberships: Principal['memberships'],
+  memberships: readonly Membership[],
   global: readonly string[] = [],
 ): Principal {
   return tenant === undefined

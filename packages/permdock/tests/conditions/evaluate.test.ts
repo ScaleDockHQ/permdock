@@ -16,8 +16,10 @@ function sub(
   return {
     principal: overrides.principal ?? { id: 'u1', roles: ['member'] },
     context: overrides.context ?? {},
-    actor: overrides.actor,
-    delegation: overrides.delegation,
+    ...(overrides.actor === undefined ? {} : { actor: overrides.actor }),
+    ...(overrides.delegation === undefined
+      ? {}
+      : { delegation: overrides.delegation }),
   };
 }
 

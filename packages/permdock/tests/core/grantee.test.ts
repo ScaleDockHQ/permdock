@@ -154,7 +154,7 @@ describe('matchGrantee', () => {
         true,
       ),
       withKnown: matchGrantee(
-        [forged, actor()],
+        [forged, actor('mcp-client')],
         user(),
         NOW,
         undefined,

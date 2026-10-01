@@ -3,8 +3,10 @@ import { createPermDock } from 'permdock';
 import { permissions } from './permissions.ts';
 import { policy } from './policy.ts';
 
-const permdock = createPermDock(policy, {
-  subject: { id: 'u1', roles: ['member'] },
+const permdock = await createPermDock(policy, {
+  id: 'u1',
+  orgId: 'o1',
+  roles: ['member'],
 });
 
 export function updateOwn(): boolean {

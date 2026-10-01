@@ -42,7 +42,7 @@ const tree = definePermissions({
   org: resource({ actions: ['read'] }),
   post: resource({
     id: 'id',
-    actions: { read: { label: 'Read' }, update: {}, delete: {} },
+    actions: { read: { title: 'Read' }, update: {}, delete: {} },
     collection: ['create'],
     parent: { field: 'orgId', resource: 'org' },
     relations: {
@@ -78,6 +78,8 @@ const policy = definePolicy(tree, {
   onDenied: () => undefined,
 });
 
+const memberPrincipal = { id: 'u1', roles: ['member'] };
+
 describe('coverage edges', () => {
   it('covers permission merge, find, empty merge and object actions', () => {
     const billing = definePermissions({
@@ -94,8 +96,11 @@ describe('coverage edges', () => {
     expect(findPermission(merged, 'billing.invoice.pay')?.action).toBe('pay');
     expect(findPermission(merged, 'constructor')).toBeUndefined();
     expect(() => mergePermissions()).toThrow(/at least one tree/);
-    expect(() => resource()).toThrow(/requires a schema or options/);
-    expect(tree.post.read.meta).toEqual({ label: 'Read' });
+    // SAFETY: neither a schema nor options, the input the runtime guard refuses.
+    expect(() => resource(undefined as never)).toThrow(
+      /requires a schema or options/,
+    );
+    expect(tree.post.read.meta).toEqual({ title: 'Read' });
   });
 
   it('covers evaluation, listeners, team, snapshot tenants and where', async () => {
@@ -300,17 +305,13 @@ describe('coverage edges', () => {
       membershipField(looping.get('post'), 'org', looping),
     ).toBeUndefined();
 
-    const throwingSource = await createPermDock(
-      policy,
-      { id: 'u1', roles: ['member'] },
-      {
-        memberships: {
-          membershipsFor(): never {
-            throw new Error('boom');
-          },
+    const throwingSource = await createPermDock(policy, memberPrincipal, {
+      memberships: {
+        membershipsFor(): never {
+          throw new Error('boom');
         },
       },
-    );
+    });
     const auth: unknown[] = [];
     throwingSource.on('auth', (event) => {
       auth.push(event);
@@ -979,6 +980,11 @@ describe('coverage edges', () => {
           id: 'id',
           schema: undefined,
           parent: { field: 'orgId', resource: 'org' },
+          links: {},
+          relations: {},
+          version: undefined,
+          restricted: undefined,
+          disclosure: 'reveal',
           instanceActions: new Set(),
           collectionActions: new Set(),
         },
@@ -1108,17 +1114,13 @@ describe('coverage edges', () => {
     expect(teamSnap.grants.some((grant) => grant.scope === 'team')).toBe(true);
     expect(teamDock.snapshot({ include: [] })).toBeDefined();
     const authErrors: unknown[] = [];
-    const throwingAuth = await createPermDock(
-      policy,
-      { id: 'u1', roles: ['member'] },
-      {
-        memberships: {
-          membershipsFor(): never {
-            throw new Error('boom');
-          },
+    const throwingAuth = await createPermDock(policy, memberPrincipal, {
+      memberships: {
+        membershipsFor(): never {
+          throw new Error('boom');
         },
       },
-    );
+    });
     throwingAuth.on('error', (error) => {
       authErrors.push(error);
     });
@@ -1186,6 +1188,7 @@ describe('coverage edges', () => {
           team: { key: 'teamId', within: 'tenant' },
         }),
         undefined,
+        new Map(),
         1_700_000_000,
       ).ok,
     ).toBe(false);
@@ -1207,6 +1210,7 @@ describe('coverage edges', () => {
           team: { key: 'teamId', within: 'tenant' },
         }),
         undefined,
+        new Map(),
         1_700_000_000,
       ).ok,
     ).toBe(false);

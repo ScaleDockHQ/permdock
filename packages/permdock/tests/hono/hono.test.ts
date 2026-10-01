@@ -4,6 +4,8 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { describe, expect, it } from 'vitest';
 
+import type { User } from '../fixtures/quick-start.ts';
+
 import { memoryRevocationFeed } from '../../src/core/revocations.ts';
 import { createPermDock } from '../../src/hono/index.ts';
 import {
@@ -132,7 +134,7 @@ describe('permdock/hono', () => {
     const { permdock, protect } = createPermDock(policy, {
       subject: (c) => c.get('user'),
     });
-    const app = new Hono();
+    const app = new Hono<{ Variables: { user: User } }>();
     app.use(async (c, next) => {
       c.set('user', memberUser);
       await next();

@@ -31,7 +31,7 @@ const { repo, billing } = permissions;
 const policy = definePolicy(
   { permissions },
   {
-    subject: (user: Subject) => user,
+    subject: (user: Subject) => user.principal,
     scopes: { organization: { key: 'orgId' } },
     roles: [
       role(
@@ -162,8 +162,7 @@ describe('parseCredential', () => {
 
 describe('credentialPolicyViolation', () => {
   it('refuses a key without expiry unless a policy allows it and none caps it', () => {
-    // SAFETY: the userKey fixture with its optional expiresAt cleared.
-    const forever = { ...userKey, expiresAt: undefined } as Credential;
+    const { expiresAt: _expiresAt, ...forever } = userKey;
     expect(credentialPolicyViolation(forever, [])).toBe('no-expiry');
     expect(credentialPolicyViolation(forever, {})).toBe('no-expiry');
     expect(credentialPolicyViolation(forever, { allowNoExpiry: true })).toBe(

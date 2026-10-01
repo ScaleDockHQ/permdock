@@ -92,10 +92,10 @@ describe('Supabase RBAC hook claims', () => {
 
   it('maps a structural session and treats every other kind as anonymous', () => {
     const claims = supabaseClaimFixtures.topLevelRole.claims;
-    expect(
-      subjectFromSupabaseSession({ kind: 'user', claims, user: {} }).principal
-        ?.roles,
-    ).toEqual(['admin']);
+    const session = { kind: 'user', claims, user: {} };
+    expect(subjectFromSupabaseSession(session).principal?.roles).toEqual([
+      'admin',
+    ]);
     for (const kind of ['anon', 'service', 'invalid', 'USER']) {
       expect(subjectFromSupabaseSession({ kind, claims }).principal).toBeNull();
     }

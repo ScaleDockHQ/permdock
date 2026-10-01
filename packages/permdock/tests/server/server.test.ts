@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { WebBotAuthJwk } from '../../src/server/index.ts';
+
 import {
   memoryApprovalStore,
   resolveApproval,
@@ -278,7 +280,7 @@ describe('permdock/server', () => {
       };
       expect(body.evaluations[0]?.decision).toBe(true);
     }
-    expect(store.get(required.token)?.consumedAt).toBeUndefined();
+    expect((await store.get(required.token))?.consumedAt).toBeUndefined();
   });
 
   it('exposes AuthZEN evaluations and OpenAPI security hooks', async () => {
@@ -545,7 +547,7 @@ function tamperSignature(header: string): string {
 }
 
 async function ed25519Pair(): Promise<{
-  readonly publicJwk: JsonWebKey;
+  readonly publicJwk: WebBotAuthJwk;
   readonly privateKey: CryptoKey;
 }> {
   const pair = await crypto.subtle.generateKey('Ed25519', true, [
@@ -553,7 +555,7 @@ async function ed25519Pair(): Promise<{
     'verify',
   ]);
   const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey);
-  return { publicJwk, privateKey: pair.privateKey };
+  return { publicJwk: { ...publicJwk }, privateKey: pair.privateKey };
 }
 
 async function signedRequest(

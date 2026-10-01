@@ -17,7 +17,7 @@ function selectQuery(table: string): KyselySelectQuery {
       query.parts.push({ select: expr });
       return query;
     },
-    where(column: string, op: string, value: unknown) {
+    where(column: unknown, op?: string, value?: unknown) {
       query.parts.push({ where: [column, op, value] });
       return query;
     },

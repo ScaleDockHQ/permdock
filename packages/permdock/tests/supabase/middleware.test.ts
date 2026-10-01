@@ -91,7 +91,7 @@ describe('permdock/supabase/middleware', () => {
       async (_req, ctx) =>
         Response.json({
           anonymous: ctx.permdock.subject.principal === null,
-          can: ctx.permdock.can(permissions.post.read),
+          can: ctx.permdock.can(permissions.post.read, ownPost),
         }),
     );
     const response = await fetch(request('/posts'));

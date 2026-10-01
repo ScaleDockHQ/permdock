@@ -41,16 +41,19 @@ describe('toCsvRow', () => {
   });
 
   it('leaves absent values empty', () => {
+    const {
+      tenant: _tenant,
+      matched: _matched,
+      denials: _denials,
+      token: _token,
+      ...rest
+    } = base;
     expect(
       toCsvRow({
-        ...base,
+        ...rest,
         outcome: 'granted',
         subject: { principal: null },
-        tenant: undefined,
-        matched: undefined,
         via: null,
-        denials: undefined,
-        token: undefined,
       }),
     ).toBe('2026-09-28T10:00:00.000Z,,,,post.delete,granted,,,,');
   });

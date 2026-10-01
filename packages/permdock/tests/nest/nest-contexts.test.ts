@@ -31,11 +31,12 @@ function contextOf(
   type: string,
   handler: () => unknown,
   data: unknown = {},
+  owner: new () => unknown = Gateway,
 ): ExecutionContext {
   // SAFETY: stub implements every ExecutionContext method the guard calls for rpc and ws.
   return {
     getType: () => type,
-    getClass: () => Gateway,
+    getClass: () => owner,
     getHandler: () => handler,
     getArgs: () => [data],
     getArgByIndex: () => data,
@@ -198,10 +199,8 @@ describe('permdock/nest outside HTTP', () => {
     )(Mapped.prototype, 'update', descriptor);
     const guard = new PermDockGuard(new Reflector());
     // SAFETY: descriptor.value is the Mapped.update method read above.
-    const context = (id: string): ExecutionContext => ({
-      ...contextOf('rpc', descriptor.value as () => unknown, { id }),
-      getClass: () => Mapped,
-    });
+    const context = (id: string): ExecutionContext =>
+      contextOf('rpc', descriptor.value as () => unknown, { id }, Mapped);
     await expect(guard.canActivate(context('p1'))).resolves.toBe(true);
     await expect(guard.canActivate(context('p2'))).rejects.toMatchObject({
       name: 'PermDockHttpError',

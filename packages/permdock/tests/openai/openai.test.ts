@@ -63,10 +63,16 @@ function idOf(interruption: OpenAiInterruption): string {
 
 function state(): OpenAiRunState<OpenAiInterruption> & {
   readonly approved: string[];
-  readonly rejected: { readonly id: string; readonly message?: string }[];
+  readonly rejected: {
+    readonly id: string;
+    readonly message?: string | undefined;
+  }[];
 } {
   const approved: string[] = [];
-  const rejected: { readonly id: string; readonly message?: string }[] = [];
+  const rejected: {
+    readonly id: string;
+    readonly message?: string | undefined;
+  }[] = [];
   return {
     approved,
     rejected,

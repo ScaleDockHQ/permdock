@@ -35,7 +35,7 @@ const permissions = definePermissions({
 const policy = definePolicy(
   { permissions },
   {
-    subject: (user: Subject) => user,
+    subject: (user: Subject) => user.principal,
     scopes: { organization: { key: 'organizationId' } },
     roles: [
       role(
@@ -90,7 +90,7 @@ describe('capabilities', () => {
     expect(dock.can(permissions.quote.read, quoteOther)).toBe(false);
     expect(dock.can(permissions.quote.read, draftQ)).toBe(false);
     expect(dock.can(permissions.quote.update, quoteQ)).toBe(false);
-    expect(dock.can(permissions.quote.read)).toBe(false);
+    expect(dock.can(permissions.quote.read, undefined)).toBe(false);
   });
 
   it('narrows the role to the listed permissions', () => {

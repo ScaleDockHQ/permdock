@@ -33,6 +33,12 @@ function recorder(answer: (call: Call) => Response): {
   };
 }
 
+function docId(data: unknown): { readonly id?: string } {
+  // SAFETY: data is a doc row from rows below, or undefined for a type-level check.
+  const id = (data as { readonly id?: string } | undefined)?.id;
+  return id === undefined ? {} : { id };
+}
+
 function json(body: unknown, status = 200): Response {
   return Response.json(body, { status });
 }
@@ -58,8 +64,7 @@ describe('openfga', () => {
         user: `user:${subject.principal?.id ?? ''}`,
         relation: 'viewer',
         type: 'document',
-        // SAFETY: data is a doc row from rows above, or undefined for a type-level check.
-        id: (data as { readonly id?: string } | undefined)?.id,
+        ...docId(data),
       }),
     ],
     [
@@ -68,8 +73,7 @@ describe('openfga', () => {
         user: `user:${subject.principal?.id ?? ''}`,
         relation: 'owner',
         type: 'document',
-        // SAFETY: data is a doc row from rows above, or undefined for a type-level check.
-        id: (data as { readonly id?: string } | undefined)?.id,
+        ...docId(data),
       }),
     ],
   ] as const satisfies Parameters<typeof openfga>[0]['map'];
@@ -217,8 +221,7 @@ describe('spicedb', () => {
         permission: 'view',
         resource: {
           type: 'document',
-          // SAFETY: data is a doc row from rows above, or undefined for a type-level check.
-          id: (data as { readonly id?: string } | undefined)?.id,
+          ...docId(data),
         },
       }),
     ],

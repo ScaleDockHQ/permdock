@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { context, principal } from '../../src/conditions/refs.ts';
+import { context } from '../../src/conditions/refs.ts';
 import { fromSnapshot } from '../../src/core/from-snapshot.ts';
 import { createPermDock } from '../../src/core/permdock.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
 import { allow, definePolicy, deny, role } from '../../src/core/policy.ts';
+import { unsigned } from '../fixtures/snapshots.ts';
 
 const Post = z.object({
   id: z.string(),
@@ -194,7 +195,7 @@ describe('schema-aware field-level grants', () => {
       subject: () => ({ id: 'u1', roles: ['member'] }),
     });
     const server = await createPermDock(policy, { id: 'u1' });
-    const snapshot = server.snapshot();
+    const snapshot = unsigned(server.snapshot());
     expect(snapshot.grants[0]?.fields).toEqual(['title']);
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, row)).toBe(true);

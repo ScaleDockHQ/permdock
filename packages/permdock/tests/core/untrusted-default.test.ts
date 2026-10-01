@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createPermDock } from '../../src/index.ts';
+import { reasonOf } from '../fixtures/decisions.ts';
 import {
   adminUser,
   memberUser,
@@ -14,7 +15,7 @@ describe('decision data is untrusted unless marked trusted', () => {
     const permdock = await createPermDock(policy, adminUser);
     const decision = permdock.decide(permissions.post.publish, { id: 'p2' });
     expect(decision.outcome).toBe('denied');
-    expect(decision.denials[0]?.reason).toBe('validation');
+    expect(reasonOf(decision)).toBe('validation');
   });
 
   it('skips validation for a row marked trusted', async () => {
@@ -32,6 +33,6 @@ describe('decision data is untrusted unless marked trusted', () => {
 
   it('does not validate an instance check without a row', async () => {
     const permdock = await createPermDock(policy, memberUser);
-    expect(permdock.can(permissions.post.read)).toBe(true);
+    expect(permdock.can(permissions.post.read, undefined)).toBe(true);
   });
 });

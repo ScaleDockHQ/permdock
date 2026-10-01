@@ -20,15 +20,18 @@ function request(
   if (init?.json !== undefined) {
     headers.set('content-type', 'application/json');
   }
+  const body =
+    init?.json === undefined ? init?.body : JSON.stringify(init.json);
   return new Request(`${ORIGIN}${path}`, {
     method: init?.method ?? 'POST',
     headers,
-    body: init?.json === undefined ? init?.body : JSON.stringify(init.json),
+    ...(body === undefined ? {} : { body }),
   });
 }
 
 function pdp(
   options?: Partial<Parameters<typeof createPermDock>[1]>,
+  { enumerate = true }: { readonly enumerate?: boolean } = {},
 ): ReturnType<typeof createPermDock>['handler'] {
   return createPermDock(policy, {
     subject: () => ({ id: 'pep', orgId: 'o1', roles: ['admin'] }),
@@ -40,12 +43,24 @@ function pdp(
         list: () => [ownPost, otherPost],
       },
     },
-    subjects: {
-      list: () => [
-        { id: memberUser.id, orgId: memberUser.orgId, roles: memberUser.roles },
-        { id: adminUser.id, orgId: adminUser.orgId, roles: adminUser.roles },
-      ],
-    },
+    ...(enumerate
+      ? {
+          subjects: {
+            list: () => [
+              {
+                id: memberUser.id,
+                orgId: memberUser.orgId,
+                roles: memberUser.roles,
+              },
+              {
+                id: adminUser.id,
+                orgId: adminUser.orgId,
+                roles: adminUser.roles,
+              },
+            ],
+          },
+        }
+      : {}),
     ...options,
   }).handler;
 }
@@ -446,7 +461,7 @@ describe('permdock/authzen', () => {
   });
 
   it('omits search/subject from discovery when no enumerator is set', async () => {
-    const handler = pdp({ subjects: undefined });
+    const handler = pdp({}, { enumerate: false });
     // SAFETY: discovery JSON produced by the AuthZEN handler under test.
     const metadata = (await (
       await handler(

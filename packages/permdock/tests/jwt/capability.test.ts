@@ -39,7 +39,7 @@ const permissions = definePermissions({
 const policy = definePolicy(
   { permissions },
   {
-    subject: (user: Subject) => user,
+    subject: (user: Subject | null) => user?.principal ?? null,
     roles: [
       role(
         'guest',

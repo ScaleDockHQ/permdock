@@ -24,8 +24,6 @@ import {
   memoryLimitStore,
   memoryPolicySource,
   memoryRevocationFeed,
-  memoryRoleSource,
-  memorySink,
   mergeHostedGrants,
   parsePolicyDocument,
 } from '../../src/index.ts';
@@ -581,7 +579,7 @@ describe('conformance runners', () => {
 
   testDecisionSink({
     write: () => undefined,
-    flush: () => undefined,
+    flush: () => Promise.resolve(),
   });
 
   testSnapshotSource({
@@ -763,8 +761,10 @@ const selectorPolicy = definePolicy(
         : {
             id: user.id,
             roles: user.roles ?? [],
-            plans: user.plans,
-            assurance: user.assurance,
+            ...(user.plans === undefined ? {} : { plans: user.plans }),
+            ...(user.assurance === undefined
+              ? {}
+              : { assurance: user.assurance }),
           },
     grants: [
       allow(selectorPermissions.post.read, { to: anyone() }),

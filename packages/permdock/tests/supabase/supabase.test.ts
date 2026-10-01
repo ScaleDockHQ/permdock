@@ -230,7 +230,7 @@ describe('subjectFromSupabase', () => {
     expect(subjectFromSupabase(base).actor).toBeUndefined();
   });
 
-  it('denies a third-party client whose scope does not delegate the permission', () => {
+  it('denies a third-party client whose scope does not delegate the permission', async () => {
     const permissions = definePermissions({
       invoice: resource({ collection: ['read'] }),
     });
@@ -243,15 +243,15 @@ describe('subjectFromSupabase', () => {
       },
     );
     const base = { sub: 'user-8', role: 'authenticated', user_role: 'member' };
-    const dock = (claims: Record<string, unknown>): boolean =>
-      createPermDock(policy, subjectFromSupabase(claims)).can(
+    const dock = async (claims: Record<string, unknown>): Promise<boolean> =>
+      (await createPermDock(policy, subjectFromSupabase(claims))).can(
         permissions.invoice.read,
       );
-    expect(dock(base)).toBe(true);
-    expect(dock({ ...base, client_id: 'app-1' })).toBe(false);
-    expect(dock({ ...base, client_id: 'app-1', scope: 'invoice:read' })).toBe(
-      true,
-    );
+    expect(await dock(base)).toBe(true);
+    expect(await dock({ ...base, client_id: 'app-1' })).toBe(false);
+    expect(
+      await dock({ ...base, client_id: 'app-1', scope: 'invoice:read' }),
+    ).toBe(true);
   });
 });
 

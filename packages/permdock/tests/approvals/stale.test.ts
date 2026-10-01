@@ -49,7 +49,9 @@ async function run(
   row: typeof v1,
   token: string | undefined,
   store: ReturnType<typeof memoryApprovalStore>,
-  permission = permissions.invoice.pay,
+  permission:
+    | typeof permissions.invoice.pay
+    | typeof permissions.invoice.void = permissions.invoice.pay,
 ): Promise<{ readonly decision: Decision; readonly resumed: Decision }> {
   const permdock = await createPermDock(policy, clerk);
   const decision = permdock.decide(permission, row);
@@ -117,15 +119,17 @@ describe('approvals that go stale on a resource change', () => {
       denials: [{ role: null, reason: 'stale-approval' }],
       alternatives: [],
     });
-    expect(store.get(old)?.consumedAt).toBeUndefined();
+    expect((await store.get(old))?.consumedAt).toBeUndefined();
 
     const again = await run(v2, undefined, store);
     expect(again.resumed.outcome).toBe('approval-required');
     const fresh =
       again.resumed.outcome === 'approval-required' ? again.resumed.token : '';
     expect(fresh).not.toBe(old);
-    expect(store.get(fresh)?.status).toBe('pending');
-    expect(store.get(fresh)?.approvers?.staleOn).toBe('resource-change');
+    expect((await store.get(fresh))?.status).toBe('pending');
+    expect((await store.get(fresh))?.approvers?.staleOn).toBe(
+      'resource-change',
+    );
 
     await approve(store, fresh);
     expect((await run(v2, fresh, store)).resumed.outcome).toBe('granted');

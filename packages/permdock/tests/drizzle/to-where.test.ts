@@ -12,6 +12,19 @@ function rec(
   return (...args: unknown[]) => ({ op, args });
 }
 
+function asNode(compiled: unknown): { op: unknown; args: unknown[] } {
+  if (
+    compiled === null ||
+    typeof compiled !== 'object' ||
+    !('op' in compiled) ||
+    !('args' in compiled) ||
+    !Array.isArray(compiled.args)
+  ) {
+    throw new Error('not an ops() node');
+  }
+  return { op: compiled.op, args: compiled.args };
+}
+
 function ops(): DrizzleOperators {
   return {
     and: rec('and'),
@@ -92,23 +105,24 @@ describe('permdock/drizzle toWhere', () => {
         { operators: ops(), subject },
       ),
     ).toEqual({ op: 'eq', args: ['col.org', 'o1'] });
-    // SAFETY: the ops() stub above builds every node as { op, args }.
-    const exists = toWhere(
-      { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['viewer'] },
-      posts,
-      {
-        operators: ops(),
-        subject,
-        memberships: {
-          tenant: {
-            table: 'organization_members',
-            user: 'user_id',
-            role: 'role',
-            tenant: 'organization_id',
+    const exists = asNode(
+      toWhere(
+        { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['viewer'] },
+        posts,
+        {
+          operators: ops(),
+          subject,
+          memberships: {
+            tenant: {
+              table: 'organization_members',
+              user: 'user_id',
+              role: 'role',
+              tenant: 'organization_id',
+            },
           },
         },
-      },
-    ) as { op: string; args: unknown[] };
+      ),
+    );
     expect(exists.op).toBe('sql');
     expect(String(exists.args[0])).toContain(
       'exists (select 1 from organization_members',
@@ -131,25 +145,26 @@ describe('permdock/drizzle toWhere', () => {
   });
 
   it('binds whole-second expiry and the active tenant in exists joins', () => {
-    // SAFETY: the ops() stub above builds every node as { op, args }.
-    const exists = toWhere(
-      { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['viewer'] },
-      posts,
-      {
-        operators: ops(),
-        subject,
-        now: 100.2,
-        memberships: {
-          tenant: {
-            table: 'members',
-            user: 'user_id',
-            role: 'role',
-            tenant: 'org_id',
-            expiresAt: 'expires_at',
+    const exists = asNode(
+      toWhere(
+        { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['viewer'] },
+        posts,
+        {
+          operators: ops(),
+          subject,
+          now: 100.2,
+          memberships: {
+            tenant: {
+              table: 'members',
+              user: 'user_id',
+              role: 'role',
+              tenant: 'org_id',
+              expiresAt: 'expires_at',
+            },
           },
         },
-      },
-    ) as { op: string; args: unknown[] };
+      ),
+    );
     expect(String(exists.args[0])).toContain('expires_at > ?');
     expect(exists.args).toContain(101);
     expect(exists.args).toContain('o1');

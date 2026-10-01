@@ -13,6 +13,7 @@ import {
   signDecisionBatch,
   toCloudEvent,
 } from '../../src/core/sink.ts';
+import { isDecisionEvent } from '../fixtures/decisions.ts';
 
 const event = (id: string): DecisionEvent => ({
   type: 'decision',
@@ -30,7 +31,12 @@ describe('memorySink', () => {
   it('buffers events and drops the oldest past capacity', () => {
     const sink = memorySink({ capacity: 2 });
     sink.write([event('1'), event('2'), event('3')]);
-    expect(sink.events().map((item) => item.resource.id)).toEqual(['2', '3']);
+    expect(
+      sink
+        .events()
+        .filter(isDecisionEvent)
+        .map((item) => item.resource.id),
+    ).toEqual(['2', '3']);
   });
 
   it('signs each write as a permdock-decisions+jwt batch', async () => {

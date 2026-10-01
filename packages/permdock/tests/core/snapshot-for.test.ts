@@ -16,14 +16,6 @@ import {
   policy,
 } from '../fixtures/saas.ts';
 
-type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | readonly JsonValue[]
-  | { readonly [key: string]: JsonValue | undefined };
-
 function assertJson(value: unknown, path = '$'): void {
   if (
     value === null ||

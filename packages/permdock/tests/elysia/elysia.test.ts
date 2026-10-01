@@ -11,6 +11,10 @@ import {
   policy,
 } from '../fixtures/quick-start.ts';
 
+function isElysiaContext(ctx: unknown): ctx is ElysiaContext {
+  return typeof ctx === 'object' && ctx !== null && 'permdock' in ctx;
+}
+
 describe('permdock/elysia sockets', () => {
   it('shares one connection per socket, checks messages and closes with 1008 on revocation', async () => {
     const revocations = memoryRevocationFeed();
@@ -47,16 +51,17 @@ describe('permdock/elysia', () => {
     const { permdock, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    // SAFETY: the permdock() plugin used here derives ctx.permdock for every route.
     const app = new Elysia().use(permdock()).delete(
       '/posts/:id',
       (ctx) => ({
         ok: true,
-        via: (ctx as ElysiaContext).permdock.subject.principal?.id,
+        via: isElysiaContext(ctx)
+          ? ctx.permdock.subject.principal?.id
+          : undefined,
       }),
       {
         beforeHandle: protect(permissions.post.update, ({ params }) =>
-          params['id'] === 'p1' ? ownPost : otherPost,
+          params?.['id'] === 'p1' ? ownPost : otherPost,
         ),
       },
     );

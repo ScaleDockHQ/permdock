@@ -11,6 +11,7 @@ import {
   resource,
   role,
 } from '../../src/index.ts';
+import { reasonOf } from '../fixtures/decisions.ts';
 
 const Invoice = z.object({ id: z.string(), amount: z.number() });
 const permissions = definePermissions({
@@ -49,7 +50,9 @@ describe('tool arguments are boundary data', () => {
       {},
     );
     expect(result.outcome).toBe('denied');
-    expect(result.decision?.denials[0]?.reason).toBe('validation');
+    expect(
+      result.decision === null ? undefined : reasonOf(result.decision),
+    ).toBe('validation');
   });
 
   it('still applies the deny to a valid object', async () => {
@@ -59,7 +62,9 @@ describe('tool arguments are boundary data', () => {
       {},
     );
     expect(result.outcome).toBe('denied');
-    expect(result.decision?.denials[0]?.reason).toBe('deny');
+    expect(
+      result.decision === null ? undefined : reasonOf(result.decision),
+    ).toBe('deny');
   });
 
   it('matches a direct decide on untrusted data', async () => {
@@ -68,6 +73,6 @@ describe('tool arguments are boundary data', () => {
       id: 'i1',
       amount: '50000',
     });
-    expect(decision.denials[0]?.reason).toBe('validation');
+    expect(reasonOf(decision)).toBe('validation');
   });
 });

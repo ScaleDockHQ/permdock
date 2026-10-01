@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
+import type { DecisionProvider } from '../../src/core/interfaces.ts';
+
 import { createPermDock as createCore } from '../../src/core/permdock.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
 import { allow, definePolicy, deny, role } from '../../src/core/policy.ts';
 import { createPermDock, remotePdp } from '../../src/pdp/index.ts';
+import { reasonOf } from '../fixtures/decisions.ts';
 
 const Post = z.object({
   id: z.string(),
@@ -25,9 +28,7 @@ const permissions = definePermissions({
 
 const post = { id: 'p1', authorId: 'user-1' };
 
-function policyWith(
-  providers: Parameters<typeof definePolicy>[1]['providers'],
-) {
+function policyWith(providers: readonly DecisionProvider[]) {
   return definePolicy(permissions, {
     roles: [
       role('member', [
@@ -65,7 +66,7 @@ describe('permdock/pdp', () => {
       roles: ['member'],
     });
     expect(dock.can(permissions.post.read, post)).toBe(false);
-    expect(dock.decide(permissions.post.read, post).denials[0]?.reason).toBe(
+    expect(reasonOf(dock.decide(permissions.post.read, post))).toBe(
       'pdp-unavailable',
     );
   });
@@ -88,7 +89,7 @@ describe('permdock/pdp', () => {
     });
     const decision = await dock.decide(permissions.post.delete, post);
     expect(decision.outcome).toBe('denied');
-    expect(decision.denials[0]?.reason).toBe('deny');
+    expect(reasonOf(decision)).toBe('deny');
     expect(calls).toBe(0);
   });
 
@@ -121,7 +122,7 @@ describe('permdock/pdp', () => {
     });
     const decision = await dock.decide(permissions.post.read, post);
     expect(decision.outcome).toBe('denied');
-    expect(decision.denials[0]?.reason).toBe('pdp-denied');
+    expect(reasonOf(decision)).toBe('pdp-denied');
   });
 
   it('asks the remote when a delegated permission has no local grant', async () => {
@@ -209,7 +210,7 @@ describe('permdock/pdp', () => {
       });
       const decision = await dock.decide(permissions.post.read, post);
       expect(decision.outcome).toBe('denied');
-      expect(decision.denials[0]?.reason).toBe(item.reason);
+      expect(reasonOf(decision)).toBe(item.reason);
     }
   });
 
@@ -260,7 +261,7 @@ describe('permdock/pdp', () => {
     );
     const decision = await dock.decide(permissions.post.read, post);
     expect(decision.outcome).toBe('denied');
-    expect(decision.denials[0]?.reason).toBe('no-delegation');
+    expect(reasonOf(decision)).toBe('no-delegation');
   });
 
   it('keys the cache by tenant, so one tenant never reuses another tenant grant', async () => {

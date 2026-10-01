@@ -24,14 +24,17 @@ const scan: ScanResult = {
 const scopes = scopeList(policy.scopes);
 const ownership = ownershipRules(policy, scopes);
 
-function context(extra: Partial<RlsSqlContext>): RlsSqlContext {
+function context(
+  extra: Partial<RlsSqlContext>,
+  { withOwnership = true }: { readonly withOwnership?: boolean } = {},
+): RlsSqlContext {
   return {
     dialect: 'guc',
     scopes,
     tenantClaim: 'tenant_id',
     gucPrefix: 'app',
     tenantType: 'text',
-    ...(ownership === undefined ? {} : { ownership }),
+    ...(!withOwnership || ownership === undefined ? {} : { ownership }),
     ...extra,
   };
 }
@@ -135,6 +138,6 @@ describe('ownership in generated RLS', () => {
   });
 
   it('emits nothing for a policy without rules', () => {
-    expect(ownershipSql(context({ ownership: undefined }))).toBe('');
+    expect(ownershipSql(context({}, { withOwnership: false }))).toBe('');
   });
 });

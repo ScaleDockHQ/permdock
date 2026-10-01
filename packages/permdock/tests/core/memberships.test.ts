@@ -255,7 +255,7 @@ describe('claimsFirst', () => {
       JSON.parse(JSON.stringify(stale.snapshot())),
     );
     expect(
-      snapshot.grants.some((grant) => grant.permission.key === 'doc.delete'),
+      snapshot.grants.some((grant) => grant.permission === 'doc.delete'),
     ).toBe(false);
     expect(fromSnapshot(snapshot).can(permissions.doc.delete, row)).toBe(false);
     expect((await at(3, 3)).can(permissions.doc.delete, row)).toBe(true);
@@ -301,13 +301,14 @@ describe('entitlements and seats', () => {
     };
     const dock = await createPermDock(policy, member, { entitlements });
     expect(dock.subject.principal?.plans).toEqual(['dev-mode']);
-    expect(dock.can(permissions.doc.export)).toBe(true);
+    expect(dock.can(permissions.doc.export, undefined)).toBe(true);
+    const { tenant: _tenant, ...untenanted } = member;
     const outsider = await createPermDock(
       policy,
-      { ...member, memberships: [], tenant: undefined },
+      { ...untenanted, memberships: [] },
       { entitlements, tenant: 'T' },
     );
-    expect(outsider.can(permissions.doc.export)).toBe(false);
+    expect(outsider.can(permissions.doc.export, undefined)).toBe(false);
   });
 
   it('matches plan grantees against seats of memberships in the active tenant', async () => {
@@ -326,11 +327,15 @@ describe('entitlements and seats', () => {
       ],
     };
     expect(
-      (await createPermDock(policy, seated)).can(permissions.doc.export),
+      (await createPermDock(policy, seated)).can(
+        permissions.doc.export,
+        undefined,
+      ),
     ).toBe(true);
     expect(
       (await createPermDock(policy, seated, { tenant: 'B' })).can(
         permissions.doc.export,
+        undefined,
       ),
     ).toBe(false);
   });
