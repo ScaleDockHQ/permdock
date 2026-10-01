@@ -132,6 +132,7 @@ export default defineConfig({
     'src/clerk/index.ts',
     'src/convex/index.ts',
     'src/pdp/index.ts',
+    'src/catalog/index.ts',
     'src/cli/index.ts',
     'src/cli/bin.ts',
     'src/unplugin/index.ts',

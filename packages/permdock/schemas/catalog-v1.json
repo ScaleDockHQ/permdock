@@ -2,7 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://permdock.dev/schemas/catalog-v1.json",
   "type": "object",
-  "required": ["$schema", "version", "permissions", "resources"],
+  "required": [
+    "$schema",
+    "version",
+    "generatedAt",
+    "generator",
+    "resources",
+    "permissions"
+  ],
   "properties": {
     "$schema": {
       "type": "string"
@@ -20,7 +27,29 @@
       "type": "string"
     },
     "resources": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "schema"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "schema": {},
+          "definedIn": {
+            "type": "string"
+          },
+          "relations": {
+            "type": "object"
+          },
+          "version": {
+            "type": "string"
+          },
+          "restricted": {
+            "type": "string"
+          }
+        }
+      }
     },
     "roles": {
       "type": "array",
@@ -69,6 +98,42 @@
           },
           "audience": {
             "type": "string"
+          },
+          "activation": {
+            "type": "object",
+            "required": ["justification"],
+            "properties": {
+              "maxDuration": {
+                "type": "string"
+              },
+              "justification": {
+                "enum": ["required", "optional"]
+              },
+              "approval": {
+                "type": "boolean"
+              },
+              "assurance": {
+                "type": "object"
+              }
+            }
+          },
+          "supportAccess": {
+            "type": "object",
+            "required": ["actorRequired", "group", "durations"],
+            "properties": {
+              "actorRequired": {
+                "type": "boolean"
+              },
+              "group": {
+                "type": "string"
+              },
+              "durations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -93,14 +158,68 @@
       }
     },
     "plans": {
-      "type": "array"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key"],
+        "properties": {
+          "key": {
+            "type": "string"
+          }
+        }
+      }
     },
     "permissions": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["key", "resource", "action", "arity", "scope"],
+        "required": [
+          "key",
+          "scope",
+          "resource",
+          "action",
+          "arity",
+          "meta",
+          "usages"
+        ],
         "properties": {
+          "key": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "arity": {
+            "enum": ["instance", "collection"]
+          },
+          "meta": {
+            "type": "object"
+          },
+          "usages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["file", "line", "call"],
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "call": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "hostable": {
             "const": true
           },
@@ -127,6 +246,36 @@
                   }
                 }
               ]
+            }
+          },
+          "breakGlass": {
+            "type": "object",
+            "required": ["overrides", "reason", "obligations"],
+            "properties": {
+              "overrides": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "purpose": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "boolean"
+              },
+              "maxDuration": {
+                "type": "string"
+              },
+              "obligations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             }
           }
         }

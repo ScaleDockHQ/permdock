@@ -16,7 +16,7 @@ import { compact } from '../core/compact.ts';
 import { scopeList } from '../core/scopes.ts';
 import { listPermissions, listRoles } from '../index.ts';
 import { supabaseTenantClaim } from '../supabase/budget.ts';
-import { rowConditionKeys } from './catalog-doc.ts';
+import { policyRowConditionKeys } from './catalog-doc.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { breakGlassEntries, breakGlassSql } from './rls-break-glass.ts';
 import { compileGrants } from './rls-compile.ts';
@@ -396,7 +396,7 @@ export async function runRlsGenerate(input: {
         permissions: listPermissions(policy.vocabulary.permissions).map(
           (leaf) => leaf.key,
         ),
-        rowConditions: [...rowConditionKeys(policy)],
+        rowConditions: [...policyRowConditionKeys(policy)],
       },
       schema,
       helpersOnly,
