@@ -58,6 +58,8 @@ const config: KnipConfig = {
       entry: [
         'tests/cli/fixtures/*/permdock.config.ts',
         'tests/cli/fixtures/*/src/*.ts',
+        // Loaded by path as the CLI's `policy` module.
+        'tests/fixtures/rls-standard.ts',
       ],
     },
     'tests/*': {},
