@@ -122,7 +122,7 @@ export function pd009(cwd: string): readonly DoctorFinding[] {
       {
         code: 'PD009',
         severity: 'error',
-        message: `duplicate permdock copies: ${copies.map((item) => rel(cwd, dirname(dirname(item)))).join(', ')}`,
+        message: `duplicate permdock copies: ${copies.map((item) => rel(cwd, dirname(item))).join(', ')}`,
         fix: 'dedupe so only one permdock version is installed',
       },
     ];

@@ -427,7 +427,7 @@ function collectObjectKeys(node: Estree | undefined, into: Set<string>): void {
   }
   for (const property of node.properties) {
     const key = property.key;
-    if (typeof key?.name === 'string') {
+    if (property.computed !== true && typeof key?.name === 'string') {
       into.add(key.name);
       continue;
     }

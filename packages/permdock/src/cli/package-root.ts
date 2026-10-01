@@ -10,10 +10,13 @@ let cached: string | undefined;
  * assuming a depth.
  */
 export function packageRoot(): string {
-  if (cached !== undefined) {
-    return cached;
-  }
-  let dir = dirname(fileURLToPath(import.meta.url));
+  cached ??= findPackageRoot(dirname(fileURLToPath(import.meta.url)));
+  return cached;
+}
+
+/** The nearest directory at or above `start` whose `package.json` is named `permdock`. */
+export function findPackageRoot(start: string): string {
+  let dir = start;
   for (;;) {
     const manifest = join(dir, 'package.json');
     if (existsSync(manifest)) {
@@ -22,7 +25,6 @@ export function packageRoot(): string {
         readonly name?: unknown;
       };
       if (name === 'permdock') {
-        cached = dir;
         return dir;
       }
     }

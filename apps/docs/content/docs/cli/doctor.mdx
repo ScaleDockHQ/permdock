@@ -23,7 +23,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD001` | Server-only imports in client entries | error |
 | `PD002` | Unknown permission references | error |
 | `PD003` | Permissions used but never granted | warning |
-| `PD004` | Stale catalog or generated barrel | error |
+| `PD004` | Stale catalog | error |
 | `PD005` | Missing or outdated Agent Skills | warning |
 | `PD006` | Unsupported TypeScript version | error |
 | `PD007` | Policy validation mode `never` with an HTTP, MCP or agent adapter present | warning |
@@ -88,7 +88,7 @@ The same analysis as [usage](/docs/cli/usage), reported here at warning level so
 
 ### PD004: stale catalog
 
-Runs `collect --check` in memory. A stale `permissions.catalog.json` or generated barrel is an error because downstream tools (OpenAPI emission, MCP descriptions, the docs) read the file, not the code.
+Runs `collect --check` in memory. A stale `permissions.catalog.json` is an error because downstream tools (OpenAPI emission, MCP descriptions, the docs) read the file, not the code.
 
 ### PD005: skills
 

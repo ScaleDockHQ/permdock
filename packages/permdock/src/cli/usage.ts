@@ -73,7 +73,15 @@ export async function runUsage(input: {
       output: `PermDock CLI: policy module not found: ${policyRel}`,
     };
   }
-  const policy = asPolicy(pickNamed(await loadModule(policyAbs), ['policy']));
+  let policy: Policy;
+  try {
+    policy = asPolicy(pickNamed(await loadModule(policyAbs), ['policy']));
+  } catch (error) {
+    return {
+      code: 2,
+      output: error instanceof Error ? error.message : String(error),
+    };
+  }
   const granted = new Set<string>();
   const mergedRoles = new Set<string>();
   for (const role of policy.roles) {

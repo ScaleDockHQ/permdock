@@ -106,7 +106,10 @@ function walkDir(
       continue;
     }
     const full = join(dir, name);
-    const stats = statSync(full);
+    const stats = statSync(full, { throwIfNoEntry: false });
+    if (stats === undefined) {
+      continue;
+    }
     if (stats.isDirectory()) {
       walkDir(full, out, skip);
       continue;

@@ -32,7 +32,7 @@ Scanning is static: dynamic keys, computed member access and permissions resolve
 ## Outputs
 
 - **`permissions.catalog.json`**: the catalog described on the [catalog](/docs/cli/catalog) page, including for each permission its `key`, `scope`, arity, metadata, defining file and usage sites. Deterministic ordering and formatting so diffs are meaningful.
-- **Generated barrel** (`src/permissions.generated.ts` by default, only when `collect.barrel` is enabled): a `// @generated` file that imports every discovered `definePermissions()` export and passes them to `mergePermissions()`.
+- **Generated barrel** (`src/permissions.generated.ts` by default, only when `collect.barrel` is enabled): a `// @generated` file that imports `permissions` from the configured permissions module (`permissions` in `permdock.config.ts`, or the first of the conventional paths that exists), relative to the barrel's own folder, and passes it to `mergePermissions()`.
 
 Generated files carry a header with the CLI version and the list of inputs, and are formatted with Oxfmt so they do not churn under the project's formatter.
 

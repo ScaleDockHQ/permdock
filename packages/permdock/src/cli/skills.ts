@@ -46,8 +46,13 @@ export function runSkills(input: {
 export function runSkillsInstall(input: {
   readonly cwd: string;
   readonly agents: readonly string[];
+  /** The skills shipped with this CLI, used when the project resolves no permdock package. */
+  readonly bundled?: string;
 }): SkillsResult {
-  const source = resolveSkillsRoot(input.cwd);
+  const source = resolveSkillsRoot(
+    input.cwd,
+    input.bundled ?? join(packageRoot(), 'skills'),
+  );
   if (source === undefined) {
     return {
       code: 2,
@@ -113,7 +118,7 @@ function resolveTargets(agents: readonly string[]): readonly string[] {
   });
 }
 
-function resolveSkillsRoot(cwd: string): string | undefined {
+function resolveSkillsRoot(cwd: string, bundled: string): string | undefined {
   try {
     const require = createRequire(resolve(cwd, 'package.json'));
     const pkg = require.resolve('permdock/package.json');
@@ -128,8 +133,7 @@ function resolveSkillsRoot(cwd: string): string | undefined {
   if (existsSync(local)) {
     return local;
   }
-  const own = join(packageRoot(), 'skills');
-  return existsSync(own) ? own : undefined;
+  return existsSync(bundled) ? bundled : undefined;
 }
 
 function readPermdockVersion(skillsRoot: string): string {

@@ -85,4 +85,26 @@ describe('listSourceFiles', () => {
       'packages/permissions/src/index.ts',
     ]);
   });
+
+  it('walks .agents but no other dot folder, and skips generated and non-source files', () => {
+    const root = tree([
+      'src/.agents/tool.ts',
+      'src/.cache/old.ts',
+      'src/permissions.generated.ts',
+      'src/notes.md',
+      'src/page.tsx',
+    ]);
+    expect(listed(root, ['./src'])).toEqual([
+      'src/.agents/tool.ts',
+      'src/page.tsx',
+    ]);
+  });
+
+  it('skips a dangling symlink and lists a single source file root', () => {
+    const root = tree(['src/a.ts', 'entry.mts', 'readme.md']);
+    symlinkSync(join(root, 'src/gone.ts'), join(root, 'src/link.ts'));
+    expect(listed(root, ['./src', 'entry.mts', 'readme.md', 'absent'])).toEqual(
+      ['entry.mts', 'src/a.ts'],
+    );
+  });
 });

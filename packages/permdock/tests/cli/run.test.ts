@@ -298,3 +298,93 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
     expect(report.findings).toEqual([]);
   });
 });
+
+describe('run flag validation', () => {
+  it.each([
+    [
+      ['catalog', '--format', 'xml'],
+      'catalog --format must be json, schema or markdown',
+    ],
+    [
+      ['openapi', 'import', '--schema', 'joi'],
+      'openapi --schema must be zod, valibot or arktype',
+    ],
+    [['openapi', 'import'], 'openapi --doc is required'],
+    [
+      ['openapi', 'emit', '--target', '4.0'],
+      'openapi --target must be 3.1, 3.2 or 3.3',
+    ],
+    [
+      ['openapi', 'emit', '--format', 'yaml'],
+      'openapi --format must be document or overlay',
+    ],
+    [
+      ['openapi', 'emit', '--overlay', '2.0'],
+      'openapi --overlay must be 1.1 or 1.2',
+    ],
+    [
+      ['openapi', 'emit', '--profile', 'fapi1'],
+      'openapi --profile must be fapi2',
+    ],
+    [
+      ['rls', 'generate', '--rbac', 'auth0'],
+      "rls generate --rbac must be supabase, got 'auth0'",
+    ],
+  ])('exits 2 on %o', async (argv, message) => {
+    expect(await run(argv, { cwd: appCopy() })).toEqual({
+      code: 2,
+      stdout: '',
+      stderr: `${message}\n`,
+    });
+  });
+
+  it('exits 2 when the config fails to load', async () => {
+    const cwd = appCopy();
+    expect(await run(['doctor', '--config', 'absent.ts'], { cwd })).toEqual({
+      code: 2,
+      stdout: '',
+      stderr: `PermDock CLI: config file not found: ${join(cwd, 'absent.ts')}\n`,
+    });
+    writeFileSync(join(cwd, 'permdock.config.ts'), "throw 'raw';\n");
+    expect(await run(['doctor'], { cwd })).toEqual({
+      code: 2,
+      stdout: '',
+      stderr: 'raw\n',
+    });
+  });
+
+  it('writes through a custom io and also returns the output', async () => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const io = {
+      stdout: (text: string): void => {
+        out.push(text);
+      },
+      stderr: (text: string): void => {
+        err.push(text);
+      },
+    };
+    const help = await run(['help'], { io });
+    expect(help.code).toBe(0);
+    expect(out).toEqual([help.stdout]);
+    const bad = await run(['catalog', '--format', 'xml'], {
+      io,
+      cwd: appCopy(),
+    });
+    expect(err).toEqual([bad.stderr]);
+  });
+
+  it('collect honours --src and --out', async () => {
+    const cwd = appCopy();
+    const result = await run(
+      ['collect', '--src', './src', '--out', 'custom.catalog.json'],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    // SAFETY: the catalog file `permdock collect` just wrote.
+    const catalog = JSON.parse(
+      readFileSync(join(cwd, 'custom.catalog.json'), 'utf8'),
+    ) as { readonly version: number };
+    expect(catalog.version).toBe(1);
+  });
+});

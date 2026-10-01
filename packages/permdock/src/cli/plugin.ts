@@ -88,10 +88,6 @@ export async function runPluginCollect(
     collect,
     check,
     now: new Date(),
-    io: {
-      stdout: () => undefined,
-      stderr: () => undefined,
-    },
   });
   if (result.code === 0) {
     return undefined;
