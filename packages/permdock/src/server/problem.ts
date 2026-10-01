@@ -32,11 +32,16 @@ export type BearerChallenge = {
   /** RFC 9470 step-up parameters. */
   readonly acrValues?: readonly string[];
   readonly maxAge?: number;
+  /** A generic `error_description`; never the verification failure itself. */
+  readonly description?: string;
 };
 
 /** An RFC 6750 `WWW-Authenticate: Bearer` value. */
 export function bearerChallenge(challenge: BearerChallenge): string {
   const parts = [`error=${quoted(challenge.error)}`];
+  if (challenge.description !== undefined) {
+    parts.push(`error_description=${quoted(challenge.description)}`);
+  }
   if (challenge.scopes !== undefined && challenge.scopes.length > 0) {
     parts.push(`scope=${quoted([...new Set(challenge.scopes)].join(' '))}`);
   }
@@ -100,9 +105,14 @@ export function stepUpOf(decision: Decision): {
   });
 }
 
+/** The `error_description` of every `invalid_token` challenge (RFC 6750 section 3.1). */
+const INVALID_TOKEN = 'The access token is invalid';
+
 export function wwwAuthenticate(
   decision: Decision,
   permission: Permission | undefined,
+  /** Whether the request carried credentials; without any, the challenge has no error code. */
+  credentials = true,
 ): string | undefined {
   if (decision.outcome !== 'denied') {
     return undefined;
@@ -115,7 +125,9 @@ export function wwwAuthenticate(
     });
   }
   if (reasons.has('anonymous')) {
-    return bearerChallenge({ error: 'invalid_token' });
+    return credentials
+      ? bearerChallenge({ error: 'invalid_token', description: INVALID_TOKEN })
+      : 'Bearer';
   }
   if (reasons.has('not-delegated') || reasons.has('no-delegation')) {
     return bearerChallenge(
@@ -133,13 +145,14 @@ export function problemResponse(
   permission?: Permission,
   decision?: Decision,
   extra?: Readonly<Record<string, string>>,
+  credentials?: boolean,
 ): Response {
   const headers = new Headers({
     ...extra,
     'content-type': 'application/problem+json',
   });
   if (decision !== undefined) {
-    const challenge = wwwAuthenticate(decision, permission);
+    const challenge = wwwAuthenticate(decision, permission, credentials);
     if (challenge !== undefined) {
       headers.set('WWW-Authenticate', challenge);
     }
@@ -261,6 +274,8 @@ export function problemFromDecision(
     readonly approval?: ApprovalHint;
     /** `'hide'` on a loaded row: a denial answers as `404` `/not-found`. */
     readonly disclosure?: 'hide' | 'reveal';
+    /** Whether the request carried credentials, which picks the `401` challenge. */
+    readonly credentials?: boolean;
   } = {},
 ): Response {
   const base = PROBLEM_BASE;
@@ -335,9 +350,18 @@ export function problemFromDecision(
   );
   if (reasons.has('anonymous')) {
     return problemResponse(
-      { ...details, status: 401, type: `${base}/unauthenticated` },
+      compact<ProblemDetails>({
+        type: `${base}/unauthenticated`,
+        title: 'Authentication required',
+        status: 401,
+        detail: 'Authenticate and repeat the request',
+        instance: options.instance,
+        permission: permission.key,
+      }),
       permission,
       decision,
+      undefined,
+      options.credentials,
     );
   }
   if (reasons.has('insufficient-user-authentication')) {

@@ -106,7 +106,7 @@ describe('permdock/server', () => {
     expect(body.denials.length).toBeGreaterThan(0);
   });
 
-  it('answers 401 invalid_token for an anonymous caller', async () => {
+  it('answers 401 with a bare Bearer challenge to a caller without credentials', async () => {
     const { protect } = createPermDock(policy, {
       subject: () => null,
     });
@@ -119,9 +119,7 @@ describe('permdock/server', () => {
       return;
     }
     expect(denied.response.status).toBe(401);
-    expect(denied.response.headers.get('WWW-Authenticate')).toContain(
-      'invalid_token',
-    );
+    expect(denied.response.headers.get('WWW-Authenticate')).toBe('Bearer');
   });
 
   it('adds the approval hint to every approval-required problem', async () => {

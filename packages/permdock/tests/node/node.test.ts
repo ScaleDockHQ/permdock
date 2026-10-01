@@ -86,7 +86,7 @@ describe('permdock/node', () => {
     );
   });
 
-  it('answers 401 invalid_token for an anonymous caller', async () => {
+  it('answers 401 with a bare Bearer challenge to a caller without credentials', async () => {
     const { protect, send } = createPermDock(policy, {
       subject: () => null,
     });
@@ -101,7 +101,7 @@ describe('permdock/node', () => {
     });
     const denied = await request('/posts/p1');
     expect(denied.status).toBe(401);
-    expect(denied.headers.get('www-authenticate')).toContain('invalid_token');
+    expect(denied.headers.get('www-authenticate')).toBe('Bearer');
   });
 
   it('mounts the AuthZEN evaluations handler', async () => {

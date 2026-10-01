@@ -290,7 +290,7 @@ export const supabaseClaimFixtures: Readonly<
       id,
       roles: [],
       memberships: [],
-      actor: { id: 'mcp-client-42', kind: 'oauth-client' },
+      actor: { id: 'agent-runner', kind: 'oauth-client' },
       delegation: {
         scopes: ['posts:read'],
         chain: { sub: 'agent-runner', act: { sub: 'mcp-client-42' } },

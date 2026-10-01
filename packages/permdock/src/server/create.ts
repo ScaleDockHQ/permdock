@@ -426,6 +426,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
           instance.subject,
           compact({
             approval: options.approval,
+            credentials: request.headers.has('authorization'),
             disclosure:
               data === undefined
                 ? undefined
