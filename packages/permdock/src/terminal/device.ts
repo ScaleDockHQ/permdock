@@ -30,6 +30,26 @@ async function readJson(
   }
 }
 
+/** POSTs a form and reads a JSON object back; any network or parse failure is `null`. */
+async function postForm(
+  runtime: TerminalRuntime,
+  url: string,
+  fields: Record<string, string>,
+): Promise<Record<string, unknown> | null> {
+  const fetchImpl = runtime.fetch ?? fetch;
+  try {
+    return await readJson(
+      await fetchImpl(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(fields),
+      }),
+    );
+  } catch {
+    return null;
+  }
+}
+
 async function discoverDeviceEndpoints(
   issuer: string,
   runtime: TerminalRuntime,
@@ -131,7 +151,6 @@ export async function runDeviceFlow(
   runtime: TerminalRuntime,
   write: (text: string) => void,
 ): Promise<StoredCredential | null> {
-  const fetchImpl = runtime.fetch ?? fetch;
   const sleep = runtime.sleep ?? defaultSleep;
   const now = runtime.now ?? ((): number => Math.floor(Date.now() / 1000));
   let authorizationEndpoint = device.authorizationEndpoint;
@@ -148,15 +167,10 @@ export async function runDeviceFlow(
   if (authorizationEndpoint === undefined || tokenEndpoint === undefined) {
     return null;
   }
-  const started = await fetchImpl(authorizationEndpoint, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: device.clientId,
-      scope: device.scope ?? '',
-    }),
+  const startedBody = await postForm(runtime, authorizationEndpoint, {
+    client_id: device.clientId,
+    scope: device.scope ?? '',
   });
-  const startedBody = await readJson(started);
   const authorization =
     startedBody === null ? null : parseAuthorization(startedBody);
   if (authorization === null) {
@@ -179,16 +193,11 @@ export async function runDeviceFlow(
   const deadline = now() + authorization.expires_in;
   while (now() < deadline) {
     await sleep(interval * 1000);
-    const polled = await fetchImpl(tokenEndpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-        device_code: authorization.device_code,
-        client_id: device.clientId,
-      }),
+    const polledBody = await postForm(runtime, tokenEndpoint, {
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      device_code: authorization.device_code,
+      client_id: device.clientId,
     });
-    const polledBody = await readJson(polled);
     if (polledBody === null) {
       return null;
     }
@@ -216,7 +225,6 @@ export async function refreshCredential(
   if (credential.refresh_token === undefined) {
     return null;
   }
-  const fetchImpl = runtime.fetch ?? fetch;
   const now = runtime.now ?? ((): number => Math.floor(Date.now() / 1000));
   let tokenEndpoint = device.tokenEndpoint;
   if (tokenEndpoint === undefined && device.issuer !== undefined) {
@@ -226,25 +234,16 @@ export async function refreshCredential(
   if (tokenEndpoint === undefined) {
     return null;
   }
-  try {
-    const response = await fetchImpl(tokenEndpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: credential.refresh_token,
-        client_id: device.clientId,
-      }),
-    });
-    const body = await readJson(response);
-    if (body === null) {
-      return null;
-    }
-    const token = parseToken(body, now());
-    return token.ok ? token.credential : null;
-  } catch {
+  const body = await postForm(runtime, tokenEndpoint, {
+    grant_type: 'refresh_token',
+    refresh_token: credential.refresh_token,
+    client_id: device.clientId,
+  });
+  if (body === null) {
     return null;
   }
+  const token = parseToken(body, now());
+  return token.ok ? token.credential : null;
 }
 
 export async function revokeCredential(
@@ -255,7 +254,6 @@ export async function revokeCredential(
   if (device === undefined || credential.refresh_token === undefined) {
     return;
   }
-  const fetchImpl = runtime.fetch ?? fetch;
   let revocationEndpoint = device.revocationEndpoint;
   if (revocationEndpoint === undefined && device.issuer !== undefined) {
     revocationEndpoint = (await discoverDeviceEndpoints(device.issuer, runtime))
@@ -264,19 +262,11 @@ export async function revokeCredential(
   if (revocationEndpoint === undefined) {
     return;
   }
-  try {
-    await fetchImpl(revocationEndpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        token: credential.refresh_token,
-        token_type_hint: 'refresh_token',
-        client_id: device.clientId,
-      }),
-    });
-  } catch {
-    // ignore
-  }
+  await postForm(runtime, revocationEndpoint, {
+    token: credential.refresh_token,
+    token_type_hint: 'refresh_token',
+    client_id: device.clientId,
+  });
 }
 
 function defaultSleep(ms: number): Promise<void> {
