@@ -24,7 +24,7 @@ import {
 import { freezeDeep } from '../core/freeze.ts';
 import { createPermDock as createCore } from '../core/permdock.ts';
 import { getResource } from '../core/permissions.ts';
-import { resourceIdOf } from './shared.ts';
+import { denied, resourceIdOf } from './shared.ts';
 
 function withoutProviders<TUser, TPrincipal extends Principal>(
   policy: Policy<TUser, TPrincipal>,
@@ -155,7 +155,7 @@ function wrap(
     options?: DecideOptions,
   ) => Decision;
 
-  const decide = (
+  const decide = async (
     permission: Permission,
     data?: unknown,
     options?: DecideOptions,
@@ -163,14 +163,32 @@ function wrap(
     const local = decideLocal(permission, data, options);
     const provider = providerFor(providers, permission);
     if (provider === undefined || isLocalShortCircuit(local)) {
-      return Promise.resolve(local);
+      return local;
     }
-    return provider.decide({
-      permission,
-      data,
-      subject,
-      local,
-    });
+    try {
+      return await provider.decide({
+        permission,
+        data,
+        subject,
+        local,
+      });
+    } catch {
+      return denied('pdp-unavailable');
+    }
+  };
+
+  const permittedIds = async (
+    provider: DecisionProvider | undefined,
+    permission: Permission,
+  ): Promise<readonly string[] | null | undefined> => {
+    if (provider?.permitted === undefined || subject.principal === null) {
+      return undefined;
+    }
+    try {
+      return await provider.permitted({ permission, subject });
+    } catch {
+      return null;
+    }
   };
 
   const can = async (
@@ -290,10 +308,7 @@ function wrap(
     ): Promise<T[]> {
       const next = { ...options, source: 'filter' as const };
       const provider = providerFor(providers, permission);
-      const ids =
-        provider?.permitted === undefined || subject.principal === null
-          ? undefined
-          : await provider.permitted({ permission, subject });
+      const ids = await permittedIds(provider, permission);
       if (ids === undefined) {
         const decisions = await Promise.all(
           rows.map((row) => decide(permission, row, next)),
@@ -318,10 +333,7 @@ function wrap(
       if (provider === undefined) {
         return dock.where(permission);
       }
-      const ids =
-        provider.permitted === undefined || subject.principal === null
-          ? undefined
-          : await provider.permitted({ permission, subject });
+      const ids = await permittedIds(provider, permission);
       if (ids === undefined) {
         return { condition: { op: 'or', conditions: [] }, partial: true };
       }

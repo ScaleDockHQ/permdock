@@ -342,9 +342,6 @@ function actorFromAct(
       ? { status: 'absent' }
       : { status: 'ok', actor, chain: claims['act'] };
   }
-  if (configured !== undefined && configured.from !== 'act') {
-    return { status: 'absent' };
-  }
   if (!Object.hasOwn(claims, 'act') || claims['act'] === undefined) {
     return { status: 'absent' };
   }

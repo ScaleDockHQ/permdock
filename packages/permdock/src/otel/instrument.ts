@@ -108,17 +108,12 @@ function omitPath(
     return { attributes, matched: false };
   }
   const [head, ...rest] = parts;
-  if (head === undefined || !Object.hasOwn(attributes, head)) {
+  if (
+    head === undefined ||
+    rest.length === 0 ||
+    !Object.hasOwn(attributes, head)
+  ) {
     return { attributes, matched: false };
-  }
-  if (rest.length === 0) {
-    const next: Record<string, unknown> = {};
-    for (const key of Object.keys(attributes)) {
-      if (key !== head) {
-        next[key] = attributes[key];
-      }
-    }
-    return { attributes: next, matched: true };
   }
   const nested = attributes[head];
   if (nested === null || typeof nested !== 'object') {

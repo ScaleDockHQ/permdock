@@ -5,7 +5,7 @@ import type { JwtSubjectOptions, MappedSubject } from './types.ts';
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { anonymousSubject } from '../core/subject.ts';
-import { assertSubjectConfig, issuerFromDiscovery } from './config.ts';
+import { assertSubjectConfig, fail, issuerFromDiscovery } from './config.ts';
 import { verifyDpopProof } from './dpop.ts';
 import { decodeHeader } from './header.ts';
 import { acceptMismatch, mapClaimsToSubject } from './map-claims.ts';
@@ -122,20 +122,25 @@ async function resolveSubject(
     (options.discovery === undefined
       ? undefined
       : issuerFromDiscovery(options.discovery));
-  const verified = await verifier.verify(
-    token,
-    compact({
-      audience: options.audience,
-      issuer,
-      clockTolerance: options.clockTolerance,
-      typ:
-        options.accept === 'id-token'
-          ? ['JWT']
-          : options.profile === 'fapi2'
-            ? 'at+jwt'
-            : ['at+jwt', 'JWT'],
-    }),
-  );
+  let verified: Awaited<ReturnType<typeof verifier.verify>>;
+  try {
+    verified = await verifier.verify(
+      token,
+      compact({
+        audience: options.audience,
+        issuer,
+        clockTolerance: options.clockTolerance,
+        typ:
+          options.accept === 'id-token'
+            ? ['JWT']
+            : options.profile === 'fapi2'
+              ? 'at+jwt'
+              : ['at+jwt', 'JWT'],
+      }),
+    );
+  } catch {
+    verified = fail('malformed');
+  }
   if (!verified.ok) {
     emitAuth(options, verified.cause, token);
     return anonymousSubject();

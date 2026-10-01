@@ -175,15 +175,20 @@ export async function subjectFromCiOidc(
   } catch {
     return deny('malformed');
   }
-  const verified = await verifier.verify(
-    token,
-    compact({
-      typ: ['JWT'],
-      issuer,
-      audience: options.audience,
-      clockTolerance: options.clockTolerance,
-    }),
-  );
+  let verified: Awaited<ReturnType<TokenVerifier['verify']>>;
+  try {
+    verified = await verifier.verify(
+      token,
+      compact({
+        typ: ['JWT'],
+        issuer,
+        audience: options.audience,
+        clockTolerance: options.clockTolerance,
+      }),
+    );
+  } catch {
+    return deny('malformed');
+  }
   if (!verified.ok) {
     return deny(verified.cause);
   }

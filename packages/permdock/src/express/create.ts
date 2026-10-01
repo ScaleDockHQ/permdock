@@ -104,6 +104,17 @@ const handler =
     }, next);
   };
 
+/** Runs `use` on the Express request bound to `request`; `fallback` for a request this adapter never bound. */
+export function withBound<T>(
+  contexts: WeakMap<globalThis.Request, Request>,
+  request: globalThis.Request,
+  use: (req: Request) => T,
+  fallback: T,
+): T {
+  const req = contexts.get(request);
+  return req === undefined ? fallback : use(req);
+}
+
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: ExpressPermDockOptions<TUser>,
@@ -113,10 +124,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const kernel = createKernel(
     policy,
     compact({
-      subject: (request: globalThis.Request) => {
-        const req = contexts.get(request);
-        return req === undefined ? null : options.subject(req);
-      },
+      subject: (request: globalThis.Request) =>
+        withBound(contexts, request, options.subject, null),
       memberships: options.memberships,
       relations: options.relations,
       entitlements: options.entitlements,
@@ -188,10 +197,16 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     };
 
   const permdockHandler = (): Router => {
-    const { POST, GET } = kernel.handler((request) => {
-      const req = contexts.get(request);
-      return req === undefined ? { tenant: undefined } : scopeOf(req);
-    });
+    const { POST, GET } = kernel.handler((request) =>
+      withBound<TenantScope | Promise<TenantScope>>(
+        contexts,
+        request,
+        scopeOf,
+        {
+          tenant: undefined,
+        },
+      ),
+    );
     const router = express.Router({ mergeParams: true });
     router.post('/', (req, res, next) => {
       run(async () => {
