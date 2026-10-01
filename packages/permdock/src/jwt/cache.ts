@@ -41,6 +41,10 @@ function cacheControlMaxAge(header: string | null): number | undefined {
   return Math.trunc(Number(match[1]));
 }
 
+function isHttpsUrl(value: unknown): value is string {
+  return typeof value === 'string' && URL.parse(value)?.protocol === 'https:';
+}
+
 function discoveryUrls(issuer: string): readonly string[] {
   const url = new URL(issuer);
   const oidc = new URL('/.well-known/openid-configuration', url.origin);
@@ -93,7 +97,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
         discoveryCause = 'discovery-mismatch';
         return { ok: false, cause: 'discovery-mismatch' };
       }
-      if (typeof body.jwks_uri !== 'string') {
+      if (!isHttpsUrl(body.jwks_uri)) {
         return undefined;
       }
       const ttl = clampTtl(

@@ -23,6 +23,29 @@ import { freezeDeep } from '../core/freeze.ts';
 import { isForbiddenKey, readPath } from '../core/paths.ts';
 import { anonymousSubject } from '../core/subject.ts';
 
+/** OpenID Connect Core section 5.1: profile data the provider owns. */
+const PROFILE_CLAIMS = [
+  'name',
+  'given_name',
+  'family_name',
+  'middle_name',
+  'nickname',
+  'preferred_username',
+  'profile',
+  'picture',
+  'website',
+  'email',
+  'email_verified',
+  'gender',
+  'birthdate',
+  'zoneinfo',
+  'locale',
+  'phone_number',
+  'phone_number_verified',
+  'address',
+  'updated_at',
+] as const;
+
 const DEFAULT_CLAIMS = {
   id: 'sub',
   roles: 'roles',
@@ -253,6 +276,7 @@ function membershipsFromClaim(value: unknown): Membership[] {
     ];
   }
   const out: Membership[] = [];
+  const byOrganisation = new Map<string, string[]>();
   for (const [tenant, entry] of Object.entries(record)) {
     if (Array.isArray(entry)) {
       out.push(compact<Membership>({ tenant, roles: asStringArray(entry) }));
@@ -261,6 +285,14 @@ function membershipsFromClaim(value: unknown): Membership[] {
     if (entry !== null && typeof entry === 'object') {
       // SAFETY: entry was checked to be a non-null object on the line above; values stay unknown.
       const nested = entry as Record<string, unknown>;
+      if (isRoleToOrganisations(nested)) {
+        for (const organisation of Object.keys(nested)) {
+          const roles = byOrganisation.get(organisation) ?? [];
+          roles.push(tenant);
+          byOrganisation.set(organisation, roles);
+        }
+        continue;
+      }
       out.push(
         compact<Membership>({
           tenant,
@@ -269,7 +301,22 @@ function membershipsFromClaim(value: unknown): Membership[] {
       );
     }
   }
+  for (const [tenant, roles] of byOrganisation) {
+    out.push({ tenant, roles });
+  }
   return out;
+}
+
+/** Zitadel's `role -> { orgId: orgDomain }` form: string values and no `roles` key. */
+function isRoleToOrganisations(value: Record<string, unknown>): boolean {
+  const entries = Object.entries(value);
+  return (
+    entries.length > 0 &&
+    !('roles' in value) &&
+    entries.every(
+      ([key, item]) => typeof item === 'string' && !isForbiddenKey(key),
+    )
+  );
 }
 
 type ActorFromAct =
@@ -464,6 +511,7 @@ export function mapClaimsToSubject(
     'access',
     'nonce',
     'azp',
+    ...PROFILE_CLAIMS,
   ];
   let extra = customClaims(claims, reserved);
   let invalidClaims = false;
@@ -546,12 +594,24 @@ export function acceptMismatch(
     if (typ !== undefined && typ !== 'jwt' && typ !== 'application/jwt') {
       return true;
     }
-    const aud = claims.aud;
-    const audiences = Array.isArray(aud) ? aud : aud === undefined ? [] : [aud];
-    if (audiences.length > 1 && claims['azp'] !== audience) {
+    // OpenID Connect Core section 2 requires iat; section 3.1.3.7 points 4
+    // and 5 require azp with several audiences and a client id when present.
+    if (typeof claims.iat !== 'number') {
       return true;
     }
-    return false;
+    const aud = claims.aud;
+    const audiences = Array.isArray(aud) ? aud : aud === undefined ? [] : [aud];
+    const clients: readonly string[] =
+      audience === undefined
+        ? []
+        : typeof audience === 'string'
+          ? [audience]
+          : audience;
+    const azp = claims['azp'];
+    if (azp === undefined) {
+      return audiences.length > 1;
+    }
+    return typeof azp !== 'string' || !clients.includes(azp);
   }
   if (options.profile === 'fapi2' && typ !== 'at+jwt') {
     return true;

@@ -142,6 +142,13 @@ export function assertVerifierConfig(options: JoseTokenVerifierOptions): void {
     if (options.issuer !== undefined && options.issuer !== issuer) {
       throw new Error('PermDock: issuer must match discovery or be omitted.');
     }
+    const jwksUri =
+      typeof options.discovery === 'string'
+        ? undefined
+        : options.discovery.metadata?.jwks_uri;
+    if (jwksUri !== undefined && URL.parse(jwksUri)?.protocol !== 'https:') {
+      throw new Error('PermDock: discovery jwks_uri must use https.');
+    }
   }
   if (options.jwks !== undefined && isSecretJwks(options.jwks)) {
     const bits = secretBits(options.jwks.secret);
