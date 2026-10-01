@@ -155,6 +155,7 @@ export function pd012(
 
 export const MIGRATION_DIRS = [
   'supabase/migrations',
+  'supabase/schemas',
   'migrations',
   'drizzle',
   'prisma/migrations',

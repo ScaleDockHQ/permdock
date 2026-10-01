@@ -130,30 +130,45 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   /** `[role, grant, scope]` from the generated `role_permissions`. */
   let grants: readonly (readonly [string, string, string])[] = [];
 
-  async function generate(args: readonly string[]): Promise<string> {
+  /** Runs a generate command with `{dir}` in `args` set to a temp directory and returns `files` from it. */
+  async function generate(
+    args: readonly string[],
+    files: readonly string[] = ['out.sql'],
+  ): Promise<string[]> {
     const dir = mkdtempSync(join(tmpdir(), 'permdock-centrakit-'));
-    const out = join(dir, 'out.sql');
+    const placed = args.map((arg) => arg.replaceAll('{dir}', dir));
+    const out = placed.includes('--out')
+      ? []
+      : ['--out', join(dir, files[0] ?? 'out.sql')];
     try {
-      const result = await run([...args, '--out', out], { cwd: FIXTURE });
+      const result = await run([...placed, ...out], { cwd: FIXTURE });
       if (result.code !== 0) {
         throw new Error(`${args.join(' ')}: ${result.stdout}${result.stderr}`);
       }
-      return readFileSync(out, 'utf8');
+      return files.map((file) => readFileSync(join(dir, file), 'utf8'));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   }
 
   beforeAll(async () => {
-    const hook = await generate(['supabase', 'hook', 'generate']);
-    const database = await generate([
-      'rls',
-      'generate',
-      '--target',
-      'sql',
-      '--rbac',
-      'supabase',
-    ]);
+    const database = await generate(
+      [
+        'rls',
+        'generate',
+        '--target',
+        'sql',
+        '--rbac',
+        'supabase',
+        '--split',
+        'helpers,policies,hook',
+        '--out',
+        '{dir}/{part}.sql',
+        '--grants-out',
+        '{dir}/grants.sql',
+      ],
+      ['helpers.sql', 'policies.sql', 'hook.sql', 'grants.sql'],
+    );
     const jwt = await generate([
       'rls',
       'generate',
@@ -168,10 +183,9 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     ]);
     db = await startPostgres([
       SETUP,
-      database,
+      ...database,
       'create schema pd_jwt; grant usage on schema pd_jwt to authenticated',
-      jwt,
-      hook,
+      ...jwt,
     ]);
     const admin = db.admin;
     query = async (text, values) => (await admin.query(text, [...values])).rows;

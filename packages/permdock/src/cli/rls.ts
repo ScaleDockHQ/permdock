@@ -14,6 +14,7 @@ export const RLS_HELP = `permdock rls generate | import | verify
            [--policy-per-role] [--policy-name '{table}_{op}'] [--tenant-type uuid] [--custom-roles]
            [--capabilities] [--fields views [--revoke-columns]]
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
+           [--split helpers,policies,hook --out <dir>/056_permdock_{part}.sql] [--grants-out <file>|-]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
   verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
@@ -53,6 +54,8 @@ export type RlsRunInput = {
   readonly revokeColumns: boolean;
   readonly tree: boolean;
   readonly introspect: boolean;
+  readonly split: string | undefined;
+  readonly grantsOut: string | undefined;
   readonly io: CliIo;
 };
 
@@ -113,6 +116,8 @@ function generateInput(
     capabilities: input.capabilities,
     ...(input.fields === undefined ? {} : { fields: input.fields }),
     revokeColumns: input.revokeColumns,
+    ...(input.split === undefined ? {} : { split: input.split }),
+    ...(input.grantsOut === undefined ? {} : { grantsOut: input.grantsOut }),
   };
 }
 

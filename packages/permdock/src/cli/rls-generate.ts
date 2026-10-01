@@ -1,5 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 
 import type { Policy } from '../index.ts';
 import type { CompiledPolicy } from './rls-compile.ts';
@@ -41,6 +40,14 @@ import {
   scopeSources,
   scopeTable,
 } from './rls-sql.ts';
+import {
+  driftOf,
+  parseSplit,
+  partPath,
+  type SqlFile,
+  writeSqlFiles,
+} from './sql-files.ts';
+import { grantsLabel, supabaseHookSql } from './supabase-hook.ts';
 
 export type GenerateOutcome = {
   readonly code: 0 | 1 | 2;
@@ -122,6 +129,10 @@ export async function runRlsGenerate(input: {
   readonly capabilities?: boolean;
   readonly fields?: string;
   readonly revokeColumns?: boolean;
+  /** `--split helpers,policies,hook`: one file per part, `{part}` in `out` naming it. */
+  readonly split?: string;
+  /** The hook's `supabase_auth_admin` grants go here (`-` prints them); needs the `hook` part. */
+  readonly grantsOut?: string;
   /** `false` returns the SQL and its policies without touching `out`. */
   readonly write?: boolean;
   readonly io: CliIo;
@@ -344,42 +355,107 @@ export async function runRlsGenerate(input: {
   if (input.write === false) {
     return { code: 0, output: warnings.join('\n'), text, policies, ...extras };
   }
-  const files: [string, string][] = [[outRel, text]];
+  const planned = outputFiles({
+    input,
+    outRel,
+    text,
+    sql: () => ({
+      policies: emitSql(policies, '', force, views),
+      helpers: emitSql([], preamble),
+    }),
+    scopes,
+  });
+  if (typeof planned === 'string') {
+    return { code: 2, output: planned, text, ...extras };
+  }
+  const files: SqlFile[] = [...planned];
   if (migrationRel !== undefined) {
-    files.push([migrationRel, migration]);
+    files.push({ part: 'migration', rel: migrationRel, text: migration });
   }
   if (input.check) {
-    for (const [rel, content] of files) {
-      const path = resolve(input.cwd, rel);
-      if (!existsSync(path)) {
-        return {
+    const drift = driftOf(input.cwd, files);
+    return drift.length === 0
+      ? { code: 0, output: 'rls generate up to date', text, ...extras }
+      : {
           code: 1,
-          output: `rls generate drift: missing ${rel}`,
+          output: drift.map((line) => `rls generate drift: ${line}`).join('\n'),
           text,
           ...extras,
         };
-      }
-      if (readFileSync(path, 'utf8') !== content) {
-        return {
-          code: 1,
-          output: `rls generate drift: ${rel}`,
-          text,
-          ...extras,
-        };
-      }
-    }
-    return { code: 0, output: 'rls generate up to date', text, ...extras };
   }
-  for (const [rel, content] of files) {
-    const path = resolve(input.cwd, rel);
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, content);
-  }
+  const written = writeSqlFiles(input.cwd, files);
   const extra = warnings.length === 0 ? '' : `\n${warnings.join('\n')}`;
   return {
     code: 0,
-    output: `wrote ${files.map(([rel]) => rel).join(', ')}${extra}`,
+    output: `wrote ${written.wrote.join(', ')}${written.printed === '' ? '' : `\n${written.printed}`}${extra}`,
     text,
     ...extras,
   };
+}
+
+/** The files `generate` writes: one, or one per `--split` part, plus the hook's grants. */
+function outputFiles(plan: {
+  readonly input: Parameters<typeof runRlsGenerate>[0];
+  readonly outRel: string;
+  readonly text: string;
+  readonly sql: () => { readonly policies: string; readonly helpers: string };
+  readonly scopes: ReturnType<typeof scopeList>;
+}): readonly SqlFile[] | string {
+  const { input, outRel } = plan;
+  const split = parseSplit(input.split);
+  if (typeof split === 'string') {
+    return split;
+  }
+  if (split === undefined) {
+    if (input.grantsOut !== undefined) {
+      return "rls generate --grants-out needs --split with the hook part: the grants are the token hook's";
+    }
+    return [{ part: 'rls', rel: outRel, text: plan.text }];
+  }
+  if (input.target !== 'sql') {
+    return 'rls generate --split needs --target sql';
+  }
+  if (!outRel.includes('{part}')) {
+    return `rls generate --split needs {part} in --out, for example supabase/schemas/identity/056_permdock_{part}.sql (got ${outRel})`;
+  }
+  if (input.grantsOut !== undefined && !split.includes('hook')) {
+    return 'rls generate --grants-out needs the hook part in --split';
+  }
+  if (split.includes('hook') && input.config.supabase?.hook === undefined) {
+    return 'rls generate --split hook needs supabase.hook in permdock.config.ts';
+  }
+  const sql = plan.sql();
+  const files: SqlFile[] = [];
+  for (const part of split) {
+    switch (part) {
+      case 'helpers':
+        files.push({ part, rel: partPath(outRel, part), text: sql.helpers });
+        break;
+      case 'policies':
+        files.push({ part, rel: partPath(outRel, part), text: sql.policies });
+        break;
+      case 'hook': {
+        const hook = supabaseHookSql(
+          plan.scopes,
+          input.config,
+          {},
+          grantsLabel(input.grantsOut),
+        );
+        files.push({ part, rel: partPath(outRel, part), text: hook.sql });
+        if (input.grantsOut !== undefined) {
+          files.push({
+            part: 'grants',
+            rel: input.grantsOut,
+            text: hook.grants,
+          });
+        }
+        break;
+      }
+      default: {
+        const exhaustive: never = part;
+        return exhaustive;
+      }
+    }
+  }
+  return files;
 }

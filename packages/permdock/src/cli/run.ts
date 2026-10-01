@@ -300,6 +300,8 @@ export async function run(
           revokeColumns: flagBool(args.flags, 'revoke-columns'),
           tree: flagBool(args.flags, 'tree'),
           introspect: flagBool(args.flags, 'introspect'),
+          split: flagString(args.flags, 'split'),
+          grantsOut: flagString(args.flags, 'grants-out'),
           io,
         });
         writeOut(result.output);
@@ -322,6 +324,7 @@ export async function run(
               activeFrom: flagString(args.flags, 'active-from'),
               budget: flagString(args.flags, 'budget'),
               schema: flagString(args.flags, 'schema'),
+              grantsOut: flagString(args.flags, 'grants-out'),
               io,
             }).filter(([, value]) => value !== undefined),
           ) as Parameters<typeof runSupabase>[0],

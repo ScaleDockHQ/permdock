@@ -34,6 +34,7 @@ import {
   quoteLiteral,
   quoteTable,
 } from './rls-sql.ts';
+import { driftOf, type SqlFile, STDOUT, writeSqlFiles } from './sql-files.ts';
 import {
   missingHelpersInDb,
   missingHelpersInFiles,
@@ -44,12 +45,13 @@ export const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
   hook generate [--out supabase/permdock-hook.sql] [--check] [--db <url>]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
-                [--budget 1024] [--schema public]
+                [--budget 1024] [--schema public] [--grants-out <file>|-]
   inspect [--json]
 
 Reads supabase.hook from permdock.config.ts: the fromTable / fromJunction sources the app
 passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
-needs, the permdock_authz_version table and its triggers. Never grants anything to
+needs (in --grants-out instead, for declarative schemas), the permdock_authz_version table
+and its triggers. Never grants anything to
 service_role. inspect prints the manifest: helper schema and names, tenant claim, budget and
 the claims the hook writes.
 `;
@@ -467,11 +469,29 @@ ${entriesSql(parts).replaceAll(/^/gmu, '      ')}
   end if;${extra}${version}
   return jsonb_set(event, '{claims}', claims);
 end;
-$$;
+$$;`;
+}
 
+/**
+ * Everything the hook grants `supabase_auth_admin`, and the execute revoke:
+ * the statements `supabase db diff` drops, so `--grants-out` moves them to
+ * their own file.
+ */
+function grantsSql(parts: Parts): string {
+  const schema = quoteIdent(parts.schema);
+  const fn = `${schema}.custom_access_token_hook`;
+  return [
+    `-- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema ${schema} to supabase_auth_admin;
 grant execute on function ${fn}(jsonb) to supabase_auth_admin;
-revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}`;
+revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}`,
+    readsSql(parts),
+    parts.version
+      ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, 'version')
+      : '',
+  ]
+    .filter((chunk) => chunk !== '')
+    .join('\n');
 }
 
 function extraGrantsSql(extra: readonly ExtraClaim[]): string {
@@ -568,7 +588,6 @@ create table if not exists ${versionTable} (
 );
 alter table ${versionTable} enable row level security;
 revoke all on table ${versionTable} from anon, authenticated, public;
-${authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, 'version')}
 
 create or replace function ${bump}()
 returns trigger
@@ -678,6 +697,9 @@ uri = "${hookUri(schema)}"`;
 }
 
 export const HOOK_MARKER = '-- permdock:hook v1';
+
+/** The first line of a `--grants-out` file; PD042 looks for it in the newest migration. */
+export const GRANTS_MARKER = '-- permdock:grants v1';
 
 export const BUDGET_MEASURE =
   'octet_length(memberships::text) + octet_length(attrs::text)';
@@ -828,12 +850,18 @@ export function supabaseHookManifest(
   return manifestOf(parts, config, overrides.out ?? defaultOut(config));
 }
 
+/**
+ * The hook migration. With `grantsOut`, the `supabase_auth_admin` grants are
+ * left out of `sql` and returned in `grants` for that file.
+ */
 export function supabaseHookSql(
   scopes: readonly Scope[],
   config: PermDockConfig,
   overrides: HookOverrides = {},
+  grantsOut?: string,
 ): {
   readonly sql: string;
+  readonly grants: string;
   readonly warnings: readonly string[];
   readonly manifest: SupabaseHookManifest;
 } {
@@ -847,16 +875,27 @@ export function supabaseHookSql(
     `${hookMarker(manifest)}
 -- custom_access_token_hook(jsonb): memberships go active ${parts.root} first and stop at the budget
 -- supabase/config.toml:
-${toml}`,
+${toml}${grantsOut === undefined ? '' : `\n-- the supabase_auth_admin grants are in ${grantsOut}`}`,
     attrsGuardSql(parts.attrs),
     hookSql(parts),
-    readsSql(parts),
     versionSql(parts),
+    grantsOut === undefined ? grantsSql(parts) : '',
     managedSql(parts),
   ]
     .filter((chunk) => chunk !== '')
     .join('\n\n');
-  return { sql: `${sql}\n`, warnings, manifest };
+  const grants = `${GRANTS_MARKER} schema=${parts.schema}
+${grantsSql(parts)}
+`;
+  return { sql: `${sql}\n`, grants, warnings, manifest };
+}
+
+/** What the hook file's header says about where its grants went. */
+export function grantsLabel(grantsOut: string | undefined): string | undefined {
+  if (grantsOut === undefined) {
+    return undefined;
+  }
+  return grantsOut === STDOUT ? 'a separate migration' : grantsOut;
 }
 
 function markerDrift(
@@ -914,6 +953,7 @@ export async function runSupabase(input: {
   readonly activeFrom?: string;
   readonly budget?: string;
   readonly schema?: string;
+  readonly grantsOut?: string;
   readonly io: CliIo;
 }): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
   const [area, action] = input.rest;
@@ -942,14 +982,19 @@ export async function runSupabase(input: {
     return { code: 2, output: SUPABASE_HELP };
   }
   const scopes = await loadScopes(input.cwd, input.config);
-  const { sql, warnings, manifest } = supabaseHookSql(
+  const { sql, grants, warnings, manifest } = supabaseHookSql(
     scopes,
     input.config,
     overrides,
+    grantsLabel(input.grantsOut),
   );
   const outRel = input.out ?? defaultOut(input.config);
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
+  const grantsFile: readonly SqlFile[] =
+    input.grantsOut === undefined
+      ? []
+      : [{ part: 'grants', rel: input.grantsOut, text: grants }];
   const toml = configToml(
     input.schema ?? hook?.schema ?? input.config.rls?.schema ?? 'public',
     hook?.jwtExpiry ?? 900,
@@ -959,12 +1004,17 @@ export async function runSupabase(input: {
       return { code: 1, output: `supabase hook drift: missing ${outRel}` };
     }
     const onDisk = readFileSync(outPath, 'utf8');
-    return onDisk === sql
+    if (onDisk !== sql) {
+      return { code: 1, output: markerDrift(onDisk, manifest, outRel) };
+    }
+    const drift = driftOf(input.cwd, grantsFile);
+    return drift.length === 0
       ? { code: 0, output: 'supabase hook up to date' }
-      : { code: 1, output: markerDrift(onDisk, manifest, outRel) };
+      : { code: 1, output: `supabase hook drift: ${drift.join('; ')}` };
   }
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, sql);
+  const grantsWritten = writeSqlFiles(input.cwd, grantsFile);
   const placed = { ...manifest, hook: { ...manifest.hook, out: outRel } };
   const missing =
     input.db === undefined
@@ -973,7 +1023,8 @@ export async function runSupabase(input: {
   return {
     code: 0,
     output: [
-      `wrote ${outRel}`,
+      `wrote ${[outRel, ...grantsWritten.wrote].join(', ')}`,
+      ...(grantsWritten.printed === '' ? [] : [grantsWritten.printed]),
       'add to supabase/config.toml:',
       toml,
       ...warnings,

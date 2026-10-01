@@ -29,6 +29,7 @@ import {
   pd035,
   pd037,
 } from './doctor-collect.ts';
+import { pd042, pd043 } from './doctor-declarative.ts';
 import {
   pd005,
   pd006,
@@ -249,6 +250,12 @@ export async function runDoctor(input: {
   }
   if (include('supabase') || include('capabilities') || include('PD041')) {
     findings.push(...pd041(sources));
+  }
+  if (include('supabase') || include('declarative') || include('PD042')) {
+    findings.push(...pd042(input.cwd, input.config));
+  }
+  if (include('supabase') || include('declarative') || include('PD043')) {
+    findings.push(...pd043(input.cwd));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

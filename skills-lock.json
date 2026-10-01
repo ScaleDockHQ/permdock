@@ -355,6 +355,12 @@
       "skillPath": "skills/routing-middleware/SKILL.md",
       "computedHash": "c55fe67c58faad5156fc3203236d9034e5d78df8a4752495d6665ac014139ad6"
     },
+    "security-audit": {
+      "source": "cloudflare/security-audit-skill",
+      "sourceType": "github",
+      "skillPath": "skills/security-audit/SKILL.md",
+      "computedHash": "98b97aad2873b3b9a8e064007c25e7827b493ba27fda8bfbdb41dab586767973"
+    },
     "setup-ts-deep-modules": {
       "source": "mattpocock/skills",
       "sourceType": "github",

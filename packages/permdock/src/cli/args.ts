@@ -37,7 +37,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
         continue;
       }
       const next = argv[i + 1];
-      if (next !== undefined && !next.startsWith('-')) {
+      if (next !== undefined && (next === '-' || !next.startsWith('-'))) {
         setFlag(flags, body, next);
         i += 1;
         continue;
