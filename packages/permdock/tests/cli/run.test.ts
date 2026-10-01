@@ -113,6 +113,17 @@ describe('run', () => {
     expect(check.stdout).toContain('up to date');
   });
 
+  it('collect scans sources with array holes', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/holes.ts'),
+      "export const [, , id = ''] = '/a/b'.split('/');\n",
+    );
+    const result = await run(['collect'], { cwd });
+    expect(result.stderr).toBe('');
+    expect(result.code).toBe(0);
+  });
+
   it('collect --check exits 1 when the catalog is missing', async () => {
     const cwd = appCopy();
     const result = await run(['collect', '--check'], { cwd });

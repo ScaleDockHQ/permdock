@@ -438,12 +438,13 @@ function collectObjectKeys(node: Estree | undefined, into: Set<string>): void {
 }
 
 function walk(
-  node: Estree | undefined,
+  node: Estree | null | undefined,
   parent: Estree | undefined,
   visit: (node: Estree, parent: Estree | undefined) => void,
 ): void {
   if (
     node === undefined ||
+    node === null ||
     typeof node !== 'object' ||
     node.type === undefined
   ) {

@@ -162,6 +162,18 @@ describe('doctor checks', () => {
     expect(codes(result.stdout)).not.toContain('PD014');
   });
 
+  it('PD014 ignores a typed jwks declaration and comments', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/keys.ts'),
+      `// pass { jwks: url } to the verifier\nexport const jwks: JSONWebKeySet = { keys: [] }\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'discovery'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).not.toContain('PD014');
+  });
+
   it('PD015 warns on accept id-token', async () => {
     const cwd = appCopy();
     writeFileSync(
@@ -183,6 +195,18 @@ describe('doctor checks', () => {
     });
     expect(result.code).toBe(1);
     expect(codes(result.stdout)).toContain('PD010');
+  });
+
+  it('PD010 ignores user_metadata in a comment', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/claims.ts'),
+      `// subjectFromSupabase never reads user_metadata.\nexport const roles = claims.user_role\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'claims'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).not.toContain('PD010');
   });
 
   it('human doctor output uses warn when --no-color', async () => {
