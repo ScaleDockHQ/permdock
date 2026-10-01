@@ -1,6 +1,13 @@
 import { describe } from 'vitest';
 
-import { memoryRoleSource } from '../../src/index.ts';
+import {
+  allow,
+  definePermissions,
+  definePolicy,
+  memoryRoleSource,
+  resource,
+  role,
+} from '../../src/index.ts';
 import { testClientParity } from '../../src/testing/client-parity.ts';
 import {
   saasCustomRoles,
@@ -22,5 +29,35 @@ describe('testClientParity over the saas scenarios', () => {
         scenario.client === false || scenario.clientOutcome !== undefined,
     })),
     { customRoles: memoryRoleSource(saasCustomRoles) },
+  );
+});
+
+const permissions = definePermissions({
+  doc: resource({ id: 'id', actions: ['read', 'update'] }),
+});
+
+describe('testClientParity without a tenant or custom roles', () => {
+  testClientParity(
+    definePolicy(permissions, {
+      roles: [role('viewer', [allow(permissions.doc.read)])],
+      subject: (user: { readonly id: string }) => ({
+        id: user.id,
+        roles: ['viewer'],
+      }),
+    }),
+    [
+      {
+        name: 'viewer reads',
+        user: { id: 'u1' },
+        permission: permissions.doc.read,
+        row: { id: 'd1' },
+      },
+      {
+        name: 'viewer cannot update',
+        user: { id: 'u1' },
+        permission: permissions.doc.update,
+        row: { id: 'd1' },
+      },
+    ],
   );
 });

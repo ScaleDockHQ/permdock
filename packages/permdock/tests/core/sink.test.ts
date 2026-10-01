@@ -7,9 +7,11 @@ import type {
 } from '../../src/core/interfaces.ts';
 
 import {
+  accessEvent,
   membershipEvent,
   memorySink,
   signDecisionBatch,
+  toCloudEvent,
 } from '../../src/core/sink.ts';
 
 const event = (id: string): DecisionEvent => ({
@@ -172,5 +174,39 @@ describe('signDecisionBatch', () => {
     expect(captured).toMatchObject([
       { type: 'dev.permdock.membership', subject: 'u_2' },
     ]);
+  });
+});
+
+describe('toCloudEvent for access events', () => {
+  it.each([
+    { operation: 'started', type: 'dev.permdock.access.started' },
+    { operation: 'ended', type: 'dev.permdock.access.ended' },
+    { operation: 'revoked', type: 'dev.permdock.access.revoked' },
+  ] as const)('types a $operation access event', ({ operation, type }) => {
+    const cloud = toCloudEvent(
+      accessEvent({
+        source: 'app',
+        operation,
+        tenant: 'o1',
+        principal: { id: 'vendor-1' },
+        roles: ['support'],
+        at: '2026-01-01T00:00:00.000Z',
+      }),
+      'https://app.example.com',
+    );
+    expect({
+      type: cloud.type,
+      subject: cloud.subject,
+      source: cloud.source,
+      via:
+        'type' in cloud.data && cloud.data.type === 'access'
+          ? cloud.data.via
+          : undefined,
+    }).toEqual({
+      type,
+      subject: 'vendor-1',
+      source: 'https://app.example.com',
+      via: 'support',
+    });
   });
 });

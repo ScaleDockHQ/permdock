@@ -707,13 +707,7 @@ function materialiseResource(
   path: readonly string[],
   registry: Map<string, ResourceNode>,
   leaves: Permission[],
-  depth: number,
 ): PermissionTree {
-  if (depth > MAX_GROUP_DEPTH) {
-    throw new Error(
-      `PermDock: permission group nesting exceeds ${MAX_GROUP_DEPTH}`,
-    );
-  }
   const name = path.at(-1);
   if (name === undefined) {
     throw new Error(
@@ -870,7 +864,7 @@ function walk(
     );
   }
   if (isResourceInit(input)) {
-    return materialiseResource(input, path, registry, leaves, depth);
+    return materialiseResource(input, path, registry, leaves);
   }
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error(

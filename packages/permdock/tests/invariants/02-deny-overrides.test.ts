@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import {
   allow,
+  anyone,
   createPermDock,
   definePermissions,
   definePolicy,
@@ -21,6 +22,19 @@ const locked = { id: 'd2', locked: true };
 const subject = (user: { id: string; roles: string[] }) => user;
 
 describe('invariant 2: deny overrides allow', () => {
+  it('applies a deny whose grantee kind this build does not know to everyone', async () => {
+    const policy = definePolicy(permissions, {
+      grants: [
+        allow(permissions.doc.read, { to: anyone() }),
+        // SAFETY: a grantee kind from a newer document, which no typed call can build.
+        deny(permissions.doc.read, { to: { kind: 'wizard' } as never }),
+      ],
+      subject,
+    });
+    const permdock = await createPermDock(policy, { id: 'u1', roles: [] });
+    expect(permdock.can(permissions.doc.read, open)).toBe(false);
+  });
+
   it('denies whatever the grant order inside one role', async () => {
     for (const grants of [
       [

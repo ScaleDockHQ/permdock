@@ -96,3 +96,34 @@ describe('outbound denials', () => {
     expect(JSON.stringify(error.toProblemDetails())).not.toContain('hunter2');
   });
 });
+
+describe('wireDenial detail', () => {
+  it.each([
+    [3, 3],
+    [Number.POSITIVE_INFINITY, undefined],
+    [Number.NaN, undefined],
+    [true, true],
+    ['quota', 'quota'],
+    [null, undefined],
+    [new Error('secret'), undefined],
+    [10n, undefined],
+    [
+      {
+        toJSON: () => {
+          throw new Error('boom');
+        },
+      },
+      undefined,
+    ],
+  ])('sends %o as %o', (detail, expected) => {
+    expect(wireDenial({ role: null, reason: 'limit', detail }).detail).toBe(
+      expected,
+    );
+  });
+
+  it('keeps closure errors and validation details in process', () => {
+    expect(
+      wireDenial({ role: null, reason: 'validation', detail: 'field x' }),
+    ).toEqual({ role: null, reason: 'validation' });
+  });
+});

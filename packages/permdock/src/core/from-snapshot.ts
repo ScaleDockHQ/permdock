@@ -148,14 +148,7 @@ export function fromSnapshot(
     },
     actions(resource, data, decideOptions) {
       // SAFETY: actions takes a leaf or a resource node, the shapes listPermissions walks.
-      const fromTree = listPermissions(resource as never);
-      const leaves =
-        fromTree.length > 0
-          ? fromTree
-          : 'resource' in resource && typeof resource.resource === 'string'
-            ? []
-            : [];
-      return leaves.filter(
+      return listPermissions(resource as never).filter(
         (item) => run(item, data, decideOptions).outcome === 'granted',
       );
     },

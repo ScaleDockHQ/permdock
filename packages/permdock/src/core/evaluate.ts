@@ -644,6 +644,7 @@ export function evaluate(
     ) {
       continue;
     }
+    // A deny whose grantee kind is unknown applies to everyone: unknown denies.
     const granteeMatch = matchGrantee(
       grant.to,
       subject,
@@ -651,6 +652,7 @@ export function evaluate(
       resource,
       scopes,
       policy.resources,
+      grant.effect === 'deny',
     );
     if (!granteeMatch.matched) {
       const reason = granteeMatch.reason ?? 'no-grant';

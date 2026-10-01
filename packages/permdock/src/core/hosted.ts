@@ -259,6 +259,11 @@ function approvalAtLeast(
   return true;
 }
 
+/** A grantee kind this build does not know is never declared, so the hosted grant is dropped. */
+function undeclaredKind(_grantee: never): false {
+  return false;
+}
+
 function declaredGrantee(
   policy: Policy,
   grantee: Grantee,
@@ -295,7 +300,7 @@ function declaredGrantee(
       return false;
     default: {
       const exhaustive: never = grantee;
-      return exhaustive;
+      return undeclaredKind(exhaustive);
     }
   }
 }

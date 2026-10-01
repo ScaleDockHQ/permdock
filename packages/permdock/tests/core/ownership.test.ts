@@ -456,6 +456,46 @@ describe('ownership: max, transferOnly and exclusiveWith', () => {
     );
   });
 
+  it.each([
+    {
+      name: 'an assignment of a capped role',
+      extra: {},
+      reason: 'max-holders',
+    },
+    {
+      name: 'a transfer of a transfer-only role',
+      extra: { kind: 'transfer', target: { id: 'u_next', roles: ['primary'] } },
+      reason: 'last-holder',
+    },
+  ] as const)(
+    'fails closed on $name with an unknown holder count',
+    async ({ extra, reason }) => {
+      const dock = await createPermDock(strict, primary);
+      const decision = dock.decideRoleChange(
+        change({ ...extra, holders: Number.NaN }),
+      );
+      expect(reasons(decision)).toEqual([reason]);
+    },
+  );
+
+  it('refuses a self transfer and counts nothing for a revoke of an unheld role', async () => {
+    const dock = await createPermDock(strict, primary);
+    expect({
+      transfer: reasons(
+        dock.decideRoleChange(
+          change({ kind: 'transfer', target: { id: 'u_primary', roles: [] } }),
+        ),
+      ),
+      revoke: dock.decideRoleChange(
+        change({
+          kind: 'revoke',
+          target: { id: 'u_next', roles: ['creator'] },
+          holders: 1,
+        }),
+      ).outcome,
+    }).toEqual({ transfer: ['self-demotion'], revoke: 'granted' });
+  });
+
   it('refuses a role the target cannot hold alongside one it has', async () => {
     const dock = await createPermDock(strict, primary);
     const decision = dock.decideRoleChange(

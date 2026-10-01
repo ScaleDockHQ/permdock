@@ -508,4 +508,77 @@ describe('rlsParity fieldViews', () => {
       'update "invoice" set "id" = "id" where "id" = $1 returning "id"',
     );
   });
+
+  it('runs as anonymous under neon with claims and no roles', async () => {
+    const sqls: {
+      readonly sql: string;
+      readonly values?: readonly unknown[];
+    }[] = [];
+    const report = await rlsParity(policy, {
+      dialect: 'neon',
+      role: 'anon',
+      fixtures: [
+        {
+          name: 'anonymous read',
+          subject: { id: 'u5', claims: { plan: 'pro' } },
+          permission: permissions.post.read,
+          row: own,
+          table: 'post',
+        },
+      ],
+      query: async (sql, values) => {
+        sqls.push(values === undefined ? { sql } : { sql, values });
+        return { rows: [] };
+      },
+    });
+    expect(report.results).toEqual([
+      {
+        name: 'anonymous read',
+        granted: false,
+        database: 'filtered',
+        ok: true,
+      },
+    ]);
+    expect(sqls.map((item) => item.sql)).toContain(
+      'set local role "anonymous"',
+    );
+    const claims = sqls.find(
+      (item) => item.values?.[0] === 'request.jwt.claims',
+    );
+    expect(JSON.parse(String(claims?.values?.[1]))).toMatchObject({
+      sub: 'u5',
+      plan: 'pro',
+      user_role: [],
+    });
+  });
+
+  it('sets each claim as a GUC and refuses an unsafe claim name', async () => {
+    const values: unknown[] = [];
+    const fixture = {
+      name: 'claims',
+      subject: {
+        id: 'u1',
+        roles: ['member'],
+        claims: { plan: 'pro', seats: 3 },
+      },
+      permission: permissions.post.read,
+      row: own,
+      table: 'post',
+    };
+    await rlsParity(policy, {
+      fixtures: [fixture],
+      query: async (_sql, args) => {
+        values.push(args);
+        return { rows: [], rowCount: 0 };
+      },
+    });
+    expect(values).toContainEqual(['app.plan', 'pro']);
+    expect(values).toContainEqual(['app.seats', '3']);
+    await expect(
+      rlsParity(policy, {
+        fixtures: [{ ...fixture, subject: { id: 'u1', claims: { 'a-b': 1 } } }],
+        query: async () => ({ rows: [], rowCount: 0 }),
+      }),
+    ).rejects.toThrow(/unsafe claim name/u);
+  });
 });

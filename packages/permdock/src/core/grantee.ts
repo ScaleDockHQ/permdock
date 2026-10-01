@@ -89,6 +89,8 @@ export type GranteeMatch = {
   readonly matched: boolean;
   readonly where?: Condition;
   readonly reason?: DenialReason;
+  /** The grantee kind is unknown to this build. */
+  readonly unknown?: true;
 };
 
 function isGrantee(value: unknown): value is Grantee {
@@ -705,9 +707,14 @@ function matchOne(
     }
     default: {
       const exhaustive: never = grantee;
-      return exhaustive;
+      return unknownGrantee(exhaustive);
     }
   }
+}
+
+/** A kind this build does not know, from a forged snapshot or a newer document, never matches. */
+function unknownGrantee(_grantee: never): GranteeMatch {
+  return { matched: false, reason: 'no-grant', unknown: true };
 }
 
 export function matchGrantee(
@@ -717,6 +724,7 @@ export function matchGrantee(
   resource: ResourceNode | undefined,
   scopes?: readonly Scope[],
   resources?: ReadonlyMap<string, ResourceNode>,
+  unknownMatches = false,
 ): GranteeMatch {
   const items = flattenGrantee(to);
   if (items.length === 0) {
@@ -726,6 +734,9 @@ export function matchGrantee(
   for (const item of items) {
     const result = matchOne(item, subject, now, resource, scopes, resources);
     if (!result.matched) {
+      if (unknownMatches && result.unknown === true) {
+        continue;
+      }
       return result;
     }
     where = combineWhere(where, result.where);

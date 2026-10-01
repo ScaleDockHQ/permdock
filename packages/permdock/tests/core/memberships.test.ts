@@ -168,6 +168,39 @@ describe('composeMemberships', () => {
   });
 });
 
+describe('composeMemberships edge cases', () => {
+  it('merges resource memberships and has no version when no source knows one', async () => {
+    const onDoc = { on: { resource: 'doc', id: 'd1' }, roles: ['viewer'] };
+    const composed = composeMemberships([
+      source(() => [], {
+        list: () => [{ principal: { id: 'a' }, membership: onDoc }],
+        version: () => undefined,
+      }),
+      source(() => [], {
+        list: () => [
+          {
+            principal: { id: 'a' },
+            membership: { ...onDoc, roles: ['editor'] },
+          },
+        ],
+        version: () => Number.NaN,
+      }),
+    ]);
+    expect({
+      listed: await composed.list?.({ scope: 'doc', id: 'd1' }),
+      version: await composed.version?.({ id: 'a' }),
+    }).toEqual({
+      listed: [
+        {
+          principal: { id: 'a' },
+          membership: { ...onDoc, roles: ['viewer', 'editor'] },
+        },
+      ],
+      version: undefined,
+    });
+  });
+});
+
 describe('claimsFirst', () => {
   const token: Principal = {
     id: 'u',
@@ -371,4 +404,21 @@ describe('conformance runners', () => {
     ]),
     { principals: [{ id: 'u' }, { id: 'v' }], policy },
   );
+});
+
+describe('claimsFirst forwarding', () => {
+  it('forwards list and version from the inner source', async () => {
+    const entry = {
+      principal: { id: 'a' },
+      membership: { scope: 'organization', id: 'T', roles: ['owner'] },
+    };
+    const wrapped = claimsFirst(
+      source(() => [], { list: () => [entry], version: () => 7 }),
+    );
+    expect({
+      listed: await wrapped.list?.({ scope: 'organization', id: 'T' }),
+      version: await wrapped.version?.({ id: 'a' }),
+      claimsFirst: wrapped.claimsFirst,
+    }).toEqual({ listed: [entry], version: 7, claimsFirst: true });
+  });
 });

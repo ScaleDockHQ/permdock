@@ -94,4 +94,23 @@ describe('ormParity', () => {
     });
     expect(superset.ok).toBe(false);
   });
+
+  it('loads relations for the rows before filtering', async () => {
+    const report = await ormParity(
+      policy,
+      [
+        {
+          ...read,
+          options: {
+            relations: {
+              ancestors: () => ({ ancestors: [] }),
+              related: () => [],
+            },
+          },
+        },
+      ],
+      { run: async () => ['p1'] },
+    );
+    expect(report.ok).toBe(true);
+  });
 });

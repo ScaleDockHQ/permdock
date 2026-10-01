@@ -451,3 +451,301 @@ describe('hosted approvals that go stale on a resource change', () => {
     ).toEqual(['invalid', 'invalid']);
   });
 });
+
+describe('hosted grant validation', () => {
+  const toMember = { kind: 'role', role: 'member', scope: 'global' } as const;
+  const reasons = (grants: readonly unknown[]) =>
+    mergeHostedGrants(policy, document(grants)).dropped.map((item) => [
+      item.grant,
+      item.reason,
+    ]);
+
+  it('rejects envelopes that are not objects or miss a field', () => {
+    expect(() => parsePolicyDocument('[1]')).toThrow(/must be an object/u);
+    expect(() => parsePolicyDocument(null)).toThrow(/must be an object/u);
+    expect(() =>
+      parsePolicyDocument({ v: 1, id: 'd', fingerprint: 'f', catalog: 'c' }),
+    ).toThrow(/malformed policy document/u);
+    expect(() =>
+      parsePolicyDocument(
+        JSON.stringify({
+          v: 1,
+          id: 'd',
+          fingerprint: 'f',
+          catalog: 'c',
+          issuedAt: 1,
+          grants: [],
+        }),
+      ),
+    ).not.toThrow();
+    expect(mergeHostedGrants(policy, null)).toEqual({ policy, dropped: [] });
+  });
+
+  it('drops malformed grants as invalid and names an id-less one by an empty string', () => {
+    expect(
+      reasons([
+        'not a grant',
+        { permission: 'invoice.read', to: toMember },
+        {
+          id: 'effect',
+          permission: 'invoice.read',
+          effect: 'maybe',
+          to: toMember,
+        },
+        { id: 'no-to', permission: 'invoice.read' },
+        { id: 'empty-to', permission: 'invoice.read', to: [] },
+      ]),
+    ).toEqual([
+      ['', 'invalid'],
+      ['', 'invalid'],
+      ['effect', 'invalid'],
+      ['no-to', 'invalid'],
+      ['empty-to', 'unknown-grantee'],
+    ]);
+  });
+
+  it('drops a grant or an approver of a grantee kind it does not know', () => {
+    const forged = { kind: 'wizard', matched: true };
+    expect(
+      reasons([
+        { id: 'forged-to', permission: 'invoice.read', to: forged },
+        {
+          id: 'forged-list',
+          permission: 'invoice.read',
+          to: [toMember, forged],
+        },
+        {
+          id: 'forged-by',
+          permission: 'invoice.export',
+          to: toMember,
+          approval: { by: forged },
+        },
+      ]),
+    ).toEqual([
+      ['forged-to', 'unknown-grantee'],
+      ['forged-list', 'unknown-grantee'],
+      ['forged-by', 'invalid'],
+    ]);
+  });
+
+  it('drops approvals and fields that are not well formed', () => {
+    const grant = (id: string, extra: Record<string, unknown>) => ({
+      id,
+      permission: 'invoice.export',
+      to: toMember,
+      ...extra,
+    });
+    expect(
+      reasons([
+        grant('approval-number', { approval: 5 }),
+        grant('distinct-string', { approval: { distinct: 'no' } }),
+        grant('empty-by', { approval: { by: [] } }),
+        grant('ghost-by', {
+          approval: { by: { kind: 'role', role: 'ghost', scope: 'global' } },
+        }),
+        grant('string-by', { approval: { by: ['member'] } }),
+        grant('fields-string', { fields: 'ownerId' }),
+        grant('fields-number', { fields: ['ownerId', 1] }),
+        grant('authenticated-by', {
+          approval: { by: { kind: 'authenticated' } },
+        }),
+        grant('member-by', { approval: { by: toMember, distinct: true } }),
+        grant('no-by', { approval: { distinct: true } }),
+        grant('fields', { fields: ['ownerId'] }),
+        grant('check', { check: { op: 'eq', field: 'locked', value: false } }),
+      ]),
+    ).toEqual([
+      ['approval-number', 'invalid'],
+      ['distinct-string', 'invalid'],
+      ['empty-by', 'invalid'],
+      ['ghost-by', 'invalid'],
+      ['string-by', 'invalid'],
+      ['fields-string', 'invalid'],
+      ['fields-number', 'invalid'],
+    ]);
+  });
+
+  it('drops grantees the policy does not declare', () => {
+    const grant = (id: string, to: unknown) => ({
+      id,
+      permission: 'invoice.export',
+      to,
+    });
+    expect(
+      reasons([
+        grant('plan', { kind: 'plan', plan: 'enterprise' }),
+        grant('other-resource', {
+          kind: 'relation',
+          resource: 'auditLog',
+          relation: 'owner',
+        }),
+        grant('unknown-relation', {
+          kind: 'relation',
+          resource: 'invoice',
+          relation: 'payer',
+        }),
+        grant('walk-unparented', {
+          kind: 'relation',
+          resource: 'invoice',
+          relation: 'owner',
+          through: 'parent',
+        }),
+        grant('depth-without-walk', {
+          kind: 'relation',
+          resource: 'invoice',
+          relation: 'owner',
+          depth: 2,
+        }),
+        grant('actor', { kind: 'actor', actor: 'agent' }),
+        grant('assurance', { kind: 'assurance', acr: ['aal2'] }),
+        grant('authenticated', { kind: 'authenticated' }),
+        grant('mixed', [toMember, { kind: 'plan', plan: 'pro' }]),
+      ]),
+    ).toEqual([
+      ['plan', 'unknown-grantee'],
+      ['other-resource', 'unknown-grantee'],
+      ['unknown-relation', 'unknown-grantee'],
+      ['walk-unparented', 'unknown-grantee'],
+      ['depth-without-walk', 'unknown-grantee'],
+      ['actor', 'unknown-grantee'],
+      ['assurance', 'unknown-grantee'],
+      ['authenticated', 'unknown-grantee'],
+    ]);
+  });
+
+  it('merges a hosted deny for a grantee list, and it wins over the hosted allow', async () => {
+    const { dock } = await withDocument(proUser, [
+      {
+        id: 'g_pro_read',
+        permission: 'auditLog.read',
+        to: { kind: 'plan', plan: 'pro' },
+      },
+      {
+        id: 'g_deny',
+        permission: 'auditLog.read',
+        effect: 'deny',
+        to: [{ kind: 'plan', plan: 'pro' }],
+      },
+    ]);
+    expect(dock.decide(permissions.auditLog.read, { id: 'a1' })).toMatchObject({
+      outcome: 'denied',
+      denials: [{ reason: 'deny' }],
+    });
+  });
+
+  it('drops a hosted allow whose approver differs from the code approver', () => {
+    const strict = definePolicy(
+      { permissions, plans },
+      {
+        roles: [
+          role('member', [
+            allow(permissions.invoice.delete, {
+              approval: { by: 'auditor' },
+            }),
+          ]),
+          role('auditor', []),
+        ],
+        principal: (user: User) => user,
+        hostable: [permissions.invoice],
+      },
+    );
+    const drop = (approval: unknown) =>
+      mergeHostedGrants(
+        strict,
+        document([
+          { id: 'g', permission: 'invoice.delete', to: toMember, approval },
+        ]),
+      ).dropped.map((item) => item.reason);
+    expect(
+      drop({ by: { kind: 'role', role: 'member', scope: 'global' } }),
+    ).toEqual(['weaker-approval']);
+    expect(
+      drop({ by: { kind: 'role', role: 'auditor', scope: 'global' } }),
+    ).toEqual([]);
+  });
+});
+
+describe('isPortableCondition', () => {
+  it.each([
+    [{ op: 'eq', field: 'a', value: 1 }, true],
+    [{ op: 'eq', field: 'a', value: null }, true],
+    [{ op: 'eq', field: 'a', value: { ref: 'principal.id' } }, true],
+    [{ op: 'eq', field: 'a', value: { date: '2026-01-01' } }, true],
+    [{ op: 'eq', field: 'a', value: [1, 'b', true] }, true],
+    [{ op: 'eq', field: '', value: 1 }, false],
+    [{ op: 'eq', field: 5, value: 1 }, false],
+    [{ op: 'eq', field: 'a', value: Number.POSITIVE_INFINITY }, false],
+    [{ op: 'eq', field: 'a', value: { ref: 'constructor.x' } }, false],
+    [{ op: 'eq', field: 'a', value: { date: 5 } }, false],
+    [{ op: 'eq', field: 'a', value: { ref: 'a', date: 'b' } }, false],
+    [{ op: 'eq', field: 'a', value: { other: 'x' } }, false],
+    [{ op: 'eq', field: 'a', value: () => 1 }, false],
+    [{ op: 'in', field: 'a', value: [1, 2] }, true],
+    [{ op: 'notIn', field: 'a', value: { ref: 'principal.roles' } }, true],
+    [{ op: 'in', field: 'a', value: 1 }, false],
+    [{ op: 'isNull', field: 'a', value: true }, true],
+    [{ op: 'isNull', field: 'a', value: 'yes' }, false],
+    [{ op: 'and', conditions: [{ op: 'eq', field: 'a', value: 1 }] }, true],
+    [{ op: 'or', conditions: 'x' }, false],
+    [{ op: 'not', condition: { op: 'eq', field: 'a', value: 1 } }, true],
+    [
+      { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: ['admin'] },
+      true,
+    ],
+    [
+      {
+        op: 'memberOf',
+        scope: 'resource',
+        field: 'folderId',
+        roles: [],
+        resource: 'folder',
+        parents: ['parentId', { field: 'spaceId', resource: 'space' }],
+      },
+      true,
+    ],
+    [{ op: 'memberOf', scope: 'team', field: 'teamId', roles: [] }, true],
+    [{ op: 'memberOf', scope: 'org', field: 'orgId', roles: [] }, false],
+    [
+      { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: 'admin' },
+      false,
+    ],
+    [{ op: 'memberOf', scope: 'tenant', field: 'orgId', roles: [1] }, false],
+    [
+      {
+        op: 'memberOf',
+        scope: 'tenant',
+        field: 'orgId',
+        roles: [],
+        resource: 1,
+      },
+      false,
+    ],
+    [
+      {
+        op: 'memberOf',
+        scope: 'tenant',
+        field: 'orgId',
+        roles: [],
+        parents: 'p',
+      },
+      false,
+    ],
+    [
+      {
+        op: 'memberOf',
+        scope: 'tenant',
+        field: 'orgId',
+        roles: [],
+        parents: [{ field: 'p', resource: 1 }],
+      },
+      false,
+    ],
+    [{ op: 'opaque', sql: 'true', fingerprint: 'f' }, false],
+    [{ op: 'sqlFunction', name: 'f', args: [] }, false],
+    [{ op: 5 }, false],
+    [[{ op: 'eq', field: 'a', value: 1 }], false],
+    ['eq', false],
+  ])('classifies %j as portable: %s', (condition, expected) => {
+    expect(isPortableCondition(condition)).toBe(expected);
+  });
+});

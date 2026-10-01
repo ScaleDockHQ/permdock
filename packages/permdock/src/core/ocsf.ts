@@ -13,8 +13,8 @@ export type OcsfAuthorizeSession = {
   readonly type_uid: 300301;
   readonly severity_id: 1 | 4;
   readonly time: number;
-  readonly status_id: 1 | 2 | 99;
-  readonly status: 'Success' | 'Failure' | 'Other';
+  readonly status_id: 0 | 1 | 2 | 99;
+  readonly status: 'Unknown' | 'Success' | 'Failure' | 'Other';
   readonly status_detail?: string;
   readonly message: string;
   readonly privileges: readonly string[];
@@ -61,9 +61,16 @@ function status(
       return { status_id: 99, status: 'Other' };
     default: {
       const exhaustive: never = outcome;
-      return exhaustive;
+      return unknownStatus(exhaustive);
     }
   }
+}
+
+/** An outcome this build does not know, from a newer producer, is reported as OCSF Unknown. */
+function unknownStatus(
+  _outcome: never,
+): Pick<OcsfAuthorizeSession, 'status_id' | 'status'> {
+  return { status_id: 0, status: 'Unknown' };
 }
 
 /** Projects a decision or approval event onto OCSF Authorize Session; the event itself is unchanged. */

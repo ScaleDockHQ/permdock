@@ -230,7 +230,15 @@ export function evaluateSnapshot(
     if (grant.permission !== permission.key) {
       continue;
     }
-    const match = matchGrantee(grant.to, subject, now, undefined);
+    const match = matchGrantee(
+      grant.to,
+      subject,
+      now,
+      undefined,
+      undefined,
+      undefined,
+      grant.effect === 'deny',
+    );
     if (!match.matched) {
       denials.push(
         compact({

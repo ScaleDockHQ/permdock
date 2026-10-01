@@ -416,9 +416,15 @@ function discover(grant: Grant, item: Grantee, ctx: Discovery): Promise<void> {
       return Promise.resolve();
     default: {
       const exhaustive: never = item;
-      return exhaustive;
+      return unknownKind(exhaustive, ctx);
     }
   }
+}
+
+/** Holders of a grantee kind this build does not know cannot be listed. */
+function unknownKind(_item: never, ctx: Discovery): Promise<void> {
+  ctx.incomplete();
+  return Promise.resolve();
 }
 
 function memberLister(
