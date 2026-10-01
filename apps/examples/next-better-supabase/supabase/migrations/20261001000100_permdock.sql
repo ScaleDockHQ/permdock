@@ -114,6 +114,27 @@ $$;
 revoke execute on function "public".member_organization_ids() from public, anon;
 grant execute on function "public".member_organization_ids() to authenticated;
 
+create or replace function "public".member_organization_ids_for(p_user uuid)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct (ms.id)::uuid
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id"::text = p_user::text
+    group by m."scope"::text, m."scope_id"::text
+  ) ms
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and jsonb_typeof(ms.roles) = 'array'
+    and jsonb_array_length(ms.roles) > 0
+$$;
+revoke execute on function "public".member_organization_ids_for(uuid) from public, anon, authenticated;
+
 create or replace function "public".permitted_customer_ids(p_grant text)
 returns setof uuid
 language sql
@@ -172,6 +193,34 @@ as $$
 $$;
 revoke execute on function "public".member_customer_ids() from public, anon;
 grant execute on function "public".member_customer_ids() to authenticated;
+
+create or replace function "public".member_customer_ids_for(p_user uuid)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct (ms.id)::uuid
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id"::text = p_user::text
+    group by m."scope"::text, m."scope_id"::text
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id"::text = p_user::text
+    group by m."customer_id", m."organization_id"
+  ) ms
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'customer'
+    and jsonb_typeof(ms.roles) = 'array'
+    and jsonb_array_length(ms.roles) > 0
+$$;
+revoke execute on function "public".member_customer_ids_for(uuid) from public, anon, authenticated;
+
+-- organization: no memberships table configured, so min, max and transferOnly are checked only by decideRoleChange
 
 revoke all on table "staff" from anon, authenticated;
 grant select on table "staff" to authenticated;

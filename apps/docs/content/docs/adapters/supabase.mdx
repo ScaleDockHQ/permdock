@@ -352,6 +352,13 @@ List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSess
 
 `apps/examples/supabase-middleware`: a `@supabase/middleware` pipeline on `127.0.0.1:3477`. `withClaims` from `@supabase/server` verifies a real ES256 bearer token against an in-process JWKS, `withPermDock()` contributes `ctx.permdock` for `PATCH /posts/:id`, `withPermDock({ protect })` guards `POST /posts/:id/publish` with Problem Details, and `POST /api/permdock` mounts `permdockHandler()`. `GET /dev/token/member` and `GET /dev/token/admin` mint development tokens; a deployment points `withClaims` at the project JWKS instead. No live Supabase project.
 
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components, over the contracts above instead of copies of them:
+
+- `src/lib/supabase.ts` validates sessions with `defineSupabase(schema).claims(supabaseClaims().extend(appClaims))`, where `appClaims` is the app's own `datetime_preferences` claim.
+- `supabase/migrations/20261001000150_features.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `public.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim, and `src/lib/access.ts` maps it with `subjectFromSupabaseSession(session, { plans: 'features' })`. It stands in for `better_supabase.feature_claims` until that function calls the helper.
+- The helpers, hook and grants migrations come from `permdock rls generate` and `permdock supabase hook generate --grants-out`, so the `member_organization_ids_for` grant lands after the helpers exist.
+- `pnpm gen` writes `permdock.manifest.json` with `permdock supabase inspect --out`, and `pnpm run doctor` and `pnpm gen:check` fail when it has drifted.
+
 ## Related standards
 
 - [Postgres RLS](/docs/standards/postgres-rls): `auth.uid()`, `auth.jwt()`, `authorize()`, roles `anon` / `authenticated` / `service_role`, the RBAC guide, Splinter lints and `supabase gen types` limits.

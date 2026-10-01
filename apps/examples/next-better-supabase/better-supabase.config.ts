@@ -5,6 +5,7 @@ const internal = [
   'memberships',
   'contacts',
   'customers',
+  'organization_features',
   'user_roles',
   'role_permissions',
   'permdock_authz_version',

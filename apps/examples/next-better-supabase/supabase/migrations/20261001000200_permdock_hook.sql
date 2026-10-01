@@ -1,4 +1,4 @@
--- permdock:hook v1 schema=public tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,tenant_id,authz_ver,datetime_preferences
+-- permdock:hook v1 schema=public tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,tenant_id,authz_ver,datetime_preferences,features
 -- custom_access_token_hook(jsonb): memberships go active organization first and stop at the budget
 -- supabase/config.toml:
 --   [auth]
@@ -7,6 +7,7 @@
 --   [auth.hook.custom_access_token]
 --   enabled = true
 --   uri = "pg-functions://postgres/public/custom_access_token_hook"
+-- the supabase_auth_admin grants are in supabase/migrations/20261001000210_permdock_hook_grants.sql
 
 create or replace function "public".custom_access_token_hook(event jsonb)
 returns jsonb
@@ -28,7 +29,7 @@ declare
   extra jsonb;
   ver bigint;
 begin
-  claims := claims - 'attrs' - 'datetime_preferences';
+  claims := claims - 'attrs' - 'datetime_preferences' - 'features';
   select coalesce(jsonb_agg(distinct r."role"::text order by r."role"::text), '[]'::jsonb)
     into held
     from "public"."user_roles" r
@@ -95,6 +96,10 @@ begin
   if extra is not null then
     claims := jsonb_set(claims, '{datetime_preferences}', extra);
   end if;
+  extra := "public"."feature_claims"(uid::uuid);
+  if extra is not null then
+    claims := jsonb_set(claims, '{features}', extra);
+  end if;
   select v.version into ver from "public"."permdock_authz_version" v where v.user_id = uid;
   claims := jsonb_set(claims, '{authz_ver}', to_jsonb(coalesce(ver, 0)));
   return jsonb_set(event, '{claims}', claims);
@@ -144,34 +149,3 @@ drop trigger if exists "permdock_authz_version" on "public"."user_roles";
 create trigger "permdock_authz_version"
   after insert or update or delete on "public"."user_roles"
   for each row execute function "public".permdock_bump_authz_version('user_id');
-
--- supabase_auth_admin: the grants and read policies the hook needs
-grant usage on schema "public" to supabase_auth_admin;
-grant execute on function "public".custom_access_token_hook(jsonb) to supabase_auth_admin;
-revoke execute on function "public".custom_access_token_hook(jsonb) from authenticated, anon, public;
-grant usage on schema "public" to supabase_auth_admin;
-grant execute on function "public"."datetime_preference_claims"(uuid) to supabase_auth_admin;
-grant select on table "public"."memberships" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_memberships" on "public"."memberships";
-create policy "permdock_auth_admin_read_memberships" on "public"."memberships"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);
-grant select on table "public"."contacts" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_memberships" on "public"."contacts";
-create policy "permdock_auth_admin_read_memberships" on "public"."contacts"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);
-grant select on table "public"."user_roles" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_roles" on "public"."user_roles";
-create policy "permdock_auth_admin_read_roles" on "public"."user_roles"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);
-grant select on table "public"."permdock_authz_version" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_version" on "public"."permdock_authz_version";
-create policy "permdock_auth_admin_read_version" on "public"."permdock_authz_version"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);

@@ -1,0 +1,184 @@
+{
+  "$schema": "https://permdock.dev/schemas/supabase-manifest-v1.json",
+  "version": 1,
+  "hook": {
+    "schema": "public",
+    "function": "custom_access_token_hook",
+    "out": "supabase/permdock-hook.sql"
+  },
+  "helpers": {
+    "schema": "public",
+    "functions": [
+      "permdock_has",
+      "permitted_organization_ids",
+      "member_organization_ids",
+      "member_organization_ids_for",
+      "permitted_customer_ids",
+      "member_customer_ids",
+      "member_customer_ids_for"
+    ]
+  },
+  "tenantClaim": "tenant_id",
+  "budget": {
+    "bytes": 1024,
+    "measure": "octet_length(memberships::text) + octet_length(attrs::text)"
+  },
+  "claims": [
+    {
+      "name": "user_role",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "roles",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "memberships",
+      "source": "permdock",
+      "budget": true
+    },
+    {
+      "name": "memberships_truncated",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "tenant_id",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "authz_ver",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "datetime_preferences",
+      "source": "public.datetime_preference_claims",
+      "budget": false
+    },
+    {
+      "name": "features",
+      "source": "public.feature_claims",
+      "budget": false
+    }
+  ],
+  "authzVersion": true,
+  "memberships": [
+    {
+      "table": "public.memberships",
+      "user": {
+        "column": "user_id"
+      },
+      "scope": {
+        "column": "scope"
+      },
+      "id": {
+        "column": "scope_id"
+      },
+      "role": {
+        "column": "role"
+      },
+      "columns": ["user_id", "scope", "scope_id", "role"]
+    },
+    {
+      "table": "public.contacts",
+      "user": {
+        "column": "user_id"
+      },
+      "scope": {
+        "value": "customer"
+      },
+      "id": {
+        "column": "customer_id"
+      },
+      "role": {
+        "value": ["contact"]
+      },
+      "within": {
+        "columns": {
+          "organization": "organization_id"
+        }
+      },
+      "via": {
+        "value": "contact"
+      },
+      "columns": ["user_id", "customer_id", "organization_id"]
+    }
+  ],
+  "rls": {
+    "schema": "public",
+    "mode": "database",
+    "tenantClaim": "tenant_id",
+    "scopes": [
+      {
+        "name": "organization",
+        "type": "uuid"
+      },
+      {
+        "name": "customer",
+        "type": "uuid",
+        "within": "organization"
+      }
+    ],
+    "helpers": [
+      {
+        "name": "permdock_has",
+        "args": "p_grant text",
+        "returns": "boolean",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "permitted_organization_ids",
+        "args": "p_grant text",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_organization_ids",
+        "args": "",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_organization_ids_for",
+        "args": "p_user uuid",
+        "returns": "setof uuid",
+        "execute": ["supabase_auth_admin"]
+      },
+      {
+        "name": "permitted_customer_ids",
+        "args": "p_grant text",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_customer_ids",
+        "args": "",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_customer_ids_for",
+        "args": "p_user uuid",
+        "returns": "setof uuid",
+        "execute": ["supabase_auth_admin"]
+      }
+    ]
+  },
+  "decidingColumns": [
+    "public.contacts.customer_id",
+    "public.contacts.organization_id",
+    "public.contacts.user_id",
+    "public.memberships.role",
+    "public.memberships.scope",
+    "public.memberships.scope_id",
+    "public.memberships.user_id"
+  ],
+  "markers": {
+    "hook": "v1",
+    "grants": "v1"
+  }
+}

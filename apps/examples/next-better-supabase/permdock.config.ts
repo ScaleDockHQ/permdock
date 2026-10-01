@@ -13,7 +13,10 @@ export default {
   supabase: {
     hook: {
       memberships: sources(),
-      claims: { datetime_preferences: 'public.datetime_preference_claims' },
+      claims: {
+        datetime_preferences: 'public.datetime_preference_claims',
+        features: 'public.feature_claims',
+      },
     },
   },
 };

@@ -19,8 +19,9 @@ Sign in as:
 Where things live:
 
 - `src/policy.ts` and `src/sources.ts`: the policy and the membership sources the token hook and the SQL helpers share.
-- `supabase/migrations`: the app tables, then `permdock rls generate --target sql` (helpers and policies) and `permdock supabase hook generate` (the access-token hook).
-- `src/lib/supabase.ts`: `createNext` with direct Postgres, an inline JWKS and explicit issuer and audience.
+- `supabase/migrations`: the app tables, then `permdock rls generate --target sql` (helpers and policies), the `features` claim function over `member_organization_ids_for`, and `permdock supabase hook generate --grants-out` (the access-token hook and its grants).
+- `permdock.manifest.json`: what the hook and helpers expect, from `permdock supabase inspect --out`; `pnpm gen` writes it, `pnpm gen:check` and `pnpm run doctor` fail on drift.
+- `src/lib/supabase.ts`: `createNext` with direct Postgres, an inline JWKS and explicit issuer and audience; sessions validated with `supabaseClaims().extend(...)`.
 - `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader and the RLS reads (`'use cache: private'` over `next.cached()`), tagged `snapshotTag(sub)`.
 - `src/app/api/test/sign-in/route.ts`: e2e only. Runs the hook as `supabase_auth_admin`, signs the claims and sets the `@supabase/ssr` cookie, as Supabase Auth would.
 - `src/lib/supabase/generated.ts`: `pnpm gen` regenerates it from the migrations; `pnpm gen:check` fails on drift.

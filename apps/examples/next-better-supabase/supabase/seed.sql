@@ -32,6 +32,11 @@ insert into public.quotes (id, organization_id, customer_id, title, amount) valu
   ('00000000-0000-4000-8000-0000000000f2', '00000000-0000-4000-8000-0000000000b1', '00000000-0000-4000-8000-0000000000c2', 'Umbrella audit', 800),
   ('00000000-0000-4000-8000-0000000000f3', '00000000-0000-4000-8000-0000000000b2', '00000000-0000-4000-8000-0000000000c3', 'Hooli support', 500);
 
+insert into public.organization_features (organization_id, feature) values
+  ('00000000-0000-4000-8000-0000000000b1', 'dev-mode'),
+  ('00000000-0000-4000-8000-0000000000b1', 'export'),
+  ('00000000-0000-4000-8000-0000000000b2', 'export');
+
 insert into public.datetime_preferences (user_id, time_zone, hour_cycle) values
   ('00000000-0000-4000-8000-0000000000a1', 'Europe/Amsterdam', 'h23'),
   ('00000000-0000-4000-8000-0000000000a3', 'America/New_York', 'h12');
