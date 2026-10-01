@@ -18,7 +18,8 @@ export type OcsfAuthorizeSession = {
   readonly status_detail?: string;
   readonly message: string;
   readonly privileges: readonly string[];
-  readonly user?: { readonly uid: string };
+  /** OCSF requires `user`; an anonymous subject is `{ name: 'anonymous' }`. */
+  readonly user: { readonly uid: string } | { readonly name: 'anonymous' };
   readonly actor?: {
     readonly user?: { readonly uid: string };
     readonly app_name?: string;
@@ -86,7 +87,10 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
     status_detail: detail === '' ? undefined : detail,
     message: `${event.permission} ${event.outcome}`,
     privileges: [event.permission],
-    user: principal === null ? undefined : { uid: principal.id },
+    user:
+      principal === null
+        ? { name: 'anonymous' as const }
+        : { uid: principal.id },
     actor:
       actor === undefined
         ? undefined
@@ -128,7 +132,9 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
 export type OcsfAccountChange = {
   readonly class_uid: 3001;
   readonly category_uid: 3;
-  readonly activity_id: 1 | 4;
+  /** 2 Enable for `started`, 5 Disable for `ended` and `revoked`. */
+  readonly activity_id: 2 | 5;
+  readonly type_uid: 300102 | 300105;
   readonly severity_id: 4;
   readonly time: number;
   readonly message: string;
@@ -154,10 +160,12 @@ export type OcsfAccountChange = {
 
 export function accessToOcsf(event: AccessEvent): OcsfAccountChange {
   const time = Date.parse(event.at);
+  const enable = event.operation === 'started';
   return compact<OcsfAccountChange>({
     class_uid: 3001,
     category_uid: 3,
-    activity_id: event.operation === 'started' ? 1 : 4,
+    activity_id: enable ? 2 : 5,
+    type_uid: enable ? 300102 : 300105,
     severity_id: 4,
     time: Number.isNaN(time) ? 0 : time,
     message: `support access ${event.operation}`,

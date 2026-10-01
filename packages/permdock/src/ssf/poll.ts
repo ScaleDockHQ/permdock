@@ -47,23 +47,32 @@ export async function pollOnce(input: {
     typeof jwt === 'string' ? [{ jti, jwt }] : [],
   );
   const outcomes = await Promise.all(
-    tokens.map(async ({ jti, jwt }) => ({
-      jti,
-      ok: (await ingest(jwt)).ok,
-    })),
+    tokens.map(async ({ jti, jwt }) => ({ jti, result: await ingest(jwt) })),
   );
-  const processed = outcomes.flatMap((row) => (row.ok ? [row.jti] : []));
-  if (processed.length > 0) {
+  const processed = outcomes.flatMap((row) => (row.result.ok ? [row.jti] : []));
+  // RFC 8936 section 2.4: a SET that can never verify is reported, not acked;
+  // a failed handler (no cause) is left pending so the transmitter retries.
+  const setErrs: Record<string, { err: string; description: string }> = {};
+  for (const { jti, result } of outcomes) {
+    if (!result.ok && result.cause !== undefined) {
+      setErrs[jti] = { err: result.err, description: result.description };
+    }
+  }
+  const failed = Object.keys(setErrs).length;
+  if (processed.length > 0 || failed > 0) {
     await fetchFn(
       options.endpoint,
       compact<RequestInit>({
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          acks: processed,
-          maxEvents: 0,
-          returnImmediately: true,
-        }),
+        body: JSON.stringify(
+          compact({
+            acks: processed,
+            setErrs: failed > 0 ? setErrs : undefined,
+            maxEvents: 0,
+            returnImmediately: true,
+          }),
+        ),
         signal: options.signal,
       }),
     );

@@ -77,7 +77,7 @@ Back-Channel Logout and CAEP `session-revoked` are two deliveries of one signal,
 3. Parsing: the `events` claim is walked; each CAEP event URI maps to a short name (`session-revoked`, `credential-change`, `assurance-level-change`, `token-claims-change`, `device-compliance-change`).
 4. Subject resolution: `sub_id` is passed to `subject`; unknown subjects are logged and acknowledged (an event for a user this app does not know is not an error).
 5. Dispatch: `onEvent[type]` runs. Typical handlers call `updateTag` so the next navigation refetches the snapshot, and, when the app has a realtime channel, push an `invalidate()` to connected clients.
-6. Acknowledgement: push returns `202 Accepted`; poll acknowledges processed `jti` values in the next request. Handler failures are reported per event (`400` with an `err` body for push, retained for redelivery for poll).
+6. Acknowledgement: push returns `202 Accepted`; poll acknowledges processed `jti` values in the next request. Handler failures are reported per event (`400` with an `err` body for push, retained for redelivery for poll). A polled SET that fails verification or lacks `jti`, `iat` or `events` can never succeed, so the acknowledgement request reports it under RFC 8936 `setErrs` (`{ err, description }` by `jti`) and the transmitter stops redelivering it.
 7. `on('decision')` is not involved; the receiver emits its own `on('event')` for audit.
 
 ## What it validates

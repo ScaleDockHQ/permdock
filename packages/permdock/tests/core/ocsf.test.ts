@@ -69,7 +69,7 @@ describe('toOcsf', () => {
     });
     expect(granted.status_id).toBe(1);
     expect(granted.status_detail).toBeUndefined();
-    expect(granted.user).toBeUndefined();
+    expect(granted.user).toEqual({ name: 'anonymous' });
     expect(granted.unmapped.role).toBe('admin');
     const pending = toOcsf({
       ...base,

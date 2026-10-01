@@ -58,6 +58,7 @@ export type OcsfClass = {
       string,
       {
         readonly requirement?: string;
+        readonly profile?: string | null;
         readonly enum?: Readonly<Record<string, unknown>>;
       }
     >
