@@ -44,12 +44,12 @@ function PostTools() {
 
 What `registerTools` does:
 
-- Iterates `listPermissions(permissions.post)` and registers one tool per collection action the snapshot grants (`can(permissions.post.create)`), plus instance actions when a `data` resolver is supplied so ownership conditions can be checked per call.
+- Iterates `listPermissions(permissions.post)` and registers one tool per collection action the snapshot grants (`can(permissions.post.create)`), plus each instance action the snapshot holds a grant for; its condition is checked against the validated input at call time.
 - Fills `name`, `description` and `inputSchema` from the permission's action metadata and the resource's Standard JSON Schema.
-- Sets `readOnlyHint` for actions marked read-only in the action metadata (`read`, `list`) and leaves it unset for mutations.
+- Sets `readOnlyHint: true` for actions marked read-only in the action metadata (`read`, `list`) and `false` for mutations.
 - Sets `untrustedContentHint` when the resource carries user-generated fields, or when configured explicitly, so the agent does not treat tool output as instructions.
 - Passes the caller's `AbortSignal` through and additionally aborts and re-registers when the snapshot changes (`usePermDock().status` moving to `stale` and back to `ready`), so revoked permissions disappear from the tool list without a reload.
-- Registers an instance action once, taking the resource `id` as an argument that the `data` resolver loads at call time, never one tool per visible row.
+- Registers an instance action once, taking the row as validated arguments, never one tool per visible row. The client check is a filter; the server route the handler calls decides on the real row.
 - Skips any permission whose status is `pending` or `server-only`, so a tool is registered only when the snapshot can answer for it.
 - Returns `approval-required` as a structured tool result carrying the `token`; the browser has no elicitation channel, so the page renders its own approval UI.
 - Does nothing when `document.modelContext` is undefined and no polyfill is present; `permdock doctor` reports the missing Permissions-Policy header if the page is served without `tools`.

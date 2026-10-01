@@ -2,7 +2,11 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { Decision } from '../core/decision.ts';
 import type { Snapshot } from '../core/interfaces.ts';
-import type { Permission } from '../core/permissions.ts';
+import type {
+  Permission,
+  PermissionTree,
+  ResourceNode,
+} from '../core/permissions.ts';
 import type {
   ModelContext,
   PermissionGroup,
@@ -19,6 +23,7 @@ import {
   annotationsFor,
   getRegistry,
   isRegistryTree,
+  resourceOfNode,
   listPermissions,
 } from '../core/permissions.ts';
 import { wireDenials } from '../core/wire-denial.ts';
@@ -68,13 +73,36 @@ function schemaFor(
   permission: Permission,
   option: StandardSchemaV1 | undefined,
 ): StandardSchemaV1 | undefined {
-  if ('key' in group) {
+  if (
+    option !== undefined ||
+    'key' in group ||
+    permission.kind !== 'instance'
+  ) {
     return option;
   }
   if (isRegistryTree(group)) {
-    return getRegistry(group).get(permission.resource)?.schema ?? option;
+    return getRegistry(group).get(permission.resource)?.schema;
   }
-  return option;
+  return resourceIn(group, permission.resource)?.schema;
+}
+
+function resourceIn(
+  group: PermissionTree,
+  name: string,
+): ResourceNode | undefined {
+  const own = resourceOfNode(group);
+  if (own !== undefined) {
+    return own.name === name ? own : undefined;
+  }
+  for (const child of Object.values(group)) {
+    if (!('key' in child)) {
+      const found = resourceIn(child, name);
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+  return undefined;
 }
 
 function jsonSchemaOf(

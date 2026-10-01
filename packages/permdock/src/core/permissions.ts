@@ -11,6 +11,7 @@ import {
 
 const RESOURCE_BRAND: unique symbol = Symbol.for('permdock.resource');
 const TREE_REGISTRY: unique symbol = Symbol.for('permdock.registry');
+const NODE_RESOURCE: unique symbol = Symbol.for('permdock.resource');
 const TREE_LEAVES: unique symbol = Symbol.for('permdock.leaves');
 
 export type ActionMeta = {
@@ -827,7 +828,33 @@ function materialiseResource(
   });
   assertIncludes(resourceNode);
   registry.set(name, resourceNode);
+  Object.defineProperty(node, NODE_RESOURCE, {
+    value: resourceNode,
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
   return freezeDeep(node);
+}
+
+/** The resource a `definePermissions` resource node was built from, read from the node itself. */
+export function resourceOfNode(
+  node: PermissionTree | Permission,
+): ResourceNode | undefined {
+  if (!Object.hasOwn(node, NODE_RESOURCE)) {
+    return undefined;
+  }
+  const value: unknown = Reflect.get(node, NODE_RESOURCE);
+  return isResourceNode(value) ? value : undefined;
+}
+
+function isResourceNode(value: unknown): value is ResourceNode {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'name' in value &&
+    'instanceActions' in value
+  );
 }
 
 function walk(
