@@ -544,6 +544,10 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 
 `drafts` appears only when the output depends on an unfinished specification, today `--target 3.3` (`oas`, `securityProfiles`; [OpenAPI 3.3](/docs/standards/openapi)) and `--overlay 1.2` (`overlay`; [OpenAPI Overlay](/docs/standards/openapi-overlay)), and carries only the keys that apply; each value names the pinned revision. `permdock openapi emit --check` fails when a committed document's `drafts` differ from the installed CLI's pins. The shape is versioned by `v` like every other extension.
 
+## Supabase claims
+
+The claims the Supabase token hook writes have a JSON Schema, `schemas/supabase-claims-v1.json` in the `permdock` package, and a Standard Schema twin, `supabaseClaims()` in `permdock/supabase`, which a session library can validate tokens with instead of copying the shape. Both cover `user_role`, `roles`, `memberships`, the tenant claim (`tenant_id` by default), `attrs`, `authz_ver` and `memberships_truncated`, at the top level or under `app_metadata`, plus the OAuth claims `client_id`, `scope` and `act`. Both pass other claims through. The TypeScript types are `SupabaseClaims<TenantClaim>` and `SupabaseMembershipClaim`. `supabaseClaimFixtures` in `permdock/testing` passes both, and the test suite checks that the two agree on every fixture and on a set of malformed claims.
+
 ## Supabase hook manifest
 
 Output of `permdock supabase inspect --json` ([supabase](/docs/cli/supabase)): what the generated hook and SQL helpers expect, for a package that writes policies or claims next to them. `version` is the format major, as in the catalog; `permdock/testing` exports `supabaseHookManifestFixture`, and `permdock/supabase` the `SupabaseHookManifest` type.

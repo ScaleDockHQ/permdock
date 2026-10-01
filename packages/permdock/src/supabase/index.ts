@@ -1,4 +1,13 @@
 export { exchangeCapability } from './capability.ts';
+export { supabaseClaims } from './claims.ts';
+export type {
+  SupabaseActClaim,
+  SupabaseClaims,
+  SupabaseClaimsOptions,
+  SupabaseClaimsSchema,
+  SupabaseMembershipClaim,
+  SupabasePermDockClaims,
+} from './claims.ts';
 export type { ExchangeCapabilityOptions } from './capability.ts';
 export { authorizeSql, supabaseRls } from './rls.ts';
 export {

@@ -148,6 +148,9 @@ function asMembership(item: unknown): Membership | undefined {
     via: typeof item['via'] === 'string' ? item['via'] : undefined,
     expiresAt:
       typeof item['expiresAt'] === 'number' ? item['expiresAt'] : undefined,
+    grantedBy:
+      typeof item['grantedBy'] === 'string' ? item['grantedBy'] : undefined,
+    reason: typeof item['reason'] === 'string' ? item['reason'] : undefined,
     managedBy: item['managedBy'] === 'idp' ? 'idp' : undefined,
     entitlements: Array.isArray(item['entitlements'])
       ? item['entitlements'].filter(

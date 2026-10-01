@@ -237,7 +237,7 @@ Two limits follow from the platform, not from PermDock. `updateTag` and `revalid
 
 ## Supabase claims
 
-The only contract between PermDock and a Supabase session library is plain data: verified JWT claims and serializable snapshots. There is no import, peer dependency or shared type.
+The contract between PermDock and a Supabase session library is plain data: verified JWT claims and serializable snapshots. PermDock imports nothing from the session library. A library that wants to validate the claims can import `supabaseClaims()` from `permdock/supabase` ([claims schema](/docs/adapters/supabase#claims-schema)).
 
 ```ts
 import { subjectFromSupabase, subjectFromSupabaseSession } from 'permdock/supabase'

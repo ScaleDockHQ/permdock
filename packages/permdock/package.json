@@ -292,6 +292,7 @@
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "unplugin": "catalog:",
+    "valibot": "catalog:",
     "vitest": "catalog:",
     "vue": "catalog:",
     "yaml": "catalog:",

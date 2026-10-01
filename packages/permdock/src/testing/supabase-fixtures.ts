@@ -4,8 +4,11 @@ import type { SupabaseHookManifest } from '../supabase/manifest.ts';
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
  * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.2 emits: scoped
- * memberships, `tenant_id` and per-tenant plans in `features`. Plain data: no Supabase or
- * better-supabase types.
+ * memberships, `tenant_id` and per-tenant plans in `features`. `full` sets every field of the
+ * claim contract plus a `hook.claims` extra claim; `portalContact`, `oauthClient` and
+ * `actChain` cover a customer contact, a Supabase OAuth server token and an RFC 8693 chain.
+ * Every fixture passes `supabaseClaims()` and `schemas/supabase-claims-v1.json`. Plain data:
+ * no Supabase or better-supabase types.
  */
 export type SupabaseClaimFixture = {
   readonly claims: Readonly<Record<string, unknown>>;
@@ -18,7 +21,15 @@ export type SupabaseClaimFixture = {
       readonly tenant?: string;
       readonly scope?: string;
       readonly id?: string;
+      readonly within?: Readonly<Record<string, string>>;
+      readonly on?: { readonly resource: string; readonly id: string };
       readonly roles: readonly string[];
+      readonly via?: string;
+      readonly expiresAt?: number;
+      readonly grantedBy?: string;
+      readonly reason?: string;
+      readonly managedBy?: 'idp';
+      readonly entitlements?: readonly string[];
     }[];
     readonly tenant?: string;
     readonly plans?: readonly string[];
@@ -38,6 +49,38 @@ const base = {
 } as const;
 
 const id: string = base.sub;
+const org = '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6';
+const project = '3b2a1c0d-9e8f-4a7b-8c6d-5e4f3a2b1c0d';
+const customer = 'c7d8e9f0-1a2b-4c3d-9e4f-5a6b7c8d9e0f';
+const ownerMembership = {
+  scope: 'organization',
+  id: org,
+  roles: ['owner'],
+  via: 'direct',
+  expiresAt: 1_900_000_000,
+  grantedBy: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+  reason: 'founding member',
+  managedBy: 'idp',
+  entitlements: ['seat:pro'],
+} as const;
+const projectMembership = {
+  scope: 'project',
+  id: project,
+  within: { organization: org },
+  roles: ['editor'],
+} as const;
+const shareMembership = {
+  on: { resource: 'document', id: 'doc-1' },
+  roles: ['viewer'],
+  via: 'share',
+} as const;
+const contactMembership = {
+  scope: 'customer',
+  id: customer,
+  within: { organization: org },
+  roles: ['contact'],
+  via: 'contact',
+} as const;
 
 export type SupabaseClaimFixtureName =
   | 'topLevelRole'
@@ -49,6 +92,10 @@ export type SupabaseClaimFixtureName =
   | 'userMetadataIgnored'
   | 'multiOrg'
   | 'betterSupabase'
+  | 'full'
+  | 'portalContact'
+  | 'oauthClient'
+  | 'actChain'
   | 'anon'
   | 'serviceRole';
 
@@ -161,6 +208,64 @@ export const supabaseClaimFixtures: Readonly<
       ],
       plans: ['pro'],
     },
+  },
+  full: {
+    claims: {
+      ...base,
+      user_role: ['admin'],
+      roles: ['admin'],
+      tenant_id: org,
+      memberships: [
+        {
+          ...ownerMembership,
+          grants: { analyst: ['post.read', '-post.delete'] },
+        },
+        projectMembership,
+        shareMembership,
+      ],
+      memberships_truncated: true,
+      attrs: { department: 'finance', clearance: 2 },
+      authz_ver: 7,
+      datetime_preferences: { timeZone: 'Europe/Amsterdam', hourCycle: 'h23' },
+      app_metadata: { provider: 'email', providers: ['email'] },
+    },
+    expect: {
+      id,
+      roles: ['admin'],
+      tenant: org,
+      memberships: [ownerMembership, projectMembership, shareMembership],
+    },
+  },
+  portalContact: {
+    claims: {
+      ...base,
+      user_role: null,
+      tenant_id: org,
+      memberships: [contactMembership],
+    },
+    expect: {
+      id,
+      roles: [],
+      tenant: org,
+      memberships: [contactMembership],
+    },
+  },
+  oauthClient: {
+    claims: {
+      ...base,
+      client_id: '5f0e4d3c-2b1a-4098-8776-655443322110',
+      scope: 'openid email posts:read',
+      user_role: 'member',
+    },
+    expect: { id, roles: ['member'], memberships: [] },
+  },
+  actChain: {
+    claims: {
+      ...base,
+      scope: 'posts:read',
+      act: { sub: 'agent-runner', act: { sub: 'mcp-client-42' } },
+    },
+    expect: { id, roles: [], memberships: [] },
   },
   anon: {
     claims: { ...base, role: 'anon', sub: '' },
