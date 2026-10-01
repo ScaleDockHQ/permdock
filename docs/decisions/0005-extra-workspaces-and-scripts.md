@@ -9,7 +9,7 @@ The standard workspace list is `apps/*`, `packages/*` and `tests/*`. PermDock ha
 
 ## Decision
 
-`pnpm-workspace.yaml` also lists `apps/examples/*`, `tests/e2e/fixtures/*`, `tests/e2e/fixtures/turborepo/{apps,packages}/*` and `tests/types/*`. The root keeps the scripts the standard does not have: `authzen:vectors`, `check:publish`, `docs:drift`, `docs:dev`, `marketing:dev`, `permdock`, `size`, `test:e2e`, `test:integration` and `test:runtimes`.
+`pnpm-workspace.yaml` also lists `apps/examples/*`, `tests/e2e/fixtures/*`, `tests/e2e/fixtures/turborepo/{apps,packages}/*` and `tests/types/*`. The root keeps the scripts the standard does not have: `authzen:vectors`, `check:publish`, `docs:drift`, `docs:dev`, `marketing:dev`, `permdock`, `size`, `standards:fixtures`, `test:e2e`, `test:integration` and `test:runtimes`.
 
 ## Consequences
 

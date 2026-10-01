@@ -27,6 +27,7 @@
     "prepare": "node scripts/prepare.mjs",
     "release": "node scripts/publish.ts",
     "size": "pnpm --filter @permdock/bundle test",
+    "standards:fixtures": "node scripts/fetch-standards-fixtures.ts && oxfmt packages/permdock/tests/fixtures/standards",
     "test": "turbo run test",
     "test:e2e": "pnpm --filter @permdock/e2e test:e2e",
     "test:integration": "pnpm --filter @permdock/integration test:integration",
