@@ -673,7 +673,8 @@ describe('scimHandler', () => {
     const config = await json(await handle(request('/ServiceProviderConfig')));
     expect(config['pagination']).toEqual({ cursor: true, index: true });
     const types = await json(await handle(request('/ResourceTypes')));
-    expect(Array.isArray(types)).toBe(true);
+    expect(types['schemas']).toEqual([LIST_SCHEMA]);
+    expect(types['totalResults']).toBe(2);
     const schema = await json(
       await handle(request(`/Schemas/${ROLES_EXTENSION}`)),
     );

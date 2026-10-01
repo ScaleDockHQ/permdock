@@ -1,5 +1,7 @@
 import { GROUP_SCHEMA, ROLES_EXTENSION, USER_SCHEMA } from './types.ts';
 
+const SCHEMA_SCHEMA = 'urn:ietf:params:scim:schemas:core:2.0:Schema';
+
 export function serviceProviderConfig(): Record<string, unknown> {
   return {
     schemas: ['urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig'],
@@ -44,50 +46,74 @@ export function resourceTypes(): readonly Record<string, unknown>[] {
   ];
 }
 
+type AttributeOptions = {
+  readonly multiValued?: boolean;
+  readonly required?: boolean;
+  readonly uniqueness?: 'none' | 'server' | 'global';
+  readonly subAttributes?: readonly Record<string, unknown>[];
+};
+
+// RFC 7643 section 7: every attribute definition carries `multiValued`.
+function attribute(
+  name: string,
+  type: 'string' | 'boolean' | 'complex',
+  options: AttributeOptions = {},
+): Record<string, unknown> {
+  return {
+    name,
+    type,
+    multiValued: options.multiValued ?? false,
+    required: options.required ?? false,
+    ...(options.uniqueness === undefined
+      ? {}
+      : { uniqueness: options.uniqueness }),
+    ...(options.subAttributes === undefined
+      ? {}
+      : { subAttributes: options.subAttributes }),
+  };
+}
+
 export function schemas(): readonly Record<string, unknown>[] {
   return [
     {
+      schemas: [SCHEMA_SCHEMA],
       id: USER_SCHEMA,
       name: 'User',
       attributes: [
-        {
-          name: 'userName',
-          type: 'string',
+        attribute('userName', 'string', {
           required: true,
           uniqueness: 'server',
-        },
-        { name: 'externalId', type: 'string', uniqueness: 'server' },
-        { name: 'active', type: 'boolean' },
-        {
-          name: 'emails',
-          type: 'complex',
+        }),
+        attribute('externalId', 'string', { uniqueness: 'server' }),
+        attribute('active', 'boolean'),
+        attribute('emails', 'complex', {
           multiValued: true,
           subAttributes: [
-            { name: 'value', type: 'string' },
-            { name: 'primary', type: 'boolean' },
-            { name: 'type', type: 'string' },
+            attribute('value', 'string'),
+            attribute('primary', 'boolean'),
+            attribute('type', 'string'),
           ],
-        },
+        }),
       ],
     },
     {
+      schemas: [SCHEMA_SCHEMA],
       id: GROUP_SCHEMA,
       name: 'Group',
       attributes: [
-        { name: 'displayName', type: 'string', required: true },
-        { name: 'externalId', type: 'string', uniqueness: 'server' },
-        {
-          name: 'members',
-          type: 'complex',
+        attribute('displayName', 'string', { required: true }),
+        attribute('externalId', 'string', { uniqueness: 'server' }),
+        attribute('members', 'complex', {
           multiValued: true,
-          subAttributes: [{ name: 'value', type: 'string' }],
-        },
+          subAttributes: [attribute('value', 'string')],
+        }),
       ],
     },
     {
+      schemas: [SCHEMA_SCHEMA],
       id: ROLES_EXTENSION,
       name: 'PermDockRoles',
-      attributes: [{ name: 'roles', type: 'string', multiValued: true }],
+      attributes: [attribute('roles', 'string', { multiValued: true })],
     },
   ];
 }

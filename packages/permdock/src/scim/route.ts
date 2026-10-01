@@ -14,7 +14,7 @@ export type ScimRoute =
   | { readonly kind: 'Users'; readonly id?: string }
   | { readonly kind: 'Groups'; readonly id?: string }
   | { readonly kind: 'ServiceProviderConfig' }
-  | { readonly kind: 'ResourceTypes' }
+  | { readonly kind: 'ResourceTypes'; readonly id?: string }
   | { readonly kind: 'Schemas'; readonly id?: string };
 
 export function tenantFromPath(request: Request): string {
@@ -49,7 +49,7 @@ export function parseRoute(url: URL): ScimRoute | undefined {
     case 'ServiceProviderConfig':
       return { kind: 'ServiceProviderConfig' };
     case 'ResourceTypes':
-      return { kind: 'ResourceTypes' };
+      return compact<ScimRoute>({ kind: 'ResourceTypes', id });
     case 'Schemas':
       return compact<ScimRoute>({ kind: 'Schemas', id });
     default:
@@ -72,11 +72,12 @@ function prefixOf(request: Request): {
 
 export function locationOf(
   request: Request,
-  kind: 'Users' | 'Groups',
-  id: string,
+  kind: ScimRoute['kind'],
+  id?: string,
 ): string {
   const { origin, prefix } = prefixOf(request);
-  return `${origin}/${[...prefix, kind, id].join('/')}`;
+  const path = id === undefined ? [...prefix, kind] : [...prefix, kind, id];
+  return `${origin}/${path.join('/')}`;
 }
 
 export function pageFrom(url: URL): ScimPage {

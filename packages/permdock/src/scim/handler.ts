@@ -27,7 +27,7 @@ import {
   scimResponse,
   unauthorized,
 } from './render.ts';
-import { locationOf, pageFrom, parseRoute } from './route.ts';
+import { locationOf, pageFrom, parseRoute, type ScimRoute } from './route.ts';
 import { GROUP_SCHEMA, USER_SCHEMA, type ScimHandlerOptions } from './types.ts';
 
 export function scimHandler(
@@ -74,22 +74,19 @@ export function scimHandler(
     }
 
     try {
-      if (route.kind === 'ServiceProviderConfig') {
-        return scimResponse(200, serviceProviderConfig());
-      }
-      if (route.kind === 'ResourceTypes') {
-        return scimResponse(200, resourceTypes());
-      }
-      if (route.kind === 'Schemas') {
-        const all = schemas();
-        if (route.id !== undefined) {
-          const schema = all.find((item) => item['id'] === route.id);
-          if (schema === undefined) {
-            return scimError(404, 'invalidValue', 'schema not found');
-          }
-          return scimResponse(200, schema);
+      if (
+        route.kind === 'ServiceProviderConfig' ||
+        route.kind === 'ResourceTypes' ||
+        route.kind === 'Schemas'
+      ) {
+        if (url.searchParams.has('filter')) {
+          return scimError(
+            403,
+            'invalidFilter',
+            'discovery endpoints do not filter',
+          );
         }
-        return scimResponse(200, all);
+        return discoveryResponse(request, route);
       }
 
       if (request.method === 'GET' && route.id === undefined) {
@@ -395,4 +392,51 @@ export function scimHandler(
       return mapStoreError(error);
     }
   };
+}
+
+type DiscoveryRoute = Extract<
+  ScimRoute,
+  { readonly kind: 'ServiceProviderConfig' | 'ResourceTypes' | 'Schemas' }
+>;
+
+// RFC 7644 section 4: one resource for an id, a ListResponse otherwise.
+function discoveryResponse(request: Request, route: DiscoveryRoute): Response {
+  if (route.kind === 'ServiceProviderConfig') {
+    return scimResponse(200, {
+      ...serviceProviderConfig(),
+      meta: {
+        resourceType: 'ServiceProviderConfig',
+        location: locationOf(request, route.kind),
+      },
+    });
+  }
+  const resourceType = route.kind === 'Schemas' ? 'Schema' : 'ResourceType';
+  const items: readonly Record<string, unknown>[] =
+    route.kind === 'Schemas' ? schemas() : resourceTypes();
+  const all = items.map((item): Record<string, unknown> =>
+    Object.assign({}, item, {
+      meta: {
+        resourceType,
+        location: locationOf(request, route.kind, String(item['id'])),
+      },
+    }),
+  );
+  if (route.id !== undefined) {
+    const one = all.find((item) => item['id'] === route.id);
+    return one === undefined
+      ? scimError(404, 'invalidValue', `${resourceType} not found`)
+      : scimResponse(200, one);
+  }
+  return scimResponse(
+    200,
+    listBody(
+      {
+        Resources: all,
+        totalResults: all.length,
+        startIndex: 1,
+        itemsPerPage: all.length,
+      },
+      (item) => item,
+    ),
+  );
 }

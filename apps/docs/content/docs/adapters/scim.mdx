@@ -85,7 +85,7 @@ The store is a repository, unlike `MembershipSource` and `RoleSource`, which are
 | Index pagination (`startIndex`, `count`) | Implements | Required by RFC 7644 |
 | Cursor pagination (RFC 9865) | Implements | Advertised in `/ServiceProviderConfig`; used when the store returns a cursor |
 | `PATCH` path forms (`members[value eq "…"]`, `active`, `emails[type eq "work"].value`) | Implements, normalised | Each IdP's dialect is rewritten to one operation shape before the store sees it |
-| `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas` | Implements | Advertises the supported subset and the PermDock extension |
+| `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas` | Implements | Advertises the supported subset and the PermDock extension; `/Schemas` and `/ResourceTypes` are ListResponses, `/Schemas/:id` and `/ResourceTypes/:id` return one item, and a `filter` gets 403 (RFC 7644 section 4) |
 | `/Me`, `/Bulk`, `/.search` | Not implemented | No IdP requires them for provisioning; the routes do not exist |
 | `ETag` and `If-Match` | Not implemented | Stores may return `meta.version`; conditional requests are not enforced |
 | `sortBy`, `sortOrder` | Not implemented | Ignored |
@@ -124,7 +124,8 @@ The dialect table is maintained with recorded requests in `apps/examples/scim`; 
 ### Wire checklist
 
 - `application/scim+json` on requests and responses; `application/json` accepted on requests.
-- `meta.location` on every returned resource; `meta.created` and `meta.lastModified` in RFC 3339.
+- `meta.location` on every returned resource, discovery resources included; `meta.created` and `meta.lastModified` in RFC 3339.
+- Every attribute in `/Schemas` states `type`, `multiValued` and `required`, as the RFC 7643 section 7 Schema schema requires.
 - `ListResponse` with `totalResults` even when paging by cursor.
 - The extension URN advertised under `/Schemas` and in `/ResourceTypes` `schemaExtensions` with `required: false`.
 

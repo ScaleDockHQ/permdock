@@ -19,6 +19,14 @@ function now(): string {
   return new Date().toISOString();
 }
 
+// A parsed body carries an empty `created`; only a stored time is kept.
+function createdAt(
+  at: string,
+  ...candidates: readonly (string | undefined)[]
+): string {
+  return candidates.find((value) => value !== undefined && value !== '') ?? at;
+}
+
 function randomId(prefix: string): string {
   const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
@@ -178,7 +186,7 @@ function stampUser(user: DirectoryUser, created?: string): DirectoryUser {
   return freezeDeep({
     ...user,
     meta: compact({
-      created: created ?? user.meta.created ?? at,
+      created: createdAt(at, created, user.meta.created),
       lastModified: at,
       resourceType: 'User' as const,
       location: user.meta.location,
@@ -191,7 +199,7 @@ function stampGroup(group: DirectoryGroup, created?: string): DirectoryGroup {
   return freezeDeep({
     ...group,
     meta: compact({
-      created: created ?? group.meta.created ?? at,
+      created: createdAt(at, created, group.meta.created),
       lastModified: at,
       resourceType: 'Group' as const,
       location: group.meta.location,
