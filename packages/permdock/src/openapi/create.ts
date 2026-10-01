@@ -30,7 +30,7 @@ export const createPermDock: OpenApiFactory = (policy, options) => {
       return securitySchemesOf(policy, options);
     },
     security(permission, extra) {
-      return securityOf(options, asList(permission), extra?.anyOf);
+      return securityOf(policy, options, asList(permission), extra?.anyOf);
     },
     describe(permission, extra) {
       return describeOf(policy, options, asList(permission), extra?.anyOf);
@@ -45,8 +45,8 @@ export const createPermDock: OpenApiFactory = (policy, options) => {
     overlay(overlayOptions) {
       return overlayOf(policy, options, overlayOptions ?? {});
     },
-    securityProfileRequirements() {
-      return securityProfileRequirementsOf(policy, options);
+    securityProfileRequirements(scopeSets) {
+      return securityProfileRequirementsOf(policy, options, scopeSets);
     },
     catalog() {
       return catalogOf(options);

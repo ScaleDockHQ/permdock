@@ -1,3 +1,4 @@
+import type { Grantee } from '../core/grantee.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Grant, Policy } from '../core/policy.ts';
 import type {
@@ -10,7 +11,12 @@ import type {
 import { requiresApproval } from '../core/approval-required.ts';
 import { compact } from '../core/compact.ts';
 import { isPermission, listPermissions } from '../core/permissions.ts';
-import { DRAFT_PINS, GNAP_RESERVED, PROFILE_NAMES } from './pins.ts';
+import {
+  DRAFT_PINS,
+  GNAP_RESERVED,
+  PROFILE_NAMES,
+  PROFILE_PARAMETERS,
+} from './pins.ts';
 
 function assertScheme(options: OpenApiPermDockOptions): void {
   if (options.scheme.type === 'gnap') {
@@ -29,8 +35,33 @@ function grantsOf(
   permissions: readonly Permission[],
 ): readonly Grant[] {
   const keys = new Set(permissions.map((leaf) => leaf.key));
-  return policy.roles.flatMap((role) =>
-    role.grants.filter((grant) => keys.has(grant.permission.key)),
+  return policy.grants.filter((grant) => keys.has(grant.permission.key));
+}
+
+function grantsAnyone(grant: Grant): boolean {
+  const to = Array.isArray(grant.to) ? grant.to : [grant.to];
+  // SAFETY: to is Grantee | readonly Grantee[]; Array.isArray does not narrow readonly arrays.
+  return (to as readonly Grantee[]).some(
+    (grantee) => grantee.kind === 'anyone',
+  );
+}
+
+/** Every subject is granted it: an unconditional allow to `anyone()` and no deny. */
+function isPublic(policy: Policy, permission: Permission): boolean {
+  const grants = grantsOf(policy, [permission]);
+  return (
+    grants.every((grant) => grant.effect === 'allow') &&
+    grants.some(
+      (grant) =>
+        grantsAnyone(grant) &&
+        grant.where === undefined &&
+        grant.check === undefined &&
+        grant.approval === undefined &&
+        grant.closure === undefined &&
+        grant.limit === undefined &&
+        grant.purpose === undefined &&
+        grant.viaOnly === undefined,
+    )
   );
 }
 
@@ -88,11 +119,22 @@ export function securitySchemesOf(
       scopes,
     );
   }
-  if (flowsIn.deviceAuthorization !== undefined && target !== '3.1') {
-    flows['deviceAuthorization'] = flowWithScopes(
-      flowsIn.deviceAuthorization,
-      scopes,
-    );
+  if (flowsIn.deviceAuthorization !== undefined) {
+    if (target === '3.1') {
+      const { deviceAuthorizationUrl, ...rest } = flowsIn.deviceAuthorization;
+      flows['x-oai-deviceAuthorization'] = flowWithScopes(
+        compact({
+          ...rest,
+          'x-oai-deviceAuthorizationUrl': deviceAuthorizationUrl,
+        }),
+        scopes,
+      );
+    } else {
+      flows['deviceAuthorization'] = flowWithScopes(
+        flowsIn.deviceAuthorization,
+        scopes,
+      );
+    }
   }
   const scheme = compact<Record<string, unknown>>({
     type: options.scheme.type,
@@ -107,14 +149,10 @@ export function securitySchemesOf(
         : undefined,
     'x-permdock-oauth2MetadataUrl':
       target === '3.1' ? options.scheme.oauth2MetadataUrl : undefined,
-    'x-oai-deviceAuthorization':
-      target === '3.1' && flowsIn.deviceAuthorization !== undefined
-        ? flowWithScopes(flowsIn.deviceAuthorization, scopes)
-        : undefined,
-    'x-oai-deviceAuthorizationUrl':
-      target === '3.1' && flowsIn.deviceAuthorization !== undefined
-        ? options.scheme.oauth2MetadataUrl
-        : undefined,
+    deprecated:
+      target !== '3.1' && options.scheme.deprecated === true ? true : undefined,
+    'x-oai-deprecated':
+      target === '3.1' && options.scheme.deprecated === true ? true : undefined,
     'x-permdock-securityProfile': options.securityProfile,
   });
   const schemes: Record<string, unknown> = { [name]: scheme };
@@ -124,13 +162,11 @@ export function securitySchemesOf(
       type: 'profile',
       profileMetadata: compact({
         name: PROFILE_NAMES[options.securityProfile],
-        supportedParametersSchema: {
-          $ref: 'https://permdock.dev/schemas/fapi2-parameters.json',
-        },
+        supportedParametersSchema: PROFILE_PARAMETERS[options.securityProfile],
         servers:
           options.scheme.oauth2MetadataUrl === undefined
             ? undefined
-            : [{ url: options.scheme.oauth2MetadataUrl }],
+            : [{ name: 'default', url: options.scheme.oauth2MetadataUrl }],
       }),
       'x-permdock-securityProfile': options.securityProfile,
     });
@@ -139,12 +175,21 @@ export function securitySchemesOf(
 }
 
 export function securityOf(
+  policy: Policy,
   options: OpenApiPermDockOptions,
   permissions: readonly Permission[],
   anyOf?: boolean,
 ): readonly OpenApiSecurityRequirement[] {
   assertScheme(options);
   const name = options.scheme.name;
+  const open =
+    anyOf === true
+      ? permissions.some((leaf) => isPublic(policy, leaf))
+      : permissions.length > 0 &&
+        permissions.every((leaf) => isPublic(policy, leaf));
+  if (open) {
+    return [];
+  }
   if (anyOf === true) {
     return permissions.map((leaf) => ({ [name]: [leaf.scope] }));
   }
@@ -163,7 +208,7 @@ export function describeOf(
     .filter((where) => where !== undefined);
   const approval = grants.some((grant) => requiresApproval(grant.approval));
   return compact<OpenApiDescribe>({
-    security: securityOf(options, permissions, anyOf),
+    security: securityOf(policy, options, permissions, anyOf),
     'x-permdock-permissions': permissions.map((leaf) => leaf.key),
     'x-permdock-conditions': conditions.length > 0 ? conditions : undefined,
     'x-permdock-approval': approval ? 'human' : undefined,
@@ -197,9 +242,37 @@ export function catalogOf(
   });
 }
 
+const GRANT_TYPES = {
+  authorizationCode: 'authorization_code',
+  clientCredentials: 'client_credentials',
+  deviceAuthorization: 'urn:ietf:params:oauth:grant-type:device_code',
+} as const;
+
+const FLOWS = [
+  'authorizationCode',
+  'clientCredentials',
+  'deviceAuthorization',
+] as const;
+
+/** The client authentication methods FAPI 2.0 section 5.3.2.1 allows: sender-constrained, no shared secret. */
+const FAPI2_AUTH_METHODS = ['private_key_jwt', 'tls_client_auth'] as const;
+
+function pascal(value: string): string {
+  return value
+    .split(/[^A-Za-z0-9]+/u)
+    .filter((part) => part.length > 0)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join('');
+}
+
+/**
+ * One Security Profile Requirement per distinct scope set: `scopeSets` from
+ * the operations, else one per permission.
+ */
 export function securityProfileRequirementsOf(
   policy: Policy,
   options: OpenApiPermDockOptions,
+  scopeSets?: readonly (readonly string[])[],
 ): Record<string, unknown> | undefined {
   if (
     (options.target ?? '3.2') !== '3.3' ||
@@ -208,15 +281,27 @@ export function securityProfileRequirementsOf(
     return undefined;
   }
   const profileName = options.profileScheme ?? 'permdockFapi2';
-  const scopes = Object.keys(scopesOf(policy)).toSorted();
-  const key = scopes.join(',');
-  return {
-    [key]: {
-      [profileName]: {
-        scopes,
-      },
-    },
-  };
+  const flows = options.scheme.flows ?? { authorizationCode: {} };
+  const grantTypes = FLOWS.filter((flow) => flows[flow] !== undefined).map(
+    (flow) => GRANT_TYPES[flow],
+  );
+  const sets =
+    scopeSets ??
+    listPermissions(policy.permissions).map((leaf) => [leaf.scope]);
+  const requirements: Record<string, unknown> = {};
+  for (const set of sets) {
+    const scopes = [...new Set(set)].toSorted();
+    if (scopes.length === 0) {
+      continue;
+    }
+    requirements[`${profileName}${pascal(scopes.join(' '))}`] = {
+      securityScheme: { $ref: `#/components/securitySchemes/${profileName}` },
+      token_endpoint_auth_methods: [...FAPI2_AUTH_METHODS],
+      grant_types: grantTypes,
+      scopes,
+    };
+  }
+  return requirements;
 }
 
 export function openapiVersion(target: OpenApiTarget): string {

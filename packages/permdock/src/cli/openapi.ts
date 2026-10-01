@@ -5,6 +5,7 @@ import type { Policy } from '../index.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
 import { definePolicy, findPermission, getResource } from '../index.ts';
+import { openapiVersion } from '../openapi/emit.ts';
 import { createPermDock } from '../openapi/index.ts';
 import { asPermissionTree, asPolicy, loadModule, pickNamed } from './load.ts';
 import { validateOpenapi, validateOverlay } from './openapi-schema.ts';
@@ -112,6 +113,7 @@ function applyDocument(
   policy: Policy,
   factory: ReturnType<typeof createPermDock>,
   arity: boolean,
+  target: '3.1' | '3.2' | '3.3',
 ): Record<string, unknown> {
   const components = isRecord(document['components'])
     ? document['components']
@@ -123,16 +125,7 @@ function applyDocument(
     schemes,
     mergeSchemes(schemes, factory.securitySchemes()),
   );
-  const requirements = factory.securityProfileRequirements();
-  const nextComponents = mergeRecord(
-    components,
-    mergeRecord(
-      { securitySchemes: nextSchemes },
-      requirements === undefined
-        ? {}
-        : { securityProfileRequirements: requirements },
-    ),
-  );
+  const scopeSets: (readonly string[])[] = [];
   const paths = isRecord(document['paths']) ? document['paths'] : {};
   const nextPaths: Record<string, unknown> = {};
   for (const [path, item] of Object.entries(paths)) {
@@ -163,6 +156,7 @@ function applyDocument(
         }
         return leaf;
       });
+      scopeSets.push(leaves.map((leaf) => leaf.scope));
       const described = mergeRecord(operation, factory.describe(leaves));
       nextItem[method] = arity
         ? mergeRecord(described, {
@@ -172,7 +166,18 @@ function applyDocument(
     }
     nextPaths[path] = nextItem;
   }
+  const requirements = factory.securityProfileRequirements(scopeSets);
+  const nextComponents = mergeRecord(
+    components,
+    mergeRecord(
+      { securitySchemes: nextSchemes },
+      requirements === undefined
+        ? {}
+        : { securityProfileRequirements: requirements },
+    ),
+  );
   return mergeRecord(document, {
+    ...(target === '3.3' ? { openapi: openapiVersion(target) } : {}),
     components: nextComponents,
     paths: nextPaths,
     'x-permdock-catalog': factory.catalog(),
@@ -195,7 +200,6 @@ function outputConformance(
   result: Record<string, unknown>,
   format: 'document' | 'overlay',
   overlay: '1.1' | '1.2',
-  target: '3.1' | '3.2' | '3.3',
 ): string | undefined {
   if (format === 'overlay') {
     if (overlay !== '1.1') {
@@ -204,7 +208,7 @@ function outputConformance(
     const checked = validateOverlay(result);
     return checked.ok ? undefined : `openapi emit: ${checked.error}`;
   }
-  if (target === '3.3' || !validateOpenapi(source).ok) {
+  if (!validateOpenapi(source).ok) {
     return undefined;
   }
   const checked = validateOpenapi(result);
@@ -302,13 +306,18 @@ export async function runOpenapi(input: {
           extends: input.doc,
           version: input.overlay,
         })
-      : applyDocument(parsed, policy, factory, input.arity === true);
+      : applyDocument(
+          parsed,
+          policy,
+          factory,
+          input.arity === true,
+          input.target,
+        );
   const conformance = outputConformance(
     parsed,
     result,
     input.format,
     input.overlay,
-    input.target,
   );
   if (conformance !== undefined) {
     return { code: 1, output: conformance };

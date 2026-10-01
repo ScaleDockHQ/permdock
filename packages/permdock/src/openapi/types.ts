@@ -23,6 +23,8 @@ export type OpenApiSchemeOptions = {
   };
   readonly openIdConnectUrl?: string;
   readonly ref?: string;
+  /** Retires the scheme: `deprecated` on 3.2 and 3.3, `x-oai-deprecated` on 3.1. */
+  readonly deprecated?: boolean;
 };
 
 export type OpenApiDocsHints = {
@@ -73,9 +75,10 @@ export type OpenApiPermDock = {
   readonly overlay: (
     options?: OpenApiOverlayOptions,
   ) => Record<string, unknown>;
-  readonly securityProfileRequirements: () =>
-    | Readonly<Record<string, unknown>>
-    | undefined;
+  /** One requirement per distinct scope set; without `scopeSets`, one per permission. */
+  readonly securityProfileRequirements: (
+    scopeSets?: readonly (readonly string[])[],
+  ) => Readonly<Record<string, unknown>> | undefined;
   readonly catalog: () => Record<string, unknown>;
 };
 

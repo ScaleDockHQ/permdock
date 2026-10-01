@@ -244,7 +244,7 @@ describe('OpenAPI and Overlay output conformance', () => {
   it('reports why a document is not valid', () => {
     expect(validateOpenapi({ openapi: '3.0.3' })).toEqual({
       ok: false,
-      error: 'expected an OpenAPI 3.1 or 3.2 document',
+      error: 'expected an OpenAPI 3.1, 3.2 or 3.3 document',
     });
     const missing = validateOpenapi({ openapi: '3.2.0', paths: {} });
     expect(missing.ok ? '' : missing.error).toContain(

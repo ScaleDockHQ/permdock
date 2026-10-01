@@ -64,10 +64,10 @@ PermDock never coins an `x-oai-*` name, because `oai` is reserved for the OpenAP
 | --- | --- |
 | `securitySchemes.<name>.flows.*.scopes` | `permission.scope` for every permission used by a guarded route |
 | Per-operation `security` | `protect(permission, ...)` on that route |
-| `security: []` | Route guarded by a permission every subject is granted |
+| `security: []` | Route guarded by a permission every subject is granted: an unconditional allow to `anyone()` and no deny |
 | `oauth2MetadataUrl` | Adapter option (or `x-permdock-oauth2MetadataUrl` for 3.1) |
 | Device authorization flow | Adapter option `flows: ['deviceAuthorization']` (or the `x-oai-*` pair for 3.1) |
-| `deprecated` on a scheme | Adapter option per scheme (or `x-oai-deprecated`) |
+| `deprecated` on a scheme | Adapter option `scheme.deprecated` (or `x-oai-deprecated` for 3.1) |
 | Scheme referenced by URI | Adapter option `schemeRef`; inlined for 3.1 |
 | `x-permdock-permissions` | Permission `key` list for the operation |
 | `components.schemas` | Standard JSON Schema export of resource schemas |
@@ -142,7 +142,7 @@ Rules:
 
 - **One profile scheme per declared profile.** `fapi2` becomes `permdockFapi2` (override with `--profile-scheme`) with `profileMetadata.name: fapi-20-security-profile`. The name map is fixed in the emitter and grows only when the Initiative registers a name; PermDock leaves filing the `fapi-20-security-profile` registration to the FAPI Working Group.
 - **`x-permdock-securityProfile` is a single string.** PermDock declares one profile per deployment, so the twin stays a string even though the native form allows several `type: profile` schemes.
-- **The target is never inferred.** `--target` defaults to `3.2`, and a source document that already says `openapi: 3.3.x` still needs `--target 3.3`, so a draft shape is only ever emitted on request.
+- **The target is never inferred.** `--target` defaults to `3.2`, and a source document that already says `openapi: 3.3.x` still needs `--target 3.3`, so a draft shape is only ever emitted on request. `--target 3.3` writes `openapi: 3.3.0`.
 - **`supportedParametersSchema` is PermDock's**, one published JSON Schema per profile, at a URL stable across pins.
 - **`servers` comes from the metadata URL** (`--metadata-url` or `scheme.oauth2MetadataUrl`; several `name=url` pairs fill several entries).
 - **One requirement per distinct scope set**, listing the authentication methods FAPI 2.0 allows and the grant types the configured flows imply. Operations keep their ordinary `security`; the proposal has no operation-level field and PermDock adds none.

@@ -124,7 +124,12 @@ describe('permdock/openapi', () => {
     expect(oauth['x-permdock-oauth2MetadataUrl']).toBe(
       'https://auth.example/.well-known',
     );
-    expect(oauth['x-oai-deviceAuthorization']).toBeTruthy();
+    expect(oauth['x-oai-deviceAuthorization']).toBeUndefined();
+    expect(oauth['flows']).toMatchObject({
+      'x-oai-deviceAuthorization': {
+        'x-oai-deviceAuthorizationUrl': 'https://dev',
+      },
+    });
   });
 
   it('emits a pinned 3.3 profile scheme next to the twin extension', () => {
