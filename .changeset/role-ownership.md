@@ -1,9 +1,0 @@
----
-'permdock': minor
----
-
-Role ownership and audiences. `role(name, grants, options)` takes `min` and `max` (holders per scope instance), `transferOnly` (the holder count only moves by transfer), `assigns` (the roles a holder may assign and revoke), `for` (the membership kinds, `Membership.via`, that may hold the role) and a typed `meta: RoleMeta` with `audience`. A role held through a membership kind its `for` does not list, or through a membership without `via`, grants nothing: it is dropped when the subject is resolved and filtered in the generated RLS helpers.
-
-`permdock.decideRoleChange({ kind: 'assign' | 'revoke' | 'transfer', role, scope, id, within?, target, holders? })` checks one change against the `assigns` graph, the ceiling, `for`, `exclusiveWith`, `min`, `max` and `transferOnly`, with the new denial reasons `last-holder`, `max-holders`, `transfer-only`, `not-assignable-by`, `self-demotion`, `not-allowed-for-membership` and `conflicting-role`; the snapshot-backed client denies it with `unsupported`. Once any role declares `assigns`, `assignableRoles()` returns exactly the roles the held roles list, and `heldRoles()` / `assignableRoles()` are ranked by the graph. `heldRoles({ scope, id })` narrows to one scope instance, and `permdock.audiences()` and `snapshot.audiences` list the distinct audiences of the roles held in the active tenant.
-
-`permdock rls generate` reads a `via` column on membership tables, adds a deferred constraint trigger per scope table for `min` and `max`, statement triggers over transition tables for `transferOnly`, and `permdock_can_assign(p_role, p_scope_id)`. Catalog roles carry `min`, `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`. `permdock doctor` PD026 (`--only ownership`) warns on a scope whose roles set no `min`.
