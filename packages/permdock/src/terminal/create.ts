@@ -4,7 +4,7 @@ import type { Decision } from '../core/decision.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
-import type { Actor, Delegation, Principal } from '../core/subject.ts';
+import type { Actor, Delegation, Principal, Subject } from '../core/subject.ts';
 import type {
   CommandEntry,
   FilterCommandsOptions,
@@ -21,6 +21,7 @@ import type {
   TypedConfirm,
 } from './types.ts';
 
+import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { isSubject } from '../core/subject.ts';
@@ -48,6 +49,23 @@ function envOf(
   options: TerminalPermDockOptions,
 ): Readonly<Record<string, string | undefined>> {
   return options.runtime?.env ?? process.env;
+}
+
+/**
+ * The local y/N is the requester answering for themselves, so it stands in
+ * for an approval only where the grant allows that (`distinct: false`) and no
+ * agent is acting for the user.
+ */
+function answersLocally(
+  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
+  subject: Subject,
+): boolean {
+  const approval = decision.grant.approval;
+  return (
+    typeof approval === 'object' &&
+    approval.distinct === false &&
+    subject.actor === undefined
+  );
 }
 
 function isInteractive(options: TerminalPermDockOptions): boolean {
@@ -331,7 +349,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       let granted: Extract<Decision, { readonly outcome: 'granted' }>;
       if (first.outcome === 'granted') {
         granted = first;
-      } else {
+      } else if (answersLocally(first, instance.subject)) {
         if (!isInteractive(options)) {
           write(
             format(first, {
@@ -392,6 +410,30 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           write(format(again, { permission, subject: instance.subject }));
           return exit(EX_NOPERM);
         }
+      } else {
+        if (options.store === undefined) {
+          write(format(first, { permission, subject: instance.subject }));
+          if (!jsonOutput(options)) {
+            write(
+              `${permission.key} needs someone other than you to approve it: pass a store to createPermDock so the request can be approved and the command rerun\n`,
+            );
+          }
+          return exit(EX_NOPERM);
+        }
+        const resumed = await resumeDecision({
+          decision: first,
+          permission,
+          subject: instance.subject,
+          store: options.store,
+          resource: resourceRef(permission, data),
+          adapter: 'terminal',
+          token: await storedApprovalToken(options.store, first, false),
+        });
+        if (resumed.outcome !== 'granted') {
+          write(format(resumed, { permission, subject: instance.subject }));
+          return exit(exitCode(resumed));
+        }
+        granted = resumed;
       }
 
       if (

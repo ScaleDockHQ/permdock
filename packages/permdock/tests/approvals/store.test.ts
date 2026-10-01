@@ -358,6 +358,24 @@ describe('request and resume helpers', () => {
     expect(approved.status).toBe('approved');
   });
 
+  it('refuses every approver for a relation approver it cannot check', async () => {
+    const store = memoryApprovalStore();
+    store.create(
+      pending({
+        approvers: {
+          by: { kind: 'relation', resource: 'post', relation: 'owner' },
+          distinct: true,
+        },
+      }),
+    );
+    await expect(
+      resolveApproval(store, 'pd1.token-1', {
+        status: 'approved',
+        by: subject('u_9', 'o_1'),
+      }),
+    ).rejects.toThrow('approver does not hold an eligible role');
+  });
+
   it('cancels pending requests for a session without checking eligibility', () => {
     const store = memoryApprovalStore();
     store.create(

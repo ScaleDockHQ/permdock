@@ -4,6 +4,10 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  memoryApprovalStore,
+  resolveApproval,
+} from '../../src/approvals/index.ts';
+import {
   allow,
   crud,
   definePermissions,
@@ -156,12 +160,14 @@ describe('permdock/terminal', () => {
     expect(ran).toBe(false);
   });
 
-  it('exits 75 with an approval extension when non-interactive', async () => {
+  it('exits 75 with an approval extension and records the request in the store', async () => {
     const lines: string[] = [];
+    const store = memoryApprovalStore();
     const { protect } = createPermDock(policy, {
       subject: () => memberUser,
       output: { json: true },
       interactive: false,
+      store,
       approval: {
         at: 'https://console.acme.dev/approvals',
         hint: 'Ask a release manager.',
@@ -190,38 +196,129 @@ describe('permdock/terminal', () => {
         },
       }),
     );
+    expect((await store.list({ status: 'pending' })).items).toHaveLength(1);
   });
 
-  it('continues after an interactive confirm when the token still matches', async () => {
+  it('never asks the requester to approve their own human approval', async () => {
+    const lines: string[] = [];
+    let asked = false;
     const { protect } = createPermDock(policy, {
       subject: () => memberUser,
       interactive: {
-        confirm: async () => true,
+        confirm: async () => {
+          asked = true;
+          return true;
+        },
       },
+      runtime: {
+        exit: throwExit,
+        write: (text): void => {
+          lines.push(text);
+        },
+      },
+    });
+    const run = protect(
+      permissions.post.delete,
+      () => ownPost,
+    )(async () => 'ran');
+    await expect(run()).rejects.toMatchObject({ code: 77 });
+    expect(asked).toBe(false);
+    expect(lines.join('')).toContain('pass a store');
+  });
+
+  it('resumes a human approval from the store once someone else approves it', async () => {
+    const store = memoryApprovalStore();
+    const { protect } = createPermDock(policy, {
+      subject: () => memberUser,
+      interactive: { confirm: async () => true },
+      store,
       runtime: { exit: throwExit, write: (): void => undefined },
     });
     const run = protect(
       permissions.post.delete,
       () => ownPost,
     )(async ({ decision }) => decision.outcome);
+    await expect(run()).rejects.toMatchObject({ code: 75 });
+    const [pending] = (await store.list({ status: 'pending' })).items;
+    if (pending === undefined) {
+      throw new Error('expected a pending approval');
+    }
+    await resolveApproval(store, pending.token, {
+      status: 'approved',
+      by: { principal: { id: 'u2', roles: ['admin'] }, context: {} },
+    });
     await expect(run()).resolves.toBe('granted');
+    await expect(run()).rejects.toMatchObject({ code: 77 });
   });
 
-  it('exits 77 when the interactive prompt is declined', async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => memberUser,
-      interactive: {
-        confirm: async () => false,
-      },
-      runtime: { exit: throwExit, write: (): void => undefined },
+  describe('a grant that lets the requester approve', () => {
+    const selfApproved = definePolicy(permissions, {
+      roles: [
+        role('member', [
+          allow(permissions.post.delete, { approval: { distinct: false } }),
+        ]),
+      ],
+      subject: (user: { readonly id: string } | null) =>
+        user === null ? null : { id: user.id, roles: ['member'] },
     });
-    const run = protect(
-      permissions.post.delete,
-      () => ownPost,
-    )(async () => {
-      return 'ran';
+
+    it('continues after an interactive confirm when the token still matches', async () => {
+      const { protect } = createPermDock(selfApproved, {
+        subject: () => memberUser,
+        interactive: {
+          confirm: async () => true,
+        },
+        runtime: { exit: throwExit, write: (): void => undefined },
+      });
+      const run = protect(
+        permissions.post.delete,
+        () => ownPost,
+      )(async ({ decision }) => decision.outcome);
+      await expect(run()).resolves.toBe('granted');
     });
-    await expect(run()).rejects.toMatchObject({ code: 77 });
+
+    it('exits 77 when the interactive prompt is declined', async () => {
+      const { protect } = createPermDock(selfApproved, {
+        subject: () => memberUser,
+        interactive: {
+          confirm: async () => false,
+        },
+        runtime: { exit: throwExit, write: (): void => undefined },
+      });
+      const run = protect(
+        permissions.post.delete,
+        () => ownPost,
+      )(async () => {
+        return 'ran';
+      });
+      await expect(run()).rejects.toMatchObject({ code: 77 });
+    });
+
+    it('does not take a y/N from an agent acting for the user', async () => {
+      let asked = false;
+      const { protect } = createPermDock(selfApproved, {
+        subject: () => memberUser,
+        actor: () => ({
+          principal: { id: 'agent-1', kind: 'service' as const },
+          context: {},
+          actor: { id: 'agent-1', kind: 'oauth-client' },
+          delegation: { scopes: ['post:delete'] },
+        }),
+        interactive: {
+          confirm: async () => {
+            asked = true;
+            return true;
+          },
+        },
+        runtime: { exit: throwExit, write: (): void => undefined },
+      });
+      const run = protect(
+        permissions.post.delete,
+        () => ownPost,
+      )(async () => 'ran');
+      await expect(run()).rejects.toMatchObject({ code: 77 });
+      expect(asked).toBe(false);
+    });
   });
 
   it('does not promote an actor token to a principal', async () => {

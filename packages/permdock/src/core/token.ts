@@ -1,5 +1,6 @@
 import type { Actor, Principal } from './subject.ts';
 
+import { canonicalJson } from './canonical-json.ts';
 import { bytesToBase64Url, sha256 } from './sha256.ts';
 
 /**
@@ -35,9 +36,17 @@ export function versionOf(row: unknown, field: string): string | null {
     : null;
 }
 
+/** The digest that binds a token to the call's data when no row id does. */
+export function payloadDigest(data: unknown): string {
+  return bytesToBase64Url(sha256(canonicalJson(data)));
+}
+
 /**
  * `version` is set only for an approval that goes stale on a resource
  * change; without it the payload, and so every other token, is unchanged.
+ * `payload` is set when `resourceId` is `*` (a collection action or a row
+ * without an id), so an approval covers the arguments it was given and no
+ * others.
  */
 export function decisionToken(input: {
   readonly key: string;
@@ -46,6 +55,7 @@ export function decisionToken(input: {
   readonly actor: Actor | undefined;
   readonly fingerprint: string;
   readonly version?: string | null | undefined;
+  readonly payload?: string | undefined;
 }): string {
   const payload = JSON.stringify({
     key: input.key,
@@ -57,6 +67,7 @@ export function decisionToken(input: {
         : { id: input.actor.id, kind: input.actor.kind },
     fingerprint: input.fingerprint,
     ...(input.version === undefined ? {} : { version: input.version }),
+    ...(input.payload === undefined ? {} : { payload: input.payload }),
   });
   return `pd1.${bytesToBase64Url(sha256(payload))}`;
 }

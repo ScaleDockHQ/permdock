@@ -352,6 +352,7 @@ export { requiresApproval } from './approval-required.ts';
 
 export function normalizeApproval(
   approval: ApprovalOption | undefined,
+  permission?: string,
 ): Grant['approval'] {
   if (approval === undefined) {
     return undefined;
@@ -368,6 +369,11 @@ export function normalizeApproval(
     );
   }
   const by = approval.by === undefined ? undefined : asGrantee(approval.by);
+  if (flattenGrantee(by).some((item) => item.kind === 'relation')) {
+    throw new Error(
+      `PermDock: approval.by on '${permission ?? 'a grant'}' names a relation; an approval store cannot check a relation, so name a role or another subject-only grantee`,
+    );
+  }
   if (
     by === undefined &&
     approval.distinct === undefined &&
@@ -469,7 +475,7 @@ function makeGrant(
     to,
     where,
     check,
-    approval: normalizeApproval(condition?.approval),
+    approval: normalizeApproval(condition?.approval, permission.key),
     portable,
     limit: normalizeLimit(condition?.limit),
     fields: sanitizeFields(condition?.fields),
@@ -625,7 +631,7 @@ function normalizeActivation(
   return compact<ActivationSpec>({
     maxDuration: option.maxDuration,
     justification,
-    approval: normalizeApproval(option.approval),
+    approval: normalizeApproval(option.approval, `activation of '${roleName}'`),
     assurance: normalizeAssurance(option.assurance),
   });
 }

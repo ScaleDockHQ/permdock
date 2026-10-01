@@ -1,4 +1,3 @@
-import type { ApprovalStore } from '../approvals/types.ts';
 import type { Decision } from '../core/decision.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
@@ -11,7 +10,7 @@ import type {
   ToolVerdict,
 } from './types.ts';
 
-import { resumeDecision } from '../approvals/helpers.ts';
+import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import { mayUse } from '../core/may-use.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
@@ -102,36 +101,6 @@ function runDecide(
       boundary: 'tool-args' as const,
     }),
   );
-}
-
-/**
- * The stored token for a decision that is waiting on approval: an approved or
- * rejected record for the recomputed token resumes without the caller
- * carrying it, since the token already binds permission, resource, subject
- * and actor.
- */
-export async function storedApprovalToken(
-  store: ApprovalStore | undefined,
-  decision: Decision,
-  denyPending: boolean,
-): Promise<string | undefined> {
-  if (store === undefined || decision.outcome !== 'approval-required') {
-    return undefined;
-  }
-  try {
-    const record = await store.get(decision.token);
-    if (
-      record === null ||
-      (record.status === 'pending' && !denyPending) ||
-      record.status === 'expired' ||
-      Date.parse(record.expiresAt) <= Date.now()
-    ) {
-      return undefined;
-    }
-    return decision.token;
-  } catch {
-    return undefined;
-  }
 }
 
 export function createAgentKernel<TContext, TUser = unknown>(

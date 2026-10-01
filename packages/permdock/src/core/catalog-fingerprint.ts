@@ -1,23 +1,10 @@
+import { canonicalJson } from './canonical-json.ts';
 import { bytesToBase64Url, sha256 } from './sha256.ts';
 
 const OMITTED_TOP_LEVEL = new Set(['generatedAt', 'generator', 'fingerprint']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalJson(item === undefined ? null : item)).join(',')}]`;
-  }
-  if (isRecord(value)) {
-    const entries = Object.keys(value)
-      .toSorted()
-      .filter((key) => value[key] !== undefined)
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`);
-    return `{${entries.join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
 }
 
 function fingerprintInput(catalog: Record<string, unknown>): unknown {

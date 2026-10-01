@@ -22,9 +22,8 @@ import type {
   McpPermDockOptions,
 } from './types.ts';
 
-import { storedApprovalToken } from '../agent/kernel.ts';
 import { boundedMap } from '../agent/lru.ts';
-import { resumeDecision } from '../approvals/helpers.ts';
+import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import { describe } from '../core/describe.ts';
 import { mayUse } from '../core/may-use.ts';

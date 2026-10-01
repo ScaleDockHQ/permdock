@@ -77,7 +77,7 @@ All sources end in the same verification step. A `--user` flag, a `USER` environ
 
 1. The CLI parses arguments; commands are registered through `filterCommands`, so `--help` already reflects the subject.
 2. The first call to `permdock()` resolves the subject (and actor) once. A `device` source may block here for the login round trip.
-3. `protect` runs `load` for instance actions, validates the result at the boundary when `load` is marked untrusted (JSON from stdin or a file), then decides. With `--dry-run` it prints the decision and exits with its code, running nothing. `granted` runs your action, after a typed confirmation when the permission is `destructive`; `denied` writes `format(decision)` to stderr and exits `77`; `approval-required` prompts when `interactive` is true, otherwise writes the Problem Details `approval` extension and exits `75`.
+3. `protect` runs `load` for instance actions, validates the result at the boundary when `load` is marked untrusted (JSON from stdin or a file), then decides. With `--dry-run` it prints the decision and exits with its code, running nothing. `granted` runs your action, after a typed confirmation when the permission is `destructive`; `denied` writes `format(decision)` to stderr and exits `77`; `approval-required` prompts when the grant lets the requester approve (`approval: { distinct: false }`, no actor) and `interactive` is true; otherwise it records the request in `store`, writes the Problem Details `approval` extension and exits `75`, or exits `77` when no `store` is configured.
 4. Every decision, including the human's answer to a prompt, is emitted through `on('decision')` with the command path so audit and [otel](/docs/adapters/otel) see it.
 
 ## Exit codes
@@ -88,8 +88,8 @@ Codes follow the BSD `sysexits.h` conventions so shell scripts and agents can br
 |---|---|---|
 | `0` | `EX_OK` | `granted` and the action completed, or `granted` under `--dry-run` |
 | `64` | `EX_USAGE` | A `destructive` permission in a process with no terminal and no `--yes` |
-| `75` | `EX_TEMPFAIL` | `approval-required` in a non-interactive process: the command can succeed once someone approves |
-| `77` | `EX_NOPERM` | `denied`, including anonymous subjects, a declined approval prompt and a typed confirmation that did not match |
+| `75` | `EX_TEMPFAIL` | `approval-required` with the request recorded in `store`, or a self-approvable request in a non-interactive process: the command can succeed once someone approves |
+| `77` | `EX_NOPERM` | `denied`, including anonymous subjects, a declined approval prompt, an approval someone else must give with no `store` configured, and a typed confirmation that did not match |
 | `78` | `EX_CONFIG` | The adapter is misconfigured: no verifier, unreachable authorization server metadata, async schema at a boundary |
 
 Failures inside your action keep whatever code your framework assigns; the adapter only sets codes for outcomes it produced. This is a different contract from the `0` / `1` / `2` codes of the [`permdock` binary](/docs/cli), which reports findings, not permissions.
@@ -149,7 +149,10 @@ With `--json` (or `output.json`), `format` returns the same object `toProblemDet
 
 A grant with `approval: 'human'` produces `approval-required` ([approvals](/docs/security/approvals)). The adapter binds the prompt to `Decision.token`, a hash of permission key, resource id, subject and actor, and re-runs `decide` after the answer so a revocation between question and answer still denies.
 
-- Interactive (`interactive: true`, which defaults to a TTY on stdout and no `CI` variable): the default confirm prints the permission key, the resource identity and the reason, waits for `y`, and continues only if the recomputed token matches. Declining exits `77`.
+The y/N prompt is the requester answering for themselves, so it is an approval only where the grant says the requester may approve:
+
+- Self-approvable (`approval: { distinct: false }` and no `actor`), interactive (`interactive: true`, which defaults to a TTY on stdout and no `CI` variable): the default confirm prints the permission key, the resource identity and the reason, waits for `y`, and continues only if the recomputed token matches. Declining exits `77`.
+- Everything else, including `approval: 'human'` and any command an agent runs for the user: the adapter never prompts. With a `store`, it records the request (or resumes an approved one for the same token, consuming it) and exits `75` while it is pending. Without a `store`, it exits `77` and says to configure one, since nothing could record an approval for the rerun to find.
 - Non-interactive (`CI=true`, no TTY, output piped): the decision is not prompted for. `--yes`, `--force` or any other flag is not accepted as an approval, because a flag can be typed by the same agent that asked for the action. The CLI exits `75` and prints Problem Details with an `approval` extension:
 
 ```json
@@ -165,7 +168,7 @@ A grant with `approval: 'human'` produces `approval-required` ([approvals](/docs
 }
 ```
 
-`approval` is the `approval` option (`ApprovalHint`, `{ at?, hint? }`), the same optional member the [server kernel](/docs/adapters/server-kernel) adds to its `approval-required` Problem Details ([vocabulary](/docs/standards/problem-details)). Where the approval is recorded and how the re-run finds it are the application's concern; the adapter only guarantees the token check on resume. Replacing the prompt with clack:
+`approval` is the `approval` option (`ApprovalHint`, `{ at?, hint? }`), the same optional member the [server kernel](/docs/adapters/server-kernel) adds to its `approval-required` Problem Details ([vocabulary](/docs/standards/problem-details)). The request is recorded in the `store` you pass ([approvals](/docs/adapters/approvals)); a rerun with the same permission, resource or arguments, subject and actor recomputes the same token and resumes the approved record once. Replacing the prompt with clack:
 
 ```ts
 import { confirm, isCancel } from '@clack/prompts'
@@ -264,6 +267,7 @@ Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, p
 - The destructive confirmation is typed, not `y`. A `y` is muscle memory and an agent answers it without reading; typing the id makes the user name what is about to go. Without a terminal there is nobody to ask, so the adapter refuses with `EX_USAGE` rather than guessing, and `--yes` is the explicit, greppable way a script says it meant it. `--yes` stays separate from approvals because the agent that asked for the action can type the flag.
 - `--dry-run` decides through the same path as a real run but as a simulation, so it reports what the run would decide without consuming a `limit` and without the prompt; a pipeline gets the real exit code before it commits.
 - `subjectFromCiOidc` returns a `workload`, never a user: a CI job acts for a repository and a ref, not for the person who pushed. Grant it through a `principal.kind` or `principal.repository` condition, or map it to memberships in your `principal` function.
+- The y/N prompt is not an approval for `approval: 'human'`. The person at the terminal is the requester, or an agent the requester runs, and approvals exist so someone else looks. Only a grant that says the requester may approve (`distinct: false`) takes the local answer, and never from an agent; every other approval goes through the same store and token resume the HTTP and agent adapters use.
 - `approval.at` and `hint` are shared with the HTTP adapters rather than terminal-only fields, so one client that reads `approval-required` Problem Details handles both a CLI's `--json` output and a 403 body.
 
 ## Example app

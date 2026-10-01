@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { principal } from '../../src/conditions/refs.ts';
-import { assurance } from '../../src/core/grantee.ts';
+import { assurance, relation } from '../../src/core/grantee.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
 import {
   allow,
@@ -60,6 +60,14 @@ describe('policy', () => {
         subject: () => ({ id: 'u1' }),
       }),
     ).toThrow(/unknown resource/);
+  });
+
+  it('refuses a relation approver, which no approval store can check', () => {
+    expect(() =>
+      allow(permissions.post.update, {
+        approval: { by: relation(permissions.post, 'owner') },
+      }),
+    ).toThrow(/post\.update.*relation/);
   });
 
   it('requires scopes.tenant for on: tenant roles', () => {

@@ -24,7 +24,7 @@ import {
   nowSeconds,
   rowInScope,
 } from './tenancy.ts';
-import { decisionToken } from './token.ts';
+import { decisionToken, payloadDigest } from './token.ts';
 import { whereFromGrants } from './where-scope.ts';
 
 function isRowPair(
@@ -347,12 +347,17 @@ export function evaluateSnapshot(
       alternatives: [],
     });
   }
+  const resourceId = permission.kind === 'collection' ? '*' : rowId(current);
   const token = decisionToken({
     key: permission.key,
-    resourceId: permission.kind === 'collection' ? '*' : rowId(current),
+    resourceId,
     principal: subject.principal,
     actor: subject.actor,
     fingerprint: `snapshot:${String(snapshot.issuedAt)}`,
+    payload:
+      resourceId === '*' && (next ?? current) !== undefined
+        ? payloadDigest(next ?? current)
+        : undefined,
   });
   const grant = compact<MatchedGrant>({
     role: matched.role,

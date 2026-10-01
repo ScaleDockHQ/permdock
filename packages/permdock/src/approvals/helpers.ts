@@ -389,3 +389,33 @@ export function resumeFromHeader(
   }
   return inspectApproval(store, token, now);
 }
+
+/**
+ * The stored token for a decision that is waiting on approval: an approved or
+ * rejected record for the recomputed token resumes without the caller
+ * carrying it, since the token already binds permission, resource (or the
+ * call's data when there is no row id), subject and actor.
+ */
+export async function storedApprovalToken(
+  store: ApprovalStore | undefined,
+  decision: Decision,
+  denyPending: boolean,
+): Promise<string | undefined> {
+  if (store === undefined || decision.outcome !== 'approval-required') {
+    return undefined;
+  }
+  try {
+    const record = await store.get(decision.token);
+    if (
+      record === null ||
+      (record.status === 'pending' && !denyPending) ||
+      record.status === 'expired' ||
+      Date.parse(record.expiresAt) <= Date.now()
+    ) {
+      return undefined;
+    }
+    return decision.token;
+  } catch {
+    return undefined;
+  }
+}

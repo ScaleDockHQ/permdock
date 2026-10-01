@@ -15,8 +15,8 @@ const developer = role('developer', [
 
 const release = role('release', [
   ...developer.grants,
-  allow(permissions.deploy.run, { approval: 'human' }),
-  allow(permissions.deploy.rollback, { approval: 'human' }),
+  allow(permissions.deploy.run, { approval: { distinct: false } }),
+  allow(permissions.deploy.rollback, { approval: { distinct: false } }),
 ]);
 
 export const policy = definePolicy(permissions, {

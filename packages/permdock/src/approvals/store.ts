@@ -82,8 +82,13 @@ function matchesApprovers(
       }
       continue;
     }
+    // A relation needs a row and a relation reader the store does not have, so
+    // it matches no approver; so does any grantee that narrows to rows.
+    if (item.kind === 'relation') {
+      return false;
+    }
     const result = matchGrantee(item, subject, now, undefined);
-    if (!result.matched) {
+    if (!result.matched || result.where !== undefined) {
       return false;
     }
   }

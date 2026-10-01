@@ -13,8 +13,7 @@ import type {
   A2ATaskOutcome,
 } from './types.ts';
 
-import { storedApprovalToken } from '../agent/kernel.ts';
-import { resumeDecision } from '../approvals/helpers.ts';
+import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import {
   PermDockApprovalRequiredError,

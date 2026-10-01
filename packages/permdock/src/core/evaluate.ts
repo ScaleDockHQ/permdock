@@ -51,7 +51,7 @@ import {
   type ResourceRoleWalk,
 } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
-import { decisionToken, versionOf } from './token.ts';
+import { decisionToken, payloadDigest, versionOf } from './token.ts';
 import { validateBoundary } from './validation.ts';
 import { listRoles } from './vocabulary.ts';
 
@@ -1026,6 +1026,10 @@ export function evaluate(
         actor: subject.actor,
         fingerprint: policy.fingerprint,
         version,
+        payload:
+          resourceId === '*' && (next ?? current) !== undefined
+            ? payloadDigest(next ?? current)
+            : undefined,
       });
   const matched = compact<MatchedGrant>({
     role: matchedAllow.grant.role,
