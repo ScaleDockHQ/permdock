@@ -50,9 +50,9 @@ describe('permdock/openapi', () => {
     expect(
       describeOp(permissions.post.delete)['x-permdock-permissions'],
     ).toEqual(['post.delete']);
-    expect(describeOp(permissions.post.delete)['x-permdock-approval']).toBe(
-      'human',
-    );
+    expect(describeOp(permissions.post.delete)['x-permdock-approval']).toEqual({
+      'post.delete': { reason: 'human' },
+    });
   });
 
   it('marks every approval shape as requiring approval, not only human', () => {
@@ -90,7 +90,9 @@ describe('permdock/openapi', () => {
       tree.invoice.refund,
       tree.invoice.close,
     ]) {
-      expect(describeOp(leaf)['x-permdock-approval']).toBe('human');
+      expect(describeOp(leaf)['x-permdock-approval']).toEqual({
+        [leaf.key]: { reason: 'human' },
+      });
       expect(describeOp(leaf)['x-badges']).toEqual([
         { name: 'Approval required' },
       ]);

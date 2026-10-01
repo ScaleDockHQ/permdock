@@ -182,9 +182,9 @@ describe('RFC 9457 Problem Details', () => {
       );
       expect(response.headers.get('WWW-Authenticate')).toBe(row.challenge);
       const problem = await body(response);
-      expect(problem.type).toBe(`${PROBLEM_BASE}/${row.type}`);
-      expect(problem.status).toBe(row.status);
-      expect(problem.title).toBeTypeOf('string');
+      expect(problem['type']).toBe(`${PROBLEM_BASE}/${row.type}`);
+      expect(problem['status']).toBe(row.status);
+      expect(problem['title']).toBeTypeOf('string');
     });
   }
 
@@ -207,7 +207,7 @@ describe('RFC 9457 Problem Details', () => {
       denials: [{ role: 'member', reason: 'condition' }],
       alternatives: [permissions.post.read.key],
     });
-    expect(problem.detail).toBeTypeOf('string');
+    expect(problem['detail']).toBeTypeOf('string');
   });
 
   it('never explains the failure to an unauthenticated caller', async () => {
@@ -261,7 +261,7 @@ describe('RFC 9457 Problem Details', () => {
         subject,
       ),
     );
-    expect(problem.plans).toEqual(['pro', 'enterprise']);
+    expect(problem['plans']).toEqual(['pro', 'enterprise']);
   });
 
   it('sends Retry-After, RateLimit and RateLimit-Policy with a 429', () => {
@@ -321,8 +321,8 @@ describe('RFC 9457 Problem Details', () => {
     );
     expect(response.status).toBe(400);
     const problem = await body(response);
-    expect(problem.type).toBe(`${PROBLEM_BASE}/validation`);
-    expect(problem.issues).toEqual([
+    expect(problem['type']).toBe(`${PROBLEM_BASE}/validation`);
+    expect(problem['issues']).toEqual([
       { message: 'title is required', path: ['title'] },
     ]);
     expect(problem).not.toHaveProperty('denials');

@@ -43,12 +43,12 @@ permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay
 ```json
 {
   "overlay": "1.1.0",
-  "info": { "title": "PermDock authorization metadata", "version": "2026-09-06T10:15:00Z" },
+  "info": { "title": "PermDock authorization metadata", "version": "sha256:..." },
   "extends": "./openapi.json",
   "actions": [
     {
       "target": "$.components.securitySchemes",
-      "description": "OAuth 2.0 scheme with every catalog scope",
+      "description": "PermDock security schemes",
       "update": {
         "permdockOAuth": {
           "type": "oauth2",
@@ -90,8 +90,8 @@ permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay
     },
     {
       "target": "$",
-      "description": "Catalog fingerprint for permdock openapi --check",
-      "update": { "x-permdock-catalog": { "v": 1, "generator": "permdock/openapi", "catalog": "sha256:..." } }
+      "description": "PermDock catalog pin",
+      "update": { "x-permdock-catalog": { "v": 1, "generator": "permdock/openapi" } }
     }
   ]
 }
@@ -101,7 +101,7 @@ Rules the emitter follows:
 
 - Operations are targeted by `operationId`, never by path and method, so the Overlay survives a route being moved. Operations without an `operationId` are reported as findings (exit `1`) rather than targeted by position.
 - Which operations appear comes from the same source as the document form: `x-permdock-permissions` already present in the source (written by the framework hooks), or the route registry when the CLI runs inside the project.
-- Actions are sorted (`securitySchemes`, then operations by `operationId`, then root) and the `info.version` is derived from the catalog, so two runs over the same inputs produce byte-identical output.
+- Actions are sorted (`securitySchemes`, then `securityProfileRequirements` on `--target 3.3`, then operations by `operationId`, then root) and `info.version` is a `sha256:` fingerprint of the catalog's permission keys and scopes, so two runs over the same inputs produce byte-identical output. Each target is an RFC 9535 filter on the path items' operations, `$.paths.*[?@.operationId == '<id>']`, with `'` and `\\` escaped in the literal.
 - **The Overlay never contains a `remove` action on `security` or `securitySchemes`**, and never an `update` that sets `security` to `[]` unless the permission is explicitly public in the catalog. Loosening a document's security is not something PermDock does on anyone's behalf.
 - `--target 3.1` swaps the 3.2 fields for the registered fallbacks (`x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl`, `x-oai-deprecated`) and `x-permdock-oauth2MetadataUrl`, exactly as in document mode.
 
@@ -114,7 +114,7 @@ The 1.2 form differs from the 1.1 form in exactly one way: every operation `upda
 ```json
 {
   "overlay": "1.2.0",
-  "info": { "title": "PermDock authorization metadata", "version": "2026-09-06T10:15:00Z" },
+  "info": { "title": "PermDock authorization metadata", "version": "sha256:..." },
   "extends": "./openapi.json",
   "components": {
     "actions": {
@@ -145,7 +145,7 @@ The 1.2 form differs from the 1.1 form in exactly one way: every operation `upda
   "actions": [
     {
       "target": "$.components.securitySchemes",
-      "description": "OAuth 2.0 scheme with every catalog scope",
+      "description": "PermDock security schemes",
       "update": { "permdockOAuth": { "type": "oauth2", "flows": { "...": "as in the 1.1 example" } } }
     },
     { "$ref": "#/components/actions/post.delete", "target": "$.paths.*[?@.operationId == 'deletePost']", "description": "deletePost" },
@@ -153,12 +153,11 @@ The 1.2 form differs from the 1.1 form in exactly one way: every operation `upda
     { "$ref": "#/components/actions/post.update", "target": "$.paths.*[?@.operationId == 'patchPost']", "description": "patchPost" },
     {
       "target": "$",
-      "description": "Catalog fingerprint for permdock openapi --check",
+      "description": "PermDock catalog pin",
       "update": {
         "x-permdock-catalog": {
           "v": 1,
           "generator": "permdock/openapi",
-          "catalog": "sha256:...",
           "drafts": { "overlay": "1.2-dev@<commit>" }
         }
       }

@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-import type { Policy } from '../index.ts';
+import type { Permission, Policy } from '../index.ts';
+import type { OverlayOperation } from '../openapi/types.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
 import { definePolicy, findPermission, getResource } from '../index.ts';
@@ -87,6 +88,59 @@ async function loadPolicy(
   });
 }
 
+function leavesOf(policy: Policy, keys: readonly unknown[]): Permission[] {
+  return keys.map((key) => {
+    if (typeof key !== 'string') {
+      throw new TypeError(
+        'PermDock CLI: x-permdock-permissions must be strings',
+      );
+    }
+    const leaf = findPermission(policy.permissions, key);
+    if (leaf === undefined) {
+      throw new Error(`PermDock CLI: unknown permission '${key}'`);
+    }
+    return leaf;
+  });
+}
+
+/** Operations carrying `x-permdock-permissions`, joined by `operationId`; those without one are findings. */
+function overlayOperations(
+  document: Record<string, unknown>,
+  policy: Policy,
+): {
+  readonly operations: readonly OverlayOperation[];
+  readonly unnamed: readonly string[];
+  readonly secured: readonly string[];
+} {
+  const operations: OverlayOperation[] = [];
+  const unnamed: string[] = [];
+  const secured: string[] = [];
+  const paths = isRecord(document['paths']) ? document['paths'] : {};
+  for (const [path, item] of Object.entries(paths)) {
+    for (const [method, operation] of Object.entries(
+      isRecord(item) ? item : {},
+    )) {
+      if (
+        !isRecord(operation) ||
+        !Array.isArray(operation['x-permdock-permissions'])
+      ) {
+        continue;
+      }
+      const permissions = leavesOf(policy, operation['x-permdock-permissions']);
+      const operationId = operation['operationId'];
+      if (typeof operationId !== 'string' || operationId.length === 0) {
+        unnamed.push(`${method.toUpperCase()} ${path}`);
+        continue;
+      }
+      if (operation['security'] !== undefined) {
+        secured.push(operationId);
+      }
+      operations.push({ operationId, permissions });
+    }
+  }
+  return { operations, unnamed, secured };
+}
+
 /** `instance` when any listed permission acts on one row; the id is the last path template parameter. */
 function arityOf(
   policy: Policy,
@@ -144,18 +198,7 @@ function applyDocument(
         nextItem[method] = operation;
         continue;
       }
-      const leaves = keys.map((key) => {
-        if (typeof key !== 'string') {
-          throw new TypeError(
-            'PermDock CLI: x-permdock-permissions must be strings',
-          );
-        }
-        const leaf = findPermission(policy.permissions, key);
-        if (leaf === undefined) {
-          throw new Error(`PermDock CLI: unknown permission '${key}'`);
-        }
-        return leaf;
-      });
+      const leaves = leavesOf(policy, keys);
       scopeSets.push(leaves.map((leaf) => leaf.scope));
       const described = mergeRecord(operation, factory.describe(leaves));
       nextItem[method] = arity
@@ -300,11 +343,26 @@ export async function runOpenapi(input: {
       output: 'PermDock CLI: OpenAPI document must be an object',
     };
   }
+  const covered =
+    input.format === 'overlay' ? overlayOperations(parsed, policy) : undefined;
+  if (covered !== undefined && covered.unnamed.length > 0) {
+    return {
+      code: 1,
+      output: `openapi emit: an Overlay targets operations by operationId; none on ${covered.unnamed.join(', ')}`,
+    };
+  }
+  if (input.check && covered !== undefined && covered.secured.length > 0) {
+    return {
+      code: 1,
+      output: `openapi drift: the source already sets security the Overlay replaces on ${covered.secured.join(', ')}`,
+    };
+  }
   const result =
-    input.format === 'overlay'
+    covered !== undefined
       ? factory.overlay({
           extends: input.doc,
           version: input.overlay,
+          operations: covered.operations,
         })
       : applyDocument(
           parsed,

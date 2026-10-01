@@ -1,3 +1,4 @@
+import type { Condition } from '../conditions/ast.ts';
 import type { Grantee } from '../core/grantee.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Grant, Policy } from '../core/policy.ts';
@@ -202,16 +203,32 @@ export function describeOf(
   permissions: readonly Permission[],
   anyOf?: boolean,
 ): OpenApiDescribe {
-  const grants = grantsOf(policy, permissions);
-  const conditions = grants
-    .map((grant) => grant.where)
-    .filter((where) => where !== undefined);
-  const approval = grants.some((grant) => requiresApproval(grant.approval));
+  const conditions: Record<string, Condition> = {};
+  const approvals: Record<string, { readonly reason: 'human' }> = {};
+  for (const leaf of permissions) {
+    const grants = grantsOf(policy, [leaf]).filter(
+      (grant) => grant.effect === 'allow',
+    );
+    const wheres = grants
+      .filter((grant) => grant.portable)
+      .map((grant) => grant.where)
+      .filter((where) => where !== undefined);
+    const [only] = wheres;
+    if (only !== undefined) {
+      conditions[leaf.key] =
+        wheres.length === 1 ? only : { op: 'or', conditions: wheres };
+    }
+    if (grants.some((grant) => requiresApproval(grant.approval))) {
+      approvals[leaf.key] = { reason: 'human' };
+    }
+  }
+  const approval = Object.keys(approvals).length > 0;
   return compact<OpenApiDescribe>({
     security: securityOf(policy, options, permissions, anyOf),
     'x-permdock-permissions': permissions.map((leaf) => leaf.key),
-    'x-permdock-conditions': conditions.length > 0 ? conditions : undefined,
-    'x-permdock-approval': approval ? 'human' : undefined,
+    'x-permdock-conditions':
+      Object.keys(conditions).length > 0 ? conditions : undefined,
+    'x-permdock-approval': approval ? approvals : undefined,
     'x-permdock-securityProfile': options.securityProfile,
     'x-badges':
       options.docsHints?.badges === true && approval

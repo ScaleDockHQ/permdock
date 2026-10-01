@@ -128,7 +128,7 @@ describe('RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)', () =>
       { name: 'member', params: { q: 100, w: 86_400 } },
       { name: 'default', params: { q: 10, w: 60 } },
     ]);
-    expect(parseList(headers.RateLimit ?? '')).toEqual([
+    expect(parseList(headers['RateLimit'] ?? '')).toEqual([
       { name: 'member', params: { r: 0, t: 3600 } },
       { name: 'default', params: { r: 0, t: 20 } },
     ]);
@@ -147,7 +147,7 @@ describe('RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)', () =>
       NOW,
     );
     expect(headers['Retry-After']).toBe('1');
-    expect(parseList(headers.RateLimit ?? '')[0]?.params.t).toBe(1);
+    expect(parseList(headers['RateLimit'] ?? '')[0]?.params['t']).toBe(1);
   });
 
   it('serialises any role name as a valid sf-string', () => {

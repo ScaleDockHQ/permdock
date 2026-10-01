@@ -188,8 +188,12 @@ describe('OpenAPI', () => {
       'x-permdock-permissions': [permissions.post.read.key],
     });
     expect(
-      operation(document, permissions.post.delete)['x-permdock-conditions'],
-    ).toHaveLength(1);
+      Object.keys(
+        record(
+          operation(document, permissions.post.delete)['x-permdock-conditions'],
+        ),
+      ),
+    ).toEqual([permissions.post.delete.key]);
   });
 
   it('answers security: [] only for a permission every subject is granted', () => {
@@ -202,7 +206,7 @@ describe('OpenAPI', () => {
     ]);
     expect(
       operation(document, permissions.status.audit)['x-permdock-approval'],
-    ).toBe('human');
+    ).toEqual({ [permissions.status.audit.key]: { reason: 'human' } });
     expect(operation(document, permissions.status.probe)['security']).toEqual([
       { oauth: [permissions.status.probe.scope] },
     ]);

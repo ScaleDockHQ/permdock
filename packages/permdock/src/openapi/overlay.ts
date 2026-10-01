@@ -1,8 +1,13 @@
 import type { Policy } from '../core/policy.ts';
-import type { OpenApiOverlayOptions, OpenApiPermDockOptions } from './types.ts';
+import type {
+  OpenApiOverlayOptions,
+  OpenApiPermDockOptions,
+  OverlayOperation,
+} from './types.ts';
 
 import { compact } from '../core/compact.ts';
 import { listPermissions } from '../core/permissions.ts';
+import { sha256 } from '../core/sha256.ts';
 import {
   catalogOf,
   describeOf,
@@ -19,85 +24,127 @@ function actionKey(keys: readonly string[]): string {
   return keys.toSorted().join(',');
 }
 
+/** An RFC 9535 single-quoted string literal. */
+function jsonPathString(value: string): string {
+  return `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
+}
+
+function operationTarget(operationId: string): string {
+  return `$.paths.*[?@.operationId == ${jsonPathString(operationId)}]`;
+}
+
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
+    '',
+  );
+}
+
+/** `sha256:` over the sorted permission keys and scopes, so the same catalog gives the same Overlay. */
+function fingerprint(policy: Policy): string {
+  const lines = listPermissions(policy.permissions)
+    .map((leaf) => `${leaf.key} ${leaf.scope}`)
+    .toSorted();
+  return `sha256:${hex(sha256(lines.join('\n')))}`;
+}
+
 export function overlayOf(
   policy: Policy,
   options: OpenApiPermDockOptions,
   overlayOptions: OpenApiOverlayOptions = {},
 ): Record<string, unknown> {
   const version = overlayOptions.version ?? '1.1';
-  const leaves = listPermissions(policy.permissions);
+  const operations: readonly OverlayOperation[] = (
+    overlayOptions.operations ??
+    listPermissions(policy.permissions).map((leaf) => ({
+      operationId: leaf.key,
+      permissions: [leaf],
+    }))
+  ).toSorted((a, b) =>
+    a.operationId < b.operationId ? -1 : a.operationId > b.operationId ? 1 : 0,
+  );
   const schemes = securitySchemesOf(policy, options);
-  const requirements = securityProfileRequirementsOf(policy, options);
+  const requirements = securityProfileRequirementsOf(
+    policy,
+    options,
+    overlayOptions.operations?.map((operation) =>
+      operation.permissions.map((leaf) => leaf.scope),
+    ),
+  );
+  const catalogPin = fingerprint(policy);
   const drafts =
     version === '1.2' ? { overlay: DRAFT_PINS.overlay } : undefined;
-  const catalog = catalogOf(options, drafts);
-  const schemeAction = {
-    target: '$.components.securitySchemes',
-    description: 'PermDock security schemes',
-    update: schemes,
+  const info = {
+    title: 'PermDock authorization metadata',
+    version: catalogPin,
   };
+  const head: Record<string, unknown>[] = [
+    {
+      target: '$.components.securitySchemes',
+      description: 'PermDock security schemes',
+      update: schemes,
+    },
+  ];
+  if (requirements !== undefined) {
+    head.push({
+      target: '$.components.securityProfileRequirements',
+      description: 'PermDock security profile requirements',
+      update: requirements,
+    });
+  }
   const catalogAction = {
     target: '$',
     description: 'PermDock catalog pin',
-    update: { 'x-permdock-catalog': catalog },
+    update: {
+      'x-permdock-catalog': catalogOf(options, drafts),
+    },
   };
-  const requirementAction =
-    requirements === undefined
-      ? undefined
-      : {
-          target: '$.components.securityProfileRequirements',
-          description: 'PermDock security profile requirements',
-          update: requirements,
-        };
-  const operationBodies = leaves.map((leaf) => ({
-    keys: [leaf.key],
-    fields: describeOf(policy, options, [leaf]),
-    target: `$.paths.*.*[?(@.operationId=='${leaf.key}')]`,
-  }));
+  const bodies = operations.map((operation) => {
+    const keys = operation.permissions.map((leaf) => leaf.key);
+    return {
+      operationId: operation.operationId,
+      key: actionKey(keys),
+      target: operationTarget(operation.operationId),
+      fields: describeOf(policy, options, operation.permissions),
+    };
+  });
   if (version === '1.1') {
-    const actions: Record<string, unknown>[] = [schemeAction, catalogAction];
-    if (requirementAction !== undefined) {
-      actions.push(requirementAction);
-    }
-    for (const body of operationBodies) {
-      actions.push({
-        target: body.target,
-        description: `security for ${body.keys.join(',')}`,
-        update: body.fields,
-      });
-    }
     return compact({
       overlay: '1.1.0',
-      info: { title: 'PermDock authorization overlay', version: '1' },
+      info,
       extends: overlayOptions.extends,
-      actions,
+      actions: [
+        ...head,
+        ...bodies.map((body) => ({
+          target: body.target,
+          description: body.key,
+          update: body.fields,
+        })),
+        catalogAction,
+      ],
     });
   }
   const reusable: Record<string, unknown> = {};
-  const refs: Record<string, unknown>[] = [];
-  for (const body of operationBodies) {
-    const key = actionKey(body.keys);
-    if (reusable[key] === undefined) {
-      reusable[key] = {
-        description: `security for ${key}`,
-        fields: { update: body.fields },
-      };
-    }
-    refs.push({
-      $ref: `#/components/actions/${pointerEscape(key)}`,
-      target: body.target,
-      description: `security for ${key}`,
-    });
-  }
-  const actions: Record<string, unknown>[] = [schemeAction, catalogAction];
-  if (requirementAction !== undefined) {
-    actions.push(requirementAction);
+  for (const body of bodies.toSorted((a, b) =>
+    a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
+  )) {
+    reusable[body.key] ??= {
+      description: body.key,
+      fields: { update: body.fields },
+    };
   }
   return compact({
     overlay: '1.2.0',
-    info: { title: 'PermDock authorization overlay', version: '1' },
+    info,
     extends: overlayOptions.extends,
     components: { actions: reusable },
-    actions: [...actions, ...refs],
+    actions: [
+      ...head,
+      ...bodies.map((body) => ({
+        $ref: `#/components/actions/${pointerEscape(body.key)}`,
+        target: body.target,
+        description: body.operationId,
+      })),
+      catalogAction,
+    ],
   });
 }

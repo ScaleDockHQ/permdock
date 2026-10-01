@@ -11,6 +11,7 @@ export type {
   OpenApiSchemeOptions,
   OpenApiSecurityRequirement,
   OpenApiTarget,
+  OverlayOperation,
   OverlayVersion,
   SchemeType,
   SecurityProfileName,

@@ -1,3 +1,4 @@
+import type { Condition } from '../conditions/ast.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
@@ -46,15 +47,27 @@ export type OpenApiSecurityRequirement = Readonly<
 export type OpenApiDescribe = {
   readonly security: readonly OpenApiSecurityRequirement[];
   readonly 'x-permdock-permissions': readonly string[];
-  readonly 'x-permdock-conditions'?: unknown;
-  readonly 'x-permdock-approval'?: 'human';
+  /** Keyed by permission key: the portable conditions of its allow grants. */
+  readonly 'x-permdock-conditions'?: Readonly<Record<string, Condition>>;
+  /** Keyed by permission key: the permissions whose grants need an approval. */
+  readonly 'x-permdock-approval'?: Readonly<
+    Record<string, { readonly reason: 'human' }>
+  >;
   readonly 'x-permdock-securityProfile'?: SecurityProfileName;
   readonly 'x-badges'?: readonly { readonly name: string }[];
+};
+
+/** One operation the Overlay targets, joined by `operationId`. */
+export type OverlayOperation = {
+  readonly operationId: string;
+  readonly permissions: readonly Permission[];
 };
 
 export type OpenApiOverlayOptions = {
   readonly extends?: string;
   readonly version?: OverlayVersion;
+  /** The operations to cover; without them, one per permission whose `operationId` is the permission key. */
+  readonly operations?: readonly OverlayOperation[];
 };
 
 export type OpenApiPermDock = {
