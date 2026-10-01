@@ -63,6 +63,10 @@ An application does not need the saas domain to use them. `describePolicy`, `orm
 
 A fixture that finds a bug does its job: write the failing scenario first, fix the library, and keep the scenario.
 
+## Standards and invariants
+
+Two more suites sit next to the scenarios in `packages/permdock/tests`. `tests/standards/<slug>.test.ts` mirrors each [standards](/docs/standards) page and checks PermDock's output against the upstream schemas and RFC examples vendored in `tests/fixtures/standards`; `pnpm docs:drift` fails when a page has no test or a test no page. `tests/invariants` holds one file per invariant in the [threat model](/docs/security/threat-model), so a change that breaks fail-closed evaluation, deny precedence or prototype safety fails a test named after the rule it breaks.
+
 ## Related
 
 - [Testing adapter](/docs/adapters/testing): runner signatures and the saas entry.
