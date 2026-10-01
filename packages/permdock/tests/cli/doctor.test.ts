@@ -624,6 +624,79 @@ export const policy = definePolicy(permissions, {
     ]);
   });
 
+  it('PD044 warns when usePermission reads a closure grant with no endpoint', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/closure-policy.ts'),
+      `import { allow, definePolicy, role } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read),
+      allow(permissions.post.publish, () => true),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, 'src/publish-button.tsx'),
+      `'use client';
+import { usePermission } from 'permdock/react';
+import { permissions } from './permissions.ts';
+
+export function PublishButton(props: { post: never }) {
+  const read = usePermission(permissions.post.read, props.post);
+  const publish = usePermission(permissions.post.publish, props.post);
+  return read.allowed && publish.allowed ? 'publish' : null;
+}
+`,
+    );
+    writeFileSync(
+      join(cwd, 'permdock.config.ts'),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/closure-policy.ts',
+  collect: { srcPath: ['./src'] },
+};
+`,
+    );
+    const doctor = async () => {
+      const result = await run(['doctor', '--json', '--only', 'PD044'], {
+        cwd,
+      });
+      // SAFETY: the --json report printed by `permdock doctor` under test.
+      return JSON.parse(result.stdout) as {
+        readonly findings: readonly {
+          readonly code: string;
+          readonly message: string;
+        }[];
+      };
+    };
+    const missing = await doctor();
+    expect(missing.findings).toEqual([
+      expect.objectContaining({
+        code: 'PD044',
+        message: expect.stringContaining(
+          'usePermission reads post.publish at src/publish-button.tsx:7',
+        ),
+      }),
+    ]);
+    mkdirSync(join(cwd, 'src/app/api/permdock'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'src/app/api/permdock/route.ts'),
+      `import { permdockHandler } from './permdock.ts';
+
+export const POST = permdockHandler();
+`,
+    );
+    const routed = await doctor();
+    expect(routed.findings).toEqual([]);
+  });
+
   it('PD019 warns when JWT-mode authorize() outlives an hour with sensitive grants', async () => {
     const jwt = await runPd019('jwt', 86_400);
     expect(codes(jwt.stdout)).toContain('PD019');

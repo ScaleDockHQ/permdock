@@ -9,7 +9,7 @@ import { PermDockProvider as ClientProvider } from '../react/provider-client.js'
 
 export function renderClientProvider(options: {
   readonly snapshotPromise: PromiseLike<Snapshot | string>;
-  readonly endpoint: string;
+  readonly endpoint: string | false;
   readonly tenant?: string;
   readonly children: ReactNode;
 }): ReactElement {

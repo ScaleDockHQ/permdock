@@ -71,7 +71,11 @@ export type PermDockProviderProps = (
       readonly snapshot?: never;
     }
 ) & {
-  readonly endpoint?: string;
+  /**
+   * The AuthZEN evaluations endpoint for checks the snapshot cannot answer. `false` never
+   * fetches: those checks answer `denied` with reason `server-only`.
+   */
+  readonly endpoint?: string | false;
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;

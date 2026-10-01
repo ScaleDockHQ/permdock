@@ -30,6 +30,7 @@ import {
   pd037,
 } from './doctor-collect.ts';
 import { pd042, pd043 } from './doctor-declarative.ts';
+import { pd044 } from './doctor-next.ts';
 import {
   pd005,
   pd006,
@@ -256,6 +257,9 @@ export async function runDoctor(input: {
   }
   if (include('supabase') || include('declarative') || include('PD043')) {
     findings.push(...pd043(input.cwd));
+  }
+  if (include('next') || include('endpoint') || include('PD044')) {
+    findings.push(...(await pd044(input)));
   }
 
   const errors = findings.filter((item) => item.severity === 'error').length;

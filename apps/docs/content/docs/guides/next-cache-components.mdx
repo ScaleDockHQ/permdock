@@ -93,6 +93,114 @@ The layout never awaits. `PermDockProvider` renders its children at once; only c
 
 `usePermission(permissions.project.delete, project)` evaluates the snapshot's portable conditions (`ownerId`, `archived`, the tenant key) in the browser, so row actions render without a request. A grant whose condition is a closure cannot travel in a snapshot. For those, annotate rows on the server (`permdock.can(p, row)` per row inside the cached list) or let `usePermission` ask the endpoint.
 
+## URL slugs
+
+Most apps put a slug in the URL and a tenant id in the token: `app/[locale]/(app)/[orgSlug]/projects/page.tsx`. The snapshot is keyed by id, so the route resolves the slug first, in a public cache, and only then enters the private one.
+
+```ts
+// src/lib/access.ts
+import { notFound } from 'next/navigation'
+import { cacheLife, cacheTag } from 'next/cache'
+import { snapshotFor } from 'permdock'
+import { cacheLifeFor } from 'permdock/next'
+
+export async function orgBySlug(slug: string) {
+  'use cache'
+  cacheTag(`org-slug:${slug}`)
+  cacheLife('hours')
+  const org = await db.orgs.findBySlug(slug)   // { id, slug, plan } or null; no session read
+  if (org !== null) {
+    cacheTag(`org:${org.id}`)
+  }
+  return org
+}
+
+export async function loadSnapshot(slug: string) {
+  'use cache: private'
+  const org = await orgBySlug(slug)
+  if (org === null) {
+    notFound()
+  }
+  const claims = await getClaims()
+  const snapshot = snapshotFor(policy, subjectOf(claims), { tenant: org.id })
+  cacheLife(cacheLifeFor(snapshot))
+  cacheTag(`permdock:${claims?.sub ?? 'anon'}`, `org:${org.id}`)
+  return snapshot
+}
+```
+
+```tsx
+// src/app/[locale]/(app)/[orgSlug]/settings/page.tsx
+export default async function Settings({ params }) {
+  const { orgSlug } = await params
+  const org = await orgBySlug(orgSlug)
+  if (org === null) {
+    notFound()
+  }
+  await requireAccess({ permission: permissions.org.update, tenant: org.id })
+  return <SettingsForm org={org} />
+}
+```
+
+Three rules:
+
+- The slug lookup reads no session. Every user resolves `acme` to the same id, so it is a shared `'use cache'` entry, and a rename busts it with `updateTag('org-slug:<old>')` plus `org:<id>`.
+- An unknown slug is `notFound()` before any snapshot is built, so a typo never caches an empty snapshot under the private key.
+- A known org the user does not belong to gets a snapshot with no membership in it: every tenant-scoped check is denied and `requireAccess` calls `forbidden()`. If the existence of an org is itself private, check `snapshot.tenants.includes(org.id)` and call `notFound()` instead, so a non-member cannot tell `403` from `404`.
+
+`requireAccess` and `getPermDock({ tenant })` take the id, never the slug: the token's memberships and the RLS helpers compare ids, and a slug can change.
+
+## Snapshot-only mode
+
+An app whose client checks are all portable needs no decision route. `endpoint: false` on `createPermDock` from `permdock/next` (or on its `PermDockProvider`) says so:
+
+```ts
+export const { PermDockProvider, getPermDock, requireAccess } = createPermDock({
+  policy,
+  subject,
+  endpoint: false,
+})
+```
+
+The client never fetches. A check the snapshot cannot answer (a closure, a graph relation, a `period` grant, or a key outside `include`) is `denied` with reason `server-only` and `status: 'server-only'`, and the provider logs the first such permission once with `console.info`. Those checks belong on the server: `getPermission` in a Server Component, or `permdock.can(p, row)` while building a cached list. `permdock doctor` PD044 warns when `usePermission` reads such a grant and the app has neither a `permdockHandler` route nor an `endpoint`.
+
+## Cross-origin endpoint
+
+When the app at `app.example.com` calls a decision endpoint at `api.example.com`, the client already sends `credentials: 'include'` and a JSON body, so the browser preflights. `permdockHandler` sets no CORS headers; wrap it in the route:
+
+```ts
+// api.example.com: app/api/permdock/route.ts
+const allowed = new Set(['https://app.example.com'])
+const { POST: decide } = permdockHandler()
+
+function cors(request: Request, response: Response): Response {
+  const origin = request.headers.get('origin')
+  if (origin !== null && allowed.has(origin)) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+    response.headers.set('Access-Control-Allow-Credentials', 'true')
+  }
+  response.headers.append('Vary', 'Origin')
+  return response
+}
+
+export function OPTIONS(request: Request) {
+  const response = new Response(null, { status: 204 })
+  response.headers.set('Access-Control-Allow-Methods', 'POST')
+  response.headers.set('Access-Control-Allow-Headers', 'content-type, permdock-approval')
+  return cors(request, response)
+}
+
+export async function POST(request: Request) {
+  return cors(request, await decide(request))
+}
+```
+
+- Echo an allow-listed `Origin`; never `*`, which browsers refuse with credentials, and never the request's `Origin` unchecked, which lets any site read the answers.
+- The session cookie must reach the API host. Sibling subdomains share it with `Domain=example.com`; they are the same site, so `SameSite=Lax` still sends it. Separate sites need `SameSite=None; Secure`, and some browsers block such third-party cookies, so prefer one site.
+- `Vary: Origin` keeps a CDN from serving one origin's headers to another.
+
+The endpoint is still a hint source; Server Actions and RLS enforce on their own host.
+
 ## Membership modes
 
 | | JWT mode | Database mode |

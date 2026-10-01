@@ -9,6 +9,7 @@ export type DenialReason =
   | 'deny'
   | 'closure-error'
   | 'opaque-condition'
+  | 'server-only'
   | 'anonymous'
   | 'not-delegated'
   | 'no-delegation'

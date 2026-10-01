@@ -142,6 +142,45 @@ describe('permdock/react', () => {
     const state = store.permissionState(permissions.post.update, ownPost);
     expect(state.allowed).toBe(false);
     expect(state.status).toBe('server-only');
+    expect(
+      state.decision.outcome === 'denied' && state.decision.denials,
+    ).toEqual([{ role: null, reason: 'server-only' }]);
+  });
+
+  it('never fetches with endpoint false and hints once', async () => {
+    const snapshot = await memberSnapshot();
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const closure = {
+      ...snapshot,
+      grants: snapshot.grants.map((grant) =>
+        grant.permission === 'post.update'
+          ? {
+              permission: grant.permission,
+              effect: grant.effect,
+              role: grant.role,
+              to: grant.to,
+              portable: false as const,
+            }
+          : grant,
+      ),
+    };
+    function Reason(): string {
+      const state = usePermission(permissions.post.update, ownPost);
+      return state.decision.outcome === 'denied'
+        ? `${state.status}:${state.decision.denials.map((denial) => denial.reason).join(',')}`
+        : state.status;
+    }
+    const html = renderToStaticMarkup(
+      <PermDockProvider snapshot={closure} endpoint={false} fetch={fetch}>
+        <Reason />
+        <Reason />
+      </PermDockProvider>,
+    );
+    expect(html).toBe('server-only:server-onlyserver-only:server-only');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledOnce();
+    info.mockRestore();
   });
 
   it('never calls the endpoint while rendering on the server', async () => {

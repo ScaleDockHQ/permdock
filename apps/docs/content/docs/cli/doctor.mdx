@@ -63,6 +63,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD041` | An `exchangeCapability` call signs with `alg: 'HS256'`, the project's shared JWT secret | warning |
 | `PD042` | The token hook is declared under `supabase/schemas`, and no migration from the one that creates it on grants it to `supabase_auth_admin` | error |
 | `PD043` | `schema_paths` in `supabase/config.toml` applies a file that calls the SQL helpers before the file that defines them, or leaves that file out | warning |
+| `PD044` | `usePermission` reads a permission whose grant the snapshot cannot answer, and there is no `app/**/api/permdock/route.ts` using `permdockHandler` and no `endpoint` | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -260,6 +261,10 @@ Supabase deprecated `auth.role()`. The role a request runs under is already the 
 ### PD043: helpers applied after their callers
 
 `db diff` applies schema files in the order of the `schema_paths` globs in `supabase/config.toml` (default `./schemas/**/*.sql`), sorted within each glob, so a policy that calls `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids` before the file that defines `permdock_has` fails to apply. The check warns on each such file, and once when `schema_paths` leaves out the file that defines the helpers. `--only declarative` (or `--only supabase`) runs PD043.
+
+### PD044: server-only grants with no endpoint
+
+A snapshot carries portable conditions, so `usePermission` answers a `where` on the client. A grant it cannot carry (a closure, a graph relation through `parent` or links, a relation with a `period`) is `portable: false`, and the hook asks the decision endpoint. The check loads the policy, lists the permissions with such an allow, and warns once per `usePermission` call on one of them in the source scan when no `app/**/api/permdock/route.ts` mentions `permdockHandler` and no source file passes an `endpoint` string. Without either, the client always answers `denied` with reason `server-only`. Fix it by adding the route, passing `endpoint` to `createPermDock` or the provider, or moving the check to the server with `getPermission`. A portable row condition never warns: the browser evaluates it from the snapshot. `--only next` or `--only endpoint` runs PD044.
 
 ## Why
 

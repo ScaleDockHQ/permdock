@@ -29,6 +29,8 @@ export type ClientStoreOptions = {
     tenant: string | undefined,
   ) => void;
   readonly onClear?: () => void;
+  /** Called once per key the snapshot cannot answer when there is no `endpoint` to ask. */
+  readonly onServerOnly?: (permission: Permission) => void;
   /**
    * `true` while rendering on the server: endpoint checks answer `pending`
    * without a request. Defaults to `typeof window === 'undefined'`.
@@ -85,6 +87,13 @@ const CURRENT = Symbol.for('permdock.current');
 const SERVER_ONLY: Decision = {
   outcome: 'denied',
   denials: [{ role: null, reason: 'opaque-condition' }],
+  alternatives: [],
+};
+
+/** The client has no endpoint to ask (`endpoint: false`, or none given). */
+const NO_ENDPOINT: Decision = {
+  outcome: 'denied',
+  denials: [{ role: null, reason: 'server-only' }],
   alternatives: [],
 };
 
@@ -359,7 +368,8 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       return;
     }
     if (options.endpoint === undefined) {
-      answers.set(key, { decision: SERVER_ONLY, status: 'server-only' });
+      answers.set(key, { decision: NO_ENDPOINT, status: 'server-only' });
+      options.onServerOnly?.(permission);
       emitSoon();
       return;
     }
@@ -399,7 +409,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           decision: next.decision,
         };
       }
-      return { allowed: false, status: 'server-only', decision: SERVER_ONLY };
+      return { allowed: false, status: 'server-only', decision: NO_ENDPOINT };
     }
     return {
       allowed: decision.outcome === 'granted',

@@ -73,6 +73,13 @@ describe('errors and describe', () => {
     ).toBe('server-only');
     expect(
       describeDecision({
+        outcome: 'denied',
+        denials: [{ role: null, reason: 'server-only' }],
+        alternatives: [],
+      }).kind,
+    ).toBe('server-only');
+    expect(
+      describeDecision({
         outcome: 'granted',
         subject: { principal: { id: 'u1' }, context: {} },
         matched: { role: 'member', permission: 'post.read' },

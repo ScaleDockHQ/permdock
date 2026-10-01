@@ -38,7 +38,12 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = {
   readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
   readonly otel?: OtelOptions;
-  readonly endpoint?: string;
+  /**
+   * Where `PermDockProvider` sends checks the snapshot cannot answer; default `/api/permdock`.
+   * `false` is snapshot-only: no `permdockHandler` route, and those checks are denied with
+   * reason `server-only`.
+   */
+  readonly endpoint?: string | false;
 };
 
 export type GetPermDockQuery = {
@@ -67,7 +72,8 @@ export type ServerPermDockProviderProps = {
     | { readonly [key: string]: unknown }
   )[];
   readonly tenants?: 'all';
-  readonly endpoint?: string;
+  /** Overrides the factory's `endpoint`; `false` is snapshot-only. */
+  readonly endpoint?: string | false;
 };
 
 export type PermDockHandler = {

@@ -60,6 +60,7 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 | `deny` | A deny matched (overrides everything) |
 | `closure-error` | A closure threw; treated as no match |
 | `opaque-condition` | An imported opaque condition cannot be evaluated in memory |
+| `server-only` | Client only: the snapshot cannot answer (a closure, graph relation or period grant, or a permission outside `include`) and the provider has no endpoint to ask, because none was given or it is `endpoint: false` ([Next.js Cache Components](/docs/guides/next-cache-components#snapshot-only-mode)); `role` is `null` |
 | `anonymous` | No principal |
 | `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
 | `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge; also a break-glass or activation `assurance` that was not met ([elevated access](/docs/concepts/elevated-access)) |

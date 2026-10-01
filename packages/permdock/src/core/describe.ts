@@ -129,7 +129,7 @@ export function describe(decision: Decision): DecisionDescription {
     ? 'tenant'
     : reasons.some((reason) => DELEGATION_REASONS.has(reason))
       ? 'delegation'
-      : reasons.includes('opaque-condition')
+      : reasons.includes('opaque-condition') || reasons.includes('server-only')
         ? 'server-only'
         : 'denied';
   const title =

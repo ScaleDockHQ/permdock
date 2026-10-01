@@ -50,7 +50,7 @@ const { principal, actor, simulated } = useSubject()
 
 | Export | Role |
 |---|---|
-| `PermDockProvider` | Takes `snapshot` (from the server) or `snapshotPromise` (an unawaited `Promise<Snapshot>` from a Server Component), an optional `endpoint` and an optional initial `tenant`. Holds one snapshot-backed `PermDock` in an external store and exposes it through context. With `snapshotPromise`, hooks suspend through `use()` until it resolves and a new promise replaces the snapshot; a rejected promise reaches the nearest error boundary. A resolved JWS goes through `verifier` like `snapshot`. Accepts `fetch` and `headers` options for the endpoint call. |
+| `PermDockProvider` | Takes `snapshot` (from the server) or `snapshotPromise` (an unawaited `Promise<Snapshot>` from a Server Component), an optional `endpoint` (`false` never fetches) and an optional initial `tenant`. Holds one snapshot-backed `PermDock` in an external store and exposes it through context. With `snapshotPromise`, hooks suspend through `use()` until it resolves and a new promise replaces the snapshot; a rejected promise reaches the nearest error boundary. A resolved JWS goes through `verifier` like `snapshot`. Accepts `fetch` and `headers` options for the endpoint call. |
 | `usePermDock` | Returns the snapshot-backed instance: `can`, `decide`, `filter`, `actions`, `status`, `invalidate`, `refresh`, plus `tenant()`, `team()`, `memberships()`, `tenants()`, `heldRoles()`, `assignableRoles()`, `assignablePermissions()`. Subscribes with `useSyncExternalStore`, so every consumer re-renders when the snapshot or an endpoint answer changes. |
 | `usePermission` | Returns `allowed`, `status` and the full `decision` for one permission and, for instance actions, one resource. Refetches when the resource `id` changes, not only when the reference changes. |
 | `usePermissions` | Several references at once against one resource; one entry per reference from a single snapshot pass. The menu and toolbar hook. |
@@ -63,7 +63,7 @@ const { principal, actor, simulated } = useSubject()
 
 `describe(decision)` is exported from `permdock` (core, framework-free) and turns a `Decision` into `{ kind, title, detail, alternatives }` for tooltips and disabled states; the [UI concept page](/docs/concepts/ui) covers the patterns.
 
-`status` values: `ready` (answered from the snapshot or a cached endpoint answer), `pending` (endpoint request in flight), `stale` (a previous answer is shown while a revalidation runs), `server-only` (the grant depends on a closure or async context and no endpoint is configured; `allowed` is `false`).
+`status` values: `ready` (answered from the snapshot or a cached endpoint answer), `pending` (endpoint request in flight), `stale` (a previous answer is shown while a revalidation runs), `server-only` (the grant depends on a closure or async context and no endpoint is configured; `allowed` is `false` and the denial reason is `server-only`). With `endpoint={false}` the provider never fetches and logs one `console.info` naming the first permission that turned into a `server-only` denial, so a snapshot-only app sees which check needs the server.
 
 ## Request lifecycle
 
