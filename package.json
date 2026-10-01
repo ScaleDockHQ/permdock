@@ -18,7 +18,7 @@
     "env:pull": "vercel env pull .env.development.local --environment=development --yes && vercel env pull .env.preview.local --environment=preview --yes && vercel env pull .env.production.local --environment=production --yes",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "knip": "knip --config knip.mts",
+    "knip": "turbo run typegen --filter=@permdock/e2e-sveltekit-saas --filter=@permdock/e2e-nuxt-saas --filter=@permdock/e2e-tanstack-start-saas --filter=@permdock/example-prisma && knip --config knip.mts",
     "lint": "pnpm run lint:root && turbo run lint",
     "lint:root": "oxlint commitlint.config.ts oxfmt.config.ts oxlint.config.ts scripts vitest.config.ts",
     "marketing:dev": "turbo run dev --filter=marketing --filter=docs",

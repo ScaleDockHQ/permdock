@@ -4,6 +4,9 @@
   "tags": ["example"],
   "tasks": {
     "build": {
+      "dependsOn": ["^build", "typegen"]
+    },
+    "typegen": {
       "outputs": ["src/generated/**"]
     }
   }
