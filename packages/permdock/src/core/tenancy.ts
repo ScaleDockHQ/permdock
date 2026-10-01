@@ -22,21 +22,28 @@ export function nowSeconds(now?: number): number {
 
 export function isMembershipExpired(
   membership: Membership,
-  now: number,
+  now?: number,
 ): boolean {
-  return membership.expiresAt !== undefined && membership.expiresAt <= now;
+  return (
+    membership.expiresAt !== undefined &&
+    membership.expiresAt <= (now ?? nowSeconds())
+  );
 }
 
-/** The instances of the first scope the subject holds any membership in. */
+/** The instances of the first scope the subject holds a live membership in. */
 export function tenantsOf(
   principal: Principal | null,
   scopes: readonly Scope[],
+  now?: number,
 ): readonly string[] {
   if (principal === null) {
     return [];
   }
   const tenants = new Set<string>();
   for (const membership of principal.memberships ?? []) {
+    if (isMembershipExpired(membership, now)) {
+      continue;
+    }
     const tenant = tenantOf(membership, scopes);
     if (tenant !== undefined) {
       tenants.add(tenant);
@@ -45,18 +52,21 @@ export function tenantsOf(
   return [...tenants];
 }
 
-/** `requested` when a membership sits in that instance of the first scope; never a default. */
+/** `requested` when a live membership sits in that instance of the first scope; never a default. */
 export function resolveActiveTenant(
   principal: Principal,
   requested: string | undefined,
   scopes: readonly Scope[],
+  now?: number,
 ): string | undefined {
   if (requested === undefined) {
     return principal.tenant;
   }
   const memberships = principal.memberships ?? [];
   const match = memberships.some(
-    (membership) => tenantOf(membership, scopes) === requested,
+    (membership) =>
+      !isMembershipExpired(membership, now) &&
+      tenantOf(membership, scopes) === requested,
   );
   return match ? requested : undefined;
 }

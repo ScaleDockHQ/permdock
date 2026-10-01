@@ -311,14 +311,17 @@ describe('ownership: decideRoleChange (CentraKit assertion 8)', () => {
 
   it('keeps the contact role off staff memberships and admin off contacts', async () => {
     const owner = await dockFor(personas.owner);
-    const contact = owner.decideRoleChange({
-      kind: 'assign',
-      role: 'contact',
-      scope: 'customer',
-      id: 'A',
-      within: { organization: 'T' },
-      target: staffTarget,
-    });
+    const contact = owner.decideRoleChange(
+      {
+        kind: 'assign',
+        role: 'contact',
+        scope: 'customer',
+        id: 'A',
+        within: { organization: 'T' },
+        target: staffTarget,
+      },
+      { trusted: true },
+    );
     expect(reasons(contact)).toEqual(['not-allowed-for-membership']);
     const admin = owner.decideRoleChange(
       inT({ role: 'admin', target: { id: 'u_c', via: 'contact', roles: [] } }),
@@ -326,7 +329,7 @@ describe('ownership: decideRoleChange (CentraKit assertion 8)', () => {
     expect(reasons(admin)).toEqual(['not-allowed-for-membership']);
   });
 
-  it('lets an organization admin assign a customer role through within', async () => {
+  it('lets an organization admin assign a customer role through a trusted within', async () => {
     const admin = await dockFor(personas.admin);
     const change: RoleChange = {
       kind: 'assign',
@@ -336,14 +339,36 @@ describe('ownership: decideRoleChange (CentraKit assertion 8)', () => {
       within: { organization: 'T' },
       target: { id: 'u_c', via: 'contact', roles: [] },
     };
-    expect(admin.decideRoleChange(change)).toMatchObject({
+    expect(admin.decideRoleChange(change, { trusted: true })).toMatchObject({
       outcome: 'granted',
       role: 'admin',
     });
     const { within: _, ...bare } = change;
-    expect(reasons(admin.decideRoleChange(bare))).toEqual([
-      'not-assignable-by',
+    expect(reasons(admin.decideRoleChange(bare, { trusted: true }))).toEqual([
+      'no-membership',
     ]);
+  });
+
+  it('does not take a nested instance tenant from an untrusted within', async () => {
+    const admin = await dockFor(personas.admin);
+    const assign: RoleChange = {
+      kind: 'assign',
+      role: 'contact',
+      scope: 'customer',
+      id: 'C',
+      within: { organization: 'T' },
+      target: { id: 'u_c', via: 'contact', roles: [] },
+    };
+    expect(reasons(admin.decideRoleChange(assign))).toEqual(['no-membership']);
+    expect(
+      reasons(
+        admin.decideRoleChange({
+          ...assign,
+          kind: 'revoke',
+          target: { id: 'u_staff_contact', via: 'contact', roles: ['contact'] },
+        }),
+      ),
+    ).toEqual(['no-membership']);
   });
 
   it('denies anonymous callers, unknown roles and the wrong scope', async () => {
@@ -492,5 +517,124 @@ describe('ownership: rank and audiences', () => {
     expect(fromSnapshot(snapshot).audiences()).toEqual(['portal']);
     const bare = (await dockFor(personas.mechanic)).snapshot();
     expect(bare).not.toHaveProperty('audiences');
+  });
+});
+
+describe('ownership: authority comes from live, held memberships', () => {
+  const tree = definePermissions({
+    doc: resource({
+      actions: ['read', 'delete'],
+      relations: { org: { field: 'org_id', memberOf: 'org' } },
+    }),
+    member: resource({ collection: { assignRole: { manageRoles: true } } }),
+  });
+  const scoped = definePolicy(tree, {
+    scopes: { org: { key: 'org_id' }, team: { key: 'team_id', within: 'org' } },
+    subject: (user: Principal | null) => user,
+    roles: [
+      role('admin', [allow([tree.doc.read, tree.doc.delete])], {
+        on: 'org',
+        assignable: true,
+      }),
+      role('member', [allow(tree.doc.read)], { on: 'org', assignable: true }),
+      role('manager', [allow(tree.member.assignRole)], { on: 'org' }),
+      role('lead', [], { on: 'team', assignable: true, assigns: ['crew'] }),
+      role('crew', [], { on: 'team', assignable: true }),
+    ],
+  });
+
+  it('gives an expired membership no assign authority', async () => {
+    const dock = await createPermDock(scoped, {
+      id: 'u_alice',
+      tenant: 'T',
+      memberships: [
+        { scope: 'org', id: 'T', roles: ['member'] },
+        {
+          scope: 'org',
+          id: 'T',
+          roles: ['admin'],
+          via: 'elevated',
+          expiresAt: 1,
+        },
+      ],
+    });
+    expect(dock.can(tree.doc.delete, { id: 'd', org_id: 'T' })).toBe(false);
+    expect(dock.assignableRoles().map((leaf) => leaf.key)).not.toContain(
+      'admin',
+    );
+    expect(
+      dock.decideRoleChange({
+        kind: 'assign',
+        role: 'admin',
+        scope: 'org',
+        id: 'T',
+        target: { id: 'u_bob', roles: ['member'] },
+      }).outcome,
+    ).toBe('denied');
+  });
+
+  it('lists no tenant reached only through an expired membership', async () => {
+    const dock = await createPermDock(scoped, {
+      id: 'u_alice',
+      memberships: [{ scope: 'org', id: 'T', roles: ['admin'], expiresAt: 1 }],
+    });
+    expect(dock.tenants()).toEqual([]);
+    const pinned = await createPermDock(
+      scoped,
+      {
+        id: 'u_alice',
+        memberships: [
+          { scope: 'org', id: 'T', roles: ['admin'], expiresAt: 1 },
+        ],
+      },
+      { tenant: 'T' },
+    );
+    expect(pinned.subject.principal?.tenant).toBeUndefined();
+  });
+
+  it('denies a nested change with no within to a manageRoles holder', async () => {
+    const dock = await createPermDock(scoped, {
+      id: 'u_a',
+      tenant: 'T',
+      memberships: [{ scope: 'org', id: 'T', roles: ['manager'] }],
+    });
+    expect(
+      reasons(
+        dock.decideRoleChange({
+          kind: 'assign',
+          role: 'lead',
+          scope: 'team',
+          id: 'X_of_B',
+          target: { id: 'u_x', roles: [] },
+        }),
+      ),
+    ).toEqual(['no-membership']);
+  });
+
+  it('takes the tenant from the membership the actor holds on the instance', async () => {
+    const dock = await createPermDock(scoped, {
+      id: 'u_lead',
+      tenant: 'A',
+      memberships: [
+        { scope: 'team', id: 'X', within: { org: 'A' }, roles: ['lead'] },
+      ],
+    });
+    const change: RoleChange = {
+      kind: 'assign',
+      role: 'crew',
+      scope: 'team',
+      id: 'X',
+      target: { id: 'u_c', roles: [] },
+    };
+    expect(dock.decideRoleChange(change)).toMatchObject({
+      outcome: 'granted',
+      role: 'lead',
+    });
+    expect(
+      dock.decideRoleChange({ ...change, within: { org: 'A' } }).outcome,
+    ).toBe('granted');
+    expect(
+      reasons(dock.decideRoleChange({ ...change, within: { org: 'B' } })),
+    ).toEqual(['no-membership']);
   });
 });

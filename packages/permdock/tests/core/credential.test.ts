@@ -646,3 +646,51 @@ describe('credential events', () => {
     ).not.toHaveProperty('sample');
   });
 });
+
+describe('decideCredential: expired creator memberships', () => {
+  const tree = definePermissions({
+    doc: resource({
+      actions: ['read', 'delete'],
+      relations: { org: { field: 'org_id', memberOf: 'org' } },
+    }),
+  });
+  const scoped = definePolicy(tree, {
+    scopes: { org: { key: 'org_id' } },
+    subject: (user: Principal | null) => user,
+    roles: [
+      role('admin', [allow([tree.doc.read, tree.doc.delete])], {
+        on: 'org',
+        assignable: true,
+        meta: { manageRoles: true },
+      }),
+    ],
+  });
+
+  it('refuses a key in a tenant held only through an expired manageRoles membership', async () => {
+    const expiredAdmin = await createPermDock(scoped, {
+      id: 'u_alice',
+      tenant: 'T',
+      memberships: [
+        {
+          scope: 'org',
+          id: 'T',
+          roles: ['admin'],
+          via: 'elevated',
+          expiresAt: 1,
+        },
+      ],
+    });
+    const decision = await decideCredential(expiredAdmin, {
+      kind: 'service',
+      id: 'k1',
+      tenant: 'T',
+      roles: ['admin'],
+      permissions: [tree.doc.delete],
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    });
+    expect(decision.outcome).toBe('denied');
+    if (decision.outcome === 'denied') {
+      expect(decision.denials[0]?.reason).toBe('exceeds-creator');
+    }
+  });
+});

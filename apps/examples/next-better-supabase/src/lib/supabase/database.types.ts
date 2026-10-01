@@ -81,19 +81,25 @@ export type Database = {
       }
       datetime_preferences: {
         Row: {
-          hour_cycle: string
-          time_zone: string
+          date_format: string
+          time_format: string
+          timezone: string
           user_id: string
+          week_start: string
         }
         Insert: {
-          hour_cycle: string
-          time_zone: string
+          date_format: string
+          time_format: string
+          timezone: string
           user_id: string
+          week_start: string
         }
         Update: {
-          hour_cycle?: string
-          time_zone?: string
+          date_format?: string
+          time_format?: string
+          timezone?: string
           user_id?: string
+          week_start?: string
         }
         Relationships: []
       }

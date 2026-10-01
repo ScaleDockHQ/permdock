@@ -432,8 +432,24 @@ describe('permdock supabase hook generate', () => {
     const drift = await run([...out, '--check'], { cwd });
     expect(drift.code).toBe(1);
     expect(drift.stdout).toContain('differs in tenantClaim');
-    const bare = await run(['supabase', 'inspect', '--check'], { cwd });
-    expect(bare.code).toBe(2);
+  });
+
+  it('defaults --out and --check to permdock.manifest.json', async () => {
+    const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
+    const missing = await run(['supabase', 'inspect', '--check'], { cwd });
+    expect(missing.code).toBe(1);
+    expect(missing.stdout).toContain('missing permdock.manifest.json');
+    const wrote = await run(['supabase', 'inspect', '--out'], { cwd });
+    expect(wrote.stdout).toContain('wrote permdock.manifest.json');
+    const inspect = await run(['supabase', 'inspect', '--json'], { cwd });
+    expect(
+      JSON.parse(readFileSync(join(cwd, 'permdock.manifest.json'), 'utf8')),
+    ).toEqual(JSON.parse(inspect.stdout));
+    const check = await run(['supabase', 'inspect', '--out', '--check'], {
+      cwd,
+    });
+    expect(check).toMatchObject({ code: 0 });
+    expect(check.stdout).toContain('supabase manifest up to date');
   });
 
   it('warns with PD039 until the helpers exist in the configured schema', async () => {

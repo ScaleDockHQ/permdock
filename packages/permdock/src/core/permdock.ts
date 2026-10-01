@@ -14,7 +14,11 @@ import type {
   Snapshot,
   TokenSigner,
 } from './interfaces.ts';
-import type { RoleChange, RoleChangeDecision } from './ownership.ts';
+import type {
+  RoleChange,
+  RoleChangeDecision,
+  RoleChangeOptions,
+} from './ownership.ts';
 import type { Permission, ResourceNode } from './permissions.ts';
 import type { Policy, PolicyVocabulary } from './policy.ts';
 import type { Scope } from './scopes.ts';
@@ -186,9 +190,14 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * Whether the subject may assign, revoke or transfer a role in one scope
    * instance: `assigns`, the ceiling, `for`, `exclusiveWith`, `min`, `max`
    * and `transferOnly`. It never writes; the application does, and generated
-   * RLS triggers re-check the holder counts at commit.
+   * RLS triggers re-check the holder counts at commit. A nested instance's
+   * tenant comes from a live membership the subject holds on it, or from
+   * `change.within` only with `{ trusted: true }`; otherwise `no-membership`.
    */
-  readonly decideRoleChange: (change: RoleChange) => RoleChangeDecision;
+  readonly decideRoleChange: (
+    change: RoleChange,
+    options?: RoleChangeOptions,
+  ) => RoleChangeDecision;
   /**
    * Loads the relation facts `permission` needs for `rows` into this
    * instance's cache, so `can`, `decide` and `filter` answer synchronously

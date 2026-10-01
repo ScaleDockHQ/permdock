@@ -68,11 +68,13 @@ permdock.decideRoleChange({
   within: undefined,                 // ancestor ids, for a role on a nested scope
   target: { id: 'u_bob', via: 'staff', roles: ['member'] },   // their membership there now
   holders: 1,                        // how many hold the role in the instance now
-})
+}, { trusted: false })               // true only when `within` came from your own store
 // { outcome: 'granted', change, role: 'owner' } or { outcome: 'denied', change, denials }
 ```
 
 The actor is always the instance's own subject; nothing in the change can stand in for it. The application supplies what only its store knows: the target's current membership in the instance and the holder count. `decideRoleChange` never writes.
+
+Authority comes from memberships the subject holds now. An expired membership gives no tenant and no assign authority. For a role on a nested scope, the tenant and ancestors are read from the subject's own live membership at that instance (or at one of its ancestors), and a `within` that disagrees is denied with `no-membership`. When the subject holds nothing at the instance, as an organization admin assigning a role on a customer does, `within` is taken from the change only with `{ trusted: true }`, which the application passes after loading the customer's ancestors from its own store. Without either, the change is denied with `no-membership`.
 
 | Rule | Checked on | Denial reason |
 | --- | --- | --- |
@@ -92,9 +94,13 @@ export async function changeRole(input: unknown) {
   const permdock = await getPermDock()
   permdock.assert(permissions.member.assignRole)
   const change = RoleChangeSchema.parse(input)                    // boundary data: validate it
+  const within = await db.scopes.ancestors(change.scope, change.id) // never from the request
   const target = await db.memberships.find(change.scope, change.id, change.targetId)
   const holders = await db.memberships.count(change.scope, change.id, change.role)
-  const decision = permdock.decideRoleChange({ ...change, target, holders })
+  const decision = permdock.decideRoleChange(
+    { ...change, within, target, holders },
+    { trusted: true },
+  )
   if (decision.outcome === 'denied') return { denials: decision.denials }
   await db.memberships.apply(change)                              // the triggers re-check at commit
   return { changed: true }
@@ -143,4 +149,5 @@ Ownership rules are the part of role management every B2B product writes by hand
 - **Membership kind is a security boundary.** Shopify collaborators, Slack guests, Figma and Linear external members, and Microsoft GDAP partners all stop external people from reaching admin by the kind of membership, not by the role name. Dropping the role when the kind does not match, at resolution and in the RLS helpers, means a mis-provisioned membership fails closed everywhere at once.
 - **Counts are checked at commit.** A transfer is two changes (promote one, demote the other); checking after each statement would refuse every transfer or require a special API. A deferred constraint trigger sees the final state, and an instance with no memberships left is being torn down, so deleting an organization still works. `transferOnly` cannot be deferred (transition tables are statement-level), which is why it refuses per statement and treats "through zero" as a transfer.
 - **The application supplies the holder count.** PermDock never reads another user's memberships at decide time: the store is the application's, and a count read inside `decide` would be a hidden network call. Failing closed on a missing count keeps a forgotten argument from becoming a silent pass; the trigger is the backstop.
+- **Ancestors come from a held membership or the application's store.** The tenant decides which assign authority applies, and a nested change names its tenant through `within`. Read from the request, a `within` naming the caller's own organization would let a lead in one organization hand out roles on another organization's team. Reading it from the subject's live membership closes that, and `{ trusted: true }` covers the one case a membership cannot: an organization admin acting on a scope they do not belong to, where only the application's store knows the parent. It matches `trusted` on `decide`: the caller marks the data it loaded itself.
 - **Audiences are metadata, not permissions.** A layout switch keyed on role names drifts every time a role is added. `meta.audience` names the surface once per role, and `audiences()` stays a read of held roles, so it can never grant anything.

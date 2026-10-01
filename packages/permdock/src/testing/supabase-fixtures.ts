@@ -233,7 +233,12 @@ export const supabaseClaimFixtures: Readonly<
       memberships_truncated: true,
       attrs: { department: 'finance', clearance: 2 },
       authz_ver: 7,
-      datetime_preferences: { timeZone: 'Europe/Amsterdam', hourCycle: 'h23' },
+      datetime_preferences: {
+        timezone: 'Europe/Amsterdam',
+        week_start: 'monday',
+        date_format: 'dd-MM-yyyy',
+        time_format: '24h',
+      },
       app_metadata: { provider: 'email', providers: ['email'] },
     },
     expect: {

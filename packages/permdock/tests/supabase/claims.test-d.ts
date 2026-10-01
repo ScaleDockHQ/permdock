@@ -37,12 +37,12 @@ describe('supabaseClaims() output types', () => {
   it('merges a Zod and a valibot extension', () => {
     const schema = supabaseClaims()
       .extend(
-        z.object({ datetime_preferences: z.object({ timeZone: z.string() }) }),
+        z.object({ datetime_preferences: z.object({ timezone: z.string() }) }),
       )
       .extend(v.object({ locale: v.string() }));
     type Out = StandardSchemaV1.InferOutput<typeof schema>;
     expectTypeOf<Out['datetime_preferences']>().toEqualTypeOf<{
-      timeZone: string;
+      timezone: string;
     }>();
     expectTypeOf<Out['locale']>().toEqualTypeOf<string>();
     expectTypeOf<Out['memberships']>().toEqualTypeOf<

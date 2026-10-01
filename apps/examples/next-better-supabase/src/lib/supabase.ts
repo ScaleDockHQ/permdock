@@ -10,7 +10,12 @@ import { schema } from './supabase/generated.ts';
 /** The app's own claim (`supabase.hook.claims`); `supabaseClaims()` covers PermDock's. */
 const appClaims = z.object({
   datetime_preferences: z
-    .object({ time_zone: z.string(), hour_cycle: z.enum(['h12', 'h23']) })
+    .object({
+      timezone: z.string(),
+      week_start: z.enum(['monday', 'sunday']),
+      date_format: z.string(),
+      time_format: z.enum(['12h', '24h']),
+    })
     .optional(),
 });
 

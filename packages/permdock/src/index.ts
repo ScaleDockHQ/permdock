@@ -253,6 +253,7 @@ export type {
 export type {
   RoleChange,
   RoleChangeDecision,
+  RoleChangeOptions,
   RoleChangeTarget,
 } from './core/ownership.ts';
 export {

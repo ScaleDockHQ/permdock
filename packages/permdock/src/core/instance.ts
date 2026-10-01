@@ -46,6 +46,7 @@ import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
 import {
   type RoleChange,
   type RoleChangeDecision,
+  type RoleChangeOptions,
   applyRoleKinds,
   audiencesOf,
   decideRoleChange,
@@ -124,14 +125,16 @@ function includePrefixes(
 }
 
 /**
- * Role names held in `tenant`, global roles included, in rank order. With
- * `scope`, only the roles of that scope's memberships (and instance `id`).
+ * Role names held in `tenant` on live memberships, global roles included, in
+ * rank order. With `scope`, only the roles of that scope's memberships (and
+ * instance `id`).
  */
 function heldRoleNames(
   policy: Policy,
   subject: Subject,
   tenant?: string,
   only?: { readonly scope?: string; readonly id?: string },
+  now?: number,
 ): readonly string[] {
   if (subject.principal === null) {
     return [];
@@ -146,6 +149,9 @@ function heldRoleNames(
     scope === undefined ? (subject.principal.roles ?? []) : [],
   );
   for (const membership of subject.principal.memberships ?? []) {
+    if (isMembershipExpired(membership, now)) {
+      continue;
+    }
     const matches =
       scope === undefined
         ? tenantOf(membership, scopes) === tenant
@@ -379,7 +385,7 @@ function assignableIn(
             ...subject,
             principal: compact<Principal>({
               ...principal,
-              tenant: resolveActiveTenant(principal, tenant, scopes),
+              tenant: resolveActiveTenant(principal, tenant, scopes, now),
             }),
           }),
         );
@@ -394,7 +400,7 @@ function assignableIn(
       )
       .map((item) => item.grant.permission.key),
   );
-  const heldNames = heldRoleNames(policy, subject, tenant);
+  const heldNames = heldRoleNames(policy, subject, tenant, undefined, now);
   const quiet: EvalEnv = {
     emit: false,
     simulated: true,
@@ -482,7 +488,13 @@ export function snapshotOf(
   const now = options.now ?? nowSeconds();
   const customGrants =
     options.customGrants ?? customGrantsFor(policy, options.customRoles);
-  const roles = heldRoleNames(policy, subject, subject.principal?.tenant);
+  const roles = heldRoleNames(
+    policy,
+    subject,
+    subject.principal?.tenant,
+    undefined,
+    now,
+  );
   const audiences = audiencesOf(policy, roles);
   return buildSnapshot(
     compact<Parameters<typeof buildSnapshot>[0]>({
@@ -1078,7 +1090,10 @@ export function buildInstance(
       const tenant = options?.tenant ?? subject.principal?.tenant;
       return tenant === undefined ? [] : assignableAt(tenant).permissions;
     },
-    decideRoleChange(change: RoleChange): RoleChangeDecision {
+    decideRoleChange(
+      change: RoleChange,
+      options?: RoleChangeOptions,
+    ): RoleChangeDecision {
       return decideRoleChange(
         policy,
         subject.principal,
@@ -1092,6 +1107,7 @@ export function buildInstance(
           };
         },
         nowSeconds(),
+        options,
       );
     },
     activate(input: ActivateInput): Decision {

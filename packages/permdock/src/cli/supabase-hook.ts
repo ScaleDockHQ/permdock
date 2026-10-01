@@ -56,7 +56,7 @@ export const SUPABASE_HELP = `permdock supabase hook generate | inspect
   hook generate [--out supabase/permdock-hook.sql] [--check] [--db <url>]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                 [--budget 1024] [--schema public] [--grants-out <file>|-]
-  inspect [--json] [--out permdock.manifest.json] [--check]
+  inspect [--json] [--out [permdock.manifest.json]] [--check]
 
 Reads supabase.hook from permdock.config.ts: the fromTable / fromJunction sources the app
 passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
@@ -64,8 +64,11 @@ needs (in --grants-out instead, for declarative schemas), the permdock_authz_ver
 and its triggers. Never grants anything to
 service_role. inspect prints the manifest: helper schema, names and signatures, tenant claim,
 budget, the claims the hook writes, the membership sources and the columns that decide them.
---out writes it as JSON; --check exits 1 when that file differs.
+--out writes it as JSON, to permdock.manifest.json without a path; --check exits 1 when that
+file differs.
 `;
+
+const MANIFEST_FILE = 'permdock.manifest.json';
 
 export const MANAGED_TRIGGER = 'permdock_protect_managed';
 
@@ -1135,7 +1138,8 @@ export async function runSupabase(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
   readonly rest: readonly string[];
-  readonly out?: string;
+  /** `true` for a bare `--out`. */
+  readonly out?: string | true;
   readonly check: boolean;
   readonly json?: boolean;
   readonly db?: string;
@@ -1156,14 +1160,13 @@ export async function runSupabase(input: {
   if (area === 'inspect' && action === undefined) {
     const scopes = await loadScopes(input.cwd, input.config);
     const manifest = supabaseHookManifest(scopes, input.config, overrides);
-    if (input.out !== undefined) {
-      return manifestFile(input.cwd, input.out, manifest, input.check);
-    }
-    if (input.check) {
-      return {
-        code: 2,
-        output: 'supabase inspect --check needs --out <file>',
-      };
+    if (input.out !== undefined || input.check) {
+      return manifestFile(
+        input.cwd,
+        typeof input.out === 'string' ? input.out : MANIFEST_FILE,
+        manifest,
+        input.check,
+      );
     }
     return {
       code: 0,
@@ -1183,7 +1186,8 @@ export async function runSupabase(input: {
     overrides,
     grantsLabel(input.grantsOut),
   );
-  const outRel = input.out ?? defaultOut(input.config);
+  const outRel =
+    typeof input.out === 'string' ? input.out : defaultOut(input.config);
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
   const grantsFile: readonly SqlFile[] =

@@ -113,7 +113,7 @@ describe('supabaseClaims()', () => {
   }
 
   it('passes unknown claims through unchanged', () => {
-    const claims = { sub, datetime_preferences: { timeZone: 'UTC' }, x: [1] };
+    const claims = { sub, datetime_preferences: { timezone: 'UTC' }, x: [1] };
     expect(validate(schema, claims)).toEqual({ value: claims });
   });
 
@@ -160,8 +160,10 @@ describe('supabaseClaims().extend', () => {
     const schema = supabaseClaims().extend(
       z.object({
         datetime_preferences: z.object({
-          timeZone: z.string(),
-          hourCycle: z.enum(['h12', 'h23']),
+          timezone: z.string(),
+          week_start: z.enum(['monday', 'sunday']),
+          date_format: z.string(),
+          time_format: z.enum(['12h', '24h']),
         }),
       }),
     );
@@ -169,7 +171,7 @@ describe('supabaseClaims().extend', () => {
     expect(result.issues).toBeUndefined();
     expect('value' in result && result.value).toMatchObject({
       memberships: full['memberships'],
-      datetime_preferences: { timeZone: 'Europe/Amsterdam', hourCycle: 'h23' },
+      datetime_preferences: full['datetime_preferences'],
     });
   });
 
@@ -185,7 +187,7 @@ describe('supabaseClaims().extend', () => {
 
   it('combines the issues of the base and the app schema', () => {
     const schema = supabaseClaims().extend(
-      z.object({ datetime_preferences: z.object({ timeZone: z.string() }) }),
+      z.object({ datetime_preferences: z.object({ timezone: z.string() }) }),
     );
     const result = validate(schema, { sub, roles: 'admin' });
     expect(result.issues?.map((item) => item.path?.[0])).toEqual([

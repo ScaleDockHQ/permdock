@@ -6,7 +6,13 @@ import type { Role, RoleMeta } from './vocabulary.ts';
 import { compact, isReadonlyArray } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { declaredRoleNames } from './policy.ts';
-import { type Scope, resolveScope, scopeChain, scopeIdOf } from './scopes.ts';
+import {
+  type Scope,
+  resolveScope,
+  scopeChain,
+  scopeIdOf,
+  tenantOf,
+} from './scopes.ts';
 import { isMembershipExpired } from './tenancy.ts';
 import { findRole, listRoles } from './vocabulary.ts';
 
@@ -317,6 +323,37 @@ function countRules(
   }
 }
 
+export type RoleChangeOptions = {
+  /**
+   * `true` when the application loaded `change.within` from its own store
+   * (the instance's stored parent), not from the request. Without it, a
+   * nested instance's tenant comes only from a live membership the actor
+   * holds on that instance or under it.
+   */
+  readonly trusted?: boolean;
+};
+
+/**
+ * A live membership of the principal on the instance or on an instance under
+ * it: the one in-band fact that ties a nested instance to a tenant.
+ */
+function heldAnchor(
+  principal: Principal,
+  scopes: readonly Scope[],
+  scope: string,
+  id: string,
+  now: number,
+): Membership | undefined {
+  return (principal.memberships ?? []).find(
+    (membership) =>
+      !isMembershipExpired(membership, now) &&
+      membership.scope !== undefined &&
+      scopeChain(scopes, membership.scope).includes(scope) &&
+      scopeIdOf(membership, scope) === id &&
+      tenantOf(membership, scopes) !== undefined,
+  );
+}
+
 export type AssignAuthority = {
   /** Role names the ceiling (`assignableRoles`) lets the actor hand out in the instance's tenant. */
   readonly assignable: ReadonlySet<string>;
@@ -333,8 +370,9 @@ export function decideRoleChange(
   principal: Principal | null,
   scopes: readonly Scope[],
   change: RoleChange,
-  authority: (tenant: string | undefined) => AssignAuthority,
+  authority: (tenant: string) => AssignAuthority,
   now: number,
+  options: RoleChangeOptions = {},
 ): RoleChangeDecision {
   const name =
     typeof change?.role === 'string' ? change.role : change?.role?.key;
@@ -380,14 +418,30 @@ export function decideRoleChange(
     return done(null);
   }
   const root = scopes[0]?.name;
-  const tenant =
-    scope === root
-      ? change.id
-      : change.within === undefined
-        ? undefined
-        : Object.entries(change.within).find(
-            ([key]) => resolveScope(scopes, key) === root,
-          )?.[1];
+  const supplied =
+    change.within === undefined
+      ? undefined
+      : Object.entries(change.within).find(
+          ([key]) => resolveScope(scopes, key) === root,
+        )?.[1];
+  let tenant: string | undefined;
+  let within = change.within;
+  if (scope === root) {
+    tenant = change.id;
+  } else {
+    const anchor = heldAnchor(principal, scopes, scope, change.id, now);
+    const held = anchor === undefined ? undefined : tenantOf(anchor, scopes);
+    if (held !== undefined) {
+      tenant = supplied === undefined || supplied === held ? held : undefined;
+      within = anchor?.within;
+    } else if (options.trusted === true) {
+      tenant = supplied;
+    }
+  }
+  if (tenant === undefined) {
+    deny('no-membership', { scope, id: change.id });
+    return done(null);
+  }
   if (target.managedBy === 'idp') {
     deny('externally-managed');
     return done(null);
@@ -422,7 +476,7 @@ export function decideRoleChange(
         scopes,
         scope,
         change.id,
-        change.within,
+        within,
         now,
       );
       by =

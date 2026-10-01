@@ -400,3 +400,109 @@ describe('purpose of use', () => {
     expect(none.can(purposePermissions.note.read, { id: 'n1' })).toBe(false);
   });
 });
+
+describe('activate binds a nested elevation to the eligible membership', () => {
+  const tree = definePermissions({
+    project: resource(Doc, {
+      id: 'id',
+      collection: ['create'],
+      relations: { team: { field: 'team_id', memberOf: 'team' } },
+    }),
+  });
+  const nested = (approval: boolean) =>
+    definePolicy(tree, {
+      scopes: {
+        org: { key: 'org_id' },
+        team: { key: 'team_id', within: 'org' },
+      },
+      roles: [
+        role('team-admin', [allow(tree.project.create)], {
+          on: 'team',
+          activation: approval
+            ? { maxDuration: '1h', approval: 'human' }
+            : { maxDuration: '1h' },
+        }),
+      ],
+      subject: (user: { readonly principal: Principal } | null) =>
+        user === null ? null : user.principal,
+    });
+  const principal: Principal = {
+    id: 'u_1',
+    tenant: 'A',
+    memberships: [
+      {
+        scope: 'team',
+        id: 'eng',
+        within: { org: 'A' },
+        roles: [],
+        eligible: ['team-admin'],
+      },
+    ],
+  };
+
+  it('refuses a within that differs from the eligible membership', async () => {
+    const dock = await createPermDock(nested(false), {
+      principal,
+      context: {},
+    });
+    const forged = dock.activate({
+      role: 'team-admin',
+      scope: 'team',
+      id: 'eng',
+      within: { org: 'B' },
+    });
+    expect(forged.outcome).toBe('denied');
+    if (forged.outcome === 'denied') {
+      expect(forged.denials[0]?.reason).toBe('no-membership');
+    }
+  });
+
+  it('mints the eligible membership ancestors when within is omitted', async () => {
+    const dock = await createPermDock(nested(false), {
+      principal,
+      context: {},
+    });
+    const decision = dock.activate({
+      role: 'team-admin',
+      scope: 'team',
+      id: 'eng',
+    });
+    expect(decision.outcome).toBe('granted');
+    if (decision.outcome === 'granted') {
+      expect(decision.elevation?.within).toEqual({ org: 'A' });
+    }
+  });
+
+  it('binds the approval token to the ancestors', async () => {
+    const root = await createPermDock(nested(true), {
+      principal,
+      context: {},
+    });
+    const other = await createPermDock(nested(true), {
+      principal: {
+        ...principal,
+        memberships: [
+          { scope: 'org', id: 'A', roles: [] },
+          {
+            scope: 'team',
+            id: 'eng',
+            within: { org: 'C' },
+            roles: [],
+            eligible: ['team-admin'],
+          },
+        ],
+      },
+      context: {},
+    });
+    const a = root.activate({ role: 'team-admin', scope: 'team', id: 'eng' });
+    const c = other.activate({ role: 'team-admin', scope: 'team', id: 'eng' });
+    expect(a.outcome).toBe('approval-required');
+    expect(c.outcome).toBe('approval-required');
+    if (
+      a.outcome === 'approval-required' &&
+      c.outcome === 'approval-required'
+    ) {
+      expect(a.token).not.toBe(c.token);
+    }
+  });
+});

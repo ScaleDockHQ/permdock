@@ -488,6 +488,7 @@ describe('decide alternatives', () => {
               roles: [],
               tenant: user.tenant,
               memberships: [
+                { scope: 'organization', id: user.tenant, roles: [] },
                 {
                   scope: 'organization',
                   id: user.tenant,

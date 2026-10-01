@@ -7,7 +7,7 @@ description: permdock supabase hook generate compiles the app's fromTable and fr
 permdock supabase hook generate [--out supabase/permdock-hook.sql] [--check] [--db <url>]
                                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                                 [--budget 1024] [--schema public] [--grants-out <file>|-]
-permdock supabase inspect [--json] [--out permdock.manifest.json] [--check]
+permdock supabase inspect [--json] [--out [permdock.manifest.json]] [--check]
 ```
 
 Reads `supabase.hook` from `permdock.config.ts` and the policy's scopes, and writes one idempotent SQL migration: `custom_access_token_hook(jsonb)`, the `supabase_auth_admin` grants and revokes, the `permdock_authz_version` table with its triggers, and the `permdock_protect_managed` trigger for IdP-owned rows. It prints the `config.toml` block (`jwt_expiry = 900` and the hook `uri`) to add. It never grants anything to `service_role`. The [Supabase token hook](/docs/adapters/supabase-hook) page covers the claims and the runtime side.
@@ -39,7 +39,7 @@ parseHookMarker(sql)   // { version: 1, schema, tenantClaim, budget, claims } | 
 parseGrantsMarker(sql) // { version: 1, schema } | undefined
 ```
 
-Both read only the first line of `sql` and return `undefined` when it is not a marker. `version` is the marker's major; a reader that knows only `v1` treats any other value as unknown.
+Both read only the first line of `sql` and return `undefined` when it is not a marker. Their results are typed `SupabaseHookMarker` and `SupabaseGrantsMarker`, also exported from `permdock/cli`. `version` is the marker's major; a reader that knows only `v1` treats any other value as unknown.
 
 ## inspect
 
@@ -48,12 +48,12 @@ Both read only the first line of `sql` and return `undefined` when it is not a m
 | Flag | Values | Default | Effect |
 | --- | --- | --- | --- |
 | `--json` | flag | off | Print the manifest as JSON instead of text |
-| `--out` | a path | none | Write the manifest as JSON to this file, usually `permdock.manifest.json`, instead of printing it |
-| `--check` | flag | off | With `--out`: exit `1` when the file is missing or its JSON differs from the manifest, naming the fields that differ; formatting is ignored. Without `--out`: exit `2` |
+| `--out` | a path, or none | `permdock.manifest.json` | Write the manifest as JSON to this file instead of printing it |
+| `--check` | flag | off | Exit `1` when the `--out` file (`permdock.manifest.json` without `--out`) is missing or its JSON differs from the manifest, naming the fields that differ; formatting is ignored |
 
-It takes `--budget`, `--schema` and `--active-from` like `hook generate`, reads the hook's output file from `supabase.hook.out`, and exits `2` on the same configuration errors.
+It takes `--budget`, `--schema` and `--active-from` like `hook generate`, reads the hook's output file from `supabase.hook.out`, and exits `2` on the same configuration errors. Without `--out` or `--check` it prints and writes nothing. A package that reads the manifest finds it at `permdock.manifest.json` next to `permdock.config.ts` without being told the path.
 
 ```bash
-permdock supabase inspect --out permdock.manifest.json          # in the gen script
-permdock supabase inspect --out permdock.manifest.json --check  # in CI
+permdock supabase inspect --out     # in the gen script
+permdock supabase inspect --check   # in CI
 ```

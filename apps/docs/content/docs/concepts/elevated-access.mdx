@@ -31,7 +31,7 @@ role('admin', ADMIN, {
 });
 ```
 
-`permdock.activate({ role, scope, id, duration, reason })` returns a `Decision`. It is `approval-required` when `activation.approval` is set. Once granted it carries the membership to write under `elevation`:
+`permdock.activate({ role, scope, id, within, duration, reason })` returns a `Decision`. It is `approval-required` when `activation.approval` is set. Once granted it carries the membership to write under `elevation`:
 
 ```ts
 const decision = permdock.activate({
@@ -47,7 +47,7 @@ if (decision.outcome === 'granted') {
 }
 ```
 
-Fail-closed: an unknown role, an ineligible subject, a missing justification when `justification: 'required'`, or stale authentication all deny (`unknown-role`, `no-membership`, `reason-required`, `insufficient-user-authentication`). `duration` is capped at `maxDuration`. Expiry is the existing `expiresAt` check plus the revocation counter; the Supabase hook already includes the elevated row. `permdock doctor` PD033 warns on an `activation` without `maxDuration`, and on an activation role a fixture membership also holds standing.
+Fail-closed: an unknown role, an ineligible subject, a missing justification when `justification: 'required'`, or stale authentication all deny (`unknown-role`, `no-membership`, `reason-required`, `insufficient-user-authentication`). `duration` is capped at `maxDuration`. The elevation's `within` is copied from the eligible membership, never from the input: a `within` that disagrees with it is denied with `no-membership`, and the approval token covers it, so an approval for a team in one organization cannot activate the same team id in another. Expiry is the existing `expiresAt` check plus the revocation counter; the Supabase hook already includes the elevated row. `permdock doctor` PD033 warns on an `activation` without `maxDuration`, and on an activation role a fixture membership also holds standing.
 
 ## Break-glass
 

@@ -3,9 +3,11 @@ import type { AssuranceGrantee } from './grantee.ts';
 import type { Permission, PermissionTree } from './permissions.ts';
 import type { Grant, Policy, SupportSpec } from './policy.ts';
 import type { AssuranceRequirement } from './policy.ts';
+import type { Scope } from './scopes.ts';
 import type { Membership, Subject } from './subject.ts';
 import type { Role } from './vocabulary.ts';
 
+import { canonicalJson } from './canonical-json.ts';
 import { compact, isReadonlyArray, sole } from './compact.ts';
 import { parseDuration } from './duration.ts';
 import { freezeDeep } from './freeze.ts';
@@ -242,6 +244,25 @@ export function isSupportMembership(
   return membership.via !== undefined && vias.has(membership.via);
 }
 
+/**
+ * Whether the caller's `within` names the same ancestors as the eligible
+ * membership. Omitted means "whatever the membership holds"; any entry that
+ * disagrees, or names an ancestor the membership lacks, refuses.
+ */
+function withinAgrees(
+  scopes: readonly Scope[],
+  held: Readonly<Record<string, string>> | undefined,
+  requested: Readonly<Record<string, string>> | undefined,
+): boolean {
+  if (requested === undefined) {
+    return true;
+  }
+  return Object.entries(requested).every(([key, id]) => {
+    const name = resolveScope(scopes, key) ?? key;
+    return held !== undefined && Object.hasOwn(held, name) && held[name] === id;
+  });
+}
+
 export type ActivateInput = {
   readonly role: string | Role;
   /** The scope the activation applies in (a declared name or the `tenant` / `team` alias). */
@@ -292,16 +313,18 @@ export function activate(
   }
   const scopes = scopeList(policy.scopes);
   const scope = resolveScope(scopes, input.scope) ?? input.scope;
-  const eligible = (principal.memberships ?? []).some(
+  const eligible = (principal.memberships ?? []).find(
     (membership) =>
       membership.scope === scope &&
       membership.id === input.id &&
       !isMembershipExpired(membership, now) &&
-      (membership.eligible ?? []).includes(roleName),
+      (membership.eligible ?? []).includes(roleName) &&
+      withinAgrees(scopes, membership.within, input.within),
   );
-  if (!eligible) {
+  if (eligible === undefined) {
     return activationDenied('no-membership');
   }
+  const within = eligible.within;
   if (activation.justification === 'required') {
     const reason = input.reason;
     if (typeof reason !== 'string' || reason === '') {
@@ -325,7 +348,7 @@ export function activate(
     compact<Membership>({
       scope,
       id: input.id,
-      within: input.within,
+      within,
       roles: [roleName],
       via: 'elevated',
       expiresAt: seconds === undefined ? undefined : Math.floor(now) + seconds,
@@ -335,7 +358,10 @@ export function activate(
   );
   const token = decisionToken({
     key: `activate:${roleName}`,
-    resourceId: `${scope}:${input.id}`,
+    resourceId:
+      within === undefined
+        ? `${scope}:${input.id}`
+        : `${scope}:${input.id}@${canonicalJson(within)}`,
     principal,
     actor: subject.actor,
     fingerprint: policy.fingerprint,

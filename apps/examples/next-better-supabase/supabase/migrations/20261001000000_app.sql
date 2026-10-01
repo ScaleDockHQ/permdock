@@ -53,8 +53,10 @@ create index quotes_customer_id_idx on public.quotes (customer_id);
 
 create table public.datetime_preferences (
   user_id uuid primary key references auth.users (id) on delete cascade,
-  time_zone text not null,
-  hour_cycle text not null check (hour_cycle in ('h12', 'h23'))
+  timezone text not null,
+  week_start text not null check (week_start in ('monday', 'sunday')),
+  date_format text not null,
+  time_format text not null check (time_format in ('12h', '24h'))
 );
 
 alter table public.organizations enable row level security;
@@ -82,7 +84,12 @@ stable
 security definer
 set search_path = ''
 as $$
-  select jsonb_build_object('time_zone', p.time_zone, 'hour_cycle', p.hour_cycle)
+  select jsonb_build_object(
+    'timezone', p.timezone,
+    'week_start', p.week_start,
+    'date_format', p.date_format,
+    'time_format', p.time_format
+  )
   from public.datetime_preferences p
   where p.user_id = p_user_id
 $$;

@@ -13,7 +13,8 @@ export type Database = EnrichDatabase<
   {
     public: {
       datetime_preferences: {
-        hour_cycle: "h12" | "h23";
+        week_start: "monday" | "sunday";
+        time_format: "12h" | "24h";
       };
       role_permissions: {
         effect: "allow" | "deny";
@@ -22,8 +23,10 @@ export type Database = EnrichDatabase<
   }
 >;
 
-export const datetime_preferencesHourCycleValues = ["h12", "h23"] as const;
-export type DatetimePreferencesHourCycle = (typeof datetime_preferencesHourCycleValues)[number];
+export const datetime_preferencesWeekStartValues = ["monday", "sunday"] as const;
+export type DatetimePreferencesWeekStart = (typeof datetime_preferencesWeekStartValues)[number];
+export const datetime_preferencesTimeFormatValues = ["12h", "24h"] as const;
+export type DatetimePreferencesTimeFormat = (typeof datetime_preferencesTimeFormatValues)[number];
 export const role_permissionsEffectValues = ["allow", "deny"] as const;
 export type RolePermissionsEffect = (typeof role_permissionsEffectValues)[number];
 export type Models = {
@@ -89,23 +92,29 @@ export type Models = {
   datetime_preferences: {
     Row: {
       user_id: string;
-      time_zone: string;
-      hour_cycle: "h12" | "h23";
+      timezone: string;
+      week_start: "monday" | "sunday";
+      date_format: string;
+      time_format: "12h" | "24h";
     };
     Insert: {
       user_id: string;
-      time_zone: string;
-      hour_cycle: "h12" | "h23";
+      timezone: string;
+      week_start: "monday" | "sunday";
+      date_format: string;
+      time_format: "12h" | "24h";
     };
     Update: {
       user_id?: string;
-      time_zone?: string;
-      hour_cycle?: "h12" | "h23";
+      timezone?: string;
+      week_start?: "monday" | "sunday";
+      date_format?: string;
+      time_format?: "12h" | "24h";
     };
     Relations: Record<never, never>;
     PrimaryKey: "user_id";
     UniqueKeys: Record<never, never>;
-    Checks: "datetime_preferences_hour_cycle_check";
+    Checks: "datetime_preferences_time_format_check" | "datetime_preferences_week_start_check";
     ForeignKeys: "datetime_preferences_user_id_fkey";
     Flags: Record<never, never>;
   };
@@ -554,20 +563,36 @@ export const schema: Schema<Models, Database, Functions> = defineSchema({
           "nullable": false,
           "hasDefault": false
         },
-        "time_zone": {
-          "db": "time_zone",
+        "timezone": {
+          "db": "timezone",
           "type": "text",
           "nullable": false,
           "hasDefault": false
         },
-        "hour_cycle": {
-          "db": "hour_cycle",
+        "week_start": {
+          "db": "week_start",
           "type": "text",
           "nullable": false,
           "hasDefault": false,
           "enum": [
-            "h12",
-            "h23"
+            "monday",
+            "sunday"
+          ]
+        },
+        "date_format": {
+          "db": "date_format",
+          "type": "text",
+          "nullable": false,
+          "hasDefault": false
+        },
+        "time_format": {
+          "db": "time_format",
+          "type": "text",
+          "nullable": false,
+          "hasDefault": false,
+          "enum": [
+            "12h",
+            "24h"
           ]
         }
       },

@@ -51,7 +51,7 @@ import { z } from 'zod'
 
 const sb = defineSupabase(schema).claims(
   supabaseClaims().extend(
-    z.object({ datetime_preferences: z.object({ timeZone: z.string() }) }),
+    z.object({ datetime_preferences: z.object({ timezone: z.string() }) }),
   ),
 )
 ```

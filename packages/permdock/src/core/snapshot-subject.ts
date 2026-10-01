@@ -4,7 +4,7 @@ import type { Principal, Subject } from './subject.ts';
 import { compact } from './compact.ts';
 import { freezeDeep } from './freeze.ts';
 import { type Scope, resolveScope, scopeList, tenantOf } from './scopes.ts';
-import { resolveActiveTenant } from './tenancy.ts';
+import { isMembershipExpired, resolveActiveTenant } from './tenancy.ts';
 
 export function subjectFromSnapshot(
   snapshot: Snapshot,
@@ -53,6 +53,7 @@ export function heldRoleNames(
     readonly id?: string;
     readonly rank?: readonly string[];
   },
+  now?: number,
 ): string[] {
   const scope =
     only?.scope === undefined ? undefined : resolveScope(scopes, only.scope);
@@ -63,6 +64,9 @@ export function heldRoleNames(
     scope === undefined ? (subject.principal?.roles ?? []) : [],
   );
   for (const membership of subject.principal?.memberships ?? []) {
+    if (isMembershipExpired(membership, now)) {
+      continue;
+    }
     const matches =
       scope === undefined
         ? tenantOf(membership, scopes) === tenant

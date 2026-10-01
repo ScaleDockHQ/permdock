@@ -19,7 +19,7 @@ Commands:
   arazzo check --doc <arazzo.json> --openapi <doc.json> [--workflow <id>] [--from <module>]
   cloud push [--dry-run] [--url <url>] [--environment <env>]
   supabase hook generate [--out <file>] [--check] [--active-from <source>] [--budget 1024]
-  supabase inspect [--json] [--out permdock.manifest.json] [--check]
+  supabase inspect [--json] [--out [permdock.manifest.json]] [--check]
 
 Global:
   --cwd <dir>   --config <file>   --json   --no-color
@@ -321,7 +321,10 @@ export async function run(
               cwd,
               config,
               rest: args.rest,
-              out: flagString(args.flags, 'out'),
+              out:
+                args.flags['out'] === true
+                  ? true
+                  : flagString(args.flags, 'out'),
               check: flagBool(args.flags, 'check'),
               json,
               db: flagString(args.flags, 'db'),
