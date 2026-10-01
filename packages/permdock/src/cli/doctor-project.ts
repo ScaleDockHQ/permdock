@@ -354,7 +354,45 @@ function clientWritable(
   return writable;
 }
 
-/** `attrs` claims must come from server-owned columns: never `user_metadata`, never a column clients can write. */
+/** Membership columns a client can write: a user who sets `user_id` or `role` grants themselves access. */
+function membershipFindings(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  const sources =
+    config.supabase?.hook?.memberships ?? config.rls?.membershipSources ?? [];
+  const byTable = new Map<string, Set<string>>();
+  for (const source of sources) {
+    const table = viewKey(source.sql.table);
+    const columns = byTable.get(table) ?? new Set<string>();
+    for (const column of source.sql.columns) {
+      columns.add(column);
+    }
+    byTable.set(table, columns);
+  }
+  const findings: DoctorFinding[] = [];
+  for (const [table, columns] of byTable) {
+    const writable = clientWritable(cwd, config, table);
+    const exposed = [...columns].filter(
+      (column) => writable.has('*') || writable.has(column),
+    );
+    if (exposed.length > 0) {
+      findings.push({
+        code: 'PD028',
+        severity: 'warning',
+        message: `${table}.${exposed.join(', ')} decide${exposed.length === 1 ? 's' : ''} memberships, and the migrations let anon or authenticated insert or update ${exposed.length === 1 ? 'it' : 'them'}: a user could give themselves a membership`,
+        fix: `revoke insert, update on ${table} from anon, authenticated, then grant update (<columns clients edit>) on ${table} to authenticated; a column-level revoke alone leaves a table-level grant in place`,
+      });
+    }
+  }
+  return findings;
+}
+
+/**
+ * `attrs` claims must come from server-owned columns: never `user_metadata`,
+ * never a column clients can write. Membership sources' deciding columns are
+ * held to the same rule.
+ */
 export function pd028(
   cwd: string,
   config: PermDockConfig,
@@ -368,9 +406,10 @@ export function pd028(
     readonly errors: readonly string[];
   },
 ): readonly DoctorFinding[] {
+  const memberships = membershipFindings(cwd, config);
   const attrs = config.supabase?.hook?.attrs;
   if (attrs === undefined) {
-    return [];
+    return memberships;
   }
   const planned = plan(attrs);
   const findings: DoctorFinding[] = planned.errors.map((message) => ({
@@ -393,5 +432,5 @@ export function pd028(
       });
     }
   }
-  return findings;
+  return [...findings, ...memberships];
 }

@@ -87,6 +87,8 @@ export type MembershipSql = {
   readonly managed?: string;
   /** Other tables the `select` reads (suspension tables). */
   readonly reads: readonly string[];
+  /** Every column that decides who holds which membership: user, scope, id, `within`, role, `via` and expiry. */
+  readonly columns: readonly string[];
   /** For a single-scope source: its scope and the scopes whose ids each row carries. */
   readonly scope?: string;
   readonly holds?: readonly string[];
@@ -163,6 +165,7 @@ type Shape = {
   readonly idOf: (name: string) => string | undefined;
   readonly groupBy: readonly string[];
   readonly suspension: SupabaseSuspension | undefined;
+  readonly columns: readonly string[];
 };
 
 function filters(shape: Shape, owner: string): string[] {
@@ -223,6 +226,7 @@ function sqlOf(shape: Shape): MembershipSql {
       ),
     ],
     managed: shape.managedColumn,
+    columns: [...new Set(shape.columns)],
     select: (user: string) =>
       selectOf(
         shape,
@@ -393,6 +397,15 @@ export function fromTable(
         .map(col),
     ],
     suspension: options.suspension,
+    columns: [
+      c.user ?? 'user_id',
+      c.scope ?? 'scope',
+      c.id ?? 'scope_id',
+      c.role ?? 'role',
+      ...[c.within, c.via, c.expiresAt].filter(
+        (name): name is string => name !== undefined,
+      ),
+    ],
   };
   return sourceOf(sqlOf(shape), options.query);
 }
@@ -490,6 +503,15 @@ export function fromJunction(
         .map(col),
     ],
     suspension: options.suspension,
+    columns: [
+      options.user ?? 'user_id',
+      idColumn,
+      ...withinEntries.map(([, column]) => column),
+      ...[
+        typeof options.roles === 'string' ? options.roles : undefined,
+        options.expiresAt,
+      ].filter((name): name is string => name !== undefined),
+    ],
   };
   const sql = sqlOf(shape);
   return sourceOf(

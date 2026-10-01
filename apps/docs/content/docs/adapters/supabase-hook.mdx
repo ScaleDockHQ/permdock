@@ -46,6 +46,15 @@ export function sources(query?: SqlQuery) {
 - `suspension` has the shape of [`rls.suspension`](/docs/cli/rls): rows of a suspended user, instance or ancestor instance are left out, and a missing status row counts as suspended.
 - Each source also implements `list({ scope, id })`, which returns every member of one instance for member lists, share dialogs and access reviews.
 
+A source's deciding columns (the user, scope, id, `within`, role, `via` and expiry columns) must not be client-writable, or a user can give themselves a membership: a portal contact who may edit their own `customer_contacts` row could set `user_id` on another row, or `customer_id` on their own. Revoke `insert` and `update` on the table from `anon` and `authenticated` and grant `update` back only on the columns clients edit:
+
+```sql
+revoke insert, update on public.customer_contacts from anon, authenticated;
+grant update (name, phone) on public.customer_contacts to authenticated;
+```
+
+A column-level `revoke update (user_id)` alone is not enough: Postgres keeps a table-level `update` grant (Supabase's default privileges give one on every `public` table), and `has_column_privilege` still answers true. Doctor PD028 warns on each deciding column the migrations leave writable.
+
 On the server, pass the sources as an array. `createPermDock` composes them with `composeMemberships`: memberships are merged and de-duplicated, entries that differ in `via`, expiry, owner or seats stay separate, and a source that throws makes the whole lookup fail closed.
 
 ```ts

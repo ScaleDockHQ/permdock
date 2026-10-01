@@ -299,6 +299,61 @@ revoke update (bio) on profiles from authenticated;
     expect(await findings(`['locale', 'bio']`)).toEqual([]);
   });
 
+  it('PD028 flags membership columns a user could set', async () => {
+    const supabase = JSON.stringify(join(HERE, '../../src/supabase/index.ts'));
+    const findings = async (grants: string) => {
+      const cwd = appCopy();
+      mkdirSync(join(cwd, 'supabase/migrations'), { recursive: true });
+      writeFileSync(
+        join(cwd, 'supabase/migrations/001_contacts.sql'),
+        `create table public.contacts (id uuid primary key, organization_id uuid, customer_id uuid, user_id uuid, name text);
+${grants}
+`,
+      );
+      writeFileSync(
+        join(cwd, 'permdock.config.ts'),
+        `import { fromJunction } from ${supabase};
+export default {
+  permissions: './src/permissions.ts',
+  supabase: { hook: { memberships: [fromJunction({ table: 'contacts', scope: 'customer', id: 'customer_id', within: { organization: 'organization_id' }, roles: ['contact'] })] } },
+};
+`,
+      );
+      const result = await run(['doctor', '--json', '--only', 'PD028'], {
+        cwd,
+      });
+      // SAFETY: the --json report printed by `permdock doctor` under test.
+      return (
+        JSON.parse(result.stdout) as {
+          readonly findings: readonly { readonly message: string }[];
+        }
+      ).findings.map((item) => item.message);
+    };
+    expect(
+      await findings(
+        'grant select, update on public.contacts to authenticated;',
+      ),
+    ).toEqual([
+      'public.contacts.user_id, customer_id, organization_id decide memberships, and the migrations let anon or authenticated insert or update them: a user could give themselves a membership',
+    ]);
+    expect(
+      await findings(`grant select, update on public.contacts to authenticated;
+revoke update (user_id) on public.contacts from authenticated;`),
+    ).toHaveLength(1);
+    expect(
+      await findings(
+        `grant update (name, user_id) on public.contacts to authenticated;`,
+      ),
+    ).toEqual([
+      'public.contacts.user_id decides memberships, and the migrations let anon or authenticated insert or update it: a user could give themselves a membership',
+    ]);
+    expect(
+      await findings(`grant select, update on public.contacts to authenticated;
+revoke update on public.contacts from authenticated;
+grant update (name) on public.contacts to authenticated;`),
+    ).toEqual([]);
+  });
+
   it('PD016 warns on opaque grants under an rls config', async () => {
     const cwd = appCopy();
     writeFileSync(
