@@ -156,7 +156,7 @@ rls: {
 }
 ```
 
-With `users`, `permdock_has` and every `permitted_<scope>_ids` return nothing for a suspended user. With `scopes.<scope>`, a helper drops each membership whose own instance or any ancestor instance is suspended: a disabled organization voids its staff memberships and every customer contact inside it. The check is `exists (select 1 from <table> s where s.<id> = <membership id> and <active>)`, so a missing row counts as suspended. It runs inside the helpers in both modes. In `jwt` mode that is one indexed lookup per helper call, and a suspension applies on the next statement even though the token still carries the membership. In `database` mode the membership table of a nested scope must carry the id column of every suspendable ancestor (`columns.organization` on the customer table); otherwise `generate` fails. Scope keys accept the `tenant` / `team` aliases. The in-process side reads suspension through the `MembershipSource` ([scopes](/docs/concepts/scopes)).
+With `users`, `permdock_has` and every `permitted_<scope>_ids` return nothing for a suspended user. With `scopes.<scope>`, a helper drops each membership whose own instance or any ancestor instance is suspended: a disabled organization voids its staff memberships and every customer contact inside it. The check is `exists (select 1 from <table> s where s.<id> = <membership id> and <active>)`, so a missing row counts as suspended. It runs inside the helpers in both modes, and in every check a policy carries inline: the `exists` over a membership table for a role-bound `memberOf`, the root-scope comparison with the tenant claim, and each `permitted_<resource>_ids` graph helper (user suspension only, since a relation names no scope instance). In `jwt` mode that is one indexed lookup per helper call, and a suspension applies on the next statement even though the token still carries the membership. In `database` mode the membership table of a nested scope must carry the id column of every suspendable ancestor (`columns.organization` on the customer table); otherwise `generate` fails. Scope keys accept the `tenant` / `team` aliases. The in-process side reads suspension through the `MembershipSource` ([scopes](/docs/concepts/scopes)).
 
 ### Policy layout
 
@@ -331,7 +331,7 @@ The rewritten forms are uncorrelated, so Postgres runs each helper once per stat
 | `dynamic-key` | The key is not a string literal |
 | `unknown-key` | The mapped key is not in the policy; the command exits `1` while one remains |
 | `row-conditions` | The key's grants carry row conditions the helpers do not apply; let `generate` write that table's policy |
-| `not-granted-on-scope` | No role holds the key on that scope, or its action is not one `generate` seeds (`read`, `list`, `get`, `create`, `update`, `delete`) |
+| `not-granted-on-scope` | No role holds an allow for the key on that scope (a deny seed does not count), or its action is not one `generate` seeds (`read`, `list`, `get`, `create`, `update`, `delete`) |
 | `missing-helper` | `generate` writes no such helper, such as `member_<scope>_ids` for a scope without a membership source |
 | `function-body` | The call is inside a `create function` or `do` body, which runs with its own privileges |
 | `not-in-policy` | The call is in a view, a trigger or any statement other than a policy |

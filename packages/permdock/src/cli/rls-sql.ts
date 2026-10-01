@@ -177,6 +177,42 @@ export function activeRowSql(row: RlsActiveRow, id: string): string {
   return `exists (select 1 from ${table} s where ${parts.join(' and ')})`;
 }
 
+/** The active-user check for `user`; empty without `rls.suspension.users`. */
+export function activeUserSql(
+  ctx: RlsSqlContext,
+  user: string = subjectIdSql(ctx),
+): string[] {
+  const row = ctx.suspension?.users;
+  return row === undefined ? [] : [activeRowSql(row, user)];
+}
+
+/**
+ * The active-instance check for every suspendable scope on `scope`'s chain:
+ * its own and each ancestor's. `idOf` gives the SQL for the id the membership
+ * holds for a scope on that chain.
+ */
+export function activeInstancesSql(
+  ctx: RlsSqlContext,
+  scope: string,
+  idOf: (name: string) => string | undefined,
+): string[] {
+  const parts: string[] = [];
+  for (const name of scopeChain(ctx.scopes, scope)) {
+    const row = ctx.suspension?.scopes?.[name];
+    if (row === undefined) {
+      continue;
+    }
+    const id = idOf(name);
+    if (id === undefined) {
+      throw new Error(
+        `PermDock CLI: rls.suspension.scopes.${name} needs the ${name} id on ${scope} memberships: add columns.${name} to the ${scope} memberships table`,
+      );
+    }
+    parts.push(activeRowSql(row, `(${id})::${scopeTypeOf(ctx, name)}`));
+  }
+  return parts;
+}
+
 const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;
 
 function sqlType(name: string): string {
@@ -774,6 +810,11 @@ function compileRef(ref: string, ctx: RlsSqlContext, field?: string): string {
   throw new Error(`PermDock CLI: non-portable subject ref '${ref}'`);
 }
 
+/** `value` with `\`, `%` and `_` escaped for `like ... escape '\'`, as `escapeLike` does in process. */
+function likeLiteralSql(value: string): string {
+  return `replace(replace(replace(${value}, '\\', '\\\\'), '%', '\\%'), '_', '\\_')`;
+}
+
 function compareSql(
   op: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains',
   field: string,
@@ -794,7 +835,7 @@ function compareSql(
     case 'lte':
       return `${left} <= ${value}`;
     case 'contains':
-      return `${left}::text like '%' || ${value}::text || '%'`;
+      return `${left}::text like '%' || ${likeLiteralSql(`${value}::text`)} || '%' escape '\\'`;
     default: {
       const exhaustive: never = op;
       return exhaustive;
@@ -809,6 +850,7 @@ function existsSql(
   roles: readonly string[],
   ctx: RlsSqlContext,
   tenantColumn?: string,
+  scope?: string,
 ): string {
   const parts = [
     `m.${quoteIdent(rowColumn)} = ${quoteIdent(rowField)}`,
@@ -837,6 +879,15 @@ function existsSql(
   }
   if (tenantColumn !== undefined) {
     parts.push(`m.${quoteIdent(tenantColumn)} = ${tenantClaimSql(ctx)}`);
+  }
+  parts.push(...activeUserSql(ctx));
+  if (scope !== undefined) {
+    parts.push(
+      ...activeInstancesSql(ctx, scope, (name) => {
+        const held = scopeColumn(table, ctx.scopes, name);
+        return held === undefined ? undefined : `m.${quoteIdent(held)}`;
+      }),
+    );
   }
   return `exists (select 1 from ${quoteTable(table.table)} m where ${parts.join(' and ')})`;
 }
@@ -879,6 +930,7 @@ function compileMemberOf(
       condition.roles,
       ctx,
       tenantColumn,
+      scope,
     );
     if (condition.scope !== 'resource' || condition.parents === undefined) {
       return primary;
@@ -919,7 +971,12 @@ function compileMemberOf(
     return `${quoteIdent(condition.field)} in (select ${quoteIdent(ctx.schema ?? 'public')}.${memberIdsHelper(scope)}())`;
   }
   if (scope !== undefined && scope === rootScope(ctx.scopes)) {
-    return `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`;
+    const parts = [
+      `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`,
+      ...activeUserSql(ctx),
+      ...activeInstancesSql(ctx, scope, () => quoteIdent(condition.field)),
+    ];
+    return parts.length === 1 ? parts.join('') : `(${parts.join(' and ')})`;
   }
   throw new Error(
     `PermDock CLI: memberOf ${condition.scope} needs a memberships table mapping`,

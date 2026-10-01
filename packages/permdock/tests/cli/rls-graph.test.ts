@@ -266,3 +266,33 @@ describe('graph grants in RLS', () => {
     );
   });
 });
+
+describe('graph helpers and suspension', () => {
+  it('holds no relation for a suspended user', () => {
+    const plan = graphPlan(policy);
+    const sql = graphSql(
+      context({
+        suspension: {
+          users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' },
+        },
+      }),
+      plan,
+      undefined,
+    );
+    const helper = sql.slice(sql.indexOf('permitted_folder_ids(p_relation'));
+    const arms = helper.slice(
+      0,
+      helper.indexOf('$$;', helper.indexOf('as $$')),
+    );
+    const where = arms
+      .split('\n')
+      .filter((line) => line.includes('where (p_relation'));
+    expect(where.length).toBeGreaterThan(0);
+    for (const line of where) {
+      expect(line).toContain(
+        `exists (select 1 from "public"."profiles" s where s."id" = (select auth.uid()) and s."disabled_at" is null)`,
+      );
+    }
+    expect(graphSql(context(), plan, undefined)).not.toContain('profiles');
+  });
+});

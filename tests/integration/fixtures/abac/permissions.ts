@@ -9,8 +9,11 @@ export const Report = z.object({
 
 export const Ticket = z.object({ id: z.string(), region: z.string() });
 
+export const Note = z.object({ id: z.string(), title: z.string() });
+
 export const permissions = definePermissions({
   report: resource(Report, { actions: ['read'] }),
   ticket: resource(Ticket, { actions: ['read', 'update'] }),
   record: resource(Ticket, { actions: ['read', 'delete'] }),
+  note: resource(Note, { actions: ['read'] }),
 });

@@ -253,3 +253,91 @@ describe('compileGrants approval grants', () => {
     ]);
   });
 });
+
+describe('memberOf and suspension', () => {
+  const scopes = scopeList(
+    definePolicy(permissions, {
+      subject: () => null,
+      scopes: {
+        organization: { key: 'organization_id' },
+        team: { key: 'team_id', within: 'organization' },
+      },
+    }).scopes,
+  );
+  const user = `exists (select 1 from "public"."profiles" s where s."id" = (select auth.uid()) and s."disabled_at" is null)`;
+  const suspended = {
+    dialect: 'supabase',
+    tenantClaim: 'tenant_id',
+    tenantType: 'text',
+    gucPrefix: 'app',
+    scopes,
+    suspension: {
+      users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' },
+      scopes: {
+        organization: { table: 'orgs', id: 'id', disabledAt: 'disabled_at' },
+        team: { table: 'teams', id: 'id', status: 'state', active: ['open'] },
+      },
+    },
+  } as const;
+
+  it('checks the user and every instance on the chain in a role-bound exists', () => {
+    const sql = compileConditionSql(
+      { op: 'memberOf', scope: 'team', field: 'team_id', roles: ['lead'] },
+      {
+        ...suspended,
+        memberships: {
+          scopes: {
+            team: {
+              table: 'team_members',
+              user: 'user_id',
+              role: 'role',
+              columns: { team: 'team_id', organization: 'organization_id' },
+            },
+          },
+        },
+      },
+    );
+    expect(sql).toContain('"team_members" m where');
+    expect(sql).toContain(user);
+    expect(sql).toContain(
+      `exists (select 1 from "public"."teams" s where s."id" = (m."team_id")::text and s."state"::text = any(array['open']::text[]))`,
+    );
+    expect(sql).toContain(
+      `exists (select 1 from "public"."orgs" s where s."id" = (m."organization_id")::text and s."disabled_at" is null)`,
+    );
+  });
+
+  it('checks the user and the tenant in the root-scope claim fallback', () => {
+    const sql = compileConditionSql(
+      {
+        op: 'memberOf',
+        scope: 'organization',
+        field: 'organization_id',
+        roles: [],
+      },
+      suspended,
+    );
+    expect(sql).toContain(
+      `"organization_id" = ((select auth.jwt()) ->> 'tenant_id')::text`,
+    );
+    expect(sql).toContain(user);
+    expect(sql).toContain(
+      `exists (select 1 from "public"."orgs" s where s."id" = ("organization_id")::text and s."disabled_at" is null)`,
+    );
+  });
+
+  it('leaves the SQL unchanged without suspension', () => {
+    const { suspension: _suspension, ...plain } = suspended;
+    expect(
+      compileConditionSql(
+        {
+          op: 'memberOf',
+          scope: 'organization',
+          field: 'organization_id',
+          roles: [],
+        },
+        plain,
+      ),
+    ).toBe(`"organization_id" = ((select auth.jwt()) ->> 'tenant_id')::text`);
+  });
+});

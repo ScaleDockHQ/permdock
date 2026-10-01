@@ -3,13 +3,13 @@ import type { RoleRows } from './global-roles.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
 import { scopeColumn } from '../conditions/compile.ts';
-import { scopeChain } from '../core/scopes.ts';
 import { globalRoleSource } from './global-roles.ts';
 import {
+  activeInstancesSql,
+  activeUserSql,
   globalKindFilterSql,
   hasMemberFor,
   kindFilterSql,
-  activeRowSql,
   memberForHelper,
   memberForSources,
   memberIdsHelper,
@@ -180,40 +180,21 @@ function underRoot(ctx: RlsSqlContext, scope: string): boolean {
 function userActive(
   ctx: RlsSqlContext,
   indent: string,
-  user: string = subjectIdSql(ctx),
+  user?: string,
 ): string[] {
-  const row = ctx.suspension?.users;
-  return row === undefined ? [] : [`${indent}and ${activeRowSql(row, user)}`];
+  return activeUserSql(ctx, user).map((part) => `${indent}and ${part}`);
 }
 
-/**
- * `and exists (...)` lines for every suspendable instance on the chain of
- * `scope`'s membership: its own and each ancestor's. `idOf` gives the SQL for
- * the id the membership holds for a scope on that chain.
- */
+/** `and exists (...)` lines for every suspendable instance on the chain of `scope`'s membership. */
 function instancesActive(
   ctx: RlsSqlContext,
   scope: string,
   idOf: (name: string) => string | undefined,
   indent: string,
 ): string[] {
-  const lines: string[] = [];
-  for (const name of scopeChain(ctx.scopes, scope)) {
-    const row = ctx.suspension?.scopes?.[name];
-    if (row === undefined) {
-      continue;
-    }
-    const id = idOf(name);
-    if (id === undefined) {
-      throw new Error(
-        `PermDock CLI: rls.suspension.scopes.${name} needs the ${name} id on ${scope} memberships: add columns.${name} to the ${scope} memberships table`,
-      );
-    }
-    lines.push(
-      `${indent}and ${activeRowSql(row, `(${id})::${scopeTypeOf(ctx, name)}`)}`,
-    );
-  }
-  return lines;
+  return activeInstancesSql(ctx, scope, idOf).map(
+    (part) => `${indent}and ${part}`,
+  );
 }
 
 export function roleRows(ctx: RlsSqlContext): string {

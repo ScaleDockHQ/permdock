@@ -28,6 +28,10 @@ export const policy = definePolicy(permissions, {
       to: authenticated(),
       where: notBlocked,
     }),
+    allow(permissions.note.read, {
+      to: authenticated(),
+      where: { title: { contains: '50%_off' } },
+    }),
   ],
   principal: (user: { readonly id: string } | null) => user,
 });

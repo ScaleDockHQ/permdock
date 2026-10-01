@@ -54,6 +54,9 @@ export type MigrateTarget = {
 export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
   const granted = new Map<string, Set<string>>();
   for (const row of generated.seeds ?? []) {
+    if (row.effect !== 'allow') {
+      continue;
+    }
     let keys = granted.get(row.scope);
     if (keys === undefined) {
       keys = new Set();

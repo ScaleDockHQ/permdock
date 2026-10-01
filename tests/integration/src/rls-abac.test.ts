@@ -55,12 +55,15 @@ create table record (id text primary key, region text);
 insert into report values ('r-eu-low', 'eu', 1), ('r-eu-high', 'eu', 5), ('r-us', 'us', 1);
 insert into ticket values ('t-eu', 'eu'), ('t-uk', 'uk'), ('t-us', 'us'), ('t-none', null);
 insert into record values ('c-eu', 'eu'), ('c-us', 'us'), ('c-none', null);
+create table note (id text primary key, title text not null);
+insert into note values ('n-literal', 'save 50%_off today'), ('n-wildcard', 'save 50 percent off today');
 `;
 
 const GRANTS = `
 grant select on report to authenticated;
 grant select, update on ticket to authenticated;
 grant select, delete on record to authenticated;
+grant select on note to authenticated;
 `;
 
 const EU = '00000000-0000-4000-8000-00000000e001';
@@ -247,6 +250,20 @@ const fixtures: readonly RlsParityFixture[] = [
     'c-us',
     'us',
   ),
+  {
+    name: 'note: contains matches % and _ literally',
+    subject: subjects.eu,
+    permission: permissions.note.read,
+    row: { id: 'n-literal', title: 'save 50%_off today' },
+    table: 'note',
+  },
+  {
+    name: 'note: contains never treats % and _ as wildcards',
+    subject: subjects.eu,
+    permission: permissions.note.read,
+    row: { id: 'n-wildcard', title: 'save 50 percent off today' },
+    table: 'note',
+  },
 ];
 
 const expected: Readonly<Record<string, boolean>> = {
@@ -268,6 +285,8 @@ const expected: Readonly<Record<string, boolean>> = {
   'record: a null region is never outside a list': false,
   'record: a missing blocklist blocks nothing': true,
   'record: a scalar blocklist is not a list': true,
+  'note: contains matches % and _ literally': true,
+  'note: contains never treats % and _ as wildcards': false,
 };
 
 async function generate(dialect: Dialect): Promise<string> {

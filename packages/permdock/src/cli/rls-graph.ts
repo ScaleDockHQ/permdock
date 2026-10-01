@@ -13,6 +13,7 @@ import {
 import { scopeList } from '../core/scopes.ts';
 import {
   CLOSURE,
+  activeUserSql,
   graphHelper,
   graphSqlText,
   linkHelper,
@@ -179,7 +180,10 @@ function relationArm(
     }),
     ctx,
   );
-  return `  select a.id from (${body}) a\n  where ${guard}`;
+  const active = activeUserSql(ctx)
+    .map((part) => ` and ${part}`)
+    .join('');
+  return `  select a.id from (${body}) a\n  where ${guard}${active}`;
 }
 
 function permittedSql(

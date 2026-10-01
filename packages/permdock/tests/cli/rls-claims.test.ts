@@ -308,7 +308,9 @@ describe('contains on an array column', () => {
         { op: 'contains', field: 'title', value: 'draft' },
         arrays,
       ),
-    ).toBe(`"title"::text like '%' || 'draft'::text || '%'`);
+    ).toBe(
+      `"title"::text like '%' || replace(replace(replace('draft'::text, '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%' escape '\\'`,
+    );
   });
 
   it('reads array columns and their item types from the JSON Schema', () => {
