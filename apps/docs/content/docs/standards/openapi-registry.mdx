@@ -57,7 +57,7 @@ Until the registration lands, the extensions are still valid OpenAPI (any `x-` f
 | --- | --- | --- | --- |
 | `x-permdock-permissions` | Operation | Array of permission keys: `["post.delete"]`; the matching `scope` of each key appears in the operation's `security` | The permissions `protect` enforces on the route, in catalog terms |
 | `x-permdock-conditions` | Operation | Object keyed by permission key whose values are portable condition JSON ([wire formats](/docs/concepts/wire-formats)) | What a scope allows beyond "the scope is present", e.g. `authorId = principal.id` |
-| `x-permdock-securityProfile` | Security Scheme, Operation, root | String, currently `"fapi2"` | Declares that the resource server implements a named security profile ([FAPI 2.0](/docs/standards/fapi-2)); an operation-level value overrides the scheme's. On `--target 3.3` output it is the stable twin of the native `type: profile` scheme and `securityProfileRequirements` emitted from the pinned [OpenAPI 3.3](/docs/standards/openapi) draft, so consumers that ignore the draft still see the declaration |
+| `x-permdock-securityProfile` | Security Scheme, Operation | String, currently `"fapi2"` | Declares that the resource server implements a named security profile ([FAPI 2.0](/docs/standards/fapi-2)); an operation-level value overrides the scheme's. On `--target 3.3` output it is the stable twin of the native `type: profile` scheme and `securityProfileRequirements` emitted from the pinned [OpenAPI 3.3](/docs/standards/openapi) draft, so consumers that ignore the draft still see the declaration |
 | `x-permdock-approval` | Operation | Object keyed by permission key: `{ "post.delete": { "reason": "human" } }` | The operation may answer `approval-required`; clients can plan for an approval step ([approvals](/docs/security/approvals)) |
 | `x-permdock-arity` | Operation (`permdock openapi emit --arity` only) | `{ "kind": "collection" }` or `{ "kind": "instance", "parameter": "id" }` | Whether the operation acts on one resource and which path parameter carries its id, for generated MCP servers and SDKs ([permdock openapi](/docs/cli/openapi)) |
 | `x-permdock-oauth2MetadataUrl` | Security Scheme (3.1 targets only) | URL string | Fallback for the 3.2 `oauth2MetadataUrl` field, for which no `x-oai-*` extension is registered |
@@ -145,7 +145,7 @@ PermDock does not emit this scheme, because whether a route accepts signed agent
 5. The importer reads the native fields, the registered fallbacks and the `x-permdock-*` set; unknown extensions are preserved untouched, never dropped.
 6. Draft-only native fields (today the `type: profile` scheme and `securityProfileRequirements` on `--target 3.3`, and the Overlay 1.2 `components.actions` shape on `--overlay 1.2`) are emitted only behind an experimental flag, always with a stable twin (the `x-permdock-*` extension, or the 1.1 Overlay form), and with the pinned revision written into `x-permdock-catalog.drafts`.
 
-The emitter's test fixtures enforce rule 1 mechanically: output containing any `x-oai-*` name outside the three registered ones fails the suite.
+`tests/standards/openapi-registry.test.ts` enforces rules 1, 3 and 4 mechanically: every `x-` name in the emitter's output, on every target and in both Overlay versions, must be a row of the extension table above or one of the three registered `x-oai-*` names, and the JWS `typ` literals in the source must equal the `typ` table.
 
 ## Registration checklist
 
@@ -165,8 +165,8 @@ These steps happen outside this repository. Remove the `Status: planned` line at
 | Registry concept | PermDock concept |
 | --- | --- |
 | Namespace `permdock`, prefix `x-permdock-` | Every PermDock-specific field in a document |
-| Extension `x-oai-deprecated` | `meta.deprecated` on an action, 3.1 output |
-| Extension `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` | `flows: ['deviceAuthorization']` adapter option, 3.1 output |
+| Extension `x-oai-deprecated` | `scheme.deprecated` adapter option, 3.1 output |
+| Extension `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` | `scheme.flows.deviceAuthorization` adapter option (`--device-flow`), 3.1 output |
 | Extension `x-agent-trust` | Not used: it is defined for `Agent-Signature`, not Web Bot Auth's `Signature-Agent` |
 | Extension Registry, no entry for `oauth2MetadataUrl` | `x-permdock-oauth2MetadataUrl` |
 | Format, Tag Kind, Draft Feature, Alternative Schema registries | Not used; PermDock emits standard JSON Schema formats and no draft features |
