@@ -206,7 +206,7 @@ function alternativesFor(
       subject,
       leaf,
       undefined,
-      { trusted: true, source: 'decide', now },
+      { trusted: true, source: 'simulate', now },
       { ...env, emit: false, skipAlternatives: true },
     );
     return decision.outcome === 'granted';

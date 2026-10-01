@@ -10,7 +10,9 @@ import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { getResource, listPermissions } from '../core/permissions.ts';
 import { applyApprovalResume } from '../server/evaluations.ts';
 import {
+  DEFAULT_MAX_EVALUATIONS,
   PROBLEM_BASE,
+  batchTooLarge,
   problemResponse,
   validationProblem,
 } from '../server/problem.ts';
@@ -32,8 +34,6 @@ import {
   tenantOf,
   userFromEntity,
 } from './map.ts';
-
-const DEFAULT_MAX = 256;
 
 function unauthorized(): Response {
   return problemResponse(
@@ -72,15 +72,6 @@ function notFound(detail: string): Response {
   });
 }
 
-function tooLarge(max: number): Response {
-  return problemResponse({
-    type: `${PROBLEM_BASE}/payload-too-large`,
-    title: 'Payload too large',
-    status: 413,
-    detail: `evaluations batch exceeds ${String(max)}`,
-  });
-}
-
 async function readJson(request: Request): Promise<unknown> {
   try {
     return await request.json();
@@ -109,7 +100,7 @@ function resourceRef(
 }
 
 export const createPermDock: AuthzenFactory = (policy, options) => {
-  const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX;
+  const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX_EVALUATIONS;
   const trusts = (pep: unknown): boolean => {
     const allow = options.trustedPep;
     if (typeof allow !== 'function' || pep === null) {
@@ -266,7 +257,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return validationProblem('evaluations must be an array');
     }
     if (items.length > maxEvaluations) {
-      return tooLarge(maxEvaluations);
+      return batchTooLarge(maxEvaluations);
     }
     const shared = compact<AuthzenItem>({
       subject: isRecord(body['subject']) ? body['subject'] : undefined,

@@ -152,7 +152,7 @@ Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redire
 
 ### payload-too-large
 
-413. An AuthZEN `evaluations` batch exceeded the handler's `maxEvaluations`.
+413. An `evaluations` batch, on the AuthZEN handler or the decision endpoint (`createEvaluationsHandler`, `permdockHandler`), carried more than its `maxEvaluations` (256 by default). The check runs before the subject is resolved, so an oversized batch costs no decision work.
 
 ### internal
 

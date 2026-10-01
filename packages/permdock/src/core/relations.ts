@@ -440,6 +440,7 @@ export function resolveRelated(
   }
   let unavailable = false;
   let deep = false;
+  const explored = new Map<string, number>();
   for (const id of walk.ids) {
     const verdict = holdsRelation(
       {
@@ -452,6 +453,7 @@ export function resolveRelated(
       reader,
       DEFAULT_GROUP_DEPTH,
       new Set(),
+      explored,
     );
     if (verdict === true) {
       return true;
@@ -477,7 +479,10 @@ function groupKey(group: RelationGroup): string {
  * through a group whose members hold it. Groups of `at`'s own resource nest
  * at most `budget` deep; a group of another resource gets a fresh budget
  * (declarations rule out cycles across resources). A group met twice on one
- * path, or one past the budget, is `relation-depth`.
+ * path, or one past the budget, is `relation-depth`. `explored` holds the
+ * budget each group was walked with across the whole walk: a group already
+ * walked with as much budget adds nothing, since its verdict already reached
+ * the caller, so shared sub-groups cost one walk rather than one per path.
  */
 function holdsRelation(
   at: RelationGroup,
@@ -486,7 +491,14 @@ function holdsRelation(
   reader: RelationReader,
   budget: number,
   seen: ReadonlySet<string>,
+  explored: Map<string, number>,
 ): RelatedVerdict {
+  const key = groupKey(at);
+  const walked = explored.get(key);
+  if (walked !== undefined && walked >= budget) {
+    return false;
+  }
+  explored.set(key, budget);
   const holders = reader.holders(at);
   if (holders === 'pending' || holders === 'failed') {
     return 'relation-unavailable';
@@ -494,7 +506,7 @@ function holdsRelation(
   if (holders.some((holder) => holdsNow(holder, principalId, now))) {
     return true;
   }
-  const path = new Set(seen).add(groupKey(at));
+  const path = new Set(seen).add(key);
   let unavailable = false;
   let deep = false;
   for (const holder of holders) {
@@ -513,6 +525,7 @@ function holdsRelation(
       reader,
       nested ? budget - 1 : DEFAULT_GROUP_DEPTH,
       path,
+      explored,
     );
     if (verdict === true) {
       return true;

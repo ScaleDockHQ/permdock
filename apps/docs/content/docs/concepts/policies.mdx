@@ -169,7 +169,7 @@ Three reasons to keep the split. The policy stays the single statement of who ma
 
 ## Limits
 
-`limit: { count, per }` is a quota grant. It is non-portable (it cannot appear as an evaluable snapshot grant or an RLS policy). Pass `limits: memoryLimitStore()` (or your store) to `createPermDock`. `can`, `filter` and `simulate` never consume; they peek `remaining`. `decide` and `assert` consume, except when the matched grant is `approval: 'human'`. Exhausted remaining is `denied` with reason `limit`. A missing store, a throw, or a thenable from `consume` / `remaining` is `limit-unavailable`. A Promise is never treated as granted. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case. See [extension interfaces](/docs/concepts/extension-interfaces).
+`limit: { count, per }` is a quota grant. It is non-portable (it cannot appear as an evaluable snapshot grant or an RLS policy). Pass `limits: memoryLimitStore()` (or your store) to `createPermDock`. `can`, `filter`, `simulate` and the `alternatives` of a denial never consume; they peek `remaining`. `decide` and `assert` consume, except when the matched grant is `approval: 'human'`. Exhausted remaining is `denied` with reason `limit`. A missing store, a throw, or a thenable from `consume` / `remaining` is `limit-unavailable`. A Promise is never treated as granted. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case. See [extension interfaces](/docs/concepts/extension-interfaces).
 
 ```ts
 allow(permissions.report.export, { limit: { count: 100, per: 'day', mode: 'soft', alertAt: 0.8 } })
@@ -185,6 +185,8 @@ allow(permissions.report.export, { limit: { count: 100, per: 'day', mode: 'soft'
 ### Why
 
 Quotas in SaaS plans are often soft: the customer keeps working past the included amount and pays for the overage, or gets a warning first. Modelling that as a second allow without a limit would grant silently, and the app could not tell an included call from an overage. An obligation on a `granted` decision keeps the three outcomes and says what the caller owes. The remaining count is already known to the `LimitStore`, so returning it costs nothing and lets an API send rate-limit headers without a second store read. The snapshot leaves it out because it changes on every call. Soft mode is not fail-open: it only changes what happens past the count, never what happens when the count cannot be read.
+
+A denial's `alternatives` peek rather than consume because they are advice, not a call: a client that is refused `report.delete` would otherwise spend its `report.export` quota just by asking.
 
 ## Field-level grants
 

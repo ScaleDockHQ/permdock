@@ -150,6 +150,19 @@ export function problemResponse(
   });
 }
 
+/** The most evaluations one batch request may carry, for AuthZEN and the decision endpoint alike. */
+export const DEFAULT_MAX_EVALUATIONS = 256;
+
+/** RFC 9457 413 for a batch over `max` evaluations. */
+export function batchTooLarge(max: number): Response {
+  return problemResponse({
+    type: `${PROBLEM_BASE}/payload-too-large`,
+    title: 'Payload too large',
+    status: 413,
+    detail: `evaluations batch exceeds ${String(max)}`,
+  });
+}
+
 export function validationProblem(detail: string): Response {
   return problemResponse(
     compact<ProblemDetails>({

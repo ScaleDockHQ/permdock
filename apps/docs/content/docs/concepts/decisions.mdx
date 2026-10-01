@@ -91,7 +91,7 @@ This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason w
 
 ### alternatives
 
-`alternatives` lists permissions on the same resource that the subject does hold for this data (or for the collection). A model that was refused `post.delete` sees that `post.read` and `post.update` are available and can re-plan instead of retrying the same call. `alternatives` is computed lazily and only for `denied`; on hot paths use `can`, which skips it. The [MCP adapter](/docs/adapters/mcp) puts alternatives in `structuredContent`; HTTP adapters put them in Problem Details.
+`alternatives` lists permissions on the same resource that the subject does hold for this data (or for the collection). A model that was refused `post.delete` sees that `post.read` and `post.update` are available and can re-plan instead of retrying the same call. `alternatives` is computed lazily and only for `denied`; on hot paths use `can`, which skips it. Each alternative is evaluated the way `simulate` is: a quota grant is listed when it has `remaining` and never spends it. The [MCP adapter](/docs/adapters/mcp) puts alternatives in `structuredContent`; HTTP adapters put them in Problem Details.
 
 ### approval-required
 

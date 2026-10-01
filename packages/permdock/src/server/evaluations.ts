@@ -9,7 +9,11 @@ import { readApprovalHeader, resumeDecision } from '../approvals/helpers.ts';
 import { compact } from '../core/compact.ts';
 import { findPermission, listPermissions } from '../core/permissions.ts';
 import { wireDenials } from '../core/wire-denial.ts';
-import { validationProblem } from './problem.ts';
+import {
+  DEFAULT_MAX_EVALUATIONS,
+  batchTooLarge,
+  validationProblem,
+} from './problem.ts';
 import { InvalidSignatureError } from './web-bot-auth.ts';
 
 const DENIED: Decision = {
@@ -207,11 +211,14 @@ export function createEvaluationsHandler(options: {
   }) => Promise<PermDock>;
   readonly store?: ApprovalStore;
   readonly adapter?: string;
+  /** The most evaluations one POST may carry; a larger batch is a 413 before any instance is resolved. */
+  readonly maxEvaluations?: number;
 }): {
   readonly POST: (request: Request) => Promise<Response>;
   readonly GET: (request: Request) => Promise<Response>;
 } {
   const adapter = options.adapter ?? 'server';
+  const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX_EVALUATIONS;
   const POST = async (request: Request): Promise<Response> => {
     let body: unknown;
     try {
@@ -230,6 +237,9 @@ export function createEvaluationsHandler(options: {
     }
     if (!Array.isArray(evaluations)) {
       return validationProblem('evaluations must be an array');
+    }
+    if (evaluations.length > maxEvaluations) {
+      return batchTooLarge(maxEvaluations);
     }
 
     const header = readApprovalHeader(request.headers);

@@ -609,10 +609,10 @@ export function buildInstance(
       tenant,
       tenant === undefined ? undefined : envBase.assignable?.get(tenant),
     );
-  const envFor = (emit: boolean): EvalEnv => ({
+  const envFor = (emit: boolean, skipAlternatives = false): EvalEnv => ({
     emit,
     simulated: envBase.simulated,
-    skipAlternatives: false,
+    skipAlternatives,
     customRoles: envBase.customRoles,
     customGrants,
     listeners,
@@ -634,7 +634,7 @@ export function buildInstance(
       permission,
       data,
       options ?? {},
-      envFor(options?.source !== 'simulate'),
+      envFor(options?.source !== 'simulate', options?.source === 'can'),
     );
 
   const canImpl = (

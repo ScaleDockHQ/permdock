@@ -217,13 +217,31 @@ function holderVia(
   });
 }
 
-/** Principals holding `group`'s relation, through at most `budget` more groups of its resource; `undefined` when a read failed. */
+type GroupWalk = {
+  readonly members: readonly string[];
+  /** Whether a group was skipped for already being on the path, so `members` holds only this path's share. */
+  readonly cut: boolean;
+};
+
+/**
+ * Principals holding `group`'s relation, through at most `budget` more groups
+ * of its resource; `undefined` when a read failed. `memo` keeps each group's
+ * members per budget across one discovery, so a group shared by many paths is
+ * read once; a result cut short by a cycle is path-specific and not kept.
+ */
 async function groupMembers(
   group: RelationGroup,
   ctx: Discovery,
   budget: number,
   seen: ReadonlySet<string>,
-): Promise<readonly string[] | undefined> {
+  memo: Map<string, readonly string[]>,
+): Promise<GroupWalk | undefined> {
+  const key = JSON.stringify([group.resource, group.id, group.relation]);
+  const memoKey = `${budget}:${key}`;
+  const known = memo.get(memoKey);
+  if (known !== undefined) {
+    return { members: known, cut: false };
+  }
   let holders = ctx.reader.holders(group);
   if (holders === 'pending') {
     await settle(ctx.cache);
@@ -232,12 +250,12 @@ async function groupMembers(
   if (holders === 'pending' || holders === 'failed') {
     return undefined;
   }
-  const key = JSON.stringify([group.resource, group.id, group.relation]);
   const path = new Set(seen).add(key);
-  const out: string[] = [];
+  const out = new Set<string>();
+  let cut = false;
   for (const holder of holders) {
     if ('principal' in holder) {
-      out.push(holder.principal.id);
+      out.add(holder.principal.id);
       continue;
     }
     const nested = JSON.stringify([
@@ -246,22 +264,34 @@ async function groupMembers(
       holder.group.relation,
     ]);
     const same = holder.group.resource === group.resource;
-    if ((same && budget <= 0) || path.has(nested)) {
+    if (path.has(nested)) {
+      cut = true;
+      continue;
+    }
+    if (same && budget <= 0) {
       continue;
     }
     // oxlint-disable-next-line no-await-in-loop -- nested groups are read one level at a time
-    const members = await groupMembers(
+    const walk = await groupMembers(
       holder.group,
       ctx,
       same ? budget - 1 : DEFAULT_GROUP_DEPTH,
       path,
+      memo,
     );
-    if (members === undefined) {
+    if (walk === undefined) {
       return undefined;
     }
-    out.push(...members);
+    cut ||= walk.cut;
+    for (const member of walk.members) {
+      out.add(member);
+    }
   }
-  return out;
+  const members = [...out];
+  if (!cut) {
+    memo.set(memoKey, members);
+  }
+  return { members, cut };
 }
 
 async function discoverGraph(
@@ -275,6 +305,7 @@ async function discoverGraph(
     return;
   }
   const node = ctx.policy.resources.get(condition.resource);
+  const memo = new Map<string, readonly string[]>();
   for (const entry of nodes) {
     for (const holder of entry.holders) {
       const at = {
@@ -291,19 +322,20 @@ async function discoverGraph(
         continue;
       }
       // oxlint-disable-next-line no-await-in-loop -- each group's members are read after the walk settles
-      const members = await groupMembers(
+      const walk = await groupMembers(
         holder.group,
         ctx,
         holder.group.resource === condition.resource
           ? DEFAULT_GROUP_DEPTH - 1
           : DEFAULT_GROUP_DEPTH,
         new Set(),
+        memo,
       );
-      if (members === undefined) {
+      if (walk === undefined) {
         ctx.incomplete();
         continue;
       }
-      for (const member of members) {
+      for (const member of walk.members) {
         ctx.add(
           member,
           allow ? holderVia(holder, at, share, holder.group) : undefined,
