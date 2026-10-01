@@ -5,6 +5,7 @@ import type { RlsMembershipTable } from './types.ts';
 import { resolveScope, scopeChain } from '../core/scopes.ts';
 import { findRole } from '../core/vocabulary.ts';
 import {
+  globalRoleRows,
   memberColumn,
   membershipRows,
   membershipTable,
@@ -287,11 +288,12 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
   const global = own.assigns.filter((pair) => pair.scope === 'global');
   if (global.length > 0) {
     if (ctx.authorize === 'database') {
-      const kind = globalKindFilterSql(ctx, 'ur.role::text');
+      const ur = globalRoleRows(ctx);
+      const kind = globalKindFilterSql(ctx, ur.roleSql);
       parts.push(`exists (
-      select 1 from ${qualified(ctx, 'user_roles')} ur
-      where ur.user_id = ${subjectIdSql(ctx)}
-        and (ur.role::text, p_role) in (${pairsSql(global)})${kind === undefined ? '' : `\n        and ${kind}`}
+      select 1 from ${ur.from}
+      where ${ur.userSql} = ${subjectIdSql(ctx)}
+        and (${ur.roleSql}, p_role) in (${pairsSql(global)})${kind === undefined ? '' : `\n        and ${kind}`}
     )`);
     } else {
       const kind = globalKindFilterSql(ctx, 'r.role');

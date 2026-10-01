@@ -3,6 +3,7 @@ import type { Scope } from '../core/scopes.ts';
 import type { Condition, ConditionValue, ResourceNode } from '../index.ts';
 import type { SqlMembershipSource } from '../supabase/sources.ts';
 import type {
+  GlobalRoles,
   RlsActiveRow,
   RlsDialect,
   RlsMembershipTable,
@@ -67,6 +68,8 @@ export type RlsSqlContext = {
   readonly arrayColumns?: Readonly<Record<string, string>>;
   /** Active-row tables; scope keys are declared names (`checkSuspension` resolves aliases). */
   readonly suspension?: RlsSuspension;
+  /** `rls.roles`: the app's global-roles table, in place of the generated `user_roles`. */
+  readonly roles?: GlobalRoles;
   /** Set when field views compile: grant keys also split by field set. */
   readonly fields?: 'views';
   /** Graph grants: the closure depth kept for each walked resource. */

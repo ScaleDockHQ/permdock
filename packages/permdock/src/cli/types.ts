@@ -140,6 +140,8 @@ export type RlsConfig = {
     readonly schema?: string;
     readonly authorize?: 'database' | 'jwt';
   };
+  /** The global-roles table `permdock_has` reads in `database` mode. Default `<schema>.user_roles (user_id, role)`, which the helpers create. */
+  readonly roles?: GlobalRoles;
   /** Emit only the helpers, their seeds and the scaffold; the table policies stay hand-written. */
   readonly helpersOnly?: boolean;
   /** `rls migrate`: how existing helper calls map onto the generated helpers. */
@@ -169,16 +171,34 @@ export type RlsMigrateConfig = {
   readonly scopes?: Readonly<Record<string, string>>;
 };
 
+/**
+ * The role column of a global-roles table that holds a foreign key: the role
+ * key is `column` of `through`, joined on `on` (`{ role_id: 'id' }`).
+ */
+export type RoleThrough = {
+  /** The roles table; unqualified, it is in the global-roles table's schema. */
+  readonly through: string;
+  /** One entry: the global-roles column to the roles table column it references. */
+  readonly on: Readonly<Record<string, string>>;
+  /** The roles table column that holds the role key. */
+  readonly column: string;
+};
+
+/** Where global roles live: `table (user, role)`. Defaults `user_id` and `role`. */
+export type GlobalRoles = {
+  readonly table: string;
+  readonly user?: string;
+  readonly role?: string | RoleThrough;
+};
+
 /** `permdock supabase hook generate` input. */
 export type SupabaseHookConfig = {
   /** The same `fromTable` / `fromJunction` sources the app passes as `memberships`. */
   readonly memberships: readonly SqlMembershipSource[];
   /** Schema of the hook and the version table. Default `rls.schema`, else `public`. */
   readonly schema?: string;
-  /** Global roles: `user_role` and `roles`. Default the `<schema>.user_roles (user_id, role)` table; `false` for none. */
-  readonly roles?:
-    | { readonly table: string; readonly user?: string; readonly role?: string }
-    | false;
+  /** Global roles: `user_role` and `roles`. Default `rls.roles`, else the `<schema>.user_roles (user_id, role)` table; `false` for none. */
+  readonly roles?: GlobalRoles | false;
   /**
    * Where the active first-scope id comes from: `app_metadata.<key>` (default
    * `app_metadata.active_<first scope>`), `<table>.<column>` joined on `id`, or

@@ -200,7 +200,7 @@ const subject = subjectFromSupabaseSession(session, { roles: 'user_role' })
 
 | Claim | Source | Counts toward the budget |
 | --- | --- | --- |
-| `user_role`, `roles` | `supabase.hook.roles` (default `<schema>.user_roles`); `[]` for a suspended user | No |
+| `user_role`, `roles` | `supabase.hook.roles` (default `rls.roles`, else `<schema>.user_roles`; `role: { through, on, column }` reads keys through a roles table); `[]` for a suspended user | No |
 | `memberships` | `supabase.hook.memberships`, the active first-scope instance first | Yes |
 | `memberships_truncated` | Set to `true` when memberships or `attrs` were cut to fit | No |
 | `tenant_id` (`rls.tenantClaim`) | `supabase.hook.activeFrom`, when the user holds a membership there | No |

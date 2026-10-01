@@ -1,7 +1,9 @@
+import type { RoleRows } from './global-roles.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
 import { scopeColumn } from '../conditions/compile.ts';
 import { scopeChain } from '../core/scopes.ts';
+import { globalRoleSource } from './global-roles.ts';
 import {
   globalKindFilterSql,
   kindFilterSql,
@@ -250,19 +252,33 @@ function andLine(indent: string, condition: string | undefined): string {
   return condition === undefined ? '' : `\n${indent}and ${condition}`;
 }
 
+/** `rls.roles`, or the generated `user_roles (user_id, role)`, aliased `ur`. */
+export function globalRoleRows(
+  ctx: RlsSqlContext,
+): Pick<RoleRows, 'from' | 'userSql' | 'roleSql'> {
+  return ctx.roles === undefined
+    ? {
+        from: `${qualified(ctx, 'user_roles')} ur`,
+        userSql: 'ur.user_id',
+        roleSql: 'ur.role::text',
+      }
+    : globalRoleSource(ctx.roles, helperSchema(ctx), 'ur');
+}
+
 function hasBody(ctx: RlsSqlContext): string {
   const rp = qualified(ctx, 'role_permissions');
   const active = userActive(ctx, '      ')
     .map((line) => `\n${line}`)
     .join('');
   if (ctx.authorize === 'database') {
+    const ur = globalRoleRows(ctx);
     return `  select exists (
     select 1
-    from ${qualified(ctx, 'user_roles')} ur
-    join ${rp} rp on rp.role = ur.role::text
-    where ur.user_id = ${subjectIdSql(ctx)}
+    from ${ur.from}
+    join ${rp} rp on rp.role = ${ur.roleSql}
+    where ${ur.userSql} = ${subjectIdSql(ctx)}
       and rp.grant_key = p_grant
-      and rp.scope = 'global'${andLine('      ', globalKindFilterSql(ctx, 'ur.role::text'))}${active}
+      and rp.scope = 'global'${andLine('      ', globalKindFilterSql(ctx, ur.roleSql))}${active}
   )`;
   }
   return `  select ${signedIn(ctx)} and exists (
@@ -825,7 +841,11 @@ export function helpersSql(
 alter table ${rp} enable row level security;
 revoke all on table ${rp} from anon, authenticated, public;`);
   chunks.push(seedSql(ctx, rows));
-  if (ctx.authorize === 'database' && options.userRoles) {
+  if (
+    ctx.authorize === 'database' &&
+    options.userRoles &&
+    ctx.roles === undefined
+  ) {
     const ur = qualified(ctx, 'user_roles');
     chunks.push(`create table if not exists ${ur} (
   user_id ${userIdType(ctx)},

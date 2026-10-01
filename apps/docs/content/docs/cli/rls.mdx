@@ -85,8 +85,21 @@ A grant key is the permission key. When roles grant one permission with differen
 
 | Mode | Global roles | Scope memberships |
 | --- | --- | --- |
-| `database` | `<schema>.user_roles (user_id, role)`: the RBAC scaffold's table, or one `generate` creates | Each scope's table from `rls.memberships.scopes.<scope>` (`--memberships` and `rls.memberships.tenant` / `.team` for the first and second scope); otherwise the `fromTable` / `fromJunction` sources in `rls.membershipSources`, default `supabase.hook.memberships`; with neither, that helper returns no rows and the command warns |
+| `database` | `rls.roles`, default `supabase.hook.roles`, else `<schema>.user_roles (user_id, role)`: the RBAC scaffold's table, or one `generate` creates | Each scope's table from `rls.memberships.scopes.<scope>` (`--memberships` and `rls.memberships.tenant` / `.team` for the first and second scope); otherwise the `fromTable` / `fromJunction` sources in `rls.membershipSources`, default `supabase.hook.memberships`; with neither, that helper returns no rows and the command warns |
 | `jwt` | The `rls.roleClaim` claim (default `user_role`, a string or an array; Supabase falls back to `app_metadata`) | The `memberships` claim, `[{ scope, id, within?, roles, expiresAt? }]`; each helper reads the entries whose `scope` is its own |
+
+When the app keeps its own global-roles table, name it in `rls.roles` (the same shape as `supabase.hook.roles`, which is the default). A role column that holds a foreign key is read through the roles table by key:
+
+```ts
+rls: {
+  roles: {
+    table: 'user_roles',                                                     // user_id, role_id
+    role: { through: 'roles', on: { role_id: 'id' }, column: 'key' },        // roles.key holds the role name
+  },
+},
+```
+
+`permdock_has` and `permdock_can_assign` then join `user_roles` to `roles` on `on` and compare `roles.key`, and `generate` no longer creates `user_roles`. An unqualified `through` is in the table's schema. `--rbac supabase` brings its own `user_roles (user_id, role app_role)`, so it refuses `rls.roles`.
 
 With the `guc` dialect the claims are settings: `<prefix>.user_role` holds a comma-separated role list and `<prefix>.memberships` holds the JSON array. When the active-tenant claim is set, the helper of every scope under the first only returns memberships inside that tenant (the membership's `id` for the first scope, its `within` entry for the others).
 

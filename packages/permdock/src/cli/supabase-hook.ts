@@ -25,6 +25,7 @@ import {
   supabaseMembershipsBudget,
   supabaseTenantClaim,
 } from '../supabase/sources.ts';
+import { globalRoleSource, type RoleRows } from './global-roles.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { authAdminRead, hookUri } from './rls-rbac.ts';
 import {
@@ -222,6 +223,8 @@ type Parts = {
   readonly tenantClaim: string;
   readonly users: RlsActiveRow | undefined;
   readonly hook: SupabaseHookConfig;
+  /** Global roles for `user_role` and `roles`; `undefined` with `roles: false`. */
+  readonly roles: RoleRows | undefined;
   readonly active: string;
   readonly attrs: AttrsPlan | undefined;
   readonly extra: readonly ExtraClaim[];
@@ -335,21 +338,14 @@ ${source.sql.select('uid').replaceAll(/^/gmu, '  ')}
 function hookSql(parts: Parts): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.custom_access_token_hook`;
-  const rolesTable =
-    parts.hook.roles === false
-      ? undefined
-      : (parts.hook.roles ?? {
-          table: `${parts.schema}.user_roles`,
-          user: 'user_id',
-          role: 'role',
-        });
+  const rows = parts.roles;
   const roles =
-    rolesTable === undefined
+    rows === undefined
       ? `  held := '[]'::jsonb;`
-      : `  select coalesce(jsonb_agg(distinct r.${quoteIdent(rolesTable.role ?? 'role')}::text order by r.${quoteIdent(rolesTable.role ?? 'role')}::text), '[]'::jsonb)
+      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}), '[]'::jsonb)
     into held
-    from ${table(rolesTable.table)} r
-    where r.${quoteIdent(rolesTable.user ?? 'user_id')}::text = uid;`;
+    from ${rows.from}
+    where ${rows.userSql}::text = uid;`;
   const plan = parts.attrs;
   const fromTable =
     plan === undefined || plan.columns.length === 0 || plan.table === undefined
@@ -518,12 +514,12 @@ function readsSql(parts: Parts): string {
       reads.set(name, reads.get(name) ?? 'status');
     }
   }
-  const rolesTable =
-    parts.hook.roles === false
-      ? undefined
-      : (parts.hook.roles?.table ?? `${parts.schema}.user_roles`);
-  if (rolesTable !== undefined) {
+  if (parts.roles !== undefined) {
+    const { table: rolesTable, through } = parts.roles;
     reads.set(rolesTable, reads.get(rolesTable) ?? 'roles');
+    if (through !== undefined) {
+      reads.set(through.table, reads.get(through.table) ?? 'role_keys');
+    }
   }
   if (parts.attrs?.table !== undefined && parts.attrs.columns.length > 0) {
     reads.set(parts.attrs.table, reads.get(parts.attrs.table) ?? 'attrs');
@@ -563,12 +559,8 @@ function versionSql(parts: Parts): string {
       parts.sources.map((source) => [source.sql.table, source.sql.user]),
     ),
   ];
-  const rolesTable =
-    parts.hook.roles === false
-      ? undefined
-      : (parts.hook.roles ?? { table: `${parts.schema}.user_roles` });
-  if (rolesTable !== undefined) {
-    tables.push([rolesTable.table, rolesTable.user ?? 'user_id']);
+  if (parts.roles !== undefined) {
+    tables.push([parts.roles.table, parts.roles.user]);
   }
   const triggers = tables
     .map(
@@ -612,7 +604,46 @@ begin
 end;
 $$;
 revoke execute on function ${bump}() from public, anon, authenticated;
-${triggers}`;
+${triggers}${roleKeysVersionSql(parts, versionTable)}`;
+}
+
+/** A renamed role key changes every holder's `roles` claim, so updates to the roles table bump each holder. */
+function roleKeysVersionSql(parts: Parts, versionTable: string): string {
+  const through = parts.roles?.through;
+  if (parts.roles === undefined || through === undefined) {
+    return '';
+  }
+  const bump = `${quoteIdent(parts.schema)}.permdock_bump_authz_version_role_keys`;
+  const id = quoteIdent(through.id);
+  const key = quoteIdent(through.key);
+  return `
+
+-- a renamed role key changes the roles claim of everyone who holds it
+create or replace function ${bump}()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if tg_op = 'UPDATE'
+    and new.${key} is not distinct from old.${key}
+    and new.${id} is not distinct from old.${id} then
+    return null;
+  end if;
+  insert into ${versionTable} as v (user_id, version)
+  select distinct h.${quoteIdent(parts.roles.user)}::text, 1
+  from ${table(parts.roles.table)} h
+  where h.${quoteIdent(through.ref)} = old.${id}
+  on conflict (user_id) do update set version = v.version + 1;
+  return null;
+end;
+$$;
+revoke execute on function ${bump}() from public, anon, authenticated;
+drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${table(through.table)};
+create trigger ${quoteIdent(VERSION_TRIGGER)}
+  after update or delete on ${table(through.table)}
+  for each row execute function ${bump}();`;
 }
 
 /**
@@ -745,6 +776,15 @@ function hookParts(
     tenantClaim,
     users: suspension?.users,
     hook,
+    roles:
+      hook.roles === false
+        ? undefined
+        : globalRoleSource(
+            hook.roles ??
+              config.rls?.roles ?? { table: `${schema}.user_roles` },
+            'public',
+            'r',
+          ),
     active: activeFromSql(overrides.activeFrom ?? hook.activeFrom, root),
     attrs: hook.attrs === undefined ? undefined : attrsPlan(hook.attrs),
     extra: extraPlan.claims,

@@ -192,6 +192,16 @@ export async function runRlsGenerate(input: {
       : undefined;
   const scopes = scopeList(policy.scopes);
   const suspension = checkSuspension(rls?.suspension, scopes);
+  const hookRoles = input.config.supabase?.hook?.roles;
+  const roles = rls?.roles ?? (hookRoles === false ? undefined : hookRoles);
+  if (roles !== undefined && input.rbac) {
+    return {
+      code: 2,
+      output:
+        'rls generate --rbac supabase creates its own user_roles (user_id, role app_role); drop rls.roles (or supabase.hook.roles) or the --rbac flag',
+      text: '',
+    };
+  }
   const ownership = ownershipRules(policy, scopes);
   const graph = graphPlan(policy);
   const ctx: RlsSqlContext = {
@@ -209,6 +219,7 @@ export async function runRlsGenerate(input: {
     ...(memberships === undefined ? {} : { memberships }),
     ...(sources === undefined || sources.length === 0 ? {} : { sources }),
     ...(suspension === undefined ? {} : { suspension }),
+    ...(roles === undefined ? {} : { roles }),
     ...(input.customRoles === true || rls?.customRoles === true
       ? { customRoles: customRoleNames(policy) }
       : {}),
