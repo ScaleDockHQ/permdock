@@ -56,11 +56,11 @@ for (const step of blocked) await requestApproval(step)                      // 
 
 What `simulate({ arazzo, openapi })` does, step by step (subject is the instance's, [Arazzo](/docs/standards/arazzo)):
 
-1. Validates the Arazzo document (`arazzo: 1.1.0` or `1.0.x`) and finds the `sourceDescriptions` of `type: openapi`. The `openapi` argument supplies the resolved description for those sources; a workflow with several OpenAPI sources takes a map keyed by source `name`.
-2. For each step of the selected workflow, resolves `operationId` (or `operationPath`) to an operation in the description and reads its `x-permdock-permissions`. Steps that reference a `workflowId` are expanded recursively; cycles are an error.
+1. Validates the Arazzo document against the fields the 1.0 and 1.1 schemas require: an `arazzo` version of `1.0.x` or `1.1.x`, `info`, at least one source description with a `name` and `url`, at least one workflow, and at least one step per workflow. Each step needs a `stepId` that is unique in its workflow and exactly one of `operationId`, `operationPath` or `workflowId`, and each parameter needs a `name` and a `value` or a resolvable `$components.parameters` reference. A document that fails any of these produces one `document` step denied with reason `validation`. The `openapi` argument supplies the resolved description for the `type: openapi` sources: one description, or a map keyed by source `name` for a workflow with several.
+2. For each step of the selected workflow, resolves `operationId` (or `operationPath`) to an operation in the description and reads its `x-permdock-permissions`. A qualified `$sourceDescriptions.<name>.<operationId>` and an `operationPath` of the form `{$sourceDescriptions.<name>.url}#/paths/...` select their source by name. A plain `operationId` must match exactly one source; one that matches several is `undocumented`, as the spec requires the qualified form there. Steps that reference a local `workflowId` are expanded recursively, with the calling step's `parameters` as the nested workflow's `inputs`; cycles and unknown workflows are a `validation` error, and a `workflowId` in another Arazzo document is `unsupported`. A nested step's result carries the `workflowId` that owns it, so equal `stepId`s in different workflows stay separate.
 3. Each permission key is looked up with `findPermission` in the catalog. An operation with no `x-permdock-permissions` produces a step with `permissions: []` and `decision.outcome: 'denied'` with reason `undocumented`; a workflow cannot be cleared through a hole in the description (fail closed).
-4. For `actions` permissions (those that take an instance), the step's `parameters` and the workflow `inputs` are used to build the resource identifier; when the instance cannot be loaded ahead of time (it is produced by an earlier step's `outputs`), the decision is evaluated with the instance-independent part of the grant and marked `provisional: true`, meaning `protect` will decide again at execution time with the real row.
-5. All `[permission, data]` pairs are passed to the existing `simulate` batch, so the semantics are unchanged: no `on('decision')` events per step (one `simulate` event for the plan), no approval tokens issued, no quota consumed.
+4. For `actions` permissions (those that take an instance), the workflow `inputs`, the workflow-level `parameters` and the step's `parameters` (the step's win on a name clash) build the resource data. A `$inputs.<path>` value is read from the inputs. Any other runtime expression, such as an earlier step's `$steps.<id>.outputs`, or an input that is absent, cannot be known ahead of time: the decision is evaluated without that value and marked `provisional: true`, meaning `protect` will decide again at execution time with the real row.
+5. All `[permission, data]` pairs are evaluated with the `simulate` batch semantics: no `on('decision')` events per step, no approval tokens issued, no quota consumed. One `simulate` event is emitted for the plan, carrying the worst step decision and `counts` of granted, denied and approval-required checks.
 6. The result lists one `Decision` per step in workflow order plus the worst `outcome` across steps.
 
 ### Where the documents come from
@@ -88,7 +88,8 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 
 ### Out of scope
 
-- **AsyncAPI steps.** Arazzo 1.1 allows `sourceDescriptions` of `type: asyncapi` and send / receive style steps. PermDock has no AsyncAPI adapter and does not emit `x-permdock-permissions` into AsyncAPI documents, so those steps are reported as `unsupported` and the plan's outcome is `denied`.
+- **AsyncAPI steps.** Arazzo 1.1 allows `sourceDescriptions` of `type: asyncapi` and send / receive style steps (an `operationId` in an AsyncAPI source, or a `channelPath`). PermDock has no AsyncAPI adapter and does not emit `x-permdock-permissions` into AsyncAPI documents, so those steps are reported as `unsupported` and the plan's outcome is `denied`.
+- **Workflows in other Arazzo documents.** A step whose `workflowId` points into a `type: arazzo` source is `unsupported`; resolve it into the document first.
 - **Executing workflows.** PermDock pre-flights and guards; it does not run steps. Runners keep calling the API, where `protect` decides for real.
 - **Import from Arazzo.** Generating permission definitions from a workflow document is not planned; permissions come from the OpenAPI description or the catalog ([CLI: openapi](/docs/cli/openapi)).
 
@@ -98,10 +99,10 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 | --- | --- |
 | Workflow | A plan passed to `simulate({ arazzo, openapi })` on the instance |
 | Step with `operationId` / `operationPath` | One `[permission, data]` entry per key in the operation's `x-permdock-permissions` |
-| Step with `workflowId` | Expanded into that workflow's steps |
+| Step with `workflowId` | Expanded into that workflow's steps, its `parameters` becoming that workflow's `inputs` |
 | `sourceDescriptions[type=openapi]` | The `openapi` argument (one description or a map by source `name`) |
 | `sourceDescriptions[type=asyncapi]` | Unsupported until an AsyncAPI adapter exists; step `denied` |
-| `inputs`, step `parameters` | Resource identifier for instance-level permissions |
+| `inputs`, workflow and step `parameters`, `$inputs.*` | Resource data for instance-level permissions |
 | `outputs` feeding a later step | `provisional: true` decision; re-decided by `protect` at execution |
 | `successCriteria` | Not evaluated; PermDock decides authorization, not success |
 | Operation without `x-permdock-permissions` | `denied`, reason `undocumented` (fail closed) |

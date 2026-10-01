@@ -623,6 +623,44 @@ export function buildInstance(
     relations,
   });
 
+  /** The one `simulate` event for a batch: the worst decision, with the counts. */
+  const simulateEvent = (
+    evaluated: readonly (readonly [Permission, unknown, Decision])[],
+  ): void => {
+    const counts = { granted: 0, denied: 0, approvalRequired: 0 };
+    for (const [, , decision] of evaluated) {
+      if (decision.outcome === 'granted') {
+        counts.granted += 1;
+      } else if (decision.outcome === 'approval-required') {
+        counts.approvalRequired += 1;
+      } else {
+        counts.denied += 1;
+      }
+    }
+    const worst =
+      evaluated.find(([, , decision]) => decision.outcome === 'denied') ??
+      evaluated.find(
+        ([, , decision]) => decision.outcome === 'approval-required',
+      ) ??
+      evaluated[0];
+    if (worst === undefined) {
+      return;
+    }
+    const [permission, data, decision] = worst;
+    finish(
+      policy,
+      subject,
+      permission,
+      data,
+      decision,
+      { source: 'simulate', trusted: true },
+      { ...envFor(false), emit: true },
+      true,
+      undefined,
+      counts,
+    );
+  };
+
   const decideImpl = (
     permission: Permission,
     data?: unknown,
@@ -907,32 +945,34 @@ export function buildInstance(
           }
         | ArazzoSimulateInput,
     ): Decision[] | PermDock | ArazzoPlan => {
-      if (isReadonlyArray(input)) {
-        return input.map(([permission, data]) =>
-          evaluate(
-            policy,
-            subject,
-            permission,
-            data,
-            { source: 'simulate', trusted: true },
-            envFor(false),
-          ),
+      const evaluated: (readonly [Permission, unknown, Decision])[] = [];
+      const quietly = (permission: Permission, data: unknown): Decision => {
+        const decision = evaluate(
+          policy,
+          subject,
+          permission,
+          data,
+          { source: 'simulate', trusted: true },
+          envFor(false),
         );
+        evaluated.push([permission, data, decision]);
+        return decision;
+      };
+      if (isReadonlyArray(input)) {
+        const decisions = input.map(([permission, data]) =>
+          quietly(permission, data),
+        );
+        simulateEvent(evaluated);
+        return decisions;
       }
       if (isArazzoSimulateInput(input)) {
-        return simulateArazzo(
+        const plan = simulateArazzo(
           input,
           input.permissions ?? policy.permissions,
-          (permission, data) =>
-            evaluate(
-              policy,
-              subject,
-              permission,
-              data,
-              { source: 'simulate', trusted: true },
-              envFor(false),
-            ),
+          quietly,
         );
+        simulateEvent(evaluated);
+        return plan;
       }
       // SAFETY: arrays and Arazzo input returned above, so the rest of the union is the preview.
       const preview = input as {

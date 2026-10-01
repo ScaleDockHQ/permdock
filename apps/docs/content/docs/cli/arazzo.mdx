@@ -14,7 +14,7 @@ permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi
 
 | Flag | Values | Default | Purpose |
 | --- | --- | --- | --- |
-| `--doc <path>` | file path | required | The Arazzo 1.0.x or 1.1.0 document |
+| `--doc <path>` | file path | required | The Arazzo 1.0.x or 1.1.x document |
 | `--openapi <path>` | file path | required | The applied OpenAPI description (Overlay already merged). Several sources: pass one document, or a JSON object keyed by source `name` |
 | `--workflow <id>` | workflow id | first workflow | Which `workflowId` to expand |
 | `--from <module>` | definition module | `permissions` in config | Catalog used to reject unknown permission keys |
@@ -27,9 +27,9 @@ A finding is one of:
 
 | Reason | When |
 | --- | --- |
-| `validation` | The document is not Arazzo `1.0.x` / `1.1.0`, the `workflowId` is missing, or a `workflowId` step cycles |
-| `undocumented` | The `operationId` / `operationPath` does not resolve, or the operation has no `x-permdock-permissions` |
-| `unsupported` | The source is `type: asyncapi` |
+| `validation` | The document is not a valid Arazzo `1.0.x` / `1.1.x` document (missing `info`, source descriptions, workflows, steps, a step target or a parameter value), the `workflowId` is missing, or a `workflowId` step cycles |
+| `undocumented` | The `operationId` / `operationPath` does not resolve, names an unknown source, matches operations in several sources without a `$sourceDescriptions` qualifier, or the operation has no `x-permdock-permissions` |
+| `unsupported` | The step is an AsyncAPI operation or `channelPath`, or calls a workflow in another Arazzo document |
 | `unknown-key` | `--from` (or config `permissions`) is set and a key is not in the catalog |
 
 The command does not call `decide`, does not load a policy, and does not accept a subject. Pre-flighting grants is `permdock.simulate({ arazzo, openapi })` on an instance.

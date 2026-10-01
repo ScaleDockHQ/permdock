@@ -1,6 +1,16 @@
 {
   "arazzo": "1.1.0",
-  "sourceDescriptions": [{ "name": "api", "type": "openapi" }],
+  "info": {
+    "title": "Mini app",
+    "version": "1"
+  },
+  "sourceDescriptions": [
+    {
+      "name": "api",
+      "type": "openapi",
+      "url": "./openapi.json"
+    }
+  ],
   "workflows": [
     {
       "workflowId": "deletePost",
@@ -8,7 +18,12 @@
         {
           "stepId": "remove",
           "operationId": "deletePost",
-          "parameters": [{ "name": "id", "value": "p1" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "p1"
+            }
+          ]
         }
       ]
     }

@@ -1,5 +1,9 @@
 {
   "arazzo": "1.1.0",
+  "info": { "title": "Mini app", "version": "1" },
+  "sourceDescriptions": [
+    { "name": "api", "url": "./openapi.json", "type": "openapi" }
+  ],
   "workflows": [
     {
       "workflowId": "ghost",

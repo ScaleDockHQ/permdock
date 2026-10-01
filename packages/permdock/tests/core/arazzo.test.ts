@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Decision } from '../../src/core/decision.ts';
+
 import { arazzoFindings } from '../../src/core/arazzo.ts';
 import { createPermDock } from '../../src/core/permdock.ts';
 import { adminUser, permissions, policy } from '../fixtures/quick-start.ts';
@@ -25,7 +27,8 @@ const openapi = {
 
 const arazzo = {
   arazzo: '1.1.0',
-  sourceDescriptions: [{ name: 'api', type: 'openapi' }],
+  info: { title: 'Posts', version: '1' },
+  sourceDescriptions: [{ name: 'api', url: './openapi.json', type: 'openapi' }],
   workflows: [
     {
       workflowId: 'publishPost',
@@ -60,6 +63,9 @@ const arazzo = {
   ],
 };
 
+const reasonOf = (decision: Decision | undefined) =>
+  decision?.outcome === 'denied' ? decision.denials[0]?.reason : undefined;
+
 describe('simulate Arazzo', () => {
   it('pre-flights a workflow and fails closed on holes', async () => {
     const permdock = await createPermDock(policy, adminUser);
@@ -88,7 +94,7 @@ describe('simulate Arazzo', () => {
     };
     const denied = permdock.simulate({ arazzo: hole, openapi });
     expect(denied.outcome).toBe('denied');
-    expect(denied.steps[0]?.decision.denials[0]?.reason).toBe('undocumented');
+    expect(reasonOf(denied.steps[0]?.decision)).toBe('undocumented');
   });
 
   it('reports catalog holes without deciding', () => {
@@ -112,7 +118,7 @@ describe('simulate Arazzo', () => {
     const permdock = await createPermDock(policy, adminUser);
     const plan = permdock.simulate({
       arazzo: {
-        arazzo: '1.1.0',
+        ...arazzo,
         workflows: [
           {
             workflowId: 'later',
@@ -131,11 +137,11 @@ describe('simulate Arazzo', () => {
     expect(plan.steps[0]?.provisional).toBe(true);
   });
 
-  it('skips parameters that are not objects instead of throwing', async () => {
+  it('denies parameters that are not objects instead of throwing', async () => {
     const permdock = await createPermDock(policy, adminUser);
     const plan = permdock.simulate({
       arazzo: {
-        arazzo: '1.1.0',
+        ...arazzo,
         workflows: [
           {
             workflowId: 'malformed',
@@ -151,15 +157,17 @@ describe('simulate Arazzo', () => {
       },
       openapi,
     });
-    expect(plan.steps[0]?.decision.outcome).toBe('granted');
+    expect(reasonOf(plan.steps[0]?.decision)).toBe('validation');
   });
 
   it('denies AsyncAPI sources as unsupported', async () => {
     const permdock = await createPermDock(policy, adminUser);
     const plan = permdock.simulate({
       arazzo: {
-        arazzo: '1.1.0',
-        sourceDescriptions: [{ name: 'events', type: 'asyncapi' }],
+        ...arazzo,
+        sourceDescriptions: [
+          { name: 'events', url: './asyncapi.json', type: 'asyncapi' },
+        ],
         workflows: [
           {
             workflowId: 'listen',
@@ -175,6 +183,6 @@ describe('simulate Arazzo', () => {
       openapi: {},
     });
     expect(plan.outcome).toBe('denied');
-    expect(plan.steps[0]?.decision.denials[0]?.reason).toBe('unsupported');
+    expect(reasonOf(plan.steps[0]?.decision)).toBe('unsupported');
   });
 });
