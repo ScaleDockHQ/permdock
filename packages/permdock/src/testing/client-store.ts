@@ -21,7 +21,7 @@ import {
 export type ClientStoreStatus = 'ready' | 'pending' | 'stale' | 'server-only';
 
 /** The client surface every UI adapter hands to components. */
-export type ClientStoreDock = PermDock & {
+export type ClientStorePermDock = PermDock & {
   status(permission?: Permission, data?: unknown): ClientStoreStatus;
   refresh(query?: { readonly tenant?: string }): Promise<void>;
   clear(): void;
@@ -29,7 +29,7 @@ export type ClientStoreDock = PermDock & {
 };
 
 export type ClientStoreHandle = {
-  get(): ClientStoreDock;
+  get(): ClientStorePermDock;
   /** Hydrate from a server-pushed snapshot (a Server Action result, a socket message). */
   replace(value: unknown): void;
 };

@@ -13,7 +13,7 @@ export { testClientParity } from './client-parity.ts';
 export type { ClientParityCase, ClientParityOptions } from './client-parity.ts';
 export { testClientStore } from './client-store.ts';
 export type {
-  ClientStoreDock,
+  ClientStorePermDock,
   ClientStoreFactory,
   ClientStoreFactoryOptions,
   ClientStoreHandle,

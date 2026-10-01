@@ -9,6 +9,7 @@ import {
   resource,
   role,
 } from '../../src/index.ts';
+import { reasonOf } from '../fixtures/decisions.ts';
 import {
   adminUser,
   memberUser,
@@ -31,7 +32,7 @@ describe('invariant 1: fail-closed', () => {
       orgId: 'o1',
       roles: ['superuser'],
     });
-    expect(permdock.can(permissions.post.read)).toBe(false);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
   it('denies when the subject mapping throws', async () => {
@@ -42,7 +43,7 @@ describe('invariant 1: fail-closed', () => {
       },
     });
     const permdock = await createPermDock(throwing, { id: 'u1' });
-    expect(permdock.can(permissions.post.read)).toBe(false);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
   it('denies when a grant closure throws', async () => {
@@ -62,7 +63,7 @@ describe('invariant 1: fail-closed', () => {
     });
     const decision = permdock.decide(permissions.post.update, ownPost);
     expect(decision.outcome).toBe('denied');
-    expect(decision.denials[0]?.reason).toBe('closure-error');
+    expect(reasonOf(decision)).toBe('closure-error');
   });
 
   it('denies a row that fails the resource schema', async () => {
@@ -72,26 +73,26 @@ describe('invariant 1: fail-closed', () => {
       published: 'yes',
     });
     expect(decision.outcome).toBe('denied');
-    expect(decision.denials[0]?.reason).toBe('validation');
+    expect(reasonOf(decision)).toBe('validation');
   });
 
   it('denies an actor that carries no delegation', async () => {
     const permdock = await createPermDock(policy, memberUser, {
       actor: { id: 'agent-1', kind: 'agent' },
     });
-    const decision = permdock.decide(permissions.post.read);
+    const decision = permdock.decide(permissions.post.read, ownPost);
     expect(decision.outcome).toBe('denied');
-    expect(decision.denials[0]?.reason).toBe('no-delegation');
+    expect(reasonOf(decision)).toBe('no-delegation');
   });
 
   it('denies a permission from another catalogue', async () => {
     const permdock = await createPermDock(policy, adminUser);
-    expect(permdock.can(foreign.note.read)).toBe(false);
+    expect(permdock.can(foreign.note.read, { id: 'n1' })).toBe(false);
   });
 
   it('denies an anonymous caller', async () => {
     const permdock = await createPermDock(policy, null);
-    expect(permdock.can(permissions.post.read)).toBe(false);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
   it('never throws from can() on hostile input', async () => {

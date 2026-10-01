@@ -10,6 +10,7 @@ import {
   resource,
   role,
 } from '../../src/index.ts';
+import { reasonOf } from '../fixtures/decisions.ts';
 
 const Doc = z.object({ id: z.string(), locked: z.boolean() });
 const permissions = definePermissions({
@@ -59,7 +60,7 @@ describe('invariant 2: deny overrides allow', () => {
       const permdock = await createPermDock(policy, { id: 'u1', roles });
       const decision = permdock.decide(permissions.doc.update, open);
       expect(decision.outcome).toBe('denied');
-      expect(decision.denials[0]?.reason).toBe('deny');
+      expect(reasonOf(decision)).toBe('deny');
     }
   });
 

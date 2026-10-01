@@ -54,7 +54,7 @@ describe('invariant 7: immutable, request-scoped instances', () => {
     const user = { id: 'u1', orgId: 'o1', roles: ['member'] };
     const permdock = await createPermDock(policy, user);
     user.roles.push('admin');
-    expect(permdock.can(permissions.post.publish)).toBe(false);
+    expect(permdock.can(permissions.post.publish, otherPost)).toBe(false);
   });
 
   it('holds no module-level mutable state in core', () => {

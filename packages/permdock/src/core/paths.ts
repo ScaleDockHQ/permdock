@@ -11,7 +11,7 @@ export function isForbiddenKey(key: string): boolean {
 }
 
 export function assertSafeKey(key: string, context: string): void {
-  if (isForbiddenKey(key) || key.length === 0) {
+  if (key.length === 0 || key.split('.').some(isForbiddenKey)) {
     throw new Error(`PermDock: forbidden ${context} key '${key}'`);
   }
 }
