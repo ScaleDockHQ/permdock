@@ -56,8 +56,8 @@ catalog:
   '@commitlint/cli': 21.2.3
   '@commitlint/config-conventional': 21.2.3
   '@commitlint/types': 21.2.3
-  '@orpc/server': 2.0.0-beta.39
-  '@orpc/client': 2.0.0-beta.39
+  '@orpc/server': 2.0.0-beta.40
+  '@orpc/client': 2.0.0-beta.40
   vue: 3.5.43
   svelte: 5.57.1
   'solid-js': 1.9.15
@@ -73,11 +73,11 @@ catalog:
   '@types/express': 5.0.6
   '@types/multer': 2.3.0
   '@types/mdx': 2.0.14
-  '@types/node': 24.19.0
+  '@types/node': 26.6.3
   '@types/pg': 8.23.1
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
-  '@types/ws': 8.18.1
+  '@types/ws': 8.18.2
   '@vitest/coverage-v8': 5.0.2
   class-variance-authority: 0.7.1
   cn: 0.4.0
@@ -92,11 +92,11 @@ catalog:
   '@prisma/client': 7.10.0
   prisma: 7.10.0
   eve: 0.68.0
-  expo: 57.0.25
-  expo-constants: 57.0.19
+  expo: 57.0.26
+  expo-constants: 57.0.20
   expo-linking: 57.0.11
-  expo-modules-core: 57.0.19
-  expo-router: 57.0.23
+  expo-modules-core: 57.0.20
+  expo-router: 57.0.24
   express: 5.2.1
   kysely: 0.29.6
   multer: 2.4.0
@@ -115,7 +115,7 @@ catalog:
   next: 16.3.7
   next-themes: 0.4.6
   ajv: 8.20.0
-  oxc-parser: 0.151.0
+  oxc-parser: 0.152.0
   '@oxlint/plugins': 1.86.0
   eslint-plugin-turbo: 2.11.5
   eslint-plugin-playwright: 2.12.0
@@ -138,7 +138,7 @@ catalog:
   happy-dom: 20.14.5
   react-dom: 19.3.0
   react-native: 0.86.3
-  react-native-safe-area-context: 5.10.0
+  react-native-safe-area-context: 5.10.1
   react-native-screens: 4.28.0
   react-native-web: 0.21.3
   react-native-worklets: 0.13.0
@@ -155,7 +155,7 @@ catalog:
   vitest: 5.0.2
   ws: 8.22.0
   zod: 4.6.5
-  motion: 13.4.5
+  motion: 13.4.6
   sonner: 2.0.8
   '@streamdown/cjk': 1.0.3
   '@streamdown/code': 1.1.1
