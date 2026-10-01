@@ -47,6 +47,7 @@
     "isConditionDate",
     "isConditionRef",
     "isExternallyManaged",
+    "isPermission",
     "isPlan",
     "isPortableCondition",
     "isRole",
@@ -475,7 +476,7 @@
     "saasRoles",
     "saasTenantRoleNames"
   ],
-  "./cli": ["defineConfig", "run"],
+  "./cli": ["defineConfig", "parseGrantsMarker", "parseHookMarker", "run"],
   "./unplugin": ["createPermDockUnplugin"],
   "./next/plugin": ["createPermDockPlugin"],
   "./next/client": ["PermissionBoundary", "usePermissionBoundary"]

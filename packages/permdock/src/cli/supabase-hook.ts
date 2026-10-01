@@ -27,6 +27,7 @@ import {
 } from '../supabase/sources.ts';
 import { globalRoleSource, type RoleRows } from './global-roles.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
+import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from './markers.ts';
 import { authAdminRead, hookUri } from './rls-rbac.ts';
 import {
   activeRowSql,
@@ -727,11 +728,6 @@ enabled = true
 uri = "${hookUri(schema)}"`;
 }
 
-export const HOOK_MARKER = '-- permdock:hook v1';
-
-/** The first line of a `--grants-out` file; PD042 looks for it in the newest migration. */
-export const GRANTS_MARKER = '-- permdock:grants v1';
-
 export const BUDGET_MEASURE =
   'octet_length(memberships::text) + octet_length(attrs::text)';
 
@@ -855,28 +851,6 @@ export function hookMarker(manifest: SupabaseHookManifest): string {
   return `${HOOK_MARKER} schema=${manifest.hook.schema} tenant=${manifest.tenantClaim} budget=${String(manifest.budget.bytes)} claims=${manifest.claims.map((claim) => claim.name).join(',')}`;
 }
 
-/** The fields of a hook marker line, or undefined when the text does not start with one. */
-export function parseHookMarker(
-  text: string,
-): Readonly<Record<string, string>> | undefined {
-  const line = text.split('\n', 1)[0] ?? '';
-  if (!line.startsWith(`${HOOK_MARKER} `)) {
-    return undefined;
-  }
-  // SAFETY: a fresh prototype-less object; only string values are assigned below.
-  const fields: Record<string, string> = Object.create(null) as Record<
-    string,
-    string
-  >;
-  for (const pair of line.slice(HOOK_MARKER.length + 1).split(' ')) {
-    const eq = pair.indexOf('=');
-    if (eq > 0) {
-      fields[pair.slice(0, eq)] = pair.slice(eq + 1);
-    }
-  }
-  return fields;
-}
-
 function defaultOut(config: PermDockConfig): string {
   return config.supabase?.hook?.out ?? 'supabase/permdock-hook.sql';
 }
@@ -943,11 +917,11 @@ function markerDrift(
   expected: SupabaseHookManifest,
   outRel: string,
 ): string {
-  const found = parseHookMarker(onDisk);
+  const found = hookMarkerFields(onDisk);
   if (found === undefined) {
     return `supabase hook drift: ${outRel} has no ${HOOK_MARKER} line`;
   }
-  const want = parseHookMarker(hookMarker(expected)) ?? {};
+  const want = hookMarkerFields(hookMarker(expected)) ?? {};
   const changed = Object.keys(want)
     .filter((key) => found[key] !== want[key])
     .map((key) => `${key} ${found[key] ?? '(none)'} -> ${want[key] ?? ''}`);

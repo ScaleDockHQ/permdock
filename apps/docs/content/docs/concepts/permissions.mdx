@@ -164,6 +164,8 @@ findPermission(permissions, 'post.update')      // Permission | undefined
 findPermission(permissions, scopeFromJwt)       // strings from a DB, JWT scope or OpenAPI doc
 ```
 
+`isPermission(value)` narrows an `unknown` to `Permission` without a cast: it checks for string `key`, `scope`, `resource` and `action` and an object `meta`. It accepts a leaf that crossed `JSON.stringify` (which drops the non-enumerable `kind`), and it does not look the key up, so the check that follows still decides by `key`.
+
 `listPermissions` is the runtime catalog. `permdock collect` produces the same list at build time and adds usage information; the two agree by construction because both come from the definition. `findPermission` is the only place a string enters the system, and its result is typed as a union of all leaves so the next call is typed again.
 
 `mergePermissions` combines definitions from several files; see [larger apps](/docs/getting-started/larger-apps).

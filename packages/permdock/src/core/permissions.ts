@@ -973,15 +973,35 @@ export function findPermission(
   return undefined;
 }
 
-function isPermission(value: unknown): value is Permission {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    'key' in value &&
-    'scope' in value &&
-    'resource' in value &&
-    'action' in value
-  );
+/**
+ * A permission leaf: string `key`, `scope`, `resource` and `action` plus an
+ * object `meta`. `kind` is non-enumerable and does not survive
+ * `JSON.stringify`, so a leaf that crossed a serialisation boundary passes
+ * without it; when present it must be `instance` or `collection`.
+ */
+export function isPermission(value: unknown): value is Permission {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  for (const field of ['key', 'scope', 'resource', 'action'] as const) {
+    if (
+      !Object.hasOwn(value, field) ||
+      typeof Reflect.get(value, field) !== 'string'
+    ) {
+      return false;
+    }
+  }
+  const meta: unknown = Object.hasOwn(value, 'meta')
+    ? Reflect.get(value, 'meta')
+    : undefined;
+  if (meta === null || typeof meta !== 'object' || Array.isArray(meta)) {
+    return false;
+  }
+  if (!Object.hasOwn(value, 'kind')) {
+    return true;
+  }
+  const kind: unknown = Reflect.get(value, 'kind');
+  return kind === 'instance' || kind === 'collection';
 }
 
 function mergeNodes(

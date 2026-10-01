@@ -33,6 +33,7 @@ import {
   type ResourceNode,
   getRegistry,
   isFieldRelation,
+  isPermission,
   isRegistryTree,
   isSelfParented,
   listPermissions,
@@ -383,16 +384,6 @@ export function normalizeApproval(
 
 function isClosure(value: unknown): value is ClosureGrantFn {
   return typeof value === 'function';
-}
-
-function isPermission(value: unknown): value is Permission {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    'key' in value &&
-    'kind' in value &&
-    'action' in value
-  );
 }
 
 function flattenPermissions(

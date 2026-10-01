@@ -5,12 +5,51 @@ import {
   definePermissions,
   findPermission,
   getResource,
+  isPermission,
   listPermissions,
   mergePermissions,
   resource,
 } from '../../src/core/permissions.ts';
 
 const Post = z.object({ id: z.string() });
+
+describe('isPermission', () => {
+  const permissions = definePermissions({
+    post: resource(Post, {
+      id: 'id',
+      actions: ['read'],
+      collection: ['create'],
+    }),
+  });
+
+  it('accepts a leaf and a leaf that crossed JSON', () => {
+    expect(isPermission(permissions.post.read)).toBe(true);
+    expect(isPermission(permissions.post.create)).toBe(true);
+    const wire: unknown = JSON.parse(JSON.stringify(permissions.post.read));
+    expect(isPermission(wire)).toBe(true);
+  });
+
+  it('refuses trees, arrays and partial or malformed leaves', () => {
+    const leaf = {
+      key: 'post.read',
+      scope: 'post:read',
+      resource: 'post',
+      action: 'read',
+      meta: {},
+    };
+    expect(isPermission(permissions.post)).toBe(false);
+    expect(isPermission(permissions)).toBe(false);
+    expect(isPermission([permissions.post.read])).toBe(false);
+    expect(isPermission(null)).toBe(false);
+    expect(isPermission('post.read')).toBe(false);
+    expect(isPermission({ ...leaf, meta: undefined })).toBe(false);
+    expect(isPermission({ ...leaf, meta: [] })).toBe(false);
+    expect(isPermission({ ...leaf, key: 1 })).toBe(false);
+    expect(isPermission({ ...leaf, kind: 'other' })).toBe(false);
+    expect(isPermission({ ...leaf, kind: 'instance' })).toBe(true);
+    expect(isPermission(Object.create(leaf))).toBe(false);
+  });
+});
 
 describe('permissions', () => {
   it('materialises frozen leaves with dotted keys and colon scopes', () => {

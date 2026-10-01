@@ -26,7 +26,20 @@ Reads `supabase.hook` from `permdock.config.ts` and the policy's scopes, and wri
 
 After writing, `hook generate` warns with PD039 when the helper schema (`rls.schema`, default `public`) has no `permdock_has`, or no `permitted_<scope>_ids` or `member_<scope>_ids` for a declared scope: it reads `rls.out` (else `rls.sql`) and the migration folders (`doctor.migrations`), or the database with `--db`. The hook writes claims only those helpers read, so run `permdock rls generate` first.
 
-The migration's first line is a stable marker, `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, so a reader can tell which hook is installed without parsing the function.
+The migration's first line is a stable marker, `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, so a reader can tell which hook is installed without parsing the function. A `--grants-out` file starts with `-- permdock:grants v1 schema=<schema>`.
+
+### Reading the markers
+
+`permdock/cli` exports the two readers, so another tool's doctor recognises PermDock's migrations without copying the format:
+
+```ts
+import { parseGrantsMarker, parseHookMarker } from 'permdock/cli'
+
+parseHookMarker(sql)   // { version: 1, schema, tenantClaim, budget, claims } | undefined
+parseGrantsMarker(sql) // { version: 1, schema } | undefined
+```
+
+Both read only the first line of `sql` and return `undefined` when it is not a marker. `version` is the marker's major; a reader that knows only `v1` treats any other value as unknown.
 
 ## inspect
 
