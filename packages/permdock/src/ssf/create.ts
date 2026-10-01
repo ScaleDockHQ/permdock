@@ -3,6 +3,7 @@ import type { Principal } from '../core/subject.ts';
 import type { SsfAdapter, SsfOptions } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { issuerFromDiscovery } from '../jwt/config.ts';
 import { joseTokenVerifier } from '../jwt/verifier.ts';
 import { createReceiver } from './receiver.ts';
 import { memoryReplayStore } from './replay.ts';
@@ -30,6 +31,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   if (options.issuer === undefined && options.discovery === undefined) {
     throw new TypeError('PermDock: permdock/ssf requires issuer or discovery.');
   }
+  const issuer =
+    options.issuer ??
+    (options.discovery === undefined
+      ? undefined
+      : issuerFromDiscovery(options.discovery));
   const jwks =
     typeof options.jwks === 'string' ? new URL(options.jwks) : options.jwks;
   const verifier =
@@ -38,7 +44,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       compact({
         jwks,
         discovery: options.discovery,
-        issuer: options.issuer,
+        issuer,
         audience: options.audience,
         clockTolerance: options.clockTolerance,
       }),
@@ -47,7 +53,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     receiver: createReceiver(
       compact({
         verifier,
-        issuer: options.issuer,
+        issuer,
         audience: options.audience,
         subject: options.subject,
         onEvent: options.onEvent ?? {},

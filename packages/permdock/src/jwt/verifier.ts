@@ -13,6 +13,7 @@ import {
   assertVerifierConfig,
   fail,
   isSecretJwks,
+  issuerFromDiscovery,
   resolveAlgorithms,
   resolveClockTolerance,
   secretBytes,
@@ -142,7 +143,11 @@ export function joseTokenVerifier(
     options.jwks !== undefined && isSecretJwks(options.jwks)
       ? undefined
       : createKeyCache(options);
-  const issuer = options.issuer;
+  const issuer =
+    options.issuer ??
+    (options.discovery === undefined
+      ? undefined
+      : issuerFromDiscovery(options.discovery));
 
   const verifyInner = async (
     token: string,

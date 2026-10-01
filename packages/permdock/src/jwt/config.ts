@@ -51,18 +51,6 @@ export function isSecretJwks(
   );
 }
 
-function isKeySet(
-  jwks: JwtJwks,
-): jwks is { readonly keys: readonly Record<string, unknown>[] } {
-  return (
-    typeof jwks === 'object' &&
-    jwks !== null &&
-    !(jwks instanceof URL) &&
-    'keys' in jwks &&
-    Array.isArray(jwks.keys)
-  );
-}
-
 export function issuerFromDiscovery(discovery: DiscoveryInput): string {
   return typeof discovery === 'string' ? discovery : discovery.issuer;
 }
@@ -173,7 +161,7 @@ export function assertSubjectConfig(options: JwtSubjectOptions): void {
     assertVerifierConfig(options);
     if (
       options.jwks !== undefined &&
-      isKeySet(options.jwks) &&
+      !isSecretJwks(options.jwks) &&
       options.issuer === undefined
     ) {
       throw new Error('PermDock: issuer is required with jwks.');

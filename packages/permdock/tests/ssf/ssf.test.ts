@@ -182,6 +182,31 @@ describe('receiver.push', () => {
     expect(seen).toEqual(['user-1:sess-1']);
   });
 
+  it('binds a discovery-only receiver to the discovery issuer', async () => {
+    const seen: string[] = [];
+    const { receiver } = createPermDock(policy, {
+      discovery: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: 'https://other.example.com',
+        aud: AUDIENCE,
+        iat: 1_700_000_000,
+        jti: 'set-foreign',
+        sub_id: { format: 'iss_sub', iss: ISSUER, sub: 'user-1' },
+        events: { [SESSION_REVOKED]: {} },
+      })),
+      subject: (setSubject) => String(setSubject['sub']),
+      onEvent: {
+        'session-revoked': ({ subject }) => {
+          seen.push(subject.id);
+        },
+      },
+    });
+    const response = await receiver.push(setRequest('set-foreign'));
+    expect(response.status).toBe(400);
+    expect(seen).toEqual([]);
+  });
+
   it('cancels pending approvals for the revoked session', async () => {
     const store = memoryApprovalStore();
     store.create({

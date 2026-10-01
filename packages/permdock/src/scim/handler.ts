@@ -27,7 +27,7 @@ import {
   scimResponse,
   unauthorized,
 } from './render.ts';
-import { audienceOf, locationOf, pageFrom, parseRoute } from './route.ts';
+import { locationOf, pageFrom, parseRoute } from './route.ts';
 import { GROUP_SCHEMA, USER_SCHEMA, type ScimHandlerOptions } from './types.ts';
 
 export function scimHandler(
@@ -35,6 +35,9 @@ export function scimHandler(
 ): (request: Request) => Promise<Response> {
   if (options.token === undefined && options.verifier === undefined) {
     throw new Error('scimHandler requires token or verifier');
+  }
+  if (options.verifier !== undefined && options.audience === undefined) {
+    throw new Error('scimHandler requires audience with a verifier');
   }
 
   return async (request: Request): Promise<Response> => {
@@ -61,7 +64,7 @@ export function scimHandler(
       compact({
         request,
         tenant,
-        audience: audienceOf(request, options.audience),
+        audience: options.audience,
         token: options.token,
         verifier: options.verifier,
       }),

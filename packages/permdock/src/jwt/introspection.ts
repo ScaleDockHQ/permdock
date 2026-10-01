@@ -100,12 +100,42 @@ function attachActor(
   });
 }
 
+/**
+ * RFC 7662 leaves `aud` and `iss` optional; a response that names another
+ * resource server or issuer than the one configured is not for this API.
+ */
+function boundToConfig(
+  body: Record<string, unknown>,
+  options: JwtSubjectOptions,
+): boolean {
+  if (
+    options.issuer !== undefined &&
+    body['iss'] !== undefined &&
+    body['iss'] !== options.issuer
+  ) {
+    return false;
+  }
+  if (options.audience === undefined) {
+    return true;
+  }
+  const expected = Array.isArray(options.audience)
+    ? options.audience
+    : [options.audience];
+  const aud = body['aud'];
+  const held = typeof aud === 'string' ? [aud] : Array.isArray(aud) ? aud : [];
+  return held.some((item) => expected.includes(item));
+}
+
 export function subjectFromIntrospection(
   response: unknown,
   options: JwtSubjectOptions = {},
 ): MappedSubject {
   try {
-    if (!isRecord(response) || response['active'] !== true) {
+    if (
+      !isRecord(response) ||
+      response['active'] !== true ||
+      !boundToConfig(response, options)
+    ) {
       return anonymousSubject();
     }
     const mapped = mapClaimsToSubject(introspectionToClaims(response), options);

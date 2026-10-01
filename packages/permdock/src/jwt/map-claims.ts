@@ -488,7 +488,7 @@ export function mapClaimsToSubject(
   const principal = freezeDeep(
     compact<JwtPrincipal>({
       id,
-      issuer: typeof claims.iss === 'string' ? claims.iss : options.issuer,
+      issuer: typeof claims.iss === 'string' ? claims.iss : undefined,
       kind: kindOf(claims, paths),
       roles: roles.length > 0 ? roles : undefined,
       plans: plans.length > 0 ? plans : undefined,

@@ -725,6 +725,45 @@ describe('scimHandler', () => {
     expect(mismatch.status).toBe(403);
   });
 
+  it('refuses a verifier without a configured audience', () => {
+    const verifier: TokenVerifier = {
+      verify: async () => ({
+        ok: false,
+        reason: 'invalid-token',
+        cause: 'malformed',
+      }),
+    };
+    expect(() =>
+      scimHandler({ store: memoryDirectoryStore(), tenant: TENANT, verifier }),
+    ).toThrow(/audience/);
+  });
+
+  it('never takes the audience from the request host', async () => {
+    const audiences: unknown[] = [];
+    const verifier: TokenVerifier = {
+      async verify(_token, expectations) {
+        audiences.push(expectations.audience);
+        return {
+          ok: true,
+          claims: { sub: 'relay', tenant: TENANT },
+          header: { alg: 'Ed25519' },
+        };
+      },
+    };
+    const handle = scimHandler({
+      store: memoryDirectoryStore(),
+      tenant: TENANT,
+      audience: 'https://app.example.com/scim/v2',
+      verifier,
+    });
+    await handle(
+      new Request('https://attacker.example.net/scim/v2/Users', {
+        headers: { authorization: 'Bearer jwt' },
+      }),
+    );
+    expect(audiences).toEqual(['https://app.example.com/scim/v2']);
+  });
+
   it('returns 409 on a duplicate userName and 404 on a missing user', async () => {
     const { handle } = handler();
     await handle(

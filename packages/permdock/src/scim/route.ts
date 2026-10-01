@@ -70,14 +70,6 @@ function prefixOf(request: Request): {
   };
 }
 
-export function audienceOf(request: Request, configured?: string): string {
-  if (configured !== undefined) {
-    return configured;
-  }
-  const { origin, prefix } = prefixOf(request);
-  return `${origin}/${prefix.join('/')}`;
-}
-
 export function locationOf(
   request: Request,
   kind: 'Users' | 'Groups',

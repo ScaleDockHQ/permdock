@@ -75,7 +75,7 @@ export type ScimAuthResult =
 export async function authenticateScim(input: {
   readonly request: Request;
   readonly tenant: string;
-  readonly audience: string;
+  readonly audience?: string;
   readonly token?: ScimTokenOptions;
   readonly verifier?: TokenVerifier;
 }): Promise<ScimAuthResult> {
@@ -92,9 +92,10 @@ export async function authenticateScim(input: {
   if (input.verifier === undefined) {
     return { ok: false, status: 401 };
   }
-  const verified = await input.verifier.verify(bearer, {
-    audience: input.audience,
-  });
+  const verified = await input.verifier.verify(
+    bearer,
+    compact({ audience: input.audience }),
+  );
   if (!verified.ok) {
     return { ok: false, status: 401 };
   }
