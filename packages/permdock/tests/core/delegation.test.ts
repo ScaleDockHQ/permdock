@@ -53,6 +53,30 @@ describe('coveredByDelegation', () => {
     ).toBe('not-delegated');
   });
 
+  it('rejects a detail or access entry whose identifier or actions has the wrong type', () => {
+    // SAFETY: the wrong-typed fields stand for an unvalidated token payload.
+    const detailId = {
+      authorizationDetails: [{ type: 'post', identifier: ['p2'] }],
+    } as unknown as Parameters<typeof coveredByDelegation>[1];
+    expect(coveredByDelegation(update, detailId, 'p1')).toBe('not-delegated');
+    // SAFETY: as above, `actions` is a string instead of an array.
+    const detailActions = {
+      authorizationDetails: [{ type: 'post', actions: 'read' }],
+    } as unknown as Parameters<typeof coveredByDelegation>[1];
+    expect(coveredByDelegation(update, detailActions, 'p1')).toBe(
+      'not-delegated',
+    );
+    const accessWrong = {
+      access: [
+        { type: 'post', identifier: 7 },
+        { type: 'post', actions: 'update' },
+      ],
+    };
+    expect(coveredByDelegation(update, accessWrong, 'p1')).toBe(
+      'not-delegated',
+    );
+  });
+
   it('matches GNAP access by reference string or typed object', () => {
     expect(
       coveredByDelegation(update, { access: ['post:update'] }),

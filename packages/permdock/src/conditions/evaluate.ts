@@ -252,6 +252,12 @@ export type RelatedResolver = (
   data: unknown,
 ) => boolean;
 
+/**
+ * Called for each `opaque` node reached. The node evaluates to `false`, so a
+ * caller that must not let `not(opaque)` match records the call and fails.
+ */
+export type OpaqueHook = () => void;
+
 export function evaluateCondition(
   condition: Condition,
   data: unknown,
@@ -259,15 +265,16 @@ export function evaluateCondition(
   now: number = Date.now() / 1000,
   scopes: readonly Scope[] = scopeList(undefined),
   related?: RelatedResolver,
+  onOpaque?: OpaqueHook,
 ): boolean {
   switch (condition.op) {
     case 'and':
       return condition.conditions.every((child) =>
-        evaluateCondition(child, data, subject, now, scopes, related),
+        evaluateCondition(child, data, subject, now, scopes, related, onOpaque),
       );
     case 'or':
       return condition.conditions.some((child) =>
-        evaluateCondition(child, data, subject, now, scopes, related),
+        evaluateCondition(child, data, subject, now, scopes, related, onOpaque),
       );
     case 'not':
       return !evaluateCondition(
@@ -277,6 +284,7 @@ export function evaluateCondition(
         now,
         scopes,
         related,
+        onOpaque,
       );
     case 'isNull': {
       if (data === null || typeof data !== 'object') {
@@ -337,8 +345,10 @@ export function evaluateCondition(
         now,
         scopes,
         related,
+        onOpaque,
       );
     case 'opaque':
+      onOpaque?.();
       return false;
     default: {
       const exhaustive: never = condition;

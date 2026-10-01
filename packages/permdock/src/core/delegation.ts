@@ -42,16 +42,18 @@ export function coveredByDelegation(
       if (detail.type !== permission.resource) {
         return false;
       }
+      const identifier: unknown = detail['identifier'];
       if (
-        typeof detail['identifier'] === 'string' &&
-        detail['identifier'] !== resourceId
+        identifier !== undefined &&
+        (typeof identifier !== 'string' || identifier !== resourceId)
       ) {
         return false;
       }
-      if (detail.actions === undefined) {
+      const actions: unknown = detail.actions;
+      if (actions === undefined) {
         return true;
       }
-      return detail.actions.includes(permission.action);
+      return Array.isArray(actions) && actions.includes(permission.action);
     }) ?? false;
   const accessOk = accessCovers(permission, delegation.access, resourceId);
   if (scopeOk || detailOk || accessOk) {
@@ -79,12 +81,19 @@ function accessCovers(
     if (typeof type !== 'string' || !typeMatches(type, permission.resource)) {
       return false;
     }
+    // A present field of the wrong type narrows nothing, so it covers nothing.
     const actions = entry['actions'];
-    if (Array.isArray(actions) && !actions.includes(permission.action)) {
+    if (
+      actions !== undefined &&
+      (!Array.isArray(actions) || !actions.includes(permission.action))
+    ) {
       return false;
     }
     const identifier = entry['identifier'];
-    if (typeof identifier === 'string' && identifier !== resourceId) {
+    if (
+      identifier !== undefined &&
+      (typeof identifier !== 'string' || identifier !== resourceId)
+    ) {
       return false;
     }
     return true;

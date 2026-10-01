@@ -83,7 +83,7 @@ flowchart LR
 | Policy imported into a client bundle | Server-only entry points; bundle tests | invariant 10 |
 | Prototype pollution through condition paths | Own-property lookups; forbidden segments rejected | invariant 4 |
 | Code execution through a snapshot or import | No eval; conditions are data | invariant 5 |
-| Deny rule silently ignored | Deny overrides allow, tested in the policy matrix | [Policies](/docs/concepts/policies), invariant 2 |
+| Deny rule silently ignored | Deny overrides allow, tested in the policy matrix; a deny whose closure throws or whose condition is opaque or unanswerable denies instead of being skipped, and `not` cannot turn an opaque node into a match | [Policies](/docs/concepts/policies), invariant 2 |
 | Async schema skips validation | Sync requirement; `PermDockValidationError` | [Standard Schema](/docs/standards/standard-schema) |
 | Remote PDP unreachable | Denied, never granted | [pdp provider](/docs/adapters/pdp), invariant 1 |
 | A cached remote PDP answer reused for another tenant, agent or row | The cache key holds the mapped request (subject, resource properties, action), the permission key, the principal's issuer, the tenant and the actor id and kind; the cache is bounded and drops expired entries | [pdp provider](/docs/adapters/pdp) |

@@ -227,9 +227,17 @@ function evaluateGrantCondition(
   readonly reason?: DenialReason;
   readonly cause?: unknown;
 } {
-  // Any graph read the instance could not answer fails the grant, whatever the
-  // rest of the condition says, so `not` and `or` cannot turn it into a match.
-  let unknown: 'relation-depth' | 'relation-unavailable' | undefined;
+  // Any graph read the instance could not answer, and any opaque node, fails the
+  // grant whatever the rest of the condition says, so `not` and `or` cannot
+  // turn it into a match.
+  let unknown:
+    | 'relation-depth'
+    | 'relation-unavailable'
+    | 'opaque-condition'
+    | undefined;
+  const onOpaque = (): void => {
+    unknown ??= 'opaque-condition';
+  };
   const related = (condition: RelatedCondition, row: unknown): boolean => {
     if (relations === undefined) {
       unknown ??= 'relation-unavailable';
@@ -275,6 +283,7 @@ function evaluateGrantCondition(
       now,
       scopes,
       related,
+      onOpaque,
     );
     if (unknown !== undefined) {
       return { matched: false, reason: unknown };
@@ -299,6 +308,7 @@ function evaluateGrantCondition(
       now,
       scopes,
       related,
+      onOpaque,
     );
     if (unknown !== undefined) {
       return { matched: false, reason: unknown };
@@ -310,8 +320,14 @@ function evaluateGrantCondition(
   return { matched: true };
 }
 
-function isGraphUnknown(reason: DenialReason | undefined): boolean {
-  return reason === 'relation-depth' || reason === 'relation-unavailable';
+/** A grant whose condition could not be answered; a deny with one denies. */
+function isUnevaluable(reason: DenialReason | undefined): boolean {
+  return (
+    reason === 'relation-depth' ||
+    reason === 'relation-unavailable' ||
+    reason === 'closure-error' ||
+    reason === 'opaque-condition'
+  );
 }
 
 function shouldConsumeQuota(
@@ -746,8 +762,16 @@ export function evaluate(
     if (
       !condition.matched &&
       grant.effect === 'deny' &&
-      isGraphUnknown(condition.reason)
+      isUnevaluable(condition.reason) &&
+      grantCoversField(grant.fields, options.field, grant.effect)
     ) {
+      if (condition.reason === 'closure-error') {
+        emitSafe(
+          env.listeners.error,
+          condition.cause ?? new Error('closure-error'),
+          env.listeners,
+        );
+      }
       const decision: Decision = freezeDeep({
         outcome: 'denied',
         denials: [

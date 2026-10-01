@@ -141,6 +141,10 @@ function conditionOk(
   now: number,
   scopes: readonly Scope[],
 ): { readonly matched: boolean; readonly reason?: DenialReason } {
+  let opaqueReached = false;
+  const onOpaque = (): void => {
+    opaqueReached = true;
+  };
   if (grant.portable === false) {
     return { matched: false, reason: 'opaque-condition' };
   }
@@ -151,7 +155,19 @@ function conditionOk(
     if (grant.where.op === 'opaque' || grant.check?.op === 'opaque') {
       return { matched: false, reason: 'opaque-condition' };
     }
-    if (!evaluateCondition(grant.where, current, subject, now, scopes)) {
+    const matched = evaluateCondition(
+      grant.where,
+      current,
+      subject,
+      now,
+      scopes,
+      undefined,
+      onOpaque,
+    );
+    if (opaqueReached) {
+      return { matched: false, reason: 'opaque-condition' };
+    }
+    if (!matched) {
       return { matched: false, reason: 'condition' };
     }
   }
@@ -163,7 +179,19 @@ function conditionOk(
     if (next === undefined) {
       return { matched: false, reason: 'condition' };
     }
-    if (!evaluateCondition(check, next, subject, now, scopes)) {
+    const matched = evaluateCondition(
+      check,
+      next,
+      subject,
+      now,
+      scopes,
+      undefined,
+      onOpaque,
+    );
+    if (opaqueReached) {
+      return { matched: false, reason: 'opaque-condition' };
+    }
+    if (!matched) {
       return { matched: false, reason: 'condition' };
     }
   }
@@ -250,6 +278,18 @@ export function evaluateSnapshot(
       now,
       scopeList(snapshot.scopes),
     );
+    if (
+      !condition.matched &&
+      grant.effect === 'deny' &&
+      condition.reason === 'opaque-condition' &&
+      grantCoversField(grant.fields, options.field, grant.effect)
+    ) {
+      return freezeDeep({
+        outcome: 'denied',
+        denials: [{ role: grant.role, reason: 'opaque-condition' }],
+        alternatives: [],
+      });
+    }
     if (!condition.matched) {
       denials.push({
         role: grant.role,
