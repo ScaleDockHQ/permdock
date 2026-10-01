@@ -67,9 +67,10 @@ grant update (bio) on profiles to authenticated;
 create table report (id text primary key, region text not null, clearance integer not null);
 create table ticket (id text primary key, region text not null);
 create table record (id text primary key, region text not null);
+create table note (id text primary key, title text not null);
 insert into report values ${REPORTS.map((row) => `('${row.id}', '${row.region}', ${String(row.clearance)})`).join(', ')};
 insert into ticket values ${TICKETS.map((row) => `('${row.id}', '${row.region}')`).join(', ')};
-grant select on report, ticket, record to authenticated;
+grant select on report, ticket, record, note to authenticated;
 `;
 
 type Claims = Record<string, unknown>;
