@@ -131,16 +131,19 @@ function constValue(value: unknown): ConditionValue | undefined {
   if (typeof constant['sval'] === 'string') {
     return constant['sval'];
   }
+  // The parser omits a protobuf default, so `0` and `false` arrive as `{}`.
   const ival = asNode(constant['ival']);
-  if (ival !== undefined && typeof ival['ival'] === 'number') {
-    return ival['ival'];
+  if (ival !== undefined) {
+    const number = ival['ival'] ?? 0;
+    return typeof number === 'number' ? number : undefined;
   }
   if (typeof constant['ival'] === 'number') {
     return constant['ival'];
   }
   const boolval = asNode(constant['boolval']);
-  if (boolval !== undefined && typeof boolval['boolval'] === 'boolean') {
-    return boolval['boolval'];
+  if (boolval !== undefined) {
+    const flag = boolval['boolval'] ?? false;
+    return typeof flag === 'boolean' ? flag : undefined;
   }
   if (typeof constant['boolval'] === 'boolean') {
     return constant['boolval'];
@@ -823,25 +826,19 @@ function jwtClaim(value: unknown): string | undefined {
     return undefined;
   }
   const name = operatorName(node);
-  if (name !== '->>' && name !== '->') {
+  if ((name !== '->>' && name !== '->') || !isJwtCall(expr['lexpr'])) {
     return undefined;
-  }
-  const leftName = funcName(expr['lexpr']);
-  if (leftName !== 'auth.jwt' && leftName !== 'auth.session') {
-    const sub = asNode(unwrap(expr['lexpr']));
-    const nested = asNode(sub?.['SubLink']);
-    if (nested !== undefined && !isAuthUid({ SubLink: nested })) {
-      const select = asNode(asNode(nested['subselect'])?.['SelectStmt']);
-      const targets = select?.['targetList'];
-      if (Array.isArray(targets) && targets[0] !== undefined) {
-        const res = asNode(asNode(targets[0])?.['ResTarget']);
-        const innerName = funcName(res?.['val']);
-        if (innerName !== 'auth.jwt' && innerName !== 'auth.session') {
-          return undefined;
-        }
-      }
-    }
   }
   const claim = constValue(expr['rexpr']);
   return typeof claim === 'string' ? claim : undefined;
+}
+
+/** `auth.jwt()` / `auth.session()`, bare or as a scalar `(select …)`; a column's `->>` is row data, not a claim. */
+function isJwtCall(value: unknown): boolean {
+  const inner = scalarSubselect(value);
+  if (inner !== undefined) {
+    return isJwtCall(inner);
+  }
+  const name = funcName(value);
+  return name === 'auth.jwt' || name === 'auth.session';
 }

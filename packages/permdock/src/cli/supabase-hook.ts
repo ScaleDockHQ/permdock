@@ -799,6 +799,11 @@ function hookParts(
   quoteIdent(schema);
   const tenantClaim = config.rls?.tenantClaim ?? supabaseTenantClaim;
   const extraPlan = extraClaimsPlan(hook.claims, tenantClaim);
+  const warnings = checkSources({
+    sources: hook.memberships,
+    scopes,
+    suspended: Object.keys(suspension?.scopes ?? {}),
+  });
   const parts: Parts = {
     schema,
     scopes,
@@ -851,11 +856,6 @@ function hookParts(
     throw new Error(`PermDock CLI: ${extraPlan.errors.join('; ')}`);
   }
   quoteIdent(parts.tenantClaim);
-  const warnings = checkSources({
-    sources: parts.sources,
-    scopes,
-    suspended: Object.keys(suspension?.scopes ?? {}),
-  });
   return { parts, warnings };
 }
 

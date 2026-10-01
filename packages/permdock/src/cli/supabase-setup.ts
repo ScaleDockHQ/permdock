@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 
 import type { SupabaseHookManifest } from '../supabase/manifest.ts';
 import type { DoctorFinding } from './doctor-types.ts';
+import type { SqlClient, SqlConnect } from './rls-verify.ts';
 import type { PermDockConfig } from './types.ts';
 
 import { readMemberships } from '../supabase/subject.ts';
@@ -71,10 +72,7 @@ export function missingHelpersInFiles(
   return manifest.helpers.functions.filter((name) => !found.has(name));
 }
 
-export async function missingHelpersInDb(
-  db: string,
-  manifest: SupabaseHookManifest,
-): Promise<readonly string[]> {
+async function connectPg(db: string): Promise<SqlClient> {
   const pg = await requirePeer(
     () => import('pg'),
     'pg',
@@ -91,13 +89,22 @@ export async function missingHelpersInDb(
       },
     );
   }
+  return client;
+}
+
+export async function missingHelpersInDb(
+  db: string,
+  manifest: SupabaseHookManifest,
+  connect: SqlConnect = connectPg,
+): Promise<readonly string[]> {
+  const client = await connect(db);
   try {
-    const result = await client.query<{ readonly proname: string }>(
+    const result = await client.query(
       `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = $1 and p.proname = any($2::text[])`,
       [manifest.helpers.schema, [...manifest.helpers.functions]],
     );
-    const found = new Set(result.rows.map((row) => row.proname));
+    const found = new Set(result.rows.map((row) => row['proname']));
     return manifest.helpers.functions.filter((name) => !found.has(name));
   } finally {
     await client.end();

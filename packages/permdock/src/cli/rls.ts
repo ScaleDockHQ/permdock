@@ -11,7 +11,7 @@ import {
   introspectRls,
 } from './rls-introspect.ts';
 import { parseRbacAuthorize } from './rls-rbac.ts';
-import { runRlsVerify } from './rls-verify.ts';
+import { runRlsVerify, type SqlConnect } from './rls-verify.ts';
 
 export const RLS_HELP = `permdock rls generate | import | verify | migrate
 
@@ -70,6 +70,8 @@ export type RlsRunInput = {
   readonly write: boolean;
   readonly json: boolean;
   readonly io: CliIo;
+  /** Opens every `--db` connection; defaults to the `pg` peer. */
+  readonly connect?: SqlConnect;
 };
 
 function asTarget(value: string | undefined): RlsTarget | undefined {
@@ -185,10 +187,14 @@ async function introspectHelpersOnly(
   db: string,
   expected: ExpectedRls,
   generated: GenerateOutcome,
+  connect: SqlConnect | undefined,
 ): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
   const schema = generated.schema ?? 'public';
   try {
-    const helpers = diffRls(expected, await introspectRls(db, expected));
+    const helpers = diffRls(
+      expected,
+      await introspectRls(db, expected, connect),
+    );
     const mixed = diffMixed(
       {
         schema,
@@ -196,7 +202,7 @@ async function introspectHelpersOnly(
         permissions: generated.keys?.permissions ?? [],
         rowConditions: generated.keys?.rowConditions ?? [],
       },
-      await introspectMixed(db, schema),
+      await introspectMixed(db, schema, connect),
     );
     const drift = [...helpers, ...mixed.drift];
     const info = mixed.info.map((line) => `info: ${line}`);
@@ -245,10 +251,10 @@ async function introspect(
   }
   const expected = expectedRls(generated.policies, generated.text);
   if (generated.helpersOnly === true) {
-    return introspectHelpersOnly(input.db, expected, generated);
+    return introspectHelpersOnly(input.db, expected, generated, input.connect);
   }
   try {
-    const actual = await introspectRls(input.db, expected);
+    const actual = await introspectRls(input.db, expected, input.connect);
     const drift = diffRls(expected, actual, {
       columnGrants: (input.fields ?? input.config.rls?.fields) === 'views',
     });
@@ -311,6 +317,7 @@ export async function runRls(
         ...(input.memberships === undefined
           ? {}
           : { memberships: input.memberships }),
+        ...(input.connect === undefined ? {} : { connect: input.connect }),
       });
     }
     case 'verify': {
@@ -330,6 +337,7 @@ export async function runRls(
         ...(input.fixtures === undefined ? {} : { fixtures: input.fixtures }),
         ...(input.db === undefined ? {} : { db: input.db }),
         ...(input.from === undefined ? {} : { from: input.from }),
+        ...(input.connect === undefined ? {} : { connect: input.connect }),
       });
       return verified;
     }

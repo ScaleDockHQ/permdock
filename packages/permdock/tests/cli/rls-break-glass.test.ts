@@ -76,6 +76,31 @@ describe('break-glass RLS generation', () => {
     expect(sql).not.toMatch(/service_role/iu);
   });
 
+  it('lists a resource once and keeps a schema-qualified table', () => {
+    const twice = definePolicy(permissions, {
+      grants: [
+        ...policy.grants,
+        breakGlass(permissions.patient.read, {
+          overrides: ['restricted-record'],
+          requires: { reason: true },
+        }),
+      ],
+      // SAFETY: SQL generation never calls the subject mapper; only the grants are read.
+      subject: (user: unknown) => user as never,
+    });
+    const entries = breakGlassEntries(twice, { patient: 'clinic.patients' });
+    expect(entries).toEqual([
+      { resource: 'patient', table: 'clinic.patients' },
+    ]);
+    expect(breakGlassSql(ctx, entries)).toContain('"clinic"."patients"');
+  });
+
+  it('refuses a resource name that is not a plain identifier', () => {
+    expect(() =>
+      breakGlassSql(ctx, [{ resource: 'Patient-Record', table: 'patients' }]),
+    ).toThrow(/unsafe break-glass resource 'Patient-Record'/u);
+  });
+
   it('is empty for a policy with no break-glass grant', () => {
     const plain = definePolicy(permissions, {
       grants: [],

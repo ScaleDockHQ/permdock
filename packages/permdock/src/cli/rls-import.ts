@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 import type { RolePermission } from './rls-helpers.ts';
 import type { ImportedGrant } from './rls-import-ast.ts';
 import type { ImportedFieldView } from './rls-import-views.ts';
+import type { SqlClient, SqlConnect } from './rls-verify.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
 import {
@@ -82,9 +83,13 @@ function splitPolicies(sql: string): ImportedPolicy[] {
     const name = match[1] ?? 'policy';
     const table = match[2] ?? 'table';
     const body = match[3] ?? '';
-    const asRestrictive = /\bas\s+restrictive\b/i.test(body);
-    const cmdMatch = body.match(/\bfor\s+(all|select|insert|update|delete)\b/i);
-    const toMatch = body.match(/\bto\s+([^\n]+)/i);
+    const clauses = body.search(/\b(?:using|with\s+check)\s*\(/i);
+    const header = clauses === -1 ? body : body.slice(0, clauses);
+    const asRestrictive = /\bas\s+restrictive\b/i.test(header);
+    const cmdMatch = header.match(
+      /\bfor\s+(all|select|insert|update|delete)\b/i,
+    );
+    const toMatch = header.match(/\bto\s+([^\n]+)/i);
     const using = extractParenClause(body, 'using');
     const check = extractParenClause(body, 'with\\s+check');
     const roles = (toMatch?.[1] ?? 'authenticated')
@@ -171,17 +176,22 @@ function loadPg(): Promise<typeof Pg> {
   return requirePeer(() => import('pg'), 'pg', 'permdock rls import --db');
 }
 
-async function seedsFromDb(
-  query: (sql: string) => Promise<{ readonly rows: readonly unknown[] }>,
-): Promise<readonly RolePermission[]> {
+async function connectPg(db: string): Promise<SqlClient> {
+  const pg = await loadPg();
+  const client = new pg.Client({ connectionString: db });
+  await client.connect();
+  return client;
+}
+
+type Query = (
+  sql: string,
+) => Promise<{ readonly rows: readonly Record<string, unknown>[] }>;
+
+async function seedsFromDb(query: Query): Promise<readonly RolePermission[]> {
   const tables = await query(
     `select table_schema from information_schema.tables where table_name = 'role_permissions' order by table_schema = 'public' desc, table_schema limit 1`,
   );
-  // SAFETY: a row of the SELECT above, which has one table_schema column; it is read as unknown.
-  const first = tables.rows[0] as
-    | { readonly table_schema?: unknown }
-    | undefined;
-  const schema = first?.table_schema;
+  const schema = tables.rows[0]?.['table_schema'];
   if (typeof schema !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(schema)) {
     return [];
   }
@@ -190,8 +200,7 @@ async function seedsFromDb(
       `select role::text, permission::text, grant_key, scope, effect from "${schema}".role_permissions`,
     );
     return rows.rows.flatMap((row) => {
-      // SAFETY: pg returns each row as an object keyed by the SELECT's columns; values stay unknown.
-      const seed = seedFromRow(row as Readonly<Record<string, unknown>>);
+      const seed = seedFromRow(row);
       return seed === undefined ? [] : [seed];
     });
   } catch {
@@ -200,60 +209,64 @@ async function seedsFromDb(
   }
 }
 
-async function policiesFromDb(db: string): Promise<{
+/** `pg_policies.roles` is a `name[]`, which `pg` returns as an array or, untyped, as `{a,b}`. */
+function policyRoles(value: unknown): readonly string[] {
+  if (Array.isArray(value)) {
+    return value.map(String);
+  }
+  return typeof value === 'string'
+    ? value
+        .replaceAll(/[{}]/g, '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item !== '')
+    : [];
+}
+
+async function policiesFromDb(
+  db: string,
+  connect: SqlConnect,
+): Promise<{
   readonly policies: ImportedPolicy[];
   readonly bodies: Map<string, string>;
   readonly seeds: readonly RolePermission[];
   readonly views: string;
 }> {
-  const pg = await loadPg();
-  const client = new pg.Client({ connectionString: db });
-  await client.connect();
+  const client = await connect(db);
+  const query: Query = (sql) => client.query(sql, []);
   try {
-    const result = await client.query<{
-      tablename: string;
-      policyname: string;
-      permissive: string;
-      roles: string[] | string;
-      cmd: string;
-      qual: string | null;
-      with_check: string | null;
-    }>(
+    const result = await query(
       `select tablename, policyname, permissive, roles, cmd, qual, with_check from pg_policies`,
     );
     const bodies = new Map<string, string>();
-    const procs = await client.query<{ proname: string; prosrc: string }>(
-      `select proname, prosrc from pg_proc`,
-    );
+    const procs = await query(`select proname, prosrc from pg_proc`);
     for (const row of procs.rows) {
-      bodies.set(row.proname, row.prosrc);
+      const { proname, prosrc } = row;
+      if (typeof proname === 'string' && typeof prosrc === 'string') {
+        bodies.set(proname, prosrc);
+      }
     }
-    const seeds = await seedsFromDb((sql) => client.query(sql));
-    const views = await viewsSqlFromDb((sql) => client.query(sql));
+    const seeds = await seedsFromDb(query);
+    const views = await viewsSqlFromDb(query);
     const policies: ImportedPolicy[] = [];
     for (const row of result.rows) {
-      const roles = Array.isArray(row.roles)
-        ? row.roles
-        : row.roles
-            .replaceAll(/[{}]/g, '')
-            .split(',')
-            .map((item) => item.trim());
-      const cmd = (row.cmd ?? 'ALL').toUpperCase();
+      const { tablename, policyname, qual, with_check: check } = row;
+      if (typeof tablename !== 'string' || typeof policyname !== 'string') {
+        continue;
+      }
+      const cmd =
+        typeof row['cmd'] === 'string' ? row['cmd'].toUpperCase() : 'ALL';
       const commands =
         cmd === 'ALL' ? ['SELECT', 'INSERT', 'UPDATE', 'DELETE'] : [cmd];
       for (const command of commands) {
         policies.push({
-          name: row.policyname,
-          table: row.tablename,
+          name: policyname,
+          table: tablename,
           cmd: command,
-          permissive: row.permissive !== 'RESTRICTIVE',
-          roles,
-          ...(row.qual === null || row.qual === undefined
-            ? {}
-            : { using: row.qual }),
-          ...(row.with_check === null || row.with_check === undefined
-            ? {}
-            : { check: row.with_check }),
+          permissive: row['permissive'] !== 'RESTRICTIVE',
+          roles: policyRoles(row['roles']),
+          ...(typeof qual === 'string' ? { using: qual } : {}),
+          ...(typeof check === 'string' ? { check } : {}),
         });
       }
     }
@@ -272,6 +285,8 @@ export async function runRlsImport(input: {
   readonly schema: string;
   readonly memberships?: string;
   readonly io: CliIo;
+  /** Opens the `--db` connection; defaults to the `pg` peer. */
+  readonly connect?: SqlConnect;
 }): Promise<ImportOutcome> {
   let policies: ImportedPolicy[] = [];
   let bodies = new Map<string, string>();
@@ -296,7 +311,7 @@ export async function runRlsImport(input: {
     }
   } else if (input.db !== undefined) {
     try {
-      const fromDb = await policiesFromDb(input.db);
+      const fromDb = await policiesFromDb(input.db, input.connect ?? connectPg);
       policies = fromDb.policies;
       bodies = fromDb.bodies;
       seeds = fromDb.seeds;

@@ -6,9 +6,12 @@ import {
   diffMixed,
   diffRls,
   expectedRls,
+  introspectMixed,
+  introspectRls,
   qualified,
 } from '../../src/cli/rls-introspect.ts';
 import { run } from '../../src/cli/run.ts';
+import { fakeSql } from '../fakes/sql.ts';
 
 const SQL = `create or replace function "app".permdock_has(p_grant text)
 returns boolean
@@ -121,6 +124,268 @@ describe('rls verify --introspect', () => {
     expect(result.stderr + result.stdout).toContain(
       'rls verify --introspect needs --db',
     );
+  });
+});
+
+describe('diffRls details', () => {
+  it('names restrictive, extra, disabled, over-granted and unsafe helpers', () => {
+    const permissive = expectedRls(
+      [
+        {
+          name: 'post_select',
+          table: 'post',
+          command: 'select',
+          effect: 'allow',
+          roles: ['anon'],
+          using: 'true',
+        },
+      ],
+      SQL,
+    );
+    expect(
+      diffRls(permissive, {
+        policies: [
+          {
+            table: 'public.post',
+            name: 'post_select',
+            command: 'select',
+            permissive: false,
+            roles: ['anon'],
+          },
+          {
+            table: 'public.post',
+            name: 'hand_written',
+            command: 'all',
+            permissive: true,
+            roles: ['authenticated'],
+          },
+          {
+            table: 'public.post',
+            name: 'hand_guard',
+            command: 'delete',
+            permissive: false,
+            roles: ['authenticated'],
+          },
+          {
+            table: 'public.other',
+            name: 'elsewhere',
+            command: 'all',
+            permissive: true,
+            roles: ['anon'],
+          },
+        ],
+        rlsEnabled: { 'public.post': true },
+        grants: { 'public.post': { anon: ['select', 'delete'] } },
+        helpers: {
+          'app.permdock_has': {
+            securityDefiner: false,
+            emptySearchPath: false,
+          },
+        },
+      }),
+    ).toEqual([
+      'public.post: policy post_select is restrictive, expected permissive',
+      'public.post: policy hand_written is not generated (permissive all); a permissive one widens access',
+      'public.post: policy hand_guard is not generated (restrictive delete); a permissive one widens access',
+      'public.post: anon holds delete, which no generated policy allows',
+      'app.permdock_has: helper is not security definer',
+      "app.permdock_has: helper does not set search_path = ''",
+    ]);
+    expect(
+      diffRls(permissive, {
+        policies: [],
+        rlsEnabled: { 'public.post': false },
+        grants: {},
+        helpers: {},
+      }),
+    ).toEqual([
+      'public.post: policy post_select is missing',
+      'public.post: row level security is disabled',
+      'app.permdock_has: helper is missing',
+    ]);
+    expect(
+      diffRls(
+        { ...permissive, grants: {} },
+        {
+          ...clean,
+          policies: [],
+          rlsEnabled: { 'public.post': true },
+          grants: {},
+        },
+      ),
+    ).toEqual(['public.post: policy post_select is missing']);
+  });
+});
+
+describe('introspectRls and introspectMixed through an injected client', () => {
+  it('reads Neon roles, the all command and both search_path spellings', async () => {
+    const sql = fakeSql((call) => {
+      if (call.sql.includes('roles::text[] as roles')) {
+        return {
+          rows: [
+            {
+              target: 'public.post',
+              policyname: 'post_all',
+              cmd: '*',
+              permissive: 'permissive',
+              roles: ['anonymous', 'authenticated'],
+            },
+            {
+              target: 'public.post',
+              policyname: 'odd',
+              cmd: null,
+              permissive: 'RESTRICTIVE',
+              roles: '{x}',
+            },
+          ],
+        };
+      }
+      if (call.sql.includes('as enabled')) {
+        return {
+          rows: [
+            { target: 'public.post', enabled: true },
+            { target: 'public.off', enabled: 'yes' },
+          ],
+        };
+      }
+      if (call.sql.includes('role_table_grants')) {
+        return {
+          rows: [
+            {
+              target: 'public.post',
+              grantee: 'anonymous',
+              privilege: 'select',
+            },
+            {
+              target: 'public.post',
+              grantee: 'anonymous',
+              privilege: 'update',
+            },
+          ],
+        };
+      }
+      if (call.sql.includes('p.prosecdef')) {
+        return {
+          rows: [
+            { target: 'app.a', definer: true, config: "search_path=''" },
+            {
+              target: 'app.b',
+              definer: 'true',
+              config: 'search_path=public,work_mem=1',
+            },
+          ],
+        };
+      }
+      return undefined;
+    });
+    expect(
+      await introspectRls('postgres://fake', expected, sql.connect),
+    ).toEqual({
+      policies: [
+        {
+          table: 'public.post',
+          name: 'post_all',
+          command: 'all',
+          permissive: true,
+          roles: ['anon', 'authenticated'],
+        },
+        {
+          table: 'public.post',
+          name: 'odd',
+          command: '',
+          permissive: false,
+          roles: [],
+        },
+      ],
+      rlsEnabled: { 'public.post': true, 'public.off': false },
+      grants: { 'public.post': { anon: ['select', 'update'] } },
+      helpers: {
+        'app.a': { securityDefiner: true, emptySearchPath: true },
+        'app.b': { securityDefiner: false, emptySearchPath: false },
+      },
+    });
+    expect(sql.calls[0]?.values).toEqual([['public.post']]);
+    expect(sql.ended()).toBe(true);
+  });
+
+  it('reads seeds, scopes policies to application schemas and sorts RLS tables', async () => {
+    const sql = fakeSql((call) => {
+      if (call.sql.includes('.role_permissions')) {
+        return {
+          rows: [
+            {
+              role: 'a',
+              permission: 'p',
+              grant_key: 'p',
+              scope: 'global',
+              effect: 'deny',
+            },
+            {
+              role: 'b',
+              permission: 'p',
+              grant_key: 'p#2',
+              scope: 'org',
+              effect: 'allow',
+            },
+          ],
+        };
+      }
+      if (call.sql.includes('as expression')) {
+        return {
+          rows: [
+            { target: 'public.post', policyname: 'p', expression: 'true' },
+            { target: 'storage.objects', policyname: 's', expression: 'true' },
+            { target: 'auth.users', policyname: 'u', expression: 'true' },
+            { target: 'pg_temp_1.t', policyname: 't', expression: 'true' },
+          ],
+        };
+      }
+      if (call.sql.includes('c.relrowsecurity')) {
+        return {
+          rows: [
+            { target: 'public.zeta' },
+            { target: 'app.alpha' },
+            { target: 'realtime.x' },
+          ],
+        };
+      }
+      return undefined;
+    });
+    expect(
+      await introspectMixed('postgres://fake', 'my"schema', sql.connect),
+    ).toEqual({
+      seeds: [
+        {
+          role: 'a',
+          permission: 'p',
+          grantKey: 'p',
+          scope: 'global',
+          effect: 'deny',
+        },
+        {
+          role: 'b',
+          permission: 'p',
+          grantKey: 'p#2',
+          scope: 'org',
+          effect: 'allow',
+        },
+      ],
+      policies: [
+        { table: 'public.post', name: 'p', expression: 'true' },
+        { table: 'storage.objects', name: 's', expression: 'true' },
+      ],
+      rlsTables: ['app.alpha', 'public.zeta'],
+    });
+    expect(sql.statements()[0]).toContain('from "my""schema".role_permissions');
+    expect(sql.ended()).toBe(true);
+  });
+
+  it('closes the client when a catalog query fails', async () => {
+    const sql = fakeSql(() => ({ code: '42501' }));
+    await expect(
+      introspectMixed('postgres://fake', 'public', sql.connect),
+    ).rejects.toThrow('SQLSTATE 42501');
+    expect(sql.ended()).toBe(true);
   });
 });
 

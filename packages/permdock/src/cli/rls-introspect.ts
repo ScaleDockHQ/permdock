@@ -1,5 +1,6 @@
 import type { CompiledPolicy } from './rls-compile.ts';
 import type { RolePermission } from './rls-helpers.ts';
+import type { SqlClient, SqlConnect } from './rls-verify.ts';
 
 import { callsHelper, HELPER_TABLES, helperCallKeys } from './helper-calls.ts';
 import { requirePeer } from './peer.ts';
@@ -238,11 +239,7 @@ function commandOf(cmd: unknown): string {
   return text === '*' ? 'all' : text;
 }
 
-/** Reads the catalogs for the tables and helpers `expected` names (postgres-meta's queries, trimmed). */
-export async function introspectRls(
-  db: string,
-  expected: ExpectedRls,
-): Promise<ActualRls> {
+async function connectPg(db: string): Promise<SqlClient> {
   const pg = await requirePeer(
     () => import('pg'),
     'pg',
@@ -256,6 +253,16 @@ export async function introspectRls(
       cause,
     });
   }
+  return client;
+}
+
+/** Reads the catalogs for the tables and helpers `expected` names (postgres-meta's queries, trimmed). */
+export async function introspectRls(
+  db: string,
+  expected: ExpectedRls,
+  connect: SqlConnect = connectPg,
+): Promise<ActualRls> {
+  const client = await connect(db);
   try {
     const tables = [...expected.tables];
     const policies = await client.query(POLICIES_SQL, [tables]);
@@ -263,16 +270,14 @@ export async function introspectRls(
     const grants = await client.query(GRANTS_SQL, [tables]);
     const helpers = await client.query(HELPERS_SQL, [[...expected.helpers]]);
     const byTable: Record<string, Record<string, string[]>> = {};
-    // SAFETY: pg rows are objects keyed by the SELECT's columns; every field is read through String().
-    for (const row of grants.rows as Record<string, unknown>[]) {
+    for (const row of grants.rows) {
       const table = String(row['target']);
       const role = liveRole(String(row['grantee']));
       const entry = (byTable[table] ??= {});
       (entry[role] ??= []).push(String(row['privilege']));
     }
-    // SAFETY: pg rows are objects keyed by each SELECT's columns; fields are narrowed as they are read.
     return {
-      policies: (policies.rows as Record<string, unknown>[]).map((row) => ({
+      policies: policies.rows.map((row) => ({
         table: String(row['target']),
         name: String(row['policyname']),
         command: commandOf(row['cmd']),
@@ -282,14 +287,14 @@ export async function introspectRls(
           : [],
       })),
       rlsEnabled: Object.fromEntries(
-        (enabled.rows as Record<string, unknown>[]).map((row) => [
+        enabled.rows.map((row) => [
           String(row['target']),
           row['enabled'] === true,
         ]),
       ),
       grants: byTable,
       helpers: Object.fromEntries(
-        (helpers.rows as Record<string, unknown>[]).map((row) => [
+        helpers.rows.map((row) => [
           String(row['target']),
           {
             securityDefiner: row['definer'] === true,
@@ -416,53 +421,36 @@ function quoteIdent(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
 
-function rows(result: {
-  readonly rows: readonly unknown[];
-}): readonly Record<string, unknown>[] {
-  // SAFETY: pg rows are objects keyed by each SELECT's columns; every field is read through String().
-  return result.rows as readonly Record<string, unknown>[];
-}
-
 /** Reads `role_permissions`, `pg_policies` and the RLS-enabled tables for {@link diffMixed}. */
 export async function introspectMixed(
   db: string,
   schema: string,
+  connect: SqlConnect = connectPg,
 ): Promise<ActualMixed> {
-  const pg = await requirePeer(
-    () => import('pg'),
-    'pg',
-    'permdock rls verify --introspect',
-  );
-  const client = new pg.Client({ connectionString: db });
-  try {
-    await client.connect();
-  } catch (cause) {
-    throw new Error('PermDock CLI: rls verify --introspect could not connect', {
-      cause,
-    });
-  }
+  const client = await connect(db);
   try {
     const seeds = await client.query(
       `select role, permission, grant_key, scope, effect from ${quoteIdent(schema)}.role_permissions`,
+      [],
     );
-    const policies = await client.query(ALL_POLICIES_SQL);
-    const tables = await client.query(RLS_TABLES_SQL);
+    const policies = await client.query(ALL_POLICIES_SQL, []);
+    const tables = await client.query(RLS_TABLES_SQL, []);
     return {
-      seeds: rows(seeds).map((row) => ({
+      seeds: seeds.rows.map((row) => ({
         role: String(row['role']),
         permission: String(row['permission']),
         grantKey: String(row['grant_key']),
         scope: String(row['scope']),
         effect: String(row['effect']) === 'deny' ? 'deny' : 'allow',
       })),
-      policies: rows(policies)
+      policies: policies.rows
         .map((row) => ({
           table: String(row['target']),
           name: String(row['policyname']),
           expression: String(row['expression']),
         }))
         .filter((row) => inScope(row.table)),
-      rlsTables: rows(tables)
+      rlsTables: tables.rows
         .map((row) => String(row['target']))
         .filter(inScope)
         .toSorted(),
