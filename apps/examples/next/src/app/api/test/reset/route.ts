@@ -1,6 +1,7 @@
 import { revalidateTag } from 'next/cache';
+import { snapshotTag } from 'permdock/next';
 
-import { orgTag, userTag } from '../../../../lib/access.ts';
+import { orgTag } from '../../../../lib/access.ts';
 import { organizations, people, resetStore } from '../../../../lib/store.ts';
 
 /** Test-only: restores the seed between e2e scenarios. */
@@ -13,7 +14,7 @@ export function POST(): Response {
     revalidateTag(orgTag(organization.id), { expire: 0 });
   }
   for (const person of people) {
-    revalidateTag(userTag(person.id), { expire: 0 });
+    revalidateTag(snapshotTag(person.id), { expire: 0 });
   }
   return Response.json({ ok: true });
 }

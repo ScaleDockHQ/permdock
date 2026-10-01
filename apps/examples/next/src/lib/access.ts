@@ -2,7 +2,7 @@ import type { Snapshot } from 'permdock';
 
 import { cacheLife, cacheTag } from 'next/cache';
 import { snapshotFor } from 'permdock';
-import { cacheLifeFor } from 'permdock/next';
+import { cacheLifeFor, snapshotTag } from 'permdock/next';
 
 import type { Quote } from '../permissions.ts';
 
@@ -11,9 +11,6 @@ import { permissions } from '../permissions.ts';
 import { policy } from '../policy.ts';
 import { currentUser } from './session.ts';
 import { findQuote, quotesOf, staffOf } from './store.ts';
-
-export const userTag = (user: string | null | undefined): string =>
-  `permdock:${user ?? 'anon'}`;
 
 export const orgTag = (organization: string): string => `org:${organization}`;
 
@@ -45,7 +42,7 @@ export async function loadSnapshot(organization: string): Promise<Snapshot> {
   const user = await currentUser();
   const snapshot = snapshotFor(policy, user, { tenant: organization });
   cacheLife(cacheLifeFor(snapshot));
-  cacheTag(userTag(user?.id), orgTag(organization));
+  cacheTag(snapshotTag(user?.id), orgTag(organization));
   return snapshot;
 }
 
@@ -54,7 +51,7 @@ export async function visibleQuotes(organization: string): Promise<Quote[]> {
   'use cache: private';
   const permdock = await getPermDock({ tenant: organization });
   cacheLife({ stale: 300 });
-  cacheTag(userTag(permdock.subject.principal?.id), orgTag(organization));
+  cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));
   return permdock.filter(permissions.quote.read, await getQuotes(organization));
 }
 
@@ -74,7 +71,7 @@ export async function quoteAccess(
   'use cache: private';
   const permdock = await getPermDock({ tenant: organization });
   cacheLife({ stale: 300 });
-  cacheTag(userTag(permdock.subject.principal?.id), orgTag(organization));
+  cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));
   const quote = await findQuote(organization, id);
   if (quote === null || !permdock.can(permissions.quote.read, quote)) {
     return { quote: null, approve: false };

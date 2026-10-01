@@ -167,6 +167,7 @@ catalog:
   dotenv-cli: 11.0.0
   portless: 0.15.6
   '@axe-core/playwright': 4.13.0
+  better-supabase: 0.2.0
 
 catalogs:
   ts59:

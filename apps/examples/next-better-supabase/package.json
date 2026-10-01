@@ -1,0 +1,39 @@
+{
+  "name": "@permdock/example-next-better-supabase",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev -p 3489 -H 127.0.0.1",
+    "doctor": "node scripts/better-supabase.ts doctor",
+    "gen": "node scripts/better-supabase.ts gen",
+    "gen:check": "node scripts/better-supabase.ts gen --check",
+    "lint": "oxlint --disable-nested-config",
+    "serve": "node scripts/serve.ts",
+    "start": "next start -p 3489 -H 127.0.0.1",
+    "typecheck": "tsc --noEmit --checkers 4"
+  },
+  "dependencies": {
+    "better-supabase": "catalog:",
+    "jose": "catalog:",
+    "next": "catalog:",
+    "permdock": "workspace:*",
+    "pg": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@testcontainers/postgresql": "catalog:",
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

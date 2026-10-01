@@ -19,7 +19,6 @@ import { subjectFromClerk } from 'permdock/clerk'
 
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
   subject: async () => subjectFromClerk(await auth()),
-  tag: (subject) => `permdock:${subject.id}`,
 })
 // subject.principal = {
 //   id: userId,

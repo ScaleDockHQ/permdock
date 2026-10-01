@@ -165,7 +165,7 @@
     "useSubject",
     "useTenant"
   ],
-  "./next": ["cacheLifeFor", "createPermDock"],
+  "./next": ["cacheLifeFor", "createPermDock", "snapshotTag"],
   "./server": [
     "InvalidSignatureError",
     "PROBLEM_BASE",

@@ -4,7 +4,7 @@
   "./jwt": 23714,
   "./react": 40959,
   "./react-native": 41828,
-  "./next": 96281,
+  "./next": 96440,
   "./server": 99022,
   "./hono": 91932,
   "./express": 91773,
@@ -43,7 +43,7 @@
   "./testing": 137645,
   "./testing/saas": 82900,
   "./testing/saas/permissions": 75609,
-  "./cli": 320982,
+  "./cli": 320989,
   "./unplugin": 86046,
   "./next/plugin": 85318,
   "./next/client": 1022

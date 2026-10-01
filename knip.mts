@@ -39,6 +39,14 @@ const config: KnipConfig = {
     'apps/examples/supabase-rls': {
       entry: ['permdock.config.ts', 'src/**/*.ts'],
     },
+    'apps/examples/next-better-supabase': {
+      entry: [
+        'permdock.config.ts',
+        'better-supabase.config.ts',
+        'scripts/*.ts',
+        'src/**/*.{ts,tsx}',
+      ],
+    },
     'packages/*': {},
     'packages/ui': {
       // shadcn and ReUI registry code is vendored whole, used or not.

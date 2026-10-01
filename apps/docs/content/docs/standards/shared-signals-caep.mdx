@@ -22,11 +22,12 @@ PermDock's client model is snapshot-based: `permdock.snapshot()` serialises role
 ```ts
 import { createPermDock } from 'permdock/ssf'
 import { updateTag } from 'next/cache'
+import { snapshotTag } from 'permdock/next'
 
 export const { receiver } = createPermDock(policy, {
   onEvent: {
-    'session-revoked': ({ subject }) => updateTag(`permdock:${subject.id}`),
-    'credential-change': ({ subject }) => updateTag(`permdock:${subject.id}`),
+    'session-revoked': ({ subject }) => updateTag(snapshotTag(subject.id)),
+    'credential-change': ({ subject }) => updateTag(snapshotTag(subject.id)),
     'assurance-level-change': ({ subject, event }) => audit(event),
   },
 })
@@ -37,7 +38,7 @@ What the [ssf adapter](/docs/adapters/ssf) does:
 
 - **Receives SETs** over push or poll, verifies the transmitter's signature and issuer according to the stream configuration, and rejects anything that fails verification (fail closed: an unverifiable event is dropped and logged, never acted on).
 - **Resolves the subject.** CAEP subject identifiers (email, issuer-and-subject, opaque) are mapped to the application's user id through an adapter option, because PermDock does not have a user store.
-- **Invalidates.** Each handler receives the resolved subject and the raw event. The typical action is `updateTag('permdock:<user>')` in Next.js, or calling the client `invalidate()` channel so `usePermDock()` refetches. Snapshots scoped with `include` share the same tag, so one event clears all of a user's scoped snapshots.
+- **Invalidates.** Each handler receives the resolved subject and the raw event. The typical action is `updateTag(snapshotTag(user))` in Next.js, or calling the client `invalidate()` channel so `usePermDock()` refetches. Snapshots scoped with `include` share the same tag, so one event clears all of a user's scoped snapshots.
 - **Feeds audit.** Events are emitted on the same observability path as decisions (see [audit and observability](/docs/concepts/audit-and-observability)) so a `session-revoked` followed by a `denied` decision is traceable.
 
 PermDock is only a receiver. It never transmits events and does not manage SSF streams beyond the configuration needed to verify incoming SETs. Invalidation is strictly per subject; there is no handler that invalidates everything for an issuer.
@@ -50,7 +51,7 @@ Outside Next.js, the `revocations` option carries the signal to clients: the rec
 2. The SET reaches `receiver`, by POST (RFC 8935) or by the receiver's next poll (RFC 8936).
 3. `receiver` verifies the signature and issuer against the stream configuration. On failure the event is logged and dropped.
 4. The subject identifier is resolved to the application's user id through the configured mapper.
-5. The `onEvent['session-revoked']` handler runs: `updateTag('permdock:<user>')` in Next.js, or the client `invalidate()` channel elsewhere.
+5. The `onEvent['session-revoked']` handler runs: `updateTag(snapshotTag(user))` in Next.js, or the client `invalidate()` channel elsewhere.
 6. The next request for that user builds a fresh `PermDock` and snapshot; `usePermDock().status` on connected clients moves to `stale` and then `ready` after refetch.
 7. The event is recorded on the audit path alongside decisions.
 

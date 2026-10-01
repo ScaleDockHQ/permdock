@@ -20,6 +20,7 @@ env:
   # The Next.js workspaces; GitHub-hosted runners run out of memory building them in parallel.
   NEXT_APPS: >-
     --filter=docs --filter=marketing --filter=@permdock/example-next
+    --filter=@permdock/example-next-better-supabase
     --filter=@permdock/e2e-next-saas --filter=@permdock/e2e-turbo-web
 
 jobs:

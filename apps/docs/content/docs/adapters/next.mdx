@@ -132,14 +132,14 @@ The `next.config.ts` plugin (`createPermDockPlugin`) exists only as a build hook
 // src/permdock/snapshot.ts
 import { cacheLife, cacheTag } from 'next/cache'
 import { snapshotFor } from 'permdock'
-import { cacheLifeFor } from 'permdock/next'
+import { cacheLifeFor, snapshotTag } from 'permdock/next'
 
 export async function loadSnapshot(org: string) {
   'use cache: private'
   const claims = await getClaims()                 // verified locally (JWKS); reads cookies inside the private cache
   const snapshot = snapshotFor(policy, claims, { tenant: org, include: [permissions.post] })
   cacheLife(cacheLifeFor(snapshot))                // 30 s minimum for per-link prefetch, 300 s for the App Shell
-  cacheTag(`permdock:${claims?.sub ?? 'anon'}`)
+  cacheTag(snapshotTag(claims?.sub))               // permdock:<sub>, or permdock:anon
   return snapshot
 }
 
@@ -158,7 +158,7 @@ export default function Layout({ children, params }) {
 
    `'use cache: private'` caches per browser session, so session-derived output is allowed into the prefetched App Shell. Anything that reads `cookies()` without it must render behind a `Suspense` boundary or the navigation blocks.
 3. Guards resolve from the shell. Client `Protected` and `usePermission` answer from the prefetched snapshot, so a link to an admin page paints on click. Data-dependent checks (`getPermission(permissions.post.update, post)` where `post` comes from the database) sit under `Suspense` and stream.
-4. Mutations. A Server Action calls `permdock.assert(...)` or `await requireAccess(...)`, performs the write, then `updateTag('permdock:<user>')` (the tag your loader set) if the write changed roles, memberships or custom roles, which invalidates the private cache and the client refetches. A Route Handler, such as a billing webhook, an entitlement webhook or a revocation-counter bump, uses `revalidateTag(tag, { expire: 0 })` instead, because `updateTag` works only in Server Actions. Not `revalidateTag(tag, 'max')`: stale-while-revalidate would keep serving the revoked grant for one more visit. `refresh()` is for a Server Action that changed nothing cached but must repaint the acting browser. A role-assignment action additionally checks `permissions.member.assignRole` and that the new role is in `permdock.assignableRoles()` before writing ([tenancy](/docs/concepts/tenancy)).
+4. Mutations. A Server Action calls `permdock.assert(...)` or `await requireAccess(...)`, performs the write, then `updateTag(snapshotTag(user))` (the tag your loader set) if the write changed roles, memberships or custom roles, which invalidates the private cache and the client refetches. A Route Handler, such as a billing webhook, an entitlement webhook or a revocation-counter bump, uses `revalidateTag(tag, { expire: 0 })` instead, because `updateTag` works only in Server Actions. Not `revalidateTag(tag, 'max')`: stale-while-revalidate would keep serving the revoked grant for one more visit. `refresh()` is for a Server Action that changed nothing cached but must repaint the acting browser. A role-assignment action additionally checks `permissions.member.assignRole` and that the new role is in `permdock.assignableRoles()` before writing ([tenancy](/docs/concepts/tenancy)).
 5. Closure grants. `usePermission` posts batched `evaluations` to `app/api/permdock/route.ts`; `permdockHandler` resolves the same subject, validates the posted data at the boundary and answers.
 6. Segments that must not be prefetched with permission UI export `instant = false` (see [segment configs](#segment-configs-and-links)).
 
@@ -241,7 +241,7 @@ How `permdock/next` relates to each function in the [Next.js functions reference
 | `unstable_rethrow` | adapter | Lets `redirect()` and other interrupts from the `subject` and `tenant` resolvers through |
 | `forbidden`, `unauthorized` | adapter | `requireAccess` on a denial |
 | `cookies`, `headers` | app | Read by the app's `subject` resolver or inside the app's `'use cache: private'` loader; PermDock never calls them |
-| `cacheLife`, `cacheTag` | app | `cacheLife(cacheLifeFor(snapshot))` and a `permdock:<sub>` tag inside the app's private cache |
+| `cacheLife`, `cacheTag` | app | `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub))` inside the app's private cache |
 | `updateTag` | app | In the Server Action that changed roles, memberships or custom roles |
 | `revalidateTag` | app | In Route Handlers (webhooks), with `{ expire: 0 }` |
 | `refresh` | app | Server Actions only; other members' browsers need an app signal that calls `router.refresh()` |
@@ -268,6 +268,8 @@ How `permdock/next` relates to each function in the [Next.js functions reference
 To check a route by hand, open the Next.js DevTools in `next dev`, select Navigation Inspector, turn on Pause on navigations, then refresh (the static shell) or click a link (the prefetched UI) and confirm the gated nav and actions are already there. Prefetching happens only under `next start`, so confirm the result with `pnpm --filter @permdock/example-next build` and `start`.
 
 The multi-org pattern with JWT and database membership modes, a refresh signal and a negative control is `tests/e2e/fixtures/next-saas` ([Next.js Cache Components guide](/docs/guides/next-cache-components)).
+
+`apps/examples/next-better-supabase` is the same shape on Supabase sessions from better-supabase: `/[locale]/[orgSlug]/...` routes, staff roles in `memberships`, portal contacts through `contacts.user_id`, and the PermDock access-token hook and RLS helpers generated from one set of sources. It runs in snapshot-only mode (`endpoint={false}`, no `/api/permdock` route), loads the snapshot and the RLS-filtered rows through `next.cached()`, and tags both with `snapshotTag(sub)` ([the recipe](/docs/guides/next-cache-components#supabase-claims)). `pnpm --filter @permdock/example-next-better-supabase serve` starts Postgres in testcontainers, so it needs Docker. `tests/e2e/src/next-better-supabase.spec.ts` asserts under `instant()` that page and organization switches render the gated nav from the prefetch, that no request reaches `/api/permdock`, and that RLS returns only the active organization's rows and a contact's own quotes.
 
 ## Why
 

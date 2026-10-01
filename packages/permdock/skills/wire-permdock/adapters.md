@@ -29,14 +29,14 @@ With `cacheComponents`, when permission UI (nav items, row actions) must be pref
 // src/permdock/snapshot.ts
 import { cacheLife, cacheTag } from 'next/cache';
 import { snapshotFor } from 'permdock';
-import { cacheLifeFor } from 'permdock/next';
+import { cacheLifeFor, snapshotTag } from 'permdock/next';
 
 export async function loadSnapshot(org: string) {
   'use cache: private';
   const claims = await getClaims(); // verified locally against JWKS
   const snapshot = snapshotFor(policy, claims, { tenant: org });
   cacheLife(cacheLifeFor(snapshot));
-  cacheTag(`permdock:${claims?.sub ?? 'anon'}`);
+  cacheTag(snapshotTag(claims?.sub));
   return snapshot;
 }
 
@@ -44,7 +44,7 @@ export async function loadSnapshot(org: string) {
 <PermDockProvider snapshotPromise={params.then(({ org }) => loadSnapshot(org))}>
 ```
 
-After a role change: `updateTag('permdock:<user>')` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler (not `'max'`, which would keep serving the revoked grant). Pages whose permission UI must be instant export `instant = true`; a rarely visited admin page exports `prefetch = 'force-disabled'`. Resource links that should carry their gated actions use `<Link prefetch={true}>` with the check in a `'use cache: private'` function keyed on the resource id. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. With a slug in the URL (`[orgSlug]`), resolve it to the org id in a `'use cache'` lookup that reads no session, call `notFound()` for an unknown slug, and pass the id to `snapshotFor`, `requireAccess` and `getPermDock`. Export `const { POST, GET } = permdockHandler()` from `app/api/permdock/route.ts`, or pass `endpoint: false` when every client check is portable; then a closure grant read by `usePermission` is denied with reason `server-only` (`permdock doctor` PD044 warns). Guide: https://permdock.com/docs/guides/next-cache-components.
+After a role change: `updateTag(snapshotTag(user))` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler (not `'max'`, which would keep serving the revoked grant). Pages whose permission UI must be instant export `instant = true`; a rarely visited admin page exports `prefetch = 'force-disabled'`. Resource links that should carry their gated actions use `<Link prefetch={true}>` with the check in a `'use cache: private'` function keyed on the resource id. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. With a slug in the URL (`[orgSlug]`), resolve it to the org id in a `'use cache'` lookup that reads no session, call `notFound()` for an unknown slug, and pass the id to `snapshotFor`, `requireAccess` and `getPermDock`. Export `const { POST, GET } = permdockHandler()` from `app/api/permdock/route.ts`, or pass `endpoint: false` when every client check is portable; then a closure grant read by `usePermission` is denied with reason `server-only` (`permdock doctor` PD044 warns). Guide: https://permdock.com/docs/guides/next-cache-components.
 
 ## Hono — `permdock/hono`
 

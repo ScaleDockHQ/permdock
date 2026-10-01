@@ -143,6 +143,9 @@ jobs:
             projects: --project=next
           - name: next-saas
             projects: --project=next-saas
+          # Postgres in testcontainers (Docker on the runner), then instant().
+          - name: next-better-supabase
+            projects: --project=next-better-supabase
           - name: vite-saas
             projects: >-
               --project=sveltekit-saas --project=nuxt-saas

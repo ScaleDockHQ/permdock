@@ -5,6 +5,7 @@ import type { Decision } from 'permdock';
 import { updateTag } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { snapshotTag } from 'permdock/next';
 
 import { serverPermDock } from '../lib/access.ts';
 import { mintSession } from '../lib/session.ts';
@@ -48,7 +49,7 @@ export async function signIn(form: FormData): Promise<void> {
     path: '/',
     maxAge: TOKEN_TTL_SECONDS,
   });
-  updateTag(`permdock:${user}`);
+  updateTag(snapshotTag(user));
   redirect(typeof next === 'string' && next.startsWith('/') ? next : '/');
 }
 
@@ -87,6 +88,6 @@ export async function changeRole(
     return { ok: false, reason: 'not-found' };
   }
   updateTag(`org:${org}`);
-  updateTag(`permdock:${user}`);
+  updateTag(snapshotTag(user));
   return { ok: true };
 }

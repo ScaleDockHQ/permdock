@@ -2,10 +2,11 @@
 
 import { updateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { snapshotTag } from 'permdock/next';
 
 import type { RoleName } from '../permissions.ts';
 
-import { orgTag, userTag } from '../lib/access.ts';
+import { orgTag } from '../lib/access.ts';
 import {
   findQuote,
   removeQuote,
@@ -73,6 +74,6 @@ export async function changeRole(form: FormData): Promise<void> {
   }
   if (setStaffRole(organization, user, role)) {
     updateTag(orgTag(organization));
-    updateTag(userTag(user));
+    updateTag(snapshotTag(user));
   }
 }

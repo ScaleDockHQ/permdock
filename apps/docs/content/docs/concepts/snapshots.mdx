@@ -136,7 +136,7 @@ A snapshot is a point-in-time view. Three things refresh it:
 
 | Trigger | Mechanism |
 | --- | --- |
-| Role or grant change on the server (Next.js) | `updateTag('permdock:<user>')` in a Server Action (or `revalidateTag(tag, { expire: 0 })` in a Route Handler), where the tag is the one your `'use cache: private'` loader set with `cacheTag`; the App Shell prefetch is refreshed and the client receives a new snapshot on the next navigation |
+| Role or grant change on the server (Next.js) | `updateTag(snapshotTag(user))` (`snapshotTag` from `permdock/next`) in a Server Action (or `revalidateTag(tag, { expire: 0 })` in a Route Handler), where the tag is the one your `'use cache: private'` loader set with `cacheTag`; the App Shell prefetch is refreshed and the client receives a new snapshot on the next navigation |
 | Identity provider signal | `permdock/ssf` receives a CAEP `session-revoked`, `credential-change` or `assurance-level-change` event and calls the same tag update, so staleness is bounded by the IdP, not by a TTL ([Shared Signals](/docs/standards/shared-signals-caep)) |
 | Client-side knowledge | `permdock.invalidate(permissions.post)` drops endpoint answers under `post.*` and marks snapshot-derived answers `'stale'` until the provider refreshes |
 

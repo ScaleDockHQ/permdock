@@ -150,6 +150,18 @@ describe('doctor checks', () => {
     expect(codes(result.stdout)).toContain('PD014');
   });
 
+  it('PD014 reads a shorthand issuer next to jwks', async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, 'src/verify.ts'),
+      `const issuer = 'https://issuer.example'\nexport const opts = { jwks: { keys: [] }, issuer }\n`,
+    );
+    const result = await run(['doctor', '--json', '--only', 'discovery'], {
+      cwd,
+    });
+    expect(codes(result.stdout)).not.toContain('PD014');
+  });
+
   it('PD015 warns on accept id-token', async () => {
     const cwd = appCopy();
     writeFileSync(

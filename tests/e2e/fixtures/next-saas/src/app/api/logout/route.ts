@@ -1,5 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { cookies } from 'next/headers';
+import { snapshotTag } from 'permdock/next';
 
 import { getClaims } from '../../../lib/session.ts';
 import { SESSION_COOKIE } from '../../../lib/token.ts';
@@ -17,7 +18,7 @@ export async function POST(request: Request): Promise<Response> {
   const claims = await getClaims();
   (await cookies()).delete(SESSION_COOKIE);
   if (claims !== null) {
-    revalidateTag(`permdock:${claims.sub}`, { expire: 0 });
+    revalidateTag(snapshotTag(claims.sub), { expire: 0 });
   }
   return new Response(null, {
     status: 303,

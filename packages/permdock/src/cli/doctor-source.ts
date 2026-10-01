@@ -217,7 +217,7 @@ export function pd014(
     }
     if (
       /jwks\s*:/u.test(source.text) &&
-      !/issuer\s*:/u.test(source.text) &&
+      !/\bissuer\s*[:,}]/u.test(source.text) &&
       !/discovery\s*:/u.test(source.text)
     ) {
       findings.push({

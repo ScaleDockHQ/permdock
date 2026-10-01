@@ -20,7 +20,7 @@ export const policy = definePolicy(
       role(roles.contact, [allow(permissions.quote.read, { where: { status: { in: ['sent', 'accepted'] } } })], { on: 'customer' }),
       role(roles['platform-admin'], [allow(permissions.organization.disable)]),
     ],
-    subject: subjectFromSupabase,
+    subject: (user: Principal | null) => user, // a Subject from subjectFromSupabase skips it
   },
 )
 ```

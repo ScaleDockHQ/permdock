@@ -1,7 +1,7 @@
 import { revalidateTag } from 'next/cache';
 import { cookies } from 'next/headers';
+import { snapshotTag } from 'permdock/next';
 
-import { userTag } from '../../../lib/access.ts';
 import {
   SESSION_COOKIE,
   sessionUserId,
@@ -22,7 +22,7 @@ export async function POST(request: Request): Promise<Response> {
   const jar = await cookies();
   const previous = await sessionUserId();
   if (previous !== null) {
-    revalidateTag(userTag(previous), { expire: 0 });
+    revalidateTag(snapshotTag(previous), { expire: 0 });
   }
   const user = (await request.formData()).get('user');
   const person = people.find((item) => item.id === user) ?? null;
@@ -35,7 +35,7 @@ export async function POST(request: Request): Promise<Response> {
     sameSite: 'lax',
     path: '/',
   });
-  revalidateTag(userTag(person.id), { expire: 0 });
+  revalidateTag(snapshotTag(person.id), { expire: 0 });
   const home = person.id === 'carol' ? '/portal/acme' : '/acme';
   return new Response(null, { status: 303, headers: { location: home } });
 }

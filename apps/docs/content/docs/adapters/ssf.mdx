@@ -14,6 +14,7 @@ PermDock snapshots are cached: on the server behind `use cache: private` and `up
 ```ts
 import { createPermDock } from 'permdock/ssf'
 import { updateTag } from 'next/cache'
+import { snapshotTag } from 'permdock/next'
 
 export const { receiver } = createPermDock(policy, {
   issuer: 'https://login.example.com',                 // expected SET issuer
@@ -21,9 +22,9 @@ export const { receiver } = createPermDock(policy, {
   jwks: 'https://login.example.com/.well-known/jwks.json',
   subject: (setSubject) => userIdFrom(setSubject),    // maps the SET sub_id to a PermDock principal id
   onEvent: {
-    'session-revoked':         ({ subject }) => updateTag(`permdock:${subject.id}`),
-    'credential-change':       ({ subject }) => updateTag(`permdock:${subject.id}`),
-    'assurance-level-change':  ({ subject, event }) => updateTag(`permdock:${subject.id}`),
+    'session-revoked':         ({ subject }) => updateTag(snapshotTag(subject.id)),
+    'credential-change':       ({ subject }) => updateTag(snapshotTag(subject.id)),
+    'assurance-level-change':  ({ subject, event }) => updateTag(snapshotTag(subject.id)),
   },
 })
 

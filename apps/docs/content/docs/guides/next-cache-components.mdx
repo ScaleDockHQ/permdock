@@ -40,7 +40,7 @@ The first three layers make navigation instant. The fourth decides. A stale snap
 // src/lib/access.ts
 import { cacheLife, cacheTag } from 'next/cache'
 import { snapshotFor } from 'permdock'
-import { cacheLifeFor } from 'permdock/next'
+import { cacheLifeFor, snapshotTag } from 'permdock/next'
 
 export async function getOrg(id: string) {
   'use cache'
@@ -60,7 +60,7 @@ export async function loadSnapshot(org: string) {
     plans: [view.plan],
   })
   cacheLife(cacheLifeFor(snapshot))             // 30 s floor for per-link prefetch, 300 s ceiling
-  cacheTag(`permdock:${claims?.sub ?? 'anon'}`, `org:${org}`)
+  cacheTag(snapshotTag(claims?.sub), `org:${org}`)
   return snapshot
 }
 ```
@@ -99,10 +99,9 @@ Most apps put a slug in the URL and a tenant id in the token: `app/[locale]/(app
 
 ```ts
 // src/lib/access.ts
-import { notFound } from 'next/navigation'
 import { cacheLife, cacheTag } from 'next/cache'
-import { snapshotFor } from 'permdock'
-import { cacheLifeFor } from 'permdock/next'
+import { emptySnapshot, snapshotFor } from 'permdock'
+import { cacheLifeFor, snapshotTag } from 'permdock/next'
 
 export async function orgBySlug(slug: string) {
   'use cache'
@@ -115,18 +114,26 @@ export async function orgBySlug(slug: string) {
   return org
 }
 
-export async function loadSnapshot(slug: string) {
+export async function loadSnapshot(orgId: string) {
   'use cache: private'
-  const org = await orgBySlug(slug)
-  if (org === null) {
-    notFound()
-  }
   const claims = await getClaims()
-  const snapshot = snapshotFor(policy, subjectOf(claims), { tenant: org.id })
+  const snapshot = snapshotFor(policy, subjectOf(claims), { tenant: orgId })
   cacheLife(cacheLifeFor(snapshot))
-  cacheTag(`permdock:${claims?.sub ?? 'anon'}`, `org:${org.id}`)
+  cacheTag(snapshotTag(claims?.sub), `org:${orgId}`)
   return snapshot
 }
+
+/** The layout's snapshot: an unknown slug gets the empty one, and the page answers 404. */
+export async function snapshotForSlug(slug: string) {
+  const org = await orgBySlug(slug)
+  return org === null ? emptySnapshot() : loadSnapshot(org.id)
+}
+```
+
+```tsx
+// src/app/[locale]/(app)/[orgSlug]/layout.tsx: synchronous, the nav waits for the snapshot
+const snapshot = params.then(({ orgSlug }) => orgSlug).then(snapshotForSlug)
+return <PermDockProvider snapshotPromise={snapshot} endpoint={false}>{children}</PermDockProvider>
 ```
 
 ```tsx
@@ -145,7 +152,7 @@ export default async function Settings({ params }) {
 Three rules:
 
 - The slug lookup reads no session. Every user resolves `acme` to the same id, so it is a shared `'use cache'` entry, and a rename busts it with `updateTag('org-slug:<old>')` plus `org:<id>`.
-- An unknown slug is `notFound()` before any snapshot is built, so a typo never caches an empty snapshot under the private key.
+- The private cache takes the id, never the slug, and never calls `notFound()`. An unknown slug never enters it: the layout gets `emptySnapshot()` and the page, outside any cache, calls `notFound()`.
 - A known org the user does not belong to gets a snapshot with no membership in it: every tenant-scoped check is denied and `requireAccess` calls `forbidden()`. If the existence of an org is itself private, check `snapshot.tenants.includes(org.id)` and call `notFound()` instead, so a non-member cannot tell `403` from `404`.
 
 `requireAccess` and `getPermDock({ tenant })` take the id, never the slug: the token's memberships and the RLS helpers compare ids, and a slug can change.
@@ -155,8 +162,7 @@ Three rules:
 An app whose client checks are all portable needs no decision route. `endpoint: false` on `createPermDock` from `permdock/next` (or on its `PermDockProvider`) says so:
 
 ```ts
-export const { PermDockProvider, getPermDock, requireAccess } = createPermDock({
-  policy,
+export const { PermDockProvider, getPermDock, requireAccess } = createPermDock(policy, {
   subject,
   endpoint: false,
 })
@@ -242,29 +248,46 @@ subjectFromSupabaseSession(session, { memberships: 'memberships' }) // any { kin
 
 `subjectFromSupabaseSession` maps only `kind: 'user'`. `anon`, `service`, `invalid` or an unknown `kind` become the anonymous subject whatever `claims` holds. A top-level `user_role: null` (what the RBAC hook writes for a user without a role row) falls back to `app_metadata.user_role`.
 
-better-supabase is one such session source; its `AuthSession` union already has the `{ kind, claims }` shape, so the glue is one call:
+better-supabase is one such session source; its `AuthSession` union already has the `{ kind, claims }` shape. `next.cached()` is the first statement of an app-authored `'use cache: private'` function: it verifies the session locally against the JWKS, caps `stale` at the token's expiry, tags the entry `bs:session:<user id>` and returns the caller's context:
 
 ```ts
-// features/user/user-access.ts
-import 'server-only'
-import { cacheLife } from 'next/cache'
+// src/lib/access.ts
+import { sessionStale } from 'better-supabase/next'
+import { cacheLife, cacheTag } from 'next/cache'
 import { snapshotFor } from 'permdock'
-import { cacheLifeFor } from 'permdock/next'
+import { cacheLifeFor, snapshotTag } from 'permdock/next'
 import { subjectFromSupabaseSession } from 'permdock/supabase'
-import { next } from '@/lib/supabase.server'
-import { policy } from '@/features/user/policy'
+import { next } from '@/lib/supabase'
+import { policy } from '@/policy'
 
-export async function getAccess(org: string) {
+export async function loadSnapshot(orgId: string) {
   'use cache: private'
-  const session = await next.session()            // verified locally against the project JWKS
+  const { session } = await next.cached()
   const subject = subjectFromSupabaseSession(session, { memberships: 'memberships' })
-  const snapshot = snapshotFor(policy, subject, { tenant: org })
-  cacheLife(cacheLifeFor(snapshot))
+  const snapshot = snapshotFor(policy, subject, { tenant: orgId })
+  cacheLife({ stale: Math.min(sessionStale(session), cacheLifeFor(snapshot).stale) })
+  cacheTag(snapshotTag(session.kind === 'user' ? session.user.id : null), `org:${orgId}`)
   return snapshot
 }
 ```
 
-The nav passes `getAccess(org)` as `snapshotPromise` inside its existing `Suspense` and calls `usePermDock().can(item.requires)`, where `requires` is a permission reference. Server Actions call `(await createPermDock(policy, subjectFromSupabaseSession(session))).assert(permission)`.
+Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 300 seconds it joins the App Shell. The same `next.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
+
+A role change busts both tags in the Server Action that made it:
+
+```ts
+'use server'
+import { updateTag } from 'next/cache'
+import { snapshotTag } from 'permdock/next'
+
+export async function changeRole(userId: string, role: string) {
+  // ...authorize and write the membership...
+  updateTag(snapshotTag(userId))   // PermDock's snapshot entries
+  next.invalidateSession(userId)   // every next.cached() entry of that user
+}
+```
+
+The user's token still carries the old memberships until it is refreshed; the hook writes the new ones then, and RLS reads the table, not the token, in database mode. `apps/examples/next-better-supabase` runs this recipe end to end in snapshot-only mode, against Postgres in testcontainers.
 
 ### Why asymmetric signing keys
 
@@ -297,7 +320,7 @@ Run against `next build && next start` with `experimental.exposeTestingApiInProd
 - A synchronous layout must not read `cookies()` or `headers()`; pass promises down and read them inside the private cache.
 - `'use cache'` without `: private` must never read the session. Per-org data goes there; per-user data does not.
 - `updateTag` works only in Server Actions. Webhooks and other Route Handlers call `revalidateTag(tag, { expire: 0 })`, never `'max'`, which would serve the revoked grant once more.
-- Bust `permdock:<sub>` on every input to the snapshot: role, membership and custom-role writes, a revocation-counter bump in the token, and entitlement or billing webhooks.
+- Bust `snapshotTag(sub)` on every input to the snapshot: role, membership and custom-role writes, a revocation-counter bump in the token, and entitlement or billing webhooks.
 - `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
 - A `stale` below 30 seconds silently drops the snapshot from per-link prefetches, and below 300 seconds from the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
 - Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.

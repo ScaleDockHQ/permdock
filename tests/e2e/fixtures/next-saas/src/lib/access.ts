@@ -2,7 +2,7 @@ import type { Membership, PermDock, Snapshot } from 'permdock';
 
 import { cacheLife, cacheTag } from 'next/cache';
 import { createPermDock, memoryRoleSource, snapshotFor } from 'permdock';
-import { cacheLifeFor } from 'permdock/next';
+import { cacheLifeFor, snapshotTag } from 'permdock/next';
 
 import type { Project } from '../permissions.ts';
 import type { SessionClaims } from '../policy.ts';
@@ -73,7 +73,7 @@ async function loadSnapshotPrivate(org: string): Promise<Snapshot> {
   'use cache: private';
   const { snapshot, user } = await buildSnapshot(org);
   cacheLife(cacheLifeFor(snapshot));
-  cacheTag(`permdock:${user}`, `org:${org}`);
+  cacheTag(snapshotTag(user), `org:${org}`);
   return snapshot;
 }
 

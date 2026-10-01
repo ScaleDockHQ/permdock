@@ -1,0 +1,243 @@
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-01T16:25:41.779Z",
+  "generator": "permdock@0.1.0-next.2",
+  "fingerprint": "gEUC9jIEJluYp-cxWwdkqynj93YmVmOXIGF9qqK6HZs",
+  "resources": {
+    "staff": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "user_id",
+          "name",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/policy.ts",
+      "relations": {
+        "organization": {
+          "field": "organization_id",
+          "memberOf": "organization"
+        }
+      }
+    },
+    "quotes": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "customer_id",
+          "title",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/policy.ts",
+      "relations": {
+        "organization": {
+          "field": "organization_id",
+          "memberOf": "organization"
+        },
+        "customer": {
+          "field": "customer_id",
+          "memberOf": "customer"
+        }
+      }
+    }
+  },
+  "permissions": [
+    {
+      "key": "quotes.list",
+      "scope": "quotes:list",
+      "resource": "quotes",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 29,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/quotes/page.tsx",
+          "line": 16,
+          "call": "reference"
+        },
+        {
+          "file": "src/app/[locale]/(portal)/portal/[orgSlug]/quotes/page.tsx",
+          "line": 16,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 76,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 88,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "quotes.read",
+      "scope": "quotes:read",
+      "resource": "quotes",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 75,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 88,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "staff.list",
+      "scope": "staff:list",
+      "resource": "staff",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 23,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/staff/page.tsx",
+          "line": 40,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 74,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 83,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "staff.read",
+      "scope": "staff:read",
+      "resource": "staff",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 73,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 83,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    }
+  ],
+  "scopes": [
+    {
+      "name": "organization",
+      "key": "organization_id"
+    },
+    {
+      "name": "customer",
+      "key": "customer_id",
+      "within": "organization"
+    }
+  ],
+  "roles": [
+    {
+      "key": "contact",
+      "on": "customer",
+      "assignable": false
+    },
+    {
+      "key": "member",
+      "on": "organization",
+      "assignable": true
+    },
+    {
+      "key": "owner",
+      "on": "organization",
+      "assignable": true,
+      "min": 1
+    }
+  ]
+}

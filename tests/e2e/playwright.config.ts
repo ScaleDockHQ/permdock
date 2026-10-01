@@ -136,6 +136,17 @@ const nextExampleServer: Server = {
   env: envWith({ CI: '1', NEXT_E2E: '1', NEXT_TELEMETRY_DISABLED: '1' }),
 };
 
+// Owns its testcontainers Postgres: `next start` needs DATABASE_URL and the
+// signing key before it boots, so a Playwright global setup is too late.
+const nextBetterSupabaseServer: Server = {
+  command: 'node --run serve',
+  cwd: join(root, 'apps/examples/next-better-supabase'),
+  url: 'http://127.0.0.1:3489/api/health',
+  reuseExistingServer: !inCi,
+  timeout: 600_000,
+  env: envWith({ CI: '1', PORT: '3489' }),
+};
+
 // Builds once, then serves JWT mode on 3490, database mode on 3491 and the
 // no-private-cache negative variant on 3492.
 const saasServer: Server = {
@@ -192,6 +203,11 @@ const projectTable: readonly Project[] = [
     mobile: true,
   },
   { name: 'docs', port: 3488, servers: [docsServer], mobile: true },
+  {
+    name: 'next-better-supabase',
+    port: 3489,
+    servers: [nextBetterSupabaseServer],
+  },
   { name: 'next-saas', port: 3490, servers: [saasServer] },
   {
     name: 'sveltekit-saas',
