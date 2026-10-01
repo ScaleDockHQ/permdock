@@ -61,8 +61,8 @@ The [scenario testing guide](/docs/guides/scenario-testing) explains how PermDoc
 | Export | Role |
 |---|---|
 | `saasPermissions`, `saasRoles`, `saasPlans`, `saasPolicy` | `project` and `doc` rows (tenant and team relations), collection actions for members, settings, billing, plan-gated analytics, audit and SSO, and `apiKey` with a daily quota (`create`) and an owner approval (`revokeAll`). Roles: `owner`, `admin`, `member`, `viewer` on the tenant, `lead` on the team (with a closure deny on locked docs), `collaborator` on one project. |
-| `saasSeed`, `saasPrincipal(user, tenant?)`, `saasMemberships(user)`, `saasCustomRoles`, `saasUsers` | Orgs `acme` (free, custom role `contractor`), `globex` (pro), `org-1` and `tenant-1`; users chosen for one hazard each: a role that differs per org, the same role in two orgs, an expired membership, no memberships, a team lead, a resource collaborator, and ids such as `user-2` and `2` or tenants such as `org-1` and `tenant-1` that loose comparison would confuse. |
-| `saasScenarios`, `saasProject(id)`, `saasDoc(id)` | Hand-written `{ user, tenant, permission, row, expected }` cases. The expectations are never computed by the engine; each suite runs them through its own surface (a decision, an HTTP status, a SQL row count, a rendered button). `client: false` marks a case that depends on a quota store or an approval. |
+| `saasSeed`, `saasPrincipal(user, tenant?)`, `saasMemberships(user)`, `saasCustomRoles`, `saasUsers` | Orgs `acme` (free, custom role `contractor`), `globex` (pro), `org-1` and `tenant-1`; users chosen for one hazard each: a role that differs per org, the same role in two orgs, an expired membership, no memberships, a team lead, a team role held on the tenant membership (`ivan`), a resource collaborator, and ids such as `user-2` and `2` or tenants such as `org-1` and `tenant-1` that loose comparison would confuse. |
+| `saasScenarios`, `saasProject(id)`, `saasDoc(id)` | Hand-written `{ user, tenant, permission, row, expected }` cases. The expectations are never computed by the engine; each suite runs them through its own surface (a decision, an HTTP status, a SQL row count, a rendered button). `client: false` marks a case that depends on a quota store or an approval. A case may carry an `actor` and a `delegation` (an agent acting for the user) and `quotaUsed` (api-key quota already spent); `saasUser(scenario)` builds the subject and `saasScenarioOptions(scenario)` the tenant, custom roles, primed quota store (`saasLimitStore(used)`) and folder tree. |
 | `saasFolderScenarios`, `saasFolder(id)`, `saasRelations(seed?)` | The folder tree: acme's `root` ─ `eng` ─ `platform` ─ `infra` and `root` ─ `hr` (restricted) ─ `payroll`, with viewer and editor shares in `seed.shares` (one expired). Decide them with `createPermDock(saasPolicy, principal, { relations: saasRelations() })`; `clientOutcome: 'denied'` marks graph grants a snapshot client sends to the server ([relationships](/docs/concepts/relationships)). `saasSchemaSql` creates `folder`, `folder_share` and `folder_editor`. |
 | `saasSchemaSql`, `saasSeedSql(seed?)` | Postgres tables whose columns match the resource fields, with RLS enabled and forced on the row tables, plus `insert` statements for the seed. Policies come from `permdock rls generate`. |
 | `signSaasToken(sub, options?)`, `verifySaasToken(token, now?)`, `saasJwks`, `saasIssuer`, `saasAudience` | ES256 access tokens signed with WebCrypto (no `jose` dependency) under a test-only key, with the seed memberships as a claim unless `memberships: false`. `verifySaasToken` checks the signature, `kid`, `iss`, `aud` and `exp` and returns `sub`, or `null` for anything else; it stands in for the verifying auth layer in fixtures. |
@@ -70,14 +70,11 @@ The [scenario testing guide](/docs/guides/scenario-testing) explains how PermDoc
 `permdock/testing/saas/permissions` carries only the definitions (`saasPermissions`, `saasRoles`, `saasPlans`, the row schemas and types) for client bundles that cannot tree-shake the policy, seed and test key away, such as Metro in the Expo fixture.
 
 ```ts
-import { createPermDock, memoryRoleSource } from 'permdock'
-import { saasCustomRoles, saasPolicy, saasPrincipal, saasScenarios } from 'permdock/testing/saas'
+import { createPermDock } from 'permdock'
+import { saasPolicy, saasScenarioOptions, saasScenarios, saasUser } from 'permdock/testing/saas'
 
 for (const scenario of saasScenarios) {
-  const permdock = await createPermDock(saasPolicy, saasPrincipal(scenario.user, scenario.tenant), {
-    tenant: scenario.tenant,
-    customRoles: memoryRoleSource(saasCustomRoles),
-  })
+  const permdock = await createPermDock(saasPolicy, saasUser(scenario), saasScenarioOptions(scenario))
   expect(permdock.decide(scenario.permission, scenario.row).outcome).toBe(scenario.expected.outcome)
 }
 ```

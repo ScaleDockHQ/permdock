@@ -11,8 +11,10 @@ Unit tests prove that a function does what its author thought. Scenario tests pr
 
 - orgs `acme` (free plan, custom role `contractor`) and `globex` (pro plan), plus `org-1` and `tenant-1`, whose ids a loose comparison would confuse;
 - `project` and `doc` rows with tenant and team relations, collection actions (members, settings, billing, audit, SSO), plan-gated analytics, and `apiKey` with a daily quota and an owner approval;
-- users chosen for one hazard each: a role that differs per org, the same role in two orgs, an expired membership, no memberships at all, a team lead, a resource collaborator;
-- `saasScenarios`: hand-written `user`, `tenant`, `permission`, `row` and `expected` cases.
+- users chosen for one hazard each: a role that differs per org, the same role in two orgs, an expired membership, no memberships at all, a team lead, a team role held on the tenant membership instead of a team, a resource collaborator;
+- `saasScenarios`: hand-written `user`, `tenant`, `permission`, `row` and `expected` cases, including an agent acting without a delegation, a delegation narrower than the user's grants, an exhausted quota, `org-1` against `tenant-1` on reads, lists and writes, and an expired membership on every permission class. `saasUser(scenario)` and `saasScenarioOptions(scenario)` build the subject and options a case runs with.
+
+A distinct-approver refusal is not a single decision, so it lives in `testApprovalStore` rather than in `saasScenarios`.
 
 The expectations are never computed by the engine. Every suite runs the same cases through its own surface and compares against the hand-written outcome, so a bug in `decide` cannot make its own test pass. `client: false` marks a case that depends on a quota store or an approval, which a snapshot client cannot see; `clientOutcome` records where the client is deliberately stricter (a closure deny fails closed in a snapshot).
 

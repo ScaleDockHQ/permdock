@@ -61,6 +61,7 @@ export const SAAS_EXPIRED_AT = 1_000_000_000;
  * - hank: viewer in acme, `collaborator` on project p3 only
  * - `user-2` and `2`: members of `org-1`; `Date.parse` maps both ids to one instant
  * - tina: member of `tenant-1`; `Date.parse('org-1') === Date.parse('tenant-1')`
+ * - ivan: viewer in acme who holds the team role `lead` on the tenant membership (the wrong scope)
  *
  * Acme's folders: `root` ─ `eng` ─ `platform` ─ `infra`, and `root` ─ `hr`
  * (restricted) ─ `payroll`. bob views `root`, hank views `hr`, gina edits
@@ -105,6 +106,7 @@ export const saasSeed: SaasSeed = Object.freeze({
     { user: 'user-2', tenant: 'org-1', roles: ['member'] },
     { user: '2', tenant: 'org-1', roles: ['member'] },
     { user: 'tina', tenant: 'tenant-1', roles: ['member'] },
+    { user: 'ivan', tenant: 'acme', roles: ['viewer', 'lead'] },
   ],
   projects: [
     {

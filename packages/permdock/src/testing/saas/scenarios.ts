@@ -1,8 +1,23 @@
-import type { Permission } from '../../index.ts';
+import type {
+  Actor,
+  CreatePermDockOptions,
+  Delegation,
+  LimitStore,
+  Permission,
+  Principal,
+  Subject,
+} from '../../index.ts';
 import type { SaasDoc, SaasFolder, SaasProject } from './permissions.ts';
 
+import { memoryLimitStore, memoryRoleSource } from '../../index.ts';
 import { saasPermissions as p } from './permissions.ts';
-import { saasSeed } from './seed.ts';
+import { SAAS_API_KEY_LIMIT } from './policy.ts';
+import {
+  saasCustomRoles,
+  saasPrincipal,
+  saasRelations,
+  saasSeed,
+} from './seed.ts';
 
 export type SaasOutcome = 'granted' | 'denied' | 'approval-required';
 
@@ -28,7 +43,66 @@ export type SaasScenario = {
    * cannot evaluate a closure deny, so it fails closed.
    */
   readonly clientOutcome?: SaasOutcome;
+  /** An agent acting for `user`; without `delegation` it reaches nothing. */
+  readonly actor?: Actor;
+  readonly delegation?: Delegation;
+  /** Units of the daily api-key quota this subject already used in the tenant. */
+  readonly quotaUsed?: number;
 };
+
+/** What the policy's `subject` receives: the principal, or a `Subject` carrying the actor. */
+export function saasUser(scenario: SaasScenario): Principal | Subject {
+  const principal = saasPrincipal(scenario.user, scenario.tenant);
+  if (scenario.actor === undefined && scenario.delegation === undefined) {
+    return principal;
+  }
+  return {
+    principal,
+    context: {},
+    ...(scenario.actor === undefined ? {} : { actor: scenario.actor }),
+    ...(scenario.delegation === undefined
+      ? {}
+      : { delegation: scenario.delegation }),
+  };
+}
+
+/** A memory quota store in which every subject has already used `used` units. */
+export function saasLimitStore(used = 0): LimitStore {
+  const inner = memoryLimitStore();
+  const primed = new Set<string>();
+  const prime = (input: Parameters<LimitStore['consume']>[0]): void => {
+    const id = [input.key, input.subjectId, input.tenant ?? ''].join('\u0000');
+    if (primed.has(id)) {
+      return;
+    }
+    primed.add(id);
+    for (let index = 0; index < used; index += 1) {
+      void inner.consume(input);
+    }
+  };
+  return {
+    consume(input) {
+      prime(input);
+      return inner.consume(input);
+    },
+    remaining(input) {
+      prime(input);
+      return inner.remaining(input);
+    },
+  };
+}
+
+/** The `createPermDock` options a scenario runs with: tenant, custom roles, quota and folder tree. */
+export function saasScenarioOptions(
+  scenario: SaasScenario,
+): CreatePermDockOptions {
+  return {
+    ...(scenario.tenant === undefined ? {} : { tenant: scenario.tenant }),
+    customRoles: memoryRoleSource(saasCustomRoles),
+    limits: saasLimitStore(scenario.quotaUsed),
+    relations: saasRelations(),
+  };
+}
 
 export function saasProject(id: string): SaasProject {
   const row = saasSeed.projects.find((project) => project.id === id);
@@ -377,5 +451,112 @@ export const saasScenarios: readonly SaasScenario[] = Object.freeze([
     tenant: 'globex',
     permission: p.member.list,
     expected: { outcome: 'granted' },
+  },
+  {
+    name: 'an agent acting for an admin without a delegation reaches nothing',
+    user: 'alice',
+    tenant: 'acme',
+    actor: { id: 'agent-1', kind: 'agent' },
+    permission: p.project.read,
+    row: saasProject('p1'),
+    expected: { outcome: 'denied', reason: 'no-delegation' },
+  },
+  {
+    name: 'an agent delegated read only reads',
+    user: 'alice',
+    tenant: 'acme',
+    actor: { id: 'agent-1', kind: 'agent' },
+    delegation: { scopes: [p.project.read.scope] },
+    permission: p.project.read,
+    row: saasProject('p1'),
+    expected: { outcome: 'granted' },
+  },
+  {
+    name: 'an agent delegated read only cannot update what the admin can',
+    user: 'alice',
+    tenant: 'acme',
+    actor: { id: 'agent-1', kind: 'agent' },
+    delegation: { scopes: [p.project.read.scope] },
+    permission: p.project.update,
+    row: saasProject('p2'),
+    expected: { outcome: 'denied', reason: 'not-delegated' },
+  },
+  {
+    name: 'an admin past the daily api-key quota is refused',
+    user: 'alice',
+    tenant: 'acme',
+    permission: p.apiKey.create,
+    quotaUsed: SAAS_API_KEY_LIMIT,
+    expected: { outcome: 'denied', reason: 'limit' },
+    client: false,
+  },
+  {
+    name: 'the quota of one org does not spill into the other',
+    user: 'erin',
+    tenant: 'globex',
+    permission: p.apiKey.create,
+    quotaUsed: SAAS_API_KEY_LIMIT - 1,
+    expected: { outcome: 'granted' },
+    client: false,
+  },
+  {
+    name: 'a team role held on the tenant membership grants nothing',
+    user: 'ivan',
+    tenant: 'acme',
+    permission: p.doc.update,
+    row: saasDoc('d1'),
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'a tenant-1 member does not list org-1 projects',
+    user: 'tina',
+    tenant: 'org-1',
+    permission: p.project.list,
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'an org-1 member cannot create in tenant-1',
+    user: 'user-2',
+    tenant: 'tenant-1',
+    permission: p.project.create,
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'a tenant-1 member updates its own tenant-1 row only through tenant-1',
+    user: 'tina',
+    tenant: 'org-1',
+    permission: p.project.update,
+    row: saasProject('o1'),
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'expired membership lists nothing',
+    user: 'frank',
+    tenant: 'acme',
+    permission: p.project.list,
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'expired membership creates nothing',
+    user: 'frank',
+    tenant: 'acme',
+    permission: p.project.create,
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'expired membership updates nothing',
+    user: 'frank',
+    tenant: 'acme',
+    permission: p.project.update,
+    row: saasProject('p1'),
+    expected: { outcome: 'denied' },
+  },
+  {
+    name: 'expired membership reads no doc',
+    user: 'frank',
+    tenant: 'acme',
+    permission: p.doc.read,
+    row: saasDoc('d1'),
+    expected: { outcome: 'denied' },
   },
 ]);

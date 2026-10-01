@@ -44,7 +44,10 @@ export {
   saasDoc,
   saasFolder,
   saasFolderScenarios,
+  saasLimitStore,
   saasProject,
+  saasScenarioOptions,
   saasScenarios,
+  saasUser,
 } from './scenarios.ts';
 export type { SaasOutcome, SaasScenario } from './scenarios.ts';

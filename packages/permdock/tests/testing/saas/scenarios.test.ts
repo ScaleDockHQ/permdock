@@ -17,13 +17,16 @@ import {
   saasPolicy,
   saasPrincipal,
   saasRelations,
+  saasScenarioOptions,
   saasScenarios,
   saasSchemaSql,
   saasSeed,
   saasSeedSql,
+  saasUser,
   saasUsers,
   signSaasToken,
 } from '../../../src/testing/saas/index.ts';
+import { reasonOf } from '../../fixtures/decisions.ts';
 
 async function instanceFor(user: string, tenant: string | undefined) {
   return createPermDock(saasPolicy, saasPrincipal(user, tenant), {
@@ -34,15 +37,25 @@ async function instanceFor(user: string, tenant: string | undefined) {
   });
 }
 
+async function scenarioInstance(scenario: SaasScenario) {
+  return createPermDock(
+    saasPolicy,
+    saasUser(scenario),
+    saasScenarioOptions(scenario),
+  );
+}
+
 async function checkServer(scenario: SaasScenario): Promise<void> {
-  const permdock = await instanceFor(scenario.user, scenario.tenant);
+  const permdock = await scenarioInstance(scenario);
   // SAFETY: each saas scenario pairs a saasPermissions leaf with a row of its resource.
   const decision = permdock.decide(
+    // SAFETY: each scenario pairs its permission with a row of that resource.
     scenario.permission as never,
+    // SAFETY: as above; the row matches the permission's resource.
     scenario.row as never,
   );
   expect(decision.outcome).toBe(scenario.expected.outcome);
-  if (scenario.expected.reason !== undefined) {
+  if (scenario.expected.reason !== undefined && decision.outcome === 'denied') {
     expect(decision.denials.map((denial) => denial.reason)).toContain(
       scenario.expected.reason,
     );
@@ -50,12 +63,13 @@ async function checkServer(scenario: SaasScenario): Promise<void> {
 }
 
 async function checkClient(scenario: SaasScenario): Promise<void> {
-  const permdock = await instanceFor(scenario.user, scenario.tenant);
+  const permdock = await scenarioInstance(scenario);
   const client = fromSnapshot(
     parseSnapshot(JSON.stringify(permdock.snapshot())),
   );
   const outcome = scenario.clientOutcome ?? scenario.expected.outcome;
   // SAFETY: each saas scenario pairs a saasPermissions leaf with a row of its resource.
+  // SAFETY: each scenario pairs its permission with a row of that resource.
   expect(client.can(scenario.permission as never, scenario.row as never)).toBe(
     outcome === 'granted',
   );
@@ -114,16 +128,15 @@ describe('saas seed', () => {
   it('validates rows at the boundary', async () => {
     const permdock = await instanceFor('alice', 'acme');
     // SAFETY: deliberately incomplete project row to exercise boundary validation.
-    expect(
-      permdock.decide(
-        saasPermissions.project.update,
-        {
-          id: 'p1',
-          orgId: 'acme',
-        } as never,
-        { trusted: false },
-      ).denials,
-    ).toContainEqual(expect.objectContaining({ reason: 'validation' }));
+    const decision = permdock.decide(
+      saasPermissions.project.update,
+      {
+        id: 'p1',
+        orgId: 'acme',
+      } as never,
+      { trusted: false },
+    );
+    expect(reasonOf(decision)).toBe('validation');
   });
 
   it('emits schema and seed SQL without service_role', () => {
