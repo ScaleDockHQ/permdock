@@ -1,6 +1,10 @@
 import type { Policy } from '../index.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
-import type { RlsMembershipTable } from './types.ts';
+import type {
+  PermDockConfig,
+  RlsMemberships,
+  RlsMembershipTable,
+} from './types.ts';
 
 import { authorizeSql } from '../supabase/index.ts';
 import { roleNames } from './rls-grants.ts';
@@ -32,6 +36,35 @@ export type RbacScaffold = {
   readonly tail: string;
   readonly warnings: readonly string[];
 };
+
+/**
+ * Where the helpers read roles and memberships: the flag, `rls.authorize`,
+ * `rls.rbac.authorize`, then `database` with `rls.membershipSources`, with
+ * `--rbac` or with a mapped memberships table, else `jwt`.
+ */
+export function resolveAuthorize(
+  config: PermDockConfig,
+  flags: {
+    readonly authorize?: RbacAuthorizeMode | undefined;
+    readonly rbac?: boolean;
+    readonly memberships?: RlsMemberships | undefined;
+  } = {},
+): RbacAuthorizeMode {
+  const rls = config.rls;
+  const explicit = flags.authorize ?? rls?.authorize ?? rls?.rbac?.authorize;
+  if (explicit !== undefined) {
+    return explicit;
+  }
+  if (rls?.membershipSources !== undefined || flags.rbac === true) {
+    return 'database';
+  }
+  const memberships = flags.memberships ?? rls?.memberships;
+  return memberships?.tenant !== undefined ||
+    memberships?.team !== undefined ||
+    Object.keys(memberships?.scopes ?? {}).length > 0
+    ? 'database'
+    : 'jwt';
+}
 
 export function parseRbacAuthorize(
   raw: string | undefined,

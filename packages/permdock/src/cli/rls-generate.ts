@@ -34,7 +34,11 @@ import { closureDepths, graphPlan, graphSql } from './rls-graph.ts';
 import { helpersSql } from './rls-helpers.ts';
 import { ownershipRules, ownershipSql } from './rls-ownership.ts';
 import { assemblePolicies } from './rls-policies.ts';
-import { type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
+import {
+  type RbacAuthorizeMode,
+  rbacScaffold,
+  resolveAuthorize,
+} from './rls-rbac.ts';
 import {
   checkSuspension,
   graphHelper,
@@ -102,20 +106,6 @@ function customRoleNames(policy: Policy): {
   return { declared, assignable };
 }
 
-function defaultAuthorize(
-  rbac: boolean,
-  memberships: RlsMemberships | undefined,
-): RbacAuthorizeMode {
-  if (rbac) {
-    return 'database';
-  }
-  return memberships?.tenant !== undefined ||
-    memberships?.team !== undefined ||
-    Object.keys(memberships?.scopes ?? {}).length > 0
-    ? 'database'
-    : 'jwt';
-}
-
 export async function runRlsGenerate(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -179,13 +169,11 @@ export async function runRlsGenerate(input: {
   }
   const schema =
     input.rbacSchema ?? rls?.schema ?? rls?.rbac?.schema ?? 'public';
-  const authorize =
-    input.authorize ??
-    rls?.authorize ??
-    rls?.rbac?.authorize ??
-    (rls?.membershipSources === undefined
-      ? defaultAuthorize(input.rbac, memberships)
-      : 'database');
+  const authorize = resolveAuthorize(input.config, {
+    authorize: input.authorize,
+    rbac: input.rbac,
+    memberships,
+  });
   const memberSources =
     rls?.membershipSources ?? input.config.supabase?.hook?.memberships;
   const sources = authorize === 'database' ? memberSources : undefined;

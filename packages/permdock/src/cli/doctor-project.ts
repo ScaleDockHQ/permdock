@@ -11,6 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 import type { DoctorFinding } from './doctor-types.ts';
 import type { PermDockConfig } from './types.ts';
 
+import { membershipColumns, tableKey } from './deciding-columns.ts';
 import { rel } from './files.ts';
 import { FIELD_VIEWS } from './rls-fields.ts';
 
@@ -191,13 +192,6 @@ export function sqlFiles(cwd: string, entries: readonly string[]): string[] {
   return [...files].toSorted();
 }
 
-function viewKey(name: string): string {
-  const parts = name.split('.').map((part) => part.replaceAll('"', ''));
-  return (parts.length === 1 ? ['public', ...parts] : parts)
-    .join('.')
-    .toLowerCase();
-}
-
 /**
  * Views run as their owner unless `security_invoker` is set, so they read
  * past RLS on the tables beneath them. The `<table>_visible_fields`
@@ -223,7 +217,7 @@ export function pd022(
       .replaceAll(/--[^\n]*/gu, '')
       .replaceAll(/\/\*[\s\S]*?\*\//gu, '');
     for (const [, name = '', options = ''] of text.matchAll(CREATE_VIEW)) {
-      const key = viewKey(name);
+      const key = tableKey(name);
       created.set(key, rel(cwd, file));
       if (INVOKER.test(options)) {
         invoker.add(key);
@@ -233,11 +227,11 @@ export function pd022(
     }
     for (const [, name = '', options = ''] of text.matchAll(ALTER_VIEW)) {
       if (INVOKER.test(options)) {
-        invoker.add(viewKey(name));
+        invoker.add(tableKey(name));
       }
     }
     for (const [, name = ''] of raw.matchAll(COMPANION)) {
-      companions.add(viewKey(name));
+      companions.add(tableKey(name));
     }
   }
   return [...created]
@@ -336,7 +330,7 @@ function clientWritable(
       name = '',
       roles = '',
     ] of text.matchAll(GRANT)) {
-      if (viewKey(name) !== target) {
+      if (tableKey(name) !== target) {
         continue;
       }
       const clients = roles
@@ -359,19 +353,8 @@ function membershipFindings(
   cwd: string,
   config: PermDockConfig,
 ): readonly DoctorFinding[] {
-  const sources =
-    config.supabase?.hook?.memberships ?? config.rls?.membershipSources ?? [];
-  const byTable = new Map<string, Set<string>>();
-  for (const source of sources) {
-    const table = viewKey(source.sql.table);
-    const columns = byTable.get(table) ?? new Set<string>();
-    for (const column of source.sql.columns) {
-      columns.add(column);
-    }
-    byTable.set(table, columns);
-  }
   const findings: DoctorFinding[] = [];
-  for (const [table, columns] of byTable) {
+  for (const [table, columns] of membershipColumns(config)) {
     const writable = clientWritable(cwd, config, table);
     const exposed = [...columns].filter(
       (column) => writable.has('*') || writable.has(column),
@@ -419,7 +402,7 @@ export function pd028(
     fix: 'list server-owned columns or app_metadata.<key> entries; user_metadata is user-editable',
   }));
   if (planned.table !== undefined && planned.columns.length > 0) {
-    const writable = clientWritable(cwd, config, viewKey(planned.table));
+    const writable = clientWritable(cwd, config, tableKey(planned.table));
     const exposed = planned.columns.filter(
       (column) => writable.has('*') || writable.has(column),
     );
@@ -427,8 +410,8 @@ export function pd028(
       findings.push({
         code: 'PD028',
         severity: 'warning',
-        message: `attrs reads ${exposed.join(', ')} from ${viewKey(planned.table)}, which the migrations let anon or authenticated insert or update: a user could set their own attribute`,
-        fix: `revoke insert, update on ${viewKey(planned.table)} from anon, authenticated, and grant column-level update only on columns that are not attributes; the generated hook migration refuses to install otherwise`,
+        message: `attrs reads ${exposed.join(', ')} from ${tableKey(planned.table)}, which the migrations let anon or authenticated insert or update: a user could set their own attribute`,
+        fix: `revoke insert, update on ${tableKey(planned.table)} from anon, authenticated, and grant column-level update only on columns that are not attributes; the generated hook migration refuses to install otherwise`,
       });
     }
   }

@@ -7,7 +7,7 @@ description: permdock supabase hook generate compiles the app's fromTable and fr
 permdock supabase hook generate [--out supabase/permdock-hook.sql] [--check] [--db <url>]
                                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                                 [--budget 1024] [--schema public] [--grants-out <file>|-]
-permdock supabase inspect [--json]
+permdock supabase inspect [--json] [--out permdock.manifest.json] [--check]
 ```
 
 Reads `supabase.hook` from `permdock.config.ts` and the policy's scopes, and writes one idempotent SQL migration: `custom_access_token_hook(jsonb)`, the `supabase_auth_admin` grants and revokes, the `permdock_authz_version` table with its triggers, and the `permdock_protect_managed` trigger for IdP-owned rows. It prints the `config.toml` block (`jwt_expiry = 900` and the hook `uri`) to add. It never grants anything to `service_role`. The [Supabase token hook](/docs/adapters/supabase-hook) page covers the claims and the runtime side.
@@ -43,4 +43,17 @@ Both read only the first line of `sql` and return `undefined` when it is not a m
 
 ## inspect
 
-`permdock supabase inspect` prints what the hook and the SQL helpers expect: the hook's schema and output file, the helper schema and function names, the tenant claim, the budget and the SQL it measures, every claim the hook writes with its source and whether it counts toward the budget, and whether `authz_ver` is on. `--json` prints the [manifest](/docs/concepts/wire-formats#supabase-hook-manifest) (`version: 1`), which better-supabase reads to write Storage and Realtime policies against the same helpers and claims. It takes `--out`, `--budget`, `--schema` and `--active-from` like `hook generate`, and exits `2` on the same configuration errors.
+`permdock supabase inspect` prints what the hook and the SQL helpers expect: the hook's schema and output file, the helper schema and function names, the tenant claim, the budget and the SQL it measures, every claim the hook writes with its source and whether it counts toward the budget, and whether `authz_ver` is on. `--json` prints the [manifest](/docs/concepts/wire-formats#supabase-hook-manifest) (`version: 1`, `schemas/supabase-manifest-v1.json`), which adds the membership sources, the helpers' signatures and grants, the RLS mode and scope types, and the columns that decide a membership. better-supabase reads it to write Storage and Realtime policies against the same helpers and claims.
+
+| Flag | Values | Default | Effect |
+| --- | --- | --- | --- |
+| `--json` | flag | off | Print the manifest as JSON instead of text |
+| `--out` | a path | none | Write the manifest as JSON to this file, usually `permdock.manifest.json`, instead of printing it |
+| `--check` | flag | off | With `--out`: exit `1` when the file is missing or its JSON differs from the manifest, naming the fields that differ; formatting is ignored. Without `--out`: exit `2` |
+
+It takes `--budget`, `--schema` and `--active-from` like `hook generate`, reads the hook's output file from `supabase.hook.out`, and exits `2` on the same configuration errors.
+
+```bash
+permdock supabase inspect --out permdock.manifest.json          # in the gen script
+permdock supabase inspect --out permdock.manifest.json --check  # in CI
+```

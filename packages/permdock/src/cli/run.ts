@@ -19,6 +19,7 @@ Commands:
   arazzo check --doc <arazzo.json> --openapi <doc.json> [--workflow <id>] [--from <module>]
   cloud push [--dry-run] [--url <url>] [--environment <env>]
   supabase hook generate [--out <file>] [--check] [--active-from <source>] [--budget 1024]
+  supabase inspect [--json] [--out permdock.manifest.json] [--check]
 
 Global:
   --cwd <dir>   --config <file>   --json   --no-color

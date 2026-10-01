@@ -31,7 +31,15 @@ export {
   subjectFromSupabase,
   subjectFromSupabaseSession,
 } from './subject.ts';
-export type { SupabaseHookClaim, SupabaseHookManifest } from './manifest.ts';
+export type {
+  SupabaseHookClaim,
+  SupabaseHookManifest,
+  SupabaseManifestColumn,
+  SupabaseManifestHelper,
+  SupabaseManifestMembership,
+  SupabaseManifestRls,
+  SupabaseManifestValue,
+} from './manifest.ts';
 export type {
   AuthorizeSqlOptions,
   SupabaseActiveRow,

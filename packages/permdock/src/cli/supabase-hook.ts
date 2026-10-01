@@ -5,8 +5,10 @@ import type { Scope } from '../core/scopes.ts';
 import type {
   SupabaseHookClaim,
   SupabaseHookManifest,
+  SupabaseManifestHelper,
 } from '../supabase/manifest.ts';
 import type { SqlMembershipSource } from '../supabase/sources.ts';
+import type { RlsSqlContext } from './rls-sql.ts';
 import type {
   CliIo,
   PermDockConfig,
@@ -25,10 +27,11 @@ import {
   supabaseMembershipsBudget,
   supabaseTenantClaim,
 } from '../supabase/sources.ts';
+import { decidingColumns } from './deciding-columns.ts';
 import { globalRoleSource, type RoleRows } from './global-roles.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from './markers.ts';
-import { authAdminRead, hookUri } from './rls-rbac.ts';
+import { authAdminRead, hookUri, resolveAuthorize } from './rls-rbac.ts';
 import {
   activeRowSql,
   checkSuspension,
@@ -38,6 +41,7 @@ import {
   quoteIdent,
   quoteLiteral,
   quoteTable,
+  scopeTypeOf,
 } from './rls-sql.ts';
 import { driftOf, type SqlFile, STDOUT, writeSqlFiles } from './sql-files.ts';
 import {
@@ -45,20 +49,22 @@ import {
   missingHelpersInFiles,
   missingHelpersMessage,
 } from './supabase-setup.ts';
+import { SUPABASE_MANIFEST_SCHEMA } from './version.ts';
 
 export const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
   hook generate [--out supabase/permdock-hook.sql] [--check] [--db <url>]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                 [--budget 1024] [--schema public] [--grants-out <file>|-]
-  inspect [--json]
+  inspect [--json] [--out permdock.manifest.json] [--check]
 
 Reads supabase.hook from permdock.config.ts: the fromTable / fromJunction sources the app
 passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
 needs (in --grants-out instead, for declarative schemas), the permdock_authz_version table
 and its triggers. Never grants anything to
-service_role. inspect prints the manifest: helper schema and names, tenant claim, budget and
-the claims the hook writes.
+service_role. inspect prints the manifest: helper schema, names and signatures, tenant claim,
+budget, the claims the hook writes, the membership sources and the columns that decide them.
+--out writes it as JSON; --check exits 1 when that file differs.
 `;
 
 export const MANAGED_TRIGGER = 'permdock_protect_managed';
@@ -871,27 +877,104 @@ function hookClaims(parts: Parts): readonly SupabaseHookClaim[] {
   ];
 }
 
-function manifestOf(parts: Parts, out: string): SupabaseHookManifest {
+function helperList(
+  parts: Parts,
+  types: ReadonlyMap<string, string>,
+): readonly SupabaseManifestHelper[] {
+  const client = ['authenticated'];
+  return [
+    {
+      name: 'permdock_has',
+      args: 'p_grant text',
+      returns: 'boolean',
+      execute: client,
+    },
+    ...parts.scopes.flatMap((scope): SupabaseManifestHelper[] => {
+      const returns = `setof ${types.get(scope.name) ?? 'uuid'}`;
+      return [
+        {
+          name: `permitted_${scope.name}_ids`,
+          args: 'p_grant text',
+          returns,
+          execute: client,
+        },
+        {
+          name: memberIdsHelper(scope.name),
+          args: '',
+          returns,
+          execute: client,
+        },
+        ...(parts.helpers.memberFor.includes(scope.name)
+          ? [
+              {
+                name: memberForHelper(scope.name),
+                args: 'p_user uuid',
+                returns,
+                execute:
+                  parts.extra.length === 0 ? [] : ['supabase_auth_admin'],
+              },
+            ]
+          : []),
+      ];
+    }),
+  ];
+}
+
+function manifestOf(
+  parts: Parts,
+  out: string,
+  config: PermDockConfig,
+): SupabaseHookManifest {
+  const rls = config.rls;
+  const ctx: RlsSqlContext = {
+    dialect: 'supabase',
+    scopes: parts.scopes,
+    tenantClaim: parts.tenantClaim,
+    gucPrefix: rls?.gucPrefix ?? 'app',
+    tenantType: rls?.tenantType ?? 'uuid',
+    ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
+    ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
+  };
+  const types = new Map(
+    parts.scopes.map((scope) => [scope.name, scopeTypeOf(ctx, scope.name)]),
+  );
+  const helpers = helperList(parts, types);
   return {
+    $schema: SUPABASE_MANIFEST_SCHEMA,
     version: 1,
     hook: { schema: parts.schema, function: 'custom_access_token_hook', out },
     helpers: {
       schema: parts.helpers.schema,
-      functions: [
-        'permdock_has',
-        ...parts.scopes.flatMap((scope) => [
-          `permitted_${scope.name}_ids`,
-          memberIdsHelper(scope.name),
-          ...(parts.helpers.memberFor.includes(scope.name)
-            ? [memberForHelper(scope.name)]
-            : []),
-        ]),
-      ],
+      functions: helpers.map((helper) => helper.name),
     },
     tenantClaim: parts.tenantClaim,
     budget: { bytes: parts.budget, measure: BUDGET_MEASURE },
     claims: hookClaims(parts),
     authzVersion: parts.version,
+    memberships: parts.sources.map((source) => source.sql.manifest),
+    rls: {
+      schema: parts.helpers.schema,
+      mode: resolveAuthorize(config),
+      tenantClaim: parts.tenantClaim,
+      scopes: parts.scopes.map((scope) => ({
+        name: scope.name,
+        type: types.get(scope.name) ?? 'uuid',
+        ...(scope.within === undefined ? {} : { within: scope.within }),
+      })),
+      helpers,
+    },
+    decidingColumns: decidingColumns(
+      config,
+      parts.attrs === undefined
+        ? undefined
+        : {
+            ...(parts.attrs.table === undefined
+              ? {}
+              : { table: parts.attrs.table }),
+            columns: parts.attrs.columns,
+          },
+    ),
+    markers: { hook: 'v1', grants: 'v1' },
   };
 }
 
@@ -910,7 +993,7 @@ export function supabaseHookManifest(
   overrides: HookOverrides & { readonly out?: string } = {},
 ): SupabaseHookManifest {
   const { parts } = hookParts(scopes, config, overrides);
-  return manifestOf(parts, overrides.out ?? defaultOut(config));
+  return manifestOf(parts, overrides.out ?? defaultOut(config), config);
 }
 
 /**
@@ -929,7 +1012,7 @@ export function supabaseHookSql(
   readonly manifest: SupabaseHookManifest;
 } {
   const { parts, warnings } = hookParts(scopes, config, overrides);
-  const manifest = manifestOf(parts, defaultOut(config));
+  const manifest = manifestOf(parts, defaultOut(config), config);
   const toml = configToml(parts.schema, parts.jwtExpiry)
     .split('\n')
     .map((line) => (line === '' ? '--' : `--   ${line}`))
@@ -990,6 +1073,49 @@ function inspectText(manifest: SupabaseHookManifest): string {
   ].join('\n');
 }
 
+/**
+ * Writes the manifest to `rel`, or with `check` compares it as JSON, so a
+ * formatter that reflows the file is not drift.
+ */
+function manifestFile(
+  cwd: string,
+  rel: string,
+  manifest: SupabaseHookManifest,
+  check: boolean,
+): { readonly code: 0 | 1; readonly output: string } {
+  const path = resolve(cwd, rel);
+  if (!check) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+    return { code: 0, output: `wrote ${rel}` };
+  }
+  if (!existsSync(path)) {
+    return { code: 1, output: `supabase manifest drift: missing ${rel}` };
+  }
+  let onDisk: unknown;
+  try {
+    onDisk = JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return { code: 1, output: `supabase manifest drift: ${rel} is not JSON` };
+  }
+  const found: Record<string, unknown> =
+    typeof onDisk === 'object' && onDisk !== null && !Array.isArray(onDisk)
+      ? Object.fromEntries(Object.entries(onDisk))
+      : {};
+  const changed = [
+    ...new Set([...Object.keys(manifest), ...Object.keys(found)]),
+  ].filter(
+    (key) =>
+      JSON.stringify(Reflect.get(manifest, key)) !== JSON.stringify(found[key]),
+  );
+  return changed.length === 0
+    ? { code: 0, output: 'supabase manifest up to date' }
+    : {
+        code: 1,
+        output: `supabase manifest drift: ${rel} differs in ${changed.join(', ')}; run permdock supabase inspect --out ${rel}`,
+      };
+}
+
 export async function loadScopes(
   cwd: string,
   config: PermDockConfig,
@@ -1029,10 +1155,16 @@ export async function runSupabase(input: {
   );
   if (area === 'inspect' && action === undefined) {
     const scopes = await loadScopes(input.cwd, input.config);
-    const manifest = supabaseHookManifest(scopes, input.config, {
-      ...overrides,
-      ...(input.out === undefined ? {} : { out: input.out }),
-    });
+    const manifest = supabaseHookManifest(scopes, input.config, overrides);
+    if (input.out !== undefined) {
+      return manifestFile(input.cwd, input.out, manifest, input.check);
+    }
+    if (input.check) {
+      return {
+        code: 2,
+        output: 'supabase inspect --check needs --out <file>',
+      };
+    }
     return {
       code: 0,
       output:

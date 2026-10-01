@@ -19,6 +19,8 @@ export function generatorBanner(): string {
 
 export const CATALOG_SCHEMA =
   'https://permdock.dev/schemas/catalog-v1.json' as const;
+export const SUPABASE_MANIFEST_SCHEMA =
+  'https://permdock.dev/schemas/supabase-manifest-v1.json' as const;
 export const USAGE_REPORT_SCHEMA =
   'https://permdock.dev/schemas/usage-report-v1.json' as const;
 export const DOCTOR_REPORT_SCHEMA =

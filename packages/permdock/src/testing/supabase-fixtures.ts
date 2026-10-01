@@ -315,6 +315,7 @@ export { supabaseMembershipsBudget } from '../supabase/budget.ts';
  * parser against this value.
  */
 export const supabaseHookManifestFixture: SupabaseHookManifest = {
+  $schema: 'https://permdock.dev/schemas/supabase-manifest-v1.json',
   version: 1,
   hook: {
     schema: 'public',
@@ -349,4 +350,53 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
     },
   ],
   authzVersion: true,
+  memberships: [
+    {
+      table: 'public.memberships',
+      user: { column: 'user_id' },
+      scope: { column: 'scope' },
+      id: { column: 'scope_id' },
+      role: { column: 'role' },
+      columns: ['user_id', 'scope', 'scope_id', 'role'],
+    },
+  ],
+  rls: {
+    schema: 'public',
+    mode: 'jwt',
+    tenantClaim: 'tenant_id',
+    scopes: [{ name: 'tenant', type: 'uuid' }],
+    helpers: [
+      {
+        name: 'permdock_has',
+        args: 'p_grant text',
+        returns: 'boolean',
+        execute: ['authenticated'],
+      },
+      {
+        name: 'permitted_tenant_ids',
+        args: 'p_grant text',
+        returns: 'setof uuid',
+        execute: ['authenticated'],
+      },
+      {
+        name: 'member_tenant_ids',
+        args: '',
+        returns: 'setof uuid',
+        execute: ['authenticated'],
+      },
+      {
+        name: 'member_tenant_ids_for',
+        args: 'p_user uuid',
+        returns: 'setof uuid',
+        execute: ['supabase_auth_admin'],
+      },
+    ],
+  },
+  decidingColumns: [
+    'public.memberships.role',
+    'public.memberships.scope',
+    'public.memberships.scope_id',
+    'public.memberships.user_id',
+  ],
+  markers: { hook: 'v1', grants: 'v1' },
 };
