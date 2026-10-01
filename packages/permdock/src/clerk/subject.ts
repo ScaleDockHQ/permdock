@@ -12,6 +12,7 @@ import type {
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { anonymousSubject } from '../core/subject.ts';
+import { ignoreRejection } from '../core/thenable.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -44,6 +45,7 @@ function validateClaims(
 ): Record<string, unknown> | undefined {
   const result = schema['~standard'].validate(extra);
   if (result instanceof Promise) {
+    ignoreRejection(result);
     return undefined;
   }
   if ('issues' in result && result.issues !== undefined) {

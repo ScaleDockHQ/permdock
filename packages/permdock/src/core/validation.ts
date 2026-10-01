@@ -3,6 +3,7 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type { Permission, ResourceNode } from './permissions.ts';
 
 import { PermDockValidationError } from './errors.ts';
+import { ignoreRejection, isThenable } from './thenable.ts';
 
 export type Boundary =
   | 'http-body'
@@ -10,15 +11,6 @@ export type Boundary =
   | 'tool-args'
   | 'decision-endpoint'
   | 'manual';
-
-function isThenable(value: unknown): value is Promise<unknown> {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    'then' in value &&
-    typeof value.then === 'function'
-  );
-}
 
 export function validateBoundary(
   permission: Permission,
@@ -46,6 +38,7 @@ export function validateBoundary(
   }
   const result = resource.schema['~standard'].validate(data);
   if (isThenable(result)) {
+    ignoreRejection(result);
     throw new PermDockValidationError({
       code: 'async-schema',
       permission: permission.key,

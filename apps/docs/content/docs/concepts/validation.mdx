@@ -115,7 +115,7 @@ class PermDockValidationError extends Error {
 ```
 
 - `invalid-data` carries the schema's `issues` (path, message) in the Standard Schema issue format, unchanged, so you can hand them to whatever renders your validator's errors.
-- `async-schema` is a configuration error and should fail loudly in development.
+- `async-schema` is a configuration error and should fail loudly in development. PermDock settles the returned Promise itself, so a validator that rejects (a row whose getter throws, for instance) never surfaces as an unhandled rejection.
 - `no-schema` is thrown when `validate: 'always'` meets a schema-less resource with instance actions; schema-less resources are allowed only for collection actions or with `'boundary'` and trusted data.
 
 Adapters catch it and respond in their own vocabulary: HTTP adapters return `400 application/problem+json` with `type` ending in `/validation` and the `issues`; MCP returns `isError: true` with the issues as `structuredContent`; the AI SDK adapter returns `denied` with a model-readable list of invalid fields so the model can fix its call. `decide` itself does not throw on invalid data: it returns `denied` with reason `validation` and attaches the error under `denials[0].detail`. `assert` throws. See [errors](/docs/concepts/errors).

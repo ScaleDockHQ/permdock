@@ -4,7 +4,7 @@ import type { Policy } from './policy.ts';
 
 import { compact } from './compact.ts';
 import { sanitizeContext } from './fields.ts';
-import { freezeDeep } from './freeze.ts';
+import { freezeCopy } from './freeze.ts';
 import { asMembershipSource } from './memberships.ts';
 import { applyRoleKinds } from './ownership.ts';
 import { normalizeMemberships, scopeList } from './scopes.ts';
@@ -110,7 +110,7 @@ function finishSubject(
   extra: { readonly stale: boolean; readonly plans: readonly string[] },
 ): Subject {
   if (assembled.principal === null) {
-    return freezeDeep(
+    return freezeCopy(
       compact<Subject>({
         ...anonymousSubject(context),
         actor: assembled.actor,
@@ -129,7 +129,7 @@ function finishSubject(
   const plans = [
     ...new Set([...(assembled.principal.plans ?? []), ...extra.plans]),
   ];
-  const withMemberships: Principal = freezeDeep(
+  const withMemberships: Principal = freezeCopy(
     compact<Principal>({
       ...assembled.principal,
       roles,
@@ -138,12 +138,12 @@ function finishSubject(
       tenant: activeTenantOf(policy, assembled, memberships, options),
     }),
   );
-  return freezeDeep(
+  return freezeCopy(
     compact<Subject>({
       principal: withMemberships,
       actor: assembled.actor,
       delegation: assembled.delegation,
-      context: freezeDeep({ ...context }),
+      context: freezeCopy(context),
       session: assembled.session,
       expiresAt: assembled.expiresAt,
       stale: extra.stale ? (true as const) : undefined,

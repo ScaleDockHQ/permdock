@@ -23,6 +23,32 @@ export function freezeDeep<T>(value: T): T {
   return value;
 }
 
+function isPlain(value: object): boolean {
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/** A deeply frozen copy of the plain objects and arrays in `value`; the caller's own objects stay writable. */
+export function freezeCopy<T>(value: T): T {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    // SAFETY: a copy of an array of T's elements has T's array type.
+    return Object.freeze(value.map((item: unknown) => freezeCopy(item))) as T;
+  }
+  if (!isPlain(value)) {
+    return value;
+  }
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) {
+    // SAFETY: value is a non-null plain object and key is one of its own keys.
+    copy[key] = freezeCopy((value as Record<string, unknown>)[key]);
+  }
+  // SAFETY: the copy has the same own enumerable keys and values as value.
+  return Object.freeze(copy) as T;
+}
+
 export function freezeShallow<T extends object>(value: T): T {
   return Object.freeze(value);
 }

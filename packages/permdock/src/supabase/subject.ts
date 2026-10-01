@@ -19,6 +19,7 @@ import type {
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { anonymousSubject } from '../core/subject.ts';
+import { ignoreRejection } from '../core/thenable.ts';
 import { supabaseTenantClaim } from './budget.ts';
 
 const REGISTERED = new Set([
@@ -296,6 +297,7 @@ function validateClaims(
 ): Record<string, unknown> | undefined {
   const result = schema['~standard'].validate(extra);
   if (result instanceof Promise) {
+    ignoreRejection(result);
     return undefined;
   }
   if ('issues' in result && result.issues !== undefined) {

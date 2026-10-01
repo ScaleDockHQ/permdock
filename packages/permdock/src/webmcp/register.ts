@@ -26,6 +26,7 @@ import {
   resourceOfNode,
   listPermissions,
 } from '../core/permissions.ts';
+import { ignoreRejection, isThenable } from '../core/thenable.ts';
 import { wireDenials } from '../core/wire-denial.ts';
 
 const MISSING_CONTEXT =
@@ -144,12 +145,8 @@ function validateInput(
     return args;
   }
   const result = schema['~standard'].validate(args);
-  if (
-    result !== null &&
-    typeof result === 'object' &&
-    'then' in result &&
-    typeof result.then === 'function'
-  ) {
+  if (isThenable(result)) {
+    ignoreRejection(result);
     throw new PermDockValidationError({
       code: 'async-schema',
       permission: permission.key,
