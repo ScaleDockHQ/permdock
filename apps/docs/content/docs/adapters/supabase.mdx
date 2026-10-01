@@ -65,6 +65,7 @@ It stays synchronous unless the app schema is asynchronous. `supabaseClaimFixtur
   - table `user_roles(user_id, role)` (a user may hold several roles), with RLS enabled and no client grants;
   - the shared `role_permissions(role, permission, grant_key, scope, effect)` table and its seed rows, from role grants and top-level `definePolicy({ grants })` alike (every `rls generate` emits these, with or without `--rbac`);
   - the `permdock_has` helper and one `permitted_<scope>_ids` and one `member_<scope>_ids` per declared scope, `security definer` with `search_path = ''`, executable by `authenticated` only;
+  - one `member_<scope>_ids_for(p_user uuid)` per scope with a membership source, for `supabase.hook.claims` functions, executable by no client role ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own));
   - `authorize()` as above, executable by `authenticated` only;
   Everything lands in the chosen schema. It emits no token hook: `permdock supabase hook generate` is the one generator of `custom_access_token_hook`, so one function writes `user_role`, `memberships` and the other claims ([Supabase token hook](/docs/adapters/supabase-hook)). The hook reads the same `user_roles` table by default.
 - A global role's grant compiles to `(select "public".permdock_has('post.delete'))`; a tenant-scoped role's grant to `"orgId" in (select "public".permitted_tenant_ids('post.update#2'))`; conditions AND onto their branch, and one policy per table and command ORs the branches. `insert` policies carry only `with check`. No policy calls `authorize()` with a row column, which would run it once per row.
@@ -316,6 +317,8 @@ export default {
 ```
 
 Pass the same source, with a `query` over the app's connection, as `memberships` to `createPermDock` so `decide` reads the rows the token was minted from. `tests/integration/src/supabase-junction.test.ts` runs the round trip against Postgres.
+
+`better_supabase.feature_claims(user_id)` reads the user's organizations from `public.member_organization_ids_for(user_id)` rather than from `better_supabase.memberships`, so a membership that expired or an organization that is suspended loses its features in the same token that loses the membership ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)). `tests/integration/src/supabase-member-for.test.ts` runs it inside the hook.
 
 ## Request lifecycle
 

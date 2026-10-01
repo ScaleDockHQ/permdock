@@ -186,10 +186,9 @@ export async function runRlsGenerate(input: {
     (rls?.membershipSources === undefined
       ? defaultAuthorize(input.rbac, memberships)
       : 'database');
-  const sources =
-    authorize === 'database'
-      ? (rls?.membershipSources ?? input.config.supabase?.hook?.memberships)
-      : undefined;
+  const memberSources =
+    rls?.membershipSources ?? input.config.supabase?.hook?.memberships;
+  const sources = authorize === 'database' ? memberSources : undefined;
   const scopes = scopeList(policy.scopes);
   const suspension = checkSuspension(rls?.suspension, scopes);
   const hookRoles = input.config.supabase?.hook?.roles;
@@ -218,6 +217,9 @@ export async function runRlsGenerate(input: {
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(memberships === undefined ? {} : { memberships }),
     ...(sources === undefined || sources.length === 0 ? {} : { sources }),
+    ...(memberSources === undefined || memberSources.length === 0
+      ? {}
+      : { memberSources }),
     ...(suspension === undefined ? {} : { suspension }),
     ...(roles === undefined ? {} : { roles }),
     ...(input.customRoles === true || rls?.customRoles === true

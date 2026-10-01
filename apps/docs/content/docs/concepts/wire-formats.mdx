@@ -574,7 +574,7 @@ Output of `permdock supabase inspect --json` ([supabase](/docs/cli/supabase)): w
       "required": ["schema", "functions"],
       "properties": {
         "schema": { "type": "string" },
-        "functions": { "type": "array", "items": { "type": "string", "pattern": "^(permdock_has|permitted_[a-z][a-z0-9_]*_ids)$" } }
+        "functions": { "type": "array", "items": { "type": "string", "pattern": "^(permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(_for)?)$" } }
       }
     },
     "tenantClaim": { "type": "string" },
@@ -596,7 +596,7 @@ Output of `permdock supabase inspect --json` ([supabase](/docs/cli/supabase)): w
 }
 ```
 
-`helpers.functions` are `permdock_has(p_grant text)` and, per declared scope, `permitted_<scope>_ids(p_grant text)` and `member_<scope>_ids()`, in `helpers.schema`. What they answer, and what a policy calling them may rely on, is the [SQL helper contract](/docs/adapters/rls#sql-helper-contract); the claims they read have a JSON Schema, `schemas/supabase-claims-v1.json`. `budget.measure` is the SQL the hook sums against `budget.bytes`: `octet_length(memberships::text) + octet_length(attrs::text)`. Each claim's `source` is `permdock` or the `<schema>.<function>` of a `supabase.hook.claims` entry, and `budget` says whether it counts toward the budget. The generated migration starts with the same facts on one line, `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, which `supabase hook generate --check` compares first.
+`helpers.functions` are `permdock_has(p_grant text)` and, per declared scope, `permitted_<scope>_ids(p_grant text)` and `member_<scope>_ids()`, plus `member_<scope>_ids_for(p_user uuid)` for each scope with a membership source, in `helpers.schema`. What they answer, and what a policy calling them may rely on, is the [SQL helper contract](/docs/adapters/rls#sql-helper-contract); the claims they read have a JSON Schema, `schemas/supabase-claims-v1.json`. `budget.measure` is the SQL the hook sums against `budget.bytes`: `octet_length(memberships::text) + octet_length(attrs::text)`. Each claim's `source` is `permdock` or the `<schema>.<function>` of a `supabase.hook.claims` entry, and `budget` says whether it counts toward the budget. The generated migration starts with the same facts on one line, `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, which `supabase hook generate --check` compares first.
 
 ## Problem Details
 

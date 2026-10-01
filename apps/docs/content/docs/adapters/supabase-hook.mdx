@@ -167,6 +167,20 @@ supabase: {
 - The claims sit outside the size budget: the budget decides which memberships a token keeps, and a claim the hook cannot size must not push memberships out. Keep each one small; the function owns its size.
 - A suspended user gets none of them, and the function is not called. A user with no memberships still gets them.
 - The migration grants `supabase_auth_admin` `usage` on each function's schema and `execute` on the function. A function that raises makes the hook fail, so Supabase Auth issues no token.
+- A function that needs the user's memberships calls `<schema>.member_<scope>_ids_for(user_id)` instead of reading the membership tables itself, so it agrees with the hook and RLS about expiry and suspension:
+
+  ```sql
+  create function better_supabase.feature_claims(user_id uuid) returns jsonb
+  language sql stable as $$
+    select jsonb_object_agg(f.organization_id, f.features)
+    from public.organization_features f
+    where f.organization_id in (select public.member_organization_ids_for(user_id))
+  $$;
+  ```
+
+  `permdock rls generate` writes these helpers ([SQL helper contract](/docs/adapters/rls#sql-helper-contract)); with `supabase.hook.claims` set, the hook migration (or the `--grants-out` file) grants `supabase_auth_admin` `execute` on each, so apply the helpers migration first.
+
+  **Why.** Auth runs the hook as `supabase_auth_admin` before a token exists, so `auth.uid()` and `auth.jwt()` are empty and `member_<scope>_ids()` returns nothing. A copy of the membership query in each package drifts from the hook's as soon as a source gains expiry or suspension; one helper that takes the user keeps a single rule. The grant only exists with `hook.claims`, so a hook with no claims of its own still installs before the helpers.
 
 ## Size budget
 

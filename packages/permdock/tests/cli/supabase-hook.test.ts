@@ -293,8 +293,10 @@ describe('permdock supabase hook generate', () => {
           'permdock_has',
           'permitted_organization_ids',
           'member_organization_ids',
+          'member_organization_ids_for',
           'permitted_customer_ids',
           'member_customer_ids',
+          'member_customer_ids_for',
         ],
       },
       tenantClaim: 'tenant_id',
@@ -325,7 +327,7 @@ describe('permdock supabase hook generate', () => {
     const missing = await generate(`{ memberships: [${SOURCES}] }`);
     expect(missing.code).toBe(0);
     expect(missing.output).toContain(
-      'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, permitted_customer_ids, member_customer_ids',
+      'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
     );
     writeFileSync(
       join(missing.cwd, 'rls.sql'),
@@ -338,7 +340,7 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
       { cwd: missing.cwd },
     );
     expect(partial.stdout).toContain(
-      'PD039 schema public has no member_organization_ids, permitted_customer_ids, member_customer_ids',
+      'PD039 schema public has no member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
     );
     const other = await generate(
       `{ memberships: [${SOURCES}] }`,
@@ -386,7 +388,7 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
       }[];
     };
     expect(report.findings.map((item) => item.message)).toEqual([
-      "schema public has no permdock_has, permitted_organization_ids, member_organization_ids, permitted_customer_ids, member_customer_ids: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
+      "schema public has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
       'claim features is 2012 bytes of JSON in ./claims.json, more than the 1024-byte memberships budget',
       'sample 2 in ./claims.json has memberships [1] that subjectFromSupabase drops (membership-dropped)',
     ]);

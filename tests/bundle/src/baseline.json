@@ -41,10 +41,10 @@
   "./convex": 70308,
   "./pdp": 78053,
   "./catalog": 5717,
-  "./testing": 138537,
+  "./testing": 138540,
   "./testing/saas": 83130,
   "./testing/saas/permissions": 75835,
-  "./cli": 327091,
+  "./cli": 328098,
   "./unplugin": 87242,
   "./next/plugin": 86514,
   "./next/client": 1022

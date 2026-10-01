@@ -1,3 +1,4 @@
+import type { SqlMembershipSource } from '../supabase/sources.ts';
 import type { RoleRows } from './global-roles.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
@@ -6,8 +7,11 @@ import { scopeChain } from '../core/scopes.ts';
 import { globalRoleSource } from './global-roles.ts';
 import {
   globalKindFilterSql,
+  hasMemberFor,
   kindFilterSql,
   activeRowSql,
+  memberForHelper,
+  memberForSources,
   memberIdsHelper,
   permittedIdsHelper,
   scopeSources,
@@ -137,8 +141,12 @@ export function membershipTable(name: string): string {
   return quoteTable(name.includes('.') ? name : `public.${name}`);
 }
 
-export function signedIn(ctx: RlsSqlContext): string {
-  return `coalesce(${subjectIdSql(ctx)}::text, '') <> ''`;
+/** `user` is the SQL for the user id: `auth.uid()` (the default) or the `p_user` parameter of a `_for` helper. */
+export function signedIn(
+  ctx: RlsSqlContext,
+  user: string = subjectIdSql(ctx),
+): string {
+  return `coalesce(${user}::text, '') <> ''`;
 }
 
 function activeTenant(ctx: RlsSqlContext): string {
@@ -169,11 +177,13 @@ function underRoot(ctx: RlsSqlContext, scope: string): boolean {
 }
 
 /** `and exists (...)` lines for an active user; empty without `rls.suspension.users`. */
-function userActive(ctx: RlsSqlContext, indent: string): string[] {
+function userActive(
+  ctx: RlsSqlContext,
+  indent: string,
+  user: string = subjectIdSql(ctx),
+): string[] {
   const row = ctx.suspension?.users;
-  return row === undefined
-    ? []
-    : [`${indent}and ${activeRowSql(row, subjectIdSql(ctx))}`];
+  return row === undefined ? [] : [`${indent}and ${activeRowSql(row, user)}`];
 }
 
 /**
@@ -577,10 +587,14 @@ revoke execute on function ${keys}(text[], text[], text[], text) from public, an
  * (`scope`, `id`, `within`, `roles`, `via`), with each source's own expiry
  * and suspension filters: the statements the token hook runs.
  */
-function sourceRows(ctx: RlsSqlContext, scope: string): string {
-  const user = `${subjectIdSql(ctx)}::text`;
-  return scopeSources(ctx, scope)
-    .map((source) => source.sql.select(user).replaceAll(/^/gmu, '    '))
+function sourceRows(
+  sources: readonly SqlMembershipSource[],
+  user: string,
+): string {
+  return sources
+    .map((source) =>
+      source.sql.select(`${user}::text`).replaceAll(/^/gmu, '    '),
+    )
     .join('\n    union all\n');
 }
 
@@ -593,9 +607,13 @@ function sourceIdOf(scope: string): (name: string) => string {
     name === scope ? 'ms.id' : `ms.within ->> ${quoteLiteral(name)}`;
 }
 
-function sourceFilters(ctx: RlsSqlContext, scope: string): string {
+function sourceFilters(
+  ctx: RlsSqlContext,
+  scope: string,
+  user: string = subjectIdSql(ctx),
+): string {
   return [
-    ...userActive(ctx, '    '),
+    ...userActive(ctx, '    ', user),
     ...instancesActive(ctx, scope, sourceIdOf(scope), '    '),
   ]
     .map((line) => `\n${line}`)
@@ -614,7 +632,7 @@ function sourcesBody(ctx: RlsSqlContext, scope: string, type: string): string {
     : '';
   return `  select (ms.id)::${type}
   from (
-${sourceRows(ctx, scope)}
+${sourceRows(scopeSources(ctx, scope), subjectIdSql(ctx))}
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -669,15 +687,35 @@ function memberBody(ctx: RlsSqlContext, scope: string, type: string): string {
       .map((line) => `\n${line}`)
       .join('')}`;
   }
-  if (scopeSources(ctx, scope).length > 0) {
+  return memberRowsBody(
+    ctx,
+    scope,
+    type,
+    subjectIdSql(ctx),
+    scopeSources(ctx, scope),
+  );
+}
+
+/**
+ * The membership rows of `user` for `scope`, from the sources or else the
+ * mapped table, with the same expiry and suspension filters either way.
+ */
+function memberRowsBody(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+  user: string,
+  sources: readonly SqlMembershipSource[],
+): string {
+  if (sources.length > 0) {
     return `  select distinct (ms.id)::${type}
   from (
-${sourceRows(ctx, scope)}
+${sourceRows(sources, user)}
   ) ms
-  where ${signedIn(ctx)}
+  where ${signedIn(ctx, user)}
     and ms.scope = ${quoteLiteral(scope)}
     and jsonb_typeof(ms.roles) = 'array'
-    and jsonb_array_length(ms.roles) > 0${sourceFilters(ctx, scope)}`;
+    and jsonb_array_length(ms.roles) > 0${sourceFilters(ctx, scope, user)}`;
   }
   const mapped = scopeTable(ctx, scope);
   if (mapped === undefined) {
@@ -687,7 +725,7 @@ ${sourceRows(ctx, scope)}
   const lines = [
     `  select distinct ${memberColumn(column)}::${type}`,
     `  from ${membershipTable(table.table)} m`,
-    `  where ${memberColumn(table.user)} = ${subjectIdSql(ctx)}`,
+    `  where ${memberColumn(table.user)} = ${user}`,
     `    and ${memberColumn(table.role)} is not null`,
   ];
   if (table.expiresAt !== undefined) {
@@ -695,7 +733,7 @@ ${sourceRows(ctx, scope)}
     lines.push(`    and (${expires} is null or ${expires} > now())`);
   }
   lines.push(
-    ...userActive(ctx, '    '),
+    ...userActive(ctx, '    ', user),
     ...instancesActive(
       ctx,
       scope,
@@ -738,6 +776,38 @@ as $$
 ${memberBody(ctx, scope, type)}
 $$;
 ${grants}`;
+}
+
+/**
+ * `member_<scope>_ids_for(p_user uuid)`: `member_<scope>_ids()` for a user the
+ * caller names, read from the membership sources (or the mapped table) in
+ * either mode, so a token hook can call it before any claim exists. Naming
+ * the user is why no client role may execute it; the hook's grants give
+ * `supabase_auth_admin` execute.
+ */
+function memberForFunction(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+): string {
+  const fn = qualified(ctx, memberForHelper(scope));
+  const body = memberRowsBody(
+    ctx,
+    scope,
+    type,
+    'p_user',
+    memberForSources(ctx, scope),
+  );
+  return `create or replace function ${fn}(p_user uuid)
+returns setof ${type}
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+${body}
+$$;
+revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
 }
 
 function helperFunction(
@@ -877,6 +947,9 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       ),
     );
     chunks.push(memberFunction(ctx, scope.name, type, anon));
+    if (hasMemberFor(ctx, scope.name)) {
+      chunks.push(memberForFunction(ctx, scope.name, type));
+    }
   }
   return `${chunks.join('\n\n')}\n`;
 }

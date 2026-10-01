@@ -32,6 +32,9 @@ import { authAdminRead, hookUri } from './rls-rbac.ts';
 import {
   activeRowSql,
   checkSuspension,
+  hasMemberFor,
+  memberForHelper,
+  memberIdsHelper,
   quoteIdent,
   quoteLiteral,
   quoteTable,
@@ -229,6 +232,11 @@ type Parts = {
   readonly active: string;
   readonly attrs: AttrsPlan | undefined;
   readonly extra: readonly ExtraClaim[];
+  /** The `rls.schema` helpers, and the scopes `rls generate` emits `member_<scope>_ids_for` for. */
+  readonly helpers: {
+    readonly schema: string;
+    readonly memberFor: readonly string[];
+  };
 };
 
 function table(name: string): string {
@@ -481,7 +489,7 @@ function grantsSql(parts: Parts): string {
     `-- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema ${schema} to supabase_auth_admin;
 grant execute on function ${fn}(jsonb) to supabase_auth_admin;
-revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}`,
+revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${memberForGrantsSql(parts)}`,
     readsSql(parts),
     parts.version
       ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, 'version')
@@ -501,6 +509,30 @@ function extraGrantsSql(extra: readonly ExtraClaim[]): string {
     ...extra.map(
       (entry) =>
         `\ngrant execute on function ${quoteTable(entry.fn)}(uuid) to supabase_auth_admin;`,
+    ),
+  ].join('');
+}
+
+/**
+ * Execute on each `member_<scope>_ids_for(uuid)` for the `hook.claims`
+ * functions, which run as `supabase_auth_admin` and may call them. Only with
+ * `hook.claims`: the grant needs the helpers migration applied first, and a
+ * hook without extra claims does not.
+ */
+function memberForGrantsSql(parts: Parts): string {
+  const { schema, memberFor } = parts.helpers;
+  if (memberFor.length === 0 || parts.extra.length === 0) {
+    return '';
+  }
+  return [
+    ...(schema === parts.schema
+      ? []
+      : [
+          `\ngrant usage on schema ${quoteIdent(schema)} to supabase_auth_admin;`,
+        ]),
+    ...memberFor.map(
+      (scope) =>
+        `\ngrant execute on function ${quoteIdent(schema)}.${memberForHelper(scope)}(uuid) to supabase_auth_admin;`,
     ),
   ].join('');
 }
@@ -784,6 +816,24 @@ function hookParts(
     active: activeFromSql(overrides.activeFrom ?? hook.activeFrom, root),
     attrs: hook.attrs === undefined ? undefined : attrsPlan(hook.attrs),
     extra: extraPlan.claims,
+    helpers: {
+      schema: config.rls?.schema ?? 'public',
+      memberFor: scopes
+        .map((scope) => scope.name)
+        .filter((name) =>
+          hasMemberFor(
+            {
+              dialect: 'supabase',
+              scopes,
+              ...(config.rls?.memberships === undefined
+                ? {}
+                : { memberships: config.rls.memberships }),
+              memberSources: config.rls?.membershipSources ?? hook.memberships,
+            },
+            name,
+          ),
+        ),
+    },
   };
   if (parts.attrs !== undefined && parts.attrs.errors.length > 0) {
     throw new Error(`PermDock CLI: ${parts.attrs.errors.join('; ')}`);
@@ -821,21 +871,20 @@ function hookClaims(parts: Parts): readonly SupabaseHookClaim[] {
   ];
 }
 
-function manifestOf(
-  parts: Parts,
-  config: PermDockConfig,
-  out: string,
-): SupabaseHookManifest {
+function manifestOf(parts: Parts, out: string): SupabaseHookManifest {
   return {
     version: 1,
     hook: { schema: parts.schema, function: 'custom_access_token_hook', out },
     helpers: {
-      schema: config.rls?.schema ?? 'public',
+      schema: parts.helpers.schema,
       functions: [
         'permdock_has',
         ...parts.scopes.flatMap((scope) => [
           `permitted_${scope.name}_ids`,
-          `member_${scope.name}_ids`,
+          memberIdsHelper(scope.name),
+          ...(parts.helpers.memberFor.includes(scope.name)
+            ? [memberForHelper(scope.name)]
+            : []),
         ]),
       ],
     },
@@ -861,7 +910,7 @@ export function supabaseHookManifest(
   overrides: HookOverrides & { readonly out?: string } = {},
 ): SupabaseHookManifest {
   const { parts } = hookParts(scopes, config, overrides);
-  return manifestOf(parts, config, overrides.out ?? defaultOut(config));
+  return manifestOf(parts, overrides.out ?? defaultOut(config));
 }
 
 /**
@@ -880,7 +929,7 @@ export function supabaseHookSql(
   readonly manifest: SupabaseHookManifest;
 } {
   const { parts, warnings } = hookParts(scopes, config, overrides);
-  const manifest = manifestOf(parts, config, defaultOut(config));
+  const manifest = manifestOf(parts, defaultOut(config));
   const toml = configToml(parts.schema, parts.jwtExpiry)
     .split('\n')
     .map((line) => (line === '' ? '--' : `--   ${line}`))

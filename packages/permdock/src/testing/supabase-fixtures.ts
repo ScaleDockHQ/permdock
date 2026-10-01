@@ -323,7 +323,12 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
   },
   helpers: {
     schema: 'public',
-    functions: ['permdock_has', 'permitted_tenant_ids', 'member_tenant_ids'],
+    functions: [
+      'permdock_has',
+      'permitted_tenant_ids',
+      'member_tenant_ids',
+      'member_tenant_ids_for',
+    ],
   },
   tenantClaim: 'tenant_id',
   budget: {
