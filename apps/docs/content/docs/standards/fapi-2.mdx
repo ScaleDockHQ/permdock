@@ -56,7 +56,7 @@ const resolve = createJwtSubjectResolver({
 })
 
 export const { permdock, protect } = createPermDock(policy, {
-  subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw), // request enables the DPoP proof check
+  subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw), // the request carries the DPoP proof
 })
 ```
 

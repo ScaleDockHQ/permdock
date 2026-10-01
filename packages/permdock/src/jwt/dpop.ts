@@ -6,6 +6,15 @@ import { decodeHeader } from './header.ts';
 import { loadJose } from './load-jose.ts';
 
 const DPOP_WINDOW_SECONDS = 60;
+// RFC 9449 section 4.3: an asymmetric signature algorithm and a public key only.
+const PROOF_ALGS: ReadonlySet<string> = new Set([
+  'ES256',
+  'PS256',
+  'Ed25519',
+  'EdDSA',
+  'RS256',
+]);
+const PRIVATE_MEMBERS = ['d', 'p', 'q', 'dp', 'dq', 'qi', 'k'] as const;
 
 function headerOf(request: Request): string | null {
   return request.headers.get('DPoP') ?? request.headers.get('dpop');
@@ -50,7 +59,13 @@ async function verify(
     return { ok: false, cause: 'dpop-proof-invalid' };
   }
   const jwk = header['jwk'];
-  if (jwk === null || typeof jwk !== 'object' || Array.isArray(jwk)) {
+  if (
+    !PROOF_ALGS.has(header.alg ?? '') ||
+    jwk === null ||
+    typeof jwk !== 'object' ||
+    Array.isArray(jwk) ||
+    PRIVATE_MEMBERS.some((member) => member in jwk)
+  ) {
     return { ok: false, cause: 'dpop-proof-invalid' };
   }
   try {

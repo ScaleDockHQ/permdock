@@ -159,8 +159,11 @@ async function resolveSubject(
     emitAuth(options, 'sender-constraint-required', token);
     return anonymousSubject();
   }
-  if (sender === 'dpop' && request !== undefined) {
-    const proof = await verifyDpopProof(request, verified.claims, token);
+  if (sender === 'dpop') {
+    const proof =
+      request === undefined
+        ? { ok: false as const, cause: 'dpop-proof-invalid' as const }
+        : await verifyDpopProof(request, verified.claims, token);
     if (!proof.ok) {
       emitAuth(options, proof.cause, token);
       return anonymousSubject();

@@ -63,7 +63,7 @@ const subject = await subjectFromJwt(token, {
 |---|---|
 | `subjectFromJwt(token, options)` | Verifies one token and returns a `Subject`. `token` may be `undefined` or `null` (no header), in which case the result is anonymous without an audit event. Never throws. |
 | `createJwtSubjectResolver(options)` | Returns `(token, request?) => Promise<Subject>` with a cached Discovery document and JWKS. Use one resolver per issuer for the life of the process; pass it as the `subject` option of a server adapter. |
-| `verifyDpopProof(request, claims)` | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: proof signature, `htm` / `htu` match, `iat` window, `ath` hash of the access token. Returns `{ ok: true }` or `{ ok: false, cause }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere. |
+| `verifyDpopProof(request, claims)` | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: an asymmetric `alg` and a public `jwk` only, proof signature, `htm` / `htu` match, `iat` window, `ath` hash of the access token. Returns `{ ok: true }` or `{ ok: false, cause }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere. |
 | `joseTokenVerifier(options)` | The built-in `TokenVerifier`: `jwks` or `discovery`, `algorithms`, `typ`, `audience`, `clockTolerance`, `decryptionKeys`. Exported so `permdock/ssf`, `permdock/cloud` and your own code verify PermDock's signed outputs and SETs with the same rules ([extension interfaces](/docs/concepts/extension-interfaces)). |
 | `joseTokenSigner({ key, alg, kid })` | The built-in `TokenSigner`: signs a payload as compact JWS with a registered `typ`. Used by `permdock.snapshot({ signer })`, `approvalsHandler({ signer })` and `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)). |
 | `subjectFromCapability(token, options)` | Verifies a `permdock-capability+jwt` share link and returns the `link` subject it acts as: one resource membership, narrowed by `delegation.scopes` when the capability lists permissions. `issuer` and `audience` are required. Never throws ([link capabilities](/docs/concepts/capabilities)). |
@@ -92,7 +92,7 @@ Option notes:
 - `memberships` (a `MembershipSource`) supplements the token with memberships from your tables for issuers that carry none; it runs after verification with the verified `sub`.
 - `actor.from: 'act'` takes the innermost `act.sub` as `actor.id` and stores the full nesting as `delegation.chain`. A claimed `act` that is not an object, or whose nested `act` lacks a string `sub`, is anonymous with cause `invalid-chain`. `actor.kind` is `'oauth-client'` by default and `'mcp-client'` when the resolver runs inside `permdock/mcp`, the one value the MCP adapter uses for its own actors; there is no other `kind` for `act`-derived actors. A function receives the verified claims and returns an `Actor` or `undefined`.
 - `delegation.access` reads the GNAP `access` claim as RFC 9767 section 2.1 defines it for JWT-formatted tokens (objects and reference strings, RFC 9635 section 8). Entries are stored on `delegation.access` and intersected with grants like `scopes`.
-- `sender: 'dpop'` attaches `binding: { jkt: cnf.jkt }` and, when a `request` is available, runs `verifyDpopProof`. `sender: 'mtls'` attaches `binding: { 'x5t#S256': cnf['x5t#S256'] }` and compares it to the certificate thumbprint the adapter passes in. `Binding` carries the RFC 7800 `cnf` members verbatim (`jkt`, `x5t#S256`, `jwk`, `kid`) so it round-trips into anything PermDock signs. The binding goes on `actor` when an `act` chain is present, otherwise on `principal`.
+- `sender: 'dpop'` attaches `binding: { jkt: cnf.jkt }` and runs `verifyDpopProof` on the `request`; a call without a `request` cannot prove possession and resolves the anonymous subject with `dpop-proof-invalid`. `sender: 'mtls'` attaches `binding: { 'x5t#S256': cnf['x5t#S256'] }` and compares it to the certificate thumbprint the adapter passes in. `Binding` carries the RFC 7800 `cnf` members verbatim (`jkt`, `x5t#S256`, `jwk`, `kid`) so it round-trips into anything PermDock signs. The binding goes on `actor` when an `act` chain is present, otherwise on `principal`.
 - `expiresAt` on the returned subject is `exp`, or `min(exp, session_expiry)` when the IPSIE / Enterprise Extensions claim is present; `snapshot()` copies it.
 - `verifier` replaces the built-in `joseTokenVerifier` with any `TokenVerifier`: another JOSE library, a hardware-backed verifier, or one that calls an introspection endpoint. The claim mapping, `accept` logic and audit events are unchanged; only the "is this token genuine" step moves.
 
@@ -242,7 +242,7 @@ const resolve = createJwtSubjectResolver({
 })
 
 export const { permdock, protect } = createPermDock(policy, {
-  subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw),   // request enables the DPoP proof check
+  subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw),   // the request carries the DPoP proof
 })
 
 const app = new Hono()
@@ -276,7 +276,7 @@ The SDK's verification and the resolver's verification must agree on issuer and 
 ## What it validates
 
 - Signature, `alg`, `kid`, `typ`, `iss`, `aud`, `exp`, `nbf`, `iat` as listed in the behaviour table; the RFC 8725 checklist row by row is on [JOSE](/docs/standards/jose).
-- DPoP proof (`sender: 'dpop'`) and mTLS thumbprint (`sender: 'mtls'`) when the adapter supplies the request or certificate. `verifyDpopProof` bounds proofs by the `iat` window and keeps no `jti` cache.
+- DPoP proof (`sender: 'dpop'`) and mTLS thumbprint (`sender: 'mtls'`); without the request or certificate the token resolves anonymous. `verifyDpopProof` bounds proofs by the `iat` window and keeps no `jti` cache.
 - The Discovery document's `issuer` and transport.
 - Claim path safety at configuration time.
 - Role names against the policy: unknown names are dropped with a development warning, unless a `customRoles` source resolves them for the token's tenant.
