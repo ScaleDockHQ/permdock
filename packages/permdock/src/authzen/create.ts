@@ -1,5 +1,5 @@
 import type { Decision } from '../core/decision.ts';
-import type { PermDock } from '../core/permdock.ts';
+import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { AuthzenItem } from './map.ts';
 import type { AuthzenFactory } from './types.ts';
@@ -15,6 +15,7 @@ import {
   validationProblem,
 } from '../server/problem.ts';
 import {
+  UNAVAILABLE,
   UNKNOWN,
   actorOf,
   delegationOf,
@@ -162,10 +163,13 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     );
   }
 
-  async function resourceOf(item: AuthzenItem): Promise<{
-    readonly data: unknown;
-    readonly trusted: boolean;
-  }> {
+  async function resourceOf(item: AuthzenItem): Promise<
+    | {
+        readonly data: unknown;
+        readonly trusted: boolean;
+      }
+    | undefined
+  > {
     const properties = item.resource?.properties;
     if (properties !== null && typeof properties === 'object') {
       return { data: properties, trusted: false };
@@ -182,7 +186,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         const loaded = await load(id);
         return { data: loaded, trusted: true };
       } catch {
-        return { data: resourceData(item), trusted: false };
+        return undefined;
       }
     }
     return { data: resourceData(item), trusted: false };
@@ -197,26 +201,29 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     if (permission === undefined) {
       return UNKNOWN;
     }
-    const { data, trusted } = await resourceOf(item);
+    const resolved = await resourceOf(item);
+    if (resolved === undefined) {
+      return UNAVAILABLE;
+    }
+    const { data, trusted } = resolved;
     const dock = await instantiate(pep, item);
     // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
     const decide = dock.decide as (
       next: Permission,
       row?: unknown,
-      options?: {
-        readonly source: 'endpoint';
-        readonly adapter: string;
-        readonly trusted?: boolean;
-      },
+      options?: DecideOptions,
     ) => Decision;
     const decision = decide(
       permission,
       data,
-      compact({
-        source: 'endpoint' as const,
-        adapter: 'authzen',
-        trusted: trusted ? true : undefined,
-      }),
+      trusted
+        ? { source: 'endpoint', adapter: 'authzen', trusted: true }
+        : {
+            source: 'endpoint',
+            adapter: 'authzen',
+            trusted: false,
+            boundary: 'decision-endpoint',
+          },
     );
     return applyApprovalResume(
       decision,

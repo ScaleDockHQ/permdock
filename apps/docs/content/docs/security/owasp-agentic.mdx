@@ -51,7 +51,7 @@ const member = role('member', [
 
 ### Deterministic argument validation
 
-Tool arguments are model output and therefore untrusted. `validate: 'boundary'` runs the resource's Standard Schema on them before any rule executes; failures are `denied` with `issues`, never a thrown exception that the runtime might swallow into "tool executed". See [validation](/docs/concepts/validation).
+Tool arguments are model output and therefore untrusted. `validate: 'boundary'` runs the resource's Standard Schema on them before any rule executes, because no agent or MCP adapter marks tool data `trusted: true`; failures are `denied` with `issues`, never a thrown exception that the runtime might swallow into "tool executed". See [validation](/docs/concepts/validation).
 
 ### Human-in-the-loop gates
 

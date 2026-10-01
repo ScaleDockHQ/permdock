@@ -59,7 +59,7 @@ app.ws('/ws', {
   async open(ws) { await connection(ws, { permission: permissions.project.read }) },
   async message(ws, message) {
     const conn = await connection(ws)
-    const decision = conn.check(permissions.post.update, message, { trusted: false })
+    const decision = conn.check(permissions.post.update, message)
     if (decision.outcome !== 'granted') ws.send({ denied: decision.denials })
   },
   async close(ws) { (await connection(ws)).close() },

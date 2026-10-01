@@ -244,6 +244,51 @@ describe('permdock/authzen', () => {
     expect(body.decision).toBe(true);
   });
 
+  it('validates partial body properties against the resource schema', async () => {
+    const response = await pdp()(
+      request('/access/v1/evaluation', {
+        json: {
+          action: { name: 'publish' },
+          resource: { type: 'post', id: 'p2', properties: { id: 'p2' } },
+        },
+      }),
+    );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
+    const body = (await response.json()) as {
+      readonly decision: boolean;
+      readonly context?: {
+        readonly permdock?: {
+          readonly denials?: readonly { readonly reason: string }[];
+        };
+      };
+    };
+    expect(body.decision).toBe(false);
+    expect(body.context?.permdock?.denials?.[0]?.reason).toBe('validation');
+  });
+
+  it('denies when the resource loader throws', async () => {
+    const response = await pdp({
+      resources: {
+        post: {
+          load: () => {
+            throw new Error('db down');
+          },
+          list: () => [],
+        },
+      },
+    })(
+      request('/access/v1/evaluation', {
+        json: {
+          action: { name: 'publish' },
+          resource: { type: 'post', id: 'p2' },
+        },
+      }),
+    );
+    // SAFETY: response JSON produced by the AuthZEN handler under test.
+    const body = (await response.json()) as { readonly decision: boolean };
+    expect(body.decision).toBe(false);
+  });
+
   it('rejects an unauthenticated PEP with WWW-Authenticate', async () => {
     const response = await pdp({ subject: () => null })(
       request('/access/v1/evaluation', { json: memberBody() }),

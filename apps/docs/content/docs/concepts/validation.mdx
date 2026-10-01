@@ -1,9 +1,9 @@
 ---
 title: Validation
-description: PermDock validates resource data against its Standard Schema only where it crossed a trust boundary, synchronously, with a typed error.
+description: PermDock validates resource data against its Standard Schema unless the caller marks it as a row the server loaded, synchronously, with a typed error.
 ---
 
-A permission check is only as good as the data it checks. `can(permissions.post.update, post)` with a `post` that a client made up is a check against fiction. PermDock attaches each resource's Standard Schema to the resource node and runs it on data that came from outside the trust boundary, and only there: trusted rows loaded by your own server code are not re-validated on every call. This page defines the modes, what counts as a boundary, and why validation is synchronous.
+A permission check is only as good as the data it checks. `can(permissions.post.update, post)` with a `post` that a client made up is a check against fiction. PermDock attaches each resource's Standard Schema to the resource node and runs it on every row it is handed, unless the caller marks the row `trusted: true` because the server loaded it itself. This page defines the modes, what counts as a boundary, and why validation is synchronous.
 
 ## Modes
 
@@ -11,7 +11,7 @@ A permission check is only as good as the data it checks. `can(permissions.post.
 
 | Mode | Behaviour | When to use |
 | --- | --- | --- |
-| `'boundary'` (default) | Validate data that an adapter marks as untrusted: HTTP bodies, MCP tool arguments, decision-endpoint requests, agent-supplied objects. Skip data passed directly by server code. | Almost always |
+| `'boundary'` (default) | Validate every row unless the call passes `trusted: true`. HTTP bodies, MCP tool arguments, decision-endpoint requests and agent-supplied objects are validated; a row your server code loaded and marks `trusted: true` is not. | Almost always |
 | `'always'` | Validate every instance passed to `can`, `decide`, `assert`, `filter`, regardless of origin. | Development, test suites, while migrating an untyped codebase |
 | `'never'` | Never run schemas. Types are still enforced at compile time. | Hot paths where every row came from your own database and the type is trusted |
 
@@ -23,19 +23,22 @@ Data has crossed a trust boundary when it was constructed by a party the policy 
 
 | Source | Boundary? | Who marks it |
 | --- | --- | --- |
-| Row loaded from your database in a Route Handler | No | You pass it directly to `decide` |
-| JSON body of an HTTP request | Yes | `protect(permission, load?)` in HTTP adapters validates `load`'s result when it derives from the body, and validates the body itself when it is the resource |
+| Row loaded from your database in a Route Handler | No | You pass it to `decide` with `trusted: true`; without the marker it is validated, which is safe but costs a schema call |
+| JSON body of an HTTP request | Yes | `protect(permission, load?)` in HTTP adapters validates `load`'s result unless `protect` is called with `{ trusted: true }` |
 | MCP tool arguments | Yes | `protectServer` validates `data(args)` output against the resource schema before deciding |
 | AI SDK or Claude Agent SDK tool call arguments | Yes | `toolApproval`, `canUseTool` validate the object built from `args` |
 | Decision endpoint request from the React client | Yes | `permdockHandler` and the `authzen` handler validate the `resource` object |
 | Persisted or cached snapshot on a device | Yes, but UI-only | The client PermDock validates shape before use; it never authorises writes |
 | Objects created inside a closure grant | No | Closures run on the server with trusted inputs |
 
-Adapters express this with a `trusted: false` marker on the data they pass to core; you can do the same when calling `decide` yourself:
+Data is untrusted unless the call says otherwise. Mark a row your server loaded with `trusted: true` to skip the schema call:
 
 ```ts
-permdock.decide(permissions.post.update, body, { trusted: false })
+permdock.decide(permissions.post.update, body)                   // validated
+permdock.decide(permissions.post.update, row, { trusted: true }) // a row you loaded
 ```
+
+A row-less check, such as `can(permissions.post.read)`, has nothing to validate and is not validated in `'boundary'` mode.
 
 Validation happens before evaluation. Its output (the schema's parsed value, with defaults and transforms applied) is what conditions read, so the type the grant was written against is the type that runs.
 
@@ -70,7 +73,7 @@ guarded.registerTool(
 
 ### filter
 
-`filter(permission, rows)` treats its input as trusted by default (rows came from your query). Pass `{ trusted: false }` when the array came from a client, for example when re-checking a list a browser sent back.
+`filter(permission, rows)` validates each row like any other check. Pass `{ trusted: true }` when the rows came from your own query and you want to skip the schema calls.
 
 ## Choosing a mode per environment
 
@@ -115,7 +118,7 @@ class PermDockValidationError extends Error {
 - `async-schema` is a configuration error and should fail loudly in development.
 - `no-schema` is thrown when `validate: 'always'` meets a schema-less resource with instance actions; schema-less resources are allowed only for collection actions or with `'boundary'` and trusted data.
 
-Adapters catch it and respond in their own vocabulary: HTTP adapters return `400 application/problem+json` with `type` ending in `/validation` and the `issues`; MCP returns `isError: true` with the issues as `structuredContent`; the AI SDK adapter returns `denied` with a model-readable list of invalid fields so the model can fix its call. `decide` itself, when called with `trusted: false`, does not throw: it returns `denied` with reason `validation` and attaches the error under `denials[0].detail`. `assert` throws. See [errors](/docs/concepts/errors).
+Adapters catch it and respond in their own vocabulary: HTTP adapters return `400 application/problem+json` with `type` ending in `/validation` and the `issues`; MCP returns `isError: true` with the issues as `structuredContent`; the AI SDK adapter returns `denied` with a model-readable list of invalid fields so the model can fix its call. `decide` itself does not throw on invalid data: it returns `denied` with reason `validation` and attaches the error under `denials[0].detail`. `assert` throws. See [errors](/docs/concepts/errors).
 
 ## Types are still enforced
 
@@ -129,6 +132,12 @@ Validation modes only change runtime behaviour. At compile time:
 
 `permdock doctor` warns when a policy uses `'never'` together with an HTTP, MCP or agent adapter, because those adapters exist precisely to receive untrusted data.
 
+## Why untrusted is the default
+
+If data were trusted unless marked `trusted: false`, every adapter and every caller would have to remember the marker, and one forgotten marker lets a model-built or PEP-built object reach conditions unvalidated. An unvalidated value of the wrong type, such as `amount: '50000'` against `amount: { gt: 1000 }`, makes a deny condition silently stop matching, which breaks deny-overrides-allow. With untrusted as the default, a forgotten marker costs a schema call on a row that was already valid instead of skipping a check. The cost is one `~standard.validate` per row for callers that do not mark their own rows `trusted: true`.
+
+When an AuthZEN resource loader throws, the handler answers `decision: false` with `no-grant` and `detail: 'resource-unavailable'`. It no longer evaluates the request's own `{ id }` stub, which would have let a deny-guarded row pass while the loader was failing.
+
 ## Standard JSON Schema
 
 Because resources are Standard Schema values, PermDock can also ask them for JSON Schema through the Standard JSON Schema interface where the validator supports it. That feeds:
@@ -141,6 +150,6 @@ No validator-specific converter is involved. See [Standard Schema](/docs/standar
 
 ## Performance
 
-Boundary validation runs once per untrusted object, not once per check: the adapter validates, then passes the parsed value to `decide` as trusted. In `'always'` mode the parsed value is cached per object identity for the lifetime of the `PermDock`, so `filter` over a thousand rows validates each row once. Schema cost is the validator's; PermDock adds a single `~standard.validate` call.
+Boundary validation runs once per untrusted object, not once per check. Mark rows your server loaded `trusted: true` on hot paths to skip it. In `'always'` mode the parsed value is cached per object identity for the lifetime of the `PermDock`, so `filter` over a thousand rows validates each row once. Schema cost is the validator's; PermDock adds a single `~standard.validate` call.
 
 The client instance built from a snapshot never runs schemas: its answers are UI hints, and any object it sends to the decision endpoint is validated there. Async schemas are caught at runtime (`async-schema`), not at the type level, because Standard Schema types every `validate` as `Result | Promise<Result>`.

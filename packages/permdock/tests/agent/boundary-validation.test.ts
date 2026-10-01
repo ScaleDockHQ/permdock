@@ -1,0 +1,73 @@
+import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
+
+import { createAgentKernel } from '../../src/agent/kernel.ts';
+import {
+  allow,
+  createPermDock,
+  definePermissions,
+  definePolicy,
+  deny,
+  resource,
+  role,
+} from '../../src/index.ts';
+
+const Invoice = z.object({ id: z.string(), amount: z.number() });
+const permissions = definePermissions({
+  invoice: resource(Invoice, { id: 'id', collection: ['create'] }),
+});
+const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.invoice.create),
+      deny(permissions.invoice.create, { check: { amount: { gt: 1000 } } }),
+    ]),
+  ],
+  subject: (
+    user: { readonly id: string; readonly roles: readonly string[] } | null,
+  ) => (user === null ? null : { id: user.id, roles: user.roles }),
+  validate: 'boundary',
+});
+const user = { id: 'u1', roles: ['member'] };
+
+describe('tool arguments are boundary data', () => {
+  const kernel = createAgentKernel(policy, {
+    adapter: 'test',
+    subject: () => user,
+    tools: {
+      create_invoice: {
+        permission: permissions.invoice.create,
+        data: (args: unknown) => args,
+      },
+    },
+  });
+
+  it('denies a schema-invalid object built from tool arguments', async () => {
+    const result = await kernel.decideTool(
+      'create_invoice',
+      { id: 'i1', amount: '50000' },
+      {},
+    );
+    expect(result.outcome).toBe('denied');
+    expect(result.decision?.denials[0]?.reason).toBe('validation');
+  });
+
+  it('still applies the deny to a valid object', async () => {
+    const result = await kernel.decideTool(
+      'create_invoice',
+      { id: 'i1', amount: 50_000 },
+      {},
+    );
+    expect(result.outcome).toBe('denied');
+    expect(result.decision?.denials[0]?.reason).toBe('deny');
+  });
+
+  it('matches a direct decide on untrusted data', async () => {
+    const permdock = await createPermDock(policy, user);
+    const decision = permdock.decide(permissions.invoice.create, {
+      id: 'i1',
+      amount: '50000',
+    });
+    expect(decision.denials[0]?.reason).toBe('validation');
+  });
+});

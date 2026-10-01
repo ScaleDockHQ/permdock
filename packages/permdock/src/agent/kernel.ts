@@ -90,9 +90,18 @@ function runDecide(
       decideOptions?: {
         readonly source: 'adapter';
         readonly adapter: string;
+        readonly boundary: 'tool-args';
       },
     ) => Decision
-  )(permission, data, compact({ source: 'adapter' as const, adapter }));
+  )(
+    permission,
+    data,
+    compact({
+      source: 'adapter' as const,
+      adapter,
+      boundary: 'tool-args' as const,
+    }),
+  );
 }
 
 /**

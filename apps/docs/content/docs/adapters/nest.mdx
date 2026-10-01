@@ -47,7 +47,7 @@ export class PostsController {
 |---|---|
 | `PermDockModule` | Registers the kernel factory as a provider so guards and services can inject it. Also registers `PermDockExceptionFilter` as `APP_FILTER`. |
 | `PermDockGuard` | `CanActivate` implementation. Builds the request-scoped instance once per request (stored on the request), reads `Protect` metadata from the handler and class, runs `loadData`, decides, and throws before the handler. Routes without `Protect` metadata pass through but still get an instance. Register as `APP_GUARD` with `useExisting`. |
-| `Protect(permission, loadData?, options?)` | Method or class decorator setting metadata for the guard. Multiple decorators on class and method are all enforced. `options` is `ProtectOptions` (`{ trusted: false }` for a loader that returns the request body). |
+| `Protect(permission, loadData?, options?)` | Method or class decorator setting metadata for the guard. Multiple decorators on class and method are all enforced. `options` is `ProtectOptions` (`{ trusted: true }` for a loader that returns a row the server loaded). |
 | `InjectPermDock()` | Parameter decorator injecting the request-scoped instance into handlers. |
 | `PermDockExceptionFilter` | Filter that renders PermDock exceptions as `application/problem+json` with `WWW-Authenticate` when the kernel sets it. |
 | `permdockHandler(options?)` | Controller class for the AuthZEN-shaped decision endpoint. `options.path` is the controller path (default `api/permdock`) and may hold route params, for example `':org/permdock/access/v1/evaluations'` with a `tenant` that reads `req.params.org`. |

@@ -316,19 +316,19 @@ describe('permdock/server', () => {
 });
 
 describe('permdock/server protect', () => {
-  it('validates a body loader marked untrusted', async () => {
+  it('validates a loader unless it is marked trusted', async () => {
     const { protect } = createPermDock(policy, {
       subject: () => adminUser,
     });
     const forged = { id: 'p2', authorId: 'u9', orgId: 'o1' };
-    const trusted = await protect(
+    const trusted = await protect(permissions.post.publish, () => forged, {
+      trusted: true,
+    })(request());
+    expect(trusted.ok).toBe(true);
+    const untrusted = await protect(
       permissions.post.publish,
       () => forged,
     )(request());
-    expect(trusted.ok).toBe(true);
-    const untrusted = await protect(permissions.post.publish, () => forged, {
-      trusted: false,
-    })(request());
     expect(untrusted.ok).toBe(false);
     if (!untrusted.ok) {
       expect(untrusted.response.status).toBe(400);

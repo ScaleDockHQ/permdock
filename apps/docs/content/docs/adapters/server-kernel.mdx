@@ -40,7 +40,7 @@ export default async function handler(request: Request): Promise<Response> {
 | Export | Role |
 |---|---|
 | `permdock(request)` | Resolves subject, actor and delegation once per `Request` (memoised in a `WeakMap`), builds the immutable `PermDock` for the request's tenant, returns it. One instance is cached per `(Request, tenant)` pair, so a global middleware that runs before routing and a later tenant-scoped `protect` never share an instance. Never throws for anonymous callers; `subject` returning `null` yields an anonymous instance. A request that claims a Web Bot Auth signature and fails verification throws `InvalidSignatureError` with a ready Problem Details `response`. |
-| `protect(permission, loadData?, options?)` | Returns `(request) => Promise<Guard>`. The `tenant` option is resolved for each call, so two routes of one request may decide in different tenants. `options.trusted: false` (`ProtectOptions`) marks the loader as returning request-derived data, which is then validated. Loads data when the permission is an instance action, validates it at the boundary, calls `decide`, and returns either `ok: true` with `permdock`, `decision` and `data`, or `ok: false` with a ready `Response`. |
+| `protect(permission, loadData?, options?)` | Returns `(request) => Promise<Guard>`. The `tenant` option is resolved for each call, so two routes of one request may decide in different tenants. The loader's result is validated unless `options.trusted: true` (`ProtectOptions`) marks it as a row the server loaded. Loads data when the permission is an instance action, validates it at the boundary, calls `decide`, and returns either `ok: true` with `permdock`, `decision` and `data`, or `ok: false` with a ready `Response`. |
 | `connection(request, options?)` | Opens a long-lived `Connection` for a stream or socket; see [Connections](#connections). |
 | `problem(decision, init?)` | Builds the RFC 9457 `Response` for a `denied` or `approval-required` decision. Adapters call it when they need to emit the body through their own response object. |
 | `openapi` | The hook contract: `openapi.security(permission)` returns the per-operation `security` requirement and `x-permdock-permissions` extension; `openapi.securitySchemes()` returns the scheme with all scopes from `listPermissions`. Framework hooks (`describeRoute`, `createRoute`, oRPC `openapi({ spec })`, `trpc-to-openapi`) call these. |
@@ -69,7 +69,7 @@ export default async function handler(request: Request): Promise<Response> {
 ### `protect` semantics
 
 - Collection action (`permissions.post.create`): no `loadData`; `decide` runs on the subject alone.
-- Instance action with `loadData`: the loader runs before the handler; a `null` or `undefined` result is a `404` `.../not-found` problem, and so is a denial on a resource with `disclosure: 'hide'` ([permissions](/docs/concepts/permissions)); the loaded value is validated against the resource schema only if `protect` is called with `{ trusted: false }`. The decision endpoint always treats `resource.properties` as untrusted and validates them.
+- Instance action with `loadData`: the loader runs before the handler; a `null` or `undefined` result is a `404` `.../not-found` problem, and so is a denial on a resource with `disclosure: 'hide'` ([permissions](/docs/concepts/permissions)); the loaded value is validated against the resource schema unless `protect` is called with `{ trusted: true }`. The decision endpoint always treats `resource.properties` as untrusted and validates them.
 - Denial status: `401` for an anonymous caller or a step-up (with `acr_values` and `max_age`), `429` with `Retry-After` and the `RateLimit` fields when every denial is `limit`, `503` for `limit-unavailable`, `403` otherwise ([Problem Details](/docs/standards/problem-details)).
 - `approval-required`: `protect` fails closed with a `403` whose `type` ends in `/approval-required` and whose body carries `token`. The handler never runs.
 - Every outcome is emitted through `on('decision')` with the request method and path attached so [otel](/docs/adapters/otel) and audit sinks see HTTP context.
@@ -112,7 +112,7 @@ conn.close()
 |---|---|
 | `permdock` | The current instance; replaced, never mutated, after a revalidation. |
 | `signal` | Aborts when the connection must end. `signal.reason` is a `PermDockRevokedError` with `code` `session-revoked`, `expired`, `denied` (the opening permission was re-denied; the `Decision` is on the error) or `subject-changed`. |
-| `check(permission, data?, { trusted? })` | Per-message decision; never throws. `trusted: false` validates message data first. After the abort or `close()` it returns `denied` with `no-grant` and `detail: 'connection-revoked'`. |
+| `check(permission, data?, { trusted? })` | Per-message decision; never throws. Message data is validated first unless `trusted: true`. After the abort or `close()` it returns `denied` with `no-grant` and `detail: 'connection-revoked'`. |
 | `filter(permission, items)` | Drops outbound items the subscriber cannot read; `[]` after the abort or `close()`. |
 | `close()` | Stops the timers and the feed subscription. Call it when the transport closes. |
 

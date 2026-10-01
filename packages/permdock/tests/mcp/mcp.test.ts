@@ -143,6 +143,33 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     expect(text(denied)).toContain('Denied');
   });
 
+  it('validates the object built from tool arguments before deciding', async () => {
+    const server = new McpServer({ name: 'posts', version: '1.0.0' });
+    const guarded = createPermDock(policy, {
+      subject: () => adminUser,
+    }).protectServer(server);
+    let ran = false;
+    guarded.registerTool(
+      'publish_post',
+      {
+        permission: permissions.post.publish,
+        inputSchema: z.object({ id: z.string() }),
+        data: (args: { readonly id: string }) => ({ id: args.id }),
+      },
+      () => {
+        ran = true;
+        return { content: [{ type: 'text', text: 'published' }] };
+      },
+    );
+    const { client } = await connect(server, { authInfo: undefined });
+    const result = await client.callTool({
+      name: 'publish_post',
+      arguments: { id: 'p2' },
+    });
+    expect(result.isError).toBe(true);
+    expect(ran).toBe(false);
+  });
+
   it('lists only tools the caller may use, with every registered field', async () => {
     const session: Session = {
       authInfo: auth(['post:list', 'post:update', 'post:publish']),

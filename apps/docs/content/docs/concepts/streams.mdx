@@ -21,7 +21,7 @@ const conn = await connection(c, {
 | --- | --- |
 | `permdock` | The current request-scoped instance. After a revalidation it is replaced by a new instance, never mutated. |
 | `signal` | An `AbortSignal` that aborts when the connection must end. `signal.reason` is a `PermDockRevokedError`. |
-| `check(permission, data?, { trusted? })` | A per-message decision against the current instance. It never throws and returns the `Decision`. Pass `trusted: false` for data taken from the message itself, so it is validated against the resource schema first. |
+| `check(permission, data?, { trusted? })` | A per-message decision against the current instance. It never throws and returns the `Decision`. Data is validated against the resource schema first unless `trusted: true` marks it as a row the server loaded. |
 | `filter(permission, items)` | The outbound filter for items pushed to the subscriber, with the same semantics as `permdock.filter`. |
 | `close()` | Stops the connection's timers and its feed subscription. Adapters call it when the transport closes; a long-running server must not skip it. |
 

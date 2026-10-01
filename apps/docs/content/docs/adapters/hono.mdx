@@ -81,7 +81,7 @@ app.get('/ws', upgradeWebSocket(async (c) => {
   const conn = await connection(c)
   return socket(conn, {
     onMessage(event, ws) {
-      const decision = conn.check(permissions.post.update, JSON.parse(String(event.data)), { trusted: false })
+      const decision = conn.check(permissions.post.update, JSON.parse(String(event.data)))
       if (decision.outcome !== 'granted') ws.send(JSON.stringify({ denied: decision.denials }))
     },
   })

@@ -350,7 +350,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const decision = conn.check(
         rule.permission,
         data,
-        rule.options?.trusted === false ? { trusted: false } : undefined,
+        rule.options?.trusted === true ? { trusted: true } : undefined,
       );
       if (decision.outcome !== 'granted') {
         throw new PermDockHttpError(

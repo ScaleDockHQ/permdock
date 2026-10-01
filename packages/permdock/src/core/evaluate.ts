@@ -365,7 +365,7 @@ export function evaluate(
   env: EvalEnv,
 ): Decision {
   const now = options.now ?? nowSeconds();
-  const trusted = options.trusted ?? true;
+  const trusted = options.trusted === true;
   const resource = getResource(policy.permissions, permission.resource);
   let current: unknown = data;
   let next: unknown = data;
@@ -378,7 +378,10 @@ export function evaluate(
     next = data;
   }
   try {
-    if (permission.kind === 'instance' || data !== undefined) {
+    if (
+      data !== undefined ||
+      (permission.kind === 'instance' && policy.validate === 'always')
+    ) {
       const validated = validateBoundary(
         permission,
         resource,

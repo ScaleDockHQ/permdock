@@ -87,9 +87,9 @@ export type OpenApiHooks = {
 
 export type ProtectOptions = {
   /**
-   * `false` when `loadData` returns request input (a body, query or header)
-   * rather than a stored row: it is validated against the resource schema
-   * before the check.
+   * `true` when `loadData` returns a row the server loaded itself, to skip
+   * schema validation. Anything else is validated against the resource
+   * schema before the check.
    */
   readonly trusted?: boolean;
 };
@@ -370,9 +370,9 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
       const decideOptions = compact<DecideOptions>({
         source: 'adapter',
         adapter,
-        ...(protectOptions.trusted === false
-          ? { trusted: false, boundary: 'http-body' as const }
-          : {}),
+        ...(protectOptions.trusted === true
+          ? { trusted: true }
+          : { trusted: false, boundary: 'http-body' as const }),
       });
       // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
       const raw =

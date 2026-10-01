@@ -25,6 +25,12 @@ export const UNKNOWN: Decision = {
   alternatives: [],
 };
 
+export const UNAVAILABLE: Decision = {
+  outcome: 'denied',
+  denials: [{ role: null, reason: 'no-grant', detail: 'resource-unavailable' }],
+  alternatives: [],
+};
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }

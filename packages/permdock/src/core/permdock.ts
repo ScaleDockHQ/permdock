@@ -46,7 +46,7 @@ import { tenantsOf } from './tenancy.ts';
 import { isThenable } from './thenable.ts';
 
 export type DecideOptions = {
-  /** `false` validates `data` against the resource schema first; a failure denies with reason `validation`. */
+  /** `true` skips schema validation for a row the server loaded itself. Otherwise `data` is validated against the resource schema first (`validate: 'boundary'`), and a failure denies with reason `validation`. */
   readonly trusted?: boolean;
   /** Where untrusted data came from, reported on validation errors. Defaults to `'manual'`. */
   readonly boundary?: Boundary;

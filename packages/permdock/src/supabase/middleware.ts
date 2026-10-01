@@ -87,7 +87,7 @@ export type WithPermDockConfig = {
   readonly protect?: Permission;
   /** Load the row `protect` decides on; `null` or `undefined` yields 404. */
   readonly data?: (ctx: SupabaseMiddlewareContext, request: Request) => unknown;
-  /** `false` when `data` returns request input; it is validated before the check. */
+  /** `true` when `data` returns a row the server loaded; anything else is validated before the check. */
   readonly trusted?: boolean;
 };
 

@@ -29,8 +29,8 @@ export type Connection = {
   /** Aborts with a `PermDockRevokedError` when the connection must end. */
   readonly signal: AbortSignal;
   /**
-   * Per-message decision. Pass `{ trusted: false }` for data from the message
-   * itself: it is validated against the resource schema first.
+   * Per-message decision. Data is validated against the resource schema
+   * first unless `{ trusted: true }` marks it as a row the server loaded.
    */
   readonly check: (
     permission: Permission,
@@ -326,9 +326,9 @@ export async function openConnection<T>(
       )(
         permission,
         data,
-        checkOptions?.trusted === false
-          ? { ...decideOptions, trusted: false, boundary: 'manual' }
-          : decideOptions,
+        checkOptions?.trusted === true
+          ? { ...decideOptions, trusted: true }
+          : { ...decideOptions, trusted: false, boundary: 'manual' },
       );
     },
     filter<U>(
