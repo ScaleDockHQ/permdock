@@ -47,8 +47,9 @@ grant execute on all functions in schema auth to authenticated, anon;
 const SETUP = `
 create role authenticated nologin;
 create role anon nologin;
+create role anonymous nologin;
 grant authenticated to tester;
-grant usage on schema public to authenticated, anon;
+grant usage on schema public to authenticated, anon, anonymous;
 create table report (id text primary key, region text not null, clearance integer not null);
 create table ticket (id text primary key, region text);
 create table record (id text primary key, region text);

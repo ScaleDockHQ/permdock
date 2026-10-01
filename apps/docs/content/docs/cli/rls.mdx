@@ -46,10 +46,10 @@ Dialects decide how the subject reaches SQL. `--dialect` overrides `rls.dialect`
 | `--dialect` | `principal.id` | claims / tenant |
 | --- | --- | --- |
 | `supabase` | `(select auth.uid())` | `auth.jwt() ->> 'claim'` |
-| `neon` | `(select auth.user_id())` | JWT claims via `pg_session_jwt` |
-| `guc` | `current_setting('app.user_id', true)` | `current_setting('app.<claim>', true)`; the prefix is configurable with `--guc-prefix` |
+| `neon` | `(select auth.user_id())` | JWT claims via `pg_session_jwt`; the anonymous role is Neon's `anonymous` |
+| `guc` | `(select current_setting('app.user_id', true))` | `(select current_setting('app.<claim>', true))`; the prefix is configurable with `--guc-prefix` |
 
-Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH CHECK`, `update` becomes `FOR UPDATE USING (where) WITH CHECK (check)`, `delete` becomes `FOR DELETE USING`; `allow` grants are `PERMISSIVE`, `deny` grants are `RESTRICTIVE` with `NOT (condition)`; a `SELECT` policy is emitted whenever `UPDATE` or `DELETE` is, because Postgres needs it; the default target role is `authenticated` (`anyone()` grants also target `anon`); `service_role` is never emitted. Grants come from `definePolicy({ roles })` and from top-level `definePolicy({ grants })`; a grant limited to a grantee Postgres cannot see (`plan()`, `actor()`, `assurance()`) or to several roles at once fails the command with the permission named.
+Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH CHECK`, `update` becomes `FOR UPDATE USING (where) WITH CHECK (check)`, `delete` becomes `FOR DELETE USING`; `allow` grants are `PERMISSIVE`, `deny` grants are `RESTRICTIVE` with `NOT (condition)`; a `SELECT` policy is emitted whenever `UPDATE` or `DELETE` is, because Postgres needs it; the default target role is `authenticated` (`anyone()` grants also target `anon`, or `anonymous` on `neon`); `service_role` is never emitted. Grants come from `definePolicy({ roles })` and from top-level `definePolicy({ grants })`; a grant limited to a grantee Postgres cannot see (`plan()`, `actor()`, `assurance()`) or to several roles at once fails the command with the permission named.
 
 ### Role checks: per-statement helpers
 
@@ -160,7 +160,7 @@ With `users`, `permdock_has` and every `permitted_<scope>_ids` return nothing fo
 
 ### Policy layout
 
-The default is one `PERMISSIVE` policy per table, command and audience, named `{table}_{op}` (`post_select`, `post_update`), so Splinter's `multiple_permissive_policies` lint stays quiet; `anyone()` grants get their own `{table}_{op}_anon` policy for `anon, authenticated`, and denies are one `RESTRICTIVE` `deny_{table}_{op}` policy.
+The default is one `PERMISSIVE` policy per table, command and database role, named `{table}_{op}` (`post_select`, `post_update`), so Splinter's `multiple_permissive_policies` lint stays quiet: no role sees two permissive policies for one command. `anyone()` grants are ORed into the `authenticated` policy and also get a `{table}_{op}_anon` policy `TO anon` that holds only them, and denies are one `RESTRICTIVE` `deny_{table}_{op}` policy per role.
 
 The tenant claim is cast to the tenant column's type wherever it meets a column (`"orgId" = ((select auth.jwt()) ->> 'tenant_id')::uuid`), and the tenant helper returns that type, so the comparison can use the column's index.
 

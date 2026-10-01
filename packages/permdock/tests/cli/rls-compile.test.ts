@@ -189,7 +189,7 @@ describe('tenant claim casts', () => {
         { ...condition, value: { ref: 'principal.claim.tenant_id' } },
         { ...base, dialect: 'guc', tenantType: 'bigint' },
       ),
-    ).toBe(`"orgId" = current_setting('app.tenant_id', true)::bigint`);
+    ).toBe(`"orgId" = (select current_setting('app.tenant_id', true))::bigint`);
     expect(
       compileConditionSql(
         { op: 'memberOf', scope: 'tenant', field: 'orgId', roles: [] },

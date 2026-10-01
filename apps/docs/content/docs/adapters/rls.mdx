@@ -41,7 +41,7 @@ Semantics the generator applies:
 | role on a named scope | `"<scope key>" in (select <schema>.permitted_<scope>_ids('<grant key>'))` |
 | relation through the parent chain | `"<field>" in (select descendant from <schema>.permdock_closure where resource = '<resource>' and ancestor = any (array(select <schema>.permitted_<resource>_ids('<relation>'))))` ([closure table](#closure-table)) |
 | role, no public grant | `TO authenticated` (default) |
-| `anyone()` grant | `TO anon, authenticated`, in its own `{table}_{op}_anon` policy |
+| `anyone()` grant | ORed into the `TO authenticated` policy, and a `{table}_{op}_anon` policy `TO anon` (`anonymous` on `neon`) |
 | `service_role` | never emitted: it bypasses RLS |
 
 Additional rules: a `SELECT` policy is generated (or its coverage asserted) whenever `update` or `delete` grants exist, because Postgres requires SELECT access to filter and for `RETURNING`; `ENABLE ROW LEVEL SECURITY` is always emitted; `REVOKE ALL ... FROM anon, authenticated` followed by the exact `GRANT`s is emitted next to the policies, because a missing grant raises `42501` and masquerades as a policy denial; helper calls are wrapped as `(select auth.uid())` so they run once per statement; an index suggestion is printed for every filtered column. Grants come from `definePolicy({ roles })` and top-level `definePolicy({ grants })` alike, and a grant Postgres cannot enforce (a `plan()` or `assurance()` grantee, or an `actor()` grantee other than the one below) fails generation with the permission named. `deny(permission, { to: actor('oauth-client') })` on its own compiles, because the token shows a delegated client: it becomes a RESTRICTIVE policy that refuses rows while `client_id` or `act` is in the claims, so a third-party app's token cannot reach what the user's own session can. `contains` on a column whose resource schema says it is an array compiles to `value = any(column)`, with the value cast to the item type; on any other column it is `LIKE` with `\`, `%` and `_` in the value escaped, so the pattern matches literally, as the in-process `where` does.
@@ -116,10 +116,10 @@ Portable subset compiled by `generate` and recognised by `import`:
 
 | Portable node | `supabase` | `neon` | `guc` |
 |---|---|---|---|
-| `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` | `current_setting('app.user_id', true)::uuid = user_id` |
-| `eq(row.tenant_id, principal.claim.tenant_id)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `current_setting('app.tenant_id', true)::uuid = tenant_id` |
+| `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` | `(select current_setting('app.user_id', true))::uuid = user_id` |
+| `eq(row.tenant_id, principal.claim.tenant_id)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | same via `auth.session()` | `(select current_setting('app.tenant_id', true))::uuid = tenant_id` |
 | `eq(principal.claim.user_role, 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | claim function | GUC read |
-| `eq(row.region, principal.claims.attrs.region)` (nested claim) | `region = ((select auth.jwt()) -> 'attrs' ->> 'region')` | same via `auth.session()` | `region = (nullif(current_setting('app.attrs', true), '')::jsonb ->> 'region')` |
+| `eq(row.region, principal.claims.attrs.region)` (nested claim) | `region = ((select auth.jwt()) -> 'attrs' ->> 'region')` | same via `auth.session()` | `region = (nullif((select current_setting('app.attrs', true)), '')::jsonb ->> 'region')` |
 | `lte(row.clearance, principal.claims.attrs.clearance)` on a numeric column | `clearance <= (case when jsonb_typeof(((select auth.jwt()) -> 'attrs' -> 'clearance')) = 'number' then ((select auth.jwt()) -> 'attrs' ->> 'clearance')::numeric end)` | same via `auth.session()` | a flat setting is cast as is; a nested one like `supabase` |
 | `in(row.region, principal.claims.attrs.regions)` (array claim) | `region = any (array(select (e #>> '{}') from jsonb_array_elements(<claim or '[]'>) e where jsonb_typeof(e) = 'string'))`; `notIn` is `region is not null and not (region = any (...))` | same | the setting holds JSON text |
 | membership (`in(row.id, context.teamIds)`) | `id in (select team_id from team_user where user_id = (select auth.uid()))` | same | same |

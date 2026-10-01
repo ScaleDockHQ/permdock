@@ -72,19 +72,21 @@ function funcName(value: unknown): string | undefined {
   return names.map((item) => stringVal(item) ?? '').join('.');
 }
 
-function isAuthUid(value: unknown): boolean {
-  const node = asNode(unwrap(value));
-  if (node === undefined) {
-    return false;
+/** The expression of a scalar `(select <expr>)`, the InitPlan form generate writes. */
+function scalarSubselect(value: unknown): unknown {
+  const sub = asNode(asNode(unwrap(value))?.['SubLink']);
+  const select = asNode(asNode(sub?.['subselect'])?.['SelectStmt']);
+  const targets = select?.['targetList'];
+  if (!Array.isArray(targets) || targets[0] === undefined) {
+    return undefined;
   }
-  const sub = asNode(node['SubLink']);
-  if (sub !== undefined) {
-    const select = asNode(asNode(sub['subselect'])?.['SelectStmt']);
-    const targets = select?.['targetList'];
-    if (Array.isArray(targets) && targets[0] !== undefined) {
-      const res = asNode(asNode(targets[0])?.['ResTarget']);
-      return isAuthUid(res?.['val']);
-    }
+  return asNode(asNode(targets[0])?.['ResTarget'])?.['val'];
+}
+
+function isAuthUid(value: unknown): boolean {
+  const inner = scalarSubselect(value);
+  if (inner !== undefined) {
+    return isAuthUid(inner);
   }
   const name = funcName(value);
   return (
@@ -96,6 +98,10 @@ function isAuthUid(value: unknown): boolean {
 }
 
 function isCurrentSettingUserId(value: unknown): boolean {
+  const inner = scalarSubselect(value);
+  if (inner !== undefined) {
+    return isCurrentSettingUserId(inner);
+  }
   const name = funcName(value);
   if (name !== 'current_setting') {
     return false;

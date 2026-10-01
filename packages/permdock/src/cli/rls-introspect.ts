@@ -5,6 +5,11 @@ import { callsHelper, HELPER_TABLES, helperCallKeys } from './helper-calls.ts';
 import { requirePeer } from './peer.ts';
 
 const ROLES = ['anon', 'authenticated'] as const;
+/** Neon's `anonymous` is the role `rls generate` writes as `anon` for the other dialects. */
+function liveRole(role: string): string {
+  return role === 'anonymous' ? 'anon' : role;
+}
+
 const PRIVILEGES = ['select', 'insert', 'update', 'delete'] as const;
 
 type Privilege = (typeof PRIVILEGES)[number];
@@ -218,7 +223,7 @@ where c.relkind in ('r', 'p') and n.nspname || '.' || c.relname = any($1::text[]
 
 const GRANTS_SQL = `select table_schema || '.' || table_name as target, grantee, lower(privilege_type) as privilege
 from information_schema.role_table_grants
-where grantee in ('anon', 'authenticated')
+where grantee in ('anon', 'anonymous', 'authenticated')
   and lower(privilege_type) in ('select', 'insert', 'update', 'delete')
   and table_schema || '.' || table_name = any($1::text[])`;
 
@@ -261,7 +266,7 @@ export async function introspectRls(
     // SAFETY: pg rows are objects keyed by the SELECT's columns; every field is read through String().
     for (const row of grants.rows as Record<string, unknown>[]) {
       const table = String(row['target']);
-      const role = String(row['grantee']);
+      const role = liveRole(String(row['grantee']));
       const entry = (byTable[table] ??= {});
       (entry[role] ??= []).push(String(row['privilege']));
     }
@@ -272,7 +277,9 @@ export async function introspectRls(
         name: String(row['policyname']),
         command: commandOf(row['cmd']),
         permissive: String(row['permissive']).toUpperCase() === 'PERMISSIVE',
-        roles: Array.isArray(row['roles']) ? row['roles'].map(String) : [],
+        roles: Array.isArray(row['roles'])
+          ? row['roles'].map((role) => liveRole(String(role)))
+          : [],
       })),
       rlsEnabled: Object.fromEntries(
         (enabled.rows as Record<string, unknown>[]).map((row) => [

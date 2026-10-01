@@ -22,6 +22,25 @@ function assertNoServiceRole(text: string): void {
   }
 }
 
+/**
+ * Neon's Data API and `pg_session_jwt` name the anonymous role `anonymous`;
+ * Supabase, PostgREST and the GUC pattern use `anon`. Role lists end a line
+ * or a statement after `to` or `from`, so only those are renamed.
+ */
+export function dialectRoles(text: string, dialect: RlsDialect): string {
+  if (dialect !== 'neon') {
+    return text;
+  }
+  return text.replaceAll(
+    /\b(to|from) ((?:[a-z_]+, )*[a-z_]+)(?=;|\n)/gu,
+    (_match, keyword: string, list: string) =>
+      `${keyword} ${list
+        .split(', ')
+        .map((role) => (role === 'anon' ? 'anonymous' : role))
+        .join(', ')}`,
+  );
+}
+
 function tablesOf(policies: readonly CompiledPolicy[]): string[] {
   return [...new Set(policies.map((item) => item.table))];
 }
@@ -239,7 +258,9 @@ export function emitDrizzle(
   );
   if (!supabase) {
     if (anon) {
-      lines.push("export const anonRole = pgRole('anon').existing()");
+      lines.push(
+        `export const anonRole = pgRole('${options.dialect === 'neon' ? 'anonymous' : 'anon'}').existing()`,
+      );
     }
     lines.push(
       "export const authenticatedRole = pgRole('authenticated').existing()",

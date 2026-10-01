@@ -10,6 +10,9 @@ export type PolicyShape = {
   readonly name?: string;
 };
 
+/** Each database role gets its own policy, so no role sees two permissive policies for one command. */
+const AUDIENCES = ['authenticated', 'anon'] as const;
+
 const DEFAULT_POLICY_NAME = '{table}_{op}';
 const DEFAULT_PER_ROLE_NAME = '{role}_{permission}';
 
@@ -163,45 +166,50 @@ function collapsedPolicies(
 ): CompiledPolicy[] {
   const groups = new Map<string, CompiledBranch[]>();
   for (const branch of mergeGroups(branches)) {
-    const id = `${branch.table}\u0000${branch.command}\u0000${branch.effect}\u0000${branch.roles.join(',')}`;
+    const id = `${branch.table}\u0000${branch.command}\u0000${branch.effect}`;
     groups.set(id, [...(groups.get(id) ?? []), branch]);
   }
   const names = new Map<string, number>();
-  return [...groups.values()].flatMap((group) => {
-    const [first] = group;
-    if (first === undefined) {
-      return [];
-    }
-    const deny = first.effect === 'deny';
-    const clauses = group.map(branchClauses);
-    const usings = clauses.flatMap((item) =>
-      item.using === undefined ? [] : [item.using],
-    );
-    const checks = clauses.flatMap((item) =>
-      item.check === undefined ? [] : [item.check],
-    );
-    const using = usings.length === 0 ? undefined : orSql(usings);
-    const check = checks.length === 0 ? undefined : orSql(checks);
-    const base = render(template, {
-      table: first.table,
-      op: first.command,
-      role: first.label,
-      permission: first.permissionKey,
-    });
-    const anon = first.roles.includes('anon') ? '_anon' : '';
-    return policyOf(
-      uniqueName(names, `${deny ? 'deny_' : ''}${base}${anon}`),
-      first,
-      using,
-      check,
-    );
-  });
+  return [...groups.values()].flatMap((group) =>
+    AUDIENCES.flatMap((audience) => {
+      const members = group.filter((branch) => branch.roles.includes(audience));
+      const [first] = members;
+      if (first === undefined) {
+        return [];
+      }
+      const deny = first.effect === 'deny';
+      const clauses = members.map(branchClauses);
+      const usings = clauses.flatMap((item) =>
+        item.using === undefined ? [] : [item.using],
+      );
+      const checks = clauses.flatMap((item) =>
+        item.check === undefined ? [] : [item.check],
+      );
+      const base = render(template, {
+        table: first.table,
+        op: first.command,
+        role: first.label,
+        permission: first.permissionKey,
+      });
+      return [
+        policyOf(
+          uniqueName(
+            names,
+            `${deny ? 'deny_' : ''}${base}${audience === 'anon' ? '_anon' : ''}`,
+          ),
+          { ...first, roles: [audience] },
+          usings.length === 0 ? undefined : orSql(usings),
+          checks.length === 0 ? undefined : orSql(checks),
+        ),
+      ];
+    }),
+  );
 }
 
 /**
  * Assembles policies. The default is one PERMISSIVE policy per table,
- * command and audience (Splinter `multiple_permissive_policies` stays
- * quiet), with denies in one RESTRICTIVE policy per table and command.
+ * command and database role (Splinter `multiple_permissive_policies` stays
+ * quiet), with denies in one RESTRICTIVE policy per table, command and role.
  */
 export function assemblePolicies(
   branches: readonly CompiledBranch[],

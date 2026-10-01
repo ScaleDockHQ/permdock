@@ -57,20 +57,23 @@ function compiled() {
 }
 
 describe('assemblePolicies', () => {
-  it('collapses to one policy per table, command, effect and audience', () => {
+  it('collapses to one policy per table, command, effect and database role', () => {
     const policies = assemblePolicies(compiled().branches, { perRole: false });
     expect(
       policies.map((item) => [item.name, item.effect, item.roles.join(',')]),
     ).toEqual([
       ['post_select', 'allow', 'authenticated'],
+      ['post_select_anon', 'allow', 'anon'],
       ['post_update', 'allow', 'authenticated'],
       ['post_delete', 'allow', 'authenticated'],
       ['deny_post_delete', 'deny', 'authenticated'],
-      ['post_select_anon', 'allow', 'anon,authenticated'],
     ]);
-    const select = policies.find((item) => item.name === 'post_select');
-    expect(select?.using).toBe(
-      `((select "public".permdock_has('post.read')) or ("orgId" in (select "public".permitted_tenant_ids('post.read')))) or (select "public".permdock_has('post.list'))`,
+    const using = (name: string) =>
+      policies.find((item) => item.name === name)?.using;
+    expect(using('post_select')).toBe('true');
+    expect(using('post_select_anon')).toBe('true');
+    expect(using('post_update')).toContain(
+      `"orgId" in (select "public".permitted_tenant_ids('post.update#1'))`,
     );
     const denied = policies.find((item) => item.name === 'deny_post_delete');
     expect(denied?.using).toBe(

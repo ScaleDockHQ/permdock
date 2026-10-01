@@ -72,8 +72,8 @@ permdock rls verify --db $DATABASE_URL
 
 | Portable node | Supabase SQL | Neon or generic GUC |
 | --- | --- | --- |
-| `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` or `current_setting('app.user_id', true)::uuid = user_id` |
-| `eq(row.tenant_id, principal.claim.tenant_id)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | `tenant_id = current_setting('app.tenant_id', true)::uuid` |
+| `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` or `(select current_setting('app.user_id', true))::uuid = user_id` |
+| `eq(row.tenant_id, principal.claim.tenant_id)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | `tenant_id = (select current_setting('app.tenant_id', true))::uuid` |
 | `eq(principal.claim.user_role, 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | GUC variant |
 | Claim array contains a row column | `team_id in (select jsonb_array_elements_text((select auth.jwt())->'app_metadata'->'teams'))::uuid` | none |
 | Membership via join table | `id in (select resource_id from memberships where user_id = (select auth.uid()) [and role in (...)])` | same |
@@ -90,7 +90,7 @@ A policy that declares `organization` and `customer` (inside it) gets `permitted
 
 ### Why InitPlans
 
-Postgres evaluates a policy's `USING` expression as a filter on every candidate row. A subquery that references no column of the outer row is uncorrelated: the planner turns a scalar one, `(select f())`, into an **InitPlan** and an `x in (select f())` into a **hashed SubPlan**, runs either once when the statement starts, and the per-row filter only compares against the cached result. A subquery or function call that mentions a row column (`authorize('post.read', "orgId"::text)`, `exists (... where m.org_id = "orgId")` that the planner cannot hash) is correlated and runs for every row. Splinter's `auth_rls_initplan` lint is the same observation applied to `auth.uid()`.
+Postgres evaluates a policy's `USING` expression as a filter on every candidate row. A subquery that references no column of the outer row is uncorrelated: the planner turns a scalar one, `(select f())`, into an **InitPlan** and an `x in (select f())` into a **hashed SubPlan**, runs either once when the statement starts, and the per-row filter only compares against the cached result. A subquery or function call that mentions a row column (`authorize('post.read', "orgId"::text)`, `exists (... where m.org_id = "orgId")` that the planner cannot hash) is correlated and runs for every row. Splinter's `auth_rls_initplan` lint is the same observation applied to `auth.uid()`, and the `guc` dialect wraps `current_setting(...)` the same way.
 
 The generated helpers are built so every call is uncorrelated: they take only a grant key, read the subject from `auth.uid()` and the claims inside the function, and return either a boolean (global roles) or the set of one scope's ids (scoped roles). The row-dependent part of the policy is then a plain comparison of the row's scope column against that set. On 10,000 rows across 20 tenants the per-row shape runs its role check 10,000 times; the helper shape runs it once per helper and is over 1,000 times faster in `tests/integration/bench` (the test asserts `loops = 1` and a 5x floor).
 
@@ -108,7 +108,7 @@ The generated helpers are built so every call is uncorrelated: they take only a 
 | `create` action, `check` | `FOR INSERT WITH CHECK` (next row) |
 | `update` action, `where` + `check` | `FOR UPDATE USING (current) WITH CHECK (next)`; a grant on the current row only collapses to `USING` |
 | `delete` action | `FOR DELETE USING` |
-| App roles | JWT claims, never Postgres roles; policies default `TO authenticated`, public-visible permissions `TO anon, authenticated` |
+| App roles | JWT claims, never Postgres roles; policies default `TO authenticated`, public-visible permissions also get one policy `TO anon` (`anonymous` on Neon), so no role has two permissive policies for one command |
 | `service_role` | Never emitted (bypasses RLS) |
 | Anything not portable | `opaque({ sql, fingerprint })` |
 | `pg_policies` row | Catalog entry: table, cmd, permissive, roles, condition or opaque, fingerprint, source SQL |

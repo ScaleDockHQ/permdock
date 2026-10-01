@@ -479,7 +479,7 @@ export function subjectIdSql(ctx: RlsSqlContext): string {
     case 'neon':
       return '(select auth.user_id())';
     case 'guc':
-      return `current_setting(${quoteLiteral(`${ctx.gucPrefix}.user_id`)}, true)`;
+      return `(select current_setting(${quoteLiteral(`${ctx.gucPrefix}.user_id`)}, true))`;
     default: {
       const exhaustive: never = ctx.dialect;
       return exhaustive;
@@ -497,7 +497,7 @@ export function subjectClaimSql(ctx: RlsSqlContext, claim: string): string {
     case 'neon':
       return `((select auth.session()) ->> ${quoteLiteral(claim)})`;
     case 'guc':
-      return `current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true)`;
+      return `(select current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true))`;
     default: {
       const exhaustive: never = ctx.dialect;
       return exhaustive;
@@ -516,7 +516,7 @@ export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
     case 'neon':
       return `((select auth.session()) -> ${quoteLiteral(claim)})`;
     case 'guc':
-      return `nullif(current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true), '')::jsonb`;
+      return `nullif((select current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true)), '')::jsonb`;
     default: {
       const exhaustive: never = ctx.dialect;
       return exhaustive;

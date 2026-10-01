@@ -34,7 +34,8 @@ type Dialect = 'supabase' | 'neon' | 'guc';
 const ROLES = `
 create role authenticated nologin;
 create role anon nologin;
-grant authenticated, anon to tester;
+create role anonymous nologin;
+grant authenticated, anon, anonymous to tester;
 `;
 
 const CLAIMS = `coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb`;
@@ -52,8 +53,8 @@ grant execute on all functions in schema auth to authenticated, anon;
 create schema auth;
 create function auth.session() returns jsonb language sql stable as $$ select ${CLAIMS} $$;
 create function auth.user_id() returns text language sql stable as $$ select nullif(auth.session() ->> 'sub', '') $$;
-grant usage on schema auth to authenticated, anon;
-grant execute on all functions in schema auth to authenticated, anon;
+grant usage on schema auth to authenticated, anonymous;
+grant execute on all functions in schema auth to authenticated, anonymous;
 `,
   guc: '',
 };
@@ -100,7 +101,7 @@ function tableSql(dialect: Dialect): string {
       `('${row.id}', '${row.orgId}', '${row.authorId}', '${row.title}', ${String(row.amount)}, '${row.note}')`,
   ).join(',\n  ');
   return `
-grant usage on schema public to authenticated, anon;
+grant usage on schema public to authenticated, anon, anonymous;
 create table public.invoice (
   id text primary key,
   "orgId" text not null,
@@ -275,7 +276,7 @@ function valued(row: Readonly<Record<string, unknown>> | undefined): string[] {
 
 async function asRole<T>(
   s: Session,
-  role: 'authenticated' | 'anon',
+  role: 'authenticated' | 'anon' | 'anonymous',
   settings: Readonly<Record<string, string>>,
   work: () => Promise<T>,
 ): Promise<T> {
@@ -434,8 +435,11 @@ describe('rls generate --fields views (supabase, neon, guc)', () => {
       if (s === undefined) {
         throw new Error('PermDock: database missing');
       }
-      const rows = await asRole(s, 'anon', {}, async () =>
-        s.query('select * from invoice_visible order by id'),
+      const rows = await asRole(
+        s,
+        shape.dialect === 'neon' ? 'anonymous' : 'anon',
+        {},
+        async () => s.query('select * from invoice_visible order by id'),
       );
       expect(rows.code).toBeUndefined();
       expect(rows.rows.map((row) => row['id'])).toEqual(['i-public']);

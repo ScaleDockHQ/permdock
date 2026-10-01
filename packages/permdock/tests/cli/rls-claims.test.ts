@@ -53,7 +53,7 @@ describe('nested claim paths', () => {
       `"region" = ((select auth.session()) -> 'attrs' ->> 'region')`,
     );
     expect(compileConditionSql(condition, { ...base, dialect: 'guc' })).toBe(
-      `"region" = (nullif(current_setting('app.attrs', true), '')::jsonb ->> 'region')`,
+      `"region" = (nullif((select current_setting('app.attrs', true)), '')::jsonb ->> 'region')`,
     );
   });
 
@@ -63,7 +63,7 @@ describe('nested claim paths', () => {
         { op: 'eq', field: 'plan', value: { ref: 'principal.claim.plan' } },
         { ...base, dialect: 'guc' },
       ),
-    ).toBe(`"plan" = current_setting('app.plan', true)`);
+    ).toBe(`"plan" = (select current_setting('app.plan', true))`);
   });
 
   it('checks every segment against the prototype-key blocklist and the name rule', () => {
@@ -137,7 +137,9 @@ describe('claims cast to the column type', () => {
         },
         { ...typed, dialect: 'guc' },
       ),
-    ).toBe(`"clearance" > (current_setting('app.clearance', true)::numeric)`);
+    ).toBe(
+      `"clearance" > ((select current_setting('app.clearance', true))::numeric)`,
+    );
   });
 
   it('reads column types from the resource JSON Schema', () => {

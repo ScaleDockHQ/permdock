@@ -295,7 +295,9 @@ export async function rlsParity<TUser>(
     }
     await options.query('begin');
     try {
-      await options.query(`set local role ${quoteIdent(role)}`);
+      await options.query(
+        `set local role ${quoteIdent(role === 'anon' && dialect === 'neon' ? 'anonymous' : role)}`,
+      );
       for (const item of subjectSettings(
         dialect,
         fixture.subject,

@@ -24,6 +24,7 @@ import {
   defaultOut,
   emitDrizzle,
   emitPrisma,
+  dialectRoles,
   emitSql,
   migrationOut,
   migrationSql,
@@ -340,14 +341,20 @@ export async function runRlsGenerate(input: {
   const migration =
     input.target === 'sql'
       ? ''
-      : migrationSql(policies, preamble, force, views);
+      : dialectRoles(
+          migrationSql(policies, preamble, force, views),
+          ctx.dialect,
+        );
   const migrationRel = migration === '' ? undefined : migrationOut(outRel);
   const helpers =
     migrationRel === undefined ? undefined : basename(migrationRel);
   let text: string;
   switch (input.target) {
     case 'sql':
-      text = emitSql(policies, preamble, force, views);
+      text = dialectRoles(
+        emitSql(policies, preamble, force, views),
+        ctx.dialect,
+      );
       break;
     case 'drizzle':
       text = emitDrizzle(
@@ -399,8 +406,8 @@ export async function runRlsGenerate(input: {
     text,
     helpersOnly,
     sql: () => ({
-      policies: emitSql(policies, '', force, views),
-      helpers: emitSql([], preamble),
+      policies: dialectRoles(emitSql(policies, '', force, views), ctx.dialect),
+      helpers: dialectRoles(emitSql([], preamble), ctx.dialect),
     }),
     scopes,
   });
