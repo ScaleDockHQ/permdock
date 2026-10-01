@@ -1,5 +1,0 @@
----
-'permdock': minor
----
-
-`permdock/mcp` follows the 2026-07-28 specification more closely. A missing scope is challenged with the scope the call needs plus `resource_metadata`, not the held scopes plus the missing one; `permdock/a2a` and HTTP challenges use the same builder. `approval-required` becomes a multi-round-trip `input_required` result with a URL-mode elicitation and the approval token as `requestState` when `approval.at` is set and the client declares URL elicitation, and the `elicitation` hint is gone from MCP and WebMCP refusals. `stepUp: { at }` does the same for `insufficient-user-authentication`, with `acr_values` and `max_age` from the failing `assurance` grants, which a denial now carries in `to`. A `resource` option refuses tokens issued for another RFC 8707 audience. `ActionMeta` gains `destructive` and `idempotent`; tool annotations the author leaves out are filled from the permission, and `crud()` marks `delete` with `destructive: true` instead of `tags: ['destructive']`. The unused `InsufficientScopeError` export is removed.
