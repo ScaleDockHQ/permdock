@@ -9,7 +9,7 @@ import type {
 
 import { requiresApproval } from '../core/approval-required.ts';
 import { compact } from '../core/compact.ts';
-import { listPermissions } from '../core/permissions.ts';
+import { isPermission, listPermissions } from '../core/permissions.ts';
 import { DRAFT_PINS, GNAP_RESERVED, PROFILE_NAMES } from './pins.ts';
 
 function assertScheme(options: OpenApiPermDockOptions): void {
@@ -18,22 +18,10 @@ function assertScheme(options: OpenApiPermDockOptions): void {
   }
 }
 
-function isLeaf(
-  value: Permission | readonly Permission[],
-): value is Permission {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'key' in value &&
-    'kind' in value &&
-    'action' in value
-  );
-}
-
 export function asList(
   permission: Permission | readonly Permission[],
 ): readonly Permission[] {
-  return isLeaf(permission) ? [permission] : permission;
+  return isPermission(permission) ? [permission] : permission;
 }
 
 function grantsOf(

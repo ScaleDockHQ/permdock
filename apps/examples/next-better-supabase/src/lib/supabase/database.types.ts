@@ -118,6 +118,29 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_features: {
+        Row: {
+          feature: string
+          organization_id: string
+        }
+        Insert: {
+          feature: string
+          organization_id: string
+        }
+        Update: {
+          feature?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_features_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           id: string
@@ -268,12 +291,18 @@ export type Database = {
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       datetime_preference_claims: { Args: { p_user_id: string }; Returns: Json }
+      feature_claims: { Args: { p_user_id: string }; Returns: Json }
       member_customer_ids: {
         Args: Record<PropertyKey, never>
         Returns: string[]
       }
+      member_customer_ids_for: { Args: { p_user: string }; Returns: string[] }
       member_organization_ids: {
         Args: Record<PropertyKey, never>
+        Returns: string[]
+      }
+      member_organization_ids_for: {
+        Args: { p_user: string }
         Returns: string[]
       }
       permdock_has: { Args: { p_grant: string }; Returns: boolean }

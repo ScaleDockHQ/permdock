@@ -151,6 +151,7 @@ export {
   definePermissions,
   findPermission,
   getResource,
+  isPermission,
   listPermissions,
   mergePermissions,
   resource,

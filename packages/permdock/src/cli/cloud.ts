@@ -1,6 +1,7 @@
 import type { Grant, Policy, Snapshot, SnapshotGrant } from '../index.ts';
-import type { CatalogDocument, CliIo, PermDockConfig } from './types.ts';
+import type { CliIo, PermDockConfig } from './types.ts';
 
+import { parseCatalog } from '../catalog/parse.ts';
 import { snapshotScopes } from '../core/instance.ts';
 import { catalogFingerprint } from '../index.ts';
 import { runCatalog } from './catalog.ts';
@@ -97,8 +98,7 @@ export async function runCloud(input: {
   if (built.code !== 0) {
     return { code: built.code, output: built.output };
   }
-  // SAFETY: built.output is the catalog document that the catalog command just produced.
-  const catalog = JSON.parse(built.output) as CatalogDocument;
+  const catalog = parseCatalog(built.output);
   const fingerprint = catalogFingerprint(catalog);
   const loaded = await loadConfiguredPolicy(input.cwd, input.config.policy);
   const policy = loaded === undefined ? undefined : pushedPolicy(loaded);

@@ -2,43 +2,73 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://permdock.dev/schemas/supabase-claims-v1.json",
   "title": "PermDock claims in a Supabase access token",
-  "description": "The claims the permdock supabase hook writes and the SQL helpers and subjectFromSupabase read. Other claims pass through; each claim may also sit under app_metadata.",
+  "description": "The claims the permdock supabase hook writes and the SQL helpers and subjectFromSupabase read, plus the OAuth claims subjectFromSupabase maps to the actor and delegation. Other claims pass through. Each hook claim may also sit under app_metadata. supabaseClaims() in permdock/supabase validates the same shape; tenant_id is the default rls.tenantClaim.",
   "type": "object",
+  "allOf": [{ "$ref": "#/$defs/permdockClaims" }],
   "properties": {
-    "user_role": {
-      "description": "Global roles: one name, a list, or null for none.",
-      "anyOf": [
-        { "type": "string" },
-        { "type": "array", "items": { "type": "string" } },
-        { "type": "null" }
-      ]
-    },
-    "roles": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "memberships": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/membership" }
-    },
-    "memberships_truncated": {
-      "description": "true when the size budget cut memberships or attrs.",
-      "type": "boolean"
-    },
-    "tenant_id": {
-      "description": "The active tenant (the default rls.tenantClaim): the canonical text of one instance of the first scope.",
+    "client_id": {
+      "description": "The OAuth client of a third-party app; becomes actor.id when there is no act claim.",
       "type": "string"
     },
-    "attrs": {
-      "description": "Allow-listed server-owned attributes, read as principal.claims.attrs.<key>.",
-      "type": "object"
+    "scope": {
+      "description": "OAuth scopes, space-separated or as a list; becomes delegation.scopes.",
+      "anyOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
     },
-    "authz_ver": {
-      "description": "The principal's authorization version.",
-      "type": "integer"
+    "act": { "$ref": "#/$defs/act" },
+    "app_metadata": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/permdockClaims" }]
     }
   },
   "$defs": {
+    "permdockClaims": {
+      "type": "object",
+      "properties": {
+        "user_role": {
+          "description": "Global roles: one name, a list, or null for none.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } },
+            { "type": "null" }
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "memberships": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/membership" }
+        },
+        "memberships_truncated": {
+          "description": "true when the size budget cut memberships or attrs.",
+          "type": "boolean"
+        },
+        "tenant_id": {
+          "description": "The active tenant (the default rls.tenantClaim): the canonical text of one instance of the first scope.",
+          "type": "string"
+        },
+        "attrs": {
+          "description": "Allow-listed server-owned attributes, read as principal.claims.attrs.<key>.",
+          "type": "object"
+        },
+        "authz_ver": {
+          "description": "The principal's authorization version.",
+          "type": "integer"
+        }
+      }
+    },
+    "act": {
+      "description": "RFC 8693 actor chain; the innermost sub is the acting party.",
+      "type": "object",
+      "properties": {
+        "sub": { "type": "string" },
+        "act": { "$ref": "#/$defs/act" }
+      }
+    },
     "membership": {
       "type": "object",
       "required": ["roles"],

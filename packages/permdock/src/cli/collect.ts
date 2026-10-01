@@ -14,6 +14,7 @@ import {
   catalogForCompare,
   formatCatalogJson,
 } from './catalog-doc.ts';
+import { catalogPath } from './catalog-path.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
 import {
   asPermissionTree,
@@ -42,12 +43,7 @@ export async function runCollect(input: {
 }): Promise<CollectOutcome> {
   const srcPath =
     input.collect.srcPath ?? input.config.collect?.srcPath ?? defaultSrcPath();
-  const outRel =
-    input.collect.out ??
-    input.config.collect?.out ??
-    input.config.catalog?.out ??
-    'permissions.catalog.json';
-  const outPath = resolve(input.cwd, outRel);
+  const outPath = catalogPath(input.config, input.cwd, input.collect.out);
   const permissionsRel =
     input.config.permissions ?? guessPermissions(input.cwd, srcPath);
   if (permissionsRel === undefined) {

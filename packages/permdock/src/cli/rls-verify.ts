@@ -23,7 +23,7 @@ import {
   memoryRoleSource,
 } from '../index.ts';
 import { supabaseTenantClaim } from '../supabase/budget.ts';
-import { rowConditionKeys } from './catalog-doc.ts';
+import { policyRowConditionKeys } from './catalog-doc.ts';
 import {
   HELPER_TABLE_POLICIES_SQL,
   helperTablePoliciesFromRows,
@@ -551,7 +551,7 @@ async function verifyAgainstDatabase(input: {
   const mismatches: string[] = [];
   const notes: string[] = [];
   try {
-    const conditioned = rowConditionKeys(input.policy);
+    const conditioned = policyRowConditionKeys(input.policy);
     for (const found of helperTablePoliciesFromRows(
       (await query(HELPER_TABLE_POLICIES_SQL)).rows,
     )) {

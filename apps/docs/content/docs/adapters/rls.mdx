@@ -53,6 +53,7 @@ The role check of every grant lives in a generated function, never in the per-ro
 - `<schema>.permdock_has(p_grant text) returns boolean`: the subject holds a global role with the grant key.
 - `<schema>.permitted_<scope>_ids(p_grant text) returns setof <scope type>`, one per [named scope](/docs/concepts/scopes) the policy declares (`permitted_tenant_ids` and `permitted_team_ids` when it declares none): the instances of that scope in which the subject holds it, through memberships of exactly that scope.
 - `<schema>.member_<scope>_ids() returns setof <scope type>`, one per declared scope: the instances of that scope the subject holds any live membership of. It takes no permission key, for policies such as "a member may read their organization's row".
+- `<schema>.member_<scope>_ids_for(p_user uuid) returns setof <scope type>`, Supabase only, for each scope with a membership source (`rls.membershipSources` or `supabase.hook.memberships`) or a mapped `rls.memberships` table: the same answer as `member_<scope>_ids()` for `p_user`, read from the membership tables in both modes. It is for code that runs before a token exists, such as a [`supabase.hook.claims`](/docs/adapters/supabase-hook#claims-other-packages-own) function: `execute` is revoked from `public`, `anon` and `authenticated`, and only the hook migration grants it, to `supabase_auth_admin`.
 
 They join the subject's roles (the `user_roles` table in `database` mode, the role claim in `jwt` mode) or memberships (the memberships table, or the `memberships` claim) with a generated `<schema>.role_permissions (role, permission, grant_key, scope, effect)` table that `generate` seeds from the policy. The grant key is the permission key; roles that grant one permission under different portable conditions get one key per condition group (`post.update#1`, `post.update#2`), and each group is one OR branch of the policy with its condition ANDed on. `relation`, `principal.id` and `where` conditions stay in the policy because they depend on the row.
 
@@ -82,7 +83,7 @@ Security notes on the helpers:
 
 - They are `security definer` so they can read `role_permissions`, `user_roles` and the memberships table, which `authenticated` cannot select; the policy never needs a grant on those tables, and their own RLS does not recurse into the helper.
 - `set search_path = ''` and fully qualified names stop a caller from shadowing a table or function through `search_path`.
-- They are `stable`, take only the grant key, and read the subject from `auth.uid()` / the claims inside the function: a caller cannot pass another user's id.
+- They are `stable`, take only the grant key, and read the subject from `auth.uid()` / the claims inside the function: a caller cannot pass another user's id. `member_<scope>_ids_for(p_user)` is the one helper that takes a user, so no client role may execute it.
 - `execute` is revoked from `public` and `anon` and granted to `authenticated`, so `anon` policies (`anyone()` grants) never reference them. The exception is a [field view](#field-security) `anon` reads: Postgres checks `execute` on every function a view calls before it runs, so the helpers are granted to `anon` too. They find no subject for `anon` (no `sub`, no role claim, no membership row) and return nothing.
 - `role_permissions` has RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; it changes only through a migration that re-runs `generate`.
 
@@ -95,6 +96,7 @@ Other packages call the helpers from policies PermDock does not generate: better
 | `<schema>.permdock_has(p_grant text)` | `boolean` | The caller holds a global role whose grants include `p_grant` |
 | `<schema>.permitted_<scope>_ids(p_grant text)` | `setof <scope type>` | The instances of `<scope>` in which the caller holds a role that grants `p_grant`, through memberships of exactly that scope; with the active-tenant claim set, only inside that tenant |
 | `<schema>.member_<scope>_ids()` | `setof <scope type>` | The instances of `<scope>` the caller holds any live membership of, with any role; not narrowed to the active tenant |
+| `<schema>.member_<scope>_ids_for(p_user uuid)` | `setof <scope type>` | What `member_<scope>_ids()` answers for `p_user`, read from the membership sources: expired memberships, a suspended user and suspended instances drop out. Executable by `supabase_auth_admin` only, for `supabase.hook.claims` functions |
 | `<schema>.permitted_<resource>_ids(p_relation text)` | `setof text` | The ids of `<resource>` the caller holds `p_relation` on in the [relationship graph](#closure-table), every graph relation when `p_relation` is `null` |
 
 - **Grant keys.** `p_grant` is a permission key (`invoice.read`). PermDock's own policies pass `invoice.read#1`, `invoice.read#2` for the condition groups of one permission; the part after `#` is internal, so another package passes the plain key and gets the grants that carry no condition group.

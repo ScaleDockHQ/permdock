@@ -280,7 +280,8 @@ describe('permdock supabase hook generate', () => {
     );
     const inspect = await run(['supabase', 'inspect', '--json'], { cwd });
     expect(inspect.code).toBe(0);
-    expect(JSON.parse(inspect.stdout)).toEqual({
+    expect(JSON.parse(inspect.stdout)).toMatchObject({
+      $schema: 'https://permdock.dev/schemas/supabase-manifest-v1.json',
       version: 1,
       hook: {
         schema: 'public',
@@ -293,8 +294,10 @@ describe('permdock supabase hook generate', () => {
           'permdock_has',
           'permitted_organization_ids',
           'member_organization_ids',
+          'member_organization_ids_for',
           'permitted_customer_ids',
           'member_customer_ids',
+          'member_customer_ids_for',
         ],
       },
       tenantClaim: 'tenant_id',
@@ -316,21 +319,134 @@ describe('permdock supabase hook generate', () => {
         },
       ],
       authzVersion: true,
+      markers: { hook: 'v1', grants: 'v1' },
     });
     const text = await run(['supabase', 'inspect'], { cwd });
     expect(text.stdout).toContain('tenant claim tenant_id');
+  });
+
+  it('lists the membership sources, the rls helpers and the deciding columns', async () => {
+    const { cwd } = await generate(
+      `{ memberships: [${SOURCES}], attrs: { table: 'profiles', columns: ['locale', 'app_metadata.region'] }, claims: { features: 'better_supabase.feature_claims' } }`,
+      [],
+      `{ tenantType: 'text', scopeTypes: { customer: 'bigint' } }`,
+    );
+    const inspect = await run(['supabase', 'inspect', '--json'], { cwd });
+    const manifest: unknown = JSON.parse(inspect.stdout);
+    expect(manifest).toMatchObject({
+      memberships: [
+        {
+          table: 'public.memberships',
+          user: { column: 'user_id' },
+          scope: { column: 'scope' },
+          id: { column: 'scope_id' },
+          role: { column: 'role' },
+          via: { column: 'via' },
+          expiresAt: { column: 'expires_at' },
+          columns: [
+            'user_id',
+            'scope',
+            'scope_id',
+            'role',
+            'via',
+            'expires_at',
+          ],
+        },
+        {
+          table: 'public.customer_contacts',
+          scope: { value: 'customer' },
+          id: { column: 'customer_id' },
+          role: { value: ['contact'] },
+          within: { columns: { organization: 'organization_id' } },
+          via: { value: 'contact' },
+          columns: ['user_id', 'customer_id', 'organization_id'],
+        },
+      ],
+      rls: {
+        schema: 'public',
+        mode: 'jwt',
+        tenantClaim: 'tenant_id',
+        scopes: [
+          { name: 'organization', type: 'text' },
+          { name: 'customer', type: 'bigint', within: 'organization' },
+        ],
+      },
+      decidingColumns: [
+        'public.customer_contacts.customer_id',
+        'public.customer_contacts.organization_id',
+        'public.customer_contacts.user_id',
+        'public.memberships.expires_at',
+        'public.memberships.role',
+        'public.memberships.scope',
+        'public.memberships.scope_id',
+        'public.memberships.user_id',
+        'public.memberships.via',
+        'public.profiles.locale',
+      ],
+    });
+    expect(Reflect.get(Reflect.get(manifest, 'rls'), 'helpers')).toContainEqual(
+      {
+        name: 'member_customer_ids_for',
+        args: 'p_user uuid',
+        returns: 'setof bigint',
+        execute: ['supabase_auth_admin'],
+      },
+    );
+  });
+
+  it('reads the mode from rls.authorize and rls.membershipSources', async () => {
+    const database = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      `{ authorize: 'database' }`,
+    );
+    const inspect = await run(['supabase', 'inspect', '--json'], {
+      cwd: database.cwd,
+    });
+    expect(JSON.parse(inspect.stdout)).toMatchObject({
+      rls: { mode: 'database' },
+    });
+  });
+
+  it('writes the manifest with --out and reports drift with --check', async () => {
+    const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
+    const out = ['supabase', 'inspect', '--out', 'permdock.manifest.json'];
+    const missing = await run([...out, '--check'], { cwd });
+    expect(missing.code).toBe(1);
+    expect(missing.stdout).toContain('missing permdock.manifest.json');
+    const wrote = await run(out, { cwd });
+    expect(wrote.code).toBe(0);
+    expect(wrote.stdout).toContain('wrote permdock.manifest.json');
+    const path = join(cwd, 'permdock.manifest.json');
+    const written: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    const inspect = await run(['supabase', 'inspect', '--json'], { cwd });
+    expect(written).toEqual(JSON.parse(inspect.stdout));
+    writeFileSync(path, JSON.stringify(written));
+    expect((await run([...out, '--check'], { cwd })).code).toBe(0);
+    writeFileSync(
+      path,
+      JSON.stringify(
+        Object.assign(new Object(written), { tenantClaim: 'org_id' }),
+      ),
+    );
+    const drift = await run([...out, '--check'], { cwd });
+    expect(drift.code).toBe(1);
+    expect(drift.stdout).toContain('differs in tenantClaim');
+    const bare = await run(['supabase', 'inspect', '--check'], { cwd });
+    expect(bare.code).toBe(2);
   });
 
   it('warns with PD039 until the helpers exist in the configured schema', async () => {
     const missing = await generate(`{ memberships: [${SOURCES}] }`);
     expect(missing.code).toBe(0);
     expect(missing.output).toContain(
-      'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, permitted_customer_ids, member_customer_ids',
+      'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
     );
     writeFileSync(
       join(missing.cwd, 'rls.sql'),
       `create or replace function "public".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;
 create or replace function public.permitted_organization_ids(p_grant text) returns setof text language sql as $$ select null::text where false $$;
+create or replace function "public".member_organization_ids_for(p_user uuid) returns setof text language sql as $$ select null::text where false $$;
 `,
     );
     const partial = await run(
@@ -338,7 +454,7 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
       { cwd: missing.cwd },
     );
     expect(partial.stdout).toContain(
-      'PD039 schema public has no member_organization_ids, permitted_customer_ids, member_customer_ids',
+      'PD039 schema public has no member_organization_ids, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
     );
     const other = await generate(
       `{ memberships: [${SOURCES}] }`,
@@ -386,7 +502,7 @@ create or replace function public.permitted_organization_ids(p_grant text) retur
       }[];
     };
     expect(report.findings.map((item) => item.message)).toEqual([
-      "schema public has no permdock_has, permitted_organization_ids, member_organization_ids, permitted_customer_ids, member_customer_ids: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
+      "schema public has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
       'claim features is 2012 bytes of JSON in ./claims.json, more than the 1024-byte memberships budget',
       'sample 2 in ./claims.json has memberships [1] that subjectFromSupabase drops (membership-dropped)',
     ]);

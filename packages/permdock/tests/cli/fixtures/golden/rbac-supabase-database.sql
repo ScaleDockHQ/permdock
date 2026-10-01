@@ -113,6 +113,20 @@ $$;
 revoke execute on function "public".member_tenant_ids() from public, anon;
 grant execute on function "public".member_tenant_ids() to authenticated;
 
+create or replace function "public".member_tenant_ids_for(p_user uuid)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct m."organization_id"::uuid
+  from "public"."organization_members" m
+  where m."user_id" = p_user
+    and m."role" is not null
+$$;
+revoke execute on function "public".member_tenant_ids_for(uuid) from public, anon, authenticated;
+
 create or replace function "public"."authorize"(
   requested_permission "public"."app_permission",
   requested_tenant text default null

@@ -6,7 +6,7 @@ import type { PermDockConfig } from './types.ts';
 
 import { sqlFiles } from './doctor-project.ts';
 import { rel } from './files.ts';
-import { HOOK_MARKER } from './supabase-hook.ts';
+import { HOOK_MARKER } from './markers.ts';
 
 const SCHEMAS = 'supabase/schemas';
 const MIGRATIONS = 'supabase/migrations';

@@ -167,6 +167,20 @@ supabase: {
 - The claims sit outside the size budget: the budget decides which memberships a token keeps, and a claim the hook cannot size must not push memberships out. Keep each one small; the function owns its size.
 - A suspended user gets none of them, and the function is not called. A user with no memberships still gets them.
 - The migration grants `supabase_auth_admin` `usage` on each function's schema and `execute` on the function. A function that raises makes the hook fail, so Supabase Auth issues no token.
+- A function that needs the user's memberships calls `<schema>.member_<scope>_ids_for(user_id)` instead of reading the membership tables itself, so it agrees with the hook and RLS about expiry and suspension:
+
+  ```sql
+  create function better_supabase.feature_claims(user_id uuid) returns jsonb
+  language sql stable as $$
+    select jsonb_object_agg(f.organization_id, f.features)
+    from public.organization_features f
+    where f.organization_id in (select public.member_organization_ids_for(user_id))
+  $$;
+  ```
+
+  `permdock rls generate` writes these helpers ([SQL helper contract](/docs/adapters/rls#sql-helper-contract)); with `supabase.hook.claims` set, the hook migration (or the `--grants-out` file) grants `supabase_auth_admin` `execute` on each, so apply the helpers migration first.
+
+  **Why.** Auth runs the hook as `supabase_auth_admin` before a token exists, so `auth.uid()` and `auth.jwt()` are empty and `member_<scope>_ids()` returns nothing. A copy of the membership query in each package drifts from the hook's as soon as a source gains expiry or suspension; one helper that takes the user keeps a single rule. The grant only exists with `hook.claims`, so a hook with no claims of its own still installs before the helpers.
 
 ## Size budget
 
@@ -197,8 +211,23 @@ A membership provisioned by SCIM belongs to the IdP: an edit in the app would be
 
 A seat belongs to one membership, not the tenant: a Dev Mode seat in one organization says nothing about another. `Membership.entitlements` holds seats (from the sources' `seats` column), and a `plan()` grantee matches a seat only through a membership that applies under the active tenant.
 
+## Manifest
+
+`permdock supabase inspect --out permdock.manifest.json` writes what the hook and helpers expect as one JSON file, and `--check` fails CI when it falls behind the config. It is the stable contract for packages that build on the hook: better-supabase reads it instead of PermDock's config or its generated SQL.
+
+| Field | What a reader learns |
+| --- | --- |
+| `hook`, `markers` | Where `custom_access_token_hook` lives and the majors of the `-- permdock:hook` / `-- permdock:grants` lines its migrations start with |
+| `claims`, `tenantClaim`, `budget`, `authzVersion` | Every claim the hook writes, who owns it, and what the budget measures |
+| `helpers`, `rls` | The helper schema, each helper's arguments, return type and the roles that may execute it, the RLS mode (`jwt` or `database`) and each scope's id type |
+| `memberships` | Each source's table and the columns (or fixed values) for user, scope, id, role, `within`, `via` and expiry |
+| `decidingColumns` | Every `schema.table.column` a membership or an `attrs` claim is computed from, which clients must not be able to write |
+
+The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versioning rule are on [wire formats](/docs/concepts/wire-formats#supabase-hook-manifest); `supabaseHookManifestFixture` in `permdock/testing` is a sample to test a reader against.
+
 ## Why
 
+- **A manifest, not a shared config.** A package next to the hook needs what the generated SQL reads, not how PermDock's config spells it. A versioned file that only gains fields keeps the two packages on separate release schedules, and a committed copy lets its doctor check a project without loading the PermDock config.
 - **One definition, two readers.** The sources run the exact `select` the hook compiles, and the integration suite checks that the claim equals what `composeMemberships` returns for the same user. A hand-written hook next to a hand-written source is two definitions of who belongs where.
 - **The active scope first, then truncation.** A token that cannot hold every membership should hold the ones the next request needs. Truncating silently would turn a large customer into a user with random missing access; the flag makes the server read the rest.
 - **Global roles are read by key, through a roles table when the app has one.** Role grants, `role_permissions` seeds and the `roles` claim all name roles by key, while apps that manage roles in a UI usually keep `user_roles.role_id` referencing a `roles` table. Copying keys into `user_roles` would make a rename a data migration; joining at read time keeps one source of truth, and the version trigger on `roles` makes a rename reach existing tokens at the next `fresh` check.

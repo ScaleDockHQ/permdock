@@ -16,7 +16,7 @@ import { compact } from '../core/compact.ts';
 import { scopeList } from '../core/scopes.ts';
 import { listPermissions, listRoles } from '../index.ts';
 import { supabaseTenantClaim } from '../supabase/budget.ts';
-import { rowConditionKeys } from './catalog-doc.ts';
+import { policyRowConditionKeys } from './catalog-doc.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { breakGlassEntries, breakGlassSql } from './rls-break-glass.ts';
 import { compileGrants } from './rls-compile.ts';
@@ -34,7 +34,11 @@ import { closureDepths, graphPlan, graphSql } from './rls-graph.ts';
 import { helpersSql } from './rls-helpers.ts';
 import { ownershipRules, ownershipSql } from './rls-ownership.ts';
 import { assemblePolicies } from './rls-policies.ts';
-import { type RbacAuthorizeMode, rbacScaffold } from './rls-rbac.ts';
+import {
+  type RbacAuthorizeMode,
+  rbacScaffold,
+  resolveAuthorize,
+} from './rls-rbac.ts';
 import {
   checkSuspension,
   graphHelper,
@@ -102,20 +106,6 @@ function customRoleNames(policy: Policy): {
   return { declared, assignable };
 }
 
-function defaultAuthorize(
-  rbac: boolean,
-  memberships: RlsMemberships | undefined,
-): RbacAuthorizeMode {
-  if (rbac) {
-    return 'database';
-  }
-  return memberships?.tenant !== undefined ||
-    memberships?.team !== undefined ||
-    Object.keys(memberships?.scopes ?? {}).length > 0
-    ? 'database'
-    : 'jwt';
-}
-
 export async function runRlsGenerate(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -179,17 +169,14 @@ export async function runRlsGenerate(input: {
   }
   const schema =
     input.rbacSchema ?? rls?.schema ?? rls?.rbac?.schema ?? 'public';
-  const authorize =
-    input.authorize ??
-    rls?.authorize ??
-    rls?.rbac?.authorize ??
-    (rls?.membershipSources === undefined
-      ? defaultAuthorize(input.rbac, memberships)
-      : 'database');
-  const sources =
-    authorize === 'database'
-      ? (rls?.membershipSources ?? input.config.supabase?.hook?.memberships)
-      : undefined;
+  const authorize = resolveAuthorize(input.config, {
+    authorize: input.authorize,
+    rbac: input.rbac,
+    memberships,
+  });
+  const memberSources =
+    rls?.membershipSources ?? input.config.supabase?.hook?.memberships;
+  const sources = authorize === 'database' ? memberSources : undefined;
   const scopes = scopeList(policy.scopes);
   const suspension = checkSuspension(rls?.suspension, scopes);
   const hookRoles = input.config.supabase?.hook?.roles;
@@ -218,6 +205,9 @@ export async function runRlsGenerate(input: {
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(memberships === undefined ? {} : { memberships }),
     ...(sources === undefined || sources.length === 0 ? {} : { sources }),
+    ...(memberSources === undefined || memberSources.length === 0
+      ? {}
+      : { memberSources }),
     ...(suspension === undefined ? {} : { suspension }),
     ...(roles === undefined ? {} : { roles }),
     ...(input.customRoles === true || rls?.customRoles === true
@@ -396,7 +386,7 @@ export async function runRlsGenerate(input: {
         permissions: listPermissions(policy.vocabulary.permissions).map(
           (leaf) => leaf.key,
         ),
-        rowConditions: [...rowConditionKeys(policy)],
+        rowConditions: [...policyRowConditionKeys(policy)],
       },
       schema,
       helpersOnly,

@@ -19,7 +19,7 @@ permdock catalog --include post --include billing.invoice        # scope to a su
 
 Permission leaves are plain JSON and the definition is a runtime value, so the catalog is produced by importing the definition module and walking `listPermissions(permissions)`. Resource schemas are exported through Standard JSON Schema (`~standard.jsonSchema.output(...)`) when the validator supports it (Zod, Valibot and ArkType do); resources whose validator does not implement Standard JSON Schema get `schema: null` and a warning.
 
-Usage sites and defining files are only present when the catalog was produced by `collect`, because they need the source scan.
+Usage sites and defining files come from the source scan; `usages` is always present and empty when no call site was found.
 
 ## Catalog JSON shape
 
@@ -70,6 +70,28 @@ Notes on the shape:
 - `schema` is a JSON Schema document; the `target` (`draft-2020-12`, `openapi-3.0`) is selectable with `--schema-target`.
 - The catalog never contains grants, roles or conditions. Those belong to the policy, which is server-only, and are reported by [usage](/docs/cli/usage) and rendered by `permdock rls`.
 - The `$schema` URL is the published JSON Schema of the catalog format, which is the same document `--format schema` emits, so agents can validate a catalog offline. The exact hostname is fixed when the docs site launches.
+
+## Reading a catalog
+
+A package that reads the catalog at run time imports `permdock/catalog`, a runtime entry with no CLI code. A build script finds the file with `catalogPath(config, cwd)` from `permdock/cli`.
+
+```ts
+import { readFileSync } from 'node:fs'
+import { catalogPath } from 'permdock/cli'
+import { parseCatalog, rowConditionKeys } from 'permdock/catalog'
+import config from './permdock.config.ts'
+
+const catalog = parseCatalog(readFileSync(catalogPath(config, process.cwd()), 'utf8'))
+const conditioned = rowConditionKeys(catalog)
+const sqlEnforceable = catalog.permissions.filter((permission) => !conditioned.has(permission.key))
+```
+
+- `parseCatalog(json)` takes the JSON text or the parsed value. It checks it against `schemas/catalog-v1.json` and returns a deep-frozen copy built from own keys. A `__proto__` key stays an ordinary key, and an object with any other prototype, a cycle or a value JSON cannot carry is rejected. On failure it throws `PermDockValidationError` with `code: 'invalid-data'`, `boundary: 'catalog'` and every issue with its `path`.
+- `rowConditionKeys(catalog)` is the set of keys marked `rowConditions: true`: permissions whose code grants depend on more than role and scope, so a policy that calls only the SQL helpers would widen access ([RLS](/docs/adapters/rls#sql-helper-contract)).
+- `catalogPath(config, cwd, out?)` resolves the file the same way `collect` writes it: `out`, then `collect.out`, then `catalog.out`, then `permissions.catalog.json`.
+- The types (`CatalogDocument`, `CatalogPermission`, `CatalogResource`, `CatalogRole`, `CatalogScope`, `CatalogApproval`, `CatalogBreakGlass`, `CatalogActivation`, `CatalogSupportAccess`, `CatalogUsage`) are exported from both `permdock/catalog` and `permdock/cli`.
+
+The reader, the `$schema` file and `--format schema` come from one schema constant, and a test checks the committed catalogs against both the reader and Ajv.
 
 ## Markdown output
 

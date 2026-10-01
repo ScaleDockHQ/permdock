@@ -41,6 +41,7 @@ export async function loadSnapshot(organization: string): Promise<Snapshot> {
   const { session } = await next.cached();
   const subject = subjectFromSupabaseSession(session, {
     memberships: 'memberships',
+    plans: 'features',
   });
   const snapshot = snapshotFor(policy, subject, { tenant: organization });
   cacheLife({

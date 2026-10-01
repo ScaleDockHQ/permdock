@@ -135,6 +135,28 @@ export type Models = {
     ForeignKeys: "memberships_user_id_fkey";
     Flags: Record<never, never>;
   };
+  organization_features: {
+    Row: {
+      organization_id: string;
+      feature: string;
+    };
+    Insert: {
+      organization_id: string;
+      feature: string;
+    };
+    Update: {
+      organization_id?: string;
+      feature?: string;
+    };
+    Relations: {
+      organization: { table: "organizations"; kind: "one"; nullable: false };
+    };
+    PrimaryKey: "organization_id" | "feature";
+    UniqueKeys: Record<never, never>;
+    Checks: never;
+    ForeignKeys: "organization_features_organization_id_fkey";
+    Flags: Record<never, never>;
+  };
   organizations: {
     Row: {
       id: string;
@@ -154,6 +176,7 @@ export type Models = {
     Relations: {
       contacts: { table: "contacts"; kind: "many"; nullable: true };
       customers: { table: "customers"; kind: "many"; nullable: true };
+      organization_features: { table: "organization_features"; kind: "many"; nullable: true };
       quotes: { table: "quotes"; kind: "many"; nullable: true };
       staff: { table: "staff"; kind: "many"; nullable: true };
     };
@@ -312,12 +335,30 @@ export type Functions = {
     };
     Returns: Json;
   };
+  feature_claims: {
+    Args: {
+      p_user_id: string;
+    };
+    Returns: Json;
+  };
   member_customer_ids: {
     Args: Record<never, never>;
     Returns: string[];
   };
+  member_customer_ids_for: {
+    Args: {
+      p_user: string;
+    };
+    Returns: string[];
+  };
   member_organization_ids: {
     Args: Record<never, never>;
+    Returns: string[];
+  };
+  member_organization_ids_for: {
+    Args: {
+      p_user: string;
+    };
     Returns: string[];
   };
   permdock_has: {
@@ -578,6 +619,48 @@ export const schema: Schema<Models, Database, Functions> = defineSchema({
       "relations": {},
       "flags": {}
     },
+    "organization_features": {
+      "key": "organization_features",
+      "name": "organization_features",
+      "schema": "public",
+      "kind": "table",
+      "columns": {
+        "organization_id": {
+          "db": "organization_id",
+          "type": "uuid",
+          "nullable": false,
+          "hasDefault": false
+        },
+        "feature": {
+          "db": "feature",
+          "type": "text",
+          "nullable": false,
+          "hasDefault": false
+        }
+      },
+      "primaryKey": [
+        "organization_id",
+        "feature"
+      ],
+      "uniqueKeys": {},
+      "relations": {
+        "organization": {
+          "table": "organizations",
+          "kind": "one",
+          "nullable": false,
+          "foreignKey": "organization_features_organization_id_fkey",
+          "columns": [
+            "organization_id"
+          ],
+          "references": [
+            "id"
+          ],
+          "direction": "forward",
+          "onDelete": "cascade"
+        }
+      },
+      "flags": {}
+    },
     "organizations": {
       "key": "organizations",
       "name": "organizations",
@@ -631,6 +714,20 @@ export const schema: Schema<Models, Database, Functions> = defineSchema({
           "kind": "many",
           "nullable": true,
           "foreignKey": "customers_organization_id_fkey",
+          "columns": [
+            "id"
+          ],
+          "references": [
+            "organization_id"
+          ],
+          "direction": "reverse",
+          "onDelete": "cascade"
+        },
+        "organization_features": {
+          "table": "organization_features",
+          "kind": "many",
+          "nullable": true,
+          "foreignKey": "organization_features_organization_id_fkey",
           "columns": [
             "id"
           ],
@@ -935,6 +1032,19 @@ export const schema: Schema<Models, Database, Functions> = defineSchema({
       "returnsSet": false,
       "volatility": "stable"
     },
+    "feature_claims": {
+      "name": "feature_claims",
+      "schema": "public",
+      "args": [
+        {
+          "name": "p_user_id",
+          "type": "uuid"
+        }
+      ],
+      "returns": "jsonb",
+      "returnsSet": false,
+      "volatility": "stable"
+    },
     "member_customer_ids": {
       "name": "member_customer_ids",
       "schema": "public",
@@ -943,10 +1053,36 @@ export const schema: Schema<Models, Database, Functions> = defineSchema({
       "returnsSet": true,
       "volatility": "stable"
     },
+    "member_customer_ids_for": {
+      "name": "member_customer_ids_for",
+      "schema": "public",
+      "args": [
+        {
+          "name": "p_user",
+          "type": "uuid"
+        }
+      ],
+      "returns": "uuid",
+      "returnsSet": true,
+      "volatility": "stable"
+    },
     "member_organization_ids": {
       "name": "member_organization_ids",
       "schema": "public",
       "args": [],
+      "returns": "uuid",
+      "returnsSet": true,
+      "volatility": "stable"
+    },
+    "member_organization_ids_for": {
+      "name": "member_organization_ids_for",
+      "schema": "public",
+      "args": [
+        {
+          "name": "p_user",
+          "type": "uuid"
+        }
+      ],
       "returns": "uuid",
       "returnsSet": true,
       "volatility": "stable"

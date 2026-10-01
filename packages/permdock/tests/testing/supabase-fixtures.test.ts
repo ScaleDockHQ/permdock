@@ -14,6 +14,7 @@ import {
   snapshotFor,
 } from '../../src/index.ts';
 import {
+  fromJunction,
   fromTable,
   subjectFromSupabase,
   subjectFromSupabaseSession,
@@ -72,8 +73,11 @@ describe('Supabase RBAC hook claims', () => {
       const subject = subjectFromSupabase(fixture.claims, fixture.options);
       expect(subject.principal?.id ?? null).toBe(fixture.expect.id);
       if (subject.principal === null) {
+        expect(subject.actor).toBeUndefined();
         return;
       }
+      expect(subject.actor).toEqual(fixture.expect.actor);
+      expect(subject.delegation).toEqual(fixture.expect.delegation);
       expect(subject.principal.roles ?? []).toEqual(fixture.expect.roles);
       expect(subject.principal.memberships ?? []).toEqual(
         fixture.expect.memberships,
@@ -180,5 +184,73 @@ describe('supabase-claims-v1.json', () => {
     expect(
       validate({ memberships: [{ scope: 'tenant', id: 'o1', roles: [] }] }),
     ).toBe(false);
+  });
+});
+
+describe('supabase-manifest-v1.json', () => {
+  // SAFETY: supabase-manifest-v1.json is the package's own JSON Schema, a top-level object.
+  const validate = new Ajv2020({ strict: false }).compile(
+    JSON.parse(
+      readFileSync(
+        new URL('../../schemas/supabase-manifest-v1.json', import.meta.url),
+        'utf8',
+      ),
+    ) as object,
+  );
+
+  it('accepts the fixture and a manifest with junction sources, attrs and scope types', () => {
+    validate(supabaseHookManifestFixture);
+    expect(validate.errors ?? []).toEqual([]);
+    const manifest = supabaseHookManifest(
+      defineScopes({
+        organization: { key: 'organization_id' },
+        customer: { key: 'customer_id', within: 'organization' },
+      }),
+      {
+        permissions: './policy.ts',
+        rls: { authorize: 'database', scopeTypes: { customer: 'bigint' } },
+        supabase: {
+          hook: {
+            memberships: [
+              fromTable({
+                table: 'memberships',
+                columns: { via: 'via', expiresAt: 'expires_at' },
+              }),
+              fromJunction({
+                table: 'billing.customer_contacts',
+                scope: 'customer',
+                within: { organization: 'organization_id' },
+                roles: 'role',
+                via: 'contact',
+              }),
+            ],
+            attrs: { table: 'profiles', columns: ['locale'] },
+          },
+        },
+      },
+    );
+    validate(manifest);
+    expect(validate.errors ?? []).toEqual([]);
+  });
+
+  it('refuses an unknown helper, mode or value shape', () => {
+    const helpers = {
+      ...supabaseHookManifestFixture.helpers,
+      functions: ['authorize'],
+    };
+    expect(validate({ ...supabaseHookManifestFixture, helpers })).toBe(false);
+    const rls = { ...supabaseHookManifestFixture.rls, mode: 'cookie' };
+    expect(validate({ ...supabaseHookManifestFixture, rls })).toBe(false);
+    const sources = [
+      {
+        ...supabaseHookManifestFixture.memberships[0],
+        role: { column: 'role', value: 'admin' },
+      },
+    ];
+    expect(
+      validate({ ...supabaseHookManifestFixture, memberships: sources }),
+    ).toBe(false);
+    const { markers: _markers, ...unmarked } = supabaseHookManifestFixture;
+    expect(validate(unmarked)).toBe(false);
   });
 });

@@ -21,7 +21,7 @@ import {
   separationConflicts,
   validateCustomRole,
 } from '../index.ts';
-import { jsonSchemaOf, rowConditionKeys } from './catalog-doc.ts';
+import { jsonSchemaOf, policyRowConditionKeys } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
 import { MIGRATION_DIRS, sqlFiles } from './doctor-project.ts';
 import {
@@ -1066,7 +1066,7 @@ export async function pd037(input: {
   if (policy === undefined) {
     return [];
   }
-  const conditioned = rowConditionKeys(policy);
+  const conditioned = policyRowConditionKeys(policy);
   const findings: DoctorFinding[] = [];
   for (const file of sqlFiles(
     input.cwd,

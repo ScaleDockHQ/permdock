@@ -237,7 +237,7 @@ Two limits follow from the platform, not from PermDock. `updateTag` and `revalid
 
 ## Supabase claims
 
-The only contract between PermDock and a Supabase session library is plain data: verified JWT claims and serializable snapshots. There is no import, peer dependency or shared type.
+The contract between PermDock and a Supabase session library is plain data: verified JWT claims and serializable snapshots. PermDock imports nothing from the session library. A library that wants to validate the claims can import `supabaseClaims()` from `permdock/supabase` ([claims schema](/docs/adapters/supabase#claims-schema)).
 
 ```ts
 import { subjectFromSupabase, subjectFromSupabaseSession } from 'permdock/supabase'
@@ -271,7 +271,9 @@ export async function loadSnapshot(orgId: string) {
 }
 ```
 
-Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 300 seconds it joins the App Shell. The same `next.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
+Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 300 seconds it joins the App Shell.
+
+Planned in better-supabase: `next.cached({ tags: [snapshotTag(sub)], life: cacheLifeFor(snapshot) })` will set the tag and take the minimum of the session's and the snapshot's lifetimes itself, replacing the `cacheLife` and `cacheTag` lines above. Until that ships, keep both calls. The same `next.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
 
 A role change busts both tags in the Server Action that made it:
 

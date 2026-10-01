@@ -12,6 +12,7 @@ import type {
   ScanResult,
 } from './types.ts';
 
+import { catalogSchema } from '../catalog/schema.ts';
 import {
   catalogFingerprint,
   findRole,
@@ -46,7 +47,7 @@ function grantHasRowConditions(grant: Grant): boolean {
 }
 
 /** Per permission key, whether any code grant for it has row conditions. */
-export function rowConditionKeys(policy: Policy): ReadonlySet<string> {
+export function policyRowConditionKeys(policy: Policy): ReadonlySet<string> {
   const keys = new Set<string>();
   for (const grant of [
     ...policy.grants,
@@ -68,7 +69,7 @@ export function buildCatalog(
 ): CatalogDocument {
   const hostable = new Set(policy?.hostable ?? []);
   const rowConditions =
-    policy === undefined ? undefined : rowConditionKeys(policy);
+    policy === undefined ? undefined : policyRowConditionKeys(policy);
   const resources: Record<string, CatalogDocument['resources'][string]> = {};
   const definedIn = scan.definitionFiles['permissions'];
   for (const leaf of listPermissions(tree)) {
@@ -371,73 +372,5 @@ export function formatCatalogMarkdown(doc: CatalogDocument): string {
 }
 
 export function catalogSchemaDocument(): unknown {
-  return {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    $id: CATALOG_SCHEMA,
-    type: 'object',
-    required: ['$schema', 'version', 'permissions', 'resources'],
-    properties: {
-      $schema: { type: 'string' },
-      version: { const: 1 },
-      generatedAt: { type: 'string' },
-      generator: { type: 'string' },
-      fingerprint: { type: 'string' },
-      resources: { type: 'object' },
-      roles: {
-        type: 'array',
-        items: {
-          type: 'object',
-          required: ['key'],
-          properties: {
-            key: { type: 'string' },
-            on: { type: 'string', pattern: '^[a-z][a-z0-9_]*$' },
-            assignable: { type: 'boolean' },
-            min: { type: 'integer', minimum: 1 },
-            max: { type: 'integer', minimum: 1 },
-            transferOnly: { const: true },
-            assigns: { type: 'array', items: { type: 'string' } },
-            for: { type: 'array', items: { type: 'string' } },
-            exclusiveWith: { type: 'array', items: { type: 'string' } },
-            audience: { type: 'string' },
-          },
-        },
-      },
-      scopes: {
-        type: 'array',
-        items: {
-          type: 'object',
-          required: ['name', 'key'],
-          properties: {
-            name: { type: 'string', pattern: '^[a-z][a-z0-9_]*$' },
-            key: { type: 'string' },
-            within: { type: 'string' },
-          },
-        },
-      },
-      plans: { type: 'array' },
-      permissions: {
-        type: 'array',
-        items: {
-          type: 'object',
-          required: ['key', 'resource', 'action', 'arity', 'scope'],
-          properties: {
-            hostable: { const: true },
-            rowConditions: { type: 'boolean' },
-            approvals: {
-              type: 'array',
-              items: {
-                oneOf: [
-                  { const: 'human' },
-                  {
-                    type: 'object',
-                    properties: { by: {}, distinct: { type: 'boolean' } },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
-    },
-  };
+  return catalogSchema;
 }

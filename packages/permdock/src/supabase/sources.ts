@@ -1,5 +1,6 @@
 import type { MemberEntry, MembershipSource } from '../core/interfaces.ts';
 import type { Membership } from '../core/subject.ts';
+import type { SupabaseManifestMembership } from './manifest.ts';
 import type { SupabaseActiveRow, SupabaseSuspension } from './types.ts';
 
 import { compact } from '../core/compact.ts';
@@ -92,6 +93,8 @@ export type MembershipSql = {
   /** For a single-scope source: its scope and the scopes whose ids each row carries. */
   readonly scope?: string;
   readonly holds?: readonly string[];
+  /** The source's entry in the hook manifest's `memberships`. */
+  readonly manifest: SupabaseManifestMembership;
 };
 
 export type SqlMembershipSource = MembershipSource & {
@@ -107,11 +110,12 @@ function ident(name: string): string {
   return `"${name}"`;
 }
 
+function qualifiedName(name: string): string {
+  return name.includes('.') ? name : `public.${name}`;
+}
+
 function qualified(name: string): string {
-  return (name.includes('.') ? name : `public.${name}`)
-    .split('.')
-    .map(ident)
-    .join('.');
+  return qualifiedName(name).split('.').map(ident).join('.');
 }
 
 function literal(value: string): string {
@@ -166,6 +170,7 @@ type Shape = {
   readonly groupBy: readonly string[];
   readonly suspension: SupabaseSuspension | undefined;
   readonly columns: readonly string[];
+  readonly manifest: Omit<SupabaseManifestMembership, 'table' | 'columns'>;
 };
 
 function filters(shape: Shape, owner: string): string[] {
@@ -227,6 +232,11 @@ function sqlOf(shape: Shape): MembershipSql {
     ],
     managed: shape.managedColumn,
     columns: [...new Set(shape.columns)],
+    manifest: {
+      table: qualifiedName(shape.table),
+      ...shape.manifest,
+      columns: [...new Set(shape.columns)],
+    },
     select: (user: string) =>
       selectOf(
         shape,
@@ -406,6 +416,16 @@ export function fromTable(
         (name): name is string => name !== undefined,
       ),
     ],
+    manifest: compact<Shape['manifest']>({
+      user: { column: c.user ?? 'user_id' },
+      scope: { column: c.scope ?? 'scope' },
+      id: { column: c.id ?? 'scope_id' },
+      role: { column: c.role ?? 'role' },
+      within: c.within === undefined ? undefined : { column: c.within },
+      via: c.via === undefined ? undefined : { column: c.via },
+      expiresAt:
+        c.expiresAt === undefined ? undefined : { column: c.expiresAt },
+    }),
   };
   return sourceOf(sqlOf(shape), options.query);
 }
@@ -512,6 +532,24 @@ export function fromJunction(
         options.expiresAt,
       ].filter((name): name is string => name !== undefined),
     ],
+    manifest: compact<Shape['manifest']>({
+      user: { column: options.user ?? 'user_id' },
+      scope: { value: options.scope },
+      id: { column: idColumn },
+      role:
+        typeof options.roles === 'string'
+          ? { column: options.roles }
+          : { value: [...options.roles] },
+      within:
+        withinEntries.length === 0
+          ? undefined
+          : { columns: Object.fromEntries(withinEntries) },
+      via: options.via === undefined ? undefined : { value: options.via },
+      expiresAt:
+        options.expiresAt === undefined
+          ? undefined
+          : { column: options.expiresAt },
+    }),
   };
   const sql = sqlOf(shape);
   return sourceOf(

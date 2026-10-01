@@ -519,7 +519,7 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 }
 ```
 
-`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, the catalog lists the policy's `scopes` in order (`{ name, key, within? }`, omitted when it declares none), each role also carries `on` (a scope name or `resource`, omitted for a global role), `assignable` and, when set, its [ownership rules](/docs/concepts/ownership) `min` (omitted when 0), `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`, a permission the policy lists in `hostable` carries `hostable: true`, every permission carries `rowConditions` (`true` when a code grant for it depends on more than the role and the scope, so the SQL helpers alone cannot enforce it, [RLS](/docs/adapters/rls#sql-helper-contract)), and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by, distinct?, staleOn? }`), absent when none requires one. A resource that declares `version` carries it (the row field a `staleOn: 'resource-change'` approval binds to), and one that declares `restricted` carries that column name. `relations` maps each relation name to its declared shape: `{ field, memberOf? }`, `{ edge, object?, subject?, expiresAt? }` or `{ principal, period?: { startsAt?, expiresAt? } }`. A relation grantee (`to`) in a snapshot, a decision event or a catalog may carry `through: "parent"` and `depth` ([relationships](/docs/concepts/relationships)). PermDock Cloud reads these to offer only assignable roles, to apply `assigns`, `min`, `max`, `transferOnly` and `for` in its assignment checks, to offer only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`); an approval without `staleOn` is weaker than one with it. `definedIn` and `usages` appear only when `collect` produced the catalog, because they need the source scan. `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`.
+`version` is the format major and `$schema` names the matching JSON Schema. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, the catalog lists the policy's `scopes` in order (`{ name, key, within? }`, omitted when it declares none), each role also carries `on` (a scope name or `resource`, omitted for a global role), `assignable` and, when set, its [ownership rules](/docs/concepts/ownership) `min` (omitted when 0), `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`, a permission the policy lists in `hostable` carries `hostable: true`, every permission carries `rowConditions` (`true` when a code grant for it depends on more than the role and the scope, so the SQL helpers alone cannot enforce it, [RLS](/docs/adapters/rls#sql-helper-contract)), and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by, distinct?, staleOn? }`), absent when none requires one. A resource that declares `version` carries it (the row field a `staleOn: 'resource-change'` approval binds to), and one that declares `restricted` carries that column name. `relations` maps each relation name to its declared shape: `{ field, memberOf? }`, `{ edge, object?, subject?, expiresAt? }` or `{ principal, period?: { startsAt?, expiresAt? } }`. A relation grantee (`to`) in a snapshot, a decision event or a catalog may carry `through: "parent"` and `depth` ([relationships](/docs/concepts/relationships)). PermDock Cloud reads these to offer only assignable roles, to apply `assigns`, `min`, `max`, `transferOnly` and `for` in its assignment checks, to offer only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`); an approval without `staleOn` is weaker than one with it. `definedIn` and the entries of `usages` come from the source scan; `usages` is always present and empty when no call site was found. `parseCatalog` in `permdock/catalog` validates a document against this schema and returns it frozen ([reading a catalog](/docs/cli/catalog#reading-a-catalog)). `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`.
 
 `fingerprint` identifies the catalog's contract and is what a hosted policy document pins as `catalog`. It is `catalogFingerprint(catalog)` from `permdock`: the base64url SHA-256 of the canonical JSON (object keys sorted by UTF-16 code unit, no whitespace, as in RFC 8785) of the document without `generatedAt`, `generator`, `fingerprint` and every `permissions[].usages`. The clock, the CLI version and call sites therefore never change it; any change to a permission, resource, role, plan, `hostable`, `rowConditions` or `approvals` does. A reader recomputes it with the same function and rejects a document whose `fingerprint` disagrees.
 
@@ -544,55 +544,62 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 
 `drafts` appears only when the output depends on an unfinished specification, today `--target 3.3` (`oas`, `securityProfiles`; [OpenAPI 3.3](/docs/standards/openapi)) and `--overlay 1.2` (`overlay`; [OpenAPI Overlay](/docs/standards/openapi-overlay)), and carries only the keys that apply; each value names the pinned revision. `permdock openapi emit --check` fails when a committed document's `drafts` differ from the installed CLI's pins. The shape is versioned by `v` like every other extension.
 
+## Supabase claims
+
+The claims the Supabase token hook writes have a JSON Schema, `schemas/supabase-claims-v1.json` in the `permdock` package, and a Standard Schema twin, `supabaseClaims()` in `permdock/supabase`, which a session library can validate tokens with instead of copying the shape. Both cover `user_role`, `roles`, `memberships`, the tenant claim (`tenant_id` by default), `attrs`, `authz_ver` and `memberships_truncated`, at the top level or under `app_metadata`, plus the OAuth claims `client_id`, `scope` and `act`. Both pass other claims through. The TypeScript types are `SupabaseClaims<TenantClaim>` and `SupabaseMembershipClaim`. `supabaseClaimFixtures` in `permdock/testing` passes both, and the test suite checks that the two agree on every fixture and on a set of malformed claims.
+
 ## Supabase hook manifest
 
-Output of `permdock supabase inspect --json` ([supabase](/docs/cli/supabase)): what the generated hook and SQL helpers expect, for a package that writes policies or claims next to them. `version` is the format major, as in the catalog; `permdock/testing` exports `supabaseHookManifestFixture`, and `permdock/supabase` the `SupabaseHookManifest` type.
+Output of `permdock supabase inspect --json`, and the file `inspect --out permdock.manifest.json` writes ([supabase](/docs/cli/supabase)): what the generated hook and SQL helpers expect, for a package that writes policies or claims next to them. Its JSON Schema is `schemas/supabase-manifest-v1.json` in the `permdock` package, and the file names it in `$schema`. `version` is the format major, as in the catalog; `permdock/testing` exports `supabaseHookManifestFixture`, and `permdock/supabase` the `SupabaseHookManifest` type.
 
 ```json
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "required": ["version", "hook", "helpers", "tenantClaim", "budget", "claims", "authzVersion"],
-  "additionalProperties": false,
-  "properties": {
-    "version": { "const": 1 },
-    "hook": {
-      "type": "object",
-      "required": ["schema", "function", "out"],
-      "properties": {
-        "schema": { "type": "string" },
-        "function": { "const": "custom_access_token_hook" },
-        "out": { "type": "string" }
-      }
-    },
-    "helpers": {
-      "type": "object",
-      "required": ["schema", "functions"],
-      "properties": {
-        "schema": { "type": "string" },
-        "functions": { "type": "array", "items": { "type": "string", "pattern": "^(permdock_has|permitted_[a-z][a-z0-9_]*_ids)$" } }
-      }
-    },
-    "tenantClaim": { "type": "string" },
-    "budget": {
-      "type": "object",
-      "required": ["bytes", "measure"],
-      "properties": { "bytes": { "type": "integer", "minimum": 1 }, "measure": { "type": "string" } }
-    },
-    "claims": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["name", "source", "budget"],
-        "properties": { "name": { "type": "string" }, "source": { "type": "string" }, "budget": { "type": "boolean" } }
-      }
-    },
-    "authzVersion": { "type": "boolean" }
-  }
+  "$schema": "https://permdock.dev/schemas/supabase-manifest-v1.json",
+  "version": 1,
+  "hook": { "schema": "public", "function": "custom_access_token_hook", "out": "supabase/permdock-hook.sql" },
+  "helpers": { "schema": "public", "functions": ["permdock_has", "permitted_tenant_ids", "member_tenant_ids", "member_tenant_ids_for"] },
+  "tenantClaim": "tenant_id",
+  "budget": { "bytes": 1024, "measure": "octet_length(memberships::text) + octet_length(attrs::text)" },
+  "claims": [
+    { "name": "memberships", "source": "permdock", "budget": true },
+    { "name": "features", "source": "better_supabase.feature_claims", "budget": false }
+  ],
+  "authzVersion": true,
+  "memberships": [
+    {
+      "table": "public.memberships",
+      "user": { "column": "user_id" },
+      "scope": { "column": "scope" },
+      "id": { "column": "scope_id" },
+      "role": { "column": "role" },
+      "columns": ["user_id", "scope", "scope_id", "role"]
+    }
+  ],
+  "rls": {
+    "schema": "public",
+    "mode": "jwt",
+    "tenantClaim": "tenant_id",
+    "scopes": [{ "name": "tenant", "type": "uuid" }],
+    "helpers": [
+      { "name": "permitted_tenant_ids", "args": "p_grant text", "returns": "setof uuid", "execute": ["authenticated"] },
+      { "name": "member_tenant_ids_for", "args": "p_user uuid", "returns": "setof uuid", "execute": ["supabase_auth_admin"] }
+    ]
+  },
+  "decidingColumns": ["public.memberships.role", "public.memberships.scope", "public.memberships.scope_id", "public.memberships.user_id"],
+  "markers": { "hook": "v1", "grants": "v1" }
 }
 ```
 
-`helpers.functions` are `permdock_has(p_grant text)` and, per declared scope, `permitted_<scope>_ids(p_grant text)` and `member_<scope>_ids()`, in `helpers.schema`. What they answer, and what a policy calling them may rely on, is the [SQL helper contract](/docs/adapters/rls#sql-helper-contract); the claims they read have a JSON Schema, `schemas/supabase-claims-v1.json`. `budget.measure` is the SQL the hook sums against `budget.bytes`: `octet_length(memberships::text) + octet_length(attrs::text)`. Each claim's `source` is `permdock` or the `<schema>.<function>` of a `supabase.hook.claims` entry, and `budget` says whether it counts toward the budget. The generated migration starts with the same facts on one line, `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, which `supabase hook generate --check` compares first.
+(`claims` and `rls.helpers` are shortened here.)
+
+- `helpers.functions` are `permdock_has(p_grant text)` and, per declared scope, `permitted_<scope>_ids(p_grant text)` and `member_<scope>_ids()`, plus `member_<scope>_ids_for(p_user uuid)` for each scope with a membership source, in `helpers.schema`. `rls.helpers` gives each one's arguments, return type and the roles granted `execute` (a [field view](/docs/adapters/rls#field-security) `anon` reads adds `anon` to the `authenticated` ones). What they answer, and what a policy calling them may rely on, is the [SQL helper contract](/docs/adapters/rls#sql-helper-contract); the claims they read have a JSON Schema, `schemas/supabase-claims-v1.json`.
+- `budget.measure` is the SQL the hook sums against `budget.bytes`. Each claim's `source` is `permdock` or the `<schema>.<function>` of a `supabase.hook.claims` entry, and `budget` says whether it counts toward the budget.
+- `memberships` is one entry per `supabase.hook.memberships` source, in the order the hook reads them. Each of `scope`, `role` and `via` is `{ "column": "<name>" }` or `{ "value": ... }`, a value every row has: `fromJunction` has a fixed `scope`, and fixed roles are `{ "value": ["contact"] }`. `within` is a `jsonb` column (`fromTable`) or `{ "columns": { "<scope>": "<column>" } }` (`fromJunction`). `columns` are the table's columns that decide the membership.
+- `rls.mode` is where the helpers read roles and memberships: `jwt` (the claims) or `database` (the tables). It is `rls.authorize`, else what `rls generate` picks with no flags, so set `rls.authorize` when you pass `--authorize` or `--rbac` to `rls generate`. `rls.scopes` gives each declared scope's id type.
+- `decidingColumns` is every `schema.table.column` a membership or an `attrs` claim is computed from: the columns `permdock doctor` PD028 requires clients cannot write.
+- `markers` are the majors of the `-- permdock:hook` and `-- permdock:grants` lines. The generated migration starts with `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, which `supabase hook generate --check` compares first, and `parseHookMarker` / `parseGrantsMarker` in `permdock/cli` read.
+
+**Why.** A package that writes Storage or Realtime policies, or a claim function, next to the generated SQL needs to know what that SQL reads: which helpers exist with which signature, which tables and columns decide a membership, and whether the helpers read the token or the tables. Reading the manifest instead of PermDock's config or its generated SQL keeps that package on a versioned contract. A committed file lets it read the facts without running the CLI, and `inspect --check` in CI fails when the file falls behind the config. The check compares JSON, not text, so a formatter that reflows the file is not drift. Fields are only added within v1; a removed or changed field is a new major.
 
 ## Problem Details
 

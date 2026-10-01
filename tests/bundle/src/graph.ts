@@ -49,6 +49,7 @@ export const ENTRIES = {
   './clerk': 'clerk/index.js',
   './convex': 'convex/index.js',
   './pdp': 'pdp/index.js',
+  './catalog': 'catalog/index.js',
   './testing': 'testing/index.js',
   './testing/saas': 'testing/saas/index.js',
   './testing/saas/permissions': 'testing/saas/permissions.js',

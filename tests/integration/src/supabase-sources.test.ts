@@ -1,5 +1,4 @@
 import type { Membership, Principal } from 'permdock';
-import type { Client } from 'pg';
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -20,6 +19,7 @@ import {
   subjectFromSupabase,
   type SqlQuery,
 } from 'permdock/supabase';
+import { Client as PgClient, type Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Postgres } from './support/postgres.ts';
@@ -50,6 +50,12 @@ create role supabase_auth_admin nologin;
 grant authenticated, anon, supabase_auth_admin to tester;
 create schema auth;
 create table auth.users (id uuid primary key, raw_app_meta_data jsonb not null default '{}');
+create function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid
+$$;
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
+$$;
 grant usage on schema auth to supabase_auth_admin;
 grant select on auth.users to supabase_auth_admin;
 grant usage on schema public to authenticated, anon;
@@ -103,6 +109,24 @@ describe('permdock supabase hook generate against Postgres', () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), 'permdock-sources-'));
     const out = join(dir, 'hook.sql');
+    const helpers = await run(
+      [
+        'rls',
+        'generate',
+        '--target',
+        'sql',
+        '--rbac',
+        'supabase',
+        '--split',
+        'helpers,policies',
+        '--out',
+        join(dir, '{part}.sql'),
+      ],
+      { cwd: FIXTURE },
+    );
+    if (helpers.code !== 0) {
+      throw new Error(`rls generate: ${helpers.stdout}${helpers.stderr}`);
+    }
     const result = await run(['supabase', 'hook', 'generate', '--out', out], {
       cwd: FIXTURE,
     });
@@ -110,8 +134,9 @@ describe('permdock supabase hook generate against Postgres', () => {
       throw new Error(`hook generate: ${result.stdout}${result.stderr}`);
     }
     generated = readFileSync(out, 'utf8');
+    const helpersSql = readFileSync(join(dir, 'helpers.sql'), 'utf8');
     rmSync(dir, { recursive: true, force: true });
-    db = await startPostgres([SETUP, generated]);
+    db = await startPostgres([SETUP, helpersSql, generated]);
     const admin = db.admin;
     query = async (text, values) => (await admin.query(text, [...values])).rows;
   }, 120_000);
@@ -395,6 +420,11 @@ describe('permdock supabase hook generate against Postgres', () => {
     if (db === undefined) {
       throw new Error('PermDock: Postgres was not started');
     }
+    await db.admin.query('create database pd039');
+    const uri = new URL(db.uri);
+    uri.pathname = '/pd039';
+    const empty = new PgClient({ connectionString: uri.href });
+    await empty.connect();
     const dir = mkdtempSync(join(tmpdir(), 'permdock-sources-db-'));
     const generate = () =>
       run(
@@ -405,24 +435,38 @@ describe('permdock supabase hook generate against Postgres', () => {
           '--out',
           join(dir, 'hook.sql'),
           '--db',
-          db?.uri ?? '',
+          uri.href,
         ],
         { cwd: FIXTURE },
       );
     try {
+      const installed = await run(
+        [
+          'supabase',
+          'hook',
+          'generate',
+          '--out',
+          join(dir, 'hook.sql'),
+          '--db',
+          db.uri,
+        ],
+        { cwd: FIXTURE },
+      );
+      expect(installed.stdout).not.toContain('PD039');
       const missing = await generate();
       expect(missing.code).toBe(0);
       expect(missing.stdout).toContain(
-        'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, permitted_customer_ids, member_customer_ids',
+        'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
       );
-      await db.admin.query(
+      await empty.query(
         'create function public.permdock_has(p_grant text) returns boolean language sql as $$ select false $$',
       );
       const partial = await generate();
       expect(partial.stdout).toContain(
-        'PD039 schema public has no permitted_organization_ids, member_organization_ids, permitted_customer_ids, member_customer_ids',
+        'PD039 schema public has no permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
       );
     } finally {
+      await empty.end();
       rmSync(dir, { recursive: true, force: true });
     }
   });

@@ -6,9 +6,9 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev -p 3489 -H 127.0.0.1",
-    "doctor": "node scripts/better-supabase.ts doctor",
-    "gen": "node scripts/better-supabase.ts gen",
-    "gen:check": "node scripts/better-supabase.ts gen --check",
+    "doctor": "permdock supabase inspect --out permdock.manifest.json --check && node scripts/better-supabase.ts doctor",
+    "gen": "permdock supabase inspect --out permdock.manifest.json && node scripts/better-supabase.ts gen",
+    "gen:check": "permdock supabase inspect --out permdock.manifest.json --check && node scripts/better-supabase.ts gen --check",
     "lint": "oxlint --disable-nested-config",
     "serve": "node scripts/serve.ts",
     "start": "next start -p 3489 -H 127.0.0.1",

@@ -46,7 +46,7 @@ export default defineConfig({
 | `permdock skills` | Install or update the `wire-permdock` and `audit-permissions` Agent Skills | [skills](/docs/cli/skills) |
 | `permdock cloud push` | Publish the catalog, `hostable` flags and role assignability to a PermDock Cloud environment; `--dry-run`, `--url`, `--environment` | [cloud](/docs/cli/cloud) |
 | `permdock supabase hook generate` | Compile the app's `fromTable` / `fromJunction` membership sources into a Supabase Custom Access Token Hook migration with a size budget, `authz_ver` and IdP-row protection; `--grants-out` for declarative schemas, `--check` for CI | [supabase](/docs/cli/supabase) |
-| `permdock supabase inspect` | Print the hook and helper manifest (helper names, tenant claim, budget, claims written); `--json` for the `version: 1` manifest | [supabase](/docs/cli/supabase) |
+| `permdock supabase inspect` | Print the hook and helper manifest (helper names, tenant claim, budget, claims written, membership sources, deciding columns); `--json` for the `version: 1` manifest, `--out permdock.manifest.json` to write it, `--check` for CI | [supabase](/docs/cli/supabase) |
 
 The Next.js build hook `createPermDockPlugin` is documented on [Next.js plugin](/docs/cli/next-plugin). The same collect hook for Vite, Rollup, webpack, Rspack and esbuild is `createPermDockUnplugin` ([unplugin](/docs/cli/unplugin)): Nuxt, Astro, React Router, TanStack Start and Effect apps use it; there is no per-vendor package.
 

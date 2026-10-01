@@ -31,6 +31,11 @@ export type RlsSqlContext = {
    * for a scope `memberships` maps no table for (the same SQL the hook runs).
    */
   readonly sources?: readonly SqlMembershipSource[];
+  /**
+   * `rls.membershipSources ?? supabase.hook.memberships` in either mode: what
+   * `member_<scope>_ids_for(p_user)` reads for a scope `memberships` maps no table for.
+   */
+  readonly memberSources?: readonly SqlMembershipSource[];
   readonly tenantClaim: string;
   readonly gucPrefix: string;
   readonly inlineFunctions?: boolean;
@@ -304,6 +309,65 @@ export function memberIdsHelper(name: string): string {
     throw new Error(`PermDock CLI: unsafe scope name '${name}'`);
   }
   return `member_${name}_ids`;
+}
+
+/** `member_<scope>_ids_for(p_user uuid)`: the same rows for a user the caller names; the token hook's helper. */
+export function memberForHelper(name: string): string {
+  return `${memberIdsHelper(name)}_for`;
+}
+
+/**
+ * Whether `member_<scope>_ids_for` is generated for `name`: Supabase only
+ * (its one caller is `supabase_auth_admin`), and only where `memberships` maps
+ * a table for the scope or a membership source can hold it.
+ */
+export function hasMemberFor(
+  input: {
+    readonly dialect: RlsDialect;
+    readonly scopes: readonly Scope[];
+    readonly memberships?: RlsMemberships;
+    readonly memberSources?: readonly SqlMembershipSource[];
+  },
+  name: string,
+): boolean {
+  if (input.dialect !== 'supabase') {
+    return false;
+  }
+  return (
+    memberForTable(input, name) !== undefined ||
+    memberForSources(input, name).length > 0
+  );
+}
+
+function memberForTable(
+  input: {
+    readonly scopes: readonly Scope[];
+    readonly memberships?: RlsMemberships;
+  },
+  name: string,
+): RlsMembershipTable | undefined {
+  const table = scopeMembershipTable(input.memberships, input.scopes, name);
+  return table !== undefined &&
+    scopeColumn(table, input.scopes, name) !== undefined
+    ? table
+    : undefined;
+}
+
+/** The sources `member_<scope>_ids_for` reads: none when a table is mapped, as in `database` mode. */
+export function memberForSources(
+  input: {
+    readonly scopes: readonly Scope[];
+    readonly memberships?: RlsMemberships;
+    readonly memberSources?: readonly SqlMembershipSource[];
+  },
+  name: string,
+): readonly SqlMembershipSource[] {
+  if (memberForTable(input, name) !== undefined) {
+    return [];
+  }
+  return (input.memberSources ?? []).filter(
+    (source) => source.sql.scope === undefined || source.sql.scope === name,
+  );
 }
 
 /**

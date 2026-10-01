@@ -221,6 +221,10 @@
       "types": "./dist/testing/saas/permissions.d.ts",
       "default": "./dist/testing/saas/permissions.js"
     },
+    "./catalog": {
+      "types": "./dist/catalog/index.d.ts",
+      "default": "./dist/catalog/index.js"
+    },
     "./cli": {
       "types": "./dist/cli/index.d.ts",
       "default": "./dist/cli/index.js"
@@ -292,6 +296,7 @@
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "unplugin": "catalog:",
+    "valibot": "catalog:",
     "vitest": "catalog:",
     "vue": "catalog:",
     "yaml": "catalog:",
