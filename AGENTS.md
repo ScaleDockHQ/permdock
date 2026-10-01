@@ -70,7 +70,7 @@ pnpm knip                  # unused files, exports and dependencies
 pnpm verify                # format:check, lint, typecheck, knip, boundaries, test, docs:drift
 pnpm check:publish         # publint + arethetypeswrong
 pnpm size                  # per-entry gzip measurements
-pnpm docs:drift            # docs match CLI flags, doctor codes, package entries, meta.json
+pnpm docs:drift            # docs match CLI flags, doctor codes, entries, meta.json, standards tests
 pnpm dev:portless          # https://permdock.localhost, docs at /docs
 pnpm docs:dev              # apps/docs on :3001, no Portless
 pnpm marketing:dev         # apps/marketing on :3000, proxies /docs

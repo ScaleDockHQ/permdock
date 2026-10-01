@@ -19,4 +19,4 @@ paths:
 - No `{`, `}` or bare `<` in prose (MDX parses them); use backticks.
 - Prose follows `.agents/rules/writing.mdc`.
 
-Before pushing docs changes run `pnpm docs:drift` (CLI flags, doctor codes, package entries and `meta.json` listings) and `pnpm --filter docs build`.
+Before pushing docs changes run `pnpm docs:drift` (CLI flags, doctor codes, package entries, `meta.json` listings, and one `packages/permdock/tests/standards/<slug>.test.ts` per standards page except `index` and `watch-list`) and `pnpm --filter docs build`.

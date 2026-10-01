@@ -5,6 +5,15 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = join(ROOT, 'apps', 'docs', 'content', 'docs');
 const CLI_SRC = join(ROOT, 'packages', 'permdock', 'src', 'cli');
+const STANDARDS_TESTS = join(
+  ROOT,
+  'packages',
+  'permdock',
+  'tests',
+  'standards',
+);
+/** Standards pages that describe no standard of their own to conform to. */
+const UNTESTED_STANDARDS = new Set(['index', 'watch-list']);
 
 function walk(dir: string, keep: (file: string) => boolean): string[] {
   const out: string[] = [];
@@ -93,6 +102,31 @@ function unlistedPages(): readonly string[] {
   return missing;
 }
 
+/** Each standards page has `tests/standards/<slug>.test.ts`, and each such test a page. */
+function standardsTests(): readonly string[] {
+  const pages = readdirSync(join(DOCS, 'standards'))
+    .filter((name) => name.endsWith('.mdx'))
+    .map((name) => name.slice(0, -4))
+    .filter((slug) => !UNTESTED_STANDARDS.has(slug));
+  const tests = readdirSync(STANDARDS_TESTS)
+    .filter((name) => name.endsWith('.test.ts'))
+    .map((name) => name.slice(0, -'.test.ts'.length));
+  return [
+    ...pages
+      .filter((slug) => !tests.includes(slug))
+      .map(
+        (slug) =>
+          `docs/standards/${slug}.mdx has no packages/permdock/tests/standards/${slug}.test.ts`,
+      ),
+    ...tests
+      .filter((slug) => !pages.includes(slug))
+      .map(
+        (slug) =>
+          `packages/permdock/tests/standards/${slug}.test.ts has no docs/standards/${slug}.mdx`,
+      ),
+  ];
+}
+
 const problems = [
   ...cliFlags()
     .filter((flag) => !cliDocs.includes(`--${flag}`))
@@ -104,6 +138,7 @@ const problems = [
     .filter((entry) => !allDocs.includes(entry))
     .map((entry) => `package entry ${entry} is not mentioned in the docs`),
   ...unlistedPages().map((page) => `${page} is not listed in its meta.json`),
+  ...standardsTests(),
 ];
 
 if (problems.length > 0) {
@@ -111,6 +146,6 @@ if (problems.length > 0) {
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    'docs match the CLI, doctor checks and package entries\n',
+    'docs match the CLI, doctor checks, package entries and standards tests\n',
   );
 }
