@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 2
+      default-days: 7
     open-pull-requests-limit: 10
     # An Expo SDK upgrade moves these together; `expo` pins its SDK's React Native minor.
     ignore:
@@ -31,7 +31,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 2
+      default-days: 7
     groups:
       github-actions:
         patterns:

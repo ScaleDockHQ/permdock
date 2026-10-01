@@ -81,7 +81,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
