@@ -7,7 +7,10 @@ import type {
   Membership,
   Subject,
 } from '../core/subject.ts';
+import type { SupabaseActClaim } from './claims.ts';
 import type {
+  SupabaseActorResult,
+  SupabaseDelegation,
   SupabasePrincipal,
   SupabaseSessionLike,
   SupabaseSubjectOptions,
@@ -182,51 +185,94 @@ function plansFor(
   return asStrings(byTenant[tenant]);
 }
 
-type ActorClaim =
-  | { readonly status: 'ok'; readonly actor: Actor; readonly chain?: unknown }
-  | { readonly status: 'invalid' }
-  | { readonly status: 'absent' };
+const INVALID_CHAIN: SupabaseActorResult = Object.freeze({
+  ok: false,
+  reason: 'invalid-chain',
+});
+const NO_ACTOR: SupabaseActorResult = Object.freeze({ ok: true });
 
-/** RFC 8693 `act` (innermost `sub`), else the OAuth `client_id` of a third-party app. */
-function actorOf(claims: Record<string, unknown>): ActorClaim {
+/** Own entries of one `act` level, with the nested `act` copied the same way. */
+function copyAct(level: Record<string, unknown>): SupabaseActClaim {
+  const entries = Object.entries(level).map(
+    ([key, value]): [string, unknown] => [
+      key,
+      key === 'act' && isRecord(value) ? copyAct(value) : value,
+    ],
+  );
+  // SAFETY: readActor checked that this level and every nested `act` is an object and the innermost has a string `sub`.
+  return Object.fromEntries(entries) as SupabaseActClaim;
+}
+
+function readActor(claims: Record<string, unknown>): SupabaseActorResult {
   if (Object.hasOwn(claims, 'act') && claims['act'] !== undefined) {
     let current: unknown = claims['act'];
     let innermost: Record<string, unknown> | undefined;
     while (current !== undefined) {
       if (!isRecord(current)) {
-        return { status: 'invalid' };
+        return INVALID_CHAIN;
       }
       innermost = current;
       current = Object.hasOwn(current, 'act') ? current['act'] : undefined;
     }
     const sub = innermost?.['sub'];
-    if (typeof sub !== 'string' || sub === '') {
-      return { status: 'invalid' };
+    const outer = claims['act'];
+    if (typeof sub !== 'string' || sub === '' || !isRecord(outer)) {
+      return INVALID_CHAIN;
     }
-    return {
-      status: 'ok',
-      actor: { id: sub, kind: 'oauth-client' },
-      chain: claims['act'],
-    };
+    return freezeDeep({
+      ok: true,
+      actor: { id: sub, kind: 'oauth-client', chain: copyAct(outer) },
+    });
   }
-  const client = claims['client_id'];
+  const client = Object.hasOwn(claims, 'client_id')
+    ? claims['client_id']
+    : undefined;
   if (typeof client === 'string' && client !== '') {
-    return { status: 'ok', actor: { id: client, kind: 'oauth-client' } };
+    return freezeDeep({
+      ok: true,
+      actor: { id: client, kind: 'oauth-client' },
+    });
   }
-  return { status: 'absent' };
+  return NO_ACTOR;
 }
 
-function delegationOf(
+/**
+ * The app acting for the user: the innermost `sub` of an RFC 8693 `act` chain, else the
+ * OAuth `client_id` of a third-party app. Reads only `act` and `client_id`; the caller applies
+ * the role rule first (`anon` and `service_role` are anonymous and carry no actor). An
+ * `act` that is not a chain of objects ending in a non-empty `sub` is `{ ok: false }` and must deny.
+ */
+export function actorOf(claims: unknown): SupabaseActorResult {
+  try {
+    return isRecord(claims) ? readActor(claims) : NO_ACTOR;
+  } catch {
+    return INVALID_CHAIN;
+  }
+}
+
+/** The OAuth `scope` claim (a space-separated string or a list) as `scopes`; `undefined` when empty. */
+export function delegationOf(claims: unknown): SupabaseDelegation | undefined {
+  try {
+    if (!isRecord(claims) || !Object.hasOwn(claims, 'scope')) {
+      return undefined;
+    }
+    const scope = claims['scope'];
+    const scopes =
+      typeof scope === 'string'
+        ? scope.split(/\s+/u).filter(Boolean)
+        : asStrings(scope);
+    return scopes.length > 0 ? freezeDeep({ scopes }) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function subjectDelegation(
   claims: Record<string, unknown>,
-  chain: unknown,
+  chain: SupabaseActClaim | undefined,
 ): Delegation | undefined {
-  const scope = claims['scope'];
-  const scopes =
-    typeof scope === 'string'
-      ? scope.split(/\s+/u).filter(Boolean)
-      : asStrings(scope);
   const delegation = compact<Delegation>({
-    scopes: scopes.length > 0 ? scopes : undefined,
+    scopes: delegationOf(claims)?.scopes,
     chain,
   });
   return Object.keys(delegation).length === 0 ? undefined : delegation;
@@ -289,11 +335,15 @@ function mapClaims(
   if (typeof id !== 'string' || id === '') {
     return anonymousSubject();
   }
-  const act = actorOf(claims);
-  if (act.status === 'invalid') {
-    emit(options, 'invalid-token', 'invalid-chain');
+  const act = readActor(claims);
+  if (!act.ok) {
+    emit(options, 'invalid-token', act.reason);
     return anonymousSubject();
   }
+  const actor: Actor | undefined =
+    act.actor === undefined
+      ? undefined
+      : { id: act.actor.id, kind: act.actor.kind };
   const roleClaim = options.roles ?? 'user_role';
   const tenantClaim = options.tenant ?? supabaseTenantClaim;
   const membershipsClaim = options.memberships ?? 'memberships';
@@ -349,9 +399,11 @@ function mapClaims(
   return freezeDeep(
     compact<Subject<SupabasePrincipal>>({
       principal,
-      actor: act.status === 'ok' ? act.actor : undefined,
+      actor,
       delegation:
-        act.status === 'ok' ? delegationOf(claims, act.chain) : undefined,
+        act.actor === undefined
+          ? undefined
+          : subjectDelegation(claims, act.actor.chain),
       context: {},
       session,
       expiresAt,

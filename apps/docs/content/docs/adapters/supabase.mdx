@@ -201,6 +201,25 @@ Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/d
 | `client_id` (a token Supabase's OAuth server issued to a third-party app) | Verified | `subject.actor` `{ id: client_id, kind: 'oauth-client' }` when there is no `act` |
 | `scope` | Verified | `delegation.scopes`. An actor needs a delegation that covers the permission (`<resource>:<action>`), so a client token without a matching scope is `denied` with `no-delegation` or `not-delegated` |
 
+### Actor and delegation: `actorOf` and `delegationOf`
+
+The two rules in the last three rows are exported, so a session library derives the same actor PermDock does instead of re-implementing them:
+
+```ts
+import { actorOf, delegationOf } from 'permdock/supabase'
+
+const actor = actorOf(claims)        // { ok: true, actor?: { id, kind: 'oauth-client', chain? } } | { ok: false, reason: 'invalid-chain' }
+if (!actor.ok) return deny()         // a malformed act chain is never a user acting alone
+const delegation = delegationOf(claims) // { scopes } | undefined
+```
+
+- `actorOf` reads only `act` and `client_id`. `act` wins: the actor is its innermost `sub`, and `chain` is a frozen copy of the claim. Without `act`, a non-empty `client_id` is the actor. With neither, the result is `{ ok: true }` with no actor.
+- `{ ok: false, reason: 'invalid-chain' }` must deny. An `act` that is not a chain of objects ending in a non-empty `sub` is not proof of who acts, and treating the token as the user alone would drop the delegation limit. `actorOf` also returns it when reading the claims throws.
+- `delegationOf` reads only `scope`: a space-separated string or a list of strings becomes `scopes`, and an empty or malformed value is `undefined`. `subjectFromSupabase` sets `delegation` only when there is an actor, as `{ scopes, chain }`.
+- Callers apply the role rule first. A token with `role` set to `anon` or `service_role` maps to the anonymous subject and never carries an actor or a delegation, whatever its `act`, `client_id` or `scope` say: `anon` is no user, and `service_role` is a bypass key, not a principal. Neither function looks at `role`, so a caller that skips this check would hand an actor to a token PermDock refuses.
+
+Both take `unknown`, never throw, and return frozen values. For every `supabaseClaimFixtures` entry the test suite checks that they agree with `subjectFromSupabase(...).actor` and `.delegation`.
+
 A `memberships` entry the reader cannot use (no `roles` array, or none of `scope` plus `id`, `tenant`, `team` or `on`) is dropped, never guessed at, and `options.onAuth` receives `{ reason: 'schema', cause: 'membership-dropped', source: 'supabase' }`. Access still fails closed; the event tells you the hook and the reader disagree. `permdock doctor` PD039 reports the same entries from the `doctor.claims` samples.
 
 A top-level claim set to `null` counts as absent. The RBAC hook writes `user_role: null` for a user with no row in `user_roles`, so the reader falls back to `app_metadata.user_role` instead of letting the `null` shadow it. `null` under `app_metadata` is also absent: no roles.

@@ -33,6 +33,13 @@ export type SupabaseClaimFixture = {
     }[];
     readonly tenant?: string;
     readonly plans?: readonly string[];
+    /** `subject.actor`, absent when the token has neither `act` nor `client_id`. */
+    readonly actor?: { readonly id: string; readonly kind: 'oauth-client' };
+    /** `subject.delegation`: the `scope` claim and the `act` chain of a token with an actor. */
+    readonly delegation?: {
+      readonly scopes?: readonly string[];
+      readonly chain?: Readonly<Record<string, unknown>>;
+    };
   };
 };
 
@@ -257,7 +264,16 @@ export const supabaseClaimFixtures: Readonly<
       scope: 'openid email posts:read',
       user_role: 'member',
     },
-    expect: { id, roles: ['member'], memberships: [] },
+    expect: {
+      id,
+      roles: ['member'],
+      memberships: [],
+      actor: {
+        id: '5f0e4d3c-2b1a-4098-8776-655443322110',
+        kind: 'oauth-client',
+      },
+      delegation: { scopes: ['openid', 'email', 'posts:read'] },
+    },
   },
   actChain: {
     claims: {
@@ -265,7 +281,16 @@ export const supabaseClaimFixtures: Readonly<
       scope: 'posts:read',
       act: { sub: 'agent-runner', act: { sub: 'mcp-client-42' } },
     },
-    expect: { id, roles: [], memberships: [] },
+    expect: {
+      id,
+      roles: [],
+      memberships: [],
+      actor: { id: 'mcp-client-42', kind: 'oauth-client' },
+      delegation: {
+        scopes: ['posts:read'],
+        chain: { sub: 'agent-runner', act: { sub: 'mcp-client-42' } },
+      },
+    },
   },
   anon: {
     claims: { ...base, role: 'anon', sub: '' },

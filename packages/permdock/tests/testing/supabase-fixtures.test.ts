@@ -72,8 +72,11 @@ describe('Supabase RBAC hook claims', () => {
       const subject = subjectFromSupabase(fixture.claims, fixture.options);
       expect(subject.principal?.id ?? null).toBe(fixture.expect.id);
       if (subject.principal === null) {
+        expect(subject.actor).toBeUndefined();
         return;
       }
+      expect(subject.actor).toEqual(fixture.expect.actor);
+      expect(subject.delegation).toEqual(fixture.expect.delegation);
       expect(subject.principal.roles ?? []).toEqual(fixture.expect.roles);
       expect(subject.principal.memberships ?? []).toEqual(
         fixture.expect.memberships,

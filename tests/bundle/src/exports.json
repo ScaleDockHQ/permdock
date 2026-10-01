@@ -368,8 +368,10 @@
   "./kysely": ["checkRow", "toWhere", "withSubject"],
   "./supabase": [
     "AUTHZ_VERSION_TABLE",
+    "actorOf",
     "authorizeSql",
     "authzVersion",
+    "delegationOf",
     "exchangeCapability",
     "fromJunction",
     "fromTable",

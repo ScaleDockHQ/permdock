@@ -25,11 +25,19 @@ export type {
   SqlMembershipSource,
   SqlQuery,
 } from './sources.ts';
-export { subjectFromSupabase, subjectFromSupabaseSession } from './subject.ts';
+export {
+  actorOf,
+  delegationOf,
+  subjectFromSupabase,
+  subjectFromSupabaseSession,
+} from './subject.ts';
 export type { SupabaseHookClaim, SupabaseHookManifest } from './manifest.ts';
 export type {
   AuthorizeSqlOptions,
   SupabaseActiveRow,
+  SupabaseActor,
+  SupabaseActorResult,
+  SupabaseDelegation,
   SupabaseInclude,
   SupabaseMembershipTable,
   SupabasePrincipal,

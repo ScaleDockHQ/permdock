@@ -2,6 +2,7 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { AuthEvent } from '../core/interfaces.ts';
 import type { Principal } from '../core/subject.ts';
+import type { SupabaseActClaim } from './claims.ts';
 
 export type SupabasePrincipal = Principal & {
   readonly claims?: Readonly<Record<string, unknown>>;
@@ -109,3 +110,17 @@ export type SupabaseSubjectOptions = {
   /** Audit hook: `membership-dropped` for a `memberships` entry that could not be read, `invalid-chain` for a malformed `act`. */
   readonly onAuth?: (event: AuthEvent) => void;
 };
+
+/** The app acting for the user; `chain` is a copy of the token's `act` claim when it has one. */
+export type SupabaseActor = {
+  readonly id: string;
+  readonly kind: 'oauth-client';
+  readonly chain?: SupabaseActClaim;
+};
+
+/** `actorOf` output: `{ ok: false }` must deny. */
+export type SupabaseActorResult =
+  | { readonly ok: true; readonly actor?: SupabaseActor }
+  | { readonly ok: false; readonly reason: 'invalid-chain' };
+
+export type SupabaseDelegation = { readonly scopes: readonly string[] };
