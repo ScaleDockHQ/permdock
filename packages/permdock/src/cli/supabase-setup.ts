@@ -9,7 +9,8 @@ import { readMemberships } from '../supabase/subject.ts';
 import { MIGRATION_DIRS, sqlFiles } from './doctor-project.ts';
 import { requirePeer } from './peer.ts';
 
-const HELPER_NAME = /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids)$/u;
+const HELPER_NAME =
+  /^(?:permdock_has|(?:permitted|member)_[a-z][a-z0-9_]*_ids)$/u;
 
 function escape(text: string): string {
   return text.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);

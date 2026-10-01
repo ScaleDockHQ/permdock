@@ -118,6 +118,30 @@ $$;
 revoke execute on function "app".permitted_tenant_ids(text) from public, anon;
 grant execute on function "app".permitted_tenant_ids(text) to authenticated;
 
+create or replace function "app".member_tenant_ids()
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct (m ->> 'id')::uuid
+  from jsonb_array_elements(
+    case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+  ) m
+  where coalesce((select auth.uid())::text, '') <> ''
+    and m ->> 'scope' = 'tenant'
+    and m ->> 'id' is not null
+    and jsonb_typeof(m -> 'roles') = 'array'
+    and jsonb_array_length(m -> 'roles') > 0
+    and case jsonb_typeof(m -> 'expiresAt')
+      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+      else true
+    end
+$$;
+revoke execute on function "app".member_tenant_ids() from public, anon;
+grant execute on function "app".member_tenant_ids() to authenticated;
+
 create or replace function "app"."authorize"(
   requested_permission "app"."app_permission",
   requested_tenant text default null

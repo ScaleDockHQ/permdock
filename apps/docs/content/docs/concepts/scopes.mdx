@@ -94,13 +94,13 @@ Collection actions (`quote.create`, `quote.list`) have no row: they need a membe
 | `snapshot()`, `snapshotFor`, `fromSnapshot` | `scopes` lists `{ name, key, within, resources }` in order; grants carry the scope name and the membership they came from ([wire formats](/docs/concepts/wire-formats)) |
 | `memberOf` conditions and relations | A `memberOf: S` relation on the first scope means "the row is in the active tenant"; on any other scope, "the subject holds a membership in the row's instance of S" |
 | Custom roles | `CustomRole.scope` (default the first scope) and optional `id`; the ceiling is keyed by scope name ([custom roles](/docs/concepts/custom-roles)) |
-| RLS | One `permitted_<scope>_ids(p_grant)` helper per declared scope, applied to that scope's key ([Postgres RLS](/docs/standards/postgres-rls)) |
+| RLS | One `permitted_<scope>_ids(p_grant)` and one membership-only `member_<scope>_ids()` helper per declared scope, applied to that scope's key ([Postgres RLS](/docs/standards/postgres-rls)) |
 | Catalog | `scopes[]` in order and `roles[].on` as a scope name or `resource` |
 | Membership events | `scope`, `id` and `within`, like a membership, so a role change at any depth is recorded ([wire formats](/docs/concepts/wire-formats)) |
 
 ## RLS
 
-`permdock rls generate` emits `permdock_has(p_grant)` plus one `permitted_<scope>_ids(p_grant)` per declared scope, each `stable security definer` with `search_path = ''`, called uncorrelated so Postgres runs it once per statement:
+`permdock rls generate` emits `permdock_has(p_grant)` plus one `permitted_<scope>_ids(p_grant)` and one `member_<scope>_ids()` per declared scope, each `stable security definer` with `search_path = ''`, called uncorrelated so Postgres runs it once per statement:
 
 ```sql
 create policy quote_select on public.quote for select to authenticated using (

@@ -775,7 +775,10 @@ function manifestOf(
       schema: config.rls?.schema ?? 'public',
       functions: [
         'permdock_has',
-        ...parts.scopes.map((scope) => `permitted_${scope.name}_ids`),
+        ...parts.scopes.flatMap((scope) => [
+          `permitted_${scope.name}_ids`,
+          `member_${scope.name}_ids`,
+        ]),
       ],
     },
     tenantClaim: parts.tenantClaim,

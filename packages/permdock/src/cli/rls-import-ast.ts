@@ -392,6 +392,38 @@ function helperCall(value: unknown): HelperCall | undefined {
     : undefined;
 }
 
+const MEMBER = /^member_([a-z][a-z0-9_]*)_ids$/u;
+
+/** `col in (select member_<scope>_ids())`: any live membership of the row's instance. */
+function memberCall(
+  value: unknown,
+): { readonly scope: string; readonly column: string } | undefined {
+  const sub = asNode(asNode(unwrap(value))?.['SubLink']);
+  const kind = sub?.['subLinkType'];
+  if (sub === undefined || (kind !== 'ANY_SUBLINK' && kind !== 2)) {
+    return undefined;
+  }
+  const targets = asNode(asNode(sub['subselect'])?.['SelectStmt'])?.[
+    'targetList'
+  ];
+  if (!Array.isArray(targets) || targets.length !== 1) {
+    return undefined;
+  }
+  const call = asNode(asNode(targets[0])?.['ResTarget'])?.['val'];
+  const name = funcName(asNode(unwrap(call)));
+  const args = asNode(asNode(unwrap(call))?.['FuncCall'])?.['args'];
+  const scope =
+    name === undefined
+      ? undefined
+      : MEMBER.exec(name.slice(name.lastIndexOf('.') + 1))?.[1];
+  const column = columnName(sub['testexpr']);
+  return scope === undefined ||
+    column === undefined ||
+    (Array.isArray(args) && args.length > 0)
+    ? undefined
+    : { scope, column };
+}
+
 function rolesFor(
   seeds: readonly RolePermission[],
   key: string,
@@ -636,6 +668,15 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
     return undefined;
   }
   const { memberships, functions, unmapped, joins } = ctx;
+  const member = memberCall(node);
+  if (member !== undefined) {
+    return {
+      op: 'memberOf',
+      scope: member.scope,
+      field: member.column,
+      roles: [],
+    };
+  }
   const helper = helperCall(node);
   if (helper !== undefined) {
     return helperCondition(helper, ctx.seeds);

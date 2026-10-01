@@ -12,7 +12,10 @@ export type SupabaseHookManifest = {
   };
   readonly helpers: {
     readonly schema: string;
-    /** `permdock_has` and one `permitted_<scope>_ids` per declared scope, each `(p_grant text)`. */
+    /**
+     * `permdock_has` and, per declared scope, `permitted_<scope>_ids`, each
+     * `(p_grant text)`, and the membership-only `member_<scope>_ids()`.
+     */
     readonly functions: readonly string[];
   };
   readonly tenantClaim: string;

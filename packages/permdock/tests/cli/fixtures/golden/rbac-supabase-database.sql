@@ -98,6 +98,21 @@ $$;
 revoke execute on function "public".permitted_tenant_ids(text) from public, anon;
 grant execute on function "public".permitted_tenant_ids(text) to authenticated;
 
+create or replace function "public".member_tenant_ids()
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct m."organization_id"::uuid
+  from "public"."organization_members" m
+  where m."user_id" = (select auth.uid())
+    and m."role" is not null
+$$;
+revoke execute on function "public".member_tenant_ids() from public, anon;
+grant execute on function "public".member_tenant_ids() to authenticated;
+
 create or replace function "public"."authorize"(
   requested_permission "public"."app_permission",
   requested_tenant text default null

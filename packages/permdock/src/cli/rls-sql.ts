@@ -1,6 +1,7 @@
 import type { RelatedCondition } from '../conditions/ast.ts';
 import type { Scope } from '../core/scopes.ts';
 import type { Condition, ConditionValue, ResourceNode } from '../index.ts';
+import type { SqlMembershipSource } from '../supabase/sources.ts';
 import type {
   RlsActiveRow,
   RlsDialect,
@@ -24,6 +25,11 @@ export type RlsSqlContext = {
   /** The policy's scopes in order (the implicit `tenant` / `team` pair when it declares none). */
   readonly scopes: readonly Scope[];
   readonly memberships?: RlsMemberships;
+  /**
+   * `database` mode: the `fromTable` / `fromJunction` sources the helpers read
+   * for a scope `memberships` maps no table for (the same SQL the hook runs).
+   */
+  readonly sources?: readonly SqlMembershipSource[];
   readonly tenantClaim: string;
   readonly gucPrefix: string;
   readonly inlineFunctions?: boolean;
@@ -287,6 +293,31 @@ export function permittedIdsHelper(name: string): string {
     throw new Error(`PermDock CLI: unsafe scope name '${name}'`);
   }
   return `permitted_${name}_ids`;
+}
+
+/** The helper returning the ids of scope `name` the subject holds any live membership of. */
+export function memberIdsHelper(name: string): string {
+  if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
+    throw new Error(`PermDock CLI: unsafe scope name '${name}'`);
+  }
+  return `member_${name}_ids`;
+}
+
+/**
+ * The membership sources that can hold scope `name` when `memberships` maps
+ * no table for it: every `fromTable` source and the `fromJunction` sources of
+ * that scope. Empty outside `database` mode.
+ */
+export function scopeSources(
+  ctx: RlsSqlContext,
+  name: string,
+): readonly SqlMembershipSource[] {
+  if (ctx.authorize !== 'database' || scopeTable(ctx, name) !== undefined) {
+    return [];
+  }
+  return (ctx.sources ?? []).filter(
+    (source) => source.sql.scope === undefined || source.sql.scope === name,
+  );
 }
 
 /** The membership table mapped for scope `name`, with the column of its id and of the first scope's id. */
@@ -812,6 +843,13 @@ function compileMemberOf(
           ];
     });
     return `(${[primary, ...extras].join(' or ')})`;
+  }
+  if (
+    scope !== undefined &&
+    condition.roles.length === 0 &&
+    scopeSources(ctx, scope).length > 0
+  ) {
+    return `${quoteIdent(condition.field)} in (select ${quoteIdent(ctx.schema ?? 'public')}.${memberIdsHelper(scope)}())`;
   }
   if (scope !== undefined && scope === rootScope(ctx.scopes)) {
     return `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`;

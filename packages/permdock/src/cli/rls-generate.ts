@@ -38,6 +38,7 @@ import {
   checkSuspension,
   graphHelper,
   parseMembershipsFlag,
+  scopeSources,
   scopeTable,
 } from './rls-sql.ts';
 
@@ -159,7 +160,13 @@ export async function runRlsGenerate(input: {
     input.authorize ??
     rls?.authorize ??
     rls?.rbac?.authorize ??
-    defaultAuthorize(input.rbac, memberships);
+    (rls?.membershipSources === undefined
+      ? defaultAuthorize(input.rbac, memberships)
+      : 'database');
+  const sources =
+    authorize === 'database'
+      ? (rls?.membershipSources ?? input.config.supabase?.hook?.memberships)
+      : undefined;
   const scopes = scopeList(policy.scopes);
   const suspension = checkSuspension(rls?.suspension, scopes);
   const ownership = ownershipRules(policy, scopes);
@@ -177,6 +184,7 @@ export async function runRlsGenerate(input: {
     ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(memberships === undefined ? {} : { memberships }),
+    ...(sources === undefined || sources.length === 0 ? {} : { sources }),
     ...(suspension === undefined ? {} : { suspension }),
     ...(input.customRoles === true || rls?.customRoles === true
       ? { customRoles: customRoleNames(policy) }
@@ -200,9 +208,13 @@ export async function runRlsGenerate(input: {
   if (authorize === 'database') {
     for (const { name } of ctx.scopes) {
       const needs = policy.grants.some((grant) => grant.scope === name);
-      if (needs && scopeTable(ctx, name) === undefined) {
+      if (
+        needs &&
+        scopeTable(ctx, name) === undefined &&
+        scopeSources(ctx, name).length === 0
+      ) {
         warnings.push(
-          `${name}-scoped grants read the ${name} memberships table in database mode: set rls.memberships.scopes.${name} (or --memberships for the first scope), otherwise they deny`,
+          `${name}-scoped grants read the ${name} memberships table in database mode: set rls.memberships.scopes.${name}, rls.membershipSources or supabase.hook.memberships (or --memberships for the first scope), otherwise they deny`,
         );
       }
     }

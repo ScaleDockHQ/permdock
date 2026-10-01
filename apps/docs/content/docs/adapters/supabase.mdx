@@ -1,9 +1,9 @@
 ---
 title: Supabase
-description: The permdock/supabase provider maps Supabase JWT claims to a PermDock subject, scaffolds the authorize() RBAC tables and hook, and pairs them with the per-statement RLS helpers (permdock_has, one permitted_<scope>_ids per named scope) that generated policies call.
+description: The permdock/supabase provider maps Supabase JWT claims to a PermDock subject, scaffolds the authorize() RBAC tables and hook, and pairs them with the per-statement RLS helpers (permdock_has, permitted_<scope>_ids and member_<scope>_ids per named scope) that generated policies call.
 ---
 
-`permdock/supabase` is a provider: it does not check permissions itself, it produces the subject PermDock checks against, from a Supabase session or access token. It also owns the Supabase-specific half of [RLS generation](/docs/adapters/rls): the `user_roles` / `authorize()` / hook scaffold from Supabase's RBAC guide, over the same `role_permissions` table the generated RLS helpers (`permdock_has`, `permitted_<scope>_ids`) read.
+`permdock/supabase` is a provider: it does not check permissions itself, it produces the subject PermDock checks against, from a Supabase session or access token. It also owns the Supabase-specific half of [RLS generation](/docs/adapters/rls): the `user_roles` / `authorize()` / hook scaffold from Supabase's RBAC guide, over the same `role_permissions` table the generated RLS helpers (`permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids`) read.
 
 ## Purpose
 
@@ -44,7 +44,7 @@ export default defineConfig({
   - re-runnable enums `app_role` and `app_permission`;
   - table `user_roles(user_id, role)` (a user may hold several roles), with RLS enabled and no client grants;
   - the shared `role_permissions(role, permission, grant_key, scope, effect)` table and its seed rows, from role grants and top-level `definePolicy({ grants })` alike (every `rls generate` emits these, with or without `--rbac`);
-  - the `permdock_has` helper and one `permitted_<scope>_ids` per declared scope, `security definer` with `search_path = ''`, executable by `authenticated` only;
+  - the `permdock_has` helper and one `permitted_<scope>_ids` and one `member_<scope>_ids` per declared scope, `security definer` with `search_path = ''`, executable by `authenticated` only;
   - `authorize()` as above, executable by `authenticated` only;
   Everything lands in the chosen schema. It emits no token hook: `permdock supabase hook generate` is the one generator of `custom_access_token_hook`, so one function writes `user_role`, `memberships` and the other claims ([Supabase token hook](/docs/adapters/supabase-hook)). The hook reads the same `user_roles` table by default.
 - A global role's grant compiles to `(select "public".permdock_has('post.delete'))`; a tenant-scoped role's grant to `"orgId" in (select "public".permitted_tenant_ids('post.update#2'))`; conditions AND onto their branch, and one policy per table and command ORs the branches. `insert` policies carry only `with check`. No policy calls `authorize()` with a row column, which would run it once per row.
@@ -208,7 +208,7 @@ const subject = subjectFromSupabaseSession(session, { roles: 'user_role' })
 | `authz_ver` | `permdock_authz_version`, unless `version: false` | No |
 | each `supabase.hook.claims` key | Its `<schema>.<function>(uuid)`; left out for a suspended user | No |
 
-The helpers the claims feed come from `permdock rls generate`, so a new project runs both commands: `permdock rls generate --target sql --out supabase/migrations/<n>_permdock_rls.sql` and then `permdock supabase hook generate`. `hook generate` warns with PD039 while the helper schema has no `permdock_has` or `permitted_<scope>_ids`, reading `rls.out` and the migration folders, or the database with `--db`.
+The helpers the claims feed come from `permdock rls generate`, so a new project runs both commands: `permdock rls generate --target sql --out supabase/migrations/<n>_permdock_rls.sql` and then `permdock supabase hook generate`. `hook generate` warns with PD039 while the helper schema has no `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids`, reading `rls.out` and the migration folders, or the database with `--db`.
 
 
 Claims travel in the session cookie and on every request. Keep the hook's `memberships` claim under about 1 KB of JSON: about 15 UUID-keyed, single-role memberships. `permdock/testing` exports this ceiling as `supabaseMembershipsBudget`, along with `supabaseClaimFixtures` in the hook's shape. Above the ceiling, or when a role change must apply before the next token refresh, switch to database mode. The hook writes no memberships, the helpers and `authorize()` read the membership table, and the app passes rows from its own query to `snapshotFor(policy, claims, { memberships })`. JWT mode costs a token refresh of staleness (`jwt_expiry`, 3600 s by default); database mode costs a query per snapshot.

@@ -413,14 +413,14 @@ describe('permdock supabase hook generate against Postgres', () => {
       const missing = await generate();
       expect(missing.code).toBe(0);
       expect(missing.stdout).toContain(
-        'PD039 schema public has no permdock_has, permitted_organization_ids, permitted_customer_ids',
+        'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, permitted_customer_ids, member_customer_ids',
       );
       await db.admin.query(
         'create function public.permdock_has(p_grant text) returns boolean language sql as $$ select false $$',
       );
       const partial = await generate();
       expect(partial.stdout).toContain(
-        'PD039 schema public has no permitted_organization_ids, permitted_customer_ids',
+        'PD039 schema public has no permitted_organization_ids, member_organization_ids, permitted_customer_ids, member_customer_ids',
       );
     } finally {
       rmSync(dir, { recursive: true, force: true });

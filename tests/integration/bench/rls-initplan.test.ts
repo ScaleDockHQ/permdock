@@ -254,4 +254,25 @@ describe('rls helpers run once per statement (InitPlan)', () => {
     expect(after * SPEEDUP).toBeLessThanOrEqual(before);
     expect(after).toBeLessThan(CEILING_MS);
   });
+
+  it('calls member_tenant_ids once in a membership-only policy', async () => {
+    await db?.admin.query(`
+      do $$ declare p record; begin
+        for p in select policyname from pg_policies where tablename = 'post' loop
+          execute format('drop policy %I on public.post', p.policyname);
+        end loop;
+      end $$;
+      create policy "members_read_post" on public.post for select to authenticated
+        using ("orgId" in (select "public".member_tenant_ids()));
+    `);
+    const membership = await measure();
+    expect(membership.ids).toEqual(helper?.ids);
+    const calls = nodes(membership.plans[0]!.Plan).filter((node) =>
+      callsHelper(node, 'member_tenant_ids'),
+    );
+    expect(calls.length).toBeGreaterThan(0);
+    for (const node of calls) {
+      expect(node['Actual Loops']).toBe(1);
+    }
+  });
 });

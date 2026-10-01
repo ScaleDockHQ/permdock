@@ -52,6 +52,7 @@ The role check of every grant lives in a generated function, never in the per-ro
 
 - `<schema>.permdock_has(p_grant text) returns boolean`: the subject holds a global role with the grant key.
 - `<schema>.permitted_<scope>_ids(p_grant text) returns setof <scope type>`, one per [named scope](/docs/concepts/scopes) the policy declares (`permitted_tenant_ids` and `permitted_team_ids` when it declares none): the instances of that scope in which the subject holds it, through memberships of exactly that scope.
+- `<schema>.member_<scope>_ids() returns setof <scope type>`, one per declared scope: the instances of that scope the subject holds any live membership of. It takes no permission key, for policies such as "a member may read their organization's row".
 
 They join the subject's roles (the `user_roles` table in `database` mode, the role claim in `jwt` mode) or memberships (the memberships table, or the `memberships` claim) with a generated `<schema>.role_permissions (role, permission, grant_key, scope, effect)` table that `generate` seeds from the policy. The grant key is the permission key; roles that grant one permission under different portable conditions get one key per condition group (`post.update#1`, `post.update#2`), and each group is one OR branch of the policy with its condition ANDed on. `relation`, `principal.id` and `where` conditions stay in the policy because they depend on the row.
 
@@ -93,6 +94,7 @@ Other packages call the helpers from policies PermDock does not generate: better
 | --- | --- | --- |
 | `<schema>.permdock_has(p_grant text)` | `boolean` | The caller holds a global role whose grants include `p_grant` |
 | `<schema>.permitted_<scope>_ids(p_grant text)` | `setof <scope type>` | The instances of `<scope>` in which the caller holds a role that grants `p_grant`, through memberships of exactly that scope; with the active-tenant claim set, only inside that tenant |
+| `<schema>.member_<scope>_ids()` | `setof <scope type>` | The instances of `<scope>` the caller holds any live membership of, with any role; not narrowed to the active tenant |
 | `<schema>.permitted_<resource>_ids(p_relation text)` | `setof text` | The ids of `<resource>` the caller holds `p_relation` on in the [relationship graph](#closure-table), every graph relation when `p_relation` is `null` |
 
 - **Grant keys.** `p_grant` is a permission key (`invoice.read`). PermDock's own policies pass `invoice.read#1`, `invoice.read#2` for the condition groups of one permission; the part after `#` is internal, so another package passes the plain key and gets the grants that carry no condition group.

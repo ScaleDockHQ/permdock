@@ -57,6 +57,16 @@ Every generated file starts with the helper functions and the table they read, a
 | `role_permissions (role, permission, grant_key, scope, effect)` | Which declared role holds which grant key at which scope (`global` or a scope name). Seeded by `generate` with an upsert; rows it no longer emits are deleted. |
 | `permdock_has(p_grant text) returns boolean` | Does the subject hold a global role with this grant key |
 | `permitted_<scope>_ids(p_grant text) returns setof <scope type>` | Which instances of the scope the subject holds this grant key in, through memberships of exactly that scope (no cascade) |
+| `member_<scope>_ids() returns setof <scope type>` | Which instances of the scope the subject holds any live membership of, whatever the role; no permission key, no cascade and no active-tenant narrowing |
+
+`member_<scope>_ids()` answers "which organizations am I in" for a policy that has no permission to name: an organization switcher, the `organizations` row a member may read, or a co-member check on `profiles`:
+
+```sql
+create policy "organizations_select" on "organizations" as permissive for select to authenticated
+  using ("id" in (select "public".member_organization_ids()));
+```
+
+It drops expired memberships, suspended users and suspended instances by the same rules as `permitted_<scope>_ids`. A portal contact on `customer` is not in `member_organization_ids()`, because a membership of a child scope is not one of its parent. A `memberOf` condition with no roles compiles to the same call when the scope's memberships come from `rls.membershipSources`.
 
 The helpers are `language sql stable security definer set search_path = ''` with fully qualified names; `execute` is revoked from `public` and `anon` and granted to `authenticated`, except that `anon` also gets it when a [field view](#field-views) that `anon` reads calls them. Policies call them uncorrelated, so Postgres evaluates each call once per statement instead of once per row:
 
@@ -72,7 +82,7 @@ A grant key is the permission key. When roles grant one permission with differen
 
 | Mode | Global roles | Scope memberships |
 | --- | --- | --- |
-| `database` | `<schema>.user_roles (user_id, role)`: the RBAC scaffold's table, or one `generate` creates | Each scope's table from `rls.memberships.scopes.<scope>` (`--memberships` and `rls.memberships.tenant` / `.team` for the first and second scope); without one, that helper returns no rows and the command warns |
+| `database` | `<schema>.user_roles (user_id, role)`: the RBAC scaffold's table, or one `generate` creates | Each scope's table from `rls.memberships.scopes.<scope>` (`--memberships` and `rls.memberships.tenant` / `.team` for the first and second scope); otherwise the `fromTable` / `fromJunction` sources in `rls.membershipSources`, default `supabase.hook.memberships`; with neither, that helper returns no rows and the command warns |
 | `jwt` | The `rls.roleClaim` claim (default `user_role`, a string or an array; Supabase falls back to `app_metadata`) | The `memberships` claim, `[{ scope, id, within?, roles, expiresAt? }]`; each helper reads the entries whose `scope` is its own |
 
 With the `guc` dialect the claims are settings: `<prefix>.user_role` holds a comma-separated role list and `<prefix>.memberships` holds the JSON array. When the active-tenant claim is set, the helper of every scope under the first only returns memberships inside that tenant (the membership's `id` for the first scope, its `within` entry for the others).
@@ -93,6 +103,22 @@ rls: {
     },
   },
 }
+```
+
+A membership table that holds every scope (`memberships (user_id, scope, scope_id, role)`) or a contact table with fixed roles has no per-scope mapping. Pass the [membership sources](/docs/adapters/supabase-hook#sources) instead: the helpers then run the same `select` the token hook and the application's `MembershipSource` run, so the three agree by construction. A row with a null user column is never a membership.
+
+```ts
+import { fromJunction, fromTable } from 'permdock/supabase';
+
+const memberships = [
+  fromTable({ table: 'memberships', columns: { via: 'via', expiresAt: 'expires_at' } }),
+  fromJunction({ table: 'contacts', scope: 'customer', within: { organization: 'organization_id' }, roles: ['contact'], via: 'contact' }),
+];
+
+export default {
+  rls: { authorize: 'database', membershipSources: memberships },
+  supabase: { hook: { memberships } },
+};
 ```
 
 `tenant` and `team` on a table are shorthands for the first and second scope's column, so `{ table, tenant: 'org_id', user, role }` keeps working. `via` names the column holding the membership kind (`Membership.via`): when a role declares `for`, the helpers and the `exists` checks on resource and nested-scope membership tables count it only on rows whose kind is listed, and a table without a `via` column holds such a role for nothing. In `jwt` mode the kind is the membership entry's `via`, and a role with `for` in the global role claim grants nothing.

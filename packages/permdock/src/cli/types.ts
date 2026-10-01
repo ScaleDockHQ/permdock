@@ -69,6 +69,13 @@ export type RlsConfig = {
   readonly tables?: Readonly<Record<string, string>>;
   readonly dialect?: RlsDialect;
   readonly memberships?: RlsMemberships;
+  /**
+   * `database` mode: the `fromTable` / `fromJunction` sources the helpers
+   * read for every scope `memberships` maps no table for. Default
+   * `supabase.hook.memberships`, so the helpers and the token hook run the
+   * same SQL. Setting it selects `database` mode.
+   */
+  readonly membershipSources?: readonly SqlMembershipSource[];
   /** Tables the helpers, `authorize()` and the token hook read to drop suspended users and scope instances. */
   readonly suspension?: RlsSuspension;
   readonly functions?: Readonly<Record<string, RlsFunctionMapping>>;
@@ -98,7 +105,7 @@ export type RlsConfig = {
     /** Model name per table name; defaults to the PascalCased table name. */
     readonly models?: Readonly<Record<string, string>>;
   };
-  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`) (and the RBAC scaffold). Default `public`. */
+  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids`) (and the RBAC scaffold). Default `public`. */
   readonly schema?: string;
   /** Where the helpers read roles and memberships: `database` tables or `jwt` claims. */
   readonly authorize?: 'database' | 'jwt';
