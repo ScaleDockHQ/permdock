@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import type { Condition } from '../../src/conditions/ast.ts';
 import type {
   PrismaCombinators,
   PrismaFieldProxy,
 } from '../../src/prisma/predicate.ts';
 
+import { PermDockValidationError } from '../../src/core/errors.ts';
 import { toPredicate } from '../../src/prisma/predicate.ts';
 
 function field(name: string): PrismaFieldProxy {
@@ -98,5 +100,103 @@ describe('permdock/prisma toPredicate (Prisma 8)', () => {
         { combinators },
       )(model),
     ).toThrow(/forbidden/);
+    expect(() =>
+      toPredicate(
+        { op: 'contains', field: 'tags', value: 'a' },
+        { combinators, listFields: ['tags'] },
+      )(model),
+    ).toThrow(/list field 'tags'/);
+    expect(() =>
+      toPredicate(
+        { op: 'contains', field: 'title', value: 5 },
+        { combinators },
+      )(model),
+    ).toThrow(/non-string value on 'title'/);
+    expect(() =>
+      toPredicate(
+        { op: 'eq', field: 'orgId', value: 'o1' },
+        { combinators, fields: { orgId: '__proto__' } },
+      )(model),
+    ).toThrow(/forbidden/);
+  });
+
+  const cases: readonly {
+    readonly condition: Condition;
+    readonly sql: string;
+  }[] = [
+    { condition: { op: 'gt', field: 'a', value: 1 }, sql: 'a > 1' },
+    { condition: { op: 'gte', field: 'a', value: 1 }, sql: 'a >= 1' },
+    { condition: { op: 'lt', field: 'a', value: 1 }, sql: 'a < 1' },
+    { condition: { op: 'lte', field: 'a', value: 1 }, sql: 'a <= 1' },
+    {
+      condition: { op: 'notIn', field: 'a', value: ['x', 'y'] },
+      sql: 'not a in ["x","y"]',
+    },
+    {
+      condition: { op: 'notIn', field: 'a', value: [] },
+      sql: 'a is not null',
+    },
+    { condition: { op: 'isNull', field: 'a', value: true }, sql: 'a is null' },
+    {
+      condition: { op: 'isNull', field: 'a', value: false },
+      sql: 'a is not null',
+    },
+    { condition: { op: 'eq', field: '_', value: true }, sql: 'id is not null' },
+    {
+      condition: {
+        op: 'or',
+        conditions: [
+          { op: 'eq', field: 'a', value: 1 },
+          { op: 'eq', field: 'b', value: 2 },
+        ],
+      },
+      sql: '(a = 1 or b = 2)',
+    },
+  ];
+
+  for (const { condition, sql } of cases) {
+    it(`spells ${JSON.stringify(condition)}`, () => {
+      expect(toPredicate(condition, { combinators })(model)).toBe(sql);
+    });
+  }
+
+  it('spells ne and renames fields', () => {
+    expect(
+      toPredicate(
+        { op: 'ne', field: 'orgId', value: 'o1' },
+        { combinators, fields: { orgId: 'org_id' } },
+      )(model),
+    ).toBe('org_id <> "o1"');
+    expect(
+      toPredicate(
+        { op: 'contains', field: 'name', value: 'a_b' },
+        { combinators, fields: { name: 'display_name' } },
+      )(model),
+    ).toBe('display_name like "%a\\\\_b%"');
+  });
+
+  it('refuses opaque SQL', () => {
+    expect(() =>
+      toPredicate(
+        { op: 'opaque', sql: 'true', fingerprint: 'f' },
+        { combinators },
+      ),
+    ).toThrow(PermDockValidationError);
+  });
+
+  it('loads the Prisma combinators by default and explains a missing install', () => {
+    expect(() => toPredicate({ op: 'eq', field: 'a', value: 1 })).toThrow(
+      /needs @prisma\/orm-postgres/,
+    );
+    const spy = vi
+      .spyOn(process, 'getBuiltinModule')
+      .mockReturnValue(undefined);
+    try {
+      expect(() => toPredicate({ op: 'eq', field: 'a', value: 1 })).toThrow(
+        /pass `combinators` on runtimes without require/,
+      );
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

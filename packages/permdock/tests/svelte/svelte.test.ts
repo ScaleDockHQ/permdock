@@ -25,6 +25,12 @@ import {
   permissions as defs,
   policy,
 } from '../fixtures/quick-start.ts';
+import {
+  alice,
+  ownProject,
+  permissions as saas,
+  policy as saasPolicy,
+} from '../fixtures/saas.ts';
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
@@ -84,6 +90,24 @@ describe('permdock/svelte', () => {
     expect(get(approvalFor(store, () => canEdit.decision)).state).toBe(
       'not-needed',
     );
+  });
+
+  it('decides <Protected> for another tenant through protectedView', async () => {
+    const server = await createPermDock(saasPolicy, alice, { tenant: 'acme' });
+    const snapshot = server.snapshot({ tenants: 'all' });
+    if (snapshot instanceof Promise) {
+      throw new Error('expected JSON snapshot');
+    }
+    const store = createSvelteStore({ snapshot, tenant: 'globex' });
+    const globexProject = { ...ownProject, id: 'g1', orgId: 'globex' };
+    const slots = [
+      protectedView(store, saas.project.update, ownProject, 'acme'),
+      protectedView(store, saas.project.update, globexProject, 'globex'),
+    ].map((view) => [view.slot, view.status, view.allowed]);
+    expect(slots).toEqual([
+      ['default', 'ready', true],
+      ['fallback', 'ready', false],
+    ]);
   });
 
   it('builds the approval resume header', () => {

@@ -206,12 +206,14 @@ function render(
           return eb(column, 'not in', node.value);
         case 'contains':
           return containsExpr(eb, column, node.field, node.value, options);
+        /* v8 ignore next 4 */
         default: {
           const exhaustive: never = node.op;
           throw new Error(`PermDock: unknown compare '${String(exhaustive)}'`);
         }
       }
     }
+    /* v8 ignore next 6 */
     default: {
       const exhaustive: never = node;
       throw new Error(

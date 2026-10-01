@@ -244,12 +244,14 @@ function render(
           return ops.notInArray(col, node.value as readonly unknown[]);
         case 'contains':
           return containsSql(col, node.value, ops);
+        /* v8 ignore next 4 */
         default: {
           const exhaustive: never = node.op;
           throw new Error(`PermDock: unknown compare '${String(exhaustive)}'`);
         }
       }
     }
+    /* v8 ignore next 6 */
     default: {
       const exhaustive: never = node;
       throw new Error(

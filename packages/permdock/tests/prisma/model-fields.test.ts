@@ -87,6 +87,15 @@ describe('prismaModelFields', () => {
     expect(() => prismaModelFields(SCHEMA, 'Missing')).toThrow(
       /not in the datamodel/,
     );
+    expect(() => prismaModelFields({ models: [] }, 'Post')).toThrow(
+      /not in the datamodel/,
+    );
+  });
+
+  it('skips lines inside a model that are not field declarations', () => {
+    expect(
+      prismaModelFields('model Note {\n  id String @id\n  1x\n}\n', 'Note'),
+    ).toEqual({ required: ['id'], lists: [] });
   });
 
   it('feeds toWhere through the field mapping', () => {

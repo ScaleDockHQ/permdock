@@ -116,6 +116,7 @@ function foldRequired(
     case 'compare':
     case 'sql':
       return node;
+    /* v8 ignore next 6 */
     default: {
       const exhaustive: never = node;
       throw new Error(
@@ -153,6 +154,7 @@ function render(
       return { NOT: render(node.item, options, tests) };
     // Unreachable: Prisma takes no `memberships` mapping, so `memberOf`
     // compiles from the subject. Fail closed if it ever arrives.
+    /* v8 ignore next 6 */
     case 'exists':
       return {
         [fieldName(node.rowField, options.fields)]: {
@@ -161,6 +163,7 @@ function render(
       };
     // Unreachable: Prisma takes no `relations` mapping, so `related` is
     // refused unless `resolveRelated` turned it into ids first.
+    /* v8 ignore next 2 */
     case 'sql':
       return { ...EMPTY_OR };
     case 'compare': {
@@ -193,12 +196,14 @@ function render(
                       : node.value,
                 },
               };
+        /* v8 ignore next 4 */
         default: {
           const exhaustive: never = node.op;
           throw new Error(`PermDock: unknown compare '${String(exhaustive)}'`);
         }
       }
     }
+    /* v8 ignore next 6 */
     default: {
       const exhaustive: never = node;
       throw new Error(

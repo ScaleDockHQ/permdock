@@ -126,10 +126,13 @@ function render(
       );
     case 'not':
       return ops.not(render(node.item, model, options, ops));
+    // Unreachable: toPredicate passes no memberships or relations to compileWhere.
+    /* v8 ignore start */
     case 'exists':
       throw refused('memberOf with a memberships table');
     case 'sql':
       throw refused('relationship grant; resolve it first with resolveRelated');
+    /* v8 ignore stop */
     case 'compare': {
       const field = proxy(node.field);
       switch (node.op) {
@@ -170,12 +173,14 @@ function render(
           }
           return field.like(`%${escapeLike(node.value)}%`);
         }
+        /* v8 ignore next 4 */
         default: {
           const exhaustive: never = node.op;
           throw new Error(`PermDock: unknown compare '${String(exhaustive)}'`);
         }
       }
     }
+    /* v8 ignore next 6 */
     default: {
       const exhaustive: never = node;
       throw new Error(

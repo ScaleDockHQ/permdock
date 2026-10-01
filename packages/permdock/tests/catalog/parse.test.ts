@@ -296,6 +296,17 @@ describe('parseCatalog', () => {
       },
     });
     expect(() => parseCatalog(throwing)).toThrow(PermDockValidationError);
+    const throwingValue = mutated(() => undefined);
+    Object.defineProperty(throwingValue, 'generator', {
+      enumerable: true,
+      get(): never {
+        // oxlint-disable-next-line no-throw-literal, typescript/only-throw-error -- a getter may throw a non-Error value
+        throw 'boom';
+      },
+    });
+    expect(() => parseCatalog(throwingValue)).toThrow(
+      'Could not read the input: boom',
+    );
   });
 });
 

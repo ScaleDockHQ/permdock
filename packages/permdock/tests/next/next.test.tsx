@@ -446,9 +446,122 @@ describe('permdock/next', () => {
     );
     expect(await new Response(prelude).text()).toContain('locked');
   });
+
+  it('refuses to load in a browser', () => {
+    vi.stubGlobal('document', {});
+    try {
+      expect(() =>
+        createPermDock(policy, { subject: () => memberUser }),
+      ).toThrow(/permdock\/next is server-only/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('drops a failing tenant resolver and rethrows a Next.js interrupt from it', async () => {
+    const failing = createPermDock(policy, {
+      subject: () => memberUser,
+      tenant: () => {
+        throw new Error('no cookie');
+      },
+    });
+    expect((await failing.getPermDock()).subject.principal?.tenant).toBe(
+      undefined,
+    );
+    const redirecting = createPermDock(policy, {
+      subject: () => memberUser,
+      tenant: () => redirect('/pick-tenant'),
+    });
+    await expect(redirecting.getPermDock()).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    });
+  });
+
+  it('denies from getPermission when the instance cannot be built', async () => {
+    const { getPermission } = createPermDock(policy, {
+      subject: () => redirect('/login'),
+    });
+    expect(await getPermission(permissions.post.read, ownPost)).toEqual({
+      allowed: false,
+      status: 'ready',
+      decision: {
+        outcome: 'denied',
+        denials: [{ role: null, reason: 'no-grant' }],
+        alternatives: [],
+      },
+    });
+  });
+
+  it('checks requireAccess in the requested tenant', async () => {
+    const tenants: (string | undefined)[] = [];
+    const { requireAccess } = createPermDock(policy, {
+      subject: () => memberUser,
+      tenant: () => {
+        tenants.push('fallback');
+        return 'fallback';
+      },
+    });
+    const decision = await requireAccess({
+      permission: permissions.post.update,
+      data: ownPost,
+      tenant: 'acme',
+    });
+    expect(decision.outcome).toBe('granted');
+    expect(tenants).toEqual([]);
+  });
+
+  it('renders the tenant-scoped provider and fails closed when the instance throws', async () => {
+    const scoped = createPermDock(policy, { subject: () => memberUser });
+    const guard = (
+      <Protected
+        permission={permissions.post.update}
+        data={ownPost}
+        pending={<span>loading</span>}
+        fallback={<span>locked</span>}
+      >
+        <span>edit</span>
+      </Protected>
+    );
+    const tenantRun = await prerender(
+      scoped.PermDockProvider({ tenant: 'o1', children: guard }),
+    );
+    expect(await new Response(tenantRun.prelude).text()).toContain('edit');
+    const interrupted = createPermDock(policy, {
+      subject: () => redirect('/login'),
+    });
+    const { prelude } = await prerender(
+      interrupted.PermDockProvider({ children: guard }),
+    );
+    expect(await new Response(prelude).text()).toContain('locked');
+  });
+
+  it('writes to a sink without flush and with synchronous writes', async () => {
+    const written: unknown[] = [];
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+      sink: {
+        write: (events) => {
+          written.push(...events);
+        },
+      },
+    });
+    const dock = await getPermDock();
+    dock.decide(permissions.post.update, ownPost);
+    expect(written).toHaveLength(1);
+  });
 });
 
 describe('cacheLifeFor', () => {
+  it('reads the clock without issuedAt or now', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(1_000_000);
+      expect(cacheLifeFor({ expiresAt: 1060 })).toEqual({ stale: 60 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('uses max for values that never expire', () => {
     expect(cacheLifeFor(null)).toEqual({ stale: 300 });
     expect(cacheLifeFor({ issuedAt: 100 })).toEqual({ stale: 300 });
