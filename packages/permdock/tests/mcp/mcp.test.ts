@@ -75,7 +75,7 @@ function text(result: { readonly content?: unknown }): string {
 }
 
 async function names(client: Client): Promise<string[]> {
-  const listed = await client.listTools(undefined, { cache: 'bypass' });
+  const listed = await client.listTools(undefined, { cacheMode: 'bypass' });
   return listed.tools.map((tool) => tool.name).toSorted();
 }
 
@@ -179,7 +179,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     const { client } = await connect(server, session);
 
     expect(await names(client)).toEqual(['list_posts', 'update_post']);
-    const listed = await client.listTools(undefined, { cache: 'bypass' });
+    const listed = await client.listTools(undefined, { cacheMode: 'bypass' });
     const update = listed.tools.find((tool) => tool.name === 'update_post');
     expect(update).toMatchObject({
       title: 'Update a post',
@@ -358,7 +358,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     );
     const asked: string[] = [];
     client.setRequestHandler('elicitation/create', async (request) => {
-      const url = new URL(String(request.params.url));
+      const url = new URL('url' in request.params ? request.params.url : '');
       asked.push(`${url.origin}${url.pathname}`);
       await resolveApproval(store, url.searchParams.get('token') ?? '', {
         status: 'approved',
@@ -437,7 +437,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     eliciting.client.setRequestHandler(
       'elicitation/create',
       async (request) => {
-        urls.push(String(request.params.url));
+        urls.push('url' in request.params ? request.params.url : '');
         return { action: 'decline' };
       },
     );
@@ -481,7 +481,7 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     const { client } = await connect(server, {
       authInfo: auth(['post:list', 'post:update', 'post:delete']),
     });
-    const listed = await client.listTools(undefined, { cache: 'bypass' });
+    const listed = await client.listTools(undefined, { cacheMode: 'bypass' });
     const byName = new Map(listed.tools.map((tool) => [tool.name, tool]));
     expect(byName.get('list_posts')?.annotations).toEqual({
       readOnlyHint: true,
@@ -620,17 +620,19 @@ describe('permdock/mcp on @modelcontextprotocol/server 2', () => {
     ).rejects.toThrow(/Denied/u);
 
     const resources = await client.listResources(undefined, {
-      cache: 'bypass',
+      cacheMode: 'bypass',
     });
     expect(resources.resources.map((resource) => resource.uri)).toEqual([]);
     const templates = await client.listResourceTemplates(undefined, {
-      cache: 'bypass',
+      cacheMode: 'bypass',
     });
     expect(
       templates.resourceTemplates.map((template) => template.uriTemplate),
     ).toEqual(['posts://{id}']);
 
-    const prompts = await client.listPrompts(undefined, { cache: 'bypass' });
+    const prompts = await client.listPrompts(undefined, {
+      cacheMode: 'bypass',
+    });
     expect(prompts.prompts.map((prompt) => prompt.name)).toEqual(['summarise']);
     await expect(client.getPrompt({ name: 'announce' })).rejects.toThrow(
       /Denied/u,

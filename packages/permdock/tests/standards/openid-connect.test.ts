@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import type { JwtSubjectOptions } from '../../src/jwt/index.ts';
 
+import { compact } from '../../src/core/compact.ts';
 import { assurance } from '../../src/core/grantee.ts';
 import { createPermDock } from '../../src/core/permdock.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
@@ -485,11 +486,12 @@ describe('OpenID Connect Back-Channel Logout 1.0', () => {
       issuer: ISSUER,
       audience: CLIENT,
       jwks: { keys: [publicJwk] },
-      subject: (setSubject, meta) => ({
-        id: String(setSubject['sub'] ?? setSubject['id']),
-        session: meta?.session,
-        issuer: meta?.issuer,
-      }),
+      subject: (setSubject, meta) =>
+        compact({
+          id: String(setSubject['sub'] ?? setSubject['id']),
+          session: meta?.session,
+          issuer: meta?.issuer,
+        }),
       onEvent: {
         'session-revoked': ({ subject }) => {
           seen.push(

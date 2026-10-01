@@ -139,7 +139,7 @@ describe('CAEP 1.0 event types', () => {
         jwks: { keys: [publicJwk] },
         subject: () => 'u_1',
         onEvent: {
-          [name]: ({ type }) => {
+          [name]: ({ type }: { readonly type: string }) => {
             handled.push(type);
           },
         },
@@ -316,12 +316,12 @@ describe('Audit path: CloudEvents 1.0.2 and OCSF 1.3.0', () => {
   async function decisionEvents(): Promise<DecisionEvent[]> {
     const events: DecisionEvent[] = [];
     for (const user of [{ id: 'u_1' }, null]) {
-      const dock = await createKernel(policy, user, { adapter: 'test' });
+      const dock = await createKernel(policy, user);
       dock.on('decision', (event) => {
         // SAFETY: the decision channel carries DecisionEvent payloads.
         events.push(event as DecisionEvent);
       });
-      dock.can(permissions.post.read, { id: 'p1' });
+      dock.decide(permissions.post.read, { id: 'p1' }, { adapter: 'test' });
     }
     return events;
   }

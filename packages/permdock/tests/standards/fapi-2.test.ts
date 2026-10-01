@@ -107,27 +107,29 @@ function request(dpop?: string, url = RESOURCE_URL): Request {
   });
 }
 
-function fapi(
-  causes: string[],
-  overrides: Partial<JwtSubjectOptions> = {},
-): JwtSubjectOptions {
+type Overrides = Partial<Omit<JwtSubjectOptions, 'profile'>> & {
+  readonly profile?: JwtSubjectOptions['profile'] | 'none';
+};
+
+function fapi(causes: string[], overrides: Overrides = {}): JwtSubjectOptions {
+  const { profile = 'fapi2', ...rest } = overrides;
   return {
     jwks: { keys: [as.publicJwk] },
     issuer: ISSUER,
     audience: AUDIENCE,
-    profile: 'fapi2',
+    ...(profile === 'none' ? {} : { profile }),
     sender: 'dpop',
     onAuth: (event) => {
       causes.push(String(event.cause));
     },
-    ...overrides,
+    ...rest,
   };
 }
 
 async function resolve(
   token: string,
   req: Request | undefined,
-  overrides: Partial<JwtSubjectOptions> = {},
+  overrides: Overrides = {},
 ): Promise<{ readonly id: string | undefined; readonly causes: string[] }> {
   const causes: string[] = [];
   const subject = await subjectFromJwt(token, fapi(causes, overrides), req);
@@ -239,7 +241,7 @@ describe('FAPI 2.0 Security Profile (Final), section 5.4.1 algorithms', () => {
     expect(strict.causes).toEqual(['alg-not-allowed']);
     const relaxed = await resolve(token, request(dpop), {
       jwks: { keys: [signer.publicJwk] },
-      profile: undefined,
+      profile: 'none',
     });
     expect(relaxed).toEqual({ id: 'u_1', causes: [] });
   });

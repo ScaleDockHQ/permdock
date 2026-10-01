@@ -98,7 +98,7 @@ function server(options: Partial<Parameters<typeof createPermDock>[1]> = {}) {
 }
 
 async function names(client: Client): Promise<string[]> {
-  const listed = await client.listTools(undefined, { cache: 'bypass' });
+  const listed = await client.listTools(undefined, { cacheMode: 'bypass' });
   return listed.tools.map((tool) => tool.name).toSorted();
 }
 
