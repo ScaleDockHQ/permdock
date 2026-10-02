@@ -422,6 +422,45 @@
           }
         }
       }
+    },
+    "delegations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "permissions"],
+        "properties": {
+          "from": {},
+          "to": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "validity": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "integer"
+              },
+              "until": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

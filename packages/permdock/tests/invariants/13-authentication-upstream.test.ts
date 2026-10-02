@@ -167,4 +167,49 @@ describe('invariant 13: authentication is upstream', () => {
       false,
     );
   });
+
+  it('takes the actor a policy delegation matches only from the adapter, never from headers or bodies', async () => {
+    const delegating = definePolicy(permissions, {
+      scopes: { organization: { key: 'orgId' } },
+      roles: [
+        role('viewer', [allow(permissions.project.read)], {
+          on: 'organization',
+        }),
+      ],
+      delegations: [
+        { from: 'viewer', to: 'eve', permissions: [permissions.project.read] },
+      ],
+      subject: (user: User | null) =>
+        user === null ? null : { id: user.id, memberships: user.memberships },
+    });
+    const { permdock } = createServerPermDock(delegating, {
+      subject: () => viewer,
+      tenant: 'o1',
+    });
+    const dock = await permdock(
+      new Request('https://api.example.com/projects', {
+        method: 'POST',
+        headers: {
+          'x-permdock-actor': JSON.stringify({ id: 'agent', kind: 'eve' }),
+          'x-tenant-id': 'o1',
+        },
+        body: JSON.stringify({ actor: { id: 'agent', kind: 'eve' } }),
+      }),
+    );
+    // No actor reached the subject, so this is a human call and the
+    // delegation plays no part; an actor from a header would have made it
+    // `granted` through the delegation ceiling.
+    expect(dock.subject.actor).toBeUndefined();
+    const asAgent = await createPermDock(delegating, viewer, {
+      actor: { id: 'agent', kind: 'eve' },
+      tenant: 'o1',
+    });
+    const plain = dock.snapshot();
+    const delegated = asAgent.snapshot();
+    if (plain instanceof Promise || delegated instanceof Promise) {
+      throw new Error('unsigned snapshot expected');
+    }
+    expect(plain.delegated).toBeUndefined();
+    expect(delegated.delegated).toEqual(['project.read']);
+  });
 });

@@ -131,6 +131,61 @@ describe('permdock diff', () => {
     expect(report.breaking).toEqual([]);
   });
 
+  it('treats an added delegation as safe and a removed or narrowed one as breaking', async () => {
+    const added = await diff(
+      'src/policy-before.ts',
+      'src/policy-delegated.ts',
+      '--json',
+    );
+    expect(added.code).toBe(0);
+    expect(parsed(added.stdout).delegations).toEqual({
+      added: [
+        {
+          from: { kind: 'role', role: 'member', scope: 'global' },
+          to: { kind: 'eve' },
+          permissions: ['post.read', 'post.update'],
+        },
+      ],
+      removed: [],
+      changed: [],
+    });
+
+    const removed = await diff(
+      'src/policy-delegated.ts',
+      'src/policy-before.ts',
+      '--json',
+    );
+    expect(removed.code).toBe(1);
+    expect(parsed(removed.stdout).breaking).toEqual([
+      {
+        kind: 'delegation-removed',
+        detail: expect.stringContaining(
+          '→ eve (post.read, post.update) removed',
+        ),
+      },
+    ]);
+
+    const narrowed = await diff(
+      'src/policy-delegated.ts',
+      'src/policy-delegated-less.ts',
+    );
+    expect(narrowed.code).toBe(1);
+    expect(narrowed.stdout).toContain(
+      'delegation-narrowed: delegation {"kind":"role","role":"member","scope":"global"} → eve (post.read): permissions removed: post.update, validity narrowed',
+    );
+
+    const widened = await diff(
+      'src/policy-delegated-less.ts',
+      'src/policy-delegated.ts',
+      '--json',
+    );
+    expect(widened.code).toBe(0);
+    expect(parsed(widened.stdout).delegations?.changed[0]?.changes).toEqual([
+      'permissions added: post.update',
+      'validity widened',
+    ]);
+  });
+
   it('flags the reverse of a narrowing as a widening and the reverse of a widening as breaking', async () => {
     const result = await diff(
       'src/policy-after.ts',
@@ -255,5 +310,74 @@ describe('permdock diff', () => {
     expect(result.stdout).toContain(
       'u1 post.delete: granted → approval-required',
     );
+  });
+
+  it('reports no outcome change for the same policy and names the tenant of a row', async () => {
+    const same = await diff(
+      'src/policy-before.ts',
+      'src/policy-before.ts',
+      '--impact',
+      '--fixtures',
+      'fixtures.json',
+    );
+    expect(same.code).toBe(0);
+    expect(same.stdout).toContain('impact: no fixture changes outcome');
+    const dir = tempDir();
+    const file = join(dir, 'fixtures.json');
+    writeFileSync(
+      file,
+      JSON.stringify({
+        fixtures: [
+          {
+            subject: { id: 'u1', roles: ['member'], tenant: 'o1' },
+            row: { id: 'p1', authorId: 'u1', orgId: 'o1' },
+            action: 'post.publish',
+          },
+          {
+            subject: { id: 'u1', roles: ['member'] },
+            row: { id: 'p1' },
+            action: 'post.unknown',
+          },
+        ],
+      }),
+    );
+    const result = await diff(
+      'src/policy-before.ts',
+      'src/policy-after.ts',
+      '--impact',
+      '--fixtures',
+      file,
+      '--json',
+    );
+    expect(result.code).toBe(1);
+    expect(parsed(result.stdout).impact).toEqual([
+      {
+        action: 'post.publish',
+        subject: 'u1',
+        tenant: 'o1',
+        before: 'granted',
+        after: 'denied',
+      },
+    ]);
+    const text = await diff(
+      'src/policy-before.ts',
+      'src/policy-after.ts',
+      '--impact',
+      '--fixtures',
+      file,
+    );
+    expect(text.stdout).toContain('u1 in o1 post.publish: granted → denied');
+  });
+
+  it('exits 2 when the fixtures file cannot be read', async () => {
+    const result = await diff(
+      'src/policy-before.ts',
+      'src/policy-after.ts',
+      '--impact',
+      '--fixtures',
+      'missing.fixtures.json',
+    );
+    expect(result.code).toBe(2);
+    expect(result.stdout).toContain('missing.fixtures.json');
   });
 });

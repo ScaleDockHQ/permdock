@@ -23,7 +23,7 @@ const permdock = await createPermDock(policy, user, {
 | `actor` | The adapter, from `authInfo.clientId`, runtime context, signature or Agent Card | Who is making the call | Trusted after the runtime verified it; never from prompt content |
 | `delegation` | The adapter, from token scopes, `authorization_details`, a GNAP `access` array or a delegation chain | What the principal allowed the actor to do | Trusted after token verification; intersected, never added to |
 
-A call with no `actor` is a human call and behaves exactly as `createPermDock(policy, user)`. A call with an `actor` and no `delegation` (or a `delegation` with no `scopes`, `authorizationDetails` or `access`) has no delegated authority: every check is `denied` with reason `no-delegation`, and the snapshot carries an empty `scopes` list so a client ceiling agrees. Token-based adapters supply the token's scopes; in-process agent adapters take a `delegation` option from the application and apply none by default.
+A call with no `actor` is a human call and behaves exactly as `createPermDock(policy, user)`. A call with an `actor` and no `delegation` (or a `delegation` with no `scopes`, `authorizationDetails` or `access`) has no delegated authority unless a [policy delegation](#policy-delegations) covers the actor: every check is `denied` with reason `no-delegation`, and the snapshot carries an empty `scopes` list so a client ceiling agrees. Token-based adapters supply the token's scopes; in-process agent adapters take a `delegation` option from the application and apply none by default.
 
 ## Attenuation invariants
 
@@ -34,11 +34,48 @@ A call with no `actor` is a human call and behaves exactly as `createPermDock(po
 5. **Deny is not delegable away.** A `deny` grant applies regardless of delegation; an agent cannot be delegated around a deny.
 6. **Fail closed on unknowns.** An `authorization_details` type PermDock does not recognise, a scope that matches no permission, or a malformed chain contributes nothing; it never widens.
 
+## Policy delegations
+
+A token says what one principal handed to one client for one session. Some delegations are standing policy instead: every member may let the company's Eve agent read and update posts for them; finance admins may let one named billing agent read invoices. Stating that in each token would repeat the policy in the authorization server, and the in-process agent adapters have no token at all. `definePolicy` takes `delegations` for this:
+
+```ts
+const policy = definePolicy(permissions, {
+  roles: [member, admin],
+  delegations: [
+    {
+      from: roles.member,                         // who hands over: the same selectors as approval.by
+      to: actor('eve'),                           // which actor kind; { kind, id } names one agent
+      permissions: [permissions.post.read, permissions.post.update],
+      validUntil: '2027-06-01T00:00:00Z',         // optional, as on a grant
+    },
+    { from: roles.admin, to: { kind: 'eve', id: 'agent-billing' }, permissions: [permissions.invoice] },
+  ],
+  subject,
+})
+```
+
+Each entry is normalised to `{ from, to: { kind, id? }, permissions: string[], validity? }` on `policy.delegations`, in the fingerprint, and in the catalog's `delegations` section, so `permdock diff` reports a removed or narrowed one as breaking. `from` takes a role, `authenticated()`, a plan or `assurance()`; `relation()` and `actor()` are refused, because a delegation is matched without a row and the actor is `to`. `permissions` names leaves or subtrees of the policy's own tree.
+
+How it applies, in `decide` and on the snapshot client alike:
+
+- When the subject has an `actor`, the active delegations whose `to` matches the actor's `kind` (and `id`, when set) and whose `from` the principal holds in the active tenant are united into a ceiling of permission keys. `delegatedPermissions(policy.delegations, subject, heldRoles, now)` is that computation, exported from `permdock`; `snapshot.delegated` carries the sorted result to the client.
+- A permission outside the ceiling is `denied` with reason `not-delegated`. Inside it, a token `delegation` on the same call must still cover the permission (`coveredByDelegation` runs as before): a token can only narrow a policy delegation, never widen it. With no token delegation, the ceiling alone decides; the `no-delegation` denial applies only when no policy delegation matched the actor.
+- The principal's grants are still evaluated first, so the ceiling adds nothing the user lacks, a `where` still filters, a `deny` still wins, and an approval is still required.
+- A delegation is revoked by removing it from the policy or by its `validUntil`. The [`RevocationFeed`](/docs/standards/shared-signals-caep) stays a connection signal: it ends sessions and never grants or shapes a decision, so dynamic revocation of a live delegation goes through the token layer or `context`, never through the feed.
+
+### Why
+
+- **A standing delegation belongs in the policy.** "This agent kind may act for members on these permissions" is a statement about the application, the same kind as a grant, and it was being made in three places with no shared source: the AI SDK `delegation` option, the token scopes an authorization server mints, and prose. Putting it in `definePolicy` gives it a fingerprint, a catalog entry, a `diff`, and a policy-matrix vector, and lets `permdock doctor` and an audit see which actors may act for whom.
+- **It is a ceiling, not a grant.** The design that would have been easiest, treating a delegation as a grant to the actor, breaks "Agent ≤ user": an agent would hold access the user does not. So the delegation never enters the allow list; it only replaces the token in the delegation check, after the principal's grants have decided. Every attenuation invariant above holds without a special case.
+- **Token and policy intersect.** When both are present the call must satisfy both, because either one may be the narrower statement: the token knows this session's consent, the policy knows the application's standing rule. Letting one override the other would make the wider one the effective rule.
+- **Actor kind, optionally id.** Agents are typically a fleet of one kind (`'eve'`, `'mcp-client'`), so the kind is the natural unit; a single trusted agent is `{ kind, id }`. Matching only on id would make a renamed agent silently lose its delegation, matching only on kind could not express a one-agent rule.
+- **The feed does not revoke a delegation.** `RevocationFeed` means "end this session" and is kept that way by `naming.mdc`; a feed that also edited the policy would be a second decision path (invariant 15). Removing the entry, or letting `validUntil` pass, is the revocation, and both are visible in the catalog and `diff`.
+
 ## Coverage check
 
 `decide`, `snapshot` and the agent kernel share one coverage check, exported from `permdock` as `coveredByDelegation(permission, delegation, resourceId?, hasActor?)`. `permission` needs only `scope`, `resource` and `action`, so a leaf that crossed a serialisation boundary works. It returns `undefined` when the delegation covers the permission, and otherwise the denial reason `decide` adds:
 
-- `no-delegation` when `hasActor` is `true` and there is no delegation, a delegation with no `scopes`, `authorizationDetails` or `access`, or only empty `scopes` and `access` lists.
+- `no-delegation` when `hasActor` is `true` and there is no delegation, a delegation with no `scopes`, `authorizationDetails` or `access`, or only empty `scopes` and `access` lists. `decide` passes `hasActor: false` when a policy delegation covers the actor, so that denial is reserved for an actor nothing delegated to.
 - `not-delegated` when no scope equals the permission's `scope`, no `authorizationDetails` entry has `type` equal to the resource with a matching `actions` list and `identifier`, and no GNAP `access` entry matches (a reference string equal to the scope, or an object whose `type` is the resource or ends in `/<resource>`).
 
 A PDP outside PermDock core, such as the PermDock Cloud AuthZEN endpoint, calls it to stay identical to local decisions instead of reimplementing the rules. It narrows only; the principal's grants still decide.

@@ -14,6 +14,7 @@ import { parseDuration } from './duration.ts';
 import { sanitizeFields } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import {
+  type ActorGrantee,
   type Grantee,
   type GranteeInput,
   asGrantee,
@@ -32,6 +33,7 @@ import {
   type PermissionKind,
   type PermissionTree,
   type ResourceNode,
+  findPermission,
   getRegistry,
   isFieldRelation,
   isPermission,
@@ -251,6 +253,35 @@ export type GrantValidity = {
   readonly until?: number;
 };
 
+/** The actor a policy delegation is for: an actor kind, narrowed to one id when `id` is set. */
+export type DelegationTarget = {
+  readonly kind: string;
+  readonly id?: string;
+};
+
+/**
+ * A normalised policy delegation: holders of `from` let actors matching `to`
+ * use `permissions` (keys) on their behalf while `validity` holds, without a
+ * token saying so. Attenuation only: the principal's grants still decide.
+ */
+export type PolicyDelegation = {
+  readonly from: Grantee | readonly Grantee[];
+  readonly to: DelegationTarget;
+  readonly permissions: readonly string[];
+  readonly validity?: GrantValidity;
+};
+
+export type DelegationInput = {
+  /** Who hands over: the same subject-only selectors as `approval.by` (a role, `authenticated()`, a plan, `assurance()`); not `relation()`. */
+  readonly from: GranteeInput;
+  /** Which actor may act: `actor('eve')`, an actor kind, or `{ kind, id }` for one agent. */
+  readonly to: ActorGrantee | string | DelegationTarget;
+  /** The leaves or subtrees the actor may use; a deny grant still applies. */
+  readonly permissions: readonly (Permission | PermissionTree)[];
+  readonly validFrom?: string | number;
+  readonly validUntil?: string | number;
+};
+
 /** A declared scope name (or the `tenant` / `team` alias), or the resource a role is held on. */
 export type RoleScope<S extends string = string> =
   | S
@@ -385,6 +416,8 @@ export type Policy<
   readonly hostable: readonly string[];
   /** Permission keys that deny with `stale-credentials` when the subject's token is behind the source. */
   readonly fresh?: readonly string[];
+  /** Policy delegations in declaration order; absent or empty when the policy declares none. */
+  readonly delegations?: readonly PolicyDelegation[];
 };
 
 export { requiresApproval } from './approval-required.ts';
@@ -484,6 +517,79 @@ function flattenPermissions(
   }
   // SAFETY: leaves and arrays returned above, so the remaining input is a PermissionTree.
   return [...listPermissions(input as PermissionTree)];
+}
+
+function delegationTarget(
+  to: DelegationInput['to'],
+  index: number,
+): DelegationTarget {
+  if (typeof to === 'string') {
+    return { kind: to };
+  }
+  if ('actor' in to) {
+    return { kind: to.actor };
+  }
+  const target = compact<DelegationTarget>({ kind: to.kind, id: to.id });
+  if (typeof target.kind !== 'string' || target.kind === '') {
+    throw new Error(
+      `PermDock: delegations[${index}].to needs an actor kind, such as actor('eve')`,
+    );
+  }
+  if (
+    target.id !== undefined &&
+    (typeof target.id !== 'string' || target.id === '')
+  ) {
+    throw new Error(
+      `PermDock: delegations[${index}].to.id must be a non-empty string`,
+    );
+  }
+  return target;
+}
+
+function normalizeDelegation(
+  input: DelegationInput,
+  index: number,
+  tree: PermissionTree,
+): PolicyDelegation {
+  const label = `delegations[${index}]`;
+  const from = asGrantee(input.from);
+  const items = flattenGrantee(from);
+  if (items.length === 0) {
+    throw new Error(`PermDock: ${label}.from names nobody`);
+  }
+  if (items.some((item) => item.kind === 'relation')) {
+    throw new Error(
+      `PermDock: ${label}.from names a relation; a delegation is matched without a row, so name a role or another subject-only grantee`,
+    );
+  }
+  if (items.some((item) => item.kind === 'actor')) {
+    throw new Error(
+      `PermDock: ${label}.from names an actor; the principal hands over, the actor is \`to\``,
+    );
+  }
+  const keys = [
+    ...new Set(
+      input.permissions
+        .flatMap((item) => flattenPermissions(item))
+        .map((leaf) => {
+          if (findPermission(tree, leaf.key) === undefined) {
+            throw new Error(
+              `PermDock: ${label} names unknown permission '${leaf.key}'`,
+            );
+          }
+          return leaf.key;
+        }),
+    ),
+  ].toSorted();
+  if (keys.length === 0) {
+    throw new Error(`PermDock: ${label}.permissions is empty`);
+  }
+  return compact<PolicyDelegation>({
+    from,
+    to: delegationTarget(input.to, index),
+    permissions: keys,
+    validity: normalizeValidity(input, label),
+  });
 }
 
 function resolveRoleScope(on: RoleScope | undefined): Grant['scope'] {
@@ -823,6 +929,17 @@ function roleRules(
   });
 }
 
+function canonicalPolicy(
+  grants: readonly Grant[],
+  delegations: readonly PolicyDelegation[],
+): string {
+  const payload = canonicalGrants(grants);
+  if (delegations.length === 0) {
+    return payload;
+  }
+  return `${payload}\n${JSON.stringify(delegations)}`;
+}
+
 function canonicalGrants(grants: readonly Grant[]): string {
   const payload = grants.map((grant) => ({
     permission: grant.permission.key,
@@ -1137,6 +1254,12 @@ export type DefinePolicyOptions<
    * deny with `stale-credentials`.
    */
   readonly fresh?: readonly (Permission | PermissionTree)[];
+  /**
+   * Standing delegations: holders of `from` let actors matching `to` use
+   * `permissions` for them without a token saying so. A token delegation on
+   * the call still applies as well; both must cover.
+   */
+  readonly delegations?: readonly DelegationInput[];
 };
 
 export function definePolicy<
@@ -1186,7 +1309,12 @@ export function definePolicy<
   assertScopeKeys(grants, scopes, resources);
   assertApprovalVersions(grants, resources);
   assertRelationGrants(grants, resources);
-  const fingerprint = bytesToBase64Url(sha256(canonicalGrants(grants)));
+  const delegations = (options.delegations ?? []).map((item, index) =>
+    normalizeDelegation(item, index, tree),
+  );
+  const fingerprint = bytesToBase64Url(
+    sha256(canonicalPolicy(grants, delegations)),
+  );
   const hostable = [
     ...new Set(
       (options.hostable ?? []).flatMap((item) =>
@@ -1219,6 +1347,7 @@ export function definePolicy<
     providers: options.providers,
     hostable,
     fresh,
+    delegations: delegations.length === 0 ? undefined : delegations,
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }
 

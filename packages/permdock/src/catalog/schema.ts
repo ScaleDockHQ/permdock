@@ -17,6 +17,13 @@ export type CatalogSchemaNode = {
 };
 
 const name = { type: 'string', pattern: '^[a-z][a-z0-9_]*$' } as const;
+const validity = {
+  type: 'object',
+  properties: {
+    from: { type: 'integer' },
+    until: { type: 'integer' },
+  },
+} as const;
 const strings = { type: 'array', items: { type: 'string' } } as const;
 const approval = {
   oneOf: [
@@ -204,13 +211,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           check: {},
           approval,
           fields: strings,
-          validity: {
-            type: 'object',
-            properties: {
-              from: { type: 'integer' },
-              until: { type: 'integer' },
-            },
-          },
+          validity,
           name: { type: 'string' },
           purpose: strings,
           limit: {
@@ -223,6 +224,23 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
             },
           },
           portable: { const: false },
+        },
+      },
+    },
+    delegations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['from', 'to', 'permissions'],
+        properties: {
+          from: {},
+          to: {
+            type: 'object',
+            required: ['kind'],
+            properties: { kind: { type: 'string' }, id: { type: 'string' } },
+          },
+          permissions: strings,
+          validity,
         },
       },
     },

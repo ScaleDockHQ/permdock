@@ -202,6 +202,8 @@ export type {
   BreakGlassSpec,
   ClosureContext,
   ClosureGrantFn,
+  DelegationInput,
+  DelegationTarget,
   Grant,
   GrantCondition,
   GrantLimit,
@@ -211,6 +213,7 @@ export type {
   HostedGrantRef,
   MembershipFixture,
   Policy,
+  PolicyDelegation,
   SeparationConflict,
   PrincipalOf,
   PolicyScopes,
@@ -285,7 +288,10 @@ export type {
 export { OCSF_VERSION, accessToOcsf, toOcsf } from './core/ocsf.ts';
 export { CSV_COLUMNS, toCsvRow } from './core/csv.ts';
 export { catalogFingerprint } from './core/catalog-fingerprint.ts';
-export { coveredByDelegation } from './core/delegation.ts';
+export {
+  coveredByDelegation,
+  delegatedPermissions,
+} from './core/delegation.ts';
 export {
   capabilitySubject,
   linkPolicyViolation,

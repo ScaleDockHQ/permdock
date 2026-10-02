@@ -8,6 +8,7 @@ import type {
 import type {
   CatalogApproval,
   CatalogBreakGlass,
+  CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
   ScanResult,
@@ -127,6 +128,9 @@ export function buildCatalog(
       ? {}
       : { plans: scan.planNames.map((key) => ({ key })) }),
     ...(policy === undefined ? {} : { grants: catalogGrants(policy) }),
+    ...(policy?.delegations === undefined
+      ? {}
+      : { delegations: catalogDelegations(policy) }),
   };
   const head = {
     $schema: CATALOG_SCHEMA,
@@ -218,6 +222,26 @@ export function catalogGrants(policy: Policy): readonly CatalogGrant[] {
     const right = keyOf(b);
     return left < right ? -1 : left > right ? 1 : 0;
   });
+}
+
+/** Every policy delegation, sorted by canonical JSON so declaration order does not matter. */
+export function catalogDelegations(
+  policy: Policy,
+): readonly CatalogDelegation[] {
+  return (policy.delegations ?? [])
+    .map((delegation) =>
+      withDefined({
+        from: delegation.from,
+        to: delegation.to,
+        permissions: delegation.permissions,
+        validity: delegation.validity,
+      }),
+    )
+    .toSorted((a, b) => {
+      const left = canonicalJson(a);
+      const right = canonicalJson(b);
+      return left < right ? -1 : left > right ? 1 : 0;
+    });
 }
 
 /** Per permission key, the distinct approvals the code allows require, in policy order. */

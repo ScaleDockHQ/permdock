@@ -1,6 +1,10 @@
 import type { DenialReason } from './decision.ts';
 import type { Permission } from './permissions.ts';
-import type { Delegation, GnapAccess } from './subject.ts';
+import type { PolicyDelegation } from './policy.ts';
+import type { Delegation, GnapAccess, Subject } from './subject.ts';
+
+import { flattenGrantee, matchGrantee } from './grantee.ts';
+import { isActive } from './validity.ts';
 
 type DelegatedPermission = Pick<Permission, 'scope' | 'resource' | 'action'>;
 
@@ -115,4 +119,67 @@ export function resourceIdOf(data: unknown): string | undefined {
   return typeof id === 'string' || typeof id === 'number'
     ? String(id)
     : undefined;
+}
+
+/**
+ * Whether the subject's principal is a `from` of the delegation: every item
+ * matches, with roles checked against the roles the principal holds here
+ * (`matchGrantee` leaves role holding to the caller) and nothing that needs a
+ * row.
+ */
+function handsOver(
+  delegation: PolicyDelegation,
+  subject: Subject,
+  heldRoles: ReadonlySet<string>,
+  now: number,
+): boolean {
+  const items = flattenGrantee(delegation.from);
+  if (items.length === 0 || subject.principal === null) {
+    return false;
+  }
+  return items.every((item) => {
+    if (item.kind === 'role') {
+      return heldRoles.has(item.role);
+    }
+    if (item.kind === 'relation') {
+      return false;
+    }
+    const match = matchGrantee(item, subject, now, undefined);
+    return match.matched && match.where === undefined;
+  });
+}
+
+/**
+ * The permission keys the policy's delegations let `subject.actor` use for
+ * `subject.principal` right now: the union over every active delegation whose
+ * `to` matches the actor and whose `from` the principal holds. `undefined`
+ * when none applies, so the call falls back to the token delegation alone.
+ * Attenuation only: a key here still needs a matching allow and no deny.
+ */
+export function delegatedPermissions(
+  delegations: readonly PolicyDelegation[] | undefined,
+  subject: Subject,
+  heldRoles: ReadonlySet<string>,
+  now: number,
+): ReadonlySet<string> | undefined {
+  const actor = subject.actor;
+  if (actor === undefined || delegations === undefined) {
+    return undefined;
+  }
+  let keys: Set<string> | undefined;
+  for (const delegation of delegations) {
+    if (
+      delegation.to.kind !== actor.kind ||
+      (delegation.to.id !== undefined && delegation.to.id !== actor.id) ||
+      !isActive(delegation.validity, now) ||
+      !handsOver(delegation, subject, heldRoles, now)
+    ) {
+      continue;
+    }
+    keys ??= new Set<string>();
+    for (const key of delegation.permissions) {
+      keys.add(key);
+    }
+  }
+  return keys;
 }

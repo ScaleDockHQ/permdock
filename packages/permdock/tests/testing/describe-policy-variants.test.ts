@@ -4,6 +4,7 @@ import {
   allow,
   definePermissions,
   definePolicy,
+  deny,
   resource,
   role,
 } from '../../src/index.ts';
@@ -54,6 +55,60 @@ describe('describePolicy with nested rows', () => {
       [permissions.doc.read.key]: {
         doc: { vera: 'granted', ghost: 'denied' },
         stray: 'denied',
+      },
+    },
+  });
+});
+
+/**
+ * The attenuation invariants of security/delegation.mdx, one vector each,
+ * exercised through a policy delegation and checked on the snapshot client too.
+ */
+const delegating = definePolicy(permissions, {
+  roles: [
+    role('viewer', [allow(permissions.doc.read), allow(permissions.doc.list)]),
+    role('editor', [
+      allow(permissions.doc.read),
+      allow(permissions.doc.update, { where: { locked: false } }),
+      deny(permissions.doc.update, { where: { id: 'frozen' }, name: 'freeze' }),
+    ]),
+  ],
+  delegations: [
+    { from: 'viewer', to: 'eve', permissions: [permissions.doc.read] },
+    { from: 'editor', to: 'eve', permissions: [permissions.doc] },
+  ],
+  subject: (user: { readonly id: string; readonly roles: string[] } | null) =>
+    user,
+});
+
+describe('describePolicy through a policy delegation', () => {
+  describePolicy(delegating, {
+    subjects: {
+      vera: { id: 'vera', roles: ['viewer'] },
+      ed: { id: 'ed', roles: ['editor'] },
+    },
+    fixtures: {
+      open: { id: 'd1', locked: false },
+      locked: { id: 'd2', locked: true },
+      frozen: { id: 'frozen', locked: false },
+    },
+    options: { actor: { id: 'agent-1', kind: 'eve' } },
+    snapshot: true,
+    matrix: {
+      // Agent ≤ user: a delegation never adds what the principal lacks.
+      [permissions.doc.read.key]: {
+        open: { vera: 'granted', ed: 'granted' },
+      },
+      // Outside the delegated set is not-delegated even though the user may.
+      [permissions.doc.list.key]: {
+        vera: { denials: [{ role: null, reason: 'not-delegated' }] },
+        ed: { denials: [{ role: null, reason: 'no-grant' }] },
+      },
+      // Conditions intersect and a deny is not delegable away.
+      [permissions.doc.update.key]: {
+        open: { vera: 'denied', ed: 'granted' },
+        locked: { ed: { denials: [{ reason: 'condition' }] } },
+        frozen: { ed: { deniedBy: 'freeze' } },
       },
     },
   });

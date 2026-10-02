@@ -19,7 +19,11 @@ import type { CustomRole, Membership, Subject } from './subject.ts';
 import { evaluateCondition } from '../conditions/evaluate.ts';
 import { compact } from './compact.ts';
 import { isCustomRoleName, holdsCustomRole } from './custom-roles.ts';
-import { coveredByDelegation, resourceIdOf } from './delegation.ts';
+import {
+  coveredByDelegation,
+  delegatedPermissions,
+  resourceIdOf,
+} from './delegation.ts';
 import {
   actorRequiredVias,
   evaluateBreakGlass,
@@ -951,11 +955,28 @@ export function evaluate(
     });
   }
 
+  // A policy delegation is a ceiling for the actor: outside it, nothing is
+  // delegated; inside it, a token delegation on the call must still cover.
+  const ceiling = delegatedPermissions(
+    policy.delegations,
+    subject,
+    matchingRoles,
+    now,
+  );
+  if (ceiling !== undefined && !ceiling.has(permission.key)) {
+    return complete({
+      outcome: 'denied',
+      denials: [{ role: null, reason: 'not-delegated' }],
+      alternatives: env.skipAlternatives
+        ? []
+        : alternativesFor(policy, permission, subject, now, env),
+    });
+  }
   const delegationMiss = coveredByDelegation(
     permission,
     subject.delegation,
     resourceIdOf(current),
-    subject.actor !== undefined,
+    subject.actor !== undefined && ceiling === undefined,
   );
   if (delegationMiss !== undefined) {
     return complete({

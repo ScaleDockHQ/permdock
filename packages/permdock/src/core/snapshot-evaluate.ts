@@ -410,11 +410,21 @@ export function evaluateSnapshot(
       alternatives: [],
     });
   }
+  if (
+    snapshot.delegated !== undefined &&
+    !snapshot.delegated.includes(permission.key)
+  ) {
+    return done({
+      outcome: 'denied',
+      denials: [{ role: null, reason: 'not-delegated' }],
+      alternatives: [],
+    });
+  }
   const miss = coveredByDelegation(
     permission,
     subject.delegation,
     resourceIdOf(current),
-    subject.actor !== undefined,
+    subject.actor !== undefined && snapshot.delegated === undefined,
   );
   if (miss !== undefined) {
     return done({

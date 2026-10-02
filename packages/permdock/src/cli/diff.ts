@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 
 import type { Policy } from '../index.ts';
 import type {
+  CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
   CliIo,
@@ -25,6 +26,8 @@ export type BreakingKind =
   | 'allow-narrowed'
   | 'deny-added'
   | 'deny-changed'
+  | 'delegation-removed'
+  | 'delegation-narrowed'
   | 'access-lost';
 
 export type BreakingChange = {
@@ -38,6 +41,13 @@ export type BreakingChange = {
 export type GrantChange = {
   readonly before: CatalogGrant;
   readonly after: CatalogGrant;
+  readonly changes: readonly string[];
+};
+
+/** A delegation present on both sides with the same `from` and `to` and a different body. */
+export type DelegationChange = {
+  readonly before: CatalogDelegation;
+  readonly after: CatalogDelegation;
   readonly changes: readonly string[];
 };
 
@@ -70,6 +80,12 @@ export type CatalogDiff = {
     readonly added: readonly CatalogGrant[];
     readonly removed: readonly CatalogGrant[];
     readonly changed: readonly GrantChange[];
+  };
+  /** Absent when either catalog carries no `grants` section; a catalog with grants and no `delegations` declares none. */
+  readonly delegations?: {
+    readonly added: readonly CatalogDelegation[];
+    readonly removed: readonly CatalogDelegation[];
+    readonly changed: readonly DelegationChange[];
   };
   readonly impact?: readonly ImpactRow[];
   readonly breaking: readonly BreakingChange[];
@@ -263,6 +279,89 @@ function describeGrant(grant: CatalogGrant): string {
   return `${grant.effect} ${grant.permission} (${role}${scope})`;
 }
 
+function delegationIdentity(delegation: CatalogDelegation): string {
+  return canonicalJson({ from: delegation.from, to: delegation.to });
+}
+
+function describeDelegation(delegation: CatalogDelegation): string {
+  const to =
+    delegation.to.id === undefined
+      ? delegation.to.kind
+      : `${delegation.to.kind} ${delegation.to.id}`;
+  return `delegation ${canonicalJson(delegation.from)} → ${to} (${delegation.permissions.join(', ')})`;
+}
+
+function delegationChanges(
+  before: CatalogDelegation,
+  after: CatalogDelegation,
+): readonly string[] {
+  const changes: string[] = [];
+  const lost = before.permissions.filter(
+    (key) => !after.permissions.includes(key),
+  );
+  const gained = after.permissions.filter(
+    (key) => !before.permissions.includes(key),
+  );
+  if (lost.length > 0) {
+    changes.push(`permissions removed: ${lost.join(', ')}`);
+  }
+  if (gained.length > 0) {
+    changes.push(`permissions added: ${gained.join(', ')}`);
+  }
+  if (!same(before.validity, after.validity)) {
+    changes.push(validityChange(before.validity, after.validity));
+  }
+  return changes;
+}
+
+function diffDelegations(
+  a: readonly CatalogDelegation[],
+  b: readonly CatalogDelegation[],
+  breaking: BreakingChange[],
+): NonNullable<CatalogDiff['delegations']> {
+  const byIdentityA = new Map(
+    a.map((item) => [delegationIdentity(item), item]),
+  );
+  const byIdentityB = new Map(
+    b.map((item) => [delegationIdentity(item), item]),
+  );
+  const added: CatalogDelegation[] = [];
+  const removed: CatalogDelegation[] = [];
+  const changed: DelegationChange[] = [];
+  for (const [identity, before] of byIdentityA) {
+    const after = byIdentityB.get(identity);
+    if (after === undefined) {
+      removed.push(before);
+      breaking.push({
+        kind: 'delegation-removed',
+        detail: `${describeDelegation(before)} removed`,
+      });
+      continue;
+    }
+    const changes = delegationChanges(before, after);
+    if (changes.length === 0) {
+      continue;
+    }
+    changed.push({ before, after, changes });
+    const narrowing = changes.filter(
+      (item) =>
+        item.startsWith('permissions removed') || item === 'validity narrowed',
+    );
+    if (narrowing.length > 0) {
+      breaking.push({
+        kind: 'delegation-narrowed',
+        detail: `${describeDelegation(after)}: ${narrowing.join(', ')}`,
+      });
+    }
+  }
+  for (const [identity, after] of byIdentityB) {
+    if (!byIdentityA.has(identity)) {
+      added.push(after);
+    }
+  }
+  return { added, removed, changed };
+}
+
 function roleEntries(catalog: CatalogDocument): ReadonlyMap<string, string> {
   return new Map(
     (catalog.roles ?? []).map((role) => [role.key, canonicalJson(role)]),
@@ -390,6 +489,14 @@ export function diffCatalogs(a: Side, b: Side): CatalogDiff {
     }
     grants = { added, removed, changed };
   }
+  const delegations =
+    grants === undefined
+      ? undefined
+      : diffDelegations(
+          a.catalog.delegations ?? [],
+          b.catalog.delegations ?? [],
+          breaking,
+        );
   return {
     a: sideRef(a),
     b: sideRef(b),
@@ -397,6 +504,7 @@ export function diffCatalogs(a: Side, b: Side): CatalogDiff {
     scopes,
     roles: { ...roleNames, changed: changedRoles },
     ...(grants === undefined ? {} : { grants }),
+    ...(delegations === undefined ? {} : { delegations }),
     breaking,
   };
 }
@@ -505,6 +613,17 @@ function formatText(diff: CatalogDiff): string {
       diff.grants.changed.map(
         (change) =>
           `${describeGrant(change.after)}: ${change.changes.join(', ')}`,
+      ),
+    );
+  }
+  if (diff.delegations !== undefined) {
+    section(
+      'delegations',
+      diff.delegations.added.map(describeDelegation),
+      diff.delegations.removed.map(describeDelegation),
+      diff.delegations.changed.map(
+        (change) =>
+          `${describeDelegation(change.after)}: ${change.changes.join(', ')}`,
       ),
     );
   }

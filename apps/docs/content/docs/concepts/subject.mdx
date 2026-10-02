@@ -48,7 +48,7 @@ const permdock = await createPermDock(policy, user, { actor, delegation }) // ag
 const permdock = await createPermDock(policy, user, { tenant, memberships, customRoles }) // active tenant and the two subject-input sources
 ```
 
-The decision endpoint, MCP, AI SDK, HTTP and A2A adapters build the third argument for you; see "How adapters fill actor and delegation" below.
+The decision endpoint, MCP, AI SDK, HTTP and A2A adapters build the third argument for you; see "How adapters fill actor and delegation" below. An actor the adapter supplies without a `delegation` is still covered when the policy declares a standing one for its kind in `definePolicy({ delegations })`; that ceiling, the sorted permission keys, is `snapshot.delegated` ([policy delegations](/docs/security/delegation#policy-delegations)).
 
 ## Principal
 

@@ -35,6 +35,7 @@ import {
   holdsCustomRole,
   roleAllowKeys,
 } from './custom-roles.ts';
+import { delegatedPermissions } from './delegation.ts';
 import { type ActivateInput, activate } from './elevated.ts';
 import {
   PermDockApprovalRequiredError,
@@ -533,6 +534,12 @@ export function snapshotOf(
       now: Math.floor(now),
       vocabulary: policy.vocabulary,
       scopes: snapshotScopes(policy),
+      delegated: delegatedPermissions(
+        policy.delegations,
+        subject,
+        new Set(roles),
+        now,
+      ),
       assignable: (tenant: string) => {
         const found = assignableIn(
           policy,

@@ -232,6 +232,7 @@ A denial's `alternatives` peek rather than consume because they are advice, not 
 | `validate` | `'boundary'`, `'always'` or `'never'` | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation). |
 | `onDenied` | `(decision) => never \| void` | Optional default unauthorized handler for `assert`; runs last in the layered chain. |
 | `fresh` | `(Permission \| PermissionTree)[]` | Optional. Sensitive permissions that deny with `stale-credentials` when the subject's memberships come from a token behind the `MembershipSource` authorization version ([Supabase token hook](/docs/adapters/supabase-hook)). Live memberships are never stale. |
+| `delegations` | `{ from, to, permissions, validFrom?, validUntil? }[]` | Optional. Standing delegations: holders of `from` (a role, `authenticated()`, a plan, `assurance()`) let actors matching `to` (`actor('eve')`, a kind, or `{ kind, id }`) use `permissions` for them without a token saying so. A ceiling, never a grant: the principal's grants still decide, and a token delegation on the call must also cover ([delegation](/docs/security/delegation#policy-delegations)). Part of the fingerprint and the catalog. |
 
 The `principal` function is the only place PermDock touches your user object. It is called once per `createPermDock` and its return value is frozen. Anything not returned from it is invisible to conditions, which is deliberate: conditions can only reference values that also exist in the snapshot and in the SQL session.
 

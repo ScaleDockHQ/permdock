@@ -35,9 +35,11 @@ A change is breaking when it can take a decision from `granted` to something els
 | `allow-narrowed` | An allow whose counterpart gained or changed a `where` or `check`, gained or changed an `approval`, lost fields, started later or ends earlier (`validFrom` / `validUntil`), gained or changed a `limit`, changed `purpose`, or became non-portable |
 | `deny-added` | A deny in `b` with no counterpart in `a` |
 | `deny-changed` | A deny whose body changed in any way, since a looser deny condition denies more rows |
+| `delegation-removed` | A policy delegation in `a` (same `from` and `to`) is absent from `b`; the agents it covered lose every delegated permission |
+| `delegation-narrowed` | A delegation whose counterpart lost permission keys or whose validity starts later or ends earlier |
 | `access-lost` | With `--impact`: a fixture that was `granted` under `a` and is `denied` or `approval-required` under `b` |
 
-Not breaking: an added permission, scope, role or allow; a removed deny; an approval or condition removed from an allow; a wider field list or validity window; a role declaration change (`assignable`, `assigns`, `min`, `max` and so on), which is listed under `roles` as `~ name: declaration changed` but is not an access change on its own.
+Not breaking: an added permission, scope, role, allow or delegation; a removed deny; an approval or condition removed from an allow; a wider field list or validity window; more permission keys on a delegation; a role declaration change (`assignable`, `assigns`, `min`, `max` and so on), which is listed under `roles` as `~ name: declaration changed` but is not an access change on its own.
 
 ## Output
 
@@ -63,7 +65,7 @@ breaking (5)
   access-lost: u1 loses post.publish: granted → denied
 ```
 
-`--json` prints `{ a, b, permissions, scopes, roles, grants?, impact?, breaking }`: `a` and `b` carry each input's path and catalog `fingerprint`; `grants.added` and `grants.removed` are catalog grant entries, `grants.changed` pairs `before` and `after` with the list of `changes`; `impact` rows are `{ action, subject, tenant?, before, after }`; `breaking` entries are `{ kind, permission?, role?, detail }`.
+`--json` prints `{ a, b, permissions, scopes, roles, grants?, delegations?, impact?, breaking }`: `a` and `b` carry each input's path and catalog `fingerprint`; `grants.added` and `grants.removed` are catalog grant entries, `grants.changed` pairs `before` and `after` with the list of `changes`; `delegations` has the same three lists over the catalog's `delegations` section and is present whenever `grants` is; `impact` rows are `{ action, subject, tenant?, before, after }`; `breaking` entries are `{ kind, permission?, role?, detail }`.
 
 ## Exit codes
 
@@ -75,7 +77,7 @@ breaking (5)
 
 ## Why
 
-Every other command reads one policy; a review needs two. The catalog already is the policy's JSON twin that CI commits, and reviewers were reading its diff by hand, so the command compares catalogs rather than inventing a second format, and the catalog gained a `grants` section so that the diff could see conditions, approvals and validity instead of only keys and role names. Breaking is defined structurally rather than by evaluation because a diff must run with no subjects, rows or stores on a build machine; the conservative rule ("a changed condition may have narrowed") errs toward holding the pull request, and `--impact` with the project's own fixtures gives the exact answer when the structure alone is ambiguous. The fixture format is the one `rls verify` already uses so a team writes its subjects and rows once. The command never evaluates a real subject, like the rest of the CLI ([CLI](/docs/cli)).
+Every other command reads one policy; a review needs two. The catalog already is the policy's JSON twin that CI commits, and reviewers were reading its diff by hand, so the command compares catalogs rather than inventing a second format, and the catalog gained `grants` and `delegations` sections so that the diff could see conditions, approvals, validity and standing delegations instead of only keys and role names. Breaking is defined structurally rather than by evaluation because a diff must run with no subjects, rows or stores on a build machine; the conservative rule ("a changed condition may have narrowed") errs toward holding the pull request, and `--impact` with the project's own fixtures gives the exact answer when the structure alone is ambiguous. The fixture format is the one `rls verify` already uses so a team writes its subjects and rows once. The command never evaluates a real subject, like the rest of the CLI ([CLI](/docs/cli)).
 
 ## Related
 

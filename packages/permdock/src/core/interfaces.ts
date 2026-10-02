@@ -281,6 +281,13 @@ export type Snapshot = {
    * from applying; they grant nothing and name the plan a denial asks for.
    */
   readonly notEntitled?: readonly SnapshotNotEntitled[];
+  /**
+   * The permission keys the policy's delegations let the actor use for the
+   * principal, sorted; present only when one applies. Outside it a check is
+   * `not-delegated`; inside it a token delegation, when there is one, must
+   * still cover.
+   */
+  readonly delegated?: readonly string[];
 };
 
 /** A grant the subject would hold on another plan: its permission, role and `to`. */

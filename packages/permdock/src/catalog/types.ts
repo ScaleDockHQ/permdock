@@ -159,4 +159,14 @@ export type CatalogDocument = {
   readonly plans?: readonly { readonly key: string }[];
   /** Every code grant, canonically ordered; present when the catalog was built with the policy. */
   readonly grants?: readonly CatalogGrant[];
+  /** The policy's standing delegations, canonically ordered; present when the policy declares any. */
+  readonly delegations?: readonly CatalogDelegation[];
+};
+
+/** One `definePolicy({ delegations })` entry: who hands over, to which actor, which permission keys, and when. */
+export type CatalogDelegation = {
+  readonly from: unknown;
+  readonly to: { readonly kind: string; readonly id?: string };
+  readonly permissions: readonly string[];
+  readonly validity?: CatalogValidity;
 };

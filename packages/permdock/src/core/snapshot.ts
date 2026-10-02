@@ -102,6 +102,7 @@ export function buildSnapshot(input: {
   readonly scopes?: Snapshot['scopes'];
   readonly assignable?: (tenant: string) => SnapshotAssignable;
   readonly notEntitled?: readonly { readonly grant: Grant }[];
+  readonly delegated?: ReadonlySet<string>;
 }): Snapshot {
   const now = input.now ?? Math.floor(Date.now() / 1000);
   const principal = input.subject.principal;
@@ -153,7 +154,10 @@ export function buildSnapshot(input: {
                 tenant: principal.tenant,
                 memberships: principal.memberships,
               }),
-        delegation: snapshotDelegation(input.subject),
+        delegation: snapshotDelegation(
+          input.subject,
+          input.delegated !== undefined,
+        ),
         context: input.subject.context,
       }),
       roles: input.roles,
@@ -165,6 +169,10 @@ export function buildSnapshot(input: {
       expiresAt: input.subject.expiresAt,
       scopes: input.scopes,
       assignable: assignable.length > 0 ? assignable : undefined,
+      delegated:
+        input.delegated === undefined
+          ? undefined
+          : [...input.delegated].toSorted(),
       notEntitled: notEntitledOf(
         (input.notEntitled ?? []).filter((item) =>
           included(item.grant.permission),
@@ -220,9 +228,18 @@ export async function signSnapshot(
   return token;
 }
 
-function snapshotDelegation(subject: Subject): Delegation | undefined {
+/**
+ * The token delegation as the client sees it. An actor with no token
+ * delegation gets an empty `scopes` list so the client ceiling agrees with
+ * `no-delegation`, unless a policy delegation applies (`delegated`), which
+ * then is the ceiling.
+ */
+function snapshotDelegation(
+  subject: Subject,
+  delegated: boolean,
+): Delegation | undefined {
   const delegation = subject.delegation;
-  if (subject.actor === undefined) {
+  if (subject.actor === undefined || delegated) {
     return delegation;
   }
   if (

@@ -271,6 +271,7 @@ export type {
   CatalogActivation,
   CatalogApproval,
   CatalogBreakGlass,
+  CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
   CatalogPermission,
