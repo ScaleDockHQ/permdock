@@ -9,10 +9,12 @@ import type {
   CatalogApproval,
   CatalogBreakGlass,
   CatalogDocument,
+  CatalogGrant,
   ScanResult,
 } from './types.ts';
 
 import { catalogSchema } from '../catalog/schema.ts';
+import { canonicalJson } from '../core/canonical-json.ts';
 import {
   catalogFingerprint,
   findRole,
@@ -124,6 +126,7 @@ export function buildCatalog(
     ...(scan.planNames.length === 0
       ? {}
       : { plans: scan.planNames.map((key) => ({ key })) }),
+    ...(policy === undefined ? {} : { grants: catalogGrants(policy) }),
   };
   const head = {
     $schema: CATALOG_SCHEMA,
@@ -136,6 +139,82 @@ export function buildCatalog(
     fingerprint: catalogFingerprint({ ...head, ...body }),
     ...body,
   };
+}
+
+function catalogApproval(
+  approval: Grant['approval'],
+): CatalogApproval | undefined {
+  if (approval === undefined) {
+    return undefined;
+  }
+  return approval === 'human'
+    ? 'human'
+    : withDefined({
+        by: approval.by,
+        distinct: approval.distinct,
+        staleOn: approval.staleOn,
+      });
+}
+
+/**
+ * Every code grant in canonical order: by permission, allows before denies,
+ * then by role (top-level grants last) and finally by canonical JSON, so two
+ * catalogs of the same policy list the same grants in the same order
+ * whatever the declaration order was.
+ */
+function catalogGrant(grant: Grant): CatalogGrant {
+  const limit =
+    grant.limit === undefined
+      ? undefined
+      : withDefined({
+          count: grant.limit.count,
+          per: grant.limit.per,
+          mode: grant.limit.mode,
+        });
+  return {
+    permission: grant.permission.key,
+    effect: grant.effect,
+    role: grant.role,
+    to: grant.to,
+    scope: grant.scope,
+    ...withDefined({
+      where: grant.portable ? grant.where : undefined,
+      check: grant.portable ? grant.check : undefined,
+      approval: catalogApproval(grant.approval),
+      fields: grant.fields,
+      validity: grant.validity,
+      name: grant.name,
+      purpose: grant.purpose,
+      limit,
+      portable: grant.portable ? undefined : (false as const),
+    }),
+  };
+}
+
+/** The sort key of a catalog grant: permission, allows first, role (top-level last), then the canonical JSON. */
+function catalogGrantKey(grant: CatalogGrant): string {
+  return [
+    grant.permission,
+    grant.effect === 'allow' ? '0' : '1',
+    grant.role ?? '\uFFFF',
+    canonicalJson(grant),
+  ].join('\u0000');
+}
+
+export function catalogGrants(policy: Policy): readonly CatalogGrant[] {
+  const keys = new Map<CatalogGrant, string>();
+  const entries = policy.grants
+    .filter((grant) => grant.hosted === undefined)
+    .map(catalogGrant);
+  for (const entry of entries) {
+    keys.set(entry, catalogGrantKey(entry));
+  }
+  const keyOf = (grant: CatalogGrant): string => keys.get(grant) ?? '';
+  return entries.toSorted((a, b) => {
+    const left = keyOf(a);
+    const right = keyOf(b);
+    return left < right ? -1 : left > right ? 1 : 0;
+  });
 }
 
 /** Per permission key, the distinct approvals the code allows require, in policy order. */
@@ -152,14 +231,10 @@ function codeApprovals(
     ) {
       continue;
     }
-    const approval: CatalogApproval =
-      grant.approval === 'human'
-        ? 'human'
-        : withDefined({
-            by: grant.approval.by,
-            distinct: grant.approval.distinct,
-            staleOn: grant.approval.staleOn,
-          });
+    const approval = catalogApproval(grant.approval);
+    if (approval === undefined) {
+      continue;
+    }
     const id = `${grant.permission.key}\u0000${JSON.stringify(approval)}`;
     if (seen.has(id)) {
       continue;

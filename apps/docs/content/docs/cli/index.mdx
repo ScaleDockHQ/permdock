@@ -38,6 +38,7 @@ export default defineConfig({
 | --- | --- | --- |
 | `permdock collect` | Scan `srcPath[]` for `definePermissions()` and `permissions.x.y` usages; write the catalog and generated barrel; `--check` for CI | [collect](/docs/cli/collect) |
 | `permdock catalog` | Export the catalog as JSON, JSON Schema or Markdown | [catalog](/docs/cli/catalog) |
+| `permdock diff` | Compare two policies or catalogs: changed permissions, scopes, roles and grants; `--impact` runs the fixtures through both; exit `1` on a breaking change | [diff](/docs/cli/diff) |
 | `permdock usage` | Report defined-but-unused, used-but-ungranted and granted-by-no-role permissions, conditions on undeclared fields, and client checks outside a snapshot `include` | [usage](/docs/cli/usage) |
 | `permdock openapi` | Emit `security` and `securitySchemes` into an OpenAPI document, or import one into a generated definition; `--target 3.1\|3.2\|3.3` (`3.3` experimental: pinned Security Profile draft), `--format document\|overlay`, `--overlay 1.1\|1.2` (`1.2` experimental: pinned reusable-actions draft), `--profile fapi2`, `--profile-scheme`, `--arity`, `--authorization-url`, `--token-url`, `--check`; `import` takes JSON or YAML with `--schema`, `--map` and `--annotate` | [openapi](/docs/cli/openapi) |
 | `permdock arazzo check` | Resolve every Arazzo step to `x-permdock-permissions`; never evaluates a subject | [arazzo](/docs/cli/arazzo) |

@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-09-30T10:06:39.746Z",
+  "generatedAt": "2026-10-02T06:54:33.339Z",
   "generator": "permdock@0.1.0-next.2",
-  "fingerprint": "-FSIIwRLTv0colmwmlbV4v2KagAtX6MpVpuohO7K3N0",
+  "fingerprint": "2Yh7dFN44wQiMGA0v6gdQTR_Tf4eIWhxchbgx-mA0oo",
   "resources": {
     "post": {
       "id": "id",
@@ -251,6 +251,164 @@
     {
       "key": "member",
       "assignable": false
+    }
+  ],
+  "grants": [
+    {
+      "permission": "billing.invoice.pay",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "billing.invoice.read",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "billing.plan.change",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "billing.plan.view",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.create",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.delete",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.delete",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global",
+      "where": {
+        "op": "eq",
+        "field": "authorId",
+        "value": {
+          "ref": "principal.id"
+        }
+      },
+      "approval": "human"
+    },
+    {
+      "permission": "post.list",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.publish",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.publish",
+      "effect": "deny",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "scope": "global",
+      "where": {
+        "op": "eq",
+        "field": "published",
+        "value": true
+      }
+    },
+    {
+      "permission": "post.read",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.update",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.update",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "relation",
+        "resource": "post",
+        "relation": "author"
+      },
+      "scope": "global"
     }
   ]
 }

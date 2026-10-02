@@ -1,17 +1,9 @@
 import type * as Pg from 'pg';
 
-import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import type { Scope } from '../core/scopes.ts';
-import type {
-  CustomRole,
-  Membership,
-  PermDock,
-  Permission,
-  Policy,
-  Subject,
-} from '../index.ts';
+import type { CustomRole, PermDock, Permission, Policy } from '../index.ts';
 import type { CliIo, PermDockConfig, RlsDialect } from './types.ts';
 
 import { customRoleScope, membershipsClaim } from '../core/custom-roles.ts';
@@ -24,6 +16,12 @@ import {
 } from '../index.ts';
 import { supabaseTenantClaim } from '../supabase/budget.ts';
 import { policyRowConditionKeys } from './catalog-doc.ts';
+import {
+  type RlsFixture,
+  fixtureRow,
+  fixtureSubject,
+  loadFixtures,
+} from './fixtures.ts';
 import {
   HELPER_TABLE_POLICIES_SQL,
   helperTablePoliciesFromRows,
@@ -40,96 +38,10 @@ export type VerifyOutcome = {
   readonly output: string;
 };
 
-export type RlsFixture = {
-  readonly subject: {
-    readonly id: string;
-    readonly roles?: readonly string[];
-    readonly tenant?: string;
-    readonly memberships?: readonly Membership[];
-  };
-  readonly row: unknown;
-  readonly newRow?: unknown;
-  readonly action: string;
-  readonly expected?: 'granted' | 'denied';
-};
-
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function asFixtures(value: unknown): readonly RlsFixture[] {
-  const list = Array.isArray(value)
-    ? value
-    : isRecord(value) && Array.isArray(value['fixtures'])
-      ? value['fixtures']
-      : undefined;
-  if (list === undefined) {
-    throw new Error('PermDock CLI: fixtures must be an array or { fixtures }');
-  }
-  return list.map((item, index) => {
-    if (
-      !isRecord(item) ||
-      !isRecord(item['subject']) ||
-      item['row'] === undefined
-    ) {
-      throw new Error(`PermDock CLI: fixture ${index} needs subject and row`);
-    }
-    if (typeof item['action'] !== 'string') {
-      throw new TypeError(`PermDock CLI: fixture ${index} needs action`);
-    }
-    if (typeof item['subject']['id'] !== 'string') {
-      throw new TypeError(`PermDock CLI: fixture ${index} subject needs id`);
-    }
-    const memberships = item['subject']['memberships'];
-    if (memberships !== undefined && !Array.isArray(memberships)) {
-      throw new Error(
-        `PermDock CLI: fixture ${index} subject.memberships must be an array`,
-      );
-    }
-    const tenant = item['subject']['tenant'];
-    if (tenant !== undefined && typeof tenant !== 'string') {
-      throw new Error(
-        `PermDock CLI: fixture ${index} subject.tenant must be a string`,
-      );
-    }
-    // SAFETY: subject, row, action, subject.id, memberships and tenant were each checked above.
-    return item as RlsFixture;
-  });
-}
-
-type FixtureFile = {
-  readonly fixtures: readonly RlsFixture[];
-  /** Tenant-defined roles the fixtures' memberships may hold. */
-  readonly customRoles: readonly CustomRole[];
-};
-
-function asCustomRoles(value: unknown): readonly CustomRole[] {
-  if (!isRecord(value) || value['customRoles'] === undefined) {
-    return [];
-  }
-  if (!Array.isArray(value['customRoles'])) {
-    throw new TypeError('PermDock CLI: fixtures customRoles must be an array');
-  }
-  // SAFETY: checked to be an array above; resolveCustomRole validates each role before use.
-  return value['customRoles'] as readonly CustomRole[];
-}
-
-async function loadFixtures(cwd: string, path: string): Promise<FixtureFile> {
-  const abs = resolve(cwd, path);
-  if (!existsSync(abs)) {
-    throw new Error(`PermDock CLI: fixtures not found: ${path}`);
-  }
-  if (abs.endsWith('.json')) {
-    const parsed: unknown = JSON.parse(readFileSync(abs, 'utf8'));
-    return { fixtures: asFixtures(parsed), customRoles: asCustomRoles(parsed) };
-  }
-  const mod = await loadModule(abs);
-  return {
-    fixtures: asFixtures(pickNamed(mod, ['fixtures', 'default'])),
-    customRoles: asCustomRoles(mod),
-  };
 }
 
 /** A custom role's scope and pinned instance, as the `custom_role_*` tables store them. */
@@ -157,18 +69,6 @@ function canFixture(
   }
   // SAFETY: a permission is collection or instance, and collection returned above.
   return dock.can(permission as Permission<string, unknown, 'instance'>, row);
-}
-
-function toSubject(fixture: RlsFixture['subject']): Subject {
-  return {
-    principal: {
-      id: fixture.id,
-      roles: fixture.roles ?? [],
-      ...(fixture.tenant === undefined ? {} : { tenant: fixture.tenant }),
-      memberships: fixture.memberships ?? [],
-    },
-    context: {},
-  };
 }
 
 function grantKind(
@@ -786,15 +686,13 @@ export async function runRlsVerify(input: {
       continue;
     }
     const kind = grantKind(policy, fixture.action);
-    const dock = await createPermDock(policy, toSubject(fixture.subject), {
+    const dock = await createPermDock(policy, fixtureSubject(fixture.subject), {
       customRoles: memoryRoleSource(customRoles),
     });
     const granted = canFixture(
       dock,
       permission,
-      fixture.newRow === undefined || permission.kind === 'collection'
-        ? fixture.row
-        : { current: fixture.row, next: fixture.newRow },
+      fixtureRow(fixture, permission.kind),
     );
     const outcome = granted ? 'granted' : 'denied';
     if (fixture.expected !== undefined && fixture.expected !== outcome) {

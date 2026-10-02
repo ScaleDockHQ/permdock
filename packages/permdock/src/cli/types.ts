@@ -272,6 +272,7 @@ export type {
   CatalogApproval,
   CatalogBreakGlass,
   CatalogDocument,
+  CatalogGrant,
   CatalogPermission,
   CatalogResource,
   CatalogRole,

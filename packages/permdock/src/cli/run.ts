@@ -10,6 +10,7 @@ const HELP = `permdock — the PermDock CLI
 Commands:
   collect [--check] [--src <path>] [--watch]
   catalog [--format json|schema|markdown] [--from <module>] [--include <key>]
+  diff <a> <b> [--impact] [--fixtures <file>] [--json]
   usage [--json] [--strict] [--ignore <glob>]
   doctor [--json] [--only <codes>] [--fix]
   skills [install|list|update] [--agent <name>]
@@ -115,6 +116,26 @@ export async function run(
           format: formatFlag,
           from: flagString(args.flags, 'from'),
           include: flagList(args.flags, 'include'),
+          now,
+          io,
+        });
+        writeOut(result.output);
+        return finish(result.code, stdoutChunks, stderrChunks);
+      }
+      case 'diff': {
+        const impactFlag = args.flags['impact'];
+        const result = await (
+          await import('./diff.ts')
+        ).runDiff({
+          cwd,
+          config,
+          sources:
+            typeof impactFlag === 'string'
+              ? [impactFlag, ...args.rest]
+              : args.rest,
+          impact: impactFlag !== undefined,
+          fixtures: flagString(args.flags, 'fixtures'),
+          json,
           now,
           io,
         });
@@ -359,7 +380,7 @@ export async function run(
       }
       default:
         writeErr(
-          `unknown command '${args.command}'. Use collect, catalog, usage, doctor, skills, openapi, rls, arazzo, cloud or supabase.`,
+          `unknown command '${args.command}'. Use collect, catalog, diff, usage, doctor, skills, openapi, rls, arazzo, cloud or supabase.`,
         );
         return finish(2, stdoutChunks, stderrChunks);
     }

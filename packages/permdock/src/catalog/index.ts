@@ -4,10 +4,12 @@ export type {
   CatalogApproval,
   CatalogBreakGlass,
   CatalogDocument,
+  CatalogGrant,
   CatalogPermission,
   CatalogResource,
   CatalogRole,
   CatalogScope,
   CatalogSupportAccess,
   CatalogUsage,
+  CatalogValidity,
 } from './types.ts';

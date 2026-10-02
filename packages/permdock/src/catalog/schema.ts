@@ -18,6 +18,19 @@ export type CatalogSchemaNode = {
 
 const name = { type: 'string', pattern: '^[a-z][a-z0-9_]*$' } as const;
 const strings = { type: 'array', items: { type: 'string' } } as const;
+const approval = {
+  oneOf: [
+    { const: 'human' },
+    {
+      type: 'object',
+      properties: {
+        by: {},
+        distinct: { type: 'boolean' },
+        staleOn: { const: 'resource-change' },
+      },
+    },
+  ],
+} as const;
 
 /** `schemas/catalog-v1.json`; a test keeps the two equal. */
 export const catalogSchema: CatalogSchemaNode = freezeDeep({
@@ -145,22 +158,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           },
           hostable: { const: true },
           rowConditions: { type: 'boolean' },
-          approvals: {
-            type: 'array',
-            items: {
-              oneOf: [
-                { const: 'human' },
-                {
-                  type: 'object',
-                  properties: {
-                    by: {},
-                    distinct: { type: 'boolean' },
-                    staleOn: { const: 'resource-change' },
-                  },
-                },
-              ],
-            },
-          },
+          approvals: { type: 'array', items: approval },
           breakGlass: {
             type: 'object',
             required: ['overrides', 'reason', 'obligations'],
@@ -172,6 +170,52 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
               obligations: strings,
             },
           },
+        },
+      },
+    },
+    grants: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['permission', 'effect', 'role', 'to', 'scope'],
+        properties: {
+          permission: { type: 'string' },
+          effect: { enum: ['allow', 'deny'] },
+          role: { oneOf: [{ type: 'string' }, { const: null }] },
+          to: {},
+          scope: {
+            oneOf: [
+              { type: 'string' },
+              {
+                type: 'object',
+                required: ['resource'],
+                properties: { resource: { type: 'string' } },
+              },
+            ],
+          },
+          where: {},
+          check: {},
+          approval,
+          fields: strings,
+          validity: {
+            type: 'object',
+            properties: {
+              from: { type: 'integer' },
+              until: { type: 'integer' },
+            },
+          },
+          name: { type: 'string' },
+          purpose: strings,
+          limit: {
+            type: 'object',
+            required: ['count', 'per'],
+            properties: {
+              count: { type: 'integer', minimum: 1 },
+              per: { type: 'string' },
+              mode: { enum: ['hard', 'soft'] },
+            },
+          },
+          portable: { const: false },
         },
       },
     },

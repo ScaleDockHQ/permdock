@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-01T17:22:51.744Z",
+  "generatedAt": "2026-10-02T06:54:33.548Z",
   "generator": "permdock@0.1.0-next.2",
-  "fingerprint": "gEUC9jIEJluYp-cxWwdkqynj93YmVmOXIGF9qqK6HZs",
+  "fingerprint": "Scz7vQczcArjgSHtNxC177Jj8vXDfYr5kI8h3xjdc-U",
   "resources": {
     "staff": {
       "id": "id",
@@ -238,6 +238,96 @@
       "on": "organization",
       "assignable": true,
       "min": 1
+    }
+  ],
+  "grants": [
+    {
+      "permission": "quotes.list",
+      "effect": "allow",
+      "role": "contact",
+      "to": {
+        "kind": "role",
+        "role": "contact",
+        "scope": "customer"
+      },
+      "scope": "customer"
+    },
+    {
+      "permission": "quotes.list",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "quotes.read",
+      "effect": "allow",
+      "role": "contact",
+      "to": {
+        "kind": "role",
+        "role": "contact",
+        "scope": "customer"
+      },
+      "scope": "customer"
+    },
+    {
+      "permission": "quotes.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "staff.list",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "staff.list",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "staff.read",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "staff.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
     }
   ]
 }

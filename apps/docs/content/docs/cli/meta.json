@@ -4,6 +4,7 @@
     "index",
     "collect",
     "catalog",
+    "diff",
     "usage",
     "openapi",
     "arazzo",

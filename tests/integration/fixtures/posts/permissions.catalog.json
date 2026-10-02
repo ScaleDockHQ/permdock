@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-09-30T10:06:39.608Z",
+  "generatedAt": "2026-10-02T06:54:33.203Z",
   "generator": "permdock@0.1.0-next.2",
-  "fingerprint": "nK_Opc7T6imLepnWrdleKRV7r1-Nijna9X68ThB3CLc",
+  "fingerprint": "HmSWp1JEl4rx7iD7jD6_see4Yeo7ETsgmhtGpNBt_Zw",
   "resources": {
     "post": {
       "id": "id",
@@ -156,6 +156,105 @@
     {
       "key": "member",
       "assignable": false
+    }
+  ],
+  "grants": [
+    {
+      "permission": "job.read",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global",
+      "where": {
+        "op": "sqlFunction",
+        "name": "job_permitted",
+        "args": [
+          {
+            "field": "id"
+          }
+        ],
+        "twin": {
+          "op": "or",
+          "conditions": [
+            {
+              "op": "eq",
+              "field": "scope",
+              "value": "public"
+            },
+            {
+              "op": "and",
+              "conditions": [
+                {
+                  "op": "eq",
+                  "field": "scope",
+                  "value": "team"
+                },
+                {
+                  "op": "memberOf",
+                  "scope": "team",
+                  "field": "teamId",
+                  "roles": []
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "permission": "post.create",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.list",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.read",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "post.update",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "scope": "global",
+      "where": {
+        "op": "eq",
+        "field": "authorId",
+        "value": {
+          "ref": "principal.id"
+        }
+      }
     }
   ]
 }

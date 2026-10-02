@@ -33,7 +33,7 @@ packages/
   permdock/           npm `permdock`, the only published package (`scaledockhq` npm org)
     src/core, src/conditions, one folder per subpath adapter (react, next, hono, mcp, ai-sdk, drizzle, …)
     src/testing       `permdock/testing`: policy matrix, conformance and scenario runners, `permdock/testing/saas`
-    src/cli           the `permdock` bin (collect, catalog, usage, openapi, rls, doctor, skills, cloud, arazzo)
+    src/cli           the `permdock` bin (collect, catalog, diff, usage, openapi, rls, doctor, skills, cloud, arazzo)
                       and `permdock/cli`; commands load on demand
     src/next/plugin.ts, src/unplugin   build-time collect hooks only
     schemas/ rulesets/ skills/         catalog and OpenAPI schemas, lint ruleset, consumer skills

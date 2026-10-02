@@ -68,7 +68,7 @@ Notes on the shape:
 - `arity` is `instance` or `collection`.
 - `meta` is whatever the definition attached to the action (`title`, `description`, `tags`, or any JSON); it is what MCP tool descriptions and Markdown output use.
 - `schema` is a JSON Schema document; the `target` (`draft-2020-12`, `openapi-3.0`) is selectable with `--schema-target`.
-- The catalog never contains grants, roles or conditions. Those belong to the policy, which is server-only, and are reported by [usage](/docs/cli/usage) and rendered by `permdock rls`.
+- Without a configured `policy`, the catalog has no grants, role details or conditions. With one, `grants` lists every code grant with its portable conditions, approval, fields and validity, in a canonical order ([wire formats](/docs/concepts/wire-formats#catalog)); closures are marked `portable: false` and never serialised. [diff](/docs/cli/diff) compares that section between two versions.
 - The `$schema` URL is the published JSON Schema of the catalog format, which is the same document `--format schema` emits, so agents can validate a catalog offline. The exact hostname is fixed when the docs site launches.
 
 ## Reading a catalog
@@ -89,7 +89,7 @@ const sqlEnforceable = catalog.permissions.filter((permission) => !conditioned.h
 - `parseCatalog(json)` takes the JSON text or the parsed value. It checks it against `schemas/catalog-v1.json` and returns a deep-frozen copy built from own keys. A `__proto__` key stays an ordinary key, and an object with any other prototype, a cycle or a value JSON cannot carry is rejected. On failure it throws `PermDockValidationError` with `code: 'invalid-data'`, `boundary: 'catalog'` and every issue with its `path`.
 - `rowConditionKeys(catalog)` is the set of keys marked `rowConditions: true`: permissions whose code grants depend on more than role and scope, so a policy that calls only the SQL helpers would widen access ([RLS](/docs/adapters/rls#sql-helper-contract)).
 - `catalogPath(config, cwd, out?)` resolves the file the same way `collect` writes it: `out`, then `collect.out`, then `catalog.out`, then `permissions.catalog.json`.
-- The types (`CatalogDocument`, `CatalogPermission`, `CatalogResource`, `CatalogRole`, `CatalogScope`, `CatalogApproval`, `CatalogBreakGlass`, `CatalogActivation`, `CatalogSupportAccess`, `CatalogUsage`) are exported from both `permdock/catalog` and `permdock/cli`.
+- The types (`CatalogDocument`, `CatalogPermission`, `CatalogResource`, `CatalogRole`, `CatalogScope`, `CatalogGrant`, `CatalogValidity`, `CatalogApproval`, `CatalogBreakGlass`, `CatalogActivation`, `CatalogSupportAccess`, `CatalogUsage`) are exported from both `permdock/catalog` and `permdock/cli`.
 
 The reader, the `$schema` file and `--format schema` come from one schema constant, and a test checks the committed catalogs against both the reader and Ajv.
 
@@ -107,6 +107,7 @@ The reader, the `$schema` file and `--format schema` come from one schema consta
 ## Related
 
 - [collect](/docs/cli/collect)
+- [diff](/docs/cli/diff)
 - [Wire formats](/docs/concepts/wire-formats)
 - [Standard Schema](/docs/standards/standard-schema)
 - [For AI agents](/docs/for-ai-agents)

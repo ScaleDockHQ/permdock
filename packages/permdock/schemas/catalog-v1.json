@@ -280,6 +280,114 @@
           }
         }
       }
+    },
+    "grants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["permission", "effect", "role", "to", "scope"],
+        "properties": {
+          "permission": {
+            "type": "string"
+          },
+          "effect": {
+            "enum": ["allow", "deny"]
+          },
+          "role": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "const": null
+              }
+            ]
+          },
+          "to": {},
+          "scope": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": ["resource"],
+                "properties": {
+                  "resource": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "where": {},
+          "check": {},
+          "approval": {
+            "oneOf": [
+              {
+                "const": "human"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "by": {},
+                  "distinct": {
+                    "type": "boolean"
+                  },
+                  "staleOn": {
+                    "const": "resource-change"
+                  }
+                }
+              }
+            ]
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "validity": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "integer"
+              },
+              "until": {
+                "type": "integer"
+              }
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "type": "object",
+            "required": ["count", "per"],
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "per": {
+                "type": "string"
+              },
+              "mode": {
+                "enum": ["hard", "soft"]
+              }
+            }
+          },
+          "portable": {
+            "const": false
+          }
+        }
+      }
     }
   }
 }

@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import type { ScanResult } from '../../src/cli/types.ts';
 import type { PolicyScopesInput } from '../../src/index.ts';
 
+import { parseCatalog } from '../../src/catalog/parse.ts';
 import {
   buildCatalog,
+  catalogGrants,
   policyRowConditionKeys,
 } from '../../src/cli/catalog-doc.ts';
 import {
   allow,
+  anyone,
   catalogFingerprint,
   definePermissions,
   definePolicy,
+  deny,
   plan,
+  principal,
   resource,
   role,
   supportAccess,
@@ -254,5 +260,119 @@ describe('catalog approvals and roles', () => {
       'support',
     ]);
     expect(scoped.roles?.[1]).toEqual({ key: 'clerk' });
+  });
+});
+
+describe('catalog grants', () => {
+  const Doc = z.object({ id: z.string(), ownerId: z.string() });
+  const grantsPermissions = definePermissions({
+    doc: resource(Doc, { id: 'id', actions: ['read', 'update', 'delete'] }),
+  });
+  const build = (declarationOrder: 'a' | 'b') => {
+    const member = [
+      allow(grantsPermissions.doc.read),
+      allow(grantsPermissions.doc.update, {
+        where: { ownerId: principal.id },
+        fields: ['ownerId'],
+        validFrom: 1_700_000_000,
+      }),
+      deny(grantsPermissions.doc.delete, { name: 'keep' }),
+      allow(
+        grantsPermissions.doc.delete,
+        (row: { id: string }) => row.id !== 'root',
+      ),
+    ];
+    return definePolicy(grantsPermissions, {
+      roles: [
+        role('member', declarationOrder === 'a' ? member : member.toReversed()),
+      ],
+      grants: [allow(grantsPermissions.doc.read, { to: anyone() })],
+      subject: () => null,
+    });
+  };
+
+  it('lists every code grant in canonical order, without closures', () => {
+    const catalog = buildCatalog(
+      grantsPermissions,
+      scan,
+      '2026-09-29T00:00:00Z',
+      build('a'),
+    );
+    expect(catalog.grants).toEqual([
+      {
+        permission: 'doc.delete',
+        effect: 'allow',
+        role: 'member',
+        to: { kind: 'role', role: 'member', scope: 'global' },
+        scope: 'global',
+        portable: false,
+      },
+      {
+        permission: 'doc.delete',
+        effect: 'deny',
+        role: 'member',
+        to: { kind: 'role', role: 'member', scope: 'global' },
+        scope: 'global',
+        name: 'keep',
+      },
+      {
+        permission: 'doc.read',
+        effect: 'allow',
+        role: 'member',
+        to: { kind: 'role', role: 'member', scope: 'global' },
+        scope: 'global',
+      },
+      {
+        permission: 'doc.read',
+        effect: 'allow',
+        role: null,
+        to: { kind: 'anyone' },
+        scope: 'global',
+      },
+      {
+        permission: 'doc.update',
+        effect: 'allow',
+        role: 'member',
+        to: { kind: 'role', role: 'member', scope: 'global' },
+        scope: 'global',
+        where: { op: 'eq', field: 'ownerId', value: { ref: 'principal.id' } },
+        fields: ['ownerId'],
+        validity: { from: 1_700_000_000 },
+      },
+    ]);
+    expect(catalogGrants(build('b'))).toEqual(catalog.grants);
+  });
+
+  it('is part of the fingerprint and validates against the schema', () => {
+    const withGrants = buildCatalog(
+      grantsPermissions,
+      scan,
+      '2026-09-29T00:00:00Z',
+      build('a'),
+    );
+    const without = buildCatalog(
+      grantsPermissions,
+      scan,
+      '2026-09-29T00:00:00Z',
+    );
+    expect(without).not.toHaveProperty('grants');
+    expect(withGrants.fingerprint).not.toBe(without.fingerprint);
+    expect(() => parseCatalog(JSON.stringify(withGrants))).not.toThrow();
+    expect(() =>
+      parseCatalog(
+        JSON.stringify({
+          ...withGrants,
+          grants: [
+            {
+              permission: 'doc.read',
+              effect: 'maybe',
+              role: null,
+              to: {},
+              scope: 'global',
+            },
+          ],
+        }),
+      ),
+    ).toThrow('grants.0.effect');
   });
 });

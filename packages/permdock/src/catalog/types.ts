@@ -102,6 +102,44 @@ export type CatalogScope = {
   readonly within?: string;
 };
 
+/** A grant's `validFrom` / `validUntil` window in Unix seconds. */
+export type CatalogValidity = {
+  readonly from?: number;
+  readonly until?: number;
+};
+
+/**
+ * One code grant as the catalog carries it: the normalised shape
+ * `definePolicy` produced, minus closures. `permdock diff` compares these;
+ * a hosted document is authored against them.
+ */
+export type CatalogGrant = {
+  readonly permission: string;
+  readonly effect: 'allow' | 'deny';
+  /** The role binding the grant came from; `null` for a top-level grant. */
+  readonly role: string | null;
+  /** The grantee selector, or an array for an intersection, in its JSON form. */
+  readonly to: unknown;
+  /** `global`, a declared scope name, or `{ resource }`. */
+  readonly scope: string | { readonly resource: string };
+  /** Portable condition on the current row; absent on a non-portable grant. */
+  readonly where?: unknown;
+  /** Portable condition on the next row; absent on a non-portable grant. */
+  readonly check?: unknown;
+  readonly approval?: CatalogApproval;
+  readonly fields?: readonly string[];
+  readonly validity?: CatalogValidity;
+  readonly name?: string;
+  readonly purpose?: readonly string[];
+  readonly limit?: {
+    readonly count: number;
+    readonly per: string;
+    readonly mode?: 'hard' | 'soft';
+  };
+  /** Present when the grant is a closure, reads the relation graph or is opaque; `where` and `check` are then omitted. */
+  readonly portable?: false;
+};
+
 /** `permissions.catalog.json`, validated by `schemas/catalog-v1.json`. */
 export type CatalogDocument = {
   readonly $schema: string;
@@ -116,4 +154,6 @@ export type CatalogDocument = {
   readonly scopes?: readonly CatalogScope[];
   readonly roles?: readonly CatalogRole[];
   readonly plans?: readonly { readonly key: string }[];
+  /** Every code grant, canonically ordered; present when the catalog was built with the policy. */
+  readonly grants?: readonly CatalogGrant[];
 };

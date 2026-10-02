@@ -1,0 +1,24 @@
+{
+  "fixtures": [
+    {
+      "subject": { "id": "u1", "roles": ["member"] },
+      "row": { "id": "p1", "authorId": "u1", "orgId": "o1", "published": true },
+      "action": "post.publish"
+    },
+    {
+      "subject": { "id": "u1", "roles": ["member"] },
+      "row": { "id": "p1", "authorId": "u1", "orgId": "o1", "published": true },
+      "action": "post.delete"
+    },
+    {
+      "subject": { "id": "u2", "roles": ["member"] },
+      "row": { "id": "p1", "authorId": "u1", "orgId": "o1", "published": true },
+      "action": "post.update"
+    },
+    {
+      "subject": { "id": "u1", "roles": ["member"] },
+      "row": { "id": "p1", "authorId": "u1", "orgId": "o1", "published": true },
+      "action": "post.read"
+    }
+  ]
+}
