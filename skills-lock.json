@@ -355,6 +355,12 @@
       "skillPath": "skills/routing-middleware/SKILL.md",
       "computedHash": "c55fe67c58faad5156fc3203236d9034e5d78df8a4752495d6665ac014139ad6"
     },
+    "scaledock-repo-standard": {
+      "source": "ScaleDockHQ/scaledock-skills",
+      "sourceType": "github",
+      "skillPath": "skills/scaledock-repo-standard/SKILL.md",
+      "computedHash": "3bfe96989c4a9db1394095881f85825493984e70fe7449b0d5ad5a05c0544eca"
+    },
     "security-audit": {
       "source": "cloudflare/security-audit-skill",
       "sourceType": "github",
@@ -383,7 +389,7 @@
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase/SKILL.md",
-      "computedHash": "583344c20e90f3654dbb0632f088d89fd9f1dde8ac85e8a644dd12eee59b1380"
+      "computedHash": "211141fd078b4b3645803868528d54221bc7755d24d5c8af45a366785c151dba"
     },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
