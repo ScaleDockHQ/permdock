@@ -1,3 +1,4 @@
+import type { GrantValidity } from '../core/policy.ts';
 import type { Condition, Policy, ResourceNode } from '../index.ts';
 import type { RlsGrant } from './rls-grants.ts';
 import type { RolePermission } from './rls-helpers.ts';
@@ -431,6 +432,8 @@ export function compileGrants(
         `no ${access.resource} memberships table: only link capabilities reach ${label}/${grant.permission.key}`,
       );
     }
+    const validity = validitySql(grant.validity);
+    accessExpr = andSql(accessExpr, validity);
     const using = compileOptional(entry.using, rowCtx);
     const check = compileOptional(entry.check, rowCtx);
     const fields = grant.fields === undefined ? {} : { fields: grant.fields };
@@ -467,7 +470,7 @@ export function compileGrants(
         resource: grant.permission.resource,
         permissionKey: grant.permission.key,
         ...fields,
-        access: linked,
+        access: andSql(linked, validity) ?? linked,
         ...(using === undefined ? {} : { using }),
         ...(check === undefined ? {} : { check }),
       });
@@ -541,6 +544,24 @@ function isWrapped(sql: string): boolean {
 
 export function wrapSql(sql: string): string {
   return isWrapped(sql) ? sql : `(${sql})`;
+}
+
+/**
+ * The grant's `validFrom` / `validUntil` as a clock check: `from` inclusive,
+ * `until` exclusive, matching the in-process evaluator.
+ */
+function validitySql(validity: GrantValidity | undefined): string | undefined {
+  if (validity === undefined) {
+    return undefined;
+  }
+  return andSql(
+    validity.from === undefined
+      ? undefined
+      : `now() >= to_timestamp(${validity.from})`,
+    validity.until === undefined
+      ? undefined
+      : `now() < to_timestamp(${validity.until})`,
+  );
 }
 
 export function andSql(

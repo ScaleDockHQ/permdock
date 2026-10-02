@@ -27,6 +27,7 @@ import {
   rowInScope,
 } from './tenancy.ts';
 import { decisionToken, payloadDigest } from './token.ts';
+import { isActive } from './validity.ts';
 import { whereFromGrants } from './where-scope.ts';
 
 function isRowPair(
@@ -314,6 +315,18 @@ export function evaluateSnapshot(
       denials.push(
         compact({ role: grant.role, reason: scoped.reason, to: grant.to }),
       );
+      continue;
+    }
+    if (!isActive(grant.validity, now)) {
+      if (grant.effect === 'allow') {
+        denials.push({
+          role: grant.role,
+          reason: 'inactive-grant',
+          detail: grant.validity,
+        });
+      } else {
+        skip(grant, 'validity');
+      }
       continue;
     }
     if (grant.effect === 'deny' && grant.portable === false) {

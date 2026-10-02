@@ -56,6 +56,7 @@ import {
 import { isThenable } from './thenable.ts';
 import { decisionToken, payloadDigest, versionOf } from './token.ts';
 import { validateBoundary } from './validation.ts';
+import { isActive } from './validity.ts';
 import { listRoles } from './vocabulary.ts';
 
 type ScopeMatch = ReturnType<typeof matchScopedMembership>;
@@ -800,6 +801,18 @@ export function evaluate(
       roleOk = allHeld;
     }
     if (!roleOk) {
+      continue;
+    }
+    if (!isActive(grant.validity, now)) {
+      if (grant.effect === 'allow') {
+        denials.push({
+          role: displayRole,
+          reason: 'inactive-grant',
+          detail: grant.validity,
+        });
+      } else {
+        skip(tracer, grant, permission.key, 'validity');
+      }
       continue;
     }
     const merged: Grant = freezeDeep(

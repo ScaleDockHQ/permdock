@@ -4,6 +4,7 @@ import type {
   CreatePermDockOptions,
   DecideOptions,
   PermDock,
+  SimulateOptions,
   WhereResult,
 } from '../core/permdock.ts';
 import type { Permission, PermissionTree } from '../core/permissions.ts';
@@ -152,6 +153,7 @@ export type PdpPermDock = Omit<
   readonly simulate: {
     (
       checks: readonly (readonly [Permission, unknown?])[],
+      options?: SimulateOptions,
     ): Promise<readonly Decision[]>;
     (plan: ArazzoSimulateInput): ArazzoPlan;
     (preview: {

@@ -96,15 +96,36 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person other than the actor and the principal approve. `{ by }` names eligible approvers with the same grantee selectors as `to`. `distinct` defaults to `true`; `distinct: false` lets the principal approve their own request (doctor PD024 lists each one). `staleOn: 'resource-change'` binds the approval to the row's `version` field, so it no longer applies once the row changes ([approval security](/docs/security/approvals#approvals-that-go-stale)) |
 | `{ ..., limit: { count, per, mode?, alertAt? } }` | Quota grant: non-portable, needs a `LimitStore`. `mode: 'hard'` (default) denies past `count`; `mode: 'soft'` grants with an `over-limit` obligation; `alertAt` adds a `near-limit` obligation |
 | `{ ..., fields: ['title', 'body'] }` | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches |
+| `{ ..., validFrom, validUntil }` | When the grant applies, as RFC 3339 strings or Unix seconds; `validFrom` inclusive, `validUntil` exclusive. Either bound alone is allowed ([validity](#validity)) |
 
 Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` (there is no current row). They may carry `check` on the proposed body; without a body a `check` grant does not match. Closures over `ctx` only remain valid on collection grants.
+
+## Validity
+
+```ts
+role(roles.contractor, [
+  allow(permissions.doc.read, {
+    validFrom: '2026-03-01T00:00:00Z',
+    validUntil: '2026-04-01T00:00:00Z',
+  }),
+  deny(permissions.doc.delete, { validUntil: launch, name: 'freeze' }),
+])
+```
+
+`validFrom` and `validUntil` bound a grant in time without a membership: a contractor's read access for the length of an engagement, a change freeze that lifts itself at launch, a permission that opens on a release date. `definePolicy` normalises both to Unix seconds on `Grant.validity` as `{ from?, until? }`, and throws on a bound that does not parse or a window that ends before it starts, so a typo never widens a grant.
+
+Outside its window a grant contributes nothing. An inactive allow adds an `inactive-grant` denial carrying the window as `detail: { from, until }`, so a UI can say "from 1 March" instead of "no access"; an inactive deny does not apply, and `explain` lists it under `skipped` with `why: 'validity'`. The window is read against the decision clock: `now` on `decide`, `can` and `simulate` (`simulate(checks, { now })` reads a whole batch as of one instant), so a test or a review screen asks "what will this role do after launch?" without changing the policy. Validity is portable: `where()` and `filter` drop inactive grants, the [snapshot](/docs/concepts/snapshots) carries `validity` and the client evaluator checks it against its own clock, and `permdock rls generate` ANDs `now() >= to_timestamp(from) and now() < to_timestamp(until)` into the grant's access check, so the database agrees with the application to the second.
+
+### Why
+
+Validity is a field of the grant, not a `where` operator on a clock ref, because the two mean different things in a policy diff and in the catalog: a condition tells you which rows a grant reaches, a window tells you when it exists at all. Keeping it separate lets `explain` report an inactive allow as `inactive-grant` rather than as a failed `condition`, lets `where()` drop the grant entirely instead of compiling a tautology, and lets a reviewer see "expires 1 April" next to the grant without reading its condition. Only a fixed range is supported: a recurring window (office hours, weekdays) is a business rule the application knows better than the policy, and encoding time zones and calendars in a portable condition would have cost every compiler a dependency for one case. A membership's `expiresAt` remains the tool for "this person's access ends"; validity is for "this rule's life".
 
 ## Evaluation semantics
 
 The rules are short and they are the whole story:
 
 1. Collect every grant from top-level `grants` and from role bindings whose name the subject holds, then keep those whose `to:` selector matches (`anyone()`, `authenticated()`, a role, a plan, a relation, an actor, an assurance check, or an intersection). A relation selector also contributes a portable `where`.
-2. Drop a scoped grant whose scope does not match the request: the row's tenant key must equal the membership's tenant and that tenant must be the active one; the row's team key must equal the membership's team; a resource role must be held on that row or an ancestor through a declared `parent`. Expired memberships contribute nothing. Global grants skip this step ([tenancy](/docs/concepts/tenancy)).
+2. Drop a scoped grant whose scope does not match the request: the row's tenant key must equal the membership's tenant and that tenant must be the active one; the row's team key must equal the membership's team; a resource role must be held on that row or an ancestor through a declared `parent`. Expired memberships contribute nothing. Global grants skip this step ([tenancy](/docs/concepts/tenancy)). Drop a grant outside its `validFrom` / `validUntil` window as of the decision clock ([validity](#validity)); an inactive allow records an `inactive-grant` denial.
 3. If any `deny` matches, the outcome is `denied`. Deny overrides allow, regardless of role, scope or declaration order.
 4. Otherwise, if any `allow` matches, the outcome is `granted` (or `approval-required` if the matched allow carries `approval`). Allows OR together, across scopes.
 5. Otherwise the outcome is `denied` with an empty match. Nothing granted means denied; there is no `not-applicable`. Denial reasons include `tenant-mismatch`, `no-membership`, `scope` and `expired-membership` so the UI can say why.
@@ -134,7 +155,7 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 
 `can`, `decide`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource` and `RoleSource` run once inside `createPermDock`, which may itself be async, and their output is frozen into the instance. Each check is then a pure function of frozen data.
 
-Closure grants are typed `(data, ctx) => boolean`. A closure that returns a thenable is a `closure-error` denial reported to `on('error')`; the value is never awaited. There are no `decideAsync` or `canAsync` twins, because two evaluation paths can disagree and the synchronous one is easy to call by mistake, and PermDock does not infer asynchrony from the policy, because one async closure would make every `can` in the UI async. There is no `explain` method either: `decide` returns the structured `Decision` and `describe(decision)` turns it into prose.
+Closure grants are typed `(data, ctx) => boolean`. A closure that returns a thenable is a `closure-error` denial reported to `on('error')`; the value is never awaited. There are no `decideAsync` or `canAsync` twins, because two evaluation paths can disagree and the synchronous one is easy to call by mistake, and PermDock does not infer asynchrony from the policy, because one async closure would make every `can` in the UI async. `explain` is `decide` with a `trace` attached, computed in process; `describe(decision)` turns a decision into prose ([decisions](/docs/concepts/decisions#explain)).
 
 ## Approval
 

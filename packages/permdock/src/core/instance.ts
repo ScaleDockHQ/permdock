@@ -9,7 +9,12 @@ import type {
   RoleSource,
   Snapshot,
 } from './interfaces.ts';
-import type { DecideOptions, PermDock, WhereResult } from './permdock.ts';
+import type {
+  DecideOptions,
+  PermDock,
+  SimulateOptions,
+  WhereResult,
+} from './permdock.ts';
 import type { Permission } from './permissions.ts';
 import type { Grant, Policy } from './policy.ts';
 import type { CustomRole, Membership, Principal, Subject } from './subject.ts';
@@ -959,6 +964,7 @@ export function buildInstance(
             readonly tenant?: string;
           }
         | ArazzoSimulateInput,
+      options?: SimulateOptions,
     ): Decision[] | PermDock | ArazzoPlan => {
       const evaluated: (readonly [Permission, unknown, Decision])[] = [];
       const quietly = (permission: Permission, data: unknown): Decision => {
@@ -967,7 +973,11 @@ export function buildInstance(
           subject,
           permission,
           data,
-          { source: 'simulate', trusted: true },
+          compact<DecideOptions>({
+            source: 'simulate',
+            trusted: true,
+            now: options?.now,
+          }),
           envFor(false),
         );
         evaluated.push([permission, data, decision]);

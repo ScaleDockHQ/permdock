@@ -38,6 +38,7 @@ export function snapshotGrant(
     membership,
     portable: grant.portable ? undefined : false,
     fields: grant.fields,
+    validity: grant.validity,
   });
   return freezeDeep(entry);
 }

@@ -15,6 +15,7 @@ import {
   isMembershipExpired,
   membershipField,
 } from './tenancy.ts';
+import { isActive } from './validity.ts';
 
 const ALWAYS: Condition = { op: 'eq', field: '_', value: true };
 
@@ -190,7 +191,11 @@ function collect(
     readonly condition: Condition;
   }[] = [];
   for (const grant of grants) {
-    if (grant.effect !== 'deny' || grant.portable === false) {
+    if (
+      grant.effect !== 'deny' ||
+      grant.portable === false ||
+      !isActive(grant.validity, scope.now)
+    ) {
       continue;
     }
     const condition = scopedCondition(grant, scope);
@@ -203,7 +208,11 @@ function collect(
   }
   const parts: Condition[] = [];
   for (const grant of grants) {
-    if (grant.effect !== 'allow' || grant.portable === false) {
+    if (
+      grant.effect !== 'allow' ||
+      grant.portable === false ||
+      !isActive(grant.validity, scope.now)
+    ) {
       continue;
     }
     const condition = scopedCondition(grant, scope);

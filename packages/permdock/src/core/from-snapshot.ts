@@ -1,6 +1,6 @@
 import type { Decision, ExplainedDecision } from './decision.ts';
 import type { Snapshot, SnapshotAssignable } from './interfaces.ts';
-import type { DecideOptions, PermDock } from './permdock.ts';
+import type { DecideOptions, PermDock, SimulateOptions } from './permdock.ts';
 import type { Permission } from './permissions.ts';
 import type { Membership } from './subject.ts';
 import type { Role } from './vocabulary.ts';
@@ -166,11 +166,16 @@ export function fromSnapshot(
       );
     },
     // SAFETY: the implementation returns the result type of each simulate overload for its input.
-    simulate: ((input: unknown) => {
+    simulate: ((input: unknown, simulateOptions?: SimulateOptions) => {
       if (Array.isArray(input)) {
         // SAFETY: the simulate overload that takes an array types it as [permission, data] pairs.
         return (input as readonly (readonly [Permission, unknown?])[]).map(
-          ([permission, data]) => run(permission, data),
+          ([permission, data]) =>
+            run(
+              permission,
+              data,
+              compact<DecideOptions>({ now: simulateOptions?.now }),
+            ),
         );
       }
       if (isArazzoSimulateInput(input)) {

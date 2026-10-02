@@ -25,8 +25,8 @@ const ROW_GRANTEES = new Set(['relation', 'plan', 'actor', 'assurance']);
 
 /**
  * Whether a grant depends on more than the role and the scope: a row or body
- * condition, a closure, a field list, a purpose, a break-glass override, or a
- * relation, plan, actor or assurance grantee. The SQL helpers
+ * condition, a closure, a field list, a purpose, a break-glass override, a
+ * validity window, or a relation, plan, actor or assurance grantee. The SQL helpers
  * (`permdock_has`, `permitted_<scope>_ids`) check only role and scope, so a
  * policy that calls them for such a permission would widen access.
  */
@@ -40,6 +40,7 @@ function grantHasRowConditions(grant: Grant): boolean {
     grant.fields !== undefined ||
     grant.purpose !== undefined ||
     grant.breakGlass !== undefined ||
+    grant.validity !== undefined ||
     grantees.some((grantee: { readonly kind: string }) =>
       ROW_GRANTEES.has(grantee.kind),
     )

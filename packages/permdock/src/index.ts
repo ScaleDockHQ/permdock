@@ -149,6 +149,7 @@ export type {
   DecideOptions,
   PermDock,
   RowPair,
+  SimulateOptions,
   WhereResult,
 } from './core/permdock.ts';
 export {
@@ -205,6 +206,7 @@ export type {
   GrantLimit,
   GrantOptions,
   GrantScope,
+  GrantValidity,
   HostedGrantRef,
   MembershipFixture,
   Policy,

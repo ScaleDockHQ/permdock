@@ -7,7 +7,11 @@ import type {
 import type { Decision } from './decision.ts';
 import type { Grantee } from './grantee.ts';
 import type { Permission } from './permissions.ts';
-import type { ApprovalRequirement, HostedGrantRef } from './policy.ts';
+import type {
+  ApprovalRequirement,
+  GrantValidity,
+  HostedGrantRef,
+} from './policy.ts';
 import type {
   CustomRole,
   JsonWebKeyLike,
@@ -315,6 +319,8 @@ export type SnapshotGrant = {
   readonly membership?: Membership;
   readonly portable?: false;
   readonly fields?: readonly string[];
+  /** When the grant applies (Unix seconds, `from` inclusive, `until` exclusive); absent means always. */
+  readonly validity?: GrantValidity;
 };
 
 export type SnapshotSource = {

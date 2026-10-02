@@ -7,6 +7,7 @@ export type DenialReason =
   | 'no-grant'
   | 'condition'
   | 'deny'
+  | 'inactive-grant'
   | 'closure-error'
   | 'opaque-condition'
   | 'server-only'
@@ -101,8 +102,10 @@ export type LimitDetail = {
  * condition ran: `via-only` (the subject holds no membership of its kind),
  * `purpose` (no asserted purpose it lists), `field` (its `fields` do not
  * cover the requested field), `grantee` (its `to` did not match and added no
- * denial), `role` (a role it names is not held), `break-glass-inactive` (a
- * break-glass grant with no asserted purpose).
+ * denial), `role` (a role it names is not held), `validity` (a deny outside
+ * its `validFrom` / `validUntil`; an inactive allow adds an `inactive-grant`
+ * denial instead), `break-glass-inactive` (a break-glass grant with no
+ * asserted purpose).
  */
 export type TraceSkipReason =
   | 'via-only'
@@ -110,6 +113,7 @@ export type TraceSkipReason =
   | 'field'
   | 'grantee'
   | 'role'
+  | 'validity'
   | 'break-glass-inactive';
 
 export type TraceSkip = {

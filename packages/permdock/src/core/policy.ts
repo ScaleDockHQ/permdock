@@ -47,6 +47,7 @@ import {
 } from './scopes.ts';
 import { sha256, bytesToBase64Url } from './sha256.ts';
 import { relatesTo } from './tenancy.ts';
+import { normalizeValidity } from './validity.ts';
 import {
   type PlanTree,
   type Role as RoleLeaf,
@@ -212,6 +213,20 @@ export type GrantOptions<T = Record<string, unknown>> = {
   readonly name?: string;
   /** Purposes of use (`context.purpose`) that make the grant apply; non-portable. */
   readonly purpose?: readonly string[];
+  /** The grant applies from this instant on (RFC 3339 string or Unix seconds); before it an allow denies with `inactive-grant` and a deny does not apply. */
+  readonly validFrom?: string | number;
+  /** The grant stops applying at this instant (exclusive; RFC 3339 string or Unix seconds). */
+  readonly validUntil?: string | number;
+};
+
+/**
+ * When a grant applies, in Unix seconds. `from` is inclusive, `until`
+ * exclusive; either may be absent. Portable: `where()` drops an inactive
+ * grant at the decision clock and generated RLS compares against `now()`.
+ */
+export type GrantValidity = {
+  readonly from?: number;
+  readonly until?: number;
 };
 
 /** A declared scope name (or the `tenant` / `team` alias), or the resource a role is held on. */
@@ -274,6 +289,8 @@ export type Grant = {
   readonly viaOnly?: string;
   /** Set only on a grant merged from a hosted policy document. */
   readonly hosted?: HostedGrantRef;
+  /** When the grant applies; absent means always. */
+  readonly validity?: GrantValidity;
 };
 
 /** Which hosted policy document and grant a merged grant came from. */
@@ -481,6 +498,7 @@ function makeGrant(
     fields: sanitizeFields(condition?.fields),
     name: condition?.name,
     purpose,
+    validity: normalizeValidity(condition ?? {}, permission.key),
   });
 }
 
@@ -757,6 +775,7 @@ function canonicalGrants(grants: readonly Grant[]): string {
     purpose: grant.purpose,
     breakGlass: grant.breakGlass,
     viaOnly: grant.viaOnly,
+    validity: grant.validity,
   }));
   return JSON.stringify(payload);
 }

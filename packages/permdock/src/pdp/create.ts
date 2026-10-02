@@ -5,6 +5,7 @@ import type {
   CreatePermDockOptions,
   DecideOptions,
   PermDock,
+  SimulateOptions,
   WhereResult,
 } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
@@ -90,6 +91,7 @@ function isLocalShortCircuit(decision: Decision): boolean {
   return decision.denials.some((denial) => {
     switch (denial.reason) {
       case 'no-grant':
+      case 'inactive-grant':
         return false;
       case 'pdp-denied':
       case 'pdp-unavailable':
@@ -292,11 +294,16 @@ function wrap(
     input:
       | readonly (readonly [Permission, unknown?])[]
       | Parameters<PermDock['simulate']>[0],
+    options?: SimulateOptions,
   ) => {
     if (isReadonlyArray(input)) {
       return Promise.all(
         input.map(([permission, data]) =>
-          decide(permission, data, { source: 'simulate' }),
+          decide(
+            permission,
+            data,
+            compact<DecideOptions>({ source: 'simulate', now: options?.now }),
+          ),
         ),
       );
     }

@@ -68,6 +68,11 @@ export type DecideOptions = {
   readonly explain?: boolean;
 };
 
+export type SimulateOptions = {
+  /** Decision clock in Unix seconds for the whole batch: grant validity, membership expiry and limits are read as of this instant. Defaults to the current time. */
+  readonly now?: number;
+};
+
 export type RowPair<T> = {
   readonly current: T;
   readonly next: T;
@@ -162,7 +167,10 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: DecideOptions,
   ) => Permission[];
   readonly simulate: {
-    (checks: readonly (readonly [Permission, unknown?])[]): Decision[];
+    (
+      checks: readonly (readonly [Permission, unknown?])[],
+      options?: SimulateOptions,
+    ): Decision[];
     (preview: {
       readonly roles?: readonly (string | Role)[];
       readonly memberships?: readonly Membership[];
