@@ -95,7 +95,7 @@ Runs `collect --check` in memory. A stale `permissions.catalog.json` is an error
 
 ### PD005: skills
 
-Checks that the `wire-permdock` and `audit-permissions` skills are installed for the agents configured in the repository (`.agents/skills`, `.claude/skills`, `.cursor/skills`) and that their version matches the installed `permdock`. `--fix` runs `permdock skills install`. See [skills](/docs/cli/skills).
+Checks that the PermDock skills are installed (it looks for the `permdock` skill) for the agents configured in the repository (`.agents/skills`, `.claude/skills`, `.cursor/skills`) and that their version matches the installed `permdock`. `--fix` runs `permdock skills install`. See [skills](/docs/cli/skills).
 
 ### PD006: TypeScript version
 
@@ -150,7 +150,7 @@ permdock doctor
            fix: move the check into a Server Component or import from 'permdock/react'
   ✖ PD004  permissions.catalog.json is stale (post.publish added)
            fix: pnpm exec permdock collect
-  ⚠ PD005  skill wire-permdock@0.1.0 installed, 0.1.1 available
+  ⚠ PD005  skill permdock@0.1.0 installed, 0.1.1 available
            fix: pnpm exec permdock skills install
 
   2 errors, 1 warning

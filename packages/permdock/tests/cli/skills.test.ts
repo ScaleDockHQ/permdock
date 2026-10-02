@@ -18,10 +18,10 @@ const temps: string[] = [];
 function workspace(): string {
   const dir = mkdtempSync(join(tmpdir(), 'permdock-skills-'));
   temps.push(dir);
-  mkdirSync(join(dir, 'node_modules/permdock/skills/wire-permdock'), {
+  mkdirSync(join(dir, 'node_modules/permdock/skills/permdock-wire'), {
     recursive: true,
   });
-  mkdirSync(join(dir, 'node_modules/permdock/skills/audit-permissions'), {
+  mkdirSync(join(dir, 'node_modules/permdock/skills/permdock-audit'), {
     recursive: true,
   });
   writeFileSync(
@@ -29,12 +29,12 @@ function workspace(): string {
     JSON.stringify({ name: 'permdock', version: '0.0.0' }),
   );
   writeFileSync(
-    join(dir, 'node_modules/permdock/skills/wire-permdock/SKILL.md'),
-    '# wire-permdock\n',
+    join(dir, 'node_modules/permdock/skills/permdock-wire/SKILL.md'),
+    '# permdock-wire\n',
   );
   writeFileSync(
-    join(dir, 'node_modules/permdock/skills/audit-permissions/SKILL.md'),
-    '# audit-permissions\n',
+    join(dir, 'node_modules/permdock/skills/permdock-audit/SKILL.md'),
+    '# permdock-audit\n',
   );
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'app' }));
   return dir;
@@ -51,11 +51,11 @@ describe('skills', () => {
     const cwd = workspace();
     const result = await run(['skills', 'install'], { cwd });
     expect(result.code).toBe(0);
-    expect(existsSync(join(cwd, '.agents/skills/wire-permdock/SKILL.md'))).toBe(
+    expect(existsSync(join(cwd, '.agents/skills/permdock-wire/SKILL.md'))).toBe(
       true,
     );
     expect(
-      existsSync(join(cwd, '.cursor/skills/audit-permissions/SKILL.md')),
+      existsSync(join(cwd, '.cursor/skills/permdock-audit/SKILL.md')),
     ).toBe(true);
     // SAFETY: the lock file that `skills install` just wrote, which records a version string.
     const lock = JSON.parse(
@@ -69,7 +69,7 @@ describe('skills', () => {
     await run(['skills', 'install', '--agent', 'cursor'], { cwd });
     const result = await run(['skills', 'list'], { cwd });
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain('wire-permdock');
+    expect(result.stdout).toContain('permdock-wire');
     expect(result.stdout).toContain('.cursor/skills');
   });
 
@@ -94,12 +94,12 @@ describe('runSkills', () => {
     expect(runSkills({ cwd, action: undefined, agents: ['agent'] })).toEqual({
       code: 0,
       output:
-        'installed .agents/skills/wire-permdock, .agents/skills/audit-permissions (permdock@0.0.0)',
+        'installed .agents/skills/permdock-wire, .agents/skills/permdock-audit (permdock@0.0.0)',
     });
     expect(
       runSkills({ cwd, action: 'update', agents: ['windsurf'] }).output,
     ).toBe(
-      'installed .windsurf/skills/wire-permdock, .windsurf/skills/audit-permissions (permdock@0.0.0)',
+      'installed .windsurf/skills/permdock-wire, .windsurf/skills/permdock-audit (permdock@0.0.0)',
     );
   });
 
@@ -114,18 +114,18 @@ describe('runSkills', () => {
       }),
     );
     expect(runSkillsInstall({ cwd, agents: ['claude'] }).output).toBe(
-      'installed .claude/skills/wire-permdock, .claude/skills/audit-permissions (permdock@1.2.3)',
+      'installed .claude/skills/permdock-wire, .claude/skills/permdock-audit (permdock@1.2.3)',
     );
   });
 
   it('uses the bundled skills, skips a missing one, and reads no version without a manifest', () => {
     const cwd = bare();
     const bundled = join(bare(false), 'skills');
-    mkdirSync(join(bundled, 'wire-permdock'), { recursive: true });
-    writeFileSync(join(bundled, 'wire-permdock/SKILL.md'), '# wire\n');
+    mkdirSync(join(bundled, 'permdock-wire'), { recursive: true });
+    writeFileSync(join(bundled, 'permdock-wire/SKILL.md'), '# wire\n');
     expect(runSkillsInstall({ cwd, agents: ['cursor'], bundled })).toEqual({
       code: 0,
-      output: 'installed .cursor/skills/wire-permdock (permdock@0.0.0)',
+      output: 'installed .cursor/skills/permdock-wire (permdock@0.0.0)',
     });
     const empty = join(bare(false), 'skills');
     mkdirSync(empty);
@@ -151,8 +151,19 @@ describe('runSkills', () => {
   it('lists nothing installed and no lock in a fresh project', () => {
     expect(runSkills({ cwd: bare(), action: 'list', agents: [] })).toEqual({
       code: 0,
-      output:
-        'permdock skills\n\n  wire-permdock  not installed\n  audit-permissions  not installed\n',
+      output: [
+        'permdock skills',
+        '',
+        '  permdock  not installed',
+        '  permdock-wire  not installed',
+        '  permdock-audit  not installed',
+        '  permdock-agents  not installed',
+        '  permdock-approvals  not installed',
+        '  permdock-tenancy  not installed',
+        '  permdock-data  not installed',
+        '  permdock-credentials  not installed',
+        '',
+      ].join('\n'),
     });
   });
 });

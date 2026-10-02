@@ -144,7 +144,7 @@ The UI entries expose the same surface under each framework's idiom. A hook that
 An adapter is complete when all five artefacts exist and cross-reference each other (`.agents/rules/change-checklist.mdc` carries the same list as "when you change X also update Y"):
 
 1. Docs page under `apps/docs/content/docs/adapters/<name>.mdx` with the standard sections, a `Status: planned` line only while it is unbuilt, plus a row in the matrix above and an entry in `meta.json`.
-2. Skill reference: a short file under the `wire-permdock` skill so an agent can wire the adapter without reading source.
+2. Skill reference: a section in the `permdock-wire` skill reference (or the topic skill that owns the adapter) so an agent can wire the adapter without reading source.
 3. Example app under `apps/examples/<name>` that runs in CI and exercises deny, approval-required and the framework's OpenAPI or guard integration where applicable.
 4. Catalog: the adapter's public identifiers registered in the `permdock doctor` checks and, for HTTP adapters, the OpenAPI hook covered by `permdock openapi`.
 5. Tests: unit tests next to the entry, a `tests/types` case for the typed generics, a `tests/bundle` budget for the entry, and, where an example exists, an e2e run under `tests/e2e`.

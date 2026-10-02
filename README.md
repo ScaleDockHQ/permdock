@@ -37,13 +37,13 @@ The user-facing overview with code for every surface is the [npm README](./packa
 | Decision plane | `permdock/authzen`, `approvals`, `cloud`, `scim`, `ssf`, `openapi`, `otel`, `pdp` |
 | Data | `permdock/drizzle`, `prisma`, `kysely`, and `permdock rls generate / import / verify` |
 | Auth providers | `permdock/jwt`, `supabase`, `supabase/middleware`, `better-auth`, `clerk`, `convex` |
-| Tooling | the `permdock` CLI, `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `wire-permdock` and `audit-permissions` agent skills |
+| Tooling | the `permdock` CLI, `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `permdock` and `permdock-*` agent skills |
 
 Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/content/docs/adapters/index.mdx) and, where it has a runtime, an app under [`apps/examples`](./apps/examples).
 
 ## For AI agents
 
-- Consumers: `npx skills add ScaleDockHQ/PermDock` installs `wire-permdock` and `audit-permissions`; Claude Code can add the marketplace in [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) with `/plugin marketplace add ScaleDockHQ/permdock`.
+- Consumers: `npx skills add ScaleDockHQ/PermDock` installs the `permdock` skill, `permdock-wire`, `permdock-audit` and the topic skills; Claude Code can add the marketplace in [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) with `/plugin marketplace add ScaleDockHQ/permdock`.
 - Maintainers: [`AGENTS.md`](./AGENTS.md) (imported by `CLAUDE.md`) is the entry point, and the topic rules in [`.agents/rules`](./.agents/rules) attach by path in Cursor and Claude Code.
 - Every docs page is served as Markdown, plus `llms.txt`, `llms-full.txt` and a public docs MCP at `/mcp`. Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
 

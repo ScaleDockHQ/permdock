@@ -212,7 +212,7 @@ Other TypeScript permission libraries (CASL, permix, Kilpi, `@zap-studio/permit`
 ## For AI agents
 
 ```bash
-npx skills add ScaleDockHQ/PermDock   # the wire-permdock and audit-permissions skills
+npx skills add ScaleDockHQ/PermDock   # the permdock, permdock-wire, permdock-audit and topic skills
 permdock skills                       # the same skills, offline, from node_modules/permdock/skills
 ```
 

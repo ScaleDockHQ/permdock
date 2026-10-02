@@ -1,5 +1,5 @@
 ---
-description: Agent skills - the two consumer skills shipped in the permdock package, their frontmatter, the Claude Code plugin marketplace, and the vendored third-party skills pinned in skills-lock.json
+description: Agent skills - the consumer skills shipped in the permdock package, their frontmatter, the Claude Code plugin marketplace, and the vendored third-party skills pinned in skills-lock.json
 globs: packages/permdock/skills/**,.claude-plugin/**,skills-lock.json,.agents/skills/**
 alwaysApply: false
 paths:
@@ -12,12 +12,28 @@ paths:
 
 ## Consumer skills (shipped)
 
-- `packages/permdock/skills/wire-permdock/SKILL.md`: how to add PermDock to an app (define, policy, factory file, first guard, MCP / AI SDK wiring, `permdock doctor`). Written for the consumer's repo; `adapters.md` next to it holds the adapter factory shapes.
-- `packages/permdock/skills/audit-permissions/SKILL.md`: how to review an existing PermDock setup (ungranted permissions, unused definitions, closures that could be portable, snapshot scope, OWASP ASI02 / ASI03 checklist).
+Each skill is a folder in `packages/permdock/skills/`, written for the consumer's repo:
+
+- `permdock`: the entry skill. Mental model, consumer invariants, `explain`, CLI checks, the docs MCP, and which skill to load for which task.
+- `permdock-wire`: first setup (define, policy basics, factory file, first guard, CLI checks). `references/adapters.md` holds the HTTP, UI, provider and database factory shapes.
+- `permdock-audit`: review an app or a pull request (inventory, ungranted and unused leaves, validation, ASI02 / ASI03, PR review), then the Verify list of each topic skill in use.
+- `permdock-agents`: tool maps per runtime, subject and actor, `delegation` and `delegations`, A2A, WebMCP, Web Bot Auth. `references/runtimes.md` holds the agent adapter shapes.
+- `permdock-approvals`: `approval` grants, approvers, quorum, escalation, stores and the resume flow.
+- `permdock-tenancy`: named scopes, memberships, ownership rules and custom roles.
+- `permdock-data`: `filter()` / `where()`, ORM adapters, generated RLS, the relationship graph and parity tests.
+- `permdock-credentials`: JWT and introspection subjects, API keys and service accounts, share links.
+
+Rules for these skills:
+
+- Names are `permdock` or `permdock-<topic>`, never unprefixed, because installed skills from every publisher share one flat folder ([decision 0017](../../docs/decisions/0017-permdock-skill-prefix.md)).
+- `SKILL.md` stays short: Inputs, Invariants, a numbered Workflow whose steps end in a "✓" check, Verify before done, and a Reference index. Long material goes in `references/*.md`, linked from the step that needs it.
+- A skill names another skill and its install command (`npx skills add ScaleDockHQ/PermDock --skill <name>`), never a relative link across skill folders. Protocol rules defer to the neutral spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill <name>`) instead of restating the spec.
+- PermDock only: no stack defaults, and an adapter is named only where PermDock ships it. Every identifier, option, flag, doctor code and denial reason is checked against `packages/permdock/src` and the docs, and each concept links its permdock.dev page.
+- A topic-specific review item lives in that topic skill's Verify list, not in `permdock-audit`.
 - Consumer instructions never go in `AGENTS.md` or `.agents/rules`, and maintainer instructions never go in these skills.
-- Frontmatter follows the [Agent Skills spec](https://agentskills.io/specification): `name` (matches the folder), `description` (what it does and when to use it, third person), `license: MIT`, and `metadata` with `author`, `homepage` and `repository` as strings. No version in `metadata`: skills version with the `permdock` package.
-- They reach users three ways, all from the same folders: `npx skills add ScaleDockHQ/PermDock`, `permdock skills` from `node_modules/permdock/skills`, and the Claude Code plugin in `.claude-plugin/marketplace.json` (`/plugin marketplace add ScaleDockHQ/permdock`). Adding a skill updates the marketplace `skills` array, `cli/skills.mdx` and `for-ai-agents.mdx`.
-- `npx skills add ScaleDockHQ/PermDock --list` must list only `wire-permdock` and `audit-permissions`. Run it after touching skill folders or the marketplace file.
+- Frontmatter follows the [Agent Skills spec](https://agentskills.io/specification): `name` (matches the folder), `description` (starts with what it does, because pickers show about 57 characters, then when to use it; third person; at most 1024 characters), `license: MIT`, and `metadata` with `author`, `homepage` and `repository` as strings. No version in `metadata`: skills version with the `permdock` package.
+- They reach users three ways, all from the same folders: `npx skills add ScaleDockHQ/PermDock`, `permdock skills` from `node_modules/permdock/skills`, and the Claude Code plugin in `.claude-plugin/marketplace.json` (`/plugin marketplace add ScaleDockHQ/permdock`). Adding a skill updates `SKILL_NAMES` in `packages/permdock/src/cli/skills.ts`, the marketplace `skills` array, `cli/skills.mdx` and `for-ai-agents.mdx`.
+- `npx skills add ScaleDockHQ/PermDock --list` must list only `permdock`, `permdock-wire`, `permdock-audit`, `permdock-agents`, `permdock-approvals`, `permdock-tenancy`, `permdock-data` and `permdock-credentials`. Run it after touching skill folders or the marketplace file.
 
 ## Vendored skills (maintainer tooling)
 

@@ -17,7 +17,7 @@ export function pd005(cwd: string): readonly DoctorFinding[] {
     join(cwd, '.cursor/skills'),
   ];
   const installed = folders.some((folder) =>
-    existsSync(join(folder, 'wire-permdock/SKILL.md')),
+    existsSync(join(folder, 'permdock/SKILL.md')),
   );
   if (!installed) {
     return [

@@ -22,7 +22,7 @@ function messages(findings: readonly DoctorFinding[]): readonly string[] {
   return findings.map((item) => item.message);
 }
 
-const SKILL = '---\nname: wire-permdock\n---\n';
+const SKILL = '---\nname: permdock\n---\n';
 
 describe('PD005 Agent Skills', () => {
   it('warns when skills are missing, then when only the lock is missing', () => {
@@ -30,14 +30,12 @@ describe('PD005 Agent Skills', () => {
       'Agent Skills are not installed',
     ]);
     expect(
-      messages(
-        pd005(project({ '.cursor/skills/wire-permdock/SKILL.md': SKILL })),
-      ),
+      messages(pd005(project({ '.cursor/skills/permdock/SKILL.md': SKILL }))),
     ).toEqual(['skills lock is missing']);
     expect(
       pd005(
         project({
-          '.claude/skills/wire-permdock/SKILL.md': SKILL,
+          '.claude/skills/permdock/SKILL.md': SKILL,
           '.permdock/skills-lock.json': '{}',
         }),
       ),

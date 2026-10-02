@@ -1,9 +1,9 @@
 ---
 title: skills
-description: Install the wire-permdock and audit-permissions Agent Skills from the permdock package or from skills.sh.
+description: Install the PermDock Agent Skills (permdock, permdock-wire, permdock-audit and the topic skills) from the permdock package or from skills.sh.
 ---
 
-PermDock ships two Agent Skills so a coding agent can wire and audit permissions without reading library source. Skills follow the `SKILL.md` format governed by the Agentic AI Foundation, are published on [skills.sh](https://skills.sh), and are bundled in the `permdock` npm package under `skills/` so the version an agent reads always matches the version the app runs. See [Agent docs standards](/docs/standards/agent-docs-standards).
+PermDock ships eight Agent Skills so a coding agent can wire, extend and audit permissions without reading library source. Skills follow the `SKILL.md` format governed by the Agentic AI Foundation, are published on [skills.sh](https://skills.sh), and are bundled in the `permdock` npm package under `skills/` so the version an agent reads always matches the version the app runs. See [Agent docs standards](/docs/standards/agent-docs-standards).
 
 `permdock skills install` copies the bundled skills from `node_modules/permdock/skills/` into the folders your agent reads. You can still install from skills.sh.
 
@@ -12,6 +12,7 @@ PermDock ships two Agent Skills so a coding agent can wire and audit permissions
 ```bash
 # from skills.sh (no PermDock install required)
 npx skills add ScaleDockHQ/PermDock
+npx skills add ScaleDockHQ/PermDock --skill permdock-approvals
 
 # with permdock installed
 pnpm exec permdock skills install
@@ -20,45 +21,35 @@ pnpm exec permdock skills list
 pnpm exec permdock skills update
 ```
 
-`install` copies the skills from `node_modules/permdock/skills/` into the folders the detected agents read (`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`) and records the installed version in a lock entry so `permdock doctor` can report drift (`PD005`). `skills.sh` installs land in the same folders.
+`install` copies every skill from `node_modules/permdock/skills/` into the folders the detected agents read (`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`) and records the installed version in a lock entry so `permdock doctor` can report drift (`PD005`). `skills.sh` installs land in the same folders, and `--skill <name>` picks one.
 
 Without `--agent`, `install` and `update` on a terminal ask which agents to install for, with the agents whose folder (`.agents`, `.claude`, `.cursor`) the project already has preselected; cancelling exits `2` and writes nothing. In CI, in a pipe or with `--json` there is no prompt and every folder is written, as before.
 
 ## The skills
 
-### wire-permdock
+Every skill has the same shape: the inputs to find out first, numbered invariants, a numbered workflow whose steps each end in a check, a "Verify before done" list and a reference index. Longer material sits in `references/` next to `SKILL.md`. Protocol rules (OAuth, JWT, MCP authorization, A2A, Problem Details) are deferred to the matching skill in `ScaleDockHQ/scaledock-skills` rather than repeated.
 
-Walks an agent through adding PermDock to an existing app:
+| Skill | Use it for |
+| --- | --- |
+| `permdock` | The mental model and invariants, reading a `Decision`, `explain` for an unexpected denial, `doctor`, the docs MCP, and which skill to load next |
+| `permdock-wire` | Adding PermDock to an app: detect the framework and validator, `permissions.ts`, `policy.ts`, the factory file, the first check and UI guard, CLI checks in CI; one reference section per framework adapter |
+| `permdock-audit` | Reviewing an installation or a pull request: ungranted and unused leaves, validation and identity, test gaps, the ASI02 and ASI03 mapping, and each topic skill's Verify list |
+| `permdock-agents` | Agent tool calls: principal and actor, policy `delegations`, one permission per tool, AI SDK, Claude Agent SDK, Eve, OpenAI, MCP, A2A, WebMCP and Web Bot Auth ([delegation](/docs/security/delegation)) |
+| `permdock-approvals` | Human approval: `approval` options, quorum and distinct approvers, `version` and `staleOn`, the store and handler, resuming with the token ([approvals](/docs/security/approvals)) |
+| `permdock-tenancy` | Named scopes, memberships, ownership and `decideRoleChange`, custom roles from a `RoleSource` ([scopes](/docs/concepts/scopes)) |
+| `permdock-data` | `where()` and `toWhere` for Drizzle, Prisma, Kysely and Convex, generated or adopted RLS, relationship graphs, `ormParity` and `rlsParity` ([RLS](/docs/adapters/rls)) |
+| `permdock-credentials` | `subjectFromJwt` and introspection, API keys through `decideCredential`, service accounts, share links ([authentication](/docs/concepts/authentication)) |
 
-1. Detect the framework (Next.js, Vite, Expo, Hono, Express, tRPC, MCP server, AI SDK, Claude Agent SDK) and the validator already in use (Zod, Valibot, ArkType).
-2. Create `src/permissions.ts` with `definePermissions()` over the app's existing schemas, splitting `actions` and `collection` per resource.
-3. Create `src/policy.ts` with `definePolicy()`, roles as `allow` / `deny` arrays, portable `where` conditions first, closures only when necessary.
-4. Create the factory file for the framework (`src/permdock/server.ts` with `createPermDock` from `permdock/<framework>`), following the [naming convention](/docs/getting-started/naming). When the app receives OAuth or OIDC access tokens, wire `subjectFromJwt` Discovery-first: `discovery: '<issuer>'` rather than a hand-copied `jwks` URL, `audience` set to the resource identifier, `algorithms` written as `Ed25519` / `ES256` / `PS256`, and the default `accept: 'access-token'` left in place so an ID token never authorises an API call ([JWT adapter](/docs/adapters/jwt)).
-5. Add the first check (`assert` in a server handler), the first UI guard (`usePermission` or `Protected`), and the decision endpoint where closures exist.
-6. Run `permdock collect`, `permdock usage` and `permdock doctor`, fix findings, and add `collect --check` to CI.
-
-The skill contains the exact import paths and code shapes from the [quick start](/docs/getting-started/quick-start) and one section per adapter, and states the invariants an agent must not violate: never string keys in public APIs, never `not-applicable`, never import the policy in a client entry, never trust a model-supplied subject, never verify a token with `EdDSA`, `none` or `RSA1_5` in the allow-list.
-
-### audit-permissions
-
-A review skill for an existing PermDock installation. It runs `permdock usage --json` and `permdock doctor --json`, reads the catalog, and produces a report covering:
-
-- permissions with no grants or no tests;
-- roles that grant `delete` or `publish` actions without `approval: 'human'` on agent-reachable surfaces;
-- closures that could be portable conditions (so RLS and snapshots would cover them);
-- MCP and AI SDK tools whose `permission` is a collection action but whose handler touches a specific row;
-- policies with `validate: 'never'`;
-- the OWASP Agentic Top 10 mapping for ASI02 and ASI03 ([OWASP Agentic](/docs/security/owasp-agentic)).
-
-The report is written as a Markdown checklist an agent can turn into pull requests. A "Pull request review" section covers a single PR: it compares `usage` and `collect` between the base and head branches, asks for a `describePolicy` row for every widened grant, and posts one comment per finding on the changed line.
+`permdock-wire` states the invariants an agent must not violate while wiring: never string keys in public APIs, never import the policy in a client entry, never trust a model-supplied subject. `permdock-audit` writes its report as a Markdown checklist an agent can turn into pull requests; its pull request step compares `usage` and `collect` between the base and head branches, asks for a `describePolicy` row for every widened grant, and posts one comment per finding on the changed line.
 
 ## Versioning
 
-Skills are versioned with `permdock`. A skill references docs pages by `/docs/<path>` URL and the `.md` variant of each page, so an agent with network access can read the full page and an agent without it still has the skill's inline recipe. When an adapter's API changes, its docs page, its skill section and its example app change in the same pull request; `.agents/rules/change-checklist.mdc` lists this rule for maintainers.
+Skills are versioned with `permdock`. A skill links docs pages by absolute `https://permdock.dev/docs/<path>` URL, so an agent with network access can read the full page (or its `.md` variant) and an agent without it still has the skill's inline recipe. When an adapter's API changes, its docs page, its skill section and its example app change in the same pull request; `.agents/rules/change-checklist.mdc` lists this rule for maintainers.
 
 ## Why
 
-- **Two skills, not three.** Reviewing a pull request uses the same checks as auditing an app, limited to the diff. A separate `review-permissions-pr` skill would duplicate every check and drift from `audit-permissions`; a section in the audit skill keeps one list and lets the agent pick the scope.
+- **One skill per topic; pull request review stays in the audit skill.** A single wiring skill that covered agents, approvals, tenancy, RLS and credentials loaded hundreds of lines an agent did not need for the task in front of it. Each topic skill now carries its own workflow and Verify list, and `permdock-audit` runs those lists instead of repeating them, so a check lives in one place. Reviewing a pull request uses the same checks as auditing an app, limited to the diff, so it stays a step in `permdock-audit` rather than a separate skill that would drift from it.
+- **A `permdock-` prefix on every name.** Installed skills share one folder with skills from other packages; the prefix groups them in a picker and makes their origin obvious. The decision is recorded in the repository's `docs/decisions/0017-permdock-skill-prefix.md`.
 
 ## For maintainers
 

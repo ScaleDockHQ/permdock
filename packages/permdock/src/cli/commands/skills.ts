@@ -13,8 +13,7 @@ export function skills(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'skills',
-      description:
-        'Install, update or list the wire-permdock and audit-permissions Agent Skills',
+      description: 'Install, update or list the PermDock Agent Skills',
     },
     args: {
       ...globalArgs,

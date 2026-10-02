@@ -23,9 +23,11 @@ The same rule applies to the maintainer side: an agent contributing to PermDock 
 
 | Artefact | Location | Audience |
 | --- | --- | --- |
-| `wire-permdock` skill | `packages/permdock/skills/wire-permdock/SKILL.md`, also on skills.sh | Agents adding PermDock to an app: define, policy, `createPermDock`, first adapter, first test |
-| `audit-permissions` skill | `packages/permdock/skills/audit-permissions/SKILL.md`, also on skills.sh | Agents finding unguarded routes and tools, unused or ungranted permissions (wraps `permdock usage`) |
-| Claude Code plugin marketplace | `.claude-plugin/marketplace.json`, one `permdock` plugin whose `skills` are the two folders above | Claude Code users: `/plugin marketplace add ScaleDockHQ/permdock` |
+| `permdock` skill | `packages/permdock/skills/permdock/SKILL.md`, also on skills.sh | Any agent working with PermDock: the mental model, reading a decision, `explain`, the docs MCP, and which skill to load next |
+| `permdock-wire` skill | `packages/permdock/skills/permdock-wire/SKILL.md`, also on skills.sh | Agents adding PermDock to an app: define, policy, `createPermDock`, first adapter, first test |
+| `permdock-audit` skill | `packages/permdock/skills/permdock-audit/SKILL.md`, also on skills.sh | Agents finding unguarded routes and tools, unused or ungranted permissions (wraps `permdock usage`) |
+| Topic skills | `packages/permdock/skills/permdock-{agents,approvals,tenancy,data,credentials}/SKILL.md`, also on skills.sh | Agents working on one area: delegation, human approval, tenants and roles, queries and RLS, tokens and keys |
+| Claude Code plugin marketplace | `.claude-plugin/marketplace.json`, one `permdock` plugin whose `skills` are the folders above | Claude Code users: `/plugin marketplace add ScaleDockHQ/permdock` |
 | `AGENTS.md` | Repository root, under 12 KB including the block `turbo` appends | Agents contributing to PermDock: layout, commands, the invariants index and the rule index |
 | `.agents/rules/*.mdc` | Repository root; `.cursor/rules` symlinks the folder and `.claude/rules/<name>.md` symlinks each file | The same maintainers: invariants, naming, docs conventions, the change checklist, testing, deployment, skills and prose rules, each attached by path |
 | `CLAUDE.md` | Repository root, the one line `@AGENTS.md` | Claude Code and other tools that look for this name |
@@ -42,7 +44,7 @@ Three channels put PermDock in front of an agent before it reads a page, and eac
 | --- | --- | --- |
 | npm provenance (Sigstore) | Every release after the first is published from the Release workflow through npm trusted publishing (OIDC, no npm token) with provenance, so the registry shows the source commit and workflow; `permdock doctor` warns when an installed copy lacks an attestation | An agent (or its human) can check that the `permdock` it installed was built from this repository, which matters for a library that decides authorization |
 | JSR | `permdock` is also published to [JSR](https://jsr.io) from the same commit, with the TypeScript source and generated docs | Deno users import without an npm shim; JSR renders the API reference from source, which agents read well |
-| Context7 and similar docs indexes | The docs site is registered with [Context7](https://context7.com) and serves `llms.txt`, `llms-full.txt` and `.md` per page so any index can pull it; the `wire-permdock` skill names the Context7 library id | Coding agents resolve "how do I use permdock" to current docs instead of training data; a `Status` line tells them what does not exist yet |
+| Context7 and similar docs indexes | The docs site is registered with [Context7](https://context7.com) and serves `llms.txt`, `llms-full.txt` and `.md` per page so any index can pull it; the `permdock` skill points agents at the docs MCP and `llms.txt` | Coding agents resolve "how do I use permdock" to current docs instead of training data; a `Status` line tells them what does not exist yet |
 | MCP Registry | `server.json` at the repository root (`io.github.scaledockhq/permdock-docs`); Streamable HTTP at `https://permdock.dev/mcp` | Agent hosts discover the docs server by name instead of a pasted URL |
 
 None of these changes an API. They are listed here so the release checklist and the skill agree on them.
@@ -53,7 +55,7 @@ Install the skills into a project:
 npx skills add ScaleDockHQ/PermDock
 ```
 
-The skills are also shipped inside the `permdock` npm package so `permdock skills` can install them offline. By default it writes to `.agents/skills`, `.claude/skills` and `.cursor/skills`; `--agent` narrows the targets, and nothing is detected from the repository. `audit-permissions` stays one skill so a single description covers routes, tools and definitions. See [CLI skills](/docs/cli/skills).
+The skills are also shipped inside the `permdock` npm package so `permdock skills` can install them offline. By default it writes to `.agents/skills`, `.claude/skills` and `.cursor/skills`; `--agent` narrows the targets, and nothing is detected from the repository. `permdock-audit` stays one skill so a single description covers routes, tools and definitions; it runs each topic skill's Verify list rather than repeating it. See [CLI skills](/docs/cli/skills).
 
 ### Conventions the docs follow for agents
 
@@ -62,22 +64,30 @@ The skills are also shipped inside the `permdock` npm package so `permdock skill
 - `llms.txt` lists every page, and `llms-full.txt` carries the full text.
 - Error messages and Problem Details `detail` text are written so a model can act on them (what was denied, why, what is permitted instead); see [Problem Details](/docs/standards/problem-details).
 - Code examples use the exact public identifiers (`createPermDock`, `permissions.post.update`) and never placeholders an agent might copy literally.
-- `permdock doctor` reports the same findings the `audit-permissions` skill looks for, so the skill and the CLI cannot drift.
+- `permdock doctor` reports the same findings the `permdock-audit` skill looks for, so the skill and the CLI cannot drift.
 
 ### `SKILL.md` shape
 
+Every skill opens with what it does (pickers show about 57 characters of the description), then the inputs to find out, numbered invariants, a numbered workflow whose steps each end in a check, a "Verify before done" list and a reference index. Longer material sits in `references/` and is linked from the step that needs it; another skill is named with its install command, never linked across folders.
+
 ```md
 ---
-name: wire-permdock
-description: Add PermDock to a TypeScript app. Use when asked to add permissions, roles, authorization or access control, or to guard a route, tool or component.
+name: permdock-wire
+description: Adds PermDock authorization to a TypeScript app, from definitions to the first guard. Use when installing permdock, adding permissions, roles or access control, or guarding a route, tool or component.
+license: MIT
+metadata:
+  author: ScaleDockHQ
+  homepage: https://permdock.dev/docs/getting-started/quick-start
+  repository: https://github.com/ScaleDockHQ/permdock
 ---
 
-1. Install `permdock`. Detect the validator in use (zod, valibot, arktype, effect).
-2. Create `src/permissions.ts` with `definePermissions` and `resource(...)`.
-3. Create `src/policy.ts` with `definePolicy`, `role`, `allow`, `deny`.
-4. Pick the adapter for the framework (see table) and export `createPermDock(...)` from `src/permdock/server.ts`.
-5. Guard one route or component and add a policy-matrix test with `permdock/testing`.
-6. Run `permdock doctor` and fix what it reports.
+## Inputs
+## Invariants
+## Workflow
+1. **Detect.** The framework and the validator in use.
+   ✓ Both are named.
+## Verify before done
+## Reference index
 ```
 
 ## Mapping table
@@ -87,7 +97,7 @@ description: Add PermDock to a TypeScript app. Use when asked to add permissions
 | `AGENTS.md` (AAIF) | Repository-root maintainer guide |
 | Path-scoped rules (Cursor `.mdc`, Claude Code `.claude/rules`) | `.agents/rules/*.mdc`, linked into both tools |
 | `CLAUDE.md` | The one line `@AGENTS.md` |
-| Agent Skill `SKILL.md` | `wire-permdock`, `audit-permissions`, with `license: MIT` and `metadata` in the frontmatter |
+| Agent Skill `SKILL.md` | `permdock` and the `permdock-*` skills, with `license: MIT` and `metadata` in the frontmatter |
 | Claude Code plugin marketplace | `.claude-plugin/marketplace.json` |
 | skills.sh + `npx skills add` | `npx skills add ScaleDockHQ/PermDock` |
 | Skills bundled with a package | `packages/permdock/skills/`, installed by `permdock skills` |

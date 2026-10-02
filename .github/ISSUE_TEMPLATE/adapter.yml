@@ -39,6 +39,6 @@ body:
       options:
         - label: Docs page at adapters/<name>.mdx with Status and Phase
         - label: adapters/index.mdx matrix and adapters/meta.json
-        - label: wire-permdock skill reference
+        - label: permdock-wire (or topic) skill reference
         - label: Example app under apps/examples
         - label: Tests and a tests/bundle measurement

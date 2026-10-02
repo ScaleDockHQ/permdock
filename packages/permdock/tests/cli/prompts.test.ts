@@ -44,8 +44,8 @@ describe('skills install prompt', () => {
     expect(prompts.multiselect).toHaveBeenCalledWith(
       expect.objectContaining({ initialValues: ['cursor'] }),
     );
-    expect(existsSync(join(cwd, '.claude/skills/wire-permdock'))).toBe(true);
-    expect(existsSync(join(cwd, '.cursor/skills/wire-permdock'))).toBe(false);
+    expect(existsSync(join(cwd, '.claude/skills/permdock-wire'))).toBe(true);
+    expect(existsSync(join(cwd, '.cursor/skills/permdock-wire'))).toBe(false);
   });
 
   it('exits 2 and writes nothing when cancelled', async () => {

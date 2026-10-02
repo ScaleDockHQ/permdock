@@ -10,10 +10,19 @@
     {
       "name": "permdock",
       "displayName": "PermDock",
-      "description": "Wire PermDock into a TypeScript app (wire-permdock) and audit an existing setup or pull request (audit-permissions).",
+      "description": "Wire PermDock into a TypeScript app, audit a setup or pull request, and work on agents, approvals, tenancy, data and credentials.",
       "source": "./packages/permdock/skills",
       "strict": false,
-      "skills": ["./wire-permdock", "./audit-permissions"],
+      "skills": [
+        "./permdock",
+        "./permdock-wire",
+        "./permdock-audit",
+        "./permdock-agents",
+        "./permdock-approvals",
+        "./permdock-tenancy",
+        "./permdock-data",
+        "./permdock-credentials"
+      ],
       "author": {
         "name": "ScaleDockHQ",
         "url": "https://github.com/ScaleDockHQ"

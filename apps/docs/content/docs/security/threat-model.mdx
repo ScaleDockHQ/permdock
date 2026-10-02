@@ -193,4 +193,4 @@ flowchart LR
 
 - Authentication, login, session management and token issuance (providers and frameworks own these; PermDock consumes their result). Token *verification* is in scope only for the optional `permdock/jwt` entry and the provider adapters, never for core. PermDock Cloud may issue tokens as an identity gateway; that path stays off the decision engine. See [Authentication and PermDock](/docs/concepts/authentication).
 - Protecting the server process itself (secrets, dependency supply chain) beyond PermDock's own zero-runtime-dependency core.
-- Preventing an application from calling `can` with the wrong permission; types reduce this, tests and the `audit-permissions` skill catch the rest.
+- Preventing an application from calling `can` with the wrong permission; types reduce this, tests and the `permdock-audit` skill catch the rest.

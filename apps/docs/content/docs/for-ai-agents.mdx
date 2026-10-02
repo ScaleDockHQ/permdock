@@ -3,7 +3,7 @@ title: For AI agents
 description: How a coding agent should install, wire, check and audit PermDock, and how PermDock's errors and denials are written for models.
 ---
 
-PermDock's second audience is the coding agent working in a TypeScript repository. Every page, skill, error message and CLI report is written so that an agent can wire PermDock end-to-end, verify its work and explain a denial without reading library source. This page is the entry point for that agent. The `wire-permdock` and `audit-permissions` skills ship in the `permdock` package. Point an MCP client at `https://permdock.dev/mcp` for search and page-fetch; [agent docs standards](/docs/standards/agent-docs-standards#docs-mcp) has install links for Cursor and VS Code and the Claude Code command.
+PermDock's second audience is the coding agent working in a TypeScript repository. Every page, skill, error message and CLI report is written so that an agent can wire PermDock end-to-end, verify its work and explain a denial without reading library source. This page is the entry point for that agent. The `permdock` skill and the `permdock-*` skills ship in the `permdock` package. Point an MCP client at `https://permdock.dev/mcp` for search and page-fetch; [agent docs standards](/docs/standards/agent-docs-standards#docs-mcp) has install links for Cursor and VS Code and the Claude Code command.
 
 ## Start here
 
@@ -11,10 +11,12 @@ PermDock's second audience is the coding agent working in a TypeScript repositor
 npx skills add ScaleDockHQ/PermDock
 ```
 
-This installs two Agent Skills into the folders your agent reads (`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`):
+This installs eight Agent Skills into the folders your agent reads (`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`); `--skill <name>` installs one:
 
-- **`wire-permdock`**: detect the framework and validator, create `src/permissions.ts`, `src/policy.ts` and the factory file, add the first check and the first UI guard, run the CLI checks, add CI steps.
-- **`audit-permissions`**: review an existing installation for ungranted or unused permissions, missing approvals on destructive agent-reachable actions, closures that could be portable, and the OWASP Agentic Top 10 mapping.
+- **`permdock`**: the mental model and invariants, reading a `Decision`, `explain` for an unexpected denial, the docs MCP, and which skill to load next. Start here.
+- **`permdock-wire`**: detect the framework and validator, create `src/permissions.ts`, `src/policy.ts` and the factory file, add the first check and the first UI guard, run the CLI checks, add CI steps.
+- **`permdock-audit`**: review an existing installation or a pull request for ungranted or unused permissions, validation and identity gaps, untested grants, and the OWASP Agentic Top 10 mapping; it runs each topic skill's Verify list.
+- **`permdock-agents`**, **`permdock-approvals`**, **`permdock-tenancy`**, **`permdock-data`**, **`permdock-credentials`**: one area each, from agent delegation and human approval to named scopes, queries and RLS, and tokens, API keys and share links.
 
 The same skills ship inside the `permdock` npm package and can be installed with `permdock skills install`, so the skill version always matches the library version. In Claude Code, `/plugin marketplace add ScaleDockHQ/permdock` adds them as the `permdock` plugin from `.claude-plugin/marketplace.json`. See [skills](/docs/cli/skills).
 

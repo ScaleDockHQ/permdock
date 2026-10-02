@@ -10,7 +10,16 @@ import { dirname, join, resolve } from 'node:path';
 
 import { packageRoot } from './package-root.ts';
 
-const SKILL_NAMES = ['wire-permdock', 'audit-permissions'] as const;
+const SKILL_NAMES = [
+  'permdock',
+  'permdock-wire',
+  'permdock-audit',
+  'permdock-agents',
+  'permdock-approvals',
+  'permdock-tenancy',
+  'permdock-data',
+  'permdock-credentials',
+] as const;
 
 const AGENT_FOLDERS: Readonly<Record<string, string>> = {
   agents: '.agents/skills',

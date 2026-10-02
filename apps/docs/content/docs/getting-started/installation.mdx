@@ -158,7 +158,7 @@ The [quick start](/docs/getting-started/quick-start) fills in the first three.
 pnpm permdock doctor
 ```
 
-`doctor` checks the TypeScript version, module resolution, that exactly one copy of `permdock` is installed, that no server entry is imported from a client file, that `memoryApprovalStore()` is not the store in a serverless deployment that surfaces approvals, that `PERMDOCK_CLOUD_*` variables (when present) are server-only and reach the API, and that the catalog produced by `permdock collect` is fresh. It is the first thing the `wire-permdock` skill runs.
+`doctor` checks the TypeScript version, module resolution, that exactly one copy of `permdock` is installed, that no server entry is imported from a client file, that `memoryApprovalStore()` is not the store in a serverless deployment that surfaces approvals, that `PERMDOCK_CLOUD_*` variables (when present) are server-only and reach the API, and that the catalog produced by `permdock collect` is fresh. The `permdock-wire` skill runs it as soon as the three files exist.
 
 ## Next steps
 

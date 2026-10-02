@@ -1,6 +1,6 @@
 # Adapter factories
 
-Every server and agent adapter exports `createPermDock`. The import path names the framework. React has no factory: it exports hooks and `<Protected>` from `permdock/react`.
+Every server adapter exports `createPermDock`. The import path names the framework. Agent runtime adapters (AI SDK, Claude Agent SDK, Eve, OpenAI Agents SDK, MCP, A2A, WebMCP, terminal) are in the `permdock-agents` skill; ORM adapters and Convex in the `permdock-data` skill. React has no factory: it exports hooks and `<Protected>` from `permdock/react`.
 
 ## Next.js — `permdock/next`
 
@@ -44,19 +44,15 @@ export async function loadSnapshot(org: string) {
 <PermDockProvider snapshotPromise={params.then(({ org }) => loadSnapshot(org))}>
 ```
 
-After a role change: `updateTag(snapshotTag(user))` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler (not `'max'`, which would keep serving the revoked grant). Pages whose permission UI must be instant export `instant = true`; a rarely visited admin page exports `prefetch = 'force-disabled'`. Resource links that should carry their gated actions use `<Link prefetch={true}>` with the check in a `'use cache: private'` function keyed on the resource id. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. With a slug in the URL (`[orgSlug]`), resolve it to the org id in a `'use cache'` lookup that reads no session, call `notFound()` for an unknown slug, and pass the id to `snapshotFor`, `requireAccess` and `getPermDock`. Export `const { POST, GET } = permdockHandler()` from `app/api/permdock/route.ts`, or pass `endpoint: false` when every client check is portable; then a closure grant read by `usePermission` is denied with reason `server-only` (`permdock doctor` PD044 warns). Guide: https://permdock.com/docs/guides/next-cache-components.
+After a role change: `updateTag(snapshotTag(user))` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler (not `'max'`, which would keep serving the revoked grant). Pages whose permission UI must be instant export `instant = true`; a rarely visited admin page exports `prefetch = 'force-disabled'`. Resource links that should carry their gated actions use `<Link prefetch={true}>` with the check in a `'use cache: private'` function keyed on the resource id. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. With a slug in the URL (`[orgSlug]`), resolve it to the org id in a `'use cache'` lookup that reads no session, call `notFound()` for an unknown slug, and pass the id to `snapshotFor`, `requireAccess` and `getPermDock`. Export `const { POST, GET } = permdockHandler()` from `app/api/permdock/route.ts`, or pass `endpoint: false` when every client check is portable; then a closure grant read by `usePermission` is denied with reason `server-only` (`permdock doctor` PD044 warns). Guide: [Next.js Cache Components](https://permdock.dev/docs/guides/next-cache-components).
 
 ## Hono — `permdock/hono`
 
 ```ts
-import { createPermDock, discoverViaSignatureAgent } from 'permdock/hono';
+import { createPermDock } from 'permdock/hono';
 
 export const { permdock, protect, permdockHandler } = createPermDock(policy, {
   subject: (c) => c.get('user'),
-  webBotAuth: {
-    verify: true,
-    keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }),
-  },
 });
 
 app.use('*', permdock());
@@ -100,123 +96,6 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/react';
 ```
 
 `permissions.ts` may be imported on the client. `policy.ts` may not.
-
-## AI SDK — `permdock/ai-sdk`
-
-```ts
-import { createPermDock } from 'permdock/ai-sdk';
-import { z } from 'zod';
-
-const PostArgs = z.object({ id: z.string() });
-
-export const { toolApproval, capabilityMiddleware, needsApproval } =
-  createPermDock(policy, {
-    subject: ({ runtimeContext }) => runtimeContext.user,
-    actor: ({ runtimeContext }) => ({
-      id: runtimeContext.agentId,
-      kind: 'ai-sdk',
-    }),
-    // What the user handed the agent. No default: without it every tool is denied.
-    delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-    tools: {
-      delete_post: {
-        permission: permissions.post.delete,
-        // Tool input arrives as `unknown`: parse it before loading.
-        data: (args) => loadPost(PostArgs.parse(args).id),
-      },
-    },
-  });
-```
-
-Every agent adapter (`ai-sdk`, `claude-agent`, `openai`, `eve`) takes a `delegation` option: the scopes, `authorizationDetails` or `access` the user handed the agent. An actor with no delegation is denied every check with `no-delegation`; list the scopes explicitly, never the principal's whole role. Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`.
-
-## Claude Agent SDK — `permdock/claude-agent`
-
-```ts
-import { createPermDock } from 'permdock/claude-agent';
-
-export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
-  subject: () => user,
-  actor: () => ({ id: 'claude', kind: 'claude-agent' }),
-  delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-  tools: {
-    delete_post: {
-      permission: permissions.post.delete,
-      data: (args) => loadPost(args),
-    },
-  },
-});
-```
-
-`canUseTool` returns `{ behavior: 'allow', updatedInput }` or `{ behavior: 'deny', message }`; approval-required is a deny whose message carries the pending token. Pass a `store`: once a reviewer approves, the retried call is allowed exactly once. `mcp__` tools are trusted only from `mcpSources` (default `['sdk']`). Pass `permissionRequestHook` under `hooks.PermissionRequest`.
-
-## Eve — `permdock/eve`
-
-```ts
-import { createPermDock } from 'permdock/eve';
-
-export const { approval, approvalFor, permdock } = createPermDock(policy, {
-  delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-  tools: {
-    delete_post: {
-      permission: permissions.post.delete,
-      data: (args) => loadPost(args),
-    },
-  },
-});
-```
-
-Pass `approval` as the tool's `approval`. Default subject/actor read `session.auth.initiator` / `current`. `approval.request(ctx)` maps granted to Eve's `not-applicable` (continue), approval-required to `user-approval`, denied to `{ type: 'denied', reason }`; Eve's re-check of a call nobody approved is denied. `approval.response(ctx)` maps the responder through the same `subject`. Use a durable `store` when replicas share sessions.
-
-## OpenAI Agents SDK — `permdock/openai`
-
-```ts
-import { createPermDock } from 'permdock/openai';
-
-export const { needsApproval, guardTools, resolveInterruptions, permdock } =
-  createPermDock(policy, {
-    subject: (ctx) => ctx.user,
-    actor: (ctx) => ({ id: ctx.agentId, kind: 'openai' }),
-    delegation: (ctx) => ({ scopes: ctx.scopes }),
-    tools: {
-      delete_post: {
-        permission: permissions.post.delete,
-        data: (args) => loadPost(args),
-      },
-    },
-  });
-```
-
-`needsApproval(permission)` is the tool's `needsApproval`; it reads `runContext.context` and is true unless granted. `guardTools` drops tools with no grant. `resolveInterruptions(state, interruptions, { context })` approves or rejects each pause and returns the still-pending `ApprovalRequest`s. On resume, rebuild the context from the session and use `RunState.fromStringWithContext`.
-
-## MCP — `permdock/mcp`
-
-```ts
-import { createPermDock } from 'permdock/mcp';
-
-export const { protectServer } = createPermDock(policy, {
-  subject: (authInfo) => userFrom(authInfo), // or subjectFromMcp
-  requireAuthInfo: true, // HTTP behind bearer auth
-  store,
-});
-
-const server = protectServer(
-  new McpServer({ name: 'posts', version: '1.0.0' }),
-);
-server.registerTool(
-  'delete_post',
-  {
-    permission: permissions.post.delete,
-    inputSchema: z.object({ id: z.string() }),
-    data: ({ id }) => loadPost(id),
-  },
-  handler,
-);
-```
-
-`actor.kind` is `'mcp-client'`. Every `registerTool` / `registerResource` / `registerPrompt` needs a `permission`. Lists are filtered per caller. A missing scope is an `insufficient_scope` step-up (HTTP `403`) naming only the scope the call needs. Set `resource` to the server's URL so tokens for another audience are refused. Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` parks the call in `store` and returns `isError: true` with the token, or an `input_required` URL request when `approval.at` is set and the client declares URL elicitation; the retried call runs once after approval (token optional under `_meta["dev.permdock/approval"]`, never from tool arguments).
-
-An MCP server that is not an SDK `McpServer` (better-supabase `createMcp`) cannot be wrapped: narrow the tool's `meta` with `isPermission`, filter its tool list with `mayUse(permdock, permission)` from `permdock` and decide each call with `permdock.decide(permission, args)` in its `authorize` hook. `mayUse` is a listing hint, never a decision.
 
 ## AuthZEN — `permdock/authzen`
 
@@ -414,68 +293,6 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/solid';
 
 `usePermission` takes an accessor for instance data (`() => post`). Do not import `policy.ts` on the client.
 
-## Terminal — `permdock/terminal`
-
-```ts
-import { createPermDock } from 'permdock/terminal';
-
-export const { permdock, protect, filterCommands, format, exitCode } =
-  createPermDock(policy, {
-    subject: async ({ token }) => {
-      const jwt = await token(['env', 'keychain', 'ci-oidc', 'device']);
-      return jwt ? subjectFromJwt(jwt, { issuer, audience: 'acme-cli' }) : null;
-    },
-  });
-```
-
-Not the `permdock` binary. Never accept `--user` or `--actor` as identity. In CI, verify the job token with `subjectFromCiOidc(jwt, { provider: 'github', audience })` from `permdock/jwt`, which returns a `workload` principal, never a user. A `destructive` permission asks for the resource id to be typed, and exits `64` without a terminal unless `--yes` is passed; `--yes` never approves an `approval-required` call. `--dry-run` decides and exits with the outcome's code without running the action.
-
-## WebMCP — `permdock/webmcp`
-
-Client entry. No factory. Register snapshot-allowed tools on `document.modelContext`:
-
-```ts
-import { registerTools } from 'permdock/webmcp';
-import { approvalHeaders, usePermDock } from 'permdock/react';
-
-const permdock = usePermDock();
-const controller = new AbortController();
-registerTools(document.modelContext, permissions.post, {
-  permdock,
-  signal: controller.signal,
-  handlers: {
-    update: async ({ input, token }) =>
-      api.posts.update(input, { headers: approvalHeaders(token) }),
-  },
-});
-```
-
-Never import a policy into this entry. A missing `document.modelContext` is a no-op.
-
-## A2A — `permdock/a2a`
-
-```ts
-import { createPermDock } from 'permdock/a2a';
-
-export const { agentCard, extendedAgentCard, protectSkill } = createPermDock(
-  policy,
-  {
-    subject: (auth) => userFrom(auth),
-    card: {
-      name: 'Posts agent',
-      url: 'https://agent.example.com/a2a',
-      version: '1.0.0',
-    },
-    securitySchemes: { oauth: { type: 'oauth2' } },
-    skills: {
-      summarise: { permission: permissions.post.read },
-    },
-  },
-);
-```
-
-Identity comes from transport auth, never the task body.
-
 ## OpenTelemetry — `permdock/otel`
 
 ```ts
@@ -563,58 +380,6 @@ export const { getPermDock } = createPermDock(policy, {
 
 Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API. `o:` plans and features from `pla` and `fea` hold only in the session organization.
 
-## Convex — `permdock/convex`
-
-```ts
-import { createPermDock } from 'permdock/convex';
-
-export const { withPermDock, snapshotQuery } = createPermDock(policy, {
-  subject: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    return identity && { id: identity.subject, roles: ['member'] };
-  },
-});
-```
-
-Identity comes from `ctx` only. Function arguments never influence the subject. `assert` becomes a ConvexError with RFC 9457 Problem Details.
-
-## Approvals — `permdock/approvals`
-
-```ts
-import { approvalsHandler, memoryApprovalStore } from 'permdock/approvals';
-
-const store = memoryApprovalStore();
-export const { GET, POST } = approvalsHandler({
-  store,
-  decide,
-  subject: fromSession,
-});
-```
-
-Pass `store` into every adapter `createPermDock`. Resume HTTP with `PermDock-Approval`.
-
-## JWT — `permdock/jwt`
-
-```ts
-import { subjectFromJwt } from 'permdock/jwt';
-
-const subject = await subjectFromJwt(token, {
-  discovery: 'https://issuer.example.com',
-  audience: 'https://api.example.com',
-});
-```
-
-`jose` is an optional peer. Failures become the anonymous subject, never a throw.
-
-## Drizzle / Prisma / Kysely
-
-```ts
-import { toWhere } from 'permdock/drizzle'; // or permdock/prisma, permdock/kysely
-const where = toWhere(dock.where(permissions.post.list), posts);
-```
-
-Prisma also exports `permdockExtension`. Kysely also exports `withSubject`. Prisma is structurally typed (no peer).
-
 ## Supabase — `permdock/supabase`
 
 ```ts
@@ -628,33 +393,20 @@ const subject = subjectFromSupabase(claims, {
 });
 ```
 
-Write the claims with `permdock supabase hook generate`; `permdock supabase inspect --json` prints the manifest (helper names, tenant claim, budget, claims written) a package such as better-supabase reads before it writes Storage or Realtime policies against the helpers. No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL as authority and run `permdock rls verify --db` against `sqlFunction` twins ([database-first](/docs/adapters/rls)).
+Write the claims with `permdock supabase hook generate`; `permdock supabase inspect --json` prints the manifest (helper names, tenant claim, budget, claims written) a package such as better-supabase reads before it writes Storage or Realtime policies against the helpers. No `@supabase/supabase-js` peer. Pair with `permdock rls generate`, or keep SQL as authority and run `permdock rls verify --db` against `sqlFunction` twins ([database-first](https://permdock.dev/docs/adapters/rls)); the generic RLS workflow is in the `permdock-data` skill.
 
 With better-supabase, map its session with `subjectFromSupabaseSession(session, { plans: 'features' })`: the active tenant's `features` become `principal.plans`. Validate its claims with `sb.claims(supabaseClaims().extend(appSchema))` (`supabaseClaims` from `permdock/supabase`, any Standard Schema as `appSchema`) instead of a hand-written copy of the claim shape. A `supabase.hook.claims` function that needs the user's organizations calls `<schema>.member_organization_ids_for(user_id)` (generated by `rls generate`, executable by `supabase_auth_admin` only) instead of querying the membership tables itself. A token Supabase's OAuth server issued to a third-party app (`client_id`) becomes an `oauth-client` actor limited to its `scope`; `deny(permission, { to: actor('oauth-client') })` keeps such apps out, in the app and, through `rls generate`, in Postgres. Check a deployed database against the generated policies with `permdock rls verify --introspect --db $DATABASE_URL`.
 
 `claims` is whatever Supabase verified: `data.claims` from `supabase.auth.getClaims()` on an `@supabase/ssr` server client, or `jwtClaims` from `@supabase/server` (`ctx.jwtClaims` in `withSupabase`, `c.var.supabaseContext.jwtClaims` in its Hono adapter). Pass `null` for anonymous callers; never `getSession().access_token` (unverified). An API-key auth mode (`secret`, `publishable`) has `jwtClaims: null` and is the anonymous subject, not a user.
 
-Share links reach RLS through an exchange, never through the link token itself:
+Share links reach RLS through `exchangeCapability`; see the `permdock-credentials` skill.
 
-```ts
-import { subjectFromCapability } from 'permdock/jwt';
-import { exchangeCapability } from 'permdock/supabase';
+Supabase specifics for generated RLS (the generic flags and parity checks are in the `permdock-data` skill):
 
-const link = await subjectFromCapability(url.searchParams.get('token'), {
-  jwks,
-  issuer,
-  audience,
-  revoked,
-});
-const accessToken = await exchangeCapability(link, {
-  key: signingJwk,
-  alg: 'ES256',
-  kid: 'permdock-links',
-  ttl: 300,
-});
-```
-
-`accessToken` is `role: 'anon'` with a `capability` claim and no `sub`, or `undefined` for anything but a live link. Generate the matching policies with `permdock rls generate --capabilities`.
+- With declarative schemas (`supabase/schemas` plus `supabase db diff`), generate `--split helpers,policies,hook --out supabase/schemas/identity/056_permdock_{part}.sql` and write the hook's `supabase_auth_admin` grants with `--grants-out` into a migration created by `supabase migration new` after the first `db diff`; `db diff` drops those grants. Keep the helpers part ahead of every file that calls the helpers in `schema_paths` (`permdock doctor` PD042, PD043).
+- `--authorize jwt` reads the hook's claims: enable the printed `[auth.hook.custom_access_token]` stanza in `supabase/config.toml`. The generated hook writes the canonical `memberships` claim from the `rls.memberships.scopes` tables, so do not hand-write one.
+- For more than one membership table, declare `fromTable` / `fromJunction` sources once (from `permdock/supabase`, with a `query` on the server), pass the array as `memberships` (wrapped in `claimsFirst(sources, { version: authzVersion({ query }) })` to trust the token until it is truncated or stale), put the same sources under `supabase.hook.memberships` in `permdock.config.ts`, and run `permdock supabase hook generate`; add the printed `config.toml` block (`jwt_expiry = 900`). List member-removal and payout permissions in `definePolicy({ fresh })`.
+- For attribute conditions (`principal.claims.attrs.region`), list server-owned columns or `app_metadata.<key>` in `supabase.hook.attrs`, never `user_metadata`, and keep clients from updating those columns (`permdock doctor` PD028).
 
 ## Supabase middleware pipeline — `permdock/supabase/middleware`
 
@@ -725,25 +477,3 @@ For OpenFGA or SpiceDB, use `openfga({ url, storeId, map })` or `spicedb({ url, 
 Nuxt, Astro, React Router, TanStack Start and Effect have no `permdock/<name>` entry. Add `createPermDockUnplugin.vite()` from `permdock/unplugin` (or `.webpack` / `.esbuild`). Runtime is `permdock/server` or the matching HTTP adapter, plus `permdock/vue`, `permdock/react` or `permdock/svelte` on the client. Effect Schema is a Standard Schema; Effect HttpApi uses Overlay, not a hook.
 
 Remaining work follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.
-
-```bash
-pnpm exec permdock rls generate --target sql --dialect supabase --out migrations/rls.sql
-pnpm exec permdock rls generate --target sql --dialect supabase --rbac supabase --authorize database --memberships organization_members:organization_id,user_id,role --tenant-type uuid
-pnpm exec permdock rls import --sql migrations/rls.sql --out src/permissions.generated.ts
-pnpm exec permdock rls verify --fixtures rls.fixtures.json
-pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
-```
-
-Generated policies call `permdock_has('<key>')` and one `permitted_<scope>_ids('<key>')` per declared scope (`permitted_organization_ids`, `permitted_customer_ids`), which Postgres runs once per statement; hand-written policies that only need membership (an organization switcher, members reading their organization's row) call `member_<scope>_ids()` instead of inventing a permission key; set `--tenant-type` (or `rls.tenantType`, `rls.scopeTypes`) to the scope columns' types. In `database` mode map each scope's membership table under `rls.memberships.scopes.<scope>` with `columns` for the scope's id and its ancestors'. `--policy-per-role` keeps one policy per role for review. With tenant-defined custom roles, add `--custom-roles` (or `rls.customRoles: true`): write `custom_role_permissions` / `custom_role_includes` from the server in `database` mode, or put `customRoleClaim(roles)` on each membership's `grants` in the token in `jwt` mode. Both stay inside the `permdock_ceiling` view.
-
-With Supabase declarative schemas (`supabase/schemas` plus `supabase db diff`), generate `--split helpers,policies,hook --out supabase/schemas/identity/056_permdock_{part}.sql` and write the hook's `supabase_auth_admin` grants with `--grants-out` into a migration created by `supabase migration new` after the first `db diff`; `db diff` drops those grants. Keep the helpers part ahead of every file that calls the helpers in `schema_paths` (`permdock doctor` PD042, PD043).
-
-When the project already has hand-written policies over its own helpers (`org_ids_with_permission`, `has_org_permission`, `authorize_scope`), do not rewrite them by hand. Map each helper under `rls.migrate.helpers` with its `form` (`ids`, `row`, `scoped`, `global`, `membership`) and the legacy keys under `rls.migrate.keys` or `prefixes`. Then run `permdock rls migrate --sql supabase`, read the skipped calls, and apply with `--write`. Generate with `--helpers-only` while policies stay hand-written, and check the result with `rls verify --introspect --db`. The command exits `1` while a mapped key is unknown. A `row-conditions` skip means that table's policy should be generated, not migrated.
-
-When SQL is the authority, skip `generate`. Map helpers in `rls.functions`, write `sqlFunction` twins, and fail CI on `verify --db`. `--inline-functions` inlines the twin for generate targets that cannot call a SQL function.
-
-Never emit `service_role`. Fixtures may carry `memberships` and `tenant`, and a fixture file may add `customRoles`.
-
-Add `--force` (or `rls.force: true`) only when the application connects as the table owner; it emits `FORCE ROW LEVEL SECURITY`. Create views over RLS tables `with (security_invoker = true)`; `permdock doctor` PD022 warns on views that are not. When read grants set `fields` and clients read tables directly (the Supabase Data API), add `--fields views --revoke-columns` (or `rls.fields: 'views'`, `rls.revokeColumns: true`): clients then read `<table>_visible`, whose restricted columns are null unless a grant covers them for the row, and `select *` on the table fails. `permdock doctor` PD030 names the columns still readable. When `rls import` prints a commented `rls.memberships.tenant` stanza, confirm the table holds memberships before pasting it.
-
-`--authorize database` (default) makes `authorize()` read `user_roles` and the membership table per statement. `--authorize jwt` reads the hook's claims and stays stale until the token refreshes; keep `jwt_expiry` at 3600 or less (doctor PD019). Enable the printed `[auth.hook.custom_access_token]` stanza in `supabase/config.toml`. In `jwt` mode the generated hook also writes the canonical `memberships` claim from the `rls.memberships.scopes` tables, so do not hand-write one. When organizations, customers or users can be disabled, set `rls.suspension` (`users` and `scopes.<scope>`, each `{ table, id, disabledAt }` or `{ table, id, status, active }`): the helpers, `authorize()` and the hook then drop suspended rows, live in both modes. Make the app's `MembershipSource` honour the same status. For more than one membership table, declare `fromTable` / `fromJunction` sources once (from `permdock/supabase`, with a `query` on the server), pass the array as `memberships` (wrapped in `claimsFirst(sources, { version: authzVersion({ query }) })` to trust the token until it is truncated or stale), put the same sources under `supabase.hook.memberships` in `permdock.config.ts`, and run `permdock supabase hook generate`; add the printed `config.toml` block (`jwt_expiry = 900`). List member-removal and payout permissions in `definePolicy({ fresh })`. For attribute conditions (`principal.claims.attrs.region`), list server-owned columns or `app_metadata.<key>` in `supabase.hook.attrs`, never `user_metadata`, and keep clients from updating those columns (`permdock doctor` PD028).
