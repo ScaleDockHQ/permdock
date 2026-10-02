@@ -15,7 +15,26 @@ const clerk = role('clerk', [
 ])
 ```
 
-`approval: 'human'` marks a grant that any authenticated person other than the requester may resolve: neither the actor nor the principal can approve. `{ by }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, an array as intersection; not `relation()`, which `definePolicy` refuses) and refuses the principal and the actor the same way. `distinct` defaults to `true`; `{ distinct: false }` lets the principal approve their own request (a user confirming their own agent's call), and `permdock doctor` PD024 lists every grant that sets it. The actor is refused either way. When the grant matches, `decide` returns:
+`approval: 'human'` marks a grant that any authenticated person other than the requester may resolve: neither the actor nor the principal can approve. `{ by }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, an array as intersection; not `relation()`, which `definePolicy` refuses) and refuses the principal and the actor the same way. `distinct` defaults to `true`; `{ distinct: false }` lets the principal approve their own request (a user confirming their own agent's call), and `permdock doctor` PD024 lists every grant that sets it. The actor is refused either way.
+
+Three more fields shape the request the grant produces:
+
+```ts
+allow(permissions.payout.release, {
+  approval: {
+    by: roles.finance,
+    quorum: 2,                                   // two distinct finance approvers
+    ttl: '30m',                                  // the ask expires after half an hour
+    escalation: { after: '10m', to: roles.cfo }, // after ten minutes the CFO may approve too
+  },
+})
+```
+
+- `quorum` (an integer, default 1) is how many distinct approvers the request needs. Each approval is recorded as `{ by, at }` on the request's `approvals`, the same principal counts once, and the request stays `pending` (so it cannot be consumed) until the quorum is met. One rejection ends it.
+- `ttl` (a duration such as `'30m'` or `'2d'`) caps how long the request stays open. The store has its own default (one hour for `memoryApprovalStore`); the grant can shorten it, never extend it.
+- `escalation` names, with the same selectors as `by`, who may approve in addition to `by` once `after` has passed since the request was created. It widens the approver set; it does not change the quorum or remove anyone.
+
+`definePolicy` refuses a `quorum` below 1 or a `ttl` or `after` that is not a duration, and `relation()` is refused in `escalation.to` as it is in `by`. When the grant matches, `decide` returns:
 
 ```ts
 { outcome: 'approval-required', grant, reason, token }
@@ -64,6 +83,8 @@ Between the ask and the answer, the pending approval is an `ApprovalRequest` rec
 - An approval is spent once. A resume that enforces the call (`protect`, agent tool execution, MCP) calls the store's atomic `consume`, which sets `consumedAt`; a second resume is `denied` with detail `approval-consumed`. A store without `consume` cannot resume. The decision endpoint only inspects, so a UI check does not spend the approval.
 - `create` is idempotent per token: a pending, approved or rejected record is kept until it expires, so a consumed or rejected call cannot be asked again before `expiresAt`.
 - A request with a tenant is resolvable only by an approver with a membership in that tenant.
+- A `quorum` counts principals, not clicks: the same approver is refused a second time, so one person can never satisfy a quorum of two, whatever role they hold.
+- `expiresAt` is the shorter of the store's window and the grant's `ttl`; the escalation window opens at `createdAt` plus `escalation.after` and the store checks it at resolve time, so an approver who was not eligible when the request was created can become eligible without any write.
 - A `simulate()` plan produces one request per `approval-required` step; approving the plan approves each token, and each step is still re-checked at execution.
 - The ask, the answer and the resumed decision are three `on('decision')` records sharing `token`.
 
@@ -117,7 +138,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - It does not grant a permission the subject lacks. Approval sits on top of a matching grant.
 - It does not outlive its request. Each call needs its own approval, which is consumed on use; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step with no plan-level token.
 - It is not remembered. A rejection applies to one call; the next call asks again, and the OpenAI SDK's `alwaysReject` is never set.
-- It does not decide who may approve beyond the grant and the actor rule. `approval.by` and `approval.distinct` on the grant are copied to the `ApprovalRequest` as `approvers` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is an application-wide floor: with it on, `distinct: false` on a grant no longer lets the principal approve.
+- It does not decide who may approve beyond the grant and the actor rule. `approval.by`, `approval.distinct`, `approval.quorum` and `approval.escalation` on the grant are copied to the `ApprovalRequest` as `approvers` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is an application-wide floor: with it on, `distinct: false` on a grant no longer lets the principal approve.
 - It is never given by a link alone. An emailed or chat link carries only the token and opens a page where the approver authenticates; the verdict goes through `approvalsHandler` with that session's subject. A link that approves without a session would make possession of the message the approver's identity ([approvals](/docs/adapters/approvals)).
 
 ## Why
@@ -125,6 +146,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - **Approvals can bind content, not only identity.** An approval is a person's judgement about what they saw. When the row can change between the ask and the resume, someone could get a small refund approved and then raise the amount before the retry. The version field is the cheapest stable signal of "the row changed" that every database already has, and putting it in the token reuses the existing comparison instead of adding a second check. It is opt-in per grant because most approvals are about the action on a row ("delete this post"), and forcing re-approval on every unrelated edit would train approvers to click yes. The resume says `stale-approval` rather than a generic mismatch, so the client can tell the user to ask again instead of retrying the same token.
 - **A call without a row id binds its arguments.** A collection action has no row to name, so a token of key, subject and actor alone would let one approval cover every later call of that action until it is consumed, and an agent could swap the arguments after the human said yes. Hashing the validated data costs one digest per approval-required decision and needs no new field on the record. Rows with an id keep binding the id, with `staleOn` for content, because a row's content changes for reasons unrelated to the approval.
 - **Approvers are subjects, not relations.** `relation()` answers "does this subject relate to this row", which needs the row and a relation reader at resolve time; the store has neither. A store that let a relation approver through would let anyone approve, so the store refuses every approver for such a request and `definePolicy` refuses `relation()` in `approval.by`. A relation-aware approver check can come later through the approvals handler, which can load the row.
+- **Quorum, ttl and escalation are grant fields, not store configuration.** How many people must agree, how long an ask may wait and who may step in when nobody answers are statements about the action, the same as who may approve, so they live next to `by` on the grant, appear in the catalog and in `permdock diff`, and travel with the request as `approvers`. A store setting would apply to every permission at once and would be invisible to a policy review. The request records each approval as `{ by, at }` rather than a counter so an audit can see who agreed, and the quorum counts distinct principals because a quorum one person can satisfy alone is a single approval with extra clicks. Escalation only widens the approver set, because a workflow where the fallback approver replaces the first set would let anyone wait out the timer to pick their approver. Recurring windows and per-approver weights are left out: both are approval workflow design, which an application or PermDock Cloud builds on these primitives.
 - **Four eyes is the default, not an option.** A user who can approve their own request turns an approval into a confirmation dialog: the person who wants the refund is the person who says yes. So the principal is refused unless the grant opts out. Where a confirmation is what the product wants (the user approving their own agent's call in a chat), `approval: { distinct: false }` says so on the grant and PD024 keeps the list visible in review. Separation between the agent and its user was already guaranteed by the actor rule; this closes the one between the user and themselves.
 
 ## Elevated access

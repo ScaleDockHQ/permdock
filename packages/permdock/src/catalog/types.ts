@@ -43,6 +43,9 @@ export type CatalogApproval =
       readonly by?: unknown;
       readonly distinct?: boolean;
       readonly staleOn?: 'resource-change';
+      readonly quorum?: number;
+      readonly ttl?: string;
+      readonly escalation?: { readonly after: string; readonly to: unknown };
     };
 
 export type CatalogResource = {

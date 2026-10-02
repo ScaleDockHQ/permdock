@@ -1,9 +1,11 @@
 import type { Decision } from '../core/decision.ts';
 import type { Permission } from '../core/permissions.ts';
+import type { ApprovalRequirement } from '../core/policy.ts';
 import type { Membership, Subject } from '../core/subject.ts';
 
 import { compact } from '../core/compact.ts';
 import { describe } from '../core/describe.ts';
+import { parseDuration } from '../core/duration.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { ApprovalError } from './errors.ts';
 import { listAll } from './page.ts';
@@ -66,6 +68,23 @@ export function summariseSubject(subject: Subject): ApprovalRequest['subject'] {
   });
 }
 
+/**
+ * The store's window (`meta.ttl`, else the default) capped by the grant's
+ * `approval.ttl`: a grant shortens how long a request stays open, never
+ * extends it.
+ */
+function approvalTtl(
+  storeTtl: number | undefined,
+  approval: ApprovalRequirement | 'human' | undefined,
+): number {
+  const base = storeTtl ?? DEFAULT_APPROVAL_TTL_MS;
+  const grant =
+    approval === undefined || approval === 'human'
+      ? undefined
+      : parseDuration(approval.ttl);
+  return grant === undefined ? base : Math.min(base, grant * 1000);
+}
+
 export async function requestApproval(
   store: ApprovalStore,
   decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
@@ -87,7 +106,6 @@ export async function requestApproval(
   },
 ): Promise<ApprovalRequest> {
   const now = meta.now ?? new Date();
-  const ttl = meta.ttl ?? DEFAULT_APPROVAL_TTL_MS;
   const leaf = permissionMeta(meta.permission);
   const approval = decision.grant.approval;
   const approvers: ApprovalApprovers | undefined =
@@ -97,7 +115,10 @@ export async function requestApproval(
           by: approval.by,
           distinct: approval.distinct,
           staleOn: approval.staleOn,
+          quorum: approval.quorum,
+          escalation: approval.escalation,
         });
+  const ttl = approvalTtl(meta.ttl, approval);
   const request = freezeDeep(
     compact<ApprovalRequest>({
       v: 1,

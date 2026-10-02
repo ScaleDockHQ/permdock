@@ -8,7 +8,7 @@ import type {
 
 import { and, eq, gt, isNull, lte, sql } from 'drizzle-orm';
 import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { ApprovalError, assertApprover } from 'permdock/approvals';
+import { ApprovalError, applyApprovalVerdict } from 'permdock/approvals';
 
 // The recipe on adapters/approvals.mdx; keep the two in step.
 export const approvals = pgTable('permdock_approvals', {
@@ -65,14 +65,10 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
       if (current === null) {
         throw new ApprovalError('approval-not-found', 'approval was not found');
       }
-      assertApprover(current, verdict.by, false);
-      const next: ApprovalRequest = {
-        ...current,
-        status: verdict.status,
-        resolvedAt: new Date().toISOString(),
-        resolvedBy: verdict.by.principal!.id,
-        ...(verdict.note === undefined ? {} : { note: verdict.note }),
-      };
+      const next = applyApprovalVerdict(current, verdict);
+      // Write only over the row this verdict was computed from, so two
+      // approvers racing towards a quorum both count.
+      const seen = current.approvals?.length ?? 0;
       const [row] = await db
         .update(approvals)
         .set({ status: next.status, body: next })
@@ -81,6 +77,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
             eq(approvals.token, token),
             eq(approvals.status, 'pending'),
             gt(approvals.expiresAt, new Date()),
+            sql`coalesce(jsonb_array_length(${approvals.body} -> 'approvals'), 0) = ${seen}`,
           ),
         )
         .returning({ body: approvals.body });

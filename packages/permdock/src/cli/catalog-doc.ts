@@ -153,6 +153,9 @@ function catalogApproval(
         by: approval.by,
         distinct: approval.distinct,
         staleOn: approval.staleOn,
+        quorum: approval.quorum,
+        ttl: approval.ttl,
+        escalation: approval.escalation,
       });
 }
 

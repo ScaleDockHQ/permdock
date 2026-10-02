@@ -230,6 +230,99 @@ describe('hosted grants', () => {
     ).toEqual(['weaker-approval']);
   });
 
+  it('drops a hosted approval with a malformed quorum, ttl or escalation, and one with fewer approvers than the code requires', async () => {
+    const quorumPolicy = definePolicy(
+      { permissions, plans },
+      {
+        roles: [
+          role('member', [
+            allow(permissions.invoice.delete, {
+              approval: { by: 'auditor', quorum: 2, ttl: '1h' },
+            }),
+          ]),
+          role('auditor', []),
+        ],
+        principal: (user: User) => user,
+        hostable: [permissions.invoice],
+      },
+    );
+    const merged = mergeHostedGrants(
+      quorumPolicy,
+      document([
+        {
+          id: 'g_zero',
+          permission: 'invoice.delete',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: {
+            by: { kind: 'role', role: 'auditor', scope: 'global' },
+            quorum: 0,
+          },
+        },
+        {
+          id: 'g_ttl',
+          permission: 'invoice.delete',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: {
+            by: { kind: 'role', role: 'auditor', scope: 'global' },
+            ttl: 'soon',
+          },
+        },
+        {
+          id: 'g_escalation',
+          permission: 'invoice.delete',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: {
+            by: { kind: 'role', role: 'auditor', scope: 'global' },
+            escalation: {
+              after: '1h',
+              to: { kind: 'role', role: 'ghost', scope: 'global' },
+            },
+          },
+        },
+        {
+          id: 'g_one',
+          permission: 'invoice.delete',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: {
+            by: { kind: 'role', role: 'auditor', scope: 'global' },
+            quorum: 1,
+            ttl: '1h',
+          },
+        },
+        {
+          id: 'g_long',
+          permission: 'invoice.delete',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: {
+            by: { kind: 'role', role: 'auditor', scope: 'global' },
+            quorum: 2,
+            ttl: '2h',
+          },
+        },
+        {
+          id: 'g_ok',
+          permission: 'invoice.delete',
+          to: { kind: 'role', role: 'auditor', scope: 'global' },
+          approval: {
+            by: { kind: 'role', role: 'auditor', scope: 'global' },
+            quorum: 3,
+            ttl: '30m',
+          },
+        },
+      ]),
+    );
+    expect(merged.dropped.map((item) => [item.grant, item.reason])).toEqual([
+      ['g_zero', 'invalid'],
+      ['g_ttl', 'invalid'],
+      ['g_escalation', 'invalid'],
+      ['g_one', 'weaker-approval'],
+      ['g_long', 'weaker-approval'],
+    ]);
+    expect(
+      merged.policy.grants.some((grant) => grant.hosted?.grant === 'g_ok'),
+    ).toBe(true);
+  });
+
   it('drops a grant on a permission the policy does not mark hostable', () => {
     const narrow = definePolicy(permissions, {
       roles: [role('member', [])],

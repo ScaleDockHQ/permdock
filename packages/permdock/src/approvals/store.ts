@@ -14,8 +14,11 @@ import {
   type ApprovalPage,
   type ApprovalRequest,
   type ApprovalStore,
+  type ApprovalSignature,
   type ApprovalVerdict,
+  approvalQuorum,
   DEFAULT_APPROVAL_TTL_MS,
+  escalationOpenAt,
 } from './types.ts';
 
 function tenantOf(request: ApprovalRequest): string | undefined {
@@ -126,10 +129,17 @@ function matchesFilter(
   return true;
 }
 
+/**
+ * Refuses `by` as an approver of `request`, or returns. Eligibility is
+ * `approvers.by`, or `approvers.escalation.to` once the request has waited
+ * `escalation.after`; a principal who already approved is refused, so a
+ * quorum counts distinct approvers.
+ */
 export function assertApprover(
   request: ApprovalRequest,
   by: Subject,
   requireDistinctApprover: boolean,
+  now: Date = new Date(),
 ): void {
   const principal = by.principal;
   if (principal === null) {
@@ -166,25 +176,51 @@ export function assertApprover(
       'approver does not belong to the request tenant',
     );
   }
+  if ((request.approvals ?? []).some((item) => item.by === principal.id)) {
+    throw new ApprovalError(
+      'approver-repeated',
+      'approver has already approved this request',
+    );
+  }
   if (request.approvers === undefined) {
     return;
   }
-  if (!matchesApprovers(request.approvers.by, by, tenant, Date.now() / 1000)) {
-    throw new ApprovalError(
-      'approver-not-eligible',
-      'approver does not hold an eligible role',
-    );
+  const instant = now.getTime() / 1000;
+  if (matchesApprovers(request.approvers.by, by, tenant, instant)) {
+    return;
   }
+  const escalation = request.approvers.escalation;
+  const openAt = escalationOpenAt(request);
+  if (
+    escalation !== undefined &&
+    openAt !== undefined &&
+    now.getTime() >= openAt &&
+    matchesApprovers(escalation.to, by, tenant, instant)
+  ) {
+    return;
+  }
+  throw new ApprovalError(
+    'approver-not-eligible',
+    'approver does not hold an eligible role',
+  );
 }
 
 function isSystemSubject(by: Subject): boolean {
   return by.actor?.kind === 'system';
 }
 
-function applyVerdict(
+/**
+ * The request after `verdict`, for a store to persist: a rejection resolves
+ * it; an approval is appended to `approvals` and resolves it once there are
+ * `approvers.quorum` (default 1). Throws an `ApprovalError` when the request
+ * is not pending, has expired or `verdict.by` may not approve it. Stores
+ * should write the result only when the stored row is still pending with the
+ * same number of approvals, so two approvers racing both count.
+ */
+export function applyApprovalVerdict(
   request: ApprovalRequest,
   verdict: ApprovalVerdict,
-  now: Date,
+  now: Date = new Date(),
 ): ApprovalRequest {
   const principal = verdict.by.principal;
   if (principal === null) {
@@ -200,15 +236,41 @@ function applyVerdict(
     throw new ApprovalError('approval-expired', 'approval has expired');
   }
   if (!(verdict.status === 'rejected' && isSystemSubject(verdict.by))) {
-    assertApprover(request, verdict.by, false);
+    assertApprover(request, verdict.by, false, now);
+  }
+  if (verdict.status === 'rejected') {
+    return freezeDeep(
+      compact<ApprovalRequest>({
+        ...request,
+        status: 'rejected',
+        resolvedAt: now.toISOString(),
+        resolvedBy: principal.id,
+        note: verdict.note ?? request.note,
+      }),
+    );
+  }
+  // One approval at a time: the request stays pending until the quorum is met.
+  const approvals: readonly ApprovalSignature[] = [
+    ...(request.approvals ?? []),
+    { by: principal.id, at: now.toISOString() },
+  ];
+  if (approvals.length < approvalQuorum(request)) {
+    return freezeDeep(
+      compact<ApprovalRequest>({
+        ...request,
+        approvals,
+        note: verdict.note ?? request.note,
+      }),
+    );
   }
   return freezeDeep(
     compact<ApprovalRequest>({
       ...request,
-      status: verdict.status,
+      status: 'approved',
+      approvals,
       resolvedAt: now.toISOString(),
       resolvedBy: principal.id,
-      note: verdict.note,
+      note: verdict.note ?? request.note,
     }),
   );
 }
@@ -264,7 +326,7 @@ export function memoryApprovalStore(
       if (current === undefined) {
         throw new ApprovalError('approval-not-found', 'approval was not found');
       }
-      const next = applyVerdict(current, verdict, new Date());
+      const next = applyApprovalVerdict(current, verdict, new Date());
       records.set(token, next);
       return next;
     },

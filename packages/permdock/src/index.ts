@@ -193,6 +193,7 @@ export {
 } from './core/policy.ts';
 export type {
   ActivationOption,
+  ApprovalEscalation,
   ApprovalOption,
   ApprovalRequirement,
   AssuranceRequirement,

@@ -251,7 +251,8 @@ function mapError(error: unknown): Response {
   }
   if (
     error.code === 'approval-not-pending' ||
-    error.code === 'approval-expired'
+    error.code === 'approval-expired' ||
+    error.code === 'approver-repeated'
   ) {
     return problem(409, 'Conflict', error.message, 'conflict');
   }

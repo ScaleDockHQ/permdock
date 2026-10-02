@@ -5,7 +5,8 @@ export type ApprovalErrorCode =
   | 'approver-unauthenticated'
   | 'approver-is-actor'
   | 'approver-is-principal'
-  | 'approver-not-eligible';
+  | 'approver-not-eligible'
+  | 'approver-repeated';
 
 export class ApprovalError extends Error {
   public override readonly name = 'ApprovalError' as const;
@@ -25,6 +26,7 @@ const CODES: ReadonlySet<string> = new Set<ApprovalErrorCode>([
   'approver-is-actor',
   'approver-is-principal',
   'approver-not-eligible',
+  'approver-repeated',
 ]);
 
 /** Matches by `name` and `code`, so an error from another copy of the module still maps. */

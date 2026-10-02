@@ -13,9 +13,18 @@ export {
   resumeFromHeader,
   summariseSubject,
 } from './helpers.ts';
-export { assertApprover, memoryApprovalStore } from './store.ts';
+export {
+  applyApprovalVerdict,
+  assertApprover,
+  memoryApprovalStore,
+} from './store.ts';
 export type { MemoryApprovalStore } from './store.ts';
-export { APPROVAL_HEADER, DEFAULT_APPROVAL_TTL_MS } from './types.ts';
+export {
+  APPROVAL_HEADER,
+  DEFAULT_APPROVAL_TTL_MS,
+  approvalQuorum,
+  escalationOpenAt,
+} from './types.ts';
 export type {
   ApprovalApprovers,
   ApprovalCancelMeta,
@@ -25,6 +34,7 @@ export type {
   ApprovalPage,
   ApprovalRequest,
   ApprovalResumeFailure,
+  ApprovalSignature,
   ApprovalStatus,
   ApprovalStore,
   ApprovalSubjectSummary,

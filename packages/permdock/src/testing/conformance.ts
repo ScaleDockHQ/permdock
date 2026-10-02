@@ -494,6 +494,17 @@ const approver: Subject = {
   context: {},
 };
 
+const secondApprover: Subject = {
+  principal: { id: 'u_10', roles: ['admin'] },
+  context: {},
+};
+
+const admin = {
+  kind: 'role' as const,
+  role: 'admin',
+  scope: 'global' as const,
+};
+
 export function testReplayStore(store: ReplayStore): void {
   it('records a jti after remember and reports it as seen', async () => {
     const jti = 'jti-1';
@@ -884,11 +895,6 @@ export function testApprovalStore(
       principal: { id: 'u_1', roles: ['admin'] },
       context: {},
     };
-    const admin = {
-      kind: 'role' as const,
-      role: 'admin',
-      scope: 'global' as const,
-    };
     const shapes = [
       ['self-human', undefined],
       ['self-by', { by: admin }],
@@ -916,6 +922,77 @@ export function testApprovalStore(
       by: principal,
     });
     expect(resolved.resolvedBy).toBe('u_1');
+  });
+
+  it('stays pending until the quorum is met and counts an approver once', async () => {
+    await store.create({
+      ...sampleApproval('quorum-token'),
+      approvers: { by: admin, quorum: 2 },
+    });
+    const first = await store.resolve('quorum-token', {
+      status: 'approved',
+      by: approver,
+    });
+    expect(first.status).toBe('pending');
+    expect(first.approvals).toEqual([{ by: 'u_9', at: expect.any(String) }]);
+    expect(await store.consume('quorum-token')).toBeNull();
+    await expect(
+      Promise.resolve().then(() =>
+        store.resolve('quorum-token', { status: 'approved', by: approver }),
+      ),
+    ).rejects.toThrow(/already approved/u);
+    const second = await store.resolve('quorum-token', {
+      status: 'approved',
+      by: secondApprover,
+    });
+    expect(second.status).toBe('approved');
+    expect(second.approvals?.map((item) => item.by)).toEqual(['u_9', 'u_10']);
+    expect(second.resolvedBy).toBe('u_10');
+    expect(await store.consume('quorum-token')).not.toBeNull();
+  });
+
+  it('lets one rejection end a quorum request', async () => {
+    await store.create({
+      ...sampleApproval('veto-token'),
+      approvers: { by: admin, quorum: 2 },
+    });
+    const rejected = await store.resolve('veto-token', {
+      status: 'rejected',
+      by: approver,
+    });
+    expect(rejected.status).toBe('rejected');
+    expect(rejected.approvals).toBeUndefined();
+  });
+
+  it('admits the escalation grantee only once the request has waited', async () => {
+    const auditor: Subject = {
+      principal: { id: 'u_11', roles: ['auditor'] },
+      context: {},
+    };
+    const escalation = {
+      after: '1h',
+      to: { kind: 'role' as const, role: 'auditor', scope: 'global' as const },
+    };
+    await store.create({
+      ...sampleApproval('fresh-escalation'),
+      approvers: { by: admin, escalation },
+    });
+    await expect(
+      Promise.resolve().then(() =>
+        store.resolve('fresh-escalation', { status: 'approved', by: auditor }),
+      ),
+    ).rejects.toThrow(/eligible/u);
+    await store.create({
+      ...sampleApproval('waited-escalation'),
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      approvers: { by: admin, escalation },
+    });
+    const resolved = await store.resolve('waited-escalation', {
+      status: 'approved',
+      by: auditor,
+    });
+    expect(resolved.status).toBe('approved');
+    expect(resolved.resolvedBy).toBe('u_11');
   });
 }
 

@@ -27,6 +27,13 @@ const approval = {
         by: {},
         distinct: { type: 'boolean' },
         staleOn: { const: 'resource-change' },
+        quorum: { type: 'integer', minimum: 1 },
+        ttl: { type: 'string' },
+        escalation: {
+          type: 'object',
+          required: ['after', 'to'],
+          properties: { after: { type: 'string' }, to: {} },
+        },
       },
     },
   ],

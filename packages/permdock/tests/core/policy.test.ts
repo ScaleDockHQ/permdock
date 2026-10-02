@@ -144,6 +144,52 @@ describe('policy', () => {
     });
   });
 
+  it('normalises quorum, ttl and escalation and refuses malformed ones', () => {
+    expect(
+      normalizeApproval({
+        by: 'admin',
+        quorum: 2,
+        ttl: '30m',
+        escalation: { after: '4h', to: 'auditor' },
+      }),
+    ).toEqual({
+      by: { kind: 'role', role: 'admin', scope: 'global' },
+      quorum: 2,
+      ttl: '30m',
+      escalation: {
+        after: '4h',
+        to: { kind: 'role', role: 'auditor', scope: 'global' },
+      },
+    });
+    expect(normalizeApproval({ quorum: 2 }, 'org.delete')).toEqual({
+      by: { kind: 'authenticated' },
+      quorum: 2,
+    });
+    expect(() => normalizeApproval({ quorum: 0 }, 'org.delete')).toThrow(
+      /quorum on .org\.delete.*at least 1/u,
+    );
+    expect(() => normalizeApproval({ quorum: 1.5 }, 'org.delete')).toThrow(
+      /quorum/u,
+    );
+    expect(() => normalizeApproval({ ttl: 'soon' }, 'org.delete')).toThrow(
+      /ttl.*duration/u,
+    );
+    expect(() =>
+      normalizeApproval(
+        { escalation: { after: 'later', to: 'auditor' } },
+        'org.delete',
+      ),
+    ).toThrow(/escalation\.after.*duration/u);
+    expect(() =>
+      normalizeApproval(
+        {
+          escalation: { after: '1h', to: relation(permissions.post, 'owner') },
+        },
+        'org.delete',
+      ),
+    ).toThrow(/escalation\.to.*relation/u);
+  });
+
   it('records exclusiveWith and reports membership conflicts', () => {
     const policy = definePolicy(permissions, {
       roles: [

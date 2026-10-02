@@ -12,6 +12,7 @@ import {
   cancelApprovals,
   consumeApproval,
   memoryApprovalStore,
+  requestApproval,
   resumeDecision,
   summariseSubject,
 } from '../../src/approvals/index.ts';
@@ -52,7 +53,7 @@ const approver: Subject = {
   context: {},
 };
 
-function required(token: string, staleOnChange = false): Decision {
+function required(token: string, approval: unknown = 'human'): Decision {
   // SAFETY: an approval-required decision whose grant carries only the fields the approval code reads.
   return {
     outcome: 'approval-required',
@@ -61,12 +62,23 @@ function required(token: string, staleOnChange = false): Decision {
       effect: 'allow',
       permission: 'post.delete',
       role: 'member',
-      approval: staleOnChange
-        ? { by: 'admin', staleOn: 'resource-change' }
-        : 'human',
+      approval,
     },
     token,
   } as unknown as Decision;
+}
+
+const STALE_ON_CHANGE = { by: 'admin', staleOn: 'resource-change' };
+
+function pendingOf(
+  token: string,
+  approval?: unknown,
+): Extract<Decision, { readonly outcome: 'approval-required' }> {
+  const decision = required(token, approval);
+  if (decision.outcome !== 'approval-required') {
+    throw new Error('expected approval-required');
+  }
+  return decision;
 }
 
 const deletePost = {
@@ -111,6 +123,44 @@ describe('summariseSubject', () => {
     expect(summariseSubject({ principal: { id: 'u' }, context: {} })).toEqual({
       principal: { id: 'u', roles: [] },
     });
+  });
+});
+
+describe('requestApproval', () => {
+  it('copies quorum and escalation onto the request and caps the ttl by the grant', async () => {
+    const store = memoryApprovalStore();
+    const now = new Date('2026-03-01T10:00:00.000Z');
+    const grant = {
+      by: { kind: 'role', role: 'admin', scope: 'global' },
+      quorum: 2,
+      ttl: '30m',
+      escalation: {
+        after: '10m',
+        to: { kind: 'role', role: 'auditor', scope: 'global' },
+      },
+    };
+    const request = await requestApproval(store, pendingOf('t-q', grant), {
+      permission: deletePost,
+      subject: requester,
+      now,
+    });
+    const { ttl: _ttl, ...approvers } = grant;
+    expect(request.approvers).toEqual(approvers);
+    expect(request.approvals).toBeUndefined();
+    expect(request.expiresAt).toBe('2026-03-01T10:30:00.000Z');
+    const longer = await requestApproval(
+      store,
+      pendingOf('t-long', { ...grant, ttl: '4h' }),
+      { permission: deletePost, subject: requester, now, ttl: 60 * 60 * 1000 },
+    );
+    expect(longer.expiresAt).toBe('2026-03-01T11:00:00.000Z');
+    const plain = await requestApproval(store, pendingOf('t-plain'), {
+      permission: deletePost,
+      subject: requester,
+      now,
+      ttl: 60 * 1000,
+    });
+    expect(plain.expiresAt).toBe('2026-03-01T10:01:00.000Z');
   });
 });
 
@@ -192,7 +242,7 @@ describe('resumeDecision edges', () => {
     const store = approved('t-old');
     expect(
       await resume({
-        decision: required('t-new', true),
+        decision: required('t-new', STALE_ON_CHANGE),
         store,
         token: 't-old',
       }),
@@ -210,7 +260,7 @@ describe('resumeDecision edges', () => {
     expect(
       (
         await resume({
-          decision: required('t-new', true),
+          decision: required('t-new', STALE_ON_CHANGE),
           store: failing,
           token: 't-old',
         })
@@ -220,7 +270,7 @@ describe('resumeDecision edges', () => {
     expect(
       (
         await resume({
-          decision: required('t-new', true),
+          decision: required('t-new', STALE_ON_CHANGE),
           store,
           token: 't-old',
           subject: anonymous,

@@ -4,6 +4,7 @@ import type { ApprovalRequirement, Grant, Policy } from './policy.ts';
 
 import { normalizeWhere } from '../conditions/normalize.ts';
 import { compact } from './compact.ts';
+import { parseDuration } from './duration.ts';
 import { freezeDeep } from './freeze.ts';
 import { MAX_RELATION_DEPTH, flattenGrantee } from './grantee.ts';
 import { isForbiddenKey, splitPath } from './paths.ts';
@@ -217,18 +218,30 @@ function approvalRank(approval: Grant['approval']):
       readonly by?: string;
       readonly distinct: boolean;
       readonly stale: boolean;
+      readonly quorum: number;
+      readonly ttl: number;
+      readonly escalates: boolean;
     }
   | undefined {
   if (approval === undefined) {
     return undefined;
   }
   if (approval === 'human') {
-    return { distinct: true, stale: false };
+    return {
+      distinct: true,
+      stale: false,
+      quorum: 1,
+      ttl: Number.POSITIVE_INFINITY,
+      escalates: false,
+    };
   }
   return {
     by: JSON.stringify(approval.by),
     distinct: approval.distinct !== false,
     stale: approval.staleOn === 'resource-change',
+    quorum: approval.quorum ?? 1,
+    ttl: parseDuration(approval.ttl) ?? Number.POSITIVE_INFINITY,
+    escalates: approval.escalation !== undefined,
   };
 }
 
@@ -253,6 +266,13 @@ function approvalAtLeast(
       return false;
     }
     if (theirs.by !== undefined && mine.by !== theirs.by) {
+      return false;
+    }
+    // Fewer approvers, a longer wait or a wider approver set is weaker.
+    if (mine.quorum < theirs.quorum || mine.ttl > theirs.ttl) {
+      return false;
+    }
+    if (mine.escalates && !theirs.escalates) {
       return false;
     }
   }
@@ -331,16 +351,53 @@ function approvalAcceptable(
   ) {
     return false;
   }
+  if (
+    approval['quorum'] !== undefined &&
+    (!Number.isInteger(approval['quorum']) ||
+      // SAFETY: Number.isInteger just established that quorum is a number.
+      (approval['quorum'] as number) < 1)
+  ) {
+    return false;
+  }
+  if (
+    approval['ttl'] !== undefined &&
+    (typeof approval['ttl'] !== 'string' ||
+      parseDuration(approval['ttl']) === undefined)
+  ) {
+    return false;
+  }
+  const escalation = approval['escalation'];
+  if (
+    escalation !== undefined &&
+    (!isRecord(escalation) ||
+      typeof escalation['after'] !== 'string' ||
+      parseDuration(escalation['after']) === undefined ||
+      !granteesAcceptable(policy, escalation['to'], permissionResource))
+  ) {
+    return false;
+  }
   if (approval['by'] === undefined) {
     return true;
   }
+  return granteesAcceptable(policy, approval['by'], permissionResource);
+}
+
+function granteesAcceptable(
+  policy: Policy,
+  raw: unknown,
+  permissionResource: string,
+): boolean {
+  if (raw === undefined) {
+    return false;
+  }
   // SAFETY: each item is checked with isRecord and declaredGrantee below before it is trusted.
-  const by = flattenGrantee(approval['by'] as Grantee | readonly Grantee[]);
+  const items = flattenGrantee(raw as Grantee | readonly Grantee[]);
   return (
-    by.length > 0 &&
-    by.every(
+    items.length > 0 &&
+    items.every(
       (item) =>
         isRecord(item) &&
+        item.kind !== 'relation' &&
         (item.kind === 'authenticated' ||
           declaredGrantee(policy, item, permissionResource)),
     )

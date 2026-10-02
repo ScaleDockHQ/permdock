@@ -10,6 +10,7 @@ import {
   normalizeWhere,
 } from '../conditions/index.ts';
 import { compact, isReadonlyArray, sole } from './compact.ts';
+import { parseDuration } from './duration.ts';
 import { sanitizeFields } from './fields.ts';
 import { freezeDeep } from './freeze.ts';
 import {
@@ -74,12 +75,24 @@ export type ClosureGrantFn<T = unknown> = (
   ctx: ClosureContext,
 ) => boolean;
 
+/** Who else may approve once a request has waited `after`. */
+export type ApprovalEscalation = {
+  /** A duration (`'4h'`) from the request's creation. */
+  readonly after: string;
+  readonly to: Grantee | readonly Grantee[];
+};
+
 export type ApprovalRequirement = {
   readonly by: Grantee | readonly Grantee[];
   /** `false` lets the request's principal approve it; absent means `true`. */
   readonly distinct?: boolean;
   /** `'resource-change'` binds the approval to the row's `version` field. */
   readonly staleOn?: 'resource-change';
+  /** Distinct approvers a request needs before it is approved; absent means 1. */
+  readonly quorum?: number;
+  /** How long a request stays open (`'30m'`); the store's default when absent, and never longer than it. */
+  readonly ttl?: string;
+  readonly escalation?: ApprovalEscalation;
 };
 
 export type ApprovalOption =
@@ -94,6 +107,15 @@ export type ApprovalOption =
        * changes, resuming denies with `stale-approval`.
        */
       readonly staleOn?: 'resource-change';
+      /** Distinct approvers needed (an integer of at least 1); the same approver counts once. Absent means 1. */
+      readonly quorum?: number;
+      /** How long the request stays open (`'30m'`, `'2d'`); caps the approval store's default. */
+      readonly ttl?: string;
+      /** After `after` (`'4h'`), `to` may approve as well as `by`; same grantee kinds as `by`. */
+      readonly escalation?: {
+        readonly after: string;
+        readonly to: GranteeInput;
+      };
     };
 
 /**
@@ -385,16 +407,34 @@ export function normalizeApproval(
       `PermDock: approval staleOn must be 'resource-change', got '${String(approval.staleOn)}'`,
     );
   }
+  const label = permission ?? 'a grant';
   const by = approval.by === undefined ? undefined : asGrantee(approval.by);
   if (flattenGrantee(by).some((item) => item.kind === 'relation')) {
     throw new Error(
-      `PermDock: approval.by on '${permission ?? 'a grant'}' names a relation; an approval store cannot check a relation, so name a role or another subject-only grantee`,
+      `PermDock: approval.by on '${label}' names a relation; an approval store cannot check a relation, so name a role or another subject-only grantee`,
     );
   }
   if (
+    approval.quorum !== undefined &&
+    (!Number.isInteger(approval.quorum) || approval.quorum < 1)
+  ) {
+    throw new Error(
+      `PermDock: approval.quorum on '${label}' must be an integer of at least 1, got ${String(approval.quorum)}`,
+    );
+  }
+  if (approval.ttl !== undefined && parseDuration(approval.ttl) === undefined) {
+    throw new Error(
+      `PermDock: approval.ttl on '${label}' must be a duration such as '30m', got '${approval.ttl}'`,
+    );
+  }
+  const escalation = normalizeEscalation(approval.escalation, label);
+  if (
     by === undefined &&
     approval.distinct === undefined &&
-    approval.staleOn === undefined
+    approval.staleOn === undefined &&
+    approval.quorum === undefined &&
+    approval.ttl === undefined &&
+    escalation === undefined
   ) {
     return 'human';
   }
@@ -402,7 +442,31 @@ export function normalizeApproval(
     by: by ?? authenticated(),
     distinct: approval.distinct,
     staleOn: approval.staleOn,
+    quorum: approval.quorum,
+    ttl: approval.ttl,
+    escalation,
   });
+}
+
+function normalizeEscalation(
+  escalation: { readonly after: string; readonly to: GranteeInput } | undefined,
+  label: string,
+): ApprovalEscalation | undefined {
+  if (escalation === undefined) {
+    return undefined;
+  }
+  if (parseDuration(escalation.after) === undefined) {
+    throw new Error(
+      `PermDock: approval.escalation.after on '${label}' must be a duration such as '4h', got '${escalation.after}'`,
+    );
+  }
+  const to = asGrantee(escalation.to);
+  if (flattenGrantee(to).some((item) => item.kind === 'relation')) {
+    throw new Error(
+      `PermDock: approval.escalation.to on '${label}' names a relation; an approval store cannot check a relation, so name a role or another subject-only grantee`,
+    );
+  }
+  return { after: escalation.after, to };
 }
 
 function isClosure(value: unknown): value is ClosureGrantFn {

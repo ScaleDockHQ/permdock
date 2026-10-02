@@ -37,7 +37,7 @@ const AUTHORIZE = ['jwt', 'database'] as const;
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
 const permissions = definePermissions({
-  post: resource(Post, { id: 'id', actions: ['delete', 'archive'] }),
+  post: resource(Post, { id: 'id', actions: ['delete', 'archive', 'purge'] }),
 });
 type User = { readonly id: string; readonly roles: readonly string[] };
 const subject = (user: User | null) => user;
@@ -48,12 +48,16 @@ const policy = definePolicy(permissions, {
       allow(permissions.post.archive, {
         approval: { by: ['member'], distinct: false },
       }),
+      allow(permissions.post.purge, {
+        approval: { by: ['member'], quorum: 2 },
+      }),
     ]),
   ],
   subject,
 });
 const alice: User = { id: 'alice', roles: ['member'] };
 const bob: User = { id: 'bob', roles: ['member'] };
+const carol: User = { id: 'carol', roles: ['member'] };
 const p1 = { id: 'p1', authorId: 'alice' };
 const p2 = { id: 'p2', authorId: 'alice' };
 const agent = { id: 'agent-1', kind: 'agent' };
@@ -260,5 +264,37 @@ describe('invariant 11: no bypass role, bound tokens, distinct approvers', () =>
         by: permdock.subject,
       }),
     ).resolves.toMatchObject({ status: 'approved' });
+  });
+
+  it('counts a quorum in distinct principals, so one approver cannot meet two', async () => {
+    const store = memoryApprovalStore();
+    const permdock = await createPermDock(policy, alice);
+    const decision = pending(permdock.decide(permissions.post.purge, p1));
+    await requestApproval(store, decision, {
+      permission: permissions.post.purge,
+      subject: permdock.subject,
+    });
+    const asBob = await createPermDock(policy, bob);
+    const first = await resolveApproval(store, decision.token, {
+      status: 'approved',
+      by: asBob.subject,
+    });
+    expect(first.status).toBe('pending');
+    expect(first.approvals?.map((item) => item.by)).toEqual(['bob']);
+    await expect(
+      resolveApproval(store, decision.token, {
+        status: 'approved',
+        by: asBob.subject,
+      }),
+    ).rejects.toMatchObject({ code: 'approver-repeated' });
+    expect((await store.get(decision.token))?.status).toBe('pending');
+    const asCarol = await createPermDock(policy, carol);
+    const second = await resolveApproval(store, decision.token, {
+      status: 'approved',
+      by: asCarol.subject,
+    });
+    expect(second.status).toBe('approved');
+    expect(second.approvals?.map((item) => item.by)).toEqual(['bob', 'carol']);
+    expect(second.resolvedBy).toBe('carol');
   });
 });

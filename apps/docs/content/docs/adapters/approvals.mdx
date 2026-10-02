@@ -42,7 +42,8 @@ interface ApprovalStore {
 ```
 
 - `create` is called by an adapter when `decide` returns `approval-required`; the record is an [approval request](/docs/concepts/wire-formats) (`v: 1`) and carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant`, `session` and the `membership` that supplied the matched role), `approvers` from `grant.approval` when present, the model-readable `detail`, `createdAt` and `expiresAt`. The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another. `create` is idempotent per token: a repeated call for a pending or resolved request keeps the existing record, and only an expired record is replaced, so an agent loop that asks twice never resets an approval to pending.
-- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`, and one whose id equals the request's principal id unless `approvers.distinct` is `false` (`approver-is-principal`); a request without `approvers` (`approval: 'human'`) refuses the principal too. When `approvers` is set, the approver must belong to the request tenant and match `by`. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
+- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`, and one whose id equals the request's principal id unless `approvers.distinct` is `false` (`approver-is-principal`); a request without `approvers` (`approval: 'human'`) refuses the principal too. When `approvers` is set, the approver must belong to the request tenant and match `by`, or match `escalation.to` once `escalation.after` has passed since `createdAt`. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
+- `resolve` with `status: 'approved'` appends `{ by, at }` to `approvals`. The request becomes `approved` when there are `approvers.quorum` of them (default 1); until then it stays `pending`, `consume` returns `null`, and the same principal is refused a second time (`approver-repeated`, a `409`). One `rejected` verdict ends the request whatever the quorum. `applyApprovalVerdict(request, verdict, now?)` computes the next request for a custom store, which should write it only over a row that is still pending with the same number of approvals so two approvers racing both count.
 - `cancel(filter, { by, note })` is optional. It marks matching pending requests `rejected` with `resolvedBy: 'system:<by>'` and does not run eligibility, because a rejection never grants. `cancelApprovals` in `permdock/approvals` calls it, or falls back to `list` plus a system `resolve`.
 - `list` returns one page, oldest `createdAt` first (ties broken by `token`): `limit` is 1 to 200 and defaults to 50, `next` is present only when more requests match, and passing it back as `cursor` returns the following page. The cursor is opaque to callers; an unreadable one returns an empty last page, never the first page again. `testApprovalStore` checks the order, the page boundary and the unreadable cursor. `cancelApprovals` and other callers that need every match follow `next`.
 - `list({ tenant })` scopes the approver inbox to one tenant, which is how a tenant admin sees only their organisation's pending requests; `approvalsHandler` applies it from the approver's active tenant and the approver must hold a membership there ([tenancy](/docs/concepts/tenancy)).
@@ -59,7 +60,7 @@ interface ApprovalStore {
 | --- | --- | --- |
 | `GET /pending` | `{ items, next? }`: requests the authenticated approver may resolve, in the approver's active tenant (`?tenant=` must be one of the approver's memberships); `?limit=` and `?cursor=` page through the store, and a page may hold fewer items than `limit` after the eligibility filter | `401` without a subject; `403` for a tenant the approver does not belong to |
 | `GET /mine` | `{ items, next? }`: the authenticated principal's own requests, for `useApproval` polling, paged the same way | `401` without a subject |
-| `POST /:token/approve` | Marks approved, records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, the principal (unless the grant sets `distinct: false` and `requireDistinctApprover` is off), or when `approvers.by` does not match (`approver-not-eligible`) |
+| `POST /:token/approve` | Appends to `approvals`; once the quorum is met, marks approved and records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, the principal (unless the grant sets `distinct: false` and `requireDistinctApprover` is off), or when neither `approvers.by` nor an open `approvers.escalation.to` matches (`approver-not-eligible`); `409` when the same approver answers twice (`approver-repeated`) |
 | `POST /:token/reject` | Marks rejected with an optional `note` | Same |
 | `GET /:token` | One request, for a confirmation screen | `404` for unknown or foreign tokens |
 
@@ -68,7 +69,7 @@ interface ApprovalStore {
 1. An adapter calls `decide`; the outcome is `approval-required` with a deterministic `token`.
 2. The adapter builds an `ApprovalRequest` and calls `store.create`. An `approval` event with `phase: 'requested'` fires on `on('decision')`.
 3. The runtime surfaces the ask (AI SDK `user-approval`, Eve `input.requested`, OpenAI `interruptions`, a `403` with the token, a terminal prompt, or `useApproval(decision).request()` from a UI built with `permdock/react` ([UI](/docs/concepts/ui))).
-4. A person answers through the runtime's own UI, through `approvalsHandler`, or through the PermDock Cloud inbox. `store.resolve` records the verdict and approver; an `approval` event with `phase: 'resolved'` fires.
+4. A person answers through the runtime's own UI, through `approvalsHandler`, or through the PermDock Cloud inbox. `store.resolve` records the verdict and approver; once the grant's `quorum` is met (one approver unless the grant says otherwise), an `approval` event with `phase: 'resolved'` fires.
 5. The original call is retried. The adapter looks up the token, requires `status: 'approved'` and `expiresAt` in the future, re-runs `decide`, recomputes the token and compares. Only then does the tool or route execute; the resumed decision fires as a normal `decision` event carrying the same `token`.
 
 Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token>` header; the [server kernel](/docs/adapters/server-kernel) reads it.
@@ -77,7 +78,8 @@ Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token
 
 - The approver comes from `subject` in `approvalsHandler` options or from the adapter's verified session, never from the approve request body.
 - The approver is not the request's actor, and optionally not its principal.
-- Status transitions: only `pending` can become `approved` or `rejected`; `expired` is terminal; a second resolve is a `409`.
+- Status transitions: only `pending` can become `approved` or `rejected`; `expired` is terminal; a second resolve of a resolved request, or a second approval from the same principal, is a `409`.
+- `expiresAt` is the store's `ttl` from `createdAt`, shortened to the grant's `approval.ttl` when that is shorter; a grant never keeps a request open longer than the store would.
 - Tokens on resume: a token only applies to the call it was issued for. On that call, unknown, pending, rejected, expired, consumed or mismatched tokens are `denied` with reason kind `approval`; on any other call, or when the decision needs no approval, the token is ignored. Under `approval: { staleOn: 'resource-change' }`, a token issued for an earlier `version` of the same row (same permission, resource and principal, still pending or approved) is `denied` with reason `stale-approval` and is not consumed; the call without it asks again ([approval security](/docs/security/approvals#approvals-that-go-stale)). No token is ever accepted without a fresh `decide`. Agent adapters read it from the `permdockApproval` context key. Approvals are per call; a session-scoped approval such as Eve's `once()` helper is not expressible in the store.
 - `memoryApprovalStore` is per process. The adapter logs a development warning when it is used in a serverless runtime, because a request that resumes on another instance will not find its record.
 
@@ -102,7 +104,7 @@ import type {
 
 import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
 import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { ApprovalError, assertApprover } from 'permdock/approvals';
+import { ApprovalError, applyApprovalVerdict } from 'permdock/approvals';
 
 export const approvals = pgTable('permdock_approvals', {
   token: text('token').primaryKey(),
@@ -161,14 +163,10 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
       if (current === null) {
         throw new ApprovalError('approval-not-found', 'approval was not found');
       }
-      assertApprover(current, verdict.by, false);
-      const next: ApprovalRequest = {
-        ...current,
-        status: verdict.status,
-        resolvedAt: new Date().toISOString(),
-        resolvedBy: verdict.by.principal!.id,
-        ...(verdict.note === undefined ? {} : { note: verdict.note }),
-      };
+      const next = applyApprovalVerdict(current, verdict);
+      // Write only over the row this verdict was computed from, so two
+      // approvers racing towards a quorum both count.
+      const seen = current.approvals?.length ?? 0;
       const [row] = await db
         .update(approvals)
         .set({ status: next.status, body: next })
@@ -177,6 +175,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
             eq(approvals.token, token),
             eq(approvals.status, 'pending'),
             gt(approvals.expiresAt, new Date()),
+            sql`coalesce(jsonb_array_length(${approvals.body} -> 'approvals'), 0) = ${seen}`,
           ),
         )
         .returning({ body: approvals.body });
@@ -272,7 +271,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
 }
 ```
 
-`create` uses `onConflictDoUpdate` with `setWhere` so a repeated ask keeps the existing record and only an expired one is replaced. `resolve` writes the whole next body, never a partial one, and `assertApprover` applies the actor, four-eyes, tenant and `approvers` checks with the same `ApprovalError` codes `approvalsHandler` maps to Problem Details.
+`create` uses `onConflictDoUpdate` with `setWhere` so a repeated ask keeps the existing record and only an expired one is replaced. `resolve` writes the whole next body, never a partial one; `applyApprovalVerdict` applies the actor, four-eyes, tenant, `approvers`, escalation and quorum rules with the same `ApprovalError` codes `approvalsHandler` maps to Problem Details, and the `jsonb_array_length` guard makes a quorum race lose the write rather than an approval.
 
 ## Recipes for other stores
 
