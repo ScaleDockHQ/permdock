@@ -1,5 +1,6 @@
 import type { SaasSeed } from './seed.ts';
 
+import { quoteSqlLiteral } from '../../core/sql.ts';
 import { saasSeed } from './seed.ts';
 
 /**
@@ -74,7 +75,7 @@ function literal(value: string | number | boolean | null | undefined): string {
   if (typeof value === 'boolean') {
     return value ? 'true' : 'false';
   }
-  return `'${value.replaceAll("'", "''")}'`;
+  return quoteSqlLiteral(value);
 }
 
 function values(rows: readonly (readonly unknown[])[]): string {

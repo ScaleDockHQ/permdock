@@ -1,7 +1,7 @@
 import {
+  cpSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   writeFileSync,
 } from 'node:fs';
@@ -17,6 +17,16 @@ const AGENT_FOLDERS: Readonly<Record<string, string>> = {
   claude: '.claude/skills',
   cursor: '.cursor/skills',
 };
+
+/** The `--agent` names `skills install` knows, with the folder each writes. */
+export const SKILL_AGENTS: Readonly<Record<string, string>> = AGENT_FOLDERS;
+
+/** Agents whose config folder (`.claude`, `.cursor`, `.agents`) the project already has. */
+export function detectedAgents(cwd: string): readonly string[] {
+  return Object.entries(AGENT_FOLDERS)
+    .filter(([, folder]) => existsSync(join(cwd, dirname(folder))))
+    .map(([agent]) => agent);
+}
 
 export type SkillsResult = {
   readonly code: 0 | 1 | 2;
@@ -149,11 +159,5 @@ function readPermdockVersion(skillsRoot: string): string {
 }
 
 function copyDir(from: string, to: string): void {
-  mkdirSync(to, { recursive: true });
-  for (const name of readdirSync(from)) {
-    const source = join(from, name);
-    const dest = join(to, name);
-    const text = readFileSync(source);
-    writeFileSync(dest, text);
-  }
+  cpSync(from, to, { recursive: true });
 }

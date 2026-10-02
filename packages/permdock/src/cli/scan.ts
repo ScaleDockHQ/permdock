@@ -1,5 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { parseSync } from 'oxc-parser';
+import {
+  type Program,
+  type VisitorObject,
+  Visitor,
+  parseSync,
+  visitorKeys,
+} from 'oxc-parser';
 
 import type {
   CatalogUsage,
@@ -73,16 +79,14 @@ export function scanSources(
 
   for (const file of files) {
     const source = readFileSync(file, 'utf8');
-    let program: Estree;
+    let program: Program;
     try {
-      const parsed = parseSync(file, source);
-      // SAFETY: oxc-parser returns an ESTree Program; Estree is an all-optional view of its nodes.
-      program = parsed.program as Estree;
+      program = parseSync(file, source).program;
     } catch {
       continue;
     }
     const fileRel = rel(cwd, file);
-    walk(program, undefined, (node, parent) => {
+    walk(program, (node, parent) => {
       if (node.type === 'CallExpression') {
         recordCall(
           node,
@@ -437,31 +441,22 @@ function collectObjectKeys(node: Estree | undefined, into: Set<string>): void {
   }
 }
 
+/** Every node in source order, with its parent: Oxc nodes carry none, so enter and exit keep a stack. */
 function walk(
-  node: Estree | null | undefined,
-  parent: Estree | undefined,
+  program: Program,
   visit: (node: Estree, parent: Estree | undefined) => void,
 ): void {
-  if (
-    node === undefined ||
-    node === null ||
-    typeof node !== 'object' ||
-    node.type === undefined
-  ) {
-    return;
+  const stack: Estree[] = [];
+  const handlers: Record<string, (node: Estree) => void> = {};
+  for (const type of Object.keys(visitorKeys)) {
+    handlers[type] = (node) => {
+      visit(node, stack.at(-1));
+      stack.push(node);
+    };
+    handlers[`${type}:exit`] = () => {
+      stack.pop();
+    };
   }
-  visit(node, parent);
-  for (const value of Object.values(node)) {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        // SAFETY: walk() returns early unless the item is an object with a type.
-        walk(item as Estree, node, visit);
-      }
-      continue;
-    }
-    if (value !== null && typeof value === 'object' && 'type' in value) {
-      // SAFETY: checked above to be an object with a type, which is an ESTree node.
-      walk(value as Estree, node, visit);
-    }
-  }
+  // SAFETY: one handler per type in visitorKeys; Estree is an all-optional view of every Oxc node.
+  new Visitor(handlers as VisitorObject).visit(program);
 }

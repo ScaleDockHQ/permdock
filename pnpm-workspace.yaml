@@ -168,6 +168,12 @@ catalog:
   portless: 0.15.6
   '@axe-core/playwright': 4.13.0
   better-supabase: 0.2.0
+  '@clack/prompts': 1.8.1
+  citty: 0.2.2
+  jiti: 2.7.0
+  package-manager-detector: 1.8.0
+  smol-toml: 1.9.0
+  diff: 9.0.0
 
 catalogs:
   ts59:

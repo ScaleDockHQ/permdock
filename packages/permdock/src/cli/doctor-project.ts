@@ -1,10 +1,4 @@
-import {
-  existsSync,
-  globSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-} from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
@@ -12,7 +6,7 @@ import type { DoctorFinding } from './doctor-types.ts';
 import type { PermDockConfig } from './types.ts';
 
 import { membershipColumns, tableKey } from './deciding-columns.ts';
-import { rel } from './files.ts';
+import { rel, sqlFiles } from './files.ts';
 import { FIELD_VIEWS } from './rls-fields.ts';
 
 export function pd005(cwd: string): readonly DoctorFinding[] {
@@ -178,19 +172,6 @@ const COMPANION = new RegExp(
   String.raw`\bcomment\s+on\s+view\s+${VIEW_NAME}\s+is\s+'${FIELD_VIEWS.comment}\b`,
   'giu',
 );
-
-export function sqlFiles(cwd: string, entries: readonly string[]): string[] {
-  const files = new Set<string>();
-  for (const entry of entries) {
-    const pattern = /[*?[{]/u.test(entry) ? entry : `${entry}/**/*.sql`;
-    for (const match of globSync(pattern, { cwd })) {
-      if (match.endsWith('.sql')) {
-        files.add(resolve(cwd, match));
-      }
-    }
-  }
-  return [...files].toSorted();
-}
 
 /**
  * Views run as their owner unless `security_invoker` is set, so they read

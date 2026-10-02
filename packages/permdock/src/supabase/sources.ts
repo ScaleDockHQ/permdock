@@ -4,6 +4,7 @@ import type { SupabaseManifestMembership } from './manifest.ts';
 import type { SupabaseActiveRow, SupabaseSuspension } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from '../core/sql.ts';
 
 /**
  * Runs one parameterised statement: `pg`'s `client.query` (which resolves
@@ -101,25 +102,15 @@ export type SqlMembershipSource = MembershipSource & {
   readonly sql: MembershipSql;
 };
 
-const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/u;
-
-function ident(name: string): string {
-  if (!IDENT.test(name)) {
-    throw new TypeError(`PermDock: unsafe SQL identifier '${name}'`);
-  }
-  return `"${name}"`;
-}
+const ident = (name: string): string => quoteSqlIdent(name);
+const literal = quoteSqlLiteral;
 
 function qualifiedName(name: string): string {
   return name.includes('.') ? name : `public.${name}`;
 }
 
 function qualified(name: string): string {
-  return qualifiedName(name).split('.').map(ident).join('.');
-}
-
-function literal(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
+  return quoteSqlTable(qualifiedName(name));
 }
 
 function col(name: string): string {

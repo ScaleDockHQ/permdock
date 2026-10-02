@@ -70,7 +70,7 @@ pnpm knip                  # unused files, exports and dependencies
 pnpm verify                # format:check, lint, typecheck, knip, boundaries, test, docs:drift
 pnpm check:publish         # publint + arethetypeswrong
 pnpm size                  # per-entry gzip measurements
-pnpm docs:drift            # docs match CLI flags, doctor codes, entries, meta.json, standards tests
+pnpm docs:drift            # docs match doctor codes, entries, meta.json, standards tests
 pnpm dev:portless          # https://permdock.localhost, docs at /docs
 pnpm docs:dev              # apps/docs on :3001, no Portless
 pnpm marketing:dev         # apps/marketing on :3000, proxies /docs
@@ -118,7 +118,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 9. **Boundary validation** of HTTP bodies, tool args, client `refresh` and model output against the resource schema.
 10. **Prototype-safe, no eval.**
 11. **Never emit `service_role`**, never trust a model-supplied subject or actor; approval tokens are bound and approvers are distinct.
-12. **Runtime entries depend on `@standard-schema/spec` only**; CLI and test code never reach them.
+12. **Runtime entries depend on `@standard-schema/spec` only**; CLI and test code never reach them. The CLI may take regular dependencies; heavy or rare ones are optional peers.
 13. **Authentication is upstream.** Core never verifies a token; no subject, membership or tenant from flags, bodies, model args or unsigned headers.
 14. **Naming convention** (`naming.mdc`) is public API.
 15. **The Cloud is optional** and never on the decision path; every hosted capability is an interface with an in-process default.

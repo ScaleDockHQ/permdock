@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 
 import type { PermDockConfig } from './types.ts';
 
-import { flagString, type ParsedArgs } from './args.ts';
 import { loadModule, pickNamed } from './load.ts';
 
 const CONFIG_FILES = [
@@ -19,9 +18,8 @@ export function defineConfig<T extends PermDockConfig>(config: T): T {
 
 export async function loadConfig(
   cwd: string,
-  args: ParsedArgs,
+  fromFlag?: string,
 ): Promise<PermDockConfig> {
-  const fromFlag = flagString(args.flags, 'config');
   const path = fromFlag
     ? resolve(cwd, fromFlag)
     : CONFIG_FILES.map((name) => resolve(cwd, name)).find((file) =>
@@ -42,7 +40,6 @@ export async function loadConfig(
   return value as PermDockConfig;
 }
 
-export function resolveCwd(args: ParsedArgs, fallback: string): string {
-  const cwd = flagString(args.flags, 'cwd');
+export function resolveCwd(cwd: string | undefined, fallback: string): string {
   return cwd === undefined ? fallback : resolve(fallback, cwd);
 }

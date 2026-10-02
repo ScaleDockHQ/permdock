@@ -96,6 +96,59 @@ describe('run', () => {
     expect(result.stdout).toContain('collect');
   });
 
+  it.each([
+    [['catalog', '--help']],
+    [['help', 'catalog']],
+    [['catalog', '-h']],
+  ])('prints one command’s flags with %o', async (argv) => {
+    const result = await run(argv);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('permdock catalog');
+    expect(result.stdout).toContain('--format=<json|schema|markdown>');
+    expect(result.stdout).toContain('(Default: json)');
+    expect(result.stdout).toContain('--no-color');
+  });
+
+  it.each([
+    ['the stream takes no colour', ['catalog', '--help'], false],
+    ['--no-color is set', ['catalog', '--help', '--no-color'], true],
+  ])('prints help plain when %s', async (_, argv, color) => {
+    const io = { stdout: () => undefined, stderr: () => undefined, color };
+    const result = await run(argv, { io });
+    expect(result.stdout).toContain('--format');
+    expect(result.stdout).not.toContain('\u001B[');
+  });
+
+  it('reads global flags before the command name', async () => {
+    const cwd = appCopy();
+    const result = await run(['--cwd', cwd, 'collect', '--check']);
+    expect(result.stdout).toContain('permissions.catalog.json');
+  });
+
+  it('reads a flag followed by another flag as given without a value', async () => {
+    const cwd = appCopy();
+    const result = await run(
+      ['openapi', 'emit', '--doc', 'openapi.json', '--out', '--check', ...URLS],
+      { cwd },
+    );
+    expect(result.stdout).toMatch(/^openapi drift/u);
+    expect(readFileSync(join(cwd, 'openapi.json'), 'utf8')).not.toContain(
+      'securitySchemes',
+    );
+  });
+
+  it('gives a bare enum flag its default and ignores flags after --', async () => {
+    const cwd = appCopy();
+    const bare = await run(['catalog', '--format'], { cwd });
+    expect(bare.code).toBe(0);
+    expect(bare.stdout).toContain('"key": "post.update"');
+    const passed = await run(['catalog', '--', '--format', 'markdown'], {
+      cwd,
+    });
+    expect(passed.code).toBe(0);
+    expect(passed.stdout).toContain('"key": "post.update"');
+  });
+
   it('defineConfig is an identity', () => {
     const config = defineConfig({
       permissions: './src/permissions.ts',
@@ -303,32 +356,32 @@ describe('run flag validation', () => {
   it.each([
     [
       ['catalog', '--format', 'xml'],
-      'catalog --format must be json, schema or markdown',
+      'catalog: Invalid value for argument: --format (xml). Expected one of: json, schema, markdown.',
     ],
     [
       ['openapi', 'import', '--schema', 'joi'],
-      'openapi --schema must be zod, valibot or arktype',
+      'openapi: Invalid value for argument: --schema (joi). Expected one of: zod, valibot, arktype.',
     ],
     [['openapi', 'import'], 'openapi --doc is required'],
     [
       ['openapi', 'emit', '--target', '4.0'],
-      'openapi --target must be 3.1, 3.2 or 3.3',
+      'openapi: Invalid value for argument: --target (4.0). Expected one of: 3.1, 3.2, 3.3.',
     ],
     [
       ['openapi', 'emit', '--format', 'yaml'],
-      'openapi --format must be document or overlay',
+      'openapi: Invalid value for argument: --format (yaml). Expected one of: document, overlay.',
     ],
     [
       ['openapi', 'emit', '--overlay', '2.0'],
-      'openapi --overlay must be 1.1 or 1.2',
+      'openapi: Invalid value for argument: --overlay (2.0). Expected one of: 1.1, 1.2.',
     ],
     [
       ['openapi', 'emit', '--profile', 'fapi1'],
-      'openapi --profile must be fapi2',
+      'openapi: Invalid value for argument: --profile (fapi1). Expected one of: fapi2.',
     ],
     [
       ['rls', 'generate', '--rbac', 'auth0'],
-      "rls generate --rbac must be supabase, got 'auth0'",
+      'rls: Invalid value for argument: --rbac (auth0). Expected one of: supabase.',
     ],
   ])('exits 2 on %o', async (argv, message) => {
     expect(await run(argv, { cwd: appCopy() })).toEqual({
@@ -351,6 +404,19 @@ describe('run flag validation', () => {
       stdout: '',
       stderr: 'raw\n',
     });
+  });
+
+  it('keeps help free of escape codes under --no-color on a colour terminal', async () => {
+    const io = {
+      stdout: (): void => undefined,
+      stderr: (): void => undefined,
+      color: true,
+    };
+    const coloured = await run(['--help'], { io });
+    expect(coloured.stdout).toContain('permdock');
+    const plain = await run(['--help', '--no-color'], { io });
+    expect(plain.stdout).toContain('permdock');
+    expect(plain.stdout).not.toContain('\u001B[');
   });
 
   it('writes through a custom io and also returns the output', async () => {

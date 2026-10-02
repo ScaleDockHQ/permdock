@@ -1,12 +1,12 @@
-import { existsSync, globSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import type { DoctorFinding } from './doctor-types.ts';
 import type { PermDockConfig } from './types.ts';
 
-import { sqlFiles } from './doctor-project.ts';
-import { rel } from './files.ts';
+import { rel, sqlFiles } from './files.ts';
 import { HOOK_MARKER } from './markers.ts';
+import { supabaseConfig } from './supabase-config.ts';
 
 const SCHEMAS = 'supabase/schemas';
 const MIGRATIONS = 'supabase/migrations';
@@ -75,42 +75,13 @@ export function pd042(
 
 /** The `[db.migrations] schema_paths` globs of `supabase/config.toml`, or Supabase's default. */
 function schemaPaths(cwd: string): readonly string[] {
-  const toml = join(cwd, 'supabase/config.toml');
-  const fallback = ['./schemas/**/*.sql'];
-  if (!existsSync(toml)) {
-    return fallback;
-  }
-  const text = readFileSync(toml, 'utf8');
-  const section = /^\[db\.migrations\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/mu.exec(
-    text,
-  )?.[1];
-  const list = /^\s*schema_paths\s*=\s*\[([\s\S]*?)\]/mu.exec(
-    section ?? '',
-  )?.[1];
-  if (list === undefined) {
-    return fallback;
-  }
-  const paths = [...list.matchAll(/"([^"]*)"|'([^']*)'/gu)].map(
-    ([, double, single]) => double ?? single ?? '',
-  );
-  return paths.length === 0 ? fallback : paths;
+  const paths = supabaseConfig(cwd).schemaPaths ?? [];
+  return paths.length === 0 ? ['./schemas/**/*.sql'] : paths;
 }
 
 /** Schema files in the order `supabase db diff` applies them: each glob in turn, sorted within it. */
 function orderedSchemaFiles(cwd: string): readonly string[] {
-  const base = join(cwd, 'supabase');
-  const seen = new Set<string>();
-  const ordered: string[] = [];
-  for (const pattern of schemaPaths(cwd)) {
-    for (const match of globSync(pattern, { cwd: base }).toSorted()) {
-      const path = resolve(base, match);
-      if (path.endsWith('.sql') && !seen.has(path)) {
-        seen.add(path);
-        ordered.push(path);
-      }
-    }
-  }
-  return ordered;
+  return sqlFiles(join(cwd, 'supabase'), schemaPaths(cwd), { order: 'entry' });
 }
 
 /**

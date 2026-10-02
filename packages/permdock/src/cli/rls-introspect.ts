@@ -2,6 +2,7 @@ import type { CompiledPolicy } from './rls-compile.ts';
 import type { RolePermission } from './rls-helpers.ts';
 import type { SqlClient, SqlConnect } from './rls-verify.ts';
 
+import { escapeSqlIdent } from '../core/sql.ts';
 import { callsHelper, HELPER_TABLES, helperCallKeys } from './helper-calls.ts';
 import { requirePeer } from './peer.ts';
 
@@ -417,9 +418,7 @@ from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where c.relkind in ('r', 'p') and c.relrowsecurity`;
 
-function quoteIdent(name: string): string {
-  return `"${name.replaceAll('"', '""')}"`;
-}
+const quoteIdent = escapeSqlIdent;
 
 /** Reads `role_permissions`, `pg_policies` and the RLS-enabled tables for {@link diffMixed}. */
 export async function introspectMixed(

@@ -1,6 +1,10 @@
 import { membershipsClaim } from '../core/custom-roles.ts';
 import { type Scope, scopeList } from '../core/scopes.ts';
 import {
+  SQL_IDENT as IDENT,
+  quoteSqlIdent as quoteIdent,
+} from '../core/sql.ts';
+import {
   createPermDock,
   fromSnapshot,
   memoryRoleSource,
@@ -12,8 +16,6 @@ import {
   type Subject,
 } from '../index.ts';
 import { supabaseTenantClaim } from '../supabase/budget.ts';
-
-const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export type RlsDbOutcome = 'allowed' | 'filtered' | 'rejected';
 
@@ -99,13 +101,6 @@ export type RlsParityReport = {
   readonly ok: boolean;
   readonly results: readonly RlsParityCase[];
 };
-
-function quoteIdent(name: string): string {
-  if (!IDENT.test(name)) {
-    throw new Error(`PermDock: unsafe SQL identifier '${name}'`);
-  }
-  return `"${name}"`;
-}
 
 function toSubject(input: RlsParitySubject): Subject {
   return {

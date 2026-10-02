@@ -22,6 +22,8 @@ pnpm exec permdock skills update
 
 `install` copies the skills from `node_modules/permdock/skills/` into the folders the detected agents read (`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`) and records the installed version in a lock entry so `permdock doctor` can report drift (`PD005`). `skills.sh` installs land in the same folders.
 
+Without `--agent`, `install` and `update` on a terminal ask which agents to install for, with the agents whose folder (`.agents`, `.claude`, `.cursor`) the project already has preselected; cancelling exits `2` and writes nothing. In CI, in a pipe or with `--json` there is no prompt and every folder is written, as before.
+
 ## The skills
 
 ### wire-permdock

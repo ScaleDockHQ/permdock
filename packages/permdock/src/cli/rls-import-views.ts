@@ -4,6 +4,7 @@ import type { RolePermission } from './rls-helpers.ts';
 import type { ImportedGrant } from './rls-import-ast.ts';
 import type { RlsFunctionMapping, RlsMemberships } from './types.ts';
 
+import { escapeSqlIdent } from '../core/sql.ts';
 import { FIELD_VIEWS } from './rls-fields.ts';
 import { helperGrants } from './rls-import-ast.ts';
 
@@ -315,9 +316,7 @@ export async function fieldViewsFromSql(
   return out;
 }
 
-function quote(name: string): string {
-  return `"${name.replaceAll('"', '""')}"`;
-}
+const quote = escapeSqlIdent;
 
 /** `create view` statements for every view in the database, from `pg_get_viewdef` and the view's options. */
 export async function viewsSqlFromDb(

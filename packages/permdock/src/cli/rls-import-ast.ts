@@ -5,6 +5,7 @@ import type { Condition, ConditionValue, SqlFunctionArg } from '../index.ts';
 import type { HelperScope, RolePermission } from './rls-helpers.ts';
 import type { RlsFunctionMapping, RlsMemberships } from './types.ts';
 
+import { quoteSqlLiteral } from '../core/sql.ts';
 import { HELPERS } from './rls-helpers.ts';
 
 type PgNode = Record<string, unknown>;
@@ -467,10 +468,6 @@ function helperCondition(
     field: call.column,
     roles: [...roles],
   };
-}
-
-function quoteSqlLiteral(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
 }
 
 /** One role-gated branch of an imported policy: which roles, at which scope, under which row condition. */

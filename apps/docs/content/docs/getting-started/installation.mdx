@@ -25,7 +25,7 @@ npm and yarn work the same way; the repository itself uses pnpm workspaces.
 - Node.js 24 or later for servers and the CLI. The package declares `engines.node: ">=24"`. Browser and React Native bundles are produced from the same ESM entry points and do not depend on Node.
 - TypeScript 7. PermDock is written in and built with TypeScript 7, and the public API avoids template-literal unions so TypeScript 7 stays fast: permissions are typed object references, not string unions. The type tests in `tests/types` also check the public types under TypeScript 5.9 and 6, so an app that has not moved yet keeps compiling.
 - ESM only. There is no CommonJS build. Your `tsconfig.json` needs a `moduleResolution` that understands package `exports` (`bundler`, `node16` or `nodenext`) so subpath imports such as `permdock/react` resolve.
-- Runtime entries depend on `@standard-schema/spec` only, and it is types only. The package's one other dependency, `oxc-parser`, belongs to the CLI and no runtime entry loads it.
+- Runtime entries depend on `@standard-schema/spec` only, and it is types only. The package's other dependencies (`oxc-parser`, `citty`, `jiti`, `smol-toml`, `package-manager-detector`, `@clack/prompts`, `diff`) belong to the CLI and no runtime entry loads them.
 
 ## Runtimes
 

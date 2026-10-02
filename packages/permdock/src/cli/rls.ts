@@ -170,6 +170,7 @@ async function migrate(
     () => import('pgsql-parser'),
     'pgsql-parser',
     'permdock rls migrate',
+    input.cwd,
   );
   const { migrateTarget, runRlsMigrate } = await import('./rls-migrate.ts');
   return runRlsMigrate({
@@ -304,6 +305,7 @@ export async function runRls(
         () => import('pgsql-parser'),
         'pgsql-parser',
         'permdock rls import',
+        input.cwd,
       );
       const { runRlsImport } = await import('./rls-import.ts');
       return runRlsImport({

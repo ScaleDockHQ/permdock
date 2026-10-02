@@ -22,7 +22,7 @@ pnpm add permdock   # core, every adapter as a subpath export, the permdock CLI 
 
 - One package. Core is `permdock`; every adapter is a subpath (`permdock/react`, `permdock/hono`, `permdock/next`, `permdock/ai-sdk`, …). The `permdock` binary (`collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills`) and the `permdock/testing` runners ship in the same package.
 - ESM only. Node.js 24 or later. Written in and tested with TypeScript 7; the public types are also checked under TypeScript 5.9 and 6.
-- Runtime entries depend on `@standard-schema/spec` only. The CLI's one dependency, `oxc-parser`, never reaches them. Framework SDKs are optional peers, and structurally typed providers (`supabase`, `clerk`, `better-auth`, `convex`, `prisma`, `mcp`, `react-native`) declare no peer at all.
+- Runtime entries depend on `@standard-schema/spec` only. The CLI's dependencies (`oxc-parser`, `citty`, `jiti`, `smol-toml`, `package-manager-detector`, `@clack/prompts`, `diff`) never reach them. Framework SDKs are optional peers, and structurally typed providers (`supabase`, `clerk`, `better-auth`, `convex`, `prisma`, `mcp`, `react-native`) declare no peer at all.
 
 ## Why PermDock
 

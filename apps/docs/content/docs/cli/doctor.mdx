@@ -16,6 +16,8 @@ permdock doctor --fix          # apply safe fixes (install skills, regenerate th
 
 Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 
+On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `2`. In CI, in a pipe or with `--json` it fixes without asking.
+
 ## Checks
 
 | Code | Check | Severity |
@@ -64,6 +66,7 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 | `PD042` | The token hook is declared under `supabase/schemas`, and no migration from the one that creates it on grants it to `supabase_auth_admin` | error |
 | `PD043` | `schema_paths` in `supabase/config.toml` applies a file that calls the SQL helpers before the file that defines them, or leaves that file out | warning |
 | `PD044` | `usePermission` reads a permission whose grant the snapshot cannot answer, and there is no `app/**/api/permdock/route.ts` using `permdockHandler` and no `endpoint` | warning |
+| `PD045` | `supabase/config.toml` is not valid TOML | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -266,12 +269,17 @@ Supabase deprecated `auth.role()`. The role a request runs under is already the 
 
 A snapshot carries portable conditions, so `usePermission` answers a `where` on the client. A grant it cannot carry (a closure, a graph relation through `parent` or links, a relation with a `period`) is `portable: false`, and the hook asks the decision endpoint. The check loads the policy, lists the permissions with such an allow, and warns once per `usePermission` call on one of them in the source scan when no `app/**/api/permdock/route.ts` mentions `permdockHandler` and no source file passes an `endpoint` string. Without either, the client always answers `denied` with reason `server-only`. Fix it by adding the route, passing `endpoint` to `createPermDock` or the provider, or moving the check to the server with `getPermission`. A portable row condition never warns: the browser evaluates it from the snapshot. `--only next` or `--only endpoint` runs PD044.
 
+### PD045: unparseable `config.toml`
+
+PD019 reads `[auth] jwt_expiry` and PD043 reads `[db.migrations] schema_paths` from `supabase/config.toml` with a TOML parser. When the file does not parse, both checks fall back to Supabase's defaults (3600 seconds and `./schemas/**/*.sql`), and PD045 names the first parse error so a finding is never based on a misread file. `--only supabase` runs PD045.
+
 ## Why
 
+- **`config.toml` goes through a TOML parser.** Line-by-line matching misreads comments, multi-line arrays and quoted section names, and a misread `jwt_expiry` would silence PD019, a security warning.
 - **PD001 reads direct imports, not an import graph.** A graph needs module resolution for every bundler's aliases, and a wrong resolution produces a false path to a server module. The bundle measurement already fails on a server import reachable from a client entry; `doctor` catches the common case, a client file importing a server entry, in milliseconds. `doctor.clientEntries` replaces guessing client roots from folder names.
 - **`security_invoker` is a warning, not generated SQL.** A view over application data is application SQL, and some views are meant to bypass RLS (a public aggregate), so the warning names the view and the choice stays explicit. The only views `permdock rls` writes are the opt-in field views, which are `security_invoker`, and their owner-rights companion, which is marked so the check can tell it apart.
 - **PD030 is a warning, not an error.** Many apps never expose a table to clients (a server-only connection, no Data API), and there `pick` is the whole control. Where clients do read the table, the warning names each column so the fix is one flag.
-- **Docs drift is a maintainer check, not a `doctor` check.** Whether the PermDock docs list every CLI flag and public export is a property of this repository; `scripts/check-docs-drift.ts` runs it in the PermDock CI, and `doctor` stays about the consumer's project.
+- **Docs drift is a maintainer check, not a `doctor` check.** Whether the PermDock docs list every CLI flag and public export is a property of this repository; `scripts/check-docs-drift.ts` and a CLI test, which reads each command's flag definitions, run it in the PermDock CI, and `doctor` stays about the consumer's project.
 
 ## Related
 

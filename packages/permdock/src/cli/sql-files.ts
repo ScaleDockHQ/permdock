@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
+import { shortDiff } from './text-diff.ts';
+
 /** One generated file: `part` names it in drift reports, `rel` is relative to the working directory, `-` for stdout. */
 export type SqlFile = {
   readonly part: string;
@@ -10,7 +12,7 @@ export type SqlFile = {
 
 export const STDOUT = '-';
 
-/** `--check`: one line per file that is missing or differs, naming its part. */
+/** `--check`: one entry per file that is missing or differs, naming its part; a differing file carries a short diff. */
 export function driftOf(cwd: string, files: readonly SqlFile[]): string[] {
   const drift: string[] = [];
   for (const file of files) {
@@ -20,8 +22,13 @@ export function driftOf(cwd: string, files: readonly SqlFile[]): string[] {
     const path = resolve(cwd, file.rel);
     if (!existsSync(path)) {
       drift.push(`${file.part}: missing ${file.rel}`);
-    } else if (readFileSync(path, 'utf8') !== file.text) {
-      drift.push(`${file.part}: ${file.rel}`);
+    } else {
+      const onDisk = readFileSync(path, 'utf8');
+      if (onDisk !== file.text) {
+        drift.push(
+          `${file.part}: ${file.rel}\n${shortDiff(file.rel, onDisk, file.text)}`,
+        );
+      }
     }
   }
   return drift;

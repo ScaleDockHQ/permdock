@@ -29,14 +29,20 @@ describe('invariant 12: runtime entries depend on @standard-schema/spec only', (
     expect(packageImports(walk(ENTRIES['.']))).toEqual([]);
   });
 
-  it('declares only @standard-schema/spec and the CLI parser as dependencies', () => {
+  it('declares only @standard-schema/spec and the CLI packages as dependencies', () => {
     // SAFETY: dist/../package.json is the built package's own manifest
     const manifest = JSON.parse(
       readFileSync(join(DIST, '..', 'package.json'), 'utf8'),
     ) as { readonly dependencies: Readonly<Record<string, string>> };
     expect(Object.keys(manifest.dependencies).toSorted()).toEqual([
+      '@clack/prompts',
       '@standard-schema/spec',
+      'citty',
+      'diff',
+      'jiti',
       'oxc-parser',
+      'package-manager-detector',
+      'smol-toml',
     ]);
   });
 });

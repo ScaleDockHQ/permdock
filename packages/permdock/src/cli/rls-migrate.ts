@@ -1,10 +1,12 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { relative, resolve } from 'node:path';
 import { parse } from 'pgsql-parser';
 
 import type { GenerateOutcome } from './rls-generate.ts';
 import type { RlsMigrateConfig, RlsMigrateHelper } from './types.ts';
 
+import { escapeSqlIdent, quoteSqlLiteral } from '../core/sql.ts';
+import { sqlFiles } from './files.ts';
 import { HELPERS } from './rls-helpers.ts';
 
 /** One call `rls migrate` rewrote, or would with `--write`. */
@@ -170,9 +172,7 @@ function isNullConst(node: unknown): boolean {
   return child(child(node, 'A_Const'), 'isnull') === true;
 }
 
-function literal(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
-}
+const literal = quoteSqlLiteral;
 
 /** The PermDock key for a legacy one: `keys` first, then the longest matching prefix. */
 export function mapKey(config: RlsMigrateConfig, key: string): string {
@@ -223,7 +223,7 @@ class Rewriter {
 
   #helper(name: string): string | undefined {
     const { schema, sql } = this.#target;
-    const quoted = `"${schema.replaceAll('"', '""')}"`;
+    const quoted = escapeSqlIdent(schema);
     if (!sql.includes(`function ${quoted}.${name}(`)) {
       return undefined;
     }
@@ -541,16 +541,6 @@ async function migrateSql(
   return { rewrites, skipped, text: out };
 }
 
-function sqlFiles(path: string): readonly string[] {
-  if (!statSync(path).isDirectory()) {
-    return [path];
-  }
-  return readdirSync(path, { recursive: true, encoding: 'utf8' })
-    .filter((entry) => entry.endsWith('.sql'))
-    .toSorted()
-    .map((entry) => join(path, entry));
-}
-
 export type MigrateRunInput = {
   readonly cwd: string;
   readonly sql: string;
@@ -586,15 +576,13 @@ export async function runRlsMigrate(
   input: MigrateRunInput,
 ): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
   const root = resolve(input.cwd, input.sql);
-  let files: readonly string[];
-  try {
-    files = sqlFiles(root);
-  } catch {
+  if (!existsSync(root)) {
     return {
       code: 2,
       output: `rls migrate --sql: ${input.sql} does not exist`,
     };
   }
+  const files = sqlFiles(root, ['.']);
   const rewrites: MigrateRewrite[] = [];
   const skipped: MigrateSkip[] = [];
   for (const path of files) {

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { run } from './run.ts';
+import { streamHasColors } from './style.ts';
 
 const result = await run(process.argv.slice(2), {
   io: {
@@ -9,6 +10,11 @@ const result = await run(process.argv.slice(2), {
     stderr: (text) => {
       process.stderr.write(text.endsWith('\n') ? text : `${text}\n`);
     },
+    color: streamHasColors(process.stdout),
+    interactive:
+      process.stdin.isTTY === true &&
+      process.stdout.isTTY === true &&
+      process.env['CI'] === undefined,
   },
 });
 

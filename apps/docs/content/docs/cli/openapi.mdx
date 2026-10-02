@@ -11,6 +11,7 @@ description: Emit security and securitySchemes into an existing OpenAPI document
 | --- | --- | --- | --- | --- |
 | `--doc <path or URL>` | file path, `http(s)` URL | required | `emit`, `import` | The OpenAPI document to read |
 | `--out <path>` | file path | `--doc` for `emit`; required for `import` | `emit`, `import` | Where to write the result |
+| `--from <module>` | module path | `policy` from the config | `emit` | Module exporting the policy, instead of the one the config names |
 | `--target` | `3.1`, `3.2`, `3.3` | `3.2` | `emit` | OpenAPI version of the output. `3.1` writes the fallback extensions; `3.3` is experimental: it writes the 3.2 shape plus the pinned Security Profile draft (`type: profile` scheme, `securityProfileRequirements`) and records the pin in `x-permdock-catalog.drafts` ([OpenAPI 3.3](/docs/standards/openapi)) |
 | `--format` | `document`, `overlay` | `document` | `emit` | Write the mutated document, or an [Overlay](/docs/standards/openapi-overlay) that describes the changes without touching the source |
 | `--overlay` | `1.1`, `1.2` | `1.1` | `emit` (`--format overlay` only) | Overlay specification version of the output. `1.1` writes Overlay 1.1.0; `1.2` is experimental: it writes the pinned Overlay 1.2 draft with one reusable action under `components.actions` per permission set and `$ref` references per operation, and records the pin in `x-permdock-catalog.drafts.overlay` ([OpenAPI Overlay](/docs/standards/openapi-overlay)) |

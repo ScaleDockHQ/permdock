@@ -21,15 +21,38 @@ afterAll(() => {
 describe('driftOf and writeSqlFiles', () => {
   it('skips stdout files, reports missing and differing ones', () => {
     writeFileSync(path.join(cwd, 'same.sql'), 'select 1;\n');
-    writeFileSync(path.join(cwd, 'stale.sql'), 'old');
+    writeFileSync(path.join(cwd, 'stale.sql'), 'select 1;\nselect 2;\n');
     expect(
       driftOf(cwd, [
         { part: 'out', rel: STDOUT, text: 'x' },
         { part: 'helpers', rel: 'same.sql', text: 'select 1;\n' },
-        { part: 'policies', rel: 'stale.sql', text: 'new' },
+        { part: 'policies', rel: 'stale.sql', text: 'select 1;\nselect 3;\n' },
         { part: 'hook', rel: 'nested/missing.sql', text: 'x' },
       ]),
-    ).toEqual(['policies: stale.sql', 'hook: missing nested/missing.sql']);
+    ).toEqual([
+      [
+        'policies: stale.sql',
+        '--- stale.sql (on disk)',
+        '+++ stale.sql (generated)',
+        '@@ -1,2 +1,2 @@',
+        ' select 1;',
+        '-select 2;',
+        '+select 3;',
+      ].join('\n'),
+      'hook: missing nested/missing.sql',
+    ]);
+  });
+
+  it('cuts a long diff to 40 lines', () => {
+    const lines = (char: string): string =>
+      Array.from({ length: 50 }, (_, i) => `select '${char}${i}';\n`).join('');
+    writeFileSync(path.join(cwd, 'long.sql'), lines('a'));
+    const [entry = ''] = driftOf(cwd, [
+      { part: 'policies', rel: 'long.sql', text: lines('b') },
+    ]);
+    const shown = entry.split('\n');
+    expect(shown).toHaveLength(42);
+    expect(shown.at(-1)).toBe('… 63 more diff lines');
   });
 
   it('writes files, creating directories, and returns stdout text', () => {

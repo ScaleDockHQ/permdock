@@ -43,18 +43,6 @@ const allDocs = walk(DOCS, (file) => file.endsWith('.mdx'))
   .map(read)
   .join('\n');
 
-function cliFlags(): readonly string[] {
-  const flags = new Set<string>();
-  const pattern =
-    /flag(?:Bool|String|List|Number)\(\s*args\.flags,\s*'([^']+)'/gu;
-  for (const source of cliSources) {
-    for (const [, flag = ''] of source.matchAll(pattern)) {
-      flags.add(flag);
-    }
-  }
-  return [...flags].toSorted();
-}
-
 function doctorCodes(): readonly string[] {
   const codes = new Set<string>();
   for (const source of cliSources) {
@@ -128,9 +116,6 @@ function standardsTests(): readonly string[] {
 }
 
 const problems = [
-  ...cliFlags()
-    .filter((flag) => !cliDocs.includes(`--${flag}`))
-    .map((flag) => `CLI flag --${flag} is not documented under docs/cli`),
   ...doctorCodes()
     .filter((code) => !cliDocs.includes(`| \`${code}\``))
     .map((code) => `doctor ${code} has no row in docs/cli/doctor.mdx`),
@@ -146,6 +131,6 @@ if (problems.length > 0) {
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    'docs match the CLI, doctor checks, package entries and standards tests\n',
+    'docs match the doctor checks, package entries and standards tests\n',
   );
 }

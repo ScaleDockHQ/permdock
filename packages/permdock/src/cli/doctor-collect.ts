@@ -23,7 +23,8 @@ import {
 } from '../index.ts';
 import { jsonSchemaOf, policyRowConditionKeys } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
-import { MIGRATION_DIRS, sqlFiles } from './doctor-project.ts';
+import { MIGRATION_DIRS } from './doctor-project.ts';
+import { sqlFiles } from './files.ts';
 import {
   ROW_CONDITION_FIX,
   helperTablePolicies,
@@ -33,6 +34,7 @@ import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { commandFor, tableFor } from './rls-compile.ts';
 import { graphPlan } from './rls-graph.ts';
 import { contextRefs } from './rls-sql.ts';
+import { supabaseConfig } from './supabase-config.ts';
 import { runUsage } from './usage.ts';
 
 export async function pd002(input: {
@@ -415,27 +417,6 @@ export async function pd018(input: {
   return findings;
 }
 
-function supabaseJwtExpiry(cwd: string): number | undefined {
-  const file = resolve(cwd, 'supabase/config.toml');
-  if (!existsSync(file)) {
-    return undefined;
-  }
-  let section = '';
-  for (const raw of readFileSync(file, 'utf8').split('\n')) {
-    const line = raw.trim();
-    const header = /^\[([^\]]+)\]$/.exec(line);
-    if (header !== null) {
-      section = header[1] ?? '';
-      continue;
-    }
-    const match = /^jwt_expiry\s*=\s*(\d+)/.exec(line);
-    if (section === 'auth' && match !== null) {
-      return Number(match[1]);
-    }
-  }
-  return undefined;
-}
-
 export async function pd020(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -501,7 +482,7 @@ export async function pd019(input: {
   if ((rls?.authorize ?? rls?.rbac?.authorize) !== 'jwt') {
     return [];
   }
-  const expiry = supabaseJwtExpiry(input.cwd) ?? 3600;
+  const expiry = supabaseConfig(input.cwd).jwtExpiry ?? 3600;
   if (expiry <= 3600 || input.config.policy === undefined) {
     return [];
   }

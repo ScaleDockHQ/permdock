@@ -120,6 +120,40 @@ function walkDir(
   }
 }
 
+/**
+ * The `.sql` files under each entry: a glob, a file, or a directory searched
+ * recursively. `order: 'entry'` keeps each entry's matches together in entry
+ * order (how `supabase db diff` reads `schema_paths`); the default sorts all paths.
+ */
+export function sqlFiles(
+  cwd: string,
+  entries: readonly string[],
+  options: { readonly order?: 'path' | 'entry' } = {},
+): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const entry of entries) {
+    const abs = resolve(cwd, entry);
+    const isGlob = /[*?[{]/u.test(entry);
+    if (!isGlob && statSync(abs, { throwIfNoEntry: false })?.isFile()) {
+      if (!seen.has(abs)) {
+        seen.add(abs);
+        ordered.push(abs);
+      }
+      continue;
+    }
+    const pattern = isGlob ? entry : `${entry}/**/*.sql`;
+    for (const match of globSync(pattern, { cwd }).toSorted()) {
+      const path = resolve(cwd, match);
+      if (path.endsWith('.sql') && !seen.has(path)) {
+        seen.add(path);
+        ordered.push(path);
+      }
+    }
+  }
+  return options.order === 'entry' ? ordered : ordered.toSorted();
+}
+
 export function rel(cwd: string, abs: string): string {
   return relative(cwd, abs).split('\\').join('/');
 }

@@ -94,7 +94,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 | `pnpm test:runtimes` | The WinterTC app on Bun, Deno and workerd |
 | `pnpm size` | Per-entry min+gzip against the recorded baseline |
 | `pnpm check:publish` | publint and arethetypeswrong on the published package |
-| `pnpm docs:drift` | Docs mention every CLI flag, doctor code and package entry; every page is in `meta.json` |
+| `pnpm docs:drift` | Docs mention every doctor code and package entry; every page is in `meta.json`. CLI flags are checked against their pages by `tests/cli/docs-flags.test.ts` |
 | `pnpm dev:portless` | Marketing and docs at the Portless URLs above, with `.env.local` and `.env.development.local` loaded |
 | `pnpm dev:cleanup` | `portless prune`: stops dev servers orphaned by a crashed session |
 | `pnpm docs:dev` / `pnpm marketing:dev` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied |

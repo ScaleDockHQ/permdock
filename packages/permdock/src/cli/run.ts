@@ -1,30 +1,26 @@
-import type { runSupabase } from './supabase-hook.ts';
-import type { CliIo, RunResult } from './types.ts';
+import {
+  type ArgsDef,
+  defineCommand,
+  parseArgs,
+  renderUsage,
+  runCommand,
+} from 'citty';
+import { stripVTControlCharacters } from 'node:util';
 
-import { flagBool, flagList, flagString, parseArgs } from './args.ts';
+import type { CliIo, PermDockConfig, RunResult } from './types.ts';
+
+import {
+  type CliContext,
+  type Command,
+  type CommandResult,
+  globalArgs,
+  resolveArgs,
+  stringArg,
+} from './commands/context.ts';
+import { type CommandName, commands, isCommand } from './commands/index.ts';
 import { loadConfig, resolveCwd } from './config.ts';
-import { isSchemaKind } from './generate.ts';
 
-const HELP = `permdock — the PermDock CLI
-
-Commands:
-  collect [--check] [--src <path>] [--watch]
-  catalog [--format json|schema|markdown] [--from <module>] [--include <key>]
-  diff <a> <b> [--impact] [--fixtures <file>] [--json]
-  usage [--json] [--strict] [--ignore <glob>]
-  doctor [--json] [--only <codes>] [--fix]
-  skills [install|list|update] [--agent <name>]
-  openapi emit --doc <path> [--target 3.1|3.2|3.3] [--format document|overlay]
-  openapi import --doc <path|url> --out <file> [--schema zod|valibot|arktype] [--map <json>] [--annotate]
-  rls generate|import|verify [--target sql|drizzle|prisma] [--dialect supabase|neon|guc]
-  arazzo check --doc <arazzo.json> --openapi <doc.json> [--workflow <id>] [--from <module>]
-  cloud push [--dry-run] [--url <url>] [--environment <env>]
-  supabase hook generate [--out <file>] [--check] [--active-from <source>] [--budget 1024]
-  supabase inspect [--json] [--out [permdock.manifest.json]] [--check]
-
-Global:
-  --cwd <dir>   --config <file>   --json   --no-color
-`;
+const NAMES = Object.keys(commands).filter(isCommand);
 
 export async function run(
   argv: readonly string[],
@@ -44,356 +40,157 @@ export async function run(
     },
   };
   const writeOut = (text: string): void => {
-    const line = text.endsWith('\n') ? text : `${text}\n`;
+    const line = lined(text);
     io.stdout(line);
     if (options?.io !== undefined) {
       stdoutChunks.push(line);
     }
   };
   const writeErr = (text: string): void => {
-    const line = text.endsWith('\n') ? text : `${text}\n`;
+    const line = lined(text);
     io.stderr(line);
     if (options?.io !== undefined) {
       stderrChunks.push(line);
     }
   };
-  const args = parseArgs(argv);
-  if (flagBool(args.flags, 'help') || args.command === 'help') {
-    writeOut(HELP);
-    return finish(0, stdoutChunks, stderrChunks);
+  const done = (code: 0 | 1 | 2): RunResult => ({
+    code,
+    stdout: stdoutChunks.join(''),
+    stderr: stderrChunks.join(''),
+  });
+
+  const flags = beforeSeparator(argv);
+  const globals = parseArgs<typeof globalArgs>([...flags], globalArgs);
+  const json = globals.json === true;
+  const color = io.color === true && globals.color !== false;
+  const plain = (text: string): string =>
+    color ? text : stripVTControlCharacters(text);
+  const askedHelp = flags.includes('--help') || flags.includes('-h');
+  const first = globals._[0];
+  const name = first === 'help' ? globals._[1] : first;
+
+  let result: CommandResult | undefined;
+  const contextFor = (cwd: string, config: PermDockConfig): CliContext => ({
+    cwd,
+    config,
+    io,
+    now: io.now?.() ?? new Date(),
+    json,
+    color,
+    interactive: io.interactive === true && !json,
+    report: (outcome) => {
+      result = outcome;
+    },
+  });
+
+  if (name !== undefined && !isCommand(name)) {
+    writeErr(
+      `unknown command '${name}'. Use ${new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(NAMES)}.`,
+    );
+    return done(2);
   }
-  const cwd = resolveCwd(args, options?.cwd ?? process.cwd());
-  const now = io.now?.() ?? new Date();
-  let config;
-  try {
-    config = await loadConfig(cwd, args);
-  } catch (error) {
-    writeErr(error instanceof Error ? error.message : String(error));
-    return finish(2, stdoutChunks, stderrChunks);
-  }
-  const json = flagBool(args.flags, 'json');
-  const strict = flagBool(args.flags, 'strict');
-  const color = !flagBool(args.flags, 'no-color');
-  try {
-    switch (args.command) {
-      case undefined:
-        writeErr(HELP);
-        return finish(2, stdoutChunks, stderrChunks);
-      case 'collect': {
-        const src = flagList(args.flags, 'src');
-        const out = flagString(args.flags, 'out');
-        const result = await (
-          await import('./collect.ts')
-        ).runCollect({
-          cwd,
-          config,
-          collect: {
-            ...(src.length > 0 ? { srcPath: src } : {}),
-            ...(out === undefined ? {} : { out }),
-          },
-          check: flagBool(args.flags, 'check'),
-          now,
-          io,
-        });
-        writeOut(result.message);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'catalog': {
-        const formatFlag = flagString(args.flags, 'format') ?? 'json';
-        if (
-          formatFlag !== 'json' &&
-          formatFlag !== 'schema' &&
-          formatFlag !== 'markdown'
-        ) {
-          writeErr('catalog --format must be json, schema or markdown');
-          return finish(2, stdoutChunks, stderrChunks);
-        }
-        const result = await (
-          await import('./catalog.ts')
-        ).runCatalog({
-          cwd,
-          config,
-          format: formatFlag,
-          from: flagString(args.flags, 'from'),
-          include: flagList(args.flags, 'include'),
-          now,
-          io,
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'diff': {
-        const impactFlag = args.flags['impact'];
-        const result = await (
-          await import('./diff.ts')
-        ).runDiff({
-          cwd,
-          config,
-          sources:
-            typeof impactFlag === 'string'
-              ? [impactFlag, ...args.rest]
-              : args.rest,
-          impact: impactFlag !== undefined,
-          fixtures: flagString(args.flags, 'fixtures'),
-          json,
-          now,
-          io,
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'usage': {
-        const result = await (
-          await import('./usage.ts')
-        ).runUsage({
-          cwd,
-          config,
-          ignore: flagList(args.flags, 'ignore'),
-          strict,
-          json,
-          dynamicAsUsed: flagBool(args.flags, 'dynamic-as-used'),
-          now,
-          io,
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'doctor': {
-        const result = await (
-          await import('./doctor.ts')
-        ).runDoctor({
-          cwd,
-          config,
-          only: flagList(args.flags, 'only'),
-          json,
-          fix: flagBool(args.flags, 'fix'),
-          strict,
-          color,
-          now,
-          io,
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'skills': {
-        const result = (await import('./skills.ts')).runSkills({
-          cwd,
-          action: args.rest[0],
-          agents: flagList(args.flags, 'agent'),
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'openapi': {
-        if (args.rest[0] === 'import') {
-          const schemaFlag = flagString(args.flags, 'schema');
-          if (schemaFlag !== undefined && !isSchemaKind(schemaFlag)) {
-            writeErr('openapi --schema must be zod, valibot or arktype');
-            return finish(2, stdoutChunks, stderrChunks);
-          }
-          const doc =
-            flagString(args.flags, 'doc') ?? flagList(args.flags, 'doc')[0];
-          if (doc === undefined) {
-            writeErr('openapi --doc is required');
-            return finish(2, stdoutChunks, stderrChunks);
-          }
-          const result = await (
-            await import('./openapi-import.ts')
-          ).runOpenapiImport({
-            cwd,
-            doc,
-            out: flagString(args.flags, 'out'),
-            schema: schemaFlag,
-            map: flagString(args.flags, 'map'),
-            annotate: flagBool(args.flags, 'annotate'),
-            io,
-          });
-          writeOut(result.output);
-          return finish(result.code, stdoutChunks, stderrChunks);
-        }
-        const targetFlag = flagString(args.flags, 'target') ?? '3.2';
-        if (
-          targetFlag !== '3.1' &&
-          targetFlag !== '3.2' &&
-          targetFlag !== '3.3'
-        ) {
-          writeErr('openapi --target must be 3.1, 3.2 or 3.3');
-          return finish(2, stdoutChunks, stderrChunks);
-        }
-        const formatFlag = flagString(args.flags, 'format') ?? 'document';
-        if (formatFlag !== 'document' && formatFlag !== 'overlay') {
-          writeErr('openapi --format must be document or overlay');
-          return finish(2, stdoutChunks, stderrChunks);
-        }
-        const overlayFlag = flagString(args.flags, 'overlay') ?? '1.1';
-        if (overlayFlag !== '1.1' && overlayFlag !== '1.2') {
-          writeErr('openapi --overlay must be 1.1 or 1.2');
-          return finish(2, stdoutChunks, stderrChunks);
-        }
-        const profileFlag = flagString(args.flags, 'profile');
-        if (profileFlag !== undefined && profileFlag !== 'fapi2') {
-          writeErr('openapi --profile must be fapi2');
-          return finish(2, stdoutChunks, stderrChunks);
-        }
-        const result = await (
-          await import('./openapi.ts')
-        ).runOpenapi({
-          cwd,
-          config,
-          rest: args.rest,
-          doc: flagString(args.flags, 'doc') ?? flagList(args.flags, 'doc')[0],
-          out: flagString(args.flags, 'out'),
-          from: flagString(args.flags, 'from'),
-          target: targetFlag,
-          format: formatFlag,
-          overlay: overlayFlag,
-          check: flagBool(args.flags, 'check'),
-          profile: profileFlag,
-          profileScheme: flagString(args.flags, 'profile-scheme'),
-          scheme: flagString(args.flags, 'scheme') ?? 'permdockOAuth',
-          metadataUrl: flagList(args.flags, 'metadata-url')[0],
-          deviceFlow: flagBool(args.flags, 'device-flow'),
-          arity: flagBool(args.flags, 'arity'),
-          authorizationUrl: flagString(args.flags, 'authorization-url'),
-          tokenUrl: flagString(args.flags, 'token-url'),
-          deviceAuthorizationUrl: flagString(
-            args.flags,
-            'device-authorization-url',
-          ),
-          io,
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'arazzo': {
-        const result = await (
-          await import('./arazzo.ts')
-        ).runArazzo({
-          cwd,
-          config,
-          rest: args.rest,
-          doc: flagString(args.flags, 'doc') ?? flagList(args.flags, 'doc')[0],
-          openapi: flagString(args.flags, 'openapi'),
-          workflow: flagString(args.flags, 'workflow'),
-          from: flagString(args.flags, 'from'),
-          json,
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'rls': {
-        const rbacFlag = flagString(args.flags, 'rbac');
-        if (rbacFlag !== undefined && rbacFlag !== 'supabase') {
-          writeErr(`rls generate --rbac must be supabase, got '${rbacFlag}'`);
-          return finish(2, stdoutChunks, stderrChunks);
-        }
-        const result = await (
-          await import('./rls.ts')
-        ).runRls({
-          cwd,
-          config,
-          rest: args.rest,
-          target: flagString(args.flags, 'target'),
-          dialect: flagString(args.flags, 'dialect'),
-          out: flagString(args.flags, 'out'),
-          from: flagString(args.flags, 'from'),
-          sql: flagString(args.flags, 'sql'),
-          db: flagString(args.flags, 'db'),
-          fixtures: flagString(args.flags, 'fixtures'),
-          schema: flagString(args.flags, 'schema'),
-          memberships: flagString(args.flags, 'memberships'),
-          format:
-            flagString(args.flags, 'format') ?? flagString(args.flags, 'emit'),
-          rbac:
-            flagBool(args.flags, 'rbac-scaffold') || rbacFlag === 'supabase',
-          rbacSchema: flagString(args.flags, 'rbac-schema'),
-          authorize: flagString(args.flags, 'authorize'),
-          check: flagBool(args.flags, 'check'),
-          skipClosures: flagBool(args.flags, 'skip-closures'),
-          inlineFunctions: flagBool(args.flags, 'inline-functions'),
-          force: flagBool(args.flags, 'force'),
-          gucPrefix: flagString(args.flags, 'guc-prefix'),
-          policyPerRole: flagBool(args.flags, 'policy-per-role'),
-          policyName: flagString(args.flags, 'policy-name'),
-          tenantType: flagString(args.flags, 'tenant-type'),
-          customRoles: flagBool(args.flags, 'custom-roles'),
-          capabilities: flagBool(args.flags, 'capabilities'),
-          fields: flagString(args.flags, 'fields'),
-          revokeColumns: flagBool(args.flags, 'revoke-columns'),
-          tree: flagBool(args.flags, 'tree'),
-          introspect: flagBool(args.flags, 'introspect'),
-          split: flagString(args.flags, 'split'),
-          grantsOut: flagString(args.flags, 'grants-out'),
-          helpersOnly: flagBool(args.flags, 'helpers-only'),
-          write: flagBool(args.flags, 'write'),
-          json,
-          io,
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'supabase': {
-        const result = await (
-          await import('./supabase-hook.ts')
-        ).runSupabase(
-          // SAFETY: the object literal has runSupabase's option shape; the filter only drops undefined.
-          Object.fromEntries(
-            Object.entries({
-              cwd,
-              config,
-              rest: args.rest,
-              out:
-                args.flags['out'] === true
-                  ? true
-                  : flagString(args.flags, 'out'),
-              check: flagBool(args.flags, 'check'),
-              json,
-              db: flagString(args.flags, 'db'),
-              activeFrom: flagString(args.flags, 'active-from'),
-              budget: flagString(args.flags, 'budget'),
-              schema: flagString(args.flags, 'schema'),
-              grantsOut: flagString(args.flags, 'grants-out'),
-              io,
-            }).filter(([, value]) => value !== undefined),
-          ) as Parameters<typeof runSupabase>[0],
-        );
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      case 'cloud': {
-        const result = await (
-          await import('./cloud.ts')
-        ).runCloud({
-          cwd,
-          config,
-          rest: args.rest,
-          url: flagString(args.flags, 'url'),
-          environment: flagString(args.flags, 'environment'),
-          dryRun: flagBool(args.flags, 'dry-run'),
-          json,
-          env: io.env ?? process.env,
-          now,
-          io,
-        });
-        writeOut(result.output);
-        return finish(result.code, stdoutChunks, stderrChunks);
-      }
-      default:
-        writeErr(
-          `unknown command '${args.command}'. Use collect, catalog, diff, usage, doctor, skills, openapi, rls, arazzo, cloud or supabase.`,
-        );
-        return finish(2, stdoutChunks, stderrChunks);
+  if (askedHelp || first === 'help' || name === undefined) {
+    const helpCtx = contextFor(options?.cwd ?? process.cwd(), {});
+    const root = rootCommand(helpCtx);
+    const usage =
+      name === undefined
+        ? await renderUsage(root)
+        : await renderUsage(await load(name, helpCtx), root);
+    if (name === undefined && !askedHelp && first !== 'help') {
+      writeErr(plain(usage));
+      return done(2);
     }
+    writeOut(plain(usage));
+    return done(0);
+  }
+
+  const cwd = resolveCwd(stringArg(globals.cwd), options?.cwd ?? process.cwd());
+  let config: PermDockConfig;
+  try {
+    config = await loadConfig(cwd, stringArg(globals.config));
   } catch (error) {
     writeErr(error instanceof Error ? error.message : String(error));
-    return finish(2, stdoutChunks, stderrChunks);
+    return done(2);
   }
+  try {
+    const command = await load(name, contextFor(cwd, config));
+    const rawArgs = withoutCommand(argv, name);
+    await runCommand(command, {
+      rawArgs: normaliseValues(rawArgs, await resolveArgs(command)),
+    });
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      writeErr(String(error));
+    } else if (error.name === 'CLIError') {
+      writeErr(`${name}: ${stripVTControlCharacters(error.message)}`);
+    } else {
+      writeErr(error.message);
+    }
+    return done(2);
+  }
+  if (result === undefined) {
+    return done(0);
+  }
+  writeOut(result.output);
+  return done(result.code);
 }
 
-function finish(
-  code: 0 | 1 | 2,
-  stdout: readonly string[],
-  stderr: readonly string[],
-): RunResult {
-  return { code, stdout: stdout.join(''), stderr: stderr.join('') };
+function rootCommand(ctx: CliContext): Command {
+  return defineCommand({
+    meta: {
+      name: 'permdock',
+      description:
+        'Collect, export, diff and check the permissions a PermDock policy declares',
+    },
+    args: globalArgs,
+    subCommands: Object.fromEntries(
+      NAMES.map((name) => [name, () => load(name, ctx)]),
+    ),
+  });
+}
+
+async function load(name: CommandName, ctx: CliContext): Promise<Command> {
+  return (await commands[name]())(ctx);
+}
+
+function lined(text: string): string {
+  return text.endsWith('\n') ? text : `${text}\n`;
+}
+
+function beforeSeparator(argv: readonly string[]): readonly string[] {
+  const end = argv.indexOf('--');
+  return end === -1 ? argv : argv.slice(0, end);
+}
+
+/** argv with the command name removed, wherever the global flags put it. */
+function withoutCommand(argv: readonly string[], name: string): string[] {
+  const index = argv.findIndex(
+    (token, i) =>
+      token === name && argv[i - 1] !== '--cwd' && argv[i - 1] !== '--config',
+  );
+  return argv.filter((_, i) => i !== index);
+}
+
+/**
+ * A value never starts with `-` (bar `-` itself): `--out --check` is a bare
+ * `--out` and `--check`, as it was before citty, which would take `--check`
+ * as the value. A bare string flag reads as `''`; a bare enum flag keeps its
+ * default.
+ */
+function normaliseValues(rawArgs: readonly string[], def: ArgsDef): string[] {
+  const out: string[] = [];
+  for (const [i, token] of rawArgs.entries()) {
+    if (token === '--') {
+      out.push(...rawArgs.slice(i));
+      break;
+    }
+    const arg = token.startsWith('--') ? def[token.slice(2)] : undefined;
+    const next = rawArgs[i + 1];
+    const bare = next === undefined || (next !== '-' && next.startsWith('-'));
+    if (arg?.type === 'enum' && bare) {
+      continue;
+    }
+    out.push(arg?.type === 'string' && bare ? `${token}=` : token);
+  }
+  return out;
 }

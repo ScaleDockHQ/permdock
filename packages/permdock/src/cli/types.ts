@@ -313,6 +313,10 @@ export type CliIo = {
   readonly now?: () => Date;
   readonly fetch?: typeof fetch;
   readonly env?: Readonly<Record<string, string | undefined>>;
+  /** Styled human output; `--no-color` turns it off. Unset is plain. */
+  readonly color?: boolean;
+  /** A person at a terminal: commands may prompt. Unset never prompts. */
+  readonly interactive?: boolean;
 };
 
 export type RunResult = {

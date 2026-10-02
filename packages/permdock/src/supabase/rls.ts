@@ -8,6 +8,7 @@ import type {
 } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from '../core/sql.ts';
 import { supabaseTenantClaim } from './budget.ts';
 
 function isTable(
@@ -37,26 +38,13 @@ export function supabaseRls(
   });
 }
 
-const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/u;
-
-function ident(name: string): string {
-  if (!IDENT.test(name)) {
-    throw new TypeError(`PermDock: unsafe SQL identifier '${name}'`);
-  }
-  return `"${name}"`;
-}
-
-function table(name: string): string {
-  return name.split('.').map(ident).join('.');
-}
+const ident = (name: string): string => quoteSqlIdent(name);
+const table = (name: string): string => quoteSqlTable(name);
+const literal = quoteSqlLiteral;
 
 // `authorize()` runs with `search_path = ''`, so a bare table name must be qualified.
 function qualifiedTable(name: string): string {
   return table(name.includes('.') ? name : `public.${name}`);
-}
-
-function literal(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
 }
 
 function textArray(values: readonly string[]): string {

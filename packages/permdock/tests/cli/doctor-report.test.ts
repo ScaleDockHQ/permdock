@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import type { PermDockConfig } from '../../src/cli/types.ts';
@@ -99,7 +100,8 @@ describe('runDoctor', () => {
   it('prints marks, plurals and an empty report', async () => {
     const cwd = project({ 'src/a.ts': `export const o = { tenant: 'hd' }\n` });
     const colored = await doctor(cwd, {}, { only: ['tenant'], color: true });
-    expect(colored.output).toBe(
+    expect(colored.output).toContain('\u001B[');
+    expect(stripVTControlCharacters(colored.output)).toBe(
       `permdock doctor
 
   ⚠ PD011  src/a.ts reads tenant from an optional issuer claim
@@ -113,7 +115,7 @@ describe('runDoctor', () => {
       {},
       { only: ['algorithms'], color: true },
     );
-    expect(failing.output).toContain('✖ PD013');
+    expect(stripVTControlCharacters(failing.output)).toContain('✖ PD013');
     expect(failing.output).toContain('1 error, 0 warnings');
     const plain = await doctor(
       project({ 'src/a.ts': `algorithms: ['none']\n` }),

@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 
 import type { CreatePermDockPluginOptions } from './types.ts';
 
-import { parseArgs } from './args.ts';
 import { runCollect } from './collect.ts';
 import { loadConfig } from './config.ts';
 
@@ -77,7 +76,7 @@ export async function runPluginCollect(
   options: CreatePermDockPluginOptions | undefined,
   check: boolean,
 ): Promise<string | undefined> {
-  const config = await loadConfig(cwd, parseArgs([]));
+  const config = await loadConfig(cwd);
   const collect = {
     ...config.collect,
     ...options?.collect,

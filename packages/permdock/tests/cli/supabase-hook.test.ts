@@ -270,6 +270,25 @@ describe('permdock supabase hook generate', () => {
     );
     expect(drift.code).toBe(1);
     expect(drift.stdout + drift.stderr).toContain('budget 2048 -> 1024');
+    const otherSchema = await run(
+      [
+        'supabase',
+        'hook',
+        'generate',
+        '--out',
+        'hook.sql',
+        '--budget',
+        '2048',
+        '--schema',
+        'auth_hooks',
+        '--check',
+      ],
+      { cwd },
+    );
+    expect(otherSchema.code).toBe(1);
+    expect(otherSchema.stdout + otherSchema.stderr).toContain(
+      'schema public -> auth_hooks',
+    );
     writeFileSync(join(cwd, 'hook.sql'), '-- hand edited\n');
     const unmarked = await run(
       ['supabase', 'hook', 'generate', '--out', 'hook.sql', '--check'],

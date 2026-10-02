@@ -1,14 +1,58 @@
-import { resolve } from 'node:path';
+import { createJiti } from 'jiti';
+import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import type { Permission, PermissionTree, Policy } from '../index.ts';
 
 import { listPermissions } from '../index.ts';
 
+/**
+ * Errors Node raises while resolving or parsing a module graph, before any of
+ * its code runs, so loading it again through jiti cannot repeat a side effect.
+ */
+const NOT_NATIVE = new Set([
+  'ERR_MODULE_NOT_FOUND',
+  'ERR_UNKNOWN_FILE_EXTENSION',
+  'ERR_UNSUPPORTED_DIR_IMPORT',
+  'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX',
+  'ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING',
+]);
+
+function loadsWithJiti(error: unknown): boolean {
+  if (error instanceof SyntaxError) {
+    return true;
+  }
+  const code: unknown =
+    error !== null && typeof error === 'object' && 'code' in error
+      ? error.code
+      : undefined;
+  return typeof code === 'string' && NOT_NATIVE.has(code);
+}
+
+/**
+ * Imports a project module the way its bundler would. Node's own `import()`
+ * comes first; a module it cannot resolve or parse (tsconfig `paths`
+ * aliases, extensionless relative imports, `enum`, TSX) loads through jiti
+ * with the `paths` of the nearest `tsconfig.json` above it. Exports are
+ * returned as written; `default` is not merged into the namespace.
+ */
 export async function loadModule(
   abs: string,
 ): Promise<Record<string, unknown>> {
-  const loaded: unknown = await import(pathToFileURL(abs).href);
+  let loaded: unknown;
+  try {
+    loaded = await import(pathToFileURL(abs).href);
+  } catch (error) {
+    if (!loadsWithJiti(error)) {
+      throw error;
+    }
+    const jiti = createJiti(import.meta.url, {
+      interopDefault: false,
+      jsx: true,
+      tsconfigPaths: dirname(abs),
+    });
+    loaded = await jiti.import(abs);
+  }
   if (loaded === null || typeof loaded !== 'object') {
     throw new Error(`PermDock CLI: module '${abs}' did not export an object`);
   }

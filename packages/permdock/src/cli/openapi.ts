@@ -10,6 +10,7 @@ import { openapiVersion } from '../openapi/emit.ts';
 import { createPermDock } from '../openapi/index.ts';
 import { asPermissionTree, asPolicy, loadModule, pickNamed } from './load.ts';
 import { validateOpenapi, validateOverlay } from './openapi-schema.ts';
+import { shortDiff } from './text-diff.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -393,7 +394,10 @@ export async function runOpenapi(input: {
     if (current === text) {
       return { code: 0, output: 'openapi up to date' };
     }
-    return { code: 1, output: 'openapi drift' };
+    return {
+      code: 1,
+      output: `openapi drift\n${shortDiff(input.out ?? input.doc, current, text)}`,
+    };
   }
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, text);

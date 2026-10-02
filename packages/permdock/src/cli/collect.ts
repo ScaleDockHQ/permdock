@@ -24,6 +24,7 @@ import {
   loadConfiguredPolicy,
 } from './load.ts';
 import { scanSources } from './scan.ts';
+import { shortDiff } from './text-diff.ts';
 
 export type CollectOutcome = {
   readonly code: 0 | 1 | 2;
@@ -102,13 +103,16 @@ export async function runCollect(input: {
     const current = readFileSync(outPath, 'utf8');
     // SAFETY: only serialised again by catalogForCompare; any other shape just compares unequal.
     const currentDoc = JSON.parse(current) as CatalogDocument;
-    if (catalogForCompare(currentDoc) !== catalogForCompare(document)) {
+    const onDisk = catalogForCompare(currentDoc);
+    const generated = catalogForCompare(document);
+    if (onDisk !== generated) {
+      const file = rel(input.cwd, outPath);
       return {
         code: 1,
         document,
         scan,
         outPath,
-        message: `catalog drift: ${rel(input.cwd, outPath)}`,
+        message: `catalog drift: ${file}\n${shortDiff(file, onDisk, generated)}`,
       };
     }
     return {

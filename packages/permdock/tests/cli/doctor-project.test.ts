@@ -12,8 +12,8 @@ import {
   pd012,
   pd022,
   pd028,
-  sqlFiles,
 } from '../../src/cli/doctor-project.ts';
+import { sqlFiles } from '../../src/cli/files.ts';
 import { project, removeProjects } from './doctor-kit.ts';
 
 afterAll(removeProjects);
@@ -156,6 +156,19 @@ describe('sqlFiles', () => {
         path.relative(cwd, file),
       ),
     ).toEqual(['db/b.sql', 'db/nested/a.sql', 'other/c.sql']);
+  });
+
+  it('keeps a file entry as written and entry order on request', () => {
+    const cwd = project({
+      'z/one.sql': '',
+      'a/two.sql': '',
+      'a/three.sql': '',
+    });
+    expect(
+      sqlFiles(cwd, ['z/one.sql', 'a/*.sql'], { order: 'entry' }).map((file) =>
+        path.relative(cwd, file),
+      ),
+    ).toEqual(['z/one.sql', 'a/three.sql', 'a/two.sql']);
   });
 });
 

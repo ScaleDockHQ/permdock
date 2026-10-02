@@ -376,7 +376,14 @@ describe('runOpenapi --check', () => {
     writeFileSync(path.join(cwd, 'out.json'), '{}\n');
     expect(await emit(cwd, { check: true })).toEqual({
       code: 1,
-      output: 'openapi drift',
+      output: expect.stringContaining(
+        [
+          'openapi drift',
+          '--- out.json (on disk)',
+          '+++ out.json (generated)',
+          '@@ ',
+        ].join('\n'),
+      ),
     });
   });
 
@@ -393,7 +400,9 @@ describe('runOpenapi --check', () => {
     writeFileSync(path.join(cwd, 'openapi.json'), JSON.stringify(BASE));
     expect(await emit(cwd, { check: true, out: undefined })).toEqual({
       code: 1,
-      output: 'openapi drift',
+      output: expect.stringContaining(
+        'openapi drift\n--- openapi.json (on disk)\n',
+      ),
     });
   });
 });

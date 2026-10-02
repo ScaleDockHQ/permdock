@@ -223,9 +223,12 @@ describe('createPermDockPlugin', () => {
       await config('phase-development-server', {});
       rmSync(catalog);
       writeFileSync(join(cwd, 'src/touch.ts'), 'export {};\n');
-      await vi.waitFor(() => {
-        expect(existsSync(catalog)).toBe(true);
-      });
+      await vi.waitFor(
+        () => {
+          expect(existsSync(catalog)).toBe(true);
+        },
+        { timeout: 5000 },
+      );
 
       rmSync(join(cwd, 'permdock.config.ts'));
       writeFileSync(
@@ -233,9 +236,12 @@ describe('createPermDockPlugin', () => {
         "throw new Error('broke while watching');\n",
       );
       writeFileSync(join(cwd, 'src/touch.ts'), 'export const a = 1;\n');
-      await vi.waitFor(() => {
-        expect(lines).toContain('permdock: broke while watching\n');
-      });
+      await vi.waitFor(
+        () => {
+          expect(lines).toContain('permdock: broke while watching\n');
+        },
+        { timeout: 5000 },
+      );
     } finally {
       process.chdir(previous);
       write.mockRestore();

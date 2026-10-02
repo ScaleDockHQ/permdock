@@ -246,8 +246,14 @@
     "typecheck": "tsc --noEmit --checkers 4 && tsc --noEmit --checkers 4 -p tests/tsconfig.json"
   },
   "dependencies": {
+    "@clack/prompts": "catalog:",
     "@standard-schema/spec": "catalog:",
-    "oxc-parser": "catalog:"
+    "citty": "catalog:",
+    "diff": "catalog:",
+    "jiti": "catalog:",
+    "oxc-parser": "catalog:",
+    "package-manager-detector": "catalog:",
+    "smol-toml": "catalog:"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",

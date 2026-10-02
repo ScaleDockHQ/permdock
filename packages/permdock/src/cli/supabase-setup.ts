@@ -7,7 +7,8 @@ import type { SqlClient, SqlConnect } from './rls-verify.ts';
 import type { PermDockConfig } from './types.ts';
 
 import { readMemberships } from '../supabase/subject.ts';
-import { MIGRATION_DIRS, sqlFiles } from './doctor-project.ts';
+import { MIGRATION_DIRS } from './doctor-project.ts';
+import { sqlFiles } from './files.ts';
 import { requirePeer } from './peer.ts';
 
 const HELPER_NAME =

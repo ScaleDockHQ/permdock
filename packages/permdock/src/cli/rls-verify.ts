@@ -31,14 +31,13 @@ import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { requirePeer } from './peer.ts';
 import { commandFor } from './rls-compile.ts';
 import { FIELD_VIEWS, viewName } from './rls-fields.ts';
+import { quoteIdent } from './rls-sql.ts';
 import { verifyTree } from './rls-verify-tree.ts';
 
 export type VerifyOutcome = {
   readonly code: 0 | 1 | 2;
   readonly output: string;
 };
-
-const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -95,13 +94,6 @@ function grantKind(
     return 'sqlFunction';
   }
   return 'portable';
-}
-
-function quoteIdent(name: string): string {
-  if (!IDENT.test(name)) {
-    throw new Error(`PermDock CLI: unsafe SQL identifier '${name}'`);
-  }
-  return `"${name}"`;
 }
 
 type Statement = { readonly sql: string; readonly values: readonly unknown[] };

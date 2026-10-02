@@ -33,7 +33,7 @@ This is the short product brief: what PermDock is, who it is for, the principles
 - **Delegation-aware.** A subject is a principal, an actor and a delegation; an agent never exceeds the user it acts for ([subject](./apps/docs/content/docs/concepts/subject.mdx)).
 - **Standards-first.** Wire formats follow AuthZEN, OpenAPI, Standard Schema, RFC 9457 Problem Details, JOSE, SCIM, SSF and CAEP, and MCP, so any language can read what PermDock produces ([standards](./apps/docs/content/docs/standards/index.mdx)).
 - **Agent-readable.** Shipped skills, `AGENTS.md`, `llms.txt`, a JSON Schema catalog and denials written for models.
-- **Small.** ESM-only, runtime entries that depend on `@standard-schema/spec` only (the CLI's `oxc-parser` never reaches them), and per-entry bundle size measured in CI.
+- **Small.** ESM-only, runtime entries that depend on `@standard-schema/spec` only (no CLI dependency reaches them), and per-entry bundle size measured in CI.
 
 ## Non-goals
 

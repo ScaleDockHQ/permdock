@@ -55,6 +55,8 @@ import {
 } from './doctor-source.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
 import { runSkillsInstall } from './skills.ts';
+import { createStyle } from './style.ts';
+import { pd045 } from './supabase-config.ts';
 import {
   attrsPlan,
   loadScopes,
@@ -258,6 +260,9 @@ export async function runDoctor(input: {
   if (include('supabase') || include('declarative') || include('PD043')) {
     findings.push(...pd043(input.cwd));
   }
+  if (include('supabase') || include('PD045')) {
+    findings.push(...pd045(input.cwd));
+  }
   if (include('next') || include('endpoint') || include('PD044')) {
     findings.push(...(await pd044(input)));
   }
@@ -282,13 +287,15 @@ export async function runDoctor(input: {
 }
 
 function formatDoctor(report: DoctorReport, color: boolean): string {
-  const errorMark = color ? '✖' : 'error';
-  const warnMark = color ? '⚠' : 'warn';
-  const lines = ['permdock doctor', ''];
+  const style = createStyle(color);
+  const lines = [style.paint('bold', 'permdock doctor'), ''];
   for (const finding of report.findings) {
-    const mark = finding.severity === 'error' ? errorMark : warnMark;
-    lines.push(`  ${mark} ${finding.code}  ${finding.message}`);
-    lines.push(`           fix: ${finding.fix}`);
+    const mark =
+      finding.severity === 'error' ? style.errorMark : style.warnMark;
+    lines.push(
+      `  ${mark} ${style.paint('bold', finding.code)}  ${finding.message}`,
+    );
+    lines.push(`           ${style.paint('dim', `fix: ${finding.fix}`)}`);
   }
   if (report.findings.length === 0) {
     lines.push('  no findings');

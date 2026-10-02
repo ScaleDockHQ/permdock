@@ -16,10 +16,16 @@ import { type GraphSql, relatedSql } from '../conditions/graph-sql.ts';
 import { isReadonlyArray, sole } from '../core/compact.ts';
 import { isForbiddenKey } from '../core/paths.ts';
 import { resolveScope, rootScope, scopeChain } from '../core/scopes.ts';
+import {
+  SQL_IDENT,
+  quoteSqlIdent,
+  quoteSqlLiteral,
+  quoteSqlTable,
+} from '../core/sql.ts';
 import { isSqlFunctionField } from '../index.ts';
 
-const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const CLAIM = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const CLI = 'PermDock CLI';
+const CLAIM = SQL_IDENT;
 
 export type RlsSqlContext = {
   readonly dialect: RlsDialect;
@@ -458,18 +464,15 @@ function tenantClaimSql(ctx: RlsSqlContext): string {
 }
 
 export function quoteIdent(name: string): string {
-  if (!IDENT.test(name)) {
-    throw new Error(`PermDock CLI: unsafe SQL identifier '${name}'`);
-  }
-  return `"${name}"`;
+  return quoteSqlIdent(name, CLI);
 }
 
 export function quoteTable(name: string): string {
-  return name.split('.').map(quoteIdent).join('.');
+  return quoteSqlTable(name, CLI);
 }
 
 export function quoteLiteral(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
+  return quoteSqlLiteral(value);
 }
 
 export function subjectIdSql(ctx: RlsSqlContext): string {

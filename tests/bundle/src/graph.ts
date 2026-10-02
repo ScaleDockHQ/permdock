@@ -87,7 +87,13 @@ export const RUNTIME_ENTRIES =
 
 /** Packages only the CLI and the test runners may load. */
 export const TOOLING_PACKAGES = [
+  '@clack/prompts',
+  'citty',
+  'diff',
+  'jiti',
   'oxc-parser',
+  'package-manager-detector',
+  'smol-toml',
   'pgsql-parser',
   'pg',
   'unplugin',

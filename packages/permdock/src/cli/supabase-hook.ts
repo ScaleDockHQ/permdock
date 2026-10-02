@@ -51,7 +51,7 @@ import {
 } from './supabase-setup.ts';
 import { SUPABASE_MANIFEST_SCHEMA } from './version.ts';
 
-export const SUPABASE_HELP = `permdock supabase hook generate | inspect
+const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
   hook generate [--out supabase/permdock-hook.sql] [--check] [--db <url>]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
@@ -70,7 +70,7 @@ file differs.
 
 const MANIFEST_FILE = 'permdock.manifest.json';
 
-export const MANAGED_TRIGGER = 'permdock_protect_managed';
+const MANAGED_TRIGGER = 'permdock_protect_managed';
 
 const CLAIM_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -154,7 +154,7 @@ export function attrsPlan(
  * Claim names `supabase.hook.claims` cannot write: the ones this hook owns
  * (plus the tenant claim) and the ones Supabase Auth issues.
  */
-export const RESERVED_CLAIMS: readonly string[] = [
+const RESERVED_CLAIMS: ReadonlySet<string> = new Set([
   'roles',
   'user_role',
   'memberships',
@@ -175,7 +175,7 @@ export const RESERVED_CLAIMS: readonly string[] = [
   'phone',
   'app_metadata',
   'user_metadata',
-];
+]);
 
 const CLAIM_FUNCTION = /^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/u;
 
@@ -190,7 +190,7 @@ export type ExtraClaim = {
  * {@link RESERVED_CLAIMS} and the tenant claim, each function is
  * schema-qualified (the hook runs with an empty `search_path`).
  */
-export function extraClaimsPlan(
+function extraClaimsPlan(
   claims: SupabaseHookConfig['claims'],
   tenantClaim: string,
 ): {
@@ -206,7 +206,7 @@ export function extraClaimsPlan(
       );
       continue;
     }
-    if (RESERVED_CLAIMS.includes(claim) || claim === tenantClaim) {
+    if (RESERVED_CLAIMS.has(claim) || claim === tenantClaim) {
       errors.push(
         `supabase.hook.claims names ${claim}, which PermDock or Supabase Auth writes`,
       );
@@ -223,7 +223,7 @@ export function extraClaimsPlan(
   return { claims: planned, errors };
 }
 
-export const VERSION_TRIGGER = 'permdock_authz_version';
+const VERSION_TRIGGER = 'permdock_authz_version';
 
 type Parts = {
   readonly schema: string;
@@ -760,7 +760,7 @@ ${triggers}`;
 }
 
 /** The `config.toml` block that enables the hook and bounds token staleness. */
-export function configToml(schema: string, jwtExpiry: number): string {
+function configToml(schema: string, jwtExpiry: number): string {
   return `[auth]
 jwt_expiry = ${String(jwtExpiry)}
 
@@ -769,7 +769,7 @@ enabled = true
 uri = "${hookUri(schema)}"`;
 }
 
-export const BUDGET_MEASURE =
+const BUDGET_MEASURE =
   'octet_length(memberships::text) + octet_length(attrs::text)';
 
 type HookOverrides = {
@@ -982,7 +982,7 @@ function manifestOf(
 }
 
 /** The first line of the generated hook: fields `--check` compares before the full text. */
-export function hookMarker(manifest: SupabaseHookManifest): string {
+function hookMarker(manifest: SupabaseHookManifest): string {
   return `${HOOK_MARKER} schema=${manifest.hook.schema} tenant=${manifest.tenantClaim} budget=${String(manifest.budget.bytes)} claims=${manifest.claims.map((claim) => claim.name).join(',')}`;
 }
 

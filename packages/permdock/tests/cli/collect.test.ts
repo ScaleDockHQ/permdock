@@ -90,7 +90,14 @@ describe('runCollect', () => {
     writeFileSync(path.join(cwd, 'permissions.catalog.json'), '{}');
     expect(await collect(cwd, config, { check: true })).toMatchObject({
       code: 1,
-      message: 'catalog drift: permissions.catalog.json',
+      message: expect.stringContaining(
+        [
+          'catalog drift: permissions.catalog.json',
+          '--- permissions.catalog.json (on disk)',
+          '+++ permissions.catalog.json (generated)',
+          '@@ ',
+        ].join('\n'),
+      ),
     });
   });
 

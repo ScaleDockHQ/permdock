@@ -3,7 +3,7 @@ title: CLI
 description: The permdock CLI that ships in the permdock package, its commands, exit codes and how to run it in CI.
 ---
 
-The `permdock` binary ships inside the `permdock` package, next to the runtime entries, and `permdock/cli` exports `defineConfig` and `run`. No runtime entry (`permdock`, `permdock/next`, `permdock/jwt`, ...) imports CLI code, so none of it reaches an application bundle. `oxc-parser` (to scan TypeScript source) is the one dependency the everyday commands need; `pgsql-parser` (`rls import`, `rls migrate`), `pg` (`rls import --db`, `rls verify --db`) and `unplugin` (`permdock/unplugin`) are optional peers the command loads only when it runs, failing with the install line when the peer is missing. See [adapters](/docs/adapters).
+The `permdock` binary ships inside the `permdock` package, next to the runtime entries, and `permdock/cli` exports `defineConfig` and `run`. No runtime entry (`permdock`, `permdock/next`, `permdock/jwt`, ...) imports CLI code, so none of it reaches an application bundle. The CLI's dependencies are `oxc-parser` (to scan TypeScript source), `citty` (flags and help), `jiti` (to load TypeScript modules), `smol-toml` (`supabase/config.toml`), `package-manager-detector` (install hints), `@clack/prompts` (prompts on a terminal) and `diff` (the diff `--check` prints); `pgsql-parser` (`rls import`, `rls migrate`), `pg` (`rls import --db`, `rls verify --db`) and `unplugin` (`permdock/unplugin`) are optional peers the command loads only when it runs. When the peer is missing, the error is the install line for the package manager that ran the command, or the one whose lockfile the project has (`pnpm add -D pg`, `npm i -D pg`, `yarn add -D pg`, `bun add -D pg`). See [adapters](/docs/adapters).
 
 The CLI never evaluates a policy against a real subject. Only `permdock cloud push` needs a secret, which it reads from `PERMDOCK_CLOUD_KEY`. It reads permission definitions, source files, OpenAPI documents and database catalogs, and writes generated files, reports and diffs.
 
@@ -65,7 +65,11 @@ Warnings never change the exit code unless `--strict` is passed.
 
 ## Output
 
-Every command prints a human-readable report by default and supports `--json` for machine consumption. JSON reports carry a `$schema` field pointing at the report schema included in the package so agents can validate them. Paths in reports are relative to `--cwd`. `--help` (or `permdock help`) prints the command list.
+Every command prints a human-readable report by default and supports `--json` for machine consumption. JSON reports carry a `$schema` field pointing at the report schema included in the package so agents can validate them. Paths in reports are relative to `--cwd`. `--help` (or `permdock help`) prints the command list; `permdock <command> --help` (or `permdock help <command>`) prints that command's flags, their values and defaults.
+
+When `--check` finds drift (`collect`, `openapi`, `rls generate`, `supabase hook generate`), it prints each stale file's name followed by a unified diff from the file on disk to what the command would write, cut to the first 40 lines, so the CI log shows what changed without a local run.
+
+Reports are styled on a colour terminal and plain in a pipe, unless `FORCE_COLOR` is set; `NO_COLOR` and `--no-color` turn styling off. A flag with a fixed set of values rejects any other with exit `2` and the list it accepts, for example `catalog: Invalid value for argument: --format (xml). Expected one of: json, schema, markdown.`
 
 ## CI usage
 
@@ -84,6 +88,14 @@ Every command prints a human-readable report by default and supports `--json` fo
 
 Permission definitions are runtime values, so most commands import the definition module and call `listPermissions()`; no type information is needed. Source scanning with `oxc-parser` is used only where usage sites matter (`collect`, `usage`, `doctor`) and never depends on the TypeScript compiler API, which TS 7.0 does not expose stably.
 
-Modules are loaded with the project's own resolver (`tsx`-style on-the-fly transpilation), so `permissions.ts` may import schemas from Zod, Valibot or ArkType freely. The `policy` module is loaded only by `usage`, `rls` and `doctor`, and only in the process running the CLI.
+Config, permissions and policy modules are loaded with Node's `import()`. When Node cannot resolve or parse one, the CLI loads it again with [jiti](https://github.com/unjs/jiti), which transpiles TypeScript and TSX on the fly. Imports then resolve the way the project's bundler resolves them: extensionless relative paths, `enum` and `namespace`, and the `paths` aliases of the nearest `tsconfig.json` above the module (following `extends`), so `import { db } from '@/lib/db'` works. `permissions.ts` may import schemas from Zod, Valibot or ArkType freely. The `policy` module is loaded only by `usage`, `rls` and `doctor`, and only in the process running the CLI.
 
 `permdock.config.ts` configures the CLI only. `permdock/testing` fixtures are passed as arguments in the test files that use them.
+
+## Why
+
+- **The CLI takes dependencies; the runtime entries do not.** An application bundle, an edge function or a Worker loads only the runtime entries, which depend on `@standard-schema/spec` and nothing else. The CLI runs on a developer machine or in CI, where a well-maintained package replaces code PermDock would otherwise maintain and get subtly wrong. The six CLI packages besides `oxc-parser` add about 2.7 MB unpacked, most of it the TypeScript transform inside jiti, and only `@clack/prompts` brings dependencies of its own. `tests/bundle` fails if a runtime entry reaches any CLI package.
+- **Heavy or rare dependencies stay optional peers.** `pgsql-parser`, `pg` and `unplugin` are large and serve one or two commands, so a project that never runs `rls import` never installs them.
+- **citty for flags and help.** One definition per command gives the parser, the `--help` text, the value check for flags with a fixed set of values, and the list the docs test reads, so the help and the docs cannot disagree with the parser.
+- **jiti for loading modules.** Node's own type stripping rejects `enum`, extensionless imports and tsconfig `paths`, which most app code uses; jiti loads a module the way the app's bundler does. Node goes first because it is faster, and a module it loads is the same module the app's runtime loads. An error thrown while a module runs is reported as it is.
+- **Prompts only at a terminal.** A prompt in CI or a pipe would hang the job, so prompts appear only when stdin and stdout are a terminal, `CI` is unset and `--json` is not set. Every prompt has a flag that answers it, and without a terminal the command behaves as the flag says.
