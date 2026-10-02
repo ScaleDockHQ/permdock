@@ -3,6 +3,8 @@ import type {
   Denial,
   DenialReason,
   MatchedGrant,
+  TraceSkip,
+  TraceSkipReason,
 } from './decision.ts';
 import type { Snapshot, SnapshotGrant } from './interfaces.ts';
 import type { DecideOptions, WhereResult } from './permdock.ts';
@@ -198,6 +200,24 @@ function conditionOk(
   return { matched: true };
 }
 
+type SnapshotTracer = {
+  evaluated: number;
+  readonly allows: MatchedGrant[];
+  readonly denies: MatchedGrant[];
+  readonly skipped: TraceSkip[];
+};
+
+function matchedOf(grant: SnapshotGrant): MatchedGrant {
+  return compact<MatchedGrant>({
+    role: grant.role,
+    permission: grant.permission,
+    to: grant.to,
+    where: grant.where,
+    check: grant.check,
+    approval: grant.approval,
+  });
+}
+
 export function evaluateSnapshot(
   snapshot: Snapshot,
   subject: Subject,
@@ -207,8 +227,34 @@ export function evaluateSnapshot(
   options: DecideOptions,
 ): Decision {
   const now = options.now ?? nowSeconds();
+  const tracer: SnapshotTracer | undefined =
+    options.explain === true
+      ? { evaluated: 0, allows: [], denies: [], skipped: [] }
+      : undefined;
+  const done = (decision: Decision): Decision =>
+    freezeDeep(
+      tracer === undefined
+        ? decision
+        : {
+            ...decision,
+            trace: {
+              evaluated: tracer.evaluated,
+              allows: tracer.allows,
+              denies: tracer.denies,
+              skipped: tracer.skipped,
+            },
+          },
+    );
+  const skip = (grant: SnapshotGrant, why: TraceSkipReason): void => {
+    tracer?.skipped.push({
+      role: grant.role,
+      permission: grant.permission,
+      effect: grant.effect,
+      why,
+    });
+  };
   if (!coveredByInclude(snapshot, permission)) {
-    return freezeDeep({
+    return done({
       outcome: 'denied',
       denials: [{ role: null, reason: 'opaque-condition' }],
       alternatives: [],
@@ -229,6 +275,9 @@ export function evaluateSnapshot(
   for (const grant of snapshot.grants) {
     if (grant.permission !== permission.key) {
       continue;
+    }
+    if (tracer !== undefined) {
+      tracer.evaluated += 1;
     }
     const match = matchGrantee(
       grant.to,
@@ -269,9 +318,11 @@ export function evaluateSnapshot(
     }
     if (grant.effect === 'deny' && grant.portable === false) {
       if (!grantCoversField(grant.fields, options.field, grant.effect)) {
+        skip(grant, 'field');
         continue;
       }
-      return freezeDeep({
+      tracer?.denies.push(matchedOf(grant));
+      return done({
         outcome: 'denied',
         denials: [{ role: grant.role, reason: 'opaque-condition' }],
         alternatives: [],
@@ -292,7 +343,8 @@ export function evaluateSnapshot(
       condition.reason === 'opaque-condition' &&
       grantCoversField(grant.fields, options.field, grant.effect)
     ) {
-      return freezeDeep({
+      tracer?.denies.push(matchedOf(grant));
+      return done({
         outcome: 'denied',
         denials: [{ role: grant.role, reason: 'opaque-condition' }],
         alternatives: [],
@@ -306,15 +358,18 @@ export function evaluateSnapshot(
       continue;
     }
     if (!grantCoversField(grant.fields, options.field, grant.effect)) {
+      skip(grant, 'field');
       continue;
     }
     if (grant.effect === 'deny') {
-      return freezeDeep({
+      tracer?.denies.push(matchedOf(grant));
+      return done({
         outcome: 'denied',
         denials: [{ role: grant.role, reason: 'deny' }],
         alternatives: [],
       });
     }
+    tracer?.allows.push(matchedOf(grant));
     allows.push(grant);
   }
   const [matched] = allows;
@@ -328,7 +383,7 @@ export function evaluateSnapshot(
         });
       }
     }
-    return freezeDeep({
+    return done({
       outcome: 'denied',
       denials:
         denials.length > 0
@@ -349,7 +404,7 @@ export function evaluateSnapshot(
     subject.actor !== undefined,
   );
   if (miss !== undefined) {
-    return freezeDeep({
+    return done({
       outcome: 'denied',
       denials: [{ role: null, reason: miss }],
       alternatives: [],
@@ -367,23 +422,16 @@ export function evaluateSnapshot(
         ? payloadDigest(next ?? current)
         : undefined,
   });
-  const grant = compact<MatchedGrant>({
-    role: matched.role,
-    permission: permission.key,
-    to: matched.to,
-    where: matched.where,
-    check: matched.check,
-    approval: matched.approval,
-  });
+  const grant = matchedOf(matched);
   if (requiresApproval(matched.approval)) {
-    return freezeDeep({
+    return done({
       outcome: 'approval-required',
       grant,
       reason: 'human',
       token,
     });
   }
-  return freezeDeep({
+  return done({
     outcome: 'granted',
     subject,
     matched: grant,

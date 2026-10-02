@@ -27,11 +27,15 @@ export type {
   Denial,
   DenialReason,
   DeniedDecision,
+  ExplainedDecision,
   GrantedDecision,
   LimitDetail,
   MatchedGrant,
   Obligation,
   Quota,
+  Trace,
+  TraceSkip,
+  TraceSkipReason,
 } from './core/decision.ts';
 export type { WireDecision, WireDenial } from './core/wire-denial.ts';
 export {

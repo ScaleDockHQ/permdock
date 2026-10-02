@@ -316,6 +316,7 @@ function instrumented(
     can: timed(permdock.can) as PermDock['can'],
     decide: timed(permdock.decide) as PermDock['decide'],
     assert: timed(permdock.assert) as PermDock['assert'],
+    explain: timed(permdock.explain) as PermDock['explain'],
     filter: timed(permdock.filter) as PermDock['filter'],
     pick: timed(permdock.pick) as PermDock['pick'],
     actions: timed(permdock.actions),

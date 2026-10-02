@@ -1,5 +1,5 @@
 import type { Condition } from '../conditions/ast.ts';
-import type { Decision } from '../core/decision.ts';
+import type { Decision, ExplainedDecision } from '../core/decision.ts';
 import type { DecisionProvider } from '../core/interfaces.ts';
 import type {
   CreatePermDockOptions,
@@ -177,6 +177,27 @@ function wrap(
     }
   };
 
+  /** The local trace; a remote decision evaluated no local grant, so its trace is empty. */
+  const explain = async (
+    permission: Permission,
+    data?: unknown,
+    options?: Omit<DecideOptions, 'explain'>,
+  ): Promise<ExplainedDecision> => {
+    const decision = await decide(permission, data, {
+      ...options,
+      source: options?.source ?? 'explain',
+      explain: true,
+    });
+    if (decision.trace !== undefined) {
+      // SAFETY: the trace is present, so the decision is an ExplainedDecision.
+      return decision as ExplainedDecision;
+    }
+    return freezeDeep({
+      ...decision,
+      trace: { evaluated: 0, allows: [], denies: [], skipped: [] },
+    });
+  };
+
   const permittedIds = async (
     provider: DecisionProvider | undefined,
     permission: Permission,
@@ -301,6 +322,7 @@ function wrap(
     can,
     decide,
     assert,
+    explain,
     async filter<T>(
       permission: Permission<string, T, 'instance'>,
       rows: readonly T[],

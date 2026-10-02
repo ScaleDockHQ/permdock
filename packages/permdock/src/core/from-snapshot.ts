@@ -1,4 +1,4 @@
-import type { Decision } from './decision.ts';
+import type { Decision, ExplainedDecision } from './decision.ts';
 import type { Snapshot, SnapshotAssignable } from './interfaces.ts';
 import type { DecideOptions, PermDock } from './permdock.ts';
 import type { Permission } from './permissions.ts';
@@ -113,10 +113,23 @@ export function fromSnapshot(
     });
   }) as PermDock['assert'];
 
+  // SAFETY: one implementation serves every PermDock['explain'] overload; evaluateSnapshot attaches a trace with explain: true.
+  const explain = ((
+    permission: Permission,
+    data?: unknown,
+    decideOptions?: Omit<DecideOptions, 'explain'>,
+  ): ExplainedDecision =>
+    run(permission, data, {
+      ...decideOptions,
+      source: decideOptions?.source ?? 'explain',
+      explain: true,
+    }) as ExplainedDecision) as PermDock['explain'];
+
   const instance: PermDock = {
     can,
     decide,
     assert,
+    explain,
     permissions: {},
     roles: snapshot.vocabulary?.roles ?? {},
     plans: snapshot.vocabulary?.plans ?? {},

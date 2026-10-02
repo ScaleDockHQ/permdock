@@ -6,6 +6,9 @@ import type {
   GrantedDecision,
   MatchedGrant,
   Obligation,
+  Trace,
+  TraceSkip,
+  TraceSkipReason,
 } from './decision.ts';
 import type { AuthEvent, DecisionEvent, RoleSource } from './interfaces.ts';
 import type { DecideOptions, RowPair } from './permdock.ts';
@@ -341,6 +344,7 @@ function shouldConsumeQuota(
     case 'can':
     case 'filter':
     case 'simulate':
+    case 'explain':
       return false;
     case 'decide':
     case 'assert':
@@ -372,6 +376,59 @@ function isDelegatedPermission(
   return false;
 }
 
+/** The `MatchedGrant` view of a grant, shared by `matched` and the trace. */
+function matchedOf(
+  grant: Grant,
+  permissionKey: string,
+  breakGlass?: true,
+): MatchedGrant {
+  return compact<MatchedGrant>({
+    role: grant.role,
+    permission: permissionKey,
+    name: grant.name,
+    to: grant.to,
+    where: grant.where,
+    check: grant.check,
+    approval: grant.approval,
+    hosted: grant.hosted,
+    breakGlass,
+  });
+}
+
+/**
+ * Collects the trace for `explain`. Absent (undefined) on a plain `decide`,
+ * so a check without `explain` allocates nothing for it.
+ */
+type Tracer = {
+  evaluated: number;
+  readonly allows: MatchedGrant[];
+  readonly denies: MatchedGrant[];
+  readonly skipped: TraceSkip[];
+};
+
+function skip(
+  tracer: Tracer | undefined,
+  grant: Grant,
+  permissionKey: string,
+  why: TraceSkipReason,
+): void {
+  tracer?.skipped.push({
+    role: grant.role,
+    permission: permissionKey,
+    effect: grant.effect,
+    why,
+  });
+}
+
+function traceOf(tracer: Tracer): Trace {
+  return {
+    evaluated: tracer.evaluated,
+    allows: tracer.allows,
+    denies: tracer.denies,
+    skipped: tracer.skipped,
+  };
+}
+
 export function evaluate(
   policy: Policy,
   subject: Subject,
@@ -385,6 +442,27 @@ export function evaluate(
   const resource = getResource(policy.permissions, permission.resource);
   let current: unknown = data;
   let next: unknown = data;
+  const tracer: Tracer | undefined =
+    options.explain === true
+      ? { evaluated: 0, allows: [], denies: [], skipped: [] }
+      : undefined;
+  const complete = (decision: Decision, membership?: Membership): Decision => {
+    const final: Decision = freezeDeep(
+      tracer === undefined ? decision : { ...decision, trace: traceOf(tracer) },
+    );
+    finish(
+      policy,
+      subject,
+      permission,
+      current,
+      final,
+      options,
+      env,
+      trusted,
+      membership,
+    );
+    return final;
+  };
   if (permission.kind === 'instance' && isRowPair(data)) {
     current = data.current;
     next = data.next;
@@ -428,28 +506,17 @@ export function evaluate(
       error instanceof PermDockValidationError &&
       error.code === 'invalid-data'
     ) {
-      const decision: Decision = freezeDeep({
+      return complete({
         outcome: 'denied',
         denials: [{ role: null, reason: 'validation', detail: error }],
         alternatives: [],
       });
-      finish(
-        policy,
-        subject,
-        permission,
-        current,
-        decision,
-        options,
-        env,
-        trusted,
-      );
-      return decision;
     }
     throw error;
   }
 
   if (isDelegatedPermission(policy, permission)) {
-    const decision: Decision = freezeDeep({
+    return complete({
       outcome: 'denied',
       denials: [
         {
@@ -460,17 +527,6 @@ export function evaluate(
       ],
       alternatives: [],
     });
-    finish(
-      policy,
-      subject,
-      permission,
-      current,
-      decision,
-      options,
-      env,
-      trusted,
-    );
-    return decision;
   }
 
   const scopes = scopeList(policy.scopes);
@@ -532,22 +588,11 @@ export function evaluate(
         inTeam(membership, scopes, env.team),
     )
   ) {
-    const decision: Decision = freezeDeep({
+    return complete({
       outcome: 'denied',
       denials: [{ role: null, reason: 'actor-required' }],
       alternatives: [],
     });
-    finish(
-      policy,
-      subject,
-      permission,
-      current,
-      decision,
-      options,
-      env,
-      trusted,
-    );
-    return decision;
   }
 
   const purposes = purposesOf(subject);
@@ -577,11 +622,16 @@ export function evaluate(
     ) {
       continue;
     }
+    if (tracer !== undefined) {
+      tracer.evaluated += 1;
+    }
     if (!matchGrantee(grant.to, subject, now, resource, scopes).matched) {
+      skip(tracer, grant, permission.key, 'grantee');
       continue;
     }
     const result = evaluateBreakGlass(grant.breakGlass, subject, now);
     if (result.kind === 'inactive') {
+      skip(tracer, grant, permission.key, 'break-glass-inactive');
       continue;
     }
     for (const name of grant.breakGlass.overrides) {
@@ -626,6 +676,9 @@ export function evaluate(
 
   for (const { grant, custom } of candidates) {
     const displayRole = grant.role;
+    if (tracer !== undefined) {
+      tracer.evaluated += 1;
+    }
     if (
       grant.viaOnly !== undefined &&
       !(subject.principal?.memberships ?? []).some(
@@ -635,6 +688,7 @@ export function evaluate(
           inTeam(membership, scopes, env.team),
       )
     ) {
+      skip(tracer, grant, permission.key, 'via-only');
       continue;
     }
     const required = grant.purpose;
@@ -642,6 +696,7 @@ export function evaluate(
       required !== undefined &&
       !purposes.some((purpose) => required.includes(purpose))
     ) {
+      skip(tracer, grant, permission.key, 'purpose');
       continue;
     }
     // A deny whose grantee kind is unknown applies to everyone: unknown denies.
@@ -668,6 +723,7 @@ export function evaluate(
               : holdsCustom(custom)),
         )
       ) {
+        skip(tracer, grant, permission.key, 'grantee');
         continue;
       }
       denials.push(
@@ -698,6 +754,7 @@ export function evaluate(
               : matchingRoles.has(roleItem.role)
             : holdsCustom(custom);
         if (!held) {
+          skip(tracer, grant, permission.key, 'role');
           allHeld = false;
           break;
         }
@@ -774,7 +831,8 @@ export function evaluate(
           env.listeners,
         );
       }
-      const decision: Decision = freezeDeep({
+      tracer?.denies.push(matchedOf(merged, permission.key));
+      return complete({
         outcome: 'denied',
         denials: [
           {
@@ -784,17 +842,6 @@ export function evaluate(
         ],
         alternatives: [],
       });
-      finish(
-        policy,
-        subject,
-        permission,
-        current,
-        decision,
-        options,
-        env,
-        trusted,
-      );
-      return decision;
     }
     if (!condition.matched) {
       if (condition.reason === 'closure-error') {
@@ -812,53 +859,42 @@ export function evaluate(
       continue;
     }
     if (!grantCoversField(grant.fields, options.field, grant.effect)) {
+      skip(tracer, grant, permission.key, 'field');
       continue;
     }
     if (grant.effect === 'deny') {
+      tracer?.denies.push(matchedOf(merged, permission.key));
       if (grant.name !== undefined && breakGlassOverrides.has(grant.name)) {
         if (breakGlassGrant !== undefined) {
           continue;
         }
         if (breakGlassDenial !== undefined) {
-          const decision: Decision = freezeDeep({
+          return complete({
             outcome: 'denied',
             denials: [breakGlassDenial],
             alternatives: env.skipAlternatives
               ? []
               : alternativesFor(policy, permission, subject, now, env),
           });
-          finish(
-            policy,
-            subject,
-            permission,
-            current,
-            decision,
-            options,
-            env,
-            trusted,
-          );
-          return decision;
         }
       }
-      const decision: Decision = freezeDeep({
+      return complete({
         outcome: 'denied',
-        denials: [{ role: displayRole, reason: 'deny' }],
+        denials: [
+          grant.name === undefined
+            ? { role: displayRole, reason: 'deny' }
+            : {
+                role: displayRole,
+                reason: 'deny',
+                detail: { name: grant.name },
+              },
+        ],
         alternatives: env.skipAlternatives
           ? []
           : alternativesFor(policy, permission, subject, now, env),
       });
-      finish(
-        policy,
-        subject,
-        permission,
-        current,
-        decision,
-        options,
-        env,
-        trusted,
-      );
-      return decision;
     }
+    tracer?.allows.push(matchedOf(merged, permission.key));
     allows.push(
       scopeMembership === undefined
         ? { grant: merged }
@@ -867,6 +903,7 @@ export function evaluate(
   }
 
   if (breakGlassGrant !== undefined) {
+    tracer?.allows.push(matchedOf(breakGlassGrant, permission.key, true));
     allows.push({
       grant: breakGlassGrant,
       obligations: breakGlassObligations,
@@ -884,43 +921,21 @@ export function evaluate(
         : globalNames.unknown.length > 0 && globalNames.roles.length === 0
           ? 'unknown-role'
           : 'no-grant');
-    const decision: Decision = freezeDeep({
+    return complete({
       outcome: 'denied',
       denials: denials.length > 0 ? denials : [{ role: null, reason }],
       alternatives: env.skipAlternatives
         ? []
         : alternativesFor(policy, permission, subject, now, env),
     });
-    finish(
-      policy,
-      subject,
-      permission,
-      current,
-      decision,
-      options,
-      env,
-      trusted,
-    );
-    return decision;
   }
 
   if (subject.stale === true && (policy.fresh ?? []).includes(permission.key)) {
-    const decision: Decision = freezeDeep({
+    return complete({
       outcome: 'denied',
       denials: [{ role: null, reason: 'stale-credentials' }],
       alternatives: [],
     });
-    finish(
-      policy,
-      subject,
-      permission,
-      current,
-      decision,
-      options,
-      env,
-      trusted,
-    );
-    return decision;
   }
 
   const delegationMiss = coveredByDelegation(
@@ -930,24 +945,13 @@ export function evaluate(
     subject.actor !== undefined,
   );
   if (delegationMiss !== undefined) {
-    const decision: Decision = freezeDeep({
+    return complete({
       outcome: 'denied',
       denials: [{ role: null, reason: delegationMiss }],
       alternatives: env.skipAlternatives
         ? []
         : alternativesFor(policy, permission, subject, now, env),
     });
-    finish(
-      policy,
-      subject,
-      permission,
-      current,
-      decision,
-      options,
-      env,
-      trusted,
-    );
-    return decision;
   }
 
   const quotaDenials: Denial[] = [];
@@ -982,24 +986,13 @@ export function evaluate(
     );
   }
   if (matchedAllow === undefined) {
-    const decision: Decision = freezeDeep({
+    return complete({
       outcome: 'denied',
       denials: quotaDenials.length > 0 ? quotaDenials : denials,
       alternatives: env.skipAlternatives
         ? []
         : alternativesFor(policy, permission, subject, now, env),
     });
-    finish(
-      policy,
-      subject,
-      permission,
-      current,
-      decision,
-      options,
-      env,
-      trusted,
-    );
-    return decision;
   }
 
   // SAFETY: current is a non-null object checked in the condition; the read value stays unknown.
@@ -1033,45 +1026,31 @@ export function evaluate(
             ? payloadDigest(next ?? current)
             : undefined,
       });
-  const matched = compact<MatchedGrant>({
-    role: matchedAllow.grant.role,
-    permission: permission.key,
-    to: matchedAllow.grant.to,
-    where: matchedAllow.grant.where,
-    check: matchedAllow.grant.check,
-    approval: matchedAllow.grant.approval,
-    hosted: matchedAllow.grant.hosted,
-    breakGlass: matchedAllow.breakGlass,
-  });
+  const matched = matchedOf(
+    matchedAllow.grant,
+    permission.key,
+    matchedAllow.breakGlass,
+  );
   const obligations = [
     ...(quotaState.obligations ?? []),
     ...(matchedAllow.obligations ?? []),
   ];
-  const decision: Decision = requiresApproval(matchedAllow.grant.approval)
-    ? freezeDeep({
-        outcome: 'approval-required',
-        grant: matched,
-        reason: 'human',
-        token,
-      })
-    : freezeDeep({
-        outcome: 'granted',
-        subject,
-        matched,
-        token,
-        ...quotaState,
-        ...(obligations.length === 0 ? {} : { obligations }),
-      });
-  finish(
-    policy,
-    subject,
-    permission,
-    current,
-    decision,
-    options,
-    env,
-    trusted,
+  return complete(
+    requiresApproval(matchedAllow.grant.approval)
+      ? {
+          outcome: 'approval-required',
+          grant: matched,
+          reason: 'human',
+          token,
+        }
+      : {
+          outcome: 'granted',
+          subject,
+          matched,
+          token,
+          ...quotaState,
+          ...(obligations.length === 0 ? {} : { obligations }),
+        },
     matchedAllow.membership,
   );
-  return decision;
 }

@@ -505,7 +505,8 @@ export type DecisionEvent = {
     | 'endpoint'
     | 'adapter'
     | 'approval'
-    | 'simulate';
+    | 'simulate'
+    | 'explain';
   readonly adapter?: string;
   readonly phase?: 'requested' | 'resolved';
   readonly counts?: {

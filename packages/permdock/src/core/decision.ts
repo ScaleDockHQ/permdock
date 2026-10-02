@@ -57,6 +57,8 @@ export type Denial = {
 export type MatchedGrant = {
   readonly role: string | null;
   readonly permission: string;
+  /** The grant's declared `name`, when it has one. */
+  readonly name?: string;
   readonly to?: Grantee | readonly Grantee[];
   readonly where?: Grant['where'];
   readonly check?: Grant['check'];
@@ -94,6 +96,43 @@ export type LimitDetail = {
   readonly resetsAt: number;
 };
 
+/**
+ * Why a candidate grant for the permission was passed over before its
+ * condition ran: `via-only` (the subject holds no membership of its kind),
+ * `purpose` (no asserted purpose it lists), `field` (its `fields` do not
+ * cover the requested field), `grantee` (its `to` did not match and added no
+ * denial), `role` (a role it names is not held), `break-glass-inactive` (a
+ * break-glass grant with no asserted purpose).
+ */
+export type TraceSkipReason =
+  | 'via-only'
+  | 'purpose'
+  | 'field'
+  | 'grantee'
+  | 'role'
+  | 'break-glass-inactive';
+
+export type TraceSkip = {
+  readonly role: string | null;
+  readonly permission: string;
+  readonly effect: 'allow' | 'deny';
+  readonly why: TraceSkipReason;
+};
+
+/**
+ * What `explain` saw: how many candidate grants it examined before the
+ * outcome, which allows matched (including the ones a deny overrode), which
+ * denies matched, and which grants it passed over. `denies[0]` is the deny
+ * that produced a `deny` outcome, or the deny a break-glass grant lifted.
+ * Pure local computation; never on a decision event.
+ */
+export type Trace = {
+  readonly evaluated: number;
+  readonly allows: readonly MatchedGrant[];
+  readonly denies: readonly MatchedGrant[];
+  readonly skipped: readonly TraceSkip[];
+};
+
 export type GrantedDecision = {
   readonly outcome: 'granted';
   readonly subject: Subject;
@@ -107,12 +146,16 @@ export type GrantedDecision = {
    * `decide` never writes memberships.
    */
   readonly elevation?: Membership;
+  /** Present only with `explain: true`. */
+  readonly trace?: Trace;
 };
 
 export type DeniedDecision = {
   readonly outcome: 'denied';
   readonly denials: readonly Denial[];
   readonly alternatives: readonly Permission[];
+  /** Present only with `explain: true`. */
+  readonly trace?: Trace;
 };
 
 export type ApprovalRequiredDecision = {
@@ -120,7 +163,12 @@ export type ApprovalRequiredDecision = {
   readonly grant: MatchedGrant;
   readonly reason: 'human';
   readonly token: string;
+  /** Present only with `explain: true`. */
+  readonly trace?: Trace;
 };
+
+/** A decision from `explain`: the same union, with the trace always present. */
+export type ExplainedDecision = Decision & { readonly trace: Trace };
 
 export type Decision =
   | GrantedDecision

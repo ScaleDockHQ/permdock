@@ -1,5 +1,5 @@
 import type { ArazzoPlan, ArazzoSimulateInput } from '../core/arazzo.ts';
-import type { Decision } from '../core/decision.ts';
+import type { Decision, ExplainedDecision } from '../core/decision.ts';
 import type {
   CreatePermDockOptions,
   DecideOptions,
@@ -110,6 +110,7 @@ export type PdpPermDock = Omit<
   | 'can'
   | 'decide'
   | 'assert'
+  | 'explain'
   | 'filter'
   | 'where'
   | 'simulate'
@@ -137,6 +138,12 @@ export type PdpPermDock = Omit<
     data?: unknown,
     options?: DecideOptions,
   ) => Promise<Extract<Decision, { readonly outcome: 'granted' }>>;
+  /** `decide` with a trace of the local grants; a decision the remote PDP made carries an empty trace. */
+  readonly explain: (
+    permission: Permission,
+    data?: unknown,
+    options?: Omit<DecideOptions, 'explain'>,
+  ) => Promise<ExplainedDecision>;
   readonly filter: <T>(
     permission: Permission<string, T, 'instance'>,
     rows: readonly T[],

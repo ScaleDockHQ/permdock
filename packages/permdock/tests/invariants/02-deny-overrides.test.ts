@@ -78,6 +78,32 @@ describe('invariant 2: deny overrides allow', () => {
     }
   });
 
+  it('names the deny that won over the allows in explain', async () => {
+    const policy = definePolicy(permissions, {
+      roles: [
+        role('owner', [allow(permissions.doc.update)]),
+        role('editor', [allow(permissions.doc.update)]),
+        role('suspended', [
+          deny(permissions.doc.update, { name: 'suspension' }),
+        ]),
+      ],
+      subject,
+    });
+    const permdock = await createPermDock(policy, {
+      id: 'u1',
+      roles: ['owner', 'editor', 'suspended'],
+    });
+    const explained = permdock.explain(permissions.doc.update, open);
+    expect(explained.outcome).toBe('denied');
+    expect(explained.trace.denies.map((grant) => grant.name)).toEqual([
+      'suspension',
+    ]);
+    expect(explained.trace.allows.map((grant) => grant.role)).toEqual([
+      'owner',
+      'editor',
+    ]);
+  });
+
   it('lets a deny override an allow that needs approval', async () => {
     const policy = definePolicy(permissions, {
       roles: [

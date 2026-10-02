@@ -1,4 +1,4 @@
-import type { Decision } from './decision.ts';
+import type { Decision, ExplainedDecision } from './decision.ts';
 import type { GranteeMatch } from './grantee.ts';
 import type {
   AuthEvent,
@@ -675,6 +675,20 @@ export function buildInstance(
       envFor(options?.source !== 'simulate', options?.source === 'can'),
     );
 
+  const explainImpl = (
+    permission: Permission,
+    data?: unknown,
+    options?: Omit<DecideOptions, 'explain'>,
+  ): ExplainedDecision => {
+    const decision = decideImpl(permission, data, {
+      ...options,
+      source: options?.source ?? 'explain',
+      explain: true,
+    });
+    // SAFETY: evaluate attaches a trace to every decision made with explain: true.
+    return decision as ExplainedDecision;
+  };
+
   const canImpl = (
     permission: Permission,
     data?: unknown,
@@ -755,11 +769,12 @@ export function buildInstance(
     });
   };
 
-  // SAFETY: canImpl, decideImpl and assertImpl each implement every overload of their member.
+  // SAFETY: canImpl, decideImpl, assertImpl and explainImpl each implement every overload of their member.
   const instance: PermDock = {
     can: canImpl as PermDock['can'],
     decide: decideImpl as PermDock['decide'],
     assert: assertImpl as PermDock['assert'],
+    explain: explainImpl as PermDock['explain'],
     permissions: policy.permissions,
     roles: policy.vocabulary?.roles ?? {},
     plans: policy.vocabulary?.plans ?? {},

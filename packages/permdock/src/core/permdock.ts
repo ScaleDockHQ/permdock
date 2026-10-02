@@ -1,6 +1,6 @@
 import type { Condition } from '../conditions/ast.ts';
 import type { ArazzoPlan, ArazzoSimulateInput } from './arazzo.ts';
-import type { Decision } from './decision.ts';
+import type { Decision, ExplainedDecision } from './decision.ts';
 import type { ActivateInput } from './elevated.ts';
 import type {
   AuthEvent,
@@ -64,6 +64,8 @@ export type DecideOptions = {
   readonly onDenied?: (decision: Decision) => never | void;
   /** The field being read or written; only grants whose `fields` cover it match. */
   readonly field?: string;
+  /** `true` attaches a `trace` to the decision: the grants evaluated, matched and skipped. Off by default and free when off. */
+  readonly explain?: boolean;
 };
 
 export type RowPair<T> = {
@@ -124,6 +126,24 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       data?: unknown,
       options?: DecideOptions,
     ): Extract<Decision, { readonly outcome: 'granted' }>;
+  };
+  /**
+   * `decide` with `explain: true`: the same decision, with a `trace` that
+   * names the grants evaluated, the allows and denies that matched (so a
+   * `denied` says which deny won) and the grants passed over. Local
+   * computation only; the trace never reaches a `DecisionSink`.
+   */
+  readonly explain: {
+    (
+      permission: Permission<string, unknown, 'instance'>,
+      data: unknown,
+      options?: Omit<DecideOptions, 'explain'>,
+    ): ExplainedDecision;
+    (
+      permission: Permission<string, unknown, 'collection'>,
+      data?: unknown,
+      options?: Omit<DecideOptions, 'explain'>,
+    ): ExplainedDecision;
   };
   readonly filter: <T>(
     permission: Permission<string, T, 'instance'>,

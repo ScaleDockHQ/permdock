@@ -113,6 +113,8 @@ Add one check on the path the user asked for:
 
 Done when that path cannot run without a `granted` decision, and a deny or approval-required outcome is handled by the adapter (Problem Details, fallback UI, or the runtime's approval hook).
 
+When a check denies and the reason is not obvious, run `permdock.explain(permission, data)` in a test or a script: `trace.denies[0]` is the deny that won (give denies a `name` so it reads as a rule), `trace.allows` the allows it overrode, `trace.skipped` the grants passed over and why ([decisions](https://permdock.dev/docs/concepts/decisions#explain)). The trace never reaches the decision log.
+
 ## 6. Check
 
 Run `permdock collect`, `permdock catalog`, `permdock usage`, `permdock doctor` and `permdock skills install` (the binary ships in the `permdock` package). Add `permdock collect --check` to CI. For a Vite SPA, an Expo app or another framework without `'use client'`, set `doctor.clientEntries` to the client source globs so PD001 checks them. When the app already has an OpenAPI document and no definitions yet, start from `permdock openapi import --doc <doc> --out src/permissions.generated.ts --schema zod` and review each action's `meta.inferredFrom`. When the repo has Arazzo workflows, also run `permdock arazzo check --doc <arazzo> --openapi <doc>`. When the app uses PermDock Cloud, add `permdock cloud push` to the deploy step after the deploy, with `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` from CI secrets. Read current adapter pages through the public docs MCP (`https://permdock.dev/mcp`, tools `search_docs` and `get_page`) instead of guessing identifiers.

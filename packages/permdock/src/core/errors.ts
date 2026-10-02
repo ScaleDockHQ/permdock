@@ -182,14 +182,32 @@ export class PermDockValidationError extends Error {
   }
 }
 
+/** The `name` of the deny grant a `deny` denial carries in `detail`, if any. */
+function denyName(detail: unknown): string | undefined {
+  if (detail === null || typeof detail !== 'object' || !('name' in detail)) {
+    return undefined;
+  }
+  return typeof detail.name === 'string' ? detail.name : undefined;
+}
+
 export function deniedMessage(
   permission: string,
   subjectId: string | undefined,
-  denials: readonly { readonly role: string | null; readonly reason: string }[],
+  denials: readonly {
+    readonly role: string | null;
+    readonly reason: string;
+    readonly detail?: unknown;
+  }[],
   alternatives: readonly string[],
 ): string {
   const clauses = denials
-    .map((denial) => `${denial.role ?? 'none'} (${denial.reason})`)
+    .map((denial) => {
+      const name =
+        denial.reason === 'deny' ? denyName(denial.detail) : undefined;
+      return name === undefined
+        ? `${denial.role ?? 'none'} (${denial.reason})`
+        : `${denial.role ?? 'none'} (${denial.reason} '${name}')`;
+    })
     .join(', ');
   const alt =
     alternatives.length === 0

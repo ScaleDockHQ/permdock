@@ -10,7 +10,7 @@ description: decide returns a discriminated Decision with three outcomes, matche
 ```ts
 type Decision =
   | { outcome: 'granted';           subject: Subject; matched: Grant; token: string; quota?: Quota; obligations?: Obligation[] }
-  | { outcome: 'denied';            denials: Array<{ role: string | null; reason: string }>; alternatives: Permission[] }
+  | { outcome: 'denied';            denials: Array<{ role: string | null; reason: string; detail?: unknown }>; alternatives: Permission[] }
   | { outcome: 'approval-required'; grant: Grant; reason: string; token: string }
 ```
 
@@ -87,7 +87,9 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 | `exceeds-creator` | `decideCredential` only: the key would hold more than its creator may hand out (a role or permission outside the creator's `assignableRoles` / `assignablePermissions`, a tenant the creator is not in, a permission outside the creator's delegation), or the creator is a link or a credential; `detail` names the role, permission, tenant or creator ([API keys](/docs/concepts/credentials)) |
 | `credential-policy` | `decideCredential` only: the tenant's `credentials` settings refuse the key; `detail.rule` is `kind`, `no-expiry`, `ttl` or `unavailable` (the settings source threw) |
 
-This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant.
+This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant; [`explain`](#explain) adds which grant decided it.
+
+A `deny` denial from a grant with a `name` carries `detail: { name }`, so `PermDockDeniedError.message` reads `editor (deny 'lock')` and an agent refusal names the rule.
 
 ### alternatives
 
@@ -144,6 +146,36 @@ const { subject } = permdock.assert(permissions.post.delete, post)
 
 All layers run even if an earlier one throws, so audit hooks still fire when a Next.js handler calls `redirect()`. If nothing throws, `assert` throws `PermDockDeniedError` or `PermDockApprovalRequiredError` itself. The layering is borrowed from Kilpi's `.assert(handler?)` ([landscape](/docs/research/landscape)); it lets the Next.js adapter redirect and the HTTP adapters emit Problem Details from one place. Error classes are documented under [errors](/docs/concepts/errors).
 
+## explain
+
+```ts
+const explained = permdock.explain(permissions.doc.update, doc)
+// {
+//   outcome: 'denied',
+//   denials: [{ role: 'editor', reason: 'deny', detail: { name: 'lock' } }],
+//   alternatives: [...],
+//   trace: {
+//     evaluated: 3,
+//     allows: [{ role: 'editor', permission: 'doc.update' }],
+//     denies: [{ role: 'editor', permission: 'doc.update', name: 'lock', where: {...} }],
+//     skipped: [{ role: 'viewer', permission: 'doc.update', effect: 'allow', why: 'role' }],
+//   },
+// }
+```
+
+`explain` is `decide` with `explain: true`: the same `Decision`, plus a `trace`. `denials` says why each consulted role did not grant; `trace` says which grants produced the outcome.
+
+| Field | Meaning |
+| --- | --- |
+| `evaluated` | How many candidate grants for the permission were examined before the outcome was reached. A deny returns at once, so grants after it are not counted |
+| `allows` | Every allow that matched, as a `MatchedGrant`, in policy order. On `denied` with reason `deny` these are the allows the deny overrode; on `granted` the first one is `matched` |
+| `denies` | Every deny that matched. `denies[0]` is the deny that produced a `deny` outcome, or the deny a [break-glass](/docs/concepts/elevated-access) grant lifted when the outcome is `granted` |
+| `skipped` | Grants passed over before their condition ran, each with `why`: `role` (a role it names is not held), `grantee` (its `to` did not match and added no denial), `via-only`, `purpose`, `field`, or `break-glass-inactive` |
+
+A grant that ran its condition and did not match is in `denials`, not in `skipped`. Give a deny a `name` (`deny(permission, { name: 'lock' })`) and `denies[0].name` says which rule won; `MatchedGrant.name` carries it on `matched` and `grant` too.
+
+The trace is computed in process from the policy and the subject, with no store or network, and costs nothing when `explain` is off: `decide` allocates no trace. It never reaches a `DecisionSink`, Problem Details or an AuthZEN response; a decision log records the outcome and the denials, and `explain` is the tool you run against the same policy and subject to see how it got there. `explain` consumes no quota, like `simulate`; its event has `source: 'explain'`. A [snapshot](/docs/concepts/snapshots) client (`fromSnapshot`) explains over the snapshot's grants; a [remote PDP](/docs/adapters/pdp) decision carries an empty trace, because no local grant was evaluated. In `permdock/testing`, a matrix cell's `deniedBy` asserts `denies[0].name`.
+
 ## simulate
 
 ```ts
@@ -174,3 +206,8 @@ Each adapter page documents its exact translation; the [wire formats](/docs/conc
 - A `Decision` is a frozen plain object. It can be cached by the client keyed on permission key plus resource id, serialised to the decision endpoint response, or stored with an audit record.
 - `decide` never throws and never awaits: the policy is data, `context` was loaded at `createPermDock`, and a thenable from a closure is a `closure-error` denial reported to `on('error')`.
 - `can` is `decide(...).outcome === 'granted'` with `alternatives` skipped.
+
+## Why
+
+- **Three outcomes, closed reasons.** A fourth outcome (`not-applicable`) is how a fail-open bug enters a policy engine; a permission with no grant is `denied`. Reasons are a closed list so adapters, Problem Details and agent refusals can map them without parsing text.
+- **`explain` is a method, with the trace off by default.** `decide` was first documented as enough on its own: `denials` names every consulted role and `describe(decision)` turns it into prose, so `explain` was a reserved word. That left one question unanswered: which deny won, and which allows it overrode, when several roles carry grants for the same permission. Putting that on every `Decision` would cost every `can` an allocation and would push grant internals into the decision log, so the trace is opt-in (`explain: true`, or `explain`), computed in process, and never emitted. The name follows what every other engine calls it.

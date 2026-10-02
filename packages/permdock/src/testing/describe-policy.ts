@@ -22,6 +22,8 @@ export type MatrixCell =
       readonly alternatives?: readonly string[];
       /** Obligation kinds a granted decision carries, in order; `[]` asserts none. */
       readonly obligations?: readonly string[];
+      /** The `name` of the deny grant `explain` reports as the one that won. */
+      readonly deniedBy?: string;
     };
 
 export type DescribePolicyConfig<TSubject> = {
@@ -50,8 +52,25 @@ function isOutcomeCell(value: unknown): value is MatrixCell {
       ('denials' in value ||
         'outcome' in value ||
         'alternatives' in value ||
-        'obligations' in value))
+        'obligations' in value ||
+        'deniedBy' in value))
   );
+}
+
+/** Asserts `deniedBy` against the trace of a fresh `explain` call for the same arguments. */
+function assertDeniedBy(
+  instance: Awaited<ReturnType<typeof createPermDock>>,
+  permission: unknown,
+  data: unknown,
+  cell: MatrixCell,
+): void {
+  if (typeof cell !== 'object' || cell.deniedBy === undefined) {
+    return;
+  }
+  // SAFETY: permission is a leaf of the policy under test; explain() accepts any row at runtime.
+  const explained = instance.explain(permission as never, data as never);
+  expect(explained.outcome).toBe('denied');
+  expect(explained.trace.denies[0]?.name).toBe(cell.deniedBy);
 }
 
 function expectedOutcome(cell: MatrixCell): MatrixOutcome {
@@ -174,6 +193,7 @@ export function describePolicy<TSubject>(
                 instance.decide(permission as never, data as never),
                 cell,
               );
+              assertDeniedBy(instance, permission, data, cell);
               if (config.snapshot === true) {
                 assertSnapshotCell(instance, permission, data, cell);
               }
@@ -200,6 +220,8 @@ export function describePolicy<TSubject>(
                 instance.decide(permission as never, fixture as never),
                 cell as MatrixCell,
               );
+              // SAFETY: cell sits in a nested fixture row of the matrix, so it is a MatrixCell.
+              assertDeniedBy(instance, permission, fixture, cell as MatrixCell);
               if (config.snapshot === true) {
                 // SAFETY: cell sits in a nested fixture row of the matrix, so it is a MatrixCell.
                 assertSnapshotCell(
